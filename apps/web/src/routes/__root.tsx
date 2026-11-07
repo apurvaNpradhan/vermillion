@@ -10,6 +10,7 @@ import { ToastProvider } from "@workspace/ui/components/toast";
 import { useEffect, type ReactNode } from "react";
 
 import { I18nextProvider, useTranslation } from "@/platform/i18n";
+import { OfflineUpdatePrompt } from "@/platform/offline";
 import type { RouterContext } from "@/platform/router-context";
 import { readStoredTheme, THEME_INIT_SCRIPT, ThemeProvider } from "@/platform/theme";
 import appCss from "@/styles/app.css?url";
@@ -48,6 +49,7 @@ function RootDocument({ children }: { children: ReactNode }) {
             <ThemeProvider initialTheme={theme}>
               <ToastProvider>
                 <LangSync />
+                <OfflineUpdatePrompt />
                 {children}
               </ToastProvider>
             </ThemeProvider>

@@ -10,7 +10,17 @@
       "entry": ["scripts/**/*.{mjs,ts}", "tools/**/*.ts"],
     },
     "apps/web": {
-      "entry": ["src/routes/**/*.{ts,tsx}", "src/routeTree.gen.ts", "e2e/**/*.spec.ts"],
+      "entry": [
+        "src/routes/**/*.{ts,tsx}",
+        "src/routeTree.gen.ts",
+        "e2e/**/*.spec.ts",
+        "e2e-offline/**/*.spec.ts",
+        // Built by vite/offline-shell.ts into the service worker.
+        "sw/sw.ts",
+        // Seams for the phase 6 module hooks (write tracking, opening the local database).
+        "src/platform/offline/index.ts",
+        "src/platform/powersync/index.ts",
+      ],
       // Route exports are consumed by the generated route tree.
       "ignoreIssues": { "src/routes/**": ["exports"] },
       // CSS imports (Tailwind, fonts) are not seen as imports.

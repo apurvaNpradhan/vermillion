@@ -8,6 +8,7 @@
 | Sync seam 3 (real services)          | `tests/sync/src/**/*.test.ts`         | `pnpm test:sync` (Postgres, PowerSync and the API running)  |
 | Repo tooling                         | `scripts/**/*.test.mjs`, `tools/**`   | `pnpm test` (root project)                                  |
 | Browser flows (seam 2)               | `apps/web/e2e/*.spec.ts`              | `pnpm test:e2e`                                             |
+| Offline shell on the built app       | `apps/web/e2e-offline/*.spec.ts`      | `pnpm --filter web test:e2e:offline` (no API or Postgres)   |
 
 Good tests exercise external behaviour through the highest seam and survive refactoring: splitting files or swapping a library behind a seam must not break them. Do not mock our own modules. Test-only environment overrides (`TEST_DATABASE_ADMIN_URL`, `SYNC_INFRA_TEST_ADMIN_URL`, `E2E_DATABASE_URL`, `SYNC_TEST_DATABASE_URL`, `SYNC_TEST_POWERSYNC_URL`, `SYNC_TEST_API_URL`) are read straight from `process.env` in test and Playwright files; that is the one exemption from the `packages/env` rule. Do not assert on internals.
 

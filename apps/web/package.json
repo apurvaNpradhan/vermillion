@@ -7,14 +7,17 @@
     "dev": "vite dev",
     "build": "tsc -b --force ../../packages/i18n && tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/shared && vite build",
     "serve": "vite preview",
-    "typecheck": "tsc -b --force ../../packages/i18n && tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/shared && vite build && tsc --noEmit",
+    "typecheck": "tsc -b --force ../../packages/i18n && tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/shared && vite build && tsc --noEmit && tsc --noEmit -p sw/tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:offline": "playwright test -c playwright.offline.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@marsidev/react-turnstile": "^1.6.3",
+    "@powersync/common": "2.5.0",
+    "@powersync/web": "2.6.0",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "^1.170.44",
@@ -23,6 +26,7 @@
     "@workspace/env": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "@workspace/shared": "workspace:*",
+    "@workspace/sync": "workspace:*",
     "@workspace/ui": "workspace:*",
     "i18next": "^26.7.2",
     "lucide-react": "^1.56.0",

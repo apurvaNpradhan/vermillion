@@ -62,3 +62,4 @@ apps/web/e2e/.artifacts
 
 # Agent worktrees
 .claude/worktrees/
+apps/web/e2e-offline/.artifacts

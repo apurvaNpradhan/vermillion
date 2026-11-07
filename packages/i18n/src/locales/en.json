@@ -184,5 +184,20 @@
   "admin__total_other": "{{count}} users",
   "auth__error_banned": "This account is suspended.",
   "sync__local_reset_title": "Local data was reset",
-  "sync__local_reset_body": "This device could not open its saved data, so it started fresh and is syncing again. Changes that were not sent yet may be lost."
+  "sync__local_reset_body": "This device could not open its saved data, so it started fresh and is syncing again. Changes that were not sent yet may be lost.",
+  "offline__storage_title": "Offline storage is unavailable",
+  "offline__storage_unsupported": "This browser cannot keep data on this device. Use a current version of Chrome, Firefox or Safari.",
+  "offline__storage_denied": "The browser blocked storage for this site. Leave private browsing, allow site data and reload.",
+  "offline__storage_open_failed": "The local database could not be opened. Reload the page. If it keeps failing, free up space on this device.",
+  "offline__storage_reload": "Reload",
+  "offline__update_ready": "A new version of the app is ready.",
+  "offline__update_action": "Update now",
+  "offline__update_waiting": "Updating once your changes are saved…",
+  "offline__update_later": "Later",
+  "diagnostics__title": "Local storage",
+  "diagnostics__loading": "Opening the local database…",
+  "diagnostics__install_id": "Install ID",
+  "diagnostics__persistent": "Persistent storage",
+  "diagnostics__yes": "Granted",
+  "diagnostics__no": "Not granted"
 }

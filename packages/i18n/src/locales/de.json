@@ -184,5 +184,20 @@
   "admin__total_other": "{{count}} Benutzer",
   "auth__error_banned": "Dieses Konto ist gesperrt.",
   "sync__local_reset_title": "Lokale Daten wurden zurückgesetzt",
-  "sync__local_reset_body": "Dieses Gerät konnte seine gespeicherten Daten nicht öffnen, hat neu begonnen und synchronisiert wieder. Noch nicht gesendete Änderungen können verloren gehen."
+  "sync__local_reset_body": "Dieses Gerät konnte seine gespeicherten Daten nicht öffnen, hat neu begonnen und synchronisiert wieder. Noch nicht gesendete Änderungen können verloren gehen.",
+  "offline__storage_title": "Offline-Speicher nicht verfügbar",
+  "offline__storage_unsupported": "Dieser Browser kann keine Daten auf diesem Gerät speichern. Verwende eine aktuelle Version von Chrome, Firefox oder Safari.",
+  "offline__storage_denied": "Der Browser hat den Speicher für diese Website blockiert. Verlasse den privaten Modus, erlaube Websitedaten und lade die Seite neu.",
+  "offline__storage_open_failed": "Die lokale Datenbank konnte nicht geöffnet werden. Lade die Seite neu. Falls das weiter scheitert, schaffe Speicherplatz auf diesem Gerät.",
+  "offline__storage_reload": "Neu laden",
+  "offline__update_ready": "Eine neue Version der App ist bereit.",
+  "offline__update_action": "Jetzt aktualisieren",
+  "offline__update_waiting": "Aktualisierung, sobald deine Änderungen gespeichert sind…",
+  "offline__update_later": "Später",
+  "diagnostics__title": "Lokaler Speicher",
+  "diagnostics__loading": "Lokale Datenbank wird geöffnet…",
+  "diagnostics__install_id": "Installations-ID",
+  "diagnostics__persistent": "Dauerhafter Speicher",
+  "diagnostics__yes": "Gewährt",
+  "diagnostics__no": "Nicht gewährt"
 }
