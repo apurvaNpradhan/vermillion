@@ -60,16 +60,36 @@ Sync infrastructure (PowerSync, phase 2; the sync features themselves are not li
 
 The Worker takes **no** secrets: the web bundle gets public `VITE_*` values at build time only (`VITE_SERVER_URL`, `VITE_TURNSTILE_SITE_KEY`).
 
-### Sync infrastructure (minimal; the full guide is phase 8)
+### Sync infrastructure
 
 1. **Postgres flags.** Set on the Postgres service (Dokploy: Advanced, command arguments): `-c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c max_slot_wal_keep_size=<budget>`. Changing `wal_level` needs a restart. The development value (4GB) is not a production sizing; size it from write rate and outage plus resnapshot time ([ADR 0025](adr/0025-sync-observability.md)).
 2. **Bootstrap job.** After the server image is built and Postgres has the flags, run once per deploy (idempotent) as a one-shot from the same image: `node sync-bootstrap.mjs`, with `DATABASE_URL`, `SYNC_ADMIN_DATABASE_URL` and the two `POWERSYNC_*_PASSWORD` values. It exits non-zero on any preflight failure.
-3. **PowerSync service.** A Dokploy Compose application on the same network: image `journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c`, command `start -r unified`, `powersync/service.yaml` and `powersync/sync-config.yaml` mounted at `/config`, environment as in `docker-compose.yml` (`PS_PORT`, `PS_SSLMODE`, `PS_DATA_SOURCE_URI`, `PS_STORAGE_SOURCE_URI`, `PS_JWKS_URI`, `PS_ADMIN_TOKEN`) with production values (`PS_SSLMODE=verify-full`, or `verify-ca` with a `cacert` added to the connection in `powersync/service.yaml`; PowerSync 1.28.1 has no `require`. `PS_JWKS_URI` the API's internal `/api/auth/jwks`). No host port: the `sync.` subdomain through Traefik arrives with the credentials work ([ADR 0017](adr/0017-sync-credentials-and-transport.md)).
+3. **PowerSync service.** A Dokploy Compose application on the same network: image `journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c`, command `start -r unified`, `powersync/service.yaml` and `powersync/sync-config.yaml` mounted at `/config`, environment as in `docker-compose.yml` (`PS_PORT`, `PS_SSLMODE`, `PS_DATA_SOURCE_URI`, `PS_STORAGE_SOURCE_URI`, `PS_JWKS_URI`, `PS_ADMIN_TOKEN`) with production values (`PS_SSLMODE=verify-full`, or `verify-ca` with a `cacert` added to the connection in `powersync/service.yaml`; PowerSync 1.28.1 has no `require`. `PS_JWKS_URI` the API's internal `/api/auth/jwks`). No host port: expose it only on the `sync.` subdomain (below).
    PowerSync service variables: `PS_PORT` (8080 in the container), `PS_SSLMODE` (`disable` in development, otherwise `verify-full` or `verify-ca`), `PS_DATA_SOURCE_URI` (`postgresql://powersync_replication:<password>@<host>:5432/<app db>`), `PS_STORAGE_SOURCE_URI` (same host, user `powersync_storage`, database `powersync_storage`), `PS_JWKS_URI`, `PS_ADMIN_TOKEN` (a generated secret). <!-- secret-scan:allow -->
 4. **Probes.** PowerSync's `/probes/readiness` is its Dokploy health check. The server keeps `/api/health` (liveness). Point an external monitor at `/api/ready`: it returns 503 when a replication slot is invalidated or its lag reaches the critical threshold. A restart does not fix either, which is why Dokploy does not use it.
-   **External monitor.** Poll `/api/ready` every minute through a route reachable by the monitor (not the public Cloudflare routes unless you accept an unauthenticated status endpoint; the body is only `{"status":"ok"|"degraded"|"unavailable"}`) and alert on any non-200. Also alert on the server log event `action = "sync.alert.slot-lag-critical"` (level `error`, emitted by the 5-minute `sync.slot-lag` job while any slot is critical, so repeated notifications are expected until it recovers). Not covered until phase 8: disk and WAL headroom, snapshot failure, alert routing.
+   **External monitor.** Poll `/api/ready` every minute through a route reachable by the monitor (not the public Cloudflare routes unless you accept an unauthenticated status endpoint; the body is only `{"status":"ok"|"degraded"|"unavailable"}`) and alert on any non-200. Also alert on the server log event `action = "sync.alert.slot-lag-critical"` (level `error`, emitted by the 5-minute `sync.slot-lag` job while any slot is critical, so repeated notifications are expected until it recovers). Still to set up in your monitor (no repo support): disk and WAL headroom, PowerSync snapshot failure, alert routing. Response steps: [sync runbook](runbooks/sync.md).
 5. **Secrets in logs and URLs.** The bootstrap sets role passwords with `ALTER ROLE ... PASSWORD`; with `log_statement` set to `ddl` or `all` the password appears in the Postgres log, so keep it off (or `none`) around the job. The passwords and the development `POSTGRES_PASSWORD` are placed into connection URLs unescaped by compose: use URL-safe values (the bootstrap env rejects others; `POSTGRES_PASSWORD` is a development default only).
 6. **Restore:** [sync restore checklist](sync-restore-checklist.md).
+
+#### Sync subdomain
+
+PowerSync is a long-lived streaming connection with bearer tokens, so it does not use the one-origin path routes ([ADR 0017](adr/0017-sync-credentials-and-transport.md), [0005](adr/0005-same-origin-cloudflare-path-routes.md)).
+
+1. DNS: a proxied record `sync.example.com` pointing at the Dokploy server; Traefik routes it to the PowerSync container port. Set `SYNC_ENDPOINT_URL=https://sync.example.com` on the server; clients get it from `sync.credentials`, never from a build constant.
+2. The firewall rules above apply unchanged (only Cloudflare reaches the origin).
+3. Before rollout verify on this hostname: a stream stays open past Cloudflare's idle timeout and reconnects, no proxy buffering of the stream, and the web CSP `connect-src` allows the host. These are unverified in this repo.
+
+#### Order of operations
+
+1. Postgres flags set (restart if `wal_level` changed).
+2. Run the bootstrap job (idempotent, every deploy). It creates the roles and the empty `powersync` publication, which a synced table's migration needs to exist.
+3. Deploy the server: migrations run on start, including each synced table's `ALTER PUBLICATION` and grant.
+4. Start or update PowerSync with its stream config. A stream for a table that is not yet in the publication breaks replication, so ship the migration first.
+5. Release clients last. Rollback is code or config only; schema stays forward-compatible.
+
+#### Tokens and JWKS
+
+Better Auth's `jwt()` plugin signs 5-minute EdDSA (Ed25519) tokens, `aud: powersync`, issuer the app origin. PowerSync fetches `PS_JWKS_URI` (the API's internal `/api/auth/jwks`) lazily on the first token, so it boots before the API is reachable. Keys live in the `jwks` table and rotate every 30 days. Deleting a session does not revoke an issued token; exposure is bounded by the 5-minute expiry. Keep `PS_JWKS_URI` on the internal network and do not publish `PS_ADMIN_TOKEN`.
 
 ### Trusted proxies and the client IP
 
