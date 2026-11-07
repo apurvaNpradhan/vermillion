@@ -34,14 +34,16 @@ pnpm db:start          # Postgres, bootstrap (one shot), PowerSync on 127.0.0.1:
 pnpm sync:bootstrap    # rerun the idempotent bootstrap
 pnpm test:sync-infra   # bootstrap, slot and probe tests (need db:start)
 pnpm test:sync         # seam 3: stack and API running
+# Linux host that drops container-to-host traffic (PowerSync logs PSYNC_S2204):
+docker compose -f docker-compose.yml -f compose.linux.yml up -d --wait
 ```
+
+`compose.linux.yml` runs PowerSync on the host network (still `127.0.0.1:8090`, override with `POWERSYNC_HOST_PORT`), so it reaches Postgres and the API's JWKS on loopback. Never use it for production.
+
+Seam 3 suites (`tests/sync/src`): `notes` (happy paths, isolation, ack loss), `races` (delete races, late and foreign writes, rollback siblings), `compat` (schema window, old queued writes, local query plan, first-sync timing), `faults` (PowerSync stop/start, cut database sessions, dropped replication slot). Files run sequentially. `faults` disturbs shared services and runs only when `SYNC_TEST_POWERSYNC_CONTAINER` names the PowerSync container (CI sets `vermillion-powersync-1`); locally point it, with `SYNC_TEST_POWERSYNC_URL` and `SYNC_TEST_DATABASE_URL`, at a throwaway stack: a second PowerSync (`--network host`, its own port, replicating a scratch database with its own storage database) and an API on port 3000 using the same scratch database. Postgres itself is never restarted by the tests (it may be shared); the Postgres-loss case cuts every session of the database, including the replication connection. What each suite proves and what it cannot: [support matrix](../docs/guides/sync-support-matrix.md).
 
 ## Where to look
 
 - Replay, limits, error codes: ADR 0018. Table conventions and conflicts: 0019. Credentials and JWT: 0017. Bootstrap: 0023. Tests: 0024. Alerts: 0025.
 - Operating it: [runbook](../docs/runbooks/sync.md), [restore checklist](../docs/sync-restore-checklist.md), [deployment](../docs/deployment.md#sync-infrastructure).
 - Notes (`packages/api/src/notes/`) is the reference synced table.
-
-## Not landed yet (wave B)
-
-The `notes` publication/grant migration and stream, and the client connector, land after this guide was written. Until then `sync-config.yaml` has no streams and the parity test expects no publication.
