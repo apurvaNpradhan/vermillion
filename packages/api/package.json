@@ -34,7 +34,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.15",
     "@types/pg": "^8.23.1",
     "@workspace/config": "workspace:*",
     "typescript": "catalog:",

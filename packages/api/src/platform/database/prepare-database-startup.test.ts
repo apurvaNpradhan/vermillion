@@ -8,25 +8,36 @@ import { prepareDatabaseStartup } from "./prepare-database-startup";
 const databaseUrl = "postgresql://app:s3cret-pass@postgres:5432/app";
 
 describe("database startup", () => {
-  it("keeps malformed credentials out of the executable's stdout and stderr", () => {
-    const result = spawnSync("pnpm", ["--filter", "server", "exec", "tsx", "src/index.ts"], {
-      cwd: fileURLToPath(new URL("../../../../../", import.meta.url)),
-      env: {
-        ...process.env,
-        NODE_ENV: "development",
-        APP_URL: "http://localhost:3001",
-        BETTER_AUTH_SECRET: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
-        DATABASE_URL: "postgresql://app:startup-private-password@db:invalid/app", // secret-scan:allow
-      },
-      encoding: "utf8",
-      timeout: 10_000,
-    });
-    expect(result.error).toBeUndefined();
-    expect(result.status).not.toBe(0);
-    const output = result.stdout + result.stderr;
-    expect(output).toContain("Invalid DATABASE_URL");
-    expect(output).not.toContain("startup-private-password");
-  });
+  // Diagnosis (review F19): the child is CPU-bound, not waiting on anything. Run alone it
+  // takes ~1.9 s, of which ~1.5 s is tsx transpiling and loading the server's whole static
+  // import graph (react-email, prismjs, better-auth, ...) before the DATABASE_URL check
+  // fails; going through `pnpm --filter server exec` added another ~0.7 s of pnpm startup.
+  // Twelve copies at once took 13.5 s each on this machine, so a busy full-suite run
+  // exceeded the old 10 s limit with nothing wrong. The fix: start tsx directly (no pnpm)
+  // and give the child a budget that covers a contended CPU, still far below a hang.
+  it(
+    "keeps malformed credentials out of the executable's stdout and stderr",
+    { timeout: 90_000 },
+    () => {
+      const result = spawnSync("./node_modules/.bin/tsx", ["src/index.ts"], {
+        cwd: fileURLToPath(new URL("../../../../../apps/server/", import.meta.url)),
+        env: {
+          ...process.env,
+          NODE_ENV: "development",
+          APP_URL: "http://localhost:3001",
+          BETTER_AUTH_SECRET: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
+          DATABASE_URL: "postgresql://app:startup-private-password@db:invalid/app", // secret-scan:allow
+        },
+        encoding: "utf8",
+        timeout: 60_000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).not.toBe(0);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain("Invalid DATABASE_URL");
+      expect(output).not.toContain("startup-private-password");
+    },
+  );
   it.each([
     "postgresql://app:s3cret-pass@db:invalid/app", // secret-scan:allow
     "not-a-url-s3cret-pass",
