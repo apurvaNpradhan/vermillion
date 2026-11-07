@@ -48,6 +48,8 @@ const uploadColumns = (table: string): readonly string[] =>
 export type TransportFaults = {
   /** Upload calls whose response is lost after the server committed (the ack-loss case). */
   loseResponses: number;
+  /** The upload contract version this "build" speaks; lower or raise it to play an old client. */
+  schemaVersion: number;
 };
 
 /** A transaction outcome the connector saw, for tests to assert on. */
@@ -98,7 +100,7 @@ export function createConnector(options: {
             userId,
             installId,
             txId,
-            schemaVersion: SYNC_SCHEMA_VERSION,
+            schemaVersion: faults.schemaVersion,
             digest: computeOpsDigest(ops),
             ops,
           });
@@ -123,10 +125,14 @@ export function createConnector(options: {
 }
 
 /** A phone without the phone: a Node SQLite PowerSync database for one account. */
-export async function createClient(user: TestUser, faults: Partial<TransportFaults> = {}) {
+export async function createClient(
+  user: TestUser,
+  faults: Partial<TransportFaults> = {},
+  localSchema: Schema = schema,
+) {
   const directory = mkdtempSync(join(tmpdir(), "vermillion-sync-"));
   const database = new PowerSyncDatabase({
-    schema,
+    schema: localSchema,
     database: { dbFilename: `client-${randomUUID()}.db`, dbLocation: directory },
   });
   const api: AppRouterClient = createORPCClient(
@@ -137,7 +143,10 @@ export async function createClient(user: TestUser, faults: Partial<TransportFaul
     }),
   );
   const records: UploadRecord[] = [];
-  const transport: TransportFaults = { loseResponses: faults.loseResponses ?? 0 };
+  const transport: TransportFaults = {
+    loseResponses: faults.loseResponses ?? 0,
+    schemaVersion: faults.schemaVersion ?? SYNC_SCHEMA_VERSION,
+  };
   const connector = createConnector({
     api,
     userId: user.userId,
@@ -183,6 +192,9 @@ export async function createClient(user: TestUser, faults: Partial<TransportFaul
         updated_at: string | null;
       }>("SELECT * FROM notes WHERE id = ?", [id]),
     noteIds,
+    /** Settled outcomes by transaction id; a replay of the same transaction overwrites itself. */
+    outcomes: () =>
+      new Map(records.flatMap((r) => (r.kind === "result" ? [[r.txId, r.result] as const] : []))),
     queued: async () => (await database.getUploadQueueStats()).count,
     /** Resolves once every queued write has been uploaded and acknowledged. */
     uploaded: () =>

@@ -10,6 +10,8 @@ export type TestUser = { userId: string; email: string; cookie: string };
 
 /** Direct access to the database PowerSync replicates from, for assertions and set-up only. */
 export const database = new pg.Pool({ connectionString: services.postgresUrl, max: 4 });
+// Fault tests cut sessions; an idle pooled client dying must not crash the test process.
+database.on("error", () => undefined);
 
 function cookieHeader(response: Response): string {
   return response.headers
