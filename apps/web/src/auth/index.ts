@@ -4,5 +4,5 @@ export { ResetPasswordForm } from "./components/reset-password-form";
 export { SignInForm } from "./components/sign-in-form";
 export { SignUpForm } from "./components/sign-up-form";
 export { redirectIfSignedIn, requireSession } from "./guards";
-export { useSession } from "./session";
+export { sessionQueryOptions, useSession } from "./session";
 export { useSignOut } from "./use-sign-out";

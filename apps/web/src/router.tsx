@@ -2,7 +2,7 @@ import { createRouter } from "@tanstack/react-router";
 import { createI18n } from "@workspace/i18n";
 import { toastManager } from "@workspace/ui/components/toast";
 
-import { clearSession } from "@workspace/client/session";
+import { SESSION_QUERY_KEY, clearSession } from "@workspace/client/session";
 import { errorMessage } from "@workspace/client/error-message";
 import { isUnauthorized } from "@workspace/client/orpc-error";
 import { createQueryClient } from "@workspace/client/query-client";
@@ -17,8 +17,12 @@ export function getRouter() {
   const queryClient = createQueryClient({
     onError: (error) => {
       if (isUnauthorized(error)) {
-        // The session is gone: drop it and all cached user data, and let the guard send the user to sign-in.
-        void clearSession(queryClient).then(() => router.invalidate());
+        // The session is gone: drop it and all cached user data. The guard then decides: a device
+        // with an owner keeps its local data (sign-in banner), any other goes to sign-in. Once the
+        // session is already known to be gone, further 401s are expected and change nothing.
+        if (queryClient.getQueryData(SESSION_QUERY_KEY) !== null) {
+          void clearSession(queryClient).then(() => router.invalidate());
+        }
         return;
       }
       toastManager.add({ type: "error", title: errorMessage(i18n.t, error) });

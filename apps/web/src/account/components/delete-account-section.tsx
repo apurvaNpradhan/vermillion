@@ -13,6 +13,7 @@ import { MailCheckIcon } from "lucide-react";
 import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
+import { rememberDeletionRequest } from "@/sync";
 import { useRequestDeletion } from "../use-account-actions";
 
 import { isDeleteConfirmationValid } from "@workspace/client/is-delete-confirmation-valid";
@@ -42,8 +43,10 @@ export function DeleteAccountSection() {
             className="flex max-w-sm flex-col gap-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (isDeleteConfirmationValid(typed, user?.email))
+              if (isDeleteConfirmationValid(typed, user?.email)) {
+                if (user) rememberDeletionRequest(user.id);
                 requestDeletion({ callbackURL: "/?account=deleted" });
+              }
             }}
           >
             <Field>
