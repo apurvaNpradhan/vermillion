@@ -1,4 +1,4 @@
-import type { AbstractPowerSyncDatabase, PowerSyncBackendConnector } from "@powersync/common";
+import type { AbstractPowerSyncDatabase } from "@powersync/common";
 
 /** Why a platform cannot give the app durable local storage. */
 export type StorageUnavailableReason =
@@ -21,9 +21,3 @@ export type OpenDatabaseResult =
 export interface DatabaseFactory {
   open(): Promise<OpenDatabaseResult>;
 }
-
-/**
- * Seam for the upload connector. It depends on the phase 4 wire contract (`sync.credentials`,
- * `sync.upload`), so it is not implemented yet; the lifecycle owner will call this to connect.
- */
-export type ConnectorFactory = (installId: string) => PowerSyncBackendConnector;

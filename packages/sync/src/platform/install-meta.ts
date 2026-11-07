@@ -26,3 +26,14 @@ export async function ensureInstallId(database: InstallMetaDatabase): Promise<st
     return installId;
   });
 }
+
+/** The install id if the database has one yet (read only; `ensureInstallId` creates it). */
+export async function readInstallId(
+  database: Pick<AbstractPowerSyncDatabase, "getOptional">,
+): Promise<string | null> {
+  const row = await database.getOptional<{ install_id: string }>(
+    "SELECT install_id FROM install_meta WHERE id = ?",
+    [SINGLETON_ID],
+  );
+  return row?.install_id ?? null;
+}

@@ -72,8 +72,13 @@ describe("row conversion", () => {
 describe("powerSyncSchema", () => {
   const tables = Object.fromEntries(powerSyncSchema.tables.map((table) => [table.name, table]));
 
-  it("has the synced notes table and two local-only tables", () => {
-    expect(Object.keys(tables).sort()).toEqual(["install_meta", "notes", "rejected_writes"]);
+  it("has the synced notes table and three local-only tables", () => {
+    expect(Object.keys(tables).sort()).toEqual([
+      "device_owner",
+      "install_meta",
+      "notes",
+      "rejected_writes",
+    ]);
     expect(tables.notes?.localOnly).toBe(false);
     expect(tables.install_meta?.localOnly).toBe(true);
     expect(tables.rejected_writes?.localOnly).toBe(true);
