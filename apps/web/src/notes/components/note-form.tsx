@@ -1,3 +1,4 @@
+import { NOTE_BODY_MAX, NOTE_TITLE_MAX, type NoteValues } from "@workspace/sync";
 import { Button } from "@workspace/ui/components/button";
 import { Field, FieldLabel } from "@workspace/ui/components/field";
 import { Input } from "@workspace/ui/components/input";
@@ -6,21 +7,16 @@ import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 
-const TITLE_MAX = 200;
-const BODY_MAX = 10_000;
-
-type Values = { title: string; body: string };
-
-/** Title and body fields with save/cancel; used to create and to edit. */
+/** Title and body fields with a submit button; creates a note or resubmits a rejected one. */
 export function NoteForm({
   initial,
   submitLabel,
   onSubmit,
   onCancel,
 }: {
-  initial: Values;
+  initial: NoteValues;
   submitLabel: string;
-  onSubmit: (values: Values) => Promise<void>;
+  onSubmit: (values: NoteValues) => Promise<void>;
   onCancel?: () => void;
 }) {
   const { t } = useTranslation();
@@ -49,11 +45,19 @@ export function NoteForm({
     >
       <Field>
         <FieldLabel>{t("notes__field_title")}</FieldLabel>
-        <Input value={title} maxLength={TITLE_MAX} onChange={(e) => setTitle(e.target.value)} />
+        <Input
+          value={title}
+          maxLength={NOTE_TITLE_MAX}
+          onChange={(e) => setTitle(e.target.value)}
+        />
       </Field>
       <Field>
         <FieldLabel>{t("notes__field_body")}</FieldLabel>
-        <Textarea value={body} maxLength={BODY_MAX} onChange={(e) => setBody(e.target.value)} />
+        <Textarea
+          value={body}
+          maxLength={NOTE_BODY_MAX}
+          onChange={(e) => setBody(e.target.value)}
+        />
       </Field>
       <div className="flex gap-2">
         <Button type="submit" loading={saving} disabled={title.trim() === ""}>

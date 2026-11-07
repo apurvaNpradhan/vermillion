@@ -52,7 +52,8 @@ export function useSignOutConfirmation(signOut: () => void) {
   return {
     dialog,
     request: async () => {
-      const count = await countUnsent();
+      // If the queue cannot be read the user still gets to sign out; nothing is wiped either way.
+      const count = await countUnsent().catch(() => 0);
       if (count > 0) setUnsent(count);
       else signOut();
     },

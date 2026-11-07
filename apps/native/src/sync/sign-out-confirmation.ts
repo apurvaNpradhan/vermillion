@@ -12,7 +12,8 @@ export function useSignOutConfirmation(signOut: () => void) {
   const { t } = useTranslation();
   const { countUnsent } = useSyncStatus();
   return async () => {
-    const count = await countUnsent();
+    // If the queue cannot be read the user still gets to sign out; nothing is wiped either way.
+    const count = await countUnsent().catch(() => 0);
     if (count === 0) {
       signOut();
       return;

@@ -1,21 +1,20 @@
+import { NOTE_BODY_MAX, NOTE_TITLE_MAX, type NoteValues } from "@workspace/sync";
 import { Button, Input, Label, Spinner, TextField } from "heroui-native";
 import { useState } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 
-type Values = { title: string; body: string };
-
-/** Title and body fields with save/cancel; used to create and to edit. */
+/** Title and body fields with a submit button; creates a note or resubmits a rejected one. */
 export function NoteForm({
   initial,
   submitLabel,
   onSubmit,
   onCancel,
 }: {
-  initial: Values;
+  initial: NoteValues;
   submitLabel: string;
-  onSubmit: (values: Values) => Promise<void>;
+  onSubmit: (values: NoteValues) => Promise<void>;
   onCancel?: () => void;
 }) {
   const { t } = useTranslation();
@@ -42,11 +41,11 @@ export function NoteForm({
     <View className="gap-3">
       <TextField>
         <Label>{t("notes__field_title")}</Label>
-        <Input value={title} onChangeText={setTitle} maxLength={200} />
+        <Input value={title} onChangeText={setTitle} maxLength={NOTE_TITLE_MAX} />
       </TextField>
       <TextField>
         <Label>{t("notes__field_body")}</Label>
-        <Input value={body} onChangeText={setBody} maxLength={10_000} multiline />
+        <Input value={body} onChangeText={setBody} maxLength={NOTE_BODY_MAX} multiline />
       </TextField>
       <View className="flex-row gap-2">
         <Button isDisabled={saving || title.trim() === ""} onPress={() => void submit()}>
