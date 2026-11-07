@@ -193,10 +193,11 @@ describe("notes sync", () => {
     await a.uploaded();
     expect(await serverNote(first)).toMatchObject({ title: "Offline one", body: "1 edited" });
     expect(await serverNote(second)).toMatchObject({ title: "Offline two" });
-    await vi.waitFor(
-      async () => expect((await b.noteIds()).toSorted()).toEqual([first, second].toSorted()),
-      within,
-    );
-    expect((await b.note(first))?.body).toBe("1 edited");
+    // Each offline write uploads as its own transaction, so B may first see the create's
+    // checkpoint and only later the update's: wait for the converged state, not just the ids.
+    await vi.waitFor(async () => {
+      expect((await b.noteIds()).toSorted()).toEqual([first, second].toSorted());
+      expect((await b.note(first))?.body).toBe("1 edited");
+    }, within);
   });
 });
