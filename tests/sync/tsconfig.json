@@ -1,5 +1,5 @@
 {
   "extends": "@workspace/config/tsconfig.base.json",
-  "compilerOptions": { "noEmit": true },
+  "compilerOptions": { "noEmit": true, "jsx": "react-jsx" },
   "include": ["src/**/*.ts", "vitest.config.ts"]
 }
