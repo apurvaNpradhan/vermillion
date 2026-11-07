@@ -7,11 +7,11 @@ import { createNote } from "./operations/create-note";
 import { deleteNote } from "./operations/delete-note";
 import { getNote } from "./operations/get-note";
 import { listNotes } from "./operations/list-notes";
-import { BODY_MAX, noteSchema, TITLE_MAX } from "./operations/note";
+import { bodySchema, noteSchema, titleSchema } from "./operations/note";
 import { updateNote } from "./operations/update-note";
 
-const title = z.string().trim().min(1).max(TITLE_MAX);
-const body = z.string().max(BODY_MAX);
+const title = titleSchema;
+const body = bodySchema;
 const noteId = z.object({ id: z.uuid() });
 
 const notesApi = authed.meta(openapi({ tags: ["Notes"] }));

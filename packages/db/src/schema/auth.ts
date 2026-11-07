@@ -78,6 +78,17 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+/** Signing keys of the `jwt()` plugin (PowerSync tokens). Fields from the installed plugin's schema. */
+export const jwks = pgTable("jwks", {
+  id: text("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  alg: text("alg"),
+  crv: text("crv"),
+});
+
 export const authRelations = defineRelationsPart({ user, session, account, verification }, (r) => ({
   user: {
     sessions: r.many.session({
