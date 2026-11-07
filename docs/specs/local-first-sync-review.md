@@ -2,6 +2,8 @@
 
 Date: 2026-11-07. Scope: both complete design documents, current implementation/config/tests, selected old-spike implementation and experiment records, official upstream documentation, npm registry metadata, Docker Hub tags and published Better Auth advisories.
 
+**Update 2026-11-07:** the maintainer accepted all five CHANGE proposals (D7, D11, D15, D18, D19). They are recorded in ADRs [0020](../adr/0020-offline-web-shell.md), [0018](../adr/0018-upload-protocol.md) and [0019](../adr/0019-synced-table-conventions.md), [0022](../adr/0022-local-encryption.md), [0027](../adr/0027-sync-build-plan.md), and [0026](../adr/0026-no-e2e-and-privacy-readiness.md) respectively. The text below is the original review and is not rewritten.
+
 **Approval boundary:** CHANGE below is a proposal, not an accepted replacement for D1–D19. No sync build phase was started. Corrections to factual claims and two existing security problems were made; implementation-policy choices remain with the maintainer.
 
 ## 1. Verdict

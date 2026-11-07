@@ -1,12 +1,23 @@
 # Handoff: local-first sync
 
-For the next agent session implementing [local-first-sync.md](local-first-sync.md). Read the spec and [adversarial review](local-first-sync-review.md) first. D1–D19 remain agreed; review proposals marked CHANGE require maintainer approval, not silent implementation. Resolve the review's readiness gates before starting the build. This file covers the current state, where the code to port lives, verified facts, known pitfalls and the first steps.
+For the next agent session implementing [local-first-sync.md](local-first-sync.md). Read the spec and [adversarial review](local-first-sync-review.md) first. D1–D19 are agreed; the review's five CHANGE proposals were accepted on 2026-11-07 and are recorded in ADRs 0015–0027. Its readiness gates are now accepted requirements mapped to phases in the spec. This file covers the current state, where the code to port lives, verified facts, known pitfalls and the first steps.
 
 ## State (2026-11-07)
 
-- No sync build phase is implemented. The review adds `local-first-sync-review.md`, factual/security clarifications to these documents, a Better Auth security patch update, and a localhost-only development Postgres binding preserved by template-init.
-- **The repo has no commits.** `main` is unborn and everything is untracked. A feature branch needs a base commit: ask the maintainer to make (or approve) the initial template commit on `main`, then branch `feat/local-first-sync`. Do not commit without that approval.
+- Base commit `d624003` ("initial template commit") on `main` was made with maintainer approval. Branch `feat/local-first-sync` is checked out.
+- The maintainer accepted all five review CHANGE proposals (D7, D11, D15, D18, D19). Phase 1 (prep and contract: ADRs 0015–0027, spec and handoff updates) is in progress. No code, packages or compose services have been added; no later phase is started.
+- The review also added `local-first-sync-review.md`, a Better Auth security patch update, and a localhost-only development Postgres binding preserved by template-init.
 - Commit attribution and conventional-commit rules: see `AGENTS.md`.
+
+### Source provenance (recorded 2026-11-07)
+
+| Source                                                                           | Revision                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/Workspace/collaborations/repos/powersync-js` (shallow clone, 2026-11-06)      | HEAD `aba3d4ad2000c0866377766eeb544b742d04febe`. Tags: `@powersync/web@2.6.0` → `7aae34138fed4bb39fe91ca8d202a6f611bc5007`; `@powersync/react-native@2.4.0` → `97879eba231bc89a8d86ae269e362ea1fa10af87`; `@powersync/drizzle-driver@0.8.0` → `97f43c25d6c71b00919ee8d595158c72b0cf5fda`; `@powersync/node@1.3.0` → `e89c2eb747862ad8bb57c0c3195f1563dc920b56` |
+| `~/Workspace/collaborations/repos/powersync-service` (shallow clone, 2026-11-06) | HEAD `52aeb3adee80b75960db190cfa5ddb7130321182`. Tag `v1.28.1` (fetched) → `1ecaea9f971dbd7069f60d2f55e1569768c607c0`                                                                                                                                                                                                                                          |
+| Agent skill `powersync` (`npx skills add powersync-ja/agent-skills`)             | **Not yet installed.** Pending a maintainer run; inspect the changes it makes to the repo before accepting                                                                                                                                                                                                                                                     |
+
+For pinned-version questions, read the release tags above, not the moving HEADs.
 
 ## Facts verified on 2026-11-07
 
@@ -79,22 +90,20 @@ Anything else that is not in the spec: stop and ask the maintainer.
 
 ## First steps
 
-Prerequisites omitted from the original recipe: Node 24 (README/CI baseline), pnpm 12.15.0, Docker Compose, dependency installation, and the three app `.env` files from README. Resolve the review's CHANGE proposals first. Do not commit or start a sync phase as part of the review. The current `pnpm db:start` starts only Postgres; bootstrap and PowerSync orchestration do not exist yet. A Postgres publication can only include a table after its migration, so do not activate a `notes` stream before phase 4's table/publication migration succeeds.
+Prerequisites: Node 24 (README/CI baseline), pnpm 12.15.0, Docker Compose, dependency installation, and the three app `.env` files from README. The current `pnpm db:start` starts only Postgres; bootstrap and PowerSync orchestration do not exist yet. A Postgres publication can only include a table after its migration, so do not activate a `notes` stream before phase 4's table/publication migration succeeds.
 
-1. Confirm the base commit with the maintainer; create `feat/local-first-sync`.
-2. Phase 1:
+Done: base commit and branch, source clones with recorded SHAs (see State), ADRs 0015–0027.
+
+1. Install the PowerSync skill (maintainer runs it; inspect the repository changes before committing):
 
 ```sh
-cd ~/Workspace/collaborations/vermillion && npx skills add powersync-ja/agent-skills
-mkdir -p ~/Workspace/collaborations/repos && cd ~/Workspace/collaborations/repos
-git clone --depth 1 https://github.com/powersync-ja/powersync-js.git
-git clone --depth 1 https://github.com/powersync-ja/powersync-service.git
+npx skills add powersync-ja/agent-skills --skill powersync --agent claude-code -y
 ```
 
-3. Write ADRs 0015+ from the spec decisions; update `AGENTS.md` guide table rows that change (orpc-testing no longer says PGlite after phase 3).
-4. Continue only after the review gates and any proposed D18 phase reordering are approved. Pause for the native dev-client rebuild before claiming native proof.
+2. Close phase 1 by settling its open contract decisions (ADR 0027, phase 1 exit) with the maintainer.
+3. Then phase 2. Pause for the native dev-client rebuild before claiming native proof. Update the `AGENTS.md` orpc-testing row when phase 3 removes PGlite.
 
-The clone commands above assume those target directories do not exist and network access is available. If they already exist, inspect the remotes and worktree rather than overwriting or recloning. Record the inspected commit SHA; a shallow clone of moving HEAD is not evidence for the pinned production version. Skill installation is interactive and changes repository files; inspect its changes before accepting them.
+The clones already exist; inspect them rather than recloning. A shallow clone of moving HEAD is not evidence for the pinned production version; use the recorded release tags.
 
 ## Revision log
 
@@ -106,3 +115,9 @@ The clone commands above assume those target directories do not exist and networ
 - Added omitted offline-shell, credential-route, JWT/schema and regression-test port inputs; warned against porting OTP/search/expiry-wipe coupling from the old session module.
 - Placed shared upload contracts outside either Drizzle runtime and restored download-account checks.
 - Added clean-checkout prerequisites, existing-clone handling, source revision provenance, and table-before-stream startup ordering.
+
+### 2026-11-07 — phase 1 (prep and contract)
+
+- State updated: base commit `d624003`, branch `feat/local-first-sync`, review CHANGEs accepted, phase 1 in progress.
+- Recorded source provenance for the `powersync-js` and `powersync-service` clones (HEAD and release-tag SHAs). The `powersync` skill is not yet installed, pending a maintainer run.
+- ADRs 0015–0027 written from the accepted spec; open contract values are listed in them per phase.
