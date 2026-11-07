@@ -56,6 +56,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [environment](.agents/environment.md)   | `packages/env`, public vs secret values                       |
 | [i18n](.agents/i18n.md)                 | Keys, locale resolution, checks                               |
 | [ui](.agents/ui.md)                     | coss ui, HeroUI Native, tokens                                |
+| [sync](.agents/sync.md)                 | Local-first sync: tables, streams, uploads, tests, ops        |
 | [deploy](.agents/deploy.md)             | Where things run; pointers to docs                            |
 
 Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo, Turborepo, shadcn and coss work.
