@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { I18nextProvider, i18n } from "./i18n";
+import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
 
 /** Query client whose failures surface as toasts; a lost session just clears the cached user. */
 function QueryProvider({ children }: { children: ReactNode }) {
@@ -35,7 +36,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <HeroUINativeProvider>
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              {children}
+              <LocalDataResetNotice />
+            </QueryProvider>
           </HeroUINativeProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>

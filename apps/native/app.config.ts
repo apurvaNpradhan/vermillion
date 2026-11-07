@@ -2,6 +2,14 @@ import type { ExpoConfig } from "expo/config";
 
 import { appConfig } from "../../app.config.ts";
 
+/**
+ * Bump when the native stack changes (a native module is added, removed or upgraded, or its build
+ * flags change), so OTA JavaScript never reaches a binary without the matching native code.
+ * `runtimeVersion: appVersion` alone does not change when a native module is added (ADR 0022).
+ * 1: op-sqlite 18.2.5 with SQLCipher, expo-crypto, expo-file-system, vermillion-backup module.
+ */
+const NATIVE_STACK_REVISION = 1;
+
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 
 const config: ExpoConfig = {
@@ -31,6 +39,9 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-localization",
+    // The backup rules plugin replaces the store's own so key and database exclusions stay together.
+    ["expo-secure-store", { configureAndroidBackup: false }],
+    "./plugins/with-local-database-backup-rules.js",
     [
       "expo-splash-screen",
       {
@@ -43,8 +54,8 @@ const config: ExpoConfig = {
     ],
   ],
   // Over-the-air updates: builds on a channel (see eas.json) receive updates published
-  // to it, and only when the native runtime (the app version) matches.
-  runtimeVersion: { policy: "appVersion" },
+  // to it, and only when the native runtime matches: app version plus the native stack revision.
+  runtimeVersion: `${appConfig.version}+native.${NATIVE_STACK_REVISION}`,
   ...(easProjectId
     ? {
         updates: { url: `https://u.expo.dev/${easProjectId}` },

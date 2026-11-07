@@ -182,5 +182,7 @@
   "admin__page": "Seite {{page}} von {{pages}}",
   "admin__total_one": "{{count}} Benutzer",
   "admin__total_other": "{{count}} Benutzer",
-  "auth__error_banned": "Dieses Konto ist gesperrt."
+  "auth__error_banned": "Dieses Konto ist gesperrt.",
+  "sync__local_reset_title": "Lokale Daten wurden zurückgesetzt",
+  "sync__local_reset_body": "Dieses Gerät konnte seine gespeicherten Daten nicht öffnen, hat neu begonnen und synchronisiert wieder. Noch nicht gesendete Änderungen können verloren gehen."
 }

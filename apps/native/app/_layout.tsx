@@ -1,3 +1,5 @@
+// Must stay first: installs `crypto` for Hermes before anything creates an id or opens PowerSync.
+import "@/platform/local-database/crypto-polyfill";
 import "../global.css";
 
 import * as SplashScreen from "expo-splash-screen";
