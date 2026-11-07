@@ -107,3 +107,19 @@ describe("apps/native", () => {
     expect(check("apps/web/src/auth/sign-in.tsx", "@/account/session")).toHaveLength(1);
   });
 });
+
+describe("packages/sync", () => {
+  test("forbids server packages and the pg schema layer", () => {
+    const from = "packages/sync/src/notes/tables.ts";
+    expect(check(from, "@workspace/db/schema/auth")).toHaveLength(1);
+    expect(check(from, "@workspace/api")).toHaveLength(1);
+    expect(check(from, "drizzle-orm/pg-core")).toHaveLength(1);
+    expect(check(from, "drizzle-orm/sqlite-core")).toEqual([]);
+    expect(check("apps/web/src/notes/x.ts", "@workspace/db/columns")).toEqual([]);
+  });
+
+  test("verticals reach each other through the index", () => {
+    expect(check("packages/sync/src/platform/schema.ts", "../notes")).toEqual([]);
+    expect(check("packages/sync/src/platform/schema.ts", "../notes/tables")).toHaveLength(0);
+  });
+});

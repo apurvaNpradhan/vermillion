@@ -17,6 +17,8 @@ const SHARED = new Set(["platform"]);
  */
 export const TREES = {
   "packages/api/src": { plain: new Set(), alias: {} },
+  // Client sync infrastructure: `platform/` plus one folder per synced vertical.
+  "packages/sync/src": { plain: new Set(), alias: {} },
   "apps/web/src": {
     // `routes` are thin files, `lib` holds app-level helpers such as SEO, `assets` and
     // `styles` hold static files. Shared UI lives in packages/ui and shared
@@ -62,6 +64,10 @@ function resolveSpecifier(specifier, filename) {
   return null;
 }
 
+// The client sync package carries the isolated drizzle-orm@0.45; it must never reach the server
+// schema or server packages (ADR 0016).
+const SYNC_FORBIDDEN = /^(@workspace\/(db|api|auth|email|env)(\/|$)|drizzle-orm\/pg-core$)/;
+
 const isIndex = (rest) => /^index(\.[cm]?[jt]sx?)?$/.test(rest) || rest === "";
 const isTable = (rest) => /^(schema|tables)(\.[cm]?[jt]sx?)?$/.test(rest);
 
@@ -78,8 +84,17 @@ const rule = {
     const here = locate(filename);
     if (!here) return {};
 
+    const inSync = relative(root, filename).split(sep).join("/").startsWith("packages/sync/");
+
     function check(node, specifier) {
       if (typeof specifier !== "string") return;
+      if (inSync && SYNC_FORBIDDEN.test(specifier)) {
+        context.report({
+          node,
+          message: `packages/sync must not import "${specifier}" (server-only; see ADR 0016).`,
+        });
+        return;
+      }
       const absolute = resolveSpecifier(specifier, filename);
       if (!absolute) return;
       const target = locate(absolute);
