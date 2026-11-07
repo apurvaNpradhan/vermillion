@@ -19,7 +19,7 @@ describe("database startup", () => {
     "keeps malformed credentials out of the executable's stdout and stderr",
     { timeout: 90_000 },
     () => {
-      const result = spawnSync("./node_modules/.bin/tsx", ["src/index.ts"], {
+      const result = spawnSync(process.execPath, ["--import", "tsx", "src/index.ts"], {
         cwd: fileURLToPath(new URL("../../../../../apps/server/", import.meta.url)),
         env: {
           ...process.env,

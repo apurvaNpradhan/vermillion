@@ -84,7 +84,7 @@ export async function createTestApp(options: TestAppOptions = {}) {
     /** Rows of a raw query, for asserting on what is stored. */
     async rows(query: SQL): Promise<Row[]> {
       const result = await db.execute(query);
-      return z.array(rowSchema).parse(result.rows);
+      return z.object({ rows: z.array(rowSchema) }).parse(result).rows;
     },
     /** An RPC client calling the router in-process with these request headers. */
     client(headers: Headers = new Headers()) {
