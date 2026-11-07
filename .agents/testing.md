@@ -2,13 +2,20 @@
 
 | What                                 | Where                                 | Run                                                         |
 | ------------------------------------ | ------------------------------------- | ----------------------------------------------------------- |
-| API behaviour (seam 1)               | `packages/api/src/**/*.test.ts`       | `pnpm test`                                                 |
+| API behaviour (seam 1)               | `packages/api/src/**/*.test.ts`       | `pnpm test` (needs `pnpm db:start`)                         |
 | Pure functions with many edge cases  | next to the code (`*.test.ts`)        | `pnpm test`                                                 |
 | Sync infrastructure on real Postgres | `packages/api/src/**/*.infra.test.ts` | `pnpm test:sync-infra` (skips without the compose Postgres) |
+| Sync seam 3 (real services)          | `tests/sync/src/**/*.test.ts`         | `pnpm test:sync` (Postgres, PowerSync and the API running)  |
 | Repo tooling                         | `scripts/**/*.test.mjs`, `tools/**`   | `pnpm test` (root project)                                  |
 | Browser flows (seam 2)               | `apps/web/e2e/*.spec.ts`              | `pnpm test:e2e`                                             |
 
-Good tests exercise external behaviour through the highest seam and survive refactoring: splitting files or swapping a library behind a seam must not break them. Do not mock our own modules. Test-only environment overrides (`SYNC_INFRA_TEST_ADMIN_URL`, `E2E_DATABASE_URL`) are read straight from `process.env` in test and Playwright files; that is the one exemption from the `packages/env` rule. Do not assert on internals.
+Good tests exercise external behaviour through the highest seam and survive refactoring: splitting files or swapping a library behind a seam must not break them. Do not mock our own modules. Test-only environment overrides (`TEST_DATABASE_ADMIN_URL`, `SYNC_INFRA_TEST_ADMIN_URL`, `E2E_DATABASE_URL`, `SYNC_TEST_DATABASE_URL`, `SYNC_TEST_POWERSYNC_URL`, `SYNC_TEST_API_URL`) are read straight from `process.env` in test and Playwright files; that is the one exemption from the `packages/env` rule. Do not assert on internals.
+
+`pnpm test` and `pnpm test:sync-infra` use the Docker Postgres (default `postgresql://postgres:password@127.0.0.1:5432/postgres`, override with `TEST_DATABASE_ADMIN_URL`; the role needs CREATEDB). `pnpm test` fails with a `pnpm db:start` hint if it is missing; only the `*.infra.test.ts` files skip. Details of the template and clones: [orpc-testing](orpc-testing.md).
+
+`tests/sync` is its own workspace because seam 3 imports both server-side and client-side packages, which ADR 0016 forbids for an ordinary package. It is not part of `pnpm test`. `pnpm test:sync` first checks Postgres, PowerSync readiness (`127.0.0.1:8090`) and the API (`127.0.0.1:3000`, which serves PowerSync's JWKS) and names whatever is missing.
+
+`packages/api/src/platform/sync/parity.ts` introspects the migrated Postgres (columns, types, nullability, defaults, indexes, publication membership) and compares it with a declared expectation; add each synced table to the expectation in `parity.test.ts`.
 
 Pure-function unit tests: client-IP resolver, disposable-domain matcher, Turnstile verifier (stub `fetch`), preferences `ui` defaults, return-location sanitiser, boundaries lint rule, template-init.
 

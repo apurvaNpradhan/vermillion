@@ -5,8 +5,8 @@ import { Pool } from "pg";
 import { relations } from "./relations";
 
 /**
- * The database handle verticals use. It is the common base of the node-postgres
- * driver (production) and PGlite (tests), so the same code runs on both.
+ * The database handle verticals use. It is the node-postgres driver's database, kept as a
+ * base type so operations do not depend on the concrete driver.
  */
 export type Database = PgAsyncDatabase<PgQueryResultHKT, typeof relations>;
 

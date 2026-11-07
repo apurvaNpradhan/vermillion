@@ -1,18 +1,15 @@
-import { PGlite } from "@electric-sql/pglite";
 import { createRouterClient } from "@orpc/server";
-import { relations } from "@workspace/db";
-import { migrationsFolder } from "@workspace/db/migrator";
+import { createDb } from "@workspace/db";
 import type { EmailTransport, RenderedEmail } from "@workspace/email";
 import { type SQL } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { fromPglite } from "pg-boss";
+import { inject } from "vitest";
 import { z } from "zod";
 
 import type { ApiConfig } from "../config";
 import { createApp } from "../create-app";
 import { appRouter } from "../orpc/router";
 import { createServices } from "../services";
+import { cloneDatabase, dropDatabase, urlForDatabase } from "./postgres";
 
 const baseConfig: ApiConfig = {
   appName: "Vermillion",
@@ -45,15 +42,15 @@ export type TestAppOptions = {
 };
 
 /**
- * The API over an in-process Postgres (PGlite) with every migration applied.
- * Only the network boundaries are replaced: the email transport collects into
+ * The API over its own clone of the migrated template database on the Docker
+ * Postgres (see global-setup.ts); the clone is dropped by `close()`. Only the network boundaries are replaced: the email transport collects into
  * `outbox`, and `fetch` is replaced when a test gives one. Jobs run in-process
  * with short retry delays.
  */
 export async function createTestApp(options: TestAppOptions = {}) {
-  const pg = new PGlite();
-  const db = drizzle({ client: pg, relations });
-  await migrate(db, { migrationsFolder });
+  const database = await cloneDatabase(inject("testTemplateDatabase"), inject("testRunId"));
+  const databaseUrl = urlForDatabase(database);
+  const { db, pool } = createDb(databaseUrl);
 
   const outbox: RenderedEmail[] = [];
   const emailTransport: EmailTransport = {
@@ -68,11 +65,10 @@ export async function createTestApp(options: TestAppOptions = {}) {
 
   const services = createServices({
     config: { ...baseConfig, ...options.config },
-    // The PGlite driver is the same Drizzle database over a different driver.
     db,
     emailTransport,
     jobs: {
-      boss: { db: fromPglite(pg) },
+      boss: { connectionString: databaseUrl, max: 3 },
       defaults: { retryDelay: 0, retryBackoff: false, pollingIntervalSeconds: 0.5 },
     },
     ...(options.fetch ? { fetch: options.fetch } : {}),
@@ -88,7 +84,7 @@ export async function createTestApp(options: TestAppOptions = {}) {
     /** Rows of a raw query, for asserting on what is stored. */
     async rows(query: SQL): Promise<Row[]> {
       const result = await db.execute(query);
-      return z.array(rowSchema).parse(result.rows);
+      return z.object({ rows: z.array(rowSchema) }).parse(result).rows;
     },
     /** An RPC client calling the router in-process with these request headers. */
     client(headers: Headers = new Headers()) {
@@ -105,8 +101,12 @@ export async function createTestApp(options: TestAppOptions = {}) {
       throw new Error("Timed out waiting for an email");
     },
     async close() {
-      await services.stop(2_000);
-      await pg.close();
+      try {
+        await services.stop(2_000);
+      } finally {
+        await pool.end();
+        await dropDatabase(database);
+      }
     },
   };
 }

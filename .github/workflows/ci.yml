@@ -44,8 +44,37 @@ jobs:
         run: pnpm i18n:report
       - name: Typecheck
         run: pnpm typecheck
-      - name: Tests
+
+  # Tests clone a migrated template database on a real Postgres (ADR 0024). The repo's
+  # compose file starts it with the logical-WAL flags the sync infrastructure tests need.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SERVER_URL: http://localhost:3000
+      EXPO_PUBLIC_SERVER_URL: http://localhost:3000
+      APP_URL: http://localhost:3001
+      BETTER_AUTH_SECRET: ci-placeholder-secret-not-for-production-0000
+      DATABASE_URL: postgres://postgres:password@localhost:5432/app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Postgres
+        run: docker compose up -d --wait postgres
+      - name: Unit and API tests
         run: pnpm test
+      - name: Sync infrastructure tests
+        run: pnpm test:sync-infra
+      - name: Postgres log
+        if: failure()
+        run: docker compose logs postgres
 
   e2e:
     runs-on: ubuntu-latest
@@ -104,7 +133,7 @@ jobs:
   # server is deployed by Dokploy from the same commit.
   deploy-web:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_WEB == 'true'
-    needs: [checks, e2e, workflows]
+    needs: [checks, tests, e2e, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production

@@ -14,7 +14,7 @@ import {
 export { defineQueue, type JobContext, type Queue } from "./define-queue";
 
 export type JobsOptions = {
-  /** pg-boss connection: a `connectionString` in production, a PGlite `db` in tests. */
+  /** pg-boss connection: a `connectionString` in production, the cloned test database in tests. */
   boss: ConstructorOptions;
   queues: readonly AnyQueue[];
   defaults?: Partial<QueueDefaults>;
