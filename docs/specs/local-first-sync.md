@@ -120,7 +120,7 @@ CI: Postgres and `powersync-service` as service containers; `pnpm test` and `pnp
 ## Observability (D17)
 
 - **Sync diagnostics** (settings, web and native): connection state, last synced, upload queue length, rejected writes with retry/discard.
-- **Slot lag job:** pg-boss, every 5 minutes, reads `pg_replication_slots`, logs lag through `@workspace/logger`, marks `/api/health` readiness degraded above a threshold.
+- **Slot lag job:** pg-boss, every 5 minutes, reads `pg_replication_slots`, logs lag through `@workspace/logger`; `/api/ready` (readiness) reports degraded at the critical threshold or an invalidated slot, while `/api/health` stays liveness.
 - PowerSync readiness probe (`/probes/readiness`) as the Dokploy health check.
 
 ## Phases

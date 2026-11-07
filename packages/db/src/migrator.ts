@@ -31,10 +31,11 @@ export async function runMigrations(
     await lock.query("SELECT pg_advisory_lock($1, $2)", [...MIGRATION_LOCK_KEYS]);
     await migrate(drizzle({ client: pool, relations }), { migrationsFolder: folder });
   } finally {
-    // Released with the session; the explicit unlock keeps a pooled connection clean.
-    await lock
+    const unlocked = await lock
       .query("SELECT pg_advisory_unlock($1, $2)", [...MIGRATION_LOCK_KEYS])
-      .catch(() => undefined);
-    lock.release();
+      .then(() => true)
+      .catch(() => false);
+    // A connection that may still hold the lock is destroyed, not returned to the pool.
+    lock.release(!unlocked);
   }
 }

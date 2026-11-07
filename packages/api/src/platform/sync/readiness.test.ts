@@ -19,6 +19,6 @@ describe("health probes", () => {
     const ready = await app.app.request("/api/ready");
     const body = await ready.json();
     expect(ready.status).toBe(200);
-    expect(body).toEqual({ status: "ok", replication: { status: "absent", slots: [] } });
+    expect(body).toEqual({ status: "ok" });
   });
 });

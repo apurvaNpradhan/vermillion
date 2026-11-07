@@ -1,3 +1,5 @@
+import type { SlotLagThresholds } from "./sync/slot-lag";
+
 /**
  * Everything the API needs to know about its deployment. The server builds it
  * from validated environment variables; tests build it by hand.
@@ -24,6 +26,6 @@ export type ApiConfig = {
   openApiReference: boolean;
   sync: {
     /** Replication slot lag (bytes of WAL behind) that logs a warning, and that degrades readiness. */
-    slotLag: { warnBytes: number; criticalBytes: number };
+    slotLag: SlotLagThresholds;
   };
 };

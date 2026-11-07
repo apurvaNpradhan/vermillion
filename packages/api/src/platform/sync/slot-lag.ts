@@ -10,6 +10,12 @@ const MIB = 1024 * 1024;
 /** PowerSync names its slots with this prefix (`slot_name_prefix` default). */
 const SLOT_PREFIX = "powersync_";
 
+/**
+ * The one stable event name an external log monitor matches on for a critical
+ * slot (lagging or invalidated). Do not rename it without updating the docs.
+ */
+export const SLOT_LAG_ALERT_ACTION = "sync.alert.slot-lag-critical";
+
 export type SlotLagThresholds = { warnBytes: number; criticalBytes: number };
 
 export const thresholdsFromMegabytes = (warnMb: number, criticalMb: number): SlotLagThresholds => ({
@@ -52,9 +58,10 @@ const ORDER: Record<SlotLevel, number> = { ok: 0, warn: 1, critical: 2 };
  * Turns slot rows into a status. Pure.
  *
  * - An invalidated slot (`wal_status = 'lost'` or any invalidation reason) is
- *   critical: PowerSync must resnapshot.
+ *   critical: PowerSync must resnapshot. So is `unreserved`: the slot is already
+ *   past its WAL budget and the next checkpoint may remove what it still needs.
  * - Lag at or above the critical threshold is critical; at or above the warn
- *   threshold is a warning. `unreserved` (about to lose WAL) is a warning.
+ *   threshold is a warning.
  * - No slot at all is `absent`, not critical: PowerSync creates its slot when
  *   it first connects, and a deployment without sync has none. A service that
  *   never connects is caught by the external reachability probe (ADR 0025),
@@ -65,8 +72,13 @@ export function classifySlots(rows: SlotRow[], thresholds: SlotLagThresholds): S
     const invalidated = row.wal_status === "lost" || row.invalidation_reason !== null;
     const lag = row.lag_bytes;
     let level: SlotLevel = "ok";
-    if (invalidated || (lag !== null && lag >= thresholds.criticalBytes)) level = "critical";
-    else if ((lag !== null && lag >= thresholds.warnBytes) || row.wal_status === "unreserved") {
+    if (
+      invalidated ||
+      row.wal_status === "unreserved" ||
+      (lag !== null && lag >= thresholds.criticalBytes)
+    ) {
+      level = "critical";
+    } else if (lag !== null && lag >= thresholds.warnBytes) {
       level = "warn";
     }
     return {
@@ -120,8 +132,9 @@ export function logSlotReport(report: SlotLagReport) {
       safeWalSize: slot.safeWalSize ?? undefined,
       invalidated: slot.invalidated,
     };
-    if (slot.level === "critical") log.error({ ...fields, status: "critical" });
-    else if (slot.level === "warn") log.warn({ ...fields, status: "warn" });
+    if (slot.level === "critical") {
+      log.error({ ...fields, action: SLOT_LAG_ALERT_ACTION, status: "critical" });
+    } else if (slot.level === "warn") log.warn({ ...fields, status: "warn" });
     else log.info({ ...fields, status: "ok" });
   }
 }

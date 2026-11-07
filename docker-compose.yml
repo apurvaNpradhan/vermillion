@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   # One shot: roles, storage database, grants and the empty publication (ADR 0023).
-  # Runs the bundle from `pnpm --filter server build:bootstrap`; rerunning is safe.
+  # Runs the bundle `tsdown` emits next to the server (`pnpm --filter server build:bootstrap`); rerunning is safe.
   powersync-bootstrap:
     image: node:24-slim
     command: ["node", "/app/sync-bootstrap.mjs"]
@@ -52,7 +52,7 @@ services:
       POWERSYNC_REPLICATION_PASSWORD: ${POWERSYNC_REPLICATION_PASSWORD:-powersync_local_replication}
       POWERSYNC_STORAGE_PASSWORD: ${POWERSYNC_STORAGE_PASSWORD:-powersync_local_storage}
     volumes:
-      - ./apps/server/dist-bootstrap:/app:ro
+      - ./apps/server/dist:/app:ro
     restart: "no"
 
   powersync:

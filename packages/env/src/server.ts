@@ -1,9 +1,7 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-/** Weak or placeholder secrets are refused in production. */
-const PLACEHOLDER_SECRET =
-  /^(replace|change|changeme|secret|password|example|placeholder|test|dev)/i;
+import { exitOnInvalidEnv, PLACEHOLDER_SECRET } from "./shared";
 
 /**
  * Server environment. Importing this module validates `process.env` and exits
@@ -51,8 +49,5 @@ export const env = createEnv({
         path: ["SYNC_SLOT_LAG_CRITICAL_MB"],
         message: "SYNC_SLOT_LAG_CRITICAL_MB must be greater than SYNC_SLOT_LAG_WARN_MB",
       }),
-  onValidationError: (issues) => {
-    console.error("Invalid server environment:", JSON.stringify(issues, null, 2));
-    process.exit(1);
-  },
+  onValidationError: exitOnInvalidEnv("server environment"),
 });

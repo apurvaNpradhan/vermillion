@@ -11,7 +11,7 @@ replication:
   connections:
     - type: postgresql
       uri: !env PS_DATA_SOURCE_URI
-      # disable (development), require or verify-full (production), set in the environment.
+      # 1.28.1 accepts disable (development), verify-full (default) or verify-ca (needs a `cacert`).
       sslmode: !env PS_SSLMODE
 
 # Bucket storage lives in its own database on the same server (ADR 0015).

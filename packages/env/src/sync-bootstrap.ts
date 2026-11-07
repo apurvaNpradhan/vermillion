@@ -1,9 +1,7 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-/** Weak or placeholder secrets are refused in production. */
-const PLACEHOLDER_SECRET =
-  /^(replace|change|changeme|secret|password|example|placeholder|test|dev)/i;
+import { exitOnInvalidEnv, PLACEHOLDER_SECRET } from "./shared";
 
 /** Passwords end up in connection URLs, so only URL-safe characters are accepted. */
 const servicePassword = (name: string) =>
@@ -33,8 +31,5 @@ export const env = createEnv({
     POWERSYNC_REPLICATION_PASSWORD: servicePassword("POWERSYNC_REPLICATION_PASSWORD"),
     POWERSYNC_STORAGE_PASSWORD: servicePassword("POWERSYNC_STORAGE_PASSWORD"),
   },
-  onValidationError: (issues) => {
-    console.error("Invalid sync bootstrap environment:", JSON.stringify(issues, null, 2));
-    process.exit(1);
-  },
+  onValidationError: exitOnInvalidEnv("sync bootstrap environment"),
 });

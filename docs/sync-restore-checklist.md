@@ -26,7 +26,7 @@ Know first: PowerSync's bucket storage (`powersync_storage` database) is derived
 
 ## 4. Re-run the bootstrap
 
-`node sync-bootstrap.mjs` from the server image (development: `pnpm sync:bootstrap`). It is idempotent: it recreates a missing role, storage database or publication and never changes publication membership.
+`node sync-bootstrap.mjs` from the server image (development: `pnpm sync:bootstrap`). Role passwords are set with `ALTER ROLE ... PASSWORD`, which Postgres logs when `log_statement` is `ddl` or `all`: turn that off first or treat the log as secret. It is idempotent: it recreates a missing role, storage database or publication and never changes publication membership.
 
 Then check the publication still lists the synced tables (`SELECT * FROM pg_publication_tables WHERE pubname = 'powersync'`). A restore from a backup that predates a table's migration cannot list it; the migrations that run on server start re-add it (`ALTER PUBLICATION powersync ADD TABLE ...` is part of each synced table's migration). Do not hand-add tables.
 

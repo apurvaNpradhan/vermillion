@@ -37,8 +37,8 @@ describe("classifySlots", () => {
     expect(invalidated.slots[0]?.invalidated).toBe(true);
   });
 
-  it("warns when the slot is about to lose WAL", () => {
-    expect(classifySlots([slot({ wal_status: "unreserved" })], thresholds).status).toBe("warn");
+  it("is critical when the slot is past its WAL budget", () => {
+    expect(classifySlots([slot({ wal_status: "unreserved" })], thresholds).status).toBe("critical");
   });
 
   it("reports the worst slot and keeps each slot's own level", () => {

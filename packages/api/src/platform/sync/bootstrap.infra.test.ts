@@ -278,4 +278,60 @@ describe.skipIf(unavailable)("replication bootstrap on the compose Postgres", ()
     expect(String(failure)).not.toContain("wrong-admin-password");
     expect(String(failure)).not.toContain(REPLICATION_PASSWORD);
   });
+
+  it("refuses a storage database owned by someone else", async () => {
+    await resetFixture();
+    await withAdmin("postgres", (client) =>
+      client.query(`CREATE DATABASE "${names.storageDatabase}" OWNER "${appRole}"`),
+    );
+    const failure = await bootstrapReplication(options()).catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(BootstrapPreflightError);
+    expect(String(failure)).toContain(`owned by "${appRole}"`);
+  });
+
+  it("refuses an existing replication role that is a superuser", async () => {
+    await resetFixture();
+    await withAdmin("postgres", (client) =>
+      client.query(`CREATE ROLE "${names.replicationRole}" LOGIN SUPERUSER`),
+    );
+    const failure = await bootstrapReplication(options()).catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(BootstrapPreflightError);
+    expect(String(failure)).toContain("exists as a superuser");
+  });
+
+  it("refuses an application role without CREATE on the database", async () => {
+    await resetFixture();
+    await withAdmin("postgres", async (client) => {
+      await client.query(`ALTER DATABASE "${appDatabase}" OWNER TO postgres`);
+      await client.query(`REVOKE CREATE ON DATABASE "${appDatabase}" FROM "${appRole}"`);
+    });
+    const failure = await bootstrapReplication(options()).catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(BootstrapPreflightError);
+    expect(String(failure)).toContain("needs CREATE on the database");
+  });
+
+  it("excludes runs against different databases of one cluster", async () => {
+    await resetFixture();
+    const otherDatabase = `${appDatabase}_b`;
+    await withAdmin("postgres", (client) =>
+      client.query(`CREATE DATABASE "${otherDatabase}" OWNER "${appRole}"`),
+    );
+    try {
+      // Same cluster-wide roles and storage database from two databases at once.
+      const results = await Promise.all([
+        bootstrapReplication(options()),
+        bootstrapReplication(
+          options({
+            adminUrl: urlFor("postgres", new URL(ADMIN_URL).password, otherDatabase),
+            databaseUrl: urlFor(appRole, "app-password", otherDatabase),
+          }),
+        ),
+      ]);
+      expect(results.map((result) => result.completed.length)).toEqual([7, 7]);
+    } finally {
+      await withAdmin("postgres", (client) =>
+        client.query(`DROP DATABASE IF EXISTS "${otherDatabase}" WITH (FORCE)`),
+      );
+    }
+  });
 });

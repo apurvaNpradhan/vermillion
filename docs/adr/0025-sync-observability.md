@@ -19,6 +19,8 @@ A stopped PowerSync service silently fills the disk with WAL. A job inside the f
 ## Consequences
 
 - Implementation (phase 2): the `sync.slot-lag` pg-boss job (every 5 minutes) reads this database's `powersync_%` slots and logs `warn` at the warn threshold and `error` at the critical one; `/api/ready` returns 503 `degraded` at critical lag or an invalidated slot (`wal_status = lost` or an invalidation reason). `/api/health` stays liveness only and Dockerfile and Dokploy keep using it, because restarting the API does not drain WAL. A missing slot is `absent`, not critical: PowerSync creates it on first connect and a deployment without sync has none. A service that never connects is caught by the external reachability probe.
+- Alert event (phase 2): a critical slot (lag at the critical threshold, `unreserved` or `lost` WAL, or an invalidation reason) logs one stable error event, `action: "sync.alert.slot-lag-critical"` (`SLOT_LAG_ALERT_ACTION`), with `slot`, `lagBytes`, `walStatus`, `safeWalSize` and `invalidated`. Warnings use `sync.slot-lag` at `warn`. `/api/ready` is fail-closed (503 when the database or slot view is unreadable, or the slot is critical) and its body is the status only.
+- Open item, phase 8: alerts not covered yet are disk and WAL headroom, PowerSync snapshot failure and alert routing; phase 2 only supplies the log event and the probes.
 - Open item: production WAL budget and `max_slot_wal_keep_size` sizing, derived from write rate and outage plus snapshot recovery time (4GB is a development setting only).
 - Open item, phase 2/8: alert routing and where alerts are delivered.
 - Open item, phase 5: the minimal client diagnostic state; phase 8: the full diagnostics screen (`en` and `de`).

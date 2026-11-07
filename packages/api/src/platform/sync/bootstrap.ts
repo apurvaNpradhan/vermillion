@@ -57,13 +57,14 @@ export class BootstrapPreflightError extends Error {
 /** Advisory lock keys: two int4s so the lock is namespaced to this tool. */
 const LOCK_KEYS = [0x70737963, 1] as const;
 const MIN_POSTGRES_VERSION = 140_000;
+const MAINTENANCE_DATABASE = "postgres";
 
 function connection(url: string): ClientConfig {
   return { connectionString: url, connectionTimeoutMillis: 5_000 };
 }
 
 /** Postgres error code only: messages can quote statements that hold passwords. */
-function failure(step: BootstrapStep, error: Error): Error {
+function stepFailure(step: BootstrapStep, error: Error): Error {
   if (error instanceof BootstrapPreflightError) return error;
   const code = ("code" in error ? z.string().safeParse(error.code).data : undefined) ?? error.name;
   return new Error(`Sync bootstrap failed at step "${step}" (${code}).`);
@@ -90,21 +91,26 @@ export async function bootstrapReplication(options: BootstrapOptions): Promise<B
     await options.onStep?.(step);
   };
 
-  await admin.connect().catch(() => {
+  // Roles and CREATE DATABASE are cluster-wide but advisory locks are per database, so the
+  // lock lives on the maintenance database: runs against different databases exclude each other.
+  const lockUrl = new URL(options.adminUrl);
+  lockUrl.pathname = `/${MAINTENANCE_DATABASE}`;
+  const lock = new Client(connection(lockUrl.toString()));
+  await Promise.all([admin.connect(), lock.connect()]).catch(() => {
     throw new Error("Sync bootstrap could not connect with the admin URL.");
   });
   try {
-    await acquireLock(admin, options.lockWaitMs ?? 30_000);
+    await acquireLock(lock, options.lockWaitMs ?? 30_000);
     const appRole = decodeURIComponent(new URL(options.databaseUrl).username);
     const warnings = await preflight(admin, { ...options, names, appRole });
     await finish("preflight");
 
     current = "replication-role";
-    await upsertRole(admin, names.replicationRole, options.replicationPassword, "REPLICATION");
+    await upsertRole(admin, names.replicationRole, options.replicationPassword, true);
     await finish(current);
 
     current = "storage-role";
-    await upsertRole(admin, names.storageRole, options.storagePassword, "NOREPLICATION");
+    await upsertRole(admin, names.storageRole, options.storagePassword, false);
     await finish(current);
 
     current = "storage-database";
@@ -112,7 +118,7 @@ export async function bootstrapReplication(options: BootstrapOptions): Promise<B
     await finish(current);
 
     current = "grants";
-    await grant(admin, names);
+    await grantReplicationAccess(admin, names);
     await finish(current);
 
     current = "publication";
@@ -125,9 +131,9 @@ export async function bootstrapReplication(options: BootstrapOptions): Promise<B
 
     return { completed, warnings };
   } catch (error) {
-    throw failure(current, error instanceof Error ? error : new Error(String(error)));
+    throw stepFailure(current, error instanceof Error ? error : new Error(String(error)));
   } finally {
-    await admin.end().catch(() => undefined);
+    await Promise.all([admin.end(), lock.end()]).catch(() => undefined);
   }
 }
 
@@ -148,6 +154,28 @@ async function acquireLock(admin: Client, waitMs: number) {
 
 type PreflightInput = BootstrapOptions & { names: BootstrapNames; appRole: string };
 
+export type ServerSettings = {
+  version: number;
+  wal_level: string;
+  max_slots: number;
+  max_senders: number;
+};
+
+/** What the server's configuration lacks for logical replication. Pure. */
+export function settingsProblems(settings: ServerSettings): string[] {
+  const problems: string[] = [];
+  if (settings.version < MIN_POSTGRES_VERSION) {
+    problems.push(`Postgres ${settings.version} is older than supported (14+)`);
+  }
+  if (settings.wal_level !== "logical") {
+    problems.push(`wal_level is "${settings.wal_level}", it must be "logical" (restart required)`);
+  }
+  // One slot for streaming plus one for snapshotting while a sync config is reprocessed.
+  if (settings.max_slots < 2) problems.push("max_replication_slots must be at least 2");
+  if (settings.max_senders < 2) problems.push("max_wal_senders must be at least 2");
+  return problems;
+}
+
 async function preflight(admin: Client, input: PreflightInput): Promise<string[]> {
   const { names, appRole } = input;
   const problems: string[] = [];
@@ -167,15 +195,7 @@ async function preflight(admin: Client, input: PreflightInput): Promise<string[]
     )
   ).rows[0];
   if (!settings) throw new BootstrapPreflightError(["could not read server settings"]);
-  if (settings.version < MIN_POSTGRES_VERSION) {
-    problems.push(`Postgres ${settings.version} is older than supported (14+)`);
-  }
-  if (settings.wal_level !== "logical") {
-    problems.push(`wal_level is "${settings.wal_level}", it must be "logical" (restart required)`);
-  }
-  // One slot for streaming plus one for snapshotting while a sync config is reprocessed.
-  if (settings.max_slots < 2) problems.push("max_replication_slots must be at least 2");
-  if (settings.max_senders < 2) problems.push("max_wal_senders must be at least 2");
+  problems.push(...settingsProblems(settings));
 
   const roles = (
     await admin.query<{
@@ -210,6 +230,19 @@ async function preflight(admin: Client, input: PreflightInput): Promise<string[]
     const message = `application role "${appRole}" has superuser, CREATEROLE or REPLICATION`;
     if (input.isProduction) problems.push(`${message}; the runtime role must be unprivileged`);
     else warnings.push(`${message} (accepted outside production)`);
+  }
+  if (app) {
+    const canCreate = (
+      await admin.query<{ ok: boolean }>(
+        "SELECT has_database_privilege($1, current_database(), 'CREATE') AS ok",
+        [appRole],
+      )
+    ).rows[0]?.ok;
+    if (!canCreate) {
+      problems.push(
+        `application role "${appRole}" needs CREATE on the database to own the publication`,
+      );
+    }
   }
   if (new Set([appRole, names.replicationRole, names.storageRole]).size !== 3) {
     problems.push("the application, replication and storage roles must be three different roles");
@@ -246,10 +279,10 @@ async function preflight(admin: Client, input: PreflightInput): Promise<string[]
   return warnings;
 }
 
-async function upsertRole(admin: Client, role: string, password: string, replication: string) {
+async function upsertRole(admin: Client, role: string, password: string, replication: boolean) {
   const name = admin.escapeIdentifier(role);
   const exists = (await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [role])).rowCount;
-  const attributes = `LOGIN ${replication} NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD ${admin.escapeLiteral(password)}`;
+  const attributes = `LOGIN ${replication ? "REPLICATION" : "NOREPLICATION"} NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD ${admin.escapeLiteral(password)}`;
   // ALTER on rerun also rotates the password when the environment changed.
   await admin.query(`${exists ? "ALTER" : "CREATE"} ROLE ${name} WITH ${attributes}`);
 }
@@ -271,7 +304,7 @@ async function ensureStorageDatabase(admin: Client, names: BootstrapNames) {
   );
 }
 
-async function grant(admin: Client, names: BootstrapNames) {
+async function grantReplicationAccess(admin: Client, names: BootstrapNames) {
   const replication = admin.escapeIdentifier(names.replicationRole);
   const { rows } = await admin.query<{ database: string }>("SELECT current_database() AS database");
   const database = admin.escapeIdentifier(rows[0]?.database ?? "");
@@ -297,7 +330,7 @@ async function ensurePublication(admin: Client, publication: string, appRole: st
 /** Logs in as the two new roles: a password, pg_hba or grant mistake fails here, not in PowerSync. */
 async function verifyLogins(options: BootstrapOptions, names: BootstrapNames) {
   const adminUrl = new URL(options.adminUrl);
-  const as = async (role: string, password: string, database: string, check: string) => {
+  const loginAs = async (role: string, password: string, database: string, check: string) => {
     const url = new URL(adminUrl);
     url.username = role;
     url.password = password;
@@ -312,13 +345,13 @@ async function verifyLogins(options: BootstrapOptions, names: BootstrapNames) {
     }
   };
   const appDatabase = decodeURIComponent(adminUrl.pathname.replace(/^\//, ""));
-  await as(
+  await loginAs(
     names.replicationRole,
     options.replicationPassword,
     appDatabase,
     "(SELECT rolreplication FROM pg_roles WHERE rolname = current_user) AND has_schema_privilege(current_user, 'public', 'USAGE')",
   );
-  await as(
+  await loginAs(
     names.storageRole,
     options.storagePassword,
     names.storageDatabase,
