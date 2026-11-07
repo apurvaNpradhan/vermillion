@@ -3,6 +3,7 @@ import {
   createNote,
   deleteNote,
   updateNote,
+  watchNote,
   watchNotes,
   type LocalNote,
   type NotePatch,
@@ -13,7 +14,7 @@ import { toastManager } from "@workspace/ui/components/toast";
 import { useCallback, useEffect, useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
-import { useLocalData } from "@/sync";
+import { useLocalData, useSyncStatus } from "@/sync";
 
 /**
  * The signed-in user's notes, read from and written to the local database (ADR 0016). Writes
@@ -23,6 +24,7 @@ import { useLocalData } from "@/sync";
 export function useNotes() {
   const { t } = useTranslation();
   const local = useLocalData();
+  const { snapshot } = useSyncStatus();
   const database = local?.status === "ready" ? local.database : null;
   const [limit, setLimit] = useState(NOTES_PAGE_SIZE);
   const [page, setPage] = useState<NotesPage | null>(null);
@@ -57,6 +59,12 @@ export function useNotes() {
     isLoading: local === null || (database !== null && page === null && !loadFailed),
     /** A local read failed: not the same as "no notes". */
     loadFailed,
+    /** The first full sync has not finished, so an empty list may only mean "not downloaded yet". */
+    isFirstSync:
+      snapshot !== null &&
+      !snapshot.hasSynced &&
+      snapshot.indicator !== "paused" &&
+      snapshot.lockReason === null,
     /** Why this browser cannot keep notes on the device, when it cannot. */
     unavailableReason: local?.status === "unavailable" ? local.reason : null,
     hasMore: page?.hasMore ?? false,
@@ -64,7 +72,7 @@ export function useNotes() {
     create: async (input: { title: string; body: string }) => {
       await write((db) => createNote(db, input));
     },
-    /** Sends only the fields that differ from the saved note; a partial patch is fine. */
+    /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
     update: async (input: { id: string } & NotePatch) => {
       const { id, ...patch } = input;
       await write((db) => updateNote(db, id, patch));
@@ -73,6 +81,23 @@ export function useNotes() {
       await write((db) => deleteNote(db, id));
     },
   };
+}
+
+/**
+ * One note, live: the row, `null` once it is gone, `undefined` before the first read. An open
+ * edit form follows it so a change elsewhere reaches the form without overwriting the user's text.
+ */
+export function useLiveNote(id: string): LocalNote | null | undefined {
+  const local = useLocalData();
+  const database = local?.status === "ready" ? local.database : null;
+  const [note, setNote] = useState<LocalNote | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!database) return;
+    return watchNote(database, id, { onNote: setNote, onError: () => undefined });
+  }, [database, id]);
+
+  return note;
 }
 
 export type Note = LocalNote;

@@ -22,3 +22,4 @@ Synced rows are written on devices, possibly days offline, and merged on the ser
 ## Consequences
 
 - Component and form changes (baseline plus dirty fields) are required in phase 6; swapping the hook alone cannot infer intent.
+- Settled in phase 6: an edit form keeps a baseline per field; untouched fields follow the live row, edited fields keep the user's text. A note deleted while its form is open shows a notice with "save as new note" (a fresh row, never a restore) or "discard changes". Retrying a rejected create makes a new row; a rejected edit patches the note, or is saved as a new note when it is gone; a rejected delete is repeated. Rejected entries are kept until retried or discarded.

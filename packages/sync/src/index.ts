@@ -1,13 +1,40 @@
 export {
   NOTES_PAGE_SIZE,
+  NOTE_BODY_MAX,
+  NOTE_TITLE_MAX,
+  applyLatest,
   createNote,
   deleteNote,
+  draftPatch,
+  editDraft,
+  isDraftDirty,
+  isValidNote,
   notes,
   notesUploadColumns,
+  rejectedNoteFields,
+  rejectedRetryValues,
+  retryRejectedNote,
+  startDraft,
   updateNote,
+  watchNote,
   watchNotes,
 } from "./notes";
-export type { LocalNote, NotePatch, NotesDatabase, NotesPage } from "./notes";
+export type {
+  LocalNote,
+  NoteDraft,
+  NotePatch,
+  NoteValues,
+  NotesDatabase,
+  NotesPage,
+  RetryResult,
+} from "./notes";
+export {
+  REJECTED_WRITES_LIMIT,
+  discardRejectedWrite,
+  watchRejectedWrites,
+  type RejectedWrite,
+  type RejectedWritesDatabase,
+} from "./platform/rejected-writes";
 export { createConnector, DEFAULT_RENEWAL_MARGIN_MS, SyncUploadError } from "./platform/connector";
 export type { ConnectorDatabase, ConnectorSignal } from "./platform/connector";
 export { classifyFailure } from "./platform/transport";
