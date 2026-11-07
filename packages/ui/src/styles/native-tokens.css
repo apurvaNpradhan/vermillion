@@ -1,0 +1,75 @@
+/* Generated from src/tokens/brand.ts by `pnpm --filter @workspace/ui tokens`. Do not edit. */
+
+@layer theme {
+  :root {
+    --radius: 0.5rem;
+    --field-border-width: 1px;
+    @variant light {
+      --background: #ffffff;
+      --foreground: #111111;
+      --surface: #ffffff;
+      --surface-foreground: #111111;
+      --surface-secondary: #fafafa;
+      --surface-secondary-foreground: #0a0a0a;
+      --surface-tertiary: #f5f5f5;
+      --surface-tertiary-foreground: #0a0a0a;
+      --overlay: #ffffff;
+      --overlay-foreground: #111111;
+      --muted: #666666;
+      --default: #fafafa;
+      --default-foreground: #0a0a0a;
+      --accent: #0a0a0a;
+      --accent-foreground: #ffffff;
+      --field-background: #fafafa;
+      --field-foreground: #111111;
+      --field-placeholder: #666666;
+      --field-border: #d4d4d4;
+      --success: #2f7d52;
+      --success-foreground: #ffffff;
+      --warning: #b4690e;
+      --warning-foreground: #ffffff;
+      --danger: #b4261a;
+      --danger-foreground: #ffffff;
+      --segment: #f0f0f0;
+      --segment-foreground: #111111;
+      --border: #eaeaea;
+      --separator: #eaeaea;
+      --focus: #888888;
+      --link: #111111;
+    }
+    @variant dark {
+      --background: #0a0a0a;
+      --foreground: #ededed;
+      --surface: #0f0f0f;
+      --surface-foreground: #ededed;
+      --surface-secondary: #141414;
+      --surface-secondary-foreground: #ededed;
+      --surface-tertiary: #202020;
+      --surface-tertiary-foreground: #ededed;
+      --overlay: #141414;
+      --overlay-foreground: #ededed;
+      --muted: #9a9a9a;
+      --default: #1c1c1c;
+      --default-foreground: #ededed;
+      --accent: #ffffff;
+      --accent-foreground: #0a0a0a;
+      --field-background: #1c1c1c;
+      --field-foreground: #ededed;
+      --field-placeholder: #9a9a9a;
+      --field-border: #333333;
+      --success: #4fb083;
+      --success-foreground: #0a0a0a;
+      --warning: #d9883a;
+      --warning-foreground: #0a0a0a;
+      --danger: #e0726a;
+      --danger-foreground: #0a0a0a;
+      --segment: #262626;
+      --segment-foreground: #ededed;
+      --border: #2a2a2a;
+      --separator: #2a2a2a;
+      --focus: #777777;
+      --link: #ededed;
+    }
+  }
+}
+

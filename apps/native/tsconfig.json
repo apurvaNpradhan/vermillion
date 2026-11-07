@@ -1,0 +1,20 @@
+{
+  "references": [
+    { "path": "../../packages/api" },
+    { "path": "../../packages/client" },
+    { "path": "../../packages/env" },
+    { "path": "../../packages/i18n" },
+    { "path": "../../packages/shared" }
+  ],
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "noUncheckedIndexedAccess": true,
+    "customConditions": ["react-native", "react-native-legacy-deep-imports"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

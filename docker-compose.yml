@@ -1,0 +1,25 @@
+# Dev-only services. Apps run on the host; this provides Postgres.
+# DATABASE_URL=postgresql://postgres:password@localhost:5432/vermillion
+name: vermillion
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: vermillion-postgres
+    environment:
+      POSTGRES_DB: vermillion
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - vermillion_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vermillion"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  vermillion_postgres_data:

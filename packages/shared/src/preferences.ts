@@ -1,0 +1,52 @@
+import { z } from "zod";
+
+import { localeSchema } from "./locale";
+
+/** An IANA time zone name such as `Europe/Berlin`. */
+export function isTimeZone(value: string) {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an IANA time zone");
+
+/**
+ * UI preferences stored as `user_preferences.ui`. Every field has a default, so
+ * a missing row, a missing key and an old row all read the same way. Unknown
+ * keys are dropped. Add new settings here with a default.
+ */
+const uiFields = {
+  sidebarCollapsed: z.boolean(),
+  dismissedHints: z.array(z.string().max(100)).max(100),
+};
+export const uiPreferencesSchema = z.object({
+  sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
+  dismissedHints: uiFields.dismissedHints.default([]),
+});
+export type UiPreferences = z.infer<typeof uiPreferencesSchema>;
+
+/** A sparse update (and the sparse value stored in the database): any subset of the fields. */
+export const uiPreferencesPatchSchema = z.object(uiFields).partial();
+export type UiPreferencesPatch = z.infer<typeof uiPreferencesPatchSchema>;
+
+export const DEFAULT_UI_PREFERENCES: UiPreferences = uiPreferencesSchema.parse({});
+
+/** What a client reads: the saved values, or null/defaults when nothing is saved. */
+export const preferencesSchema = z.object({
+  locale: localeSchema.nullable(),
+  timezone: timezoneSchema.nullable(),
+  ui: uiPreferencesSchema,
+});
+export type Preferences = z.infer<typeof preferencesSchema>;
+
+/** What a client sends: any subset; `ui` is merged into the saved value. */
+export const updatePreferencesSchema = z.object({
+  locale: localeSchema.nullable().optional(),
+  timezone: timezoneSchema.nullable().optional(),
+  ui: uiPreferencesPatchSchema.optional(),
+});
+export type UpdatePreferences = z.infer<typeof updatePreferencesSchema>;

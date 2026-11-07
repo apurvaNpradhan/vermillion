@@ -1,0 +1,29 @@
+import type { TranslationKey } from "@workspace/i18n";
+
+/** What Better Auth's client returns on failure. */
+export type AuthFailure = { code?: string | undefined; status?: number | undefined };
+
+const KEYS = new Map<string, TranslationKey>([
+  ["ACCESS_DENIED", "auth__error_oauth_denied"],
+  ["ACCOUNT_NOT_LINKED", "auth__error_account_linking"],
+  ["UNABLE_TO_LINK_ACCOUNT", "auth__error_account_linking"],
+  ["INVALID_EMAIL_OR_PASSWORD", "auth__error_invalid_credentials"],
+  ["EMAIL_NOT_VERIFIED", "auth__error_email_not_verified"],
+  ["CAPTCHA_FAILED", "errors__captcha_failed"],
+  ["REGISTRATION_CLOSED", "errors__registration_closed"],
+  ["DISPOSABLE_EMAIL_NOT_ALLOWED", "errors__disposable_email"],
+  ["PASSWORD_TOO_SHORT", "auth__error_password_short"],
+  ["PASSWORD_TOO_LONG", "auth__error_password_long"],
+  ["INVALID_TOKEN", "auth__error_invalid_token"],
+  ["BANNED_USER", "auth__error_banned"],
+]);
+
+/** The translation key for a failed Better Auth call. The failure's own text is never shown. */
+export function authErrorKey(failure: AuthFailure | null | undefined): TranslationKey {
+  if (failure?.code) {
+    const key = KEYS.get(failure.code);
+    if (key) return key;
+  }
+  if (failure?.status === 429) return "errors__too_many_requests";
+  return "auth__error_unknown";
+}

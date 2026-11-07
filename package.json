@@ -1,0 +1,52 @@
+{
+  "name": "vermillion",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "dev:native": "turbo run dev -F native --",
+    "dev:web": "turbo run dev -F web --",
+    "dev:server": "turbo run dev -F server --",
+    "db:push": "turbo run db:push -F @workspace/db --",
+    "db:studio": "turbo run db:studio -F @workspace/db --",
+    "db:generate": "turbo run db:generate -F @workspace/db --",
+    "db:migrate": "turbo run db:migrate -F @workspace/db --",
+    "db:start": "docker compose up -d postgres",
+    "db:watch": "docker compose up postgres",
+    "db:stop": "docker compose stop postgres",
+    "db:down": "docker compose down postgres",
+    "lint": "oxlint && oxfmt --check",
+    "lint:fix": "oxlint --fix && oxfmt --write",
+    "format": "oxfmt --write",
+    "knip": "knip",
+    "test": "turbo run test test:root",
+    "test:root": "vitest run",
+    "prepare": "lefthook install",
+    "template:init": "node ./scripts/template-init.mjs",
+    "i18n:check": "node ./scripts/i18n/check.mjs",
+    "i18n:check:fix": "node ./scripts/i18n/check.mjs --fix",
+    "i18n:report": "node ./scripts/i18n/report.mjs",
+    "test:e2e": "turbo run test:e2e -F web"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@oxlint/plugins": "1.92.0",
+    "@types/node": "^26.4.1",
+    "@workspace/config": "workspace:*",
+    "knip": "^6.44.1",
+    "lefthook": "^2.2.1",
+    "oxfmt": "^0.74.0",
+    "oxlint": "1.92.0",
+    "turbo": "^2.11.7",
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
+  },
+  "packageManager": "pnpm@12.15.0"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@workspace/email",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-email/components": "1.0.12",
+    "@workspace/i18n": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "react": "^19.3.0",
+    "resend": "^6.37.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@workspace/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
+  }
+}

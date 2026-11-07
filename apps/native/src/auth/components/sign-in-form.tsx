@@ -1,0 +1,118 @@
+import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
+import { authErrorKey } from "@workspace/client/auth-error";
+import { Button, Spinner } from "heroui-native";
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
+import { Text } from "react-native";
+import { z } from "zod";
+
+import { authClient } from "@/platform/auth-client";
+import { TextField } from "@/platform/forms/text-field";
+import { useTranslation } from "@/platform/i18n";
+import { FormError } from "@/platform/ui/form-error";
+import { Notice } from "@/platform/ui/notice";
+
+import { refreshSession } from "../session";
+import { rememberLoginMethod } from "../last-login-method";
+import { AuthLayout } from "./auth-layout";
+import { AuthLink } from "./auth-link";
+import { SocialButtons } from "./social-buttons";
+import { useTurnstile } from "./use-turnstile";
+
+export function SignInForm({ resetDone }: { resetDone?: boolean }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const turnstile = useTurnstile();
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        email: z.email(t("auth__error_email_invalid")),
+        password: z.string().min(1, t("auth__error_password_required")),
+      }),
+    [t],
+  );
+
+  const form = useForm({
+    defaultValues: { email: "", password: "" },
+    validators: { onSubmit: schema },
+    onSubmit: async ({ value }) => {
+      setFailure(null);
+      const { error } = await authClient.signIn.email(value, { headers: turnstile.headers });
+      turnstile.reset();
+      if (error) {
+        if (error.code === "EMAIL_NOT_VERIFIED") {
+          // Better Auth has just sent a fresh verification link.
+          router.push({ pathname: "/verify-email", params: { email: value.email } });
+          return;
+        }
+        setFailure(t(authErrorKey(error)));
+        return;
+      }
+      rememberLoginMethod("email");
+      // The route guard moves to the signed-in screens once the session is known.
+      await refreshSession(queryClient);
+    },
+  });
+
+  return (
+    <AuthLayout
+      title={t("auth__sign_in_title")}
+      footer={
+        <Text className="text-muted text-sm">
+          {t("auth__no_account")} <AuthLink href="/sign-up">{t("nav__sign_up")}</AuthLink>
+        </Text>
+      }
+    >
+      {resetDone ? <Notice status="success" message={t("auth__reset_done")} /> : null}
+      <FormError message={failure} />
+      <form.Field name="email">
+        {(field) => (
+          <TextField
+            field={field}
+            label={t("auth__email")}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
+          />
+        )}
+      </form.Field>
+      <form.Field name="password">
+        {(field) => (
+          <TextField
+            field={field}
+            label={t("auth__password")}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={() => void form.handleSubmit()}
+          />
+        )}
+      </form.Field>
+      <AuthLink href="/forgot-password">{t("auth__forgot_link")}</AuthLink>
+      {turnstile.widget}
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(isSubmitting) => (
+          <Button
+            onPress={() => void form.handleSubmit()}
+            isDisabled={isSubmitting || turnstile.pending}
+          >
+            {isSubmitting ? <Spinner size="sm" /> : null}
+            <Button.Label>{t("auth__sign_in_action")}</Button.Label>
+          </Button>
+        )}
+      </form.Subscribe>
+      <SocialButtons
+        headers={turnstile.headers}
+        blocked={turnstile.pending}
+        onDone={turnstile.reset}
+      />
+    </AuthLayout>
+  );
+}

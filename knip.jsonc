@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  // Vendored agent skills ship their own scripts and assets.
+  "ignore": [".agents/**"],
+  // Public type of the app config, imported by derived tooling later.
+  "ignoreIssues": { "app.config.ts": ["types"] },
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.{mjs,ts}", "tools/**/*.ts"],
+    },
+    "apps/web": {
+      "entry": ["src/routes/**/*.{ts,tsx}", "src/routeTree.gen.ts", "e2e/**/*.spec.ts"],
+      // Route exports are consumed by the generated route tree.
+      "ignoreIssues": { "src/routes/**": ["exports"] },
+      // CSS imports (Tailwind, fonts) are not seen as imports.
+      "ignoreDependencies": ["tailwindcss", "@workspace/config"],
+    },
+    "apps/native": {
+      // Expo reads these through app.config.ts and the Metro/Babel presets.
+      "ignoreDependencies": ["@workspace/config"],
+    },
+    "packages/api": {
+      // Declaration files of the router name types from @orpc/shared (TS2883 without it).
+      "ignoreDependencies": ["@orpc/shared"],
+    },
+    "packages/ui": {
+      // Components are installed from the coss registry and used by the apps,
+      // so most of their exports and dependencies look unused from here.
+      "ignoreIssues": { "src/components/**": ["exports", "types"], "src/hooks/**": ["exports"] },
+    },
+  },
+}

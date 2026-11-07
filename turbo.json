@@ -1,0 +1,83 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["*"]
+    },
+    "db:push": {
+      "cache": false,
+      "interactive": true
+    },
+    "db:generate": {
+      "cache": false,
+      "interactive": true
+    },
+    "db:migrate": {
+      "cache": false,
+      "interactive": true
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:start": {
+      "cache": false
+    },
+    "db:stop": {
+      "cache": false
+    },
+    "db:watch": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:down": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "//#test:root": {
+      "cache": false,
+      "outputs": []
+    },
+    "test:e2e": {
+      "cache": false,
+      "passThroughEnv": ["CI", "E2E_DATABASE_URL"]
+    }
+  },
+  "globalEnv": [
+    "ADMIN_EMAILS",
+    "APP_URL",
+    "BETTER_AUTH_SECRET",
+    "CI",
+    "DATABASE_URL",
+    "EXPO_PUBLIC_SERVER_URL",
+    "NODE_ENV",
+    "REGISTRATION_OPEN",
+    "TRUSTED_PROXIES",
+    "VITE_SERVER_URL",
+    "VITE_TURNSTILE_SITE_KEY"
+  ],
+  "globalDependencies": ["app.config.ts", ".env*", "apps/*/.env*", "packages/*/.env*"]
+}

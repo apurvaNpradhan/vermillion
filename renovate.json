@@ -1,0 +1,100 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", "schedule:monthly", ":semanticCommitTypeAll(chore)"],
+  "timezone": "UTC",
+  "rangeStrategy": "pin",
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Dev tooling in one PR",
+      "groupName": "tooling",
+      "matchPackageNames": [
+        "oxlint",
+        "oxfmt",
+        "@oxlint/**",
+        "knip",
+        "lefthook",
+        "vitest",
+        "typescript",
+        "turbo",
+        "@commitlint/**"
+      ]
+    },
+    {
+      "description": "Expo SDK packages move together",
+      "groupName": "expo",
+      "matchPackageNames": [
+        "expo",
+        "expo-*",
+        "@expo/**",
+        "react-native",
+        "react-native-*",
+        "babel-preset-expo"
+      ]
+    },
+    {
+      "description": "TanStack",
+      "groupName": "tanstack",
+      "matchPackageNames": ["@tanstack/**"]
+    },
+    {
+      "description": "oRPC 2 is a pinned beta: bump all packages together, and only deliberately",
+      "groupName": "orpc",
+      "matchPackageNames": ["@orpc/**"],
+      "ignoreUnstable": false,
+      "respectLatest": false
+    },
+    {
+      "description": "Drizzle 1.0 is a pinned release candidate: drizzle-orm and drizzle-kit together",
+      "groupName": "drizzle",
+      "matchPackageNames": ["drizzle-orm", "drizzle-kit", "drizzle-zod"],
+      "ignoreUnstable": false,
+      "respectLatest": false
+    },
+    {
+      "description": "Better Auth packages are version-locked to each other",
+      "groupName": "better-auth",
+      "matchPackageNames": ["better-auth", "@better-auth/**"]
+    },
+    {
+      "description": "Everything else non-major",
+      "groupName": "all non-major",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": [
+        "!@orpc/**",
+        "!drizzle-orm",
+        "!drizzle-kit",
+        "!drizzle-zod",
+        "!better-auth",
+        "!@better-auth/**",
+        "!@tanstack/**",
+        "!expo",
+        "!expo-*",
+        "!@expo/**",
+        "!react-native",
+        "!react-native-*",
+        "!babel-preset-expo",
+        "!oxlint",
+        "!oxfmt",
+        "!@oxlint/**",
+        "!knip",
+        "!lefthook",
+        "!vitest",
+        "!typescript",
+        "!turbo",
+        "!@commitlint/**"
+      ],
+      "matchManagers": ["npm"]
+    },
+    {
+      "description": "GitHub Actions stay SHA-pinned",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on the first day of the month"]
+  }
+}

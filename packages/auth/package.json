@@ -1,0 +1,30 @@
+{
+  "name": "@workspace/auth",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@better-auth/core": "1.7.18",
+    "@better-auth/drizzle-adapter": "1.7.18",
+    "@better-auth/expo": "catalog:",
+    "@workspace/db": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "better-auth": "catalog:",
+    "disposable-email-domains": "^1.0.62",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@workspace/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
+  }
+}

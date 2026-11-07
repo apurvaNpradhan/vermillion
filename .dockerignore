@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.turbo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.scratch
+repos
+apps/native
+apps/web/.wrangler
+apps/web/e2e/.artifacts

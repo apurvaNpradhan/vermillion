@@ -1,0 +1,25 @@
+{
+  "name": "server",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc -b ../../packages/api && tsdown",
+    "typecheck": "tsc -b ../../packages/api && tsc --noEmit",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "node dist/index.mjs"
+  },
+  "dependencies": {
+    "@workspace/api": "workspace:*",
+    "@workspace/email": "workspace:*",
+    "@workspace/env": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "evlog": "^2.33.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@workspace/config": "workspace:*",
+    "tsdown": "^0.23.0",
+    "tsx": "^4.23.13",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,52 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+  sharp: true
+  lefthook: true
+  workerd: true
+catalog:
+  zod: ^4.5.4
+  "@orpc/server": 2.0.0-beta.43
+  "@orpc/openapi": 2.0.0-beta.43
+  "@orpc/json-schema": 2.0.0-beta.43
+  "@orpc/zod": 2.0.0-beta.43
+  better-auth: 1.7.18
+  "@orpc/tanstack-query": 2.0.0-beta.43
+  "@orpc/client": 2.0.0-beta.43
+  "@orpc/shared": 2.0.0-beta.43
+  "@tanstack/react-query": ^5.104.2
+  "@tanstack/react-form": ^1.33.5
+  tailwindcss: ^4.3.3
+  "@better-auth/expo": 1.7.18
+  drizzle-orm: 1.0.0-rc.5
+  typescript: 7.0.2
+minimumReleaseAgeExclude:
+  - "@oxlint/plugins@1.92.0"
+  - i18next@26.7.2
+  - pg-boss@12.38.1
+  - "@playwright/test@1.65.0"
+  - playwright-core@1.65.0
+  - playwright@1.65.0
+  - react-i18next@17.1.13
+  - "@oxlint/binding-android-arm-eabi@1.92.0"
+  - "@oxlint/binding-android-arm64@1.92.0"
+  - "@oxlint/binding-darwin-arm64@1.92.0"
+  - "@oxlint/binding-darwin-x64@1.92.0"
+  - "@oxlint/binding-freebsd-x64@1.92.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.92.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.92.0"
+  - "@oxlint/binding-linux-arm64-gnu@1.92.0"
+  - "@oxlint/binding-linux-arm64-musl@1.92.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.92.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.92.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.92.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.92.0"
+  - "@oxlint/binding-linux-x64-gnu@1.92.0"
+  - "@oxlint/binding-linux-x64-musl@1.92.0"
+  - "@oxlint/binding-openharmony-arm64@1.92.0"
+  - "@oxlint/binding-win32-arm64-msvc@1.92.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.92.0"
+  - "@oxlint/binding-win32-x64-msvc@1.92.0"
+  - oxlint@1.92.0

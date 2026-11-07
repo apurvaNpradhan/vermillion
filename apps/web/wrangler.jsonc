@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // `name` and `routes` are derived from app.config.ts by `pnpm template:init`.
+  "name": "vermillion-web",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Zone routes, not a custom domain: the Worker takes every path on the host
+  // except /api/* and /rpc/*, which carry a Worker-less route and fall through
+  // to the Dokploy origin (see docs/deployment.md).
+  "routes": [{ "pattern": "vermillion.example.com/*", "zone_name": "example.com" }],
+}
