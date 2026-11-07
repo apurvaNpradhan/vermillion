@@ -59,3 +59,4 @@ repos/
 
 # Playwright
 apps/web/e2e/.artifacts
+apps/web/e2e-offline/.artifacts
