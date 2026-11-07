@@ -9,6 +9,7 @@ import { useEffect } from "react";
 
 import { useAuthReturn, useSession } from "@/auth";
 import { AppProviders } from "@/platform/providers";
+import { useDeviceOwner } from "@/sync";
 import { applyStoredTheme } from "@/platform/theme";
 
 void SplashScreen.preventAutoHideAsync();
@@ -18,8 +19,14 @@ applyStoredTheme();
 export const unstable_settings = { anchor: "(app)" };
 
 function RootStack() {
-  const { session, isPending } = useSession();
+  const { session, isPending: sessionPending } = useSession();
+  const owner = useDeviceOwner();
   useAuthReturn(Boolean(session));
+
+  // A device that holds a user's data opens it without waiting for the network or a session
+  // (ADR 0021); any other waits for the session answer.
+  const isPending = owner.isPending || (sessionPending && !owner.hasOwner);
+  const hasAccess = Boolean(session) || owner.hasOwner;
 
   useEffect(() => {
     if (!isPending) void SplashScreen.hideAsync();
@@ -28,7 +35,7 @@ function RootStack() {
   if (isPending) return null;
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={Boolean(session)}>
+      <Stack.Protected guard={hasAccess}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={!session}>

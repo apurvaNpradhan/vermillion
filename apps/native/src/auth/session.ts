@@ -14,7 +14,7 @@ export function sessionQueryOptions() {
 /** The signed-in session (null when signed out); `isPending` until the first answer. */
 export function useSession() {
   const query = useQuery(sessionQueryOptions());
-  return { session: query.data ?? null, isPending: query.isPending };
+  return { session: query.data ?? null, isPending: query.isPending, isError: query.isError };
 }
 
 /** Fetches the session again, bypassing the cache (after sign-in or verification). */
