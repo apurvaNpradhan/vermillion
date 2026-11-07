@@ -17,10 +17,11 @@ Read the guide for the area you touch before editing. Terms are defined in [CONT
 | ------------------------------------------------- | --------------------------------------------- |
 | Start Postgres + PowerSync, then everything       | `pnpm db:start` then `pnpm dev`               |
 | Sync bootstrap / infra tests (need `db:start`)    | `pnpm sync:bootstrap`, `pnpm test:sync-infra` |
+| Sync seam 3 (stack and API running)               | `pnpm test:sync`                              |
 | Lint and format check                             | `pnpm lint` (fix: `pnpm lint:fix`)            |
 | Typecheck                                         | `pnpm typecheck`                              |
 | Dead code and unused deps                         | `pnpm knip`                                   |
-| Unit and API tests                                | `pnpm test`                                   |
+| Unit and API tests (need `db:start`)              | `pnpm test`                                   |
 | i18n consistency / key usage                      | `pnpm i18n:check`, `pnpm i18n:report`         |
 | End-to-end (needs Postgres, ports 3000/3001 free) | `pnpm test:e2e`                               |
 | Generate a migration                              | `pnpm db:generate`                            |
@@ -48,7 +49,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [verticals](.agents/verticals.md)       | Slice layout, boundaries rule, adding and deleting a vertical |
 | [data-flow](.agents/data-flow.md)       | Routes, Query, module hooks, SSR vs client-only               |
 | [orpc](.agents/orpc.md)                 | Procedures, builders, errors, rate limits, jobs               |
-| [orpc-testing](.agents/orpc-testing.md) | Seam 1: the router in-process on PGlite                       |
+| [orpc-testing](.agents/orpc-testing.md) | Seam 1: the router in-process on cloned Docker Postgres       |
 | [testing](.agents/testing.md)           | Unit tests and Playwright e2e (seam 2)                        |
 | [database](.agents/database.md)         | Tables, ids, timestamps, migrations                           |
 | [auth](.agents/auth.md)                 | Better Auth, hardening, CAPTCHA, admin                        |

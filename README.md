@@ -9,7 +9,7 @@ A production-ready starting point for apps with personal accounts: a web app, a 
 | `apps/server` | Hono, oRPC 2, Better Auth, Drizzle, pg-boss                              | Dokploy, with a separate Postgres |
 | `packages/*`  | `@workspace/{api,auth,db,ui,env,shared,logger,i18n,email,client,config}` |                                   |
 
-Tooling: pnpm, Turborepo, TypeScript 7, oxlint and oxfmt, lefthook, commitlint, knip, zizmor, Renovate, Vitest (with PGlite) and Playwright.
+Tooling: pnpm, Turborepo, TypeScript 7, oxlint and oxfmt, lefthook, commitlint, knip, zizmor, Renovate, Vitest (on Docker Postgres) and Playwright.
 
 ## What is included
 
@@ -39,7 +39,8 @@ Open <http://localhost:3001>. The Vite dev server proxies `/api` and `/rpc` to t
 | `pnpm lint` / `pnpm lint:fix`     | oxlint and oxfmt                                   |
 | `pnpm typecheck`                  | TypeScript 7 across the workspace                  |
 | `pnpm knip`                       | Dead code and unused dependencies                  |
-| `pnpm test`                       | Unit and API tests (PGlite, no Docker)             |
+| `pnpm test`                       | Unit and API tests (need `pnpm db:start`)          |
+| `pnpm test:sync`                  | Real-service sync tests (stack and API running)    |
 | `pnpm sync:bootstrap`             | Provision PowerSync roles, storage DB, publication |
 | `pnpm test:sync-infra`            | Bootstrap and slot tests on the compose Postgres   |
 | `pnpm test:e2e`                   | Playwright against the real stack (needs Postgres) |

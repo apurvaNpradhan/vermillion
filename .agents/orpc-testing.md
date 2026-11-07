@@ -1,6 +1,6 @@
 # oRPC testing (seam 1)
 
-Test procedures and Better Auth through the router in-process against PGlite with every migration applied. No HTTP, no Docker.
+Test procedures and Better Auth through the router in-process against the Docker Postgres (`pnpm db:start`), on a database cloned from a template with every migration applied. No HTTP. Without Postgres the suite fails and says to run `pnpm db:start`.
 
 ```ts
 import { createTestApp } from "../platform/testing/harness";
@@ -22,4 +22,8 @@ const note = await client.notes.create({ title: "x", body: "" });
 - Jobs run in-process with zero retry delay and half-second polling; use `waitForEmail` or poll `rows` with a deadline rather than sleeping a fixed time.
 - Rate-limit tests use a small `max` through the config and assert `TOO_MANY_REQUESTS`.
 
-Each test creates its own app (a fresh PGlite), so tests do not share state.
+## Databases
+
+`packages/api/vitest.config.ts` runs `platform/testing/global-setup.ts` once per run. It creates `vermillion_test_tpl_<run>` and migrates it with the production migrator (advisory lock included). `createTestApp()` then runs `CREATE DATABASE ... TEMPLATE` for its own clone, points the Drizzle pool and pg-boss at it, and `close()` drops the clone (`WITH (FORCE)`, replication slots dropped first). The template is dropped when the run ends. Names carry a run id and the process id, so parallel files and parallel runs on one Postgres do not collide. Nothing may connect to the template after setup; Postgres refuses to copy a template in use.
+
+Each test creates its own app (a fresh clone), so tests do not share state, except files that deliberately build one app in `beforeAll` (for example `notes.test.ts`). For direct SQL or schema work without an app, use `cloneDatabase` / `dropDatabase` from `platform/testing/postgres.ts` (see `platform/sync/parity.test.ts`). Always drop what you create; do not leave roles or slots behind.
