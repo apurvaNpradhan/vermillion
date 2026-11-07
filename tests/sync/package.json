@@ -1,0 +1,17 @@
+{
+  "name": "@workspace/sync-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:sync": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "@workspace/config": "workspace:*",
+    "pg": "^8.23.0",
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
+  }
+}

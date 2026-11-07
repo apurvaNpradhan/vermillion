@@ -1,0 +1,5 @@
+{
+  "extends": "@workspace/config/tsconfig.base.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["src/**/*.ts", "vitest.config.ts"]
+}
