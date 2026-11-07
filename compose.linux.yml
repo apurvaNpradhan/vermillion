@@ -1,0 +1,26 @@
+# Override for Linux hosts whose firewall drops container-to-host traffic. There PowerSync
+# cannot fetch the API's JWKS through host.docker.internal (it fails with PSYNC_S2204), so
+# `pnpm test:sync` and a signed-in dev session never get a token verified.
+#
+# PowerSync shares the host network instead and reaches Postgres and the API on loopback:
+#
+#   docker compose -f docker-compose.yml -f compose.linux.yml up -d --wait
+#
+# The service stays on 127.0.0.1:8090 (override with POWERSYNC_HOST_PORT). Host networking
+# is Linux-only; macOS and Windows keep the default file. Nothing here is for production.
+services:
+  powersync:
+    network_mode: host
+    extra_hosts: !reset []
+    ports: !reset []
+    environment:
+      PS_PORT: ${POWERSYNC_HOST_PORT:-8090}
+      PS_DATA_SOURCE_URI: postgresql://powersync_replication:${POWERSYNC_REPLICATION_PASSWORD:-powersync_local_replication}@127.0.0.1:5432/${POSTGRES_DB:-vermillion}
+      PS_STORAGE_SOURCE_URI: postgresql://powersync_storage:${POWERSYNC_STORAGE_PASSWORD:-powersync_local_storage}@127.0.0.1:5432/powersync_storage
+      PS_JWKS_URI: http://127.0.0.1:3000/api/auth/jwks
+    healthcheck:
+      test: !override
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:${POWERSYNC_HOST_PORT:-8090}/probes/readiness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
