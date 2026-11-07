@@ -9,6 +9,7 @@
   "dependencies": {
     "@powersync/common": "2.5.0",
     "@powersync/node": "1.3.0",
+    "@workspace/sync": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "uuid": "^14.0.3"
   },

@@ -30,6 +30,10 @@ export function createDb(
     // Timestamps are UTC instants; never depend on the server's time zone.
     options: "-c timezone=UTC",
   });
+  // A Postgres restart or failover kills idle pooled connections. Without a listener the
+  // pool's 'error' event is an uncaught exception that takes the process down. The pool
+  // discards the dead client and reconnects on the next query; callers may log via pool.on.
+  pool.on("error", () => undefined);
   return { db: drizzle({ client: pool, relations }), pool };
 }
 

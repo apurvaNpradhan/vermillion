@@ -935,6 +935,9 @@ importers:
       '@powersync/node':
         specifier: 1.3.0
         version: 1.3.0(@powersync/common@2.5.0)(better-sqlite3@13.0.3)
+      '@workspace/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3

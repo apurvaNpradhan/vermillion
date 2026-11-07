@@ -32,6 +32,8 @@ pnpm db:start                                    # Postgres, sync bootstrap and 
 pnpm dev                                         # server, web and the native bundler
 ```
 
+On a Linux host whose firewall drops container-to-host traffic, PowerSync cannot fetch the API's JWKS and signed-in sync fails (`PSYNC_S2204`). Start the stack with the host-network override instead of `pnpm db:start`: `pnpm --filter server build:bootstrap && docker compose -f docker-compose.yml -f compose.linux.yml up -d --wait`.
+
 Open <http://localhost:3001>. The Vite dev server proxies `/api` and `/rpc` to the server on port 3000, like the Cloudflare routes do in production. Without a `RESEND_API_KEY` the server prints emails (verification links) to its log. `pnpm dev:web`, `dev:server` and `dev:native` start one app.
 
 | Command                           | What it does                                       |

@@ -80,6 +80,9 @@ jobs:
   # powersync-service, all from the repo's compose file. Order matters: the bootstrap creates
   # the publication, the server's migrations add `notes` to it, and only then may PowerSync
   # start with the `notes` stream (ADR 0023). PowerSync reaches the API's JWKS on the host.
+  # The parity test runs in the `tests` job (`pnpm test`). The fault suites stop PowerSync and
+  # cut database sessions, so they are enabled here by naming the compose container; locally
+  # run the same steps against a throwaway stack (see .agents/sync.md).
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -91,6 +94,7 @@ jobs:
       BETTER_AUTH_SECRET: ci-placeholder-secret-not-for-production-0000
       DATABASE_URL: postgresql://postgres:password@localhost:5432/vermillion
       EMAIL_CONSOLE: "true"
+      SYNC_TEST_POWERSYNC_CONTAINER: vermillion-powersync-1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -108,7 +112,7 @@ jobs:
           docker compose up --no-deps powersync-bootstrap
       - name: Start the API (migrates, serves the JWKS)
         run: |
-          pnpm --filter server exec tsx src/index.ts > server.log 2>&1 &
+          nohup pnpm --filter server exec tsx src/index.ts > server.log 2>&1 &
           for _ in $(seq 1 60); do
             curl -fs http://127.0.0.1:3000/api/health && exit 0
             sleep 2

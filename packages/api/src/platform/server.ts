@@ -29,6 +29,8 @@ export type RunServerOptions = {
  */
 export async function runServer(options: RunServerOptions) {
   const { db, pool } = createDb(options.databaseUrl);
+  // Only the error name: driver messages can quote row values.
+  pool.on("error", (error) => log.warn({ action: "db.pool.idle-error", errorName: error.name }));
 
   await prepareDatabaseStartup({
     databaseUrl: options.databaseUrl,
