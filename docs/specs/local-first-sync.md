@@ -71,7 +71,7 @@ Dirty-field writes, delete precedence and schema version: [ADR 0019](../adr/0019
 
 - `id`: UUIDv7 generated on the client (template column helper). Native needs `expo-crypto` (Hermes has no `crypto`).
 - `user_id` on every user-owned row; streams filter `user_id = auth.user_id()`.
-- **Soft delete** with `deleted_at`; streams exclude deleted rows; a pg-boss job hard-deletes after the retention period, which must exceed the supported offline horizon ([ADR 0019](../adr/0019-synced-table-conventions.md); 30 days is provisional). Retried hard DELETEs cause spurious rejected writes.
+- **Soft delete** with `deleted_at`; streams exclude deleted rows; a pg-boss job hard-deletes after the retention period, which must exceed the supported offline horizon (90 days supported, tombstones and receipts retained 120 days; [ADR 0019](../adr/0019-synced-table-conventions.md)). Retried hard DELETEs cause spurious rejected writes.
 - Conflicts: **last upload wins, per field** (`PATCH` merges fields).
 - Streams list columns explicitly, never `*`. `updated_at` stays server-side unless a screen needs it.
 - Postgres `CHECK (length(...))` matching the zod caps, so a direct write cannot bypass them.
@@ -127,7 +127,7 @@ CI: Postgres and `powersync-service` as service containers; `pnpm test` and `pnp
 
 Revised plan, accepted 2026-11-07 ([ADR 0027](../adr/0027-sync-build-plan.md); review section 7). Each phase ends green on `pnpm lint`, `pnpm typecheck`, `pnpm knip`, `pnpm test`, `pnpm i18n:check`, then a conventional commit on the feature branch. Early checkpoints are mergeable infrastructure, not user-shippable offline features.
 
-1. **Contract and baseline:** security baseline patched; base commit `d624003`; upstream versions and SHAs recorded (handoff); install `powersync-ja/agent-skills` (pending maintainer); ADRs 0015–0027 written; upload identity, error and state tables, supported offline horizon, browser shell/VFS and native key/runtime policy defined. Exit: current tests green and acceptance fixtures agreed. ADRs describe accepted decisions, not unresolved proposals as facts.
+1. **Contract and baseline:** security baseline patched; base commit `d624003`; upstream versions and SHAs recorded (handoff); install `powersync-ja/agent-skills` (pending maintainer); ADRs 0015–0027 written; upload identity, error and state tables, supported offline horizon, browser shell/VFS and native key/runtime policy defined. Exit: current tests green and acceptance fixtures agreed. Settled by the maintainer on 2026-11-07: replay identity, offline horizon, schema version, web VFS and browsers, native key, expired-session policy, slot-lag thresholds and the dev PowerSync port (see the accepted requirements below and ADRs 0018-0022, 0025). ADRs describe accepted decisions, not unresolved proposals as facts.
 2. **Repeatable infrastructure:** `powersync-service` 1.28.x compose, Postgres logical WAL, least-privilege roles/storage/publication bootstrap, preflight/resume tests, `.env` entries through `packages/env`, deployment wiring, initial probes and alerts, slot-lag pg-boss job (D17, [ADR 0025](../adr/0025-sync-observability.md)). Start with an empty sync config. Exit: clean boot, repeat boot and injected partial-bootstrap recovery.
 3. **Real Postgres harness and minimal sync seam:** clone an immutable migrated template, isolate per-file state, explicit role/slot cleanup, remove the PGlite adapter (and update `.agents/orpc-testing.md`), scaffold a real-service test in CI and parity infrastructure. Exit: the existing API suite passes on Postgres; service-test infrastructure fails usefully on missing prerequisites.
 4. **One-table server proof:** migrate notes constraints, soft delete, publication and grants, then activate its stream; JWT credentials; atomic upload and receipt handling through operations. Exit: headless round trip, ownership isolation, replay/ack-loss, rejection and rollback tests pass before platform UI work.
@@ -138,7 +138,7 @@ Revised plan, accepted 2026-11-07 ([ADR 0027](../adr/0027-sync-build-plan.md); r
 
 ## Accepted requirements, by phase
 
-Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and severity there). These are requirements, not pending gates. Open values are listed in the ADRs and settled in the named phase.
+Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and severity there). These are requirements, not pending gates. Open values are listed in the ADRs and settled in the named phase. Settled by the maintainer on 2026-11-07 (phase 1 closed): replay identity `(user_id, install_id, tx_id)` plus digest ([0018](../adr/0018-upload-protocol.md)); 90-day offline horizon with 120-day tombstone and receipt retention, and an integer `SYNC_SCHEMA_VERSION` ([0019](../adr/0019-synced-table-conventions.md)); web VFS `OPFSCoopSyncVFS` and the Chromium/Firefox/Safari current+previous contract ([0020](../adr/0020-offline-web-shell.md)); expired-session policy without an app lock ([0021](../adr/0021-device-owner-and-account-lifecycle.md)); native key policy ([0022](../adr/0022-local-encryption.md)); slot-lag thresholds 1 GB warn / 3 GB critical ([0025](../adr/0025-sync-observability.md)); dev PowerSync at `127.0.0.1:8090`.
 
 - **Offline web shell (D7, [0020](../adr/0020-offline-web-shell.md)); phase 1 contract, phase 5 build:** shell, lazy chunks, SQLite WASM and workers; never cache auth or RPC responses; the old SPA worker is not copied unchanged. Test a built app after closing it.
 - **Upload replay and schema (D11, [0018](../adr/0018-upload-protocol.md), [0019](../adr/0019-synced-table-conventions.md)); phase 1 contract, phase 4 build:** replay identity and ack-loss behavior; a repeated PATCH must not overwrite a later device's edit; delete/update races; tombstone retention versus max offline horizon; unknown-client-schema handling.
@@ -180,4 +180,9 @@ Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and 
 
 - Maintainer accepted all five review CHANGE proposals: D7 (offline web shell and web VFS contract), D11 (replay identity, dirty-field writes, delete precedence, retention, schema-version handling), D15 (drop the unused web `encryptionKey` hook), D18 (review's eight-phase plan), D19 (privacy readiness before real health data).
 - Replaced "Phases" with the revised plan; converted "Review gates" to "Accepted requirements, by phase".
-- Decisions recorded as ADRs 0015–0027. Open values (JWT expiry, max offline horizon, slot-lag threshold, native key recovery, replay wire format, web VFS and browser list) are deferred to the phases named in those ADRs.
+- Decisions recorded as ADRs 0015–0027. Open values (JWT expiry, production WAL budget) are deferred to the phases named in those ADRs; the others were settled later the same day (see below).
+
+### 2026-11-07 — phase 1 decisions settled
+
+- Maintainer accepted: replay identity `(user_id, install_id, tx_id)` plus digest (0018); 90-day offline horizon, 120-day tombstone and receipt retention, integer `SYNC_SCHEMA_VERSION` (0018, 0019); web VFS `OPFSCoopSyncVFS` and browser contract (0020); native key policy (0022); expired-session policy (0021); slot-lag thresholds 1 GB / 3 GB (0025); dev PowerSync port `127.0.0.1:8090`.
+- Replaced the provisional 30-day retention text. Phase 1 is closed.

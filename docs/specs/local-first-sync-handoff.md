@@ -83,8 +83,7 @@ Additional port inputs missing from the original map:
 ## Open choices the implementer may make (report them)
 
 - Seam 3 location (`tests/sync` workspace vs inside `packages/api`).
-- Exact JWT expiry (old: short-lived, renewed by the connector) and slot-lag threshold.
-- Port numbers for PowerSync in dev (bind `127.0.0.1`, avoid 3000/3001/8081).
+- Exact JWT expiry (old: short-lived, renewed by the connector). Slot-lag thresholds (1 GB / 3 GB) and the dev PowerSync port (`127.0.0.1:8090`) were settled on 2026-11-07.
 
 Anything else that is not in the spec: stop and ask the maintainer.
 
@@ -100,7 +99,7 @@ Done: base commit and branch, source clones with recorded SHAs (see State), ADRs
 npx skills add powersync-ja/agent-skills --skill powersync --agent claude-code -y
 ```
 
-2. Close phase 1 by settling its open contract decisions (ADR 0027, phase 1 exit) with the maintainer.
+2. Phase 1 contract decisions were settled by the maintainer on 2026-11-07 (see the revision log).
 3. Then phase 2. Pause for the native dev-client rebuild before claiming native proof. Update the `AGENTS.md` orpc-testing row when phase 3 removes PGlite.
 
 The clones already exist; inspect them rather than recloning. A shallow clone of moving HEAD is not evidence for the pinned production version; use the recorded release tags.
@@ -121,3 +120,8 @@ The clones already exist; inspect them rather than recloning. A shallow clone of
 - State updated: base commit `d624003`, branch `feat/local-first-sync`, review CHANGEs accepted, phase 1 in progress.
 - Recorded source provenance for the `powersync-js` and `powersync-service` clones (HEAD and release-tag SHAs). The `powersync` skill is not yet installed, pending a maintainer run.
 - ADRs 0015–0027 written from the accepted spec; open contract values are listed in them per phase.
+
+### 2026-11-07 — phase 1 decisions settled
+
+- Maintainer accepted: replay identity `(user_id, install_id, tx_id)` plus sha256 digest (ADR 0018); 90-day offline horizon, 120-day tombstone and receipt retention, integer `SYNC_SCHEMA_VERSION` with `MIN..CURRENT` (0019); `OPFSCoopSyncVFS` on `@powersync/web` 2.6.0 and the browser contract (0020); expired-session policy (0021); native key policy (0022); slot lag 1 GB warn / 3 GB critical, dev `max_slot_wal_keep_size=4GB` (0025); dev PowerSync port `127.0.0.1:8090`.
+- Phase 1 is closed. Phase 2 (repeatable infrastructure) follows.

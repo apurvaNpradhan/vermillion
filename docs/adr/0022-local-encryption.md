@@ -10,6 +10,7 @@ The local database holds health data. A browser has no safe key store. Only ackn
 
 - Native uses SQLCipher through op-sqlite from day one, with the key in SecureStore.
 - The optional web `encryptionKey` hook is dropped. Web encryption returns only with a designed, supported VFS and key lifecycle.
+- Key (settled 2026-11-07): a random 256-bit key is created on first open and stored in SecureStore with `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`. The database file is excluded from OS backups. A missing or wrong key moves the file aside (never deletes it), starts a fresh database and resyncs, and tells the user that unsent changes may be lost. No server key escrow.
 - No automatic wipe on open errors. Destructive resync is unsafe while unsent or rejected work exists; offer explicit recovery or export where possible.
 - Native key creation, open failure, reinstall and backup/restore policy is written before real health data. Database and key backup exclusions must be coherent.
 - The native runtime version changes when the native stack changes (op-sqlite, SQLCipher), so incompatible OTA JavaScript is never delivered to an old binary. `runtimeVersion: appVersion` does not do this by itself.
@@ -17,6 +18,6 @@ The local database holds health data. A browser has no safe key store. Only ackn
 
 ## Consequences
 
-- Open item, phase 1 exit / phase 5: native key recovery policy and the exact op-sqlite version.
+- Open item, phase 5: the exact op-sqlite version.
 - Open item, phase 5/7: runtime-version versus fingerprint policy for OTA.
 - SQLCipher must be verified on a real release binary: cold start, missing or wrong key, backup restore, runtime mismatch. Phase 5 pauses for a dev-client rebuild.
