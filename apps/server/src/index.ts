@@ -31,6 +31,9 @@ const config: ApiConfig = {
   github: credentials(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET),
   openApiReference: !isProduction,
   sync: {
+    endpoint:
+      env.SYNC_ENDPOINT_URL ??
+      (isProduction ? undefined : `http://127.0.0.1:${appConfig.ports.powersync}`),
     slotLag: thresholdsFromMegabytes(env.SYNC_SLOT_LAG_WARN_MB, env.SYNC_SLOT_LAG_CRITICAL_MB),
   },
 };

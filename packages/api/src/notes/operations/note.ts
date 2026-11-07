@@ -1,9 +1,10 @@
 import { z } from "zod";
 
+import { BODY_MAX, TITLE_MAX } from "../limits";
 import type { notes } from "../tables";
 
-export const TITLE_MAX = 200;
-export const BODY_MAX = 10_000;
+export const titleSchema = z.string().trim().min(1).max(TITLE_MAX);
+export const bodySchema = z.string().max(BODY_MAX);
 
 export const noteSchema = z.object({
   id: z.uuid(),

@@ -8,12 +8,15 @@ import {
   readCookie,
   LOCALE_COOKIE,
   resolveLocale,
+  SYNC_JWKS_ROTATION_SECONDS,
+  SYNC_JWT_AUDIENCE,
+  SYNC_JWT_TTL_SECONDS,
   TURNSTILE_TOKEN_HEADER,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import { admin as adminPlugin, lastLoginMethod, openAPI } from "better-auth/plugins";
+import { admin as adminPlugin, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
 import { z } from "zod";
 
 import { isAdminRole, syncAdminRole } from "./admin-allowlist";
@@ -232,6 +235,23 @@ export function createAuth(options: AuthOptions) {
       expo(),
       lastLoginMethod(),
       adminPlugin({ defaultRole: "user", adminRoles: ["admin"] }),
+      // Tokens for the PowerSync client only (ADR 0017). The session stays the
+      // credential for the API; `disableSettingJwtHeader` keeps tokens out of
+      // every other response.
+      jwt({
+        disableSettingJwtHeader: true,
+        jwks: {
+          keyPairConfig: { alg: "EdDSA", crv: "Ed25519" },
+          rotationInterval: SYNC_JWKS_ROTATION_SECONDS,
+        },
+        jwt: {
+          issuer: origin.origin,
+          audience: SYNC_JWT_AUDIENCE,
+          expirationTime: `${SYNC_JWT_TTL_SECONDS}s`,
+          definePayload: () => ({}),
+          getSubject: ({ user }) => user.id,
+        },
+      }),
       ...(options.openApi ? [openAPI({ disableDefaultReference: true })] : []),
     ],
     // No cookie cache: every request consults the session store, so a ban or a

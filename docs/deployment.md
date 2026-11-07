@@ -51,11 +51,12 @@ Validated at startup by `packages/env`; the server exits with the failing variab
 
 Sync infrastructure (PowerSync, phase 2; the sync features themselves are not live yet):
 
-| Variable                                                       | Required   | Notes                                                                                                                                   |
-| -------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `POWERSYNC_REPLICATION_PASSWORD`, `POWERSYNC_STORAGE_PASSWORD` | for sync   | Bootstrap job and PowerSync service. 16+ URL-safe characters (`openssl rand -hex 24`). Placeholders are refused in production.          |
-| `SYNC_ADMIN_DATABASE_URL`                                      | production | Bootstrap job only: a role with CREATEROLE, CREATEDB and REPLICATION (or superuser). Not the runtime role. Never give it to the server. |
-| `SYNC_SLOT_LAG_WARN_MB`, `SYNC_SLOT_LAG_CRITICAL_MB`           | no         | Slot lag thresholds. Defaults 1024 and 3072. Critical marks `/api/ready` degraded.                                                      |
+| Variable                                                       | Required   | Notes                                                                                                                                                                   |
+| -------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POWERSYNC_REPLICATION_PASSWORD`, `POWERSYNC_STORAGE_PASSWORD` | for sync   | Bootstrap job and PowerSync service. 16+ URL-safe characters (`openssl rand -hex 24`). Placeholders are refused in production.                                          |
+| `SYNC_ADMIN_DATABASE_URL`                                      | production | Bootstrap job only: a role with CREATEROLE, CREATEDB and REPLICATION (or superuser). Not the runtime role. Never give it to the server.                                 |
+| `SYNC_ENDPOINT_URL`                                            | prod       | Public PowerSync URL (the `sync.` subdomain) returned by `sync.credentials`. Unset in development uses `127.0.0.1:8090`; unset in production disables sync credentials. |
+| `SYNC_SLOT_LAG_WARN_MB`, `SYNC_SLOT_LAG_CRITICAL_MB`           | no         | Slot lag thresholds. Defaults 1024 and 3072. Critical marks `/api/ready` degraded.                                                                                      |
 
 The Worker takes **no** secrets: the web bundle gets public `VITE_*` values at build time only (`VITE_SERVER_URL`, `VITE_TURNSTILE_SITE_KEY`).
 

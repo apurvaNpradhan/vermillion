@@ -16,6 +16,7 @@ PowerSync authenticates with a bearer JWT, not cookies. Its stream is a long-liv
 
 ## Consequences
 
-- Open item, phase 4: exact JWT expiry and renewal margin ([the review](../specs/local-first-sync-review.md) cites five minutes only as an upstream example), set with the revocation-window decision and key-rotation overlap tests.
+- Settled in phase 4: the token lives **5 minutes** (`SYNC_JWT_TTL_SECONDS`), so a deleted session, ban or account deletion cuts stream access within at most 5 minutes plus the service's own token cache. `sync.credentials` mints a fresh token on every call; the connector renews when less than about a minute remains (the renewal margin is a connector setting, phase 5). `sub` is the user id, `aud` is `powersync` (matches `client_auth.audience`), `iss` the app origin; the payload carries nothing else. `disableSettingJwtHeader` keeps tokens out of ordinary responses. The `jwt()` plugin signs EdDSA/Ed25519, rotates keys every 30 days and keeps retired keys in the JWKS for its 30-day grace period, far longer than a token lives, so rotation needs no overlap handling. The JWKS is Better Auth's default `/api/auth/jwks`, which `powersync/service.yaml` (`PS_JWKS_URI`) already reads. The `jwks` table comes from the installed plugin's schema (checked against `getAuthTables`; the separate CLI could not be run here).
+- The endpoint returned by `sync.credentials` is `SYNC_ENDPOINT_URL` (development default `127.0.0.1:8090`); unset in production, credentials answer `BAD_GATEWAY`.
 - Open item, phase 2 and 8: CORS, CSP `connect-src`, proxy buffering, idle timeout and reconnect behavior on the subdomain, verified before rollout.
 - Existing origin, cookie and IP defenses are not weakened for PowerSync.

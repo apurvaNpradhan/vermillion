@@ -37,6 +37,8 @@ export const env = createEnv({
     EMAIL_FROM: z.string().optional(),
     /** Log emails instead of sending them, even in production (throwaway stacks). */
     EMAIL_CONSOLE: z.stringbool().default(false),
+    /** Public URL of the PowerSync service, handed to clients. Defaults to the local dev service. */
+    SYNC_ENDPOINT_URL: z.url().optional(),
     /** Replication slot lag (MiB of WAL behind) that logs a warning. */
     SYNC_SLOT_LAG_WARN_MB: z.coerce.number().int().positive().default(1024),
     /** Lag that logs an error and marks `/api/ready` degraded. */

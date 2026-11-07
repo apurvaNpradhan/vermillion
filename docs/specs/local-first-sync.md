@@ -192,3 +192,7 @@ Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and 
 - Compose: logical WAL, `powersync-service` 1.28.1 pinned by tag and digest, one-shot `powersync-bootstrap`, PowerSync on `127.0.0.1:8090`. `pnpm db:start` runs it all; `pnpm sync:bootstrap` runs the bootstrap on the host.
 - Bootstrap is a TypeScript runner (`platform/sync/bootstrap.ts`) instead of `powersync/sql/bootstrap.sql`: preflight, advisory-lock exclusion, resumable steps, login verification. Tested on the compose Postgres (`pnpm test:sync-infra`).
 - Slot-lag job and `/api/ready` (ADR 0025); migrator advisory lock and no separate migrator role (ADR 0023); restore checklist written. The sync config has no streams; `allow_local_jwks` is not a 1.28.1 key and local JWKS is allowed by default.
+
+### 2026-11-07 — phase 4 (server half)
+
+- Wire contract in `packages/shared/src/sync.ts`; `sync.credentials` and `sync.upload` in `platform/sync/`; notes handler in `notes/sync.ts`; Better Auth `jwt()` (5-minute tokens, ADR 0017); receipts, soft delete and CHECK constraints in migration `sync_phase_4`; daily `sync.purge` job. Publication membership and the `notes` stream are deliberately pending until the real-Postgres harness lands (the PGlite harness cannot run publication DDL).

@@ -25,6 +25,8 @@ export type ApiConfig = {
   /** Serve the OpenAPI reference (off in production by default). */
   openApiReference: boolean;
   sync: {
+    /** Public URL of the PowerSync service, handed to clients by `sync.credentials`. */
+    endpoint?: string | undefined;
     /** Replication slot lag (bytes of WAL behind) that logs a warning, and that degrades readiness. */
     slotLag: SlotLagThresholds;
   };

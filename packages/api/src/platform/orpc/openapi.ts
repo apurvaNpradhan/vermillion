@@ -15,6 +15,7 @@ const TAGS = [
   { name: "Account", description: "The signed-in user's own account." },
   { name: "Preferences", description: "Per-user settings such as the language." },
   { name: "Notes", description: "The example vertical: a user's private notes." },
+  { name: "Sync", description: "Local-first sync: PowerSync credentials and client uploads." },
   { name: "Admin", description: "Instance administration. Administrators only." },
 ];
 

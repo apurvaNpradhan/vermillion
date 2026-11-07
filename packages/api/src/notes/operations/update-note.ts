@@ -1,12 +1,15 @@
-import type { Database } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import type { DbExecutor } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { notes } from "../tables";
 import { toNote, type Note } from "./note";
 
-/** Changes the given fields of one of the user's notes; null when it is not theirs. */
+/**
+ * Changes only the given fields of one of the user's live notes; null when it is
+ * not theirs or is deleted (a deleted note is never resurrected by an edit).
+ */
 export async function updateNote(
-  db: Database,
+  db: DbExecutor,
   userId: string,
   id: string,
   patch: { title?: string | undefined; body?: string | undefined },
@@ -18,7 +21,7 @@ export async function updateNote(
       ...(patch.body !== undefined ? { body: patch.body } : {}),
       updatedAt: new Date(),
     })
-    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .where(and(eq(notes.id, id), eq(notes.userId, userId), isNull(notes.deletedAt)))
     .returning();
   return row ? toNote(row) : null;
 }

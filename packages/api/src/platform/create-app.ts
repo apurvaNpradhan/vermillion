@@ -8,6 +8,7 @@ import type { DrainFn } from "evlog";
 import { createAuthMiddleware } from "evlog/better-auth";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 
 import { authRoutes } from "../auth/index";
@@ -82,6 +83,14 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
   app.route("/api", healthRoutes);
   app.route("/api", readinessRoutes(services));
   app.route("/api", authRoutes(services));
+
+  // Larger than any accepted transaction (SYNC_LIMITS), so oversize bodies are cut before parsing.
+  const uploadBodyLimit = bodyLimit({
+    maxSize: 1024 * 1024,
+    onError: (c) => c.json({ code: "BAD_REQUEST", message: "Request body too large" }, 413),
+  });
+  app.use("/rpc/sync/upload", uploadBodyLimit);
+  app.use(`${OPENAPI_PREFIX}/sync/upload`, uploadBodyLimit);
 
   const rpcHandler = new RPCHandler(appRouter, {
     interceptors: [

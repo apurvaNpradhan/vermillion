@@ -4,7 +4,7 @@ Better Auth, configured in `packages/api/src/auth` with helpers in `packages/aut
 
 ## What is on
 
-Email and password with verification and reset; Google and GitHub only when both credentials are set; the Expo plugin for native; the admin plugin; delete-user with email confirmation; `lastLoginMethod`; the `openAPI` plugin (schema only, never in production, shown in `/api/reference`).
+Email and password with verification and reset; Google and GitHub only when both credentials are set; the Expo plugin for native; the admin plugin; delete-user with email confirmation; `lastLoginMethod`; the `jwt` plugin (5-minute PowerSync tokens only, JWKS at `/api/auth/jwks`; [ADR 0017](../docs/adr/0017-sync-credentials-and-transport.md)); the `openAPI` plugin (schema only, never in production, shown in `/api/reference`).
 
 ## Invariants (do not weaken)
 
