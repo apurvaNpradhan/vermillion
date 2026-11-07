@@ -18,5 +18,13 @@ A workout logged offline must not be lost to an expired session. The Device owne
 
 ## Consequences
 
-- Open item, phase 4: JWT expiry and so the revocation window ([0017](0017-sync-credentials-and-transport.md)).
+- Settled in phase 4: the token lives 5 minutes, so the revocation window is at most 5 minutes ([0017](0017-sync-credentials-and-transport.md)).
 - Phase 5 must pass cross-tab and in-flight switch tests before any user rollout.
+- Settled in phase 5 (client wiring, `packages/sync`):
+  - The Device owner is a singleton row in the local-only `device_owner` table, written in one write transaction at the first sign-in. The state machine (`lifecycle-state.ts`, pure) has phases `starting`, `unclaimed`, `active`, `reauth-required`, `blocked`, `switching` and `update-required`; the controller runs its effects (claim, connect, disconnect, wipe) one transition at a time behind `navigator.locks` (web) and a generation fence that drops signals from torn-down connections. Tabs tell each other of a claim or wipe over a `BroadcastChannel` and re-read the owner from the database.
+  - An owned database connects at start without waiting for a session. A 401, or a session lookup that answers "nobody", moves to `reauth-required`: local reads and writes continue, uploads and downloads stop. A lookup that fails (offline) says nothing and changes no state. Credentials or an upload answered with another account (`SYNC_WRONG_ACCOUNT`, or credentials for a different `userId`) move to `blocked`; a cached session of the owner does not lift a block that came from the server, only a fresh sign-in does.
+  - Explicit sign-out never wipes. With unsent changes it asks first and says they stay on the device and upload after the same account signs in again. The only wipes are the confirmed discard from `blocked` (the dialog shows the unsent count) and the owner's server-confirmed account deletion. A wipe also clears the local-only tables, so the install id is new afterwards ([0018](0018-upload-protocol.md)).
+  - The deletion email is opened later and often signed out, so the account page remembers whose deletion was requested (`localStorage` on web, device storage on native) and the confirmed landing wipes only if that account is the owner.
+  - `SYNC_CLIENT_INCOMPATIBLE` stops sync (`update-required`) until the app restarts on a newer build. `SYNC_REPLAY_MISMATCH` and `SYNC_INVALID_REQUEST` are client faults that no retry fixes; the connector keeps the queue and throws rather than discard writes.
+  - The oldest-pending age is kept in memory (PowerSync's CRUD queue has no timestamps), so after a restart it counts from the restart.
+  - Cross-tab and in-flight tests run against a real SQLite file with only the network faked; real two-tab OPFS behaviour still needs a browser pass before rollout.
