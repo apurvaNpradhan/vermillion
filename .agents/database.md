@@ -13,7 +13,7 @@ pnpm db:generate   # after changing a tables.ts; commit the SQL
 pnpm db:migrate    # apply locally (the server also migrates on start)
 ```
 
-The server waits for Postgres, migrates, then listens. Migrations must be additive-only:
+The server waits for Postgres, migrates under an advisory lock (the drizzle migrator takes none), then listens. Migrations must be additive-only:
 
 - Add tables and nullable or defaulted columns freely.
 - Never drop, rename or retype in the same release that stops using the column. Stop using it, ship, then remove it in a later release.
