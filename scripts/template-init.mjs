@@ -91,6 +91,20 @@ export const rules = [
         `$1${config.ports.postgres}/${db}`,
         "DATABASE_URL comment",
       );
+      // Container-side URLs read the database name from a variable with a default.
+      next = next.replaceAll(/\$\{POSTGRES_DB:-\w+\}/g, `\${POSTGRES_DB:-${db}}`);
+      next = replaceOnce(
+        next,
+        /"(?:127\.0\.0\.1:)?\d+:8080"/,
+        `"127.0.0.1:${config.ports.powersync}:8080"`,
+        "powersync port",
+      );
+      next = replaceOnce(
+        next,
+        /(PS_JWKS_URI: http:\/\/host\.docker\.internal:)\d+/,
+        `$1${config.ports.server}`,
+        "powersync JWKS port",
+      );
       return next;
     },
   },

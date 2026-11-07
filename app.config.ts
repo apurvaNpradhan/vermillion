@@ -20,6 +20,8 @@ export const appConfig = {
     server: 3000,
     native: 8081,
     postgres: 5432,
+    /** Development PowerSync service, bound to 127.0.0.1. */
+    powersync: 8090,
   },
   bundleIds: {
     ios: "com.anonymous.vermillion",

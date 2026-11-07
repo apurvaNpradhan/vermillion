@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:sync-infra": "vitest run --config vitest.sync-infra.config.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

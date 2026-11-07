@@ -39,7 +39,18 @@ export const env = createEnv({
     EMAIL_FROM: z.string().optional(),
     /** Log emails instead of sending them, even in production (throwaway stacks). */
     EMAIL_CONSOLE: z.stringbool().default(false),
+    /** Replication slot lag (MiB of WAL behind) that logs a warning. */
+    SYNC_SLOT_LAG_WARN_MB: z.coerce.number().int().positive().default(1024),
+    /** Lag that logs an error and marks `/api/ready` degraded. */
+    SYNC_SLOT_LAG_CRITICAL_MB: z.coerce.number().int().positive().default(3072),
   },
+  createFinalSchema: (fields) =>
+    z
+      .object(fields)
+      .refine((value) => value.SYNC_SLOT_LAG_CRITICAL_MB > value.SYNC_SLOT_LAG_WARN_MB, {
+        path: ["SYNC_SLOT_LAG_CRITICAL_MB"],
+        message: "SYNC_SLOT_LAG_CRITICAL_MB must be greater than SYNC_SLOT_LAG_WARN_MB",
+      }),
   onValidationError: (issues) => {
     console.error("Invalid server environment:", JSON.stringify(issues, null, 2));
     process.exit(1);

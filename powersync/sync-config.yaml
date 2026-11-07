@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
+# No streams yet. The `notes` stream is added in phase 4, after its table and
+# publication migration has run (ADR 0023). Adding a stream before its table
+# is in the publication makes replication fail.
+config:
+  edition: 3
+
+streams: {}

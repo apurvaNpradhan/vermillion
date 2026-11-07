@@ -1,7 +1,8 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: "./src/index.ts",
+  // `sync-bootstrap.mjs` is the one-shot replication bootstrap job (ADR 0023).
+  entry: { index: "./src/index.ts", "sync-bootstrap": "./src/sync-bootstrap.ts" },
   format: "esm",
   outDir: "./dist",
   clean: true,

@@ -7,3 +7,9 @@ export { appRouter } from "./platform/orpc/router";
 export { prepareDatabaseStartup } from "./platform/database/prepare-database-startup";
 export { waitForDatabase } from "./platform/database/wait-for-database";
 export { createClientIpResolver } from "./platform/http/client-ip";
+export {
+  bootstrapReplication,
+  BootstrapPreflightError,
+  type BootstrapResult,
+} from "./platform/sync/bootstrap";
+export { thresholdsFromMegabytes } from "./platform/sync/slot-lag";

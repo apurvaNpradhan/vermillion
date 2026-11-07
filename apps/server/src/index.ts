@@ -1,4 +1,4 @@
-import { runServer, type ApiConfig } from "@workspace/api";
+import { runServer, thresholdsFromMegabytes, type ApiConfig } from "@workspace/api";
 import { createEmailTransport } from "@workspace/email";
 import { initLogger } from "@workspace/logger";
 import { createFsDrain } from "evlog/fs";
@@ -30,6 +30,9 @@ const config: ApiConfig = {
   google: credentials(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET),
   github: credentials(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET),
   openApiReference: !isProduction,
+  sync: {
+    slotLag: thresholdsFromMegabytes(env.SYNC_SLOT_LAG_WARN_MB, env.SYNC_SLOT_LAG_CRITICAL_MB),
+  },
 };
 
 await runServer({

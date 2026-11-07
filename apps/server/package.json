@@ -6,6 +6,8 @@
     "build": "tsc -b ../../packages/api && tsdown",
     "typecheck": "tsc -b ../../packages/api && tsc --noEmit",
     "dev": "tsx watch --env-file=.env src/index.ts",
+    "sync:bootstrap": "tsx --env-file=.env src/sync-bootstrap.ts",
+    "build:bootstrap": "tsdown --config tsdown.bootstrap.config.ts",
     "start": "node dist/index.mjs"
   },
   "dependencies": {

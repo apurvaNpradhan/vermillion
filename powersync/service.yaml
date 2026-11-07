@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/cli-schemas@latest/json-schema/service-config.json
+# PowerSync Open Edition 1.28.x. Every environment-specific value comes from
+# the compose/Dokploy environment, never from this file.
+
+telemetry:
+  disable_telemetry_sharing: true
+
+port: !env PS_PORT
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      # disable (development), require or verify-full (production), set in the environment.
+      sslmode: !env PS_SSLMODE
+
+# Bucket storage lives in its own database on the same server (ADR 0015).
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: !env PS_SSLMODE
+
+sync_config:
+  path: sync-config.yaml
+
+# Client tokens are Better Auth JWTs verified against the API's JWKS (ADR 0017).
+# The endpoint arrives in phase 4. The key set is fetched lazily when the first
+# client token is verified, so the service boots and reports ready without it;
+# until then every client request is rejected, which is correct. 1.28.1 allows a
+# JWKS on a local or private address unless `block_local_jwks` is set, so the
+# dev host-gateway URL needs no flag (`allow_local_jwks` is not a key of this version).
+client_auth:
+  jwks_uri: !env PS_JWKS_URI
+  audience:
+    - powersync
+
+api:
+  tokens:
+    - !env PS_ADMIN_TOKEN
+
+# /probes/{startup,liveness,readiness} on the service port.
+healthcheck:
+  probes:
+    use_http: true
+
+system:
+  logging:
+    level: info
+    format: json

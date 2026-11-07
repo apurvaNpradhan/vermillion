@@ -14,7 +14,7 @@ import { authRoutes } from "../auth/index";
 import { clientIpMiddleware } from "./http/client-ip";
 import { compressResponses } from "./http/compress";
 import { requireTrustedOrigin } from "./http/require-trusted-origin";
-import { healthRoutes } from "./health";
+import { healthRoutes, readinessRoutes } from "./health";
 import { generateOpenApiDocument, OPENAPI_PREFIX, smartCoercion } from "./orpc/openapi";
 import { appRouter } from "./orpc/router";
 import type { Services } from "./services";
@@ -80,6 +80,7 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
   app.use("/api/*", trustOrigin);
 
   app.route("/api", healthRoutes);
+  app.route("/api", readinessRoutes(services));
   app.route("/api", authRoutes(services));
 
   const rpcHandler = new RPCHandler(appRouter, {

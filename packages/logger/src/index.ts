@@ -24,7 +24,7 @@ function isErrorObject(error: EnrichContext["event"]["error"]): error is object 
  * messages and stacks can quote driver queries or provider responses.
  */
 export const requestLoggingOptions = {
-  exclude: ["/api/health"],
+  exclude: ["/api/health", "/api/ready"],
   enrich: ({ event }: EnrichContext) => {
     const error = event.error;
     if (isErrorObject(error)) {

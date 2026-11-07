@@ -48,6 +48,8 @@ type QueueDefinition<T extends object> = QueueSettings & {
    * subject no longer exists, is not worth another attempt.
    */
   handler(data: T, context: JobContext): Promise<void>;
+  /** Cron expression for a recurring job (UTC). The job is sent with an empty payload. */
+  cron?: string;
   /** Fields safe to log when the last attempt fails; defaults to none. */
   describe?(data: T): Record<string, string>;
 };
@@ -70,7 +72,7 @@ export type Queue<T extends object = object> = AnyQueue & {
 };
 
 export function defineQueue<T extends object>(definition: QueueDefinition<T>): Queue<T> {
-  const { name, schema, handler, describe, ...overrides } = definition;
+  const { name, schema, handler, describe, cron, ...overrides } = definition;
   const created = new WeakMap<PgBoss, Promise<void>>();
   const ensureQueue = (boss: PgBoss, defaults: QueueDefaults) => {
     let promise = created.get(boss);
@@ -97,6 +99,8 @@ export function defineQueue<T extends object>(definition: QueueDefinition<T>): Q
     },
     async work(boss, services, defaults) {
       await ensureQueue(boss, defaults);
+      // Idempotent upsert, so every boot and every replica may call it.
+      if (cron) await boss.schedule(name, cron, {});
       // Per-job results stop one failure from re-running its siblings in a batch.
       await boss.work(
         name,

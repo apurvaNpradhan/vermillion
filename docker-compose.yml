@@ -1,11 +1,28 @@
-# Dev-only services. Apps run on the host; this provides Postgres.
+# Dev-only services. Apps run on the host; this provides Postgres and the sync stack.
 # DATABASE_URL=postgresql://postgres:password@localhost:5432/vermillion
+#
+# `pnpm db:start` builds the bootstrap bundle, then starts everything:
+#   postgres -> powersync-bootstrap (one shot) -> powersync
+# Passwords below are development defaults; override them in a root .env if you like.
 name: vermillion
 
 services:
   postgres:
     image: postgres:18
     container_name: vermillion-postgres
+    # Logical decoding for PowerSync. The slot cap stops a stopped PowerSync
+    # service from filling the disk with retained WAL (ADR 0025). 4GB is a
+    # development setting, not a production sizing.
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_slot_wal_keep_size=4GB
     environment:
       POSTGRES_DB: vermillion
       POSTGRES_USER: postgres
@@ -19,6 +36,61 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # One shot: roles, storage database, grants and the empty publication (ADR 0023).
+  # Runs the bundle from `pnpm --filter server build:bootstrap`; rerunning is safe.
+  powersync-bootstrap:
+    image: node:24-slim
+    command: ["node", "/app/sync-bootstrap.mjs"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-vermillion}
+      POWERSYNC_REPLICATION_PASSWORD: ${POWERSYNC_REPLICATION_PASSWORD:-powersync_local_replication}
+      POWERSYNC_STORAGE_PASSWORD: ${POWERSYNC_STORAGE_PASSWORD:-powersync_local_storage}
+    volumes:
+      - ./apps/server/dist-bootstrap:/app:ro
+    restart: "no"
+
+  powersync:
+    # Pinned by tag and digest (the multi-arch index of 1.28.1). Upgrades are deliberate.
+    image: journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c
+    command: ["start", "-r", "unified"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      powersync-bootstrap:
+        condition: service_completed_successfully
+    # Reaches the API's JWKS endpoint on the host without network_mode: host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8090:8080"
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      NODE_OPTIONS: --max-old-space-size=1000
+      PS_PORT: "8080"
+      PS_SSLMODE: ${PS_SSLMODE:-disable}
+      PS_DATA_SOURCE_URI: postgresql://powersync_replication:${POWERSYNC_REPLICATION_PASSWORD:-powersync_local_replication}@postgres:5432/${POSTGRES_DB:-vermillion}
+      PS_STORAGE_SOURCE_URI: postgresql://powersync_storage:${POWERSYNC_STORAGE_PASSWORD:-powersync_local_storage}@postgres:5432/powersync_storage
+      PS_JWKS_URI: http://host.docker.internal:3000/api/auth/jwks
+      PS_ADMIN_TOKEN: ${PS_ADMIN_TOKEN:-vermillion_local_admin_token}
+    volumes:
+      - ./powersync/service.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/probes/readiness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
     restart: unless-stopped
 
 volumes:

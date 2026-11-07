@@ -15,7 +15,7 @@ const config = {
   urls: { web: "http://localhost:4001", server: "http://localhost:4000" },
   productionUrl: "https://notes.acme.dev",
   cloudflareZone: "acme.dev",
-  ports: { web: 4001, server: 4000, native: 8081, postgres: 5544 },
+  ports: { web: 4001, server: 4000, native: 8081, postgres: 5544, powersync: 8190 },
   bundleIds: { ios: "dev.acme.notes", android: "dev.acme.notes" },
   scheme: "acme-notes",
 };
@@ -44,6 +44,12 @@ describe("template-init", () => {
     expect(compose).toContain("POSTGRES_DB: acme_notes");
     expect(compose).toContain('"127.0.0.1:5544:5432"');
     expect(compose).toContain("acme_notes_postgres_data:/var/lib/postgresql");
+    expect(compose).toContain('"127.0.0.1:8190:8080"');
+    expect(compose).toContain("@postgres:5432/${POSTGRES_DB:-acme_notes}");
+    expect(compose).not.toContain("POSTGRES_DB:-vermillion");
+    expect(compose).toContain("PS_JWKS_URI: http://host.docker.internal:4000/api/auth/jwks");
+    // The storage database name is fixed, not derived from the app.
+    expect(compose).toContain("@postgres:5432/powersync_storage");
     expect(read("apps/server/.env.example")).toContain("localhost:5544/acme_notes");
     expect(read("apps/server/.env.example")).toContain("APP_URL=http://localhost:4001");
     expect(read("apps/web/.env.example")).toContain("VITE_SERVER_URL=http://localhost:4001");

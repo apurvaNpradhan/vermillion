@@ -22,4 +22,8 @@ export type ApiConfig = {
   github?: { clientId: string; clientSecret: string } | undefined;
   /** Serve the OpenAPI reference (off in production by default). */
   openApiReference: boolean;
+  sync: {
+    /** Replication slot lag (bytes of WAL behind) that logs a warning, and that degrades readiness. */
+    slotLag: { warnBytes: number; criticalBytes: number };
+  };
 };

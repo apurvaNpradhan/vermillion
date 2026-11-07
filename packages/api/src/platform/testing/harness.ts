@@ -26,6 +26,7 @@ const baseConfig: ApiConfig = {
   registrationOpen: true,
   adminEmails: [],
   openApiReference: false,
+  sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };
 
 /** One row of a raw query; the test knows which columns it asked for. */

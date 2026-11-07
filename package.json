@@ -17,10 +17,11 @@
     "db:studio": "turbo run db:studio -F @workspace/db --",
     "db:generate": "turbo run db:generate -F @workspace/db --",
     "db:migrate": "turbo run db:migrate -F @workspace/db --",
-    "db:start": "docker compose up -d postgres",
+    "db:start": "pnpm --filter server build:bootstrap && docker compose up -d --wait",
     "db:watch": "docker compose up postgres",
-    "db:stop": "docker compose stop postgres",
-    "db:down": "docker compose down postgres",
+    "db:stop": "docker compose stop",
+    "db:down": "docker compose down",
+    "sync:bootstrap": "pnpm --filter server sync:bootstrap",
     "lint": "oxlint && oxfmt --check",
     "lint:fix": "oxlint --fix && oxfmt --write",
     "format": "oxfmt --write",
@@ -32,6 +33,7 @@
     "i18n:check": "node ./scripts/i18n/check.mjs",
     "i18n:check:fix": "node ./scripts/i18n/check.mjs --fix",
     "i18n:report": "node ./scripts/i18n/report.mjs",
+    "test:sync-infra": "pnpm --filter @workspace/api test:sync-infra",
     "test:e2e": "turbo run test:e2e -F web"
   },
   "devDependencies": {
