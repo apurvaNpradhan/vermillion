@@ -55,7 +55,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["TEST_DATABASE_ADMIN_URL", "SYNC_INFRA_TEST_ADMIN_URL"]
     },
     "//#test:root": {
       "cache": false,
