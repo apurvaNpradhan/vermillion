@@ -182,5 +182,7 @@
   "admin__page": "Page {{page}} of {{pages}}",
   "admin__total_one": "{{count}} user",
   "admin__total_other": "{{count}} users",
-  "auth__error_banned": "This account is suspended."
+  "auth__error_banned": "This account is suspended.",
+  "sync__local_reset_title": "Local data was reset",
+  "sync__local_reset_body": "This device could not open its saved data, so it started fresh and is syncing again. Changes that were not sent yet may be lost."
 }

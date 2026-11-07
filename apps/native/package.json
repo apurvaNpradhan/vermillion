@@ -9,6 +9,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
+    "test": "vitest run",
     "typecheck": "tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/i18n ../../packages/shared && tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +17,8 @@
     "@expo/metro-runtime": "~58.0.14",
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@op-engineering/op-sqlite": "18.2.5",
+    "@powersync/react-native": "2.4.0",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@workspace/client": "workspace:*",
@@ -26,7 +29,9 @@
     "better-auth": "catalog:",
     "expo": "~58.0.12",
     "expo-constants": "~58.0.12",
+    "expo-crypto": "~58.0.7",
     "expo-dev-client": "~58.0.13",
+    "expo-file-system": "~58.0.13",
     "expo-font": "~58.0.8",
     "expo-linking": "~58.0.13",
     "expo-localization": "~58.0.5",
@@ -62,7 +67,8 @@
     "@types/react": "~19.3.0",
     "@workspace/config": "workspace:*",
     "babel-preset-expo": "~58.0.16",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
   },
   "expo": {
     "install": {
@@ -70,5 +76,8 @@
         "typescript"
       ]
     }
+  },
+  "op-sqlite": {
+    "sqlcipher": true
   }
 }

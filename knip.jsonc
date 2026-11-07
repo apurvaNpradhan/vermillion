@@ -17,7 +17,11 @@
       "ignoreDependencies": ["tailwindcss", "@workspace/config"],
     },
     "apps/native": {
-      // Expo reads these through app.config.ts and the Metro/Babel presets.
+      // The local database factory is consumed by the sync wiring (a later phase); the Expo
+      // config plugin and local module are loaded by Expo, not imported.
+      "entry": ["src/platform/local-database/index.ts", "plugins/*.js", "modules/*/index.ts"],
+      // Expo reads these through app.config.ts and the Metro/Babel presets. The PowerSync and
+      // op-sqlite packages are used by openNativeDatabase; expo-crypto by the polyfill.
       "ignoreDependencies": ["@workspace/config"],
     },
     "packages/api": {

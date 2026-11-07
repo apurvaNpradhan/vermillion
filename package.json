@@ -52,5 +52,8 @@
     "typescript": "catalog:",
     "vitest": "^5.1.0"
   },
-  "packageManager": "pnpm@12.15.0"
+  "packageManager": "pnpm@12.15.0",
+  "op-sqlite": {
+    "sqlcipher": true
+  }
 }
