@@ -17,6 +17,9 @@ PowerSync needs a replication role, a publication, a storage database and per-ta
 
 ## Consequences
 
-- Open item, phase 2: verify the installed migrator's locking before adding another lock; decide whether a separate migrator role is needed.
-- Open item, phase 2/8: the restore checklist and drill (written phase 2, rehearsed phase 8).
+- Migrator locking (verified phase 2): the installed drizzle migrator (`drizzle-orm` 1.0.0-rc.5) takes no lock; it reads the applied list and then runs the pending ones in a transaction, so overlapping containers could both try one migration. `runMigrations` now holds a session advisory lock on a dedicated connection around it. The bootstrap uses a different advisory key, so the two never block each other.
+- No separate migrator role (phase 2): the application role runs migrations and the app, owns the tables and the publication, and needs no superuser, `CREATEROLE` or `REPLICATION`. Preflight refuses a privileged application role in production and warns elsewhere (the development role is the `postgres` superuser). Revisit if the runtime should not be able to alter schema.
+- Implementation: `packages/api/src/platform/sync/bootstrap.ts` (TypeScript runner, not psql), entry `apps/server/src/sync-bootstrap.ts`, run as `pnpm sync:bootstrap`, the dev compose `powersync-bootstrap` service and, in production, `node sync-bootstrap.mjs` from the server image. Steps commit separately and are idempotent; a rerun rotates role passwords from the environment and repairs the publication owner, but never touches membership. It ends by logging in as both roles.
+- Restore checklist: [sync-restore-checklist.md](../sync-restore-checklist.md) (written phase 2).
+- Open item, phase 8: rehearse the restore drill.
 - Phase 2 starts with an empty sync config; the `notes` stream is activated only after phase 4's table and publication migration succeeds.

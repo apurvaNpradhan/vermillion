@@ -1,11 +1,12 @@
 # Testing
 
-| What                                | Where                               | Run                        |
-| ----------------------------------- | ----------------------------------- | -------------------------- |
-| API behaviour (seam 1)              | `packages/api/src/**/*.test.ts`     | `pnpm test`                |
-| Pure functions with many edge cases | next to the code (`*.test.ts`)      | `pnpm test`                |
-| Repo tooling                        | `scripts/**/*.test.mjs`, `tools/**` | `pnpm test` (root project) |
-| Browser flows (seam 2)              | `apps/web/e2e/*.spec.ts`            | `pnpm test:e2e`            |
+| What                                 | Where                                 | Run                                                         |
+| ------------------------------------ | ------------------------------------- | ----------------------------------------------------------- |
+| API behaviour (seam 1)               | `packages/api/src/**/*.test.ts`       | `pnpm test`                                                 |
+| Pure functions with many edge cases  | next to the code (`*.test.ts`)        | `pnpm test`                                                 |
+| Sync infrastructure on real Postgres | `packages/api/src/**/*.infra.test.ts` | `pnpm test:sync-infra` (skips without the compose Postgres) |
+| Repo tooling                         | `scripts/**/*.test.mjs`, `tools/**`   | `pnpm test` (root project)                                  |
+| Browser flows (seam 2)               | `apps/web/e2e/*.spec.ts`              | `pnpm test:e2e`                                             |
 
 Good tests exercise external behaviour through the highest seam and survive refactoring: splitting files or swapping a library behind a seam must not break them. Do not mock our own modules. Do not assert on internals.
 

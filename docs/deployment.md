@@ -49,7 +49,23 @@ Validated at startup by `packages/env`; the server exits with the failing variab
 | `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set.                                                          |
 | `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only). |
 
+Sync infrastructure (PowerSync, phase 2; the sync features themselves are not live yet):
+
+| Variable                                                       | Required   | Notes                                                                                                                                   |
+| -------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `POWERSYNC_REPLICATION_PASSWORD`, `POWERSYNC_STORAGE_PASSWORD` | for sync   | Bootstrap job and PowerSync service. 16+ URL-safe characters (`openssl rand -hex 24`). Placeholders are refused in production.          |
+| `SYNC_ADMIN_DATABASE_URL`                                      | production | Bootstrap job only: a role with CREATEROLE, CREATEDB and REPLICATION (or superuser). Not the runtime role. Never give it to the server. |
+| `SYNC_SLOT_LAG_WARN_MB`, `SYNC_SLOT_LAG_CRITICAL_MB`           | no         | Slot lag thresholds. Defaults 1024 and 3072. Critical marks `/api/ready` degraded.                                                      |
+
 The Worker takes **no** secrets: the web bundle gets public `VITE_*` values at build time only (`VITE_SERVER_URL`, `VITE_TURNSTILE_SITE_KEY`).
+
+### Sync infrastructure (minimal; the full guide is phase 8)
+
+1. **Postgres flags.** Set on the Postgres service (Dokploy: Advanced, command arguments): `-c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c max_slot_wal_keep_size=<budget>`. Changing `wal_level` needs a restart. The development value (4GB) is not a production sizing; size it from write rate and outage plus resnapshot time ([ADR 0025](adr/0025-sync-observability.md)).
+2. **Bootstrap job.** After the server image is built and Postgres has the flags, run once per deploy (idempotent) as a one-shot from the same image: `node sync-bootstrap.mjs`, with `DATABASE_URL`, `SYNC_ADMIN_DATABASE_URL` and the two `POWERSYNC_*_PASSWORD` values. It exits non-zero on any preflight failure.
+3. **PowerSync service.** A Dokploy Compose application on the same network: image `journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c`, command `start -r unified`, `powersync/service.yaml` and `powersync/sync-config.yaml` mounted at `/config`, environment as in `docker-compose.yml` (`PS_PORT`, `PS_SSLMODE`, `PS_DATA_SOURCE_URI`, `PS_STORAGE_SOURCE_URI`, `PS_JWKS_URI`, `PS_ADMIN_TOKEN`) with production values (`PS_SSLMODE=verify-full` or `require`, `PS_JWKS_URI` the API's internal `/api/auth/jwks`). No host port: the `sync.` subdomain through Traefik arrives with the credentials work ([ADR 0017](adr/0017-sync-credentials-and-transport.md)).
+4. **Probes.** PowerSync's `/probes/readiness` is its Dokploy health check. The server keeps `/api/health` (liveness). Point an external monitor at `/api/ready`: it returns 503 when a replication slot is invalidated or its lag reaches the critical threshold. A restart does not fix either, which is why Dokploy does not use it.
+5. **Restore:** [sync restore checklist](sync-restore-checklist.md).
 
 ### Trusted proxies and the client IP
 

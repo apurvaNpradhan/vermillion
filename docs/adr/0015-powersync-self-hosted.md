@@ -19,4 +19,4 @@ Alternatives considered and not chosen: WatermelonDB (custom pull/push on our si
 
 - We take on backup, capacity, upgrade and WAL-recovery duties for the service. A shared Postgres server is a shared failure domain. PowerSync Cloud (including private endpoints) is the fallback if nobody owns that work.
 - Upgrades to the service image are deliberate; pin the tag and consider a digest.
-- Open item, phase 2: whether to pin by digest.
+- Pinned by tag and digest (phase 2): `journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c`, the multi-arch index digest resolved from Docker Hub on 2026-11-07. An upgrade changes both, deliberately.

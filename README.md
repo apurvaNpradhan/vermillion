@@ -28,7 +28,7 @@ pnpm install
 cp apps/server/.env.example apps/server/.env     # set BETTER_AUTH_SECRET (openssl rand -hex 32)
 cp apps/web/.env.example apps/web/.env
 cp apps/native/.env.example apps/native/.env
-pnpm db:start                                    # Postgres from docker-compose.yml
+pnpm db:start                                    # Postgres, sync bootstrap and PowerSync (docker-compose.yml)
 pnpm dev                                         # server, web and the native bundler
 ```
 
@@ -40,6 +40,8 @@ Open <http://localhost:3001>. The Vite dev server proxies `/api` and `/rpc` to t
 | `pnpm typecheck`                  | TypeScript 7 across the workspace                  |
 | `pnpm knip`                       | Dead code and unused dependencies                  |
 | `pnpm test`                       | Unit and API tests (PGlite, no Docker)             |
+| `pnpm sync:bootstrap`             | Provision PowerSync roles, storage DB, publication |
+| `pnpm test:sync-infra`            | Bootstrap and slot tests on the compose Postgres   |
 | `pnpm test:e2e`                   | Playwright against the real stack (needs Postgres) |
 | `pnpm i18n:check` / `i18n:report` | Locale consistency, key usage                      |
 | `pnpm db:generate` / `db:migrate` | Create / apply a migration                         |

@@ -186,3 +186,9 @@ Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and 
 
 - Maintainer accepted: replay identity `(user_id, install_id, tx_id)` plus digest (0018); 90-day offline horizon, 120-day tombstone and receipt retention, integer `SYNC_SCHEMA_VERSION` (0018, 0019); web VFS `OPFSCoopSyncVFS` and browser contract (0020); native key policy (0022); expired-session policy (0021); slot-lag thresholds 1 GB / 3 GB (0025); dev PowerSync port `127.0.0.1:8090`.
 - Replaced the provisional 30-day retention text. Phase 1 is closed.
+
+### 2026-11-07 — phase 2 (repeatable infrastructure)
+
+- Compose: logical WAL, `powersync-service` 1.28.1 pinned by tag and digest, one-shot `powersync-bootstrap`, PowerSync on `127.0.0.1:8090`. `pnpm db:start` runs it all; `pnpm sync:bootstrap` runs the bootstrap on the host.
+- Bootstrap is a TypeScript runner (`platform/sync/bootstrap.ts`) instead of `powersync/sql/bootstrap.sql`: preflight, advisory-lock exclusion, resumable steps, login verification. Tested on the compose Postgres (`pnpm test:sync-infra`).
+- Slot-lag job and `/api/ready` (ADR 0025); migrator advisory lock and no separate migrator role (ADR 0023); restore checklist written. The sync config has no streams; `allow_local_jwks` is not a 1.28.1 key and local JWKS is allowed by default.
