@@ -447,6 +447,12 @@ importers:
       '@marsidev/react-turnstile':
         specifier: ^1.6.3
         version: 1.6.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@powersync/common':
+        specifier: 2.5.0
+        version: 2.5.0
+      '@powersync/web':
+        specifier: 2.6.0
+        version: 2.6.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.5.0(@powersync/common@2.5.0))
       '@tanstack/react-form':
         specifier: 'catalog:'
         version: 1.33.5(@tanstack/react-start@1.169.4(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.16)(supports-color@8.1.1)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -471,6 +477,9 @@ importers:
       '@workspace/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@workspace/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -2187,6 +2196,9 @@ packages:
     resolution: {integrity: sha512-u3UPsIilWKOM3F9CXtrG8LEJmNxwoCQC/XVj4IKYXvvpx7QIi/Kg1LI5uDmDpKlac62NUtX7eLjRh+jVZcLOzw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  '@journeyapps/wa-sqlite@2.0.10':
+    resolution: {integrity: sha512-6Wo5ZijOc4/6M9u+MDsJdW8zDCdrct/p+7LcG7S7CT5YKu42j6lshMfUvgtGYMaZeuH7rpQHULZupPTQFqbS0w==}
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -2859,6 +2871,18 @@ packages:
     peerDependencies:
       '@powersync/common': ^2.0.0
       drizzle-orm: <1.0.0
+
+  '@powersync/shared-internals@1.5.0':
+    resolution: {integrity: sha512-dIaMenW6gJNyKzD93d4X4CiBtJxyJ63pvK2CYGjqBtVqubGBt9d+jg6V6JTKw4VLPjFCZh7/zrXMV34wl7kzGw==}
+    peerDependencies:
+      '@powersync/common': ^2.5.0
+
+  '@powersync/web@2.6.0':
+    resolution: {integrity: sha512-/B8u/sPHyNiPH1bj+vOfN/9sHlbp9lwQGtS6BHJJjqWlhBaUxzh4xQMydyQcS6puHaDXzddpOlkZIvTLOTLMnw==}
+    hasBin: true
+    peerDependencies:
+      '@powersync/common': ^2.5.0
+      '@powersync/shared-internals': ^1.5.0
 
   '@quansync/fs@1.1.0':
     resolution: {integrity: sha512-qAPG/t3HqML1TlN7sY/pTbEjzFVAKsMjNNMGheyDosro+kT4iw2KCUoHcVdmliwWjorm4elZbgNQyU2eD97eDg==}
@@ -4406,6 +4430,9 @@ packages:
   color@4.2.3:
     resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
     engines: {node: '>=12.5.0'}
+
+  comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
 
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
@@ -8878,6 +8905,8 @@ snapshots:
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
+  '@journeyapps/wa-sqlite@2.0.10': {}
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -9318,6 +9347,18 @@ snapshots:
       '@powersync/common': 2.5.0
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.5.15)(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
       tslib: 2.9.1
+
+  '@powersync/shared-internals@1.5.0(@powersync/common@2.5.0)':
+    dependencies:
+      '@powersync/common': 2.5.0
+
+  '@powersync/web@2.6.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.5.0(@powersync/common@2.5.0))':
+    dependencies:
+      '@journeyapps/wa-sqlite': 2.0.10
+      '@powersync/common': 2.5.0
+      '@powersync/shared-internals': 1.5.0(@powersync/common@2.5.0)
+      comlink: 4.4.2
+      commander: 12.1.0
 
   '@quansync/fs@1.1.0':
     dependencies:
@@ -10707,6 +10748,8 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
       color-string: 1.9.1
+
+  comlink@4.4.2: {}
 
   commander@12.1.0: {}
 
