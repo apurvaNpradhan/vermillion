@@ -50,7 +50,8 @@ export type TestAppOptions = {
 export async function createTestApp(options: TestAppOptions = {}) {
   const database = await cloneDatabase(inject("testTemplateDatabase"), inject("testRunId"));
   const databaseUrl = urlForDatabase(database);
-  const { db, pool } = createDb(databaseUrl);
+  // Small pools: test files run in parallel against one Postgres.
+  const { db, pool } = createDb(databaseUrl, { max: 4 });
 
   const outbox: RenderedEmail[] = [];
   const emailTransport: EmailTransport = {

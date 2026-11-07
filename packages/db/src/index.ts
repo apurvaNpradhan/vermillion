@@ -18,12 +18,15 @@ export type DbExecutor = Database | Transaction;
 
 export type DatabaseConnection = { db: Database; pool: Pool };
 
-export function createDb(databaseUrl: string): DatabaseConnection {
+export function createDb(
+  databaseUrl: string,
+  { max = 10 }: { max?: number } = {},
+): DatabaseConnection {
   const pool = new Pool({
     connectionString: databaseUrl,
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: 30_000,
-    max: 10,
+    max,
     // Timestamps are UTC instants; never depend on the server's time zone.
     options: "-c timezone=UTC",
   });

@@ -33,10 +33,13 @@ const expectation: Expectation = {
         body: { type: "text", notNull: true, default: "''::text" },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
       },
       indexes: {
         notes_user_id_updated_at_idx:
           "CREATE INDEX notes_user_id_updated_at_idx ON public.notes USING btree (user_id, updated_at)",
+        notes_user_id_live_idx:
+          "CREATE INDEX notes_user_id_live_idx ON public.notes USING btree (user_id) WHERE (deleted_at IS NULL)",
       },
     },
   },

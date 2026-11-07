@@ -23,6 +23,9 @@ services:
       - max_replication_slots=10
       - -c
       - max_slot_wal_keep_size=4GB
+      # Each parallel test file holds its own pools on a cloned database.
+      - -c
+      - max_connections=200
     environment:
       POSTGRES_DB: vermillion
       POSTGRES_USER: postgres
