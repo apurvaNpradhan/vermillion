@@ -5,14 +5,17 @@ import { Text } from "react-native";
 import { DeleteAccountSection, ProfileSection } from "@/account";
 import { useSignOut } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
+import { SyncBanner, useSignOutConfirmation } from "@/sync";
 import { Screen } from "@/platform/ui/screen";
 
 /** Profile, a link to preferences, sign-out and account deletion in one place. */
 export function SettingsScreen() {
   const { t } = useTranslation();
   const signOut = useSignOut();
+  const requestSignOut = useSignOutConfirmation(() => signOut.mutate());
   return (
     <Screen>
+      <SyncBanner />
       <ProfileSection />
       <Card>
         <Card.Body className="gap-3">
@@ -23,7 +26,7 @@ export function SettingsScreen() {
             variant="secondary"
             className="self-start"
             isDisabled={signOut.isPending}
-            onPress={() => signOut.mutate()}
+            onPress={() => void requestSignOut()}
           >
             {signOut.isPending ? <Spinner size="sm" /> : null}
             <Button.Label>{t("nav__sign_out")}</Button.Label>

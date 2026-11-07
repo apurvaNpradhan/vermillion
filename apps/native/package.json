@@ -25,6 +25,7 @@
     "@workspace/env": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "@workspace/shared": "workspace:*",
+    "@workspace/sync": "workspace:*",
     "@workspace/ui": "workspace:*",
     "better-auth": "catalog:",
     "expo": "~58.0.12",

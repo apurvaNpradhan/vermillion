@@ -3,14 +3,27 @@ import { Card, CardHeader, CardPanel, CardTitle } from "@workspace/ui/components
 import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
+import { StorageUnavailable } from "@/platform/powersync";
 
 import { useNotes, type Note } from "../use-notes";
 import { NoteForm } from "./note-form";
 
 export function NotesPage() {
   const { t } = useTranslation();
-  const { notes, isLoading, create, update, remove } = useNotes();
+  const {
+    notes,
+    isLoading,
+    loadFailed,
+    unavailableReason,
+    hasMore,
+    loadMore,
+    create,
+    update,
+    remove,
+  } = useNotes();
   const [editing, setEditing] = useState<string | null>(null);
+
+  if (unavailableReason) return <StorageUnavailable reason={unavailableReason} />;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -31,7 +44,11 @@ export function NotesPage() {
 
       {notes.length === 0 ? (
         <p className="text-center text-muted-foreground">
-          {isLoading ? t("common__loading") : t("notes__empty")}
+          {loadFailed
+            ? t("notes__load_failed")
+            : isLoading
+              ? t("common__loading")
+              : t("notes__empty")}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -77,6 +94,12 @@ export function NotesPage() {
           ))}
         </ul>
       )}
+
+      {hasMore ? (
+        <Button variant="outline" className="self-center" onClick={loadMore}>
+          {t("notes__load_more")}
+        </Button>
+      ) : null}
     </div>
   );
 }

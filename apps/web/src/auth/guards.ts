@@ -8,19 +8,6 @@ import { sessionQueryOptions } from "./session";
 
 const redirectSearch = z.object({ redirect: z.string().optional() });
 
-/**
- * `beforeLoad` guard for app routes: signed-out visitors go to sign-in and come
- * back afterwards. Reads the cached session, so navigation inside the app costs no request.
- */
-export async function requireSession(args: {
-  context: { queryClient: QueryClient };
-  location: { href: string };
-}) {
-  const session = await args.context.queryClient.ensureQueryData(sessionQueryOptions());
-  if (!session) throw redirect({ to: "/login", search: { redirect: args.location.href } });
-  return { session };
-}
-
 /** `beforeLoad` guard for auth routes: a signed-in user is sent on to where they were headed. */
 export async function redirectIfSignedIn(args: {
   context: { queryClient: QueryClient };

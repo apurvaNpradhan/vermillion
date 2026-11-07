@@ -2,12 +2,18 @@ import { Link } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
 import { CircleCheckIcon } from "lucide-react";
+import { useEffect } from "react";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
+import { confirmAccountDeleted } from "@/sync";
 
 export function HomePage({ accountDeleted }: { accountDeleted: boolean }) {
   const { t } = useTranslation();
+  // The server confirmed the deletion: remove this device's copy of that account's data.
+  useEffect(() => {
+    if (accountDeleted) void confirmAccountDeleted().catch(() => undefined);
+  }, [accountDeleted]);
   return (
     <div className="flex flex-col items-start gap-6">
       {accountDeleted ? (

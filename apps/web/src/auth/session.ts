@@ -14,7 +14,7 @@ export function sessionQueryOptions() {
 /** Reads the session on the client only: public pages render signed out on the server. */
 export function useSession() {
   const query = useQuery({ ...sessionQueryOptions(), enabled: typeof window !== "undefined" });
-  return { session: query.data ?? null, isPending: query.isPending };
+  return { session: query.data ?? null, isPending: query.isPending, isError: query.isError };
 }
 
 /** Fetches the session again, bypassing the cache (after sign-in or verification). */

@@ -11,6 +11,7 @@ import {
 } from "@workspace/ui/components/menu";
 
 import { useTranslation } from "@/platform/i18n";
+import { useSignOutConfirmation } from "@/sync";
 
 function initials(name: string): string {
   return (
@@ -27,26 +28,30 @@ function initials(name: string): string {
 export function UserMenu({ name, email }: { name: string; email: string }) {
   const { t } = useTranslation();
   const signOut = useSignOut();
+  const confirmation = useSignOutConfirmation(() => signOut.mutate());
   return (
-    <Menu>
-      <MenuTrigger
-        render={<Button variant="ghost" size="icon" aria-label={t("nav__account_menu")} />}
-      >
-        <Avatar className="size-7">
-          <AvatarFallback>{initials(name)}</AvatarFallback>
-        </Avatar>
-      </MenuTrigger>
-      <MenuPopup align="end">
-        <div className="px-2 py-1.5 text-sm">
-          <p className="font-medium">{name}</p>
-          <p className="text-muted-foreground text-xs">{email}</p>
-        </div>
-        <MenuSeparator />
-        <MenuItem render={<Link to="/app" />}>{t("nav__dashboard")}</MenuItem>
-        <MenuItem render={<Link to="/settings" />}>{t("nav__settings")}</MenuItem>
-        <MenuSeparator />
-        <MenuItem onClick={() => signOut.mutate()}>{t("nav__sign_out")}</MenuItem>
-      </MenuPopup>
-    </Menu>
+    <>
+      <Menu>
+        <MenuTrigger
+          render={<Button variant="ghost" size="icon" aria-label={t("nav__account_menu")} />}
+        >
+          <Avatar className="size-7">
+            <AvatarFallback>{initials(name)}</AvatarFallback>
+          </Avatar>
+        </MenuTrigger>
+        <MenuPopup align="end">
+          <div className="px-2 py-1.5 text-sm">
+            <p className="font-medium">{name}</p>
+            <p className="text-muted-foreground text-xs">{email}</p>
+          </div>
+          <MenuSeparator />
+          <MenuItem render={<Link to="/app" />}>{t("nav__dashboard")}</MenuItem>
+          <MenuItem render={<Link to="/settings" />}>{t("nav__settings")}</MenuItem>
+          <MenuSeparator />
+          <MenuItem onClick={() => void confirmation.request()}>{t("nav__sign_out")}</MenuItem>
+        </MenuPopup>
+      </Menu>
+      {confirmation.dialog}
+    </>
   );
 }

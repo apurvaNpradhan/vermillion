@@ -10,6 +10,16 @@ export const installMeta = sqliteTable("install_meta", {
   created_at: text("created_at").notNull(),
 });
 
+/**
+ * Singleton row: the Device owner, recorded when the first user signs in on this database
+ * (ADR 0021). A local identity, not server authorization.
+ */
+export const deviceOwner = sqliteTable("device_owner", {
+  id: text("id").primaryKey().notNull(),
+  user_id: text("user_id").notNull(),
+  created_at: text("created_at").notNull(),
+});
+
 /** Largest payload kept per rejected write, in UTF-8 bytes. */
 export const REJECTED_PAYLOAD_MAX_BYTES = 16 * 1024;
 

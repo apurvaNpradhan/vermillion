@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
+import { rememberDeletionRequest } from "@/sync";
 import { useRequestDeletion } from "../use-account-actions";
 import { Notice } from "@/platform/ui/notice";
 
@@ -46,9 +47,10 @@ export function DeleteAccountSection() {
               variant="danger"
               className="self-start"
               isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}
-              onPress={() =>
-                requestDeletion({ callbackURL: `${appConfig.scheme}://confirm-deletion` })
-              }
+              onPress={() => {
+                if (user) rememberDeletionRequest(user.id);
+                requestDeletion({ callbackURL: `${appConfig.scheme}://confirm-deletion` });
+              }}
             >
               {isPending ? <Spinner size="sm" /> : null}
               <Button.Label>{t("settings__delete_action")}</Button.Label>

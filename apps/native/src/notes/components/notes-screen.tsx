@@ -4,17 +4,19 @@ import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Screen } from "@/platform/ui/screen";
+import { SyncBanner } from "@/sync";
 
 import { useNotes } from "../use-notes";
 import { NoteForm } from "./note-form";
 
 export function NotesScreen() {
   const { t } = useTranslation();
-  const { notes, isLoading, create, update, remove } = useNotes();
+  const { notes, isLoading, loadFailed, hasMore, loadMore, create, update, remove } = useNotes();
   const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <Screen>
+      <SyncBanner />
       <Card>
         <Card.Header>
           <Card.Title>{t("notes__new")}</Card.Title>
@@ -30,7 +32,11 @@ export function NotesScreen() {
 
       {notes.length === 0 ? (
         <Text className="text-center text-muted">
-          {isLoading ? t("common__loading") : t("notes__empty")}
+          {loadFailed
+            ? t("notes__load_failed")
+            : isLoading
+              ? t("common__loading")
+              : t("notes__empty")}
         </Text>
       ) : (
         notes.map((note) => (
@@ -68,6 +74,11 @@ export function NotesScreen() {
           </Card>
         ))
       )}
+      {hasMore ? (
+        <Button variant="secondary" className="self-center" onPress={loadMore}>
+          <Button.Label>{t("notes__load_more")}</Button.Label>
+        </Button>
+      ) : null}
     </Screen>
   );
 }

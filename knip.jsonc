@@ -20,6 +20,8 @@
         // Seams for the phase 6 module hooks (write tracking, opening the local database).
         "src/platform/offline/index.ts",
         "src/platform/powersync/index.ts",
+        // Sync status for the phase 6 UI (the hook is exported before a screen uses it).
+        "src/sync/index.ts",
       ],
       // Route exports are consumed by the generated route tree.
       "ignoreIssues": { "src/routes/**": ["exports"] },
@@ -29,7 +31,13 @@
     "apps/native": {
       // The local database factory is consumed by the sync wiring (a later phase); the Expo
       // config plugin and local module are loaded by Expo, not imported.
-      "entry": ["src/platform/local-database/index.ts", "plugins/*.js", "modules/*/index.ts"],
+      "entry": [
+        "src/platform/local-database/index.ts",
+        "plugins/*.js",
+        "modules/*/index.ts",
+        // Sync status for the phase 6 UI (the hook is exported before a screen uses it).
+        "src/sync/index.ts",
+      ],
       // Expo reads these through app.config.ts and the Metro/Babel presets. The PowerSync and
       // op-sqlite packages are used by openNativeDatabase; expo-crypto by the polyfill.
       "ignoreDependencies": ["@workspace/config"],
