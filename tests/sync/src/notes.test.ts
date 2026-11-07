@@ -87,9 +87,9 @@ describe("notes sync", () => {
     await vi.waitFor(async () => expect(await a2.note(id)).not.toBeNull(), within);
     expect(await b.noteIds()).toEqual([]);
 
-    // Bob writes with Alice's note id: a create and an edit are both refused, nothing changes.
+    // Bob writes with Alice's note id: a create and an edit (queued together, as two transactions)
+    // are both refused, nothing changes.
     await b.createNote(id, "Hijack", "mine now");
-    await b.uploaded();
     await b.updateNote(id, { body: "tampered" });
     await b.uploaded();
     const outcomes = b.records.flatMap((r) => (r.kind === "result" ? [r.result] : []));
