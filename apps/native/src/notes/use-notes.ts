@@ -61,7 +61,11 @@ export function useNotes() {
     /** A local read failed: not the same as "no notes". */
     loadFailed,
     /** The first full sync has not finished, so an empty list may only mean "not downloaded yet". */
-    isFirstSync: snapshot !== null && !snapshot.hasSynced && snapshot.lockReason === null,
+    isFirstSync:
+      snapshot !== null &&
+      !snapshot.hasSynced &&
+      snapshot.indicator !== "paused" &&
+      snapshot.lockReason === null,
     hasMore: page?.hasMore ?? false,
     loadMore: () => setLimit((current) => current + NOTES_PAGE_SIZE),
     create: async (input: { title: string; body: string }) => {

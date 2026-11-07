@@ -16,7 +16,7 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 
 - Streams list columns explicitly, never `*`, and filter `user_id = auth.user_id()`. Never trust a client `user_id`; handlers use the session user.
 - Synced tables: UUIDv7 `id` made on the client, `user_id` with cascade, `deleted_at` soft delete. Streams exclude deleted rows; the purge job hard-deletes after 120 days.
-- Forms send dirty fields only (changed since edit start), never the live row. Same-field conflicts: server application order.
+- Forms send dirty fields only (changed since edit start), never the live row. Same-field conflicts: server application order. Use `startDraft`/`draftPatch`/`applyLatest` from `@workspace/sync`; a note deleted under an open form offers save-as-new or discard. Rejected writes are retried (new local transaction) or discarded by the user, never expired. Manual checks: [walkthrough](../docs/guides/sync-ux-walkthrough.md).
 - Order for a new table: additive migration (table, `ALTER PUBLICATION powersync ADD TABLE`, `GRANT SELECT` to `powersync_replication`), then the stream in `sync-config.yaml`, then clients. A stream before its publication entry breaks replication.
 - Handlers are registered in `registry.ts`; an unregistered table is rejected. Limits are validated before work.
 - The parity test must pass: Postgres, publication, stream columns, handlers and SQLite indexes agree.

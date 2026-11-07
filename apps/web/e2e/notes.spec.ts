@@ -20,7 +20,7 @@ test.describe("notes (example vertical)", () => {
     await note.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("note").getByRole("heading", { name: "Shopping" })).toBeVisible();
 
-    // The note is stored on the server, not just in the page.
+    // The note is kept in the local database on this device, not just in the page.
     await page.reload();
     await expect(page.getByRole("heading", { name: "Shopping" })).toBeVisible();
 
