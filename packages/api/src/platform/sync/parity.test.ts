@@ -1,8 +1,19 @@
+import { readFileSync } from "node:fs";
+
+import { createDb } from "@workspace/db";
+import { runMigrations } from "@workspace/db/migrator";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { cloneDatabase, dropDatabase, urlForDatabase } from "../testing/postgres";
-import { compareToExpectation, introspectPostgres, type Expectation } from "./parity";
+import { cloneDatabase, createTemplate, dropDatabase, urlForDatabase } from "../testing/postgres";
+import {
+  compareStreams,
+  compareToExpectation,
+  introspectPostgres,
+  parseStreams,
+  type Expectation,
+} from "./parity";
+import { syncTableHandlers } from "./registry";
 
 let database: string;
 let client: Client;
@@ -20,9 +31,7 @@ afterAll(async () => {
 
 /**
  * The declared expectation. Synced tables join it as they are added: columns, types,
- * nullability, defaults, indexes and publication membership. The migrated template has
- * no publication (the bootstrap creates it, empty, in the dev database), so none is expected.
- */
+ * nullability, defaults, indexes and publication membership. */
 const expectation: Expectation = {
   tables: {
     notes: {
@@ -43,11 +52,14 @@ const expectation: Expectation = {
       },
     },
   },
-  publications: {},
+  // Created by the test setup the way the bootstrap does, filled by the notes migration.
+  publications: {
+    powersync: ["notes(id, user_id, title, body, created_at, updated_at, deleted_at)"],
+  },
 };
 
 describe("server schema parity", () => {
-  it("matches the declared expectation, with an empty publication", async () => {
+  it("matches the declared expectation, with notes in the publication", async () => {
     expect(compareToExpectation(await introspectPostgres(client), expectation)).toEqual([]);
   });
 
@@ -64,6 +76,47 @@ describe("server schema parity", () => {
     expect(problems).toMatch(/notes\.body is/);
     expect(problems).toContain("notes.title is not declared");
     expect(problems).toContain("index missing_idx is missing");
-    expect(problems).toContain("publication powersync has []");
+    expect(problems).toContain("publication powersync has [notes(id, user_id");
+  });
+
+  it("keeps every stream consistent with the table, the publication and the upload handlers", async () => {
+    const config = readFileSync(
+      new URL("../../../../../powersync/sync-config.yaml", import.meta.url),
+      "utf8",
+    );
+    const streams = parseStreams(config);
+    expect(streams.map((stream) => stream.name)).toContain("notes");
+    const uploadTables = syncTableHandlers.map((handler) => handler.table);
+    const actual = await introspectPostgres(client);
+    expect(compareStreams(streams, actual, uploadTables)).toEqual([]);
+  });
+
+  it("reports a stream that drifted from the schema", async () => {
+    const actual = await introspectPostgres(client);
+    const streams = parseStreams(
+      "streams:\n  bad:\n    query: SELECT id, nope FROM notes WHERE user_id = auth.user_id()\n  worse:\n    query: SELECT * FROM jwks WHERE true",
+    );
+    const problems = compareStreams(streams, actual, ["notes"]).join("\n");
+    expect(problems).toContain("notes.nope, which does not exist");
+    expect(problems).toContain("stream bad does not exclude soft-deleted rows");
+    expect(problems).toContain("stream worse selects *");
+    expect(problems).toContain("stream worse reads jwks, which is not in a publication");
+    expect(problems).toContain("stream worse has no upload handler for jwks");
+  });
+});
+
+describe("notes publication migration", () => {
+  it("fails closed when the bootstrap has not created the publication", async () => {
+    const runId = `${inject("testRunId")}nopub`;
+    await expect(
+      createTemplate(runId, async (url) => {
+        const connection = createDb(url);
+        try {
+          await runMigrations(connection);
+        } finally {
+          await connection.pool.end();
+        }
+      }),
+    ).rejects.toThrow(/powersync/);
   });
 });

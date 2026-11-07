@@ -80,6 +80,36 @@ export async function dropDatabase(name: string): Promise<void> {
   });
 }
 
+/**
+ * What the privileged bootstrap provides before any synced-table migration runs (ADR 0023):
+ * the `powersync` publication in this database and the cluster-wide replication role.
+ * The bootstrap itself also creates a storage database and rotates passwords, so tests
+ * create only the two things the migrations need. An existing role (the dev stack's
+ * login role) is left untouched; a missing one is created without LOGIN, so a CI
+ * cluster gets nothing that could connect.
+ */
+export async function provisionReplicationFixture(databaseUrl: string): Promise<void> {
+  await withAdmin(async (admin) => {
+    // Parallel runs may both see the role missing; the lock serializes the check and create.
+    await admin.query("SELECT pg_advisory_lock(hashtext('vermillion_test_replication_role'))");
+    try {
+      const exists = await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [
+        "powersync_replication",
+      ]);
+      if (!exists.rowCount) await admin.query("CREATE ROLE powersync_replication NOLOGIN");
+    } finally {
+      await admin.query("SELECT pg_advisory_unlock(hashtext('vermillion_test_replication_role'))");
+    }
+  });
+  const database = new Client({ connectionString: databaseUrl });
+  await database.connect();
+  try {
+    await database.query("CREATE PUBLICATION powersync");
+  } finally {
+    await database.end();
+  }
+}
+
 /** Creates an empty database, lets `migrate` fill it, and returns its name as the template. */
 export async function createTemplate(
   runId: string,

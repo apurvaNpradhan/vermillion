@@ -1,8 +1,14 @@
 # yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
-# No streams yet. The `notes` stream is added in phase 4, after its table and
-# publication migration has run (ADR 0023). Adding a stream before its table
-# is in the publication makes replication fail.
+# Streams list columns explicitly, never `*` (ADR 0019). A stream may only be
+# deployed after its table is in the `powersync` publication (the table's migration
+# runs `ALTER PUBLICATION`), otherwise replication fails (ADR 0023). The parity
+# test checks every stream's columns against the migrated table.
 config:
   edition: 3
 
-streams: {}
+streams:
+  # A user's live notes. Soft-deleted rows no longer match, so a delete removes
+  # the row from every device. `user_id` and `deleted_at` stay on the server.
+  notes:
+    auto_subscribe: true
+    query: SELECT id, title, body, created_at, updated_at FROM notes WHERE user_id = auth.user_id() AND deleted_at IS NULL

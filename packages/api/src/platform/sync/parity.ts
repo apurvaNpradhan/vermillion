@@ -3,6 +3,7 @@
 // (SQLite schema, installed indexes) joins in a later phase, against the same
 // expectation definition.
 import type { Client } from "pg";
+import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
 const columnRow = z.object({
@@ -53,7 +54,7 @@ export async function introspectPostgres(client: Client): Promise<PostgresSchema
        FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname`,
   );
   const members = await client.query(
-    `SELECT pubname AS publication, tablename AS table_name, attnames AS columns
+    `SELECT pubname AS publication, tablename AS table_name, attnames::text[] AS columns
        FROM pg_publication_tables ORDER BY 1, 2`,
   );
   const publications = await client.query("SELECT pubname FROM pg_publication");
@@ -87,6 +88,71 @@ export type Expectation = {
   /** Exact publication membership; every publication that exists must be listed. */
   publications: Record<string, string[]>;
 };
+
+const syncConfigSchema = z.object({
+  streams: z.record(z.string(), z.object({ query: z.string() })),
+});
+const streamQuery = /^\s*SELECT\s+(?<columns>[\w\s,*]+?)\s+FROM\s+(?<table>\w+)\s+WHERE\s/i;
+
+export type StreamDefinition = { name: string; table: string; columns: string[]; query: string };
+
+/**
+ * The streams of a sync config as a table plus explicit columns. A query shape this does
+ * not understand throws: streams stay simple enough to be checked (ADR 0019).
+ */
+export function parseStreams(configYaml: string): StreamDefinition[] {
+  const config = syncConfigSchema.parse(parseYaml(configYaml));
+  const streams: StreamDefinition[] = [];
+  for (const [name, { query }] of Object.entries(config.streams)) {
+    const match = streamQuery.exec(query);
+    if (!match?.groups?.columns || !match.groups.table) {
+      throw new Error(`stream ${name}: expected "SELECT <columns> FROM <table> WHERE ..."`);
+    }
+    streams.push({
+      name,
+      table: match.groups.table,
+      columns: match.groups.columns.split(",").map((column) => column.trim()),
+      query,
+    });
+  }
+  return streams;
+}
+
+/** Differences between the streams and the migrated tables, publication and upload handlers. */
+export function compareStreams(
+  streams: readonly StreamDefinition[],
+  actual: PostgresSchema,
+  uploadTables: readonly string[],
+): string[] {
+  const problems: string[] = [];
+  const published = new Set(
+    Object.values(actual.publications)
+      .flat()
+      .map((member) => member.split("(")[0]),
+  );
+  for (const stream of streams) {
+    const { name } = stream;
+    const table = actual.tables[stream.table];
+    if (!table) {
+      problems.push(`stream ${name} reads missing table ${stream.table}`);
+      continue;
+    }
+    for (const column of stream.columns) {
+      if (column === "*") problems.push(`stream ${name} selects *`);
+      else if (!table.columns[column])
+        problems.push(`stream ${name} selects ${stream.table}.${column}, which does not exist`);
+    }
+    if (!published.has(stream.table))
+      problems.push(`stream ${name} reads ${stream.table}, which is not in a publication`);
+    if (!/\buser_id\s*=\s*auth\.user_id\(\)/i.test(stream.query))
+      problems.push(`stream ${name} is not filtered by user_id = auth.user_id()`);
+    if (table.columns.deleted_at && !/\bdeleted_at\s+IS\s+NULL\b/i.test(stream.query))
+      problems.push(`stream ${name} does not exclude soft-deleted rows`);
+    if (!uploadTables.includes(stream.table))
+      problems.push(`stream ${name} has no upload handler for ${stream.table}`);
+  }
+  return problems;
+}
 
 /** Human-readable differences between the database and the declaration; empty means parity. */
 export function compareToExpectation(actual: PostgresSchema, expected: Expectation): string[] {
