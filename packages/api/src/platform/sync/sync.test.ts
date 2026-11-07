@@ -171,6 +171,82 @@ describe("sync", () => {
       expect(rows[0]?.n).toBe(1);
     });
 
+    it("serializes concurrent duplicates: one applies, the others get the stored outcome", async () => {
+      const me = await signedIn("concurrent@example.com");
+      const id = uuidv7();
+      const create = request(me, 1, [put(id, "Race", "once")]);
+      const results = await Promise.all(
+        Array.from({ length: 6 }, () => me.client.sync.upload(create)),
+      );
+      expect(results).toEqual(Array.from({ length: 6 }, () => ({ status: "applied" })));
+      const notes = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${id}`);
+      expect(notes[0]?.n).toBe(1);
+      const receipts = await app.rows(
+        sql`SELECT count(*)::int AS n FROM sync_upload_receipts
+            WHERE user_id = ${me.userId} AND install_id = ${me.installId}`,
+      );
+      expect(receipts[0]?.n).toBe(1);
+    });
+
+    it("replays a concurrent rejection identically and a concurrent mismatch is refused", async () => {
+      const me = await signedIn("concurrent-reject@example.com");
+      const missing = request(me, 1, [patch(uuidv7(), { title: "nothing" })]);
+      const other = request(me, 1, [put(uuidv7(), "different digest")]);
+      const settled = await Promise.allSettled([
+        me.client.sync.upload(missing),
+        me.client.sync.upload(missing),
+        me.client.sync.upload(other),
+      ]);
+      // Whichever claims the key first decides; every other caller sees its outcome or a mismatch.
+      const fulfilled = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
+      expect(fulfilled.length).toBeGreaterThanOrEqual(1);
+      expect(new Set(fulfilled.map((r) => JSON.stringify(r))).size).toBe(1);
+      for (const s of settled) {
+        if (s.status === "rejected") {
+          expect(s.reason).toMatchObject({ data: { code: "SYNC_REPLAY_MISMATCH" } });
+        }
+      }
+      const receipts = await app.rows(
+        sql`SELECT count(*)::int AS n FROM sync_upload_receipts
+            WHERE user_id = ${me.userId} AND install_id = ${me.installId}`,
+      );
+      expect(receipts[0]?.n).toBe(1);
+    });
+
+    it("stores nothing when the database fails mid-transaction, and the retry applies", async () => {
+      const me = await signedIn("crash@example.com");
+      const first = uuidv7();
+      const second = uuidv7();
+      // A real storage fault: a trigger that raises (not a constraint code, so it stays transient).
+      await app.rows(sql`CREATE OR REPLACE FUNCTION fail_second_note() RETURNS trigger AS $$
+        BEGIN
+          IF NEW.id = ${sql.raw(`'${second}'`)}::uuid THEN RAISE EXCEPTION 'injected storage fault'; END IF;
+          RETURN NEW;
+        END $$ LANGUAGE plpgsql`);
+      await app.rows(sql`CREATE TRIGGER fail_second_note BEFORE INSERT ON notes
+        FOR EACH ROW EXECUTE FUNCTION fail_second_note()`);
+      const req = request(me, 1, [put(first, "one"), put(second, "two")]);
+      try {
+        await expect(me.client.sync.upload(req)).rejects.toMatchObject({
+          code: "BAD_GATEWAY",
+          data: { code: "SYNC_TRANSIENT" },
+        });
+        // Neither the earlier op nor the receipt survived: the crash window leaves no trace.
+        const notes = await app.rows(
+          sql`SELECT count(*)::int AS n FROM notes WHERE user_id = ${me.userId}`,
+        );
+        expect(notes[0]?.n).toBe(0);
+        const receipts = await app.rows(
+          sql`SELECT count(*)::int AS n FROM sync_upload_receipts WHERE user_id = ${me.userId}`,
+        );
+        expect(receipts[0]?.n).toBe(0);
+      } finally {
+        await app.rows(sql`DROP TRIGGER fail_second_note ON notes`);
+      }
+      expect(await me.client.sync.upload(req)).toEqual({ status: "applied" });
+      expect(await me.client.notes.list()).toHaveLength(2);
+    });
+
     it("replays a stored rejection as the same rejection", async () => {
       const me = await signedIn("replay-reject@example.com");
       const req = request(me, 1, [patch(uuidv7(), { title: "nothing here" })]);
