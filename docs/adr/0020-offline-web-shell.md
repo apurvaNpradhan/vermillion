@@ -4,7 +4,7 @@ Status: accepted (2026-11-07). Covers D7 (amended).
 
 ## Context
 
-Today `requireSession` needs the network, so an offline gym shows sign-in. A local guard alone is not enough: if a cold navigation cannot load the app, no code runs to check the guard. The web app is TanStack Start with server-rendered public pages; the earlier spike was an SPA with a precached shell.
+Today `requireSession` needs the network, so an offline gym shows sign-in. A local guard alone is not enough: if a cold navigation cannot load the app, no code runs to check the guard. The web app is TanStack Start with server-rendered public pages; the earlier spike (`~/Workspace/projects/vermillion`) was an SPA with a precached shell.
 
 ## Decision
 

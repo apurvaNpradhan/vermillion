@@ -4,7 +4,7 @@ Status: accepted (2026-11-07). Covers D13, and the lifecycle half of D7.
 
 ## Context
 
-A workout logged offline must not be lost to an expired session. The Device owner is a local identity, not server authorization. An offline device cannot learn a remote revocation. The earlier spike wiped the database on 401 and raced between connect, revalidate and sign-out.
+A workout logged offline must not be lost to an expired session. The Device owner is a local identity, not server authorization. An offline device cannot learn a remote revocation. The earlier spike (`~/Workspace/projects/vermillion`) wiped the database on 401 and raced between connect, revalidate and sign-out.
 
 ## Decision
 

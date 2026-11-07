@@ -4,14 +4,14 @@ Status: accepted (2026-11-07). Covers D1, D2, D3, D4 of the [sync spec](../specs
 
 ## Context
 
-The app will become a fitness app. User-logged records must work offline on web and native and sync through Postgres. An earlier spike in a separate repository measured PowerSync on this need; that evidence is historical, not a run against this template.
+The app will become a fitness app. User-logged records must work offline on web and native and sync through Postgres. The earlier spike (`~/Workspace/projects/vermillion`) measured PowerSync on this need; that evidence is historical, not a run against this template.
 
 ## Decision
 
 - PowerSync replicates Postgres to local SQLite on web and native. It removes the custom download engine, not the upload backend: uploads stay our own code (see [0018](0018-upload-protocol.md)).
 - Self-hosted PowerSync Open Edition (`journeyapps/powersync-service`, pinned to an exact 1.28.x tag) in dev and prod, on the existing Postgres and private Dokploy network. Bucket storage lives in a separate `powersync_storage` database on the same Postgres server. No PowerSync Cloud, Neon or MongoDB.
 - Development aids: the `powersync` agent skill and shallow reference clones of `powersync-js` and `powersync-service` outside the repo. They guide, they are not API authority. Record the inspected SHAs.
-- Port the old spike selectively, reading it in place. Its toolchain (Vite+, Hono RPC, SPA) differs, and its session code is coupled to features this template lacks.
+- Port the earlier spike selectively, reading it in place. Its toolchain (Vite+, Hono RPC, SPA) differs, and its session code is coupled to features this template lacks.
 
 Alternatives considered and not chosen: WatermelonDB (custom pull/push on our side), Electric (offline writes remain our work), Zero (not designed for long offline periods), RxDB, and a custom SQLite sync.
 

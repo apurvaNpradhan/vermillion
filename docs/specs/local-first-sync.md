@@ -61,11 +61,13 @@ Reads: local SQLite through PowerSync `useQuery` (live). Writes: local SQLite, t
 | `packages/sync`                                       | Client infrastructure: connector, Session / Device owner, `rejected_writes`, schema assembly (`DrizzleAppSchema`), sync status. The only `drizzle-orm@0.45` dependency |
 | `packages/sync/src/<vertical>/`                       | A vertical's client side: `sqlite-core` table, `queries.ts`, `writes.ts`, exported through that folder's `index.ts`                                                    |
 | `apps/web/src/platform/`, `apps/native/src/platform/` | The DB factory per platform: `@powersync/web` (VFS chosen in phase 5, ADR 0020) and `@powersync/react-native` (op-sqlite + SQLCipher)                                  |
-| `apps/*/src/<vertical>/use-*.ts`                      | Module hooks switch from Query to PowerSync. Components do not change                                                                                                  |
+| `apps/*/src/<vertical>/use-*.ts`                      | Module hooks switch from Query to PowerSync. Components change where forms must send dirty fields ([ADR 0019](../adr/0019-synced-table-conventions.md))                |
 | `packages/api/src/platform/sync/`                     | `sync.credentials`, `sync.upload`, the upload contract, the handler registry, the slot-lag job                                                                         |
 | `packages/api/src/<vertical>/sync.ts`                 | The vertical's upload handler: translates a CRUD op and calls the vertical's operations; registered with the platform registry                                         |
 
 ## Synced table conventions
+
+Dirty-field writes, delete precedence and schema version: [ADR 0019](../adr/0019-synced-table-conventions.md).
 
 - `id`: UUIDv7 generated on the client (template column helper). Native needs `expo-crypto` (Hermes has no `crypto`).
 - `user_id` on every user-owned row; streams filter `user_id = auth.user_id()`.
@@ -78,6 +80,8 @@ Reads: local SQLite through PowerSync `useQuery` (live). Writes: local SQLite, t
 - Migrations stay additive (ADR 0007). Production order for a new synced table: migrate (includes `ALTER PUBLICATION`) → deploy the sync config → ship clients.
 
 ## Upload semantics (port old ADR 0008)
+
+Replay identity, outcome table and rejected-write storage: [ADR 0018](../adr/0018-upload-protocol.md).
 
 - One client CRUD transaction → one Postgres transaction, operations dispatched through a table allowlist.
 - The upload names the account it was queued for; a different session gets `409 SYNC_WRONG_ACCOUNT` and the writes stay queued.
@@ -123,14 +127,14 @@ CI: Postgres and `powersync-service` as service containers; `pnpm test` and `pnp
 
 Revised plan, accepted 2026-11-07 ([ADR 0027](../adr/0027-sync-build-plan.md); review section 7). Each phase ends green on `pnpm lint`, `pnpm typecheck`, `pnpm knip`, `pnpm test`, `pnpm i18n:check`, then a conventional commit on the feature branch. Early checkpoints are mergeable infrastructure, not user-shippable offline features.
 
-1. **Contract and baseline:** security baseline patched; base commit `d624003`; upstream versions and SHAs recorded (handoff); ADRs 0015–0027 written; upload identity, error and state tables, supported offline horizon, browser shell/VFS and native key/runtime policy defined. Exit: current tests green and acceptance fixtures agreed. ADRs describe accepted decisions, not unresolved proposals as facts.
-2. **Repeatable infrastructure:** Postgres logical WAL, least-privilege roles/storage/publication bootstrap, preflight/resume tests, env and deployment wiring, initial probes and alerts. Start with an empty sync config. Exit: clean boot, repeat boot and injected partial-bootstrap recovery.
+1. **Contract and baseline:** security baseline patched; base commit `d624003`; upstream versions and SHAs recorded (handoff); install `powersync-ja/agent-skills` (pending maintainer); ADRs 0015–0027 written; upload identity, error and state tables, supported offline horizon, browser shell/VFS and native key/runtime policy defined. Exit: current tests green and acceptance fixtures agreed. ADRs describe accepted decisions, not unresolved proposals as facts.
+2. **Repeatable infrastructure:** `powersync-service` 1.28.x compose, Postgres logical WAL, least-privilege roles/storage/publication bootstrap, preflight/resume tests, `.env` entries through `packages/env`, deployment wiring, initial probes and alerts, slot-lag pg-boss job (D17, [ADR 0025](../adr/0025-sync-observability.md)). Start with an empty sync config. Exit: clean boot, repeat boot and injected partial-bootstrap recovery.
 3. **Real Postgres harness and minimal sync seam:** clone an immutable migrated template, isolate per-file state, explicit role/slot cleanup, remove the PGlite adapter (and update `.agents/orpc-testing.md`), scaffold a real-service test in CI and parity infrastructure. Exit: the existing API suite passes on Postgres; service-test infrastructure fails usefully on missing prerequisites.
 4. **One-table server proof:** migrate notes constraints, soft delete, publication and grants, then activate its stream; JWT credentials; atomic upload and receipt handling through operations. Exit: headless round trip, ownership isolation, replay/ack-loss, rejection and rollback tests pass before platform UI work.
-5. **Platform storage and lifecycle:** client schema and connector, bounded queries, web VFS and offline shell, native SQLCipher and crypto, serialized Device owner and auth switching, 401 queue preservation, rejected payload recovery, minimal diagnostic state. Exit: browser cold-restart and multi-tab tests. Pause for the native dev-client rebuild and runtime validation. No user rollout before the lifecycle tests pass.
+5. **Platform storage and lifecycle:** client schema and connector, bounded queries, web VFS and offline shell, native SQLCipher and crypto, serialized Device owner and auth switching, 401 queue preservation, `navigator.storage.persist()`, rejected payload recovery, minimal diagnostic state. Exit: browser cold-restart and multi-tab tests. Pause for the native dev-client rebuild and runtime validation. No user rollout before the lifecycle tests pass.
 6. **Notes UX:** module hooks, dirty-field forms, explicit loading/error/empty/sync states, bounded and virtualized lists, sign-out warning, retry/discard UI, i18n. Exit: real two-device editing, rejection recovery and session-expiry walkthrough.
 7. **Fault and compatibility proof:** full seam 3 and parity CI, old-client upload and schema cases, delete races, process/slot/storage failures, cold browser and native release tests, device query plans and first-sync measurements. Exit: deterministic convergence and queue-conservation tests and a recorded native/browser support matrix.
-8. **Operational handoff and privacy gate:** restore/resnapshot drill, alert delivery, runbooks, "adding a synced table" guide, `.agents/sync.md`, glossary (Device owner, Rejected write, Sync stream, Bootstrap), privacy/export/deletion/retention sign-off before real health data. Exit: deploy, rollback and recovery rehearsed; no silent divergence path without an alert or visible diagnostic state.
+8. **Operational handoff and privacy gate:** restore/resnapshot drill, alert delivery, runbooks, full diagnostics screen (i18n `en` + `de`), `docs/deployment.md` (sync subdomain, bootstrap job, Postgres flags), `.agents/sync.md`, "adding a synced table" guide, privacy/export/deletion/retention sign-off before real health data. Exit: deploy, rollback and recovery rehearsed; no silent divergence path without an alert or visible diagnostic state.
 
 ## Accepted requirements, by phase
 
@@ -150,16 +154,16 @@ Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and 
 
 ## Out of scope / deferred
 
-| Item                                                             | Revisit when                                           |
-| ---------------------------------------------------------------- | ------------------------------------------------------ |
-| Any fitness schema (training, macros, metrics)                   | This spec's phases pass                                |
-| Food data (server search on USDA FDC + Open Food Facts)          | Macro tracking; its own grilling                       |
-| Web encryption at rest                                           | A safe key strategy for the web                        |
-| Audit log (`actor` on operations)                                | The first AI agent or MCP                              |
-| MCP server auth (Better Auth `oauth-provider`)                   | The first external client                              |
-| Safari timings, phone release-build cold start, phone first-sync | Before public launch                                   |
-| Consent, data export, account deletion UI (D19)                  | Before real health data (phase 8 gate)                 |
-| Drizzle 1.0 on the client                                        | Compatible driver release plus parity/round-trip tests |
+| Item                                                             | Revisit when                                                                                    |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Any fitness schema (training, macros, metrics)                   | This spec's phases pass                                                                         |
+| Food data (server search on USDA FDC + Open Food Facts)          | Macro tracking; its own grilling                                                                |
+| Web encryption at rest                                           | A safe key strategy for the web                                                                 |
+| Audit log (`actor` on operations)                                | The first AI agent or MCP                                                                       |
+| MCP server auth (Better Auth `oauth-provider`)                   | The first external client                                                                       |
+| Safari timings, phone release-build cold start, phone first-sync | Browser support contract (ADR 0020); SQLCipher release tests before real health data (ADR 0022) |
+| Consent, data export, account deletion UI (D19)                  | Before real health data (phase 8 gate)                                                          |
+| Drizzle 1.0 on the client                                        | Compatible driver release plus parity/round-trip tests                                          |
 
 ## Revision log
 

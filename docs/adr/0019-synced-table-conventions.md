@@ -4,7 +4,7 @@ Status: accepted (2026-11-07). Covers D11 (amended).
 
 ## Context
 
-Synced rows are written on devices, possibly days offline, and merged on the server. The basic conventions came from the earlier spike. The review found gaps: replay, stale form values, delete races, tombstone retention and schema-version handling.
+Synced rows are written on devices, possibly days offline, and merged on the server. The basic conventions came from the earlier spike (`~/Workspace/projects/vermillion`). [the review](../specs/local-first-sync-review.md) found gaps: replay, stale form values, delete races, tombstone retention and schema-version handling.
 
 ## Decision
 
@@ -16,7 +16,7 @@ Synced rows are written on devices, possibly days offline, and merged on the ser
 - The upload protocol carries a client schema version. Unknown or unsupported versions are never silently discarded: the queue is kept and the user sees upgrade or recovery guidance. Prefer nullable or defaulted additions; use compatibility adapters when a validator tightens.
 - Streams list columns explicitly, never `*`. Postgres `CHECK (length(...))` matches the zod caps (SQL and JS length differ for supplementary Unicode, so test it). Partial index on `(user_id) WHERE deleted_at IS NULL`; a local index on each real sort or filter key, verified with `EXPLAIN QUERY PLAN` on a device.
 - Lists are bounded (paged or a bounded live window), ordered with an id tie-breaker and virtualized. UIs show loading, error, first-sync, empty and offline states; a local query failure must not look like "no records".
-- Migrations stay additive (ADR 0007). Production order for a new synced table: migrate (including `ALTER PUBLICATION`) then deploy the sync config then ship clients.
+- Migrations stay additive ([0007](0007-additive-migrations.md)). Production order for a new synced table: migrate (including `ALTER PUBLICATION`) then deploy the sync config then ship clients.
 
 ## Consequences
 
