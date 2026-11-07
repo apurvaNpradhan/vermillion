@@ -7,7 +7,7 @@ import { defineConfig } from "vite";
 import { appConfig } from "../../app.config.ts";
 import { offlineShell } from "./vite/offline-shell.ts";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   server: {
     port: appConfig.ports.web,
     strictPort: true,
@@ -35,10 +35,11 @@ export default defineConfig({
     tanstackStart({
       // Prerenders a document with no matched routes (`/_shell`) at build time. The offline service
       // worker serves it for any navigation it cannot reach the network for (ADR 0020). Server
-      // rendering of every other request is unchanged.
-      spa: { enabled: true, prerender: { outputPath: "/_shell" } },
+      // rendering of every other request is unchanged. Build only: under `vite dev` SPA mode
+      // hard-codes TSS_SHELL=true and every request would render the empty shell.
+      spa: { enabled: command === "build", prerender: { outputPath: "/_shell" } },
     }),
     react(),
     offlineShell(),
   ],
-});
+}));
