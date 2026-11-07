@@ -195,4 +195,4 @@ Accepted 2026-11-07 from the [review](local-first-sync-review.md) (evidence and 
 
 ### 2026-11-07 — phase 4 (server half)
 
-- Wire contract in `packages/shared/src/sync.ts`; `sync.credentials` and `sync.upload` in `platform/sync/`; notes handler in `notes/sync.ts`; Better Auth `jwt()` (5-minute tokens, ADR 0017); receipts, soft delete and CHECK constraints in migration `sync_phase_4`; daily `sync.purge` job. Publication membership and the `notes` stream are deliberately pending until the real-Postgres harness lands (the PGlite harness cannot run publication DDL).
+- Wire contract in `packages/shared/src/sync.ts`; `sync.credentials` and `sync.upload` in `platform/sync/`; notes handler in `notes/sync.ts`; Better Auth `jwt()` (5-minute tokens, ADR 0017); receipts, soft delete and CHECK constraints in migration `sync_phase_4`; daily `sync.purge` job. Publication membership and the `notes` stream landed in migration `notes_publication` and `powersync/sync-config.yaml` (wave B): the whole table is published, the stream lists `id, title, body, created_at, updated_at`. Seam 3 notes tests live in `tests/sync/src/notes.test.ts`.

@@ -9,6 +9,8 @@ export const services = {
     "postgresql://postgres:password@127.0.0.1:5432/vermillion",
   powersyncUrl: process.env.SYNC_TEST_POWERSYNC_URL ?? "http://127.0.0.1:8090",
   apiUrl: process.env.SYNC_TEST_API_URL ?? "http://127.0.0.1:3000",
+  /** The origin the API trusts for browser-style requests (its `APP_URL`). */
+  appOrigin: process.env.SYNC_TEST_APP_ORIGIN ?? "http://localhost:3001",
 };
 
 export type Problem = { service: string; message: string; fix: string };

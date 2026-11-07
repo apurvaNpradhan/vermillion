@@ -76,6 +76,55 @@ jobs:
         if: failure()
         run: docker compose logs postgres
 
+  # Seam 3 (ADR 0024): headless PowerSync clients against the real API, Postgres and
+  # powersync-service, all from the repo's compose file. Order matters: the bootstrap creates
+  # the publication, the server's migrations add `notes` to it, and only then may PowerSync
+  # start with the `notes` stream (ADR 0023). PowerSync reaches the API's JWKS on the host.
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: development
+      VITE_SERVER_URL: http://localhost:3000
+      EXPO_PUBLIC_SERVER_URL: http://localhost:3000
+      APP_URL: http://localhost:3001
+      BETTER_AUTH_SECRET: ci-placeholder-secret-not-for-production-0000
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/vermillion
+      EMAIL_CONSOLE: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Postgres and run the replication bootstrap
+        run: |
+          pnpm --filter server build:bootstrap
+          docker compose up -d --wait postgres
+          docker compose up --no-deps powersync-bootstrap
+      - name: Start the API (migrates, serves the JWKS)
+        run: |
+          pnpm --filter server exec tsx src/index.ts > server.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fs http://127.0.0.1:3000/api/health && exit 0
+            sleep 2
+          done
+          cat server.log
+          exit 1
+      - name: Start PowerSync
+        run: docker compose up -d --wait powersync
+      - name: Sync tests
+        run: pnpm test:sync
+      - name: Logs
+        if: failure()
+        run: |
+          cat server.log
+          docker compose logs powersync postgres
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -133,7 +182,7 @@ jobs:
   # server is deployed by Dokploy from the same commit.
   deploy-web:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_WEB == 'true'
-    needs: [checks, tests, e2e, workflows]
+    needs: [checks, tests, sync, e2e, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
