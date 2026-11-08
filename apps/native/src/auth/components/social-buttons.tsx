@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Chip, Separator, useThemeColor } from "heroui-native";
+import { Chip, useThemeColor } from "heroui-native";
 import { GithubLogo, GoogleLogo } from "phosphor-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { authClient } from "@/platform/auth-client";
 import { useTranslation } from "@/platform/i18n";
@@ -14,11 +14,16 @@ import { readLastLoginMethod, rememberLoginMethod } from "../last-login-method";
 import { useRegistrationStatus } from "../use-registration-status";
 import { Button } from "@/platform/ui/button";
 
+import { AuthDivider } from "./auth-layout";
+
 const PROVIDERS = ["google", "github"] as const;
 type Provider = (typeof PROVIDERS)[number];
 const PROVIDER_ICONS = { google: GoogleLogo, github: GithubLogo } as const;
 
-/** One button per social provider the server has configured; nothing when none is. */
+/**
+ * One button per social provider the server has configured, then the divider to the email form;
+ * nothing when none is.
+ */
 export function SocialButtons({
   headers,
   blocked,
@@ -41,19 +46,15 @@ export function SocialButtons({
   const lastUsed = readLastLoginMethod();
 
   return (
-    <View className="gap-3 pt-2">
+    <View className="gap-3">
       <FormError message={failure} />
-      <View className="flex-row items-center gap-3">
-        <Separator className="flex-1" />
-        <Text className="text-caption text-muted">{t("auth__or")}</Text>
-        <Separator className="flex-1" />
-      </View>
       {enabled.map((provider) => {
         const Icon = PROVIDER_ICONS[provider];
         return (
           <Button
             key={provider}
             variant="secondary"
+            className="h-13 rounded-xl"
             isDisabled={blocked || pending !== null}
             onPress={async () => {
               setPending(provider);
@@ -91,6 +92,9 @@ export function SocialButtons({
           </Button>
         );
       })}
+      <View className="pt-2">
+        <AuthDivider label={t("auth__or_email")} />
+      </View>
     </View>
   );
 }

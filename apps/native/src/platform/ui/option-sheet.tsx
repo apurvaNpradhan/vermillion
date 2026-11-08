@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { haptic } from "@/platform/haptics";
 
 import { ListRow, ListSection } from "./list";
+import { SHEET_SPRING } from "./sheet-motion";
 
 export type SheetOption<T extends string> = { value: T; label: string };
 
@@ -35,6 +36,7 @@ export function OptionSheet<T extends string>({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}

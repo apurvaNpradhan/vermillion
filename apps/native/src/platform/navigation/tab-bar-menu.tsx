@@ -11,18 +11,18 @@ import { MENU_ROW_HEIGHT } from "./tab-bar-metrics";
 const MENU_WIDTH = 264;
 const MENU_RADIUS = 24;
 
-// Grows out of the switcher (bottom left), fast and without overshoot (motion-base / motion-fast).
+// Grows out of the switcher (bottom left), fast and without overshoot (motion-fast).
 const OPEN = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.9 }, { translateY: 12 }] },
   100: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
 })
-  .duration(200)
+  .duration(140)
   .reduceMotion(ReduceMotion.System);
 const CLOSE = new Keyframe({
   0: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
   100: { opacity: 0, transform: [{ scale: 0.96 }, { translateY: 8 }] },
 })
-  .duration(120)
+  .duration(90)
   .reduceMotion(ReduceMotion.System);
 
 export type MenuItem = {

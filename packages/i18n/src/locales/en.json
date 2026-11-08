@@ -257,8 +257,7 @@
   "nav__back": "Back",
   "nav__close_menu": "Close menu",
   "nav__more": "More, showing {{current}}",
-  "auth__or": "or",
-  "auth__welcome_headline": "Your fitness ecosystem <barbell/> <fork/>, working offline <offline/> and in sync on every device <sync/>.",
+  "auth__welcome_headline": "Your fitness ecosystem <barbell/> <fork/> that works offline <offline/> and stays in sync <sync/> on every device",
   "auth__welcome_body": "Training and nutrition in one place, private to your account.",
   "settings__open_profile": "Profile of {{name}}",
   "settings__section_preferences": "Preferences",
@@ -271,5 +270,13 @@
   "notes__discard_title": "Discard changes?",
   "notes__discard_body": "What you wrote in this note will be lost.",
   "notes__keep_editing": "Keep editing",
-  "notes__deleted_toast": "Note deleted"
+  "notes__deleted_toast": "Note deleted",
+  "auth__sign_in_body": "Welcome back. Your training and notes pick up where you left off.",
+  "auth__sign_up_body": "Private to you, and it works offline.",
+  "auth__or_email": "or continue with email",
+  "auth__email_placeholder": "you@example.com",
+  "auth__name_placeholder": "Your name",
+  "auth__forgot_short": "Forgot password?",
+  "auth__show_password": "Show password",
+  "auth__hide_password": "Hide password"
 }

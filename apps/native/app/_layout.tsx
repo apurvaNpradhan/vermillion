@@ -14,7 +14,14 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
-import { routeGuards, toSessionState, useAuthReturn, useSession } from "@/auth";
+import {
+  routeGuards,
+  setSignedOut,
+  toSessionState,
+  useAuthReturn,
+  useSession,
+  useSignedOut,
+} from "@/auth";
 import { AppProviders } from "@/platform/providers";
 import { useDeviceOwner } from "@/sync";
 import { applyStoredTheme } from "@/platform/theme";
@@ -35,13 +42,19 @@ function RootStack() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const signedOut = useSignedOut();
   useAuthReturn(Boolean(session));
+  // Any session (a sign-in, or one restored on start) ends an explicit sign-out.
+  useEffect(() => {
+    if (session) setSignedOut(false);
+  }, [session]);
 
   // A device that holds a user's data opens without waiting for the session (ADR 0021).
   const guards = routeGuards(
     toSessionState({
       session: { isPending: sessionPending, hasSession: Boolean(session) },
       owner,
+      signedOut,
     }),
   );
   // A font that fails to load falls back to the system font rather than blocking the app.

@@ -3,10 +3,11 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ListRow, ListSection } from "./list";
+import { SHEET_SPRING } from "./sheet-motion";
 import type { SwipeAction } from "./swipe-row";
 
 /** Roughly the sheet's closing animation. */
-const CLOSE_MS = 250;
+const CLOSE_MS = 200;
 
 /**
  * A sheet of actions for one item, opened by a long press: the same actions as its swipe, with
@@ -29,6 +30,7 @@ export function ActionSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}

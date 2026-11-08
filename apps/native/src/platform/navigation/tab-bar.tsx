@@ -57,13 +57,13 @@ const MENU_GAP = 8;
 /** Padding inside the menu's row list, above the first row. */
 const MENU_ROWS_INSET = 8;
 const INDICATOR = {
-  duration: 200,
+  duration: 150,
   easing: Easing.out(Easing.cubic),
   reduceMotion: ReduceMotion.System,
 };
 const HINT_MS = 1200;
-/** Just past the menu's 200ms opening animation. */
-const MENU_SETTLE_MS = 220;
+/** Just past the menu's 140ms opening animation. */
+const MENU_SETTLE_MS = 160;
 
 /**
  * Floating, icon-only tab bar in the manner of Linear's: a pill with the first tabs, a switcher
@@ -318,8 +318,8 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
         {action ? (
           <Animated.View
             key={action.label}
-            entering={ZoomIn.duration(200).reduceMotion(ReduceMotion.System)}
-            exiting={ZoomOut.duration(120).reduceMotion(ReduceMotion.System)}
+            entering={ZoomIn.duration(140).reduceMotion(ReduceMotion.System)}
+            exiting={ZoomOut.duration(90).reduceMotion(ReduceMotion.System)}
           >
             <Pressable
               accessibilityRole="button"

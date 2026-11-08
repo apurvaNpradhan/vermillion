@@ -2,6 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { authErrorKey } from "@workspace/client/auth-error";
 import { Spinner } from "heroui-native";
+import { EnvelopeSimple, LockSimple } from "phosphor-react-native";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Text } from "react-native";
@@ -62,23 +63,52 @@ export function SignInForm({ resetDone }: { resetDone?: boolean }) {
   return (
     <AuthLayout
       title={t("auth__sign_in_title")}
+      description={t("auth__sign_in_body")}
+      action={
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              size="lg"
+              className="h-14 rounded-xl"
+              onPress={() => void form.handleSubmit()}
+              isDisabled={isSubmitting || turnstile.pending}
+            >
+              {isSubmitting ? <Spinner size="sm" /> : null}
+              <Button.Label className="text-body-lg font-semibold">
+                {t("auth__sign_in_action")}
+              </Button.Label>
+            </Button>
+          )}
+        </form.Subscribe>
+      }
       footer={
         <Text className="text-body text-muted">
-          {t("auth__no_account")} <AuthLink href="/sign-up">{t("nav__sign_up")}</AuthLink>
+          {t("auth__no_account")}{" "}
+          <AuthLink href="/sign-up" replace>
+            {t("nav__sign_up")}
+          </AuthLink>
         </Text>
       }
     >
       {resetDone ? <Notice status="success" message={t("auth__reset_done")} /> : null}
       <FormError message={failure} />
+      <SocialButtons
+        headers={turnstile.headers}
+        blocked={turnstile.pending}
+        onDone={turnstile.reset}
+      />
       <form.Field name="email">
         {(field) => (
           <TextField
             field={field}
             label={t("auth__email")}
+            icon={EnvelopeSimple}
+            placeholder={t("auth__email_placeholder")}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
             textContentType="emailAddress"
+            returnKeyType="next"
           />
         )}
       </form.Field>
@@ -87,6 +117,8 @@ export function SignInForm({ resetDone }: { resetDone?: boolean }) {
           <TextField
             field={field}
             label={t("auth__password")}
+            icon={LockSimple}
+            labelAccessory={<AuthLink href="/forgot-password">{t("auth__forgot_short")}</AuthLink>}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="current-password"
@@ -96,24 +128,7 @@ export function SignInForm({ resetDone }: { resetDone?: boolean }) {
           />
         )}
       </form.Field>
-      <AuthLink href="/forgot-password">{t("auth__forgot_link")}</AuthLink>
       {turnstile.widget}
-      <form.Subscribe selector={(state) => state.isSubmitting}>
-        {(isSubmitting) => (
-          <Button
-            onPress={() => void form.handleSubmit()}
-            isDisabled={isSubmitting || turnstile.pending}
-          >
-            {isSubmitting ? <Spinner size="sm" /> : null}
-            <Button.Label>{t("auth__sign_in_action")}</Button.Label>
-          </Button>
-        )}
-      </form.Subscribe>
-      <SocialButtons
-        headers={turnstile.headers}
-        blocked={turnstile.pending}
-        onDone={turnstile.reset}
-      />
     </AuthLayout>
   );
 }

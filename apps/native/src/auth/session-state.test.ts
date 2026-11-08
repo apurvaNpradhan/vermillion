@@ -5,10 +5,12 @@ import { routeGuards, toSessionState, type SessionInputs } from "./session-state
 function inputs(
   session: Partial<SessionInputs["session"]> = {},
   owner: Partial<SessionInputs["owner"]> = {},
+  signedOut = false,
 ): SessionInputs {
   return {
     session: { isPending: false, hasSession: false, ...session },
     owner: { isPending: false, hasOwner: false, ...owner },
+    signedOut,
   };
 }
 
@@ -28,6 +30,14 @@ describe("toSessionState", () => {
 
   it("is signed in whenever there is a session", () => {
     expect(toSessionState(inputs({ hasSession: true }, { hasOwner: true }))).toEqual({
+      status: "signed-in",
+    });
+  });
+
+  it("opens on the welcome screen after an explicit sign-out, data kept", () => {
+    expect(toSessionState(inputs({}, { hasOwner: true }, true))).toEqual({ status: "signed-out" });
+    // A stale flag never hides a live session.
+    expect(toSessionState(inputs({ hasSession: true }, { hasOwner: true }, true))).toEqual({
       status: "signed-in",
     });
   });

@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
 import { Spinner } from "heroui-native";
+import { EnvelopeSimple, LockSimple, User } from "phosphor-react-native";
 import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { z } from "zod";
@@ -64,21 +65,50 @@ export function SignUpForm() {
   return (
     <AuthLayout
       title={t("auth__sign_up_title")}
+      description={t("auth__sign_up_body")}
+      action={
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              size="lg"
+              className="h-14 rounded-xl"
+              onPress={() => void form.handleSubmit()}
+              isDisabled={isSubmitting || turnstile.pending}
+            >
+              {isSubmitting ? <Spinner size="sm" /> : null}
+              <Button.Label className="text-body-lg font-semibold">
+                {t("auth__sign_up_action")}
+              </Button.Label>
+            </Button>
+          )}
+        </form.Subscribe>
+      }
       footer={
         <Text className="text-body text-muted">
-          {t("auth__have_account")} <AuthLink href="/sign-in">{t("nav__sign_in")}</AuthLink>
+          {t("auth__have_account")}{" "}
+          <AuthLink href="/sign-in" replace>
+            {t("nav__sign_in")}
+          </AuthLink>
         </Text>
       }
     >
       {status && !status.open ? <Notice status="accent" message={t("auth__closed")} /> : null}
       <FormError message={failure} />
+      <SocialButtons
+        headers={turnstile.headers}
+        blocked={turnstile.pending}
+        onDone={turnstile.reset}
+      />
       <form.Field name="name">
         {(field) => (
           <TextField
             field={field}
             label={t("auth__name")}
+            icon={User}
+            placeholder={t("auth__name_placeholder")}
             autoComplete="name"
             textContentType="name"
+            returnKeyType="next"
           />
         )}
       </form.Field>
@@ -87,10 +117,13 @@ export function SignUpForm() {
           <TextField
             field={field}
             label={t("auth__email")}
+            icon={EnvelopeSimple}
+            placeholder={t("auth__email_placeholder")}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
             textContentType="emailAddress"
+            returnKeyType="next"
           />
         )}
       </form.Field>
@@ -99,31 +132,18 @@ export function SignUpForm() {
           <TextField
             field={field}
             label={t("auth__password")}
+            icon={LockSimple}
             description={t("auth__password_hint")}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
             textContentType="newPassword"
+            returnKeyType="go"
+            onSubmitEditing={() => void form.handleSubmit()}
           />
         )}
       </form.Field>
       {turnstile.widget}
-      <form.Subscribe selector={(state) => state.isSubmitting}>
-        {(isSubmitting) => (
-          <Button
-            onPress={() => void form.handleSubmit()}
-            isDisabled={isSubmitting || turnstile.pending}
-          >
-            {isSubmitting ? <Spinner size="sm" /> : null}
-            <Button.Label>{t("auth__sign_up_action")}</Button.Label>
-          </Button>
-        )}
-      </form.Subscribe>
-      <SocialButtons
-        headers={turnstile.headers}
-        blocked={turnstile.pending}
-        onDone={turnstile.reset}
-      />
     </AuthLayout>
   );
 }

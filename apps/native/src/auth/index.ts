@@ -7,4 +7,5 @@ export { WelcomeScreen } from "./components/welcome-screen";
 export { useAuthReturn } from "./use-auth-return";
 export { useSession } from "./session";
 export { routeGuards, toSessionState } from "./session-state";
+export { setSignedOut, useSignedOut } from "./signed-out";
 export { useSignOut } from "./use-sign-out";

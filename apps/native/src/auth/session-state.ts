@@ -5,6 +5,8 @@
  * - `signed-in`: a session: only the app.
  * - `owner-only`: the device holds a user's data but has no session (offline, or the session
  *   expired). The app opens on the local data, and auth stays reachable for the sign-in banner.
+ *   After an explicit sign-out the same device is `signed-out` instead: the data stays, but the
+ *   app opens on the welcome screen until someone signs in.
  */
 export type SessionState =
   | { status: "loading" }
@@ -15,13 +17,15 @@ export type SessionState =
 export type SessionInputs = {
   session: { isPending: boolean; hasSession: boolean };
   owner: { isPending: boolean; hasOwner: boolean };
+  /** The user signed out on purpose (not an expired session). */
+  signedOut: boolean;
 };
 
-export function toSessionState({ session, owner }: SessionInputs): SessionState {
+export function toSessionState({ session, owner, signedOut }: SessionInputs): SessionState {
   if (owner.isPending) return { status: "loading" };
   if (session.hasSession) return { status: "signed-in" };
-  // A device with an owner opens without waiting for the network.
-  if (owner.hasOwner) return { status: "owner-only" };
+  // A device with an owner opens without waiting for the network, unless the user signed out.
+  if (owner.hasOwner && !signedOut) return { status: "owner-only" };
   if (session.isPending) return { status: "loading" };
   return { status: "signed-out" };
 }

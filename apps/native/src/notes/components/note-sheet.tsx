@@ -21,6 +21,7 @@ import { withUniwind } from "uniwind";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 import { useLiveNote } from "../use-notes";
 
@@ -30,8 +31,6 @@ const TextInput = withUniwind(BottomSheetTextInput);
 export type NoteSheetTarget = { kind: "new" } | { kind: "edit"; note: LocalNote };
 
 const EMPTY: NoteValues = { title: "", body: "" };
-/** Long enough for the sheet's opening spring (motion-sheet) to settle. */
-const FOCUS_DELAY_MS = 350;
 
 /**
  * One sheet for writing a note, new or existing (ADR 0019 for editing). Borderless title and
@@ -51,6 +50,7 @@ export function NoteSheet({
 }) {
   const { bottom } = useSafeAreaInsets();
   const [dirty, setDirty] = useState(false);
+  const [opened, setOpened] = useState(false);
   // The last target stays rendered while the sheet slides away, instead of blanking mid-close.
   const [shown, setShown] = useState(target);
   if (target !== null && target !== shown) setShown(target);
@@ -82,6 +82,8 @@ export function NoteSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay isCloseOnPress={false} onPress={requestClose} />
         <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
+          onChange={(index) => setOpened(index >= 0)}
           enablePanDownToClose={!dirty}
           // "interactive" follows the keyboard on both platforms; "extend" never moved on Android.
           keyboardBehavior="interactive"
@@ -92,6 +94,7 @@ export function NoteSheet({
         >
           {shown ? (
             <NoteEditor
+              opened={opened}
               // A new key per opening, so each one starts a fresh draft.
               key={shown.kind === "edit" ? shown.note.id : "new"}
               note={shown.kind === "edit" ? shown.note : null}
@@ -110,6 +113,7 @@ export function NoteSheet({
 
 function NoteEditor({
   note,
+  opened,
   onDirtyChange,
   onCancel,
   onDone,
@@ -117,6 +121,8 @@ function NoteEditor({
   onSave,
 }: {
   note: LocalNote | null;
+  /** The sheet has finished opening. */
+  opened: boolean;
   onDirtyChange: (dirty: boolean) => void;
   onCancel: () => void;
   onDone: () => void;
@@ -131,13 +137,11 @@ function NoteEditor({
   const dirty = isDraftDirty(draft);
   const titleRef = useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
 
-  // A new note starts in the title, once the sheet has risen: a keyboard that opens while the
+  // A new note starts in the title once the sheet has risen: a keyboard that opens while the
   // sheet is still mounting covers it instead of lifting it.
   useEffect(() => {
-    if (note) return;
-    const timer = setTimeout(() => titleRef.current?.focus(), FOCUS_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [note]);
+    if (!note && opened) titleRef.current?.focus();
+  }, [note, opened]);
 
   useEffect(() => {
     if (note && live !== undefined) setDraft((current) => applyLatest(current, live));

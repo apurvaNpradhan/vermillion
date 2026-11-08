@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
 import { Spinner } from "heroui-native";
+import { EnvelopeSimple } from "phosphor-react-native";
 import { createURL } from "expo-linking";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -59,6 +60,8 @@ export function ForgotPasswordForm() {
               <TextField
                 field={field}
                 label={t("auth__email")}
+                icon={EnvelopeSimple}
+                placeholder={t("auth__email_placeholder")}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -70,6 +73,8 @@ export function ForgotPasswordForm() {
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
               <Button
+                size="lg"
+                className="h-14 rounded-xl"
                 onPress={() => void form.handleSubmit()}
                 isDisabled={isSubmitting || turnstile.pending}
               >

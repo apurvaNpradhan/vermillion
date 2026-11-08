@@ -3,6 +3,7 @@ import { clearSession } from "@workspace/client/session";
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
 import { Spinner } from "heroui-native";
+import { LockSimple } from "phosphor-react-native";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -69,6 +70,7 @@ export function ResetPasswordForm({ token, error }: { token?: string; error?: st
           <TextField
             field={field}
             label={t("auth__password_new")}
+            icon={LockSimple}
             description={t("auth__password_hint")}
             secureTextEntry
             autoCapitalize="none"
@@ -79,7 +81,12 @@ export function ResetPasswordForm({ token, error }: { token?: string; error?: st
       </form.Field>
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(isSubmitting) => (
-          <Button onPress={() => void form.handleSubmit()} isDisabled={isSubmitting}>
+          <Button
+            size="lg"
+            className="h-14 rounded-xl"
+            onPress={() => void form.handleSubmit()}
+            isDisabled={isSubmitting}
+          >
             {isSubmitting ? <Spinner size="sm" /> : null}
             <Button.Label>{t("auth__reset_action")}</Button.Label>
           </Button>
