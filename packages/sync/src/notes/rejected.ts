@@ -1,14 +1,18 @@
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import { readRejectedWrite, type RejectedWrite } from "../platform/rejected-writes";
+import { parseRejectedWrite, type RejectedWrite } from "../platform/rejected-writes";
+import { rejectedWrites } from "../platform/tables";
 import {
   insertNote,
   isValidNote,
+  localNotes,
   patchNote,
   type NotesDatabase,
   type NoteValues,
   type NotesTx,
 } from "./store";
+import { notes } from "./tables";
 
 const payloadSchema = z.object({ title: z.string().optional(), body: z.string().optional() });
 
@@ -31,16 +35,17 @@ export function rejectedNoteFields(write: RejectedWrite): { title?: string; body
  * carried only `body` still shows the current title), over empty text for a note that is gone.
  */
 export async function rejectedRetryValues(
-  database: Pick<NotesDatabase, "getOptional">,
+  database: NotesDatabase,
   write: RejectedWrite,
 ): Promise<NoteValues> {
-  const current =
+  const [current] =
     write.op === "PUT"
-      ? null
-      : await database.getOptional<NoteValues>(
-          "SELECT title, body FROM notes WHERE id = ? AND deleted_at IS NULL",
-          [write.rowId],
-        );
+      ? []
+      : await localNotes(database)
+          .select({ title: notes.title, body: notes.body })
+          .from(notes)
+          .where(and(eq(notes.id, write.rowId), isNull(notes.deleted_at)))
+          .limit(1);
   const fields = rejectedNoteFields(write);
   return {
     title: fields?.title ?? current?.title ?? "",
@@ -71,27 +76,29 @@ export async function retryRejectedNote(
   id: string,
   values: NoteValues,
 ): Promise<RetryResult> {
-  return database.writeTransaction(async (tx): Promise<RetryResult> => {
-    const write = await readRejectedWrite(tx, id);
-    if (!write) return "gone";
+  return localNotes(database).transaction(async (tx): Promise<RetryResult> => {
+    const [row] = await tx.select().from(rejectedWrites).where(eq(rejectedWrites.id, id)).limit(1);
+    if (!row) return "gone";
+    const write = parseRejectedWrite(row);
     let result: RetryResult = "retried";
     if (write.op === "DELETE") {
-      await tx.execute("DELETE FROM notes WHERE id = ?", [write.rowId]);
+      await tx.delete(notes).where(eq(notes.id, write.rowId));
     } else {
       if (!isValidNote(values)) return "invalid";
       result = await replay(tx, write, values);
     }
-    await tx.execute("DELETE FROM rejected_writes WHERE id = ?", [id]);
+    await tx.delete(rejectedWrites).where(eq(rejectedWrites.id, id));
     return result;
   });
 }
 
 async function replay(tx: NotesTx, write: RejectedWrite, values: NoteValues): Promise<RetryResult> {
   if (write.op === "PATCH") {
-    const exists = await tx.getOptional(
-      "SELECT id FROM notes WHERE id = ? AND deleted_at IS NULL",
-      [write.rowId],
-    );
+    const [exists] = await tx
+      .select({ id: notes.id })
+      .from(notes)
+      .where(and(eq(notes.id, write.rowId), isNull(notes.deleted_at)))
+      .limit(1);
     if (exists) {
       await patchNote(tx, write.rowId, values);
       return "retried";

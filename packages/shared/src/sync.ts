@@ -43,6 +43,13 @@ export const SYNC_LIMITS = {
   maxTransactionBytes: 512 * 1024,
 } as const;
 
+/**
+ * Field caps of a note (UTF-16 length). The single source: the server's zod schemas and Postgres
+ * CHECK constraints, and the client's local validation and form `maxLength`, all import these.
+ */
+export const NOTE_TITLE_MAX = 200;
+export const NOTE_BODY_MAX = 10_000;
+
 export const SYNC_OPERATIONS = ["PUT", "PATCH", "DELETE"] as const;
 
 const syncValueSchema = z.union([z.string(), z.number().finite(), z.null()]);
@@ -168,7 +175,8 @@ function canonicalOp(op: SyncOp): string {
   const parts = [`"id":${JSON.stringify(op.id)}`, `"op":${JSON.stringify(op.op)}`];
   if (op.opData !== undefined) {
     const data = Object.entries(op.opData)
-      .toSorted(([a], [b]) => compareCodeUnits(a, b))
+      // Object.entries creates a fresh array; sort works on native runtimes without toSorted.
+      .sort(([a], [b]) => compareCodeUnits(a, b))
       .map(([key, value]) => `${JSON.stringify(key)}:${JSON.stringify(value satisfies SyncValue)}`)
       .join(",");
     parts.push(`"opData":{${data}}`);

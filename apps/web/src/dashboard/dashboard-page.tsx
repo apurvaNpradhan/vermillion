@@ -9,9 +9,7 @@ export function DashboardPage() {
   const { user } = useCurrentUser();
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <h1 className="font-semibold text-xl">
-        {t("dashboard__welcome", { name: user?.name ?? "" })}
-      </h1>
+      <h1 className="text-title-xl">{t("dashboard__welcome", { name: user?.name ?? "" })}</h1>
       <Card>
         <CardHeader>
           <CardTitle>{t("dashboard__placeholder_title")}</CardTitle>

@@ -1,6 +1,6 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 
-const SINGLETON_ID = "owner";
+export const DEVICE_OWNER_ID = "owner";
 
 export type DeviceOwnerDatabase = Pick<
   AbstractPowerSyncDatabase,
@@ -13,7 +13,7 @@ export async function readDeviceOwner(
 ): Promise<string | null> {
   const row = await database.getOptional<{ user_id: string }>(
     "SELECT user_id FROM device_owner WHERE id = ?",
-    [SINGLETON_ID],
+    [DEVICE_OWNER_ID],
   );
   return row?.user_id ?? null;
 }
@@ -29,11 +29,11 @@ export async function claimDeviceOwner(
   return database.writeTransaction(async (tx) => {
     const existing = await tx.getOptional<{ user_id: string }>(
       "SELECT user_id FROM device_owner WHERE id = ?",
-      [SINGLETON_ID],
+      [DEVICE_OWNER_ID],
     );
     if (existing) return existing.user_id;
     await tx.execute("INSERT INTO device_owner (id, user_id, created_at) VALUES (?, ?, ?)", [
-      SINGLETON_ID,
+      DEVICE_OWNER_ID,
       userId,
       new Date().toISOString(),
     ]);

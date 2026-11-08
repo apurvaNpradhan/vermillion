@@ -44,8 +44,8 @@ export function useNotes() {
 
   const write = useCallback(
     async (action: (db: NotesDatabase) => Promise<void | string | boolean>) => {
-      if (!database) throw new Error("Local storage is not available");
       try {
+        if (!database) throw new Error("Local storage is not available");
         await action(database);
       } catch (error) {
         toast.show({ variant: "danger", label: t("errors__unknown") });
@@ -55,11 +55,34 @@ export function useNotes() {
     [database, t, toast],
   );
 
+  // Stable while the database is, so memoised rows are not re-rendered by a new callback.
+  const loadMore = useCallback(() => setLimit((current) => current + NOTES_PAGE_SIZE), []);
+  const create = useCallback(
+    async (input: { title: string; body: string }) => {
+      await write((db) => createNote(db, input));
+    },
+    [write],
+  );
+  /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
+  const update = useCallback(
+    async (input: { id: string } & NotePatch) => {
+      const { id, ...patch } = input;
+      await write((db) => updateNote(db, id, patch));
+    },
+    [write],
+  );
+  const remove = useCallback(
+    async (id: string) => {
+      await write((db) => deleteNote(db, id));
+    },
+    [write],
+  );
+
   return {
     notes: page?.notes ?? [],
     isLoading: local === null || (database !== null && page === null && !loadFailed),
     /** A local read failed: not the same as "no notes". */
-    loadFailed,
+    loadFailed: loadFailed || local?.status === "unavailable",
     /** The first full sync has not finished, so an empty list may only mean "not downloaded yet". */
     isFirstSync:
       snapshot !== null &&
@@ -67,18 +90,10 @@ export function useNotes() {
       snapshot.indicator !== "paused" &&
       snapshot.lockReason === null,
     hasMore: page?.hasMore ?? false,
-    loadMore: () => setLimit((current) => current + NOTES_PAGE_SIZE),
-    create: async (input: { title: string; body: string }) => {
-      await write((db) => createNote(db, input));
-    },
-    /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
-    update: async (input: { id: string } & NotePatch) => {
-      const { id, ...patch } = input;
-      await write((db) => updateNote(db, id, patch));
-    },
-    remove: async (id: string) => {
-      await write((db) => deleteNote(db, id));
-    },
+    loadMore,
+    create,
+    update,
+    remove,
   };
 }
 

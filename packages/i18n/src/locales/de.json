@@ -217,7 +217,6 @@
   "sync__sign_out_body_other": "{{count}} Änderungen wurden noch nicht gesendet. Sie bleiben auf diesem Gerät und werden gesendet, sobald du dich mit demselben Konto wieder anmeldest.",
   "sync__update_required": "Diese Version der App kann nicht mehr synchronisieren. Aktualisiere sie, um fortzufahren; deine Änderungen sind auf diesem Gerät gespeichert.",
   "notes__load_failed": "Deine Notizen konnten nicht von diesem Gerät gelesen werden.",
-  "notes__load_more": "Mehr anzeigen",
   "sync__state_synced": "Alle Änderungen sind synchronisiert.",
   "sync__state_uploading": "Deine Änderungen werden synchronisiert…",
   "sync__state_paused": "Du bist offline. Änderungen werden auf diesem Gerät gespeichert und synchronisiert, sobald du wieder verbunden bist.",

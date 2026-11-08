@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { clearSession } from "@workspace/client/session";
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import { FormError } from "@/platform/ui/form-error";
 
 import { AuthLayout } from "./auth-layout";
 import { AuthLink } from "./auth-link";
+import { Button } from "@/platform/ui/button";
 
 /** The screen the reset email links to; Better Auth appends `token` (or `error=INVALID_TOKEN`). */
 export function ResetPasswordForm({ token, error }: { token?: string; error?: string }) {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
-import { createNote, deleteNote, updateNote, watchNotes, type NotesDatabase } from "./store";
+import { createNote, deleteNote, listNotesQuery, updateNote, type NotesDatabase } from "./store";
 
 async function setup() {
   const fake = createFakeDatabase();
@@ -54,38 +54,27 @@ describe("notes store", () => {
     expect(row(s, id)).toBeUndefined();
   });
 
-  it("watches a bounded page and says whether more exist", async () => {
+  it("lists live notes newest first by (updated_at, id) with one extra row", async () => {
     const s = await setup();
-    let query = "";
-    let params: Array<string | number | null> = [];
-    const pages: Array<{ count: number; hasMore: boolean }> = [];
-    const database = {
-      watchWithCallback: (
-        sql: string,
-        p: Array<string | number | null>,
-        handler: { onResult: (r: { array: unknown[] }) => void },
-      ) => {
-        query = sql;
-        params = p;
-        const rows = s.sqlite.prepare(sql).all(...p);
-        handler.onResult({ array: rows });
-      },
-    };
     for (const title of ["a", "b", "c"]) {
       await createNote(s.notes, { title, body: "" });
       await new Promise((resolve) => setTimeout(resolve, 2));
     }
-    const stop = watchNotes(database as never, 2, {
-      onPage: (page) => pages.push({ count: page.notes.length, hasMore: page.hasMore }),
-      onError: (error) => {
-        throw error;
-      },
-    });
-    expect(pages).toEqual([{ count: 2, hasMore: true }]);
+    const query = listNotesQuery(s.notes, 3);
+    const { sql, params } = query.toSQL();
+    expect(sql).toMatch(/where "notes"."deleted_at" is null/);
+    expect(sql).toMatch(/order by "notes"."updated_at" desc, "notes"."id" desc/);
+    expect(sql).toMatch(/limit \?/);
     expect(params).toEqual([3]);
-    expect(query).toMatch(/deleted_at IS NULL/);
-    expect(query).toMatch(/ORDER BY updated_at DESC, id DESC/);
-    expect(query).toMatch(/LIMIT \?/);
-    stop();
+    expect((await query).map((note) => note.title)).toEqual(["c", "b", "a"]);
+    // The live read itself (watch, stop, table scoping) runs on real PowerSync in tests/sync.
+  });
+
+  it("refuses values over the limits", async () => {
+    const s = await setup();
+    await expect(createNote(s.notes, { title: " ", body: "" })).rejects.toThrow("empty");
+    await expect(createNote(s.notes, { title: "x", body: "y".repeat(10_001) })).rejects.toThrow();
+    await expect(updateNote(s.notes, "id", { title: "" })).rejects.toThrow("Title");
+    await expect(updateNote(s.notes, "id", { body: "y".repeat(10_001) })).rejects.toThrow("Body");
   });
 });

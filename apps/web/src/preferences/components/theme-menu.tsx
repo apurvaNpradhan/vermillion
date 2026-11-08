@@ -6,7 +6,7 @@ import {
   MenuRadioItem,
   MenuTrigger,
 } from "@workspace/ui/components/menu";
-import { MonitorIcon } from "lucide-react";
+import { MonitorIcon } from "@phosphor-icons/react";
 
 import { useTranslation } from "@/platform/i18n";
 import { isTheme, THEMES, useTheme } from "@/platform/theme";

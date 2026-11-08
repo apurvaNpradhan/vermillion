@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
 import { appConfig } from "@/platform/app-config";
@@ -23,14 +23,12 @@ export function HomePage({ accountDeleted }: { accountDeleted: boolean }) {
     <div className="flex flex-col items-start gap-6">
       {accountDeleted && localCopyRemoved ? (
         <Alert variant="success">
-          <CircleCheckIcon />
+          <CheckCircleIcon />
           <AlertDescription>{t("site__account_deleted")}</AlertDescription>
         </Alert>
       ) : null}
-      <h1 className="font-semibold text-4xl tracking-tight">
-        {t("site__home_title", { app: appConfig.displayName })}
-      </h1>
-      <p className="max-w-prose text-lg text-muted-foreground">{t("site__home_body")}</p>
+      <h1 className="text-title-xl">{t("site__home_title", { app: appConfig.displayName })}</h1>
+      <p className="max-w-prose text-body-lg text-muted-foreground">{t("site__home_body")}</p>
       <Button size="lg" render={<Link to="/app" />}>
         {t("site__home_cta")}
       </Button>

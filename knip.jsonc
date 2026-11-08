@@ -40,7 +40,8 @@
       ],
       // Expo reads these through app.config.ts and the Metro/Babel presets. The PowerSync and
       // op-sqlite packages are used by openNativeDatabase; expo-crypto by the polyfill.
-      "ignoreDependencies": ["@workspace/config"],
+      // expo-font is the peer @expo-google-fonts/inter loads Inter through.
+      "ignoreDependencies": ["@workspace/config", "expo-font"],
     },
     "packages/api": {
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).

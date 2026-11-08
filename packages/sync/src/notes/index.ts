@@ -6,6 +6,7 @@ export {
   createNote,
   deleteNote,
   isValidNote,
+  listNotesQuery,
   notesUploadColumns,
   updateNote,
   watchNote,

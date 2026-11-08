@@ -14,7 +14,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-col">
       <header className="border-b">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-          <Link to="/" className="font-semibold tracking-tight">
+          <Link to="/" className="text-title-md">
             {appConfig.displayName}
           </Link>
           <div className="flex items-center gap-1">
@@ -30,7 +30,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <footer className="border-t">
         <nav
           aria-label={t("nav__legal")}
-          className="mx-auto flex h-12 w-full max-w-5xl items-center gap-4 px-4 text-muted-foreground text-sm"
+          className="mx-auto flex h-12 w-full max-w-5xl items-center gap-4 px-4 text-label text-muted-foreground"
         >
           <Link to="/terms">{t("nav__terms")}</Link>
           <Link to="/privacy">{t("nav__privacy")}</Link>

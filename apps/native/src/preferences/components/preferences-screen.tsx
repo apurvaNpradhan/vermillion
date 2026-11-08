@@ -1,5 +1,5 @@
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
-import { Button, Card, RadioGroup } from "heroui-native";
+import { RadioGroup } from "heroui-native";
 import { getCalendars } from "expo-localization";
 import { Text } from "react-native";
 
@@ -8,6 +8,8 @@ import { Screen } from "@/platform/ui/screen";
 import { isTheme, THEMES, useTheme, type Theme } from "@/platform/theme";
 
 import { usePreferences } from "../use-preferences";
+import { Button } from "@/platform/ui/button";
+import { Card } from "@/platform/ui/card";
 
 const LOCALE_NAMES = { en: "English", de: "Deutsch" } as const;
 const THEME_LABEL_KEYS = {

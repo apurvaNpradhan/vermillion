@@ -26,7 +26,7 @@ export function AuthLayout({
   const { t } = useTranslation();
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-4">
-      <Link to="/" className="font-semibold text-lg tracking-tight">
+      <Link to="/" className="text-title-md">
         {appConfig.displayName}
       </Link>
       <Card className="w-full max-w-sm">
@@ -37,7 +37,7 @@ export function AuthLayout({
         <CardPanel className="flex flex-col gap-4">{children}</CardPanel>
       </Card>
       {footer}
-      <nav aria-label={t("nav__legal")} className="flex gap-4 text-muted-foreground text-xs">
+      <nav aria-label={t("nav__legal")} className="flex gap-4 text-caption text-muted-foreground">
         <Link to="/terms">{t("nav__terms")}</Link>
         <Link to="/privacy">{t("nav__privacy")}</Link>
       </nav>

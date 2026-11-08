@@ -28,7 +28,8 @@ export function parseAcceptLanguage(header: string | null | undefined): Locale |
       return { language: tag.trim().toLowerCase().split("-")[0] ?? "", weight, index };
     })
     .filter((entry) => entry.language && Number.isFinite(entry.weight) && entry.weight > 0)
-    .toSorted((a, b) => b.weight - a.weight || a.index - b.index);
+    // Sort the fresh filtered array in place: native runtimes may not support toSorted.
+    .sort((a, b) => b.weight - a.weight || a.index - b.index);
   return ranked.map((entry) => entry.language).find(isLocale);
 }
 

@@ -40,9 +40,9 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
           </Avatar>
         </MenuTrigger>
         <MenuPopup align="end">
-          <div className="px-2 py-1.5 text-sm">
+          <div className="px-2 py-1.5 text-body">
             <p className="font-medium">{name}</p>
-            <p className="text-muted-foreground text-xs">{email}</p>
+            <p className="text-caption text-muted-foreground">{email}</p>
           </div>
           <MenuSeparator />
           <MenuItem render={<Link to="/app" />}>{t("nav__dashboard")}</MenuItem>

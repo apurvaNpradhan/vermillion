@@ -9,6 +9,7 @@ export {
   editDraft,
   isDraftDirty,
   isValidNote,
+  listNotesQuery,
   notes,
   notesUploadColumns,
   rejectedNoteFields,

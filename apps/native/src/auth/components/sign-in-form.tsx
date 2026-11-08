@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { authErrorKey } from "@workspace/client/auth-error";
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Text } from "react-native";
@@ -19,6 +19,7 @@ import { AuthLayout } from "./auth-layout";
 import { AuthLink } from "./auth-link";
 import { SocialButtons } from "./social-buttons";
 import { useTurnstile } from "./use-turnstile";
+import { Button } from "@/platform/ui/button";
 
 export function SignInForm({ resetDone }: { resetDone?: boolean }) {
   const { t } = useTranslation();
@@ -62,7 +63,7 @@ export function SignInForm({ resetDone }: { resetDone?: boolean }) {
     <AuthLayout
       title={t("auth__sign_in_title")}
       footer={
-        <Text className="text-muted text-sm">
+        <Text className="text-body text-muted">
           {t("auth__no_account")} <AuthLink href="/sign-up">{t("nav__sign_up")}</AuthLink>
         </Text>
       }

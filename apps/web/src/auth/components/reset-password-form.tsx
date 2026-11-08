@@ -59,7 +59,7 @@ export function ResetPasswordForm({
       <AuthLayout
         title={t("auth__reset_title")}
         footer={
-          <Link to="/forgot-password" className="text-muted-foreground text-sm underline">
+          <Link to="/forgot-password" className="text-label text-muted-foreground underline">
             {t("auth__forgot_title")}
           </Link>
         }

@@ -54,6 +54,29 @@ export function useNotes() {
     [database, t],
   );
 
+  // Stable while the database is, so memoised rows are not re-rendered by a new callback.
+  const loadMore = useCallback(() => setLimit((current) => current + NOTES_PAGE_SIZE), []);
+  const create = useCallback(
+    async (input: { title: string; body: string }) => {
+      await write((db) => createNote(db, input));
+    },
+    [write],
+  );
+  /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
+  const update = useCallback(
+    async (input: { id: string } & NotePatch) => {
+      const { id, ...patch } = input;
+      await write((db) => updateNote(db, id, patch));
+    },
+    [write],
+  );
+  const remove = useCallback(
+    async (id: string) => {
+      await write((db) => deleteNote(db, id));
+    },
+    [write],
+  );
+
   return {
     notes: page?.notes ?? [],
     isLoading: local === null || (database !== null && page === null && !loadFailed),
@@ -68,18 +91,10 @@ export function useNotes() {
     /** Why this browser cannot keep notes on the device, when it cannot. */
     unavailableReason: local?.status === "unavailable" ? local.reason : null,
     hasMore: page?.hasMore ?? false,
-    loadMore: () => setLimit((current) => current + NOTES_PAGE_SIZE),
-    create: async (input: { title: string; body: string }) => {
-      await write((db) => createNote(db, input));
-    },
-    /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
-    update: async (input: { id: string } & NotePatch) => {
-      const { id, ...patch } = input;
-      await write((db) => updateNote(db, id, patch));
-    },
-    remove: async (id: string) => {
-      await write((db) => deleteNote(db, id));
-    },
+    loadMore,
+    create,
+    update,
+    remove,
   };
 }
 

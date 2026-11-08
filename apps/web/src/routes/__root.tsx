@@ -74,7 +74,7 @@ function NotFound() {
   const { t } = useTranslation();
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4">
-      <h1 className="font-semibold text-2xl">{t("errors__page_not_found")}</h1>
+      <h1 className="text-title-xl">{t("errors__page_not_found")}</h1>
       <Link to="/" className="underline">
         {t("nav__home")}
       </Link>

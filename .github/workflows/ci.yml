@@ -132,18 +132,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_PASSWORD: password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       # The tests recreate this database, the API server migrates it.
       E2E_DATABASE_URL: postgresql://postgres:password@localhost:5432/vermillion_e2e
@@ -159,6 +147,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install the browser
         run: pnpm --filter web exec playwright install --with-deps chromium
+      # Browser notes now exercise real replication, so use the logical-WAL Postgres too.
+      - name: Start Postgres
+        run: docker compose up -d --wait postgres
       - name: End-to-end tests
         run: pnpm test:e2e
       - name: Upload traces and the server log

@@ -59,7 +59,7 @@ export function AdminUsersPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-semibold text-xl">{t("admin__users_title")}</h1>
+        <h1 className="text-title-xl">{t("admin__users_title")}</h1>
         <Input
           type="search"
           className="max-w-xs"
@@ -111,7 +111,7 @@ export function AdminUsersPage() {
                   </TableCell>
                   <TableCell className="text-end">
                     {isSelf ? (
-                      <span className="text-muted-foreground text-xs">{t("admin__you")}</span>
+                      <span className="text-caption text-muted-foreground">{t("admin__you")}</span>
                     ) : (
                       <div className="flex justify-end gap-2">
                         {user.banned ? (
@@ -144,7 +144,7 @@ export function AdminUsersPage() {
         </TableBody>
       </Table>
 
-      <div className="flex items-center justify-between text-muted-foreground text-sm">
+      <div className="flex items-center justify-between text-body text-muted-foreground">
         <span>{t("admin__total", { count: total })}</span>
         <div className="flex items-center gap-2">
           <Button

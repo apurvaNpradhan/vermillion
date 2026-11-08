@@ -1,25 +1,31 @@
-import { Alert, Button, Card, Spinner } from "heroui-native";
-import { useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
+import { Alert, Spinner } from "heroui-native";
+import { useCallback, useState } from "react";
+import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { useTranslation } from "@/platform/i18n";
 import { SyncBanner, SyncStatusLine } from "@/sync";
 
 import { useNotes } from "../use-notes";
-import { EditNote } from "./edit-note";
 import { NoteForm } from "./note-form";
+import { NoteItem } from "./note-item";
 import { RejectedNotes } from "./rejected-notes";
+import { Card } from "@/platform/ui/card";
+
+const ESTIMATED_NOTE_HEIGHT = 150;
 
 /**
- * The notes list is a FlatList (virtualized, window-sized by `useNotes`), with everything above
- * the notes in its header so the whole screen scrolls as one list.
+ * The notes list is a LegendList (virtualized, dynamic row heights), with everything above the
+ * notes in its header so the whole screen scrolls as one list. Reaching the end widens the
+ * window by one page (`loadMore`).
  */
 export function NotesScreen() {
   const { t } = useTranslation();
   const { notes, isLoading, loadFailed, isFirstSync, hasMore, loadMore, create, update, remove } =
     useNotes();
   const [editing, setEditing] = useState<string | null>(null);
+  const stopEditing = useCallback(() => setEditing(null), []);
 
   const header = (
     <View className="gap-4">
@@ -60,7 +66,7 @@ export function NotesScreen() {
   );
 
   return (
-    <FlatList
+    <LegendList
       className="flex-1 bg-background"
       contentContainerClassName="grow gap-4 p-4"
       contentInsetAdjustmentBehavior="automatic"
@@ -69,47 +75,21 @@ export function NotesScreen() {
       data={notes}
       keyExtractor={(note) => note.id}
       extraData={editing}
-      initialNumToRender={10}
-      windowSize={7}
+      estimatedItemSize={ESTIMATED_NOTE_HEIGHT}
+      onEndReached={hasMore ? loadMore : undefined}
+      onEndReachedThreshold={1.5}
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      ListFooterComponent={
-        hasMore ? (
-          <Button variant="secondary" className="self-center" onPress={loadMore}>
-            <Button.Label>{t("notes__load_more")}</Button.Label>
-          </Button>
-        ) : null
-      }
       renderItem={({ item: note }) => (
-        <Card>
-          {editing === note.id ? (
-            <Card.Body>
-              <EditNote
-                note={note}
-                onSave={(patch) => update({ id: note.id, ...patch })}
-                onSaveAsNew={create}
-                onDone={() => setEditing(null)}
-              />
-            </Card.Body>
-          ) : (
-            <>
-              <Card.Header>
-                <Card.Title>{note.title}</Card.Title>
-                {note.body ? <Card.Description>{note.body}</Card.Description> : null}
-              </Card.Header>
-              <Card.Footer>
-                <View className="flex-row gap-2">
-                  <Button size="sm" variant="secondary" onPress={() => setEditing(note.id)}>
-                    <Button.Label>{t("notes__edit")}</Button.Label>
-                  </Button>
-                  <Button size="sm" variant="danger" onPress={() => void remove(note.id)}>
-                    <Button.Label>{t("common__delete")}</Button.Label>
-                  </Button>
-                </View>
-              </Card.Footer>
-            </>
-          )}
-        </Card>
+        <NoteItem
+          note={note}
+          isEditing={editing === note.id}
+          onEdit={setEditing}
+          onRemove={remove}
+          onSave={update}
+          onSaveAsNew={create}
+          onDone={stopEditing}
+        />
       )}
     />
   );

@@ -28,6 +28,8 @@ Pure-function unit tests: client-IP resolver, disposable-domain matcher, Turnsti
 
 The real web app behind the dev proxy, the real API server and a real Postgres (`E2E_DATABASE_URL`, default `postgresql://postgres:password@localhost:5432/<name>_e2e`; the suite recreates it). Emails go to the log transport; helpers in `e2e/support` (`users.ts`, `emails.ts`, `fixtures.ts`) register verified users and read links from the server log. Ports come from `app.config.ts`, so stop `pnpm dev` first. One worker, no retries locally, one retry in CI.
 
+Playwright also starts a disposable PowerSync Docker container on `appConfig.ports.powersyncE2e`, replicating that same database with separate `<name>_e2e_powersync` bucket storage (also recreated). Never use the dev PowerSync endpoint here: its checkpoints describe a different database and can reconcile uploaded notes away. Postgres needs logical WAL (`pnpm db:start`), and the test database role needs replication privileges (the default local Postgres superuser has them). Linux uses host networking to avoid container-to-host firewall issues; other platforms use Docker Desktop's host gateway. The container is removed when the suite stops.
+
 - Each test registers its own users with unique emails.
 - Select by role and label, as a user would. No fixed sleeps; wait on visible state.
 - Run one test: `pnpm --filter web exec playwright test -g "name"`. Traces and the server log land in `apps/web/e2e/.artifacts`.

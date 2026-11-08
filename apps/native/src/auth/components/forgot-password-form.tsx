@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { createURL } from "expo-linking";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import { Notice } from "@/platform/ui/notice";
 import { AuthLayout } from "./auth-layout";
 import { AuthLink } from "./auth-link";
 import { useTurnstile } from "./use-turnstile";
+import { Button } from "@/platform/ui/button";
 
 export function ForgotPasswordForm() {
   const { t } = useTranslation();

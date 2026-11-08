@@ -128,7 +128,7 @@ export function PreferencesPage() {
             />
             <span>
               {t("settings__sidebar_title")}
-              <span className="block font-normal text-muted-foreground text-xs">
+              <span className="block font-normal text-caption text-muted-foreground">
                 {t("settings__sidebar_hint")}
               </span>
             </span>

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -75,7 +75,7 @@ export function SignInForm({
     <AuthLayout
       title={t("auth__sign_in_title")}
       footer={
-        <p className="text-muted-foreground text-sm">
+        <p className="text-body text-muted-foreground">
           {t("auth__no_account")}{" "}
           <Link
             to="/sign-up"
@@ -97,7 +97,7 @@ export function SignInForm({
       >
         {resetDone ? (
           <Alert variant="success">
-            <CircleCheckIcon />
+            <CheckCircleIcon />
             <AlertDescription>{t("auth__reset_done")}</AlertDescription>
           </Alert>
         ) : null}
@@ -122,7 +122,7 @@ export function SignInForm({
             />
           )}
         </form.Field>
-        <Link to="/forgot-password" className="text-muted-foreground text-sm underline">
+        <Link to="/forgot-password" className="text-label text-muted-foreground underline">
           {t("auth__forgot_link")}
         </Link>
         {turnstile.widget}

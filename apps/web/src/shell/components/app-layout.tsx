@@ -14,7 +14,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
-import { LayoutDashboardIcon, NotebookPenIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import { SquaresFourIcon, NotePencilIcon, GearSixIcon, UsersIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import { appConfig } from "@/platform/app-config";
@@ -33,19 +33,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
     {
       to: "/app",
       label: t("nav__dashboard"),
-      icon: LayoutDashboardIcon,
+      icon: SquaresFourIcon,
       active: pathname === "/app",
     },
     {
       to: "/notes",
       label: t("notes__title"),
-      icon: NotebookPenIcon,
+      icon: NotePencilIcon,
       active: pathname.startsWith("/notes"),
     },
     {
       to: "/settings",
       label: t("nav__settings"),
-      icon: SettingsIcon,
+      icon: GearSixIcon,
       active: pathname.startsWith("/settings"),
     },
     ...(user?.role === "admin"
@@ -67,7 +67,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     >
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <Link to="/app" className="px-2 py-1 font-semibold tracking-tight">
+          <Link to="/app" className="px-2 py-1 text-title-md">
             {appConfig.displayName}
           </Link>
         </SidebarHeader>

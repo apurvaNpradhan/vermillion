@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Chip } from "heroui-native";
+import { Chip } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -11,6 +11,7 @@ import { authErrorKey } from "@workspace/client/auth-error";
 import { FormError } from "@/platform/ui/form-error";
 import { readLastLoginMethod, rememberLoginMethod } from "../last-login-method";
 import { useRegistrationStatus } from "../use-registration-status";
+import { Button } from "@/platform/ui/button";
 
 const PROVIDERS = ["google", "github"] as const;
 type Provider = (typeof PROVIDERS)[number];
@@ -39,7 +40,7 @@ export function SocialButtons({
   return (
     <View className="gap-2">
       <FormError message={failure} />
-      <Text className="text-center text-muted text-xs">{t("auth__continue_with")}</Text>
+      <Text className="text-center text-caption text-muted">{t("auth__continue_with")}</Text>
       {enabled.map((provider) => (
         <Button
           key={provider}

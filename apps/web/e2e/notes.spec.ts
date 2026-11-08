@@ -1,9 +1,9 @@
 import { expect, newDevice, test } from "./support/fixtures";
-import { registerVerifiedUser } from "./support/users";
+import { registerVerifiedUser, signInWithUi } from "./support/users";
 
 test.describe("notes (example vertical)", () => {
-  test("a user creates, edits and deletes a note", async ({ page }) => {
-    await registerVerifiedUser(page);
+  test("a user creates, edits and deletes a note", async ({ page, browser }) => {
+    const { email } = await registerVerifiedUser(page);
     await page.goto("/notes");
     await expect(page.getByText("No notes yet.")).toBeVisible();
 
@@ -20,9 +20,22 @@ test.describe("notes (example vertical)", () => {
     await note.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("note").getByRole("heading", { name: "Shopping" })).toBeVisible();
 
-    // The note is kept in the local database on this device, not just in the page.
+    // Wait for reconciliation too: a local echo alone cannot prove the download stream
+    // agrees with the upload database. The note must survive acknowledgement and reload.
+    await expect(page.getByText("All changes are synced.", { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Shopping" })).toBeVisible();
+
+    // A fresh device has no local echo: this proves the server's download stream contains it.
+    const other = await newDevice(browser);
+    try {
+      const otherPage = await other.newPage();
+      await signInWithUi(otherPage, email, "/notes");
+      await expect(otherPage).toHaveURL(/\/notes$/);
+      await expect(otherPage.getByRole("heading", { name: "Shopping" })).toBeVisible();
+    } finally {
+      await other.close();
+    }
 
     await page.getByTestId("note").getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText("No notes yet.")).toBeVisible();

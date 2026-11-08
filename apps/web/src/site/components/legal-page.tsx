@@ -14,8 +14,8 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
         };
   return (
     <article className="flex max-w-prose flex-col gap-4">
-      <h1 className="font-semibold text-3xl tracking-tight">{copy.title}</h1>
-      <p className="text-muted-foreground text-sm">{t("legal__placeholder_notice")}</p>
+      <h1 className="text-title-xl">{copy.title}</h1>
+      <p className="text-body text-muted-foreground">{t("legal__placeholder_notice")}</p>
       {copy.sections.map((text) => (
         <p key={text}>{text}</p>
       ))}

@@ -55,12 +55,22 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     getOptional: async (sql: string, params: Param[] = []) =>
       sqlite.prepare(sql).get(...params) ?? null,
     getAll: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).all(...params),
+    get: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).get(...params),
     execute: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).run(...params),
+    // What the Drizzle driver reads: column values in select order.
+    executeRaw: async (sql: string, params: Param[] = []) => ({
+      rawRows: sqlite
+        .prepare(sql)
+        .all(...params)
+        .map((row) => Object.values(row)),
+    }),
   };
 
   const database = {
     ...tx,
     writeTransaction: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
+    readLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
+    writeLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
     getNextCrudTransaction: async () => {
       const next = transactions[0];
       if (!next) return null;

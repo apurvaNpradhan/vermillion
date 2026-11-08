@@ -1,9 +1,9 @@
-import { Card } from "heroui-native";
 import { Text } from "react-native";
 
 import { useCurrentUser } from "@/account";
 import { useTranslation } from "@/platform/i18n";
 import { Screen } from "@/platform/ui/screen";
+import { Card } from "@/platform/ui/card";
 
 /** Landing screen of the signed-in app. The notes example slice replaces the placeholder card. */
 export function DashboardScreen() {
@@ -11,7 +11,7 @@ export function DashboardScreen() {
   const { user } = useCurrentUser();
   return (
     <Screen>
-      <Text className="font-semibold text-foreground text-xl">
+      <Text className="font-semibold text-title-xl text-foreground">
         {t("dashboard__welcome", { name: user?.name ?? "" })}
       </Text>
       <Card>

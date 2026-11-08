@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { Text, View } from "react-native";
 import { errorMessage } from "@workspace/client/error-message";
 
@@ -10,6 +10,7 @@ import { Screen } from "@/platform/ui/screen";
 
 import { useConfirmDeletion } from "../use-confirm-deletion";
 import { AccountDeletedScreen } from "./account-deleted-screen";
+import { Button } from "@/platform/ui/button";
 
 /** Email confirmation is explicitly redeemed inside the app, using its own authenticated session. */
 export function ConfirmDeletionScreen({ token }: { token?: string }) {
@@ -20,7 +21,7 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
   return (
     <Screen withTopInset>
       <View className="mx-auto w-full max-w-sm flex-1 justify-center gap-6 py-6">
-        <Text accessibilityRole="header" className="font-semibold text-2xl text-foreground">
+        <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
           {t("settings__delete_title")}
         </Text>
         <Text className="text-muted">{t("settings__delete_body")}</Text>
@@ -29,7 +30,7 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
         />
         {session ? (
           <Button
-            variant="danger"
+            variant="danger-soft"
             isDisabled={!token || isPending}
             onPress={() => {
               if (token) confirmDeletion({ token });

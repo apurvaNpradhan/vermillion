@@ -1,6 +1,6 @@
 import { column, Schema, Table } from "@powersync/common";
 import { SYNC_SCHEMA_VERSION } from "@workspace/shared";
-import { powerSyncSchema, watchNotes, type NotesDatabase } from "@workspace/sync";
+import { listNotesQuery, powerSyncSchema } from "@workspace/sync";
 import { v7 as uuidv7 } from "uuid";
 import { describe, expect, it, vi } from "vitest";
 
@@ -96,18 +96,10 @@ describe("local reads", () => {
   it("serves the notes list from the local index, not a table scan or a sort", async () => {
     const user = await createUser();
     const client = await newClient(user, {}, powerSyncSchema);
-    // The real list query, captured from the product code.
-    let listSql = "";
-    watchNotes(
-      {
-        watchWithCallback: (query: string) => {
-          listSql = query;
-        },
-      } as never as Pick<NotesDatabase, "watchWithCallback">,
-      50,
-      { onPage: () => undefined, onError: () => undefined },
-    );
-    expect(listSql).toContain("FROM notes");
+    // The real list query, as the product code builds it.
+    const list = listNotesQuery(client.database, 50 + 1).toSQL();
+    const listSql = list.sql;
+    expect(listSql).toContain('from "notes"');
 
     await client.database.writeTransaction(async (tx) => {
       for (let n = 0; n < 1_000; n++) {
@@ -126,7 +118,7 @@ describe("local reads", () => {
     });
     const plan = await client.database.getAll<{ detail: string }>(
       `EXPLAIN QUERY PLAN ${listSql}`,
-      [51],
+      list.params,
     );
     const details = plan.map((row) => row.detail).join("\n");
     expect(details).toContain("notes_live_updated_at_idx");

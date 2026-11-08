@@ -29,7 +29,7 @@ export function CheckInbox({ email, callbackURL }: { email: string; callbackURL:
       >
         {resent ? t("auth__verify_resent") : t("auth__verify_resend")}
       </Button>
-      <Link to="/login" className="text-center text-muted-foreground text-sm underline">
+      <Link to="/login" className="text-center text-label text-muted-foreground underline">
         {t("auth__back_to_sign_in")}
       </Link>
     </AuthLayout>

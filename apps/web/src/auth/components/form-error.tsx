@@ -1,11 +1,11 @@
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
-import { CircleAlertIcon } from "lucide-react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
     <Alert variant="error">
-      <CircleAlertIcon />
+      <WarningCircleIcon />
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );

@@ -98,6 +98,12 @@
       "skillPath": "skills/orpc-openapi/SKILL.md",
       "computedHash": "eb7f41ef10edcb50822b85e3675f36c8cefc6a05e72b7ecfbb67da6767ded4f5"
     },
+    "powersync": {
+      "source": "powersync-ja/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/powersync/SKILL.md",
+      "computedHash": "4b5b90f54a5e8c0c9ff9ac62bfb8e2d888bd2a424591482416ce8f3ded26088f"
+    },
     "review-logging-patterns": {
       "source": "evlog.dev",
       "sourceUrl": "https://www.evlog.dev",

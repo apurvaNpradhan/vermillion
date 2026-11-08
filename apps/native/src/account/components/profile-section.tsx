@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { Button, Card, Input, Label, Spinner, TextField, useToast } from "heroui-native";
+import { Input, Label, Spinner, TextField, useToast } from "heroui-native";
 import { useMemo } from "react";
 import { z } from "zod";
 
@@ -8,6 +8,8 @@ import { useTranslation } from "@/platform/i18n";
 import { useUpdateProfile } from "../use-account-actions";
 
 import { useCurrentUser } from "../use-current-user";
+import { Button } from "@/platform/ui/button";
+import { Card } from "@/platform/ui/card";
 
 export function ProfileSection() {
   const { t } = useTranslation();

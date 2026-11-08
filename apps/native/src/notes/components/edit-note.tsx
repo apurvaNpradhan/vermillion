@@ -7,13 +7,14 @@ import {
   startDraft,
   type NotePatch,
 } from "@workspace/sync";
-import { Alert, Button, Input, Label, Spinner, TextField } from "heroui-native";
+import { Alert, Input, Label, Spinner, TextField } from "heroui-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 
 import { useLiveNote } from "../use-notes";
+import { Button } from "@/platform/ui/button";
 
 type Note = { id: string; title: string; body: string };
 

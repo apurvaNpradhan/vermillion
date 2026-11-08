@@ -1,5 +1,5 @@
 import { isDeleteConfirmationValid } from "@workspace/client/is-delete-confirmation-valid";
-import { Button, Card, Input, Label, Spinner, TextField } from "heroui-native";
+import { Input, Label, Spinner, TextField } from "heroui-native";
 import { useState } from "react";
 
 import { appConfig } from "@/platform/app-config";
@@ -9,6 +9,8 @@ import { useRequestDeletion } from "../use-account-actions";
 import { Notice } from "@/platform/ui/notice";
 
 import { useCurrentUser } from "../use-current-user";
+import { Button } from "@/platform/ui/button";
+import { Card } from "@/platform/ui/card";
 
 /**
  * Deletion from inside the app (store rule). Typed confirmation first, then an
@@ -44,7 +46,7 @@ export function DeleteAccountSection() {
               />
             </TextField>
             <Button
-              variant="danger"
+              variant="danger-soft"
               className="self-start"
               isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}
               onPress={() => {

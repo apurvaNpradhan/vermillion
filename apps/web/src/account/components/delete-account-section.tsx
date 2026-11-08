@@ -9,7 +9,7 @@ import {
 } from "@workspace/ui/components/card";
 import { Field, FieldLabel } from "@workspace/ui/components/field";
 import { Input } from "@workspace/ui/components/input";
-import { MailCheckIcon } from "lucide-react";
+import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -35,7 +35,7 @@ export function DeleteAccountSection() {
       <CardPanel>
         {isSuccess ? (
           <Alert variant="success">
-            <MailCheckIcon />
+            <EnvelopeSimpleIcon />
             <AlertDescription>{t("settings__delete_sent")}</AlertDescription>
           </Alert>
         ) : (

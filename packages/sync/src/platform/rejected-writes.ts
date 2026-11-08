@@ -1,6 +1,8 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { z } from "zod";
 
+import type { rejectedWrites } from "./tables";
+
 export const REJECTED_WRITES_LIMIT = 50;
 
 export type RejectedWritesDatabase = Pick<
@@ -15,7 +17,7 @@ const rowSchema = z.object({
   op: z.enum(["PUT", "PATCH", "DELETE"]),
   code: z.string(),
   payload: z.string(),
-  payload_truncated: z.number(),
+  payload_truncated: z.coerce.boolean(),
   created_at: z.string(),
 });
 
@@ -33,6 +35,11 @@ export type RejectedWrite = {
   createdAt: string;
 };
 
+/** A row of `rejected_writes` read through Drizzle (`op` is plain text in SQLite, so it is parsed). */
+export function parseRejectedWrite(row: typeof rejectedWrites.$inferSelect): RejectedWrite {
+  return toRejectedWrite(rowSchema.parse(row));
+}
+
 export function toRejectedWrite(row: z.infer<typeof rowSchema>): RejectedWrite {
   return {
     id: row.id,
@@ -41,7 +48,7 @@ export function toRejectedWrite(row: z.infer<typeof rowSchema>): RejectedWrite {
     op: row.op,
     code: row.code,
     payload: row.payload,
-    truncated: row.payload_truncated !== 0,
+    truncated: row.payload_truncated,
     createdAt: row.created_at,
   };
 }

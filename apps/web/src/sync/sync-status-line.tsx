@@ -23,7 +23,7 @@ export function SyncStatusLine() {
         : t("sync__state_synced");
 
   return (
-    <p role="status" className="text-muted-foreground text-sm" data-testid="sync-status">
+    <p role="status" className="text-body text-muted-foreground" data-testid="sync-status">
       {text}
     </p>
   );

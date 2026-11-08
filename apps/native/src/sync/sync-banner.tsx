@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
-import { Alert as HeroAlert, Button } from "heroui-native";
+import { Alert as HeroAlert } from "heroui-native";
 import { Alert, View } from "react-native";
 
 import { useSignOut } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
 
 import { useSyncStatus } from "./use-sync-status";
+import { Button } from "@/platform/ui/button";
 
 /**
  * Minimal sync state for the signed-in app (phase 6 refines it): nothing while all is well; a
@@ -72,7 +73,7 @@ export function SyncBanner() {
             <Button size="sm" onPress={() => signOut.mutate()}>
               <Button.Label>{t("sync__switch_back")}</Button.Label>
             </Button>
-            <Button size="sm" variant="danger" onPress={() => void confirmDiscard()}>
+            <Button size="sm" variant="danger-soft" onPress={() => void confirmDiscard()}>
               <Button.Label>{t("sync__discard")}</Button.Label>
             </Button>
           </View>

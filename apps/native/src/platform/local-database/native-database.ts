@@ -1,7 +1,7 @@
-import { ANDROID_DATABASE_PATH, IOS_LIBRARY_PATH, open } from "@op-engineering/op-sqlite";
+import { IOS_LIBRARY_PATH, open } from "@op-engineering/op-sqlite";
 import { PowerSyncDatabase, type Schema } from "@powersync/react-native";
 import { getRandomBytes } from "expo-crypto";
-import { Directory, File } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
@@ -25,8 +25,10 @@ function toFileUri(path: string): string {
 
 /** Dedicated directory so the backup exclusion (iOS attribute, Android rules) covers it whole. */
 function databaseDirectory(): Directory {
-  const base = Platform.OS === "ios" ? IOS_LIBRARY_PATH : ANDROID_DATABASE_PATH;
-  const directory = new Directory(toFileUri(base), `${appConfig.name}-local`);
+  // Expo FileSystem cannot create directories under Android's native databases path.
+  // App documents are writable and excluded by our shared-preferences-only backup rules.
+  const base = Platform.OS === "ios" ? toFileUri(IOS_LIBRARY_PATH) : Paths.document;
+  const directory = new Directory(base, `${appConfig.name}-local`);
   directory.create({ intermediates: true, idempotent: true });
   return directory;
 }

@@ -7,6 +7,10 @@ describe("Accept-Language", () => {
     expect(parseAcceptLanguage("fr-FR,de-AT;q=0.8,en;q=0.5")).toBe("de");
     expect(parseAcceptLanguage("en;q=0.2, de;q=0.9")).toBe("de");
   });
+  it("preserves header order when weights are equal", () => {
+    expect(parseAcceptLanguage("de;q=0.8, en;q=0.8")).toBe("de");
+    expect(parseAcceptLanguage("en;q=0.8, de;q=0.8")).toBe("en");
+  });
   it("skips unsupported and zero-weight languages", () => {
     expect(parseAcceptLanguage("fr, es")).toBeUndefined();
     expect(parseAcceptLanguage("de;q=0, en;q=0.1")).toBe("en");

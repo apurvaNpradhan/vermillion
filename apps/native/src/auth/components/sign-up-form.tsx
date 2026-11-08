@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { authErrorKey } from "@workspace/client/auth-error";
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { z } from "zod";
@@ -17,6 +17,7 @@ import { AuthLink } from "./auth-link";
 import { CheckInbox } from "./check-inbox";
 import { SocialButtons } from "./social-buttons";
 import { useTurnstile } from "./use-turnstile";
+import { Button } from "@/platform/ui/button";
 
 export function SignUpForm() {
   const { t } = useTranslation();
@@ -64,7 +65,7 @@ export function SignUpForm() {
     <AuthLayout
       title={t("auth__sign_up_title")}
       footer={
-        <Text className="text-muted text-sm">
+        <Text className="text-body text-muted">
           {t("auth__have_account")} <AuthLink href="/sign-in">{t("nav__sign_in")}</AuthLink>
         </Text>
       }

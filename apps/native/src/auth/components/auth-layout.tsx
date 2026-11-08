@@ -19,11 +19,11 @@ export function AuthLayout({
   return (
     <Screen withTopInset>
       <View className="mx-auto w-full max-w-sm flex-1 justify-center gap-6 py-6">
-        <Text className="text-center font-semibold text-foreground text-lg">
+        <Text className="text-center font-semibold text-title-md text-foreground">
           {appConfig.displayName}
         </Text>
         <View className="gap-1">
-          <Text accessibilityRole="header" className="font-semibold text-2xl text-foreground">
+          <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
             {title}
           </Text>
           {description ? <Text className="text-muted">{description}</Text> : null}

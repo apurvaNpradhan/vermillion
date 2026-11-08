@@ -1,4 +1,4 @@
-import { Button, Card, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { Link } from "expo-router";
 import { Text } from "react-native";
 
@@ -7,6 +7,8 @@ import { useSignOut } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 import { Screen } from "@/platform/ui/screen";
+import { Button } from "@/platform/ui/button";
+import { Card } from "@/platform/ui/card";
 
 /** Profile, a link to preferences, sign-out and account deletion in one place. */
 export function SettingsScreen() {

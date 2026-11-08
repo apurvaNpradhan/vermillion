@@ -36,7 +36,7 @@ export function SocialButtons({
   return (
     <div className="flex flex-col gap-2">
       <FormError message={failure} />
-      <p className="text-center text-muted-foreground text-xs">{t("auth__continue_with")}</p>
+      <p className="text-center text-caption text-muted-foreground">{t("auth__continue_with")}</p>
       {enabled.map((provider) => (
         <Button
           key={provider}

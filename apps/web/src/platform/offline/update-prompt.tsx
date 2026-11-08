@@ -11,7 +11,7 @@ export function OfflineUpdatePrompt() {
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3 text-sm shadow-lg"
+      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md flex-wrap items-center justify-between gap-3 rounded-2xl border bg-popover p-3 text-body shadow-[0_8px_24px_rgb(0_0_0/0.12)] dark:border-t-ring dark:shadow-none"
     >
       <span>{waiting ? t("offline__update_waiting") : t("offline__update_ready")}</span>
       <span className="flex gap-2">

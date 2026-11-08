@@ -25,7 +25,11 @@ export function SyncStatusLine() {
         : t("sync__state_synced");
 
   return (
-    <Text accessibilityRole="text" accessibilityLiveRegion="polite" className="text-muted text-sm">
+    <Text
+      accessibilityRole="text"
+      accessibilityLiveRegion="polite"
+      className="text-body text-muted"
+    >
       {text}
     </Text>
   );

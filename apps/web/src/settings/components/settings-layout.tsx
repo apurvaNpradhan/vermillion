@@ -12,7 +12,7 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
   ] as const;
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <h1 className="font-semibold text-xl">{t("settings__title")}</h1>
+      <h1 className="text-title-xl">{t("settings__title")}</h1>
       <div className="flex flex-col gap-6 md:flex-row">
         <nav aria-label={t("settings__title")} className="flex gap-1 md:w-48 md:flex-col">
           {links.map((link) => (
@@ -20,7 +20,7 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
               key={link.to}
               to={link.to}
               activeOptions={{ exact: link.exact }}
-              className="rounded-lg px-3 py-1.5 text-muted-foreground text-sm hover:bg-accent data-[status=active]:bg-accent data-[status=active]:text-foreground"
+              className="rounded-lg px-3 py-1.5 text-label text-muted-foreground hover:bg-accent data-[status=active]:bg-accent data-[status=active]:text-foreground"
             >
               {link.label}
             </Link>

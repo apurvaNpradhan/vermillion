@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -46,14 +46,14 @@ export function ForgotPasswordForm() {
       title={t("auth__forgot_title")}
       description={t("auth__forgot_body")}
       footer={
-        <Link to="/login" className="text-muted-foreground text-sm underline">
+        <Link to="/login" className="text-label text-muted-foreground underline">
           {t("auth__back_to_sign_in")}
         </Link>
       }
     >
       {sent ? (
         <Alert variant="success">
-          <CircleCheckIcon />
+          <CheckCircleIcon />
           <AlertDescription>{t("auth__forgot_sent")}</AlertDescription>
         </Alert>
       ) : (

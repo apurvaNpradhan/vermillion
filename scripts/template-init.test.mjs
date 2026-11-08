@@ -56,7 +56,9 @@ describe("template-init", () => {
     expect(read("apps/native/.env.example")).toContain(
       "EXPO_PUBLIC_SERVER_URL=http://localhost:4000",
     );
-    expect(read(".github/workflows/ci.yml")).toContain("- 5544:5432");
+    // CI uses the derived compose port rather than a separate service-container mapping.
+    expect(read(".github/workflows/ci.yml")).toContain("docker compose up -d --wait postgres");
+    expect(read(".github/workflows/ci.yml")).not.toContain("services:");
     expect(read("apps/web/playwright.config.ts")).toContain("localhost:5544/acme_notes_e2e");
     expect(read(".github/workflows/ci.yml")).toContain("localhost:5544/acme_notes_e2e");
     expect(read("apps/server/Dockerfile")).toContain("EXPOSE 4000");

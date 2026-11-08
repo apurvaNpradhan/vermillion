@@ -44,6 +44,20 @@ export default defineConfig({
         BETTER_AUTH_SECRET: "e2e-secret-000000000000000000000000000000",
         ADMIN_EMAILS: "e2e-admin@example.com",
         REGISTRATION_OPEN: "true",
+        SYNC_ENDPOINT_URL: `http://127.0.0.1:${appConfig.ports.powersyncE2e}`,
+      },
+    },
+    {
+      command: "node e2e/support/powersync.mjs",
+      // Playwright otherwise SIGKILLs the process tree, leaving the Docker container running.
+      gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
+      url: `http://127.0.0.1:${appConfig.ports.powersyncE2e}/probes/readiness`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        E2E_DATABASE_URL: databaseUrl,
+        E2E_POWERSYNC_PORT: String(appConfig.ports.powersyncE2e),
+        E2E_SERVER_PORT: String(appConfig.ports.server),
       },
     },
     {

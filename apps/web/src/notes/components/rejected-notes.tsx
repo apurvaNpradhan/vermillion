@@ -38,7 +38,7 @@ export function RejectedNotes() {
           <li
             key={write.id}
             data-testid="rejected-write"
-            className="flex flex-col gap-2 rounded-xl border bg-card p-4 text-sm"
+            className="flex flex-col gap-2 rounded-2xl border bg-card p-4 text-body"
           >
             <RejectedSummary write={write} />
             {editing?.id === write.id ? (
@@ -80,7 +80,9 @@ export function RejectedNotes() {
           </li>
         ))}
       </ul>
-      {hasMore ? <p className="text-muted-foreground text-sm">{t("sync__rejected_more")}</p> : null}
+      {hasMore ? (
+        <p className="text-body text-muted-foreground">{t("sync__rejected_more")}</p>
+      ) : null}
 
       <AlertDialog open={discarding !== null} onOpenChange={(open) => !open && setDiscarding(null)}>
         <AlertDialogPopup>

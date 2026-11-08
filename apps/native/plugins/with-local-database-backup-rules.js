@@ -7,12 +7,12 @@ const EXTRACTION_RULES = "data_extraction_rules";
 
 // Replaces expo-secure-store's own rules (the plugin is run with configureAndroidBackup: false)
 // so key and database exclusions live in one place. Only shared preferences are backed up, minus
-// the SecureStore file; the database directory is not included, so it is excluded (ADR 0022).
+// the SecureStore file. The include allowlist implicitly excludes databases (ADR 0022).
+// Do not add database exclusions: Android lint rejects exclusions outside included paths.
 const backupRules = `<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
   <include domain="sharedpref" path="."/>
   <exclude domain="sharedpref" path="SecureStore"/>
-  <exclude domain="database" path="."/>
 </full-backup-content>
 `;
 
@@ -21,12 +21,10 @@ const extractionRules = `<?xml version="1.0" encoding="utf-8"?>
   <cloud-backup>
     <include domain="sharedpref" path="."/>
     <exclude domain="sharedpref" path="SecureStore"/>
-    <exclude domain="database" path="."/>
   </cloud-backup>
   <device-transfer>
     <include domain="sharedpref" path="."/>
     <exclude domain="sharedpref" path="SecureStore"/>
-    <exclude domain="database" path="."/>
   </device-transfer>
 </data-extraction-rules>
 `;

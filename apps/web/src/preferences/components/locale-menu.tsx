@@ -7,7 +7,7 @@ import {
   MenuRadioItem,
   MenuTrigger,
 } from "@workspace/ui/components/menu";
-import { LanguagesIcon } from "lucide-react";
+import { TranslateIcon } from "@phosphor-icons/react";
 
 import { useTranslation } from "@/platform/i18n";
 
@@ -24,7 +24,7 @@ export function LocaleMenu() {
       <MenuTrigger
         render={<Button variant="ghost" size="icon" aria-label={t("common__language")} />}
       >
-        <LanguagesIcon />
+        <TranslateIcon />
       </MenuTrigger>
       <MenuPopup align="end">
         <MenuRadioGroup

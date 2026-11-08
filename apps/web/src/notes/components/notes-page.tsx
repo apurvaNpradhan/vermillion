@@ -1,20 +1,20 @@
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
-import { Button } from "@workspace/ui/components/button";
 import { Card, CardHeader, CardPanel, CardTitle } from "@workspace/ui/components/card";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { StorageUnavailable } from "@/platform/powersync";
 import { SyncStatusLine } from "@/sync";
 
 import { useNotes, type Note } from "../use-notes";
-import { EditNote } from "./edit-note";
 import { NoteForm } from "./note-form";
+import { NoteItem } from "./note-item";
 import { RejectedNotes } from "./rejected-notes";
 
 const ESTIMATED_NOTE_HEIGHT = 150;
+const LOAD_MORE_THRESHOLD = 10;
 
 export function NotesPage() {
   const { t } = useTranslation();
@@ -31,8 +31,9 @@ export function NotesPage() {
     remove,
   } = useNotes();
   const [editing, setEditing] = useState<string | null>(null);
+  const stopEditing = useCallback(() => setEditing(null), []);
   const listRef = useRef<HTMLDivElement>(null);
-  // Only the visible notes are mounted; the window grows a page at a time with "Show more".
+  // Only the visible notes are mounted; the window grows a page at a time as the end is scrolled into view.
   const virtualizer = useWindowVirtualizer({
     count: notes.length,
     estimateSize: () => ESTIMATED_NOTE_HEIGHT,
@@ -41,12 +42,18 @@ export function NotesPage() {
     getItemKey: (index) => notes[index]?.id ?? index,
   });
 
+  // Infinite scroll: widen the window when the last rows come into view.
+  const lastVisible = virtualizer.getVirtualItems().at(-1)?.index ?? -1;
+  useEffect(() => {
+    if (hasMore && lastVisible >= notes.length - LOAD_MORE_THRESHOLD) loadMore();
+  }, [hasMore, lastVisible, notes.length, loadMore]);
+
   if (unavailableReason) return <StorageUnavailable reason={unavailableReason} />;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="font-semibold text-xl">{t("notes__title")}</h1>
+        <h1 className="text-title-xl">{t("notes__title")}</h1>
         <SyncStatusLine />
       </div>
 
@@ -104,50 +111,20 @@ export function NotesPage() {
                   transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
                 }}
               >
-                <Card data-testid="note">
-                  {editing === note.id ? (
-                    <CardPanel>
-                      <EditNote
-                        note={note}
-                        onSave={(patch) => update({ id: note.id, ...patch })}
-                        onSaveAsNew={create}
-                        onDone={() => setEditing(null)}
-                      />
-                    </CardPanel>
-                  ) : (
-                    <>
-                      <CardHeader>
-                        <CardTitle render={<h2 />}>{note.title}</CardTitle>
-                      </CardHeader>
-                      <CardPanel className="flex flex-col gap-3">
-                        {note.body ? <p className="whitespace-pre-wrap">{note.body}</p> : null}
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setEditing(note.id)}>
-                            {t("notes__edit")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive-outline"
-                            onClick={() => void remove(note.id)}
-                          >
-                            {t("common__delete")}
-                          </Button>
-                        </div>
-                      </CardPanel>
-                    </>
-                  )}
-                </Card>
+                <NoteItem
+                  note={note}
+                  isEditing={editing === note.id}
+                  onEdit={setEditing}
+                  onRemove={remove}
+                  onSave={update}
+                  onSaveAsNew={create}
+                  onDone={stopEditing}
+                />
               </div>
             );
           })}
         </div>
       )}
-
-      {hasMore ? (
-        <Button variant="outline" className="self-center" onClick={loadMore}>
-          {t("notes__load_more")}
-        </Button>
-      ) : null}
     </div>
   );
 }

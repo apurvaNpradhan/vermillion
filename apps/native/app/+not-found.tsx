@@ -9,7 +9,9 @@ export default function NotFound() {
     <>
       <Stack.Screen options={{ title: t("errors__page_not_found") }} />
       <View className="flex-1 items-center justify-center gap-4 bg-background p-4">
-        <Text className="font-semibold text-foreground text-lg">{t("errors__page_not_found")}</Text>
+        <Text className="font-semibold text-title-md text-foreground">
+          {t("errors__page_not_found")}
+        </Text>
         <Link href="/" asChild>
           <Text className="text-foreground underline">{t("nav__home")}</Text>
         </Link>

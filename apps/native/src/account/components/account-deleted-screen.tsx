@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
-import { Button } from "heroui-native";
 import { Text, View } from "react-native";
 
 import { useDeletedAccountCleanup } from "../use-deleted-account-cleanup";
 import { useTranslation } from "@/platform/i18n";
 import { Screen } from "@/platform/ui/screen";
+import { Button } from "@/platform/ui/button";
 
 /**
  * Where the deletion link in the email lands (deep link). The server already
@@ -19,7 +19,7 @@ export function AccountDeletedScreen() {
     <Screen withTopInset>
       <View className="mx-auto w-full max-w-sm flex-1 justify-center gap-6 py-6">
         <View className="gap-1">
-          <Text accessibilityRole="header" className="font-semibold text-2xl text-foreground">
+          <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
             {t("settings__delete_done_title")}
           </Text>
           <Text className="text-muted">{t("settings__delete_done_body")}</Text>

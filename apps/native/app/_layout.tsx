@@ -2,6 +2,13 @@
 import "@/platform/local-database/crypto-polyfill";
 import "../global.css";
 
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from "@expo-google-fonts/inter";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -21,11 +28,20 @@ export const unstable_settings = { anchor: "(app)" };
 function RootStack() {
   const { session, isPending: sessionPending } = useSession();
   const owner = useDeviceOwner();
+  // Inter, mapped to HeroUI's font tokens in the generated native-tokens.css.
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
   useAuthReturn(Boolean(session));
 
   // A device that holds a user's data opens it without waiting for the network or a session
   // (ADR 0021); any other waits for the session answer.
-  const isPending = owner.isPending || (sessionPending && !owner.hasOwner);
+  // A font that fails to load falls back to the system font rather than blocking the app.
+  const isPending =
+    owner.isPending || (sessionPending && !owner.hasOwner) || (!fontsLoaded && !fontError);
   const hasAccess = Boolean(session) || owner.hasOwner;
 
   useEffect(() => {

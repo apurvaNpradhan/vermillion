@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -65,7 +65,7 @@ export function SignUpForm({ redirect }: { redirect?: string | undefined }) {
     <AuthLayout
       title={t("auth__sign_up_title")}
       footer={
-        <p className="text-muted-foreground text-sm">
+        <p className="text-body text-muted-foreground">
           {t("auth__have_account")}{" "}
           <Link
             to="/login"

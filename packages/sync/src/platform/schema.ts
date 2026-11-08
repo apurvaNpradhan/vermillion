@@ -1,6 +1,6 @@
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
-import { notes } from "../notes";
+import { notes } from "../notes/tables";
 import { deviceOwner, installMeta, rejectedWrites } from "./tables";
 
 /** Drizzle tables for typed local queries. */

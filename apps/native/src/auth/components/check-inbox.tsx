@@ -1,4 +1,4 @@
-import { Button, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useState } from "react";
 
 import { authClient } from "@/platform/auth-client";
@@ -6,6 +6,7 @@ import { useTranslation } from "@/platform/i18n";
 
 import { AuthLayout } from "./auth-layout";
 import { AuthLink } from "./auth-link";
+import { Button } from "@/platform/ui/button";
 
 /** Shown after sign-up: the verification link is in the mail. */
 export function CheckInbox({ email }: { email: string }) {

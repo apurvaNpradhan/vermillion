@@ -1,9 +1,10 @@
 import { NOTE_BODY_MAX, NOTE_TITLE_MAX, type NoteValues } from "@workspace/sync";
-import { Button, Input, Label, Spinner, TextField } from "heroui-native";
+import { Input, Label, Spinner, TextField } from "heroui-native";
 import { useState } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { Button } from "@/platform/ui/button";
 
 /** Title and body fields with a submit button; creates a note or resubmits a rejected one. */
 export function NoteForm({

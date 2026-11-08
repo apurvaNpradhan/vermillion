@@ -1,24 +1,34 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native";
+import { GearSix, NotePencil, SquaresFour, type IconProps } from "phosphor-react-native";
+import type { ComponentType } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { useAccountLocale } from "@/preferences";
 
 export default function AppLayout() {
   const { t } = useTranslation();
-  const accent = useThemeColor("accent");
   const muted = useThemeColor("muted");
+  const border = useThemeColor("border");
   const background = useThemeColor("background");
   const foreground = useThemeColor("foreground");
   useAccountLocale();
 
+  // Vermillion icon rules: Phosphor Regular, Fill and text-primary when selected, muted otherwise.
+  // Colors come from the theme rather than the tab's ColorValue, which Phosphor does not accept.
+  const tabIcon =
+    (Icon: ComponentType<IconProps>) =>
+    ({ focused }: { focused: boolean }) => (
+      <Icon color={focused ? foreground : muted} size={24} weight={focused ? "fill" : "regular"} />
+    );
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: accent,
+        // Selected tab is text-primary with a filled icon; color never marks location.
+        tabBarActiveTintColor: foreground,
         tabBarInactiveTintColor: muted,
-        tabBarStyle: { backgroundColor: background },
+        tabBarStyle: { backgroundColor: background, borderTopColor: border },
         headerStyle: { backgroundColor: background },
         headerTintColor: foreground,
       }}
@@ -27,18 +37,14 @@ export default function AppLayout() {
         name="index"
         options={{
           title: t("nav__dashboard"),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
-          ),
+          tabBarIcon: tabIcon(SquaresFour),
         }}
       />
       <Tabs.Screen
         name="notes"
         options={{
           title: t("notes__title"),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" color={color} size={size} />
-          ),
+          tabBarIcon: tabIcon(NotePencil),
         }}
       />
       <Tabs.Screen
@@ -46,9 +52,7 @@ export default function AppLayout() {
         options={{
           title: t("nav__settings"),
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" color={color} size={size} />
-          ),
+          tabBarIcon: tabIcon(GearSix),
         }}
       />
     </Tabs>

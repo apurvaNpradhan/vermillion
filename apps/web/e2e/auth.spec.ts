@@ -100,9 +100,13 @@ test.describe("authentication", () => {
   }) => {
     const { email } = await registerVerifiedUser(page);
     // A reset may be requested on another device while this browser remains signed in.
-    await page.request.post("/api/auth/request-password-reset", {
+    const reset = await page.request.post("/api/auth/request-password-reset", {
+      // APIRequestContext does not add the Origin header a browser fetch sends. Authenticated
+      // state-changing requests intentionally fail CSRF validation without it.
+      headers: { Origin: new URL(page.url()).origin },
       data: { email, redirectTo: "/reset-password" },
     });
+    expect(reset.ok()).toBe(true);
     await page.goto(await waitForEmailLink(email, /Reset your/));
     await expect(page.getByLabel("New password")).toBeVisible();
     await page.getByLabel("New password").fill("changed-while-signed-in");

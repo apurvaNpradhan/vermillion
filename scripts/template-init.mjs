@@ -149,12 +149,7 @@ export const rules = [
     file: ".github/workflows/ci.yml",
     transform: (source, config) =>
       replaceOnce(
-        replaceOnce(
-          source,
-          /^([ \t]*- )\d+:5432$/m,
-          `$1${config.ports.postgres}:5432`,
-          "ci postgres port",
-        ),
+        source,
         /(E2E_DATABASE_URL: postgresql:\/\/postgres:password@localhost:)\d+\/\w+_e2e/,
         `$1${config.ports.postgres}/${config.name.replaceAll("-", "_")}_e2e`,
         "ci e2e database",

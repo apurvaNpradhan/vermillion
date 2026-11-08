@@ -1,6 +1,6 @@
 import { rejectionMessageKey } from "@workspace/client/sync-rejection";
 import { rejectedNoteFields, type NoteValues, type RejectedWrite } from "@workspace/sync";
-import { Alert, Button, Card } from "heroui-native";
+import { Alert } from "heroui-native";
 import { useState } from "react";
 import { Alert as NativeAlert, Text, View } from "react-native";
 
@@ -8,6 +8,8 @@ import { useTranslation } from "@/platform/i18n";
 
 import { useRejectedNotes } from "../use-rejected-notes";
 import { NoteForm } from "./note-form";
+import { Button } from "@/platform/ui/button";
+import { Card } from "@/platform/ui/card";
 
 /** Changes the server refused, with the reason and the two ways out: edit and retry, or discard. */
 export function RejectedNotes() {
@@ -70,7 +72,7 @@ export function RejectedNotes() {
                     </Button.Label>
                   </Button>
                 )}
-                <Button size="sm" variant="danger" onPress={() => confirmDiscard(write.id)}>
+                <Button size="sm" variant="danger-soft" onPress={() => confirmDiscard(write.id)}>
                   <Button.Label>{t("sync__rejected_discard")}</Button.Label>
                 </Button>
               </View>
@@ -78,7 +80,7 @@ export function RejectedNotes() {
           </Card.Body>
         </Card>
       ))}
-      {hasMore ? <Text className="text-muted text-sm">{t("sync__rejected_more")}</Text> : null}
+      {hasMore ? <Text className="text-body text-muted">{t("sync__rejected_more")}</Text> : null}
     </View>
   );
 }
@@ -94,7 +96,7 @@ function RejectedSummary({ write }: { write: RejectedWrite }) {
         : t("sync__rejected_op_delete");
   return (
     <View className="gap-1">
-      <Text className="font-medium text-foreground">
+      <Text className="font-medium text-body text-foreground">
         {operation}
         {fields?.title ? `: ${fields.title}` : ""}
       </Text>
