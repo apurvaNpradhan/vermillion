@@ -34,22 +34,23 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native first; web wi
 
 ## Decision log
 
-Twelve decisions, settled in the grilling session on 8 Nov 2026. Change one only by updating this table and every section it touches.
+Thirteen decisions; the first twelve settled in the grilling session on 8 Nov 2026, the thirteenth the same day. Change one only by updating this table and every section it touches.
 
-| #   | Decision         | Choice                                                  | Why                                                                              |
-| --- | ---------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | Primary platform | Phone-first native, web later                           | Sets and meals are logged in the moment, on a phone                              |
-| 2   | Color modes      | Dark default + light mode, role-based tokens            | Bright gyms and kitchens; light mode costs a week, not a month                   |
-| 3   | Primary action   | White fill in dark, near-black in light, no hue         | One loud action without a brand color competing with data colors                 |
-| 4   | Macro colors     | Protein blue, carbs amber, fat orchid; calories neutral | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
-| 5   | Number typeface  | Inter for everything + numeric tier                     | One font, smaller app, precise feel; `tnum` aligns numbers                       |
-| 6   | Density          | Two densities: Standard + Active                        | Mid-workout use needs bigger targets than planning screens                       |
-| 7   | Radius           | 4 / 8 / 12 / 16 / 28 + full                             | Precise corners, one step softer for phones                                      |
-| 8   | Depth            | No shadows except floating layers                       | Flat cards with hairlines; sheets need separation in light mode                  |
-| 9   | Motion           | Fast and functional, expressive only for celebrations   | No bounce on repeated actions; PRs feel earned                                   |
-| 10  | Icons            | Phosphor (Regular / Bold / Fill)                        | Weights map onto Standard, Active and selected states                            |
-| 11  | Charts           | Clean and minimal, color = meaning                      | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
-| 12  | Stack            | Expo + HeroUI Native; web on coss ui + shadcn/ui        | One token source, two adapters (see Implementation)                              |
+| #   | Decision         | Choice                                                                    | Why                                                                              |
+| --- | ---------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Primary platform | Phone-first native, web later                                             | Sets and meals are logged in the moment, on a phone                              |
+| 2   | Color modes      | Dark default + light mode, role-based tokens                              | Bright gyms and kitchens; light mode costs a week, not a month                   |
+| 3   | Primary action   | White fill in dark, near-black in light, no hue                           | One loud action without a brand color competing with data colors                 |
+| 4   | Macro colors     | Protein blue, carbs amber, fat orchid; calories neutral                   | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
+| 5   | Number typeface  | Inter for everything + numeric tier                                       | One font, smaller app, precise feel; `tnum` aligns numbers                       |
+| 6   | Density          | Two densities: Standard + Active                                          | Mid-workout use needs bigger targets than planning screens                       |
+| 7   | Radius           | 4 / 8 / 12 / 16 / 28 + full                                               | Precise corners, one step softer for phones                                      |
+| 8   | Depth            | No shadows except floating layers                                         | Flat cards with hairlines; sheets need separation in light mode                  |
+| 9   | Motion           | Fast and functional, expressive only for celebrations                     | No bounce on repeated actions; PRs feel earned                                   |
+| 10  | Icons            | Phosphor (Regular / Bold / Fill)                                          | Weights map onto Standard, Active and selected states                            |
+| 11  | Charts           | Clean and minimal, color = meaning                                        | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
+| 12  | Stack            | Expo + HeroUI Native; web on coss ui + shadcn/ui                          | One token source, two adapters (see Implementation)                              |
+| 13  | Navigation shell | Floating icon-only tab pill + switcher, collapsing page header (ADR 0028) | Linear-like and thumb-first; the tab count can grow to five without a redesign   |
 
 ## Color
 
@@ -187,7 +188,9 @@ These map one-to-one onto Tailwind's spacing utilities (`p-4` = 16), which both 
 ### Layout
 
 - **Screen padding:** 16pt sides; respect safe areas top and bottom on every screen, sheet and toast.
-- **Tab bar:** five tabs: Today, Train, Eat, Progress, You. 56pt tall plus the bottom safe area.
+- **Tab bar:** a floating, icon-only pill, 56pt tall, 8pt above the bottom safe area, on level 3 depth. The first two tabs sit on the pill; a switcher (the current menu tab's icon plus `CaretUpDown`) opens a menu with the rest, up to five tabs in all: today Home and Notes, with Settings in the menu; later Today, Train, Eat, Progress, You. Tap the switcher, or press and slide up to pick a row (a `haptic-tick` per row). The selected tab gets the Fill icon on a `text-primary` 10% fill. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
+- **Tab action:** the open tab's one main action (New note) is a 56pt round `action` button to the right of the pill, inside thumb reach; tabs without one show nothing there.
+- **Page header:** a `title-xl` title, left-aligned at the top of the content, scrolls away; a compact bar with the title centred (`body`, 600) fades in on `canvas` with a hairline (blurred on iOS). Tap it to scroll to the top. Pushed pages add a round back button; page actions sit in a floating capsule on the right.
 - **Live workout bar:** while a session runs, a floating bar sits above the tab bar on every screen showing elapsed time and the rest timer, on `surface-floating` with `text-primary`.
 - **Reach:** primary actions live in the bottom half of the screen, inside thumb reach; destructive actions never sit where the thumb rests.
 - **Keyboard:** food search and number entry keep the primary action above the keyboard.
@@ -302,6 +305,10 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 | Eat tab, meal       | `ForkKnife`   |
 | Progress tab        | `ChartLineUp` |
 | You tab             | `UserCircle`  |
+| Home tab (template) | `SunHorizon`  |
+| Notes tab, note     | `NotePencil`  |
+| Settings            | `GearSix`     |
+| Tab switcher        | `CaretUpDown` |
 | Calories            | `Fire`        |
 | Streak              | `Lightning`   |
 | PR                  | `Trophy`      |
@@ -377,19 +384,21 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 
 ### Custom fitness components
 
-| Component        | Anatomy                                                                | Key rules                                                                                                                                     |
-| ---------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SetRow`         | Set number · previous (muted) · weight · reps · RPE (optional) · check | Live row: `surface-control` bg + 3pt `text-primary` leading edge; done row: `text-muted` with `success` check; swipe left to delete with undo |
-| `NumberStepper`  | − button · value (`numeric-md`/`numeric-xl`) + unit · + button         | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                              |
-| `RestTimer`      | Ring · `numeric-hero` countdown · −15s / +15s / Skip                   | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                          |
-| `LiveWorkoutBar` | Exercise name · elapsed · rest countdown                               | Floating above tab bar on every screen while a session runs; tap to return                                                                    |
-| `MacroSummary`   | Calorie ring + three macro bars (P, C, F) with value / target          | Fixed order P, C, F; values always visible                                                                                                    |
-| `MealSlotCard`   | Slot name · kcal total · food rows · Add                               | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                             |
-| `FoodRow`        | Name · serving · kcal · P/C/F mini values                              | Tap to edit serving; macro letters in macro text colors                                                                                       |
-| `ExerciseCard`   | Name · muscle tag · set rows · Add set                                 | Collapses to one summary line when done                                                                                                       |
-| `PRBadge`        | `Trophy` + "PR" in `text-primary` on `surface-control`                 | Triggers `motion-celebrate` once when first earned                                                                                            |
-| `StatTile`       | `overline` label · `numeric-lg` value + unit · change vs last period   | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                   |
-| `EmptyState`     | Phosphor icon (48pt, `text-muted`) · one line · one primary action     | Never more than one sentence                                                                                                                  |
+| Component        | Anatomy                                                                | Key rules                                                                                                                                                                                         |
+| ---------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SetRow`         | Set number · previous (muted) · weight · reps · RPE (optional) · check | Live row: `surface-control` bg + 3pt `text-primary` leading edge; done row: `text-muted` with `success` check; swipe left to delete with undo                                                     |
+| `NumberStepper`  | − button · value (`numeric-md`/`numeric-xl`) + unit · + button         | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                                                                                  |
+| `RestTimer`      | Ring · `numeric-hero` countdown · −15s / +15s / Skip                   | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                                                                              |
+| `LiveWorkoutBar` | Exercise name · elapsed · rest countdown                               | Floating above tab bar on every screen while a session runs; tap to return                                                                                                                        |
+| `MacroSummary`   | Calorie ring + three macro bars (P, C, F) with value / target          | Fixed order P, C, F; values always visible                                                                                                                                                        |
+| `MealSlotCard`   | Slot name · kcal total · food rows · Add                               | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                                                                                 |
+| `FoodRow`        | Name · serving · kcal · P/C/F mini values                              | Tap to edit serving; macro letters in macro text colors                                                                                                                                           |
+| `ExerciseCard`   | Name · muscle tag · set rows · Add set                                 | Collapses to one summary line when done                                                                                                                                                           |
+| `PRBadge`        | `Trophy` + "PR" in `text-primary` on `surface-control`                 | Triggers `motion-celebrate` once when first earned                                                                                                                                                |
+| `StatTile`       | `overline` label · `numeric-lg` value + unit · change vs last period   | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                       |
+| `EmptyState`     | Phosphor icon (48pt, `text-muted`) · one line · one primary action     | Never more than one sentence                                                                                                                                                                      |
+| `SwipeRow`       | Row content · actions revealed on a left swipe                         | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet |
+| `ListSection`    | `overline` label · `surface` card of rows with inset hairlines         | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
 
 ### Accessibility (all components)
 
