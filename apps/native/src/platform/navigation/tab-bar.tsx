@@ -25,6 +25,7 @@ import Animated, {
   ZoomIn,
   ZoomOut,
   useAnimatedStyle,
+  useDerivedValue,
   withTiming,
 } from "react-native-reanimated";
 
@@ -34,7 +35,7 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { FloatingSurface } from "@/platform/ui/floating-surface";
 
-import { useCurrentTabAction } from "./tab-action";
+import { useCurrentTabAction, useTabBarHidden } from "./tab-action";
 import { TabBarMenu, type MenuItem } from "./tab-bar-menu";
 import {
   MENU_ROW_HEIGHT,
@@ -81,6 +82,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
   ]);
   const bottom = useTabBarBottom();
   const action = useCurrentTabAction();
+  const barHidden = useTabBarHidden();
   const keyboard = useReanimatedKeyboardAnimation();
   const keyboardVisible = useKeyboardState((keyboardState) => keyboardState.isVisible);
 
@@ -150,11 +152,18 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
     width: withTiming(directIndex >= 0 ? TAB_ITEM_WIDTH : SWITCHER_WIDTH, INDICATOR),
     transform: [{ translateX: withTiming(Math.max(indicatorLeft, 0), INDICATOR) }],
   }));
-  // Slides down and fades with the keyboard, frame by frame.
-  const barStyle = useAnimatedStyle(() => ({
-    opacity: 1 - keyboard.progress.value,
-    transform: [{ translateY: keyboard.progress.value * (TAB_BAR_HEIGHT + bottom) }],
-  }));
+  // Slides down and fades with the keyboard, frame by frame, or when a screen's own layer
+  // (the note composer) takes over the bottom of the screen.
+  const hiddenProgress = useDerivedValue(() =>
+    withTiming(barHidden ? 1 : 0, { duration: 150, reduceMotion: ReduceMotion.System }),
+  );
+  const barStyle = useAnimatedStyle(() => {
+    const away = Math.max(keyboard.progress.value, hiddenProgress.value);
+    return {
+      opacity: 1 - away,
+      transform: [{ translateY: away * (TAB_BAR_HEIGHT + bottom) }],
+    };
+  });
 
   // Measured once the opening animation has settled: mid-animation the menu is scaled and
   // shifted, which would map a finger to the neighbouring row.
@@ -247,7 +256,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
 
       <BottomFade height={bottom + TAB_BAR_HEIGHT + 32} />
       <Animated.View
-        pointerEvents={keyboardVisible ? "none" : "box-none"}
+        pointerEvents={keyboardVisible || barHidden ? "none" : "box-none"}
         className="absolute inset-x-0 flex-row items-end justify-between"
         style={[{ bottom, paddingHorizontal: SIDE }, barStyle]}
       >

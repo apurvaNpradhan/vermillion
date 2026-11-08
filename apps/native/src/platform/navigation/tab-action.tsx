@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ComponentType,
   type ReactNode,
@@ -19,21 +20,44 @@ export type TabAction = {
 type TabActionContextValue = {
   action: TabAction | null;
   setAction: (action: TabAction | null) => void;
+  /** A screen covers the tab bar with its own layer (a composer). */
+  barHidden: boolean;
+  setBarHidden: (hidden: boolean) => void;
 };
 
 const TabActionContext = createContext<TabActionContextValue>({
   action: null,
   setAction: () => undefined,
+  barHidden: false,
+  setBarHidden: () => undefined,
 });
 
 /** Holds the focused tab's action; wraps the tab navigator so its tab bar can read it. */
 export function TabActionProvider({ children }: { children: ReactNode }) {
   const [action, setAction] = useState<TabAction | null>(null);
-  return <TabActionContext value={{ action, setAction }}>{children}</TabActionContext>;
+  const [barHidden, setBarHidden] = useState(false);
+  return (
+    <TabActionContext value={{ action, setAction, barHidden, setBarHidden }}>
+      {children}
+    </TabActionContext>
+  );
 }
 
 export function useCurrentTabAction() {
   return useContext(TabActionContext).action;
+}
+
+export function useTabBarHidden() {
+  return useContext(TabActionContext).barHidden;
+}
+
+/** Hides the tab bar while `hidden` is true, for a layer that takes over the screen. */
+export function useHideTabBar(hidden: boolean) {
+  const { setBarHidden } = useContext(TabActionContext);
+  useEffect(() => {
+    setBarHidden(hidden);
+    return () => setBarHidden(false);
+  }, [hidden, setBarHidden]);
 }
 
 /**

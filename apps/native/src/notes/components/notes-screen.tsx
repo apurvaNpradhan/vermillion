@@ -16,7 +16,7 @@ import { SyncBanner, SyncStatusLine } from "@/sync";
 
 import { useNotes } from "../use-notes";
 import { NoteCard, noteActions } from "./note-card";
-import { NoteSheet, type NoteSheetTarget } from "./note-sheet";
+import { NoteComposer, type NoteComposerTarget } from "./note-composer";
 import { RejectedNotes } from "./rejected-notes";
 
 const ESTIMATED_NOTE_HEIGHT = 96;
@@ -41,7 +41,7 @@ export function NotesScreen() {
     update,
     removeWithUndo,
   } = useNotes();
-  const [sheet, setSheet] = useState<NoteSheetTarget | null>(null);
+  const [sheet, setSheet] = useState<NoteComposerTarget | null>(null);
   const [menuFor, setMenuFor] = useState<LocalNote | null>(null);
   // The last note stays in the long-press sheet while it slides away.
   const [menuShown, setMenuShown] = useState<LocalNote | null>(null);
@@ -118,7 +118,12 @@ export function NotesScreen() {
           />
         )}
       </Page>
-      <NoteSheet target={sheet} onClose={() => setSheet(null)} onCreate={create} onSave={update} />
+      <NoteComposer
+        target={sheet}
+        onClose={() => setSheet(null)}
+        onCreate={create}
+        onSave={update}
+      />
       <ActionSheet
         title={menuShown?.title ?? ""}
         actions={

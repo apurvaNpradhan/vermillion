@@ -1,4 +1,3 @@
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import {
   NOTE_BODY_MAX,
   NOTE_TITLE_MAX,
@@ -11,52 +10,65 @@ import {
   type NotePatch,
   type NoteValues,
 } from "@workspace/sync";
-import { Alert, BottomSheet, Spinner, useThemeColor } from "heroui-native";
+import { Alert, Spinner, useThemeColor } from "heroui-native";
 import { X } from "phosphor-react-native";
-import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Alert as NativeAlert, Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { BackHandler, Alert as NativeAlert, Pressable, Text, TextInput, View } from "react-native";
+import {
+  KeyboardStickyView,
+  useReanimatedKeyboardAnimation,
+} from "react-native-keyboard-controller";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+  SlideInDown,
+  SlideOutDown,
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { withUniwind } from "uniwind";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { Button } from "@/platform/ui/button";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 import { useLiveNote } from "../use-notes";
 
-const TextInput = withUniwind(BottomSheetTextInput);
-
-/** What the sheet is open for: a new note, or editing one from the list. */
-export type NoteSheetTarget = { kind: "new" } | { kind: "edit"; note: LocalNote };
+/** What the composer is open for: a new note, or editing one from the list. */
+export type NoteComposerTarget = { kind: "new" } | { kind: "edit"; note: LocalNote };
 
 const EMPTY: NoteValues = { title: "", body: "" };
+// motion-base in, motion-fast out; the keyboard sets the pace for a new note.
+const ENTER = SlideInDown.duration(220).reduceMotion(ReduceMotion.System);
+const EXIT = SlideOutDown.duration(160).reduceMotion(ReduceMotion.System);
+const BACKDROP_IN = FadeIn.duration(150).reduceMotion(ReduceMotion.System);
+const BACKDROP_OUT = FadeOut.duration(150).reduceMotion(ReduceMotion.System);
+// A third-party view: Uniwind classes do not reach it.
+const STICKY = { position: "absolute", left: 0, right: 0, bottom: 0 } as const;
 
 /**
- * One sheet for writing a note, new or existing (ADR 0019 for editing). Borderless title and
- * body fields, the sheet rising with the keyboard so Save stays above it. Closing with unsaved
- * text asks first; swiping the sheet down is turned off while there is any.
+ * Writing a note, the way Hevy or Lyft compose: for a new note the title is focused the moment
+ * the composer opens, so the keyboard starts at once, and the panel rides on top of it frame by
+ * frame (`KeyboardStickyView`) instead of a sheet animating first and the keyboard after.
+ * Editing opens without the keyboard. Closing with unsaved text asks first (ADR 0019 for edits).
  */
-export function NoteSheet({
+export function NoteComposer({
   target,
   onClose,
   onCreate,
   onSave,
 }: {
-  target: NoteSheetTarget | null;
+  target: NoteComposerTarget | null;
   onClose: () => void;
   onCreate: (values: NoteValues) => Promise<void>;
   onSave: (input: { id: string } & NotePatch) => Promise<void>;
 }) {
-  const { bottom } = useSafeAreaInsets();
-  const [dirty, setDirty] = useState(false);
-  const [opened, setOpened] = useState(false);
-  // The last target stays rendered while the sheet slides away, instead of blanking mid-close.
-  const [shown, setShown] = useState(target);
-  if (target !== null && target !== shown) setShown(target);
   const { t } = useTranslation();
+  const [dirty, setDirty] = useState(false);
+  useHideTabBar(target !== null);
 
-  // Closing clears `dirty` first, so the sheet's own close event does not ask a second time.
   const close = () => {
     setDirty(false);
     onClose();
@@ -72,48 +84,52 @@ export function NoteSheet({
     ]);
   };
 
+  // Android back closes the composer (asking first when there is unsaved text).
+  const open = target !== null;
+  const requestCloseRef = useRef(requestClose);
+  useEffect(() => {
+    requestCloseRef.current = requestClose;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      requestCloseRef.current();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [open]);
+
+  if (!target) return null;
   return (
-    <BottomSheet
-      isOpen={target !== null}
-      onOpenChange={(open) => {
-        if (!open) requestClose();
-      }}
-    >
-      <BottomSheet.Portal>
-        <BottomSheet.Overlay isCloseOnPress={false} onPress={requestClose} />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          onChange={(index) => setOpened(index >= 0)}
-          enablePanDownToClose={!dirty}
-          // "interactive" follows the keyboard on both platforms; "extend" never moved on Android.
-          keyboardBehavior="interactive"
-          keyboardBlurBehavior="restore"
-          backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-3 px-5 pt-1"
-          contentContainerProps={{ style: { paddingBottom: bottom + 12 } }}
-        >
-          {shown ? (
-            <NoteEditor
-              opened={opened}
-              // A new key per opening, so each one starts a fresh draft.
-              key={shown.kind === "edit" ? shown.note.id : "new"}
-              note={shown.kind === "edit" ? shown.note : null}
-              onDirtyChange={setDirty}
-              onCancel={requestClose}
-              onDone={close}
-              onCreate={onCreate}
-              onSave={onSave}
-            />
-          ) : null}
-        </BottomSheet.Content>
-      </BottomSheet.Portal>
-    </BottomSheet>
+    <View className="absolute inset-0" accessibilityViewIsModal>
+      <Animated.View entering={BACKDROP_IN} exiting={BACKDROP_OUT} className="absolute inset-0">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("common__close")}
+          onPress={requestClose}
+          className="flex-1 bg-backdrop"
+        />
+      </Animated.View>
+      <KeyboardStickyView style={STICKY}>
+        <Animated.View entering={ENTER} exiting={EXIT}>
+          <NoteEditor
+            // A new key per opening, so each one starts a fresh draft.
+            key={target.kind === "edit" ? target.note.id : "new"}
+            note={target.kind === "edit" ? target.note : null}
+            onDirtyChange={setDirty}
+            onCancel={requestClose}
+            onDone={close}
+            onCreate={onCreate}
+            onSave={onSave}
+          />
+        </Animated.View>
+      </KeyboardStickyView>
+    </View>
   );
 }
 
 function NoteEditor({
   note,
-  opened,
   onDirtyChange,
   onCancel,
   onDone,
@@ -121,8 +137,6 @@ function NoteEditor({
   onSave,
 }: {
   note: LocalNote | null;
-  /** The sheet has finished opening. */
-  opened: boolean;
   onDirtyChange: (dirty: boolean) => void;
   onCancel: () => void;
   onDone: () => void;
@@ -130,23 +144,24 @@ function NoteEditor({
   onSave: (input: { id: string } & NotePatch) => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [muted, foreground] = useThemeColor(["muted", "foreground"]);
   const live = useLiveNote(note?.id ?? null);
   const [draft, setDraft] = useState(() => startDraft(note ?? EMPTY));
   const [saving, setSaving] = useState(false);
+  const bodyRef = useRef<TextInput>(null);
   const dirty = isDraftDirty(draft);
-  const titleRef = useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
-
-  // A new note starts in the title once the sheet has risen: a keyboard that opens while the
-  // sheet is still mounting covers it instead of lifting it.
-  useEffect(() => {
-    if (!note && opened) titleRef.current?.focus();
-  }, [note, opened]);
+  const keyboard = useReanimatedKeyboardAnimation();
 
   useEffect(() => {
     if (note && live !== undefined) setDraft((current) => applyLatest(current, live));
   }, [note, live]);
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
+  // Over the home indicator when the keyboard is down; snug on the keyboard when it is up.
+  const padStyle = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(keyboard.progress.value, [0, 1], [insets.bottom + 12, 12]),
+  }));
 
   async function run(action: () => Promise<void>) {
     setSaving(true);
@@ -177,11 +192,14 @@ function NoteEditor({
   }
 
   return (
-    <>
+    <Animated.View
+      className="gap-3 rounded-t-[28px] border-t border-separator bg-overlay px-5 pt-4 shadow-overlay"
+      style={padStyle}
+    >
       <View className="flex-row items-center justify-between">
-        <BottomSheet.Title className="font-semibold text-title-lg">
+        <Text accessibilityRole="header" className="font-semibold text-title-lg text-foreground">
           {note ? t("notes__edit_title") : t("notes__new")}
-        </BottomSheet.Title>
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("common__close")}
@@ -205,18 +223,21 @@ function NoteEditor({
 
       <View className="gap-1 rounded-2xl bg-default px-4 py-3">
         <TextInput
+          // Focused on mount for a new note, so the keyboard opens with the composer.
+          autoFocus={note === null}
           accessibilityLabel={t("notes__field_title")}
           placeholder={t("notes__field_title")}
           placeholderTextColor={muted}
           value={draft.values.title}
           onChangeText={(value) => setDraft(editDraft(draft, "title", value))}
           maxLength={NOTE_TITLE_MAX}
-          ref={titleRef}
           returnKeyType="next"
           submitBehavior="submit"
+          onSubmitEditing={() => bodyRef.current?.focus()}
           className="py-1 font-semibold text-title-md text-foreground"
         />
         <TextInput
+          ref={bodyRef}
           accessibilityLabel={t("notes__field_body")}
           placeholder={t("notes__body_placeholder")}
           placeholderTextColor={muted}
@@ -225,7 +246,7 @@ function NoteEditor({
           maxLength={NOTE_BODY_MAX}
           multiline
           textAlignVertical="top"
-          className="max-h-60 min-h-28 py-1 text-body-lg text-foreground"
+          className="max-h-48 min-h-24 py-1 text-body-lg text-foreground"
         />
       </View>
 
@@ -247,6 +268,6 @@ function NoteEditor({
           </Button.Label>
         </Button>
       </View>
-    </>
+    </Animated.View>
   );
 }
