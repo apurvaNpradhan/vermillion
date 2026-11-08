@@ -1,60 +1,55 @@
 import { Tabs } from "expo-router";
-import { useThemeColor } from "heroui-native";
-import { GearSix, NotePencil, SquaresFour, type IconProps } from "phosphor-react-native";
+import { GearSix, NotePencil, SunHorizon, type IconProps } from "phosphor-react-native";
 import type { ComponentType } from "react";
+import type { ColorValue } from "react-native";
 
+import { AccountSummary } from "@/account";
 import { useTranslation } from "@/platform/i18n";
+import { TabActionProvider } from "@/platform/navigation/tab-action";
+import { TabBar } from "@/platform/navigation/tab-bar";
+import { isColorString } from "@/platform/theme";
 import { useAccountLocale } from "@/preferences";
 
+// Vermillion icon rules: Phosphor Regular, Fill when selected. The tab bar passes a plain color
+// string; Phosphor does not take React Native's opaque platform colors.
+const tabIcon =
+  (Icon: ComponentType<IconProps>) =>
+  ({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) => (
+    <Icon
+      color={isColorString(color) ? color : undefined}
+      size={size}
+      weight={focused ? "fill" : "regular"}
+    />
+  );
+
+/**
+ * The signed-in tabs. The first two sit on the floating pill; the rest (up to five in all) are
+ * in the switcher's menu, in declaration order. Pages draw their own collapsing header.
+ */
 export default function AppLayout() {
   const { t } = useTranslation();
-  const muted = useThemeColor("muted");
-  const border = useThemeColor("border");
-  const background = useThemeColor("background");
-  const foreground = useThemeColor("foreground");
   useAccountLocale();
 
-  // Vermillion icon rules: Phosphor Regular, Fill and text-primary when selected, muted otherwise.
-  // Colors come from the theme rather than the tab's ColorValue, which Phosphor does not accept.
-  const tabIcon =
-    (Icon: ComponentType<IconProps>) =>
-    ({ focused }: { focused: boolean }) => (
-      <Icon color={focused ? foreground : muted} size={24} weight={focused ? "fill" : "regular"} />
-    );
-
   return (
-    <Tabs
-      screenOptions={{
-        // Selected tab is text-primary with a filled icon; color never marks location.
-        tabBarActiveTintColor: foreground,
-        tabBarInactiveTintColor: muted,
-        tabBarStyle: { backgroundColor: background, borderTopColor: border },
-        headerStyle: { backgroundColor: background },
-        headerTintColor: foreground,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("nav__dashboard"),
-          tabBarIcon: tabIcon(SquaresFour),
-        }}
-      />
-      <Tabs.Screen
-        name="notes"
-        options={{
-          title: t("notes__title"),
-          tabBarIcon: tabIcon(NotePencil),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t("nav__settings"),
-          headerShown: false,
-          tabBarIcon: tabIcon(GearSix),
-        }}
-      />
-    </Tabs>
+    <TabActionProvider>
+      <Tabs
+        tabBar={(props) => <TabBar {...props} menuHeader={<AccountSummary />} />}
+        // Instant switches, as in Linear: a cross-fade shows the old page through the new one.
+        screenOptions={{ headerShown: false, animation: "none" }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{ title: t("nav__home"), tabBarIcon: tabIcon(SunHorizon) }}
+        />
+        <Tabs.Screen
+          name="notes"
+          options={{ title: t("notes__title"), tabBarIcon: tabIcon(NotePencil) }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{ title: t("nav__settings"), tabBarIcon: tabIcon(GearSix) }}
+        />
+      </Tabs>
+    </TabActionProvider>
   );
 }

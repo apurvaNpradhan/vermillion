@@ -33,10 +33,6 @@ export function ProfileSection() {
 
   return (
     <Card>
-      <Card.Header>
-        <Card.Title>{t("settings__profile_title")}</Card.Title>
-        <Card.Description>{t("settings__profile_hint")}</Card.Description>
-      </Card.Header>
       <Card.Body className="gap-4">
         <form.Field name="name">
           {(field) => (
@@ -54,11 +50,7 @@ export function ProfileSection() {
         </TextField>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <Button
-              className="self-start"
-              onPress={() => void form.handleSubmit()}
-              isDisabled={isSubmitting}
-            >
+            <Button onPress={() => void form.handleSubmit()} isDisabled={isSubmitting}>
               {isSubmitting ? <Spinner size="sm" /> : null}
               <Button.Label>{t("common__save")}</Button.Label>
             </Button>

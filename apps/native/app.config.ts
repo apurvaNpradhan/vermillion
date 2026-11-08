@@ -7,8 +7,9 @@ import { appConfig } from "../../app.config.ts";
  * flags change), so OTA JavaScript never reaches a binary without the matching native code.
  * `runtimeVersion: appVersion` alone does not change when a native module is added (ADR 0022).
  * 1: op-sqlite 18.2.5 with SQLCipher, expo-crypto, expo-file-system, vermillion-backup module.
+ * 2: expo-blur and expo-haptics for the tab bar, page header and haptic tokens.
  */
-const NATIVE_STACK_REVISION = 1;
+const NATIVE_STACK_REVISION = 2;
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 

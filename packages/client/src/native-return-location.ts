@@ -2,7 +2,7 @@ const DESTINATIONS = [
   "/",
   "/notes",
   "/settings",
-  "/settings/preferences",
+  "/settings/profile",
   "/confirm-deletion",
 ] as const;
 

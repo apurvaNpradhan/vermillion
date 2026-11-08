@@ -14,7 +14,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
-import { useAuthReturn, useSession } from "@/auth";
+import { routeGuards, toSessionState, useAuthReturn, useSession } from "@/auth";
 import { AppProviders } from "@/platform/providers";
 import { useDeviceOwner } from "@/sync";
 import { applyStoredTheme } from "@/platform/theme";
@@ -37,12 +37,15 @@ function RootStack() {
   });
   useAuthReturn(Boolean(session));
 
-  // A device that holds a user's data opens it without waiting for the network or a session
-  // (ADR 0021); any other waits for the session answer.
+  // A device that holds a user's data opens without waiting for the session (ADR 0021).
+  const guards = routeGuards(
+    toSessionState({
+      session: { isPending: sessionPending, hasSession: Boolean(session) },
+      owner,
+    }),
+  );
   // A font that fails to load falls back to the system font rather than blocking the app.
-  const isPending =
-    owner.isPending || (sessionPending && !owner.hasOwner) || (!fontsLoaded && !fontError);
-  const hasAccess = Boolean(session) || owner.hasOwner;
+  const isPending = guards === null || (!fontsLoaded && !fontError);
 
   useEffect(() => {
     if (!isPending) void SplashScreen.hideAsync();
@@ -51,10 +54,10 @@ function RootStack() {
   if (isPending) return null;
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={hasAccess}>
+      <Stack.Protected guard={guards.app}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
-      <Stack.Protected guard={!session}>
+      <Stack.Protected guard={guards.auth}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
       {/* Opened by the link in the reset email, signed in or not. */}

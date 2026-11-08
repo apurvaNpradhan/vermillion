@@ -1,41 +1,56 @@
-import { Spinner } from "heroui-native";
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
+import { SignOut, Trash, UserCircle } from "phosphor-react-native";
 import { Text } from "react-native";
 
-import { DeleteAccountSection, ProfileSection } from "@/account";
+import { AccountSummary } from "@/account";
 import { useSignOut } from "@/auth";
+import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
+import { ListRow, ListSection } from "@/platform/ui/list";
+import { ScrollPage } from "@/platform/ui/page";
+import { PreferenceRows } from "@/preferences";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
-import { Screen } from "@/platform/ui/screen";
-import { Button } from "@/platform/ui/button";
-import { Card } from "@/platform/ui/card";
 
-/** Profile, a link to preferences, sign-out and account deletion in one place. */
+/**
+ * Settings as grouped rows: the account card, preferences that open picker sheets, the
+ * profile, then sign-out and account deletion apart at the bottom, and the app version.
+ */
 export function SettingsScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const signOut = useSignOut();
   const requestSignOut = useSignOutConfirmation(() => signOut.mutate());
+
   return (
-    <Screen>
+    <ScrollPage title={t("settings__title")}>
       <SyncBanner />
-      <ProfileSection />
-      <Card>
-        <Card.Body className="gap-3">
-          <Link href="/settings/preferences" asChild>
-            <Text className="text-foreground underline">{t("settings__nav_preferences")}</Text>
-          </Link>
-          <Button
-            variant="secondary"
-            className="self-start"
-            isDisabled={signOut.isPending}
-            onPress={() => void requestSignOut()}
-          >
-            {signOut.isPending ? <Spinner size="sm" /> : null}
-            <Button.Label>{t("nav__sign_out")}</Button.Label>
-          </Button>
-        </Card.Body>
-      </Card>
-      <DeleteAccountSection />
-    </Screen>
+      <AccountSummary variant="card" />
+      <PreferenceRows />
+      <ListSection title={t("settings__section_account")}>
+        <ListRow
+          icon={UserCircle}
+          title={t("settings__nav_profile")}
+          onPress={() => router.push("/settings/profile")}
+        />
+      </ListSection>
+      <ListSection>
+        <ListRow
+          icon={SignOut}
+          title={t("nav__sign_out")}
+          accessory="none"
+          disabled={signOut.isPending}
+          onPress={() => void requestSignOut()}
+        />
+        <ListRow
+          icon={Trash}
+          title={t("settings__delete_title")}
+          tone="danger"
+          onPress={() => router.push("/settings/delete-account")}
+        />
+      </ListSection>
+      <Text className="text-center text-caption text-muted">
+        {t("settings__version", { name: appConfig.displayName, version: appConfig.version })}
+      </Text>
+    </ScrollPage>
   );
 }

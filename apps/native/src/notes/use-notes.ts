@@ -11,10 +11,14 @@ import {
   type NotesPage,
 } from "@workspace/sync";
 import { useToast } from "heroui-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalData, useSyncStatus } from "@/sync";
+
+/** How long a deleted note can be brought back before it is really deleted. */
+const UNDO_MS = 5000;
 
 /**
  * The signed-in user's notes, read from and written to the local database (ADR 0016). Writes
@@ -78,8 +82,52 @@ export function useNotes() {
     [write],
   );
 
+  // A delete waits for its toast to go: the row is hidden at once and only removed if the user
+  // does not press Undo, so undoing never has to restore a deleted note.
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const setHiddenId = useCallback((id: string, isHidden: boolean) => {
+    setHidden((current) => {
+      const next = new Set(current);
+      if (isHidden) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const removeWithUndo = useCallback(
+    (id: string) => {
+      // Settles once: Undo, or the delete when the toast goes. A toast can report hiding more
+      // than once (a swipe, then its timer), and the delete must not be queued twice.
+      let settled = false;
+      setHiddenId(id, true);
+      haptic.confirm();
+      toast.show({
+        label: t("notes__deleted_toast"),
+        actionLabel: t("common__undo"),
+        duration: UNDO_MS,
+        onActionPress: ({ hide }) => {
+          if (settled) return;
+          settled = true;
+          setHiddenId(id, false);
+          hide();
+        },
+        onHide: () => {
+          if (settled) return;
+          settled = true;
+          remove(id)
+            .catch(() => undefined)
+            .finally(() => setHiddenId(id, false));
+        },
+      });
+    },
+    [remove, setHiddenId, t, toast],
+  );
+  const visible = useMemo(
+    () => (page?.notes ?? []).filter((note) => !hidden.has(note.id)),
+    [page, hidden],
+  );
+
   return {
-    notes: page?.notes ?? [],
+    notes: visible,
     isLoading: local === null || (database !== null && page === null && !loadFailed),
     /** A local read failed: not the same as "no notes". */
     loadFailed: loadFailed || local?.status === "unavailable",
@@ -93,7 +141,7 @@ export function useNotes() {
     loadMore,
     create,
     update,
-    remove,
+    removeWithUndo,
   };
 }
 
@@ -101,13 +149,13 @@ export function useNotes() {
  * One note, live: the row, `null` once it is gone, `undefined` before the first read. An open
  * edit form follows it so a change elsewhere reaches the form without overwriting the user's text.
  */
-export function useLiveNote(id: string): LocalNote | null | undefined {
+export function useLiveNote(id: string | null): LocalNote | null | undefined {
   const local = useLocalData();
   const database = local?.status === "ready" ? local.database : null;
   const [note, setNote] = useState<LocalNote | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!database) return;
+    if (!database || id === null) return;
     return watchNote(database, id, { onNote: setNote, onError: () => undefined });
   }, [database, id]);
 

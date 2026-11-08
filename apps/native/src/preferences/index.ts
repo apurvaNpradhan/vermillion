@@ -1,2 +1,2 @@
-export { PreferencesScreen } from "./components/preferences-screen";
+export { PreferenceRows } from "./components/preference-rows";
 export { useAccountLocale } from "./use-preferences";

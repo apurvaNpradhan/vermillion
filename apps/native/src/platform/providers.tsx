@@ -11,6 +11,8 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SyncProvider } from "@/sync";
 
 import { I18nextProvider, i18n } from "./i18n";
+import { TAB_BAR_GAP, TAB_BAR_HEIGHT } from "./navigation/tab-bar-metrics";
+import { NavigationTheme } from "./theme/navigation-theme";
 import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
 
 /** Query client whose failures surface as toasts; a lost session just clears the cached user. */
@@ -33,18 +35,29 @@ function QueryProvider({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
+// Toasts sit at the bottom, in thumb reach and clear of the header, floating just above the tab
+// bar (its height plus gap, on top of the safe area HeroUI already adds).
+const HEROUI_CONFIG = {
+  toast: {
+    defaultProps: { placement: "bottom" },
+    insets: { bottom: TAB_BAR_HEIGHT + TAB_BAR_GAP + 32, left: 16, right: 16 },
+  },
+} as const;
+
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
-          <HeroUINativeProvider>
-            <QueryProvider>
-              <SyncProvider>
-                {children}
-                <LocalDataResetNotice />
-              </SyncProvider>
-            </QueryProvider>
+          <HeroUINativeProvider config={HEROUI_CONFIG}>
+            <NavigationTheme>
+              <QueryProvider>
+                <SyncProvider>
+                  {children}
+                  <LocalDataResetNotice />
+                </SyncProvider>
+              </QueryProvider>
+            </NavigationTheme>
           </HeroUINativeProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>

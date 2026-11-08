@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { captureNativeReturnLocation, nativeReturnLocation } from "./native-return-location";
 
 describe("native return destinations", () => {
-  it.each(["notes", "settings/preferences"])("preserves %s through authentication", (path) => {
+  it.each(["notes", "settings/profile"])("preserves %s through authentication", (path) => {
     expect(nativeReturnLocation(`app://${path}`, "app")?.pathname).toBe(`/${path}`);
     expect(nativeReturnLocation(`app:///${path}`, "app")?.pathname).toBe(`/${path}`);
     expect(nativeReturnLocation(`exp://192.168.1.2:8081/--/${path}`, "app")?.pathname).toBe(

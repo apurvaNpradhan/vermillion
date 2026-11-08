@@ -25,10 +25,6 @@ export function DeleteAccountSection() {
 
   return (
     <Card>
-      <Card.Header>
-        <Card.Title>{t("settings__delete_title")}</Card.Title>
-        <Card.Description>{t("settings__delete_body")}</Card.Description>
-      </Card.Header>
       <Card.Body className="gap-4">
         {isSuccess ? (
           <Notice status="success" message={t("settings__delete_sent")} />
@@ -47,7 +43,6 @@ export function DeleteAccountSection() {
             </TextField>
             <Button
               variant="danger-soft"
-              className="self-start"
               isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}
               onPress={() => {
                 if (user) rememberDeletionRequest(user.id);

@@ -3,6 +3,8 @@ export { ForgotPasswordForm } from "./components/forgot-password-form";
 export { ResetPasswordForm } from "./components/reset-password-form";
 export { SignInForm } from "./components/sign-in-form";
 export { SignUpForm } from "./components/sign-up-form";
+export { WelcomeScreen } from "./components/welcome-screen";
 export { useAuthReturn } from "./use-auth-return";
 export { useSession } from "./session";
+export { routeGuards, toSessionState } from "./session-state";
 export { useSignOut } from "./use-sign-out";

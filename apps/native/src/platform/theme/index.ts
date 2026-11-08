@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { Uniwind } from "uniwind";
+import type { ColorValue } from "react-native";
+import { Uniwind, useCSSVariable } from "uniwind";
 
 import { deviceStorage } from "../storage";
 
@@ -31,4 +32,18 @@ export function useTheme() {
     setThemeState(next);
   }, []);
   return { theme, setTheme };
+}
+
+/**
+ * `text-secondary` as a color value, for icons that take a color prop (Phosphor). HeroUI's
+ * `useThemeColor` only knows its own names; `subtle` is a Vermillion role.
+ */
+export function useSubtleColor(): string | undefined {
+  const value = useCSSVariable("--color-subtle");
+  return isColorString(value) ? value : undefined;
+}
+
+/** A color the app can hand to a component that takes plain strings (not a platform color). */
+export function isColorString(value: ColorValue | number | undefined): value is string {
+  return typeof value === "string";
 }
