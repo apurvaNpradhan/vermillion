@@ -252,13 +252,13 @@ Motion is fast and functional; only celebrations are expressive, and they play o
 
 ### Motion tokens
 
-| Token              | Value                                           | Use                                                               |
-| ------------------ | ----------------------------------------------- | ----------------------------------------------------------------- |
-| `motion-fast`      | 120ms, ease-out                                 | Presses, toggles, chip selection, checkmarks                      |
-| `motion-base`      | 200ms, ease-out                                 | Elements appearing, rows expanding, tab content                   |
-| `motion-slow`      | 320ms, ease-in-out                              | Rings filling, chart transitions, number count-ups                |
-| `motion-sheet`     | Spring: damping 26, stiffness 280, no overshoot | Sheets, dialogs                                                   |
-| `motion-celebrate` | \~800ms, one time                               | PR, streak, workout finished: a white diagonal stripe sweeps once |
+| Token              | Value                                                                   | Use                                                               |
+| ------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `motion-fast`      | 120ms, ease-out                                                         | Presses, toggles, chip selection, checkmarks                      |
+| `motion-base`      | 200ms, ease-out                                                         | Elements appearing, rows expanding, tab content                   |
+| `motion-slow`      | 320ms, ease-in-out                                                      | Rings filling, chart transitions, number count-ups                |
+| `motion-sheet`     | Spring: damping 34, stiffness 420, mass 0.8, no overshoot (about 200ms) | Sheets, dialogs                                                   |
+| `motion-celebrate` | \~800ms, one time                                                       | PR, streak, workout finished: a white diagonal stripe sweeps once |
 
 On React Native these run through Reanimated, which HeroUI Native already uses; customize component motion with its `animation` prop rather than overriding styles. Spring values above are starting points to tune on device.
 
