@@ -1,4 +1,4 @@
-import { localeSchema } from "@workspace/shared/locale";
+import { storedLocaleSchema } from "@workspace/shared/locale";
 import { z } from "zod";
 
 /** Who asked, as far as a security email may say. Never the raw user agent. */
@@ -8,7 +8,8 @@ const requestSchema = z.object({
   os: z.string().max(64).optional(),
   requestedAt: z.string().max(40),
   /** Language of the request (cookie, then Accept-Language) for users with no saved language. */
-  localeHint: localeSchema,
+  // A job queued before a language was removed must still be delivered, in the default one.
+  localeHint: storedLocaleSchema,
 });
 
 const base = { userId: z.string().min(1), request: requestSchema };

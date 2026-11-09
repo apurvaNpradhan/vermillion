@@ -54,7 +54,10 @@ export function toRejectedWrite(row: z.infer<typeof rowSchema>): RejectedWrite {
   };
 }
 
-/** Bounded live read of the oldest rejected writes; `total` is the full count. */
+/**
+ * Bounded live read of the oldest rejected writes (`hasMore` says there are more). `table` limits
+ * it to one table in the query itself, so the limit counts only that table's writes.
+ */
 export function watchRejectedWrites(
   database: Pick<RejectedWritesDatabase, "watchWithCallback">,
   handlers: {
@@ -62,12 +65,14 @@ export function watchRejectedWrites(
     onError: (error: Error) => void;
   },
   limit = REJECTED_WRITES_LIMIT,
+  table?: string,
 ): () => void {
   const controller = new AbortController();
   database.watchWithCallback(
     `SELECT id, table_name, row_id, op, code, payload, payload_truncated, created_at
-     FROM rejected_writes ORDER BY created_at, id LIMIT ?`,
-    [limit + 1],
+     FROM rejected_writes ${table === undefined ? "" : "WHERE table_name = ?"}
+     ORDER BY created_at, id LIMIT ?`,
+    table === undefined ? [limit + 1] : [table, limit + 1],
     {
       onResult: (result) => {
         const parsed = z.array(rowSchema).safeParse(result.array);
@@ -111,5 +116,24 @@ export async function discardRejectedWrite(
       throw new Error("The device account changed; reopen the form");
     }
     await tx.execute("DELETE FROM rejected_writes WHERE id = ?", [id]);
+  });
+}
+
+/**
+ * One-time cleanup at startup: removes rejected writes for tables that are no longer synced (the
+ * notes table was removed, so its refusals have no screen to show them and cannot be retried).
+ * Returns how many rows were removed.
+ */
+export async function purgeOrphanRejectedWrites(
+  database: Pick<RejectedWritesDatabase, "writeTransaction">,
+  syncedTables: readonly string[],
+): Promise<number> {
+  return database.writeTransaction(async (tx) => {
+    const marks = syncedTables.map(() => "?").join(", ");
+    const result = await tx.execute(
+      `DELETE FROM rejected_writes WHERE table_name NOT IN (${marks})`,
+      [...syncedTables],
+    );
+    return result.rowsAffected ?? 0;
   });
 }

@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from "react";
 
-/** The round button beside the tab pill: the open tab's main action, such as "New note". */
+import { createTabBarHolds } from "./tab-bar-holds";
+
+/** The round button beside the tab pill: the open tab's main action, such as "New exercise". */
 export type TabAction = {
   icon: ComponentType<IconProps>;
   label: string;
@@ -22,22 +24,25 @@ type TabActionContextValue = {
   setAction: (action: TabAction | null) => void;
   /** A screen covers the tab bar with its own layer (a composer). */
   barHidden: boolean;
-  setBarHidden: (hidden: boolean) => void;
+  /** Hides the bar until the returned release function is called (reference-counted). */
+  holdBarHidden: () => () => void;
 };
 
 const TabActionContext = createContext<TabActionContextValue>({
   action: null,
   setAction: () => undefined,
   barHidden: false,
-  setBarHidden: () => undefined,
+  holdBarHidden: () => () => undefined,
 });
 
 /** Holds the focused tab's action; wraps the tab navigator so its tab bar can read it. */
 export function TabActionProvider({ children }: { children: ReactNode }) {
   const [action, setAction] = useState<TabAction | null>(null);
   const [barHidden, setBarHidden] = useState(false);
+  const [holds] = useState(() => createTabBarHolds(setBarHidden));
+  const holdBarHidden = holds.hold;
   return (
-    <TabActionContext value={{ action, setAction, barHidden, setBarHidden }}>
+    <TabActionContext value={{ action, setAction, barHidden, holdBarHidden }}>
       {children}
     </TabActionContext>
   );
@@ -53,11 +58,11 @@ export function useTabBarHidden() {
 
 /** Hides the tab bar while `hidden` is true, for a layer that takes over the screen. */
 export function useHideTabBar(hidden: boolean) {
-  const { setBarHidden } = useContext(TabActionContext);
+  const { holdBarHidden } = useContext(TabActionContext);
   useEffect(() => {
-    setBarHidden(hidden);
-    return () => setBarHidden(false);
-  }, [hidden, setBarHidden]);
+    if (!hidden) return;
+    return holdBarHidden();
+  }, [hidden, holdBarHidden]);
 }
 
 /**

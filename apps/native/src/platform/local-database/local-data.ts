@@ -1,6 +1,8 @@
 import {
   createSyncLifecycle,
+  SYNCED_TABLE_NAMES,
   ensureInstallId,
+  purgeOrphanRejectedWrites,
   powerSyncSchema,
   uploadColumns,
   type StorageUnavailableReason,
@@ -35,6 +37,8 @@ export function openLocalData(): Promise<LocalData> {
       const database = await openNativeDatabase(powerSyncSchema);
       await database.init();
       await ensureInstallId(database);
+      // Rejections of tables that no longer sync (notes) have no screen and cannot be retried.
+      await purgeOrphanRejectedWrites(database, SYNCED_TABLE_NAMES);
       const lifecycle = createSyncLifecycle({
         database,
         transport,
