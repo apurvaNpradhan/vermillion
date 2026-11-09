@@ -13,3 +13,4 @@ export {
   type BootstrapResult,
 } from "./platform/sync/bootstrap";
 export { thresholdsFromMegabytes } from "./platform/sync/slot-lag";
+export { runCatalogImport } from "./exercise/index";

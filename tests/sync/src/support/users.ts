@@ -65,15 +65,17 @@ export async function createUser(): Promise<TestUser> {
   return { userId, email, cookie: cookieHeader(signIn) };
 }
 
-export async function serverNote(id: string) {
+export async function serverExercise(id: string) {
   const { rows } = await database.query<{
     id: string;
-    user_id: string;
+    user_id: string | null;
     title: string;
-    body: string;
-    created_at: Date;
-    updated_at: Date;
-    deleted_at: Date | null;
-  }>("SELECT * FROM notes WHERE id = $1", [id]);
+    instructions: string | null;
+    secondary_muscles: string[];
+    retired_at: Date | null;
+  }>(
+    "SELECT id, user_id, title, instructions, secondary_muscles, retired_at FROM exercise WHERE id = $1",
+    [id],
+  );
   return rows[0];
 }

@@ -30,13 +30,13 @@ describe("sha256Hex", () => {
 });
 
 describe("canonical ops digest", () => {
-  const put: SyncOp = { op: "PUT", table: "notes", id: "a", opData: { title: "T", body: "B" } };
+  const put: SyncOp = { op: "PUT", table: "exercise", id: "a", opData: { title: "T", body: "B" } };
 
   it("does not depend on key order", () => {
     const reordered: SyncOp = {
       opData: { body: "B", title: "T" },
       id: "a",
-      table: "notes",
+      table: "exercise",
       op: "PUT",
     };
     expect(canonicalOpsJson([reordered])).toBe(canonicalOpsJson([put]));
@@ -44,8 +44,8 @@ describe("canonical ops digest", () => {
   });
 
   it("is compact, sorted JSON", () => {
-    expect(canonicalOpsJson([put, { op: "DELETE", table: "notes", id: "b" }])).toBe(
-      '[{"id":"a","op":"PUT","opData":{"body":"B","title":"T"},"table":"notes"},{"id":"b","op":"DELETE","table":"notes"}]',
+    expect(canonicalOpsJson([put, { op: "DELETE", table: "exercise", id: "b" }])).toBe(
+      '[{"id":"a","op":"PUT","opData":{"body":"B","title":"T"},"table":"exercise"},{"id":"b","op":"DELETE","table":"exercise"}]',
     );
   });
 
@@ -58,8 +58,8 @@ describe("canonical ops digest", () => {
   });
 
   it("changes with any content, order or null versus empty string", () => {
-    const other: SyncOp = { op: "PATCH", table: "notes", id: "a", opData: { body: "" } };
-    const nulled: SyncOp = { op: "PATCH", table: "notes", id: "a", opData: { body: null } };
+    const other: SyncOp = { op: "PATCH", table: "exercise", id: "a", opData: { body: "" } };
+    const nulled: SyncOp = { op: "PATCH", table: "exercise", id: "a", opData: { body: null } };
     expect(computeOpsDigest([put])).not.toBe(computeOpsDigest([other]));
     expect(computeOpsDigest([other])).not.toBe(computeOpsDigest([nulled]));
     expect(computeOpsDigest([put, other])).not.toBe(computeOpsDigest([other, put]));
@@ -75,7 +75,7 @@ describe("canonical ops digest", () => {
 describe("limits and versions", () => {
   const op = (opData: SyncOp["opData"]): SyncOp => ({
     op: "PATCH",
-    table: "notes",
+    table: "exercise",
     id: "a",
     opData,
   });
@@ -114,7 +114,7 @@ describe("limits and versions", () => {
   });
 
   it("validates the request shape", () => {
-    const ops: SyncOp[] = [{ op: "DELETE", table: "notes", id: "a" }];
+    const ops: SyncOp[] = [{ op: "DELETE", table: "exercise", id: "a" }];
     const request = {
       userId: "u",
       installId: "0190a0a0-0000-7000-8000-000000000000",

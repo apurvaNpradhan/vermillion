@@ -9,6 +9,10 @@ const REJECTION_KEYS = new Map<string, TranslationKey>([
   ["SYNC_ROW_DELETED", "sync__rejected_code_deleted"],
   ["SYNC_ID_CONFLICT", "sync__rejected_code_id_conflict"],
   ["SYNC_CONSTRAINT_VIOLATION", "sync__rejected_code_constraint"],
+  ["EXERCISE_CATALOG_READ_ONLY", "sync__rejected_code_exercise_catalog"],
+  ["EXERCISE_DELETE_NOT_ALLOWED", "sync__rejected_code_exercise_delete"],
+  ["EXERCISE_LIMIT_REACHED", "sync__rejected_code_exercise_limit"],
+  ["EXERCISE_TYPE_LOCKED", "sync__rejected_code_exercise_type_locked"],
   ["SYNC_TRANSACTION_ROLLED_BACK", "sync__rejected_code_rolled_back"],
 ]);
 

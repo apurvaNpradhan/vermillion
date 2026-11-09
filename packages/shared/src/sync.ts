@@ -43,13 +43,6 @@ export const SYNC_LIMITS = {
   maxTransactionBytes: 512 * 1024,
 } as const;
 
-/**
- * Field caps of a note (UTF-16 length). The single source: the server's zod schemas and Postgres
- * CHECK constraints, and the client's local validation and form `maxLength`, all import these.
- */
-export const NOTE_TITLE_MAX = 200;
-export const NOTE_BODY_MAX = 10_000;
-
 export const SYNC_OPERATIONS = ["PUT", "PATCH", "DELETE"] as const;
 
 const syncValueSchema = z.union([z.string(), z.number().finite(), z.null()]);
@@ -96,6 +89,11 @@ export const SYNC_REJECTION_CODES = [
   "SYNC_ROW_DELETED",
   "SYNC_ID_CONFLICT",
   "SYNC_CONSTRAINT_VIOLATION",
+  // The exercise library (ADR 0034): a vertical's own refusals carry its name.
+  "EXERCISE_CATALOG_READ_ONLY",
+  "EXERCISE_DELETE_NOT_ALLOWED",
+  "EXERCISE_LIMIT_REACHED",
+  "EXERCISE_TYPE_LOCKED",
 ] as const;
 export const syncFailureCodeSchema = z.enum(SYNC_REJECTION_CODES);
 export type SyncFailureCode = z.infer<typeof syncFailureCodeSchema>;

@@ -7,8 +7,16 @@ config:
   edition: 3
 
 streams:
-  # A user's live notes. Soft-deleted rows no longer match, so a delete removes
-  # the row from every device. `user_id` and `deleted_at` stay on the server.
-  notes:
+  # The exercise catalog (Reference data, ADR 0034): the same rows for every user, so the service
+  # stores them once. Retired rows stay so logged history resolves. Lower priority than the
+  # user's own library so personal data is usable first. `updated_at` stays on the server.
+  exercise_catalog:
     auto_subscribe: true
-    query: SELECT id, title, body, created_at, updated_at FROM notes WHERE user_id = auth.user_id() AND deleted_at IS NULL
+    priority: 3
+    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at FROM exercise WHERE user_id IS NULL
+
+  # A user's Custom exercises, archived ones included.
+  my_library:
+    auto_subscribe: true
+    priority: 1
+    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at FROM exercise WHERE user_id = auth.user_id()

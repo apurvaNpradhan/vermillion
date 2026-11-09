@@ -28,13 +28,25 @@ import { expect, vi } from "vitest";
 import { services } from "../prerequisites";
 import type { TestUser } from "./users";
 
-/** The client half of the notes table: the columns the stream delivers. */
+/** The client half of the synced tables: the columns the streams deliver. */
 export const schema = new Schema({
-  notes: new Table({
+  // Catalog rows (`user_id` null) and the owner's Custom exercises arrive in this one table.
+  exercise: new Table({
+    user_id: column.text,
     title: column.text,
-    body: column.text,
+    primary_muscle: column.text,
+    secondary_muscles: column.text,
+    equipment: column.text,
+    exercise_type: column.text,
+    is_full_bodyweight: column.integer,
+    rank: column.integer,
+    search_terms: column.text,
+    aka: column.text,
+    instructions: column.text,
+    video_key: column.text,
+    thumbnail_key: column.text,
+    retired_at: column.text,
     created_at: column.text,
-    updated_at: column.text,
   }),
 });
 
@@ -42,8 +54,21 @@ export const schema = new Schema({
  * Columns a client may upload per table. `created_at` and `updated_at` are server-managed:
  * the upload handler is strict and refuses columns it does not own (ADR 0019).
  */
-const uploadColumns = (table: string): readonly string[] =>
-  table === "notes" ? ["title", "body"] : [];
+const uploadColumns = (table: string): readonly string[] => {
+  if (table === "exercise") {
+    return [
+      "title",
+      "primary_muscle",
+      "secondary_muscles",
+      "equipment",
+      "exercise_type",
+      "is_full_bodyweight",
+      "instructions",
+      "retired_at",
+    ];
+  }
+  return [];
+};
 
 export type TransportFaults = {
   /** Upload calls whose response is lost after the server committed (the ack-loss case). */
@@ -156,8 +181,12 @@ export async function createClient(
   });
   await database.init();
 
-  const noteIds = async () =>
-    (await database.getAll<{ id: string }>("SELECT id FROM notes ORDER BY id")).map((r) => r.id);
+  const customIds = async () =>
+    (
+      await database.getAll<{ id: string }>(
+        "SELECT id FROM exercise WHERE user_id IS NOT NULL ORDER BY id",
+      )
+    ).map((r) => r.id);
 
   return {
     database,
@@ -169,29 +198,44 @@ export async function createClient(
       await database.waitForFirstSync();
     },
     disconnect: () => database.disconnect(),
-    /** A local write, as the app makes it: plain SQL on the client's SQLite. */
-    async createNote(id: string, title: string, body = "") {
-      await database.execute("INSERT INTO notes (id, title, body) VALUES (?, ?, ?)", [
-        id,
-        title,
-        body,
-      ]);
-    },
-    updateNote: (id: string, fields: { title?: string; body?: string }) =>
+    /**
+     * A Custom exercise written locally, as the app does: plain SQL, uploaded as a PUT. An empty
+     * title is allowed here so tests can send what the server must refuse.
+     */
+    createExercise: (
+      id: string,
+      userId: string,
+      title: string,
+      instructions: string | null = null,
+    ) =>
       database.execute(
-        "UPDATE notes SET title = coalesce(?, title), body = coalesce(?, body) WHERE id = ?",
-        [fields.title ?? null, fields.body ?? null, id],
+        `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
+           exercise_type, is_full_bodyweight, instructions, created_at)
+         VALUES (?, ?, ?, 'chest', '["triceps"]', 'dumbbell', 'weight_reps', 0, ?, ?)`,
+        [id, userId, title, instructions, new Date().toISOString()],
       ),
-    deleteNote: (id: string) => database.execute("DELETE FROM notes WHERE id = ?", [id]),
-    note: (id: string) =>
+    /** Changes only the given fields, uploaded as a PATCH. */
+    updateExercise: (
+      id: string,
+      fields: { title?: string; instructions?: string; retired_at?: string },
+    ) =>
+      database.execute(
+        `UPDATE exercise SET title = coalesce(?, title), instructions = coalesce(?, instructions),
+           retired_at = coalesce(?, retired_at) WHERE id = ?`,
+        [fields.title ?? null, fields.instructions ?? null, fields.retired_at ?? null, id],
+      ),
+    deleteExercise: (id: string) => database.execute("DELETE FROM exercise WHERE id = ?", [id]),
+    exercise: (id: string) =>
       database.getOptional<{
         id: string;
+        user_id: string | null;
         title: string;
-        body: string;
+        instructions: string | null;
+        retired_at: string | null;
         created_at: string | null;
-        updated_at: string | null;
-      }>("SELECT * FROM notes WHERE id = ?", [id]),
-    noteIds,
+      }>("SELECT * FROM exercise WHERE id = ?", [id]),
+    /** Ids of the Custom exercises on this device (the catalog is not listed). */
+    customIds,
     /** Settled outcomes by transaction id; a replay of the same transaction overwrites itself. */
     outcomes: () =>
       new Map(records.flatMap((r) => (r.kind === "result" ? [[r.txId, r.result] as const] : []))),
