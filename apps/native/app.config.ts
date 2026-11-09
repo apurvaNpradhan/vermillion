@@ -11,8 +11,10 @@ import { appConfig } from "../../app.config.ts";
  * 3: @sbaiahmed1/react-native-blur for the page footer's progressive blur.
  * 4: react-native-passkey 3.6.2 (Credential Manager on Android, associated domains on iOS).
  * 5: @sbaiahmed1/react-native-blur removed (its Android view crashed the release build).
+ * 6: expo-image for the exercise library thumbnails.
+ * 7: expo-video for the exercise detail video hero.
  */
-const NATIVE_STACK_REVISION = 5;
+const NATIVE_STACK_REVISION = 7;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -62,6 +64,7 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-localization",
+    "expo-video",
     // The backup rules plugin replaces the store's own so key and database exclusions stay together.
     ["expo-secure-store", { configureAndroidBackup: false }],
     "./plugins/with-local-database-backup-rules.js",

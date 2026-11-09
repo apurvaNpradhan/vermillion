@@ -27,7 +27,15 @@ export type SyncSnapshot = {
   lastSyncedAt: Date | null;
   /** Whether the first full sync finished at least once on this install. */
   hasSynced: boolean;
+  /**
+   * Whether the exercise catalog (the priority-3 stream) has downloaded at least once. It
+   * arrives after the user's own data, so `hasSynced` of the whole sync lags behind it.
+   */
+  catalogSynced: boolean;
 };
+
+/** Sync priority of the `exercise_catalog` stream (`powersync/sync-config.yaml`). */
+export const CATALOG_PRIORITY = 3;
 
 export type SyncFacts = {
   connected: boolean;

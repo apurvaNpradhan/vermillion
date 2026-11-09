@@ -9,6 +9,8 @@ export const appConfig = {
   version: "1.0.0",
   urls: {
     server: "http://localhost:3000",
+    /** Public base URL of the exercise media bucket (thumbnails and videos; rows hold keys). */
+    exerciseMedia: "https://media.lostsignal.cloud",
   },
   ports: {
     server: 3000,

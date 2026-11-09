@@ -12,6 +12,7 @@ import {
   type Phase,
 } from "./lifecycle-state";
 import {
+  CATALOG_PRIORITY,
   deriveIndicator,
   deriveLockReason,
   trackPendingSince,
@@ -93,6 +94,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
       pendingSince,
       lastSyncedAt: status.lastSyncedAt ?? null,
       hasSynced: status.hasSynced === true,
+      catalogSynced: status.statusForPriority(CATALOG_PRIORITY)?.hasSynced === true,
     };
   }
 

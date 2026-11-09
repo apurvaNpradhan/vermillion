@@ -69,6 +69,8 @@ export function Page({
   title,
   back = false,
   actions,
+  pinned,
+  hero,
   children,
 }: {
   title: string;
@@ -76,6 +78,19 @@ export function Page({
   back?: boolean;
   /** Icon buttons on the right of the header row, in a floating capsule. */
   actions?: ReactNode;
+  /**
+   * Content that sits in the page under the large title (`header` already reserves `height`
+   * for it) and, once the page scrolls, stays pinned under the compact bar.
+   * One instance moves, so a focused field keeps focus. Not for pages with a back button.
+   */
+  pinned?: { height: number; children: ReactNode };
+  /**
+   * A full-bleed picture at the top of the content, `height` tall from the top of the screen. The
+   * content starts at the screen edge, `header` is empty (the page draws its own title), and the
+   * compact bar fades in as the picture scrolls under it, so the title appears only once the
+   * picture is nearly gone. Pages with a back button only.
+   */
+  hero?: { height: number };
   children: (scroll: PageScroll) => ReactNode;
 }) {
   const { t } = useTranslation();
@@ -91,6 +106,10 @@ export function Page({
   });
   const rowTop = top + ROW_PADDING;
   const height = rowTop + ROW_HEIGHT + ROW_PADDING;
+  // The compact bar fades in over the last 48pt before the picture reaches it.
+  const collapse: readonly [number, number] = hero
+    ? [Math.max(hero.height - height - 48, 1), Math.max(hero.height - height, 2)]
+    : COLLAPSE;
 
   return (
     <View className="flex-1 bg-background">
@@ -102,11 +121,27 @@ export function Page({
           onScroll,
           scrollEventThrottle: 16,
           // Without a back button the large title shares the header row with the actions.
-          contentContainerStyle: { paddingTop: back ? height : rowTop, paddingBottom: clearance },
-          header: <PageTitle title={title} scrollY={scrollY} back={back} />,
+          contentContainerStyle: {
+            paddingTop: hero ? 0 : back ? height : rowTop,
+            paddingBottom: clearance,
+          },
+          header: hero ? (
+            <></>
+          ) : (
+            <>
+              <PageTitle title={title} scrollY={scrollY} back={back} collapse={collapse} />
+              {pinned ? <View style={{ height: pinned.height }} /> : null}
+            </>
+          ),
         })}
       </View>
-      <PageBar scrollY={scrollY} height={height} />
+      {hero ? <HeroScrim scrollY={scrollY} height={top + HERO_SCRIM} collapse={collapse} /> : null}
+      <PageBar scrollY={scrollY} height={height} collapse={collapse} />
+      {pinned ? (
+        <PinnedLayer scrollY={scrollY} restTop={rowTop + ROW_HEIGHT} stuckTop={height}>
+          {pinned.children}
+        </PinnedLayer>
+      ) : null}
       <View
         pointerEvents="box-none"
         className="absolute inset-x-0 top-0 h-11 flex-row items-center justify-between px-4"
@@ -133,6 +168,7 @@ export function Page({
         <CompactTitle
           title={title}
           scrollY={scrollY}
+          collapse={collapse}
           left={back ? SIDE + BUTTON + BUTTON_GAP : SIDE}
           right={actions ? ACTIONS_CLEARANCE : SIDE}
           onPress={() => scrollToTop(target.current)}
@@ -166,6 +202,32 @@ export function ScrollPage({
   );
 }
 
+/**
+ * The page's pinned content: it rests where the list reserved room for it and rides up with the
+ * scroll until it reaches the compact bar, where it stays. An opaque canvas strip keeps the rows
+ * that scroll under it from showing through.
+ */
+function PinnedLayer({
+  scrollY,
+  restTop,
+  stuckTop,
+  children,
+}: {
+  scrollY: SharedValue<number>;
+  restTop: number;
+  stuckTop: number;
+  children: ReactNode;
+}) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.max(stuckTop, restTop - scrollY.value) }],
+  }));
+  return (
+    <Animated.View className="bg-background absolute inset-x-0 top-0 px-4 pb-2" style={style}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function BackIcon() {
   const foreground = useThemeColor("foreground");
   return <CaretLeft size={20} color={foreground} weight="bold" />;
@@ -175,13 +237,15 @@ function PageTitle({
   title,
   scrollY,
   back,
+  collapse,
 }: {
   title: string;
   scrollY: SharedValue<number>;
   back: boolean;
+  collapse: readonly [number, number];
 }) {
   const style = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, COLLAPSE, [1, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, collapse, [1, 0], Extrapolation.CLAMP),
   }));
   return (
     <Animated.View className={back ? "pb-2" : "h-11 justify-center"} style={style}>
@@ -199,19 +263,21 @@ function PageTitle({
 function CompactTitle({
   title,
   scrollY,
+  collapse,
   left,
   right,
   onPress,
 }: {
   title: string;
   scrollY: SharedValue<number>;
+  collapse: readonly [number, number];
   left: number;
   right: number;
   onPress: () => void;
 }) {
   const style = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, COLLAPSE, [0, 1], Extrapolation.CLAMP),
-    transform: [{ translateY: interpolate(scrollY.value, COLLAPSE, [6, 0], Extrapolation.CLAMP) }],
+    opacity: interpolate(scrollY.value, collapse, [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, collapse, [6, 0], Extrapolation.CLAMP) }],
   }));
   return (
     // Left-aligned just right of the back button (or at the page padding), centred vertically in
@@ -239,10 +305,18 @@ const BAR_FADE = 30;
  * The bar behind the header row, faded in once the page has scrolled: an opaque canvas band
  * over the status bar and header row, with a soft gradient edge into the content below.
  */
-function PageBar({ scrollY, height }: { scrollY: SharedValue<number>; height: number }) {
+function PageBar({
+  scrollY,
+  height,
+  collapse,
+}: {
+  scrollY: SharedValue<number>;
+  height: number;
+  collapse: readonly [number, number];
+}) {
   const background = useThemeColor("background");
   const style = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, COLLAPSE, [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, collapse, [0, 1], Extrapolation.CLAMP),
   }));
   return (
     <Animated.View
@@ -259,6 +333,48 @@ function PageBar({ scrollY, height }: { scrollY: SharedValue<number>; height: nu
           </LinearGradient>
         </Defs>
         <Rect width="100%" height={BAR_FADE} fill="url(#page-bar-fade)" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Height of the scrim below the status bar inset; it reaches past the back button. */
+const HERO_SCRIM = 60;
+
+/**
+ * A canvas-coloured wash over the top of a hero picture, behind the status bar and the header
+ * buttons. The status bar icons follow the theme (dark on the light canvas, light on the dark
+ * one), so a picture that happens to be white under them would hide them; the wash is the same
+ * canvas colour, so they always read. It hands over to the opaque bar as the page scrolls.
+ */
+function HeroScrim({
+  scrollY,
+  height,
+  collapse,
+}: {
+  scrollY: SharedValue<number>;
+  height: number;
+  collapse: readonly [number, number];
+}) {
+  const background = useThemeColor("background");
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, collapse, [1, 0], Extrapolation.CLAMP),
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      className="absolute inset-x-0 top-0"
+      style={[{ height }, style]}
+    >
+      <Svg width="100%" height={height}>
+        <Defs>
+          <LinearGradient id="hero-scrim" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={background} stopOpacity={0.9} />
+            <Stop offset="0.55" stopColor={background} stopOpacity={0.55} />
+            <Stop offset="1" stopColor={background} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height={height} fill="url(#hero-scrim)" />
       </Svg>
     </Animated.View>
   );
