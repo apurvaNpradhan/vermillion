@@ -28,10 +28,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## coss ui
-
-The components in `packages/ui/src/components` come from the [coss ui](https://coss.com/ui) registry, installed with the shadcn CLI.
-
 ## anti-slop
 
 The oxlint rules in `tools/oxlint/anti-slop` are vendored from [anti-slop](https://github.com/dmmulroy/anti-slop), licensed under the MIT License below.

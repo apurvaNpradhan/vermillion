@@ -1,6 +1,6 @@
 /**
- * Single source of truth for app identity. Consumed by the apps and packages;
- * a template-init script (later phase) rewrites derived values from here.
+ * Single source of truth for app identity: name, URLs, ports, bundle ids, scheme and version.
+ * Consumed by the apps and packages.
  */
 export const appConfig = {
   name: "vermillion",

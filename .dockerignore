@@ -8,5 +8,3 @@
 .scratch
 repos
 apps/native
-apps/web/.wrangler
-apps/web/e2e/.artifacts

@@ -6,7 +6,6 @@ allowBuilds:
   esbuild: true
   sharp: true
   lefthook: true
-  workerd: true
   better-sqlite3: true
 catalog:
   zod: ^4.5.4
@@ -29,9 +28,6 @@ minimumReleaseAgeExclude:
   - "@oxlint/plugins@1.92.0"
   - i18next@26.7.2
   - pg-boss@12.38.1
-  - "@playwright/test@1.65.0"
-  - playwright-core@1.65.0
-  - playwright@1.65.0
   - react-i18next@17.1.13
   - "@oxlint/binding-android-arm-eabi@1.92.0"
   - "@oxlint/binding-android-arm64@1.92.0"

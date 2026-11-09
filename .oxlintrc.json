@@ -30,17 +30,6 @@
   },
   "overrides": [
     {
-      // Vendored from the coss ui registry (`shadcn add @coss/<name>`); updates overwrite them.
-      "files": ["packages/ui/src/components/**", "packages/ui/src/hooks/**"],
-      "rules": {
-        "anti-slop/no-chained-type-assertions": "off",
-        "anti-slop/no-known-value-widening": "off",
-        "anti-slop/no-unsafe-dictionary-type": "off",
-        "anti-slop/no-runtime-typeof": "off",
-        "anti-slop/require-safety-comment-for-type-assertion": "off"
-      }
-    },
-    {
       // Repo tooling is plain JavaScript without zod; `typeof` is its boundary check.
       "files": ["scripts/**", "tools/**"],
       "rules": {

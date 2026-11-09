@@ -34,11 +34,6 @@
       "computedHash": "f0604d278cfd4eac4dac29eb297a5c6b6ebfb9f020235e8aafbe2eff0e42a147",
       "installMode": "copy"
     },
-    "coss": {
-      "source": "cosscom/coss",
-      "sourceType": "github",
-      "computedHash": "7fc8b04e73c445d9463ce27d0719832ed5ca3cbe70c3ac20fe15848aae24180e"
-    },
     "eas-app-stores": {
       "source": "expo/skills",
       "sourceType": "github",
@@ -118,12 +113,6 @@
       "computedHash": "0f153b7176f2bbe3e88be8ccb5095a9847b28b45b7cb5b444b01837f004de8fa",
       "wellKnownDigest": "sha256:eda1dfd693ca8bbe76fa08a24c79c9dee7fe1c51aab7995c3001d7dc3cf1718a"
     },
-    "shadcn": {
-      "source": "shadcn/ui",
-      "sourceType": "github",
-      "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
-    },
     "turborepo": {
       "source": "vercel/turborepo",
       "sourceType": "github",
@@ -136,23 +125,11 @@
       "skillPath": "skills/composition-patterns/SKILL.md",
       "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
     },
-    "vercel-react-best-practices": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
-    },
     "vercel-react-native-skills": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-native-skills/SKILL.md",
       "computedHash": "2e9088a7333666d8c2833b8ff58bd51b955501c42b4c7244f72b4cbf22dafcc4"
-    },
-    "web-design-guidelines": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/web-design-guidelines/SKILL.md",
-      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
     }
   }
 }

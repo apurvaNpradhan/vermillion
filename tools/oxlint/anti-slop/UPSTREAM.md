@@ -13,7 +13,6 @@
 - Removed: `no-conditional-empty-object-spread`. Without `exactOptionalPropertyTypes`, omitting a key and
   assigning `undefined` differ for Drizzle patches, Better Auth options and the Expo config, so the
   conditional spread is the correct idiom here.
-- `no-runtime-typeof` runs with `allowInTypeGuards: true` and is off for `scripts/**`, `tools/**` and the
-  vendored coss ui files.
+- `no-runtime-typeof` runs with `allowInTypeGuards: true` and is off for `scripts/**` and `tools/**`.
 
 To update, diff upstream `src/` against this directory and port changes rule by rule; keep the list above current.
