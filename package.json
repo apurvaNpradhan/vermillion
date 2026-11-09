@@ -12,7 +12,6 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "dev:native": "turbo run dev -F native --",
-    "dev:web": "turbo run dev -F web --",
     "dev:server": "turbo run dev -F server --",
     "dev:tunnel": "sh -c 'set -a; [ -f apps/web/.env ] && . ./apps/web/.env; set +a; exec cloudflared tunnel --config \"${VERMILLION_TUNNEL_CONFIG:-$HOME/.cloudflared/vermillion-dev.yml}\" run'",
     "db:push": "turbo run db:push -F @workspace/db --",
@@ -31,13 +30,11 @@
     "test": "turbo run test test:root",
     "test:root": "vitest run",
     "prepare": "lefthook install",
-    "template:init": "node ./scripts/template-init.mjs",
     "i18n:check": "node ./scripts/i18n/check.mjs",
     "i18n:check:fix": "node ./scripts/i18n/check.mjs --fix",
     "i18n:report": "node ./scripts/i18n/report.mjs",
     "test:sync": "pnpm --filter @workspace/sync-tests test:sync",
-    "test:sync-infra": "pnpm --filter @workspace/api test:sync-infra",
-    "test:e2e": "turbo run test:e2e -F web"
+    "test:sync-infra": "pnpm --filter @workspace/api test:sync-infra"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",

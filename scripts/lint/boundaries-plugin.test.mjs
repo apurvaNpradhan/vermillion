@@ -69,27 +69,6 @@ describe("packages/api", () => {
   });
 });
 
-describe("apps/web", () => {
-  const from = "apps/web/src/preferences/use-preferences.ts";
-
-  test("the @/ alias is checked like a relative import", () => {
-    expect(check(from, "@/account")).toEqual([]);
-    expect(check(from, "@/account/use-delete-account")).toHaveLength(1);
-    expect(check(from, "@/platform/orpc")).toEqual([]);
-    expect(check(from, "@/preferences/schema")).toEqual([]);
-  });
-
-  test("routes and shared folders are not verticals", () => {
-    expect(check("apps/web/src/routes/login.tsx", "@/account/use-session")).toHaveLength(1);
-    expect(check("apps/web/src/routes/login.tsx", "@/account")).toEqual([]);
-    expect(check(from, "@/lib/seo")).toEqual([]);
-    expect(check("apps/web/src/lib/seo/index.ts", "@/platform/env")).toEqual([]);
-    expect(check("apps/web/src/lib/seo/index.ts", "@/auth/session")).toHaveLength(1);
-    // Former exempt folders are verticals now: reach them through their index.
-    expect(check(from, "@/components/header")).toHaveLength(1);
-  });
-});
-
 describe("apps/native", () => {
   const from = "apps/native/src/notes/note-list.tsx";
 
@@ -102,10 +81,6 @@ describe("apps/native", () => {
   test("files at the tree root go through indexes", () => {
     expect(check("apps/native/src/index.ts", "./account/session")).toHaveLength(1);
   });
-
-  test("the web alias does not apply to native files", () => {
-    expect(check("apps/web/src/auth/sign-in.tsx", "@/account/session")).toHaveLength(1);
-  });
 });
 
 describe("packages/sync", () => {
@@ -115,7 +90,7 @@ describe("packages/sync", () => {
     expect(check(from, "@workspace/api")).toHaveLength(1);
     expect(check(from, "drizzle-orm/pg-core")).toHaveLength(1);
     expect(check(from, "drizzle-orm/sqlite-core")).toEqual([]);
-    expect(check("apps/web/src/notes/x.ts", "@workspace/db/columns")).toEqual([]);
+    expect(check("apps/native/src/notes/x.ts", "@workspace/db/columns")).toEqual([]);
   });
 
   test("verticals reach each other through the index", () => {

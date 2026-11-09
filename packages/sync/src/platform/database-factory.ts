@@ -14,8 +14,7 @@ export type OpenDatabaseResult =
   | { status: "unavailable"; reason: StorageUnavailableReason };
 
 /**
- * Platform-neutral factory. Each app supplies one (`apps/web/src/platform`,
- * `apps/native/src/platform`). There is no in-memory fallback: when durable storage is missing the
+ * Platform-neutral factory. Each app supplies one (`apps/native/src/platform`). There is no in-memory fallback: when durable storage is missing the
  * result says so and the app shows an explicit state.
  */
 export interface DatabaseFactory {

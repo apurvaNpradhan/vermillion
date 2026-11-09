@@ -6,13 +6,7 @@ import path from "node:path";
 
 import { loadLocales, pluralBase, repoRoot, sorted } from "./shared.mjs";
 
-const SOURCE_ROOTS = [
-  "apps/web/src",
-  "apps/native/src",
-  "apps/native/app",
-  "apps/server/src",
-  "packages",
-];
+const SOURCE_ROOTS = ["apps/native/src", "apps/native/app", "apps/server/src", "packages"];
 const SKIP = new Set(["node_modules", "dist", "locales", ".turbo", "routeTree.gen.ts"]);
 // Appears in documentation comments as the naming pattern.
 const IGNORED = new Set(["feature__identifier"]);

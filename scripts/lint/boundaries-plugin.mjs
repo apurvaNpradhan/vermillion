@@ -19,13 +19,6 @@ export const TREES = {
   "packages/api/src": { plain: new Set(), alias: {} },
   // Client sync infrastructure: `platform/` plus one folder per synced vertical.
   "packages/sync/src": { plain: new Set(), alias: {} },
-  "apps/web/src": {
-    // `routes` are thin files, `lib` holds app-level helpers such as SEO, `assets` and
-    // `styles` hold static files. Shared UI lives in packages/ui and shared
-    // infrastructure (clients, i18n, theme, errors) in `platform`.
-    plain: new Set(["routes", "lib", "assets", "styles"]),
-    alias: { "@/": "apps/web/src/" },
-  },
   "apps/native/src": {
     plain: new Set(),
     // Routes in `app/` are thin; modules live under `src`.
