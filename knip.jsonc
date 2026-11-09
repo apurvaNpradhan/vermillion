@@ -18,11 +18,17 @@
         "modules/*/index.ts",
         // Sync status for the phase 6 UI (the hook is exported before a screen uses it).
         "src/sync/index.ts",
+        // The exercise picker's hook is exported before training calls it (slice 5 of 0034).
+        "src/exercise/index.ts",
+        // Run by hand when the body-map art changes (needs ImageMagick).
+        "src/body-map/generate-assets.ts",
       ],
       // Expo reads these through app.config.ts and the Metro/Babel presets. The PowerSync and
       // op-sqlite packages are used by openNativeDatabase; expo-crypto by the polyfill.
       // expo-font is the peer @expo-google-fonts/inter loads Inter through.
       "ignoreDependencies": ["@workspace/config", "expo-font"],
+      // ImageMagick, used by the body-map asset generator.
+      "ignoreBinaries": ["magick"],
     },
     "packages/api": {
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).
