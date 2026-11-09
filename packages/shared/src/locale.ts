@@ -1,9 +1,17 @@
 import { z } from "zod";
 
-export const SUPPORTED_LOCALES = ["en", "de"] as const;
+// Safety: preserve the supported locale literals for schema and type inference.
+export const SUPPORTED_LOCALES = ["en"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 export const localeSchema = z.enum(SUPPORTED_LOCALES);
+
+/**
+ * For persisted values (queued jobs, stored preferences): a locale that is no longer supported,
+ * such as a removed language, reads as the default instead of failing the whole value. User input
+ * keeps the strict `localeSchema`.
+ */
+export const storedLocaleSchema = localeSchema.catch(DEFAULT_LOCALE);
 
 /** Name of the cookie that remembers the visitor's language on this device. */
 export const LOCALE_COOKIE = "locale";
@@ -14,7 +22,7 @@ export function isLocale(value: unknown): value is Locale {
 
 /**
  * The best supported locale in an `Accept-Language` header, honouring q-values.
- * Region subtags are ignored (`de-AT` selects `de`).
+ * Region subtags are ignored (`en-GB` selects `en`).
  */
 export function parseAcceptLanguage(header: string | null | undefined): Locale | undefined {
   if (!header) return undefined;

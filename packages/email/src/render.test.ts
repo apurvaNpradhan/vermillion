@@ -31,10 +31,8 @@ describe("email templates", () => {
   it("puts the code and the app name in the subject, in the recipient's language", async () => {
     const en = await render({ ...base, template: "sign-in-code", otp: "482913" });
     expect(en.subject).toBe("482913 is your Acme code");
-    const de = await render({ ...base, template: "sign-in-code", otp: "482913", locale: "de" });
-    expect(de.subject).toBe("482913 ist dein Acme-Code");
-    expect(de.html).toContain('lang="de"');
-    expect(de.text).toContain("Dieser Code läuft in 5 Minuten ab.");
+    expect(en.html).toContain('lang="en"');
+    expect(en.text).toContain("This code expires in 5 minutes.");
   });
 
   it("says how long the code works", async () => {

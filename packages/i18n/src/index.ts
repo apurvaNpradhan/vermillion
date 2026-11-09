@@ -1,9 +1,8 @@
 import i18next, { type i18n, type TFunction } from "i18next";
 
-import de from "./locales/de.json" with { type: "json" };
 import en from "./locales/en.json" with { type: "json" };
 
-export const resources = { en: { translation: en }, de: { translation: de } };
+export const resources = { en: { translation: en } };
 
 /** Every translation key. Keys are `feature__identifier`; plurals add `_one`/`_other`. */
 export type TranslationKey = keyof typeof en;
@@ -15,7 +14,7 @@ export function createI18n(locale: string = "en"): i18n {
     resources,
     lng: locale,
     fallbackLng: "en",
-    supportedLngs: ["en", "de"],
+    supportedLngs: Object.keys(resources),
     interpolation: { escapeValue: false },
     returnNull: false,
     initAsync: false,

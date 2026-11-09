@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { applyPreferencesPatch } from "./apply-preferences-patch";
 
 const current: Preferences = {
-  locale: "de",
+  locale: "en",
   timezone: "Europe/Berlin",
   ui: DEFAULT_UI_PREFERENCES,
 };

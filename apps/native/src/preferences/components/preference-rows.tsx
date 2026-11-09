@@ -13,7 +13,7 @@ import { OptionSheet } from "@/platform/ui/option-sheet";
 
 import { usePreferences } from "../use-preferences";
 
-const LOCALE_NAMES = { en: "English", de: "Deutsch" } as const;
+const LOCALE_NAMES = { en: "English" };
 const DEVICE = "device";
 
 type Picker = "theme" | "language" | "timezone" | null;
@@ -65,12 +65,14 @@ export function PreferenceRows() {
           value={t(THEME_LABELS[choice])}
           onPress={() => setPicker("theme")}
         />
-        <ListRow
-          icon={Translate}
-          title={t("settings__language_title")}
-          value={localeOptions.find((option) => option.value === localeValue)?.label}
-          onPress={() => setPicker("language")}
-        />
+        {SUPPORTED_LOCALES.length > 1 && (
+          <ListRow
+            icon={Translate}
+            title={t("settings__language_title")}
+            value={localeOptions.find((option) => option.value === localeValue)?.label}
+            onPress={() => setPicker("language")}
+          />
+        )}
         <ListRow
           icon={Globe}
           title={t("settings__timezone_title")}

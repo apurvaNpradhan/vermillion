@@ -95,13 +95,13 @@ describe("email code sign-in", () => {
   });
 
   it("signs an existing account in with the language it saved", async () => {
-    const email = "deutsch@example.com";
+    const email = "english@example.com";
     const session = await createSignedInUser(app, email);
-    await app.client(session).preferences.update({ locale: "de" });
+    await app.client(session).preferences.update({ locale: "en" });
     const seen = app.outbox.length;
     await app.services.auth.api.sendVerificationOTP({ body: { email, type: "sign-in" } });
     const mail = await app.waitForEmail((m) => m.to === email && app.outbox.indexOf(m) >= seen);
-    expect(mail.subject).toBe(`${codeIn(mail)} ist dein Vermillion-Code`);
+    expect(mail.subject).toBe(`${codeIn(mail)} is your Vermillion code`);
   });
 
   describe("changing the email address", () => {

@@ -35,7 +35,7 @@ describe("account deletion", () => {
     const session = await createSignedInUser(app, email);
     const client = app.client(session);
     const { id: userId } = await client.account.me();
-    await client.preferences.update({ locale: "de", ui: { sidebarCollapsed: true } });
+    await client.preferences.update({ locale: "en", ui: { sidebarCollapsed: true } });
     const otherSession = await signIn(app, email);
 
     // Asking only sends the email; nothing is deleted yet.
@@ -102,13 +102,13 @@ describe("account deletion", () => {
   });
 
   it("emails the confirmation in the account's saved language", async () => {
-    const email = "de-leaving@example.com";
+    const email = "en-leaving@example.com";
     const session = await createSignedInUser(app, email);
     const client = app.client(session);
-    await client.preferences.update({ locale: "de" });
+    await client.preferences.update({ locale: "en" });
     await client.account.requestDeletion();
-    const mail = await app.waitForEmail((m) => m.to === email && m.subject.includes("Löschen"));
-    expect(mail.text).toContain("Mein Konto löschen");
+    const mail = await app.waitForEmail((m) => m.to === email && m.subject.includes("deleting"));
+    expect(mail.text).toContain("Delete my account");
   });
 
   describe("confirmation callback", () => {

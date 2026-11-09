@@ -1,5 +1,5 @@
 import type { Database } from "@workspace/db";
-import { LOCALE_COOKIE, readCookie, resolveLocale, type Locale } from "@workspace/shared";
+import { isLocale, LOCALE_COOKIE, readCookie, resolveLocale, type Locale } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 
 import { userPreferences } from "../tables";
@@ -11,7 +11,7 @@ export async function getSavedLocale(db: Database, userId: string): Promise<Loca
     .from(userPreferences)
     .where(eq(userPreferences.userId, userId))
     .limit(1);
-  return row?.locale ?? null;
+  return isLocale(row?.locale) ? row.locale : null;
 }
 
 /**

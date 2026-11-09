@@ -78,7 +78,7 @@ describe("sign-in notices", () => {
   it("queues a localized successful sign-in notice with request context, not a failed-login notice", async () => {
     const email = "login-notice@example.com";
     const session = await createSignedInUser(app, email);
-    await app.client(session).preferences.update({ locale: "de" });
+    await app.client(session).preferences.update({ locale: "en" });
     // The sign-up is not announced; only a later sign-in is.
     await app.rows(
       sql`update "user" set created_at = now() - interval '1 hour' where email = ${email}`,
@@ -101,7 +101,7 @@ describe("sign-in notices", () => {
     );
     expect(response.ok).toBe(true);
     const notice = await app.waitForEmail(
-      (mail) => mail.to === email && mail.subject.includes("Neue Anmeldung"),
+      (mail) => mail.to === email && mail.subject.includes("New sign-in"),
     );
     expect(notice.text).toContain("203.0.113.42");
     expect(notice.text).toContain("Chrome");
@@ -110,6 +110,6 @@ describe("sign-in notices", () => {
     ).rejects.toThrow();
     await app.services.background.drain();
     await app.services.jobs.drain(["auth.deliver-email"], 5000);
-    expect(app.outbox.filter((mail) => mail.subject.includes("Neue Anmeldung"))).toHaveLength(1);
+    expect(app.outbox.filter((mail) => mail.subject.includes("New sign-in"))).toHaveLength(1);
   });
 });

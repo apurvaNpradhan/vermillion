@@ -61,10 +61,10 @@ describe("rate limits", () => {
     const b = app.client(await createSignedInUser(app, "limit-b@example.com"));
     for (let i = 0; i < 60; i++)
       await a.preferences.update({ ui: { sidebarCollapsed: i % 2 === 0 } });
-    await expect(a.preferences.update({ locale: "de" })).rejects.toMatchObject({
+    await expect(a.preferences.update({ locale: "en" })).rejects.toMatchObject({
       code: "TOO_MANY_REQUESTS",
     });
-    await expect(b.preferences.update({ locale: "de" })).resolves.toMatchObject({ locale: "de" });
+    await expect(b.preferences.update({ locale: "en" })).resolves.toMatchObject({ locale: "en" });
     // Reading is not limited.
     await expect(a.preferences.get()).resolves.toBeDefined();
   });
