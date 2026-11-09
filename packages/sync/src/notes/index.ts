@@ -11,6 +11,7 @@ export {
   updateNote,
   watchNote,
   watchNotes,
+  watchNotesCount,
   type LocalNote,
   type NotePatch,
   type NoteValues,

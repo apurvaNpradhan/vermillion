@@ -13,7 +13,7 @@ Tooling: pnpm, Turborepo, TypeScript 7, oxlint and oxfmt, lefthook, commitlint, 
 
 ## What is included
 
-- Email and password with verification and reset; Google and GitHub when configured; Turnstile CAPTCHA; disposable-email blocking; a registration switch; admin allowlist and a minimal admin page.
+- Passwordless sign-in with emailed codes; account-first onboarding; Google and GitHub when configured; Turnstile CAPTCHA; disposable-email blocking; a registration switch; admin allowlist and a minimal admin page.
 - Preferences (language, time zone, UI), light/dark/system theme per device, `en` and `de`.
 - Account deletion on web and native, with email confirmation.
 - Postgres-backed jobs with retries, localized React Email templates, structured JSON logs.

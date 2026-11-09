@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scrubIndex, switcherRoute, tabSlots } from "./tab-slots";
+import { scrubIndex, tabSlots } from "./tab-slots";
 
 describe("tabSlots", () => {
   it("puts the first two routes on the pill and the rest in the menu", () => {
@@ -16,24 +16,6 @@ describe("tabSlots", () => {
 
   it("drops routes past five", () => {
     expect(tabSlots(["a", "b", "c", "d", "e", "f"]).overflow).toEqual(["c", "d", "e"]);
-  });
-});
-
-describe("switcherRoute", () => {
-  const overflow = ["settings", "progress"];
-
-  it("shows the open route when it is in the menu", () => {
-    expect(switcherRoute(overflow, "progress", "settings")).toBe("progress");
-  });
-
-  it("remembers the last menu route while a pill tab is open", () => {
-    expect(switcherRoute(overflow, "index", "progress")).toBe("progress");
-  });
-
-  it("falls back to the first menu route, or null without one", () => {
-    expect(switcherRoute(overflow, "index", null)).toBe("settings");
-    expect(switcherRoute(overflow, "index", "gone")).toBe("settings");
-    expect(switcherRoute([], "index", null)).toBeNull();
   });
 });
 

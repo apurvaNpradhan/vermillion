@@ -1,49 +1,59 @@
-import { useCallback, useState } from "react";
-import type { ColorValue } from "react-native";
-import { Uniwind, useCSSVariable } from "uniwind";
+import { useSyncExternalStore } from "react";
+import { Appearance, type ColorValue } from "react-native";
+import { Uniwind, useCSSVariable, useUniwind } from "uniwind";
 
 import { deviceStorage } from "../storage";
-
-export const THEMES = ["light", "dark", "system"] as const;
-export type Theme = (typeof THEMES)[number];
+import { createThemeStore, forcedScheme, resolveTheme, type ThemeChoice } from "./theme-state";
 
 const THEME_KEY = "device.theme";
+const store = createThemeStore({
+  read: () => deviceStorage.get(THEME_KEY),
+  write: (serialized) => deviceStorage.set(THEME_KEY, serialized),
+  apply: (choice) => {
+    // System releases any forced scheme so the OS keeps reporting its own appearance; Light and
+    // Dark force it so native alerts, keyboards and the status bar match.
+    Appearance.setColorScheme(forcedScheme(choice));
+    Uniwind.setTheme(resolveTheme(choice, Appearance.getColorScheme()));
+  },
+});
 
-export function isTheme(value: unknown): value is Theme {
-  return THEMES.some((theme) => theme === value);
-}
+let listening = false;
 
-function readTheme(): Theme {
-  const stored = deviceStorage.get(THEME_KEY);
-  return isTheme(stored) ? stored : "system";
-}
-
-/** Applies the theme saved on this device. Call once before the first render. */
+/** Apply the stored choice before the first render and follow the OS while it is "system". */
 export function applyStoredTheme() {
-  Uniwind.setTheme(readTheme());
+  store.applyStored();
+  if (listening) return;
+  listening = true;
+  Appearance.addChangeListener(({ colorScheme }) => {
+    const choice = store.getSnapshot();
+    if (choice === "system") Uniwind.setTheme(resolveTheme(choice, colorScheme));
+  });
 }
 
-/** Light, dark or system, stored on this device only (never in the database). */
-export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(readTheme);
-  const setTheme = useCallback((next: Theme) => {
-    deviceStorage.set(THEME_KEY, next);
-    Uniwind.setTheme(next);
-    setThemeState(next);
-  }, []);
-  return { theme, setTheme };
+/** Device-local theme choice and its setter. Colour only; layout is shared. */
+export function useThemeChoice() {
+  const choice = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  return { choice, setChoice: (next: ThemeChoice) => store.set(next) };
 }
 
-/**
- * `text-secondary` as a color value, for icons that take a color prop (Phosphor). HeroUI's
- * `useThemeColor` only knows its own names; `subtle` is a Vermillion role.
- */
+/** Native chrome reads the mode, not the theme name. */
+export function useThemeMode(): "light" | "dark" {
+  const { theme } = useUniwind();
+  return theme === "dark" ? "dark" : "light";
+}
+
+/** Supporting text for icons whose props require a color string. */
 export function useSubtleColor(): string | undefined {
   const value = useCSSVariable("--color-subtle");
   return isColorString(value) ? value : undefined;
 }
 
-/** A color the app can hand to a component that takes plain strings (not a platform color). */
+/** The selected theme's identity color, independent of its action and data roles. */
+export function useIdentityColor(): string | undefined {
+  const value = useCSSVariable("--color-identity");
+  return isColorString(value) ? value : undefined;
+}
+
 export function isColorString(value: ColorValue | number | undefined): value is string {
   return typeof value === "string";
 }

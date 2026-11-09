@@ -1,17 +1,9 @@
 import { brandTokens, sharedTokenSources, type RoleName, type RoleTokens } from "./brand";
 
 /**
- * HeroUI Native token (the CSS variable Uniwind reads) -> the Vermillion role it takes its value
- * from. Verified against heroui-native `styles/variables.css`.
- *
- * Differences to keep in mind when editing:
- * - HeroUI `--accent` is the primary action color (white in dark mode, near-black in light) and `--muted` is a text color; in coss / shadcn
- *   the same names are subtle backgrounds.
- * - HeroUI `--*-foreground` of a status color is the text ON that color (`on-*` roles).
- * - `--warning` takes the text tone: HeroUI derives its soft alert text from it, and light amber is
- *   unreadable as text.
- * - Fields have no visible border at rest (`field-border` = the field fill); HeroUI darkens it on
- *   focus, which gives the strong hairline.
+ * HeroUI Native variable -> application role. Every custom variant defines the same set, per
+ * https://heroui.com/en/docs/native/getting-started/theming.
+ * HeroUI's accent is an action fill; its *-foreground is the text ON that fill.
  */
 export const nativeTokenSources = {
   background: "canvas",
@@ -44,47 +36,43 @@ export const nativeTokenSources = {
   "segment-foreground": "text-primary",
   border: "hairline",
   separator: "hairline-strong",
-  focus: "hairline-strong",
+  focus: "focus-ring",
   link: "text-primary",
 } as const satisfies Record<string, RoleName>;
 
-/**
- * Depth: cards are flat in both modes (surface step + hairline); only floating layers get a light
- * mode shadow. Dark mode keeps HeroUI's inset edge on overlays.
- */
 const shadows = {
   light: {
     "surface-shadow": "0 0 0 0 transparent inset",
     "field-shadow": "0 0 0 0 transparent inset",
-    "overlay-shadow": "0 8px 24px 0 rgba(0, 0, 0, 0.12)",
+    "overlay-shadow": "0 10px 28px 0 rgba(23, 43, 54, 0.14)",
   },
   dark: {
     "surface-shadow": "0 0 0 0 transparent inset",
     "field-shadow": "0 0 0 0 transparent inset",
-    "overlay-shadow": "0 0 1px 0 rgba(255, 255, 255, 0.2) inset",
+    "overlay-shadow": "0 12px 32px 0 rgba(0, 0, 0, 0.32)",
   },
 } as const;
 
-const block = (variant: "light" | "dark", colors: RoleTokens) =>
-  [
-    `    @variant ${variant} {`,
+function block(name: "light" | "dark", colors: RoleTokens) {
+  const depth = shadows[name];
+  return [
+    `    @variant ${name} {`,
     ...Object.entries(nativeTokenSources).map(
-      ([name, role]) => `      --${name}: ${colors[role]};`,
+      ([variable, role]) => `      --${variable}: ${colors[role]};`,
     ),
     ...Object.entries(sharedTokenSources).map(
-      ([name, role]) => `      --${name}: ${colors[role]};`,
+      ([variable, role]) => `      --${variable}: ${colors[role]};`,
     ),
-    ...Object.entries(shadows[variant]).map(([name, value]) => `      --${name}: ${value};`),
+    ...Object.entries(depth).map(([variable, value]) => `      --${variable}: ${value};`),
     "    }",
   ].join("\n");
+}
 
 const px = (value: number) => `${value / 16}rem`;
 
 /**
- * Native adapter: the Vermillion roles under HeroUI Native's names, the Vermillion-only colors as
- * custom theme colors, Inter as the font, and the text scale. Import it after
- * `heroui-native/styles`. Text styles carry no weight: on native the weight picks the font file,
- * so pair `text-title-md` with `font-semibold`.
+ * Build-time CSS for Uniwind's built-in `light` and `dark` variants, filled with the Classic
+ * palette from brand.ts, the same as web and email. Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
   return [

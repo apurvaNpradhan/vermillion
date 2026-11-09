@@ -31,7 +31,8 @@ describe("safeReturnLocation", () => {
   it("never returns to an auth page", () => {
     expect(safeReturnLocation("/login")).toBe(DEFAULT_RETURN_LOCATION);
     expect(safeReturnLocation("/login/?redirect=/app")).toBe(DEFAULT_RETURN_LOCATION);
-    expect(safeReturnLocation("/reset-password?token=x")).toBe(DEFAULT_RETURN_LOCATION);
+    expect(safeReturnLocation("/verify-code?email=a@b.c")).toBe(DEFAULT_RETURN_LOCATION);
+    expect(safeReturnLocation("/onboarding")).toBe(DEFAULT_RETURN_LOCATION);
   });
 
   it("treats non-strings and oversized input as invalid and honours the fallback", () => {

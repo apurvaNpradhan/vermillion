@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { authEmailSchema } from "@workspace/auth";
+import { OTP_EXPIRY_SECONDS } from "@workspace/shared";
 import { sendEmail, type EmailInput } from "@workspace/email";
 import { eq } from "drizzle-orm";
 import { user } from "@workspace/db/schema/auth";
@@ -25,22 +26,26 @@ export const sendEmailQueue = defineQueue({
       .limit(1);
     if (!entry) return;
     const remove = () => services.db.delete(authEmailOutbox).where(eq(authEmailOutbox.id, emailId));
-    if (entry.expiresAt <= new Date()) {
-      await remove();
-      return;
-    }
     const job = authEmailSchema.parse(entry.payload);
-    const [recipient] = await services.db
-      .select()
-      .from(user)
-      .where(eq(user.id, job.userId))
-      .limit(1);
-    // Deleted since it was queued: nothing to send, nothing to retry.
-    if (!recipient) {
+    // Also protect code rows queued before their outbox TTL was shortened.
+    const codeExpired =
+      (job.kind === "sign-in-code" || job.kind === "change-email-code") &&
+      Date.parse(job.request.requestedAt) + OTP_EXPIRY_SECONDS * 1000 <= Date.now();
+    if (entry.expiresAt <= new Date() || codeExpired) {
       await remove();
       return;
     }
-    const locale = (await getSavedLocale(services.db, recipient.id)) ?? job.request.localeHint;
+    const recipient = job.userId
+      ? (await services.db.select().from(user).where(eq(user.id, job.userId)).limit(1))[0]
+      : undefined;
+    // Deleted since it was queued: nothing to send, nothing to retry.
+    if (job.userId && !recipient) {
+      await remove();
+      return;
+    }
+    const locale =
+      (recipient ? await getSavedLocale(services.db, recipient.id) : null) ??
+      job.request.localeHint;
     const device = {
       ip: job.request.ip,
       browser: job.request.browser,
@@ -48,34 +53,35 @@ export const sendEmailQueue = defineQueue({
       requestedAt: job.request.requestedAt,
     };
     const common = {
-      to: job.kind === "verification" ? job.to : recipient.email,
-      name: recipient.name,
+      name: recipient?.name ?? "",
       locale,
       appName: services.config.appName,
       request: device,
     };
+    // The code kinds carry their own address; the rest go to the account's current one.
+    const account = recipient?.email ?? "";
     let email: EmailInput;
     switch (job.kind) {
+      case "sign-in-code":
+        email = {
+          ...common,
+          to: job.to,
+          template: "sign-in-code",
+          otp: job.otp,
+          existingAccount: Boolean(recipient),
+        };
+        break;
+      case "change-email-code":
+        email = { ...common, to: job.to, template: "change-email-code", otp: job.otp };
+        break;
       case "sign-in-notice":
-        email = { ...common, template: "sign-in-notice" };
+        email = { ...common, to: account, template: "sign-in-notice" };
         break;
       case "security-notice":
-        email = { ...common, template: "security-notice" };
-        break;
-      case "verification":
-        email = { ...common, template: "verification", url: job.url };
-        break;
-      case "reset-password":
-        email = { ...common, template: "reset-password", url: job.url };
-        break;
-      case "change-email":
-        email = { ...common, template: "change-email", url: job.url, newEmail: job.newEmail };
+        email = { ...common, to: job.to ?? account, template: "security-notice" };
         break;
       case "delete-account":
-        email = { ...common, template: "delete-account", url: job.url };
-        break;
-      case "existing-account":
-        email = { ...common, template: "existing-account", url: job.url };
+        email = { ...common, to: account, template: "delete-account", url: job.url };
         break;
     }
     try {

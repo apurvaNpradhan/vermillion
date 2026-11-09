@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { authClient } from "@/platform/auth-client";
 import { useTranslation } from "@/platform/i18n";
+import { safeReturnLocation } from "@/platform/navigation";
 
 import { FormError } from "./form-error";
 import { useRegistrationStatus } from "../use-registration-status";
@@ -14,12 +15,12 @@ type Provider = (typeof PROVIDERS)[number];
 
 /** One button per social provider the server has configured; nothing when none is. */
 export function SocialButtons({
-  returnTo,
+  redirect,
   headers,
   blocked,
   onDone,
 }: {
-  returnTo: string;
+  redirect: string | undefined;
   headers: Record<string, string>;
   /** True while a required CAPTCHA is unsolved. */
   blocked: boolean;
@@ -32,6 +33,7 @@ export function SocialButtons({
   const enabled = PROVIDERS.filter((provider) => status?.providers[provider]);
   if (enabled.length === 0) return null;
   const lastUsed = authClient.getLastUsedLoginMethod();
+  const returnTo = safeReturnLocation(redirect);
 
   return (
     <div className="flex flex-col gap-2">

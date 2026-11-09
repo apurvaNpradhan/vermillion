@@ -14,10 +14,10 @@ function ButtonRoot(props: ButtonProps) {
     <HeroButton
       {...props}
       className={cn(
-        "rounded-lg",
+        "rounded-xl",
         props.size !== "sm" && props.size !== "lg" && "h-11 px-3",
         (props.variant === "secondary" || props.variant === "outline") &&
-          "border border-separator bg-default",
+          "border border-border bg-default",
         props.variant === "danger-soft" && "border border-danger/40",
         props.className,
       )}
@@ -26,7 +26,7 @@ function ButtonRoot(props: ButtonProps) {
 }
 
 function ButtonLabel({ className, ...props }: ComponentProps<typeof HeroButton.Label>) {
-  return <HeroButton.Label className={cn("text-sm font-medium", className)} {...props} />;
+  return <HeroButton.Label className={cn("text-body font-medium", className)} {...props} />;
 }
 
 export const Button = Object.assign(ButtonRoot, { Label: ButtonLabel });

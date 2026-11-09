@@ -17,6 +17,7 @@ const baseConfig: ApiConfig = {
   appUrl: "http://localhost:3001",
   appScheme: "vermillion",
   nativePort: 8081,
+  passkey: { rpId: "localhost", origins: ["http://localhost:3001"] },
   isProduction: false,
   authSecret: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
   trustedProxies: "127.0.0.0/8",
@@ -114,13 +115,18 @@ export async function createTestApp(options: TestAppOptions = {}) {
 
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 
-const PASSWORD = "correct-horse-battery";
-
 /** The first link in an email's text body. */
 export function linkIn(email: RenderedEmail) {
   const link = /https?:\/\/\S+/.exec(email.text)?.[0];
   if (!link) throw new Error("No link in email");
   return link.replace(/[).,]+$/, "");
+}
+
+/** The one-time code of a code email; its subject starts with it in every language. */
+export function codeIn(email: RenderedEmail) {
+  const code = /^(\d{6})\b/.exec(email.subject)?.[1];
+  if (!code) throw new Error("No code in email");
+  return code;
 }
 
 /** A `Cookie` header from the `Set-Cookie` headers of a Better Auth response. */
@@ -131,30 +137,33 @@ export function cookieFrom(response: Response) {
     .join("; ");
 }
 
-/**
- * Registers and verifies a user through the real flow (sign-up, the queued
- * verification email, the link), then signs in. Returns request headers that
- * carry the session.
- */
-export async function createSignedInUser(
-  app: TestApp,
-  email: string,
-  name = "Test User",
-): Promise<Headers> {
-  await app.services.auth.api.signUpEmail({ body: { email, password: PASSWORD, name } });
-  const mail = await app.waitForEmail((m) => m.to === email && m.subject.includes("Verify"));
-  const verify = await app.services.auth.handler(new Request(linkIn(mail)));
-  if (verify.status >= 400) throw new Error(`Verification failed: ${verify.status}`);
-  return signIn(app, email);
-}
-
-export async function signIn(
+/** Asks for a sign-in code the way the clients do and returns the code that was emailed. */
+export async function requestSignInCode(
   app: TestApp,
   email: string,
   headers: Headers = new Headers(),
+) {
+  const seen = app.outbox.length;
+  await app.services.auth.api.sendVerificationOTP({ body: { email, type: "sign-in" }, headers });
+  const mail = await app.waitForEmail(
+    (m) => m.to === email && app.outbox.indexOf(m) >= seen && /^\d{6}\b/.test(m.subject),
+  );
+  return codeIn(mail);
+}
+
+/**
+ * Signs in with a code through the real flow (request, email, redeem). A new address gets an
+ * account named `name`. Returns request headers that carry the session.
+ */
+export async function signIn(
+  app: TestApp,
+  email: string,
+  options: { name?: string; headers?: Headers } = {},
 ): Promise<Headers> {
-  const response = await app.services.auth.api.signInEmail({
-    body: { email, password: PASSWORD },
+  const headers = options.headers ?? new Headers();
+  const otp = await requestSignInCode(app, email, headers);
+  const response = await app.services.auth.api.signInEmailOTP({
+    body: { email, otp, ...(options.name ? { name: options.name } : {}) },
     headers,
     asResponse: true,
   });
@@ -162,4 +171,7 @@ export async function signIn(
   return new Headers({ cookie: cookieFrom(response) });
 }
 
-export { PASSWORD };
+/** A signed-in user (created on first use), as request headers carrying the session. */
+export function createSignedInUser(app: TestApp, email: string, name = "Test User") {
+  return signIn(app, email, { name });
+}

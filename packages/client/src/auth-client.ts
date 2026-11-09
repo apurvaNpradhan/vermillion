@@ -1,5 +1,5 @@
 import type { BetterAuthClientPlugin } from "better-auth";
-import { lastLoginMethodClient } from "better-auth/client/plugins";
+import { emailOTPClient, lastLoginMethodClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 /** Where Better Auth lives on the API server. */
@@ -17,6 +17,6 @@ export function createAppAuthClient<const Extra extends BetterAuthClientPlugin[]
 ) {
   return createAuthClient({
     baseURL: authBaseUrl(serverUrl),
-    plugins: [lastLoginMethodClient(), ...extraPlugins],
+    plugins: [emailOTPClient(), lastLoginMethodClient(), ...extraPlugins],
   });
 }

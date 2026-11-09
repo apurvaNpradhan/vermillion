@@ -2,6 +2,27 @@
 
 The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; see Implementation for how they reach web and native.
 
+## Native themes
+
+Native offers System, Light and Dark, colour-only: one layout. Light and Dark are Classic (`brand.ts`),
+the same palette as web and transactional email, written into Uniwind's built-in `light` and
+`dark` variants by the token build; there are no custom themes. Named themes, Polar Graphite
+included, were sunset on 2026-11-09 ([ADR 0031](docs/adr/0031-native-themes-colour-only-oklch.md)).
+How-to: [Native themes](docs/guides/native-themes.md).
+
+- **Rules (tests over Classic Light/Dark):** text 7:1 / 4.5:1, identity roles 3:1,
+  `on-identity` 4.5:1, layers stepping 0.015 to 0.06 in L. Classic is exempt from the identity
+  checks (neutral by design) and Classic dark from the layer order (darker sheet).
+- **Colour grammar:** the primary action is neutral. `identity` marks focus, checks, selection and
+  the active tab capsule (`identity-soft` fill, `identity` icon); the compose button is an
+  `identity` fill with an `on-identity` icon. `brand-detail` is decorative only.
+- **Selection:** `device.theme` is `"system" | "light" | "dark"`, default `"system"`. System
+  follows the OS; Light and Dark force the colour scheme for native chrome. Choose it with the
+  Theme select at Settings → Preferences. There is no picker before sign-in.
+- Native chrome, status bars, blur and CAPTCHA use `useThemeMode()`.
+
+The sections below describe the Classic palette's contract and the shared layout.
+
 ## Overview
 
 Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the interface. It is built on near-black surface steps, hairline borders, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
@@ -34,23 +55,24 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native first; web wi
 
 ## Decision log
 
-Thirteen decisions; the first twelve settled in the grilling session on 8 Nov 2026, the thirteenth the same day. Change one only by updating this table and every section it touches.
+Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 2026, the rest the same day. Change one only by updating this table and every section it touches.
 
-| #   | Decision         | Choice                                                                    | Why                                                                              |
-| --- | ---------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | Primary platform | Phone-first native, web later                                             | Sets and meals are logged in the moment, on a phone                              |
-| 2   | Color modes      | Dark default + light mode, role-based tokens                              | Bright gyms and kitchens; light mode costs a week, not a month                   |
-| 3   | Primary action   | White fill in dark, near-black in light, no hue                           | One loud action without a brand color competing with data colors                 |
-| 4   | Macro colors     | Protein blue, carbs amber, fat orchid; calories neutral                   | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
-| 5   | Number typeface  | Inter for everything + numeric tier                                       | One font, smaller app, precise feel; `tnum` aligns numbers                       |
-| 6   | Density          | Two densities: Standard + Active                                          | Mid-workout use needs bigger targets than planning screens                       |
-| 7   | Radius           | 4 / 8 / 12 / 16 / 28 + full                                               | Precise corners, one step softer for phones                                      |
-| 8   | Depth            | No shadows except floating layers                                         | Flat cards with hairlines; sheets need separation in light mode                  |
-| 9   | Motion           | Fast and functional, expressive only for celebrations                     | No bounce on repeated actions; PRs feel earned                                   |
-| 10  | Icons            | Phosphor (Regular / Bold / Fill)                                          | Weights map onto Standard, Active and selected states                            |
-| 11  | Charts           | Clean and minimal, color = meaning                                        | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
-| 12  | Stack            | Expo + HeroUI Native; web on coss ui + shadcn/ui                          | One token source, two adapters (see Implementation)                              |
-| 13  | Navigation shell | Floating icon-only tab pill + switcher, collapsing page header (ADR 0028) | Linear-like and thumb-first; the tab count can grow to five without a redesign   |
+| #   | Decision          | Choice                                                                                                | Why                                                                              |
+| --- | ----------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Primary platform  | Phone-first native, web later                                                                         | Sets and meals are logged in the moment, on a phone                              |
+| 2   | Color modes       | Dark default + light mode, role-based tokens                                                          | Bright gyms and kitchens; light mode costs a week, not a month                   |
+| 3   | Primary action    | White fill in dark, near-black in light, no hue                                                       | One loud action without a brand color competing with data colors                 |
+| 4   | Macro colors      | Protein blue, carbs amber, fat orchid; calories neutral                                               | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
+| 5   | Number typeface   | Inter for everything + numeric tier                                                                   | One font, smaller app, precise feel; `tnum` aligns numbers                       |
+| 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                       |
+| 7   | Radius            | 4 / 8 / 12 / 16 / 28 + full                                                                           | Precise corners, one step softer for phones                                      |
+| 8   | Depth             | No shadows except floating layers                                                                     | Flat cards with hairlines; sheets need separation in light mode                  |
+| 9   | Motion            | Fast and functional, expressive only for celebrations                                                 | No bounce on repeated actions; PRs feel earned                                   |
+| 10  | Icons             | Phosphor (Regular / Bold / Fill)                                                                      | Weights map onto Standard, Active and selected states                            |
+| 11  | Charts            | Clean and minimal, color = meaning                                                                    | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
+| 12  | Stack             | Expo + HeroUI Native; web on coss ui + shadcn/ui                                                      | One token source, two adapters (see Implementation)                              |
+| 13  | Navigation shell  | Floating icon-only tab pill that morphs into a menu panel, collapsing page header (ADR 0028, amended) | Linear-like and thumb-first; the tab count can grow to five without a redesign   |
+| 14  | Native components | HeroUI Native base; missing parts copied in from PanelUI / Reacticx (ADR 0030)                        | No second icon set or peer-dependency tree; every copy restyled to tokens        |
 
 ## Color
 
@@ -188,9 +210,9 @@ These map one-to-one onto Tailwind's spacing utilities (`p-4` = 16), which both 
 ### Layout
 
 - **Screen padding:** 16pt sides; respect safe areas top and bottom on every screen, sheet and toast.
-- **Tab bar:** a floating, icon-only pill, 56pt tall, 8pt above the bottom safe area, on level 3 depth. The first two tabs sit on the pill; a switcher (the current menu tab's icon plus `CaretUpDown`) opens a menu with the rest, up to five tabs in all: today Home and Notes, with Settings in the menu; later Today, Train, Eat, Progress, You. Tap the switcher, or press and slide up to pick a row (a `haptic-tick` per row). The selected tab gets the Fill icon on a `text-primary` 10% fill. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
-- **Tab action:** the open tab's one main action (New note) is a 56pt round `action` button to the right of the pill, inside thumb reach; tabs without one show nothing there.
-- **Page header:** a `title-xl` title, left-aligned at the top of the content, scrolls away; a compact bar with the title centred (`body`, 600) fades in on `canvas` with a hairline (blurred on iOS). Tap it to scroll to the top. Pushed pages add a round back button; page actions sit in a floating capsule on the right.
+- **Tab bar:** a floating, icon-only pill, a fixed 56pt tall, 8pt above the bottom safe area, on level 3 depth with no outline (floating surfaces rely on the layer step and shadow). It holds two direct tabs and a menu slot that shows `CaretUpDown`, or, while a menu screen is open, that screen's icon. The active tab is a capsule: `identity-soft` fill with an `identity` Fill icon. Tap the menu slot, or press and slide up to pick a row (a `haptic-tick` per row): the pill morphs into a panel with the same left edge, widening up to the compose button. The panel lists every tab route (up to five in all: today Home, Notes, Settings; later Today, Train, Eat, Progress, You) under the account header. No dim backdrop. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
+- **Tab action:** the open tab's one main action (New note) is a 56pt round `identity` button with an `on-identity` icon to the right of the pill, inside thumb reach; tabs without one show nothing there.
+- **Page header:** a `title-xl` title, left-aligned at the top of the content, scrolls away; an opaque `canvas` band fades in with a compact, left-aligned title (`body`, 600) beside the back button and a soft ~30pt gradient edge into the content (no blur at the top). Content under the floating tab bar melts into the canvas through one eased SVG gradient owned by the tab bar (no blur library: the native blur view crashed Android release builds). Tap the title to scroll to the top. Pushed pages add a round back button; page actions sit in a floating capsule on the right.
 - **Live workout bar:** while a session runs, a floating bar sits above the tab bar on every screen showing elapsed time and the rest timer, on `surface-floating` with `text-primary`.
 - **Reach:** primary actions live in the bottom half of the screen, inside thumb reach; destructive actions never sit where the thumb rests.
 - **Keyboard:** food search and number entry keep the primary action above the keyboard.
@@ -252,13 +274,14 @@ Motion is fast and functional; only celebrations are expressive, and they play o
 
 ### Motion tokens
 
-| Token              | Value                                                                   | Use                                                               |
-| ------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `motion-fast`      | 120ms, ease-out                                                         | Presses, toggles, chip selection, checkmarks                      |
-| `motion-base`      | 200ms, ease-out                                                         | Elements appearing, rows expanding, tab content                   |
-| `motion-slow`      | 320ms, ease-in-out                                                      | Rings filling, chart transitions, number count-ups                |
-| `motion-sheet`     | Spring: damping 34, stiffness 420, mass 0.8, no overshoot (about 200ms) | Sheets, dialogs                                                   |
-| `motion-celebrate` | \~800ms, one time                                                       | PR, streak, workout finished: a white diagonal stripe sweeps once |
+| Token              | Value                                                                                                                     | Use                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `motion-fast`      | 120ms, ease-out                                                                                                           | Presses, toggles, chip selection, checkmarks                      |
+| `motion-base`      | 200ms, ease-out                                                                                                           | Elements appearing, rows expanding, tab content                   |
+| `motion-slow`      | 320ms, ease-in-out                                                                                                        | Rings filling, chart transitions, number count-ups                |
+| `motion-sheet`     | Spring: damping 39, stiffness 600, mass 0.7, ζ = 0.95, no overshoot (about 180ms)                                         | Sheets, dialogs, the tab pill's morph into its panel              |
+| `motion-page`      | 150-180ms: stacks slide from the right (pop reverses, swipe back anywhere); tabs slide ~28% of the width, direction-aware | Navigation between pages and tabs                                 |
+| `motion-celebrate` | \~800ms, one time                                                                                                         | PR, streak, workout finished: a white diagonal stripe sweeps once |
 
 On React Native these run through Reanimated, which HeroUI Native already uses; customize component motion with its `animation` prop rather than overriding styles. Spring values above are starting points to tune on device.
 
@@ -273,6 +296,7 @@ On React Native these run through Reanimated, which HeroUI Native already uses; 
 
 ### Motion rules
 
+- Navigation is smooth, not instant: tabs and pushed pages slide in the direction of travel (`motion-page`).
 - Nothing bounces during repeated actions.
 - Celebrations never loop, never block input, and can be skipped with a tap.
 - With the system's Reduce Motion setting on, every animation becomes a 120ms fade; haptics stay.
@@ -370,35 +394,40 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 
 ### HeroUI Native and coss components to restyle
 
-| Need              | Native (HeroUI)   | Web (coss)               | Vermillion notes                                                                  |
-| ----------------- | ----------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| Card              | `Card`, `Surface` | `Card`                   | `surface` + hairline, `radius-lg`, no shadow                                      |
-| Text input        | `TextField`       | `Input`, `Field`         | `surface-control`, `radius-md`, focus = `hairline-strong` border, no colored ring |
-| Chips and filters | `Chip`            | `Toggle Group`, `Badge`  | `radius-full`; selected = `surface-control` + `text-primary`                      |
-| Segmented tabs    | `Tabs`            | `Tabs`                   | Time ranges, meal slots                                                           |
-| Sheet             | `BottomSheet`     | `Sheet`, `Drawer`        | `radius-xl` top corners, level 3 depth                                            |
-| Dialog            | `Dialog`          | `Dialog`, `Alert Dialog` | Destructive confirms only                                                         |
-| Toast             | `Toast`           | `Toast`                  | `surface-floating`; "Set logged · Undo"                                           |
-| Toggle            | `Switch`          | `Switch`                 | On = `text-primary` track                                                         |
-| Checkbox          | `Checkbox`        | `Checkbox`               | Set complete check = `success`                                                    |
+| Need              | Native (HeroUI)       | Web (coss)               | Vermillion notes                                                                  |
+| ----------------- | --------------------- | ------------------------ | --------------------------------------------------------------------------------- |
+| Card              | `Card`, `Surface`     | `Card`                   | `surface` + hairline, `radius-lg`, no shadow                                      |
+| Text input        | `Field` (platform/ui) | `Input`, `Field`         | `surface-control`, `radius-md`, focus = `hairline-strong` border, no colored ring |
+| Chips and filters | `Chip`                | `Toggle Group`, `Badge`  | `radius-full`; selected = `surface-control` + `text-primary`                      |
+| Segmented tabs    | `Tabs`                | `Tabs`                   | Time ranges, meal slots                                                           |
+| Sheet             | `BottomSheet`         | `Sheet`, `Drawer`        | `radius-xl` top corners, level 3 depth                                            |
+| Dialog            | `Dialog`              | `Dialog`, `Alert Dialog` | Destructive confirms only                                                         |
+| Toast             | `Toast`               | `Toast`                  | `surface-floating`; "Set logged · Undo"                                           |
+| Toggle            | `Switch`              | `Switch`                 | On = `text-primary` track                                                         |
+| Checkbox          | `Checkbox`            | `Checkbox`               | Set complete check = `success`                                                    |
 
 ### Custom fitness components
 
-| Component        | Anatomy                                                                | Key rules                                                                                                                                                                                         |
-| ---------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SetRow`         | Set number · previous (muted) · weight · reps · RPE (optional) · check | Live row: `surface-control` bg + 3pt `text-primary` leading edge; done row: `text-muted` with `success` check; swipe left to delete with undo                                                     |
-| `NumberStepper`  | − button · value (`numeric-md`/`numeric-xl`) + unit · + button         | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                                                                                  |
-| `RestTimer`      | Ring · `numeric-hero` countdown · −15s / +15s / Skip                   | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                                                                              |
-| `LiveWorkoutBar` | Exercise name · elapsed · rest countdown                               | Floating above tab bar on every screen while a session runs; tap to return                                                                                                                        |
-| `MacroSummary`   | Calorie ring + three macro bars (P, C, F) with value / target          | Fixed order P, C, F; values always visible                                                                                                                                                        |
-| `MealSlotCard`   | Slot name · kcal total · food rows · Add                               | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                                                                                 |
-| `FoodRow`        | Name · serving · kcal · P/C/F mini values                              | Tap to edit serving; macro letters in macro text colors                                                                                                                                           |
-| `ExerciseCard`   | Name · muscle tag · set rows · Add set                                 | Collapses to one summary line when done                                                                                                                                                           |
-| `PRBadge`        | `Trophy` + "PR" in `text-primary` on `surface-control`                 | Triggers `motion-celebrate` once when first earned                                                                                                                                                |
-| `StatTile`       | `overline` label · `numeric-lg` value + unit · change vs last period   | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                       |
-| `EmptyState`     | Phosphor icon (48pt, `text-muted`) · one line · one primary action     | Never more than one sentence                                                                                                                                                                      |
-| `SwipeRow`       | Row content · actions revealed on a left swipe                         | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet |
-| `ListSection`    | `overline` label · `surface` card of rows with inset hairlines         | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
+| Component          | Anatomy                                                                              | Key rules                                                                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SetRow`           | Set number · previous (muted) · weight · reps · RPE (optional) · check               | Live row: `surface-control` bg + 3pt `text-primary` leading edge; done row: `text-muted` with `success` check; swipe left to delete with undo                                                     |
+| `NumberStepper`    | − button · value (`numeric-md`/`numeric-xl`) + unit · + button                       | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                                                                                  |
+| `RestTimer`        | Ring · `numeric-hero` countdown · −15s / +15s / Skip                                 | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                                                                              |
+| `LiveWorkoutBar`   | Exercise name · elapsed · rest countdown                                             | Floating above tab bar on every screen while a session runs; tap to return                                                                                                                        |
+| `MacroSummary`     | Calorie ring + three macro bars (P, C, F) with value / target                        | Fixed order P, C, F; values always visible                                                                                                                                                        |
+| `MealSlotCard`     | Slot name · kcal total · food rows · Add                                             | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                                                                                 |
+| `FoodRow`          | Name · serving · kcal · P/C/F mini values                                            | Tap to edit serving; macro letters in macro text colors                                                                                                                                           |
+| `ExerciseCard`     | Name · muscle tag · set rows · Add set                                               | Collapses to one summary line when done                                                                                                                                                           |
+| `PRBadge`          | `Trophy` + "PR" in `text-primary` on `surface-control`                               | Triggers `motion-celebrate` once when first earned                                                                                                                                                |
+| `OtpInput`         | One cell per digit (56pt tall, `radius-lg`, `surface-control`) over one hidden input | Digits in `numeric-md`; focus = `hairline-strong` border, error = `danger` border plus a message; autofill and paste fill every cell, the last digit submits                                      |
+| `SearchBar`        | 44pt `surface-control` field · magnifier · clear button                              | Shown only when there is something to search; filters the local list as you type; no results is an `EmptyState`, not a blank list                                                                 |
+| `SegmentedControl` | `surface-control` track · `surface` pill on the selected option                      | Two to four options in one view (theme); pill slides in `motion-fast`; `haptic-tick` on change; use `Chip`s for filters, `ListRow` pickers beyond four options                                    |
+| `Skeleton`         | `surface-control` blocks shaped like the content, pulsing opacity                    | First load only (the list's rows, 48pt); still under Reduce Motion; never for a spinner-length wait or for errors                                                                                 |
+| `NumberFlow`       | Tabular digits that roll to a new value                                              | `motion-slow`; Reduce Motion swaps digits; the value sets the text style (`numeric-*`), the unit is separate                                                                                      |
+| `StatTile`         | `overline` label · `numeric-lg` value + unit · change vs last period                 | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                       |
+| `EmptyState`       | Phosphor icon (48pt, `text-muted`) · one line · one primary action                   | Never more than one sentence                                                                                                                                                                      |
+| `SwipeRow`         | Row content · actions revealed on a left swipe                                       | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet |
+| `ListSection`      | `overline` label · `surface` card of rows with inset hairlines                       | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
 
 ### Accessibility (all components)
 
@@ -409,7 +438,7 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 
 ## Patterns
 
-Four core flows, each built only from the components above.
+Four core flows and the onboarding flow, each built only from the components above.
 
 ### Workout logging (Active mode)
 
@@ -444,21 +473,30 @@ Rules: recent foods are one tap away; serving units follow the food (g, ml, piec
 - Progress photos in a private grid; compare two dates side by side.
 - Trends use the smoothed weight chart; changes are reported neutrally, never in red or green.
 
+### Onboarding (account first)
+
+The person signs in before being asked anything, then answers one question per screen until the required steps are done (`pendingOnboardingSteps`, derived from the profile; no stored flag).
+
+1. Sign-in is the email screen (email field, one primary Send code button, social buttons below), then the code screen (six `OTPField` boxes on `surface-control`, `radius-md`, tabular figures). The sixth digit submits; paste fills all six; a wrong code clears the boxes and shows a `danger` message; Send a new code is a secondary button with a 60 s countdown.
+2. Each question screen has, top to bottom: a segmented progress bar (one `radius-full` segment per required step, filled `foreground`, the rest `surface-control`), the question as `title-xl` ("What should we call you?"), one `body` line in `text-muted`, one field, and the screen's one primary Continue.
+3. On a phone the field sits near the top and Continue sits above the keyboard (keyboard-avoiding, never behind it). On web the form is one centred column of `max-w-sm`.
+4. No skip and no back link: a pending required step is the only way into the app. A new step is a new row in the registry and a new screen; existing accounts meet it on their next launch.
+
 ## Implementation
 
 One token file is the source of truth; a build step writes two adapters, one in HeroUI Native's variable names and one in coss / shadcn names. Both libraries theme with Tailwind v4 CSS variables, so the mapping is mostly renaming.
 
 ### Repo shape
 
-| Path                                            | Role                                                                                                                         |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `packages/ui/src/tokens/brand.ts`               | Every role from this doc with `light` and `dark` values, the shared Vermillion-only colors, the type scale, radius and fonts |
-| `packages/ui/src/tokens/to-web-css.ts`          | `webTokenSources`: coss / shadcn name -> role; writes `src/styles/tokens.css`                                                |
-| `packages/ui/src/tokens/to-native-css.ts`       | `nativeTokenSources`: HeroUI Native name -> role, depth shadows, Inter font tokens; writes `src/styles/native-tokens.css`    |
-| `packages/ui/src/styles/globals.css`            | Web radius steps, `numeric` utility, Inter features on `body`                                                                |
-| `packages/ui/src/components`                    | coss ui components, restyled to this doc (flat cards, text-only destructive, field fills, neutral selection)                 |
-| `apps/native/global.css`                        | Imports `native-tokens.css` after `heroui-native/styles`                                                                     |
-| `apps/native/src/platform/ui/{button,card}.tsx` | HeroUI `Button` and `Card` in Vermillion shape; screens import these, not HeroUI's                                           |
+| Path                                      | Role                                                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/ui/src/tokens/brand.ts`         | Every role from this doc with `light` and `dark` values, the shared Vermillion-only colors, the type scale, radius and fonts                                                                                                                                                 |
+| `packages/ui/src/tokens/to-web-css.ts`    | `webTokenSources`: coss / shadcn name -> role; writes `src/styles/tokens.css`                                                                                                                                                                                                |
+| `packages/ui/src/tokens/to-native-css.ts` | `nativeTokenSources`: HeroUI Native name -> role, depth shadows, Inter font tokens; writes `src/styles/native-tokens.css`                                                                                                                                                    |
+| `packages/ui/src/styles/globals.css`      | Web radius steps, `numeric` utility, Inter features on `body`                                                                                                                                                                                                                |
+| `packages/ui/src/components`              | coss ui components, restyled to this doc (flat cards, text-only destructive, field fills, neutral selection)                                                                                                                                                                 |
+| `apps/native/global.css`                  | Imports `native-tokens.css` after `heroui-native/styles`                                                                                                                                                                                                                     |
+| `apps/native/src/platform/ui/`            | HeroUI `Button` and `Card` in Vermillion shape (import these, not HeroUI's), plus components copied in from PanelUI and Reacticx and restyled to tokens (ADR 0030): `Field`, `OtpInput`, `SearchBar`, `Skeleton`, `EmptyState`, `SegmentedControl`, `NumberFlow`, `StatTile` |
 
 After editing `brand.ts`, regenerate and commit the CSS (a test fails if they drift):
 
@@ -501,6 +539,17 @@ Radius: web `--radius` is 12px, and `globals.css` sets `rounded-xs` 4, `rounded-
 Fonts: web loads `@fontsource-variable/inter/opsz.css` (variable, with the optical-size axis); native loads Inter 400/500/600/700 from `@expo-google-fonts/inter` before hiding the splash screen. Inter Display on native is still open (see Verify on device).
 
 Icons: `@phosphor-icons/react` on web (also in `packages/ui`, set as the shadcn `iconLibrary`), `phosphor-react-native` on native.
+
+### Email
+
+`packages/email` renders transactional mail with React Email. Its theme (`src/theme/tokens.ts`) imports the role values from `brand.ts`, so a rebrand needs no edit there. Email clients know neither CSS variables nor our font, so the values are inlined as hex.
+
+- Light first. Page background `canvas`; the content sits in one flat card: `surface` with a 1px `hairline`, `radius` 16, no shadow, no accent hue. Text is `text-primary` for titles, `text-secondary` for body and `text-muted` for hints and the footer.
+- Type is Inter with the system UI font as fallback, on the `title-lg`, `body`, `label` and `caption` scale. The app name is the wordmark above the card and comes from `app.config.ts`.
+- The sign-in and change-email code is one text node in `numeric-xl` tabular figures with wide letter spacing, centred in a `radius-md` box on `surface-control`. Code emails carry no links. The subject starts with the code ("123456 is your {app} code") so lock-screen previews show it.
+- The one link email (account deletion) has a single primary button, `action` fill and `on-action` text, with the URL repeated below as plain text.
+- Dark: a `prefers-color-scheme: dark` block (plus the Outlook.com `data-ogsc` selectors) swaps in the dark role values through `m-*` classes. Apple Mail honours it; clients that ignore it show the light email.
+- Copy lives in the i18n package (`emails__*`), English and German, rendered in the recipient's saved language.
 
 ## Do's and don'ts
 

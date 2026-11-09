@@ -12,11 +12,11 @@ describe("server translations", () => {
     for (const key of keys("en")) expect(key).toMatch(/^[a-z]+__[a-z_]+$/);
   });
   it("translates, interpolates and falls back to English", () => {
-    expect(getT("de")("emails__verification_action")).toBe("E-Mail bestätigen");
-    expect(getT("en")("emails__verification_subject", { app: "Acme" })).toBe(
-      "Verify your email for Acme",
+    expect(getT("de")("emails__deletion_action")).toBe("Mein Konto löschen");
+    expect(getT("en")("emails__sign_in_code_subject", { app: "Acme", code: "123456" })).toBe(
+      "123456 is your Acme code",
     );
-    expect(getT("fr")("emails__verification_action")).toBe("Verify email");
+    expect(getT("fr")("emails__deletion_action")).toBe("Delete my account");
   });
   it("pluralises", () => {
     expect(getT("en")("emails__link_expiry", { count: 1 })).toBe("This link expires in 1 hour.");

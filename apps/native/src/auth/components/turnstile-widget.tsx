@@ -2,7 +2,7 @@ import { TURNSTILE_ACTION } from "@workspace/shared";
 import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
-import { useUniwind } from "uniwind";
+import { useThemeMode } from "@/platform/theme";
 import { z } from "zod";
 
 import { env } from "@/platform/env";
@@ -66,10 +66,9 @@ export function TurnstileWidget({
   resetKey: number;
   onToken: (token: string | null) => void;
 }) {
-  const { theme } = useUniwind();
+  const resolvedTheme = useThemeMode();
   const [height, setHeight] = useState(70);
   const baseUrl = new URL(env.EXPO_PUBLIC_SERVER_URL).origin;
-  const resolvedTheme = theme === "dark" ? "dark" : "light";
   const html = useMemo(() => widgetHtml(siteKey, resolvedTheme), [siteKey, resolvedTheme]);
 
   const onMessage = useCallback(

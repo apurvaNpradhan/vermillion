@@ -1,10 +1,8 @@
-import { randomInt, randomUUID } from "node:crypto";
+import { createHash, randomInt, randomUUID } from "node:crypto";
 
 import pg from "pg";
 
 import { services } from "../prerequisites";
-
-const PASSWORD = "correct-horse-battery";
 
 export type TestUser = { userId: string; email: string; cookie: string };
 
@@ -21,7 +19,7 @@ function cookieHeader(response: Response): string {
 }
 
 /**
- * Auth endpoints are rate limited per client IP (5 sign-ups a minute). The dev server trusts
+ * Auth endpoints are rate limited per client IP. The dev server trusts
  * loopback proxies, so each test user presents its own address in X-Forwarded-For.
  */
 async function auth(path: string, body: Record<string, string>, ip: string): Promise<Response> {
@@ -37,24 +35,33 @@ async function auth(path: string, body: Record<string, string>, ip: string): Pro
 }
 
 /**
- * A new account through the real auth API: sign-up, then sign-in for the session cookie.
- * Seam 3 has no mail inbox, so the verification email is not clicked; the address is
- * marked verified in the database, the one shortcut. Every test makes its own users,
+ * A new account through the real code request and redemption endpoints.
+ * Seam 3 has no mail inbox, so the issued verification hash is replaced with a known
+ * code hash in SQL, the one shortcut. Every test makes its own users,
  * which is how seam 3 isolates data in the shared database PowerSync replicates from.
  */
 export async function createUser(): Promise<TestUser> {
   const email = `sync-${randomUUID()}@example.com`;
   const ip = `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
-  const signUp = await auth("sign-up/email", { email, password: PASSWORD, name: "Sync Test" }, ip);
-  if (!signUp.ok) throw new Error(`sign-up failed: ${signUp.status} ${await signUp.text()}`);
+  const requested = await auth("email-otp/send-verification-otp", { email, type: "sign-in" }, ip);
+  if (!requested.ok)
+    throw new Error(`code request failed: ${requested.status} ${await requested.text()}`);
+  const otp = randomInt(100_000, 1_000_000).toString();
+  // Better Auth stores SHA-256 base64url followed by the failed-attempt count.
+  const value = `${createHash("sha256").update(otp).digest("base64url")}:0`;
+  const updated = await database.query(`UPDATE verification SET value = $1 WHERE identifier = $2`, [
+    value,
+    `sign-in-otp-${email}`,
+  ]);
+  if (updated.rowCount !== 1) throw new Error("the requested code is not in the test database");
+  const signIn = await auth("sign-in/email-otp", { email, otp, name: "Sync Test" }, ip);
+  if (!signIn.ok) throw new Error(`sign-in failed: ${signIn.status} ${await signIn.text()}`);
   const { rows } = await database.query<{ id: string }>(
-    `UPDATE "user" SET email_verified = true WHERE email = $1 RETURNING id`,
+    `SELECT id FROM "user" WHERE email = $1 AND email_verified = true`,
     [email],
   );
   const userId = rows[0]?.id;
-  if (!userId) throw new Error("the signed-up user is not in the database the tests read");
-  const signIn = await auth("sign-in/email", { email, password: PASSWORD }, ip);
-  if (!signIn.ok) throw new Error(`sign-in failed: ${signIn.status} ${await signIn.text()}`);
+  if (!userId) throw new Error("the signed-in user is not in the database the tests read");
   return { userId, email, cookie: cookieHeader(signIn) };
 }
 

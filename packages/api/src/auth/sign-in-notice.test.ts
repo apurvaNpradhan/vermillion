@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { CLIENT_IP_HEADER } from "@workspace/shared";
@@ -6,7 +7,7 @@ import {
   cookieFrom,
   createSignedInUser,
   createTestApp,
-  PASSWORD,
+  requestSignInCode,
   type TestApp,
 } from "../platform/testing/harness";
 
@@ -78,7 +79,11 @@ describe("sign-in notices", () => {
     const email = "login-notice@example.com";
     const session = await createSignedInUser(app, email);
     await app.client(session).preferences.update({ locale: "de" });
-    // Drain earlier verification/sign-in work before checking this distinct request.
+    // The sign-up is not announced; only a later sign-in is.
+    await app.rows(
+      sql`update "user" set created_at = now() - interval '1 hour' where email = ${email}`,
+    );
+    // Drain earlier work before checking this distinct request.
     await app.services.background.drain();
     await app.services.jobs.drain(["auth.deliver-email"], 5000);
     app.outbox.length = 0;
@@ -86,11 +91,12 @@ describe("sign-in notices", () => {
       [CLIENT_IP_HEADER]: "203.0.113.42",
       "user-agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0.0.0",
     });
+    const otp = await requestSignInCode(app, email, headers);
     const response = await app.services.auth.handler(
-      new Request("http://localhost:3001/api/auth/sign-in/email", {
+      new Request("http://localhost:3001/api/auth/sign-in/email-otp", {
         method: "POST",
         headers: { ...Object.fromEntries(headers), "content-type": "application/json" },
-        body: JSON.stringify({ email, password: PASSWORD }),
+        body: JSON.stringify({ email, otp }),
       }),
     );
     expect(response.ok).toBe(true);
@@ -100,7 +106,7 @@ describe("sign-in notices", () => {
     expect(notice.text).toContain("203.0.113.42");
     expect(notice.text).toContain("Chrome");
     await expect(
-      app.services.auth.api.signInEmail({ body: { email, password: "wrong-password-123" } }),
+      app.services.auth.api.signInEmailOTP({ body: { email, otp: "000000" } }),
     ).rejects.toThrow();
     await app.services.background.drain();
     await app.services.jobs.drain(["auth.deliver-email"], 5000);

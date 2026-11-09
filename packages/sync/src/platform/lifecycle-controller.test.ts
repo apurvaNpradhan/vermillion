@@ -236,6 +236,33 @@ describe("sync lifecycle", () => {
     expect(phase(s)).toBe("unclaimed");
   });
 
+  it("publishes a new write scope when another tab resets even for the same owner", async () => {
+    const s = setup({ owner: "a" });
+    await s.ready();
+    const oldScope = s.lifecycle.getSnapshot().writeScope;
+    expect(oldScope).not.toBeNull();
+    await s.database.disconnectAndClear();
+    const newScope = await ensureInstallId(s.database);
+    await claimDeviceOwner(s.database, "a");
+    s.channel.deliver();
+    await settle();
+    expect(s.lifecycle.getSnapshot().writeScope).toBe(newScope);
+    expect(newScope).not.toBe(oldScope);
+  });
+
+  it("publishes no write scope during a reset, then a new one for the new owner", async () => {
+    const s = setup({ owner: "a" });
+    await s.ready();
+    const oldScope = s.lifecycle.getSnapshot().writeScope;
+    const scopes: Array<string | null> = [];
+    s.lifecycle.subscribe(() => scopes.push(s.lifecycle.getSnapshot().writeScope));
+    await s.lifecycle.sessionChanged("b");
+    await s.lifecycle.discardAndSwitch();
+    expect(scopes).toContain(null);
+    expect(s.lifecycle.getSnapshot().writeScope).not.toBe(oldScope);
+    expect(s.lifecycle.getSnapshot().writeScope).not.toBeNull();
+  });
+
   it("publishes the pending count and the time it first filled", async () => {
     const s = setup({ owner: "a" });
     await s.ready();

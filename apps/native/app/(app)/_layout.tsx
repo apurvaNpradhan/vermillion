@@ -1,14 +1,15 @@
 import { Tabs } from "expo-router";
 import { GearSix, NotePencil, SunHorizon, type IconProps } from "phosphor-react-native";
 import type { ComponentType } from "react";
-import type { ColorValue } from "react-native";
+import { Dimensions, Easing, type ColorValue } from "react-native";
 
-import { AccountSummary } from "@/account";
 import { useTranslation } from "@/platform/i18n";
 import { TabActionProvider } from "@/platform/navigation/tab-action";
 import { TabBar } from "@/platform/navigation/tab-bar";
 import { isColorString } from "@/platform/theme";
 import { useAccountLocale } from "@/preferences";
+import { useSyncStatus } from "@/sync";
+import { AccountSummary } from "@/account";
 
 // Vermillion icon rules: Phosphor Regular, Fill when selected. The tab bar passes a plain color
 // string; Phosphor does not take React Native's opaque platform colors.
@@ -22,6 +23,9 @@ const tabIcon =
     />
   );
 
+/** Share of the window width a tab page travels while switching. */
+const SLIDE = 0.28;
+
 /**
  * The signed-in tabs. The first two sit on the floating pill; the rest (up to five in all) are
  * in the switcher's menu, in declaration order. Pages draw their own collapsing header.
@@ -29,13 +33,45 @@ const tabIcon =
 export default function AppLayout() {
   const { t } = useTranslation();
   useAccountLocale();
+  const { snapshot } = useSyncStatus();
 
   return (
-    <TabActionProvider>
+    // Reset account-scoped screens and drafts, not the root auth/deep-link state.
+    <TabActionProvider key={snapshot?.writeScope ?? "unclaimed"}>
       <Tabs
-        tabBar={(props) => <TabBar {...props} menuHeader={<AccountSummary />} />}
-        // Instant switches, as in Linear: a cross-fade shows the old page through the new one.
-        screenOptions={{ headerShown: false, animation: "none" }}
+        tabBar={(props) => <TabBar {...props} menuHeader={() => <AccountSummary />} />}
+        // Direction-aware horizontal slide: a tab to the right enters from the right.
+        screenOptions={{
+          headerShown: false,
+          // `progress` is -1 for tabs left of the open one, 0 for it, 1 for tabs to its right.
+          // The page moves about a quarter of the width and fades faster than it moves, so the
+          // two pages do not ghost through each other.
+          sceneStyleInterpolator: ({ current }) => ({
+            sceneStyle: {
+              opacity: current.progress.interpolate({
+                inputRange: [-1, -0.7, 0, 0.7, 1],
+                outputRange: [0, 0, 1, 0, 0],
+              }),
+              transform: [
+                {
+                  translateX: current.progress.interpolate({
+                    inputRange: [-1, 0, 1],
+                    outputRange: [
+                      -SLIDE * Dimensions.get("window").width,
+                      0,
+                      SLIDE * Dimensions.get("window").width,
+                    ],
+                  }),
+                },
+              ],
+            },
+          }),
+          // `motion-page`: 150ms, ease-out; Reduce Motion is honoured by the OS animation scale.
+          transitionSpec: {
+            animation: "timing",
+            config: { duration: 150, easing: Easing.out(Easing.cubic) },
+          },
+        }}
       >
         <Tabs.Screen
           name="index"

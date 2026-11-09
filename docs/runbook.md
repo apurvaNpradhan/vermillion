@@ -62,23 +62,23 @@ Change the value in Dokploy's environment for the server application and redeplo
 
 | Secret                        | Effect                                                                                                                                                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`          | Every session and signed value stops working; everyone signs in again. Signed verification links die. Database-backed password-reset and deletion tokens do not: revoke them explicitly using the procedure below.                                |
+| `BETTER_AUTH_SECRET`          | Every session and signed value stops working; everyone signs in again. Database-backed deletion tokens and sign-in codes do not die: revoke them explicitly using the procedure below.                                                            |
 | `RESEND_API_KEY`              | Takes effect on restart. Queued emails retry with the new key.                                                                                                                                                                                    |
 | `TURNSTILE_SECRET_KEY`        | Takes effect on restart. The site key is public and baked in at build time: change `VITE_TURNSTILE_SITE_KEY` (GitHub variable, then redeploy web) and `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (new native build) together with the widget in Cloudflare. |
 | Google / GitHub OAuth secrets | Takes effect on restart.                                                                                                                                                                                                                          |
 | `DATABASE_URL`                | Change in step with the database service's password.                                                                                                                                                                                              |
 | `CLOUDFLARE_API_TOKEN`        | Roll it in Cloudflare, update the GitHub environment secret, re-run the last deploy.                                                                                                                                                              |
 
-For a compromised auth secret or leaked reset/deletion links, stop the server before rotation. Revoke database-backed tokens and sessions in Postgres, then deploy with the new secret:
+For a compromised auth secret or leaked deletion links or sign-in codes, stop the server before rotation. Revoke database-backed tokens and sessions in Postgres, then deploy with the new secret:
 
 ```sql
 begin;
-delete from verification where identifier like 'reset-password:%' or identifier like 'delete-account-%';
+delete from verification where identifier like 'sign-in-otp-%' or identifier like 'change-email-otp-%' or identifier like 'delete-account-%';
 delete from session;
 commit;
 ```
 
-This deliberately invalidates all outstanding password-reset/deletion confirmations and all sessions. Users must request new links. Never paste token values into incident logs. Also remove pending auth-email outbox rows (`delete from auth_email_outbox`) so stale links are not delivered after restart.
+This deliberately invalidates all outstanding sign-in codes and deletion confirmations and all sessions. Users must request new links. Never paste token values into incident logs. Also remove pending auth-email outbox rows (`delete from auth_email_outbox`) so stale links are not delivered after restart.
 
 ## Close sign-ups
 

@@ -2,6 +2,7 @@ import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { z } from "zod";
 
 import type { rejectedWrites } from "./tables";
+import { readInstallId } from "./install-meta";
 
 export const REJECTED_WRITES_LIMIT = 50;
 
@@ -103,8 +104,12 @@ export async function readRejectedWrite(
 export async function discardRejectedWrite(
   database: Pick<RejectedWritesDatabase, "writeTransaction">,
   id: string,
+  expectedInstallId?: string,
 ): Promise<void> {
-  await database.writeTransaction((tx) =>
-    tx.execute("DELETE FROM rejected_writes WHERE id = ?", [id]),
-  );
+  await database.writeTransaction(async (tx) => {
+    if (expectedInstallId !== undefined && (await readInstallId(tx)) !== expectedInstallId) {
+      throw new Error("The device account changed; reopen the form");
+    }
+    await tx.execute("DELETE FROM rejected_writes WHERE id = ?", [id]);
+  });
 }

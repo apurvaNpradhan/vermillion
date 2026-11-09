@@ -54,7 +54,7 @@ export function SyncBanner() {
               : ""}
           </HeroAlert.Description>
           <View className="mt-2 flex-row">
-            <Button size="sm" onPress={() => router.push("/sign-in")}>
+            <Button size="sm" onPress={() => router.push("/email")}>
               <Button.Label>{t("sync__sign_in")}</Button.Label>
             </Button>
           </View>

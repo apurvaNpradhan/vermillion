@@ -6,8 +6,9 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
+    "rootDir": "..",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../ui/src/tokens/brand.ts"],
   "references": [{ "path": "../i18n" }, { "path": "../shared" }, { "path": "../logger" }]
 }

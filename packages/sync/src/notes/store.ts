@@ -1,13 +1,13 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { toCompilableQuery, wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import { NOTE_BODY_MAX, NOTE_TITLE_MAX } from "@workspace/shared";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
 import { DEVICE_OWNER_ID } from "../platform/device-owner";
 import { drizzleSchema } from "../platform/schema";
-import { deviceOwner } from "../platform/tables";
+import { deviceOwner, installMeta } from "../platform/tables";
 import { notes } from "./tables";
 
 /** Columns of `notes` the server accepts in an upload; the rest are written locally only. */
@@ -81,12 +81,32 @@ const localNoteColumns = {
   updatedAt: notes.updated_at,
 };
 
-/** The list query: newest first by `(updated_at, id)`, which `notes_live_updated_at_idx` serves. */
-export function listNotesQuery(database: NotesDatabase, limit: number) {
+/**
+ * A `LIKE` pattern matching `search` anywhere, with `%`, `_` and the escape character taken
+ * literally. SQLite's `LIKE` ignores ASCII case, so title and body match case-insensitively.
+ */
+function searchPattern(search: string): string {
+  return `%${search.trim().replace(/[\\%_]/g, "\\$&")}%`;
+}
+
+function matchesSearch(search: string | undefined): SQL | undefined {
+  if (search === undefined || search.trim() === "") return undefined;
+  const pattern = searchPattern(search);
+  return or(
+    sql`${notes.title} LIKE ${pattern} ESCAPE '\\'`,
+    sql`${notes.body} LIKE ${pattern} ESCAPE '\\'`,
+  );
+}
+
+/**
+ * The list query: newest first by `(updated_at, id)`, which `notes_live_updated_at_idx` serves.
+ * A non-blank `search` keeps only notes whose title or body contains it.
+ */
+export function listNotesQuery(database: NotesDatabase, limit: number, search?: string) {
   return localNotes(database)
     .select(localNoteColumns)
     .from(notes)
-    .where(isNull(notes.deleted_at))
+    .where(and(isNull(notes.deleted_at), matchesSearch(search)))
     .orderBy(desc(notes.updated_at), desc(notes.id))
     .limit(limit);
 }
@@ -109,8 +129,9 @@ export function watchNotes(
   database: NotesDatabase,
   limit: number,
   handlers: { onPage: (page: NotesPage) => void; onError: (error: Error) => void },
+  search?: string,
 ): () => void {
-  const drizzleQuery = listNotesQuery(database, limit + 1);
+  const drizzleQuery = listNotesQuery(database, limit + 1, search);
   const compilable = toCompilableQuery(drizzleQuery);
   const watched = database
     .customQuery<LocalNote>({
@@ -152,6 +173,24 @@ export function watchNotes(
   };
 }
 
+/** Watches how many live notes the device holds (tombstones excluded). */
+export function watchNotesCount(
+  database: NotesDatabase,
+  handlers: { onCount: (total: number) => void; onError: (error: Error) => void },
+): () => void {
+  const controller = new AbortController();
+  const db = localNotes(database);
+  db.watch(
+    db.select({ total: count() }).from(notes).where(isNull(notes.deleted_at)),
+    {
+      onResult: (rows) => handlers.onCount(rows[0]?.total ?? 0),
+      onError: handlers.onError,
+    },
+    { signal: controller.signal, tables: ["notes"] },
+  );
+  return () => controller.abort();
+}
+
 /** Watches one live note: the row, or `null` once it is gone (deleted here or elsewhere). */
 export function watchNote(
   database: NotesDatabase,
@@ -182,6 +221,24 @@ export function watchNote(
   return () => controller.abort();
 }
 
+/**
+ * UI writers capture this identity before editing. Check under the same SQLite write lock as
+ * the mutation, so a reset in another tab cannot transfer an old submission to the new owner.
+ * Unscoped calls are for lower-level stores/tests; app hooks always supply their captured scope.
+ */
+export async function assertNotesWriteScope(
+  tx: NotesTx,
+  expectedInstallId?: string,
+): Promise<void> {
+  if (expectedInstallId === undefined) return;
+  const [install] = await tx
+    .select({ id: installMeta.id })
+    .from(installMeta)
+    .where(eq(installMeta.install_id, expectedInstallId))
+    .limit(1);
+  if (!install) throw new Error("The device account changed; reopen the form");
+}
+
 /** Inserts a note with a fresh UUIDv7 for the Device owner; shared by create and retry. */
 export async function insertNote(tx: NotesTx, input: NoteValues): Promise<string> {
   const [owner] = await tx
@@ -205,9 +262,16 @@ export async function insertNote(tx: NotesTx, input: NoteValues): Promise<string
 }
 
 /** Creates a note locally with a client UUIDv7; it uploads as a PUT. */
-export async function createNote(database: NotesDatabase, input: NoteValues): Promise<string> {
+export async function createNote(
+  database: NotesDatabase,
+  input: NoteValues,
+  expectedInstallId?: string,
+): Promise<string> {
   if (!isValidNote(input)) throw new Error("Note is empty or over the length limits");
-  return localNotes(database).transaction((tx) => insertNote(tx, input));
+  return localNotes(database).transaction(async (tx) => {
+    await assertNotesWriteScope(tx, expectedInstallId);
+    return insertNote(tx, input);
+  });
 }
 
 /**
@@ -238,6 +302,7 @@ export async function updateNote(
   database: NotesDatabase,
   id: string,
   patch: NotePatch,
+  expectedInstallId?: string,
 ): Promise<boolean> {
   if (patch.title !== undefined && !titleSchema.safeParse(patch.title).success) {
     throw new Error("Title is empty or over the length limit");
@@ -245,13 +310,23 @@ export async function updateNote(
   if (patch.body !== undefined && !bodySchema.safeParse(patch.body).success) {
     throw new Error("Body is over the length limit");
   }
-  return localNotes(database).transaction((tx) => patchNote(tx, id, patch));
+  return localNotes(database).transaction(async (tx) => {
+    await assertNotesWriteScope(tx, expectedInstallId);
+    return patchNote(tx, id, patch);
+  });
 }
 
 /**
  * Deletes a note. Locally the row goes; the upload is a DELETE, which the server turns into a
  * tombstone (ADR 0019) and the stream then removes everywhere else.
  */
-export async function deleteNote(database: NotesDatabase, id: string): Promise<void> {
-  await localNotes(database).delete(notes).where(eq(notes.id, id));
+export async function deleteNote(
+  database: NotesDatabase,
+  id: string,
+  expectedInstallId?: string,
+): Promise<void> {
+  await localNotes(database).transaction(async (tx) => {
+    await assertNotesWriteScope(tx, expectedInstallId);
+    await tx.delete(notes).where(eq(notes.id, id));
+  });
 }

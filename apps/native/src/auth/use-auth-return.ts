@@ -8,8 +8,8 @@ import {
 
 import { appConfig } from "@/platform/app-config";
 
-/** Protected stacks discard signed-out routes; keep the incoming destination until login completes. */
-export function useAuthReturn(signedIn: boolean) {
+/** Protected stacks discard signed-out routes; keep the incoming destination until login and onboarding complete. */
+export function useAuthReturn(signedIn: boolean, appReady: boolean) {
   const router = useRouter();
   const [pending, setPending] = useState<ReturnType<typeof nativeReturnLocation>>(null);
   useEffect(() => {
@@ -33,9 +33,9 @@ export function useAuthReturn(signedIn: boolean) {
     return () => subscription.remove();
   }, [signedIn]);
   useEffect(() => {
-    if (signedIn && pending) {
+    if (signedIn && appReady && pending) {
       setPending(null);
       router.replace(pending);
     }
-  }, [signedIn, pending, router]);
+  }, [signedIn, appReady, pending, router]);
 }

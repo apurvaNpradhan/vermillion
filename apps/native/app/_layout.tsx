@@ -9,6 +9,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import { pendingOnboardingSteps } from "@workspace/shared";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -22,9 +23,10 @@ import {
   useSession,
   useSignedOut,
 } from "@/auth";
+import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 import { AppProviders } from "@/platform/providers";
 import { useDeviceOwner } from "@/sync";
-import { applyStoredTheme } from "@/platform/theme";
+import { applyStoredTheme, useThemeMode } from "@/platform/theme";
 
 void SplashScreen.preventAutoHideAsync();
 // Before the first render, so the saved theme never flashes.
@@ -43,7 +45,6 @@ function RootStack() {
     Inter_700Bold,
   });
   const signedOut = useSignedOut();
-  useAuthReturn(Boolean(session));
   // Any session (a sign-in, or one restored on start) ends an explicit sign-out.
   useEffect(() => {
     if (session) setSignedOut(false);
@@ -52,13 +53,19 @@ function RootStack() {
   // A device that holds a user's data opens without waiting for the session (ADR 0021).
   const guards = routeGuards(
     toSessionState({
-      session: { isPending: sessionPending, hasSession: Boolean(session) },
+      session: {
+        isPending: sessionPending,
+        hasSession: Boolean(session),
+        needsOnboarding: session ? pendingOnboardingSteps(session.user).length > 0 : false,
+      },
       owner,
       signedOut,
     }),
   );
   // A font that fails to load falls back to the system font rather than blocking the app.
   const isPending = guards === null || (!fontsLoaded && !fontError);
+  // Keep the destination until onboarding is complete and the protected stack is mounted.
+  useAuthReturn(Boolean(session), !isPending && guards?.app === true);
 
   useEffect(() => {
     if (!isPending) void SplashScreen.hideAsync();
@@ -66,15 +73,16 @@ function RootStack() {
 
   if (isPending) return null;
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={STACK_OPTIONS}>
       <Stack.Protected guard={guards.app}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={guards.auth}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      {/* Opened by the link in the reset email, signed in or not. */}
-      <Stack.Screen name="reset-password" />
+      <Stack.Protected guard={guards.onboarding}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
       {/* Opened by the link in the deletion email. */}
       <Stack.Screen name="account-deleted" />
       <Stack.Screen name="confirm-deletion" />
@@ -82,10 +90,15 @@ function RootStack() {
   );
 }
 
+function ThemedStatusBar() {
+  const mode = useThemeMode();
+  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+}
+
 export default function Layout() {
   return (
     <AppProviders>
-      <StatusBar style="auto" />
+      <ThemedStatusBar />
       <RootStack />
     </AppProviders>
   );

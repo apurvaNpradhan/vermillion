@@ -1,4 +1,4 @@
-import { Alert } from "react-native";
+import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 
@@ -11,16 +11,30 @@ import { useSyncStatus } from "./use-sync-status";
 export function useSignOutConfirmation(signOut: () => void) {
   const { t } = useTranslation();
   const { countUnsent } = useSyncStatus();
-  return async () => {
+  const [unsentCount, setUnsentCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const requestSignOut = async () => {
     // If the queue cannot be read the user still gets to sign out; nothing is wiped either way.
     const count = await countUnsent().catch(() => 0);
     if (count === 0) {
       signOut();
       return;
     }
-    Alert.alert(t("sync__sign_out_title"), t("sync__sign_out_body", { count }), [
-      { text: t("common__cancel"), style: "cancel" },
-      { text: t("nav__sign_out"), onPress: signOut },
-    ]);
+    setUnsentCount(count);
+    setIsOpen(true);
+  };
+
+  return {
+    requestSignOut,
+    confirmationProps: {
+      isOpen,
+      onOpenChange: setIsOpen,
+      title: t("sync__sign_out_title"),
+      description: t("sync__sign_out_body", { count: unsentCount }),
+      cancelLabel: t("common__cancel"),
+      confirmLabel: t("nav__sign_out"),
+      onConfirm: signOut,
+    },
   };
 }

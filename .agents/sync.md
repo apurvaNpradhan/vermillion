@@ -15,7 +15,8 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 ## Rules
 
 - Streams list columns explicitly, never `*`, and filter `user_id = auth.user_id()`. Never trust a client `user_id`; handlers use the session user.
-- Synced tables: UUIDv7 `id` made on the client, `user_id` with cascade, `deleted_at` soft delete. Streams exclude deleted rows; the purge job hard-deletes after 120 days.
+- Synced tables: UUIDv7 `id` made on the client, `user_id` with cascade, `deleted_at` soft delete. Streams exclude deleted rows; the purge job hard-deletes content after 120 days but atomically keeps minimal deleted-id/owner markers until account deletion, so a late PUT cannot resurrect a purged row.
+- App writes carry the install-id `writeScope` captured by their hook; check it inside the SQLite write transaction. The web sync provider and native app-tabs boundary remount account-scoped UI when that identity changes across tabs.
 - Forms send dirty fields only (changed since edit start), never the live row. Same-field conflicts: server application order. Use `startDraft`/`draftPatch`/`applyLatest` from `@workspace/sync`; a note deleted under an open form offers save-as-new or discard. Rejected writes are retried (new local transaction) or discarded by the user, never expired. Manual checks: [walkthrough](../docs/guides/sync-ux-walkthrough.md).
 - Order for a new table: additive migration (table, `ALTER PUBLICATION powersync ADD TABLE`, `GRANT SELECT` to `powersync_replication`), then the stream in `sync-config.yaml`, then clients. A stream before its publication entry breaks replication.
 - Handlers are registered in `registry.ts`; an unregistered table is rejected. Limits are validated before work.

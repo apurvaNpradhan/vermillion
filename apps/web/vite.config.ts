@@ -2,15 +2,27 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
 import { appConfig } from "../../app.config.ts";
 import { offlineShell } from "./vite/offline-shell.ts";
 
-export default defineConfig(({ command }) => ({
+/** Extra hostnames for `server.allowedHosts`, from DEV_PUBLIC_HOSTS in apps/web/.env. */
+function devPublicHosts(mode: string): string[] {
+  return (
+    loadEnv(mode, import.meta.dirname, "DEV_PUBLIC_HOSTS")
+      .DEV_PUBLIC_HOSTS?.split(",")
+      .map((host) => host.trim())
+      .filter(Boolean) ?? []
+  );
+}
+
+export default defineConfig(({ command, mode }) => ({
   server: {
     port: appConfig.ports.web,
     strictPort: true,
+    // A tunnel (pnpm dev:tunnel) forwards a public hostname; Vite refuses unknown Host headers.
+    allowedHosts: devPublicHosts(mode),
     // Same origin as production: Cloudflare routes /api and /rpc to the server there,
     // the dev server does it here. Cookies stay host-only and no CORS is needed.
     proxy: {

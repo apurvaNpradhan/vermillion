@@ -40,7 +40,7 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
             <Button.Label>{t("settings__delete_action")}</Button.Label>
           </Button>
         ) : (
-          <Link href="/sign-in" asChild>
+          <Link href="/" asChild>
             <Button>
               <Button.Label>{t("nav__sign_in")}</Button.Label>
             </Button>

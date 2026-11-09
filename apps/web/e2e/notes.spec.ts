@@ -58,6 +58,36 @@ test.describe("notes (example vertical)", () => {
     await other.close();
   });
 
+  test("switching accounts in another tab clears an unsaved draft", async ({ page }) => {
+    await registerVerifiedUser(page);
+    await page.goto("/notes");
+    await page.getByLabel("Title").fill("Account A private draft");
+    await page.getByLabel("Body").fill("Do not copy this into account B");
+
+    // Tabs share cookies, OPFS and the worker, but not React form state.
+    const other = await page.context().newPage();
+    try {
+      await other.goto("/app");
+      await other.getByRole("button", { name: "Account menu" }).click();
+      await other.getByRole("menuitem", { name: "Sign out" }).click();
+      await expect(other).toHaveURL(/\/$/);
+      await registerVerifiedUser(other);
+      await other.getByRole("button", { name: "Discard and switch", exact: true }).click();
+      const confirmation = other.getByRole("alertdialog");
+      await confirmation.getByRole("button", { name: "Discard and switch", exact: true }).click();
+      await expect(confirmation).not.toBeVisible();
+
+      // The untouched first tab must reset its form, not just read the new account's rows.
+      await expect(page.getByLabel("Title")).toHaveValue("");
+      await expect(page.getByLabel("Body")).toHaveValue("");
+      await expect(page.getByRole("button", { name: "Add note" })).toBeDisabled();
+      await other.goto("/notes");
+      await expect(other.getByTestId("note")).toHaveCount(0);
+    } finally {
+      await other.close();
+    }
+  });
+
   test("the notes page needs a signed-in user", async ({ page }) => {
     await page.goto("/notes");
     await expect(page).toHaveURL(/\/login/);

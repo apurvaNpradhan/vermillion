@@ -11,7 +11,7 @@ const client = app.client(headers); // app.client() with no headers is anonymous
 const note = await client.notes.create({ title: "x", body: "" });
 ```
 
-`platform/testing/harness.ts` exports `createTestApp(options)` (`app`, `services`, a router `client(headers)` factory, an `outbox` of rendered emails, `rows(sql)` for asserting on stored data and `waitForEmail`), plus `createSignedInUser`, `signIn`, `linkIn` (first link in an email) and `cookieFrom`. Options override config (`registrationOpen`, `adminEmails`, `turnstileSecret`, ...), replace `fetch` and make email sends fail.
+`platform/testing/harness.ts` exports `createTestApp(options)` (`app`, `services`, a router `client(headers)` factory, an `outbox` of rendered emails, `rows(sql)` for asserting on stored data and `waitForEmail`), plus `createSignedInUser`, `signIn` (request a code, read it from the outbox, redeem it), `requestSignInCode`, `codeIn` (the code in a code email), `linkIn` (first link in an email) and `cookieFrom`. Options override config (`registrationOpen`, `adminEmails`, `turnstileSecret`, ...), replace `fetch` and make email sends fail.
 
 ## Rules
 

@@ -27,6 +27,13 @@
       "computedHash": "00ad2639d2da50af9922c0f61c2315564bbe6b29cb02d421f042db105fd11a03",
       "wellKnownDigest": "sha256:b23d47912c43ca0ef77c001186fcefe57133d5872124c368881e1424ae4b9836"
     },
+    "code-review": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review/SKILL.md",
+      "computedHash": "f0604d278cfd4eac4dac29eb297a5c6b6ebfb9f020235e8aafbe2eff0e42a147",
+      "installMode": "copy"
+    },
     "coss": {
       "source": "cosscom/coss",
       "sourceType": "github",

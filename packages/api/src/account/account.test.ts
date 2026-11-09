@@ -6,7 +6,6 @@ import {
   createTestApp,
   linkIn,
   signIn,
-  PASSWORD,
   type TestApp,
 } from "../platform/testing/harness";
 
@@ -66,7 +65,10 @@ describe("account deletion", () => {
     await expect(app.client(otherSession).account.me()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
-    await expect(signIn(app, email)).rejects.toThrow();
+    // The address is free again: signing in with it starts a new, empty account.
+    const again = await signIn(app, email);
+    expect((await app.client(again).account.me()).id).not.toBe(userId);
+    expect(await count("user_preferences", userId)).toBe(0);
 
     // The cleanup job was queued and ran to completion.
     await expect.poll(cleanupJobStates, { timeout: 10_000 }).toContain("completed");
@@ -154,13 +156,5 @@ describe("account deletion", () => {
     const client = app.client(await createSignedInUser(app, "rename@example.com"));
     await client.account.updateProfile({ name: "Ada Lovelace" });
     expect((await client.account.me()).name).toBe("Ada Lovelace");
-  });
-
-  it("keeps the password sign-in working for other accounts", async () => {
-    const response = await app.services.auth.api.signInEmail({
-      body: { email: "rename@example.com", password: PASSWORD },
-      asResponse: true,
-    });
-    expect(response.ok).toBe(true);
   });
 });

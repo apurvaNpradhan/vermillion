@@ -17,6 +17,14 @@ describe("native brand tokens", () => {
     expect(css).toContain(`--accent: ${brandTokens.colors.dark.action};`);
   });
 
+  it("fills only the built-in light and dark variants, with the Classic palette", () => {
+    const css = toNativeCss();
+    const names = [...css.matchAll(/@variant ([\w-]+) \{/g)].map((match) => match[1]);
+    expect(names).toEqual(["light", "dark"]);
+    expect(css).toContain(`--background: ${brandTokens.colors.light.canvas};`);
+    expect(css).toContain(`--background: ${brandTokens.colors.dark.canvas};`);
+  });
+
   it("keeps cards flat in light mode", () => {
     expect(toNativeCss()).toContain("--surface-shadow: 0 0 0 0 transparent inset;");
   });

@@ -5,25 +5,11 @@ export const MAX_TABS = 5;
 
 /**
  * Splits the tab routes, in declaration order, into the ones on the pill and the ones in the
- * switcher's menu. Routes past `MAX_TABS` are dropped: the menu is a short list, not a drawer.
+ * menu. Routes past `MAX_TABS` are dropped: the menu is a short list, not a drawer.
  */
 export function tabSlots<T>(routes: readonly T[], directCount = DIRECT_TAB_COUNT) {
   const kept = routes.slice(0, MAX_TABS);
   return { direct: kept.slice(0, directCount), overflow: kept.slice(directCount) };
-}
-
-/**
- * The menu route the switcher shows: the open one when it is in the menu, otherwise the one
- * last opened from it, otherwise the first. `null` when the menu is empty.
- */
-export function switcherRoute(
-  overflow: readonly string[],
-  activeName: string,
-  lastOverflow: string | null,
-): string | null {
-  if (overflow.includes(activeName)) return activeName;
-  if (lastOverflow !== null && overflow.includes(lastOverflow)) return lastOverflow;
-  return overflow[0] ?? null;
 }
 
 /**

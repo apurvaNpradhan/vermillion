@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
+import { ensureInstallId } from "../platform/install-meta";
 import { createNote, deleteNote, listNotesQuery, updateNote, type NotesDatabase } from "./store";
 
 async function setup() {
@@ -68,6 +69,55 @@ describe("notes store", () => {
     expect(params).toEqual([3]);
     expect((await query).map((note) => note.title)).toEqual(["c", "b", "a"]);
     // The live read itself (watch, stop, table scoping) runs on real PowerSync in tests/sync.
+  });
+
+  it("searches title and body case-insensitively, taking wildcards literally", async () => {
+    const s = await setup();
+    await createNote(s.notes, { title: "Leg Day", body: "squats" });
+    await createNote(s.notes, { title: "Groceries", body: "100% oat milk" });
+    await createNote(s.notes, { title: "Plan", body: "snake_case" });
+    const titles = async (search: string) =>
+      (await listNotesQuery(s.notes, 10, search)).map((note) => note.title).sort();
+
+    expect(await titles("leg")).toEqual(["Leg Day"]);
+    expect(await titles("SQUATS")).toEqual(["Leg Day"]);
+    expect(await titles("100%")).toEqual(["Groceries"]);
+    expect(await titles("e_c")).toEqual(["Plan"]);
+    expect(await titles("%")).toEqual(["Groceries"]);
+    expect(await titles("nothing")).toEqual([]);
+    expect(await titles("   ")).toHaveLength(3);
+  });
+
+  it("refuses stale create, edit and delete callbacks after another tab switches accounts", async () => {
+    const s = await setup();
+    const oldScope = await ensureInstallId(s.database);
+    const staleCreate = () => createNote(s.notes, { title: "Private draft", body: "" }, oldScope);
+
+    // Another tab resets the shared database and claims it for a different account.
+    await s.database.disconnectAndClear();
+    const newScope = await ensureInstallId(s.database);
+    await claimDeviceOwner(s.database, "other");
+    const id = await createNote(s.notes, { title: "Other account", body: "keep" }, newScope);
+
+    await expect(staleCreate()).rejects.toThrow("account changed");
+    await expect(updateNote(s.notes, id, { title: "stale" }, oldScope)).rejects.toThrow(
+      "account changed",
+    );
+    await expect(deleteNote(s.notes, id, oldScope)).rejects.toThrow("account changed");
+    expect(await listNotesQuery(s.notes, 10)).toMatchObject([
+      { id, title: "Other account", body: "keep" },
+    ]);
+  });
+
+  it("invalidates drafts even when the same owner claims a reset database", async () => {
+    const s = await setup();
+    const oldScope = await ensureInstallId(s.database);
+    await s.database.disconnectAndClear();
+    await ensureInstallId(s.database);
+    await claimDeviceOwner(s.database, "owner");
+    await expect(
+      createNote(s.notes, { title: "Before reset", body: "" }, oldScope),
+    ).rejects.toThrow("account changed");
   });
 
   it("refuses values over the limits", async () => {

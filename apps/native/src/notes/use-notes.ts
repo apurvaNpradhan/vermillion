@@ -5,6 +5,7 @@ import {
   updateNote,
   watchNote,
   watchNotes,
+  watchNotesCount,
   type LocalNote,
   type NotePatch,
   type NotesDatabase,
@@ -30,21 +31,38 @@ export function useNotes() {
   const { toast } = useToast();
   const local = useLocalData();
   const { snapshot } = useSyncStatus();
+  const writeScope = snapshot?.writeScope ?? "";
   const database = local?.status === "ready" ? local.database : null;
   const [limit, setLimit] = useState(NOTES_PAGE_SIZE);
   const [page, setPage] = useState<NotesPage | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [search, setSearch] = useState("");
+  // Whether the device holds any notes at all; only the unfiltered list can tell.
+  const [hasAny, setHasAny] = useState(false);
+  const query = search.trim();
+
+  // A new query starts from the first page again.
+  const changeSearch = useCallback((next: string) => {
+    setSearch(next);
+    setLimit(NOTES_PAGE_SIZE);
+  }, []);
 
   useEffect(() => {
     if (!database) return;
-    return watchNotes(database, limit, {
-      onPage: (next) => {
-        setLoadFailed(false);
-        setPage(next);
+    return watchNotes(
+      database,
+      limit,
+      {
+        onPage: (next) => {
+          setLoadFailed(false);
+          setPage(next);
+          if (query === "") setHasAny(next.notes.length > 0);
+        },
+        onError: () => setLoadFailed(true),
       },
-      onError: () => setLoadFailed(true),
-    });
-  }, [database, limit]);
+      query,
+    );
+  }, [database, limit, query]);
 
   const write = useCallback(
     async (action: (db: NotesDatabase) => Promise<void | string | boolean>) => {
@@ -63,23 +81,23 @@ export function useNotes() {
   const loadMore = useCallback(() => setLimit((current) => current + NOTES_PAGE_SIZE), []);
   const create = useCallback(
     async (input: { title: string; body: string }) => {
-      await write((db) => createNote(db, input));
+      await write((db) => createNote(db, input, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
   /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
   const update = useCallback(
     async (input: { id: string } & NotePatch) => {
       const { id, ...patch } = input;
-      await write((db) => updateNote(db, id, patch));
+      await write((db) => updateNote(db, id, patch, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
   const remove = useCallback(
     async (id: string) => {
-      await write((db) => deleteNote(db, id));
+      await write((db) => deleteNote(db, id, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
 
   // A delete waits for its toast to go: the row is hidden at once and only removed if the user
@@ -137,12 +155,30 @@ export function useNotes() {
       !snapshot.hasSynced &&
       snapshot.indicator !== "paused" &&
       snapshot.lockReason === null,
+    search,
+    setSearch: changeSearch,
+    /** Whether any note exists, so search is worth showing (not just matches for the query). */
+    hasAnyNotes: hasAny || (query === "" ? visible.length > 0 : false),
     hasMore: page?.hasMore ?? false,
     loadMore,
     create,
     update,
     removeWithUndo,
   };
+}
+
+/** How many notes the device holds, live; `null` until the first read. */
+export function useNotesCount(): number | null {
+  const local = useLocalData();
+  const database = local?.status === "ready" ? local.database : null;
+  const [total, setTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!database) return;
+    return watchNotesCount(database, { onCount: setTotal, onError: () => undefined });
+  }, [database]);
+
+  return total;
 }
 
 /**

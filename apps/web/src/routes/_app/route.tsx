@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 
+import { requireOnboarded } from "@/onboarding";
 import { applyAccountLocale } from "@/preferences";
 import { AppLayout } from "@/shell";
 import { SyncBanner, SyncProvider, requireDeviceOwner } from "@/sync";
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/_app")({
   ssr: false,
   beforeLoad: async (args) => {
     const { session } = await requireDeviceOwner(args);
+    requireOnboarded({ session, location: args.location });
     // The saved language comes from the server. Without a session, or when the server does not
     // answer promptly (offline), the device language stands and the app opens anyway.
     if (session) {

@@ -16,17 +16,18 @@ export type EmailTransportConfig = {
   isProduction: boolean;
 };
 
-/** First line format is stable so tests and e2e can parse the link out of the log. */
+/** First line format is stable so tests and e2e can parse the code or link out of the log. */
 export const LOG_EMAIL_MARKER = "[email]";
 
 /** Development transport: prints the plain-text email to the server log. */
 export function createLogTransport(): EmailTransport {
   return {
     async send(email) {
+      // Subject and body can carry a sign-in code or a link, so the structured log only says that
+      // a message was logged; the readable marker line below is the development convenience.
       log.info({
         action: "email.logged",
         to: email.to,
-        subject: email.subject,
       });
       console.info(
         `${LOG_EMAIL_MARKER} to=${email.to} subject=${JSON.stringify(email.subject)}\n${email.text}`,

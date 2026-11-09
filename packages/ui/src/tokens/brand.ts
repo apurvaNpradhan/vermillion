@@ -30,6 +30,13 @@ export const roleNames = [
   "text-secondary",
   "text-muted",
   "text-disabled",
+  // Identity is separate from actions, data and status. Classic remains neutral.
+  "identity",
+  "identity-soft",
+  /** Icon and label color on an `identity` fill. */
+  "on-identity",
+  "brand-detail",
+  "focus-ring",
   // Primary action: the brightest thing on screen, no hue.
   "action",
   "action-hover",
@@ -68,6 +75,11 @@ const dark: RoleTokens = {
   "text-secondary": "#CDCDCF",
   "text-muted": "#9C9C9F",
   "text-disabled": "#6A6B6E",
+  identity: "#F4F4F6",
+  "identity-soft": "#1C1D20",
+  "on-identity": "#07080A",
+  "brand-detail": "#F4F4F6",
+  "focus-ring": "#393B3F",
   action: "#E6E6E6",
   "action-hover": "#FFFFFF",
   "action-pressed": "#CDCECE",
@@ -100,6 +112,11 @@ const light: RoleTokens = {
   "text-secondary": "#3C3D42",
   "text-muted": "#65666C",
   "text-disabled": "#A3A4AA",
+  identity: "#111214",
+  "identity-soft": "#ECECEF",
+  "on-identity": "#FFFFFF",
+  "brand-detail": "#111214",
+  "focus-ring": "#C9C9CF",
   action: "#111214",
   "action-hover": "#2A2B2F",
   "action-pressed": "#000000",
@@ -127,6 +144,11 @@ const light: RoleTokens = {
  */
 export const sharedTokenSources = {
   subtle: "text-secondary",
+  identity: "identity",
+  "identity-soft": "identity-soft",
+  "on-identity": "on-identity",
+  "brand-detail": "brand-detail",
+  "focus-ring": "focus-ring",
   protein: "protein",
   "protein-text": "protein-text",
   carbs: "carbs",
@@ -148,6 +170,7 @@ export interface TextStyle {
  * (`numeric` on web, `tabular-nums` on native).
  */
 export const typeScale = {
+  "title-display": { size: 42, lineHeight: 48, tracking: -1, weight: 600 },
   "title-xl": { size: 28, lineHeight: 34, tracking: -0.3, weight: 600 },
   "title-lg": { size: 22, lineHeight: 28, tracking: -0.2, weight: 600 },
   "title-md": { size: 18, lineHeight: 24, tracking: -0.1, weight: 600 },

@@ -1,10 +1,15 @@
 import { expo } from "@better-auth/expo";
+import { passkey } from "@better-auth/passkey";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import type { Database } from "@workspace/db";
 import { uuidv7 } from "@workspace/db/columns";
 import * as schema from "@workspace/db/schema/auth";
 import {
   CLIENT_IP_HEADER,
+  OTP_ALLOWED_ATTEMPTS,
+  OTP_EXPIRY_SECONDS,
+  OTP_LENGTH,
+  isAndroidOrigin,
   readCookie,
   LOCALE_COOKIE,
   resolveLocale,
@@ -16,7 +21,7 @@ import {
 import { eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import { admin as adminPlugin, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
 import { z } from "zod";
 
 import { isAdminRole, syncAdminRole } from "./admin-allowlist";
@@ -34,6 +39,12 @@ export {
   reconcileAdminRoles,
   syncAdminRole,
 } from "./admin-allowlist";
+// Re-exported so the declaration of `createAuth` can name the passkey plugin's WebAuthn types.
+export type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/server";
 export { isDisposableEmail } from "./disposable-email";
 export { assertStrongSecret } from "./secret";
 export { TURNSTILE_ACTION, verifyTurnstile, type TurnstileResult } from "./turnstile";
@@ -54,6 +65,11 @@ export type AuthOptions = {
   /** Deep-link scheme of the native app, without "://". */
   appScheme: string;
   nativePort: number;
+  /**
+   * WebAuthn relying party. `origins` is the complete list a ceremony may come from (web origins
+   * and `android:apk-key-hash:` origins); the request cannot add to it.
+   */
+  passkey: { rpId: string; rpName: string; origins: readonly string[] };
   registrationOpen: boolean;
   adminEmails: readonly string[];
   turnstileSecret?: string | undefined;
@@ -69,11 +85,26 @@ export type AuthOptions = {
   fetch?: typeof fetch;
 };
 
-const CAPTCHA_PATHS = new Set([
-  "/sign-up/email",
-  "/sign-in/email",
-  "/request-password-reset",
-  "/sign-in/social",
+const SEND_CODE_PATH = "/email-otp/send-verification-otp";
+const REQUEST_EMAIL_CHANGE_PATH = "/email-otp/request-email-change";
+const CHANGE_EMAIL_PATH = "/email-otp/change-email";
+
+/** An account this young was created by the sign-in that is being reported. */
+const NEW_ACCOUNT_MS = 30_000;
+
+/** A code is requested here, so the CAPTCHA runs before one is sent. Social starts at initiation. */
+const CAPTCHA_PATHS = new Set([SEND_CODE_PATH, "/sign-in/social"]);
+
+/**
+ * Parts of the email-OTP plugin we do not use. Sign-in codes are the only kind a person can ask
+ * for, so the verify-email, check and password-reset endpoints stay closed.
+ */
+const DISABLED_OTP_PATHS = new Set([
+  "/email-otp/verify-email",
+  "/email-otp/check-verification-otp",
+  "/email-otp/request-password-reset",
+  "/email-otp/reset-password",
+  "/forget-password/email-otp",
 ]);
 
 /** Admin endpoints that would grant roles or act as another user. Admins come from ADMIN_EMAILS only. */
@@ -110,6 +141,15 @@ export function createAuth(options: AuthOptions) {
   const registrationAllowed = (email: string) =>
     options.registrationOpen || admins.includes(email.trim().toLowerCase());
 
+  function assertNotDisposable(email: string) {
+    if (isDisposableEmail(email)) {
+      throw new APIError("BAD_REQUEST", {
+        code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
+        message: "Email addresses from disposable providers are not allowed.",
+      });
+    }
+  }
+
   function assertMayRegister(email: string) {
     if (!registrationAllowed(email)) {
       throw new APIError("FORBIDDEN", {
@@ -117,12 +157,7 @@ export function createAuth(options: AuthOptions) {
         message: "Registration is currently closed.",
       });
     }
-    if (isDisposableEmail(email)) {
-      throw new APIError("BAD_REQUEST", {
-        code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
-        message: "Email addresses from disposable providers are not allowed.",
-      });
-    }
+    assertNotDisposable(email);
   }
 
   return betterAuth({
@@ -133,69 +168,11 @@ export function createAuth(options: AuthOptions) {
       origin.origin,
       `${options.appScheme}://`,
       ...(options.isProduction ? [] : ["exp://", `http://localhost:${options.nativePort}`]),
+      // Other web origins of the app (a dev tunnel, a preview host). Android origins are not
+      // HTTP origins: the passkey plugin checks them against `passkey.origins` instead.
+      ...options.passkey.origins.filter((entry) => !isAndroidOrigin(entry)),
     ],
-    emailAndPassword: {
-      enabled: true,
-      // Unverified accounts cannot sign in. This also makes sign-up answer
-      // existing and new addresses identically (see `onExistingUserSignUp`).
-      requireEmailVerification: true,
-      autoSignIn: false,
-      // Match the admin plugin defaults, not the existing account’s role/ban state.
-      customSyntheticUser: ({ coreFields, id }) => ({
-        ...coreFields,
-        id,
-        role: "user",
-        banned: false,
-        banReason: null,
-        banExpires: null,
-      }),
-      minPasswordLength: 10,
-      maxPasswordLength: 128,
-      resetPasswordTokenExpiresIn: 60 * 60,
-      revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }, request) => {
-        notify({ kind: "reset-password", userId: user.id, url, request: requestDetails(request) });
-      },
-      onPasswordReset: async ({ user }, request) => {
-        notify({ kind: "security-notice", userId: user.id, request: requestDetails(request) });
-      },
-      onExistingUserSignUp: async ({ user }, request) => {
-        notify({
-          kind: "existing-account",
-          userId: user.id,
-          url: `${origin.origin}/login`,
-          request: requestDetails(request),
-        });
-      },
-    },
-    emailVerification: {
-      sendOnSignUp: true,
-      sendOnSignIn: true,
-      autoSignInAfterVerification: true,
-      expiresIn: 60 * 60,
-      sendVerificationEmail: async ({ user, url }, request) => {
-        notify({
-          kind: "verification",
-          userId: user.id,
-          to: user.email,
-          url,
-          request: requestDetails(request),
-        });
-      },
-    },
     user: {
-      changeEmail: {
-        enabled: true,
-        sendChangeEmailConfirmation: async ({ user, newEmail, url }, request) => {
-          notify({
-            kind: "change-email",
-            userId: user.id,
-            url,
-            newEmail,
-            request: requestDetails(request),
-          });
-        },
-      },
       deleteUser: {
         enabled: true,
         deleteTokenExpiresIn: 60 * 60,
@@ -234,6 +211,44 @@ export function createAuth(options: AuthOptions) {
     plugins: [
       expo(),
       lastLoginMethod(),
+      // Passkeys sign in an existing account and are added from a signed-in session (fresh,
+      // the plugin default); they never create accounts. See ADR 0032.
+      passkey({
+        rpID: options.passkey.rpId,
+        rpName: options.passkey.rpName,
+        origin: [...options.passkey.origins],
+      }),
+      // Email codes are the only way in besides social providers (ADR 0029). Every new address
+      // gets a code and every code is redeemed through sign-in, so the answer is the same
+      // whether or not the account exists, and the account is created verified on first redeem.
+      emailOTP({
+        otpLength: OTP_LENGTH,
+        expiresIn: OTP_EXPIRY_SECONDS,
+        allowedAttempts: OTP_ALLOWED_ATTEMPTS,
+        // The database never holds a usable code, and "send again" replaces the old one.
+        storeOTP: "hashed",
+        resendStrategy: "rotate",
+        // The code goes to the new address; the current session is the proof of the old one.
+        changeEmail: { enabled: true, verifyCurrentEmail: false },
+        sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+          const request = requestDetails(ctx?.request);
+          if (type === "sign-in") {
+            const existing = await ctx?.context.internalAdapter.findUserByEmail(email);
+            notify({
+              kind: "sign-in-code",
+              to: email,
+              otp,
+              request,
+              ...(existing ? { userId: existing.user.id } : {}),
+            });
+            return;
+          }
+          if (type === "change-email") {
+            const userId = ctx?.context.session?.user.id;
+            if (userId) notify({ kind: "change-email-code", userId, to: email, otp, request });
+          }
+        },
+      }),
       adminPlugin({ defaultRole: "user", adminRoles: ["admin"] }),
       // Tokens for the PowerSync client only (ADR 0017). The session stays the
       // credential for the API; `disableSettingJwtHeader` keeps tokens out of
@@ -265,14 +280,15 @@ export function createAuth(options: AuthOptions) {
       window: 10,
       max: 100,
       customRules: {
-        "/sign-up/email": { window: 60, max: 5 },
-        "/sign-in/email": { window: 60, max: 10 },
-        "/request-password-reset": { window: 60, max: 3 },
-        "/reset-password": { window: 60, max: 5 },
-        "/send-verification-email": { window: 60, max: 3 },
-        "/change-email": { window: 60, max: 3 },
+        [SEND_CODE_PATH]: { window: 60, max: 3 },
+        "/sign-in/email-otp": { window: 60, max: 10 },
+        [REQUEST_EMAIL_CHANGE_PATH]: { window: 60, max: 3 },
+        [CHANGE_EMAIL_PATH]: { window: 60, max: 3 },
         "/delete-user": { window: 60, max: 3 },
         "/sign-in/social": { window: 60, max: 10 },
+        "/passkey/generate-authenticate-options": { window: 60, max: 20 },
+        "/passkey/verify-authentication": { window: 60, max: 10 },
+        "/passkey/verify-registration": { window: 60, max: 10 },
       },
     },
     databaseHooks: {
@@ -314,13 +330,35 @@ export function createAuth(options: AuthOptions) {
         const session = ctx.context.newSession;
         if (
           session &&
-          (ctx.path === "/sign-in/email" ||
+          (ctx.path === "/sign-in/email-otp" ||
+            ctx.path === "/passkey/verify-authentication" ||
             ctx.path.startsWith("/callback/") ||
             ctx.path === "/sign-in/social")
         ) {
+          // The first code of a new account is the sign-up itself, not news to its owner.
+          const signedUp =
+            ctx.path === "/sign-in/email-otp" &&
+            Date.now() - session.user.createdAt.getTime() < NEW_ACCOUNT_MS;
+          if (!signedUp) {
+            notify({
+              kind: "sign-in-notice",
+              userId: session.user.id,
+              request: requestDetails(ctx.request),
+            });
+          }
+        }
+        // The old address learns the change happened; the session still describes it. The plugin
+        // has replaced the address by now, so the job is told where to send it.
+        const previous = ctx.context.session?.user;
+        if (
+          ctx.path === CHANGE_EMAIL_PATH &&
+          previous &&
+          !(ctx.context.returned instanceof APIError)
+        ) {
           notify({
-            kind: "sign-in-notice",
-            userId: session.user.id,
+            kind: "security-notice",
+            userId: previous.id,
+            to: previous.email,
             request: requestDetails(ctx.request),
           });
         }
@@ -354,21 +392,31 @@ export function createAuth(options: AuthOptions) {
           }
         }
 
-        const signUpEmail = z.string().safeParse(ctx.body?.email);
+        if (DISABLED_OTP_PATHS.has(ctx.path)) {
+          throw new APIError("NOT_FOUND", { message: "Not found" });
+        }
+
+        const email = z.string().safeParse(ctx.body?.email);
         const newEmail = z.string().safeParse(ctx.body?.newEmail);
 
-        // The same answer for every address of that kind, so these checks reveal
-        // nothing about which accounts exist.
-        if (ctx.path === "/sign-up/email" && signUpEmail.success) {
-          assertMayRegister(signUpEmail.data);
-        }
-        if (ctx.path === "/change-email" && newEmail.success) {
-          if (isDisposableEmail(newEmail.data)) {
-            throw new APIError("BAD_REQUEST", {
-              code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
-              message: "Email addresses from disposable providers are not allowed.",
-            });
+        if (ctx.path === SEND_CODE_PATH && email.success) {
+          // Only sign-in codes can be asked for; the other kinds are for flows we do not run.
+          if (ctx.body?.type !== "sign-in") {
+            throw new APIError("BAD_REQUEST", { message: "Invalid code type." });
           }
+          // Same answer for every address ...
+          assertNotDisposable(email.data);
+          // ... except while registration is closed, when an unknown address is refused up front
+          // instead of being sent a code that could never be redeemed.
+          if (!registrationAllowed(email.data)) {
+            const existing = await ctx.context.internalAdapter.findUserByEmail(
+              email.data.trim().toLowerCase(),
+            );
+            if (!existing) assertMayRegister(email.data);
+          }
+        }
+        if (ctx.path === REQUEST_EMAIL_CHANGE_PATH && newEmail.success) {
+          assertNotDisposable(newEmail.data);
         }
 
         // Better Auth's admin remove-user skips `deleteUser.beforeDelete`, so the

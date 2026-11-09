@@ -14,33 +14,34 @@ import { readLastLoginMethod, rememberLoginMethod } from "../last-login-method";
 import { useRegistrationStatus } from "../use-registration-status";
 import { Button } from "@/platform/ui/button";
 
-import { AuthDivider } from "./auth-layout";
-
 const PROVIDERS = ["google", "github"] as const;
 type Provider = (typeof PROVIDERS)[number];
 const PROVIDER_ICONS = { google: GoogleLogo, github: GithubLogo } as const;
 
 /**
- * One button per social provider the server has configured, then the divider to the email form;
- * nothing when none is.
+ * One secondary button per social provider the server has configured; nothing when none is.
+ * Where the screen's one primary action is "Continue with email", they stay secondary.
  */
 export function SocialButtons({
   headers,
   blocked,
   onDone,
+  pill = false,
 }: {
   headers: Record<string, string>;
   /** True while a required CAPTCHA is unsolved. */
   blocked: boolean;
   /** Called once the provider flow has finished (the token is spent either way). */
   onDone: () => void;
+  /** Full-width dark primary pills (the welcome screen) instead of secondary buttons. */
+  pill?: boolean;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const status = useRegistrationStatus();
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState<Provider | null>(null);
-  const foreground = useThemeColor("foreground");
+  const [foreground, onAccent] = useThemeColor(["foreground", "accent-foreground"]);
   const enabled = PROVIDERS.filter((provider) => status?.providers[provider]);
   if (enabled.length === 0) return null;
   const lastUsed = readLastLoginMethod();
@@ -53,8 +54,8 @@ export function SocialButtons({
         return (
           <Button
             key={provider}
-            variant="secondary"
-            className="h-13 rounded-xl"
+            variant={pill ? "primary" : "secondary"}
+            className={pill ? "h-14 rounded-full" : "h-13 rounded-xl"}
             isDisabled={blocked || pending !== null}
             onPress={async () => {
               setPending(provider);
@@ -80,8 +81,8 @@ export function SocialButtons({
               }
             }}
           >
-            <Icon size={18} color={foreground} weight="bold" />
-            <Button.Label>
+            <Icon size={18} color={pill ? onAccent : foreground} weight="bold" />
+            <Button.Label className={pill ? "text-body-lg font-semibold" : undefined}>
               {t(provider === "google" ? "auth__provider_google" : "auth__provider_github")}
             </Button.Label>
             {lastUsed === provider ? (
@@ -92,9 +93,6 @@ export function SocialButtons({
           </Button>
         );
       })}
-      <View className="pt-2">
-        <AuthDivider label={t("auth__or_email")} />
-      </View>
     </View>
   );
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { parseRejectedWrite, type RejectedWrite } from "../platform/rejected-writes";
 import { rejectedWrites } from "../platform/tables";
 import {
+  assertNotesWriteScope,
   insertNote,
   isValidNote,
   localNotes,
@@ -75,8 +76,11 @@ export async function retryRejectedNote(
   database: NotesDatabase,
   id: string,
   values: NoteValues,
+  baseline: NoteValues = values,
+  expectedInstallId?: string,
 ): Promise<RetryResult> {
   return localNotes(database).transaction(async (tx): Promise<RetryResult> => {
+    await assertNotesWriteScope(tx, expectedInstallId);
     const [row] = await tx.select().from(rejectedWrites).where(eq(rejectedWrites.id, id)).limit(1);
     if (!row) return "gone";
     const write = parseRejectedWrite(row);
@@ -85,14 +89,19 @@ export async function retryRejectedNote(
       await tx.delete(notes).where(eq(notes.id, write.rowId));
     } else {
       if (!isValidNote(values)) return "invalid";
-      result = await replay(tx, write, values);
+      result = await replay(tx, write, values, baseline);
     }
     await tx.delete(rejectedWrites).where(eq(rejectedWrites.id, id));
     return result;
   });
 }
 
-async function replay(tx: NotesTx, write: RejectedWrite, values: NoteValues): Promise<RetryResult> {
+async function replay(
+  tx: NotesTx,
+  write: RejectedWrite,
+  values: NoteValues,
+  baseline: NoteValues,
+): Promise<RetryResult> {
   if (write.op === "PATCH") {
     const [exists] = await tx
       .select({ id: notes.id })
@@ -100,7 +109,17 @@ async function replay(tx: NotesTx, write: RejectedWrite, values: NoteValues): Pr
       .where(and(eq(notes.id, write.rowId), isNull(notes.deleted_at)))
       .limit(1);
     if (exists) {
-      await patchNote(tx, write.rowId, values);
+      const rejected = rejectedNoteFields(write);
+      // Preserve the original intent, plus fields edited in this retry form. A field only
+      // displayed as context must not overwrite a newer value replicated while it was open.
+      await patchNote(tx, write.rowId, {
+        ...(rejected?.title !== undefined || values.title !== baseline.title
+          ? { title: values.title }
+          : {}),
+        ...(rejected?.body !== undefined || values.body !== baseline.body
+          ? { body: values.body }
+          : {}),
+      });
       return "retried";
     }
     await insertNote(tx, values);

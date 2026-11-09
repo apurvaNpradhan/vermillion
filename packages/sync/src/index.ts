@@ -19,6 +19,7 @@ export {
   updateNote,
   watchNote,
   watchNotes,
+  watchNotesCount,
 } from "./notes";
 export type {
   LocalNote,

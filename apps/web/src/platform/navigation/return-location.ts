@@ -4,7 +4,7 @@ import { z } from "zod";
 export const DEFAULT_RETURN_LOCATION = "/app";
 
 /** Pages that must never be a return target: returning there would loop or confuse. */
-const AUTH_PATHS = new Set(["/login", "/sign-up", "/forgot-password", "/reset-password"]);
+const AUTH_PATHS = new Set(["/login", "/verify-code", "/onboarding"]);
 
 /** Router search params are parsed JSON at runtime, so `raw` may not be a string at all. */
 const rawLocationSchema = z.string().min(1).max(2048);

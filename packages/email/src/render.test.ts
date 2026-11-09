@@ -4,16 +4,9 @@ import { sendEmail, type EmailInput, type RenderedEmail } from "./index";
 
 const base = { to: "ada@example.com", name: "Ada", appName: "Acme", locale: "en" as const };
 const inputs: EmailInput[] = [
-  { ...base, template: "verification", url: "https://app.example.com/verify?t=1" },
-  { ...base, template: "reset-password", url: "https://app.example.com/reset?t=1" },
-  {
-    ...base,
-    template: "change-email",
-    url: "https://app.example.com/change?t=1",
-    newEmail: "new@example.com",
-  },
+  { ...base, template: "sign-in-code", otp: "482913" },
+  { ...base, template: "change-email-code", otp: "730256" },
   { ...base, template: "delete-account", url: "https://app.example.com/delete?t=1" },
-  { ...base, template: "existing-account", url: "https://app.example.com/login" },
   { ...base, template: "security-notice" },
   { ...base, template: "sign-in-notice" },
 ];
@@ -30,25 +23,69 @@ describe("email templates", () => {
     expect(email.to).toBe("ada@example.com");
     expect(email.subject.length).toBeGreaterThan(0);
     expect(email.html).toContain("<html");
+    expect(email.text.length).toBeGreaterThan(0);
     if ("url" in input) expect(email.text).toContain(input.url);
+    if ("otp" in input) expect(email.text).toContain(input.otp);
   });
 
-  it("does not tell users to ignore a successful sign-in they do not recognize", async () => {
+  it("puts the code and the app name in the subject, in the recipient's language", async () => {
+    const en = await render({ ...base, template: "sign-in-code", otp: "482913" });
+    expect(en.subject).toBe("482913 is your Acme code");
+    const de = await render({ ...base, template: "sign-in-code", otp: "482913", locale: "de" });
+    expect(de.subject).toBe("482913 ist dein Acme-Code");
+    expect(de.html).toContain('lang="de"');
+    expect(de.text).toContain("Dieser Code läuft in 5 Minuten ab.");
+  });
+
+  it("says how long the code works", async () => {
+    const email = await render({ ...base, template: "change-email-code", otp: "730256" });
+    expect(email.text).toContain("This code expires in 5 minutes.");
+    expect(email.subject).toBe("730256 confirms your new Acme email");
+  });
+
+  it("tells an existing account that the code signs it in", async () => {
+    const known = await render({
+      ...base,
+      template: "sign-in-code",
+      otp: "482913",
+      existingAccount: true,
+    });
+    const unknown = await render({ ...base, template: "sign-in-code", otp: "482913" });
+    expect(known.text).toContain("already has an account");
+    expect(unknown.text).not.toContain("already has an account");
+  });
+
+  it("sends codes without any link", async () => {
+    for (const template of ["sign-in-code", "change-email-code"] as const) {
+      const email = await render({ ...base, template, otp: "482913" });
+      expect(email.text).not.toMatch(/https?:\/\//);
+      expect(email.html).not.toMatch(/<a\s/);
+    }
+  });
+
+  it("carries the dark scheme and the brand fonts", async () => {
+    const email = await render({ ...base, template: "sign-in-code", otp: "482913" });
+    expect(email.html).toContain("prefers-color-scheme: dark");
+    expect(email.html).toContain("Inter");
+  });
+
+  it("uses the primary button for the one link email", async () => {
+    const email = await render(inputs[2]!);
+    expect(email.html).toContain('href="https://app.example.com/delete?t=1"');
+    expect(email.text).toContain("Delete my account");
+  });
+
+  it("does not tell users to ignore a sign-in they do not recognize", async () => {
     const email = await render({ ...base, template: "sign-in-notice" });
-    expect(email.text).toContain("reset your password");
+    expect(email.text).toContain("If this was not you");
     expect(email.text).not.toContain("you can ignore");
-  });
-
-  it("renders in the recipient's language", async () => {
-    const email = await render({ ...inputs[0]!, locale: "de" });
-    expect(email.subject).toBe("Bestätige deine E-Mail-Adresse für Acme");
-    expect(email.html).toContain('lang="de"');
-    expect(email.text).toContain("E-Mail bestätigen");
   });
 
   it("states where the request came from", async () => {
     const email = await render({
-      ...inputs[1]!,
+      ...base,
+      template: "sign-in-code",
+      otp: "482913",
       request: {
         ip: "203.0.113.9",
         browser: "Firefox",

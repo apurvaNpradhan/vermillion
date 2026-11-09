@@ -8,7 +8,7 @@ function inputs(
   signedOut = false,
 ): SessionInputs {
   return {
-    session: { isPending: false, hasSession: false, ...session },
+    session: { isPending: false, hasSession: false, needsOnboarding: false, ...session },
     owner: { isPending: false, hasOwner: false, ...owner },
     signedOut,
   };
@@ -34,6 +34,23 @@ describe("toSessionState", () => {
     });
   });
 
+  it("sends a session with a pending required step to onboarding", () => {
+    expect(toSessionState(inputs({ hasSession: true, needsOnboarding: true }))).toEqual({
+      status: "onboarding",
+    });
+    // Even with a kept Device owner: the account must be complete first.
+    expect(
+      toSessionState(inputs({ hasSession: true, needsOnboarding: true }, { hasOwner: true })),
+    ).toEqual({ status: "onboarding" });
+  });
+
+  it("never forces onboarding on a device owner without a session", () => {
+    expect(toSessionState(inputs({ needsOnboarding: true }, { hasOwner: true }))).toEqual({
+      status: "owner-only",
+    });
+    expect(toSessionState(inputs({ needsOnboarding: true }))).toEqual({ status: "signed-out" });
+  });
+
   it("opens on the welcome screen after an explicit sign-out, data kept", () => {
     expect(toSessionState(inputs({}, { hasOwner: true }, true))).toEqual({ status: "signed-out" });
     // A stale flag never hides a live session.
@@ -53,11 +70,31 @@ describe("routeGuards", () => {
   });
 
   it("keeps the app and auth groups apart for a known session", () => {
-    expect(routeGuards({ status: "signed-out" })).toEqual({ app: false, auth: true });
-    expect(routeGuards({ status: "signed-in" })).toEqual({ app: true, auth: false });
+    expect(routeGuards({ status: "signed-out" })).toEqual({
+      app: false,
+      auth: true,
+      onboarding: false,
+    });
+    expect(routeGuards({ status: "signed-in" })).toEqual({
+      app: true,
+      auth: false,
+      onboarding: false,
+    });
+  });
+
+  it("opens only onboarding while a required step is pending", () => {
+    expect(routeGuards({ status: "onboarding" })).toEqual({
+      app: false,
+      auth: false,
+      onboarding: true,
+    });
   });
 
   it("lets an owner without a session reach both, for the sign-in banner", () => {
-    expect(routeGuards({ status: "owner-only" })).toEqual({ app: true, auth: true });
+    expect(routeGuards({ status: "owner-only" })).toEqual({
+      app: true,
+      auth: true,
+      onboarding: false,
+    });
   });
 });

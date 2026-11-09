@@ -46,7 +46,7 @@ export function RejectedNotes() {
                 initial={editing.initial}
                 submitLabel={t("sync__rejected_send")}
                 onSubmit={async (values) => {
-                  await retry(write.id, values);
+                  await retry(write.id, values, editing.initial);
                   setEditing(null);
                 }}
                 onCancel={() => setEditing(null)}

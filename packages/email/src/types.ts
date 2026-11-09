@@ -21,13 +21,11 @@ type Base = {
 /** Every email the template sends. Add a variant here, a template, and copy in the i18n package. */
 export type EmailInput = Base &
   (
-    | { template: "verification"; url: string }
-    | { template: "reset-password"; url: string }
-    | { template: "change-email"; url: string; newEmail: string }
+    | { template: "sign-in-code"; otp: string; existingAccount?: boolean }
+    | { template: "change-email-code"; otp: string }
     | { template: "delete-account"; url: string }
     | { template: "security-notice" }
     | { template: "sign-in-notice" }
-    | { template: "existing-account"; url: string }
   );
 
 export type RenderedEmail = { to: string; subject: string; html: string; text: string };

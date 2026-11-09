@@ -7,8 +7,6 @@ import {
   CardPanel,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { Field, FieldLabel } from "@workspace/ui/components/field";
-import { Input } from "@workspace/ui/components/input";
 import { toastManager } from "@workspace/ui/components/toast";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -18,6 +16,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useUpdateProfile } from "../use-account-actions";
 
 import { useCurrentUser } from "../use-current-user";
+import { ChangeEmail } from "./change-email";
 
 export function ProfileSection() {
   const { t } = useTranslation();
@@ -44,10 +43,10 @@ export function ProfileSection() {
         <CardTitle render={<h2 />}>{t("settings__profile_title")}</CardTitle>
         <CardDescription>{t("settings__profile_hint")}</CardDescription>
       </CardHeader>
-      <CardPanel>
+      <CardPanel className="flex max-w-sm flex-col gap-4">
         <form
           noValidate
-          className="flex max-w-sm flex-col gap-4"
+          className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
@@ -58,10 +57,6 @@ export function ProfileSection() {
               <TextField field={field} label={t("settings__profile_name")} autoComplete="name" />
             )}
           </form.Field>
-          <Field>
-            <FieldLabel>{t("auth__email")}</FieldLabel>
-            <Input value={user?.email ?? ""} readOnly disabled />
-          </Field>
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
               <Button type="submit" className="self-start" loading={isSubmitting}>
@@ -70,6 +65,8 @@ export function ProfileSection() {
             )}
           </form.Subscribe>
         </form>
+        {/* Outside the form: it has its own steps and forms. */}
+        <ChangeEmail email={user?.email ?? ""} />
       </CardPanel>
     </Card>
   );

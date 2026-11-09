@@ -1,7 +1,7 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { LocalNote } from "@workspace/sync";
-import { Alert, Spinner, useThemeColor } from "heroui-native";
-import { NotePencil, Plus } from "phosphor-react-native";
+import { Alert } from "heroui-native";
+import { MagnifyingGlass, NotePencil, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
@@ -10,7 +10,10 @@ import Animated from "react-native-reanimated";
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
 import { ActionSheet } from "@/platform/ui/action-sheet";
+import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
+import { SearchBar } from "@/platform/ui/search-bar";
+import { SkeletonList } from "@/platform/ui/skeleton";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner, SyncStatusLine } from "@/sync";
 
@@ -29,12 +32,14 @@ const ListScrollView = Animated.createAnimatedComponent(GestureScrollView);
  */
 export function NotesScreen() {
   const { t } = useTranslation();
-  const muted = useThemeColor("muted");
   const {
     notes,
     isLoading,
     loadFailed,
     isFirstSync,
+    search,
+    setSearch,
+    hasAnyNotes,
     hasMore,
     loadMore,
     create,
@@ -56,17 +61,22 @@ export function NotesScreen() {
 
   const openNote = useCallback((note: LocalNote) => setSheet({ kind: "edit", note }), []);
 
-  const empty = loadFailed ? null : isLoading ? (
-    <View className="items-center py-12" accessibilityLabel={t("common__loading")}>
-      <Spinner />
+  const searching = search.trim() !== "";
+  const empty = loadFailed ? null : isLoading || (isFirstSync && !searching) ? (
+    <View className="gap-3">
+      <SkeletonList label={t("common__loading")} />
+      {isFirstSync ? (
+        <Text className="text-center text-caption text-muted">{t("notes__first_sync")}</Text>
+      ) : null}
     </View>
+  ) : searching ? (
+    <EmptyState icon={MagnifyingGlass} title={t("notes__search_empty", { query: search.trim() })} />
   ) : (
-    <View className="items-center gap-3 px-6 py-12">
-      <NotePencil size={48} color={muted} />
-      <Text className="text-center text-body text-muted">
-        {isFirstSync ? t("notes__first_sync") : t("notes__empty")}
-      </Text>
-    </View>
+    <EmptyState
+      icon={NotePencil}
+      title={t("notes__empty")}
+      action={{ label: t("notes__new"), onPress: () => setSheet({ kind: "new" }) }}
+    />
   );
 
   return (
@@ -79,6 +89,7 @@ export function NotesScreen() {
             contentContainerClassName="px-4"
             contentContainerStyle={contentContainerStyle}
             accessibilityLabel={t("notes__list_label")}
+            keyboardShouldPersistTaps="handled"
             // Gesture-handler's scroll view, so a vertical scroll that starts on a card wins over
             // the card's swipe instead of being taken by it.
             renderScrollComponent={(props) => <ListScrollView {...props} />}
@@ -93,6 +104,14 @@ export function NotesScreen() {
                 <SyncBanner />
                 <SyncStatusLine />
                 <RejectedNotes />
+                {hasAnyNotes ? (
+                  <SearchBar
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder={t("notes__search_placeholder")}
+                    clearLabel={t("notes__search_clear")}
+                  />
+                ) : null}
                 {loadFailed ? (
                   <Alert status="danger">
                     <Alert.Indicator />
@@ -106,7 +125,7 @@ export function NotesScreen() {
             ListEmptyComponent={empty}
             // LegendList positions rows itself, so the 12pt gap is padding on each row.
             renderItem={({ item: note }) => (
-              <View className="pb-3">
+              <View>
                 <NoteCard
                   note={note}
                   onEdit={openNote}

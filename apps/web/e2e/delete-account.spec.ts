@@ -1,6 +1,6 @@
 import { waitForEmailLink } from "./support/emails";
 import { expect, test } from "./support/fixtures";
-import { PASSWORD, registerVerifiedUser } from "./support/users";
+import { registerVerifiedUser } from "./support/users";
 
 test("a user deletes their account with a typed and an emailed confirmation", async ({ page }) => {
   const { email } = await registerVerifiedUser(page);
@@ -22,11 +22,6 @@ test("a user deletes their account with a typed and an emailed confirmation", as
   await expect(page).toHaveURL(/\/\?account=deleted$/);
   await expect(page.getByText("Your account was deleted and your data removed.")).toBeVisible();
 
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Wrong email or password.");
   await page.goto("/app");
   await expect(page).toHaveURL(/\/login/);
 });

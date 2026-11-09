@@ -51,6 +51,7 @@ export function createServices(options: CreateServicesOptions): Services {
     openApi: config.openApiReference,
     appScheme: config.appScheme,
     nativePort: config.nativePort,
+    passkey: { ...config.passkey, rpName: config.appName },
     registrationOpen: config.registrationOpen,
     adminEmails: config.adminEmails,
     turnstileSecret: config.turnstileSecret,

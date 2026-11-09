@@ -1,15 +1,13 @@
+import { uuidv7 } from "@workspace/db/columns";
+import { user } from "@workspace/db/schema/auth";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-import {
-  createSignedInUser,
-  createTestApp,
-  PASSWORD,
-  type TestApp,
-} from "../platform/testing/harness";
+import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
 
-const signUp = (app: TestApp, email: string, headers?: Headers) =>
-  app.services.auth.api.signUpEmail({
-    body: { email, password: PASSWORD, name: "Someone" },
+/** Asking for a sign-in code is where registration, disposable and CAPTCHA rules apply. */
+const requestCode = (app: TestApp, email: string, headers?: Headers) =>
+  app.services.auth.api.sendVerificationOTP({
+    body: { email, type: "sign-in" },
     ...(headers ? { headers } : {}),
   });
 
@@ -24,30 +22,28 @@ afterAll(async () => {
 });
 
 describe("registration policy", () => {
-  it("accepts sign-ups while registration is open", async () => {
+  it("sends a code to a new address while registration is open", async () => {
     const app = await create();
-    await expect(signUp(app, "open@example.com")).resolves.toBeDefined();
+    await expect(requestCode(app, "open@example.com")).resolves.toEqual({ success: true });
   });
 
-  it("refuses everyone but admin emails when registration is closed", async () => {
+  it("refuses unknown addresses but admin emails and existing accounts when registration is closed", async () => {
     const app = await create({
       config: { registrationOpen: false, adminEmails: ["owner@example.com"] },
     });
-    await expect(signUp(app, "stranger@example.com")).rejects.toMatchObject({
+    await expect(requestCode(app, "stranger@example.com")).rejects.toMatchObject({
       statusCode: 403,
       body: { code: "REGISTRATION_CLOSED" },
     });
     // The owner is never locked out of their own instance.
-    await expect(signUp(app, "owner@example.com")).resolves.toBeDefined();
-    const session = await createSignedInUser(app, "owner2@example.com").catch(() => null);
-    expect(session).toBeNull();
+    await expect(requestCode(app, "owner@example.com")).resolves.toEqual({ success: true });
     await expect(app.client().auth.registrationStatus()).resolves.toEqual({
       open: false,
       providers: { google: false, github: false },
     });
   });
 
-  it("lets an admin email register, verify and sign in while closed", async () => {
+  it("lets an admin email sign in and get the role while closed", async () => {
     const app = await create({
       config: { registrationOpen: false, adminEmails: ["owner@example.com"] },
     });
@@ -55,13 +51,22 @@ describe("registration policy", () => {
     await expect(app.client(session).admin.access()).resolves.toEqual({ admin: true });
   });
 
+  it("keeps existing accounts signing in after registration closes", async () => {
+    const app = await create({ config: { registrationOpen: false } });
+    await app.services.db
+      .insert(user)
+      .values({ id: uuidv7(), email: "member@example.com", name: "Member", emailVerified: true });
+    await expect(requestCode(app, "member@example.com")).resolves.toEqual({ success: true });
+  });
+
   it.each(["x@mailinator.com", "x@sub.mailinator.com", "X@YOPMAIL.COM"])(
-    "rejects the disposable address %s at sign-up",
+    "rejects the disposable address %s before a code is sent",
     async (email) => {
       const app = await create();
-      await expect(signUp(app, email)).rejects.toMatchObject({
+      await expect(requestCode(app, email)).rejects.toMatchObject({
         body: { code: "DISPOSABLE_EMAIL_NOT_ALLOWED" },
       });
+      expect(app.outbox).toHaveLength(0);
     },
   );
 
@@ -69,7 +74,7 @@ describe("registration policy", () => {
     const app = await create();
     const session = await createSignedInUser(app, "changer@example.com");
     await expect(
-      app.services.auth.api.changeEmail({
+      app.services.auth.api.requestEmailChangeEmailOTP({
         headers: session,
         body: { newEmail: "new@mailinator.com" },
       }),
@@ -84,31 +89,19 @@ describe("registration policy", () => {
 
     it("is not required when no secret is configured", async () => {
       const app = await create();
-      await expect(signUp(app, "nocaptcha@example.com")).resolves.toBeDefined();
+      await expect(requestCode(app, "nocaptcha@example.com")).resolves.toBeDefined();
     });
 
-    it("is required on sign-up, sign-in and password reset once a secret is configured", async () => {
+    it("is required before a code is sent once a secret is configured", async () => {
       const fetch = answer(good);
       const app = await create({ config: { turnstileSecret: "secret" }, fetch });
       const token = new Headers({ "x-turnstile-token": "good-token" });
-      await signUp(app, "captcha@example.com", token);
-
-      const captchaFailed = { statusCode: 403, body: { code: "CAPTCHA_FAILED" } };
-      await expect(signUp(app, "nobody@example.com")).rejects.toMatchObject(captchaFailed);
-      await expect(
-        app.services.auth.api.signInEmail({
-          body: { email: "captcha@example.com", password: PASSWORD },
-        }),
-      ).rejects.toMatchObject(captchaFailed);
-      await expect(
-        app.services.auth.api.requestPasswordReset({ body: { email: "captcha@example.com" } }),
-      ).rejects.toMatchObject(captchaFailed);
-      await expect(
-        app.services.auth.api.requestPasswordReset({
-          body: { email: "captcha@example.com" },
-          headers: token,
-        }),
-      ).resolves.toBeDefined();
+      await expect(requestCode(app, "captcha@example.com", token)).resolves.toBeDefined();
+      await expect(requestCode(app, "nobody@example.com")).rejects.toMatchObject({
+        statusCode: 403,
+        body: { code: "CAPTCHA_FAILED" },
+      });
+      expect(app.outbox.some((m) => m.to === "nobody@example.com")).toBe(false);
     });
 
     it.each([
@@ -118,7 +111,7 @@ describe("registration policy", () => {
     ])("rejects a token the provider does not vouch for: %j", async (payload) => {
       const app = await create({ config: { turnstileSecret: "secret" }, fetch: answer(payload) });
       await expect(
-        signUp(app, "bad-token@example.com", new Headers({ "x-turnstile-token": "t" })),
+        requestCode(app, "bad-token@example.com", new Headers({ "x-turnstile-token": "t" })),
       ).rejects.toMatchObject({ body: { code: "CAPTCHA_FAILED" } });
     });
 
@@ -128,14 +121,14 @@ describe("registration policy", () => {
       });
       const app = await create({ config: { turnstileSecret: "secret" }, fetch });
       await expect(
-        signUp(app, "down@example.com", new Headers({ "x-turnstile-token": "t" })),
+        requestCode(app, "down@example.com", new Headers({ "x-turnstile-token": "t" })),
       ).rejects.toMatchObject({ body: { code: "CAPTCHA_FAILED" } });
     });
 
     it("exempts no client: a native app without a token is refused too", async () => {
       const app = await create({ config: { turnstileSecret: "secret" }, fetch: answer(good) });
       const native = new Headers({ "user-agent": "okhttp/4", "expo-origin": "vermillion://" });
-      await expect(signUp(app, "native@example.com", native)).rejects.toMatchObject({
+      await expect(requestCode(app, "native@example.com", native)).rejects.toMatchObject({
         body: { code: "CAPTCHA_FAILED" },
       });
     });

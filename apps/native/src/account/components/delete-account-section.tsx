@@ -1,5 +1,5 @@
 import { isDeleteConfirmationValid } from "@workspace/client/is-delete-confirmation-valid";
-import { Input, Label, Spinner, TextField } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useState } from "react";
 
 import { appConfig } from "@/platform/app-config";
@@ -10,6 +10,7 @@ import { Notice } from "@/platform/ui/notice";
 
 import { useCurrentUser } from "../use-current-user";
 import { Button } from "@/platform/ui/button";
+import { Field } from "@/platform/ui/field";
 import { Card } from "@/platform/ui/card";
 
 /**
@@ -30,17 +31,15 @@ export function DeleteAccountSection() {
           <Notice status="success" message={t("settings__delete_sent")} />
         ) : (
           <>
-            <TextField>
-              <Label>{t("settings__delete_confirm_label", { email: user?.email ?? "" })}</Label>
-              <Input
-                value={typed}
-                onChangeText={setTyped}
-                autoCapitalize="none"
-                autoComplete="off"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
-            </TextField>
+            <Field
+              label={t("settings__delete_confirm_label", { email: user?.email ?? "" })}
+              value={typed}
+              onChangeText={setTyped}
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
             <Button
               variant="danger-soft"
               isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}

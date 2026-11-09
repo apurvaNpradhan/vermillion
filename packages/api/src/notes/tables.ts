@@ -1,9 +1,21 @@
 import { createdAt, id, updatedAt } from "@workspace/db/columns";
 import { user } from "@workspace/db/schema/auth";
 import { sql } from "drizzle-orm";
-import { check, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { check, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { BODY_MAX, TITLE_MAX } from "./limits";
+
+/** Minimal deletion identity survives payload/receipt retention; removed with the account. */
+export const deletedNoteIds = pgTable(
+  "deleted_note_ids",
+  {
+    id: uuid("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("deleted_note_ids_user_id_idx").on(table.userId)],
+);
 
 /**
  * A user's note. Rows go with the user (cascade), so account deletion needs no purger.

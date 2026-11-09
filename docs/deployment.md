@@ -37,17 +37,20 @@ Migrations are additive-only: a release adds columns and tables, a later release
 
 Validated at startup by `packages/env`; the server exits with the failing variable named. `apps/server/.env.example` lists them all.
 
-| Variable                                                   | Required          | Notes                                                                                                                |
-| ---------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                             | yes               | The Postgres service's internal connection string.                                                                   |
-| `APP_URL`                                                  | yes               | Public origin, `https://app.example.com`. Auth links and the trusted-origin check use it.                            |
-| `BETTER_AUTH_SECRET`                                       | yes               | 32+ chars, `openssl rand -hex 32`. Placeholders are refused in production.                                           |
-| `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                   |
-| `ADMIN_EMAILS`                                             | no                | Verified emails that hold the admin role. Also bypass a closed registration.                                         |
-| `REGISTRATION_OPEN`                                        | no                | `false` closes sign-ups. Default `true`.                                                                             |
-| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA on sign-up, sign-in and password reset. Pair with the site key on web and native.                |
-| `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set.                                                          |
-| `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only). |
+| Variable                                                   | Required          | Notes                                                                                                                                                   |
+| ---------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                             | yes               | The Postgres service's internal connection string.                                                                                                      |
+| `APP_URL`                                                  | yes               | Public origin, `https://app.example.com`. Auth links and the trusted-origin check use it.                                                               |
+| `BETTER_AUTH_SECRET`                                       | yes               | 32+ chars, `openssl rand -hex 32`. Placeholders are refused in production.                                                                              |
+| `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                                                      |
+| `ADMIN_EMAILS`                                             | no                | Verified emails that hold the admin role. Also bypass a closed registration.                                                                            |
+| `REGISTRATION_OPEN`                                        | no                | `false` closes sign-ups. Default `true`.                                                                                                                |
+| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent and on social sign-in. Pair with the site key on web and native.                                      |
+| `AUTH_RP_ID`                                               | no                | Passkey relying-party id (bare hostname). Defaults to the hostname of `productionUrl`. Never change it once users have passkeys.                        |
+| `AUTH_PASSKEY_ORIGINS`                                     | no                | Comma-separated origins a passkey ceremony may come from. Defaults to the web origin. Also trusted origins.                                             |
+| `ANDROID_CERT_SHA256`                                      | for Android       | Comma-separated SHA-256 fingerprints of the Android signing certificates (EAS keystore, Play app signing key). Adds the `android:apk-key-hash` origins. |
+| `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set.                                                                                             |
+| `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only).                                    |
 
 Sync infrastructure (PowerSync, phase 2; the sync features themselves are not live yet):
 
@@ -58,7 +61,7 @@ Sync infrastructure (PowerSync, phase 2; the sync features themselves are not li
 | `SYNC_ENDPOINT_URL`                                            | prod       | Public PowerSync URL (the `sync.` subdomain) returned by `sync.credentials`. Unset in development uses `127.0.0.1:8090`; unset in production disables sync credentials. |
 | `SYNC_SLOT_LAG_WARN_MB`, `SYNC_SLOT_LAG_CRITICAL_MB`           | no         | Slot lag thresholds. Defaults 1024 and 3072. Critical marks `/api/ready` degraded.                                                                                      |
 
-The Worker takes **no** secrets: the web bundle gets public `VITE_*` values at build time only (`VITE_SERVER_URL`, `VITE_TURNSTILE_SITE_KEY`).
+The Worker takes **no** secrets: the web bundle gets public `VITE_*` values at build time only (`VITE_SERVER_URL`, `VITE_TURNSTILE_SITE_KEY`, and for passkeys `VITE_ANDROID_CERT_SHA256` and `VITE_APPLE_TEAM_ID`). The Worker serves `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` from them (404 while unset); keep `VITE_ANDROID_CERT_SHA256` equal to the server's `ANDROID_CERT_SHA256`.
 
 ### Sync infrastructure
 
@@ -138,13 +141,14 @@ Without this, anyone can call the origin directly with a forged `Cf-Connecting-I
 
 The `deploy-web` job in `.github/workflows/ci.yml` runs after `checks`, `e2e` and `workflows` pass on `main`: it builds the web app and runs `wrangler deploy`. It is off until you opt in, so a fresh fork does not fail on missing credentials.
 
-| Kind                              | Name                      | Value                                                                |
-| --------------------------------- | ------------------------- | -------------------------------------------------------------------- |
-| Variable                          | `DEPLOY_WEB`              | `true`                                                               |
-| Variable                          | `VITE_SERVER_URL`         | The production origin, same as `productionUrl`.                      |
-| Variable                          | `VITE_TURNSTILE_SITE_KEY` | Optional site key.                                                   |
-| Secret (environment `production`) | `CLOUDFLARE_API_TOKEN`    | Token with "Edit Cloudflare Workers" scoped to the account and zone. |
-| Secret (environment `production`) | `CLOUDFLARE_ACCOUNT_ID`   | The account id.                                                      |
+| Kind                              | Name                                             | Value                                                                |
+| --------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------- |
+| Variable                          | `DEPLOY_WEB`                                     | `true`                                                               |
+| Variable                          | `VITE_SERVER_URL`                                | The production origin, same as `productionUrl`.                      |
+| Variable                          | `VITE_TURNSTILE_SITE_KEY`                        | Optional site key.                                                   |
+| Variable                          | `VITE_ANDROID_CERT_SHA256`, `VITE_APPLE_TEAM_ID` | Optional; enable the passkey app-association files.                  |
+| Secret (environment `production`) | `CLOUDFLARE_API_TOKEN`                           | Token with "Edit Cloudflare Workers" scoped to the account and zone. |
+| Secret (environment `production`) | `CLOUDFLARE_ACCOUNT_ID`                          | The account id.                                                      |
 
 Workflow actions are pinned to commit SHAs and audited with zizmor in CI. When adding one, look up its SHA with `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha` (dereference annotated tags) and keep the version comment.
 

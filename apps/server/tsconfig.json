@@ -1,6 +1,6 @@
 {
   "extends": "@workspace/config/tsconfig.base.json",
-  "references": [{ "path": "../../packages/api" }],
+  "references": [{ "path": "../../packages/api" }, { "path": "../../packages/shared" }],
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx"

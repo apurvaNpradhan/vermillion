@@ -26,7 +26,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptic } from "@/platform/haptics";
 import { useSubtleColor } from "@/platform/theme";
 
-import { SWIPE_ACTION_WIDTH, isFullSwipe } from "./swipe-threshold";
+import { SWIPE_ACTION_WIDTH, isFullSwipe, shouldSettleOpen } from "./swipe-threshold";
 
 export type SwipeAction = {
   key: string;
@@ -49,8 +49,6 @@ const SWIPE_START = 16;
 const SCROLL_WINS = 10;
 /** Space between the row and its first action button. */
 const PANEL_GAP = 12;
-/** A fling this fast to the left opens the row even when it was dragged less than halfway. */
-const OPEN_VELOCITY = -500;
 /** Snap open and closed: motion-base, no overshoot. */
 const SNAP = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
@@ -148,7 +146,7 @@ export function SwipeRow({
           translateX.value = withDelay(400, withTiming(0, { duration: 0 }));
         });
         scheduleOnRN(onFullSwipe);
-      } else if (x < -panel / 2 || event.velocityX < OPEN_VELOCITY) {
+      } else if (shouldSettleOpen(x, event.velocityX, panel)) {
         translateX.value = withTiming(-panel, SNAP);
         scheduleOnRN(onOpened);
       } else {
@@ -164,7 +162,6 @@ export function SwipeRow({
       // Tick on crossing into a full swipe only, not on the way back.
       if (armed && previous === false) scheduleOnRN(haptic.tick);
     },
-    [width, count, fullSwipe],
   );
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));

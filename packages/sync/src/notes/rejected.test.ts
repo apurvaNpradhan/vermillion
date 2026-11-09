@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
+import { ensureInstallId } from "../platform/install-meta";
 import {
   discardRejectedWrite,
   readRejectedWrite,
   watchRejectedWrites,
 } from "../platform/rejected-writes";
 import { rejectedNoteFields, rejectedRetryValues, retryRejectedNote } from "./rejected";
-import { createNote, type NotesDatabase } from "./store";
+import { createNote, updateNote, type NotesDatabase } from "./store";
 
 async function setup() {
   const fake = createFakeDatabase();
@@ -112,6 +113,58 @@ describe("rejected writes", () => {
     expect(await retryRejectedNote(s.notes, "a", { title: "A", body: "mine" })).toBe("retried");
     expect(noteRows(s)).toMatchObject([{ id, title: "A", body: "mine" }]);
     expect(rejectedCount(s)).toBe(0);
+  });
+
+  it("retries the rejected title without overwriting a concurrently changed body", async () => {
+    const s = await setup();
+    const id = await createNote(s.notes, { title: "Original", body: "old body" });
+    reject(s, "a", "PATCH", id, JSON.stringify({ title: "my title" }));
+    const write = await readRejectedWrite(s.notes, "a");
+    expect(write).not.toBeNull();
+    const baseline = await rejectedRetryValues(s.notes, write!);
+    await updateNote(s.notes, id, { body: "remote body", title: "remote title" });
+
+    expect(await retryRejectedNote(s.notes, "a", baseline, baseline)).toBe("retried");
+    expect(noteRows(s)).toMatchObject([{ title: "my title", body: "remote body" }]);
+  });
+
+  it("also retries a contextual field intentionally edited in the retry form", async () => {
+    const s = await setup();
+    const id = await createNote(s.notes, { title: "Original", body: "old body" });
+    reject(s, "a", "PATCH", id, JSON.stringify({ title: "my title" }));
+    const baseline = { title: "my title", body: "old body" };
+    await updateNote(s.notes, id, { body: "remote body" });
+
+    await retryRejectedNote(s.notes, "a", { ...baseline, body: "my body" }, baseline);
+    expect(noteRows(s)).toMatchObject([{ title: "my title", body: "my body" }]);
+  });
+
+  it("preserves the remote title when retrying only a rejected body", async () => {
+    const s = await setup();
+    const id = await createNote(s.notes, { title: "Original", body: "old" });
+    reject(s, "a", "PATCH", id, JSON.stringify({ body: "mine" }));
+    const baseline = { title: "Original", body: "mine" };
+    await updateNote(s.notes, id, { title: "Remote title" });
+
+    await retryRejectedNote(s.notes, "a", baseline, baseline);
+    expect(noteRows(s)).toMatchObject([{ title: "Remote title", body: "mine" }]);
+  });
+
+  it("refuses stale retry and discard callbacks even if a rejection id is reused after a reset", async () => {
+    const s = await setup();
+    const oldScope = await ensureInstallId(s.database);
+    await s.database.disconnectAndClear();
+    await ensureInstallId(s.database);
+    await claimDeviceOwner(s.database, "other");
+    reject(s, "a", "PUT", "new-row", JSON.stringify({ title: "Other", body: "" }));
+    const values = { title: "Private old draft", body: "" };
+
+    await expect(retryRejectedNote(s.notes, "a", values, values, oldScope)).rejects.toThrow(
+      "account changed",
+    );
+    await expect(discardRejectedWrite(s.notes, "a", oldScope)).rejects.toThrow("account changed");
+    expect(rejectedCount(s)).toBe(1);
+    expect(noteRows(s)).toHaveLength(0);
   });
 
   it("saves a rejected edit as a new note when the note is gone", async () => {

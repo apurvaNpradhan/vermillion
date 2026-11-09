@@ -16,13 +16,8 @@ export function SessionSlot() {
   const { session } = useSession();
   if (session) return <UserMenu name={session.user.name} email={session.user.email} />;
   return (
-    <div className="flex items-center gap-2">
-      <Button variant="ghost" size="sm" render={<Link to="/login" />}>
-        {t("nav__sign_in")}
-      </Button>
-      <Button size="sm" render={<Link to="/sign-up" />}>
-        {t("nav__sign_up")}
-      </Button>
-    </div>
+    <Button size="sm" render={<Link to="/login" />}>
+      {t("nav__sign_in")}
+    </Button>
   );
 }

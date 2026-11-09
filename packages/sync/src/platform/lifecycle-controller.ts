@@ -6,6 +6,7 @@ import { claimDeviceOwner, readDeviceOwner } from "./device-owner";
 import { ensureInstallId } from "./install-meta";
 import {
   transition,
+  phaseOwner,
   type LifecycleEffect,
   type LifecycleEvent,
   type Phase,
@@ -82,6 +83,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
   let phase: Phase = { kind: "starting" };
   let lastSession: string | null | undefined;
   let generation = 0;
+  let writeScope: string | null = null;
   let pendingCount = 0;
   let pendingSince: number | null = null;
   let snapshot = buildSnapshot();
@@ -93,6 +95,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
     const status = database.currentStatus;
     return {
       phase,
+      writeScope: phaseOwner(phase) ? writeScope : null,
       indicator: deriveIndicator(phase, {
         connected: status.connected,
         uploading: status.uploading,
@@ -137,7 +140,8 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
         return { follow, abort: true };
       }
       case "connect": {
-        await ensureInstallId(database);
+        writeScope = await ensureInstallId(database);
+        publish();
         const connector = createConnector({
           database,
           transport,
@@ -184,6 +188,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
 
   async function resync(): Promise<void> {
     const owner = await readDeviceOwner(database);
+    writeScope = await ensureInstallId(database);
     await dispatch({ type: "owner-changed", owner });
     if (lastSession !== undefined) await dispatch({ type: "session", userId: lastSession });
   }
@@ -224,6 +229,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
           { signal: controller.signal, tables: ["ps_crud"] },
         );
         const owner = await readDeviceOwner(database);
+        writeScope = await ensureInstallId(database);
         await dispatch({ type: "owner-loaded", owner });
         if (lastSession !== undefined) await dispatch({ type: "session", userId: lastSession });
       });

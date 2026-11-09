@@ -44,6 +44,11 @@
   --sidebar-border: #E2E2E6;
   --sidebar-ring: #C9C9CF;
   --subtle: #3C3D42;
+  --identity: #111214;
+  --identity-soft: #ECECEF;
+  --on-identity: #FFFFFF;
+  --brand-detail: #111214;
+  --focus-ring: #C9C9CF;
   --protein: #1A86CC;
   --protein-text: #0B6FA8;
   --carbs: #BF8500;
@@ -95,6 +100,11 @@
   --sidebar-border: #26282B;
   --sidebar-ring: #393B3F;
   --subtle: #CDCDCF;
+  --identity: #F4F4F6;
+  --identity-soft: #1C1D20;
+  --on-identity: #07080A;
+  --brand-detail: #F4F4F6;
+  --focus-ring: #393B3F;
   --protein: #57C1FF;
   --protein-text: #57C1FF;
   --carbs: #FFC533;
@@ -146,6 +156,11 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-subtle: var(--subtle);
+  --color-identity: var(--identity);
+  --color-identity-soft: var(--identity-soft);
+  --color-on-identity: var(--on-identity);
+  --color-brand-detail: var(--brand-detail);
+  --color-focus-ring: var(--focus-ring);
   --color-protein: var(--protein);
   --color-protein-text: var(--protein-text);
   --color-carbs: var(--carbs);
@@ -155,6 +170,10 @@
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --text-title-display: 2.625rem;
+  --text-title-display--line-height: 3rem;
+  --text-title-display--letter-spacing: -1px;
+  --text-title-display--font-weight: 600;
   --text-title-xl: 1.75rem;
   --text-title-xl--line-height: 2.125rem;
   --text-title-xl--letter-spacing: -0.3px;

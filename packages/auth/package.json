@@ -15,6 +15,8 @@
     "@better-auth/core": "1.7.18",
     "@better-auth/drizzle-adapter": "1.7.18",
     "@better-auth/expo": "catalog:",
+    "@better-auth/passkey": "catalog:",
+    "@simplewebauthn/server": "^13.3.3",
     "@workspace/db": "workspace:*",
     "@workspace/shared": "workspace:*",
     "better-auth": "catalog:",

@@ -1,40 +1,48 @@
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
-import { CircleHalf, Globe, Translate } from "phosphor-react-native";
+import { Globe, Palette, Translate } from "phosphor-react-native";
 import { useState } from "react";
 
+import type { TranslationKey } from "@workspace/i18n";
+
 import { useTranslation } from "@/platform/i18n";
-import { isTheme, THEMES, useTheme, type Theme } from "@/platform/theme";
+import { useThemeChoice } from "@/platform/theme";
+import { THEME_CHOICES, type ThemeChoice } from "@/platform/theme/theme-state";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 
 import { usePreferences } from "../use-preferences";
 
 const LOCALE_NAMES = { en: "English", de: "Deutsch" } as const;
-const THEME_LABEL_KEYS = {
-  light: "theme__light",
-  dark: "theme__dark",
-  system: "theme__system",
-} as const satisfies Record<Theme, string>;
 const DEVICE = "device";
 
 type Picker = "theme" | "language" | "timezone" | null;
 
+const THEME_LABELS = {
+  system: "theme__system",
+  light: "theme__light",
+  dark: "theme__dark",
+} as const satisfies Record<ThemeChoice, TranslationKey>;
+
+function isThemeChoice(value: string): value is ThemeChoice {
+  return THEME_CHOICES.some((choice) => choice === value);
+}
+
 /**
- * Appearance, language and time zone as settings rows showing their current value; each opens
- * a sheet with the choices. Account settings go through the one preferences hook; the theme is
- * stored on this device only.
+ * Theme, language and time zone as settings rows. Each shows their current
+ * value and open a sheet; account settings go through the one preferences hook.
  */
 export function PreferenceRows() {
   const { t } = useTranslation();
   const { preferences, setLocale, setTimezone } = usePreferences();
-  const { theme, setTheme } = useTheme();
+  const { choice, setChoice } = useThemeChoice();
   const [picker, setPicker] = useState<Picker>(null);
   const deviceZone = getCalendars()[0]?.timeZone ?? null;
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
 
+  const themeOptions = THEME_CHOICES.map((value) => ({ value, label: t(THEME_LABELS[value]) }));
   const localeValue = preferences.locale ?? DEVICE;
   const localeOptions = [
     { value: DEVICE, label: t("settings__language_device") },
@@ -52,9 +60,9 @@ export function PreferenceRows() {
     <>
       <ListSection title={t("settings__section_preferences")}>
         <ListRow
-          icon={CircleHalf}
+          icon={Palette}
           title={t("settings__theme_title")}
-          value={t(THEME_LABEL_KEYS[theme])}
+          value={t(THEME_LABELS[choice])}
           onPress={() => setPicker("theme")}
         />
         <ListRow
@@ -77,10 +85,10 @@ export function PreferenceRows() {
         onOpenChange={onOpenChange}
         title={t("settings__theme_title")}
         description={t("settings__theme_hint")}
-        options={THEMES.map((option) => ({ value: option, label: t(THEME_LABEL_KEYS[option]) }))}
-        value={theme}
+        options={themeOptions}
+        value={choice}
         onSelect={(value) => {
-          if (isTheme(value)) setTheme(value);
+          if (isThemeChoice(value)) setChoice(value);
         }}
       />
       <OptionSheet

@@ -13,12 +13,14 @@ Vermillion is a product-neutral template for apps with personal accounts: a web 
 - **`authed` seam** — the single builder that resolves the signed-in user. The collaboration fork extends it to require workspace membership.
 - **Module hook** — the only way a component reads or writes app data (`use-notes`, `use-preferences`). A local-first fork swaps what the hooks call, not the components.
 - **Example vertical** — `notes`: a complete create, read, update, delete reference with ownership checks. Marked for deletion in every fork.
-- **User preferences** — one row per user, created on first write: `locale`, `timezone` and a `ui` jsonb with defaults. A missing row means defaults. Theme is not a preference: it is stored per device.
+- **User preferences** — one row per user, created on first write: `locale`, `timezone` and a `ui` jsonb with defaults. A missing row means defaults. Theme is not a preference: it is stored per device ([native themes](docs/guides/native-themes.md)).
 - **Locale resolution** — saved preference, then locale cookie, then `Accept-Language` (device locale on native), then `en`.
 - **Admin** — a user whose verified email is in `ADMIN_EMAILS`. The env var is the only source; roles are reconciled at boot and on session creation.
 - **Registration policy** — `REGISTRATION_OPEN`. When false only admin emails can register.
-- **Disposable email** — an address on a domain from the maintained `disposable-email-domains` list (parent domains included). Rejected at sign-up and email change.
-- **Turnstile** — Cloudflare's CAPTCHA. Active when the secret is set, on sign-up, sign-in and password reset, with no client exempt.
+- **Disposable email** — an address on a domain from the maintained `disposable-email-domains` list (parent domains included). Rejected when a sign-in code is requested and at email change.
+- **Turnstile** — Cloudflare's CAPTCHA. Active when the secret is set, before a sign-in code is sent and on social sign-in, with no client exempt.
+- **Sign-in code** — the 6-digit one-time code emailed to an address; the only non-social way in. Valid 5 minutes, hashed at rest, 3 guesses, a resend replaces it. Redeeming it creates the account on first use.
+- **Onboarding step** — a required question (today: the name) whose completeness is derived from the profile by `pendingOnboardingSteps`; there is no stored flag. Account first: the person is signed in before being asked.
 - **Trusted proxies** — the CIDRs (`TRUSTED_PROXIES`: Traefik and Cloudflare) from which the server accepts `X-Forwarded-For` when resolving the client IP.
 - **Trusted origin** — the app's own origin; state-changing browser requests from any other `Origin` are rejected.
 - **Job** — a Postgres-backed (pg-boss) unit of background work run inside the server process. Defined by queue name, zod payload (ids only), handler and retry settings.
@@ -32,3 +34,6 @@ Vermillion is a product-neutral template for apps with personal accounts: a web 
 - **Path routes** — the Cloudflare routes that send `/api/*` and `/rpc/*` to the Dokploy origin and everything else to the Worker.
 - **Origin** — the Dokploy server (Traefik, then the server container). Firewalled to Cloudflare's IP ranges.
 - **Brand tokens** — `packages/ui/src/tokens/brand.ts`, the one place colors, radius and fonts are defined; mapped to web and native by generated CSS.
+- **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark are Classic, as on web and email ([0031](docs/adr/0031-native-themes-colour-only-oklch.md), amended: named themes sunset).
+- **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.
+- **Identity / on-identity** — the accent roles: `identity` (focus, checks, selection, active tab, compose fill) and `on-identity` for the icon or text on it. The primary action stays neutral.

@@ -39,6 +39,11 @@
       --focus: #C9C9CF;
       --link: #111214;
       --subtle: #3C3D42;
+      --identity: #111214;
+      --identity-soft: #ECECEF;
+      --on-identity: #FFFFFF;
+      --brand-detail: #111214;
+      --focus-ring: #C9C9CF;
       --protein: #1A86CC;
       --protein-text: #0B6FA8;
       --carbs: #BF8500;
@@ -47,7 +52,7 @@
       --fat-text: #94407F;
       --surface-shadow: 0 0 0 0 transparent inset;
       --field-shadow: 0 0 0 0 transparent inset;
-      --overlay-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.12);
+      --overlay-shadow: 0 10px 28px 0 rgba(23, 43, 54, 0.14);
     }
     @variant dark {
       --background: #07080A;
@@ -83,6 +88,11 @@
       --focus: #393B3F;
       --link: #F4F4F6;
       --subtle: #CDCDCF;
+      --identity: #F4F4F6;
+      --identity-soft: #1C1D20;
+      --on-identity: #07080A;
+      --brand-detail: #F4F4F6;
+      --focus-ring: #393B3F;
       --protein: #57C1FF;
       --protein-text: #57C1FF;
       --carbs: #FFC533;
@@ -91,13 +101,18 @@
       --fat-text: #D98BC4;
       --surface-shadow: 0 0 0 0 transparent inset;
       --field-shadow: 0 0 0 0 transparent inset;
-      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+      --overlay-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.32);
     }
   }
 }
 
 @theme inline {
   --color-subtle: var(--subtle);
+  --color-identity: var(--identity);
+  --color-identity-soft: var(--identity-soft);
+  --color-on-identity: var(--on-identity);
+  --color-brand-detail: var(--brand-detail);
+  --color-focus-ring: var(--focus-ring);
   --color-protein: var(--protein);
   --color-protein-text: var(--protein-text);
   --color-carbs: var(--carbs);
@@ -111,6 +126,9 @@
   --font-medium: "Inter_500Medium";
   --font-semibold: "Inter_600SemiBold";
   --font-bold: "Inter_700Bold";
+  --text-title-display: 2.625rem;
+  --text-title-display--line-height: 3rem;
+  --text-title-display--letter-spacing: -1px;
   --text-title-xl: 1.75rem;
   --text-title-xl--line-height: 2.125rem;
   --text-title-xl--letter-spacing: -0.3px;

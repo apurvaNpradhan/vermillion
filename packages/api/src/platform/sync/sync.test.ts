@@ -520,6 +520,35 @@ describe("sync", () => {
         sql`SELECT tx_id FROM sync_upload_receipts WHERE user_id = ${me.userId} ORDER BY tx_id`,
       );
       expect(receipts.map((row) => Number(row.tx_id))).toEqual([2]);
+      // A lost acknowledgement can replay the original PUT after its receipt and tombstone
+      // expired. Neither the original transaction nor a new identity may resurrect the row.
+      const lostAck = request(me, 1, [put(oldId, "old"), put(freshId, "fresh")]);
+      expect(await me.client.sync.upload(lostAck)).toMatchObject({
+        status: "rejected",
+        code: "SYNC_ROW_DELETED",
+      });
+      expect(await me.client.sync.upload(request(me, 3, [put(oldId, "resurrect")]))).toMatchObject({
+        status: "rejected",
+        code: "SYNC_ROW_DELETED",
+      });
+      await expect(me.client.notes.get({ id: oldId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const other = await signedIn("purged-id-other@example.com");
+      expect(
+        await other.client.sync.upload(request(other, 1, [put(oldId, "foreign")])),
+      ).toMatchObject({ status: "rejected", code: "SYNC_ID_CONFLICT" });
+
+      const newId = uuidv7();
+      expect(await me.client.sync.upload(request(me, 4, [put(newId, "new")]))).toEqual({
+        status: "applied",
+      });
+      expect(await me.client.notes.get({ id: newId })).toMatchObject({ title: "new" });
+
+      // Only minimal identity remains, and deleting the account cascades that identity too.
+      expect(
+        await app.rows(sql`SELECT id, user_id FROM deleted_note_ids WHERE id = ${oldId}`),
+      ).toEqual([{ id: oldId, user_id: me.userId }]);
+      await app.rows(sql`DELETE FROM "user" WHERE id = ${me.userId} RETURNING id`);
+      expect(await app.rows(sql`SELECT id FROM deleted_note_ids WHERE id = ${oldId}`)).toEqual([]);
     });
   });
 });

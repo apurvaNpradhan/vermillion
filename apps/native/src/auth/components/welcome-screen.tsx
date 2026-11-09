@@ -1,113 +1,100 @@
 import { useRouter } from "expo-router";
-import { useThemeColor } from "heroui-native";
-import {
-  ArrowsClockwise,
-  Barbell,
-  CloudSlash,
-  ForkKnife,
-  type IconProps,
-} from "phosphor-react-native";
-import type { ComponentType } from "react";
+import { openURL } from "expo-linking";
 import { Text, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { appConfig } from "@/platform/app-config";
+import { env } from "@/platform/env";
 import { useTranslation } from "@/platform/i18n";
+import { appConfig } from "@/platform/app-config";
 import { Button } from "@/platform/ui/button";
 
-import { welcomeTokens } from "../welcome-tokens";
+import { splitLegal } from "../legal-text";
+import { WelcomeArt } from "./welcome-art";
 
-/** The icons a translation may place in the headline, by tag name (`<sync/>`). */
-const HEADLINE_ICONS = {
-  barbell: Barbell,
-  fork: ForkKnife,
-  offline: CloudSlash,
-  sync: ArrowsClockwise,
-} as const satisfies Record<string, ComponentType<IconProps>>;
-
-function isHeadlineIcon(name: string): name is keyof typeof HEADLINE_ICONS {
-  return Object.hasOwn(HEADLINE_ICONS, name);
-}
-/** Delay between words as the headline comes in, once (motion-base per word, staggered). */
-const STAGGER_MS = 35;
+// motion-base: a gentle rise, staggered by a beat; Reduce Motion skips it.
+const rise = (delay: number) =>
+  FadeInDown.duration(200).delay(delay).reduceMotion(ReduceMotion.System);
 
 /**
- * The first screen when signed out, after reacticx's Welcome V4: the app's name at the top, a
- * large headline with Phosphor icons set into it, then Create account (the one primary action)
- * and Sign in. Social sign-in lives on the sign-in and sign-up screens.
+ * A wordmark, an almost empty canvas of soft shapes, a headline and two ways in: create an
+ * account (the primary, since most people arriving here are new) or sign in. Both lead to the
+ * email step with their own wording; the emailed code and the session guard tell new accounts
+ * from returning ones, and neither answer reveals which an address is.
  */
 export function WelcomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const tokens = welcomeTokens(t("auth__welcome_headline"));
+  const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
+  const legalLinks = {
+    terms: { label: t("nav__terms"), path: "/terms" },
+    privacy: { label: t("nav__privacy"), path: "/privacy" },
+  } as const;
 
   return (
-    <View
-      className="flex-1 bg-background px-6"
-      style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
-    >
-      <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
-        {appConfig.displayName}
-      </Text>
+    <View className="flex-1 bg-background">
+      <WelcomeArt />
 
-      <View className="flex-1 justify-end pb-10">
-        {/* Read as one sentence; the chips are decoration. */}
-        <View
-          accessible
-          accessibilityLabel={tokens
-            .flatMap((token) => (token.kind === "word" ? [token.text] : []))
-            .join(" ")}
-          className="flex-row flex-wrap items-center gap-x-2.5 gap-y-2"
-        >
-          {tokens.map((token, index) => (
-            <Animated.View
-              key={`${index}-${token.kind === "word" ? token.text : token.name}`}
-              entering={FadeInDown.duration(200)
-                .delay(index * STAGGER_MS)
-                .reduceMotion(ReduceMotion.System)}
-            >
-              {token.kind === "word" ? (
-                <Text className="font-semibold text-[34px] leading-[42px] tracking-tight text-foreground">
-                  {token.text}
+      <View
+        className="flex-1 px-6"
+        style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
+      >
+        <Animated.View entering={rise(0)}>
+          <Text className="text-title-md font-bold text-foreground">{appConfig.displayName}</Text>
+        </Animated.View>
+
+        <Animated.View entering={rise(60)} className="flex-1 justify-center">
+          <Text
+            accessibilityRole="header"
+            className="text-center text-title-display font-bold text-foreground"
+          >
+            {t("auth__welcome_headline")}
+          </Text>
+        </Animated.View>
+
+        <Animated.View entering={rise(120)} className="mx-auto w-full max-w-md gap-3">
+          <Button
+            variant="primary"
+            size="lg"
+            className="h-14 rounded-full"
+            onPress={() => router.push({ pathname: "/email", params: { flow: "get-started" } })}
+          >
+            <Button.Label className="text-body-lg font-semibold">
+              {t("auth__create_account")}
+            </Button.Label>
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="h-14 rounded-full"
+            onPress={() => router.push({ pathname: "/email", params: { flow: "sign-in" } })}
+          >
+            <Button.Label className="text-body-lg font-semibold">
+              {t("auth__have_account")}
+            </Button.Label>
+          </Button>
+        </Animated.View>
+
+        <Animated.View entering={rise(180)} className="pt-5">
+          <Text className="text-center text-caption text-muted">
+            {legal.map((part, index) => {
+              if (part.kind === "text") return part.text;
+              const link = legalLinks[part.kind];
+              return (
+                <Text
+                  key={`${part.kind}-${index}`}
+                  accessibilityRole="link"
+                  className="font-medium text-foreground"
+                  onPress={() => void openURL(`${env.EXPO_PUBLIC_SERVER_URL}${link.path}`)}
+                >
+                  {link.label}
                 </Text>
-              ) : (
-                <HeadlineChip
-                  icon={isHeadlineIcon(token.name) ? HEADLINE_ICONS[token.name] : undefined}
-                />
-              )}
-            </Animated.View>
-          ))}
-        </View>
-        <Text className="pt-4 text-body-lg text-muted">{t("auth__welcome_body")}</Text>
+              );
+            })}
+          </Text>
+        </Animated.View>
       </View>
-
-      <View className="gap-3">
-        <Button size="lg" className="h-14 rounded-xl" onPress={() => router.push("/sign-up")}>
-          <Button.Label className="text-body-lg font-semibold">
-            {t("auth__sign_up_action")}
-          </Button.Label>
-        </Button>
-        <Button
-          size="lg"
-          variant="secondary"
-          className="h-14 rounded-xl"
-          onPress={() => router.push("/sign-in")}
-        >
-          <Button.Label className="text-body-lg font-semibold">{t("nav__sign_in")}</Button.Label>
-        </Button>
-      </View>
-    </View>
-  );
-}
-
-function HeadlineChip({ icon: Icon }: { icon: ComponentType<IconProps> | undefined }) {
-  const foreground = useThemeColor("foreground");
-  if (!Icon) return null;
-  return (
-    <View className="h-10 w-14 items-center justify-center rounded-full border border-border bg-default">
-      <Icon size={22} color={foreground} weight="fill" />
     </View>
   );
 }

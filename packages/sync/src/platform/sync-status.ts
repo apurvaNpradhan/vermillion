@@ -16,6 +16,8 @@ export type LockReason = "signed-out" | "other-account";
 
 export type SyncSnapshot = {
   phase: Phase;
+  /** Install identity captured by forms; a reset invalidates all old submissions. */
+  writeScope: string | null;
   indicator: SyncIndicator;
   lockReason: LockReason | null;
   /** Local changes not yet acknowledged by the server. */

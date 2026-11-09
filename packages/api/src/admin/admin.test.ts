@@ -1,11 +1,12 @@
 import { reconcileAdminRoles } from "@workspace/auth";
+import { uuidv7 } from "@workspace/db/columns";
+import { user } from "@workspace/db/schema/auth";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   createSignedInUser,
   createTestApp,
-  PASSWORD,
   signIn,
   type TestApp,
 } from "../platform/testing/harness";
@@ -31,8 +32,13 @@ describe("admin", () => {
     });
 
     it("never grants it to an unverified account with a listed email", async () => {
-      await app.services.auth.api.signUpEmail({
-        body: { email: "unverified@example.com", password: PASSWORD, name: "U" },
+      // Codes verify the address, so an unverified account can only come from elsewhere.
+      await app.services.db.insert(user).values({
+        id: uuidv7(),
+        email: "unverified@example.com",
+        name: "U",
+        emailVerified: false,
+        role: "user",
       });
       await reconcileAdminRoles(app.services.db, ["unverified@example.com"]);
       expect(await roleOf("unverified@example.com")).toBe("user");

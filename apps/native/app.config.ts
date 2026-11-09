@@ -8,8 +8,29 @@ import { appConfig } from "../../app.config.ts";
  * `runtimeVersion: appVersion` alone does not change when a native module is added (ADR 0022).
  * 1: op-sqlite 18.2.5 with SQLCipher, expo-crypto, expo-file-system, vermillion-backup module.
  * 2: expo-blur and expo-haptics for the tab bar, page header and haptic tokens.
+ * 3: @sbaiahmed1/react-native-blur for the page footer's progressive blur.
+ * 4: react-native-passkey 3.6.2 (Credential Manager on Android, associated domains on iOS).
+ * 5: @sbaiahmed1/react-native-blur removed (its Android view crashed the release build).
  */
-const NATIVE_STACK_REVISION = 2;
+const NATIVE_STACK_REVISION = 5;
+
+/**
+ * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
+ * server's default `AUTH_RP_ID` (ADR 0032). A bare IP or `localhost` cannot own a passkey, so iOS
+ * then gets no webcredentials association. Android needs no app config: the domain's
+ * assetlinks.json names the app.
+ */
+function passkeyRpId(serverUrl: string | undefined): string | null {
+  if (!serverUrl) return null;
+  try {
+    const { hostname } = new URL(serverUrl);
+    const isIp = /^[\d.]+$/.test(hostname) || hostname.includes(":");
+    return hostname === "localhost" || isIp ? null : hostname;
+  } catch {
+    return null;
+  }
+}
+const rpId = passkeyRpId(process.env.EXPO_PUBLIC_SERVER_URL);
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 
@@ -26,6 +47,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: appConfig.bundleIds.ios,
+    ...(rpId ? { associatedDomains: [`webcredentials:${rpId}`] } : {}),
   },
   android: {
     adaptiveIcon: {

@@ -31,9 +31,10 @@ test.describe("admin", () => {
     await page.getByRole("alertdialog").getByRole("button", { name: "Ban" }).click();
     await expect(row.getByText("Banned")).toBeVisible();
 
-    // A banned user's sessions stop working at once.
+    // A banned user's sessions stop working at once. The device keeps its owner's data (ADR 0021),
+    // so the app opens with the sign-in banner instead of redirecting.
     await victimPage.goto("/app");
-    await expect(victimPage).toHaveURL(/\/login/);
+    await expect(victimPage.getByRole("alert")).toContainText("Your session expired");
     await signInWithUi(victimPage, victim.email);
     await expect(victimPage.getByRole("alert")).toHaveText("This account is suspended.");
 

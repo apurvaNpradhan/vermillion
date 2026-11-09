@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SWIPE_ACTION_WIDTH, isFullSwipe } from "./swipe-threshold";
+import { SWIPE_ACTION_WIDTH, isFullSwipe, shouldSettleOpen } from "./swipe-threshold";
 
 describe("isFullSwipe", () => {
   it("fires past 55% of a wide row, in either direction", () => {
@@ -17,5 +17,20 @@ describe("isFullSwipe", () => {
 
   it("never fires before the row has been measured", () => {
     expect(isFullSwipe(-500, 0, 1)).toBe(false);
+  });
+});
+
+describe("shouldSettleOpen", () => {
+  it("opens past half the panel at rest", () => {
+    expect(shouldSettleOpen(-100, 0, 160)).toBe(true);
+    expect(shouldSettleOpen(-60, 0, 160)).toBe(false);
+  });
+
+  it("opens on a short flick towards the open side", () => {
+    expect(shouldSettleOpen(-40, -800, 160)).toBe(true);
+  });
+
+  it("closes on a flick away even when dragged past half", () => {
+    expect(shouldSettleOpen(-100, 800, 160)).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ describe("rate limits", () => {
   });
   afterAll(async () => app.close());
 
-  type AuthBody = { email: string; password?: string };
+  type AuthBody = { email: string; type?: string; otp?: string };
   const post = (path: string, ip: string, body: AuthBody) =>
     app.services.auth.handler(
       new Request(`http://localhost:3001/api/auth${path}`, {
@@ -20,14 +20,14 @@ describe("rate limits", () => {
       }),
     );
 
-  it("limits sign-in attempts per client IP, tighter than the global limit", async () => {
+  it("limits code redemptions per client IP, tighter than the global limit", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 12; i++) {
       statuses.push(
         (
-          await post("/sign-in/email", "198.51.100.1", {
+          await post("/sign-in/email-otp", "198.51.100.1", {
             email: "a@example.com",
-            password: "wrong-password-1",
+            otp: "000000",
           })
         ).status,
       );
@@ -36,20 +36,21 @@ describe("rate limits", () => {
     expect(statuses.slice(10)).toEqual([429, 429]);
     // Another client is unaffected.
     expect(
-      (
-        await post("/sign-in/email", "198.51.100.2", {
-          email: "a@example.com",
-          password: "wrong-password-1",
-        })
-      ).status,
+      (await post("/sign-in/email-otp", "198.51.100.2", { email: "a@example.com", otp: "000000" }))
+        .status,
     ).not.toBe(429);
   });
 
-  it("limits the email-sending endpoints much harder", async () => {
+  it("limits sending codes much harder", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 5; i++) {
       statuses.push(
-        (await post("/request-password-reset", "198.51.100.3", { email: "a@example.com" })).status,
+        (
+          await post("/email-otp/send-verification-otp", "198.51.100.3", {
+            email: "a@example.com",
+            type: "sign-in",
+          })
+        ).status,
       );
     }
     expect(statuses).toEqual([200, 200, 200, 429, 429]);

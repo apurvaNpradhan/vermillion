@@ -1,10 +1,11 @@
 import { NOTE_BODY_MAX, NOTE_TITLE_MAX, type NoteValues } from "@workspace/sync";
-import { Input, Label, Spinner, TextField } from "heroui-native";
+import { Spinner } from "heroui-native";
 import { useState } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { Field } from "@/platform/ui/field";
 
 /** Title and body fields with a submit button; creates a note or resubmits a rejected one. */
 export function NoteForm({
@@ -40,14 +41,19 @@ export function NoteForm({
 
   return (
     <View className="gap-3">
-      <TextField>
-        <Label>{t("notes__field_title")}</Label>
-        <Input value={title} onChangeText={setTitle} maxLength={NOTE_TITLE_MAX} />
-      </TextField>
-      <TextField>
-        <Label>{t("notes__field_body")}</Label>
-        <Input value={body} onChangeText={setBody} maxLength={NOTE_BODY_MAX} multiline />
-      </TextField>
+      <Field
+        label={t("notes__field_title")}
+        value={title}
+        onChangeText={setTitle}
+        maxLength={NOTE_TITLE_MAX}
+      />
+      <Field
+        label={t("notes__field_body")}
+        value={body}
+        onChangeText={setBody}
+        maxLength={NOTE_BODY_MAX}
+        multiline
+      />
       <View className="flex-row gap-2">
         <Button isDisabled={saving || title.trim() === ""} onPress={() => void submit()}>
           {saving ? <Spinner size="sm" /> : null}

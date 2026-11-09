@@ -14,17 +14,29 @@ const requestSchema = z.object({
 const base = { userId: z.string().min(1), request: requestSchema };
 
 /**
- * Sensitive outbox content (not the pg-boss payload). The recipient is resolved from `userId` when the
- * job runs; the one exception is `verification`, which can target a new address
- * during an email change and so carries `to`. Links carry short-lived tokens.
+ * Sensitive outbox content (not the pg-boss payload). The recipient is resolved from `userId` when
+ * the job runs. The code kinds carry `to` instead: a sign-in code may go to an address that has no
+ * account yet (the account is created when the code is redeemed), and a change-email code goes to
+ * the new address. Codes and links are short-lived and removed once delivered.
  */
 export const authEmailSchema = z.discriminatedUnion("kind", [
-  z.object({ ...base, kind: z.literal("verification"), to: z.email(), url: z.url() }),
-  z.object({ ...base, kind: z.literal("reset-password"), url: z.url() }),
-  z.object({ ...base, kind: z.literal("change-email"), url: z.url(), newEmail: z.email() }),
+  z.object({
+    kind: z.literal("sign-in-code"),
+    /** Set when the address already has an account; its saved language then wins. */
+    userId: z.string().min(1).optional(),
+    request: requestSchema,
+    to: z.email(),
+    otp: z.string().min(4).max(12),
+  }),
+  z.object({
+    ...base,
+    kind: z.literal("change-email-code"),
+    to: z.email(),
+    otp: z.string().min(4).max(12),
+  }),
   z.object({ ...base, kind: z.literal("delete-account"), url: z.url() }),
-  z.object({ ...base, kind: z.literal("existing-account"), url: z.url() }),
-  z.object({ ...base, kind: z.literal("security-notice") }),
+  /** `to` overrides the account address: after an email change the notice goes to the old one. */
+  z.object({ ...base, kind: z.literal("security-notice"), to: z.email().optional() }),
   z.object({ ...base, kind: z.literal("sign-in-notice") }),
 ]);
 export type AuthEmail = z.infer<typeof authEmailSchema>;

@@ -4,9 +4,9 @@ import { authErrorKey } from "./auth-error";
 
 describe("authErrorKey", () => {
   it("maps known Better Auth codes", () => {
-    expect(authErrorKey({ code: "INVALID_EMAIL_OR_PASSWORD" })).toBe(
-      "auth__error_invalid_credentials",
-    );
+    expect(authErrorKey({ code: "INVALID_OTP" })).toBe("auth__error_code_invalid");
+    expect(authErrorKey({ code: "OTP_EXPIRED" })).toBe("auth__error_code_expired");
+    expect(authErrorKey({ code: "TOO_MANY_ATTEMPTS" })).toBe("auth__error_code_attempts");
     expect(authErrorKey({ code: "CAPTCHA_FAILED" })).toBe("errors__captcha_failed");
     expect(authErrorKey({ code: "ACCESS_DENIED" })).toBe("auth__error_oauth_denied");
     expect(authErrorKey({ code: "ACCOUNT_NOT_LINKED" })).toBe("auth__error_account_linking");

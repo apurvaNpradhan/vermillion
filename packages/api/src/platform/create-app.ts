@@ -2,7 +2,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferenceHandlerPlugin } from "@orpc/openapi/plugins";
 import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
-import { HTTP_STATUS_BY_CODE } from "@workspace/shared";
+import { HTTP_STATUS_BY_CODE, isAndroidOrigin } from "@workspace/shared";
 import { currentRequestLog, log, requestLoggingOptions } from "@workspace/logger";
 import type { DrainFn } from "evlog";
 import { createAuthMiddleware } from "evlog/better-auth";
@@ -76,7 +76,10 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
 
   app.use(compressResponses);
 
-  const trustOrigin = requireTrustedOrigin([config.appUrl]);
+  const trustOrigin = requireTrustedOrigin([
+    config.appUrl,
+    ...config.passkey.origins.filter((origin) => !isAndroidOrigin(origin)),
+  ]);
   app.use("/rpc/*", trustOrigin);
   app.use("/api/*", trustOrigin);
 

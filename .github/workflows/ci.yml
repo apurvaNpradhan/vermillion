@@ -200,6 +200,8 @@ jobs:
           # Public build-time values, inlined into the bundle.
           VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          VITE_ANDROID_CERT_SHA256: ${{ vars.VITE_ANDROID_CERT_SHA256 }}
+          VITE_APPLE_TEAM_ID: ${{ vars.VITE_APPLE_TEAM_ID }}
       - name: Deploy the Worker
         run: pnpm --filter web exec wrangler deploy
         env:

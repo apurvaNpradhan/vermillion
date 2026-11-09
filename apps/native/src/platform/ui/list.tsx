@@ -21,7 +21,7 @@ export function ListSection({ title, children }: { title?: string; children: Rea
           {title}
         </Text>
       ) : null}
-      <ListGroup className="rounded-2xl border border-border shadow-none">
+      <ListGroup className="rounded-2xl border border-transparent shadow-none">
         {rows.map((row, index) => (
           <Fragment key={index}>
             {index > 0 ? <Separator className="ml-12" /> : null}

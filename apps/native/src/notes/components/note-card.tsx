@@ -67,7 +67,7 @@ export const NoteCard = memo(function NoteCard({
           onPress={() => onEdit(note)}
           onLongPress={() => onLongPress(note)}
           delayLongPress={350}
-          className="gap-1 rounded-2xl border border-border bg-surface p-4 active:bg-default"
+          className="gap-1 border-b border-border bg-background px-2 py-5 active:bg-default"
         >
           <Text numberOfLines={1} className="font-medium text-body text-foreground">
             {note.title}

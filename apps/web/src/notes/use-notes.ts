@@ -25,6 +25,7 @@ export function useNotes() {
   const { t } = useTranslation();
   const local = useLocalData();
   const { snapshot } = useSyncStatus();
+  const writeScope = snapshot?.writeScope ?? "";
   const database = local?.status === "ready" ? local.database : null;
   const [limit, setLimit] = useState(NOTES_PAGE_SIZE);
   const [page, setPage] = useState<NotesPage | null>(null);
@@ -58,23 +59,23 @@ export function useNotes() {
   const loadMore = useCallback(() => setLimit((current) => current + NOTES_PAGE_SIZE), []);
   const create = useCallback(
     async (input: { title: string; body: string }) => {
-      await write((db) => createNote(db, input));
+      await write((db) => createNote(db, input, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
   /** Sends only the fields in the patch; pass the dirty fields of the form (`draftPatch`). */
   const update = useCallback(
     async (input: { id: string } & NotePatch) => {
       const { id, ...patch } = input;
-      await write((db) => updateNote(db, id, patch));
+      await write((db) => updateNote(db, id, patch, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
   const remove = useCallback(
     async (id: string) => {
-      await write((db) => deleteNote(db, id));
+      await write((db) => deleteNote(db, id, writeScope));
     },
-    [write],
+    [write, writeScope],
   );
 
   return {

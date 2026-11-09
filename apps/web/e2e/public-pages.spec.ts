@@ -14,7 +14,6 @@ test.describe("public pages", () => {
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Welcome to ${name}`);
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign up" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Account menu" })).toHaveCount(0);
     await expect(page.locator("link[rel=canonical]")).toHaveAttribute(
       "href",

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -7,6 +8,7 @@ import { noteState } from "./operations/get-note";
 import { bodySchema, titleSchema } from "./operations/note";
 import { purgeDeletedNotes } from "./operations/purge-deleted-notes";
 import { updateNote } from "./operations/update-note";
+import { deletedNoteIds } from "./tables";
 
 const noteId = z.uuidv7();
 // Strict: a column the server does not know (including `user_id`) is refused, not ignored.
@@ -36,8 +38,21 @@ export const notesSyncHandler: SyncTableHandler = {
       const state = await noteState(db, userId, id.data);
       if (state === "deleted") throw new SyncRejection("SYNC_ROW_DELETED");
       if (state === "live") await updateNote(db, userId, id.data, data.data);
-      // A duplicate id owned by someone else fails here with a unique violation.
-      else await createNote(db, userId, { id: id.data, ...data.data });
+      else {
+        // Check after noteState: a concurrent purge may have just replaced the tombstone.
+        const [deleted] = await db
+          .select({ userId: deletedNoteIds.userId })
+          .from(deletedNoteIds)
+          .where(eq(deletedNoteIds.id, id.data))
+          .limit(1);
+        if (deleted) {
+          throw new SyncRejection(
+            deleted.userId === userId ? "SYNC_ROW_DELETED" : "SYNC_ID_CONFLICT",
+          );
+        }
+        // A duplicate id owned by someone else fails here with a unique violation.
+        await createNote(db, userId, { id: id.data, ...data.data });
+      }
       return;
     }
 
