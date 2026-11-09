@@ -57,13 +57,17 @@ export function DashboardScreen() {
             </View>
             <View className="gap-1">
               <NumberFlow
-                value={stats.notes}
+                value={stats.exercises}
                 className="text-numeric-xl font-semibold text-foreground"
               />
-              <Text className="text-label text-muted">{t("dashboard__stat_notes")}</Text>
+              <Text className="text-label text-muted">{t("dashboard__stat_exercises")}</Text>
             </View>
-            <Button variant="primary" className="min-h-12" onPress={() => router.push("/notes")}>
-              <Button.Label>{t("dashboard__open_notes")}</Button.Label>
+            <Button
+              variant="primary"
+              className="min-h-12"
+              onPress={() => router.push("/exercises")}
+            >
+              <Button.Label>{t("dashboard__open_exercises")}</Button.Label>
               <ArrowUpRight size={18} color={onAction} />
             </Button>
           </View>

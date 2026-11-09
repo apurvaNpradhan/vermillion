@@ -163,12 +163,12 @@ describe.skipIf(unavailable)("replication bootstrap on the compose Postgres", ()
     // What a table's migration does (ADR 0023): the app role adds it and grants SELECT.
     const app = new Client({ connectionString: urlFor(appRole, "app-password", appDatabase) });
     await app.connect();
-    await app.query("CREATE TABLE synced_notes (id text PRIMARY KEY)");
-    await app.query(`ALTER PUBLICATION "${names.publication}" ADD TABLE synced_notes`);
-    await app.query(`GRANT SELECT ON synced_notes TO "${names.replicationRole}"`);
+    await app.query("CREATE TABLE synced_rows (id text PRIMARY KEY)");
+    await app.query(`ALTER PUBLICATION "${names.publication}" ADD TABLE synced_rows`);
+    await app.query(`GRANT SELECT ON synced_rows TO "${names.replicationRole}"`);
     await app.end();
     const before = await publicationState();
-    expect(before.tables).toEqual(["synced_notes"]);
+    expect(before.tables).toEqual(["synced_rows"]);
 
     const again = await bootstrapReplication(options());
 

@@ -144,8 +144,14 @@ export function compareStreams(
     }
     if (!published.has(stream.table))
       problems.push(`stream ${name} reads ${stream.table}, which is not in a publication`);
-    if (!/\buser_id\s*=\s*auth\.user_id\(\)/i.test(stream.query))
-      problems.push(`stream ${name} is not filtered by user_id = auth.user_id()`);
+    // A stream is per user, or the catalog's global one (`user_id IS NULL`: Reference data).
+    if (
+      !/\buser_id\s*=\s*auth\.user_id\(\)/i.test(stream.query) &&
+      !/\buser_id\s+IS\s+NULL\b/i.test(stream.query)
+    )
+      problems.push(
+        `stream ${name} is not filtered by user_id = auth.user_id() or user_id IS NULL`,
+      );
     if (table.columns.deleted_at && !/\bdeleted_at\s+IS\s+NULL\b/i.test(stream.query))
       problems.push(`stream ${name} does not exclude soft-deleted rows`);
     if (!uploadTables.includes(stream.table))

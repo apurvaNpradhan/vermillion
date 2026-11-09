@@ -57,6 +57,8 @@ import { scrubIndex, tabSlots } from "./tab-slots";
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0] & {
   /** Shown at the top of the switcher's menu (the signed-in account). */
   menuHeader?: (closeMenu: () => void) => ReactNode;
+  /** How many tabs get their own button on the pill; the rest are in the menu. */
+  directTabCount?: number;
 };
 type TabRoute = TabBarProps["state"]["routes"][number];
 
@@ -80,14 +82,22 @@ function useOnIdentityColor(): string | undefined {
 }
 
 /**
- * Floating, icon-only tab bar in the manner of Linear's: a pill with the first tabs and a menu
+ * Floating, icon-only tab bar in the manner of Linear's: a pill with the first `directTabCount`
+ * tabs (two unless the app says otherwise) and a menu
  * button, plus a round button for the open tab's main action (`useTabAction`). The menu button
  * makes the pill itself grow upward into a panel listing every tab under the account header.
  * Tap it to open, or press and slide up to pick a row in one move. The bar steps aside while the
  * keyboard is up. Tab presses go through `tabPress`, so a second tap scrolls a screen using
  * `useScrollToTop` back to the top.
  */
-export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader }: TabBarProps) {
+export function TabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+  menuHeader,
+  directTabCount,
+}: TabBarProps) {
   const { t } = useTranslation();
   const [foreground, muted, background] = useThemeColor(["foreground", "muted", "background"]);
   const bottom = useTabBarBottom();
@@ -107,7 +117,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
   const contentHeight = useSharedValue(TAB_BAR_HEIGHT);
 
   const routes = state.routes.filter((route) => descriptors[route.key]?.options.tabBarIcon);
-  const { direct, overflow } = tabSlots(routes);
+  const { direct, overflow } = tabSlots(routes, directTabCount);
   const all = [...direct, ...overflow];
   const activeRoute = state.routes[state.index];
   const activeName = activeRoute?.name ?? "";
@@ -162,7 +172,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, menuHeader 
     transform: [{ translateX: withTiming(Math.max(indicatorLeft, 0), INDICATOR) }],
   }));
   // Slides down and fades with the keyboard, frame by frame, or when a screen's own layer
-  // (the note composer) takes over the bottom of the screen.
+  // (a composer) takes over the bottom of the screen.
   const hiddenProgress = useDerivedValue(() =>
     withTiming(barHidden ? 1 : 0, { duration: 150, reduceMotion: ReduceMotion.System }),
   );

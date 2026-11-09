@@ -23,15 +23,17 @@ type FakeState = {
 
 /**
  * A real SQLite file with the sync package's tables, shaped like the PowerSync database the
- * connector, lifecycle and notes store use. PowerSync itself (the sync stream, the CRUD triggers)
+ * connector, lifecycle and exercise store use. PowerSync itself (the sync stream, the CRUD triggers)
  * is the platform boundary: tests queue CRUD transactions by hand.
  */
 export function createFakeDatabase(options: { beforeComplete?: () => void } = {}) {
   const sqlite = new DatabaseSync(":memory:");
   const createSchema = () =>
     sqlite.exec(`
-      CREATE TABLE notes (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, body TEXT,
-        created_at TEXT, updated_at TEXT, deleted_at TEXT);
+      CREATE TABLE exercise (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, primary_muscle TEXT,
+        secondary_muscles TEXT, equipment TEXT, exercise_type TEXT, is_full_bodyweight INTEGER,
+        rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
+        thumbnail_key TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
       CREATE TABLE rejected_writes (id TEXT PRIMARY KEY, tx_id TEXT, op_ordinal INTEGER,
@@ -56,7 +58,10 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       sqlite.prepare(sql).get(...params) ?? null,
     getAll: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).all(...params),
     get: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).get(...params),
-    execute: async (sql: string, params: Param[] = []) => sqlite.prepare(sql).run(...params),
+    execute: async (sql: string, params: Param[] = []) => {
+      const result = sqlite.prepare(sql).run(...params);
+      return { ...result, rowsAffected: Number(result.changes) };
+    },
     // What the Drizzle driver reads: column values in select order.
     executeRaw: async (sql: string, params: Param[] = []) => ({
       rawRows: sqlite
@@ -87,7 +92,10 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       count: transactions.reduce((total, item) => total + item.crud.length, 0),
     }),
     get currentStatus() {
-      return state.status;
+      return {
+        ...state.status,
+        statusForPriority: (priority: number) => ({ priority, hasSynced: state.status.hasSynced }),
+      };
     },
     registerListener: () => () => undefined,
     watchWithCallback: (
@@ -106,7 +114,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     },
     disconnectAndClear: async () => {
       state.clears += 1;
-      for (const table of ["notes", "device_owner", "install_meta", "rejected_writes"]) {
+      for (const table of ["exercise", "device_owner", "install_meta", "rejected_writes"]) {
         sqlite.exec(`DELETE FROM ${table}`);
       }
       transactions.length = 0;
@@ -140,7 +148,7 @@ export function crudEntry(
   op: "PUT" | "PATCH" | "DELETE",
   id: string,
   opData?: Record<string, Param>,
-  table = "notes",
+  table = "exercise",
 ): CrudEntry {
   clientId += 1;
   return asDouble<CrudEntry>(

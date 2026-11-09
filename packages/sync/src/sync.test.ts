@@ -72,25 +72,25 @@ describe("row conversion", () => {
 describe("powerSyncSchema", () => {
   const tables = Object.fromEntries(powerSyncSchema.tables.map((table) => [table.name, table]));
 
-  it("has the synced notes table and three local-only tables", () => {
+  it("has the synced exercise table and three local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
       "device_owner",
+      "exercise",
       "install_meta",
-      "notes",
       "rejected_writes",
     ]);
-    expect(tables.notes?.localOnly).toBe(false);
+    expect(tables.exercise?.localOnly).toBe(false);
     expect(tables.install_meta?.localOnly).toBe(true);
     expect(tables.rejected_writes?.localOnly).toBe(true);
   });
 
-  it("indexes the notes sort keys", () => {
-    const index = tables.notes?.indexes.find((i) => i.name === "notes_live_updated_at_idx");
-    expect(index?.columns.map((c) => c.name)).toEqual(["deleted_at", "updated_at", "id"]);
+  it("indexes the exercise filter and sort keys", () => {
+    const indexed = tables.exercise?.indexes.flatMap((i) => i.columns.map((c) => c.name));
+    expect(indexed?.toSorted()).toEqual(["equipment", "primary_muscle", "retired_at", "title"]);
   });
 
   it("does not declare id as a column (PowerSync adds it)", () => {
-    expect(tables.notes?.columns.map((c) => c.name)).not.toContain("id");
+    expect(tables.exercise?.columns.map((c) => c.name)).not.toContain("id");
   });
 });
 

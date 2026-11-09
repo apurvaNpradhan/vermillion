@@ -1,6 +1,6 @@
 # 0016. Client data layer: isolated Drizzle 0.45, sync package, query vs sync
 
-Status: accepted (2026-11-07). Covers D5, D6, D10, D12.
+Status: accepted (2026-11-07). Covers D5, D6, D10, D12. Affected by [0035](0035-remove-notes-example.md): `notes` was removed and `exercise` is the synced reference table.
 
 ## Context
 

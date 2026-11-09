@@ -5,13 +5,13 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 ## Glossary
 
 - **App config** — `app.config.ts`, the single source of the app's name, URLs, ports, bundle ids, scheme and versions. Files that cannot import it (compose names, the server Dockerfile port, EAS URLs) are edited by hand.
-- **Vertical** — a self-contained slice of domain code (`account`, `preferences`, `auth`, `notes`) with procedures, operations, tables and a public `index.ts`. Other verticals may import it only through that index. The native modules mirror the shape. Deleting a feature is deleting its vertical.
+- **Vertical** — a self-contained slice of domain code (`account`, `preferences`, `auth`, `exercise`) with procedures, operations, tables and a public `index.ts`. Other verticals may import it only through that index. The native modules mirror the shape. Deleting a feature is deleting its vertical.
 - **Platform** — shared infrastructure inside an app or `packages/api`: database startup, HTTP middleware, the oRPC base, rate limiting, jobs, health. Importable from every vertical; not a vertical.
-- **Operation** — one file in a vertical doing one thing (create a note, delete an account). Procedures call operations.
+- **Operation** — one file in a vertical doing one thing (create a Custom exercise, delete an account). Procedures call operations.
 - **Procedure** — an oRPC endpoint built from the `public` or `authed` builder.
 - **`authed` seam** — the single builder that resolves the signed-in user.
-- **Module hook** — the only way a component reads or writes app data (`use-notes`, `use-preferences`). The sync layer sits behind the hooks, not in the components.
-- **Example vertical** — `notes`: a complete create, read, update, delete reference with ownership checks, synced to the device. The first real vertical replaces it.
+- **Module hook** — the only way a component reads or writes app data (`use-exercise-library`, `use-preferences`). The sync layer sits behind the hooks, not in the components.
+- **Reference vertical** — `exercise` is the first real vertical and the worked example of a synced table: a Reference-data catalog plus per-user Custom exercises, retire-never-delete, an upload handler, a client schema and seam 1 and 3 tests ([ADR 0034](docs/adr/0034-exercise-library.md)). The earlier `notes` example was removed ([ADR 0035](docs/adr/0035-remove-notes-example.md)); its tables stay in Postgres unused.
 - **User preferences** — one row per user, created on first write: `locale`, `timezone` and a `ui` jsonb with defaults. A missing row means defaults. Theme is not a preference: it is stored per device ([native themes](docs/guides/native-themes.md)).
 - **Locale resolution** — saved preference, then locale cookie, then `Accept-Language` (device locale on native), then `en`.
 - **Registration policy** — `REGISTRATION_OPEN`. When false no new account can register; existing accounts still sign in.
@@ -27,6 +27,10 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Sync stream** — a PowerSync Sync Streams definition that selects which Postgres rows replicate to a user's device, filtered by `user_id`. Lives in `tests/sync`; round-trip tests land in later sync phases ([0015](docs/adr/0015-powersync-self-hosted.md)).
 - **Bootstrap (sync)** — the idempotent admin job that creates the replication role, storage database and empty publication before PowerSync starts. Lives in `tests/sync`; round-trip tests land in later sync phases ([0023](docs/adr/0023-replication-setup.md)).
 - **Seam 3** — the sync test seam: headless `@powersync/node` clients against `powersync-service`, the server and Postgres, run by `pnpm test:sync`. Lives in `tests/sync`; round-trip tests land in later sync phases ([0024](docs/adr/0024-test-strategy.md)).
+- **Reference data** — rows identical for every user and written only by the server (today: the exercise catalog, `exercise.user_id IS NULL`). Read-only on devices; retired, never deleted ([0034](docs/adr/0034-exercise-library.md)).
+- **Exercise catalog** — the Reference data exercises, imported from a committed file at migrate time and synced by a global stream.
+- **Custom exercise** — an `exercise` row owned by a user. Archived and restored, never deleted; its type is fixed once a set uses it.
+- **Muscle group** — one of 20 code-defined slugs an exercise targets (one primary, any secondary). The body map draws 17 of them.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam since the web app was removed.
 - **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `api.<domain>` record. Firewalled to Cloudflare's IP ranges.

@@ -1,6 +1,6 @@
 # 0028. Native navigation shell: floating tab pill, page header, session guards
 
-Status: accepted (2026-11-08).
+Status: accepted (2026-11-08). Affected by [0035](0035-remove-notes-example.md): the pill shows Home as its only direct tab (`directTabCount` 1); the first-two-tabs rule below is the default, and Notes is gone.
 
 ## Context
 

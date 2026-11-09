@@ -1,6 +1,6 @@
 # 0024. Tests: real Postgres everywhere, a sync seam and a parity test
 
-Status: accepted (2026-11-07). Covers D14.
+Status: accepted (2026-11-07). Covers D14. Affected by [0035](0035-remove-notes-example.md): the sync scenarios now run on Custom exercises instead of notes.
 
 ## Context
 

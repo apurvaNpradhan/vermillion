@@ -13,11 +13,11 @@ Tooling: pnpm, Turborepo, TypeScript 7, oxlint and oxfmt, lefthook, commitlint, 
 ## What is included
 
 - Passwordless sign-in with emailed codes and passkeys; account-first onboarding; Google and GitHub when configured; Turnstile CAPTCHA; disposable-email blocking; a registration switch.
-- Preferences (language, time zone), a System, Light or Dark theme per device, `en` and `de`.
-- Local-first sync of notes with PowerSync, an upload queue and a rejected-writes review.
+- Preferences (time zone), a System, Light or Dark theme per device, English only for now.
+- Local-first sync with PowerSync (the exercise library and Custom exercises), an upload queue and a rejected-writes review.
 - Account deletion with email confirmation.
 - Postgres-backed jobs with retries, localized React Email templates, structured JSON logs.
-- An example `notes` vertical (native, API, sync, tests) to replace with the product's first vertical.
+- The exercise library as the first vertical (native, API, sync, tests); a worked example of a synced table.
 
 ## Getting started
 

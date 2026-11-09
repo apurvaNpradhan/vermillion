@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 export const haptic = {
   /** Selection changes: a tab, a chip, each step of a menu scrub. */
   tick: () => void Haptics.selectionAsync().catch(() => undefined),
-  /** Something was saved or done: a note added, a row deleted. */
+  /** Something was saved or done: an exercise created, a row deleted. */
   confirm: () =>
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined),
   /** A goal reached. */

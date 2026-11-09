@@ -4,7 +4,7 @@ The app UI is native: HeroUI Native with Uniwind (Tailwind classes). Load `herou
 
 Import `Button` and `Card` from `@/platform/ui/button` and `@/platform/ui/card`, not from `heroui-native`: they carry the Vermillion radius and hairline. Destructive buttons use `variant="danger-soft"`, never `danger`. Icons come from `phosphor-react-native`.
 
-Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input`/`Label`; inside TanStack Form use `@/platform/forms/text-field`. A borderless input that must not look like a form field (the note sheet) may use `TextInput` directly.
+Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input`/`Label`; inside TanStack Form use `@/platform/forms/text-field`. A borderless input that must not look like a form field (a note field that sits on a sheet) may use `TextInput` directly.
 
 ### Copy-in components ([ADR 0030](../docs/adr/0030-native-component-sourcing.md))
 

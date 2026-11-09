@@ -35,7 +35,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 - Never read `process.env` or `import.meta.env` outside `packages/env`: see [environment](.agents/environment.md).
 - Migrations are additive-only: see [database](.agents/database.md).
 - Do not mock our own modules in tests; only the network boundary: see [orpc-testing](.agents/orpc-testing.md) and [testing](.agents/testing.md).
-- Every user-visible string goes through i18n in `en` and `de`: see [i18n](.agents/i18n.md).
+- Every user-visible string goes through i18n in `en` (English only for now): see [i18n](.agents/i18n.md).
 - Use brand tokens, not raw colors: see [ui](.agents/ui.md).
 - Conventional commits (commitlint), body lines at most 100 characters. Never commit secrets; a pre-commit scan checks staged files.
 - Workflow actions are pinned to commit SHAs; `zizmor` audits them.

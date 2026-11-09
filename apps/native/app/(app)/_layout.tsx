@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { GearSix, NotePencil, SunHorizon, type IconProps } from "phosphor-react-native";
+import { Barbell, GearSix, SunHorizon, type IconProps } from "phosphor-react-native";
 import type { ComponentType } from "react";
 import { Dimensions, Easing, type ColorValue } from "react-native";
 
@@ -7,6 +7,7 @@ import { useTranslation } from "@/platform/i18n";
 import { TabActionProvider } from "@/platform/navigation/tab-action";
 import { TabBar } from "@/platform/navigation/tab-bar";
 import { isColorString } from "@/platform/theme";
+import { useThumbnailPrefetch } from "@/exercise";
 import { useAccountLocale } from "@/preferences";
 import { useSyncStatus } from "@/sync";
 import { AccountSummary } from "@/account";
@@ -26,20 +27,26 @@ const tabIcon =
 /** Share of the window width a tab page travels while switching. */
 const SLIDE = 0.28;
 
+/** The pill shows Home only; Exercises and Settings are in the switcher's menu (ADR 0035). */
+const DIRECT_TABS = 1;
+
 /**
- * The signed-in tabs. The first two sit on the floating pill; the rest (up to five in all) are
- * in the switcher's menu, in declaration order. Pages draw their own collapsing header.
+ * The signed-in tabs. The first `DIRECT_TABS` sit on the floating pill; the rest (up to five in
+ * all) are in the switcher's menu, in declaration order. Pages draw their own collapsing header.
  */
 export default function AppLayout() {
   const { t } = useTranslation();
   useAccountLocale();
+  useThumbnailPrefetch();
   const { snapshot } = useSyncStatus();
 
   return (
     // Reset account-scoped screens and drafts, not the root auth/deep-link state.
     <TabActionProvider key={snapshot?.writeScope ?? "unclaimed"}>
       <Tabs
-        tabBar={(props) => <TabBar {...props} menuHeader={() => <AccountSummary />} />}
+        tabBar={(props) => (
+          <TabBar {...props} directTabCount={DIRECT_TABS} menuHeader={() => <AccountSummary />} />
+        )}
         // Direction-aware horizontal slide: a tab to the right enters from the right.
         screenOptions={{
           headerShown: false,
@@ -77,9 +84,10 @@ export default function AppLayout() {
           name="index"
           options={{ title: t("nav__home"), tabBarIcon: tabIcon(SunHorizon) }}
         />
+        {/* After the direct tab, so it lands in the switcher menu. */}
         <Tabs.Screen
-          name="notes"
-          options={{ title: t("notes__title"), tabBarIcon: tabIcon(NotePencil) }}
+          name="exercises"
+          options={{ title: t("exercise__title"), tabBarIcon: tabIcon(Barbell) }}
         />
         <Tabs.Screen
           name="settings"

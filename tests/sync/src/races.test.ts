@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { SyncClient } from "./support/client";
 import { useSyncSuite, within } from "./support/suite";
-import { createUser, database, serverNote } from "./support/users";
+import { createUser, serverExercise } from "./support/users";
 
-// Seam 3, phase 7: delete races, late writes and rollback siblings (ADR 0018/0019). Every
-// write must end applied or as a recorded rejection; the devices converge on the server.
+// Seam 3, phase 7: concurrent edits, refused deletes and rollback siblings (ADR 0018/0019), with
+// the Custom exercise as the subject. Every write must end applied or as a recorded rejection;
+// the devices converge on the server.
 
 const newClient = useSyncSuite();
 
@@ -15,92 +16,84 @@ function verdicts(client: SyncClient) {
   return [...client.outcomes().values()].map((o) => (o.status === "applied" ? "applied" : o.code));
 }
 
-const gone = (client: SyncClient, id: string) =>
-  vi.waitFor(async () => expect(await client.note(id)).toBeNull(), within);
-
-describe("delete races", () => {
-  it("an edit made offline loses to a delete uploaded first, and is recorded as rejected", async () => {
+describe("concurrent edits", () => {
+  it("an edit made offline and an archive uploaded first both apply, and the devices converge", async () => {
     const user = await createUser();
     const [a, b] = [await newClient(user), await newClient(user)];
     await Promise.all([a.connect(), b.connect()]);
     const id = uuidv7();
-    await a.createNote(id, "Contested", "v0");
+    await a.createExercise(id, user.userId, "Contested", "v0");
     await a.uploaded();
-    await vi.waitFor(async () => expect(await b.note(id)).not.toBeNull(), within);
+    await vi.waitFor(async () => expect(await b.exercise(id)).not.toBeNull(), within);
 
     await b.disconnect();
-    await b.updateNote(id, { body: "edited offline" });
-    await a.deleteNote(id);
+    await b.updateExercise(id, { title: "Edited offline" });
+    await a.updateExercise(id, { retired_at: new Date().toISOString() });
     await a.uploaded();
 
     await b.connect();
     await b.uploaded();
-    expect(verdicts(b)).toEqual(["SYNC_ROW_DELETED"]);
-    expect((await serverNote(id))?.deleted_at).toBeInstanceOf(Date);
-    expect((await serverNote(id))?.body).toBe("v0");
-    await gone(b, id);
-    await gone(a, id);
+    // Different fields: both land; the archive is not undone by the late edit.
+    expect(verdicts(b)).toEqual(["applied"]);
+    expect(await serverExercise(id)).toMatchObject({
+      title: "Edited offline",
+      instructions: "v0",
+      retired_at: expect.any(Date),
+    });
+    for (const client of [a, b]) {
+      await vi.waitFor(async () => {
+        expect(await client.exercise(id)).toMatchObject({ title: "Edited offline" });
+        expect((await client.exercise(id))?.retired_at).not.toBeNull();
+      }, within);
+    }
   });
 
-  it("a delete uploaded after an edit still wins, and both devices converge", async () => {
+  it("two devices editing the same field end on the last upload, on every device", async () => {
     const user = await createUser();
     const [a, b] = [await newClient(user), await newClient(user)];
     await Promise.all([a.connect(), b.connect()]);
     const id = uuidv7();
-    await a.createNote(id, "Contested", "v0");
+    await a.createExercise(id, user.userId, "Contested", "v0");
     await a.uploaded();
-    await vi.waitFor(async () => expect(await b.note(id)).not.toBeNull(), within);
+    await vi.waitFor(async () => expect(await b.exercise(id)).not.toBeNull(), within);
 
     await a.disconnect();
-    await a.deleteNote(id);
-    await b.updateNote(id, { body: "edited online" });
+    await a.updateExercise(id, { instructions: "from A" });
+    await b.updateExercise(id, { instructions: "from B" });
     await b.uploaded();
     await a.connect();
     await a.uploaded();
 
-    expect(verdicts(a)).toEqual(["applied", "applied"]); // the create, then the delete
-    expect((await serverNote(id))?.deleted_at).toBeInstanceOf(Date);
-    await gone(a, id);
-    await gone(b, id);
+    expect(verdicts(a)).toEqual(["applied", "applied"]); // the create, then the edit
+    // Server application order decides: A's edit was uploaded last.
+    expect((await serverExercise(id))?.instructions).toBe("from A");
+    for (const client of [a, b]) {
+      await vi.waitFor(
+        async () => expect((await client.exercise(id))?.instructions).toBe("from A"),
+        within,
+      );
+    }
   });
 
-  it("a late create of a deleted id is refused and the live set does not change", async () => {
-    const user = await createUser();
-    const [a, late] = [await newClient(user), await newClient(user)];
-    await a.connect();
-    const id = uuidv7();
-    await a.createNote(id, "Original");
-    await a.uploaded();
-    await a.deleteNote(id);
-    await a.uploaded();
-
-    // A device that never saw the note writes the same id offline.
-    await late.createNote(id, "Zombie");
-    await late.connect();
-    await late.uploaded();
-    expect(verdicts(late)).toEqual(["SYNC_ROW_DELETED"]);
-    expect(await serverNote(id)).toMatchObject({ title: "Original" });
-    await gone(late, id);
-  });
-
-  it("a late edit of a purged row is refused as not found", async () => {
+  it("a delete is refused, recorded, and the row survives on every device", async () => {
     const user = await createUser();
     const [a, b] = [await newClient(user), await newClient(user)];
     await Promise.all([a.connect(), b.connect()]);
     const id = uuidv7();
-    await a.createNote(id, "Purged soon");
+    await a.createExercise(id, user.userId, "Keep me");
     await a.uploaded();
-    await vi.waitFor(async () => expect(await b.note(id)).not.toBeNull(), within);
+    await vi.waitFor(async () => expect(await b.exercise(id)).not.toBeNull(), within);
 
-    await b.disconnect();
-    await b.updateNote(id, { title: "too late" });
-    // Retention elapsed: the tombstone was hard deleted while b was away.
-    await database.query("DELETE FROM notes WHERE id = $1", [id]);
-    await b.connect();
-    await b.uploaded();
-    expect(verdicts(b)).toEqual(["SYNC_ROW_NOT_FOUND"]);
-    expect(await serverNote(id)).toBeUndefined();
-    await gone(b, id);
+    await a.deleteExercise(id);
+    await a.uploaded();
+    expect(verdicts(a)).toEqual(["applied", "EXERCISE_DELETE_NOT_ALLOWED"]);
+    expect(await serverExercise(id)).toMatchObject({ title: "Keep me" });
+    // The refused local delete is rolled back by the next checkpoint: the row returns.
+    await vi.waitFor(
+      async () => expect(await a.exercise(id)).toMatchObject({ title: "Keep me" }),
+      within,
+    );
+    expect(await b.exercise(id)).toMatchObject({ title: "Keep me" });
   });
 });
 
@@ -110,15 +103,15 @@ describe("ownership and rollback", () => {
     const [a, b] = [await newClient(alice), await newClient(bob)];
     await Promise.all([a.connect(), b.connect()]);
     const id = uuidv7();
-    await a.createNote(id, "Alice's", "private");
+    await a.createExercise(id, alice.userId, "Alice's", "private");
     await a.uploaded();
 
-    await b.createNote(id, "Bob's claim");
+    await b.createExercise(id, bob.userId, "Bob's claim");
     await b.uploaded();
     expect(verdicts(b)).toEqual(["SYNC_ID_CONFLICT"]);
-    expect(await serverNote(id)).toMatchObject({ user_id: alice.userId, title: "Alice's" });
-    await gone(b, id);
-    expect(await a.note(id)).toMatchObject({ title: "Alice's", body: "private" });
+    expect(await serverExercise(id)).toMatchObject({ user_id: alice.userId, title: "Alice's" });
+    await vi.waitFor(async () => expect(await b.exercise(id)).toBeNull(), within);
+    expect(await a.exercise(id)).toMatchObject({ title: "Alice's", instructions: "private" });
   });
 
   it("a rejected sibling rolls the whole transaction back and the device converges", async () => {
@@ -129,9 +122,14 @@ describe("ownership and rollback", () => {
     const bad = uuidv7();
 
     // One local transaction, so one upload: a valid create followed by an invalid one.
+    const insert = (id: string, title: string) =>
+      `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
+         exercise_type, is_full_bodyweight, created_at)
+       VALUES ('${id}', '${user.userId}', '${title}', 'chest', '[]', 'dumbbell', 'weight_reps', 0,
+         '${new Date().toISOString()}')`;
     await a.database.writeTransaction(async (tx) => {
-      await tx.execute("INSERT INTO notes (id, title, body) VALUES (?, ?, '')", [good, "Fine"]);
-      await tx.execute("INSERT INTO notes (id, title, body) VALUES (?, ?, '')", [bad, ""]);
+      await tx.execute(insert(good, "Fine"));
+      await tx.execute(insert(bad, ""));
     });
     await a.uploaded();
 
@@ -143,11 +141,11 @@ describe("ownership and rollback", () => {
       failedIndex: 1,
       ops: ["SYNC_TRANSACTION_ROLLED_BACK", "SYNC_INVALID_OP"],
     });
-    expect(await serverNote(good)).toBeUndefined();
-    expect(await serverNote(bad)).toBeUndefined();
+    expect(await serverExercise(good)).toBeUndefined();
+    expect(await serverExercise(bad)).toBeUndefined();
     // The sibling vanishes locally too once the checkpoint passes: no phantom row survives.
-    await gone(a, good);
-    await gone(a, bad);
-    expect(await b.noteIds()).toEqual([]);
+    await vi.waitFor(async () => expect(await a.exercise(good)).toBeNull(), within);
+    await vi.waitFor(async () => expect(await a.exercise(bad)).toBeNull(), within);
+    expect(await b.customIds()).toEqual([]);
   });
 });

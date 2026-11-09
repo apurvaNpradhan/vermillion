@@ -10,7 +10,7 @@ import { createConnector, SyncUploadError, type ConnectorSignal } from "./connec
 import type { SyncTransport } from "./transport";
 
 const OWNER = "user-owner";
-const NOTE = "01900000-0000-7000-8000-000000000001";
+const EXERCISE = "01900000-0000-7000-8000-000000000001";
 
 type Upload = SyncTransport["upload"];
 
@@ -124,13 +124,13 @@ describe("uploadData", () => {
     const installId = await ready(fake);
     fake.queue(
       [
-        crudEntry("PUT", NOTE, {
+        crudEntry("PUT", EXERCISE, {
           user_id: OWNER,
           title: "Hello",
-          body: "",
+          instructions: "",
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",
-          deleted_at: null,
+          retired_at: null,
         }),
       ],
       7,
@@ -138,7 +138,14 @@ describe("uploadData", () => {
     await fake.connector.uploadData();
 
     // Server-owned columns never go on the wire.
-    const ops = [{ op: "PUT", table: "notes", id: NOTE, opData: { title: "Hello", body: "" } }];
+    const ops = [
+      {
+        op: "PUT",
+        table: "exercise",
+        id: EXERCISE,
+        opData: { title: "Hello", instructions: "", retired_at: null },
+      },
+    ];
     expect(fake.uploads).toEqual([
       {
         userId: OWNER,
@@ -155,7 +162,7 @@ describe("uploadData", () => {
 
   it("completes without a request when only server-owned columns changed", async () => {
     await ready(fake);
-    fake.queue([crudEntry("PATCH", NOTE, { updated_at: "2026-01-02T00:00:00.000Z" })], 3);
+    fake.queue([crudEntry("PATCH", EXERCISE, { updated_at: "2026-01-02T00:00:00.000Z" })], 3);
     await fake.connector.uploadData();
     expect(fake.uploads).toEqual([]);
     expect(fake.state.completed).toEqual([3]);
@@ -163,9 +170,9 @@ describe("uploadData", () => {
 
   it("sends a DELETE without data", async () => {
     await ready(fake);
-    fake.queue([crudEntry("DELETE", NOTE)], 4);
+    fake.queue([crudEntry("DELETE", EXERCISE)], 4);
     await fake.connector.uploadData();
-    expect(fake.uploads[0]?.ops).toEqual([{ op: "DELETE", table: "notes", id: NOTE }]);
+    expect(fake.uploads[0]?.ops).toEqual([{ op: "DELETE", table: "exercise", id: EXERCISE }]);
   });
 
   it("stores a permanent rejection durably before completing, per operation", async () => {
@@ -187,7 +194,7 @@ describe("uploadData", () => {
     await ready(rejecting);
     const OTHER = "01900000-0000-7000-8000-000000000002";
     rejecting.queue(
-      [crudEntry("PATCH", NOTE, { title: "ok" }), crudEntry("PATCH", OTHER, { title: "" })],
+      [crudEntry("PATCH", EXERCISE, { title: "ok" }), crudEntry("PATCH", OTHER, { title: "" })],
       9,
     );
     await rejecting.connector.uploadData();
@@ -198,8 +205,8 @@ describe("uploadData", () => {
         id: "9:0",
         tx_id: "9",
         op_ordinal: 0,
-        table_name: "notes",
-        row_id: NOTE,
+        table_name: "exercise",
+        row_id: EXERCISE,
         op: "PATCH",
         code: "SYNC_TRANSACTION_ROLLED_BACK",
         payload: '{"title":"ok"}',
@@ -221,10 +228,10 @@ describe("uploadData", () => {
       }),
     });
     await ready(rejecting);
-    rejecting.queue([crudEntry("PATCH", NOTE, { title: "x" })], 5);
+    rejecting.queue([crudEntry("PATCH", EXERCISE, { title: "x" })], 5);
     await rejecting.connector.uploadData();
     // complete() was lost: the same transaction is offered again.
-    rejecting.queue([crudEntry("PATCH", NOTE, { title: "x" })], 5);
+    rejecting.queue([crudEntry("PATCH", EXERCISE, { title: "x" })], 5);
     await rejecting.connector.uploadData();
     expect(rejectedRows(rejecting)).toHaveLength(1);
   });
@@ -239,7 +246,10 @@ describe("uploadData", () => {
       }),
     });
     await ready(rejecting);
-    rejecting.queue([crudEntry("PUT", NOTE, { title: "t", body: "x".repeat(40_000) })], 6);
+    rejecting.queue(
+      [crudEntry("PUT", EXERCISE, { title: "t", instructions: "x".repeat(40_000) })],
+      6,
+    );
     await rejecting.connector.uploadData();
     const [row] = rejectedRows(rejecting);
     expect(row).toMatchObject({ payload_truncated: 1, code: "SYNC_LIMIT_EXCEEDED" });
@@ -248,7 +258,7 @@ describe("uploadData", () => {
 
   it("rejects an oversize transaction locally without sending it", async () => {
     await ready(fake);
-    fake.queue([crudEntry("PUT", NOTE, { title: "t", body: "x".repeat(70_000) })], 8);
+    fake.queue([crudEntry("PUT", EXERCISE, { title: "t", instructions: "x".repeat(70_000) })], 8);
     await fake.connector.uploadData();
     expect(fake.uploads).toEqual([]);
     expect(rejectedRows(fake)).toMatchObject([{ code: "SYNC_LIMIT_EXCEEDED" }]);
@@ -308,7 +318,7 @@ describe("uploadData", () => {
         },
       });
       await ready(failing);
-      failing.queue([crudEntry("PATCH", NOTE, { title: "keep me" })], 11);
+      failing.queue([crudEntry("PATCH", EXERCISE, { title: "keep me" })], 11);
       await expect(failing.connector.uploadData()).rejects.toMatchObject({ kind: item.kind });
       expect(failing.signals).toEqual(item.signal ? [item.signal] : []);
       expect(failing.pendingTransactions()).toBe(1);

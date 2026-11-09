@@ -55,19 +55,36 @@ describe("sync", () => {
     };
   }
 
-  const put = (id: string, title: string, body = ""): SyncOp => ({
+  // The sync experiment subject is the Custom exercise: the one writable synced table.
+  const put = (id: string, title: string, instructions = ""): SyncOp => ({
     op: "PUT",
-    table: "notes",
+    table: "exercise",
     id,
-    opData: { title, body },
+    opData: {
+      title,
+      primary_muscle: "chest",
+      secondary_muscles: "[]",
+      equipment: "dumbbell",
+      exercise_type: "weight_reps",
+      is_full_bodyweight: 0,
+      instructions,
+    },
   });
   const patch = (id: string, opData: SyncOp["opData"]): SyncOp => ({
     op: "PATCH",
-    table: "notes",
+    table: "exercise",
     id,
     opData,
   });
-  const del = (id: string): SyncOp => ({ op: "DELETE", table: "notes", id });
+  const del = (id: string): SyncOp => ({ op: "DELETE", table: "exercise", id });
+  const stored = async (id: string) =>
+    (
+      await app.rows(
+        sql`SELECT user_id, title, instructions, retired_at FROM exercise WHERE id = ${id}`,
+      )
+    )[0];
+  const countRows = async (id: string) =>
+    Number((await app.rows(sql`SELECT count(*)::int AS n FROM exercise WHERE id = ${id}`))[0]?.n);
 
   describe("credentials", () => {
     it("requires a session", async () => {
@@ -136,15 +153,18 @@ describe("sync", () => {
       const id = uuidv7();
       const result = await me.client.sync.upload(request(me, 1, [put(id, "Hello", "World")]));
       expect(result).toEqual({ status: "applied" });
-      expect(await me.client.notes.get({ id })).toMatchObject({ title: "Hello", body: "World" });
+      expect(await stored(id)).toMatchObject({
+        user_id: me.userId,
+        title: "Hello",
+        instructions: "World",
+      });
 
-      await me.client.sync.upload(request(me, 2, [patch(id, { body: "Changed" })]));
-      expect(await me.client.notes.get({ id })).toMatchObject({ title: "Hello", body: "Changed" });
+      await me.client.sync.upload(request(me, 2, [patch(id, { instructions: "Changed" })]));
+      expect(await stored(id)).toMatchObject({ title: "Hello", instructions: "Changed" });
 
-      await me.client.sync.upload(request(me, 3, [del(id)]));
-      expect(await me.client.notes.list()).toEqual([]);
-      const rows = await app.rows(sql`SELECT deleted_at FROM notes WHERE id = ${id}`);
-      expect(rows[0]?.deleted_at).toBeTruthy();
+      const archivedAt = new Date().toISOString();
+      await me.client.sync.upload(request(me, 3, [patch(id, { retired_at: archivedAt })]));
+      expect((await stored(id))?.retired_at).toBeTruthy();
     });
 
     it("stores the receipt with the digest and outcome", async () => {
@@ -163,12 +183,12 @@ describe("sync", () => {
       const id = uuidv7();
       const create = request(me, 1, [put(id, "Once")]);
       expect(await me.client.sync.upload(create)).toEqual({ status: "applied" });
-      await me.client.notes.delete({ id });
+      await me.client.sync.upload(request(me, 2, [patch(id, { title: "Renamed" })]));
 
-      // Re-applying would find the tombstone and reject; a replay returns the first outcome.
+      // Re-applying the create would overwrite the rename; a replay returns the first outcome.
       expect(await me.client.sync.upload(create)).toEqual({ status: "applied" });
-      const rows = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${id}`);
-      expect(rows[0]?.n).toBe(1);
+      expect(await stored(id)).toMatchObject({ title: "Renamed" });
+      expect(await countRows(id)).toBe(1);
     });
 
     it("serializes concurrent duplicates: one applies, the others get the stored outcome", async () => {
@@ -179,8 +199,7 @@ describe("sync", () => {
         Array.from({ length: 6 }, () => me.client.sync.upload(create)),
       );
       expect(results).toEqual(Array.from({ length: 6 }, () => ({ status: "applied" })));
-      const notes = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${id}`);
-      expect(notes[0]?.n).toBe(1);
+      expect(await countRows(id)).toBe(1);
       const receipts = await app.rows(
         sql`SELECT count(*)::int AS n FROM sync_upload_receipts
             WHERE user_id = ${me.userId} AND install_id = ${me.installId}`,
@@ -218,13 +237,13 @@ describe("sync", () => {
       const first = uuidv7();
       const second = uuidv7();
       // A real storage fault: a trigger that raises (not a constraint code, so it stays transient).
-      await app.rows(sql`CREATE OR REPLACE FUNCTION fail_second_note() RETURNS trigger AS $$
+      await app.rows(sql`CREATE OR REPLACE FUNCTION fail_second_exercise() RETURNS trigger AS $$
         BEGIN
           IF NEW.id = ${sql.raw(`'${second}'`)}::uuid THEN RAISE EXCEPTION 'injected storage fault'; END IF;
           RETURN NEW;
         END $$ LANGUAGE plpgsql`);
-      await app.rows(sql`CREATE TRIGGER fail_second_note BEFORE INSERT ON notes
-        FOR EACH ROW EXECUTE FUNCTION fail_second_note()`);
+      await app.rows(sql`CREATE TRIGGER fail_second_exercise BEFORE INSERT ON exercise
+        FOR EACH ROW EXECUTE FUNCTION fail_second_exercise()`);
       const req = request(me, 1, [put(first, "one"), put(second, "two")]);
       try {
         await expect(me.client.sync.upload(req)).rejects.toMatchObject({
@@ -232,19 +251,22 @@ describe("sync", () => {
           data: { code: "SYNC_TRANSIENT" },
         });
         // Neither the earlier op nor the receipt survived: the crash window leaves no trace.
-        const notes = await app.rows(
-          sql`SELECT count(*)::int AS n FROM notes WHERE user_id = ${me.userId}`,
+        const exercises = await app.rows(
+          sql`SELECT count(*)::int AS n FROM exercise WHERE user_id = ${me.userId}`,
         );
-        expect(notes[0]?.n).toBe(0);
+        expect(exercises[0]?.n).toBe(0);
         const receipts = await app.rows(
           sql`SELECT count(*)::int AS n FROM sync_upload_receipts WHERE user_id = ${me.userId}`,
         );
         expect(receipts[0]?.n).toBe(0);
       } finally {
-        await app.rows(sql`DROP TRIGGER fail_second_note ON notes`);
+        await app.rows(sql`DROP TRIGGER fail_second_exercise ON exercise`);
       }
       expect(await me.client.sync.upload(req)).toEqual({ status: "applied" });
-      expect(await me.client.notes.list()).toHaveLength(2);
+      const exercises = await app.rows(
+        sql`SELECT count(*)::int AS n FROM exercise WHERE user_id = ${me.userId}`,
+      );
+      expect(exercises[0]?.n).toBe(2);
     });
 
     it("replays a stored rejection as the same rejection", async () => {
@@ -269,15 +291,15 @@ describe("sync", () => {
       await me.client.sync.upload(request(me, 1, [put(id, "Start", "v0")]));
 
       // Device A commits a body edit, but the response is lost.
-      const edit = request(me, 2, [patch(id, { body: "from A" })]);
+      const edit = request(me, 2, [patch(id, { instructions: "from A" })]);
       await me.client.sync.upload(edit);
       // Device B (another install) then edits the same field.
       const deviceB = { ...me, installId: uuidv7() };
-      await me.client.sync.upload(request(deviceB, 1, [patch(id, { body: "from B" })]));
+      await me.client.sync.upload(request(deviceB, 1, [patch(id, { instructions: "from B" })]));
       // A retries.
       expect(await me.client.sync.upload(edit)).toEqual({ status: "applied" });
 
-      expect(await me.client.notes.get({ id })).toMatchObject({ body: "from B" });
+      expect(await stored(id)).toMatchObject({ instructions: "from B" });
     });
 
     it("refuses an upload queued for another account (409) and writes nothing", async () => {
@@ -288,15 +310,14 @@ describe("sync", () => {
         code: "CONFLICT",
         data: { code: "SYNC_WRONG_ACCOUNT" },
       });
-      const rows = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${id}`);
-      expect(rows[0]?.n).toBe(0);
+      expect(await countRows(id)).toBe(0);
       const receipts = await app.rows(
         sql`SELECT count(*)::int AS n FROM sync_upload_receipts WHERE install_id = ${a.installId}`,
       );
       expect(receipts[0]?.n).toBe(0);
     });
 
-    it("does not let one user touch another's note", async () => {
+    it("does not let one user touch another's exercise", async () => {
       const a = await signedIn("iso-a@example.com");
       const b = await signedIn("iso-b@example.com");
       const id = uuidv7();
@@ -304,14 +325,15 @@ describe("sync", () => {
 
       const update = await b.client.sync.upload(request(b, 1, [patch(id, { title: "hacked" })]));
       expect(update).toMatchObject({ status: "rejected", code: "SYNC_ROW_NOT_FOUND" });
-      // Deleting someone else's note is a harmless no-op, not a disclosure.
-      expect(await b.client.sync.upload(request(b, 2, [del(id)]))).toEqual({ status: "applied" });
       // Creating with an id owned by another user is refused.
-      const duplicate = await b.client.sync.upload(request(b, 3, [put(id, "mine now")]));
+      const duplicate = await b.client.sync.upload(request(b, 2, [put(id, "mine now")]));
       expect(duplicate).toMatchObject({ status: "rejected", code: "SYNC_ID_CONFLICT" });
 
-      expect(await a.client.notes.get({ id })).toMatchObject({ title: "A's", body: "secret" });
-      await expect(b.client.notes.get({ id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(await stored(id)).toMatchObject({
+        user_id: a.userId,
+        title: "A's",
+        instructions: "secret",
+      });
     });
 
     it("reports the first failure and rolls back the siblings", async () => {
@@ -331,19 +353,23 @@ describe("sync", () => {
         failedIndex: 1,
         ops: ["SYNC_TRANSACTION_ROLLED_BACK", "SYNC_ROW_NOT_FOUND", "SYNC_TRANSACTION_ROLLED_BACK"],
       });
-      expect(await me.client.notes.list()).toEqual([]);
+      expect(await countRows(first)).toBe(0);
+      expect(await countRows(third)).toBe(0);
     });
 
     it("rejects invalid fields, ids, tables and unknown columns permanently", async () => {
       const me = await signedIn("invalid@example.com");
+      // A PATCH is only validated for a row the writer owns; anything else is "not found".
+      const own = uuidv7();
+      await me.client.sync.upload(request(me, 100, [put(own, "Mine")]));
       const cases: [SyncOp, string][] = [
-        [put(uuidv7(), "x".repeat(201)), "SYNC_INVALID_OP"],
+        [put(uuidv7(), "x".repeat(101)), "SYNC_INVALID_OP"],
         [put(uuidv7(), "   "), "SYNC_INVALID_OP"],
         [put("not-a-uuid", "x"), "SYNC_INVALID_OP"],
         [put(crypto.randomUUID(), "uuid v4 id"), "SYNC_INVALID_OP"],
-        [patch(uuidv7(), { title: null }), "SYNC_INVALID_OP"],
+        [patch(own, { title: null }), "SYNC_INVALID_OP"],
         [
-          { op: "PUT", table: "notes", id: uuidv7(), opData: { title: "t", user_id: "someone" } },
+          { ...put(uuidv7(), "t"), opData: { ...put(uuidv7(), "t").opData, user_id: "someone" } },
           "SYNC_INVALID_OP",
         ],
         [{ op: "PUT", table: "sessions", id: uuidv7(), opData: {} }, "SYNC_UNKNOWN_TABLE"],
@@ -367,39 +393,15 @@ describe("sync", () => {
       });
     });
 
-    it("lets delete win: edits to a deleted note are rejected, not resurrected", async () => {
-      const me = await signedIn("delete-wins@example.com");
+    it("refuses a delete and keeps the row: exercises are retired, never deleted", async () => {
+      const me = await signedIn("no-delete@example.com");
       const id = uuidv7();
-      await me.client.sync.upload(request(me, 1, [put(id, "doomed")]));
-      await me.client.sync.upload(request(me, 2, [del(id)]));
-
-      expect(
-        await me.client.sync.upload(request(me, 3, [patch(id, { title: "late" })])),
-      ).toMatchObject({
+      await me.client.sync.upload(request(me, 1, [put(id, "Keep")]));
+      expect(await me.client.sync.upload(request(me, 2, [del(id)]))).toMatchObject({
         status: "rejected",
-        code: "SYNC_ROW_DELETED",
+        code: "EXERCISE_DELETE_NOT_ALLOWED",
       });
-      expect(await me.client.sync.upload(request(me, 4, [put(id, "again")]))).toMatchObject({
-        status: "rejected",
-        code: "SYNC_ROW_DELETED",
-      });
-      // Deleting again is harmless.
-      expect(await me.client.sync.upload(request(me, 5, [del(id)]))).toEqual({ status: "applied" });
-      expect(await me.client.notes.list()).toEqual([]);
-    });
-
-    it("rejects an edit to a purged note", async () => {
-      const me = await signedIn("purged@example.com");
-      const id = uuidv7();
-      await me.client.sync.upload(request(me, 1, [put(id, "gone")]));
-      await me.client.sync.upload(request(me, 2, [del(id)]));
-      await app.rows(sql`DELETE FROM notes WHERE id = ${id} RETURNING id`);
-      expect(
-        await me.client.sync.upload(request(me, 3, [patch(id, { body: "late" })])),
-      ).toMatchObject({
-        status: "rejected",
-        code: "SYNC_ROW_NOT_FOUND",
-      });
+      expect(await stored(id)).toMatchObject({ title: "Keep" });
     });
 
     it("sends only the dirty fields: a PATCH leaves the others alone", async () => {
@@ -407,10 +409,7 @@ describe("sync", () => {
       const id = uuidv7();
       await me.client.sync.upload(request(me, 1, [put(id, "Title", "Body")]));
       await me.client.sync.upload(request(me, 2, [patch(id, { title: "Only title" })]));
-      expect(await me.client.notes.get({ id })).toMatchObject({
-        title: "Only title",
-        body: "Body",
-      });
+      expect(await stored(id)).toMatchObject({ title: "Only title", instructions: "Body" });
     });
 
     it("refuses a schema version outside the window", async () => {
@@ -423,7 +422,10 @@ describe("sync", () => {
           data: { code: "SYNC_CLIENT_INCOMPATIBLE" },
         });
       }
-      expect(await me.client.notes.list()).toEqual([]);
+      const rows = await app.rows(
+        sql`SELECT count(*)::int AS n FROM exercise WHERE user_id = ${me.userId}`,
+      );
+      expect(rows[0]?.n).toBe(0);
     });
 
     it("refuses a digest that does not match the operations", async () => {
@@ -477,29 +479,24 @@ describe("sync", () => {
 
     it("keeps the database CHECK constraints even for direct writes", async () => {
       const me = await signedIn("check@example.com");
-      await expect(
+      const insert = (title: string) =>
         app.rows(
-          sql`INSERT INTO notes (id, user_id, title) VALUES (${uuidv7()}, ${me.userId}, ${"😀".repeat(201)}) RETURNING id`,
-        ),
-      ).rejects.toThrow();
-      // 200 code points (400 UTF-16 units) pass SQL but not the JS cap: zod is never looser than SQL.
-      const ok = await app.rows(
-        sql`INSERT INTO notes (id, user_id, title) VALUES (${uuidv7()}, ${me.userId}, ${"😀".repeat(200)}) RETURNING id`,
-      );
-      expect(ok).toHaveLength(1);
+          sql`INSERT INTO exercise (id, user_id, title, primary_muscle, equipment, exercise_type)
+              VALUES (${uuidv7()}, ${me.userId}, ${title}, 'chest', 'dumbbell', 'weight_reps')
+              RETURNING id`,
+        );
+      await expect(insert("😀".repeat(101))).rejects.toThrow();
+      // 100 code points (200 UTF-16 units) pass SQL but not the JS cap: zod is never looser than SQL.
+      expect(await insert("😀".repeat(100))).toHaveLength(1);
     });
   });
 
   describe("purge", () => {
-    it("hard-deletes tombstones and receipts past the retention period", async () => {
+    it("hard-deletes upload receipts past the retention period and nothing else", async () => {
       const me = await signedIn("purge@example.com");
-      const oldId = uuidv7();
-      const freshId = uuidv7();
-      await me.client.sync.upload(request(me, 1, [put(oldId, "old"), put(freshId, "fresh")]));
-      await me.client.sync.upload(request(me, 2, [del(oldId), del(freshId)]));
-      await app.rows(
-        sql`UPDATE notes SET deleted_at = now() - interval '121 days' WHERE id = ${oldId} RETURNING id`,
-      );
+      const id = uuidv7();
+      await me.client.sync.upload(request(me, 1, [put(id, "kept")]));
+      await me.client.sync.upload(request(me, 2, [patch(id, { title: "renamed" })]));
       await app.rows(
         sql`UPDATE sync_upload_receipts SET created_at = now() - interval '121 days'
             WHERE user_id = ${me.userId} AND tx_id = 1 RETURNING tx_id`,
@@ -507,48 +504,22 @@ describe("sync", () => {
 
       await app.services.jobs.enqueue(syncPurgeQueue, {});
       const deadline = Date.now() + 10_000;
-      let remaining = 1;
-      while (remaining > 0 && Date.now() < deadline) {
+      let receipts: number[] = [];
+      while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 100));
-        const rows = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${oldId}`);
-        remaining = Number(rows[0]?.n);
+        const rows = await app.rows(
+          sql`SELECT tx_id FROM sync_upload_receipts WHERE user_id = ${me.userId} ORDER BY tx_id`,
+        );
+        receipts = rows.map((row) => Number(row.tx_id));
+        if (receipts.length === 1) break;
       }
-      expect(remaining).toBe(0);
-      const fresh = await app.rows(sql`SELECT count(*)::int AS n FROM notes WHERE id = ${freshId}`);
-      expect(fresh[0]?.n).toBe(1);
-      const receipts = await app.rows(
-        sql`SELECT tx_id FROM sync_upload_receipts WHERE user_id = ${me.userId} ORDER BY tx_id`,
-      );
-      expect(receipts.map((row) => Number(row.tx_id))).toEqual([2]);
-      // A lost acknowledgement can replay the original PUT after its receipt and tombstone
-      // expired. Neither the original transaction nor a new identity may resurrect the row.
-      const lostAck = request(me, 1, [put(oldId, "old"), put(freshId, "fresh")]);
-      expect(await me.client.sync.upload(lostAck)).toMatchObject({
-        status: "rejected",
-        code: "SYNC_ROW_DELETED",
-      });
-      expect(await me.client.sync.upload(request(me, 3, [put(oldId, "resurrect")]))).toMatchObject({
-        status: "rejected",
-        code: "SYNC_ROW_DELETED",
-      });
-      await expect(me.client.notes.get({ id: oldId })).rejects.toMatchObject({ code: "NOT_FOUND" });
-      const other = await signedIn("purged-id-other@example.com");
-      expect(
-        await other.client.sync.upload(request(other, 1, [put(oldId, "foreign")])),
-      ).toMatchObject({ status: "rejected", code: "SYNC_ID_CONFLICT" });
-
-      const newId = uuidv7();
-      expect(await me.client.sync.upload(request(me, 4, [put(newId, "new")]))).toEqual({
+      expect(receipts).toEqual([2]);
+      // Exercises have no tombstones: the row stays, and a replay of the expired create is applied
+      // as the idempotent write it is.
+      expect(await stored(id)).toMatchObject({ title: "renamed" });
+      expect(await me.client.sync.upload(request(me, 1, [put(id, "kept")]))).toEqual({
         status: "applied",
       });
-      expect(await me.client.notes.get({ id: newId })).toMatchObject({ title: "new" });
-
-      // Only minimal identity remains, and deleting the account cascades that identity too.
-      expect(
-        await app.rows(sql`SELECT id, user_id FROM deleted_note_ids WHERE id = ${oldId}`),
-      ).toEqual([{ id: oldId, user_id: me.userId }]);
-      await app.rows(sql`DELETE FROM "user" WHERE id = ${me.userId} RETURNING id`);
-      expect(await app.rows(sql`SELECT id FROM deleted_note_ids WHERE id = ${oldId}`)).toEqual([]);
     });
   });
 });

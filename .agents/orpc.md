@@ -10,12 +10,14 @@ Better Auth failures are mapped to our codes. A 401 from Better Auth after an au
 
 ## Procedure shape
 
+Illustrated with a hypothetical `routine` vertical; the exercise vertical is sync-only and has no procedures.
+
 ```ts
 const create = authed
-  .use(rateLimit({ name: "notes.create", windowMs: 60_000, max: 60 }))
-  .input(z.object({ title, body }))
-  .output(noteSchema)
-  .handler(({ context, input }) => createNote(context.services.db, context.userId, input));
+  .use(rateLimit({ name: "routine.create", windowMs: 60_000, max: 60 }))
+  .input(z.object({ title }))
+  .output(routineSchema)
+  .handler(({ context, input }) => createRoutine(context.services.db, context.userId, input));
 ```
 
 - Handlers are thin. Business logic is one operation per file under `operations/`.
@@ -30,7 +32,7 @@ Every procedure also has a REST route, served (with the reference UI at `/api/re
 - Tag by vertical: define `const xApi = authed.meta(openapi({ tags: ["X"] }))` in the vertical's `procedures.ts` and build from it. A new tag also goes in `TAGS` in `platform/orpc/openapi.ts`.
 - `authed` adds the session-cookie security requirement; `base` procedures are documented as public.
 - Document shape (title, version, servers, security scheme, tags) lives in `platform/orpc/openapi.ts`. Query and path strings are coerced from the schemas by Smart Coercion (no procedure takes a numeric query string today, so that path has no test).
-- Resource routes use REST verbs (`GET /notes/{id}`, `PATCH`, `DELETE`); actions are `POST /thing/verb`.
+- Resource routes use REST verbs (`GET /routines/{id}`, `PATCH`, `DELETE`); actions are `POST /thing/verb`.
 
 ## HTTP app
 

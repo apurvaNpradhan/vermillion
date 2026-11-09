@@ -16,7 +16,7 @@ Know first: PowerSync's bucket storage (`powersync_storage` database) is derived
 ## 2. Stop writers to the sync path
 
 1. Stop the `powersync` service. Leave the API running only if the restored database is already in place.
-2. Note the oldest and newest synced row you expect (a `notes` row id or timestamp) to check against later.
+2. Note the oldest and newest synced row you expect (a Custom `exercise` row id or timestamp) to check against later.
 
 ## 3. Restore the application database (only if it was lost)
 

@@ -15,7 +15,7 @@ backup="${1:?usage: restore-drill.sh <backup-file>}"
 # Match the major version of the production database service.
 image="${POSTGRES_IMAGE:-postgres:18-alpine}"
 # Tables to count after the restore. A fork that adds or drops tables edits this list.
-tables=(user session account verification user_preferences notes auth_email_outbox)
+tables=(user session account verification user_preferences exercise auth_email_outbox)
 
 name="restore-drill-$$"
 cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }

@@ -8,7 +8,7 @@ import { uploadColumns } from "./upload-columns";
 import { crudEntry, createFakeDatabase } from "./fake-database";
 import { createSyncLifecycle } from "./lifecycle-controller";
 
-const NOTE = "01900000-0000-7000-8000-000000000001";
+const EXERCISE = "01900000-0000-7000-8000-000000000001";
 
 function setup(options: { transport?: Partial<SyncTransport>; owner?: string } = {}) {
   const fake = createFakeDatabase();
@@ -68,9 +68,9 @@ describe("sync lifecycle", () => {
       },
     });
     await s.ready();
-    s.queue([crudEntry("PATCH", NOTE, { title: "unsent" })], 1);
+    s.queue([crudEntry("PATCH", EXERCISE, { title: "unsent" })], 1);
     await s.database.writeTransaction(async (tx) => {
-      await tx.execute("INSERT INTO notes (id, title) VALUES (?, ?)", [NOTE, "unsent"]);
+      await tx.execute("INSERT INTO exercise (id, title) VALUES (?, ?)", [EXERCISE, "unsent"]);
     });
 
     await expect(s.state.connector?.uploadData(s.database as never)).rejects.toThrow();
@@ -80,7 +80,7 @@ describe("sync lifecycle", () => {
     expect(phase(s)).toBe("reauth-required");
     expect(s.pendingTransactions()).toBe(1);
     expect(s.state.clears).toBe(0);
-    expect(s.sqlite.prepare("SELECT COUNT(*) AS n FROM notes").get()).toMatchObject({ n: 1 });
+    expect(s.sqlite.prepare("SELECT COUNT(*) AS n FROM exercise").get()).toMatchObject({ n: 1 });
     expect(s.lifecycle.getSnapshot().indicator).toBe("locked");
 
     // Same user signs in again.
@@ -115,7 +115,7 @@ describe("sync lifecycle", () => {
     const s = setup({ owner: "a" });
     await s.ready();
     const installBefore = s.sqlite.prepare("SELECT install_id FROM install_meta").get();
-    s.queue([crudEntry("PUT", NOTE, { title: "mine" })], 1);
+    s.queue([crudEntry("PUT", EXERCISE, { title: "mine" })], 1);
 
     await s.lifecycle.sessionChanged("b");
     expect(phase(s)).toBe("blocked");
@@ -161,7 +161,7 @@ describe("sync lifecycle", () => {
       },
     });
     await s.ready();
-    s.queue([crudEntry("PATCH", NOTE, { title: "x" })], 1);
+    s.queue([crudEntry("PATCH", EXERCISE, { title: "x" })], 1);
     await expect(s.state.connector?.uploadData(s.database as never)).rejects.toThrow();
     await settle();
     expect(phase(s)).toBe("update-required");
@@ -181,7 +181,7 @@ describe("sync lifecycle", () => {
     await s.ready();
     const stale = s.state.connector;
     await s.lifecycle.sessionChanged("b"); // blocked: disconnects, bumps the generation
-    s.queue([crudEntry("PATCH", NOTE, { title: "x" })], 1);
+    s.queue([crudEntry("PATCH", EXERCISE, { title: "x" })], 1);
     await expect(stale?.uploadData(s.database as never)).rejects.toThrow();
     await settle();
     expect(phase(s)).toBe("blocked");
@@ -225,7 +225,7 @@ describe("sync lifecycle", () => {
     await s.ready();
     let notified = 0;
     s.lifecycle.subscribe(() => (notified += 1));
-    s.queue([crudEntry("PUT", NOTE, { title: "x" })], 1);
+    s.queue([crudEntry("PUT", EXERCISE, { title: "x" })], 1);
     expect(s.lifecycle.getSnapshot().pendingCount).toBe(1);
     expect(s.lifecycle.getSnapshot().pendingSince).not.toBeNull();
     expect(notified).toBeGreaterThan(0);

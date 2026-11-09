@@ -212,8 +212,8 @@ These map one-to-one onto Tailwind's spacing utilities (`p-4` = 16), which both 
 ### Layout
 
 - **Screen padding:** 16pt sides; respect safe areas top and bottom on every screen, sheet and toast.
-- **Tab bar:** a floating, icon-only pill, a fixed 56pt tall, 8pt above the bottom safe area, on level 3 depth with no outline (floating surfaces rely on the layer step and shadow). It holds two direct tabs and a menu slot that shows `CaretUpDown`, or, while a menu screen is open, that screen's icon. The active tab is a capsule: `identity-soft` fill with an `identity` Fill icon. Tap the menu slot, or press and slide up to pick a row (a `haptic-tick` per row): the pill morphs into a panel with the same left edge, widening up to the compose button. The panel lists every tab route (up to five in all: today Home, Notes, Settings; later Today, Train, Eat, Progress, You) under the account header. No dim backdrop. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
-- **Tab action:** the open tab's one main action (New note) is a 56pt round `identity` button with an `on-identity` icon to the right of the pill, inside thumb reach; tabs without one show nothing there.
+- **Tab bar:** a floating, icon-only pill, a fixed 56pt tall, 8pt above the bottom safe area, on level 3 depth with no outline (floating surfaces rely on the layer step and shadow). It holds the direct tabs (the tab bar's `directTabCount`; Vermillion sets one, Home) and a menu slot that shows `CaretUpDown`, or, while a menu screen is open, that screen's icon. The active tab is a capsule: `identity-soft` fill with an `identity` Fill icon. Tap the menu slot, or press and slide up to pick a row (a `haptic-tick` per row): the pill morphs into a panel with the same left edge, widening up to the compose button. The panel lists every tab route (up to five in all: today Home, Exercises, Settings; later Today, Train, Eat, Progress, You) under the account header. No dim backdrop. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
+- **Tab action:** the open tab's one main action (New exercise) is a 56pt round `identity` button with an `on-identity` icon to the right of the pill, inside thumb reach; tabs without one show nothing there.
 - **Page header:** a `title-xl` title, left-aligned at the top of the content, scrolls away; an opaque `canvas` band fades in with a compact, left-aligned title (`body`, 600) beside the back button and a soft ~30pt gradient edge into the content (no blur at the top). Content under the floating tab bar melts into the canvas through one eased SVG gradient owned by the tab bar (no blur library: the native blur view crashed Android release builds). Tap the title to scroll to the top. Pushed pages add a round back button; page actions sit in a floating capsule on the right.
 - **Live workout bar:** while a session runs, a floating bar sits above the tab bar on every screen showing elapsed time and the rest timer, on `surface-floating` with `text-primary`.
 - **Reach:** primary actions live in the bottom half of the screen, inside thumb reach; destructive actions never sit where the thumb rests.
@@ -332,7 +332,6 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 | Progress tab        | `ChartLineUp` |
 | You tab             | `UserCircle`  |
 | Home tab (template) | `SunHorizon`  |
-| Notes tab, note     | `NotePencil`  |
 | Settings            | `GearSix`     |
 | Tab switcher        | `CaretUpDown` |
 | Calories            | `Fire`        |
@@ -548,7 +547,7 @@ Icons: `phosphor-react-native` on native (`@phosphor-icons/react` would be the w
 - The sign-in and change-email code is one text node in `numeric-xl` tabular figures with wide letter spacing, centred in a `radius-md` box on `surface-control`. Code emails carry no links. The subject starts with the code ("123456 is your {app} code") so lock-screen previews show it.
 - The one link email (account deletion) has a single primary button, `action` fill and `on-action` text, with the URL repeated below as plain text.
 - Dark: a `prefers-color-scheme: dark` block (plus the Outlook.com `data-ogsc` selectors) swaps in the dark role values through `m-*` classes. Apple Mail honours it; clients that ignore it show the light email.
-- Copy lives in the i18n package (`emails__*`), English and German, rendered in the recipient's saved language.
+- Copy lives in the i18n package (`emails__*`), English only for now, with i18n retained for future languages.
 
 ## Do's and don'ts
 

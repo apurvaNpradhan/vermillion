@@ -1,6 +1,6 @@
 # Sync support matrix
 
-What is proven, where, and what is not. Recorded for phase 7 of [the sync plan](../specs/local-first-sync.md); the strategy is [ADR 0024](../adr/0024-test-strategy.md). Last run: 2026-11-07, Linux x64, a loaded development machine. Nothing here is a performance promise.
+What is proven, where, and what is not. Recorded for phase 7 of [the sync plan](../specs/local-first-sync.md); the strategy is [ADR 0024](../adr/0024-test-strategy.md). Last run: 2026-11-09 (all but the fault suites; the notes example was removed and its tests moved onto Custom exercises, [0035](../adr/0035-remove-notes-example.md)), Linux x64, a loaded development machine. Nothing here is a performance promise.
 
 ## Proven by automated tests
 
@@ -10,12 +10,12 @@ What is proven, where, and what is not. Recorded for phase 7 of [the sync plan](
 | A database fault mid-transaction stores nothing (no rows, no receipt); retry works | seam 1, a real Postgres trigger raising an error               | `pnpm test`               |
 | Pool survives Postgres dropping idle connections                                   | seam 1 `platform/db-pool.test.ts`                              | `pnpm test`               |
 | Postgres, publication, stream columns, handlers and indexes agree                  | `platform/sync/parity.test.ts`                                 | `pnpm test`               |
-| Delete wins; late edit or create of a deleted id is a recorded rejection           | seam 3 `races.test.ts`                                         | `pnpm test:sync`          |
-| Late edit of a purged row; id owned by another user; rollback of sibling ops       | seam 3 `races.test.ts`                                         | `pnpm test:sync`          |
+| A delete is refused and recorded; the row survives on every device                 | seam 3 `races.test.ts`                                         | `pnpm test:sync`          |
+| Concurrent edits converge; id owned by another user; rollback of sibling ops       | seam 3 `races.test.ts`                                         | `pnpm test:sync`          |
 | Schema version outside the window pauses the queue, keeps writes, resumes later    | seam 3 `compat.test.ts`                                        | `pnpm test:sync`          |
 | Writes queued by an older local schema apply with server defaults                  | seam 3 `compat.test.ts`                                        | `pnpm test:sync`          |
 | A write the current validator refuses is recorded as rejected, not dropped         | seam 3 `compat.test.ts`                                        | `pnpm test:sync`          |
-| The notes list query uses the local index (no full sort)                           | seam 3 `compat.test.ts`, SQLite `EXPLAIN QUERY PLAN`           | `pnpm test:sync`          |
+| The library list query starts from a local index, never a table scan               | seam 3 `compat.test.ts`, SQLite `EXPLAIN QUERY PLAN`           | `pnpm test:sync`          |
 | PowerSync stopped and started during writes: devices converge, queues conserved    | seam 3 `faults.test.ts`                                        | `pnpm test:sync` + faults |
 | Every database session cut during uploads and replication: converge, conserved     | seam 3 `faults.test.ts`                                        | `pnpm test:sync` + faults |
 | Replication slot dropped and PowerSync resnapshots: pending writes survive         | seam 3 `faults.test.ts` (the runbook's invalidated-slot steps) | `pnpm test:sync` + faults |
@@ -37,16 +37,16 @@ Offline behaviour on a device is not proven by automated tests: native is unprov
 
 ## Measurements (not gates)
 
-First sync of 1,000 notes of about 200 bytes each into an empty headless Node device, local stack, loaded machine: about 0.2 s from `connect()` to all rows readable (one run; seam 3 prints it as `first sync of 1000 notes: N ms`). Device numbers are not measured; OPFS and SQLCipher are slower than Node's SQLite and the figure must not be reused for them.
+First sync of 1,000 Custom exercises of about 200 bytes each (plus the catalog) into an empty headless Node device, local stack: about 0.2 s from `connect()` to all rows readable (one run; seam 3 prints it as `first sync of 1000 custom exercises: N ms`). Device numbers are not measured; SQLCipher is slower than Node's SQLite and the figure must not be reused for it.
 
-Notes list query plan on the product's local schema (1,000 rows):
+Library list query plan on the product's local schema (1,000 rows, A-Z, no filter):
 
 ```
-SEARCH ps_data__notes USING INDEX ps_data__notes__notes_live_updated_at_idx (<expr>=?)
-USE TEMP B-TREE FOR LAST TERM OF ORDER BY
+SEARCH ps_data__exercise USING INDEX ps_data__exercise__exercise_retired_at_idx (<expr>=?)
+USE TEMP B-TREE FOR ORDER BY
 ```
 
-It searches the index, so no table scan or full sort. The temp B-tree is for the `id` tie-breaker only, within equal `updated_at` groups; with `LIMIT` SQLite stops after the page. If that ever shows up in a profile, the first thing to try is declaring the index with descending columns to match `ORDER BY updated_at DESC, id DESC`.
+The muscle and equipment filters also start from an index. The sort by title is done in memory over the matching rows: with a catalog of about 455 and at most 1,000 live Custom exercises that is the accepted cost, and `LIMIT` bounds what is returned. The earlier notes list could avoid the sort with a composite index; the library sorts by a case-insensitive title, which no index serves.
 
 ## Still to do by hand
 

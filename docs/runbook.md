@@ -36,7 +36,7 @@ Backups cover Postgres only. pg-boss keeps its jobs in the `pgboss` schema of th
 Proves a backup restores. Needs Docker locally.
 
 1. Download the newest backup from the bucket.
-2. `scripts/ops/restore-drill.sh path/to/backup.sql.gz` restores it into a throwaway `postgres:18` container, lists row counts for the core tables (`user`, `session`, `account`, `user_preferences`, `notes`) and removes the container. It reads gzipped SQL, plain SQL and `pg_dump` custom archives.
+2. `scripts/ops/restore-drill.sh path/to/backup.sql.gz` restores it into a throwaway `postgres:18` container, lists row counts for the core tables (`user`, `session`, `account`, `user_preferences`, `exercise`) and removes the container. It reads gzipped SQL, plain SQL and `pg_dump` custom archives.
 3. Note the date and result where your team keeps operational notes.
 
 A fork that renames or removes tables edits the `tables` list at the top of the script.

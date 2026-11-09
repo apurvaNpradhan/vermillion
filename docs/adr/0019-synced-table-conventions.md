@@ -1,6 +1,6 @@
 # 0019. Synced table conventions and conflict rules
 
-Status: accepted (2026-11-07). Covers D11 (amended).
+Status: accepted (2026-11-07). Covers D11 (amended). Affected by [0035](0035-remove-notes-example.md): `notes` was removed; its tombstone and purge rules stay as the design for user-deletable rows, and `exercise` is the worked example.
 
 ## Context
 

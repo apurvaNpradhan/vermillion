@@ -4,18 +4,18 @@
 
 Expo Router. Route files in `apps/native/app` stay thin: guards, wiring, layout. Screens and logic live in the module under `apps/native/src/<vertical>`.
 
-- Server data is owned by TanStack Query through the oRPC client; synced data (notes) comes from the local SQLite database through the module hook ([sync](sync.md)).
+- Server data is owned by TanStack Query through the oRPC client; synced data (the exercise library) comes from the local SQLite database through the module hook ([sync](sync.md)).
 - Auth and oRPC clients come from `@workspace/client`, not copies. Include every input in query keys; invalidate with `orpc.<router>.key()`.
 - Native has no automated UI test seam; keep screens thin and put logic in tested sibling files.
 
 ## Module hooks
 
-Components read and write data only through hooks exported by their module (`use-notes`, `use-preferences`). Hooks hold the oRPC, Query and local-database wiring and return plain values and async actions. Do not import `orpc` or `useQuery` in components.
+Components read and write data only through hooks exported by their module (`use-exercise-library`, `use-preferences`). Hooks hold the oRPC, Query and local-database wiring and return plain values and async actions. Do not import `orpc` or `useQuery` in components.
 
 ```ts
 // good
-const { notes, create } = useNotes();
-// bad: component calls orpc.notes.list.queryOptions() itself
+const { page, loadMore } = useExerciseLibrary(filters);
+// bad: component queries the local database or calls orpc.preferences.get.queryOptions() itself
 ```
 
 ## Errors and sessions

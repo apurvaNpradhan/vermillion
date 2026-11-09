@@ -158,7 +158,7 @@ describe("OpenAPI reference", () => {
     }
     // Public procedures carry no security requirement; signed-in ones name the session cookie.
     expect(document.paths["/auth/registration-status"]?.get?.security).toBeUndefined();
-    expect(document.paths["/notes"]?.get?.security).toEqual([{ sessionCookie: [] }]);
+    expect(document.paths["/preferences"]?.get?.security).toEqual([{ sessionCookie: [] }]);
     expect(document.paths["/account/me"]?.get?.security).toEqual([{ sessionCookie: [] }]);
   });
 
@@ -167,16 +167,9 @@ describe("OpenAPI reference", () => {
     const session = await createSignedInUser(on, "openapi@example.com");
     const cookie = session.get("cookie") ?? "";
 
-    const created = await on.app.request("/api/reference/notes", {
-      method: "POST",
-      headers: { cookie, "content-type": "application/json" },
-      body: JSON.stringify({ title: "From REST" }),
-    });
-    expect(created.status).toBe(201);
-
-    const listed = await on.app.request("/api/reference/notes", { headers: { cookie } });
+    const listed = await on.app.request("/api/reference/preferences", { headers: { cookie } });
     expect(listed.status).toBe(200);
-    expect(await listed.json()).toEqual([expect.objectContaining({ title: "From REST" })]);
+    expect(await listed.json()).toHaveProperty("locale");
 
     await on.close();
   });

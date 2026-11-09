@@ -1,6 +1,6 @@
 const DESTINATIONS = [
   "/",
-  "/notes",
+  "/exercises",
   "/settings",
   "/settings/profile",
   "/confirm-deletion",

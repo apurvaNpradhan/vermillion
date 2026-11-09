@@ -1,6 +1,6 @@
 # 0007. Migrations are additive-only and run on start
 
-Status: accepted (2026-11-06).
+Status: accepted (2026-11-06). Affected by [0035](0035-remove-notes-example.md): the removed `notes` tables stay in Postgres under this rule.
 
 ## Context
 
