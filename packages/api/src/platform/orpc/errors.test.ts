@@ -104,7 +104,7 @@ describe("error responses over HTTP", () => {
   });
 
   it("accepts the app's own origin", async () => {
-    const response = await rpc("auth/registrationStatus", { origin: "http://localhost:3001" });
+    const response = await rpc("auth/registrationStatus", { origin: "http://localhost:3000" });
     expect(response.status).toBe(200);
   });
 });

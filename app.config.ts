@@ -5,18 +5,12 @@
 export const appConfig = {
   name: "vermillion",
   displayName: "vermillion",
-  description: "vermillion is a web application",
+  description: "vermillion is a mobile application",
   version: "1.0.0",
   urls: {
-    web: "http://localhost:3001",
     server: "http://localhost:3000",
   },
-  /** Public origin in production (web and API share it). Feeds the wrangler route and the EAS production profile. */
-  productionUrl: "https://vermillion.example.com",
-  /** Cloudflare DNS zone containing the production hostname (explicit for suffixes such as co.uk). */
-  cloudflareZone: "example.com",
   ports: {
-    web: 3001,
     server: 3000,
     native: 8081,
     postgres: 5432,

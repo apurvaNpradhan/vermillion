@@ -70,6 +70,7 @@
   "globalEnv": [
     "ADMIN_EMAILS",
     "ANDROID_CERT_SHA256",
+    "APPLE_TEAM_ID",
     "APP_URL",
     "AUTH_PASSKEY_ORIGINS",
     "AUTH_RP_ID",
@@ -85,11 +86,7 @@
     "SYNC_ENDPOINT_URL",
     "SYNC_SLOT_LAG_CRITICAL_MB",
     "SYNC_SLOT_LAG_WARN_MB",
-    "TRUSTED_PROXIES",
-    "VITE_ANDROID_CERT_SHA256",
-    "VITE_APPLE_TEAM_ID",
-    "VITE_SERVER_URL",
-    "VITE_TURNSTILE_SITE_KEY"
+    "TRUSTED_PROXIES"
   ],
   "globalDependencies": ["app.config.ts", ".env*", "apps/*/.env*", "packages/*/.env*"]
 }

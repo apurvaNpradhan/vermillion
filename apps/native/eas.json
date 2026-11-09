@@ -13,13 +13,13 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "env": { "EXPO_PUBLIC_SERVER_URL": "https://staging.example.com" }
+      "env": { "EXPO_PUBLIC_SERVER_URL": "https://staging-api.example.com" }
     },
     "production": {
       "environment": "production",
       "channel": "production",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_SERVER_URL": "https://vermillion.example.com" }
+      "env": { "EXPO_PUBLIC_SERVER_URL": "https://api.example.com" }
     }
   },
   "submit": {

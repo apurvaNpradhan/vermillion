@@ -14,12 +14,12 @@ const credentials = (clientId?: string, clientSecret?: string) =>
 
 const isProduction = env.NODE_ENV === "production";
 
-const webOrigin = new URL(appConfig.urls.web).origin;
+const appOrigin = new URL(env.APP_URL).origin;
 const passkeyOrigins = [
   ...new Set([
     ...(parseCsv(env.AUTH_PASSKEY_ORIGINS).length > 0
       ? parseCsv(env.AUTH_PASSKEY_ORIGINS)
-      : [webOrigin]),
+      : [appOrigin]),
     ...parseCsv(env.ANDROID_CERT_SHA256).map(androidApkKeyHashOrigin),
   ]),
 ];
@@ -31,10 +31,14 @@ const config: ApiConfig = {
   appScheme: appConfig.scheme,
   nativePort: appConfig.ports.native,
   passkey: {
-    rpId:
-      env.AUTH_RP_ID ??
-      new URL(isProduction ? appConfig.productionUrl : appConfig.urls.web).hostname,
+    rpId: env.AUTH_RP_ID ?? new URL(env.APP_URL).hostname,
     origins: passkeyOrigins,
+  },
+  appAssociation: {
+    androidPackage: appConfig.bundleIds.android,
+    iosBundleId: appConfig.bundleIds.ios,
+    androidCertFingerprints: parseCsv(env.ANDROID_CERT_SHA256),
+    appleTeamId: env.APPLE_TEAM_ID,
   },
   isProduction,
   authSecret: env.BETTER_AUTH_SECRET,

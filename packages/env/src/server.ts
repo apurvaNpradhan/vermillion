@@ -1,5 +1,10 @@
 import { createEnv } from "@t3-oss/env-core";
-import { CERT_SHA256_PATTERN, isAndroidOrigin, parseCsv } from "@workspace/shared";
+import {
+  APPLE_TEAM_ID_PATTERN,
+  CERT_SHA256_PATTERN,
+  isAndroidOrigin,
+  parseCsv,
+} from "@workspace/shared";
 import { z } from "zod";
 
 import { exitOnInvalidEnv, PLACEHOLDER_SECRET } from "./shared";
@@ -15,7 +20,7 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     DATABASE_URL: z.string().min(1),
-    /** Public origin of the app (web and API share it in production). */
+    /** Public origin of the API (`https://api.<domain>` in production). */
     APP_URL: z.url(),
     BETTER_AUTH_SECRET: z
       .string()
@@ -65,6 +70,11 @@ export const env = createEnv({
         (value) => parseCsv(value).every((entry) => CERT_SHA256_PATTERN.test(entry.toUpperCase())),
         "ANDROID_CERT_SHA256 must be colon-separated SHA-256 fingerprints (keytool output)",
       )
+      .optional(),
+    /** Apple Developer team id, published at /.well-known/apple-app-site-association. */
+    APPLE_TEAM_ID: z
+      .string()
+      .regex(APPLE_TEAM_ID_PATTERN, "APPLE_TEAM_ID must be 10 uppercase letters or digits")
       .optional(),
     TURNSTILE_SECRET_KEY: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),

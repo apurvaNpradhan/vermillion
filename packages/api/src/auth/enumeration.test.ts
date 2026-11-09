@@ -63,7 +63,7 @@ describe("account enumeration", () => {
       body: { email: string; otp?: string; password?: string; name?: string; type?: string },
     ) =>
       app.services.auth.handler(
-        new Request(`http://localhost:3001/api/auth${path}`, {
+        new Request(`http://localhost:3000/api/auth${path}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),

@@ -57,7 +57,7 @@ describe("sign-in notices", () => {
       expect(state).toBeTruthy();
       const callback = await oauth.services.auth.handler(
         new Request(
-          `http://localhost:3001/api/auth/callback/github?code=test-code&state=${encodeURIComponent(state!)}`,
+          `http://localhost:3000/api/auth/callback/github?code=test-code&state=${encodeURIComponent(state!)}`,
           { headers: { cookie: cookieFrom(start), [CLIENT_IP_HEADER]: "203.0.113.43" } },
         ),
       );
@@ -93,7 +93,7 @@ describe("sign-in notices", () => {
     });
     const otp = await requestSignInCode(app, email, headers);
     const response = await app.services.auth.handler(
-      new Request("http://localhost:3001/api/auth/sign-in/email-otp", {
+      new Request("http://localhost:3000/api/auth/sign-in/email-otp", {
         method: "POST",
         headers: { ...Object.fromEntries(headers), "content-type": "application/json" },
         body: JSON.stringify({ email, otp }),

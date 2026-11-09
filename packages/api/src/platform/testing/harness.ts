@@ -14,10 +14,15 @@ import { cloneDatabase, dropDatabase, urlForDatabase } from "./postgres";
 const baseConfig: ApiConfig = {
   appName: "Vermillion",
   appVersion: "1.0.0",
-  appUrl: "http://localhost:3001",
+  appUrl: "http://localhost:3000",
   appScheme: "vermillion",
   nativePort: 8081,
-  passkey: { rpId: "localhost", origins: ["http://localhost:3001"] },
+  passkey: { rpId: "localhost", origins: ["http://localhost:3000"] },
+  appAssociation: {
+    androidPackage: "com.example.app",
+    iosBundleId: "com.example.app",
+    androidCertFingerprints: [],
+  },
   isProduction: false,
   authSecret: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
   trustedProxies: "127.0.0.0/8",

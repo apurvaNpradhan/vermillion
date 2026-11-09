@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "dev:native": "turbo run dev -F native --",
     "dev:server": "turbo run dev -F server --",
-    "dev:tunnel": "sh -c 'set -a; [ -f apps/web/.env ] && . ./apps/web/.env; set +a; exec cloudflared tunnel --config \"${VERMILLION_TUNNEL_CONFIG:-$HOME/.cloudflared/vermillion-dev.yml}\" run'",
+    "dev:tunnel": "sh -c 'set -a; [ -f apps/server/.env ] && . ./apps/server/.env; set +a; exec cloudflared tunnel --config \"${VERMILLION_TUNNEL_CONFIG:-$HOME/.cloudflared/vermillion-dev.yml}\" run'",
     "db:push": "turbo run db:push -F @workspace/db --",
     "db:studio": "turbo run db:studio -F @workspace/db --",
     "db:generate": "turbo run db:generate -F @workspace/db --",

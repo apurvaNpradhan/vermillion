@@ -24,7 +24,7 @@ describe("database startup", () => {
         env: {
           ...process.env,
           NODE_ENV: "development",
-          APP_URL: "http://localhost:3001",
+          APP_URL: "http://localhost:3000",
           BETTER_AUTH_SECRET: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
           DATABASE_URL: "postgresql://app:startup-private-password@db:invalid/app", // secret-scan:allow
         },

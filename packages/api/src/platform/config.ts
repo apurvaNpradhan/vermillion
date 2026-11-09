@@ -8,13 +8,20 @@ export type ApiConfig = {
   appName: string;
   /** Version of the app; the API document reports it. */
   appVersion: string;
-  /** Public origin of the app. Web and API share it in production. */
+  /** Public origin of the API (`https://api.<domain>` in production). Auth links are built from it. */
   appUrl: string;
   /** Deep-link scheme of the native app, without "://". */
   appScheme: string;
   nativePort: number;
   /** Passkey relying party: id, display name and every origin a ceremony may come from. */
   passkey: { rpId: string; origins: string[] };
+  /** Identity of the native apps, published under `/.well-known/` so they can use passkeys. */
+  appAssociation: {
+    androidPackage: string;
+    iosBundleId: string;
+    androidCertFingerprints: string[];
+    appleTeamId?: string | undefined;
+  };
   isProduction: boolean;
   authSecret: string;
   /** Comma-separated IPs/CIDRs allowed to set X-Forwarded-For, or "none". */
