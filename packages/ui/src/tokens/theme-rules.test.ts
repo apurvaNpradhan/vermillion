@@ -27,7 +27,7 @@ function oklabL(hex: string) {
 }
 
 /**
- * Rules the Classic palette (native, web and email) must satisfy. Layer direction:
+ * Rules the Classic palette (native and email) must satisfy. Layer direction:
  * - dark: canvas < surface < control < floating, each step 0.015..0.06 in OKLCH L.
  * - light: surface is the lightest layer (floating may equal it), canvas sits one step below
  *   surface and control one step below canvas. Classic Light does this.

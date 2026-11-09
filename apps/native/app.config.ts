@@ -42,7 +42,7 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: appConfig.scheme,
   userInterfaceStyle: "automatic",
-  // The web build of the app is a separate TanStack Start app; Expo web is off.
+  // Mobile only: Expo web is off.
   platforms: ["ios", "android"],
   ios: {
     supportsTablet: true,

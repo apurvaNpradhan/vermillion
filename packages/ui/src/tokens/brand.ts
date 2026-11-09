@@ -4,16 +4,11 @@
  * `pnpm --filter @workspace/ui tokens`.
  *
  * Colors are Vermillion roles (`canvas`, `surface`, `text-muted`, `action`, ...), each with a
- * light and a dark value. Components never read a role directly; each platform maps roles to its
- * library's names through a small adapter next to this file:
- *
- * - web (`to-web-css.ts`): coss ui / shadcn names (`--primary`, `--card`, ...) via `webTokenSources`.
- * - native (`to-native-css.ts`): HeroUI Native names (`--accent`, `--surface`, ...) via
- *   `nativeTokenSources`.
- *
- * The same names mean different things in the two libraries (`accent`, `muted`); the adapters
- * resolve that, so a brand change never edits per-platform files by hand. `sharedTokenSources` are
- * colors outside both vocabularies (secondary text, macros) exposed under one name on both platforms.
+ * light and a dark value. Components never read a role directly; the native adapter
+ * (`to-native-css.ts`) maps roles to HeroUI Native names (`--accent`, `--surface`, ...) via
+ * `nativeTokenSources`, and the email templates read the roles directly. A brand change never
+ * edits per-platform files by hand. `sharedTokenSources` are colors outside HeroUI's vocabulary
+ * (secondary text, macros) exposed under one name.
  */
 
 export const roleNames = [
@@ -138,9 +133,8 @@ const light: RoleTokens = {
 };
 
 /**
- * Colors outside both libraries' vocabularies, exposed under the same name on web and native
- * (`text-subtle`, `bg-protein`). `subtle` is the `text-secondary` role: neither library has a free
- * name for it.
+ * Colors outside HeroUI Native's vocabulary (`text-subtle`, `bg-protein`). `subtle` is the
+ * `text-secondary` role: the library has no free name for it.
  */
 export const sharedTokenSources = {
   subtle: "text-secondary",
@@ -167,7 +161,7 @@ export interface TextStyle {
 
 /**
  * Text scale. UI styles plus the numeric tier; numeric styles always pair with tabular figures
- * (`numeric` on web, `tabular-nums` on native).
+ * (`tabular-nums`).
  */
 export const typeScale = {
   "title-display": { size: 42, lineHeight: 48, tracking: -1, weight: 600 },
@@ -188,8 +182,6 @@ export const typeScale = {
 
 export const brandTokens = {
   colors: { light, dark },
-  /** Web `--radius` (buttons and inputs land on 12, cards on 16; see globals.css). */
-  radius: "0.75rem",
   /** HeroUI Native `--radius`; its scale multiplies it (`rounded-xl` = 12, `rounded-2xl` = 16). */
   nativeRadius: "8px",
   type: typeScale,

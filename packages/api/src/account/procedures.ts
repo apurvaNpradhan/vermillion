@@ -61,8 +61,8 @@ const requestDeletion = accountApi
     }),
   )
   .use(rateLimit({ name: "account.requestDeletion", windowMs: 60_000, max: 3 }))
-  // Where the confirmation link sends the user afterwards: an in-app path for
-  // web, or a deep link into the native app (checked against the app scheme).
+  // Where the confirmation link sends the user afterwards: a deep link into the
+  // native app (checked against the app scheme).
   .input(z.object({ callbackURL: z.string().max(512).optional() }).optional())
   .output(z.object({ success: z.boolean() }))
   .handler(({ context, input, errors }) => {

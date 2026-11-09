@@ -32,23 +32,10 @@ export type LifecycleDatabase = Pick<
   | "writeTransaction"
 >;
 
-/** Tells other tabs of the same origin that the Device owner or the local data changed. */
-export type TabChannel = {
-  post(): void;
-  /** Returns the unsubscribe function. */
-  subscribe(listener: () => void): () => void;
-};
-
 export type LifecyclePorts = {
   database: LifecycleDatabase;
   transport: SyncTransport;
   uploadColumns: ReadonlyMap<string, ReadonlySet<string>>;
-  /**
-   * Runs `work` while no other tab runs a lifecycle transition (`navigator.locks` on the web).
-   * A single-tab platform passes `(work) => work()`.
-   */
-  exclusive: <T>(work: () => Promise<T>) => Promise<T>;
-  channel: TabChannel;
   now?: () => number;
 };
 
@@ -73,11 +60,11 @@ const DONE: Step = { follow: [], abort: false };
 
 /**
  * Owns connect, upload, disconnect, clear and switch for one database (ADR 0021). Every
- * transition is queued and runs under `exclusive`, so there is one in flight across tabs; a
+ * transition is queued, so there is one in flight; a
  * connector signal from a connection that has since been torn down is ignored (generation fence).
  */
 export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
-  const { database, transport, uploadColumns, exclusive, channel } = ports;
+  const { database, transport, uploadColumns } = ports;
   const now = ports.now ?? Date.now;
 
   let phase: Phase = { kind: "starting" };
@@ -115,7 +102,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
   }
 
   function enqueue(work: () => Promise<void>): Promise<void> {
-    const run = queue.then(() => exclusive(work));
+    const run = queue.then(work);
     queue = run.catch(() => undefined);
     return run;
   }
@@ -132,7 +119,6 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
     switch (effect.type) {
       case "claim": {
         const actual = await claimDeviceOwner(database, effect.userId);
-        channel.post();
         if (actual === effect.userId) return DONE;
         // Another tab claimed the database for someone else first: follow it, then re-judge.
         const follow: LifecycleEvent[] = [{ type: "owner-changed", owner: actual }];
@@ -159,7 +145,6 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
         // Clears local-only tables too: the install id is new afterwards (ADR 0018).
         await database.disconnectAndClear();
         await ensureInstallId(database);
-        channel.post();
         return { follow: [{ type: "wiped" }], abort: false };
     }
   }
@@ -186,13 +171,6 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
     }
   }
 
-  async function resync(): Promise<void> {
-    const owner = await readDeviceOwner(database);
-    writeScope = await ensureInstallId(database);
-    await dispatch({ type: "owner-changed", owner });
-    if (lastSession !== undefined) await dispatch({ type: "session", userId: lastSession });
-  }
-
   let started: Promise<void> | undefined;
 
   return {
@@ -208,9 +186,6 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
         cleanups.push(
           database.registerListener({
             statusChanged: () => publish(),
-          }),
-          channel.subscribe(() => {
-            void enqueue(resync).catch(() => undefined);
           }),
         );
         const controller = new AbortController();

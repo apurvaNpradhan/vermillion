@@ -12,7 +12,7 @@ import { exitOnInvalidEnv, PLACEHOLDER_SECRET } from "./shared";
 /**
  * Server environment. Importing this module validates `process.env` and exits
  * with a readable message when something is missing or malformed. Only the
- * server process imports it; the web bundle gets `./web` instead.
+ * server process imports it.
  */
 export const env = createEnv({
   emptyStringAsUndefined: true,
@@ -33,17 +33,16 @@ export const env = createEnv({
     TRUSTED_PROXIES: z.string().default("127.0.0.0/8,::1/128"),
     REGISTRATION_OPEN: z.stringbool().default(true),
     /**
-     * Passkey relying-party id: a bare hostname the web origin is on or under. Defaults to the
-     * hostname of the web URL (development) or of the production URL. It cannot change later
-     * without orphaning every registered passkey.
+     * Passkey relying-party id: a bare hostname the API origin is on or under. Defaults to the
+     * hostname of APP_URL. It cannot change later without orphaning every registered passkey.
      */
     AUTH_RP_ID: z
       .string()
       .regex(/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i, "AUTH_RP_ID must be a hostname, no scheme")
       .optional(),
     /**
-     * Comma-separated origins a passkey ceremony may come from: web origins (https://host) and
-     * Android origins (android:apk-key-hash:...). Defaults to the web origin. Android origins for
+     * Comma-separated origins a passkey ceremony may come from: HTTPS origins (https://host) and
+     * Android origins (android:apk-key-hash:...). Defaults to the APP_URL origin. Android origins for
      * ANDROID_CERT_SHA256 are added automatically.
      */
     AUTH_PASSKEY_ORIGINS: z

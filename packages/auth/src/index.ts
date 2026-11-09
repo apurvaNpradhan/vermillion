@@ -44,7 +44,7 @@ type OAuthCredentials = { clientId: string; clientSecret: string };
 
 export type AuthOptions = {
   db: Database;
-  /** Public origin of the app. Web and API share it, so cookies stay host-only. */
+  /** Public origin of the API (`https://api.<domain>`); auth cookies stay host-only. */
   baseUrl: string;
   secret: string;
   isProduction: boolean;
@@ -57,7 +57,7 @@ export type AuthOptions = {
   appScheme: string;
   nativePort: number;
   /**
-   * WebAuthn relying party. `origins` is the complete list a ceremony may come from (web origins
+   * WebAuthn relying party. `origins` is the complete list a ceremony may come from (HTTPS origins
    * and `android:apk-key-hash:` origins); the request cannot add to it.
    */
   passkey: { rpId: string; rpName: string; origins: readonly string[] };
@@ -146,7 +146,7 @@ export function createAuth(options: AuthOptions) {
       origin.origin,
       `${options.appScheme}://`,
       ...(options.isProduction ? [] : ["exp://", `http://localhost:${options.nativePort}`]),
-      // Other web origins of the app (a dev tunnel, a preview host). Android origins are not
+      // Other HTTPS origins of the app (a dev tunnel, a preview host). Android origins are not
       // HTTP origins: the passkey plugin checks them against `passkey.origins` instead.
       ...options.passkey.origins.filter((entry) => !isAndroidOrigin(entry)),
     ],
@@ -156,7 +156,7 @@ export function createAuth(options: AuthOptions) {
         deleteTokenExpiresIn: 60 * 60,
         sendDeleteAccountVerification: async ({ user, url, token }, request) => {
           const callback = new URL(url).searchParams.get("callbackURL");
-          // Only our explicit native confirmation destination receives a token. Web keeps the HTTPS callback.
+          // Only our explicit native confirmation destination receives a token. Any other callback keeps Better Auth's HTTPS link.
           const confirmation =
             callback === `${options.appScheme}://confirm-deletion`
               ? `${callback}?token=${encodeURIComponent(token)}`

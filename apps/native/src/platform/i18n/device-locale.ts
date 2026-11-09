@@ -5,7 +5,7 @@ import { deviceStorage } from "../storage";
 
 const LOCALE_KEY = "device.locale";
 
-/** The language chosen on this device (the native counterpart of the web's locale cookie). */
+/** The language chosen on this device (the native counterpart of the API's locale cookie). */
 export function readDeviceLocaleChoice(): string | null {
   return deviceStorage.get(LOCALE_KEY);
 }

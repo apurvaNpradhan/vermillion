@@ -72,7 +72,7 @@ const px = (value: number) => `${value / 16}rem`;
 
 /**
  * Build-time CSS for Uniwind's built-in `light` and `dark` variants, filled with the Classic
- * palette from brand.ts, the same as web and email. Imported after heroui-native/styles.
+ * palette from brand.ts, the same as email. Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
   return [

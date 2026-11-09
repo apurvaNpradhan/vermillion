@@ -13,7 +13,7 @@ const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
 
 /**
  * SHA-256 of a string's UTF-8 bytes as lowercase hex. Synchronous and free of
- * platform APIs (Hermes has no `crypto.subtle`), so web, native and the server
+ * platform APIs (Hermes has no `crypto.subtle`), so native and the server
  * compute the same upload digest.
  */
 export function sha256Hex(text: string): string {

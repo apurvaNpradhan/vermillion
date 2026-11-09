@@ -6,7 +6,7 @@ import { claimDeviceOwner, readDeviceOwner } from "./device-owner";
 import { ensureInstallId } from "./install-meta";
 import { uploadColumns } from "./upload-columns";
 import { crudEntry, createFakeDatabase } from "./fake-database";
-import { createSyncLifecycle, type TabChannel } from "./lifecycle-controller";
+import { createSyncLifecycle } from "./lifecycle-controller";
 
 const NOTE = "01900000-0000-7000-8000-000000000001";
 
@@ -22,37 +22,17 @@ function setup(options: { transport?: Partial<SyncTransport>; owner?: string } =
     upload: async () => ({ status: "applied" }),
     ...options.transport,
   };
-  const listeners = new Set<() => void>();
-  const channel: TabChannel & { deliver(): void } = {
-    post: () => undefined,
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    deliver: () => {
-      for (const listener of listeners) listener();
-    },
-  };
-  // Serialises like navigator.locks would: one transition at a time.
-  let chain: Promise<unknown> = Promise.resolve();
-  const exclusive = <T>(work: () => Promise<T>) => {
-    const next = chain.then(work);
-    chain = next.catch(() => undefined);
-    return next;
-  };
   const lifecycle = createSyncLifecycle({
     database: fake.database,
     transport,
     uploadColumns,
-    exclusive,
-    channel,
   });
   const ready = async () => {
     await ensureInstallId(fake.database);
     if (options.owner) await claimDeviceOwner(fake.database, options.owner);
     await lifecycle.start();
   };
-  return { ...fake, lifecycle, channel, ready };
+  return { ...fake, lifecycle, ready };
 }
 
 const phase = (s: ReturnType<typeof setup>) => s.lifecycle.getSnapshot().phase.kind;
@@ -225,29 +205,6 @@ describe("sync lifecycle", () => {
     expect(await readDeviceOwner(s.database)).toBe("a");
     expect(phase(s)).toBe("blocked");
     expect(s.state.connects).toBe(0);
-  });
-
-  it("re-reads the owner when another tab announces a change", async () => {
-    const s = setup({ owner: "a" });
-    await s.ready();
-    await s.database.disconnectAndClear();
-    s.channel.deliver();
-    await settle();
-    expect(phase(s)).toBe("unclaimed");
-  });
-
-  it("publishes a new write scope when another tab resets even for the same owner", async () => {
-    const s = setup({ owner: "a" });
-    await s.ready();
-    const oldScope = s.lifecycle.getSnapshot().writeScope;
-    expect(oldScope).not.toBeNull();
-    await s.database.disconnectAndClear();
-    const newScope = await ensureInstallId(s.database);
-    await claimDeviceOwner(s.database, "a");
-    s.channel.deliver();
-    await settle();
-    expect(s.lifecycle.getSnapshot().writeScope).toBe(newScope);
-    expect(newScope).not.toBe(oldScope);
   });
 
   it("publishes no write scope during a reset, then a new one for the new owner", async () => {

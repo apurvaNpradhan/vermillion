@@ -10,7 +10,7 @@ export function createNativeEnv(runtimeEnv: Record<string, string | undefined>) 
   return createEnv({
     clientPrefix: "EXPO_PUBLIC_",
     client: {
-      /** Public origin of the API server (the same origin the web app is served from). */
+      /** Public origin of the API server (`https://api.<domain>` in production). */
       EXPO_PUBLIC_SERVER_URL: z.url(),
       /** Turnstile site key; the widget is shown only when it is set. */
       EXPO_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),

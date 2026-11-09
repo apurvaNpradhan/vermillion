@@ -42,7 +42,7 @@ export type { ConnectorDatabase, ConnectorSignal } from "./platform/connector";
 export { classifyFailure } from "./platform/transport";
 export type { FailureKind, SyncTransport } from "./platform/transport";
 export { createSyncLifecycle } from "./platform/lifecycle-controller";
-export type { LifecycleDatabase, SyncLifecycle, TabChannel } from "./platform/lifecycle-controller";
+export type { LifecycleDatabase, SyncLifecycle } from "./platform/lifecycle-controller";
 export { phaseOwner, transition } from "./platform/lifecycle-state";
 export type { LifecycleEvent, Phase } from "./platform/lifecycle-state";
 export { deriveIndicator } from "./platform/sync-status";

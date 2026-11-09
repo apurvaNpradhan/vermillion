@@ -28,10 +28,5 @@
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).
       "ignoreDependencies": ["@orpc/shared"],
     },
-    "packages/ui": {
-      // Components are installed from the coss registry and used by the apps,
-      // so most of their exports and dependencies look unused from here.
-      "ignoreIssues": { "src/components/**": ["exports", "types"], "src/hooks/**": ["exports"] },
-    },
   },
 }

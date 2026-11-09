@@ -39,9 +39,6 @@ export function openLocalData(): Promise<LocalData> {
         database,
         transport,
         uploadColumns,
-        // One process owns the database, and the lifecycle already queues its transitions.
-        exclusive: (work) => work(),
-        channel: { post: () => undefined, subscribe: () => () => undefined },
       });
       await lifecycle.start();
       return { status: "ready", database, lifecycle };

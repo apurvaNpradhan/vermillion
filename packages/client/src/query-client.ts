@@ -6,7 +6,7 @@ export type QueryClientHandlers = {
   onError: (error: Error) => void;
 };
 
-/** One client per request on the server, one per tab in the browser. */
+/** One client per app start. */
 export function createQueryClient({ onError }: QueryClientHandlers) {
   return new QueryClient({
     defaultOptions: {

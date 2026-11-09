@@ -1,5 +1,5 @@
 /**
- * Passkey (WebAuthn) relying-party helpers shared by the API and the web app: the app-association
+ * Passkey (WebAuthn) relying-party helpers used by the API: the app-association
  * documents that bind a domain to the native apps, and the Android origin of a signing key.
  */
 

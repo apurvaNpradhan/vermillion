@@ -51,7 +51,7 @@ export async function generateOpenApiDocument(
         title: `${info.name} API`,
         version: info.version,
         description: [
-          "Typed API for the web and native apps. The apps call it over oRPC; these routes expose the same procedures as plain HTTP.",
+          "Typed API for the native app. The apps call it over oRPC; these routes expose the same procedures as plain HTTP.",
           "",
           "Authenticate with the Better Auth session cookie (sign in through `/api/auth/sign-in/email`). " +
             "Failures answer `{ code, message }` with the status of the code.",

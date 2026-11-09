@@ -8,8 +8,7 @@ export function authBaseUrl(serverUrl: string): string {
 }
 
 /**
- * The auth client every app uses. Native passes its session-storage plugin as
- * `extraPlugins`; the web needs none.
+ * The auth client. Native passes its session-storage plugin as `extraPlugins`.
  */
 export function createAppAuthClient<const Extra extends BetterAuthClientPlugin[]>(
   serverUrl: string,
