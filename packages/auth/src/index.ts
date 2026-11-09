@@ -18,13 +18,11 @@ import {
   SYNC_JWT_TTL_SECONDS,
   TURNSTILE_TOKEN_HEADER,
 } from "@workspace/shared";
-import { eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import { admin as adminPlugin, emailOTP, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { emailOTP, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
 import { z } from "zod";
 
-import { isAdminRole, syncAdminRole } from "./admin-allowlist";
 import { isDisposableEmail } from "./disposable-email";
 import type { AuthEmail } from "./email-jobs";
 import { assertStrongSecret } from "./secret";
@@ -32,13 +30,6 @@ import { verifyTurnstile } from "./turnstile";
 import { parseUserAgent } from "./user-agent";
 
 export { authEmailSchema, type AuthEmail } from "./email-jobs";
-export {
-  isAdminEmail,
-  isAdminRole,
-  parseAdminEmails,
-  reconcileAdminRoles,
-  syncAdminRole,
-} from "./admin-allowlist";
 // Re-exported so the declaration of `createAuth` can name the passkey plugin's WebAuthn types.
 export type {
   AuthenticationResponseJSON,
@@ -71,7 +62,6 @@ export type AuthOptions = {
    */
   passkey: { rpId: string; rpName: string; origins: readonly string[] };
   registrationOpen: boolean;
-  adminEmails: readonly string[];
   turnstileSecret?: string | undefined;
   google?: OAuthCredentials | undefined;
   github?: OAuthCredentials | undefined;
@@ -107,14 +97,6 @@ const DISABLED_OTP_PATHS = new Set([
   "/forget-password/email-otp",
 ]);
 
-/** Admin endpoints that would grant roles or act as another user. Admins come from ADMIN_EMAILS only. */
-const BLOCKED_ADMIN_PATHS = new Set([
-  "/admin/set-role",
-  "/admin/create-user",
-  "/admin/impersonate-user",
-  "/admin/stop-impersonating",
-]);
-
 function requestDetails(request: Request | undefined) {
   const headers = request?.headers;
   const device = parseUserAgent(headers?.get("user-agent"));
@@ -134,12 +116,8 @@ export function createAuth(options: AuthOptions) {
   const secret = assertStrongSecret(options.secret);
   const origin = new URL(options.baseUrl);
   const secure = origin.protocol === "https:";
-  const admins = options.adminEmails;
 
   const notify = (email: AuthEmail) => options.runInBackground(options.queueEmail(email));
-
-  const registrationAllowed = (email: string) =>
-    options.registrationOpen || admins.includes(email.trim().toLowerCase());
 
   function assertNotDisposable(email: string) {
     if (isDisposableEmail(email)) {
@@ -151,7 +129,7 @@ export function createAuth(options: AuthOptions) {
   }
 
   function assertMayRegister(email: string) {
-    if (!registrationAllowed(email)) {
+    if (!options.registrationOpen) {
       throw new APIError("FORBIDDEN", {
         code: "REGISTRATION_CLOSED",
         message: "Registration is currently closed.",
@@ -249,7 +227,6 @@ export function createAuth(options: AuthOptions) {
           }
         },
       }),
-      adminPlugin({ defaultRole: "user", adminRoles: ["admin"] }),
       // Tokens for the PowerSync client only (ADR 0017). The session stays the
       // credential for the API; `disableSettingJwtHeader` keeps tokens out of
       // every other response.
@@ -293,34 +270,10 @@ export function createAuth(options: AuthOptions) {
     },
     databaseHooks: {
       user: {
-        update: {
-          // An email change or verification can add or remove entitlement.
-          after: async (user) => {
-            if (user) {
-              await syncAdminRole(options.db, user, admins);
-            }
-          },
-        },
         create: {
           before: async (user) => {
             // Backstop for provider sign-ups, which skip the sign-up endpoint.
-            // Provider-verified emails still honour the policy; admins pass.
             assertMayRegister(user.email);
-          },
-          after: async (user) => {
-            await syncAdminRole(options.db, user, admins);
-          },
-        },
-      },
-      session: {
-        create: {
-          before: async (session) => {
-            const [row] = await options.db
-              .select()
-              .from(schema.user)
-              .where(eq(schema.user.id, session.userId))
-              .limit(1);
-            if (row) await syncAdminRole(options.db, row, admins);
           },
         },
       },
@@ -364,19 +317,6 @@ export function createAuth(options: AuthOptions) {
         }
       }),
       before: createAuthMiddleware(async (ctx) => {
-        if (BLOCKED_ADMIN_PATHS.has(ctx.path)) {
-          throw new APIError("FORBIDDEN", {
-            code: "ADMIN_ROLE_MANAGED",
-            message: "Administrators are set with ADMIN_EMAILS.",
-          });
-        }
-        if (ctx.path === "/admin/update-user" && Object.hasOwn(ctx.body?.data ?? {}, "role")) {
-          throw new APIError("FORBIDDEN", {
-            code: "ADMIN_ROLE_MANAGED",
-            message: "Administrators are set with ADMIN_EMAILS.",
-          });
-        }
-
         if (CAPTCHA_PATHS.has(ctx.path)) {
           const verdict = await verifyTurnstile(
             ctx.headers?.get(TURNSTILE_TOKEN_HEADER) ?? ctx.body?.turnstileToken,
@@ -408,7 +348,7 @@ export function createAuth(options: AuthOptions) {
           assertNotDisposable(email.data);
           // ... except while registration is closed, when an unknown address is refused up front
           // instead of being sent a code that could never be redeemed.
-          if (!registrationAllowed(email.data)) {
+          if (!options.registrationOpen) {
             const existing = await ctx.context.internalAdapter.findUserByEmail(
               email.data.trim().toLowerCase(),
             );
@@ -417,25 +357,6 @@ export function createAuth(options: AuthOptions) {
         }
         if (ctx.path === REQUEST_EMAIL_CHANGE_PATH && newEmail.success) {
           assertNotDisposable(newEmail.data);
-        }
-
-        // Better Auth's admin remove-user skips `deleteUser.beforeDelete`, so the
-        // data cleanup runs here, after confirming the caller is an admin.
-        if (ctx.path === "/admin/remove-user") {
-          const session = await getSessionFromCtx(ctx, {
-            disableCookieCache: true,
-            disableRefresh: true,
-          });
-          if (!session || !isAdminRole(session.user.role)) {
-            throw new APIError("FORBIDDEN", { message: "Only administrators can remove users." });
-          }
-          const userId = z.string().min(1).safeParse(ctx.body?.userId);
-          if (userId.success) {
-            if (userId.data === session.user.id) {
-              throw new APIError("BAD_REQUEST", { message: "You cannot remove yourself." });
-            }
-            await options.beforeDeleteUser({ id: userId.data });
-          }
         }
       }),
     },

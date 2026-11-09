@@ -31,8 +31,6 @@ export const env = createEnv({
       ),
     /** Comma-separated IPs/CIDRs of proxies allowed to set X-Forwarded-For, or "none". */
     TRUSTED_PROXIES: z.string().default("127.0.0.0/8,::1/128"),
-    /** Comma-separated emails that hold the admin role (when verified). */
-    ADMIN_EMAILS: z.string().default(""),
     REGISTRATION_OPEN: z.stringbool().default(true),
     /**
      * Passkey relying-party id: a bare hostname the web origin is on or under. Defaults to the

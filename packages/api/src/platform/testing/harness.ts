@@ -27,7 +27,6 @@ const baseConfig: ApiConfig = {
   authSecret: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
   trustedProxies: "127.0.0.0/8",
   registrationOpen: true,
-  adminEmails: [],
   openApiReference: false,
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };

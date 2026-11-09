@@ -27,28 +27,16 @@ describe("registration policy", () => {
     await expect(requestCode(app, "open@example.com")).resolves.toEqual({ success: true });
   });
 
-  it("refuses unknown addresses but admin emails and existing accounts when registration is closed", async () => {
-    const app = await create({
-      config: { registrationOpen: false, adminEmails: ["owner@example.com"] },
-    });
+  it("refuses unknown addresses when registration is closed", async () => {
+    const app = await create({ config: { registrationOpen: false } });
     await expect(requestCode(app, "stranger@example.com")).rejects.toMatchObject({
       statusCode: 403,
       body: { code: "REGISTRATION_CLOSED" },
     });
-    // The owner is never locked out of their own instance.
-    await expect(requestCode(app, "owner@example.com")).resolves.toEqual({ success: true });
     await expect(app.client().auth.registrationStatus()).resolves.toEqual({
       open: false,
       providers: { google: false, github: false },
     });
-  });
-
-  it("lets an admin email sign in and get the role while closed", async () => {
-    const app = await create({
-      config: { registrationOpen: false, adminEmails: ["owner@example.com"] },
-    });
-    const session = await createSignedInUser(app, "owner@example.com");
-    await expect(app.client(session).admin.access()).resolves.toEqual({ admin: true });
   });
 
   it("keeps existing accounts signing in after registration closes", async () => {

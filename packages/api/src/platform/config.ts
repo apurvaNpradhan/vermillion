@@ -27,7 +27,6 @@ export type ApiConfig = {
   /** Comma-separated IPs/CIDRs allowed to set X-Forwarded-For, or "none". */
   trustedProxies: string;
   registrationOpen: boolean;
-  adminEmails: string[];
   turnstileSecret?: string | undefined;
   google?: { clientId: string; clientSecret: string } | undefined;
   github?: { clientId: string; clientSecret: string } | undefined;

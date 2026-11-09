@@ -22,7 +22,6 @@ const currentUser = z.object({
   email: z.string(),
   emailVerified: z.boolean(),
   image: z.string().nullable(),
-  role: z.string().nullable(),
 });
 
 const accountApi = authed.meta(openapi({ tags: ["Account"] }));
@@ -36,7 +35,6 @@ const me = accountApi
     email: context.user.email,
     emailVerified: context.user.emailVerified,
     image: context.user.image ?? null,
-    role: context.user.role ?? null,
   }));
 
 const updateProfile = accountApi

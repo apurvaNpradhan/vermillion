@@ -68,7 +68,6 @@
     }
   },
   "globalEnv": [
-    "ADMIN_EMAILS",
     "ANDROID_CERT_SHA256",
     "APPLE_TEAM_ID",
     "APP_URL",

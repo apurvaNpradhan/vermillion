@@ -1,6 +1,5 @@
 import { openapi } from "@orpc/openapi";
 import { ORPCError, os } from "@orpc/server";
-import { isAdminEmail, isAdminRole, syncAdminRole } from "@workspace/auth";
 import type { ErrorCode } from "@workspace/shared";
 import { APIError } from "better-auth/api";
 
@@ -85,16 +84,3 @@ export const authed = base
       context: { user: session.user, session: session.session, userId: session.user.id },
     });
   });
-
-/** Instance administrators only (the `ADMIN_EMAILS` allowlist sets the role). */
-export const admin = authed.use(async ({ context, next }) => {
-  const { user } = context;
-  const { adminEmails } = context.services.config;
-  // The role column is a cache of the allowlist; authorization re-checks the
-  // verified allowlist itself, so a stale role never grants access.
-  if (!isAdminRole(user.role) || !isAdminEmail(user.email, user.emailVerified, adminEmails)) {
-    await syncAdminRole(context.services.db, user, adminEmails);
-    throw new ORPCError("FORBIDDEN", { message: "Administrator access is required" });
-  }
-  return next();
-});

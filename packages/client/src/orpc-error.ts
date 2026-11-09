@@ -14,11 +14,10 @@ const CODE_KEYS = new Map<string, TranslationKey>([
 
 /**
  * Keys for the finer `data.code` values the server attaches (a Better Auth code
- * such as `ADMIN_ROLE_MANAGED`, or a domain code a vertical throws). Add the
+ * such as `REGISTRATION_CLOSED`, or a domain code a vertical throws). Add the
  * code here when you add it on the server.
  */
 const DETAIL_KEYS = new Map<string, TranslationKey>([
-  ["ADMIN_ROLE_MANAGED", "errors__admin_role_managed"],
   ["REGISTRATION_CLOSED", "errors__registration_closed"],
   ["DISPOSABLE_EMAIL_NOT_ALLOWED", "errors__disposable_email"],
   ["CAPTCHA_FAILED", "errors__captcha_failed"],

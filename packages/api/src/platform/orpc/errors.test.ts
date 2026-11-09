@@ -63,13 +63,6 @@ describe("error responses over HTTP", () => {
     expect(await response.json()).toMatchObject({ json: { code: "UNAUTHORIZED" } });
   });
 
-  it("answers 403 FORBIDDEN to a signed-in non-admin", async () => {
-    const session = await createSignedInUser(app, "http-user@example.com");
-    const response = await rpc("admin/access", { cookie: session.get("cookie") ?? "" });
-    expect(response.status).toBe(403);
-    expect(await response.json()).toMatchObject({ json: { code: "FORBIDDEN" } });
-  });
-
   it("answers 400 BAD_REQUEST for invalid input", async () => {
     const session = await createSignedInUser(app, "http-input@example.com");
     const response = await rpc(
@@ -166,10 +159,10 @@ describe("OpenAPI reference", () => {
     // Public procedures carry no security requirement; signed-in ones name the session cookie.
     expect(document.paths["/auth/registration-status"]?.get?.security).toBeUndefined();
     expect(document.paths["/notes"]?.get?.security).toEqual([{ sessionCookie: [] }]);
-    expect(document.paths["/admin/users"]?.get?.security).toEqual([{ sessionCookie: [] }]);
+    expect(document.paths["/account/me"]?.get?.security).toEqual([{ sessionCookie: [] }]);
   });
 
-  it("serves the documented routes over plain HTTP, coercing query strings", async () => {
+  it("serves the documented routes over plain HTTP", async () => {
     const on = await createTestApp({ config: { openApiReference: true } });
     const session = await createSignedInUser(on, "openapi@example.com");
     const cookie = session.get("cookie") ?? "";
@@ -185,11 +178,6 @@ describe("OpenAPI reference", () => {
     expect(listed.status).toBe(200);
     expect(await listed.json()).toEqual([expect.objectContaining({ title: "From REST" })]);
 
-    // page and limit arrive as query strings; coercion must let them reach the admin check (403), not fail validation (400).
-    const denied = await on.app.request("/api/reference/admin/users?page=1&limit=5", {
-      headers: { cookie },
-    });
-    expect(denied.status).toBe(403);
     await on.close();
   });
 });

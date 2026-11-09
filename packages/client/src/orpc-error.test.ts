@@ -11,8 +11,8 @@ describe("errorMessageKey", () => {
   });
 
   it("prefers the detail code over the typed code", () => {
-    const error = new ORPCError("FORBIDDEN", { data: { code: "ADMIN_ROLE_MANAGED" } });
-    expect(errorMessageKey(error)).toBe("errors__admin_role_managed");
+    const error = new ORPCError("FORBIDDEN", { data: { code: "REGISTRATION_CLOSED" } });
+    expect(errorMessageKey(error)).toBe("errors__registration_closed");
   });
 
   it("falls back to the typed code for an unknown detail code", () => {
