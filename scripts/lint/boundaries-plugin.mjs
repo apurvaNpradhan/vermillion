@@ -4,7 +4,7 @@
 // be reached only through its `index.ts`. `platform` is shared infrastructure
 // and may be imported from anywhere. Each source tree below follows the same
 // layout: `platform/` plus one folder per domain. Folders listed in `plain` are
-// not verticals (routes, shared components, ...) and are not restricted.
+// not verticals and are not restricted.
 // Tests are exempt, and table files (`schema.ts`/`tables.ts`) may import each
 // other because tables reference each other through foreign keys.
 import { dirname, join, relative, resolve, sep } from "node:path";

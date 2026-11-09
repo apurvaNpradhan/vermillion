@@ -1,6 +1,6 @@
 # Sync
 
-Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on web and native; writes queue locally and upload through `sync.upload`. Reasons: ADRs [0015](../docs/adr/0015-powersync-self-hosted.md)–[0027](../docs/adr/0027-sync-build-plan.md). Adding a table: [guide](../docs/guides/adding-a-synced-table.md).
+Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on the device; writes queue locally and upload through `sync.upload`. Reasons: ADRs [0015](../docs/adr/0015-powersync-self-hosted.md)–[0027](../docs/adr/0027-sync-build-plan.md). Adding a table: [guide](../docs/guides/adding-a-synced-table.md).
 
 ## Layout
 
@@ -9,14 +9,14 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 - `packages/api/src/<vertical>/sync.ts`: the vertical's upload handler; it calls the vertical's operations.
 - `packages/shared` (`sync.ts`): wire schemas, limits, `SYNC_SCHEMA_VERSION`. Runtime-neutral.
 - `packages/sync`: client Drizzle (SQLite) schema per vertical under `src/<vertical>/`, row conversion, database factory.
-- `apps/web/src/platform/{powersync,offline}`, `apps/native/src/platform/local-database`: per-platform database and lifecycle.
+- `apps/native/src/platform/local-database`: the encrypted database and the lifecycle wiring.
 - `tests/sync`: seam 3 (`@workspace/sync-tests`).
 
 ## Rules
 
 - Streams list columns explicitly, never `*`, and filter `user_id = auth.user_id()`. Never trust a client `user_id`; handlers use the session user.
 - Synced tables: UUIDv7 `id` made on the client, `user_id` with cascade, `deleted_at` soft delete. Streams exclude deleted rows; the purge job hard-deletes content after 120 days but atomically keeps minimal deleted-id/owner markers until account deletion, so a late PUT cannot resurrect a purged row.
-- App writes carry the install-id `writeScope` captured by their hook; check it inside the SQLite write transaction. The web sync provider and native app-tabs boundary remount account-scoped UI when that identity changes across tabs.
+- App writes carry the install-id `writeScope` captured by their hook; check it inside the SQLite write transaction. The native app-tabs boundary remounts account-scoped UI when that identity changes across tabs.
 - Forms send dirty fields only (changed since edit start), never the live row. Same-field conflicts: server application order. Use `startDraft`/`draftPatch`/`applyLatest` from `@workspace/sync`; a note deleted under an open form offers save-as-new or discard. Rejected writes are retried (new local transaction) or discarded by the user, never expired. Manual checks: [walkthrough](../docs/guides/sync-ux-walkthrough.md).
 - Order for a new table: additive migration (table, `ALTER PUBLICATION powersync ADD TABLE`, `GRANT SELECT` to `powersync_replication`), then the stream in `sync-config.yaml`, then clients. A stream before its publication entry breaks replication.
 - Handlers are registered in `registry.ts`; an unregistered table is rejected. Limits are validated before work.

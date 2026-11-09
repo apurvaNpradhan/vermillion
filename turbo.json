@@ -61,10 +61,6 @@
     "//#test:root": {
       "cache": false,
       "outputs": []
-    },
-    "test:e2e": {
-      "cache": false,
-      "passThroughEnv": ["CI", "E2E_DATABASE_URL"]
     }
   },
   "globalEnv": [

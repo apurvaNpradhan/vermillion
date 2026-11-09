@@ -1,6 +1,6 @@
 # Verticals
 
-Domain code is organised as deletable slices. The same shape applies in `packages/api/src`, `apps/web/src` and `apps/native/src`.
+Domain code is organised as deletable slices. The same shape applies in `packages/api/src` and `apps/native/src`.
 
 ```text
 packages/api/src/
@@ -11,13 +11,12 @@ packages/api/src/
     operations/        one operation per file, plain functions taking the db and ids
     tables.ts          Drizzle tables (may import other verticals' tables for foreign keys)
     notes.test.ts
-apps/web/src/notes/    index.ts, hooks (use-notes.ts), components/
-apps/native/src/notes/ same shape
+apps/native/src/notes/ index.ts, hooks (use-notes.ts), components/
 ```
 
 ## Boundary rule
 
-`boundaries/vertical-boundaries` (oxlint, `scripts/lint/boundaries-plugin.mjs`) fails an import of another vertical unless it goes through that vertical's `index.ts`. `platform` and, on the apps, `routes`, `lib`, `assets` and `styles` are not verticals. Tests are exempt.
+`boundaries/vertical-boundaries` (oxlint, `scripts/lint/boundaries-plugin.mjs`) fails an import of another vertical unless it goes through that vertical's `index.ts`. `platform` is not a vertical. Tests are exempt.
 
 If two verticals need each other's internals, either export a deliberate function from one `index.ts` or move the shared piece to `platform`. Do not add a wildcard export.
 
@@ -26,7 +25,7 @@ If two verticals need each other's internals, either export a deliberate functio
 1. Create the folder with `tables.ts`, `operations/`, `procedures.ts`, `index.ts` and a test.
 2. Register the router in `platform/orpc/router.ts`; register queues in `platform/jobs/queues.ts` if it has jobs.
 3. `pnpm db:generate` for the migration (additive only).
-4. Web and native: add the module with its hook, thin route files, `en` and `de` keys.
+4. Native: add the module with its hook, thin route files, `en` and `de` keys.
 
 ## Delete a vertical
 
@@ -34,4 +33,4 @@ Delete the folder in each tree, remove the router line, route files, navigation 
 
 ## Personal accounts only
 
-`authed` in `platform/orpc/base.ts` is the one seam that resolves the signed-in user. A collaboration fork extends it to require membership; verticals should not look up the session themselves.
+`authed` in `platform/orpc/base.ts` is the one seam that resolves the signed-in user. Verticals should not look up the session themselves.

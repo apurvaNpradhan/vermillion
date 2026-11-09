@@ -16,7 +16,7 @@ export type EmailTransportConfig = {
   isProduction: boolean;
 };
 
-/** First line format is stable so tests and e2e can parse the code or link out of the log. */
+/** First line format is stable so tests can parse the code or link out of the log. */
 export const LOG_EMAIL_MARKER = "[email]";
 
 /** Development transport: prints the plain-text email to the server log. */

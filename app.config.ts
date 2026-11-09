@@ -16,8 +16,6 @@ export const appConfig = {
     postgres: 5432,
     /** Development PowerSync service, bound to 127.0.0.1. */
     powersync: 8090,
-    /** Disposable browser-test PowerSync service; separate from the dev replica. */
-    powersyncE2e: 8091,
   },
   bundleIds: {
     ios: "com.anonymous.vermillion",

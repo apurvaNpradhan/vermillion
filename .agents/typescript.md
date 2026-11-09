@@ -19,7 +19,7 @@ TypeScript 7 (native compiler) for typechecking; `pnpm typecheck` runs it per wo
 - No `vi.mock` / module mocking; no `Reflect.get` / `Reflect.apply`; no `shape` in symbol names.
 - No `.filter().map()` passes or accumulator copies in reducers; use `.values().filter().map().toArray()`, `flatMap`, or a mutated local accumulator.
 
-Tests are exempt from the assertion rules. The vendored coss components (`packages/ui/src/components`, `hooks`) are exempt from the assertion, dictionary and `typeof` rules; `scripts/` and `tools/` from `typeof`.
+Tests are exempt from the assertion rules; `scripts/` and `tools/` are exempt from the `typeof` rule.
 
 ## Use `satisfies` for config
 

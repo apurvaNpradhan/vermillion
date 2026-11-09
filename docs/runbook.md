@@ -4,20 +4,18 @@ The short list of things to do by hand. Setup and configuration reference: [depl
 
 ## Deploy
 
-Merging to `main` ships both halves of the same commit:
+Merging to `main` runs CI (`checks`, `tests`, `sync`, `workflows`; watch the Actions tab) and deploys the server:
 
-- **Web**: CI runs `checks`, `e2e` and `workflows`, then the `deploy-web` job builds and runs `wrangler deploy` (needs the `DEPLOY_WEB` variable, see deployment.md). Watch it in the Actions tab.
 - **Server**: Dokploy builds `apps/server/Dockerfile` from `main` and replaces the container. It waits for Postgres, migrates, then listens. Watch the deployment log; `db.startup` and `server.listening` are the two lines that matter.
 
-The web Worker and the server deploy independently, so for a few seconds they can be one release apart. That is why migrations and API changes are additive: an old Worker must work against the new server and the reverse.
+The app and the server release independently: installed apps lag the server by days or weeks. That is why migrations and API changes are additive: an old app must work against the new server.
 
-If the container loops on start, a migration failed. The old container is already gone, so the site's API is down: roll back (below) and read the `db.startup` error.
+If the container loops on start, a migration failed. The old container is already gone, so the API is down: roll back (below) and read the `db.startup` error.
 
 ## Roll back
 
 | Half   | How                                                                                                                                                                     |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web    | Cloudflare dashboard → Workers → the app → Deployments → pick the previous version → _Rollback_. Or revert the commit on `main` and let CI deploy.                      |
 | Server | Dokploy → the application → Deployments → _Rollback_ to the previous image (Dokploy keeps recent builds when rollbacks are enabled), or revert the commit and redeploy. |
 | Native | `eas update:rollback` for the channel, or publish the previous commit with `eas update`. A store build cannot be rolled back; ship a fix.                               |
 
@@ -58,16 +56,15 @@ Failed jobs log `jobs.*` actions. Fix the cause (a bad `RESEND_API_KEY` is the u
 
 ## Rotate secrets
 
-Change the value in Dokploy's environment for the server application and redeploy. The Worker holds no secrets.
+Change the value in Dokploy's environment for the server application and redeploy.
 
-| Secret                        | Effect                                                                                                                                                                                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`          | Every session and signed value stops working; everyone signs in again. Database-backed deletion tokens and sign-in codes do not die: revoke them explicitly using the procedure below.                                                            |
-| `RESEND_API_KEY`              | Takes effect on restart. Queued emails retry with the new key.                                                                                                                                                                                    |
-| `TURNSTILE_SECRET_KEY`        | Takes effect on restart. The site key is public and baked in at build time: change `VITE_TURNSTILE_SITE_KEY` (GitHub variable, then redeploy web) and `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (new native build) together with the widget in Cloudflare. |
-| Google / GitHub OAuth secrets | Takes effect on restart.                                                                                                                                                                                                                          |
-| `DATABASE_URL`                | Change in step with the database service's password.                                                                                                                                                                                              |
-| `CLOUDFLARE_API_TOKEN`        | Roll it in Cloudflare, update the GitHub environment secret, re-run the last deploy.                                                                                                                                                              |
+| Secret                        | Effect                                                                                                                                                                                 |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`          | Every session and signed value stops working; everyone signs in again. Database-backed deletion tokens and sign-in codes do not die: revoke them explicitly using the procedure below. |
+| `RESEND_API_KEY`              | Takes effect on restart. Queued emails retry with the new key.                                                                                                                         |
+| `TURNSTILE_SECRET_KEY`        | Takes effect on restart. The site key is public and baked in at build time: change `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (new native build) together with the widget in Cloudflare.         |
+| Google / GitHub OAuth secrets | Takes effect on restart.                                                                                                                                                               |
+| `DATABASE_URL`                | Change in step with the database service's password.                                                                                                                                   |
 
 For a compromised auth secret or leaked deletion links or sign-in codes, stop the server before rotation. Revoke database-backed tokens and sessions in Postgres, then deploy with the new secret:
 
@@ -82,11 +79,11 @@ This deliberately invalidates all outstanding sign-in codes and deletion confirm
 
 ## Close sign-ups
 
-Set `REGISTRATION_OPEN=false` on the server application and redeploy. Existing users are unaffected, and addresses in `ADMIN_EMAILS` can still register. Reopen with `true`.
+Set `REGISTRATION_OPEN=false` on the server application and redeploy. Existing users are unaffected; every unknown address is refused, including yours, so create your own account first. Reopen with `true`.
 
-## Admin access
+## Operating on users
 
-`ADMIN_EMAILS` is the only source of admin rights. Add or remove an address and redeploy: roles are reconciled at startup and on every session, so a removed admin loses access at their next request. The address must be verified.
+There is no admin role or admin UI ([ADR 0033](adr/0033-mobile-first-api-host.md)). Look up, ban or delete a user in Postgres, and to delete one fully use the account deletion flow or run the same purgers (`platform/user-data.ts`) so synced data and outbox rows go too. An admin surface returns with the companion app if it is wanted.
 
 ## Scheduled reminders
 

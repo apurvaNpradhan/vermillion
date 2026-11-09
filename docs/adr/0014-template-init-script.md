@@ -1,6 +1,6 @@
 # 0014. A template-init script, not a scaffolding CLI
 
-Status: accepted (2026-11-06).
+Status: superseded by [0033](0033-mobile-first-api-host.md) (2026-11-09). Originally accepted 2026-11-06.
 
 ## Context
 

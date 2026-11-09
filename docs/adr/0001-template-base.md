@@ -15,3 +15,4 @@ Vermillion stays the base and becomes a product-neutral GitHub template. Morrow 
 - Internal packages use the neutral `@workspace/*` scope so forks carry no template name.
 - The app's name, URLs, ports, bundle ids, scheme and versions live in `app.config.ts`; `pnpm template:init` rewrites the values that cannot import it ([ADR 0014](0014-template-init-script.md)).
 - Forks diverge deliberately: local-first (PowerSync or Electric), single-user, collaboration workspace. The seams below exist for them.
+- Amended 2026-11-09 ([0033](0033-mobile-first-api-host.md)): Vermillion is now one product's mobile-first monorepo. The web app and `template-init` are gone, so the template framing and the `template:init` step above no longer apply.

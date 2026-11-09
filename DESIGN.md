@@ -1,11 +1,13 @@
 # Design
 
-The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; see Implementation for how they reach web and native.
+The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; see Implementation for how they reach native and email.
+
+> The web app was removed ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)). Paragraphs marked **Web** and the coss / shadcn mappings are kept as reference for the future marketing site and companion app; they describe no code in this repo.
 
 ## Native themes
 
 Native offers System, Light and Dark, colour-only: one layout. Light and Dark are Classic (`brand.ts`),
-the same palette as web and transactional email, written into Uniwind's built-in `light` and
+the same palette as transactional email, written into Uniwind's built-in `light` and
 `dark` variants by the token build; there are no custom themes. Named themes, Polar Graphite
 included, were sunset on 2026-11-09 ([ADR 0031](docs/adr/0031-native-themes-colour-only-oklch.md)).
 How-to: [Native themes](docs/guides/native-themes.md).
@@ -27,7 +29,7 @@ The sections below describe the Classic palette's contract and the shared layout
 
 Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the interface. It is built on near-black surface steps, hairline borders, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
-Platforms: iOS and Android via React Native + Expo + HeroUI Native first; web with coss ui + shadcn/ui. One token source (`packages/ui/src/tokens/brand.ts`) feeds both.
+Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
 ### Principles
 
@@ -70,7 +72,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 | 9   | Motion            | Fast and functional, expressive only for celebrations                                                 | No bounce on repeated actions; PRs feel earned                                   |
 | 10  | Icons             | Phosphor (Regular / Bold / Fill)                                                                      | Weights map onto Standard, Active and selected states                            |
 | 11  | Charts            | Clean and minimal, color = meaning                                                                    | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
-| 12  | Stack             | Expo + HeroUI Native; web on coss ui + shadcn/ui                                                      | One token source, two adapters (see Implementation)                              |
+| 12  | Stack             | Expo + HeroUI Native; web deferred                                                                    | One token source, a native adapter and the email templates (see Implementation)  |
 | 13  | Navigation shell  | Floating icon-only tab pill that morphs into a menu panel, collapsing page header (ADR 0028, amended) | Linear-like and thumb-first; the tab count can grow to five without a redesign   |
 | 14  | Native components | HeroUI Native base; missing parts copied in from PanelUI / Reacticx (ADR 0030)                        | No second icon set or peer-dependency tree; every copy restyled to tokens        |
 
@@ -484,17 +486,14 @@ The person signs in before being asked anything, then answers one question per s
 
 ## Implementation
 
-One token file is the source of truth; a build step writes two adapters, one in HeroUI Native's variable names and one in coss / shadcn names. Both libraries theme with Tailwind v4 CSS variables, so the mapping is mostly renaming.
+One token file is the source of truth; a build step writes the native adapter in HeroUI Native's variable names, and the email templates read the roles directly. A future web client would add an adapter in its own library's names.
 
 ### Repo shape
 
 | Path                                      | Role                                                                                                                                                                                                                                                                         |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/ui/src/tokens/brand.ts`         | Every role from this doc with `light` and `dark` values, the shared Vermillion-only colors, the type scale, radius and fonts                                                                                                                                                 |
-| `packages/ui/src/tokens/to-web-css.ts`    | `webTokenSources`: coss / shadcn name -> role; writes `src/styles/tokens.css`                                                                                                                                                                                                |
 | `packages/ui/src/tokens/to-native-css.ts` | `nativeTokenSources`: HeroUI Native name -> role, depth shadows, Inter font tokens; writes `src/styles/native-tokens.css`                                                                                                                                                    |
-| `packages/ui/src/styles/globals.css`      | Web radius steps, `numeric` utility, Inter features on `body`                                                                                                                                                                                                                |
-| `packages/ui/src/components`              | coss ui components, restyled to this doc (flat cards, text-only destructive, field fills, neutral selection)                                                                                                                                                                 |
 | `apps/native/global.css`                  | Imports `native-tokens.css` after `heroui-native/styles`                                                                                                                                                                                                                     |
 | `apps/native/src/platform/ui/`            | HeroUI `Button` and `Card` in Vermillion shape (import these, not HeroUI's), plus components copied in from PanelUI and Reacticx and restyled to tokens (ADR 0030): `Field`, `OtpInput`, `SearchBar`, `Skeleton`, `EmptyState`, `SegmentedControl`, `NumberFlow`, `StatTile` |
 
@@ -538,7 +537,7 @@ Radius: web `--radius` is 12px, and `globals.css` sets `rounded-xs` 4, `rounded-
 
 Fonts: web loads `@fontsource-variable/inter/opsz.css` (variable, with the optical-size axis); native loads Inter 400/500/600/700 from `@expo-google-fonts/inter` before hiding the splash screen. Inter Display on native is still open (see Verify on device).
 
-Icons: `@phosphor-icons/react` on web (also in `packages/ui`, set as the shadcn `iconLibrary`), `phosphor-react-native` on native.
+Icons: `phosphor-react-native` on native (`@phosphor-icons/react` would be the web counterpart).
 
 ### Email
 

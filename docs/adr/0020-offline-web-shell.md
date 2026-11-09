@@ -1,6 +1,6 @@
 # 0020. Offline cold start on web: Device owner guard plus an offline shell
 
-Status: accepted (2026-11-07). Covers D7 (amended).
+Status: superseded by [0033](0033-mobile-first-api-host.md) (2026-11-09). Originally accepted 2026-11-07. Covered D7 (amended).
 
 ## Context
 

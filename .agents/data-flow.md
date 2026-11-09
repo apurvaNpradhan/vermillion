@@ -1,16 +1,16 @@
 # Data flow
 
-## Web
+## Native
 
-- Public routes (`_public`) render on the server in the signed-out state. The navbar's account slot fills in on the client from the session query, so pages never wait on the API.
-- App (`_app`) and auth (`_auth`) routes are `ssr: false`. The guard runs in `beforeLoad` against the cached session query and redirects to `/login?redirect=<path>`. After sign-in only same-app paths are followed (`return-location`).
-- Route files stay thin: metadata, search validation, guards, query warming, wiring. Page UI and logic live in the module.
-- Server data is owned by TanStack Query through the oRPC client. Start server functions are not used for app data. Keep `defaultPreload: "intent"` and `defaultPreloadStaleTime: 0` so Query decides freshness.
-- Include every input in query keys; invalidate with `orpc.<router>.key()`.
+Expo Router. Route files in `apps/native/app` stay thin: guards, wiring, layout. Screens and logic live in the module under `apps/native/src/<vertical>`.
+
+- Server data is owned by TanStack Query through the oRPC client; synced data (notes) comes from the local SQLite database through the module hook ([sync](sync.md)).
+- Auth and oRPC clients come from `@workspace/client`, not copies. Include every input in query keys; invalidate with `orpc.<router>.key()`.
+- Native has no automated UI test seam; keep screens thin and put logic in tested sibling files.
 
 ## Module hooks
 
-Components read and write data only through hooks exported by their module (`use-notes`, `use-preferences`, `use-admin-users`). Hooks hold the oRPC and Query wiring and return plain values and async actions. This is the seam a local-first fork rewrites (PowerSync or Electric), so do not import `orpc` or `useQuery` in components.
+Components read and write data only through hooks exported by their module (`use-notes`, `use-preferences`). Hooks hold the oRPC, Query and local-database wiring and return plain values and async actions. Do not import `orpc` or `useQuery` in components.
 
 ```ts
 // good
@@ -23,10 +23,6 @@ const { notes, create } = useNotes();
 - `@workspace/client` maps oRPC errors to translated messages (`errorMessage`) and detects an expired session (`isUnauthorized`). The query client's `onError` toasts, or clears the session and sends the user to sign-in on `UNAUTHORIZED`.
 - The server reports a Better Auth 401 after an authenticated check as `FORBIDDEN`, so a client never signs the user out for it.
 
-## Native
-
-Same module layout with Expo Router. Auth and oRPC clients come from `@workspace/client`, not copies. Native has no automated test seam; keep it thin.
-
 ## Preferences and theme
 
-One `usePreferences` hook reads and updates `user_preferences` (locale, timezone, `ui`). Theme is per device: cookie on web, device storage on native, never the database.
+One `usePreferences` hook reads and updates `user_preferences` (locale, timezone, `ui`). Theme is per device, in device storage, never the database.

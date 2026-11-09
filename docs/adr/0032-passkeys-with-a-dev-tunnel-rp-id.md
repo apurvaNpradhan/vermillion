@@ -20,3 +20,4 @@ Email codes ([0029](0029-email-otp-auth-and-account-first-onboarding.md)) are th
 - The fingerprint lives in two env files (server for the origin, web for the association file) because the Worker takes no server secrets; both are public values.
 - Production needs the EAS/Play signing fingerprints in `ANDROID_CERT_SHA256` and `VITE_ANDROID_CERT_SHA256` before passkeys work in a store build; the debug keystore fingerprint is for development only.
 - Android reports the origin of the calling app, not of the page, so a rebuilt app signed with a different key fails verification until its fingerprint is added.
+- Amended 2026-11-09 ([0033](0033-mobile-first-api-host.md)): the association files are served by the API server (Hono) from `ANDROID_CERT_SHA256` and `APPLE_TEAM_ID`, not by a web Worker, and the dev tunnel maps to the server on port 3000. The RP id defaults to the hostname of `APP_URL` (`api.<domain>` in production).

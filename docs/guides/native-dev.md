@@ -6,7 +6,7 @@ The native app needs a **dev client**. Local sync uses `@op-engineering/op-sqlit
 
 ```sh
 pnpm db:start                    # Postgres, bootstrap, PowerSync on 127.0.0.1:8090
-pnpm dev                         # API (3000), web (3001), Metro
+pnpm dev                         # API (3000) and Metro
 pnpm --filter native android     # first build is slow; installs the dev client
 ```
 
@@ -47,7 +47,7 @@ tunnel: <id>
 credentials-file: /home/<you>/.cloudflared/<id>.json
 ingress:
   - hostname: dev.example.com
-    service: http://localhost:3001 # the web dev server; it proxies /api and /rpc
+    service: http://localhost:3000 # the API server
   - service: http_status:404
 ```
 
@@ -62,16 +62,16 @@ node -e "console.log('android:apk-key-hash:'+Buffer.from(process.argv[1].replace
 
 Local env (git-ignored files):
 
-| File               | Variable                                                    | Value                                                                                               |
-| ------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `apps/server/.env` | `AUTH_RP_ID`                                                | `dev.example.com`                                                                                   |
-| `apps/server/.env` | `AUTH_PASSKEY_ORIGINS`                                      | `https://dev.example.com` (the Android origin from `ANDROID_CERT_SHA256` is added automatically)    |
-| `apps/server/.env` | `ANDROID_CERT_SHA256`                                       | `$FP`                                                                                               |
-| `apps/web/.env`    | `VITE_ANDROID_CERT_SHA256`, `VITE_APPLE_TEAM_ID` (iOS only) | the same fingerprint; the team id                                                                   |
-| `apps/web/.env`    | `DEV_PUBLIC_HOSTS`                                          | `dev.example.com`: Vite's `allowedHosts`; without it Vite answers the tunnel with "Blocked request" |
-| `apps/web/.env`    | `VERMILLION_TUNNEL_CONFIG`                                  | path of the tunnel yml (default `~/.cloudflared/vermillion-dev.yml`)                                |
+| File               | Variable                   | Value                                                                                            |
+| ------------------ | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `apps/server/.env` | `AUTH_RP_ID`               | `dev.example.com`                                                                                |
+| `apps/server/.env` | `AUTH_PASSKEY_ORIGINS`     | `https://dev.example.com` (the Android origin from `ANDROID_CERT_SHA256` is added automatically) |
+| `apps/server/.env` | `ANDROID_CERT_SHA256`      | `$FP`                                                                                            |
+| `apps/server/.env` | `APP_URL`                  | `https://dev.example.com` (also the default RP id and origin)                                    |
+| `apps/server/.env` | `APPLE_TEAM_ID` (iOS only) | your Apple team id                                                                               |
+| `apps/server/.env` | `VERMILLION_TUNNEL_CONFIG` | path of the tunnel yml (default `~/.cloudflared/vermillion-dev.yml`)                             |
 
-Then, with `pnpm dev` running, `pnpm dev:tunnel` in a second terminal. Check `https://dev.example.com/.well-known/assetlinks.json`. Point the native app at the tunnel (`EXPO_PUBLIC_SERVER_URL=https://dev.example.com` in `apps/native/.env`) and rebuild the dev client. Restart the server and Vite after changing any value; Android caches the asset links, so a changed fingerprint can take a while (or a reinstall) to take effect. The RP ID of a passkey cannot change: passkeys created under the tunnel hostname do not work on another one.
+Then, with `pnpm dev` running, `pnpm dev:tunnel` in a second terminal. Check `https://dev.example.com/.well-known/assetlinks.json`. Point the native app at the tunnel (`EXPO_PUBLIC_SERVER_URL=https://dev.example.com` in `apps/native/.env`) and rebuild the dev client. Restart the server after changing any value; Android caches the asset links, so a changed fingerprint can take a while (or a reinstall) to take effect. The RP ID of a passkey cannot change: passkeys created under the tunnel hostname do not work on another one.
 
 ## Offline testing
 

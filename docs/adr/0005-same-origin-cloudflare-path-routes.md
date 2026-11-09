@@ -1,6 +1,6 @@
 # 0005. One origin: Cloudflare path routes to the Dokploy origin
 
-Status: accepted (2026-11-06).
+Status: superseded by [0033](0033-mobile-first-api-host.md) (2026-11-09). Originally accepted 2026-11-06.
 
 ## Context
 

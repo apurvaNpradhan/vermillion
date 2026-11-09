@@ -1,30 +1,29 @@
 # AGENTS.md
 
-Vermillion: product-neutral template for apps with personal accounts. Web (TanStack Start, Cloudflare Worker), native (Expo), API (Hono + oRPC on Dokploy), one origin. pnpm + Turborepo monorepo, TypeScript 7.
+Vermillion: a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `api.<domain>`). There is no web app; a marketing site and a companion app come later as separate apps ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)). pnpm + Turborepo, TypeScript 7.
 
 Read the guide for the area you touch before editing. Terms are defined in [CONTEXT.md](CONTEXT.md); reasons for decisions are in [docs/adr/](docs/adr/).
 
 ## Layout
 
 - `app.config.ts`: the only place the app's name, URLs, ports, bundle ids, scheme and versions live.
-- `apps/web`, `apps/native`, `apps/server`: thin apps. Domain code lives in verticals under `src/<vertical>/`.
-- `packages/{api,auth,db,ui,env,shared,logger,i18n,email,client,config}`: `@workspace/*`. A package exists only if more than one app or package uses it.
-- `scripts/`, `tools/`: repo tooling (i18n checks, lint plugins, secret scan, `template-init`, ops).
+- `apps/native`, `apps/server`: thin apps. Domain code lives in verticals under `src/<vertical>/`.
+- `packages/{api,auth,db,ui,env,shared,logger,i18n,email,client,sync,config}`: `@workspace/*` (`ui` holds the brand tokens only). A package exists only if more than one app or package uses it.
+- `scripts/`, `tools/`: repo tooling (i18n checks, lint plugins, secret scan, ops).
 
 ## Commands
 
-| Task                                              | Command                                       |
-| ------------------------------------------------- | --------------------------------------------- |
-| Start Postgres + PowerSync, then everything       | `pnpm db:start` then `pnpm dev`               |
-| Sync bootstrap / infra tests (need `db:start`)    | `pnpm sync:bootstrap`, `pnpm test:sync-infra` |
-| Sync seam 3 (stack and API running)               | `pnpm test:sync`                              |
-| Lint and format check                             | `pnpm lint` (fix: `pnpm lint:fix`)            |
-| Typecheck                                         | `pnpm typecheck`                              |
-| Dead code and unused deps                         | `pnpm knip`                                   |
-| Unit and API tests (need `db:start`)              | `pnpm test`                                   |
-| i18n consistency / key usage                      | `pnpm i18n:check`, `pnpm i18n:report`         |
-| End-to-end (needs Postgres, ports 3000/3001 free) | `pnpm test:e2e`                               |
-| Generate a migration                              | `pnpm db:generate`                            |
+| Task                                           | Command                                       |
+| ---------------------------------------------- | --------------------------------------------- |
+| Start Postgres + PowerSync, then everything    | `pnpm db:start` then `pnpm dev`               |
+| Sync bootstrap / infra tests (need `db:start`) | `pnpm sync:bootstrap`, `pnpm test:sync-infra` |
+| Sync seam 3 (stack and API running)            | `pnpm test:sync`                              |
+| Lint and format check                          | `pnpm lint` (fix: `pnpm lint:fix`)            |
+| Typecheck                                      | `pnpm typecheck`                              |
+| Dead code and unused deps                      | `pnpm knip`                                   |
+| Unit and API tests (need `db:start`)           | `pnpm test`                                   |
+| i18n consistency / key usage                   | `pnpm i18n:check`, `pnpm i18n:report`         |
+| Generate a migration                           | `pnpm db:generate`                            |
 
 Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 
@@ -47,16 +46,16 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | --------------------------------------- | ------------------------------------------------------------- |
 | [typescript](.agents/typescript.md)     | Types, assertions, validation at boundaries                   |
 | [verticals](.agents/verticals.md)       | Slice layout, boundaries rule, adding and deleting a vertical |
-| [data-flow](.agents/data-flow.md)       | Routes, Query, module hooks, SSR vs client-only               |
+| [data-flow](.agents/data-flow.md)       | Routes, Query, module hooks, errors and sessions              |
 | [orpc](.agents/orpc.md)                 | Procedures, builders, errors, rate limits, jobs               |
 | [orpc-testing](.agents/orpc-testing.md) | Seam 1: the router in-process on cloned Docker Postgres       |
-| [testing](.agents/testing.md)           | Unit tests and Playwright e2e (seam 2)                        |
+| [testing](.agents/testing.md)           | Unit tests and the test seams                                 |
 | [database](.agents/database.md)         | Tables, ids, timestamps, migrations                           |
-| [auth](.agents/auth.md)                 | Better Auth, hardening, CAPTCHA, admin                        |
+| [auth](.agents/auth.md)                 | Better Auth, hardening, CAPTCHA, passkeys                     |
 | [environment](.agents/environment.md)   | `packages/env`, public vs secret values                       |
 | [i18n](.agents/i18n.md)                 | Keys, locale resolution, checks                               |
-| [ui](.agents/ui.md)                     | coss ui, HeroUI Native, tokens                                |
+| [ui](.agents/ui.md)                     | HeroUI Native, tokens                                         |
 | [sync](.agents/sync.md)                 | Local-first sync: tables, streams, uploads, tests, ops        |
 | [deploy](.agents/deploy.md)             | Where things run; pointers to docs                            |
 
-Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo, Turborepo, shadcn and coss work.
+Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo and Turborepo work.
