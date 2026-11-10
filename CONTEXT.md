@@ -31,6 +31,19 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Exercise catalog** — the Reference data exercises, imported from a committed file at migrate time and synced by a global stream.
 - **Custom exercise** — an `exercise` row owned by a user. Archived and restored, never deleted; its type is fixed once a set uses it.
 - **Muscle group** — one of 20 code-defined slugs an exercise targets (one primary, any secondary). The body map draws 17 of them.
+- **Program** — a plan followed over weeks: an ordered Rotation of Workouts and rest days, with an optional planned length in weeks and an optional cover photo. Owns its Workouts.
+- **Workout** — a plan for one training day ("Push A"): an ordered list of exercises, each with Planned sets, a rest time and a Pinned exercise note. Standalone, or owned by exactly one Program; adding a Workout to a Program copies it, never shares it. Not the record of training: that is a Session.
+- **Session** — the record of actually training on a given day, optionally started from a Workout. Keeps what was done even if the Workout later changes or is deleted.
+- **Rotation** — a Program's ordered cycle of slots (a Workout or a rest day). "Next up" follows the last Session from the Program, not the calendar, so a missed day never makes anything overdue.
+- **Active program** — the one Program (or none) whose next Rotation slot is suggested. Any Workout can still be started at any time. A Program keeps its start and end dates once run.
+- **Planned set** — a target inside a Workout: a Set kind, a rep range (min = max for a single number), and optionally a weight and an effort target. Other fields follow the exercise type.
+- **Run** — one time through a Program, from its first Session to Finish. Progress is calendar weeks of the planned length since the Run started. Re-running a Program starts a new Run; earlier Runs keep their record. A Program whose last Run is finished is Completed.
+- **Slot** — one position in a Rotation: a Workout the Program owns, or Rest. One Workout may fill several Slots; editing it changes them all. Rest Slots are advisory: never marked, never blocking a Cycle.
+- **Cycle** — one pass through a Rotation. Training a Workout from the Program marks its first untrained Slot done for the Cycle, in any order; "next up" is the first untrained Slot. The Cycle completes when every Slot is trained, then the next begins.
+- **Superset** — consecutive exercises in a Workout grouped to be done back to back; rest follows the last one. A circuit is a Superset of more than two.
+- **Effort** — how hard a set is, one scale shown as RPE (6–10 in halves) or RIR (10 − RPE) by preference. A target may be a range.
+- **Set kind** — warm-up, working, drop or failure. Everything else (partials, myo-reps, negatives) is a note.
+- **Pinned exercise note** — a note on an exercise within one Workout ("Smith machine, seat 4"), shown every time that Workout is trained.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam since the web app was removed.
 - **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `api.<domain>` record. Firewalled to Cloudflare's IP ranges.
