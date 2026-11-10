@@ -620,6 +620,58 @@ describe("training upload handlers", () => {
     expect(await me.send([putSlot(uuidv7(), p.programId, p.workoutId, "a5")])).toEqual(applied);
   });
 
+  it("accepts the uploads of copying a Workout into a Program and leaves the original alone", async () => {
+    const me = await writer("copy-into-program@example.com");
+    const p = await plan(me);
+    const standalone = uuidv7();
+    const [sa, sb] = [uuidv7(), uuidv7()];
+    expect(
+      await me.send([
+        putWorkout(standalone, null, "Arms"),
+        putExercise(sa, standalone, weightReps, { position: "a0" }),
+        putExercise(sb, standalone, duration, {
+          position: "a1",
+          sets: sets([{ kind: "working", duration_s: 30 }]),
+        }),
+      ]),
+    ).toEqual(applied);
+    const originalWorkout = await stored("workout", standalone);
+    const originalExercises = [
+      await stored("workout_exercise", sa),
+      await stored("workout_exercise", sb),
+    ];
+
+    // What the client uploads for copyWorkoutIntoProgram: the Workout, its exercises, then a Slot.
+    const [copy, ca, cb, slot] = [uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+    expect(
+      await me.send([
+        putWorkout(copy, p.programId, "Arms"),
+        putExercise(ca, copy, weightReps, { position: "a0" }),
+        putExercise(cb, copy, duration, {
+          position: "a1",
+          sets: sets([{ kind: "working", duration_s: 30 }]),
+        }),
+        putSlot(slot, p.programId, copy, "a2"),
+      ]),
+    ).toEqual(applied);
+
+    expect(await stored("workout", copy)).toMatchObject({
+      program_id: p.programId,
+      title: "Arms",
+    });
+    expect(await stored("program_slot", slot)).toMatchObject({ workout_id: copy });
+    expect(await stored("workout_exercise", ca)).toMatchObject({
+      workout_id: copy,
+      exercise_id: weightReps,
+      sets: working,
+    });
+    // The original Workout and its exercises are exactly as they were, and still standalone.
+    expect(await stored("workout", standalone)).toEqual(originalWorkout);
+    expect(await stored("workout_exercise", sa)).toEqual(originalExercises[0]);
+    expect(await stored("workout_exercise", sb)).toEqual(originalExercises[1]);
+    expect(originalWorkout).toMatchObject({ program_id: null });
+  });
+
   it("refuses sets that do not fit the exercise's type", async () => {
     const me = await writer("sets@example.com");
     const p = await plan(me);

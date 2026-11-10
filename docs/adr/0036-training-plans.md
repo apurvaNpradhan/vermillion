@@ -68,3 +68,5 @@ The Active program, Cycles, Runs and the end-of-Run moment ship after the Sessio
 - Built-in template Programs can come later as Reference data copied on use, the same copy path as "Add to program". No third-party program is shipped: those are paid, copyrighted products.
 - Adding week-specific overrides, per-exercise units, level and goal, or R2 covers is additive.
 - Last-write-wins on a whole set array can drop a concurrent offline edit to the same exercise's sets. This is accepted: one person rarely edits one exercise's targets on two offline devices.
+
+Amended 2026-11-10 (slice 3): the description editor is a plain multi-line field, and the Markdown is rendered read-only with `marked`'s lexer into native text (`platform/ui/markdown.ts`), not `react-native-enriched-markdown`. Its compatibility table stops at React Native 0.87 (this app is on 0.88), it is an uncontrolled input, and its postinstall downloads assets that pnpm blocks. The text stored is Markdown either way, so the editor can be swapped later without a migration.

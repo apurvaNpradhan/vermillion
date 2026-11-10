@@ -11,7 +11,7 @@ import {
   workoutInput,
   type ProgramInput,
 } from "@workspace/shared";
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
@@ -366,25 +366,27 @@ export async function updateWorkout(
   });
 }
 
+async function deleteWorkoutIn(tx: Tx, id: string): Promise<DeletedWorkout | null> {
+  const [current] = await tx.select().from(workout).where(eq(workout.id, id)).limit(1);
+  if (!current) return null;
+  const exercises = await tx
+    .select()
+    .from(workoutExercise)
+    .where(eq(workoutExercise.workout_id, id));
+  const slots = await tx.select().from(programSlot).where(eq(programSlot.workout_id, id));
+  await tx.delete(workout).where(eq(workout.id, id));
+  await tx.delete(workoutExercise).where(eq(workoutExercise.workout_id, id));
+  await tx.delete(programSlot).where(eq(programSlot.workout_id, id));
+  return { workout: current, exercises, slots };
+}
+
 /** Deletes a Workout with its exercises and the Slots it fills. Null if it is gone. */
 export function deleteWorkout(
   database: TrainingDatabase,
   id: string,
   expectedInstallId?: string,
 ): Promise<DeletedWorkout | null> {
-  return write(database, expectedInstallId, async (tx) => {
-    const [current] = await tx.select().from(workout).where(eq(workout.id, id)).limit(1);
-    if (!current) return null;
-    const exercises = await tx
-      .select()
-      .from(workoutExercise)
-      .where(eq(workoutExercise.workout_id, id));
-    const slots = await tx.select().from(programSlot).where(eq(programSlot.workout_id, id));
-    await tx.delete(workout).where(eq(workout.id, id));
-    await tx.delete(workoutExercise).where(eq(workoutExercise.workout_id, id));
-    await tx.delete(programSlot).where(eq(programSlot.workout_id, id));
-    return { workout: current, exercises, slots };
-  });
+  return write(database, expectedInstallId, (tx) => deleteWorkoutIn(tx, id));
 }
 
 /** Undo of {@link deleteWorkout}. False if the Workout is back already. */
@@ -789,6 +791,135 @@ export function removeSlot(
       .where(eq(programSlot.id, id))
       .returning({ id: programSlot.id });
     return removed.length > 0;
+  });
+}
+
+/** What {@link removeFromRotation} took out: a Slot, or the Workout with the Slot it filled. */
+export type RemovedFromRotation =
+  | { kind: "slot"; slot: ProgramSlotRow }
+  | { kind: "workout"; deleted: DeletedWorkout };
+
+/**
+ * Removes a Slot from the Rotation. The Workout it held goes too, but only when no other Slot
+ * uses it (a Workout with no Slot would be unreachable). Null if the Slot is gone.
+ */
+export function removeFromRotation(
+  database: TrainingDatabase,
+  slotId: string,
+  expectedInstallId?: string,
+): Promise<RemovedFromRotation | null> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [slot] = await tx.select().from(programSlot).where(eq(programSlot.id, slotId)).limit(1);
+    if (!slot) return null;
+    if (slot.workout_id !== null) {
+      const others = await totalOf(
+        tx
+          .select({ total: count() })
+          .from(programSlot)
+          .where(and(eq(programSlot.workout_id, slot.workout_id), ne(programSlot.id, slotId))),
+      );
+      if (others === 0) {
+        const deleted = await deleteWorkoutIn(tx, slot.workout_id);
+        if (deleted) return { kind: "workout", deleted };
+      }
+    }
+    await tx.delete(programSlot).where(eq(programSlot.id, slotId));
+    return { kind: "slot", slot };
+  });
+}
+
+/** Undo of {@link removeFromRotation}. False if it is back already. */
+export function restoreFromRotation(
+  database: TrainingDatabase,
+  removed: RemovedFromRotation,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  if (removed.kind === "workout")
+    return restoreWorkout(database, removed.deleted, expectedInstallId);
+  return write(database, expectedInstallId, async (tx) => {
+    const { slot } = removed;
+    const [existing] = await tx
+      .select({ id: programSlot.id })
+      .from(programSlot)
+      .where(eq(programSlot.id, slot.id))
+      .limit(1);
+    if (existing) return false;
+    await assertProgramExists(tx, slot.program_id);
+    await assertWorkoutInProgram(tx, slot.program_id, slot.workout_id);
+    assertRoom(await slotsIn(tx, slot.program_id), 1, "slotsPerProgram");
+    await tx.insert(programSlot).values(marked(slot));
+    return true;
+  });
+}
+
+/**
+ * Copies a Workout into a Program and appends a Slot for the copy, in one step. The source is a
+ * standalone Workout or one of this Program's. Returns the new Workout and Slot ids.
+ */
+export function copyWorkoutIntoProgram(
+  database: TrainingDatabase,
+  workoutId: string,
+  programId: string,
+  expectedInstallId?: string,
+): Promise<{ workoutId: string; slotId: string }> {
+  return write(database, expectedInstallId, async (tx) => {
+    const userId = await ownerOf(tx);
+    const [source] = await tx.select().from(workout).where(eq(workout.id, workoutId)).limit(1);
+    if (!source) throw new Error("The workout is gone");
+    if (source.program_id !== null && source.program_id !== programId) {
+      throw new Error("The workout belongs to another program");
+    }
+    await assertProgramExists(tx, programId);
+    assertRoom(await liveWorkouts(tx), 1, "liveWorkouts");
+    assertRoom(await slotsIn(tx, programId), 1, "slotsPerProgram");
+    const context = { userId, created: nowIso() };
+    const copy = await copyWorkoutRows(tx, context, source, programId);
+    const items = await rebalanceSlots(tx, await slotListOf(tx, programId));
+    const slotId = uuidv7();
+    await tx.insert(programSlot).values({
+      id: slotId,
+      user_id: userId,
+      program_id: programId,
+      workout_id: copy.id,
+      position: keyAfterLast(items),
+      created_at: context.created,
+    });
+    return { workoutId: copy.id, slotId };
+  });
+}
+
+/**
+ * Gives a Slot its own copy of its Workout (so editing it no longer changes the other Slots that
+ * share it). The original stays for those Slots; when none is left it is deleted with the swap.
+ * Null for a Rest or missing Slot.
+ */
+export function duplicateSlotWorkout(
+  database: TrainingDatabase,
+  slotId: string,
+  expectedInstallId?: string,
+): Promise<{ workoutId: string; originalKept: boolean } | null> {
+  return write(database, expectedInstallId, async (tx) => {
+    const userId = await ownerOf(tx);
+    const [slot] = await tx.select().from(programSlot).where(eq(programSlot.id, slotId)).limit(1);
+    if (!slot || slot.workout_id === null) return null;
+    const [source] = await tx
+      .select()
+      .from(workout)
+      .where(eq(workout.id, slot.workout_id))
+      .limit(1);
+    if (!source) return null;
+    const others = await totalOf(
+      tx
+        .select({ total: count() })
+        .from(programSlot)
+        .where(and(eq(programSlot.workout_id, source.id), ne(programSlot.id, slotId))),
+    );
+    // A copy replaces the original when nothing else uses it, so the count does not grow.
+    assertRoom(await liveWorkouts(tx), others === 0 ? 0 : 1, "liveWorkouts");
+    const copy = await copyWorkoutRows(tx, { userId, created: nowIso() }, source, slot.program_id);
+    await tx.update(programSlot).set({ workout_id: copy.id }).where(eq(programSlot.id, slotId));
+    if (others === 0) await deleteWorkoutIn(tx, source.id);
+    return { workoutId: copy.id, originalKept: others > 0 };
   });
 }
 

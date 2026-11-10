@@ -4,6 +4,8 @@ import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
 import {
   addExercises,
+  addSlot,
+  createProgram,
   createWorkout,
   moveWorkoutExercise,
   removeWorkoutExercise,
@@ -12,8 +14,12 @@ import {
   type TrainingDatabase,
 } from "./store";
 import {
+  PROGRAM_DETAIL_SQL,
+  PROGRAM_LIST_SQL,
   WORKOUT_DETAIL_SQL,
   WORKOUT_LIST_SQL,
+  parseProgramDetail,
+  parseProgramList,
   parseWorkoutDetail,
   parseWorkoutList,
   readExerciseType,
@@ -36,7 +42,10 @@ async function setup() {
   const detail = (id: string) =>
     parseWorkoutDetail(fake.sqlite.prepare(WORKOUT_DETAIL_SQL).all(id));
   const list = () => parseWorkoutList(fake.sqlite.prepare(WORKOUT_LIST_SQL).all());
-  return { ...fake, training, detail, list };
+  const programs = () => parseProgramList(fake.sqlite.prepare(PROGRAM_LIST_SQL).all());
+  const program = (id: string) =>
+    parseProgramDetail(fake.sqlite.prepare(PROGRAM_DETAIL_SQL).all(id));
+  return { ...fake, training, detail, list, programs, program };
 }
 
 describe("workout reads", () => {
@@ -96,5 +105,62 @@ describe("workout reads", () => {
     const { training } = await setup();
     expect(await readExerciseType(training, PLANK)).toBe("duration");
     expect(await readExerciseType(training, "nope")).toBeNull();
+  });
+});
+
+describe("program reads", () => {
+  const input = { title: "Upper Lower", description: "# Plan", planned_weeks: 8 };
+
+  it("keeps Program Workouts out of the standalone list", async () => {
+    const { training, list } = await setup();
+    const programId = await createProgram(training, input);
+    await createWorkout(training, { program_id: programId, title: "Upper" });
+    const alone = await createWorkout(training, { title: "Alone" });
+    expect(list().map((row) => row.id)).toEqual([alone]);
+  });
+
+  it("lists Programs newest first with their Slots in order", async () => {
+    const { training, programs } = await setup();
+    const first = await createProgram(training, input);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    const second = await createProgram(training, { ...input, title: "Empty", planned_weeks: null });
+    const upper = await createWorkout(training, { program_id: first, title: "Upper" });
+    const a = await addSlot(training, first, upper);
+    const rest = await addSlot(training, first, null);
+    const b = await addSlot(training, first, upper);
+    const rows = programs();
+    expect(rows.map((row) => row.id)).toEqual([second, first]);
+    expect(rows[0]).toMatchObject({ title: "Empty", plannedWeeks: null, slots: [] });
+    expect(rows[1]?.slots).toEqual([
+      { id: a, workoutId: upper },
+      { id: rest, workoutId: null },
+      { id: b, workoutId: upper },
+    ]);
+  });
+
+  it("reads one Program with Workout slots, Rest and repeats", async () => {
+    const { training, program } = await setup();
+    const id = await createProgram(training, input);
+    const upper = await createWorkout(training, { program_id: id, title: "Upper" });
+    await addExercises(training, upper, [SQUAT, PLANK]);
+    const a = await addSlot(training, id, upper);
+    const rest = await addSlot(training, id, null);
+    const b = await addSlot(training, id, upper);
+    const read = program(id);
+    expect(read).toMatchObject({ title: "Upper Lower", description: "# Plan", plannedWeeks: 8 });
+    expect(read?.slots.map((slot) => slot.id)).toEqual([a, rest, b]);
+    expect(read?.slots[1]?.workout).toBeNull();
+    expect(read?.slots[0]?.workout?.exercises.map((entry) => entry.primaryMuscle)).toEqual([
+      "quadriceps",
+      "abdominals",
+    ]);
+    expect(read?.slots[2]?.workout?.title).toBe("Upper");
+    expect(program("missing")).toBeNull();
+  });
+
+  it("reads a Program with an empty Rotation", async () => {
+    const { training, program } = await setup();
+    const id = await createProgram(training, input);
+    expect(program(id)?.slots).toEqual([]);
   });
 });

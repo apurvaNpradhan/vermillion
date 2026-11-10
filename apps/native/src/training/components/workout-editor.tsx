@@ -1,7 +1,16 @@
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
-import { Copy, DotsThreeVertical, Plus, Swap, Trash, WarningCircle } from "phosphor-react-native";
+import {
+  Copy,
+  DotsThreeVertical,
+  FloppyDisk,
+  ListPlus,
+  Plus,
+  Swap,
+  Trash,
+  WarningCircle,
+} from "phosphor-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -17,8 +26,10 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { displayTitle } from "../derived-title";
 import { useCoalescedWriter } from "../use-coalesced-writer";
+import { useProgramActions } from "../use-program-actions";
 import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
+import { AddToProgramSheet } from "./add-to-program-sheet";
 import { ReorderList } from "./reorder-list";
 import { SavedTextField } from "./saved-text-field";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
@@ -78,6 +89,8 @@ function LoadedEditor({
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useWorkoutActions();
+  const programActions = useProgramActions();
+  const [programSheet, setProgramSheet] = useState(false);
   const pickExercises = usePickExercises("train");
   const [menuOpen, setMenuOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<WorkoutExerciseDetail | null>(null);
@@ -106,30 +119,55 @@ function LoadedEditor({
     if (next) await actions.replace(entry, next);
   };
 
-  const menu: SwipeAction[] = [
-    {
-      key: "duplicate",
-      label: t("training__duplicate"),
-      icon: Copy,
-      onPress: () => {
-        writer.flush();
-        void actions.duplicate(workout.id, workout.title).then((copy) => {
-          if (copy) onOpenCopy(copy);
-        });
-      },
+  const remove: SwipeAction = {
+    key: "delete",
+    label: t("training__delete"),
+    icon: Trash,
+    tone: "danger",
+    onPress: () => {
+      void actions.remove(workout.id, title).then((removed) => {
+        if (removed) onClosed();
+      });
     },
-    {
-      key: "delete",
-      label: t("training__delete"),
-      icon: Trash,
-      tone: "danger",
-      onPress: () => {
-        void actions.remove(workout.id, title).then((removed) => {
-          if (removed) onClosed();
-        });
-      },
-    },
-  ];
+  };
+  // A Workout of a Program leaves it only by a copy; a standalone one can be copied into one.
+  const menu: SwipeAction[] =
+    workout.programId === null
+      ? [
+          {
+            key: "duplicate",
+            label: t("training__duplicate"),
+            icon: Copy,
+            onPress: () => {
+              writer.flush();
+              void actions.duplicate(workout.id, workout.title).then((copy) => {
+                if (copy) onOpenCopy(copy);
+              });
+            },
+          },
+          {
+            key: "add-to-program",
+            label: t("training__add_to_program"),
+            icon: ListPlus,
+            onPress: () => {
+              writer.flush();
+              setProgramSheet(true);
+            },
+          },
+          remove,
+        ]
+      : [
+          {
+            key: "standalone",
+            label: t("training__save_standalone"),
+            icon: FloppyDisk,
+            onPress: () => {
+              writer.flush();
+              void programActions.saveAsStandalone(workout.id);
+            },
+          },
+          remove,
+        ];
   const rowActions: SwipeAction[] = rowMenu
     ? [
         {
@@ -220,6 +258,11 @@ function LoadedEditor({
         )}
       </Page>
       <ActionSheet title={title} actions={menu} isOpen={menuOpen} onOpenChange={setMenuOpen} />
+      <AddToProgramSheet
+        workoutId={workout.id}
+        isOpen={programSheet}
+        onOpenChange={setProgramSheet}
+      />
       <ActionSheet
         title={rowMenu?.exercise?.title ?? ""}
         actions={rowActions}

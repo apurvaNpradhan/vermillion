@@ -24,3 +24,13 @@ export function trainStatus(input: {
     input.snapshot.indicator !== "update-required";
   return waiting ? "first-sync" : "empty";
 }
+
+/** The status of a screen that shows two lists (Programs and Workouts) from their own statuses. */
+export function combineStatus(a: TrainStatus, b: TrainStatus): TrainStatus {
+  const both = [a, b];
+  if (both.includes("error")) return "error";
+  if (both.includes("loading")) return "loading";
+  if (both.includes("list")) return "list";
+  if (both.includes("first-sync")) return "first-sync";
+  return "empty";
+}

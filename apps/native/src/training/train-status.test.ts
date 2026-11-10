@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { trainStatus } from "./train-status";
+import { combineStatus, trainStatus } from "./train-status";
 
 const base = { failed: false, loading: false, count: 0 };
 
@@ -19,5 +19,15 @@ describe("trainStatus", () => {
     expect(trainStatus({ ...base, snapshot: { hasSynced: false, indicator: "locked" } })).toBe(
       "empty",
     );
+  });
+});
+
+describe("combineStatus", () => {
+  it("lets an error win, then loading, then a list, then the first sync", () => {
+    expect(combineStatus("error", "list")).toBe("error");
+    expect(combineStatus("list", "loading")).toBe("loading");
+    expect(combineStatus("empty", "list")).toBe("list");
+    expect(combineStatus("first-sync", "empty")).toBe("first-sync");
+    expect(combineStatus("empty", "empty")).toBe("empty");
   });
 });

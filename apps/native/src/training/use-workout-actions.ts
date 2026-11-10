@@ -1,6 +1,6 @@
 import {
-  TrainingLimitError,
   addExercises,
+  addSlot,
   copyWorkout,
   createWorkout,
   deleteWorkout,
@@ -12,7 +12,6 @@ import {
   restoreWorkoutExercise,
   updateWorkout,
   updateWorkoutExercise,
-  type TrainingDatabase,
   type WorkoutExerciseDetail,
   type WorkoutExercisePatch,
   type WorkoutPatch,
@@ -23,25 +22,15 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useLocalData, useSyncStatus } from "@/sync";
 
-import { useTrainingPreferences } from "./use-training-preferences";
+import { useTrainingWrite } from "./use-training-write";
 
-/** How long a toast offers Undo. */
-const UNDO_MS = 5000;
 /** The suffix of a duplicate's title, kept inside the title limit. */
 const COPY_SUFFIX = " (copy)";
 
-const LIMIT_KEYS = {
-  exercisesPerWorkout: "training__limit_exercises",
-  liveWorkouts: "training__limit_workouts",
-} as const;
-
-function limitMessage(error: Error) {
-  if (!(error instanceof TrainingLimitError)) return null;
-  if (error.limit === "exercisesPerWorkout") return LIMIT_KEYS.exercisesPerWorkout;
-  if (error.limit === "liveWorkouts") return LIMIT_KEYS.liveWorkouts;
-  return null;
+/** `title` marked as a copy, within the title limit. */
+export function copyTitle(title: string) {
+  return `${title.slice(0, TRAINING_LIMITS.titleMax - COPY_SUFFIX.length)}${COPY_SUFFIX}`;
 }
 
 /**
@@ -52,49 +41,19 @@ function limitMessage(error: Error) {
 export function useWorkoutActions() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const local = useLocalData();
-  const { snapshot } = useSyncStatus();
-  const preferences = useTrainingPreferences();
-  const writeScope = snapshot?.writeScope ?? "";
-  const database = local?.status === "ready" ? local.database : null;
-  const { defaultRestSeconds } = preferences;
+  const { write, writeScope, training, undoToast } = useTrainingWrite();
 
-  const write = useCallback(
-    async <R>(action: (db: TrainingDatabase) => Promise<R>, fallback: R): Promise<R> => {
-      try {
-        if (!database) throw new Error("Local storage is not available");
-        return await action(database);
-      } catch (error) {
-        const limit = error instanceof Error ? limitMessage(error) : null;
-        toast.show({ variant: "danger", label: t(limit ?? "errors__unknown") });
-        return fallback;
-      }
-    },
-    [database, t, toast],
-  );
-  const training = useCallback(() => ({ defaultRestSeconds }), [defaultRestSeconds]);
-
-  const undoToast = useCallback(
-    (label: string, undo: () => void) =>
-      toast.show({
-        label,
-        actionLabel: t("common__undo"),
-        duration: UNDO_MS,
-        onActionPress: ({ hide }) => {
-          hide();
-          undo();
-        },
-      }),
-    [t, toast],
-  );
-
-  /** A new Workout holding `exerciseIds` in order. Null if it could not be made. */
+  /**
+   * A new Workout holding `exerciseIds` in order, standalone or owned by `programId` (then it
+   * also fills a new Slot at the end of the Rotation). Null if it could not be made.
+   */
   const create = useCallback(
-    (exerciseIds: readonly string[]) =>
+    (exerciseIds: readonly string[], programId: string | null = null) =>
       write(async (db) => {
-        const id = await createWorkout(db, {}, writeScope);
+        const id = await createWorkout(db, { program_id: programId }, writeScope);
         try {
           await addExercises(db, id, exerciseIds, training(), writeScope);
+          if (programId !== null) await addSlot(db, programId, id, writeScope);
         } catch (error) {
           await deleteWorkout(db, id, writeScope);
           throw error;
@@ -140,8 +99,7 @@ export function useWorkoutActions() {
       write(async (db) => {
         const copy = await copyWorkout(db, id, null, writeScope);
         if (title !== null) {
-          const copied = `${title.slice(0, TRAINING_LIMITS.titleMax - COPY_SUFFIX.length)}${COPY_SUFFIX}`;
-          await updateWorkout(db, copy, { title: copied }, writeScope);
+          await updateWorkout(db, copy, { title: copyTitle(title) }, writeScope);
         }
         haptic.confirm();
         return copy;

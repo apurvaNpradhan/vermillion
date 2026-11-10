@@ -58,6 +58,34 @@ export type WorkoutSummary = {
   }[];
 };
 
+/** One Program in the Train list: the Rotation is only ids, which is all its summary needs. */
+export type ProgramSummary = {
+  id: string;
+  title: string;
+  plannedWeeks: number | null;
+  createdAt: string;
+  slots: { id: string; workoutId: string | null }[];
+};
+
+/** A Slot of a Program's Rotation with the Workout it holds (null = Rest). */
+export type ProgramSlotDetail = {
+  id: string;
+  position: string;
+  workoutId: string | null;
+  workout: {
+    title: string | null;
+    exercises: WorkoutSummary["exercises"];
+  } | null;
+};
+
+export type ProgramDetail = {
+  id: string;
+  title: string;
+  description: string | null;
+  plannedWeeks: number | null;
+  slots: ProgramSlotDetail[];
+};
+
 const setsText = z
   .string()
   .transform((text, context) => {
@@ -186,10 +214,124 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
   };
 }
 
+const WORKOUT_TABLES = ["workout", "workout_exercise", "exercise"];
+const PROGRAM_TABLES = ["program", "program_slot", ...WORKOUT_TABLES];
+
+const programListRowSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  planned_weeks: z.number().nullable(),
+  created_at: z.string(),
+  slot_id: z.string().nullable(),
+  workout_id: z.string().nullable(),
+});
+
+export const PROGRAM_LIST_SQL = `SELECT p.id AS id, p.title AS title, p.planned_weeks AS planned_weeks,
+    p.created_at AS created_at, s.id AS slot_id, s.workout_id AS workout_id
+  FROM program p
+  LEFT JOIN program_slot s ON s.program_id = p.id
+  ORDER BY p.created_at DESC, p.id DESC, s.position, s.id`;
+
+/** Groups the joined rows of {@link PROGRAM_LIST_SQL} into Programs, newest first. */
+export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
+  const result: ProgramSummary[] = [];
+  for (const row of z.array(programListRowSchema).parse(rows)) {
+    let current = result.at(-1);
+    if (current?.id !== row.id) {
+      current = {
+        id: row.id,
+        title: row.title,
+        plannedWeeks: row.planned_weeks,
+        createdAt: row.created_at,
+        slots: [],
+      };
+      result.push(current);
+    }
+    if (row.slot_id !== null) current.slots.push({ id: row.slot_id, workoutId: row.workout_id });
+  }
+  return result;
+}
+
+const programDetailRowSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  planned_weeks: z.number().nullable(),
+  slot_id: z.string().nullable(),
+  slot_position: z.string().nullable(),
+  slot_workout_id: z.string().nullable(),
+  workout_row: z.string().nullable(),
+  workout_title: z.string().nullable(),
+  exercise_row: z.string().nullable(),
+  exercise_id: z.string().nullable(),
+  sets: setsText.nullable(),
+  rest_seconds: z.number().nullable(),
+  primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+});
+
+export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
+    p.planned_weeks AS planned_weeks, s.id AS slot_id, s.position AS slot_position,
+    s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
+    we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
+    we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle
+  FROM program p
+  LEFT JOIN program_slot s ON s.program_id = p.id
+  LEFT JOIN workout w ON w.id = s.workout_id
+  LEFT JOIN workout_exercise we ON we.workout_id = w.id
+  LEFT JOIN exercise e ON e.id = we.exercise_id
+  WHERE p.id = ?
+  ORDER BY s.position, s.id, we.position, we.id`;
+
+/**
+ * Builds one Program with its Rotation from the joined rows of {@link PROGRAM_DETAIL_SQL}; null
+ * if none. A Slot whose Workout has not arrived on this device yet is left out until it does.
+ */
+export function parseProgramDetail(rows: readonly object[]): ProgramDetail | null {
+  const parsed = z.array(programDetailRowSchema).parse(rows);
+  const first = parsed[0];
+  if (first === undefined) return null;
+  const slots: ProgramSlotDetail[] = [];
+  for (const row of parsed) {
+    if (row.slot_id === null || row.slot_position === null) continue;
+    let current = slots.at(-1);
+    if (current?.id !== row.slot_id) {
+      if (row.slot_workout_id !== null && row.workout_row === null) continue;
+      current = {
+        id: row.slot_id,
+        position: row.slot_position,
+        workoutId: row.slot_workout_id,
+        workout: row.slot_workout_id === null ? null : { title: row.workout_title, exercises: [] },
+      };
+      slots.push(current);
+    }
+    if (
+      current.id === row.slot_id &&
+      current.workout &&
+      row.exercise_row !== null &&
+      row.exercise_id !== null
+    ) {
+      current.workout.exercises.push({
+        exerciseId: row.exercise_id,
+        primaryMuscle: row.primary_muscle,
+        sets: row.sets ?? [],
+        restSeconds: row.rest_seconds,
+      });
+    }
+  }
+  return {
+    id: first.id,
+    title: first.title,
+    description: first.description,
+    plannedWeeks: first.planned_weeks,
+    slots,
+  };
+}
+
 function watch(
   database: TrainingDatabase,
   sql: string,
   params: string[],
+  tables: string[],
   onRows: (rows: QueryResult["array"]) => void,
   onError: (error: Error) => void,
 ): () => void {
@@ -207,7 +349,7 @@ function watch(
     },
     {
       signal: controller.signal,
-      tables: ["workout", "workout_exercise", "exercise"],
+      tables,
       throttleMs: THROTTLE_MS,
     },
   );
@@ -239,6 +381,7 @@ export function watchWorkouts(
     database,
     WORKOUT_LIST_SQL,
     [],
+    WORKOUT_TABLES,
     parsing(parseWorkoutList, { onResult: handlers.onWorkouts, onError: handlers.onError }),
     handlers.onError,
   );
@@ -254,7 +397,39 @@ export function watchWorkout(
     database,
     WORKOUT_DETAIL_SQL,
     [id],
+    WORKOUT_TABLES,
     parsing(parseWorkoutDetail, { onResult: handlers.onWorkout, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the Programs, newest first. */
+export function watchPrograms(
+  database: TrainingDatabase,
+  handlers: { onPrograms: (programs: ProgramSummary[]) => void; onError: (error: Error) => void },
+): () => void {
+  return watch(
+    database,
+    PROGRAM_LIST_SQL,
+    [],
+    PROGRAM_TABLES,
+    parsing(parseProgramList, { onResult: handlers.onPrograms, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches one Program with its Rotation in order; `null` when it is gone. */
+export function watchProgram(
+  database: TrainingDatabase,
+  id: string,
+  handlers: { onProgram: (program: ProgramDetail | null) => void; onError: (error: Error) => void },
+): () => void {
+  return watch(
+    database,
+    PROGRAM_DETAIL_SQL,
+    [id],
+    PROGRAM_TABLES,
+    parsing(parseProgramDetail, { onResult: handlers.onProgram, onError: handlers.onError }),
     handlers.onError,
   );
 }

@@ -1,38 +1,64 @@
 import { useRouter } from "expo-router";
-import { Barbell, Plus, WarningCircle } from "phosphor-react-native";
-import { useCallback, useMemo } from "react";
+import { Barbell, ListNumbers, Plus, WarningCircle } from "phosphor-react-native";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
+import { ActionSheet } from "@/platform/ui/action-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { ScrollPage } from "@/platform/ui/page";
 import { Skeleton } from "@/platform/ui/skeleton";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
+import { useProgramActions } from "../use-program-actions";
+import { usePrograms } from "../use-programs";
 import { useStartWorkout } from "../use-start-workout";
 import { useWorkoutActions } from "../use-workout-actions";
 import { useWorkouts } from "../use-workouts";
+import { combineStatus } from "../train-status";
+import { ProgramRow } from "./program-row";
 import { WorkoutRow } from "./workout-row";
 
 /**
- * The Train tab: standalone Workouts, newest first. The Programs section joins above them with
- * the Programs slice. Each state of the list (loading, first sync, empty, error) looks different.
+ * The Train tab: Programs, then standalone Workouts (a Program's own Workouts live in it), each
+ * newest first. The tab action opens a small sheet to start either. Each state of the lists
+ * (loading, first sync, empty, error) looks different.
  */
 export function TrainScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { status, workouts, retry } = useWorkouts();
+  const workoutList = useWorkouts();
+  const programList = usePrograms();
+  const { workouts } = workoutList;
+  const { programs } = programList;
+  const status = combineStatus(workoutList.status, programList.status);
+  const retry = useCallback(() => {
+    workoutList.retry();
+    programList.retry();
+  }, [workoutList, programList]);
   const { fromPicker } = useStartWorkout();
   const actions = useWorkoutActions();
+  const programActions = useProgramActions();
+  const [newOpen, setNewOpen] = useState(false);
 
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
+  const openNew = useCallback(() => setNewOpen(true), []);
   useTabAction(
-    useMemo(
-      () => ({ icon: Plus, label: t("training__new_workout"), onPress: newWorkout }),
-      [t, newWorkout],
-    ),
+    useMemo(() => ({ icon: Plus, label: t("training__new"), onPress: openNew }), [t, openNew]),
+  );
+  const newActions = useMemo(
+    () => [
+      { key: "workout", label: t("training__new_workout"), icon: Barbell, onPress: newWorkout },
+      {
+        key: "program",
+        label: t("training__new_program"),
+        icon: ListNumbers,
+        onPress: () => router.push("/train/new-program"),
+      },
+    ],
+    [t, newWorkout, router],
   );
 
   const open = useCallback(
@@ -49,6 +75,21 @@ export function TrainScreen() {
   const remove = useCallback(
     (id: string, title: string) => void actions.remove(id, title),
     [actions],
+  );
+  const openProgram = useCallback(
+    (id: string) => router.push({ pathname: "/train/program/[id]", params: { id } }),
+    [router],
+  );
+  const duplicateProgram = useCallback(
+    async (program: { id: string; title: string }) => {
+      const copy = await programActions.duplicate(program.id, program.title);
+      if (copy) openProgram(copy);
+    },
+    [programActions, openProgram],
+  );
+  const removeProgram = useCallback(
+    (id: string, title: string) => void programActions.remove(id, title),
+    [programActions],
   );
 
   return (
@@ -74,19 +115,26 @@ export function TrainScreen() {
         <EmptyState
           icon={Barbell}
           title={t("training__empty_title")}
-          action={{ label: t("training__new_workout"), onPress: newWorkout }}
+          action={{ label: t("training__new"), onPress: openNew }}
         />
       ) : null}
       {status === "list" ? (
-        <View className="-mx-4 gap-2">
-          <Text
-            accessibilityRole="header"
-            className="px-5 font-semibold text-overline uppercase text-muted"
-          >
-            {t("training__workouts")}
-          </Text>
-          <SwipeGroup>
-            <View className="border-t border-border">
+        <View className="-mx-4 gap-6">
+          {programs.length > 0 ? (
+            <Section title={t("training__programs")}>
+              {programs.map((program) => (
+                <ProgramRow
+                  key={program.id}
+                  program={program}
+                  onOpen={openProgram}
+                  onDuplicate={duplicateProgram}
+                  onDelete={removeProgram}
+                />
+              ))}
+            </Section>
+          ) : null}
+          {workouts.length > 0 ? (
+            <Section title={t("training__workouts")}>
               {workouts.map((workout) => (
                 <WorkoutRow
                   key={workout.id}
@@ -96,11 +144,33 @@ export function TrainScreen() {
                   onDelete={remove}
                 />
               ))}
-            </View>
-          </SwipeGroup>
+            </Section>
+          ) : null}
         </View>
       ) : null}
+      <ActionSheet
+        title={t("training__new")}
+        actions={newActions}
+        isOpen={newOpen}
+        onOpenChange={setNewOpen}
+      />
     </ScrollPage>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View className="gap-2">
+      <Text
+        accessibilityRole="header"
+        className="px-5 font-semibold text-overline uppercase text-muted"
+      >
+        {title}
+      </Text>
+      <SwipeGroup>
+        <View className="border-t border-border">{children}</View>
+      </SwipeGroup>
+    </View>
   );
 }
 

@@ -51,6 +51,7 @@
     "expo-web-browser": "~58.0.6",
     "heroui-native": "^1.0.10",
     "i18next": "^26.7.2",
+    "marked": "15.0.12",
     "phosphor-react-native": "^3.0.6",
     "react": "19.3.0",
     "react-i18next": "^17.1.13",

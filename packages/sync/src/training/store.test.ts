@@ -9,15 +9,19 @@ import {
   addSlot,
   copyProgram,
   copyWorkout,
+  copyWorkoutIntoProgram,
   createProgram,
   createWorkout,
   deleteProgram,
   deleteWorkout,
+  duplicateSlotWorkout,
   moveSlot,
   moveWorkoutExercise,
+  removeFromRotation,
   removeSlot,
   removeWorkoutExercise,
   replaceExercise,
+  restoreFromRotation,
   restoreProgram,
   restoreWorkout,
   TrainingLimitError,
@@ -395,6 +399,107 @@ describe("slots", () => {
     await expect(addSlot(s.training, programId, null)).rejects.toThrow(TrainingLimitError);
     const slot = s.all("program_slot")[0];
     await expect(updateSlot(s.training, String(slot?.["id"]), foreign)).rejects.toThrow();
+  });
+});
+
+describe("rotation", () => {
+  async function rotation(s: S) {
+    const programId = await createProgram(s.training, programInput);
+    const upper = await createWorkout(s.training, { program_id: programId, title: "Upper" });
+    await addExercises(s.training, upper, [SQUAT, CURL]);
+    const lower = await createWorkout(s.training, { program_id: programId, title: "Lower" });
+    const a = await addSlot(s.training, programId, upper);
+    const rest = await addSlot(s.training, programId, null);
+    const b = await addSlot(s.training, programId, upper);
+    const c = await addSlot(s.training, programId, lower);
+    return { programId, upper, lower, a, rest, b, c };
+  }
+
+  it("removes a Slot but keeps a Workout another Slot still uses", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    const removed = await removeFromRotation(s.training, r.a);
+    expect(removed?.kind).toBe("slot");
+    expect(s.one("workout", r.upper)).toBeDefined();
+    expect(s.one("program_slot", r.a)).toBeUndefined();
+    if (!removed) throw new Error("removed");
+    expect(await restoreFromRotation(s.training, removed)).toBe(true);
+    expect(s.ordered("program_slot", "program_id", r.programId)).toEqual([r.a, r.rest, r.b, r.c]);
+  });
+
+  it("deletes the Workout with its last Slot, and Undo brings both back", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    const removed = await removeFromRotation(s.training, r.c);
+    expect(removed?.kind).toBe("workout");
+    expect(s.one("workout", r.lower)).toBeUndefined();
+    expect(s.one("program_slot", r.c)).toBeUndefined();
+    if (!removed) throw new Error("removed");
+    expect(await restoreFromRotation(s.training, removed)).toBe(true);
+    expect(s.one("workout", r.lower)).toBeDefined();
+    expect(s.one("program_slot", r.c)).toBeDefined();
+    expect(await restoreFromRotation(s.training, removed)).toBe(false);
+  });
+
+  it("removes a Rest Slot and reports a missing one", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    expect((await removeFromRotation(s.training, r.rest))?.kind).toBe("slot");
+    expect(await removeFromRotation(s.training, r.rest)).toBeNull();
+  });
+
+  it("copies a Workout into a Program as a new Slot at the end, leaving the original alone", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    const standalone = await createWorkout(s.training, { title: "Arms" });
+    await addExercises(s.training, standalone, [CURL, PLANK]);
+    const before = s.all("workout_exercise").filter((row) => row["workout_id"] === standalone);
+
+    const copy = await copyWorkoutIntoProgram(s.training, standalone, r.programId);
+    expect(copy.workoutId).not.toBe(standalone);
+    expect(s.one("workout", copy.workoutId)).toMatchObject({
+      program_id: r.programId,
+      title: "Arms",
+    });
+    expect(s.ordered("program_slot", "program_id", r.programId).at(-1)).toBe(copy.slotId);
+    expect(s.one("program_slot", copy.slotId)).toMatchObject({ workout_id: copy.workoutId });
+    const copied = s.all("workout_exercise").filter((row) => row["workout_id"] === copy.workoutId);
+    expect(copied.map((row) => row["exercise_id"])).toEqual([CURL, PLANK]);
+    expect(copied.map((row) => row["id"])).not.toEqual(before.map((row) => row["id"]));
+    // The original is unchanged and still standalone.
+    expect(s.one("workout", standalone)).toMatchObject({ program_id: null, title: "Arms" });
+    expect(s.all("workout_exercise").filter((row) => row["workout_id"] === standalone)).toEqual(
+      before,
+    );
+
+    // One of this Program's own Workouts copies the same way; another Program's does not.
+    const again = await copyWorkoutIntoProgram(s.training, r.upper, r.programId);
+    expect(s.one("workout", again.workoutId)).toMatchObject({ program_id: r.programId });
+    const other = await createProgram(s.training, programInput);
+    await expect(copyWorkoutIntoProgram(s.training, r.upper, other)).rejects.toThrow("another");
+    await expect(copyWorkoutIntoProgram(s.training, standalone, GONE)).rejects.toThrow();
+  });
+
+  it("gives a Slot its own copy while the others keep the original", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    const result = await duplicateSlotWorkout(s.training, r.b);
+    expect(result?.originalKept).toBe(true);
+    expect(s.one("program_slot", r.b)).toMatchObject({ workout_id: result?.workoutId });
+    expect(s.one("program_slot", r.a)).toMatchObject({ workout_id: r.upper });
+    expect(s.all("workout_exercise").filter((row) => row["workout_id"] === r.upper)).toHaveLength(
+      2,
+    );
+    expect(await duplicateSlotWorkout(s.training, r.rest)).toBeNull();
+  });
+
+  it("replaces a Workout that only this Slot used, so nothing is left without a Slot", async () => {
+    const s = await setup();
+    const r = await rotation(s);
+    const result = await duplicateSlotWorkout(s.training, r.c);
+    expect(result?.originalKept).toBe(false);
+    expect(s.one("workout", r.lower)).toBeUndefined();
+    expect(s.one("workout", result?.workoutId ?? "")).toBeDefined();
   });
 });
 
