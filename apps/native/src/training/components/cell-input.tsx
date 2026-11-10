@@ -1,31 +1,27 @@
 import { useEffect, useState } from "react";
-import { Text } from "react-native";
-
-import { Field } from "@/platform/ui/field";
+import { TextInput } from "react-native";
 
 /**
- * A numeric text field that keeps what is being typed. `parse` turns the text into a value
- * (`undefined` for empty, `null` for text that is not a value yet, such as "4."); a value
- * is reported as it becomes valid. When the stored value changes from elsewhere and the field is
- * not focused, the text follows it.
+ * A compact numeric input for a table cell. It keeps what is being typed; `parse` turns the text
+ * into a value (`undefined` for empty, `null` for text that is not a value yet, such as "4."), and
+ * a value is reported as it becomes valid. When the stored value changes elsewhere, or the field
+ * loses focus with text that was never accepted, the text follows the stored value.
  */
-export function NumberField({
-  label,
+export function CellInput({
   value,
   parse,
   format,
   onValue,
-  unit,
+  label,
   decimal = false,
-  placeholder,
+  placeholder = "–",
 }: {
-  label: string;
   value: number | undefined;
   parse: (text: string) => number | undefined | null;
   format: (value: number) => string;
   onValue: (value: number | undefined) => void;
-  /** A short unit shown after the number ("kg"). */
-  unit?: string;
+  /** What the cell is, for screen readers ("Set 2 weight"). */
+  label: string;
   decimal?: boolean;
   placeholder?: string;
 }) {
@@ -36,10 +32,11 @@ export function NumberField({
   }, [value, focused, format]);
 
   return (
-    <Field
-      label={label}
+    <TextInput
       value={text}
+      accessibilityLabel={label}
       placeholder={placeholder}
+      placeholderTextColorClassName="accent-muted"
       keyboardType={decimal ? "decimal-pad" : "number-pad"}
       selectTextOnFocus
       onFocus={() => setFocused(true)}
@@ -49,7 +46,10 @@ export function NumberField({
         const parsed = parse(next);
         if (parsed !== null) onValue(parsed);
       }}
-      end={unit ? <Text className="text-body text-muted">{unit}</Text> : undefined}
+      className={`h-10 min-w-0 flex-1 rounded-lg px-1 text-center text-body text-foreground ${
+        focused ? "border border-focus-ring bg-field" : "border border-transparent bg-field"
+      }`}
+      style={{ fontVariant: ["tabular-nums"] }}
     />
   );
 }

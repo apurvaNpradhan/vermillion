@@ -1,18 +1,17 @@
 import type { TranslationKey } from "@workspace/i18n";
-import { derivedTitleMuscles } from "@workspace/shared";
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { Barbell, DotsSixVertical, DotsThreeVertical, Moon } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { MuscleIcon } from "@/exercise";
+import { ExerciseThumbnail } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
 import { displayTitle } from "../derived-title";
 import { estimateMinutes } from "../estimate";
 
-const TILE = 40;
+const TILE = 44;
 
 /** The name a Slot's Workout shows, as in the lists: its own title or the muscles it hits. */
 export function slotTitle(slot: ProgramSlotDetail, t: (key: TranslationKey) => string) {
@@ -24,7 +23,7 @@ export function slotTitle(slot: ProgramSlotDetail, t: (key: TranslationKey) => s
 }
 
 /**
- * One Slot of the Rotation: its day number, then the Workout (tile, name, `6 exercises · ~55 min`,
+ * One Slot of the Rotation: its day number, then the Workout (first exercise thumbnail, name, `6 exercises · ~55 min`,
  * and `×2` when it fills several Slots) or a quiet Rest row. While the list is dragged it is a
  * single line.
  */
@@ -109,10 +108,7 @@ export const RotationRow = memo(function RotationRow({
     );
   }
 
-  const muscles = workout.exercises.flatMap((entry) =>
-    entry.primaryMuscle === null ? [] : [entry.primaryMuscle],
-  );
-  const main = derivedTitleMuscles(muscles)[0];
+  const first = workout.exercises[0];
   const count = workout.exercises.length;
   const meta =
     count === 0
@@ -139,8 +135,12 @@ export const RotationRow = memo(function RotationRow({
           className="items-center justify-center rounded-xl bg-default"
           style={{ width: TILE, height: TILE }}
         >
-          {main ? (
-            <MuscleIcon muscle={main} size={TILE - 8} />
+          {first?.primaryMuscle ? (
+            <ExerciseThumbnail
+              thumbnailKey={first.thumbnailKey}
+              muscle={first.primaryMuscle}
+              size={TILE}
+            />
           ) : (
             <Barbell size={22} color={subtle} />
           )}

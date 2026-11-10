@@ -1,11 +1,20 @@
 import { useRouter } from "expo-router";
-import { Barbell, ListNumbers, Plus, WarningCircle } from "phosphor-react-native";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import {
+  CaretRight,
+  Lightning,
+  ListNumbers,
+  Plus,
+  WarningCircle,
+  type IconProps,
+} from "phosphor-react-native";
+import { useCallback, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
+import { useSubtleColor } from "@/platform/theme";
 import { ActionSheet } from "@/platform/ui/action-sheet";
+import { Card } from "@/platform/ui/card";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { ScrollPage } from "@/platform/ui/page";
 import { Skeleton } from "@/platform/ui/skeleton";
@@ -45,20 +54,21 @@ export function TrainScreen() {
 
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const openNew = useCallback(() => setNewOpen(true), []);
+  const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
   useTabAction(
     useMemo(() => ({ icon: Plus, label: t("training__new"), onPress: openNew }), [t, openNew]),
   );
   const newActions = useMemo(
     () => [
-      { key: "workout", label: t("training__new_workout"), icon: Barbell, onPress: newWorkout },
+      { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
       {
         key: "program",
         label: t("training__new_program"),
         icon: ListNumbers,
-        onPress: () => router.push("/train/new-program"),
+        onPress: newProgram,
       },
     ],
-    [t, newWorkout, router],
+    [t, newWorkout, newProgram],
   );
 
   const open = useCallback(
@@ -112,41 +122,68 @@ export function TrainScreen() {
         />
       ) : null}
       {status === "empty" ? (
-        <EmptyState
-          icon={Barbell}
-          title={t("training__empty_title")}
-          action={{ label: t("training__new"), onPress: openNew }}
-        />
+        <View className="gap-3">
+          <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
+            {t("training__empty_title")}
+          </Text>
+          <StartCard
+            icon={Lightning}
+            title={t("training__new_workout")}
+            body={t("training__start_workout_body")}
+            onPress={newWorkout}
+          />
+          <StartCard
+            icon={ListNumbers}
+            title={t("training__new_program")}
+            body={t("training__start_program_body")}
+            onPress={newProgram}
+          />
+        </View>
       ) : null}
       {status === "list" ? (
-        <View className="-mx-4 gap-6">
-          {programs.length > 0 ? (
-            <Section title={t("training__programs")}>
-              {programs.map((program) => (
-                <ProgramRow
-                  key={program.id}
-                  program={program}
-                  onOpen={openProgram}
-                  onDuplicate={duplicateProgram}
-                  onDelete={removeProgram}
-                />
-              ))}
+        <SwipeGroup>
+          <View className="gap-6">
+            <Section
+              title={t("training__programs")}
+              newLabel={t("training__new_program")}
+              onNew={newProgram}
+              empty={programs.length === 0 ? t("training__programs_none") : null}
+            >
+              <View className="gap-3">
+                {programs.map((program) => (
+                  <ProgramRow
+                    key={program.id}
+                    program={program}
+                    onOpen={openProgram}
+                    onDuplicate={duplicateProgram}
+                    onDelete={removeProgram}
+                  />
+                ))}
+              </View>
             </Section>
-          ) : null}
-          {workouts.length > 0 ? (
-            <Section title={t("training__workouts")}>
-              {workouts.map((workout) => (
-                <WorkoutRow
-                  key={workout.id}
-                  workout={workout}
-                  onOpen={open}
-                  onDuplicate={duplicate}
-                  onDelete={remove}
-                />
-              ))}
+            <Section
+              title={t("training__workouts")}
+              newLabel={t("training__new_workout")}
+              onNew={newWorkout}
+              empty={workouts.length === 0 ? t("training__workouts_none") : null}
+              bleed
+            >
+              {workouts.length > 0 ? (
+                <View className="border-t border-border">
+                  {workouts.map((workout) => (
+                    <WorkoutRow
+                      key={workout.id}
+                      workout={workout}
+                      onOpen={open}
+                      onDuplicate={duplicate}
+                      onDelete={remove}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </Section>
-          ) : null}
-        </View>
+          </View>
+        </SwipeGroup>
       ) : null}
       <ActionSheet
         title={t("training__new")}
@@ -158,19 +195,90 @@ export function TrainScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * A titled part of the list with a small "New" action on the right. `bleed` lets the rows run
+ * edge to edge (the Workouts); the Programs are cards inside the page margin.
+ */
+function Section({
+  title,
+  newLabel,
+  onNew,
+  empty,
+  bleed = false,
+  children,
+}: {
+  title: string;
+  newLabel: string;
+  onNew: () => void;
+  /** A quiet line shown instead of the items while the section has none. */
+  empty: string | null;
+  bleed?: boolean;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
   return (
-    <View className="gap-2">
-      <Text
-        accessibilityRole="header"
-        className="px-5 font-semibold text-overline uppercase text-muted"
-      >
-        {title}
-      </Text>
-      <SwipeGroup>
-        <View className="border-t border-border">{children}</View>
-      </SwipeGroup>
+    <View className={`gap-2 ${bleed ? "-mx-4" : ""}`}>
+      <View className={`flex-row items-center justify-between ${bleed ? "px-5" : "px-1"}`}>
+        <Text
+          accessibilityRole="header"
+          className="font-semibold text-overline uppercase text-muted"
+        >
+          {title}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={newLabel}
+          onPress={onNew}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 4 }}
+          className="min-h-8 justify-center active:opacity-60"
+        >
+          <Text className="text-label font-medium text-foreground">{t("training__new")}</Text>
+        </Pressable>
+      </View>
+      {empty === null ? (
+        children
+      ) : (
+        <Text className={`text-caption text-muted ${bleed ? "px-5" : "px-1"}`}>{empty}</Text>
+      )}
     </View>
+  );
+}
+
+/** A large tappable card of the empty state: icon, title, one line, chevron. */
+function StartCard({
+  icon: Icon,
+  title,
+  body,
+  onPress,
+}: {
+  icon: ComponentType<IconProps>;
+  title: string;
+  body: string;
+  onPress: () => void;
+}) {
+  const subtle = useSubtleColor();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${body}`}
+      onPress={onPress}
+      className="active:opacity-80"
+    >
+      <Card className="flex-row items-center gap-4 p-4">
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          className="size-14 items-center justify-center rounded-xl bg-default"
+        >
+          <Icon size={28} color={subtle} />
+        </View>
+        <View className="flex-1 gap-1">
+          <Text className="font-semibold text-title-md text-foreground">{title}</Text>
+          <Text className="text-body text-muted">{body}</Text>
+        </View>
+        <CaretRight size={18} color={subtle} />
+      </Card>
+    </Pressable>
   );
 }
 

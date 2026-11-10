@@ -1,18 +1,17 @@
 import type { PlannedSet } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
-import { dragEffort, effortLabel, formatEffortRange, nudgeEffort, tapEffort } from "./effort";
+import { effortLabel, formatEffortRange, nudgeEffort, selectEffort } from "./effort";
 import { estimateMinutes, estimateSeconds } from "./estimate";
+import { exerciseNames } from "./exercise-names";
 import { beforeIdOf, movedOrder, slotOf, targetIndex } from "./reorder";
-import { formatClock, restWhenOn, stepDuration, stepRest } from "./rest";
+import { formatClock, parseDuration, restChoices } from "./rest";
 import {
-  alikeModel,
   appendSet,
-  buildAlike,
+  appendWarmup,
   chipTexts,
-  clampCounts,
+  editTarget,
   removeSetAt,
-  setsAlike,
   withKind,
   withTarget,
 } from "./set-editing";
@@ -39,49 +38,62 @@ describe("duration estimate", () => {
   });
 });
 
-describe("all sets alike", () => {
-  const target = { reps_min: 8, reps_max: 10 };
-  it("detects equal working sets and ignores warm-ups", () => {
-    expect(
-      setsAlike([{ kind: "warmup", reps_min: 5, reps_max: 5 }, working(target), working(target)]),
-    ).toBe(true);
-    expect(setsAlike([working(target), working({ reps_min: 6, reps_max: 8 })])).toBe(false);
-    expect(setsAlike([working(target), { kind: "drop", ...target }])).toBe(false);
-    expect(setsAlike([])).toBe(true);
+describe("fill-down editing", () => {
+  const set = (reps: number, extra: Omit<PlannedSet, "kind" | "reps_min" | "reps_max"> = {}) =>
+    working({ reps_min: reps, reps_max: reps, ...extra });
+  const minOf = (sets: PlannedSet[]) => sets.map((s) => s.reps_min);
+
+  it("carries a change to later sets that equalled the old value", () => {
+    const next = editTarget([set(10), set(10), set(10)], 0, { reps_min: 8, reps_max: 8 });
+    expect(minOf(next)).toEqual([8, 8, 8]);
   });
 
-  it("builds warm-ups first, copies the reps and keeps existing warm-ups", () => {
-    const built = buildAlike({ warmups: 2, working: 3, target }, "weight_reps");
-    expect(built.map((set) => set.kind)).toEqual([
-      "warmup",
-      "warmup",
-      "working",
-      "working",
-      "working",
-    ]);
-    expect(built[0]).toEqual({ kind: "warmup", reps_min: 10, reps_max: 10 });
-    const again = buildAlike({ warmups: 3, working: 3, target }, "weight_reps", [
-      { kind: "warmup", reps_min: 3, reps_max: 3 },
-    ]);
-    expect(again[0]).toEqual({ kind: "warmup", reps_min: 3, reps_max: 3 });
-    expect(alikeModel(built, "weight_reps")).toEqual({ warmups: 2, working: 3, target });
-  });
-
-  it("drops fields the type does not record and warm-ups for non-rep types", () => {
-    const built = buildAlike(
-      { warmups: 2, working: 2, target: { duration_s: 30, reps_min: 5, reps_max: 5 } },
-      "duration",
+  it("changes only the edited set when it is the last or later ones differ", () => {
+    expect(minOf(editTarget([set(10), set(10), set(10)], 2, { reps_min: 8, reps_max: 8 }))).toEqual(
+      [10, 10, 8],
     );
-    expect(built).toEqual([
-      { kind: "working", duration_s: 30 },
-      { kind: "working", duration_s: 30 },
+    expect(minOf(editTarget([set(10), set(6), set(10)], 0, { reps_min: 8, reps_max: 8 }))).toEqual([
+      8, 6, 8,
     ]);
   });
 
-  it("keeps the total within 20 sets and 5 warm-ups", () => {
-    expect(clampCounts("weight_reps", 9, 30)).toEqual({ warmups: 0, working: 20 });
-    expect(clampCounts("weight_reps", 9, 10)).toEqual({ warmups: 5, working: 10 });
-    expect(clampCounts("weight_reps", 5, 0)).toEqual({ warmups: 5, working: 1 });
+  it("never touches earlier sets or sets of another kind", () => {
+    const sets: PlannedSet[] = [set(10), { kind: "drop", reps_min: 10, reps_max: 10 }, set(10)];
+    expect(minOf(editTarget(sets, 0, { reps_min: 8, reps_max: 8 }))).toEqual([8, 10, 8]);
+    expect(minOf(editTarget([set(10), set(10)], 1, { reps_min: 5, reps_max: 5 }))).toEqual([10, 5]);
+  });
+
+  it("treats an empty field as a value and fields independently", () => {
+    const sets = [set(10, { weight_kg: 60 }), set(10), set(10, { weight_kg: 60 })];
+    const next = editTarget(sets, 0, { weight_kg: 70 });
+    expect(next.map((s) => s.weight_kg)).toEqual([70, undefined, 70]);
+    expect(minOf(next)).toEqual([10, 10, 10]);
+    const cleared = editTarget([set(10, { weight_kg: 60 }), set(10, { weight_kg: 60 })], 0, {
+      weight_kg: undefined,
+    });
+    expect(cleared.map((s) => s.weight_kg)).toEqual([undefined, undefined]);
+  });
+
+  it("moves a reps range as a pair", () => {
+    const sets = [working({ reps_min: 8, reps_max: 12 }), working({ reps_min: 8, reps_max: 10 })];
+    const next = editTarget(sets, 0, { reps_min: 6, reps_max: 12 });
+    expect(next[1]).toEqual({ kind: "working", reps_min: 8, reps_max: 10 });
+  });
+});
+
+describe("warm-ups", () => {
+  const five = (): PlannedSet => working({ reps_min: 5, reps_max: 5 });
+
+  it("adds a warm-up before the working sets with their reps, up to five", () => {
+    const sets = appendWarmup([five(), five()], "weight_reps");
+    expect(sets.map((s) => s.kind)).toEqual(["warmup", "working", "working"]);
+    expect(sets[0]).toEqual({ kind: "warmup", reps_min: 5, reps_max: 5 });
+    const full = Array.from({ length: 5 }, (): PlannedSet => ({ kind: "warmup" }));
+    expect(appendWarmup([...full, working()], "weight_reps")).toHaveLength(6);
+  });
+
+  it("does nothing for types that do not record reps", () => {
+    expect(appendWarmup([working()], "duration")).toHaveLength(1);
   });
 });
 
@@ -117,29 +129,22 @@ describe("per-set editing", () => {
   });
 });
 
-describe("rest stepper", () => {
-  it("steps by 15 s between 0:15 and 10:00", () => {
-    expect(stepRest(120, 1)).toBe(135);
-    expect(stepRest(15, -1)).toBe(15);
-    expect(stepRest(600, 1)).toBe(600);
+describe("rest and duration", () => {
+  it("formats clocks and offers the picker's choices with the current one added", () => {
     expect(formatClock(135)).toBe("2:15");
     expect(formatClock(600)).toBe("10:00");
+    expect(restChoices(120)).toHaveLength(10);
+    expect(restChoices(null)[0]).toBe(30);
+    expect(restChoices(100)).toEqual([30, 45, 60, 75, 90, 100, 120, 150, 180, 240, 300]);
   });
 
-  it("restores a remembered or default rest when turned back on", () => {
-    expect(restWhenOn(null, 120)).toBe(120);
-    expect(restWhenOn(90, 120)).toBe(90);
-  });
-});
-
-describe("duration stepper", () => {
-  it("steps finer for short targets", () => {
-    expect(stepDuration(30, 1)).toBe(35);
-    expect(stepDuration(60, -1)).toBe(55);
-    expect(stepDuration(60, 1)).toBe(75);
-    expect(stepDuration(300, -1)).toBe(285);
-    expect(stepDuration(300, 1)).toBe(330);
-    expect(stepDuration(5, -1)).toBe(5);
+  it("parses seconds or m:ss", () => {
+    expect(parseDuration("90")).toBe(90);
+    expect(parseDuration("1:30")).toBe(90);
+    expect(parseDuration("")).toBeUndefined();
+    expect(parseDuration("0")).toBeUndefined();
+    expect(parseDuration("1:")).toBeNull();
+    expect(parseDuration("abc")).toBeNull();
   });
 });
 
@@ -151,11 +156,16 @@ describe("effort", () => {
     expect(formatEffortRange(8, 8, "rpe")).toBe("8");
   });
 
-  it("taps and drags to a single value or a range", () => {
-    expect(tapEffort(null, 8)).toEqual({ min: 8, max: 8 });
-    expect(tapEffort({ min: 8, max: 8 }, 8)).toBeNull();
-    expect(tapEffort({ min: 8, max: 9 }, 8)).toEqual({ min: 8, max: 8 });
-    expect(dragEffort(6, 4)).toEqual({ min: 8, max: 9 });
+  it("selects by tap: single, range, single again, clear", () => {
+    expect(selectEffort(null, 8)).toEqual({ min: 8, max: 8 });
+    expect(selectEffort({ min: 8, max: 8 }, 9)).toEqual({ min: 8, max: 9 });
+    expect(selectEffort({ min: 8, max: 8 }, 7)).toEqual({ min: 7, max: 8 });
+    expect(selectEffort({ min: 8, max: 9 }, 6)).toEqual({ min: 6, max: 6 });
+    expect(selectEffort({ min: 8, max: 9 }, 9)).toEqual({ min: 9, max: 9 });
+    expect(selectEffort({ min: 8, max: 8 }, 8)).toBeNull();
+  });
+
+  it("nudges for screen readers", () => {
     expect(nudgeEffort(null, 1)).toEqual({ min: 6, max: 6 });
     expect(nudgeEffort({ min: 10, max: 10 }, 1)).toEqual({ min: 10, max: 10 });
     expect(nudgeEffort({ min: 8, max: 9 }, -1)).toEqual({ min: 7.5, max: 7.5 });
@@ -180,5 +190,15 @@ describe("reorder geometry", () => {
     expect(beforeIdOf(["a", "b", "c", "d"], 0, 2)).toBe("d");
     expect(beforeIdOf(["a", "b", "c", "d"], 0, 3)).toBeNull();
     expect(beforeIdOf(["a", "b", "c", "d"], 3, 0)).toBe("a");
+  });
+});
+
+describe("exercise names", () => {
+  it("lists the first titles and counts the rest", () => {
+    const rows = ["Bench", "Row", "Curl", "Dip", "Fly"].map((title) => ({ title }));
+    expect(exerciseNames(rows)).toEqual({ shown: ["Bench", "Row"], more: 3 });
+    expect(exerciseNames(rows.slice(0, 2))).toEqual({ shown: ["Bench", "Row"], more: 0 });
+    expect(exerciseNames([{ title: null }, { title: "Row" }])).toEqual({ shown: ["Row"], more: 0 });
+    expect(exerciseNames([])).toEqual({ shown: [], more: 0 });
   });
 });

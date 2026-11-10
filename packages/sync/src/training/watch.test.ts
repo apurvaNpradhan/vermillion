@@ -66,6 +66,8 @@ describe("workout reads", () => {
       "abdominals",
     ]);
     expect(rows[0]?.exercises[0]?.sets).toHaveLength(3);
+    expect(rows[0]?.exercises.map((entry) => entry.title)).toEqual(["Squat", "Plank"]);
+    expect(rows[0]?.exercises[0]?.thumbnailKey).toBeNull();
     expect(rows[1]?.exercises).toEqual([]);
   });
 
@@ -131,9 +133,16 @@ describe("program reads", () => {
     const a = await addSlot(training, first, upper);
     const rest = await addSlot(training, first, null);
     const b = await addSlot(training, first, upper);
+    await addExercises(training, upper, [PLANK, SQUAT]);
     const rows = programs();
     expect(rows.map((row) => row.id)).toEqual([second, first]);
-    expect(rows[0]).toMatchObject({ title: "Empty", plannedWeeks: null, slots: [] });
+    expect(rows[0]).toMatchObject({
+      title: "Empty",
+      plannedWeeks: null,
+      slots: [],
+      firstExercise: null,
+    });
+    expect(rows[1]?.firstExercise).toEqual({ thumbnailKey: null, primaryMuscle: "abdominals" });
     expect(rows[1]?.slots).toEqual([
       { id: a, workoutId: upper },
       { id: rest, workoutId: null },

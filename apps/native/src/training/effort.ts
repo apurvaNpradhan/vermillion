@@ -16,17 +16,16 @@ export function formatEffortRange(min: number, max: number, scale: EffortScale):
   return low === high ? text(low) : `${text(low)}–${text(high)}`;
 }
 
-/** The selection after a tap: a single step, or none when the only selected step is tapped. */
-export function tapEffort(current: EffortRange | null, step: EffortStep): EffortRange | null {
-  if (current && current.min === step && current.max === step) return null;
-  return { min: step, max: step };
-}
-
-/** The selection of a drag from one segment to another, either direction. */
-export function dragEffort(fromIndex: number, toIndex: number): EffortRange | null {
-  const first = EFFORT_STEPS[Math.min(fromIndex, toIndex)];
-  const last = EFFORT_STEPS[Math.max(fromIndex, toIndex)];
-  return first === undefined || last === undefined ? null : { min: first, max: last };
+/**
+ * The selection after tapping `step`: nothing selected gives a single value; a single value and a
+ * different step gives the range between them; a range gives a single value at the step; tapping
+ * the only selected step clears it.
+ */
+export function selectEffort(current: EffortRange | null, step: EffortStep): EffortRange | null {
+  if (current === null) return { min: step, max: step };
+  if (current.min !== current.max) return { min: step, max: step };
+  if (current.min === step) return null;
+  return step < current.min ? { min: step, max: current.min } : { min: current.min, max: step };
 }
 
 /** Whether the step at `index` is inside the selection. */

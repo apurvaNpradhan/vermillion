@@ -53,6 +53,9 @@ export type WorkoutSummary = {
   exercises: {
     exerciseId: string;
     primaryMuscle: MuscleGroup | null;
+    /** The library title, or null while the exercise has not arrived on this device. */
+    title: string | null;
+    thumbnailKey: string | null;
     sets: PlannedSet[];
     restSeconds: number | null;
   }[];
@@ -66,6 +69,8 @@ export type ProgramSummary = {
   createdAt: string;
   /** The cover photo on this device, or null (it never syncs). */
   coverUri: string | null;
+  /** The first exercise of the first Workout in the Rotation, for a tile when there is no cover. */
+  firstExercise: { thumbnailKey: string | null; primaryMuscle: MuscleGroup } | null;
   slots: { id: string; workoutId: string | null }[];
 };
 
@@ -108,13 +113,15 @@ const listRowSchema = z.object({
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+  exercise_title: z.string().nullable(),
+  thumbnail_key: z.string().nullable(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
 });
 
 export const WORKOUT_LIST_SQL = `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
-    e.primary_muscle AS primary_muscle
+    e.primary_muscle AS primary_muscle, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -135,6 +142,8 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
       current.exercises.push({
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
+        title: row.exercise_title,
+        thumbnailKey: row.thumbnail_key,
         sets: row.sets ?? [],
         restSeconds: row.rest_seconds,
       });
@@ -226,12 +235,25 @@ const programListRowSchema = z.object({
   planned_weeks: z.number().nullable(),
   created_at: z.string(),
   cover_uri: z.string().nullable(),
+  first_thumbnail_key: z.string().nullable(),
+  first_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   slot_id: z.string().nullable(),
   workout_id: z.string().nullable(),
 });
 
 export const PROGRAM_LIST_SQL = `SELECT p.id AS id, p.title AS title, p.planned_weeks AS planned_weeks,
-    p.created_at AS created_at, pc.uri AS cover_uri, s.id AS slot_id, s.workout_id AS workout_id
+    p.created_at AS created_at, pc.uri AS cover_uri,
+    (SELECT e.thumbnail_key FROM program_slot fs
+      JOIN workout_exercise fe ON fe.workout_id = fs.workout_id
+      JOIN exercise e ON e.id = fe.exercise_id
+      WHERE fs.program_id = p.id ORDER BY fs.position, fs.id, fe.position, fe.id LIMIT 1
+    ) AS first_thumbnail_key,
+    (SELECT e.primary_muscle FROM program_slot fs
+      JOIN workout_exercise fe ON fe.workout_id = fs.workout_id
+      JOIN exercise e ON e.id = fe.exercise_id
+      WHERE fs.program_id = p.id ORDER BY fs.position, fs.id, fe.position, fe.id LIMIT 1
+    ) AS first_muscle,
+    s.id AS slot_id, s.workout_id AS workout_id
   FROM program p
   LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
@@ -249,6 +271,10 @@ export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
         plannedWeeks: row.planned_weeks,
         createdAt: row.created_at,
         coverUri: row.cover_uri,
+        firstExercise:
+          row.first_muscle === null
+            ? null
+            : { thumbnailKey: row.first_thumbnail_key, primaryMuscle: row.first_muscle },
         slots: [],
       };
       result.push(current);
@@ -274,13 +300,16 @@ const programDetailRowSchema = z.object({
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+  exercise_title: z.string().nullable(),
+  thumbnail_key: z.string().nullable(),
 });
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
     p.planned_weeks AS planned_weeks, pc.uri AS cover_uri, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
-    we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle
+    we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle,
+    e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM program p
   LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
@@ -321,6 +350,8 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
       current.workout.exercises.push({
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
+        title: row.exercise_title,
+        thumbnailKey: row.thumbnail_key,
         sets: row.sets ?? [],
         restSeconds: row.rest_seconds,
       });

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Barbell, GearSix, ListChecks, SunHorizon, type IconProps } from "phosphor-react-native";
+import { Barbell, Books, GearSix, SunHorizon, type IconProps } from "phosphor-react-native";
 import type { ComponentType } from "react";
 import { Dimensions, Easing, type ColorValue } from "react-native";
 
@@ -86,12 +86,12 @@ export default function AppLayout() {
         />
         <Tabs.Screen
           name="train"
-          options={{ title: t("training__title"), tabBarIcon: tabIcon(ListChecks) }}
+          options={{ title: t("training__title"), tabBarIcon: tabIcon(Barbell) }}
         />
         {/* After the direct tabs, so they land in the switcher menu. */}
         <Tabs.Screen
           name="exercises"
-          options={{ title: t("exercise__title"), tabBarIcon: tabIcon(Barbell) }}
+          options={{ title: t("exercise__title"), tabBarIcon: tabIcon(Books) }}
         />
         <Tabs.Screen
           name="settings"
