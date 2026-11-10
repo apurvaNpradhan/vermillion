@@ -32,6 +32,31 @@ The Android device was unavailable while the Sessions slices were built. Before 
   large gaps; Discard in "Nothing logged" is not styled as destructive; the rest notification
   icon is a placeholder.
 
+UI revision implemented after this run. These remain device re-checks, not device passes:
+
+- [ ] Addressed Home: only the global Resume bar remains; three weekly tiles show deltas.
+      Verify 1 session / 1 set and plural counts in Home and History, including zero last week.
+- [ ] Addressed chart: eight bars, no range chips, localized Monday labels west of UTC and at DST.
+- [ ] Addressed Home muscles: one heading, body map, top three bars, Show all. Recent rows show
+      date, duration, sets and volume; row and header See all open the expected History routes.
+- [ ] Addressed detail: RPE 8 appears as RIR 2 by preference; numbered/W/D/F badges retain set
+      colours; Record trophy badges and four stat tiles match the finish summary. Source opens
+      the Workout preview; the menu icon has normal foreground contrast.
+- [ ] Addressed History initial route: enter through the switcher, open detail, use both Android
+      Back and the page back button. Both return to the History list rather than Home.
+- [ ] Addressed Train: filled trained pills, outlined next slot and smaller dim Rest dots show
+      initials and TalkBack labels. Program row menu activates/stops; switching asks confirmation.
+- [ ] Added Workout preview: title, relative Last done, Start, metric chart and exercise Previous
+      summaries. Edit opens the explicit edit route. Try missing history, failed read and retry.
+- [ ] Addressed Settings spacing: section sheets no longer create separate scroll gaps.
+- [ ] Addressed equipment: HeroUI controlled isSelected switch with default thumb layout; toggle
+      changes immediately, persists the callback value, and rolls back after a failed local write.
+      Verify thumb moves in both directions, restart persistence and rapid taps while saving.
+- [ ] Addressed confirmations: Discard with nothing logged, Remove exercise and Delete session
+      use danger-soft; Finish stays neutral.
+- [ ] Added original transparent white barbell notification icon and native revision 10. Rebuild
+      the dev client before checking the rest notification small icon on Android.
+
 ## Slice 2: logging screen
 
 - [x] Start a Workout from its menu; the Session opens on the first exercise, expanded.
