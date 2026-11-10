@@ -12,6 +12,12 @@ pnpm --filter native android     # first build is slow; installs the dev client
 
 Rebuild the dev client (`expo run:android` or `expo run:ios`) whenever a native module or build flag changes, including `"op-sqlite": { "sqlcipher": true }`. That flag lives in both `apps/native/package.json` and the root `package.json`; keep them equal. JS-only changes need only Metro.
 
+Sessions (ADR 0038, slice 3) added `expo-notifications` (Rest notifications and their Android channel
+"Rest timer") and `expo-keep-awake`: **rebuild the dev client** (`pnpm --filter native android`) before
+running a build that includes them. An old dev client has no native module for them, so the app
+fails on start with a missing native module error rather than only missing the feature. The manual
+checks for Sessions are in [the device checklist](../specs/sessions/device-checklist.md).
+
 ## Runtime version
 
 `apps/native/app.config.ts` sets `runtimeVersion` to `<version>+native.<NATIVE_STACK_REVISION>`. Bump `NATIVE_STACK_REVISION` whenever a native module or its build flags change, so an OTA update never reaches a binary without the native code it needs. Verify with `npx expo config`. New native build dependencies also go in `allowBuilds` in `pnpm-workspace.yaml`.

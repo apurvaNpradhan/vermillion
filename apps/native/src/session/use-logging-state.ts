@@ -13,6 +13,7 @@ import type {
   SetPatch,
 } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
@@ -40,7 +41,17 @@ import {
 } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
 import type { useSessionActions } from "./use-session-actions";
-import { ghostsOf, patchFor, previousOfRow, previousPatch, valueOfSet } from "./set-values";
+import { dueTimers, timerTarget, timerView } from "./duration-timer";
+import { tickedSetIsRecord } from "./record-on-tick";
+import { restAfterTick } from "./rest-rules";
+import {
+  ghostsOf,
+  loggedSetsOf,
+  patchFor,
+  previousOfRow,
+  previousPatch,
+  valueOfSet,
+} from "./set-values";
 import type { ActiveEntry, Refusal } from "./components/set-row";
 
 type Actions = ReturnType<typeof useSessionActions>;
@@ -59,15 +70,20 @@ export function useLoggingState({
   previous,
   unit,
   effortScale,
+  bodyweightKg,
   readOnly,
   actions,
+  onRestStarted,
 }: {
   session: SessionDetail;
   previous: PreviousSets;
   unit: WeightUnit;
   effortScale: EffortScale;
+  bodyweightKg: number | null;
   readOnly: boolean;
   actions: Actions;
+  /** A Rest just started: the first time, the screen asks about notifications. */
+  onRestStarted?: () => void;
 }) {
   const exercises = session.exercises;
   const blocks = useMemo(() => blocksOf(exercises), [exercises]);
@@ -287,6 +303,52 @@ export function useLoggingState({
   // ---- Ticking ----
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const refusals = useRef(0);
+
+  /**
+   * Ticks a set with its Ghost values (`ghosts` replaces them, for a timer that fixes the duration).
+   * A tick that works buzzes (success for a Record, light otherwise) and starts the Rest the
+   * exercise calls for; one that cannot shakes the cells that lack a value. Returns whether it ticked.
+   */
+  const tickWith = useCallback(
+    async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
+      const at = found.get(setId);
+      if (!at) return false;
+      const result = await actions.tick(setId, ghosts);
+      if (!result) return false;
+      if (!result.ok) {
+        refusals.current += 1;
+        setRefusal({ setId, fields: result.missing, nonce: refusals.current });
+        haptic.alert();
+        return false;
+      }
+      if (!result.wrote) return true;
+      const ticked = loggedSetsOf(session)
+        .filter((set) => set.exercise_id === at.exercise.exerciseId)
+        .map((set) =>
+          set.id === setId
+            ? { ...set, ...result.values, completed_at: new Date().toISOString() }
+            : set,
+        );
+      const record = tickedSetIsRecord({
+        history: previous.get(at.exercise.exerciseId) ?? [],
+        session: { id: session.id, startedAt: session.startedAt },
+        sets: ticked,
+        setId,
+        bodyweightKg,
+      });
+      if (record || strong) haptic.success();
+      else haptic.tick();
+      const block = blockOfSet(setId);
+      const seconds = block ? restAfterTick(block, at.exercise.id, setId) : null;
+      if (seconds !== null) {
+        const started = await actions.beginRest(session.id, setId, seconds);
+        if (started) onRestStarted?.();
+      }
+      return true;
+    },
+    [found, actions, session, previous, bodyweightKg, blockOfSet, onRestStarted],
+  );
+
   const onTick = useCallback(
     async (setId: string) => {
       const at = found.get(setId);
@@ -298,15 +360,63 @@ export function useLoggingState({
         await actions.untick(setId);
         return;
       }
-      const result = await actions.tick(setId, ghostsFor(setId));
-      if (result && !result.ok) {
-        refusals.current += 1;
-        setRefusal({ setId, fields: result.missing, nonce: refusals.current });
-        haptic.alert();
+      await tickWith(setId, ghostsFor(setId));
+    },
+    [found, readOnly, flush, actions, ghostsFor, tickWith],
+  );
+
+  // ---- Duration timers ----
+  const onTimer = useCallback(
+    async (setId: string) => {
+      const at = found.get(setId);
+      if (!at || readOnly || at.set.completedAt !== null) return;
+      flush();
+      setEntry(null);
+      if (at.set.timerStartedAt === null) {
+        await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
+      } else if (timerTarget(at.set) !== null) {
+        // A countdown that is stopped early is cancelled, not logged.
+        await actions.updateValues(setId, { timer_started_at: null });
+      } else {
+        // A stopwatch logs what it counted.
+        const elapsed = timerView(at.set.timerStartedAt, null, Date.now()).elapsed;
+        await tickWith(setId, { ...ghostsFor(setId), duration: Math.max(1, elapsed) });
       }
     },
-    [found, readOnly, flush, actions, ghostsFor],
+    [found, readOnly, flush, actions, tickWith, ghostsFor],
   );
+
+  // A countdown that reaches zero ticks its set by itself, also when the app was in the background
+  // meanwhile (it is checked again when the app comes back).
+  const autoTick = useRef<(id: string, duration: number) => Promise<void>>(async () => undefined);
+  useEffect(() => {
+    autoTick.current = async (id, duration) => {
+      const ticked = await tickWith(id, { ...ghostsFor(id), duration }, true);
+      // A set that cannot be ticked (a missing distance) keeps its duration and stops the timer.
+      if (!ticked) await actions.updateValues(id, { duration_s: duration, timer_started_at: null });
+    };
+  });
+  const firing = useRef(new Set<string>());
+  useEffect(() => {
+    if (readOnly) return;
+    const run = () => {
+      const sets = exercises.flatMap((exercise) => exercise.sets);
+      for (const due of dueTimers(sets, Date.now())) {
+        if (firing.current.has(due.id)) continue;
+        firing.current.add(due.id);
+        void autoTick.current(due.id, due.duration).finally(() => firing.current.delete(due.id));
+      }
+    };
+    run();
+    const timer = setInterval(run, 1000);
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") run();
+    });
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [exercises, readOnly]);
 
   // ---- Previous, kind, add and remove ----
   const onPrevious = useCallback(
@@ -378,6 +488,7 @@ export function useLoggingState({
     onNext,
     refusal,
     onTick,
+    onTimer,
     onPrevious,
     onKindSelected,
     addSet,

@@ -14,8 +14,9 @@ import { appConfig } from "../../app.config.ts";
  * 6: expo-image for the exercise library thumbnails.
  * 7: expo-video for the exercise detail video hero.
  * 8: expo-image-picker and expo-image-manipulator for Program cover photos.
+ * 9: expo-notifications (Rest notifications) and expo-keep-awake (screen on during a workout).
  */
-const NATIVE_STACK_REVISION = 8;
+const NATIVE_STACK_REVISION = 9;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -66,6 +67,8 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-localization",
     "expo-video",
+    // Rest notifications: a local notification when rest is over. Android 13+ asks at the first Rest.
+    "expo-notifications",
     // Program cover photos: the system photo picker. The camera and microphone are never used.
     [
       "expo-image-picker",

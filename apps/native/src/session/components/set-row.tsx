@@ -9,7 +9,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import { Check, Trash } from "phosphor-react-native";
+import { Check, Play, Stop, Trash } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -21,6 +21,9 @@ import { SET_TONES, formatEffortRange } from "@/training";
 
 import type { CellRef } from "../keypad-entry";
 import { formatCell, previousLabel, valueOfSet } from "../set-values";
+import { formatElapsed } from "../clock";
+import { timerTarget, timerView } from "../duration-timer";
+import { useNow } from "../use-now";
 import { SetCell } from "./set-cell";
 
 /** The cell being edited and what is typed into it, as the row shows it. */
@@ -53,7 +56,23 @@ export type SetRowProps = {
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onRemove: (setId: string) => void;
+  /** Starts, cancels or stops (and ticks) the set's duration timer. */
+  onTimer: (setId: string) => void;
 };
+
+/** A running timer: counts down from its target, or up as a stopwatch; right after a restart. */
+function LiveTimer({ startedAt, target }: { startedAt: string; target: number | null }) {
+  const now = useNow(true, 250);
+  const view = timerView(startedAt, target, now);
+  return (
+    <Text
+      className="text-center font-semibold text-body text-identity"
+      style={{ fontVariant: ["tabular-nums"] }}
+    >
+      {formatElapsed(view.remaining ?? view.elapsed)}
+    </Text>
+  );
+}
 
 const grow = (field: SetField) => (field === "reps" ? "flex-[1.2]" : "flex-1");
 
@@ -111,8 +130,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     const text = editing ? entry.text : formatCell(field, stored, unit);
     const ghost = formatCell(field, ghosts[field] ?? null, unit);
     const refused = refusal?.setId === set.id && refusal.fields.includes(field);
+    const running = field === "duration" && set.timerStartedAt !== null && !ticked;
+    const target = timerTarget(set);
     return (
-      <View key={field} className={`min-w-0 flex-row ${grow(field)}`}>
+      <View key={field} className={`min-w-0 flex-row gap-1 ${grow(field)}`}>
         <SetCell
           text={text}
           ghost={ghost}
@@ -122,7 +143,35 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           disabled={readOnly}
           label={t("training__cell_label", { number, field: header(field) })}
           onPress={() => props.onCell(set.id, field)}
-        />
+        >
+          {running && set.timerStartedAt !== null ? (
+            <LiveTimer startedAt={set.timerStartedAt} target={target} />
+          ) : undefined}
+        </SetCell>
+        {field === "duration" && !ticked && !readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(
+              !running
+                ? "session__timer_start"
+                : target === null
+                  ? "session__timer_stop"
+                  : "session__timer_cancel",
+              { number },
+            )}
+            onPress={() => {
+              haptic.tick();
+              props.onTimer(set.id);
+            }}
+            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
+          >
+            {running ? (
+              <Stop size={16} weight="fill" color={onIdentity} />
+            ) : (
+              <Play size={16} weight="fill" color={subtle} />
+            )}
+          </Pressable>
+        ) : null}
       </View>
     );
   };

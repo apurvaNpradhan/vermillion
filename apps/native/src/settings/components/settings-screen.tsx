@@ -9,6 +9,7 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 import { PreferenceRows } from "@/preferences";
+import { useSessionSettings } from "@/session";
 import { TrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
@@ -20,13 +21,15 @@ export function SettingsScreen() {
   const router = useRouter();
   const signOut = useSignOut();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
+  const sessionSettings = useSessionSettings();
 
   return (
     <ScrollPage title={t("settings__title")}>
       <ConfirmationDialog {...confirmationProps} />
       <SyncBanner />
       <PreferenceRows />
-      <TrainingPreferenceRows />
+      <TrainingPreferenceRows extraRows={sessionSettings.rows} />
+      {sessionSettings.sheets}
       <ListSection title={t("settings__section_account")}>
         <ListRow
           icon={UserCircle}

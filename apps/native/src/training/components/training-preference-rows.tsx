@@ -8,7 +8,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import { Barbell, Gauge, Timer } from "phosphor-react-native";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
@@ -22,8 +22,11 @@ type Picker = "unit" | "effort" | "rest" | null;
 /** Default rest choices, in seconds. */
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
 
-/** Weight unit, effort scale and default rest as settings rows, each opening a short sheet. */
-export function TrainingPreferenceRows() {
+/**
+ * Weight unit, effort scale and default rest as settings rows, each opening a short sheet. Other
+ * verticals add rows of their own to the section through `extraRows`.
+ */
+export function TrainingPreferenceRows({ extraRows = [] }: { extraRows?: ReactNode[] }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
@@ -64,6 +67,7 @@ export function TrainingPreferenceRows() {
             router.push({ pathname: "/settings/plates", params: { calculator: "open" } })
           }
         />
+        {extraRows}
       </ListSection>
       <OptionSheet<WeightUnit>
         isOpen={picker === "unit"}

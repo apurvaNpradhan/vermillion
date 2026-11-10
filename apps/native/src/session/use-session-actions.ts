@@ -2,6 +2,8 @@ import { EXERCISE_TYPE_KEYS, type Ghosts, type PlannedSet } from "@workspace/sha
 import {
   addSessionExercises,
   addSet,
+  adjustRest,
+  clearRest,
   discardSession,
   finishSession,
   leaveSessionSuperset,
@@ -12,6 +14,7 @@ import {
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
+  startRest,
   supersetSessionWithNext,
   takeOver,
   tickSet,
@@ -45,6 +48,25 @@ export function useSessionActions() {
   const tick = useCallback(
     (setId: string, ghosts: Ghosts) =>
       write<TickResult | null>((db) => tickSet(db, setId, ghosts, writeScope), null),
+    [write, writeScope],
+  );
+
+  /** Starts the Rest after a set, replacing a running one. */
+  const beginRest = useCallback(
+    (sessionId: string, setId: string, seconds: number) =>
+      write((db) => startRest(db, sessionId, setId, seconds, writeScope), null),
+    [write, writeScope],
+  );
+
+  /** Moves the end of the running Rest; a Rest pushed to now is ended. */
+  const nudgeRest = useCallback(
+    (sessionId: string, deltaSeconds: number) =>
+      write((db) => adjustRest(db, sessionId, deltaSeconds, writeScope), null),
+    [write, writeScope],
+  );
+
+  const skipRest = useCallback(
+    (sessionId: string) => write((db) => clearRest(db, sessionId, writeScope), false),
     [write, writeScope],
   );
 
@@ -177,6 +199,9 @@ export function useSessionActions() {
 
   return {
     tick,
+    beginRest,
+    nudgeRest,
+    skipRest,
     untick,
     updateValues,
     addExtraSet,

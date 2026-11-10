@@ -118,6 +118,7 @@ export function SetGrid({
               onEffort={onEffort}
               onPrevious={logging.onPrevious}
               onRemove={onRemoveSet}
+              onTimer={logging.onTimer}
             />
           </View>
         ))}

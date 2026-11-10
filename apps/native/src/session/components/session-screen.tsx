@@ -7,6 +7,8 @@ import {
   type SupersetPlace,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
+import { useFocusEffect } from "expo-router";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
   Gauge,
@@ -20,6 +22,7 @@ import {
 } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
@@ -33,12 +36,21 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
 import { RestPicker, ReorderList, SetTypeSheet, supportsWarmups } from "@/training";
 
+import { setRestSurfaceVisible } from "../rest-notification";
+import {
+  askRestPermission,
+  markRestPermissionAsked,
+  restPermissionAsked,
+  useRestPermission,
+} from "../rest-permission-store";
 import { allTicked, doneSummary, formatVolume, progressText } from "../summary";
 import { useSessionActions } from "../use-session-actions";
 import { useInstallId } from "../use-install-id";
 import { useKeypadAccessory } from "../keypad-accessory";
 import { useLoggingState } from "../use-logging-state";
 import { usePreviousSets } from "../use-previous-sets";
+import { restBelongsTo } from "../rest-rules";
+import { useRestRunning } from "../use-rest-running";
 import { useRowReveal } from "../use-row-reveal";
 import { useSession } from "../use-session";
 import { loggedSetsOf } from "../set-values";
@@ -46,8 +58,12 @@ import { ExerciseRow } from "./exercise-row";
 import { NoteSheet } from "./note-sheet";
 import { SessionEffortSheet } from "./effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
+import { RestBar } from "./rest-bar";
+import { RestPermissionSheet } from "./rest-permission-sheet";
 import { SetGrid } from "./set-grid";
 import { SessionHeader } from "./session-header";
+
+const KEEP_AWAKE_TAG = "session";
 
 /** Where the screen sends the user. */
 export type SessionScreenProps = {
@@ -129,7 +145,39 @@ function LoadedSession({
     [session.exercises],
   );
   const previous = usePreviousSets(exerciseIds);
-  const logging = useLoggingState({ session, previous, unit, effortScale, readOnly, actions });
+  const { bottom } = useSafeAreaInsets();
+  const restRunning = useRestRunning(session.rest);
+
+  // Before the first Rest: our one-line explanation, then the system's dialog. Asked once.
+  const permission = useRestPermission();
+  const [askOpen, setAskOpen] = useState(false);
+  const onRestStarted = useCallback(() => {
+    if (permission === "undetermined" && !restPermissionAsked()) setAskOpen(true);
+  }, [permission]);
+  const logging = useLoggingState({
+    session,
+    previous,
+    unit,
+    effortScale,
+    bodyweightKg,
+    readOnly,
+    actions,
+    onRestStarted,
+  });
+
+  // The screen stays awake while it is in front (a preference); a Rest is shown here, so the
+  // system banner for it is held back meanwhile.
+  const keepAwake = preferences.ui.keepAwake;
+  useFocusEffect(
+    useCallback(() => {
+      setRestSurfaceVisible(true);
+      if (keepAwake) void activateKeepAwakeAsync(KEEP_AWAKE_TAG);
+      return () => {
+        setRestSurfaceVisible(false);
+        void deactivateKeepAwake(KEEP_AWAKE_TAG);
+      };
+    }, [keepAwake]),
+  );
 
   // The title follows the exercises until the user renames the Session.
   const derivedTitle = useMemo(() => {
@@ -335,7 +383,7 @@ function LoadedSession({
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={32}
           onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
-          contentContainerClassName="pb-8"
+          contentContainerStyle={{ paddingBottom: bottom + 32 }}
         >
           {mine || installId === null ? null : (
             <OwnershipBanner
@@ -368,7 +416,10 @@ function LoadedSession({
                         ? doneSummary(entry.sets, entry.type, unit, unitName)
                         : ""
                     }
-                    showAddSet={logging.justCollapsedId === entry.id}
+                    showAddSet={
+                      logging.justCollapsedId === entry.id &&
+                      restBelongsTo(session.rest, entry, restRunning)
+                    }
                     readOnly={readOnly}
                     onToggle={toggleBlock}
                     onMenu={onMenu}
@@ -413,6 +464,14 @@ function LoadedSession({
           )}
         </ScrollView>
       </View>
+      {session.rest && !readOnly ? (
+        <RestBar
+          rest={session.rest}
+          withInset={!logging.entry}
+          onAdjust={(delta) => void actions.nudgeRest(session.id, delta)}
+          onSkip={() => void actions.skipRest(session.id)}
+        />
+      ) : null}
       {logging.entry && logging.activeField ? (
         <Keypad
           labels={{
@@ -434,6 +493,18 @@ function LoadedSession({
         />
       ) : null}
 
+      <RestPermissionSheet
+        isOpen={askOpen}
+        onOpenChange={setAskOpen}
+        onAllow={() => {
+          setAskOpen(false);
+          void askRestPermission();
+        }}
+        onDecline={() => {
+          markRestPermissionAsked();
+          setAskOpen(false);
+        }}
+      />
       <ActionSheet
         title={menuExercise?.title ?? ""}
         actions={menuActions}

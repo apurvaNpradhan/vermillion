@@ -42,6 +42,19 @@ The Android device was unavailable while the Sessions slices were built. Before 
 - [ ] Duration set with a target counts down and auto-ticks; without a target it is a stopwatch; both survive backgrounding.
 - [ ] Screen stays on during a session; turning off Keep awake lets it sleep.
 - [ ] Haptics: light on tick, stronger at rest end, success on a Record.
+- [ ] Superset rest: ticking A1 starts nothing, ticking B1 starts the group's rest; a warm-up tick rests 1:00; an exercise with rest Off starts nothing.
+- [ ] A new tick replaces the running rest and the notification time follows; unticking the set that started it removes the bar and cancels the notification.
+- [ ] After the first rest the "Get a buzz when rest is over" sheet appears once; Turn on shows the system dialog, Not now never asks again; on Android 12 and below no prompt appears.
+- [ ] Settings → Training: "Rest notifications" shows On / Off in system settings / Not set up; denied and granted open the system settings, not set up asks; returning from the OS settings refreshes the status.
+- [ ] Notification text reads "Rest is over" with the workout title; with the session screen open there is no banner, only the haptic; minimised on another tab, the banner shows.
+- [ ] The Android channel "Rest timer" exists in system settings with high importance and vibration, and the alert makes no sound.
+- [ ] Take over the Session on a second device while a rest runs: the first device's notification does not fire.
+- [ ] Rest +15 stops at 10:00; −15 near zero ends the rest; the end haptic plays once, and not when opening the screen after a rest already ended.
+- [ ] "+ Add set" on the collapsed row disappears when its rest ends.
+- [ ] Setting the device clock back or forward mid-rest never shows more than the rest's length or a negative time.
+- [ ] Duration with a target: typing a value instead cancels the timer; a stopwatch Stop ticks with the counted time; a countdown that ended while the app was killed ticks (with the target) when the app opens.
+- [ ] A countdown on a set that cannot be ticked (distance missing) stops with the duration saved and shakes the missing cell.
+- [ ] Keep awake: on a locked-down device the screen stays on only while the Session screen is in front (not under the picker), and Settings → Training → Keep screen awake turns it off.
 
 ## Slice 4: finish, detail, history
 
