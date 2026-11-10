@@ -10,6 +10,13 @@ const plate = (weightKg: number, count: number | null = null) => ({
 });
 const kit = defaultGymKit("kg").flatMap((p) => (p.kind === "plate" ? [plate(p.weight_kg)] : []));
 describe("loadBar", () => {
+  it("bounds a tiny unlimited custom plate at a large target", () => {
+    const start = performance.now();
+    const result = loadBar(500, { weightKg: 20 }, [...kit, plate(0.1)]);
+    expect(result.exact).toBe(true);
+    expect(result.platesPerSide).toHaveLength(10);
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
   it.each([60, 61, 142.5])("loads %s kg exactly, largest first", (target) => {
     const result = loadBar(target, { weightKg: 20 }, kit);
     expect(result.exact).toBe(true);

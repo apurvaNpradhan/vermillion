@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { loadBar, type GymEquipmentInput } from "@workspace/shared";
 import {
@@ -123,8 +123,16 @@ export function usePlates(targetKg: number, exerciseId: string) {
     ) ??
     bars.find((p) => p.unit === equipment.unit) ??
     bars[0];
-  const plates = equipment.rows.filter(
-    (p) => p.kind === "plate" && p.enabled && p.unit === bar?.unit,
+  const result = useMemo(
+    () =>
+      bar
+        ? loadBar(
+            targetKg,
+            bar,
+            equipment.rows.filter((p) => p.kind === "plate" && p.enabled && p.unit === bar.unit),
+          )
+        : null,
+    [targetKg, bar, equipment.rows],
   );
   const chooseBar = async (id: string) => {
     if (exerciseId) {
@@ -145,6 +153,6 @@ export function usePlates(targetKg: number, exerciseId: string) {
     bars,
     bar,
     chooseBar,
-    result: bar ? loadBar(targetKg, bar, plates) : null,
+    result,
   };
 }
