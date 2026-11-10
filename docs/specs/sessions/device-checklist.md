@@ -7,6 +7,8 @@ history query per exercise, and the tick and its Rest were two writes; ticks and
 show at once); the plate calculator sheet never opened from the keypad; 61 kg loaded 41 × 0.5 kg
 plates; every plate drew black. On the exercise page: the selected metric and range chips looked unselected, volume read
 "305 kg × reps", and the status bar vanished over the white picture (a top shade fixes it).
+Rest notifications read "Off in system settings" on a fresh install and the first-rest prompt
+never showed: Android 13+ reports a permission never asked for as denied with `canAskAgain`.
 Known development-only issue: a Fast Refresh of a `packages/*`
 file leaves the Session screen frozen until the app restarts.
 
@@ -46,7 +48,7 @@ The Android device was unavailable while the Sessions slices were built. Before 
 ## Slice 3: rest, timers, awake, haptics
 
 - [x] Rest starts on tick; −15 / +15 / Skip work; the progress line moves.
-- [ ] Rest notification fires once, on time, with the app backgrounded, killed, and with the screen locked.
+- [ ] Rest notification fires once, on time, with the app backgrounded, killed, and with the screen locked. (Backgrounded: seen 2026-11-10, "Rest is over · Back to Full body A."; the icon is a placeholder.)
 - [ ] +15 then Skip cancels the notification.
 - [ ] Permission pre-prompt appears at the first rest; denying still shows the in-app bar; Settings → Training links to OS settings.
 - [ ] Duration set with a target counts down and auto-ticks; without a target it is a stopwatch; both survive backgrounding.

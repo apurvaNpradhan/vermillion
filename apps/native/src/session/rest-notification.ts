@@ -45,13 +45,23 @@ export function installRestNotifications(channelName: string): Promise<void> {
   return channelReady;
 }
 
+/**
+ * Android 13 and later report a permission never asked for as denied, with `canAskAgain`; that is
+ * undetermined here, so the app still asks. Only a denial the system will not ask again reads as
+ * denied.
+ */
+function permissionOf(response: { status: string; canAskAgain: boolean }): RestPermission {
+  if (response.status === Notifications.PermissionStatus.GRANTED) return "granted";
+  if (response.status === Notifications.PermissionStatus.DENIED && !response.canAskAgain) {
+    return "denied";
+  }
+  return "undetermined";
+}
+
 /** Whether the app may post notifications; failures read as "undetermined". */
 export async function getRestPermission(): Promise<RestPermission> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status === Notifications.PermissionStatus.GRANTED) return "granted";
-    if (status === Notifications.PermissionStatus.DENIED) return "denied";
-    return "undetermined";
+    return permissionOf(await Notifications.getPermissionsAsync());
   } catch {
     return "undetermined";
   }
@@ -60,12 +70,11 @@ export async function getRestPermission(): Promise<RestPermission> {
 /** Shows the system permission dialog. */
 export async function requestRestPermission(): Promise<RestPermission> {
   try {
-    const { status } = await Notifications.requestPermissionsAsync({
-      ios: { allowAlert: true, allowBadge: false, allowSound: true },
-    });
-    if (status === Notifications.PermissionStatus.GRANTED) return "granted";
-    if (status === Notifications.PermissionStatus.DENIED) return "denied";
-    return "undetermined";
+    return permissionOf(
+      await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: false, allowSound: true },
+      }),
+    );
   } catch {
     return "undetermined";
   }
