@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { DatabaseSync } from "node:sqlite";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
@@ -78,24 +80,33 @@ describe("powerSyncSchema", () => {
     expect(Object.keys(tables).sort()).toEqual([
       "device_owner",
       "exercise",
+      "exercise_setting",
+      "gym_equipment",
       "install_meta",
       "program",
       "program_cover",
       "program_slot",
       "rejected_writes",
+      "session_exercise",
+      "session_set",
+      "training_session",
       "workout",
       "workout_exercise",
     ]);
-    for (const name of ["exercise", "program", "workout", "workout_exercise", "program_slot"]) {
-      expect(tables[name]?.localOnly, name).toBe(false);
-    }
-    expect([...SYNCED_TABLE_NAMES].sort()).toEqual([
+    const synced = [
       "exercise",
+      "exercise_setting",
+      "gym_equipment",
       "program",
       "program_slot",
+      "session_exercise",
+      "session_set",
+      "training_session",
       "workout",
       "workout_exercise",
-    ]);
+    ];
+    for (const name of synced) expect(tables[name]?.localOnly, name).toBe(false);
+    expect([...SYNCED_TABLE_NAMES].sort()).toEqual(synced);
     expect(tables.install_meta?.localOnly).toBe(true);
     // The cover photo stays on the device: never synced, never uploaded.
     expect(tables.program_cover?.localOnly).toBe(true);
@@ -114,6 +125,47 @@ describe("powerSyncSchema", () => {
     expect(indexed("workout_exercise")).toContainEqual(["workout_id", "position"]);
     expect(indexed("program_slot")).toContainEqual(["program_id", "position"]);
     expect(indexed("workout")).toContainEqual(["program_id"]);
+  });
+
+  it("indexes the session keys Previous, Records and History read through", () => {
+    const indexed = (name: string) =>
+      tables[name]?.indexes.map((index) => index.columns.map((c) => c.name));
+    expect(indexed("session_exercise")).toContainEqual(["exercise_id"]);
+    expect(indexed("session_exercise")).toContainEqual(["session_id", "position"]);
+    expect(indexed("session_set")).toContainEqual(["session_exercise_id", "position"]);
+    expect(indexed("training_session")).toContainEqual(["started_at"]);
+    expect(indexed("training_session")).toContainEqual(["finished_at"]);
+    expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
+  });
+
+  it("has the columns every training stream lists, and a restore marker the stream never fills", () => {
+    const config = readFileSync(
+      new URL("../../../powersync/sync-config.yaml", import.meta.url),
+      "utf8",
+    );
+    const streams = config.matchAll(/- SELECT (.+?) FROM (\w+) WHERE user_id = auth\.user_id\(\)/g);
+    const checked: string[] = [];
+    for (const [, columns, table] of streams) {
+      const local = tables[table ?? ""];
+      if (!local || !table?.match(/program|workout|session|gym|exercise_setting/)) continue;
+      checked.push(table);
+      const names = local.columns.map((column) => column.name);
+      // PowerSync adds `id`; `restore` is local only.
+      const listed = (columns ?? "").split(", ").filter((name) => name !== "id");
+      expect(names.filter((name) => name !== "restore").sort(), table).toEqual(listed.sort());
+      expect(names, table).toContain("restore");
+    }
+    expect(checked.sort()).toEqual([
+      "exercise_setting",
+      "gym_equipment",
+      "program",
+      "program_slot",
+      "session_exercise",
+      "session_set",
+      "training_session",
+      "workout",
+      "workout_exercise",
+    ]);
   });
 
   it("uploads only the columns the server accepts, never server-owned ones", () => {

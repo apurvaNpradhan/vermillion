@@ -11,6 +11,21 @@ import {
 } from "@workspace/shared";
 import { z } from "zod";
 
+import {
+  ACTIVE_SESSIONS_SQL,
+  EQUIPMENT_SQL,
+  EXERCISE_HISTORY_SQL,
+  SESSIONS_BETWEEN_SQL,
+  SESSION_DETAIL_SQL,
+  parseActiveSessions,
+  parseEquipment,
+  parseFinishedSessions,
+  parseSessionDetail,
+  type ActiveSession,
+  type EquipmentRow,
+  type FinishedSession,
+  type SessionDetail,
+} from "./session-watch";
 import type { TrainingDatabase } from "./store";
 
 const THROTTLE_MS = 150;
@@ -19,6 +34,7 @@ const THROTTLE_MS = 150;
 export type WorkoutExerciseInfo = {
   title: string;
   primaryMuscle: MuscleGroup;
+  secondaryMuscles: MuscleGroup[];
   equipment: Equipment;
   exerciseType: ExerciseType;
   thumbnailKey: string | null;
@@ -53,6 +69,7 @@ export type WorkoutSummary = {
   exercises: {
     exerciseId: string;
     primaryMuscle: MuscleGroup | null;
+    secondaryMuscles: MuscleGroup[];
     /** The library title, or null while the exercise has not arrived on this device. */
     title: string | null;
     thumbnailKey: string | null;
@@ -69,8 +86,6 @@ export type ProgramSummary = {
   createdAt: string;
   /** The cover photo on this device, or null (it never syncs). */
   coverUri: string | null;
-  /** The first exercise of the first Workout in the Rotation, for a tile when there is no cover. */
-  firstExercise: { thumbnailKey: string | null; primaryMuscle: MuscleGroup } | null;
   slots: { id: string; workoutId: string | null }[];
 };
 
@@ -94,17 +109,20 @@ export type ProgramDetail = {
   slots: ProgramSlotDetail[];
 };
 
-const setsText = z
-  .string()
-  .transform((text, context) => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      context.addIssue({ code: "custom", message: "Not JSON" });
-      return z.NEVER;
-    }
-  })
-  .pipe(z.array(plannedSetSchema));
+const jsonText = z.string().transform((text, context) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    context.addIssue({ code: "custom", message: "Not JSON" });
+    return z.NEVER;
+  }
+});
+const setsText = jsonText.pipe(z.array(plannedSetSchema));
+const secondaryText = jsonText
+  .pipe(z.array(z.enum(MUSCLE_GROUPS)))
+  .nullable()
+  .optional()
+  .transform((value) => value ?? []);
 
 const listRowSchema = z.object({
   id: z.string(),
@@ -113,6 +131,7 @@ const listRowSchema = z.object({
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+  secondary_muscles: secondaryText,
   exercise_title: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
   exercise_row: z.string().nullable(),
@@ -121,7 +140,7 @@ const listRowSchema = z.object({
 
 export const WORKOUT_LIST_SQL = `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
-    e.primary_muscle AS primary_muscle, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
+    e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -142,6 +161,7 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
       current.exercises.push({
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
+        secondaryMuscles: row.secondary_muscles,
         title: row.exercise_title,
         thumbnailKey: row.thumbnail_key,
         sets: row.sets ?? [],
@@ -166,6 +186,7 @@ const detailRowSchema = z.object({
   sets: setsText.nullable(),
   exercise_title: z.string().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+  secondary_muscles: secondaryText,
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   thumbnail_key: z.string().nullable(),
@@ -176,7 +197,7 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
     w.note AS note, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
-    e.primary_muscle AS primary_muscle, e.equipment AS equipment,
+    e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
     e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.retired_at AS retired_at
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
@@ -209,6 +230,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
           ? {
               title: row.exercise_title,
               primaryMuscle: row.primary_muscle,
+              secondaryMuscles: row.secondary_muscles,
               equipment: row.equipment,
               exerciseType: row.exercise_type,
               thumbnailKey: row.thumbnail_key,
@@ -235,24 +257,12 @@ const programListRowSchema = z.object({
   planned_weeks: z.number().nullable(),
   created_at: z.string(),
   cover_uri: z.string().nullable(),
-  first_thumbnail_key: z.string().nullable(),
-  first_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   slot_id: z.string().nullable(),
   workout_id: z.string().nullable(),
 });
 
 export const PROGRAM_LIST_SQL = `SELECT p.id AS id, p.title AS title, p.planned_weeks AS planned_weeks,
     p.created_at AS created_at, pc.uri AS cover_uri,
-    (SELECT e.thumbnail_key FROM program_slot fs
-      JOIN workout_exercise fe ON fe.workout_id = fs.workout_id
-      JOIN exercise e ON e.id = fe.exercise_id
-      WHERE fs.program_id = p.id ORDER BY fs.position, fs.id, fe.position, fe.id LIMIT 1
-    ) AS first_thumbnail_key,
-    (SELECT e.primary_muscle FROM program_slot fs
-      JOIN workout_exercise fe ON fe.workout_id = fs.workout_id
-      JOIN exercise e ON e.id = fe.exercise_id
-      WHERE fs.program_id = p.id ORDER BY fs.position, fs.id, fe.position, fe.id LIMIT 1
-    ) AS first_muscle,
     s.id AS slot_id, s.workout_id AS workout_id
   FROM program p
   LEFT JOIN program_cover pc ON pc.id = p.id
@@ -271,10 +281,6 @@ export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
         plannedWeeks: row.planned_weeks,
         createdAt: row.created_at,
         coverUri: row.cover_uri,
-        firstExercise:
-          row.first_muscle === null
-            ? null
-            : { thumbnailKey: row.first_thumbnail_key, primaryMuscle: row.first_muscle },
         slots: [],
       };
       result.push(current);
@@ -300,6 +306,7 @@ const programDetailRowSchema = z.object({
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
+  secondary_muscles: secondaryText,
   exercise_title: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
 });
@@ -308,7 +315,7 @@ export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.descri
     p.planned_weeks AS planned_weeks, pc.uri AS cover_uri, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
-    we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle,
+    we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM program p
   LEFT JOIN program_cover pc ON pc.id = p.id
@@ -350,6 +357,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
       current.workout.exercises.push({
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
+        secondaryMuscles: row.secondary_muscles,
         title: row.exercise_title,
         thumbnailKey: row.thumbnail_key,
         sets: row.sets ?? [],
@@ -544,4 +552,98 @@ export async function readProgramPlan(
     if (workout) slots.push({ workout });
   }
   return { title: head.title, description: head.description, slots };
+}
+
+// ---- Sessions (ADR 0038) ----
+
+const SESSION_TABLES = ["training_session", "session_exercise", "session_set"];
+
+/** Watches the unfinished Sessions, newest first. There may be more than one (two started offline). */
+export function watchActiveSessions(
+  database: TrainingDatabase,
+  handlers: {
+    onSessions: (sessions: ActiveSession[]) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    ACTIVE_SESSIONS_SQL,
+    [],
+    SESSION_TABLES,
+    parsing(parseActiveSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches one Session with its exercises and sets in order; `null` when it is gone. */
+export function watchSession(
+  database: TrainingDatabase,
+  id: string,
+  handlers: { onSession: (session: SessionDetail | null) => void; onError: (error: Error) => void },
+): () => void {
+  return watch(
+    database,
+    SESSION_DETAIL_SQL,
+    [id],
+    [...SESSION_TABLES, "exercise"],
+    parsing(parseSessionDetail, { onResult: handlers.onSession, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/**
+ * Watches the finished Sessions that contain an exercise, newest first, each with that exercise's
+ * ticked sets (counted and warm-up): what Previous, Records and the exercise's charts read.
+ */
+export function watchExerciseHistory(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: {
+    onHistory: (sessions: FinishedSession[]) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    EXERCISE_HISTORY_SQL,
+    [exerciseId, exerciseId],
+    SESSION_TABLES,
+    parsing(parseFinishedSessions, { onResult: handlers.onHistory, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the finished Sessions that started in `[from, to)` (ISO times), newest first. */
+export function watchSessionsBetween(
+  database: TrainingDatabase,
+  range: { from: string; to: string },
+  handlers: {
+    onSessions: (sessions: FinishedSession[]) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    SESSIONS_BETWEEN_SQL,
+    [range.from, range.to],
+    SESSION_TABLES,
+    parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the user's bars and plates: bars first, heavier first. */
+export function watchEquipment(
+  database: TrainingDatabase,
+  handlers: { onEquipment: (items: EquipmentRow[]) => void; onError: (error: Error) => void },
+): () => void {
+  return watch(
+    database,
+    EQUIPMENT_SQL,
+    [],
+    ["gym_equipment"],
+    parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
+    handlers.onError,
+  );
 }

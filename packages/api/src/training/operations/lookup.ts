@@ -4,12 +4,27 @@ import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { exercise } from "../../exercise/index";
-import { program, programSlot, workout, workoutExercise } from "../tables";
+import {
+  exerciseSetting,
+  gymEquipment,
+  program,
+  programSlot,
+  session,
+  sessionExercise,
+  sessionSet,
+  workout,
+  workoutExercise,
+} from "../tables";
 
 export type ProgramRow = typeof program.$inferSelect;
 export type WorkoutRow = typeof workout.$inferSelect;
 export type WorkoutExerciseRow = typeof workoutExercise.$inferSelect;
 export type ProgramSlotRow = typeof programSlot.$inferSelect;
+export type SessionRow = typeof session.$inferSelect;
+export type SessionExerciseRow = typeof sessionExercise.$inferSelect;
+export type SessionSetRow = typeof sessionSet.$inferSelect;
+export type GymEquipmentRow = typeof gymEquipment.$inferSelect;
+export type ExerciseSettingRow = typeof exerciseSetting.$inferSelect;
 
 /** Who a row belongs to, from one writer's point of view. A deleted row is still "own". */
 export type Ownership<Row> =
@@ -127,6 +142,97 @@ export const countLiveSlots = (db: DbExecutor, programId: string, except: string
           eq(programSlot.programId, programId),
           isNull(programSlot.deletedAt),
           ne(programSlot.id, except),
+        ),
+      ),
+  );
+
+// ---- Sessions (ADR 0038) ----
+
+export async function findSession(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(session).where(eq(session.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+export async function findSessionExercise(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(sessionExercise).where(eq(sessionExercise.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+export async function findSessionSet(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(sessionSet).where(eq(sessionSet.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+export async function findEquipment(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(gymEquipment).where(eq(gymEquipment.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+export async function findExerciseSetting(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(exerciseSetting).where(eq(exerciseSetting.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+/** The writer's live setting for an exercise, which a unique index allows at most one of. */
+export async function liveSettingFor(db: DbExecutor, userId: string, exerciseId: string) {
+  const [row] = await db
+    .select()
+    .from(exerciseSetting)
+    .where(
+      and(
+        eq(exerciseSetting.userId, userId),
+        eq(exerciseSetting.exerciseId, exerciseId),
+        isNull(exerciseSetting.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row;
+}
+
+/** A Session the writer owns and has not deleted, or undefined. */
+export async function liveSession(db: DbExecutor, userId: string, id: string) {
+  const found = await findSession(db, userId, id);
+  return found.kind === "own" && found.row.deletedAt === null ? found.row : undefined;
+}
+
+/** A Session exercise the writer owns and has not deleted, or undefined. */
+export async function liveSessionExercise(db: DbExecutor, userId: string, id: string) {
+  const found = await findSessionExercise(db, userId, id);
+  return found.kind === "own" && found.row.deletedAt === null ? found.row : undefined;
+}
+
+/** A bar or plate the writer owns, or undefined (a deleted one still counts as theirs). */
+export async function ownEquipment(db: DbExecutor, userId: string, id: string) {
+  const found = await findEquipment(db, userId, id);
+  return found.kind === "own" ? found.row : undefined;
+}
+
+/** Live exercises of one Session, not counting `except`. */
+export const countLiveSessionExercises = (db: DbExecutor, sessionId: string, except: string) =>
+  total(
+    db
+      .select({ total: count() })
+      .from(sessionExercise)
+      .where(
+        and(
+          eq(sessionExercise.sessionId, sessionId),
+          isNull(sessionExercise.deletedAt),
+          ne(sessionExercise.id, except),
+        ),
+      ),
+  );
+
+/** Live sets of one Session exercise, not counting `except`. */
+export const countLiveSessionSets = (db: DbExecutor, sessionExerciseId: string, except: string) =>
+  total(
+    db
+      .select({ total: count() })
+      .from(sessionSet)
+      .where(
+        and(
+          eq(sessionSet.sessionExerciseId, sessionExerciseId),
+          isNull(sessionSet.deletedAt),
+          ne(sessionSet.id, except),
         ),
       ),
   );

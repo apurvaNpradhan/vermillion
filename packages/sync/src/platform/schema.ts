@@ -2,7 +2,18 @@ import { getTableName } from "drizzle-orm";
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
 import { exercise } from "../exercise/tables";
-import { program, programCover, programSlot, workout, workoutExercise } from "../training/tables";
+import {
+  exerciseSetting,
+  gymEquipment,
+  program,
+  programCover,
+  programSlot,
+  session,
+  sessionExercise,
+  sessionSet,
+  workout,
+  workoutExercise,
+} from "../training/tables";
 import { deviceOwner, installMeta, rejectedWrites } from "./tables";
 
 /** Drizzle tables for typed local queries. */
@@ -12,6 +23,11 @@ export const drizzleSchema = {
   workout,
   workoutExercise,
   programSlot,
+  session,
+  sessionExercise,
+  sessionSet,
+  gymEquipment,
+  exerciseSetting,
   programCover,
   deviceOwner,
   installMeta,
@@ -28,6 +44,11 @@ export const powerSyncSchema = new DrizzleAppSchema({
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },
   program_slot: { tableDefinition: programSlot },
+  training_session: { tableDefinition: session },
+  session_exercise: { tableDefinition: sessionExercise },
+  session_set: { tableDefinition: sessionSet },
+  gym_equipment: { tableDefinition: gymEquipment },
+  exercise_setting: { tableDefinition: exerciseSetting },
   program_cover: { tableDefinition: programCover, options: { localOnly: true } },
   deviceOwner: { tableDefinition: deviceOwner, options: { localOnly: true } },
   installMeta: { tableDefinition: installMeta, options: { localOnly: true } },
@@ -41,4 +62,9 @@ export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(workout),
   getTableName(workoutExercise),
   getTableName(programSlot),
+  getTableName(session),
+  getTableName(sessionExercise),
+  getTableName(sessionSet),
+  getTableName(gymEquipment),
+  getTableName(exerciseSetting),
 ];

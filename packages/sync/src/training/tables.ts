@@ -1,5 +1,5 @@
-import type { PlannedSet } from "@workspace/shared";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { ExerciseType, PlannedSet, SetKind, WeightUnit } from "@workspace/shared";
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
  * Client mirrors of the training tables in `packages/api/src/training/tables.ts`, all fed by the
@@ -92,4 +92,116 @@ export const programCover = sqliteTable(
     updated_at: text("updated_at").notNull(),
   },
   (table) => [index("program_cover_program_id_idx").on(table.program_id)],
+);
+
+/**
+ * Sessions (ADR 0037, 0038), fed by the same `my_training` stream. The server table is named
+ * `training_session` because Better Auth owns `session`, and so is this one, which is the name
+ * PowerSync and the upload use. Booleans are 0/1 integers and `target` is JSON text. A Logged set
+ * is its own row, so a Tick is one small write; every list has a local index on its parent and
+ * ordering key, and Previous and Records read through `session_exercise.exercise_id`.
+ */
+export const session = sqliteTable(
+  "training_session",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    workout_id: text("workout_id"),
+    program_id: text("program_id"),
+    run_id: text("run_id"),
+    slot_id: text("slot_id"),
+    cycle: integer("cycle"),
+    title: text("title").notNull(),
+    title_derived: integer("title_derived", { mode: "boolean" }).notNull().default(true),
+    note: text("note"),
+    started_at: text("started_at").notNull(),
+    finished_at: text("finished_at"),
+    duration_s: integer("duration_s"),
+    device_id: text("device_id").notNull(),
+    rest_set_id: text("rest_set_id"),
+    rest_started_at: text("rest_started_at"),
+    rest_ends_at: text("rest_ends_at"),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [
+    index("session_started_at_idx").on(table.started_at),
+    index("session_finished_at_idx").on(table.finished_at),
+  ],
+);
+
+export const sessionExercise = sqliteTable(
+  "session_exercise",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    session_id: text("session_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    exercise_title: text("exercise_title").notNull(),
+    exercise_type: text("exercise_type").$type<ExerciseType>().notNull(),
+    source_workout_exercise_id: text("source_workout_exercise_id"),
+    position: text("position").notNull(),
+    rest_seconds: integer("rest_seconds"),
+    note: text("note"),
+    superset_group: text("superset_group"),
+    log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [
+    index("session_exercise_order_idx").on(table.session_id, table.position),
+    index("session_exercise_exercise_id_idx").on(table.exercise_id),
+  ],
+);
+
+export const sessionSet = sqliteTable(
+  "session_set",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    session_exercise_id: text("session_exercise_id").notNull(),
+    position: text("position").notNull(),
+    kind: text("kind").$type<SetKind>().notNull(),
+    weight_kg: real("weight_kg"),
+    reps: integer("reps"),
+    duration_s: integer("duration_s"),
+    distance_m: real("distance_m"),
+    floors: integer("floors"),
+    steps: integer("steps"),
+    rpe: real("rpe"),
+    completed_at: text("completed_at"),
+    timer_started_at: text("timer_started_at"),
+    target: text("target", { mode: "json" }).$type<PlannedSet | null>(),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [index("session_set_order_idx").on(table.session_exercise_id, table.position)],
+);
+
+/** The user's bars and plates. `unit` is the kit an item belongs to; weights are kilograms. */
+export const gymEquipment = sqliteTable("gym_equipment", {
+  id: text("id").primaryKey().notNull(),
+  user_id: text("user_id").notNull(),
+  kind: text("kind").$type<"bar" | "plate">().notNull(),
+  weight_kg: real("weight_kg").notNull(),
+  unit: text("unit").$type<WeightUnit>().notNull(),
+  label: text("label"),
+  count: integer("count"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  created_at: text("created_at").notNull(),
+  restore: integer("restore"),
+});
+
+export const exerciseSetting = sqliteTable(
+  "exercise_setting",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    bar_id: text("bar_id"),
+    log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [index("exercise_setting_exercise_id_idx").on(table.exercise_id)],
 );

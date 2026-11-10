@@ -1,7 +1,7 @@
 import type { MuscleGroup } from "../exercise/vocabulary";
 import { MAX_WEIGHT_KG, type WeightUnit } from "./vocabulary";
 
-const KG_PER_LB = 0.45359237;
+export const KG_PER_LB = 0.45359237;
 const STEP = { kg: 0.25, lb: 0.5 } as const satisfies Record<WeightUnit, number>;
 
 const roundTo = (value: number, step: number) => Math.round(value / step) * step;

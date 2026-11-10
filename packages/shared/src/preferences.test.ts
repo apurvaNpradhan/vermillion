@@ -11,6 +11,8 @@ import {
 describe("ui preferences schema", () => {
   it("fills every default for an empty or missing value", () => {
     const defaults = {
+      bodyweightKg: null,
+      keepAwake: true,
       sidebarCollapsed: false,
       dismissedHints: [],
       weightUnit: "kg",
@@ -42,6 +44,15 @@ describe("ui preferences schema", () => {
     expect(uiPreferencesSchema.safeParse({ defaultRestSeconds: 601 }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ defaultRestSeconds: -1 }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ defaultRestSeconds: 1.5 }).success).toBe(false);
+  });
+  it("holds a bodyweight of 20 to 400 kg or none, and keeps the screen awake by default", () => {
+    expect(uiPreferencesSchema.parse({ bodyweightKg: 82.5 }).bodyweightKg).toBe(82.5);
+    expect(uiPreferencesSchema.parse({ bodyweightKg: null }).bodyweightKg).toBeNull();
+    expect(uiPreferencesSchema.safeParse({ bodyweightKg: 19.9 }).success).toBe(false);
+    expect(uiPreferencesSchema.safeParse({ bodyweightKg: 400.1 }).success).toBe(false);
+    expect(uiPreferencesPatchSchema.parse({ bodyweightKg: null })).toEqual({ bodyweightKg: null });
+    expect(uiPreferencesSchema.parse({}).keepAwake).toBe(true);
+    expect(uiPreferencesSchema.parse({ keepAwake: false }).keepAwake).toBe(false);
   });
   it("keeps a patch sparse, without defaults", () => {
     expect(uiPreferencesPatchSchema.parse({})).toEqual({});

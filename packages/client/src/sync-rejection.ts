@@ -17,6 +17,10 @@ const REJECTION_KEYS = new Map<string, TranslationKey>([
   ["TRAINING_SLOT_PROGRAM_MISMATCH", "sync__rejected_code_training_slot"],
   ["TRAINING_INVALID_SETS", "sync__rejected_code_training_sets"],
   ["TRAINING_LIMIT_REACHED", "sync__rejected_code_training_limit"],
+  ["SESSION_PARENT_NOT_FOUND", "sync__rejected_code_session_parent"],
+  ["SESSION_SET_INVALID_FOR_TYPE", "sync__rejected_code_session_set"],
+  ["SESSION_LIMIT_REACHED", "sync__rejected_code_session_limit"],
+  ["SESSION_DATE_OUT_OF_RANGE", "sync__rejected_code_session_date"],
   ["SYNC_TRANSACTION_ROLLED_BACK", "sync__rejected_code_rolled_back"],
 ]);
 

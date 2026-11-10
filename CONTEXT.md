@@ -44,6 +44,16 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Effort** — how hard a set is, one scale shown as RPE (6–10 in halves) or RIR (10 − RPE) by preference. A target may be a range.
 - **Set kind** — warm-up, working, drop or failure. Everything else (partials, myo-reps, negatives) is a note.
 - **Pinned exercise note** — a note on an exercise within one Workout ("Smith machine, seat 4"), shown every time that Workout is trained.
+- **Active session** — a Session not yet finished. One is expected per account; duplicates from offline starts are shown to the user, never auto-deleted. Owned by one device at a time ([0038](docs/adr/0038-sessions.md)).
+- **Logged set** — one performed set in a Session: its kind, actual values, optional effort, completion time and a snapshot of its Planned set. Written as its own row.
+- **Tick** — completing a Logged set. Ticking fills empty cells from Ghost values; a set with a required field and no value or Ghost cannot be ticked, so an invalid completed set never exists. Unticked sets are dropped at Finish.
+- **Previous** — the matching set (same kind and position) from the latest finished Session containing the exercise, from any Workout.
+- **Ghost value** — the muted suggestion in an empty set cell: Previous, else the planned target (reps: Previous only when inside the planned range).
+- **Take over** — moving an Active session to this device; the other device becomes read-only for it.
+- **Record** — an exercise best (heaviest weight, estimated 1RM, best set volume, best session volume, rep records 1–12, longest duration/distance, best pace). Computed from Logged sets when read, warm-ups excluded.
+- **Counted set** — a working, drop or failure Logged set. Volume, set counts, Records and muscle distribution use only Counted sets.
+- **Muscle distribution** — Counted sets per muscle group: 1 for the exercise's primary muscle, 0.5 for each secondary.
+- **Gym equipment** — a user's bars and plates (seeded kit plus custom items, with plate counts) used by the plate calculator. Not part of the exercise equipment taxonomy.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam since the web app was removed.
 - **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `api.<domain>` record. Firewalled to Cloudflare's IP ranges.

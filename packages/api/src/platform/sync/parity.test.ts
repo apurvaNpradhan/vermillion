@@ -155,6 +155,128 @@ const expectation: Expectation = {
           'CREATE INDEX program_slot_order_idx ON public.program_slot USING btree (program_id, "position", id) WHERE (deleted_at IS NULL)',
       },
     },
+    training_session: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        workout_id: { type: "uuid", notNull: false, default: null },
+        program_id: { type: "uuid", notNull: false, default: null },
+        run_id: { type: "uuid", notNull: false, default: null },
+        slot_id: { type: "uuid", notNull: false, default: null },
+        cycle: { type: "integer", notNull: false, default: null },
+        title: { type: "text", notNull: true, default: null },
+        title_derived: { type: "boolean", notNull: true, default: "true" },
+        note: { type: "text", notNull: false, default: null },
+        started_at: { type: "timestamp with time zone", notNull: true, default: null },
+        finished_at: { type: "timestamp with time zone", notNull: false, default: null },
+        duration_s: { type: "integer", notNull: false, default: null },
+        device_id: { type: "uuid", notNull: true, default: null },
+        rest_set_id: { type: "uuid", notNull: false, default: null },
+        rest_started_at: { type: "timestamp with time zone", notNull: false, default: null },
+        rest_ends_at: { type: "timestamp with time zone", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        session_user_id_live_idx:
+          "CREATE INDEX session_user_id_live_idx ON public.training_session USING btree (user_id) WHERE (deleted_at IS NULL)",
+        session_user_started_at_idx:
+          "CREATE INDEX session_user_started_at_idx ON public.training_session USING btree (user_id, started_at DESC NULLS LAST)",
+      },
+    },
+    session_exercise: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        session_id: { type: "uuid", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        exercise_title: { type: "text", notNull: true, default: null },
+        exercise_type: { type: "text", notNull: true, default: null },
+        source_workout_exercise_id: { type: "uuid", notNull: false, default: null },
+        position: { type: "text", notNull: true, default: null },
+        rest_seconds: { type: "smallint", notNull: false, default: null },
+        note: { type: "text", notNull: false, default: null },
+        superset_group: { type: "uuid", notNull: false, default: null },
+        log_effort: { type: "boolean", notNull: true, default: "false" },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        session_exercise_user_id_live_idx:
+          "CREATE INDEX session_exercise_user_id_live_idx ON public.session_exercise USING btree (user_id) WHERE (deleted_at IS NULL)",
+        session_exercise_order_idx:
+          'CREATE INDEX session_exercise_order_idx ON public.session_exercise USING btree (session_id, "position", id) WHERE (deleted_at IS NULL)',
+        session_exercise_exercise_id_idx:
+          "CREATE INDEX session_exercise_exercise_id_idx ON public.session_exercise USING btree (exercise_id)",
+      },
+    },
+    session_set: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        session_exercise_id: { type: "uuid", notNull: true, default: null },
+        position: { type: "text", notNull: true, default: null },
+        kind: { type: "text", notNull: true, default: null },
+        weight_kg: { type: "double precision", notNull: false, default: null },
+        reps: { type: "integer", notNull: false, default: null },
+        duration_s: { type: "integer", notNull: false, default: null },
+        distance_m: { type: "double precision", notNull: false, default: null },
+        floors: { type: "integer", notNull: false, default: null },
+        steps: { type: "integer", notNull: false, default: null },
+        rpe: { type: "double precision", notNull: false, default: null },
+        completed_at: { type: "timestamp with time zone", notNull: false, default: null },
+        timer_started_at: { type: "timestamp with time zone", notNull: false, default: null },
+        target: { type: "jsonb", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        session_set_user_id_live_idx:
+          "CREATE INDEX session_set_user_id_live_idx ON public.session_set USING btree (user_id) WHERE (deleted_at IS NULL)",
+        session_set_order_idx:
+          'CREATE INDEX session_set_order_idx ON public.session_set USING btree (session_exercise_id, "position", id) WHERE (deleted_at IS NULL)',
+      },
+    },
+    gym_equipment: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        kind: { type: "text", notNull: true, default: null },
+        weight_kg: { type: "double precision", notNull: true, default: null },
+        unit: { type: "text", notNull: true, default: null },
+        label: { type: "text", notNull: false, default: null },
+        count: { type: "integer", notNull: false, default: null },
+        enabled: { type: "boolean", notNull: true, default: "true" },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        gym_equipment_user_id_live_idx:
+          "CREATE INDEX gym_equipment_user_id_live_idx ON public.gym_equipment USING btree (user_id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    exercise_setting: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        bar_id: { type: "uuid", notNull: false, default: null },
+        log_effort: { type: "boolean", notNull: true, default: "false" },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        exercise_setting_user_id_live_idx:
+          "CREATE INDEX exercise_setting_user_id_live_idx ON public.exercise_setting USING btree (user_id) WHERE (deleted_at IS NULL)",
+        exercise_setting_user_exercise_live_idx:
+          "CREATE UNIQUE INDEX exercise_setting_user_exercise_live_idx ON public.exercise_setting USING btree (user_id, exercise_id) WHERE (deleted_at IS NULL)",
+      },
+    },
     // Server-only: never published, never streamed.
     reference_import: {
       columns: {
@@ -174,6 +296,11 @@ const expectation: Expectation = {
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
+      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at)",
+      "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at)",
+      "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at)",
+      "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
+      "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at)",
     ],
   },
 };
@@ -211,13 +338,23 @@ describe("server schema parity", () => {
       "my_library",
       "my_training",
     ]);
-    // my_training is one subscription over the four plan tables.
+    // my_training is one subscription over the plan tables and the session tables.
     expect(
       streams
         .filter((stream) => stream.name === "my_training")
         .map((stream) => stream.table)
         .sort(),
-    ).toEqual(["program", "program_slot", "workout", "workout_exercise"]);
+    ).toEqual([
+      "exercise_setting",
+      "gym_equipment",
+      "program",
+      "program_slot",
+      "session_exercise",
+      "session_set",
+      "training_session",
+      "workout",
+      "workout_exercise",
+    ]);
     const uploadTables = syncTableHandlers.map((handler) => handler.table);
     const actual = await introspectPostgres(client);
     expect(compareStreams(streams, actual, uploadTables)).toEqual([]);

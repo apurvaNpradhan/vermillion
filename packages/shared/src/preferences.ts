@@ -26,6 +26,8 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
  * keys are dropped. Add new settings here with a default.
  */
 const uiFields = {
+  bodyweightKg: z.number().min(20).max(400).nullable(),
+  keepAwake: z.boolean(),
   sidebarCollapsed: z.boolean(),
   dismissedHints: z.array(z.string().max(100)).max(100),
   weightUnit: z.enum(WEIGHT_UNITS),
@@ -33,6 +35,8 @@ const uiFields = {
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
 };
 export const uiPreferencesSchema = z.object({
+  bodyweightKg: uiFields.bodyweightKg.default(null),
+  keepAwake: uiFields.keepAwake.default(true),
   sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
   dismissedHints: uiFields.dismissedHints.default([]),
   weightUnit: uiFields.weightUnit.default("kg"),

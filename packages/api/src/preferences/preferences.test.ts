@@ -43,6 +43,21 @@ describe("preferences", () => {
     });
   });
 
+  it("saves the bodyweight and the keep-awake choice and refuses a bodyweight outside 20 to 400 kg", async () => {
+    const headers = await createSignedInUser(app, "bodyweight@example.com");
+    const client = app.client(headers);
+    expect(
+      await client.preferences.update({ ui: { bodyweightKg: 82.5, keepAwake: false } }),
+    ).toMatchObject({ ui: { bodyweightKg: 82.5, keepAwake: false } });
+    for (const ui of [{ bodyweightKg: 19 }, { bodyweightKg: 401 }, { keepAwake: "yes" }]) {
+      // Safety: the test sends values the contract must refuse.
+      await expect(client.preferences.update({ ui: ui as never })).rejects.toThrow();
+    }
+    expect(await client.preferences.update({ ui: { bodyweightKg: null } })).toMatchObject({
+      ui: { bodyweightKg: null, keepAwake: false },
+    });
+  });
+
   it("reads defaults without creating a row", async () => {
     const headers = await createSignedInUser(app, "defaults@example.com");
     const before = await rows();
@@ -50,6 +65,8 @@ describe("preferences", () => {
       locale: null,
       timezone: null,
       ui: {
+        bodyweightKg: null,
+        keepAwake: true,
         sidebarCollapsed: false,
         dismissedHints: [],
         weightUnit: "kg",
@@ -68,6 +85,8 @@ describe("preferences", () => {
       locale: "en",
       timezone: null,
       ui: {
+        bodyweightKg: null,
+        keepAwake: true,
         sidebarCollapsed: false,
         dismissedHints: [],
         weightUnit: "kg",
@@ -78,6 +97,8 @@ describe("preferences", () => {
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
       locale: "en",
       ui: {
+        bodyweightKg: null,
+        keepAwake: true,
         sidebarCollapsed: true,
         dismissedHints: [],
         weightUnit: "kg",
@@ -94,6 +115,8 @@ describe("preferences", () => {
       locale: "en",
       timezone: "Europe/Berlin",
       ui: {
+        bodyweightKg: null,
+        keepAwake: true,
         sidebarCollapsed: true,
         dismissedHints: ["tour"],
         weightUnit: "kg",

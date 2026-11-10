@@ -47,6 +47,24 @@ export const TRAINING_LIMITS = {
   liveWorkouts: 500,
 } as const;
 
+/**
+ * Caps of the Session tables (ADR 0038). Postgres CHECKs, the zod schemas, the handler and the
+ * store use them. `futureGraceSeconds` lets a phone whose clock runs a little fast still log "now".
+ */
+export const SESSION_LIMITS = {
+  /** Live exercises in one Session. */
+  exercisesPerSession: 40,
+  setsPerExercise: TRAINING_LIMITS.setsPerExercise,
+  titleMin: 1,
+  titleMax: 100,
+  noteMax: 1000,
+  /** The override of a Session's duration, 24 h. */
+  durationMaxSeconds: 86_400,
+  /** A backfilled Session starts at most this many years ago. */
+  backfillYears: 10,
+  futureGraceSeconds: 900,
+} as const;
+
 /** A fractional-indexing key is base 62 digits; this caps its length in Postgres and in zod. */
 export const POSITION_KEY_MAX = 100;
 /** Past this length a list is rebalanced the next time it is written (see `position.ts`). */

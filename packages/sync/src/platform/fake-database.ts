@@ -43,6 +43,23 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         sets TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
+        program_id TEXT, run_id TEXT, slot_id TEXT, cycle INTEGER, title TEXT,
+        title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
+        device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT,
+        created_at TEXT, restore INTEGER);
+      CREATE TABLE session_exercise (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT,
+        exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,
+        source_workout_exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT,
+        superset_group TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
+      CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,
+        position TEXT, kind TEXT, weight_kg REAL, reps INTEGER, duration_s INTEGER,
+        distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,
+        timer_started_at TEXT, target TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
+        unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER);
+      CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
+        bar_id TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE program_cover (id TEXT PRIMARY KEY, program_id TEXT, uri TEXT, updated_at TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
@@ -130,6 +147,11 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "workout",
         "workout_exercise",
         "program_slot",
+        "training_session",
+        "session_exercise",
+        "session_set",
+        "gym_equipment",
+        "exercise_setting",
         "program_cover",
         "device_owner",
         "install_meta",

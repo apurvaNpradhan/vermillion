@@ -21,9 +21,10 @@ streams:
     priority: 1
     query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at FROM exercise WHERE user_id = auth.user_id()
 
-  # A user's training plans (ADR 0036): one subscription over the four plan tables, so a Workout,
-  # its exercises and the Rotation arrive together. Soft-deleted rows leave the stream.
-  # `updated_at` and `deleted_at` stay on the server.
+  # A user's training (ADR 0036, 0038): one subscription over the four plan tables, so a Workout,
+  # its exercises and the Rotation arrive together, and the session tables (a Session, its
+  # exercises and Logged sets, the gym equipment and the per-exercise settings). Soft-deleted rows
+  # leave the stream. `updated_at` and `deleted_at` stay on the server.
   my_training:
     auto_subscribe: true
     priority: 1
@@ -32,3 +33,8 @@ streams:
       - SELECT id, user_id, program_id, title, note, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at FROM workout_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, program_id, workout_id, position, created_at FROM program_slot WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at FROM training_session WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at FROM session_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at FROM session_set WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, kind, weight_kg, unit, label, count, enabled, created_at FROM gym_equipment WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, exercise_id, bar_id, log_effort, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL

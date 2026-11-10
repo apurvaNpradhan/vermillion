@@ -99,6 +99,11 @@ export const SYNC_REJECTION_CODES = [
   "TRAINING_SLOT_PROGRAM_MISMATCH",
   "TRAINING_INVALID_SETS",
   "TRAINING_LIMIT_REACHED",
+  // Sessions (ADR 0037, 0038).
+  "SESSION_PARENT_NOT_FOUND",
+  "SESSION_SET_INVALID_FOR_TYPE",
+  "SESSION_LIMIT_REACHED",
+  "SESSION_DATE_OUT_OF_RANGE",
 ] as const;
 export const syncFailureCodeSchema = z.enum(SYNC_REJECTION_CODES);
 export type SyncFailureCode = z.infer<typeof syncFailureCodeSchema>;

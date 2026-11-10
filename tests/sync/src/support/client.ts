@@ -14,6 +14,7 @@ import {
   type PowerSyncCredentials,
 } from "@powersync/common";
 import { PowerSyncDatabase } from "@powersync/node";
+import { uploadColumns as appUploadColumns } from "@workspace/sync";
 import type { AppRouterClient } from "@workspace/api/client";
 import {
   computeOpsDigest,
@@ -51,28 +52,10 @@ export const schema = new Schema({
 });
 
 /**
- * Columns a client may upload per table. `created_at` and `updated_at` are server-managed:
- * the upload handler is strict and refuses columns it does not own (ADR 0019).
+ * The columns an upload may carry per synced table: the app's own map, so the seam tests send what
+ * the real connector sends (the upload handler is strict and refuses columns it does not own,
+ * ADR 0019). The exercise table keeps its own list here.
  */
-const trainingUploadColumns = new Map<string, readonly string[]>([
-  ["program", ["title", "description", "planned_weeks", "restore"]],
-  ["workout", ["program_id", "title", "note", "restore"]],
-  [
-    "workout_exercise",
-    [
-      "workout_id",
-      "exercise_id",
-      "position",
-      "rest_seconds",
-      "note",
-      "superset_group",
-      "sets",
-      "restore",
-    ],
-  ],
-  ["program_slot", ["program_id", "workout_id", "position", "restore"]],
-]);
-
 const uploadColumns = (table: string): readonly string[] => {
   if (table === "exercise") {
     return [
@@ -86,7 +69,7 @@ const uploadColumns = (table: string): readonly string[] => {
       "retired_at",
     ];
   }
-  return trainingUploadColumns.get(table) ?? [];
+  return [...(appUploadColumns.get(table) ?? [])];
 };
 
 export type TransportFaults = {
@@ -173,11 +156,14 @@ export async function createClient(
   user: TestUser,
   faults: Partial<TransportFaults> = {},
   localSchema: Schema = schema,
+  /** Open this file again, as an app restarted after being killed does (the files are kept). */
+  existing?: { directory: string; filename: string },
 ) {
-  const directory = mkdtempSync(join(tmpdir(), "vermillion-sync-"));
+  const directory = existing?.directory ?? mkdtempSync(join(tmpdir(), "vermillion-sync-"));
+  const filename = existing?.filename ?? `client-${randomUUID()}.db`;
   const database = new PowerSyncDatabase({
     schema: localSchema,
-    database: { dbFilename: `client-${randomUUID()}.db`, dbLocation: directory },
+    database: { dbFilename: filename, dbLocation: directory },
   });
   const api: AppRouterClient = createORPCClient(
     new RPCLink({
@@ -209,6 +195,8 @@ export async function createClient(
 
   return {
     database,
+    /** Where the database file is, for `existing` of a restart. */
+    storage: { directory, filename },
     transport,
     records,
     api,
@@ -265,9 +253,10 @@ export async function createClient(
         async () => expect(await database.getUploadQueueStats().then((s) => s.count)).toBe(0),
         { timeout: 30_000 },
       ),
-    async close() {
+    /** Closes the database; the files are removed unless `keepFiles` (a restart opens them again). */
+    async close(keepFiles = false) {
       await database.close();
-      rmSync(directory, { recursive: true, force: true });
+      if (!keepFiles) rmSync(directory, { recursive: true, force: true });
     },
   };
 }
