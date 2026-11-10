@@ -21,3 +21,4 @@ export { SupersetBracket } from "./components/workout-exercise-row";
 export { useCoalescedWriter } from "./use-coalesced-writer";
 export { useWorkout } from "./use-workout";
 export { useWorkouts } from "./use-workouts";
+export { WorkoutPreviewScreen } from "./components/workout-preview-screen";
