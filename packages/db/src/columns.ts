@@ -21,4 +21,9 @@ export function updatedAt() {
     .notNull();
 }
 
+/** `deleted_at`: set when a user deletes the row (a soft delete, ADR 0019); null while it is live. */
+export function deletedAt() {
+  return timestamp("deleted_at", { withTimezone: true, mode: "date" });
+}
+
 export { uuidv7 };

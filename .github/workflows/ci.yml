@@ -77,7 +77,7 @@ jobs:
   # Seam 3 (ADR 0024): headless PowerSync clients against the real API, Postgres and
   # powersync-service, all from the repo's compose file. Order matters: the bootstrap creates
   # the publication, the server's migrations add `exercise` to it, and only then may PowerSync
-  # start with the `exercise_catalog` and `my_library` streams (ADR 0023). PowerSync reaches the API's JWKS on the host.
+  # start with the `exercise_catalog`, `my_library` and `my_training` streams (ADR 0023). PowerSync reaches the API's JWKS on the host.
   # The parity test runs in the `tests` job (`pnpm test`). The fault suites stop PowerSync and
   # cut database sessions, so they are enabled here by naming the compose container; locally
   # run the same steps against a throwaway stack (see .agents/sync.md).

@@ -7,6 +7,8 @@ import {
   boundPayload,
   ensureInstallId,
   powerSyncSchema,
+  SYNCED_TABLE_NAMES,
+  uploadColumns,
   storageRowToWire,
   wireRowToStorage,
   type InstallMetaDatabase,
@@ -72,14 +74,27 @@ describe("row conversion", () => {
 describe("powerSyncSchema", () => {
   const tables = Object.fromEntries(powerSyncSchema.tables.map((table) => [table.name, table]));
 
-  it("has the synced exercise table and three local-only tables", () => {
+  it("has the synced tables and three local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
       "device_owner",
       "exercise",
       "install_meta",
+      "program",
+      "program_slot",
       "rejected_writes",
+      "workout",
+      "workout_exercise",
     ]);
-    expect(tables.exercise?.localOnly).toBe(false);
+    for (const name of ["exercise", "program", "workout", "workout_exercise", "program_slot"]) {
+      expect(tables[name]?.localOnly, name).toBe(false);
+    }
+    expect([...SYNCED_TABLE_NAMES].sort()).toEqual([
+      "exercise",
+      "program",
+      "program_slot",
+      "workout",
+      "workout_exercise",
+    ]);
     expect(tables.install_meta?.localOnly).toBe(true);
     expect(tables.rejected_writes?.localOnly).toBe(true);
   });
@@ -87,6 +102,24 @@ describe("powerSyncSchema", () => {
   it("indexes the exercise filter and sort keys", () => {
     const indexed = tables.exercise?.indexes.flatMap((i) => i.columns.map((c) => c.name));
     expect(indexed?.toSorted()).toEqual(["equipment", "primary_muscle", "retired_at", "title"]);
+  });
+
+  it("indexes the training ordering and parent keys", () => {
+    const indexed = (name: string) =>
+      tables[name]?.indexes.map((index) => index.columns.map((c) => c.name));
+    expect(indexed("workout_exercise")).toContainEqual(["workout_id", "position"]);
+    expect(indexed("program_slot")).toContainEqual(["program_id", "position"]);
+    expect(indexed("workout")).toContainEqual(["program_id"]);
+  });
+
+  it("uploads only the columns the server accepts, never server-owned ones", () => {
+    for (const [table, columns] of uploadColumns) {
+      expect(columns.has("user_id"), table).toBe(false);
+      expect(columns.has("created_at"), table).toBe(false);
+    }
+    expect(uploadColumns.get("program")?.has("cover_key")).toBe(false);
+    expect(uploadColumns.get("workout_exercise")?.has("sets")).toBe(true);
+    expect([...uploadColumns.keys()].sort()).toEqual([...SYNCED_TABLE_NAMES].sort());
   });
 
   it("does not declare id as a column (PowerSync adds it)", () => {

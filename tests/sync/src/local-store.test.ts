@@ -6,11 +6,17 @@ import { PowerSyncDatabase } from "@powersync/node";
 import type { CustomExerciseInput } from "@workspace/shared";
 import {
   DEFAULT_LIBRARY_FILTERS,
+  addExercises,
+  addSlot,
   archiveExercise,
   claimDeviceOwner,
   createCustomExercise,
+  createProgram,
+  createWorkout,
+  deleteProgram,
   powerSyncSchema,
   updateCustomExercise,
+  updateWorkoutExercise,
   watchExercise,
   watchExerciseLibrary,
   type ExerciseDetail,
@@ -171,5 +177,47 @@ describe("live reads", () => {
     });
     await vi.waitFor(() => expect(errors).toHaveLength(1));
     stop();
+  });
+});
+
+const PRESS = "0192f0a0-0000-7000-8000-0000000000aa";
+
+describe("training store writes reach the upload queue", () => {
+  it("queues PUTs with sets as JSON text, a PATCH of one field and the deletes parent first", async () => {
+    await database.execute(
+      `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
+         exercise_type, is_full_bodyweight, rank, created_at)
+       VALUES ('0192f0a0-0000-7000-8000-0000000000aa', NULL, 'Press', 'chest', '["triceps"]', 'barbell', 'weight_reps', 0, 0, ?)`,
+      [new Date().toISOString()],
+    );
+    const programId = await createProgram(database, {
+      title: "Plan",
+      description: null,
+      planned_weeks: null,
+    });
+    const workoutId = await createWorkout(database, { program_id: programId });
+    const [row] = await addExercises(database, workoutId, [PRESS]);
+    await addSlot(database, programId, workoutId);
+    await updateWorkoutExercise(database, row ?? "", { note: "Cue" });
+    await deleteProgram(database, programId);
+
+    const entries = (await database.getCrudBatch(50))?.crud ?? [];
+    expect(entries.map((entry) => `${entry.op} ${entry.table}`)).toEqual([
+      "PUT exercise",
+      "PUT program",
+      "PUT workout",
+      "PUT workout_exercise",
+      "PUT program_slot",
+      "PATCH workout_exercise",
+      "DELETE program",
+      "DELETE program_slot",
+      "DELETE workout_exercise",
+      "DELETE workout",
+    ]);
+    const put = entries[3]?.opData;
+    expect(put).toMatchObject({ workout_id: workoutId, exercise_id: PRESS, rest_seconds: 180 });
+    expect(JSON.parse(String(put?.["sets"]))).toHaveLength(3);
+    expect(Object.keys(entries[5]?.opData ?? {})).toEqual(["note"]);
+    expect(await database.getAll("SELECT id FROM workout_exercise")).toEqual([]);
   });
 });

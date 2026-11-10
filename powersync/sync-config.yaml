@@ -20,3 +20,15 @@ streams:
     auto_subscribe: true
     priority: 1
     query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at FROM exercise WHERE user_id = auth.user_id()
+
+  # A user's training plans (ADR 0036): one subscription over the four plan tables, so a Workout,
+  # its exercises and the Rotation arrive together. Soft-deleted rows leave the stream.
+  # `updated_at` and `deleted_at` stay on the server.
+  my_training:
+    auto_subscribe: true
+    priority: 1
+    queries:
+      - SELECT id, user_id, title, description, planned_weeks, cover_key, created_at FROM program WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, program_id, title, note, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at FROM workout_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, program_id, workout_id, position, created_at FROM program_slot WHERE user_id = auth.user_id() AND deleted_at IS NULL

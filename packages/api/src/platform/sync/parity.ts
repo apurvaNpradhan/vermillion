@@ -90,7 +90,10 @@ export type Expectation = {
 };
 
 const syncConfigSchema = z.object({
-  streams: z.record(z.string(), z.object({ query: z.string() })),
+  streams: z.record(
+    z.string(),
+    z.union([z.object({ query: z.string() }), z.object({ queries: z.array(z.string()).min(1) })]),
+  ),
 });
 const streamQuery = /^\s*SELECT\s+(?<columns>[\w\s,*]+?)\s+FROM\s+(?<table>\w+)\s+WHERE\s/i;
 
@@ -103,17 +106,20 @@ export type StreamDefinition = { name: string; table: string; columns: string[];
 export function parseStreams(configYaml: string): StreamDefinition[] {
   const config = syncConfigSchema.parse(parseYaml(configYaml));
   const streams: StreamDefinition[] = [];
-  for (const [name, { query }] of Object.entries(config.streams)) {
-    const match = streamQuery.exec(query);
-    if (!match?.groups?.columns || !match.groups.table) {
-      throw new Error(`stream ${name}: expected "SELECT <columns> FROM <table> WHERE ..."`);
+  for (const [name, stream] of Object.entries(config.streams)) {
+    // A stream with `queries` is one subscription over several tables: one definition per query.
+    for (const query of "query" in stream ? [stream.query] : stream.queries) {
+      const match = streamQuery.exec(query);
+      if (!match?.groups?.columns || !match.groups.table) {
+        throw new Error(`stream ${name}: expected "SELECT <columns> FROM <table> WHERE ..."`);
+      }
+      streams.push({
+        name,
+        table: match.groups.table,
+        columns: match.groups.columns.split(",").map((column) => column.trim()),
+        query,
+      });
     }
-    streams.push({
-      name,
-      table: match.groups.table,
-      columns: match.groups.columns.split(",").map((column) => column.trim()),
-      query,
-    });
   }
   return streams;
 }

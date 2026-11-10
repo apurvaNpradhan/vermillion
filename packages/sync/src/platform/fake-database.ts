@@ -34,6 +34,15 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         secondary_muscles TEXT, equipment TEXT, exercise_type TEXT, is_full_bodyweight INTEGER,
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
         thumbnail_key TEXT, retired_at TEXT, created_at TEXT);
+      CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
+        planned_weeks INTEGER, cover_key TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
+        note TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE workout_exercise (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
+        exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT, superset_group TEXT,
+        sets TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
+        workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
       CREATE TABLE rejected_writes (id TEXT PRIMARY KEY, tx_id TEXT, op_ordinal INTEGER,
@@ -114,7 +123,16 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     },
     disconnectAndClear: async () => {
       state.clears += 1;
-      for (const table of ["exercise", "device_owner", "install_meta", "rejected_writes"]) {
+      for (const table of [
+        "exercise",
+        "program",
+        "workout",
+        "workout_exercise",
+        "program_slot",
+        "device_owner",
+        "install_meta",
+        "rejected_writes",
+      ]) {
         sqlite.exec(`DELETE FROM ${table}`);
       }
       transactions.length = 0;

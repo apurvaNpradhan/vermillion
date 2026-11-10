@@ -94,6 +94,11 @@ export const SYNC_REJECTION_CODES = [
   "EXERCISE_DELETE_NOT_ALLOWED",
   "EXERCISE_LIMIT_REACHED",
   "EXERCISE_TYPE_LOCKED",
+  // Training plans (ADR 0036).
+  "TRAINING_PARENT_NOT_FOUND",
+  "TRAINING_SLOT_PROGRAM_MISMATCH",
+  "TRAINING_INVALID_SETS",
+  "TRAINING_LIMIT_REACHED",
 ] as const;
 export const syncFailureCodeSchema = z.enum(SYNC_REJECTION_CODES);
 export type SyncFailureCode = z.infer<typeof syncFailureCodeSchema>;

@@ -7,3 +7,4 @@ export * from "./otp";
 export * from "./onboarding";
 export * from "./passkey";
 export * from "./exercise/index";
+export * from "./training/index";

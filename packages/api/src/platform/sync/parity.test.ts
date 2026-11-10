@@ -80,6 +80,81 @@ const expectation: Expectation = {
           "CREATE UNIQUE INDEX exercise_catalog_title_uidx ON public.exercise USING btree (title) WHERE (user_id IS NULL)",
       },
     },
+    program: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        title: { type: "text", notNull: true, default: null },
+        description: { type: "text", notNull: false, default: null },
+        planned_weeks: { type: "smallint", notNull: false, default: null },
+        cover_key: { type: "text", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        program_user_id_live_idx:
+          "CREATE INDEX program_user_id_live_idx ON public.program USING btree (user_id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    workout: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        program_id: { type: "uuid", notNull: false, default: null },
+        title: { type: "text", notNull: false, default: null },
+        note: { type: "text", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        workout_user_id_live_idx:
+          "CREATE INDEX workout_user_id_live_idx ON public.workout USING btree (user_id) WHERE (deleted_at IS NULL)",
+        workout_program_id_idx:
+          "CREATE INDEX workout_program_id_idx ON public.workout USING btree (program_id)",
+      },
+    },
+    workout_exercise: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        workout_id: { type: "uuid", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        position: { type: "text", notNull: true, default: null },
+        rest_seconds: { type: "smallint", notNull: false, default: null },
+        note: { type: "text", notNull: false, default: null },
+        superset_group: { type: "uuid", notNull: false, default: null },
+        sets: { type: "jsonb", notNull: true, default: "'[]'::jsonb" },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        workout_exercise_user_id_live_idx:
+          "CREATE INDEX workout_exercise_user_id_live_idx ON public.workout_exercise USING btree (user_id) WHERE (deleted_at IS NULL)",
+        workout_exercise_order_idx:
+          'CREATE INDEX workout_exercise_order_idx ON public.workout_exercise USING btree (workout_id, "position", id) WHERE (deleted_at IS NULL)',
+      },
+    },
+    program_slot: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        program_id: { type: "uuid", notNull: true, default: null },
+        workout_id: { type: "uuid", notNull: false, default: null },
+        position: { type: "text", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        program_slot_user_id_live_idx:
+          "CREATE INDEX program_slot_user_id_live_idx ON public.program_slot USING btree (user_id) WHERE (deleted_at IS NULL)",
+        program_slot_order_idx:
+          'CREATE INDEX program_slot_order_idx ON public.program_slot USING btree (program_id, "position", id) WHERE (deleted_at IS NULL)',
+      },
+    },
     // Server-only: never published, never streamed.
     reference_import: {
       columns: {
@@ -95,6 +170,10 @@ const expectation: Expectation = {
     powersync: [
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at)",
+      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at)",
+      "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
+      "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
+      "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
     ],
   },
 };
@@ -127,7 +206,18 @@ describe("server schema parity", () => {
       "utf8",
     );
     const streams = parseStreams(config);
-    expect(streams.map((stream) => stream.name).sort()).toEqual(["exercise_catalog", "my_library"]);
+    expect([...new Set(streams.map((stream) => stream.name))].sort()).toEqual([
+      "exercise_catalog",
+      "my_library",
+      "my_training",
+    ]);
+    // my_training is one subscription over the four plan tables.
+    expect(
+      streams
+        .filter((stream) => stream.name === "my_training")
+        .map((stream) => stream.table)
+        .sort(),
+    ).toEqual(["program", "program_slot", "workout", "workout_exercise"]);
     const uploadTables = syncTableHandlers.map((handler) => handler.table);
     const actual = await introspectPostgres(client);
     expect(compareStreams(streams, actual, uploadTables)).toEqual([]);

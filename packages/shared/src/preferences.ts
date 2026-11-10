@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import { localeSchema } from "./locale";
+import {
+  DEFAULT_REST_SECONDS,
+  EFFORT_SCALES,
+  REST_SECONDS_MAX,
+  WEIGHT_UNITS,
+} from "./training/vocabulary";
 
 /** An IANA time zone name such as `Europe/Berlin`. */
 export function isTimeZone(value: string) {
@@ -22,10 +28,16 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const uiFields = {
   sidebarCollapsed: z.boolean(),
   dismissedHints: z.array(z.string().max(100)).max(100),
+  weightUnit: z.enum(WEIGHT_UNITS),
+  effortScale: z.enum(EFFORT_SCALES),
+  defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
 };
 export const uiPreferencesSchema = z.object({
   sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
   dismissedHints: uiFields.dismissedHints.default([]),
+  weightUnit: uiFields.weightUnit.default("kg"),
+  effortScale: uiFields.effortScale.default("rpe"),
+  defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
 });
 export type UiPreferences = z.infer<typeof uiPreferencesSchema>;
 

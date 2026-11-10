@@ -18,10 +18,14 @@ describe("applyPreferencesPatch", () => {
   });
   it("merges ui keys instead of replacing the object", () => {
     const next = applyPreferencesPatch(
-      { ...current, ui: { sidebarCollapsed: false, dismissedHints: ["a"] } },
+      { ...current, ui: { ...DEFAULT_UI_PREFERENCES, dismissedHints: ["a"] } },
       { ui: { sidebarCollapsed: true } },
     );
-    expect(next.ui).toEqual({ sidebarCollapsed: true, dismissedHints: ["a"] });
+    expect(next.ui).toEqual({
+      ...DEFAULT_UI_PREFERENCES,
+      sidebarCollapsed: true,
+      dismissedHints: ["a"],
+    });
   });
   it("ignores explicitly undefined ui keys", () => {
     const next = applyPreferencesPatch(current, { ui: { sidebarCollapsed: undefined } });

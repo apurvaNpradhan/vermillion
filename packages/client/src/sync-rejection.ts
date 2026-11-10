@@ -13,6 +13,10 @@ const REJECTION_KEYS = new Map<string, TranslationKey>([
   ["EXERCISE_DELETE_NOT_ALLOWED", "sync__rejected_code_exercise_delete"],
   ["EXERCISE_LIMIT_REACHED", "sync__rejected_code_exercise_limit"],
   ["EXERCISE_TYPE_LOCKED", "sync__rejected_code_exercise_type_locked"],
+  ["TRAINING_PARENT_NOT_FOUND", "sync__rejected_code_training_parent"],
+  ["TRAINING_SLOT_PROGRAM_MISMATCH", "sync__rejected_code_training_slot"],
+  ["TRAINING_INVALID_SETS", "sync__rejected_code_training_sets"],
+  ["TRAINING_LIMIT_REACHED", "sync__rejected_code_training_limit"],
   ["SYNC_TRANSACTION_ROLLED_BACK", "sync__rejected_code_rolled_back"],
 ]);
 

@@ -20,13 +20,42 @@ describe("preferences", () => {
     });
   });
 
+  it("saves the training preferences and refuses values outside them", async () => {
+    const headers = await createSignedInUser(app, "training-prefs@example.com");
+    const client = app.client(headers);
+    expect(
+      await client.preferences.update({
+        ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 },
+      }),
+    ).toMatchObject({ ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 } });
+    for (const ui of [
+      { weightUnit: "stone" },
+      { effortScale: "borg" },
+      { defaultRestSeconds: 601 },
+      { defaultRestSeconds: -1 },
+      { defaultRestSeconds: 90.5 },
+    ]) {
+      // Safety: the test sends values the contract must refuse.
+      await expect(client.preferences.update({ ui: ui as never })).rejects.toThrow();
+    }
+    expect(await client.preferences.get()).toMatchObject({
+      ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 },
+    });
+  });
+
   it("reads defaults without creating a row", async () => {
     const headers = await createSignedInUser(app, "defaults@example.com");
     const before = await rows();
     expect(await app.client(headers).preferences.get()).toEqual({
       locale: null,
       timezone: null,
-      ui: { sidebarCollapsed: false, dismissedHints: [] },
+      ui: {
+        sidebarCollapsed: false,
+        dismissedHints: [],
+        weightUnit: "kg",
+        effortScale: "rpe",
+        defaultRestSeconds: 120,
+      },
     });
     expect(await rows()).toBe(before);
   });
@@ -38,11 +67,23 @@ describe("preferences", () => {
     expect(await client.preferences.update({ locale: "en" })).toEqual({
       locale: "en",
       timezone: null,
-      ui: { sidebarCollapsed: false, dismissedHints: [] },
+      ui: {
+        sidebarCollapsed: false,
+        dismissedHints: [],
+        weightUnit: "kg",
+        effortScale: "rpe",
+        defaultRestSeconds: 120,
+      },
     });
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
       locale: "en",
-      ui: { sidebarCollapsed: true, dismissedHints: [] },
+      ui: {
+        sidebarCollapsed: true,
+        dismissedHints: [],
+        weightUnit: "kg",
+        effortScale: "rpe",
+        defaultRestSeconds: 120,
+      },
     });
     expect(
       await client.preferences.update({
@@ -52,7 +93,13 @@ describe("preferences", () => {
     ).toEqual({
       locale: "en",
       timezone: "Europe/Berlin",
-      ui: { sidebarCollapsed: true, dismissedHints: ["tour"] },
+      ui: {
+        sidebarCollapsed: true,
+        dismissedHints: ["tour"],
+        weightUnit: "kg",
+        effortScale: "rpe",
+        defaultRestSeconds: 120,
+      },
     });
     // null clears; omitted fields stay
     expect(await client.preferences.update({ locale: null })).toMatchObject({

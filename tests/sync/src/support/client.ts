@@ -54,6 +54,25 @@ export const schema = new Schema({
  * Columns a client may upload per table. `created_at` and `updated_at` are server-managed:
  * the upload handler is strict and refuses columns it does not own (ADR 0019).
  */
+const trainingUploadColumns = new Map<string, readonly string[]>([
+  ["program", ["title", "description", "planned_weeks", "restore"]],
+  ["workout", ["program_id", "title", "note", "restore"]],
+  [
+    "workout_exercise",
+    [
+      "workout_id",
+      "exercise_id",
+      "position",
+      "rest_seconds",
+      "note",
+      "superset_group",
+      "sets",
+      "restore",
+    ],
+  ],
+  ["program_slot", ["program_id", "workout_id", "position", "restore"]],
+]);
+
 const uploadColumns = (table: string): readonly string[] => {
   if (table === "exercise") {
     return [
@@ -67,7 +86,7 @@ const uploadColumns = (table: string): readonly string[] => {
       "retired_at",
     ];
   }
-  return [];
+  return trainingUploadColumns.get(table) ?? [];
 };
 
 export type TransportFaults = {
