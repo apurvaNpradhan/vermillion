@@ -4,6 +4,8 @@ export type PickOptions = {
   max?: number;
   /** Exercises already in the workout; they cannot be picked. */
   exclude?: readonly string[];
+  /** Replace: the exercise being swapped out; "Swap for" suggestions for it sit above the list. */
+  swapFor?: string;
 };
 
 /** Whether `id` may be picked at all (not excluded). Archived is decided by the row. */

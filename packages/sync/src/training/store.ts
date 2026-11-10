@@ -791,3 +791,44 @@ export function removeSlot(
     return removed.length > 0;
   });
 }
+
+/** What {@link restoreWorkoutExercise} puts back: the row a remove took out. */
+export type RemovedWorkoutExercise = Pick<
+  WorkoutExerciseRow,
+  | "id"
+  | "workout_id"
+  | "exercise_id"
+  | "position"
+  | "rest_seconds"
+  | "note"
+  | "superset_group"
+  | "sets"
+>;
+
+/** Undo of {@link removeWorkoutExercise}: the same id and position. False if it is back already. */
+export function restoreWorkoutExercise(
+  database: TrainingDatabase,
+  removed: RemovedWorkoutExercise,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const userId = await ownerOf(tx);
+    const [existing] = await tx
+      .select({ id: workoutExercise.id })
+      .from(workoutExercise)
+      .where(eq(workoutExercise.id, removed.id))
+      .limit(1);
+    if (existing) return false;
+    const [parent] = await tx
+      .select({ id: workout.id })
+      .from(workout)
+      .where(eq(workout.id, removed.workout_id))
+      .limit(1);
+    if (!parent) throw new Error("The workout is gone");
+    assertRoom(await exercisesIn(tx, removed.workout_id), 1, "exercisesPerWorkout");
+    await tx
+      .insert(workoutExercise)
+      .values(marked({ ...removed, user_id: userId, created_at: nowIso() }));
+    return true;
+  });
+}

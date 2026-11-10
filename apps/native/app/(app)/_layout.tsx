@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Barbell, GearSix, SunHorizon, type IconProps } from "phosphor-react-native";
+import { Barbell, GearSix, ListChecks, SunHorizon, type IconProps } from "phosphor-react-native";
 import type { ComponentType } from "react";
 import { Dimensions, Easing, type ColorValue } from "react-native";
 
@@ -27,8 +27,8 @@ const tabIcon =
 /** Share of the window width a tab page travels while switching. */
 const SLIDE = 0.28;
 
-/** The pill shows Home only; Exercises and Settings are in the switcher's menu (ADR 0035). */
-const DIRECT_TABS = 1;
+/** The pill shows Home and Train; Exercises and Settings are in the switcher's menu (ADR 0036). */
+const DIRECT_TABS = 2;
 
 /**
  * The signed-in tabs. The first `DIRECT_TABS` sit on the floating pill; the rest (up to five in
@@ -84,7 +84,11 @@ export default function AppLayout() {
           name="index"
           options={{ title: t("nav__home"), tabBarIcon: tabIcon(SunHorizon) }}
         />
-        {/* After the direct tab, so it lands in the switcher menu. */}
+        <Tabs.Screen
+          name="train"
+          options={{ title: t("training__title"), tabBarIcon: tabIcon(ListChecks) }}
+        />
+        {/* After the direct tabs, so they land in the switcher menu. */}
         <Tabs.Screen
           name="exercises"
           options={{ title: t("exercise__title"), tabBarIcon: tabIcon(Barbell) }}

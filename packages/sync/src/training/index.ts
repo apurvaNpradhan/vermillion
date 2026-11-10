@@ -16,6 +16,7 @@ export {
   replaceExercise,
   restoreProgram,
   restoreWorkout,
+  restoreWorkoutExercise,
   trainingUploadColumns,
   updateProgram,
   updateSlot,
@@ -26,6 +27,7 @@ export {
   type ProgramPatch,
   type ProgramRow,
   type ProgramSlotRow,
+  type RemovedWorkoutExercise,
   type TrainingDatabase,
   type TrainingPreferences,
   type WorkoutExercisePatch,
@@ -44,3 +46,16 @@ export {
   sortByPosition,
   type Positioned,
 } from "./position";
+export {
+  WORKOUT_DETAIL_SQL,
+  WORKOUT_LIST_SQL,
+  parseWorkoutDetail,
+  parseWorkoutList,
+  readExerciseType,
+  watchWorkout,
+  watchWorkouts,
+  type WorkoutDetail,
+  type WorkoutExerciseDetail,
+  type WorkoutExerciseInfo,
+  type WorkoutSummary,
+} from "./watch";

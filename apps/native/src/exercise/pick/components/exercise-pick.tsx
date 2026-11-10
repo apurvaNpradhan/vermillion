@@ -16,6 +16,7 @@ import { ExerciseLibrary } from "../../library/components/exercise-library";
 import { selectionOrder } from "../pick-selection";
 import { cancelPick, clearPick, finishPick, getPickSession, togglePick } from "../pick-session";
 import { usePickSession } from "../use-pick-session";
+import { PickSwapSuggestions } from "./pick-swap-suggestions";
 
 /** Height of the selection bar above the bottom inset, in points. */
 const BAR_HEIGHT = 72;
@@ -28,8 +29,11 @@ const BAR_HEIGHT = 72;
 export function ExercisePickScreen({
   requestId,
   onCreate,
+  closeFallback = "/exercises",
 }: {
   requestId: string;
+  /** Where closing goes when there is nothing to go back to. */
+  closeFallback?: "/exercises" | "/train";
   /** Open the new-exercise form for this request, prefilled with the searched title. */
   onCreate: (title: string) => void;
 }) {
@@ -55,8 +59,8 @@ export function ExercisePickScreen({
   }, [requestId]);
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
-    else router.replace("/exercises");
-  }, [router]);
+    else router.replace(closeFallback);
+  }, [router, closeFallback]);
   useEffect(() => {
     if (session === null && !answered.current) close();
   }, [session, close]);
@@ -91,6 +95,15 @@ export function ExercisePickScreen({
         title={t("exercise__pick_title")}
         selectedOrder={order}
         disabledIds={session?.options.exclude}
+        listHeader={
+          session?.options.swapFor ? (
+            <PickSwapSuggestions
+              exerciseId={session.options.swapFor}
+              selected={selected}
+              onToggle={onToggle}
+            />
+          ) : null
+        }
         bottomInset={bottom + BAR_HEIGHT - 24}
         onToggle={onToggle}
         onCreate={onCreate}

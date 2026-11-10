@@ -15,14 +15,20 @@ const CARD_WIDTH = 132;
 export function SwapRow({
   candidates,
   onOpen,
+  selectedIds,
+  bleed = false,
 }: {
   candidates: readonly LibraryRow[];
   onOpen: (id: string) => void;
+  /** Pick mode: the cards are checkboxes and these are ticked, instead of buttons that open. */
+  selectedIds?: readonly string[];
+  /** The row sits in padded content: pull the scroller out to the screen edges. */
+  bleed?: boolean;
 }) {
   const { t } = useTranslation();
   if (candidates.length === 0) return null;
   return (
-    <View className="gap-3">
+    <View className={bleed ? "-mx-4 gap-3" : "gap-3"}>
       <View className="gap-0.5 px-4">
         <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
           {t("exercise__swap_title")}
@@ -34,28 +40,37 @@ export function SwapRow({
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="gap-3 px-4"
       >
-        {candidates.map((candidate) => (
-          <Pressable
-            key={candidate.id}
-            accessibilityRole="button"
-            accessibilityLabel={t("exercise__swap_open", { title: candidate.title })}
-            onPress={() => onOpen(candidate.id)}
-            className="gap-2 rounded-xl border border-border bg-surface p-2 active:bg-default"
-            style={{ width: CARD_WIDTH }}
-          >
-            <ExerciseThumbnail
-              thumbnailKey={candidate.thumbnailKey}
-              muscle={candidate.primaryMuscle}
-              size={CARD_WIDTH - 18}
-            />
-            <Text numberOfLines={2} className="min-h-10 text-caption font-medium text-foreground">
-              {candidate.title}
-            </Text>
-            <Text numberOfLines={1} className="text-caption text-muted">
-              {t(EQUIPMENT_KEYS[candidate.equipment])}
-            </Text>
-          </Pressable>
-        ))}
+        {candidates.map((candidate) => {
+          const picking = selectedIds !== undefined;
+          const selected = selectedIds?.includes(candidate.id) ?? false;
+          return (
+            <Pressable
+              key={candidate.id}
+              accessibilityRole={picking ? "checkbox" : "button"}
+              accessibilityState={picking ? { checked: selected } : undefined}
+              accessibilityLabel={t(picking ? "exercise__swap_pick" : "exercise__swap_open", {
+                title: candidate.title,
+              })}
+              onPress={() => onOpen(candidate.id)}
+              className={`gap-2 rounded-xl border p-2 active:bg-default ${
+                selected ? "border-identity bg-default" : "border-border bg-surface"
+              }`}
+              style={{ width: CARD_WIDTH }}
+            >
+              <ExerciseThumbnail
+                thumbnailKey={candidate.thumbnailKey}
+                muscle={candidate.primaryMuscle}
+                size={CARD_WIDTH - 18}
+              />
+              <Text numberOfLines={2} className="min-h-10 text-caption font-medium text-foreground">
+                {candidate.title}
+              </Text>
+              <Text numberOfLines={1} className="text-caption text-muted">
+                {t(EQUIPMENT_KEYS[candidate.equipment])}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </View>
   );

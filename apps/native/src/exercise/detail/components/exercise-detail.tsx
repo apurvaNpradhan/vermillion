@@ -13,6 +13,7 @@ import {
   DotsThreeVertical,
   Info,
   PencilSimple,
+  Plus,
 } from "phosphor-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
@@ -51,6 +52,8 @@ export type ExerciseDetailProps = {
   onEdit?: (id: string) => void;
   onArchive?: (id: string, title: string) => void;
   onRestore?: (id: string) => void;
+  /** Offer "Add to workout" for a live exercise. */
+  onAddToWorkout?: (id: string) => void;
 };
 
 /**
@@ -98,11 +101,13 @@ function LoadedDetail({
   onEdit,
   onArchive,
   onRestore,
+  onAddToWorkout,
 }: ExerciseDetailProps & { exercise: ExerciseDetail }) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const swaps = useSwapCandidates(exercise);
+  const foreground = useThemeColor("foreground");
   const [menuOpen, setMenuOpen] = useState(false);
 
   const video = videoUrl(appConfig.urls.exerciseMedia, exercise.videoKey);
@@ -216,6 +221,14 @@ function LoadedDetail({
                 />
               ) : null}
             </View>
+            {onAddToWorkout && !exercise.isArchived ? (
+              <View className="px-4">
+                <Button variant="secondary" onPress={() => onAddToWorkout(exercise.id)}>
+                  <Plus size={16} color={foreground} weight="bold" />
+                  <Button.Label>{t("training__add_to_workout")}</Button.Label>
+                </Button>
+              </View>
+            ) : null}
             <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
             {steps.length > 0 ? <FormSection steps={steps} collapsible={history !== null} /> : null}
             <SwapRow candidates={swaps} onOpen={onOpenExercise} />

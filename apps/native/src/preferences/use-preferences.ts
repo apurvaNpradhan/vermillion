@@ -4,6 +4,7 @@ import {
   DEFAULT_UI_PREFERENCES,
   type Locale,
   type Preferences,
+  type UiPreferencesPatch,
   type UpdatePreferences,
 } from "@workspace/shared";
 import type { i18n as I18n } from "i18next";
@@ -73,6 +74,8 @@ export function usePreferences() {
       update.mutate({ locale });
     },
     setTimezone: (timezone: string | null) => update.mutate({ timezone }),
+    /** Saves some of the `ui` preferences (weight unit, effort scale, default rest). */
+    setUi: (ui: UiPreferencesPatch) => update.mutate({ ui }),
   };
 }
 

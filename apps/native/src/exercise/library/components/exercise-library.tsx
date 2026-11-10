@@ -52,6 +52,8 @@ type ExerciseLibraryProps = {
   title?: string;
   /** Icon buttons for the header capsule (the picker's close and New buttons). */
   headerActions?: ReactNode;
+  /** Content above the list, under the search (the picker's "Swap for" suggestions). */
+  listHeader?: ReactNode;
   /** Pick: selected ids with their 1-based position in the selection. */
   selectedOrder?: ReadonlyMap<string, number>;
   /** Pick: ids that cannot be picked (already in the workout). Archived ones never can. */
@@ -89,6 +91,7 @@ export function ExerciseLibrary({
   mode,
   title,
   headerActions,
+  listHeader,
   selectedOrder,
   disabledIds,
   bottomInset = 0,
@@ -322,6 +325,7 @@ export function ExerciseLibrary({
                 <View className="gap-3 px-4 pb-3">
                   <SyncBanner />
                   <RejectedExercises />
+                  {listHeader}
                   <FilterChips chips={chips} />
                   <View className="flex-row items-center justify-between gap-3">
                     <Text className="flex-1 text-caption text-muted">

@@ -9,6 +9,7 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 import { PreferenceRows } from "@/preferences";
+import { TrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 /**
@@ -25,6 +26,7 @@ export function SettingsScreen() {
       <ConfirmationDialog {...confirmationProps} />
       <SyncBanner />
       <PreferenceRows />
+      <TrainingPreferenceRows />
       <ListSection title={t("settings__section_account")}>
         <ListRow
           icon={UserCircle}

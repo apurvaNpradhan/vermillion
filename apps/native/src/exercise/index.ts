@@ -7,3 +7,5 @@ export { ExercisePickScreen } from "./pick/components/exercise-pick";
 export { selectCreated } from "./pick/pick-session";
 export { usePickExercises } from "./pick/use-pick-exercises";
 export { useThumbnailPrefetch } from "./prefetch/use-thumbnail-prefetch";
+export { ExerciseThumbnail } from "./library/components/exercise-thumbnail";
+export { MuscleIcon } from "./library/components/muscle-icon";
