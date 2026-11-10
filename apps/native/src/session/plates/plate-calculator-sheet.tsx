@@ -15,10 +15,13 @@ export function PlateChip({
   label,
   selected,
   onPress,
+  swatch,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  /** A colour class for the plate's dot; bars have none. */
+  swatch?: string;
 }) {
   return (
     <Pressable
@@ -28,43 +31,81 @@ export function PlateChip({
       onPress={onPress}
       className={
         selected
-          ? "min-h-11 justify-center rounded-xl bg-default px-3"
-          : "min-h-11 justify-center rounded-xl border border-separator px-3"
+          ? "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
+          : "min-h-11 flex-row items-center gap-2 rounded-xl border border-separator px-3"
       }
     >
+      {swatch ? <View className={`size-3 rounded-full border border-separator ${swatch}`} /> : null}
       <Text className="text-body text-foreground tabular-nums">{label}</Text>
     </Pressable>
   );
 }
 
+type PlateRole = "red" | "blue" | "yellow" | "green" | "white" | "black";
+
+/** The competition colour of a plate by its weight in the kit's unit. */
+function plateRole(weightKg: number, unit: "kg" | "lb"): PlateRole {
+  const weight = unit === "lb" ? weightKg / KG_PER_LB : weightKg;
+  if (weight >= (unit === "lb" ? 55 : 25)) return "red";
+  if (weight >= (unit === "lb" ? 45 : 20)) return "blue";
+  if (weight >= (unit === "lb" ? 35 : 15)) return "yellow";
+  if (weight >= 10) return "green";
+  if (weight >= 5) return "white";
+  return "black";
+}
+
+// Class and variable names are written out whole: styles are generated only for the names the
+// source spells out, so a name built from a template is never defined.
+const SWATCH: Record<PlateRole, string> = {
+  red: "bg-plate-red",
+  blue: "bg-plate-blue",
+  yellow: "bg-plate-yellow",
+  green: "bg-plate-green",
+  white: "bg-plate-white",
+  black: "bg-plate-black",
+};
+const FILL: Record<PlateRole, string> = {
+  red: "--color-plate-red",
+  blue: "--color-plate-blue",
+  yellow: "--color-plate-yellow",
+  green: "--color-plate-green",
+  white: "--color-plate-white",
+  black: "--color-plate-black",
+};
+
+const plateWidth = (weightKg: number) => Math.min(36, 22 + weightKg / 2);
+const PLATE_GAP = 2;
+const FIRST_PLATE_X = 55;
+
+/** Where each plate starts: stacked against the collar and each other, as on a real bar. */
+function plateOffsets(plates: readonly LoadPlate[]): number[] {
+  let x = FIRST_PLATE_X;
+  return plates.map((plate) => {
+    const at = x;
+    x += plateWidth(plate.weightKg) + PLATE_GAP;
+    return at;
+  });
+}
+
 function PlateDrawing({
   plate,
+  unit,
   x,
   label,
 }: {
-  plate: LoadPlate & { unit?: "kg" | "lb" };
+  plate: LoadPlate;
+  unit: "kg" | "lb";
   x: number;
   label: string;
 }) {
-  const weight = plate.unit === "lb" ? plate.weightKg / KG_PER_LB : plate.weightKg;
-  const role =
-    weight >= (plate.unit === "lb" ? 55 : 25)
-      ? "red"
-      : weight >= (plate.unit === "lb" ? 45 : 20)
-        ? "blue"
-        : weight >= (plate.unit === "lb" ? 35 : 15)
-          ? "yellow"
-          : weight >= 10
-            ? "green"
-            : weight >= 5
-              ? "white"
-              : "black";
-  const fill = useCSSVariable(`--color-plate-${role}`);
+  const role = plateRole(plate.weightKg, unit);
+  const fill = useCSSVariable(FILL[role]);
   const ink = useCSSVariable(
     role === "yellow" || role === "white" ? "--color-on-plate-light" : "--color-on-plate-dark",
   );
   const height = Math.min(140, 45 + plate.weightKg * 4);
-  const width = Math.min(36, 22 + plate.weightKg / 2);
+  const width = plateWidth(plate.weightKg);
+  const edge = useThemeColor("muted");
   return (
     <G>
       <Rect
@@ -74,6 +115,10 @@ function PlateDrawing({
         height={height}
         rx={3}
         fill={isColorString(fill) ? fill : undefined}
+        // A dark plate would vanish on the dark sheet without an edge.
+        stroke={edge}
+        strokeOpacity={0.5}
+        strokeWidth={1}
       />
       <SvgText
         x={x + width / 2}
@@ -88,13 +133,16 @@ function PlateDrawing({
   );
 }
 
-/** Mount while open. A missing exercise id is only for the temporary Settings preview. */
+/** The plate calculator for one exercise's bar; it stays mounted and `isOpen` opens it. */
 export function PlateCalculatorSheet({
+  isOpen,
   targetKg,
   exerciseId,
   onUse,
   onClose,
 }: {
+  /** The sheet stays mounted and opens on a change to true; mounting it open shows nothing. */
+  isOpen: boolean;
   targetKg: number;
   exerciseId: string;
   onUse: (weightKg: number) => void;
@@ -108,9 +156,10 @@ export function PlateCalculatorSheet({
   const weight = (kg: number) =>
     t("plates__weight", { weight: formatWeight(kg, state.unit), unit: state.unit });
   const result = state.result;
+  const offsets = plateOffsets(result?.platesPerSide ?? []);
   return (
     <BottomSheet
-      isOpen
+      isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
@@ -170,7 +219,8 @@ export function PlateCalculatorSheet({
                         <PlateDrawing
                           key={`${plate.id}-${i}`}
                           plate={plate}
-                          x={55 + i * 40}
+                          unit={state.unit}
+                          x={offsets[i] ?? FIRST_PLATE_X}
                           label={formatWeight(plate.weightKg, state.unit)}
                         />
                       ))}
@@ -217,6 +267,7 @@ export function PlateCalculatorSheet({
                       ? [
                           <PlateChip
                             key={p.id}
+                            swatch={SWATCH[plateRole(p.weightKg, state.unit)]}
                             label={weight(p.weightKg)}
                             selected={p.enabled}
                             onPress={() => void state.toggle(p)}

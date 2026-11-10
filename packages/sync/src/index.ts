@@ -175,6 +175,7 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseHistory,
+  watchExerciseHistories,
   watchSession,
   watchSessionsBetween,
   parseActiveSessions,

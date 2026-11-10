@@ -29,6 +29,7 @@ import {
   assertSessionRoom,
   exerciseInfoOf,
   exercisesInSession,
+  isRestSeconds,
   rebalanceSessionExercises,
   rebalanceSessionSets,
   requireSession,
@@ -37,6 +38,8 @@ import {
   sessionSetListOf,
   sessionSupersetRowsOf,
   setsInExercise,
+  writeRest,
+  type RestTimes,
   type SessionExerciseRow,
   type SessionSetRow,
 } from "./session-common";
@@ -410,7 +413,8 @@ export async function updateSet(
 }
 
 export type TickResult =
-  | { ok: true; wrote: boolean; values: Partial<ActualValues> }
+  // `rest` is there when the tick also started a Rest.
+  | { ok: true; wrote: boolean; values: Partial<ActualValues>; rest?: RestTimes }
   | { ok: false; missing: SetField[] };
 
 /**
@@ -418,13 +422,19 @@ export type TickResult =
  * row in one transaction, so it cannot overwrite another set. A set missing a required value with
  * no Ghost for it is refused with the list of those fields, and nothing is written. Ticking a
  * ticked set writes nothing. A running timer on the set stops.
+ * `restSeconds` (1 to 600) also starts the Rest after it in the same transaction, so a tick is one
+ * local change for the screens that watch the Session rather than two.
  */
 export function tickSet(
   database: TrainingDatabase,
   id: string,
   ghosts: Ghosts,
   expectedInstallId?: string,
+  restSeconds?: number | null,
 ): Promise<TickResult> {
+  if (restSeconds != null && !isRestSeconds(restSeconds)) {
+    return Promise.reject(new Error("Rest is 1 to 600 seconds"));
+  }
   return write(database, expectedInstallId, async (tx): Promise<TickResult> => {
     const [current] = await tx.select().from(sessionSet).where(eq(sessionSet.id, id)).limit(1);
     if (!current) throw new Error("The set is gone");
@@ -439,7 +449,9 @@ export function tickSet(
     };
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
-    return { ok: true, wrote: true, values: result.values };
+    if (restSeconds == null) return { ok: true, wrote: true, values: result.values };
+    const rest = await writeRest(tx, parent.session_id, id, restSeconds);
+    return { ok: true, wrote: true, values: result.values, rest };
   });
 }
 

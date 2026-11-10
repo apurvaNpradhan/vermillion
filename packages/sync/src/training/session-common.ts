@@ -1,5 +1,6 @@
 import {
   planSupersetRepair,
+  REST_SECONDS_MAX,
   SESSION_LIMITS,
   type SupersetChange,
   type SupersetItem,
@@ -161,4 +162,32 @@ export async function rebalanceSessionSets(tx: Tx, items: Positioned[]) {
   return sortByPosition(
     items.map((item) => ({ ...item, position: byId.get(item.id) ?? item.position })),
   );
+}
+
+export type RestTimes = { startedAt: string; endsAt: string };
+
+/** Whether `seconds` is a Rest length the Session accepts: 1 to 600. */
+export const isRestSeconds = (seconds: number) =>
+  Number.isInteger(seconds) && seconds >= 1 && seconds <= REST_SECONDS_MAX;
+
+/**
+ * Records the Rest a set started on its Session, replacing a running one, as absolute times so the
+ * countdown survives the app being killed. The caller has checked the set belongs to the Session.
+ */
+export async function writeRest(
+  tx: Tx,
+  sessionId: string,
+  setId: string,
+  seconds: number,
+): Promise<RestTimes> {
+  const start = Date.now();
+  const times = {
+    startedAt: new Date(start).toISOString(),
+    endsAt: new Date(start + seconds * 1000).toISOString(),
+  };
+  await tx
+    .update(session)
+    .set({ rest_set_id: setId, rest_started_at: times.startedAt, rest_ends_at: times.endsAt })
+    .where(eq(session.id, sessionId));
+  return times;
 }

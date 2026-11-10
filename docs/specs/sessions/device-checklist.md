@@ -1,20 +1,28 @@
 # Sessions: device verification checklist
 
+## Run on 2026-11-10 (motorola edge 60 pro, Android dev build)
+
+Fixed while checking: fast keypad presses lost digits; a tick took about 2 s to show (one
+history query per exercise, and the tick and its Rest were two writes; ticks and Rest changes now
+show at once); the plate calculator sheet never opened from the keypad; 61 kg loaded 41 × 0.5 kg
+plates; every plate drew black. Known development-only issue: a Fast Refresh of a `packages/*`
+file leaves the Session screen frozen until the app restarts.
+
 The Android device was unavailable while the Sessions slices were built. Before calling them done, run every item below on a device with a dev-client build that includes `expo-notifications` and `expo-keep-awake` (rebuild first). Tick an item only after you have seen it on the device; note failures inline.
 
 ## Slice 2: logging screen
 
-- [ ] Start a Workout from its menu; the Session opens on the first exercise, expanded.
+- [x] Start a Workout from its menu; the Session opens on the first exercise, expanded.
 - [ ] Start an empty session from Train → Create; the title updates as exercises are added.
 - [ ] Ticking with empty cells adopts the muted ghost values; ticking a cell with no ghost shakes it and is refused.
 - [ ] Tapping a Previous cell copies that set.
-- [ ] Last set of an exercise collapses it to "4/4 · …" and opens the next; "+ Add set" stays on the collapsed row during rest.
+- [x] Last set of an exercise collapses it to "4/4 · …" and opens the next; "+ Add set" stays on the collapsed row during rest.
 - [ ] Superset: ticking A1 moves the highlight to B1; rest starts only after the last member.
 - [ ] Keypad: digits, decimal, −/+ steps (2.5 kg barbell, 1 kg otherwise; 5/2.5 lb), Next order weight → reps → next set, Done; TalkBack reads every key.
 - [ ] No system keyboard appears on any set cell.
 - [ ] Exercise menu: replace (same type keeps sets, ghosts refresh), superset in/out, pinned note, log effort on/off, remove; badge changes set kind; grip reorders.
 - [ ] Chevron minimises; Resume bar above the tab pill on every tab shows the title, elapsed time and current exercise.
-- [ ] Kill the app mid-session, reopen: ticked sets and the Session are intact.
+- [x] Kill the app mid-session, reopen: ticked sets and the Session are intact.
 - [ ] Start a second Workout while one is active: Resume / Discard and start sheet.
 - [ ] Two devices: take over moves ownership; the old device shows "Continued on another device", read-only.
 - [ ] Two sessions started offline on two devices: both appear, chooser lets you finish/discard/resume each.
@@ -35,7 +43,7 @@ The Android device was unavailable while the Sessions slices were built. Before 
 
 ## Slice 3: rest, timers, awake, haptics
 
-- [ ] Rest starts on tick; −15 / +15 / Skip work; the progress line moves.
+- [x] Rest starts on tick; −15 / +15 / Skip work; the progress line moves.
 - [ ] Rest notification fires once, on time, with the app backgrounded, killed, and with the screen locked.
 - [ ] +15 then Skip cancels the notification.
 - [ ] Permission pre-prompt appears at the first rest; denying still shows the in-app bar; Settings → Training links to OS settings.
@@ -102,8 +110,8 @@ Device unavailable during implementation; the following checks remain pending.
 Spec correction: a 1.25 kg pair changes a load by 2.5 kg, not 1 kg. The default 0.5 kg
 pairs already make 61 kg loadable with a 20 kg bar. Check the custom pair at 62.5 kg.
 
-- [ ] Plate chip on barbell exercises opens the calculator with the current target.
-- [ ] 60, 61 and 142.5 kg loads draw correctly; inexact targets offer closest below/above with Use.
+- [x] Plate chip on barbell exercises opens the calculator with the current target.
+- [x] 60, 61 and 142.5 kg loads draw correctly; inexact targets offer closest below/above with Use.
 - [ ] Add a custom 1.25 kg pair; 61 kg becomes loadable. Add a custom bar.
 - [ ] Bar choice is remembered per exercise. kg ↔ lb kits switch.
 

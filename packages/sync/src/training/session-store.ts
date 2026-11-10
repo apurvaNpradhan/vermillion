@@ -1,7 +1,6 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
-  REST_SECONDS_MAX,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -14,8 +13,11 @@ import {
   assertSessionRoom,
   exerciseInfoOf,
   installIdOf,
+  isRestSeconds,
   requireSession,
+  writeRest,
   type DeletedSession,
+  type RestTimes,
 } from "./session-common";
 import { marked, nowIso, ownerOf, write, type Tx, type TrainingDatabase } from "./store-common";
 import {
@@ -377,8 +379,6 @@ export function takeOver(
 
 // ---- Rest (ADR 0037): absolute times tied to the set that started them ----
 
-export type RestTimes = { startedAt: string; endsAt: string };
-
 /**
  * Starts the Rest after a set, replacing a running one: the Session records the set and the
  * absolute start and end, so the countdown survives the app being killed. `seconds` is 1 to 600.
@@ -390,9 +390,7 @@ export function startRest(
   seconds: number,
   expectedInstallId?: string,
 ): Promise<RestTimes> {
-  if (!Number.isInteger(seconds) || seconds < 1 || seconds > REST_SECONDS_MAX) {
-    return Promise.reject(new Error("Rest is 1 to 600 seconds"));
-  }
+  if (!isRestSeconds(seconds)) return Promise.reject(new Error("Rest is 1 to 600 seconds"));
   return write(database, expectedInstallId, async (tx) => {
     await requireSession(tx, sessionId);
     const [row] = await tx
@@ -402,20 +400,7 @@ export function startRest(
       .where(eq(sessionSet.id, setId))
       .limit(1);
     if (!row) throw new Error("The set is gone from the session");
-    const start = Date.now();
-    const times = {
-      startedAt: new Date(start).toISOString(),
-      endsAt: new Date(start + seconds * 1000).toISOString(),
-    };
-    await tx
-      .update(session)
-      .set({
-        rest_set_id: setId,
-        rest_started_at: times.startedAt,
-        rest_ends_at: times.endsAt,
-      })
-      .where(eq(session.id, sessionId));
-    return times;
+    return writeRest(tx, sessionId, setId, seconds);
   });
 }
 

@@ -43,17 +43,16 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
         <Barbell size={18} color={ink} />
         <Text className="text-body text-foreground">{t("plates__title")}</Text>
       </Pressable>
-      {open ? (
-        <PlateCalculatorSheet
-          targetKg={cell.currentKg ?? 0}
-          exerciseId={cell.exercise.exerciseId}
-          onUse={(weightKg) => {
-            cell.putKg(weightKg);
-            setOpen(false);
-          }}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
+      <PlateCalculatorSheet
+        isOpen={open}
+        targetKg={cell.currentKg ?? 0}
+        exerciseId={cell.exercise.exerciseId}
+        onUse={(weightKg) => {
+          cell.putKg(weightKg);
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }

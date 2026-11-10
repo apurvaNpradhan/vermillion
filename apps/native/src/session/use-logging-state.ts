@@ -59,6 +59,9 @@ type Actions = ReturnType<typeof useSessionActions>;
 /** Where a set sits: its exercise, its place in it. */
 type Found = { exercise: SessionExerciseDetail; set: SessionSetDetail; index: number };
 
+/** The cell the keypad is editing and what is typed in it; `fresh` means the next key replaces it. */
+type Entry = { cell: CellRef; raw: string; fresh: boolean };
+
 /**
  * Everything the logging screen does that is not drawing: which block of the accordion is open
  * and where it goes next, the keypad's cell and what is typed into it, refused ticks, and the
@@ -168,11 +171,14 @@ export function useLoggingState({
   );
 
   // ---- The keypad ----
-  const [entry, setEntry] = useState<{ cell: CellRef; raw: string; fresh: boolean } | null>(null);
+  const [entry, setEntryState] = useState<Entry | null>(null);
+  // Keys can arrive faster than renders; the ref is the truth between them, so it is
+  // written with every change rather than after the next render.
   const entryRef = useRef(entry);
-  useEffect(() => {
-    entryRef.current = entry;
-  });
+  const setEntry = useCallback((next: Entry | null) => {
+    entryRef.current = next;
+    setEntryState(next);
+  }, []);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
     actions.updateValues(patch.setId, patch.values),
   );
@@ -328,7 +334,9 @@ export function useLoggingState({
     async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
       const at = found.get(setId);
       if (!at) return false;
-      const result = await actions.tick(setId, ghosts);
+      const block = blockOfSet(setId);
+      const seconds = block ? restAfterTick(block, at.exercise.id, setId) : null;
+      const result = await actions.tick(setId, ghosts, seconds);
       if (!result) return false;
       if (!result.ok) {
         refusals.current += 1;
@@ -353,12 +361,7 @@ export function useLoggingState({
       });
       if (record || strong) haptic.success();
       else haptic.tick();
-      const block = blockOfSet(setId);
-      const seconds = block ? restAfterTick(block, at.exercise.id, setId) : null;
-      if (seconds !== null) {
-        const started = await actions.beginRest(session.id, setId, seconds);
-        if (started) onRestStarted?.();
-      }
+      if (result.rest) onRestStarted?.();
       return true;
     },
     [found, actions, session, previous, bodyweightKg, blockOfSet, onRestStarted],

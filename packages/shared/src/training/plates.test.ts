@@ -18,6 +18,14 @@ describe("loadBar", () => {
     expect(weights).toEqual([...weights].sort((a, b) => b - a));
     expect(20 + weights.reduce((a, b) => a + b * 2, 0)).toBe(target);
   });
+  it.each([
+    [60, [20]],
+    [61, [20, 0.5]],
+    [142.5, [25, 25, 10, 1.25]],
+  ])("loads %s kg with the fewest plates", (target, perSide) => {
+    const result = loadBar(target, { weightKg: 20 }, kit);
+    expect(result.platesPerSide.map((p) => p.weightKg)).toEqual(perSide);
+  });
   it("finds both closest neighbours", () => {
     const result = loadBar(61, { weightKg: 20 }, [plate(20), plate(1.25)]);
     expect(result.exact).toBe(false);

@@ -356,6 +356,43 @@ export const EXERCISE_HISTORY_SQL = `SELECT ${SET_COLUMNS}
   ${SET_ORDER}`;
 
 /**
+ * {@link EXERCISE_HISTORY_SQL} for several exercises in one query (a Session screen reads every
+ * exercise's history, and one query per exercise re-runs them all on every write). Each exercise
+ * keeps its own {@link SESSION_READ_LIMIT}. Takes the exercise ids twice, as
+ * `[...ids, ...ids]`; split the rows with {@link parseExerciseHistories}.
+ */
+export function exerciseHistoriesSql(count: number): string {
+  const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
+  return `SELECT ${SET_COLUMNS}
+  FROM training_session s
+  JOIN session_exercise se ON se.session_id = s.id AND se.exercise_id IN (${ids})
+  JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+  WHERE s.finished_at IS NOT NULL AND (se.exercise_id, s.id) IN (
+    SELECT exercise_id, id FROM (
+      SELECT exercise_id, id, ROW_NUMBER() OVER (
+        PARTITION BY exercise_id ORDER BY started_at DESC, id DESC) AS rank
+      FROM (
+        SELECT DISTINCT se2.exercise_id AS exercise_id, s2.id AS id, s2.started_at AS started_at
+        FROM training_session s2
+        JOIN session_exercise se2 ON se2.session_id = s2.id AND se2.exercise_id IN (${ids})
+        WHERE s2.finished_at IS NOT NULL))
+    WHERE rank <= ${SESSION_READ_LIMIT})
+  ${SET_ORDER}`;
+}
+
+/** Splits the rows of {@link exerciseHistoriesSql} into each exercise's finished Sessions. */
+export function parseExerciseHistories(rows: readonly object[]): Map<string, FinishedSession[]> {
+  const byExercise = new Map<string, object[]>();
+  for (const row of rows) {
+    const { exercise_id: id } = z.object({ exercise_id: z.string() }).parse(row);
+    const list = byExercise.get(id);
+    if (list) list.push(row);
+    else byExercise.set(id, [row]);
+  }
+  return new Map([...byExercise].map(([id, list]) => [id, parseFinishedSessions(list)]));
+}
+
+/**
  * The finished Sessions that started in `[from, to)`, newest first, each with all of its ticked
  * sets. Reads at most {@link SESSION_READ_LIMIT} Sessions; one with no ticked set has no sets.
  */

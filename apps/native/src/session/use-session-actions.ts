@@ -14,7 +14,6 @@ import {
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
-  startRest,
   supersetSessionWithNext,
   takeOver,
   tickSet,
@@ -44,17 +43,13 @@ export function useSessionActions() {
   const { toast } = useToast();
   const { write, writeScope, training, undoToast } = useTrainingWrite();
 
-  /** Ticks a set, its empty cells adopting `ghosts`. `null` when the write failed. */
+  /**
+   * Ticks a set, its empty cells adopting `ghosts`, and starts the Rest after it when `restSeconds`
+   * is given, in one write. `null` when the write failed.
+   */
   const tick = useCallback(
-    (setId: string, ghosts: Ghosts) =>
-      write<TickResult | null>((db) => tickSet(db, setId, ghosts, writeScope), null),
-    [write, writeScope],
-  );
-
-  /** Starts the Rest after a set, replacing a running one. */
-  const beginRest = useCallback(
-    (sessionId: string, setId: string, seconds: number) =>
-      write((db) => startRest(db, sessionId, setId, seconds, writeScope), null),
+    (setId: string, ghosts: Ghosts, restSeconds: number | null = null) =>
+      write<TickResult | null>((db) => tickSet(db, setId, ghosts, writeScope, restSeconds), null),
     [write, writeScope],
   );
 
@@ -199,7 +194,6 @@ export function useSessionActions() {
 
   return {
     tick,
-    beginRest,
     nudgeRest,
     skipRest,
     untick,

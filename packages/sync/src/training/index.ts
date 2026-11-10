@@ -84,6 +84,7 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseHistory,
+  watchExerciseHistories,
   watchProgram,
   watchPrograms,
   watchSession,
@@ -121,6 +122,7 @@ export {
   SessionLimitError,
   type DeletedSession,
   type SessionExerciseRow,
+  type RestTimes,
   type SessionRow,
   type SessionSetRow,
 } from "./session-common";
@@ -138,7 +140,6 @@ export {
   takeOver,
   type FinishInput,
   type FinishResult,
-  type RestTimes,
   type SessionSource,
 } from "./session-store";
 export {

@@ -15,6 +15,8 @@ import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
   EXERCISE_HISTORY_SQL,
+  exerciseHistoriesSql,
+  parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
   parseActiveSessions,
@@ -384,12 +386,20 @@ function watch(
   onError: (error: Error) => void,
 ): () => void {
   const controller = new AbortController();
+  // A write to any watched table re-runs the query. Most of those leave this result as it was
+  // (a tick in the active Session never changes an exercise's finished history), and passing
+  // an equal result on re-renders every screen that reads it, so only a changed result is passed.
+  let last: string | null = null;
   database.watchWithCallback(
     sql,
     params,
     {
       onResult: (result) => {
-        if (!controller.signal.aborted) onRows(result.array);
+        if (controller.signal.aborted) return;
+        const key = JSON.stringify(result.array);
+        if (key === last) return;
+        last = key;
+        onRows(result.array);
       },
       onError: (error) => {
         if (!controller.signal.aborted) onError(error);
@@ -610,6 +620,37 @@ export function watchExerciseHistory(
     [exerciseId, exerciseId],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onHistory, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/**
+ * {@link watchExerciseHistory} for several exercises at once, in one query: each id maps to its
+ * finished Sessions, and an id with none maps to an empty list.
+ */
+export function watchExerciseHistories(
+  database: TrainingDatabase,
+  exerciseIds: readonly string[],
+  handlers: {
+    onHistories: (histories: Map<string, FinishedSession[]>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  const ids = [...new Set(exerciseIds)];
+  if (ids.length === 0) {
+    handlers.onHistories(new Map());
+    return () => undefined;
+  }
+  const withEmpty = (rows: readonly object[]) => {
+    const found = parseExerciseHistories(rows);
+    return new Map(ids.map((id) => [id, found.get(id) ?? []]));
+  };
+  return watch(
+    database,
+    exerciseHistoriesSql(ids.length),
+    [...ids, ...ids],
+    SESSION_TABLES,
+    parsing(withEmpty, { onResult: handlers.onHistories, onError: handlers.onError }),
     handlers.onError,
   );
 }

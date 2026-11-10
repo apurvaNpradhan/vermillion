@@ -17,8 +17,10 @@ import {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  exerciseHistoriesSql,
   parseActiveSessions,
   parseEquipment,
+  parseExerciseHistories,
   parseFinishedSessions,
   parseSessionDetail,
 } from "./session-watch";
@@ -148,6 +150,24 @@ describe("one Session", () => {
 });
 
 describe("exercise history and ranges", () => {
+  it("reads several exercises' histories in one query, each as its own query would", async () => {
+    const s = await setupSessions();
+    await finishedSquat(s, daysAgo(20), [100]);
+    await finishedSquat(s, daysAgo(3), [110]);
+    const other = await startSession(s.training, { workoutId: null, derivedTitle });
+    const [plank] = await addSessionExercises(s.training, other, [PLANK, SQUAT]);
+    await tickSet(s.training, String(s.sets(plank ?? "")[0]?.["id"]), { duration: 30 });
+    await finishSession(s.training, other);
+
+    const one = (id: string) =>
+      parseFinishedSessions(s.sqlite.prepare(EXERCISE_HISTORY_SQL).all(id, id));
+    const both = parseExerciseHistories(
+      s.sqlite.prepare(exerciseHistoriesSql(2)).all(SQUAT, PLANK, SQUAT, PLANK),
+    );
+    expect(both.get(SQUAT)).toEqual(one(SQUAT));
+    expect(both.get(PLANK)).toEqual(one(PLANK));
+  });
+
   it("lists the finished Sessions of an exercise with their ticked sets, newest first", async () => {
     const s = await setupSessions();
     const oldest = await finishedSquat(s, daysAgo(20), [100, 105]);

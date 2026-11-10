@@ -473,6 +473,24 @@ describe("Rest", () => {
     expect(s.one("training_session", t.id)).toMatchObject({ rest_started_at: null });
   });
 
+  it("starts with a tick in the same write, and not when the tick is refused", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    const refused = await tickSet(s.training, t.work1, {}, undefined, 90);
+    expect(refused.ok).toBe(false);
+    expect(s.one("training_session", t.id)).toMatchObject({ rest_set_id: null });
+    const ticked = await tickSet(s.training, t.work1, { weight: 100, reps: 5 }, undefined, 90);
+    if (!ticked.ok) throw new Error("expected a tick");
+    expect(Date.parse(ticked.rest?.endsAt ?? "") - Date.parse(ticked.rest?.startedAt ?? "")).toBe(
+      90_000,
+    );
+    expect(s.one("training_session", t.id)).toMatchObject({
+      rest_set_id: t.work1,
+      rest_ends_at: ticked.rest?.endsAt,
+    });
+    await expect(tickSet(s.training, t.work2, {}, undefined, 601)).rejects.toThrow("1 to 600");
+  });
+
   it("refuses a length outside 1 to 600 seconds and a set of another Session", async () => {
     const s = await setupSessions();
     const t = await started(s);

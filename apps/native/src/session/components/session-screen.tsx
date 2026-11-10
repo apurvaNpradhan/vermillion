@@ -48,6 +48,7 @@ import { useSessionActions } from "../use-session-actions";
 import { useInstallId } from "../use-install-id";
 import { useKeypadAccessory } from "../keypad-accessory";
 import { useLoggingState } from "../use-logging-state";
+import { useOptimisticSession } from "../use-optimistic-session";
 import { usePreviousSets } from "../use-previous-sets";
 import { restBelongsTo } from "../rest-rules";
 import { useRestRunning } from "../use-rest-running";
@@ -117,13 +118,14 @@ type Sheet =
   | { kind: "effort"; setId: string };
 
 function LoadedSession({
-  session,
+  session: stored,
   onMinimise,
   onFinished,
 }: SessionScreenProps & { session: SessionDetail }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
-  const actions = useSessionActions();
+  // Ticks and Rest changes show at once; the database's watch catches up a moment later.
+  const { session, actions } = useOptimisticSession(stored, useSessionActions());
   const { preferences } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const effortScale = preferences.ui.effortScale;

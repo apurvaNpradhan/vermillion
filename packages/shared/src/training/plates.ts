@@ -45,7 +45,11 @@ export function loadBar(
       for (let count = 1; count <= max; count++) {
         added.push(plate);
         const total = sum + pair * count;
-        if (!next.has(total)) next.set(total, [...used, ...added]);
+        // Sums are visited smallest first, so the first way to reach a total can be a pile of
+        // small plates: keep the better of the two (fewest plates, then the larger ones).
+        const candidate = [...used, ...added];
+        const existing = next.get(total);
+        if (!existing || fewerOrLarger(candidate, existing)) next.set(total, candidate);
       }
     }
     sums = next;
@@ -60,4 +64,14 @@ export function loadBar(
   }
   const chosen = below ?? above ?? { totalKg: bar.weightKg, platesPerSide: [] };
   return { ...chosen, exact: Math.abs(chosen.totalKg - targetKg) < EPSILON, below, above };
+}
+
+/** Whether `a` loads a side with fewer plates than `b`, or as many but larger ones first. */
+function fewerOrLarger(a: readonly LoadPlate[], b: readonly LoadPlate[]): boolean {
+  if (a.length !== b.length) return a.length < b.length;
+  for (let index = 0; index < a.length; index++) {
+    const diff = (a[index]?.weightKg ?? 0) - (b[index]?.weightKg ?? 0);
+    if (diff !== 0) return diff > 0;
+  }
+  return false;
 }
