@@ -19,3 +19,5 @@ export { formatEffortRange } from "./effort";
 export { useTrainingWrite } from "./use-training-write";
 export { SupersetBracket } from "./components/workout-exercise-row";
 export { useCoalescedWriter } from "./use-coalesced-writer";
+export { useWorkout } from "./use-workout";
+export { useWorkouts } from "./use-workouts";

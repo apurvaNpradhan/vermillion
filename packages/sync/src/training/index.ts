@@ -169,3 +169,4 @@ export {
   type EquipmentItem,
   type ExerciseSettingPatch,
 } from "./equipment-store";
+export { editFinishedSession, applySessionWorkout } from "./session-workout-store";

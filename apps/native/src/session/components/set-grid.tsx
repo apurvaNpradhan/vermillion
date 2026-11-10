@@ -98,6 +98,7 @@ export function SetGrid({
         {exercise.sets.map((set, index) => (
           <View key={set.id} ref={registerRow(set.id)} collapsable={false}>
             <SetRow
+              editingFinished={logging.editingFinished}
               set={set}
               type={exercise.type}
               badge={badges[index] ?? String(index + 1)}

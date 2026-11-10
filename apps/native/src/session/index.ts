@@ -5,3 +5,6 @@ export { ForgottenSessionHost } from "./components/forgotten-session-host";
 export { useStartSession } from "./use-start-session";
 export { RestNotificationHost } from "./components/rest-notification-host";
 export { useSessionSettings } from "./use-session-settings";
+export { HistoryScreen } from "./components/history-screen";
+export { SessionDetailScreen } from "./components/session-detail-screen";
+export { LogPastScreen } from "./components/log-past-screen";

@@ -1,5 +1,12 @@
 import { Tabs } from "expo-router";
-import { Barbell, Books, GearSix, SunHorizon, type IconProps } from "phosphor-react-native";
+import {
+  Barbell,
+  ClockCounterClockwise,
+  Books,
+  GearSix,
+  SunHorizon,
+  type IconProps,
+} from "phosphor-react-native";
 import type { ComponentType } from "react";
 import { Dimensions, Easing, type ColorValue } from "react-native";
 
@@ -98,6 +105,10 @@ export default function AppLayout() {
         <Tabs.Screen
           name="exercises"
           options={{ title: t("exercise__title"), tabBarIcon: tabIcon(Books) }}
+        />
+        <Tabs.Screen
+          name="history"
+          options={{ title: t("session__history"), tabBarIcon: tabIcon(ClockCounterClockwise) }}
         />
         <Tabs.Screen
           name="settings"

@@ -33,6 +33,7 @@ export type ActiveEntry = { cell: CellRef; text: string };
 export type Refusal = { setId: string; fields: readonly SetField[]; nonce: number };
 
 export type SetRowProps = {
+  editingFinished: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
   /** Number or letter on the badge. */
@@ -148,7 +149,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
             <LiveTimer startedAt={set.timerStartedAt} target={target} />
           ) : undefined}
         </SetCell>
-        {field === "duration" && !ticked && !readOnly ? (
+        {field === "duration" && !props.editingFinished && !ticked && !readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(
@@ -243,17 +244,19 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: ticked }}
-        accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
-        disabled={readOnly}
-        onPress={() => props.onTick(set.id)}
-        hitSlop={4}
-        className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-identity" : "bg-field"}`}
-      >
-        <Check size={18} weight="bold" color={ticked ? onIdentity : subtle} />
-      </Pressable>
+      {props.editingFinished ? null : (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: ticked }}
+          accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
+          disabled={readOnly}
+          onPress={() => props.onTick(set.id)}
+          hitSlop={4}
+          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-identity" : "bg-field"}`}
+        >
+          <Check size={18} weight="bold" color={ticked ? onIdentity : subtle} />
+        </Pressable>
+      )}
     </View>
   );
 

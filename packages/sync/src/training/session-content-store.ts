@@ -407,7 +407,17 @@ export async function updateSet(
     if (Object.keys(changes).length === 0) return false;
     const parent = await requireSessionExercise(tx, current.session_exercise_id);
     checkedSet(current, parent.exercise_type, changes);
-    await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
+    const owner = await requireSession(tx, parent.session_id);
+    const filled = tickValues({ ...current, ...changes }, {}, SET_FIELDS[parent.exercise_type]);
+    await tx
+      .update(sessionSet)
+      .set({
+        ...changes,
+        ...(owner.finished_at !== null && current.completed_at === null && filled.ok
+          ? { completed_at: nowIso() }
+          : {}),
+      })
+      .where(eq(sessionSet.id, id));
     return true;
   });
 }

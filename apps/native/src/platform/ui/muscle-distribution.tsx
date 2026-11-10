@@ -4,6 +4,8 @@ import {
   type DistributionExercise,
   type LoggedSet,
 } from "@workspace/shared";
+import { useState } from "react";
+import { Button } from "./button";
 import { Text, View } from "react-native";
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
 import { useTranslation } from "@/platform/i18n";
@@ -12,11 +14,14 @@ import { useTranslation } from "@/platform/i18n";
 export function MuscleDistribution({
   sets,
   exercises,
+  preview = false,
 }: {
+  preview?: boolean;
   sets: readonly LoggedSet[];
   exercises: readonly DistributionExercise[];
 }) {
   const { t, i18n } = useTranslation();
+  const [showAll, setShowAll] = useState(false);
   const loads = muscleDistribution(sets, exercises);
   const max = loads[0]?.sets ?? 0;
   const intensity: Partial<Record<BodyGroup, number>> = {};
@@ -31,7 +36,7 @@ export function MuscleDistribution({
       <Text className="text-caption text-muted">
         {t("exercise__muscle_scale", { value: new Intl.NumberFormat(i18n.language).format(max) })}
       </Text>
-      {loads.map((load) => (
+      {(preview && !showAll ? loads.slice(0, 3) : loads).map((load) => (
         <View key={load.muscle} className="gap-1">
           <View className="flex-row justify-between">
             <Text className="text-body text-foreground">{t(MUSCLE_GROUP_KEYS[load.muscle])}</Text>
@@ -49,6 +54,11 @@ export function MuscleDistribution({
           </View>
         </View>
       ))}
+      {preview && !showAll && loads.length > 3 ? (
+        <Button variant="ghost" onPress={() => setShowAll(true)}>
+          <Button.Label>{t("session__show_all_muscles")}</Button.Label>
+        </Button>
+      ) : null}
     </View>
   );
 }

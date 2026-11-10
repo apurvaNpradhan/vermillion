@@ -5,7 +5,7 @@ export type WorkoutState =
   | { status: "loading" }
   | { status: "ready"; workout: WorkoutDetail }
   | { status: "missing" }
-  | { status: "error" };
+  | { status: "error"; retry: () => void };
 export function useWorkout(id: string): WorkoutState {
   const subscribe = useCallback(
     (
@@ -16,7 +16,7 @@ export function useWorkout(id: string): WorkoutState {
     [id],
   );
   const state = useLocalWatch(subscribe);
-  if (state.failed) return { status: "error" };
+  if (state.failed) return { status: "error", retry: state.retry };
   if (state.loading || state.value === undefined) return { status: "loading" };
   return state.value === null ? { status: "missing" } : { status: "ready", workout: state.value };
 }

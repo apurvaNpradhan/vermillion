@@ -1,3 +1,5 @@
+import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
+import { SheetShell } from "./sheet-shell";
 import {
   MUSCLE_GROUP_KEYS,
   SESSION_LIMITS,
@@ -140,7 +142,7 @@ function LoadedSession({
   useEffect(() => {
     if (mine) hadIt.current = true;
   }, [mine]);
-  const readOnly = !mine || session.finishedAt !== null;
+  const readOnly = session.finishedAt === null && !mine;
 
   const exerciseIds = useMemo(
     () => session.exercises.map((entry) => entry.exerciseId),
@@ -219,6 +221,7 @@ function LoadedSession({
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
+  const [musclesOpen, setMusclesOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const closeSheet = useCallback(() => setSheet(null), []);
 
@@ -228,13 +231,12 @@ function LoadedSession({
 
   const finish = async () => {
     logging.flush();
-    if (ticked === 0) {
+    if (ticked === 0 && session.finishedAt === null) {
       // Nothing was logged: a finished empty Session would only be clutter, so it is discarded.
       if (await actions.discard(session.id, title)) onMinimise();
       return;
     }
-    const result = await actions.finish(session.id, {});
-    if (result) onFinished(session.id);
+    onFinished(session.id);
   };
 
   const addExercises = async () => {
@@ -371,7 +373,31 @@ function LoadedSession({
 
   return (
     <View className="flex-1 bg-background">
+      <SheetShell
+        isOpen={musclesOpen}
+        onOpenChange={setMusclesOpen}
+        title={t("exercise__muscle_distribution")}
+      >
+        <ScrollView>
+          <MuscleDistribution
+            sets={loggedSetsOf(session)}
+            exercises={session.exercises.flatMap((entry) =>
+              entry.exercise
+                ? [
+                    {
+                      id: entry.exerciseId,
+                      primary_muscle: entry.exercise.primaryMuscle,
+                      secondary_muscles: entry.exercise.secondaryMuscles,
+                    },
+                  ]
+                : [],
+            )}
+          />
+        </ScrollView>
+      </SheetShell>
       <SessionHeader
+        finished={session.finishedAt !== null}
+        onMuscles={() => setMusclesOpen(true)}
         title={title}
         startedAt={session.startedAt}
         volume={volume}
@@ -394,7 +420,7 @@ function LoadedSession({
           onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
           contentContainerStyle={{ paddingBottom: bottom + 32 }}
         >
-          {mine || installId === null ? null : (
+          {mine || installId === null || session.finishedAt !== null ? null : (
             <OwnershipBanner
               lost={hadIt.current}
               onTakeOver={() => void actions.takeOver(session.id)}

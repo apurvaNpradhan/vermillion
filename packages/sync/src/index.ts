@@ -234,3 +234,4 @@ export type {
   WorkoutPatch,
   WorkoutRow,
 } from "./training";
+export { editFinishedSession, applySessionWorkout } from "./training";

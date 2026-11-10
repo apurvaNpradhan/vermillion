@@ -140,14 +140,17 @@ const listRowSchema = z.object({
   exercise_id: z.string().nullable(),
 });
 
-export const WORKOUT_LIST_SQL = `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
+const workoutListSql = (
+  includeProgramWorkouts: boolean,
+) => `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
-  WHERE w.program_id IS NULL
+  ${includeProgramWorkouts ? "" : "WHERE w.program_id IS NULL"}
   ORDER BY w.created_at DESC, w.id DESC, we.position, we.id`;
+export const WORKOUT_LIST_SQL = workoutListSql(false);
 
 /** Groups the joined rows of {@link WORKOUT_LIST_SQL} into Workouts, in row order. */
 export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
@@ -434,10 +437,11 @@ function parsing<T>(
 export function watchWorkouts(
   database: TrainingDatabase,
   handlers: { onWorkouts: (workouts: WorkoutSummary[]) => void; onError: (error: Error) => void },
+  options: { includeProgramWorkouts?: boolean } = {},
 ): () => void {
   return watch(
     database,
-    WORKOUT_LIST_SQL,
+    workoutListSql(options.includeProgramWorkouts ?? false),
     [],
     WORKOUT_TABLES,
     parsing(parseWorkoutList, { onResult: handlers.onWorkouts, onError: handlers.onError }),

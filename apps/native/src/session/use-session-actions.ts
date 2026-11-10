@@ -172,7 +172,6 @@ export function useSessionActions() {
     (id: string, input: FinishInput = {}) =>
       write<FinishResult | null>(async (db) => {
         const result = await finishSession(db, id, input, writeScope);
-        haptic.success();
         return result;
       }, null),
     [write, writeScope],

@@ -78,6 +78,35 @@ The Android device was unavailable while the Sessions slices were built. Before 
 - [ ] Edit an old Session; its Records and the exercise page update.
 - [ ] Delete a Session and Undo.
 
+No Android device was available during implementation. Perform these checks on a dev client:
+
+- [ ] Finish with unticked sets. Review their count, edit title/note/start/duration, save, and verify
+      that only completed exercises/sets remain in History.
+- [ ] Finish unchanged, with both Workout toggles off, structure only, targets only, and both on.
+      Verify rep/effort ranges remain unchanged and only the requested changes reach the Workout.
+- [ ] Add/remove/replace/reorder exercises and change set counts/kinds. Check the readable diff.
+- [ ] Delete the source Workout on another device while logging and while on Update Workout.
+      Save as new Workout, and verify the Session still retains its original source snapshot.
+- [ ] Check Celebration Record labels against exercise Records, the success haptic, native Share
+      as text, and Done returning to the tabs. Cancel sharing and retry.
+- [ ] Open /history through the switcher and through Home's See all. Open a row at /history/[id].
+      Verify local date/time, ISO Monday weeks, weekly sessions/sets/volume and top-three exercises.
+- [ ] Change the account timezone near Sunday/Monday and a DST transition. Verify grouping changes.
+- [ ] Open Session detail. Check source navigation, stats, warm-up/drop/failure badges, effort,
+      notes, Record labels, muscle map, top-three bars, and Show all muscles.
+- [ ] Edit a finished Session from its menu. Verify there is no running clock, set timer or tick
+      control. Edit actuals, add sets/exercises, then Done to edit date/duration and save.
+- [ ] Change an old Session's weight/date and delete it. Verify later Records recompute.
+- [ ] Delete from the detail menu, Undo the toast, reopen and verify exercises/sets are restored.
+- [ ] Save as new Workout from detail with the source present and absent. Verify it creates a
+      separate standalone Workout and never changes the original.
+- [ ] Log past workout from History, choosing a Workout and starting empty. Enter a zoned date,
+      fill required actuals directly, set duration on Done, and verify the derived finish time.
+- [ ] Reject a future/over-ten-year start and a duration over 24 hours. Preserve edits after errors.
+- [ ] Open the logging header's Muscles sheet. Verify counted sets only, map plus ranked bars.
+- [ ] Repeat offline, after restart, with large text and keyboard open. Check safe-area clearance,
+      back navigation, failed local writes, missing Session and retry after a load failure.
+
 ## Slice 5: records, charts, exercise page, preview
 
 - [ ] Exercise page hero runs under the header; the header fades in on scroll; the camera cutout overlaps only the image.

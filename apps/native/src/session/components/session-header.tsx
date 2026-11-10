@@ -25,6 +25,8 @@ function Clock({ startedAt, frozen }: { startedAt: string; frozen: boolean }) {
  * counted sets, and Finish. The muscle-distribution icon joins in a later slice.
  */
 export function SessionHeader({
+  finished,
+  onMuscles,
   title,
   startedAt,
   volume,
@@ -33,6 +35,8 @@ export function SessionHeader({
   onMinimise,
   onFinish,
 }: {
+  finished: boolean;
+  onMuscles: () => void;
   title: string;
   startedAt: string;
   /** Volume with its unit, "4,250 kg". */
@@ -68,7 +72,7 @@ export function SessionHeader({
           {title}
         </Text>
         <View className="flex-row items-center gap-2">
-          <Clock startedAt={startedAt} frozen={readOnly} />
+          {finished ? null : <Clock startedAt={startedAt} frozen={readOnly} />}
           <Text className="text-label text-muted">·</Text>
           <Text
             numberOfLines={1}
@@ -79,9 +83,16 @@ export function SessionHeader({
           </Text>
         </View>
       </View>
+      <Button
+        variant="ghost"
+        onPress={onMuscles}
+        accessibilityLabel={t("exercise__muscle_distribution")}
+      >
+        <Button.Label>{t("session__muscles")}</Button.Label>
+      </Button>
       {readOnly ? null : (
         <Button variant="primary" className="rounded-full" onPress={onFinish}>
-          <Button.Label>{t("session__finish")}</Button.Label>
+          <Button.Label>{t(finished ? "session__done" : "session__finish")}</Button.Label>
         </Button>
       )}
     </View>

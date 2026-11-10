@@ -335,7 +335,9 @@ export function useLoggingState({
       const at = found.get(setId);
       if (!at) return false;
       const block = blockOfSet(setId);
-      const seconds = block ? restAfterTick(block, at.exercise.id, setId) : null;
+      // A finished Session being edited has no timers.
+      const seconds =
+        block && session.finishedAt === null ? restAfterTick(block, at.exercise.id, setId) : null;
       const result = await actions.tick(setId, ghosts, seconds);
       if (!result) return false;
       if (!result.ok) {
@@ -387,7 +389,7 @@ export function useLoggingState({
   const onTimer = useCallback(
     async (setId: string) => {
       const at = found.get(setId);
-      if (!at || readOnly || at.set.completedAt !== null) return;
+      if (!at || readOnly || session.finishedAt !== null || at.set.completedAt !== null) return;
       flush();
       setEntry(null);
       if (at.set.timerStartedAt === null) {
@@ -507,6 +509,7 @@ export function useLoggingState({
     onNext,
     refusal,
     onTick,
+    editingFinished: session.finishedAt !== null,
     onTimer,
     onPrevious,
     onKindSelected,
