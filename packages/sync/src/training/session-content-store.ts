@@ -2,6 +2,10 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   actualValuesSchema,
+  planLeaveSuperset,
+  planSupersetRepair,
+  planSupersetWithNext,
+  sessionExerciseInput,
   defaultPlannedSets,
   defaultRestSeconds,
   planSupersetAfterMove,
@@ -186,6 +190,84 @@ export function moveSessionExercise(
     const rowsAfter = await sessionSupersetRowsOf(tx, current.session_id);
     await applySessionSupersetChanges(tx, planSupersetAfterMove(rowsBefore, rowsAfter, id));
     return true;
+  });
+}
+
+const exercisePatchSchema = z
+  .strictObject({
+    note: sessionExerciseInput.shape.note,
+    rest_seconds: sessionExerciseInput.shape.rest_seconds,
+    log_effort: sessionExerciseInput.shape.log_effort,
+  })
+  .partial();
+/** What the user edits on a Session exercise: the pinned note, the rest, the effort column. */
+export type SessionExercisePatch = z.infer<typeof exercisePatchSchema>;
+
+/**
+ * Changes only the fields that differ: the exercise's note, its rest (`null` or 0 is off) and
+ * whether the effort column shows. A rest edit repairs supersets (only the last member holds it).
+ * Returns whether it wrote.
+ */
+export async function updateSessionExercise(
+  database: TrainingDatabase,
+  id: string,
+  patch: SessionExercisePatch,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  const fields = exercisePatchSchema.parse(patch);
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(sessionExercise)
+      .where(eq(sessionExercise.id, id))
+      .limit(1);
+    if (!current) return false;
+    const changes = changedFields(current, fields);
+    if (Object.keys(changes).length === 0) return false;
+    await tx.update(sessionExercise).set(changes).where(eq(sessionExercise.id, id));
+    if ("rest_seconds" in changes) {
+      await applySessionSupersetChanges(
+        tx,
+        planSupersetRepair(await sessionSupersetRowsOf(tx, current.session_id)),
+      );
+    }
+    return true;
+  });
+}
+
+/**
+ * "Superset with next": the exercise and the one after it share a group, as in the editor. Rest
+ * stays on the last member. Returns whether it wrote.
+ */
+export function supersetSessionWithNext(
+  database: TrainingDatabase,
+  id: string,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const current = await requireSessionExercise(tx, id);
+    const rows = await sessionSupersetRowsOf(tx, current.session_id);
+    const changes = planSupersetWithNext(rows, id, uuidv7());
+    await applySessionSupersetChanges(tx, changes);
+    return changes.length > 0;
+  });
+}
+
+/**
+ * "Remove from superset": the exercise leaves its group, which is cleared when one member is
+ * left; whoever ends up alone or last keeps the group's rest. Returns whether it wrote.
+ */
+export function leaveSessionSuperset(
+  database: TrainingDatabase,
+  id: string,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const current = await requireSessionExercise(tx, id);
+    const rows = await sessionSupersetRowsOf(tx, current.session_id);
+    const changes = planLeaveSuperset(rows, id);
+    await applySessionSupersetChanges(tx, changes);
+    return changes.length > 0;
   });
 }
 

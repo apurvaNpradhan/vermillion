@@ -125,6 +125,9 @@ async function createSessionIn(
   }
 }
 
+/** A fresh Session id (UUIDv7, as the server requires); pass it to {@link startSession} to make starting idempotent. */
+export const newSessionId = (): string => uuidv7();
+
 const hasEffortTarget = (set: PlannedSet) => set.effort_min !== undefined;
 
 /**
@@ -265,6 +268,25 @@ export function finishSession(
 
     await tx.update(session).set(parsed).where(eq(session.id, id));
     return { finished: true, droppedSets: unticked.length, droppedExercises: empty.length };
+  });
+}
+
+/**
+ * Renames a Session that still has a derived title (it has not been renamed by the user); the
+ * title stays derived. Returns whether it wrote. A renamed Session is left alone.
+ */
+export function setDerivedTitle(
+  database: TrainingDatabase,
+  id: string,
+  title: string,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const parsed = sessionInput.shape.title.parse(title);
+    const current = await requireSession(tx, id);
+    if (!current.title_derived || current.title === parsed) return false;
+    await tx.update(session).set({ title: parsed }).where(eq(session.id, id));
+    return true;
   });
 }
 
