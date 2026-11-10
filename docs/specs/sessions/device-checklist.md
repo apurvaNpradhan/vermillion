@@ -14,6 +14,24 @@ file leaves the Session screen frozen until the app restarts.
 
 The Android device was unavailable while the Sessions slices were built. Before calling them done, run every item below on a device with a dev-client build that includes `expo-notifications` and `expo-keep-awake` (rebuild first). Tick an item only after you have seen it on the device; note failures inline.
 
+### Open after the device run (slices 4 and 7 merged)
+
+- Session: Previous and Ghost values load several seconds after the screen opens; a tick before
+  then adopts the plan's target (35 kg) instead of last time's 46 kg. Hold ticks or show loading.
+- Home: "Resume …" button duplicates the Resume bar; "1 sessions" (no plural; also in History week
+  headers); This week is a run-on sentence; the 8-week chart shows 3M/1Y/All chips and ISO dates;
+  "Muscles this week" and "Muscle distribution" headings stack; all muscles listed (no top 3 +
+  Show all); Recent sessions are bare title buttons without date or numbers.
+- Session detail: effort shows "RPE 8" for a user on RIR; sets read "Working · 60 kg × 5" with no
+  numbers, W/D/F badges or Record badges; source Workout is plain centred text; stats are one
+  plain line; the menu button looks disabled.
+- History: Back from a detail opened via the switcher returns to Home, not the list.
+- Train: Program row menu lacks Set as active / Stop (only on the Program page); Cycle dots are
+  tiny "○1 ○2" text with no workout initials.
+- Manage equipment switches show the thumb on the left in both states; Settings sections have
+  large gaps; Discard in "Nothing logged" is not styled as destructive; the rest notification
+  icon is a placeholder.
+
 ## Slice 2: logging screen
 
 - [x] Start a Workout from its menu; the Session opens on the first exercise, expanded.
