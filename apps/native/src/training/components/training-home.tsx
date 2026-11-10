@@ -1,5 +1,5 @@
 import { KG_PER_LB, muscleDistribution } from "@workspace/shared";
-import { useRouter, type Href } from "expo-router";
+import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -9,11 +9,6 @@ import { useActiveSessions, useStartSession } from "@/session";
 import { useHomeTraining } from "../use-home-training";
 import { ActiveProgramCard } from "./active-program-card";
 
-/** History routes are supplied by Sessions slice 4, developed alongside this slice. */
-function historyRoute(id?: string) {
-  // SAFETY: both paths are owned by slice 4; no arbitrary user URL is accepted.
-  return (id ? `/history/${id}` : "/history") as Href;
-}
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -84,11 +79,15 @@ export function TrainingHome() {
         <View className="gap-2">
           <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
           {state.sessions.slice(0, 3).map((s) => (
-            <Button key={s.id} variant="secondary" onPress={() => router.push(historyRoute(s.id))}>
+            <Button
+              key={s.id}
+              variant="secondary"
+              onPress={() => router.push({ pathname: "/history/[id]", params: { id: s.id } })}
+            >
               <Button.Label>{s.title}</Button.Label>
             </Button>
           ))}
-          <Button variant="tertiary" onPress={() => router.push(historyRoute())}>
+          <Button variant="tertiary" onPress={() => router.push("/history")}>
             <Button.Label>{t("home__see_all")}</Button.Label>
           </Button>
         </View>
