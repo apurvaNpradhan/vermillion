@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { SignOut, Trash, UserCircle } from "phosphor-react-native";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 
 import { useSignOut } from "@/auth";
 import { appConfig } from "@/platform/app-config";
@@ -24,37 +24,45 @@ export function SettingsScreen() {
   const sessionSettings = useSessionSettings();
 
   return (
-    <ScrollPage title={t("settings__title")}>
+    <>
       <ConfirmationDialog {...confirmationProps} />
-      <SyncBanner />
-      <PreferenceRows />
-      <TrainingPreferenceRows extraRows={sessionSettings.rows} />
       {sessionSettings.sheets}
-      <ListSection title={t("settings__section_account")}>
-        <ListRow
-          icon={UserCircle}
-          title={t("settings__nav_profile")}
-          onPress={() => router.push("/settings/profile")}
-        />
-      </ListSection>
-      <ListSection>
-        <ListRow
-          icon={SignOut}
-          title={t("nav__sign_out")}
-          accessory="none"
-          disabled={signOut.isPending}
-          onPress={() => void requestSignOut()}
-        />
-        <ListRow
-          icon={Trash}
-          title={t("settings__delete_title")}
-          tone="danger"
-          onPress={() => router.push("/settings/delete-account")}
-        />
-      </ListSection>
-      <Text className="text-center text-caption text-muted">
-        {t("settings__version", { name: appConfig.displayName, version: appConfig.version })}
-      </Text>
-    </ScrollPage>
+      <ScrollPage title={t("settings__title")}>
+        <View>
+          <SyncBanner />
+        </View>
+        <View>
+          <PreferenceRows />
+        </View>
+        <View>
+          <TrainingPreferenceRows extraRows={sessionSettings.rows} />
+        </View>
+        <ListSection title={t("settings__section_account")}>
+          <ListRow
+            icon={UserCircle}
+            title={t("settings__nav_profile")}
+            onPress={() => router.push("/settings/profile")}
+          />
+        </ListSection>
+        <ListSection>
+          <ListRow
+            icon={SignOut}
+            title={t("nav__sign_out")}
+            accessory="none"
+            disabled={signOut.isPending}
+            onPress={() => void requestSignOut()}
+          />
+          <ListRow
+            icon={Trash}
+            title={t("settings__delete_title")}
+            tone="danger"
+            onPress={() => router.push("/settings/delete-account")}
+          />
+        </ListSection>
+        <Text className="text-center text-caption text-muted">
+          {t("settings__version", { name: appConfig.displayName, version: appConfig.version })}
+        </Text>
+      </ScrollPage>
+    </>
   );
 }

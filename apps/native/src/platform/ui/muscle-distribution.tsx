@@ -15,8 +15,10 @@ export function MuscleDistribution({
   sets,
   exercises,
   preview = false,
+  title,
 }: {
   preview?: boolean;
+  title?: string;
   sets: readonly LoggedSet[];
   exercises: readonly DistributionExercise[];
 }) {
@@ -30,7 +32,7 @@ export function MuscleDistribution({
   return (
     <View className="gap-3">
       <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
-        {t("exercise__muscle_distribution")}
+        {title ?? t("exercise__muscle_distribution")}
       </Text>
       <BodyMapPair intensity={intensity} />
       <Text className="text-caption text-muted">

@@ -1,12 +1,13 @@
 import type { ProgramSummary } from "@workspace/sync";
 import { Image } from "expo-image";
-import { Copy, Trash } from "phosphor-react-native";
+import { Copy, Trash, Play, Stop } from "phosphor-react-native";
 import { memo, useMemo, useState, type ComponentProps } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
+import { useActiveProgram } from "../use-active-program";
 import { rotationSummary } from "../rotation";
 import { useProgramMeta } from "../use-program-meta";
 import { PlanInitialTile } from "./plan-initial-tile";
@@ -63,10 +64,20 @@ export const ProgramRow = memo(function ProgramRow({
   onDelete: (id: string, title: string) => void;
 }) {
   const { t } = useTranslation();
+  const active = useActiveProgram();
   const meta = useProgramMeta(rotationSummary(program.slots), program.plannedWeeks);
 
   const swipe = useMemo<SwipeAction[]>(
     () => [
+      {
+        key: "active",
+        label: t(active.run?.program_id === program.id ? "run__stop" : "run__set_active"),
+        icon: active.run?.program_id === program.id ? Stop : Play,
+        onPress: () => {
+          if (active.run?.program_id === program.id) void active.stop();
+          else active.activate(program.id);
+        },
+      },
       {
         key: "duplicate",
         label: t("training__duplicate"),
@@ -81,7 +92,7 @@ export const ProgramRow = memo(function ProgramRow({
         onPress: () => onDelete(program.id, program.title),
       },
     ],
-    [t, onDuplicate, onDelete, program],
+    [t, onDuplicate, onDelete, program, active],
   );
 
   return (

@@ -80,8 +80,8 @@ export function HistoryScreen() {
                   </Text>
                   <Text className="text-caption text-muted">
                     {t("session__week_totals", {
-                      sessions: item.sessions.length,
-                      sets: totals.sets,
+                      sessions: t("stats__sessions", { count: item.sessions.length }),
+                      sets: t("stats__sets", { count: totals.sets }),
                       volume: formatVolume(totals.volume, preferences.ui.weightUnit, i18n.language),
                       unit: t(
                         preferences.ui.weightUnit === "kg"

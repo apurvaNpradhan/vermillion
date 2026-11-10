@@ -3,6 +3,8 @@ import { watchSessionsBetween, type FinishedSession, type TrainingDatabase } fro
 import { useCallback } from "react";
 import { z } from "zod";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
+import { useTranslation } from "@/platform/i18n";
+import { formatWeekLabel } from "./week-label";
 import { usePreferences } from "@/preferences";
 
 const subscribe = (
@@ -24,6 +26,7 @@ const exerciseSchema = z.object({
     .pipe(z.array(z.enum(MUSCLE_GROUPS))),
 });
 export function useHomeTraining() {
+  const { i18n } = useTranslation();
   const history = useLocalWatch(subscribe);
   const { preferences } = usePreferences();
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -72,7 +75,7 @@ export function useHomeTraining() {
     );
     return {
       id: String(from),
-      label: formatter.format(new Date(from)),
+      label: formatWeekLabel(from, i18n.language),
       x: from,
       y: preferences.ui.weightUnit === "lb" ? totals.volume / KG_PER_LB : totals.volume,
       items,
@@ -83,6 +86,8 @@ export function useHomeTraining() {
     sessions,
     buckets,
     exercises: muscles.value ?? [],
+    timezone: zone,
+    bodyweightKg: preferences.ui.bodyweightKg,
     weightUnit: preferences.ui.weightUnit,
     loading: history.loading,
     failed: history.failed,

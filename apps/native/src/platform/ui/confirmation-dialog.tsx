@@ -12,7 +12,9 @@ export function ConfirmationDialog({
   cancelLabel,
   confirmLabel,
   onConfirm,
+  destructive = false,
 }: {
+  destructive?: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -40,6 +42,7 @@ export function ConfirmationDialog({
               <Button.Label>{cancelLabel}</Button.Label>
             </Button>
             <Button
+              variant={destructive ? "danger-soft" : "primary"}
               onPress={() => {
                 onOpenChange(false);
                 onConfirm();

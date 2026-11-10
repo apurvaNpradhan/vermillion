@@ -1,7 +1,10 @@
-import { KG_PER_LB, muscleDistribution } from "@workspace/shared";
+import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { ListRow, ListSection } from "@/platform/ui/list";
+import { StatTiles } from "@/platform/ui/stat-tiles";
+import { formatElapsed } from "@/session";
 import { Button } from "@/platform/ui/button";
 import { BarChart } from "@/platform/ui/charts/chart";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
@@ -21,6 +24,16 @@ export function TrainingHome() {
   const hasMuscles = muscleDistribution(weekSets, state.exercises).length > 0;
   const format = (n: number) =>
     new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(n);
+  const delta = (n: number) =>
+    new Intl.NumberFormat(i18n.language, {
+      maximumFractionDigits: 0,
+      signDisplay: "exceptZero",
+    }).format(n);
+  const volumeDelta = (kg: number) =>
+    t("home__volume_value", {
+      value: delta(state.weightUnit === "lb" ? kg / KG_PER_LB : kg),
+      unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
+    });
   const volume = (kg: number) =>
     t("home__volume_value", {
       value: format(state.weightUnit === "lb" ? kg / KG_PER_LB : kg),
@@ -28,15 +41,6 @@ export function TrainingHome() {
     });
   return (
     <View className="gap-5">
-      {active.sessions.map((session) => (
-        <Button
-          key={session.id}
-          variant="secondary"
-          onPress={() => router.push({ pathname: "/session/[id]", params: { id: session.id } })}
-        >
-          <Button.Label>{t("home__resume", { title: session.title })}</Button.Label>
-        </Button>
-      ))}
       <ActiveProgramCard />
       {state.failed ? (
         <Button variant="secondary" onPress={state.retry}>
@@ -54,42 +58,78 @@ export function TrainingHome() {
       {current && last && current.items.length > 0 ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           <Text className="text-title-md font-semibold text-foreground">{t("home__week")}</Text>
-          <Text className="text-body text-muted">
-            {t("home__comparison", {
-              sessions: current.items.length,
-              sets: current.sets,
-              volume: volume(current.volume),
-              lastSessions: last.items.length,
-              lastSets: last.sets,
-              lastVolume: volume(last.volume),
-            })}
-          </Text>
-          <BarChart points={state.buckets} label={t("home__volume")} formatValue={format} />
+          <StatTiles
+            items={[
+              {
+                label: t("stats__sessions"),
+                value: t("stats__sessions", { count: current.items.length }),
+                detail: t("home__delta", {
+                  value: delta(current.items.length - last.items.length),
+                }),
+              },
+              {
+                label: t("stats__sets"),
+                value: t("stats__sets", { count: current.sets }),
+                detail: t("home__delta", { value: delta(current.sets - last.sets) }),
+              },
+              {
+                label: t("stats__volume"),
+                value: volume(current.volume),
+                detail: t("home__delta", { value: volumeDelta(current.volume - last.volume) }),
+              },
+            ]}
+          />
+          <BarChart
+            showRanges={false}
+            points={state.buckets}
+            label={t("home__volume")}
+            formatValue={format}
+          />
           {hasMuscles ? (
             <View className="gap-3">
-              <Text className="text-title-md font-semibold text-foreground">
-                {t("home__muscles")}
-              </Text>
-              <MuscleDistribution sets={weekSets} exercises={state.exercises} />
+              <MuscleDistribution
+                preview
+                title={t("home__muscles")}
+                sets={weekSets}
+                exercises={state.exercises}
+              />
             </View>
           ) : null}
         </View>
       ) : null}
       {state.sessions.length > 0 ? (
         <View className="gap-2">
-          <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
-          {state.sessions.slice(0, 3).map((s) => (
-            <Button
-              key={s.id}
-              variant="secondary"
-              onPress={() => router.push({ pathname: "/history/[id]", params: { id: s.id } })}
-            >
-              <Button.Label>{s.title}</Button.Label>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
+            <Button variant="tertiary" onPress={() => router.push("/history")}>
+              <Button.Label>{t("home__see_all")}</Button.Label>
             </Button>
-          ))}
-          <Button variant="tertiary" onPress={() => router.push("/history")}>
-            <Button.Label>{t("home__see_all")}</Button.Label>
-          </Button>
+          </View>
+          <ListSection>
+            {state.sessions.slice(0, 3).map((s) => {
+              const totals = sessionTotals(s.sets, state.bodyweightKg);
+              return (
+                <ListRow
+                  key={s.id}
+                  title={s.title}
+                  description={t("home__recent_meta", {
+                    date: new Intl.DateTimeFormat(i18n.language, {
+                      dateStyle: "medium",
+                      timeZone: state.timezone,
+                    }).format(new Date(s.started_at)),
+                    duration: formatElapsed(
+                      s.durationS ??
+                        (Date.parse(s.finished_at ?? s.started_at) - Date.parse(s.started_at)) /
+                          1000,
+                    ),
+                    sets: t("stats__sets", { count: totals.sets }),
+                    volume: volume(totals.volume),
+                  })}
+                  onPress={() => router.push({ pathname: "/history/[id]", params: { id: s.id } })}
+                />
+              );
+            })}
+          </ListSection>
         </View>
       ) : null}
       {sheet}

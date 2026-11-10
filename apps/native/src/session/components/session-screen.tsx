@@ -591,6 +591,7 @@ function LoadedSession({
             : t("session__finish_unticked", { count: unticked })
         }
         cancelLabel={t("session__keep_logging")}
+        destructive={ticked === 0}
         confirmLabel={t(ticked === 0 ? "session__discard" : "session__finish")}
         onConfirm={() => void finish()}
       />
@@ -602,6 +603,7 @@ function LoadedSession({
         title={t("session__remove_title", { title: confirmRemove?.title ?? "" })}
         description={t("session__remove_body")}
         cancelLabel={t("session__keep_logging")}
+        destructive
         confirmLabel={t("training__remove")}
         onConfirm={() => {
           if (confirmRemove) void actions.removeExercise(confirmRemove.id);

@@ -24,6 +24,7 @@ import {
 } from "./scales";
 
 type Props = {
+  showRanges?: boolean;
   points: readonly ChartPoint[];
   label: string;
   formatValue: (value: number) => string;
@@ -36,7 +37,13 @@ export function BarChart(props: Props) {
   return <Chart {...props} mode="bar" />;
 }
 
-function Chart({ points, label, formatValue, mode }: Props & { mode: "line" | "bar" }) {
+function Chart({
+  points,
+  label,
+  formatValue,
+  mode,
+  showRanges = true,
+}: Props & { mode: "line" | "bar" }) {
   const { t } = useTranslation();
   const ink = useThemeColor("foreground");
   const border = useThemeColor("border");
@@ -45,7 +52,10 @@ function Chart({ points, label, formatValue, mode }: Props & { mode: "line" | "b
   const [active, setActive] = useState(-1);
   const index = useSharedValue(-1);
   const cursor = useSharedValue(0);
-  const data = useMemo(() => rangePoints(points, range, Date.now()), [points, range]);
+  const data = useMemo(
+    () => (showRanges ? rangePoints(points, range, Date.now()) : points),
+    [points, range, showRanges],
+  );
   const grid = ticks(data.map((p) => p.y));
   const max = grid[grid.length - 1] ?? 1;
   const plotWidth = Math.max(0, width - 16);
@@ -90,34 +100,36 @@ function Chart({ points, label, formatValue, mode }: Props & { mode: "line" | "b
   const shown = data[active] ?? last;
   return (
     <View className="gap-3">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2"
-      >
-        {(["3M", "1Y", "All"] satisfies ChartRange[]).map((value) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={range === value ? "primary" : "tertiary"}
-            accessibilityState={{ selected: range === value }}
-            onPress={() => {
-              setRange(value);
-              setActive(-1);
-            }}
-          >
-            <Button.Label>
-              {t(
-                value === "3M"
-                  ? "charts__three_months"
-                  : value === "1Y"
-                    ? "charts__one_year"
-                    : "charts__all",
-              )}
-            </Button.Label>
-          </Button>
-        ))}
-      </ScrollView>
+      {showRanges ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2"
+        >
+          {(["3M", "1Y", "All"] satisfies ChartRange[]).map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={range === value ? "primary" : "tertiary"}
+              accessibilityState={{ selected: range === value }}
+              onPress={() => {
+                setRange(value);
+                setActive(-1);
+              }}
+            >
+              <Button.Label>
+                {t(
+                  value === "3M"
+                    ? "charts__three_months"
+                    : value === "1Y"
+                      ? "charts__one_year"
+                      : "charts__all",
+                )}
+              </Button.Label>
+            </Button>
+          ))}
+        </ScrollView>
+      ) : null}
       <Text
         accessibilityLiveRegion="polite"
         className="text-body text-foreground"

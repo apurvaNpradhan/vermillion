@@ -1,4 +1,5 @@
-import { useThemeColor } from "heroui-native";
+import type { EquipmentRow } from "@workspace/sync";
+import { Switch } from "heroui-native";
 import { useForm } from "@tanstack/react-form";
 import {
   gymEquipmentInput,
@@ -8,8 +9,8 @@ import {
   type GymEquipmentInput,
 } from "@workspace/shared";
 import { Trash } from "phosphor-react-native";
-import { useState } from "react";
-import { Text, View, Switch } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { Button } from "@/platform/ui/button";
@@ -21,7 +22,7 @@ import { useEquipment } from "./use-plates";
 export function ManageEquipmentScreen() {
   const { t } = useTranslation();
   const state = useEquipment();
-  const [control, foreground, background] = useThemeColor(["default", "foreground", "background"]);
+
   const [kind, setKind] = useState<GymEquipmentInput["kind"] | null>(null);
   return (
     <ScrollPage title={t("plates__manage")}>
@@ -72,17 +73,7 @@ export function ManageEquipmentScreen() {
                               </Text>
                             ) : null}
                           </View>
-                          <Switch
-                            accessibilityLabel={t("plates__item", {
-                              name: item.label ?? "",
-                              weight: formatWeight(item.weightKg, state.unit),
-                              unit: state.unit,
-                            })}
-                            trackColor={{ false: control, true: foreground }}
-                            thumbColor={item.enabled ? background : foreground}
-                            value={item.enabled}
-                            onValueChange={() => void state.toggle(item)}
-                          />
+                          <EquipmentSwitch item={item} unit={state.unit} save={state.save} />
                         </View>
                       )}
                     </SwipeRow>,
@@ -198,5 +189,49 @@ function CustomEquipmentForm({
         {t("plates__cancel")}
       </Button>
     </View>
+  );
+}
+
+function EquipmentSwitch({
+  item,
+  unit,
+  save,
+}: {
+  item: EquipmentRow;
+  unit: GymEquipmentInput["unit"];
+  save: ReturnType<typeof useEquipment>["save"];
+}) {
+  const { t } = useTranslation();
+  const [pending, setPending] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (pending === item.enabled) setPending(null);
+  }, [pending, item.enabled]);
+  const enabled = pending ?? item.enabled;
+  return (
+    <Switch
+      accessibilityLabel={t("plates__item", {
+        name: item.label ?? "",
+        weight: formatWeight(item.weightKg, unit),
+        unit,
+      })}
+      isDisabled={saving}
+      isSelected={enabled}
+      onSelectedChange={async (value) => {
+        setPending(value);
+        setSaving(true);
+        const saved = await save({
+          id: item.id,
+          kind: item.kind,
+          unit: item.unit,
+          weight_kg: item.weightKg,
+          label: item.label,
+          count: item.count,
+          enabled: value,
+        });
+        if (!saved) setPending(null);
+        setSaving(false);
+      }}
+    />
   );
 }

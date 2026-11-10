@@ -1,4 +1,3 @@
-import { SessionRecord } from "./session-record";
 import { SET_KIND_KEYS, recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
@@ -7,6 +6,7 @@ import {
   ShareNetwork,
   Trash,
   FloppyDisk,
+  Trophy,
 } from "phosphor-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -18,7 +18,10 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
-import { useWorkout } from "@/training";
+import { useWorkout, SET_TONES, formatEffortRange } from "@/training";
+import { ListRow } from "@/platform/ui/list";
+import { StatTiles } from "@/platform/ui/stat-tiles";
+import { useThemeColor } from "heroui-native";
 import { formatElapsed } from "../clock";
 import { loggedSetsOf } from "../set-values";
 import { doneSummary, formatVolume } from "../summary";
@@ -29,6 +32,7 @@ import { useSessionHistory } from "../use-session-history";
 
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
+  const ink = useThemeColor("foreground");
   const router = useRouter();
   const state = useSession(id);
   const session = state.status === "ready" ? state.session : null;
@@ -66,7 +70,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
             accessibilityLabel={t("session__menu")}
             onPress={() => setMenu(true)}
           >
-            <DotsThreeVertical />
+            <DotsThreeVertical color={ink} />
           </Button>
         ) : undefined
       }
@@ -96,21 +100,46 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 }).format(new Date(session.startedAt))}
               </Text>
               {source.status === "ready" ? (
-                <Button
-                  variant="ghost"
+                <ListRow
+                  title={t("session__from_workout", {
+                    title: source.workout.title ?? t("training__workout"),
+                  })}
                   onPress={() =>
                     router.push({
                       pathname: "/train/workout/[id]",
                       params: { id: source.workout.id },
                     })
                   }
-                >
-                  <Button.Label>
-                    {source.workout.title ?? t("session__source_workout")}
-                  </Button.Label>
-                </Button>
+                />
               ) : null}
-              <Text className="text-body text-foreground">{stats}</Text>
+              <StatTiles
+                items={[
+                  {
+                    label: t("stats__duration"),
+                    value: formatElapsed(
+                      session.durationS ??
+                        (Date.parse(session.finishedAt ?? session.startedAt) -
+                          Date.parse(session.startedAt)) /
+                          1000,
+                    ),
+                  },
+                  {
+                    label: t("stats__volume"),
+                    value: t("home__volume_value", {
+                      value: formatVolume(totals.volume, unit, i18n.language),
+                      unit: unitLabel,
+                    }),
+                  },
+                  { label: t("stats__sets"), value: String(totals.sets) },
+                  {
+                    label: t("stats__records"),
+                    value: String(
+                      session.exercises.flatMap((e) => e.sets).filter((s) => flags.has(s.id))
+                        .length,
+                    ),
+                  },
+                ]}
+              />
               {session.note ? (
                 <Text className="text-body text-foreground">{session.note}</Text>
               ) : null}
@@ -133,30 +162,48 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
                   <Text className="text-title-md text-foreground">{entry.title}</Text>
                   {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
-                  {entry.sets.map((set) => (
-                    <View key={set.id}>
-                      <Text className="text-body text-foreground">
-                        {t("session__detail_set", {
+                  {entry.sets.map((set, index) => (
+                    <View key={set.id} className="flex-row items-center gap-3 py-1">
+                      <View
+                        accessibilityLabel={t("training__set_kind_change", {
+                          index: index + 1,
                           kind: t(SET_KIND_KEYS[set.kind]),
-                          values: doneSummary(
-                            [{ ...set, kind: "working" }],
-                            entry.type,
-                            unit,
-                            unitLabel,
-                          ),
                         })}
+                        className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}
+                      >
+                        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>
+                          {set.kind === "working"
+                            ? entry.sets.slice(0, index + 1).filter((s) => s.kind === "working")
+                                .length
+                            : set.kind === "warmup"
+                              ? "W"
+                              : set.kind === "drop"
+                                ? "D"
+                                : "F"}
+                        </Text>
+                      </View>
+                      <Text className="flex-1 text-body text-foreground">
+                        {doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel)}
                       </Text>
                       {set.rpe !== null ? (
                         <Text className="text-caption text-muted">
-                          {t("session__share_effort", { value: set.rpe })}
+                          {t("session__effort_value", {
+                            scale: t(
+                              preferences.ui.effortScale === "rir"
+                                ? "training__effort_rir"
+                                : "training__effort_rpe",
+                            ),
+                            value: formatEffortRange(set.rpe, set.rpe, preferences.ui.effortScale),
+                          })}
                         </Text>
                       ) : null}
                       {flags.has(set.id) ? (
-                        <SessionRecord
-                          key={set.id}
-                          exercise={entry.title}
-                          records={flags.get(set.id) ?? []}
-                        />
+                        <View className="flex-row items-center gap-1 rounded-lg bg-default p-2">
+                          <Trophy color={ink} size={14} />
+                          <Text className="text-caption text-foreground">
+                            {t("session__record_badge")}
+                          </Text>
+                        </View>
                       ) : null}
                     </View>
                   ))}
@@ -204,6 +251,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 ]}
               />
               <ConfirmationDialog
+                destructive
                 isOpen={confirm}
                 onOpenChange={setConfirm}
                 title={t("session__delete")}

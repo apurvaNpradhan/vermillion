@@ -58,21 +58,40 @@ export function ActiveProgramCard({ offerEnd = false }: { offerEnd?: boolean }) 
         className="flex-row flex-wrap gap-2"
         accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}
       >
-        {program.slots.map((slot, index) => (
-          <Text
-            key={slot.id}
-            accessibilityLabel={slotTitle(slot, t)}
-            className={
-              slot.workoutId === null
-                ? "text-muted opacity-40"
-                : progress.trained.has(slot.id)
-                  ? "text-foreground font-bold"
-                  : "text-muted"
-            }
-          >
-            {progress.trained.has(slot.id) ? "●" : "○"} {index + 1}
-          </Text>
-        ))}
+        {program.slots.map((slot) => {
+          const trained = progress.trained.has(slot.id);
+          const rest = slot.workoutId === null;
+          const next = progress.next?.id === slot.id;
+          return (
+            <View
+              key={slot.id}
+              accessible
+              accessibilityLabel={t("run__slot_state", {
+                title: slotTitle(slot, t),
+                state: t(trained ? "run__trained" : next ? "run__up_next" : "run__untrained"),
+              })}
+              className={
+                rest
+                  ? "h-7 w-7 self-center items-center justify-center rounded-full bg-default opacity-40"
+                  : trained
+                    ? "h-10 w-10 items-center justify-center rounded-full bg-foreground"
+                    : next
+                      ? "h-10 w-10 items-center justify-center rounded-full border-2 border-identity bg-identity-soft"
+                      : "h-10 w-10 items-center justify-center rounded-full border border-border"
+              }
+            >
+              <Text
+                className={
+                  trained
+                    ? "text-label font-semibold text-background"
+                    : "text-label text-foreground"
+                }
+              >
+                {rest ? "·" : slotTitle(slot, t).slice(0, 1).toLocaleUpperCase()}
+              </Text>
+            </View>
+          );
+        })}
       </View>
       {next?.workoutId ? (
         <View className="gap-2">

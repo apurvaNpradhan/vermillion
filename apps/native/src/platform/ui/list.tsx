@@ -44,6 +44,7 @@ export function ListRow({
   icon: Icon,
   title,
   value,
+  description,
   accessory = "chevron",
   tone = "default",
   disabled,
@@ -53,6 +54,7 @@ export function ListRow({
   icon?: ComponentType<IconProps>;
   title: string;
   value?: string;
+  description?: string;
   accessory?: RowAccessory;
   tone?: "default" | "danger";
   disabled?: boolean;
@@ -81,6 +83,7 @@ export function ListRow({
         <ListGroup.ItemTitle className={cn("text-body font-normal", titleColor)}>
           {title}
         </ListGroup.ItemTitle>
+        {description ? <Text className="text-caption text-muted">{description}</Text> : null}
       </ListGroup.ItemContent>
       {value ? (
         <Text numberOfLines={1} className="max-w-[45%] text-body text-muted">
