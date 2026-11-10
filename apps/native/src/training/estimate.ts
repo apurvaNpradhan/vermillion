@@ -6,12 +6,14 @@ const ROUND_TO_MINUTES = 5;
 
 type Estimable = { sets: readonly PlannedSet[]; restSeconds: number | null };
 
-/** Sets × (40 s + rest); a warm-up set rests the fixed short value. */
+/** Planned duration, or 40 s for untimed sets, plus rest; warm-ups use the fixed short rest. */
 export function estimateSeconds(exercises: readonly Estimable[]): number {
   let total = 0;
   for (const { sets, restSeconds } of exercises) {
     for (const set of sets) {
-      total += SET_SECONDS + (set.kind === "warmup" ? WARMUP_REST_SECONDS : (restSeconds ?? 0));
+      total +=
+        (set.duration_s ?? SET_SECONDS) +
+        (set.kind === "warmup" ? WARMUP_REST_SECONDS : (restSeconds ?? 0));
     }
   }
   return total;

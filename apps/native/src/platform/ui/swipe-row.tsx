@@ -26,7 +26,12 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptic } from "@/platform/haptics";
 import { useSubtleColor } from "@/platform/theme";
 
-import { SWIPE_ACTION_WIDTH, isFullSwipe, shouldSettleOpen } from "./swipe-threshold";
+import {
+  SWIPE_ACTION_WIDTH,
+  isDirectSwipe,
+  isFullSwipe,
+  shouldSettleOpen,
+} from "./swipe-threshold";
 
 export type SwipeAction = {
   key: string;
@@ -34,6 +39,8 @@ export type SwipeAction = {
   icon: ComponentType<IconProps>;
   /** `danger` for destructive actions: rose on a faint rose tint, never a filled red. */
   tone?: "default" | "danger";
+  /** Show the icon alone; for rows too short to fit a label without clipping it. */
+  iconOnly?: boolean;
   onPress: () => void;
 };
 
@@ -83,10 +90,16 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
 export function SwipeRow({
   actions,
   fullSwipe = true,
+  direct = false,
   children,
 }: {
   actions: SwipeAction[];
   fullSwipe?: boolean;
+  /**
+   * One action that fires as soon as the swipe passes a short distance, with no button to tap
+   * afterwards; the action's icon follows the drag as the cue. Never settles open.
+   */
+  direct?: boolean;
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
@@ -140,7 +153,17 @@ export function SwipeRow({
     },
     onDeactivate: (event) => {
       const x = translateX.value;
-      if (fullSwipe && outermost && isFullSwipe(x, width, count)) {
+      if (direct && outermost) {
+        if (isDirectSwipe(x, width)) {
+          translateX.value = withTiming(-width, SNAP, () => {
+            translateX.value = withDelay(400, withTiming(0, { duration: 0 }));
+          });
+          scheduleOnRN(onFullSwipe);
+        } else {
+          translateX.value = withTiming(0, SNAP);
+          scheduleOnRN(close);
+        }
+      } else if (fullSwipe && outermost && isFullSwipe(x, width, count)) {
         // Slide out, fire, then come back unseen (the row is usually hidden by then).
         translateX.value = withTiming(-width, SNAP, () => {
           translateX.value = withDelay(400, withTiming(0, { duration: 0 }));
@@ -157,7 +180,10 @@ export function SwipeRow({
   });
 
   useAnimatedReaction(
-    () => fullSwipe && isFullSwipe(translateX.value, width, count),
+    () =>
+      direct
+        ? isDirectSwipe(translateX.value, width)
+        : fullSwipe && isFullSwipe(translateX.value, width, count),
     (armed, previous) => {
       // Tick on crossing into a full swipe only, not on the way back.
       if (armed && previous === false) scheduleOnRN(haptic.tick);
@@ -238,14 +264,16 @@ function SwipeButton({
         )}
       >
         <action.icon size={20} color={color} weight="bold" />
-        <Text
-          className={cn(
-            "text-caption font-medium",
-            tone === "danger" ? "text-danger" : "text-subtle",
-          )}
-        >
-          {action.label}
-        </Text>
+        {action.iconOnly ? null : (
+          <Text
+            className={cn(
+              "text-caption font-medium",
+              tone === "danger" ? "text-danger" : "text-subtle",
+            )}
+          >
+            {action.label}
+          </Text>
+        )}
       </Pressable>
     </View>
   );

@@ -154,6 +154,7 @@ export function RepeatWorkoutSheet({
   const { t } = useTranslation();
   return (
     <Sheet title={t("training__repeat_title")} isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Text className="text-body text-muted">{t("training__reuse_explanation")}</Text>
       {own.length === 0 ? (
         <Text className="px-1 text-center text-caption text-muted">
           {t("training__repeat_empty")}

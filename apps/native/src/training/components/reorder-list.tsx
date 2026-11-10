@@ -44,7 +44,9 @@ export function ReorderList<T extends { id: string }>({
   renderItem,
   onMove,
   onDraggingChange,
+  handleSide = "left",
 }: {
+  handleSide?: "left" | "right";
   items: readonly T[];
   renderItem: (item: T, state: { collapsed: boolean }) => ReactNode;
   onMove: (id: string, beforeId: string | null) => void;
@@ -107,6 +109,8 @@ export function ReorderList<T extends { id: string }>({
   };
 
   const pan = usePanGesture({
+    // Only the visible grip starts a drag; holding a field must keep editing the field.
+    hitSlop: handleSide === "left" ? { left: 0, width: 36 } : { right: 48, width: 24 },
     activateAfterLongPress: HOLD_MS,
     onActivate: (event) => {
       scheduleOnRN(begin, event.y);

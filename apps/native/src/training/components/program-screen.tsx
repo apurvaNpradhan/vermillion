@@ -42,7 +42,7 @@ import { ReorderList } from "./reorder-list";
 import { RotationRow, slotTitle } from "./rotation-row";
 
 /** The cover tile in the header. */
-const COVER_SIZE = 88;
+const COVER_SIZE = 56;
 
 /** Lines of the description shown before "More". */
 const DESCRIPTION_LINES = 4;
@@ -106,6 +106,7 @@ function LoadedProgram({
   const { shareProgram } = useSharePlan();
   const [menuOpen, setMenuOpen] = useState(false);
   const [slotMenu, setSlotMenu] = useState<ProgramSlotDetail | null>(null);
+  const [dayOpen, setDayOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -228,18 +229,24 @@ function LoadedProgram({
             keyboardShouldPersistTaps="handled"
           >
             <View className="px-4">{header}</View>
-            <View className="gap-3 px-4">
-              <View className="flex-row items-center gap-4">
+            <View className="gap-4 px-4">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("training__edit_details")}
+                onPress={onOpenDetails}
+                className="min-h-20 flex-row items-center gap-3 rounded-2xl bg-surface p-4"
+              >
                 <ProgramTile title={program.title} size={COVER_SIZE} coverUri={program.coverUri} />
                 <View className="flex-1 gap-1">
-                  <Text className="text-body text-muted">{meta}</Text>
-                  {program.plannedWeeks !== null ? (
-                    <Text className="text-body text-muted">
-                      {t("training__planned_summary", { count: program.plannedWeeks })}
-                    </Text>
-                  ) : null}
+                  <Text className="text-label font-medium text-foreground">{meta}</Text>
+                  <Text className="text-caption text-muted">
+                    {program.plannedWeeks === null
+                      ? t("training__program_open_ended")
+                      : t("training__planned_summary", { count: program.plannedWeeks })}
+                  </Text>
                 </View>
-              </View>
+                <PencilSimple size={18} color={foreground} />
+              </Pressable>
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}
@@ -248,30 +255,25 @@ function LoadedProgram({
                   lessLabel={t("training__description_less")}
                 />
               ) : null}
-              {program.description === null && program.plannedWeeks === null ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onOpenDetails}
-                  className="min-h-11 justify-center"
-                >
-                  <Text className="text-body text-muted underline">
-                    {t("training__add_details")}
-                  </Text>
-                </Pressable>
-              ) : null}
             </View>
             <View className="gap-2">
-              <Text
-                accessibilityRole="header"
-                className="px-4 font-semibold text-overline uppercase text-muted"
-              >
-                {t("training__rotation")}
-              </Text>
+              <View className="flex-row items-center justify-between gap-3 px-4">
+                <Text
+                  accessibilityRole="header"
+                  className="font-semibold text-title-md text-foreground"
+                >
+                  {t("training__rotation")}
+                </Text>
+                <Button variant="secondary" isDisabled={full} onPress={() => setDayOpen(true)}>
+                  <Button.Label>{t("training__add_day")}</Button.Label>
+                </Button>
+              </View>
               {slots.length === 0 ? (
                 <Text className="px-4 text-body text-muted">{t("training__rotation_empty")}</Text>
               ) : (
-                <View className="border-t border-border">
+                <View className="mx-4 overflow-hidden rounded-2xl bg-surface">
                   <ReorderList
+                    handleSide="right"
                     items={slots}
                     onDraggingChange={setDragging}
                     onMove={(id, beforeId) => void actions.move(id, beforeId)}
@@ -289,36 +291,6 @@ function LoadedProgram({
                   />
                 </View>
               )}
-            </View>
-            <View className="gap-3 px-4">
-              <Button
-                variant={slots.length === 0 ? "primary" : "secondary"}
-                isDisabled={full}
-                onPress={() => setAddOpen(true)}
-              >
-                <Plus size={16} color={foreground} weight="bold" />
-                <Button.Label>{t("training__add_workout")}</Button.Label>
-              </Button>
-              <View className="flex-row gap-3">
-                <Button
-                  className="flex-1"
-                  variant="secondary"
-                  isDisabled={full}
-                  onPress={() => void actions.addRest(program.id)}
-                >
-                  <Moon size={16} color={foreground} />
-                  <Button.Label>{t("training__add_rest")}</Button.Label>
-                </Button>
-                <Button
-                  className="flex-1"
-                  variant="secondary"
-                  isDisabled={full || own.length === 0}
-                  onPress={() => setRepeatOpen(true)}
-                >
-                  <Repeat size={16} color={foreground} />
-                  <Button.Label>{t("training__repeat_workout")}</Button.Label>
-                </Button>
-              </View>
             </View>
           </Animated.ScrollView>
         )}
@@ -342,6 +314,35 @@ function LoadedProgram({
         onOpenChange={(open) => {
           if (!open) setSlotMenu(null);
         }}
+      />
+      <ActionSheet
+        title={t("training__add_day")}
+        actions={[
+          {
+            key: "workout",
+            label: t("training__add_workout"),
+            icon: Plus,
+            onPress: () => setAddOpen(true),
+          },
+          ...(own.length > 0
+            ? [
+                {
+                  key: "reuse",
+                  label: t("training__repeat_workout"),
+                  icon: Repeat,
+                  onPress: () => setRepeatOpen(true),
+                },
+              ]
+            : []),
+          {
+            key: "rest",
+            label: t("training__add_rest"),
+            icon: Moon,
+            onPress: () => void actions.addRest(program.id),
+          },
+        ]}
+        isOpen={dayOpen}
+        onOpenChange={setDayOpen}
       />
       <AddWorkoutSheet
         isOpen={addOpen}

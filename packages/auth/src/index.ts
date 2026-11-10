@@ -248,7 +248,11 @@ export function createAuth(options: AuthOptions) {
     ],
     // No cookie cache: every request consults the session store, so a ban or a
     // deletion takes effect at once.
-    session: {},
+    session: {
+      expiresIn: 60 * 60 * 24 * 30,
+      updateAge: 60 * 60 * 24,
+      freshAge: 60 * 60 * 24,
+    },
     rateLimit: {
       // On in every environment (Better Auth defaults to production only).
       // Counters live in process memory: no Redis, per instance, reset on restart.

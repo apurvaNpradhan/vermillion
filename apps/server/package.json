@@ -9,7 +9,8 @@
     "sync:bootstrap": "tsx --env-file=.env src/sync-bootstrap.ts",
     "catalog:import": "tsx --env-file=.env src/catalog-import.ts",
     "build:bootstrap": "tsdown",
-    "start": "node dist/index.mjs"
+    "start": "node dist/index.mjs",
+    "training:demo": "tsx --env-file=.env src/training-demo.ts"
   },
   "dependencies": {
     "@workspace/api": "workspace:*",

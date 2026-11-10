@@ -72,3 +72,56 @@ The Active program, Cycles, Runs and the end-of-Run moment ship after the Sessio
 Amended 2026-11-10 (slice 3): the description editor is a plain multi-line field, and the Markdown is rendered read-only with `marked`'s lexer into native text (`platform/ui/markdown.ts`), not `react-native-enriched-markdown`. Its compatibility table stops at React Native 0.87 (this app is on 0.88), it is an uncontrolled input, and its postinstall downloads assets that pnpm blocks. The text stored is Markdown either way, so the editor can be swapped later without a migration.
 
 Amended 2026-11-10 (slice 4): superset rules the data model leaves open. A group is a run of consecutive exercises (`supersetRuns`); a group of one is cleared, and rest lives on the last member only. A row dragged next to nobody of its group leaves it; a row dropped between two members of one group joins it, so a drag never splits a pair. Leaving a group, or removing a member, hands the group's rest to whoever is left alone or last. Covers: the picked photo is cropped 1:1, resized to at most 1024 px and saved as JPEG in `documentDirectory/program-covers/<programId>.jpg`; the local-only `program_cover` table (id = program id, `program_id`, `uri`, `updated_at`) is cleared by the account wipe like every local-only table, whose lifecycle also asks the app to delete the files (`onWiped`), and the files are swept at start-up and once a deleted Program's Undo window has passed.
+
+Amended 2026-11-10: identical working sets expand into an inline target row with a bounded
+set-count stepper and rest field. The exercise sheet offers the same compact editor; warm-ups,
+special set kinds and different targets retain the full table. Switching views never flattens
+custom targets. Individual-set editing remains an explicit action. Set kind names, remove
+controls and rep-range labels are visible. Reorder handles signal the existing hold-and-drag
+interaction. Workout and Program lists expose their duplicate/delete actions through a menu as
+well as swipe. "Reuse workout" explains that repeated Slots share one Workout, unlike a copy.
+Session storage and future Start/Resume behavior are specified in [0037](0037-session-storage-and-training-entry.md).
+
+Amended 2026-11-10 after Android device testing: the inline action is "Edit sets". Custom sets
+stay in one table with no disabled compact-mode toggle. A rep value opens a labelled Exact reps /
+Rep range picker; the mode is never a word between the bounds. Rest uses a HeroUI duration sheet
+with snapping minutes/seconds, presets and Off. W marks warm-ups; all other sets share one sequence,
+with D or T appended for drop or to-failure sets. Those types use category color tokens plus letters,
+not color alone. Individual-set edits affect only that set; the compact editor applies targets to
+all alike working sets. PanelUI source attribution and the component assessment are in
+[the UI review](../panelui-review.md).
+
+Amended 2026-11-10 after the editor follow-up: every exercise row expands inline, including
+warm-ups and mixed targets. The inline and detailed editors share the same custom-set controls.
+Only the explicit "Edit sets" action opens the detailed screen. Rep values have no chevron,
+set badges have no instructional caption, and set removal is a left swipe, with full-swipe
+removal enabled. The last remaining set cannot be removed; screen readers also receive the
+remove action on the set badge. Only the visible drag grip starts reordering, so holding or
+swiping a target control cannot reorder the exercises.
+
+Train separates Workouts and Programs with counts and named creation actions. Programs show a
+compact details card and a "Workout order" section. "Add day" groups adding/copying a Workout,
+reusing one and adding Rest; the shared-edit explanation appears only in the reuse picker.
+
+Amended 2026-11-10 after the final editor review: each exercise expands the same per-set table,
+with only one exercise expanded at a time. This supersedes the compact all-alike editor and its
+separate individual-set action. Cell edits affect one set; added sets copy the last training
+target. This costs more taps for bulk changes but keeps edit scope consistent. The row menu's
+"Exercise details" opens the roomier note and target editor. Workout title and note edits live
+under "Edit details" in the workout menu; the header and preview have no rename link.
+
+Workout tiles aggregate every exercise's primary and assisting muscles, independent of exercise
+order. The preview includes the larger map and muscle names. This represents coverage, not volume
+or recovery. Program identity remains its selected cover or initial. The trade-offs and next
+priorities are in [the product review](../training-product-decisions.md).
+
+Amended 2026-11-10 after comparing Train mockups: the selected unified layout replaces the
+Workouts / Programs switcher. Train shows up to two compact Program rows and a View all route,
+followed by standalone Workout cards. One header Create action offers both types; the duplicate
+tab-bar action and collection descriptions are removed. The full Program library retains open,
+duplicate, delete and Undo behavior. Program-owned Workouts continue to live inside their Program.
+
+Amended after device feedback: Workout lists now use the same compact grouped rows as Programs,
+with title initials replacing muscle tiles. Both share row typography, spacing and action
+placement. Program rotation rows also use Workout initials. Aggregate muscle coverage remains
+available in the expanded Workout details, rather than as the list's visual identity.

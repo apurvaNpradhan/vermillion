@@ -1,5 +1,6 @@
+import { useBottomSheetAwareHandlers } from "heroui-native";
 import { useEffect, useState } from "react";
-import { TextInput } from "react-native";
+import { Keyboard, TextInput } from "react-native";
 
 /**
  * A compact numeric input for a table cell. It keeps what is being typed; `parse` turns the text
@@ -27,6 +28,7 @@ export function CellInput({
 }) {
   const [text, setText] = useState(value === undefined ? "" : format(value));
   const [focused, setFocused] = useState(false);
+  const sheetKeyboard = useBottomSheetAwareHandlers();
   useEffect(() => {
     if (!focused) setText(value === undefined ? "" : format(value));
   }, [value, focused, format]);
@@ -38,9 +40,17 @@ export function CellInput({
       placeholder={placeholder}
       placeholderTextColorClassName="accent-muted"
       keyboardType={decimal ? "decimal-pad" : "number-pad"}
+      returnKeyType="done"
+      onSubmitEditing={() => Keyboard.dismiss()}
       selectTextOnFocus
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={(event) => {
+        sheetKeyboard.onFocus(event);
+        setFocused(true);
+      }}
+      onBlur={(event) => {
+        sheetKeyboard.onBlur(event);
+        setFocused(false);
+      }}
       onChangeText={(next) => {
         setText(next);
         const parsed = parse(next);

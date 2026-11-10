@@ -8,6 +8,7 @@ import { ExerciseThumbnail } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
+import { InlineTargets } from "./inline-targets";
 import { summariseSets } from "../summarise-sets";
 import { useSummaryLabels } from "../use-summary-labels";
 import { useTrainingPreferences } from "../use-training-preferences";
@@ -42,16 +43,18 @@ function SupersetBracket({ place }: { place: SupersetPlace }) {
  */
 export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   entry,
+  expanded,
+  onToggle,
   collapsed,
   place,
-  onOpen,
   onMenu,
 }: {
   entry: WorkoutExerciseDetail;
+  expanded: boolean;
+  onToggle: () => void;
   collapsed: boolean;
   /** Where the row sits in a superset; `none` for a plain row. */
   place: SupersetPlace;
-  onOpen: (entry: WorkoutExerciseDetail) => void;
   onMenu: (entry: WorkoutExerciseDetail) => void;
 }) {
   const { t } = useTranslation();
@@ -92,48 +95,58 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
     );
   }
   return (
-    <View className="min-h-[72px] flex-row items-center border-b border-border bg-background">
-      <SupersetBracket place={place} />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${summary}${entry.note ? `, ${entry.note}` : ""}`}
-        accessibilityHint={t("training__row_open_hint")}
-        onPress={() => onOpen(entry)}
-        className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
-      >
-        {thumbnail(48)}
-        <View className="flex-1 gap-0.5">
-          {place === "first" ? (
-            <Text className="font-semibold text-overline uppercase text-identity">
-              {t("training__superset")}
-            </Text>
-          ) : null}
-          <Text numberOfLines={1} className="font-medium text-body text-foreground">
-            {name}
-          </Text>
-          <Text
-            numberOfLines={2}
-            className="text-caption text-muted"
-            style={{ fontVariant: ["tabular-nums"] }}
-          >
-            {summary}
-          </Text>
-          {entry.note ? (
-            <Text numberOfLines={2} className="text-caption text-muted">
-              {entry.note}
-            </Text>
-          ) : null}
+    <View>
+      <View className="min-h-[72px] flex-row items-center border-b border-border bg-background">
+        <SupersetBracket place={place} />
+        <View accessible accessibilityLabel={t("training__drag_hint")} className="pl-2">
+          <DotsSixVertical size={18} color={subtle} />
         </View>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("training__row_menu", { title: name })}
-        onPress={() => onMenu(entry)}
-        hitSlop={4}
-        className="h-12 w-12 items-center justify-center"
-      >
-        <DotsThreeVertical size={20} color={subtle} weight="bold" />
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${summary}${entry.note ? `, ${entry.note}` : ""}`}
+          accessibilityHint={t("training__row_open_hint")}
+          onPress={onToggle}
+          className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
+        >
+          {thumbnail(48)}
+          <View className="flex-1 gap-0.5">
+            {place === "first" ? (
+              <Text className="font-semibold text-overline uppercase text-identity">
+                {t("training__superset")}
+              </Text>
+            ) : null}
+            <Text numberOfLines={1} className="font-medium text-body text-foreground">
+              {name}
+            </Text>
+            <Text
+              numberOfLines={2}
+              className="text-caption text-muted"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {summary}
+            </Text>
+            {entry.note ? (
+              <Text numberOfLines={2} className="text-caption text-muted">
+                {entry.note}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("training__row_menu", { title: name })}
+          onPress={() => onMenu(entry)}
+          hitSlop={4}
+          className="h-12 w-12 items-center justify-center"
+        >
+          <DotsThreeVertical size={20} color={subtle} weight="bold" />
+        </Pressable>
+      </View>
+      {expanded ? (
+        <View className="gap-3 border-b border-border px-4 py-3">
+          <InlineTargets entry={entry} grouped={place === "first" || place === "middle"} />
+        </View>
+      ) : null}
     </View>
   );
 });

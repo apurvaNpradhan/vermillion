@@ -91,3 +91,12 @@ Run on a dev-client or release build, both platforms. CI cannot run these.
 8. Metro and uniwind bundle (`withUniwindConfig` outermost) and `crypto.randomUUID` works before PowerSync is imported.
 
 Status: not yet run on a release binary; needs the maintainer's devices.
+
+### Training keyboard checks
+
+On a connected Android phone, focus the minimum or maximum reps in the target picker and run
+`python scripts/adb/check-keyboard-visible.py`. It compares the focused field and Done button
+with the actual visible IME inset; a hidden action fails the check. For an inline weight field,
+use `python scripts/adb/check-keyboard-visible.py --inline`. Check both bounds, Done dismissing
+the keyboard, switching from a weight field to the effort picker, and reopening after dismissal.
+The check expects the ordinary docked keyboard, not a floating keyboard.

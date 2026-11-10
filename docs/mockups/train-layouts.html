@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Train layout comparison</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--foreground);
+        font-family: var(--font-sans, Inter, system-ui, sans-serif);
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      .study {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        align-items: start;
+      }
+      .study-heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0 7px;
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .recommended {
+        font-size: 10px;
+        letter-spacing: 0.015em;
+        font-weight: 550;
+        padding: 4px 7px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--muted-foreground);
+      }
+      .intro {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted-foreground);
+        margin: 0 0 15px;
+        min-height: 36px;
+      }
+      .phone {
+        position: relative;
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        overflow: hidden;
+        height: 736px;
+      }
+      .statusbar {
+        height: 39px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 21px;
+        font-size: 11px;
+      }
+      .statusbar > span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .screen-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 17px 18px 19px;
+      }
+      h1 {
+        font-size: 30px;
+        line-height: 1.1;
+        letter-spacing: -1.1px;
+        margin: 0;
+        font-weight: 730;
+      }
+      .create {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 35px;
+        padding: 0 11px;
+        border-radius: 10px;
+        background: var(--foreground);
+        color: var(--background);
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .screen-content {
+        padding: 0 16px 100px;
+        height: 580px;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 7px 1px 12px;
+        min-height: 23px;
+      }
+      .section-title h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.4px;
+      }
+      .view-all {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        color: var(--muted-foreground);
+        font-size: 11px;
+      }
+      .program-list {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--card);
+      }
+      .program {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 12px;
+        min-height: 68px;
+      }
+      .program + .program {
+        border-top: 1px solid var(--border);
+      }
+      .initial {
+        width: 34px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: var(--secondary);
+        font-size: 17px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .program > div {
+        flex: 1;
+        min-width: 0;
+      }
+      .program h3 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.15px;
+        margin: 0 0 5px;
+        line-height: 1.25;
+      }
+      .meta {
+        font-size: 10.5px;
+        color: var(--muted-foreground);
+        margin: 0;
+        line-height: 1.4;
+        font-variant-numeric: tabular-nums;
+      }
+      .arrow {
+        color: var(--muted-foreground);
+        display: flex;
+      }
+      .workout-section {
+        margin-top: 25px;
+      }
+      .workout-list {
+        display: grid;
+        gap: 10px;
+      }
+      .workout {
+        display: flex;
+        align-items: center;
+        position: relative;
+        min-height: 107px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 15px 13px;
+        gap: 9px;
+      }
+      .workout-copy {
+        min-width: 0;
+        flex: 1;
+      }
+      .workout h3 {
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.4px;
+        line-height: 1.25;
+        margin: 0 0 7px;
+      }
+      .muscles {
+        font-size: 10px;
+        color: var(--muted-foreground);
+        line-height: 1.4;
+        margin: 6px 0 0;
+      }
+      .anatomy {
+        display: flex;
+        width: 61px;
+        gap: 4px;
+        flex-shrink: 0;
+        align-items: center;
+        opacity: 0.86;
+      }
+      .figure {
+        position: relative;
+        width: 28px;
+        height: 68px;
+      }
+      .figure img {
+        position: absolute;
+        inset: 0;
+        width: 28px;
+        height: 68px;
+        object-fit: contain;
+      }
+      .more {
+        display: flex;
+        align-self: flex-start;
+        margin-top: 0;
+        min-width: 16px;
+        min-height: 22px;
+        justify-content: center;
+        color: var(--muted-foreground);
+      }
+      .bottom-nav {
+        position: absolute;
+        bottom: 26px;
+        left: 28px;
+        right: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 6px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 23px;
+      }
+      .bottom-nav > span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        font-size: 10px;
+        color: var(--muted-foreground);
+        height: 35px;
+        flex: 1;
+        border-radius: 17px;
+      }
+      .bottom-nav .current {
+        color: var(--foreground);
+        background: var(--secondary);
+        font-weight: 600;
+      }
+      .home-indicator {
+        position: absolute;
+        bottom: 9px;
+        width: 89px;
+        height: 4px;
+        border-radius: 4px;
+        left: calc(50% - 44.5px);
+        background: var(--foreground);
+        opacity: 0.72;
+      }
+      .phone:after {
+        content: "";
+        position: absolute;
+        bottom: 79px;
+        left: 0;
+        right: 0;
+        height: 14px;
+        background: linear-gradient(transparent, var(--background));
+        pointer-events: none;
+      }
+      .text-tabs {
+        display: flex;
+        gap: 23px;
+        border-bottom: 1px solid var(--border);
+        margin: 0 1px 18px;
+      }
+      .text-tabs button {
+        border: 0;
+        background: transparent;
+        padding: 8px 0 12px;
+        font-size: 13px;
+        color: var(--muted-foreground);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        font-weight: 550;
+      }
+      .text-tabs button[aria-selected="true"] {
+        color: var(--foreground);
+        border-bottom-color: var(--foreground);
+        font-weight: 650;
+      }
+      .text-tabs button:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 4px;
+        border-radius: 3px;
+      }
+      .tab-view[hidden] {
+        display: none;
+      }
+      .tab-context {
+        margin: 0 1px 12px;
+        color: var(--muted-foreground);
+        font-size: 10px;
+      }
+      .tabbed .program-list {
+        margin-top: 0;
+      }
+      .caption {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--muted-foreground);
+        margin: 13px 1px 0;
+      }
+      .caption b {
+        color: var(--foreground);
+        font-weight: 550;
+      }
+      .note {
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--muted-foreground);
+        margin: 21px 0 2px;
+        border-top: 1px solid var(--border);
+        padding-top: 13px;
+      }
+      @media (max-width: 600px) {
+        .study {
+          grid-template-columns: 1fr;
+          gap: 27px;
+        }
+        .phone {
+          max-width: 390px;
+          margin-inline: auto;
+        }
+        .intro {
+          min-height: 0;
+        }
+        .study-heading,
+        .intro,
+        .caption {
+          max-width: 390px;
+          margin-inline: auto;
+        }
+        .study-heading {
+          margin-bottom: 7px;
+        }
+        .intro {
+          margin-bottom: 14px;
+        }
+        .caption {
+          margin-top: 12px;
+        }
+        .screen-header {
+          padding-inline: 20px;
+        }
+        .screen-content {
+          padding-inline: 18px;
+        }
+        .meta {
+          font-size: 11px;
+        }
+        .muscles {
+          font-size: 11px;
+        }
+        .program h3 {
+          font-size: 14px;
+        }
+        .workout h3 {
+          font-size: 17px;
+        }
+        .anatomy {
+          width: 65px;
+          gap: 5px;
+        }
+        .figure,
+        .figure img {
+          width: 30px;
+          height: 73px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="study">
+      <section>
+        <div class="study-heading">A · Unified <span class="recommended">Recommended</span></div>
+        <p class="intro">Programs and workouts share one page. No collection switcher.</p>
+        <div class="phone">
+          <div class="statusbar">
+            <b>9:41</b
+            ><span
+              ><svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 19v-3M8 19v-7M13 19V8M18 19V4" /></svg
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="7" width="18" height="10" rx="2" />
+                <path d="M23 10v4M5 10h12v4H5Z" fill="currentColor" /></svg
+            ></span>
+          </div>
+          <header class="screen-header">
+            <h1>Train</h1>
+            <span class="create"
+              ><svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" /></svg
+              >Create</span
+            >
+          </header>
+          <div class="screen-content">
+            <section>
+              <div class="section-title">
+                <h2>Programs</h2>
+                <span class="view-all"
+                  >View all
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m9 6 6 6-6 6" /></svg
+                ></span>
+              </div>
+              <div class="program-list">
+                <article class="program">
+                  <span class="initial">U</span>
+                  <div>
+                    <h3>Upper / lower</h3>
+                    <p class="meta">4 training days · 6-day rotation</p>
+                  </div>
+                  <span class="arrow"
+                    ><svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 6 6 6-6 6" /></svg
+                  ></span>
+                </article>
+                <article class="program">
+                  <span class="initial">F</span>
+                  <div>
+                    <h3>Full-body rotation</h3>
+                    <p class="meta">3 training days · 6-day rotation</p>
+                  </div>
+                  <span class="arrow"
+                    ><svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 6 6 6-6 6" /></svg
+                  ></span>
+                </article>
+              </div>
+            </section>
+            <section class="workout-section">
+              <div class="section-title"><h2>Workouts</h2></div>
+              <div class="workout-list">
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Full body A</h3>
+                    <p class="meta">6 exercises · ~55 min</p>
+                    <p class="muscles">Full body</p>
+                  </div>
+                  <div class="anatomy" aria-label="Whole-workout muscle coverage">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_chest.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_quadriceps.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_rectus_abdominis.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_hamstrings.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_middle_trapezius.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_lower_trapezius.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Push + arms</h3>
+                    <p class="meta">4 exercises · ~35 min</p>
+                    <p class="muscles">Chest · Shoulders · Triceps</p>
+                  </div>
+                  <div class="anatomy" aria-label="Chest, shoulders and triceps">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_chest.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_deltoid_anterior.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_deltoid_lateral.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_triceps.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_deltoids.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_triceps.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Recovery + core</h3>
+                    <p class="meta">4 exercises · ~35 min</p>
+                    <p class="muscles">Cardio · Core</p>
+                  </div>
+                  <div class="anatomy" aria-label="Abdominals">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_rectus_abdominis.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+              </div>
+            </section>
+          </div>
+          <nav class="bottom-nav" aria-label="App navigation preview">
+            <span
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m3 10 9-7 9 7v10H3Z" />
+                <path d="M9 20v-7h6v7" /></svg
+              >Home</span
+            ><span class="current"
+              ><svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 8v8M4 10v4M17 8v8M20 10v4M7 12h10" /></svg
+              >Train</span
+            ><span
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 6h14M5 12h14M5 18h14" /></svg
+              >Menu</span
+            >
+          </nav>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="caption">
+          <b>Both collections are visible.</b> Compact program rows leave room for workout cards.
+          Large program libraries need a separate View all page.
+        </p>
+      </section>
+      <section>
+        <div class="study-heading">B · Text tabs</div>
+        <p class="intro">More room for each collection. Try switching to Programs.</p>
+        <div class="phone tabbed">
+          <div class="statusbar">
+            <b>9:41</b
+            ><span
+              ><svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 19v-3M8 19v-7M13 19V8M18 19V4" /></svg
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="7" width="18" height="10" rx="2" />
+                <path d="M23 10v4M5 10h12v4H5Z" fill="currentColor" /></svg
+            ></span>
+          </div>
+          <header class="screen-header">
+            <h1>Train</h1>
+            <span class="create"
+              ><svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" /></svg
+              >Create</span
+            >
+          </header>
+          <div class="screen-content">
+            <div class="text-tabs" role="tablist" aria-label="Training collection">
+              <button
+                id="workout-tab"
+                role="tab"
+                aria-selected="true"
+                aria-controls="workout-panel"
+                tabindex="0"
+              >
+                Workouts</button
+              ><button
+                id="program-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="program-panel"
+                tabindex="-1"
+              >
+                Programs
+              </button>
+            </div>
+            <section
+              id="workout-panel"
+              class="tab-view"
+              role="tabpanel"
+              aria-labelledby="workout-tab"
+            >
+              <p class="tab-context">3 saved workouts</p>
+              <div class="workout-list">
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Full body A</h3>
+                    <p class="meta">6 exercises · ~55 min</p>
+                    <p class="muscles">Full body</p>
+                  </div>
+                  <div class="anatomy" aria-label="Whole-workout muscle coverage">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_chest.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_quadriceps.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_rectus_abdominis.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_hamstrings.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_middle_trapezius.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_lower_trapezius.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Push + arms</h3>
+                    <p class="meta">4 exercises · ~35 min</p>
+                    <p class="muscles">Chest · Shoulders · Triceps</p>
+                  </div>
+                  <div class="anatomy" aria-label="Chest, shoulders and triceps">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_chest.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_deltoid_anterior.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_deltoid_lateral.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_triceps.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_deltoids.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_triceps.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+                <article class="workout">
+                  <div class="workout-copy">
+                    <h3>Recovery + core</h3>
+                    <p class="meta">4 exercises · ~35 min</p>
+                    <p class="muscles">Cardio · Core</p>
+                  </div>
+                  <div class="anatomy" aria-label="Abdominals">
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_grey_body.webp"
+                      /><img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/front_rectus_abdominis.webp"
+                      />
+                    </div>
+                    <div class="figure">
+                      <img
+                        alt=""
+                        src="../../apps/native/src/body-map/assets/interim/back_grey_body.webp"
+                      />
+                    </div>
+                  </div>
+                  <span class="more" aria-label="Workout options"
+                    ><svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="5" r="1" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1" fill="currentColor" /></svg
+                  ></span>
+                </article>
+              </div>
+            </section>
+            <section
+              id="program-panel"
+              class="tab-view"
+              role="tabpanel"
+              aria-labelledby="program-tab"
+              hidden
+            >
+              <p class="tab-context">2 saved programs</p>
+              <div class="program-list">
+                <article class="program">
+                  <span class="initial">U</span>
+                  <div>
+                    <h3>Upper / lower</h3>
+                    <p class="meta">4 training days · 6-day rotation</p>
+                  </div>
+                  <span class="arrow"
+                    ><svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 6 6 6-6 6" /></svg
+                  ></span>
+                </article>
+                <article class="program">
+                  <span class="initial">F</span>
+                  <div>
+                    <h3>Full-body rotation</h3>
+                    <p class="meta">3 training days · 6-day rotation</p>
+                  </div>
+                  <span class="arrow"
+                    ><svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 6 6 6-6 6" /></svg
+                  ></span>
+                </article>
+              </div>
+            </section>
+          </div>
+          <nav class="bottom-nav" aria-label="App navigation preview">
+            <span
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m3 10 9-7 9 7v10H3Z" />
+                <path d="M9 20v-7h6v7" /></svg
+              >Home</span
+            ><span class="current"
+              ><svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 8v8M4 10v4M17 8v8M20 10v4M7 12h10" /></svg
+              >Train</span
+            ><span
+              ><svg
+                width="21"
+                height="21"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 6h14M5 12h14M5 18h14" /></svg
+              >Menu</span
+            >
+          </nav>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="caption">
+          <b>More workouts above the fold.</b> Programs take another tap to reach. The tabs are
+          quieter, but the collection split remains.
+        </p>
+      </section>
+    </main>
+    <p class="note">
+      Layout study only. Uses existing demo plans and repository body-map assets. Plan names omit
+      the Demo prefix; the app and saved plans are unchanged. Creation, cards, View all, and bottom
+      navigation are visual examples. Only the comparison tabs switch.
+    </p>
+    <script>
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+      function selectTab(index, focus = false) {
+        tabs.forEach((tab, i) => {
+          tab.setAttribute("aria-selected", String(index === i));
+          tab.tabIndex = index === i ? 0 : -1;
+          document.getElementById(tab.getAttribute("aria-controls")).hidden = index !== i;
+        });
+        if (focus) tabs[index].focus();
+      }
+      tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => selectTab(index));
+        tab.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            selectTab(1 - index, true);
+          } else if (event.key === "Home" || event.key === "End") {
+            event.preventDefault();
+            selectTab(event.key === "Home" ? 0 : 1, true);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

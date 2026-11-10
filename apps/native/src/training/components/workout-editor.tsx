@@ -9,15 +9,23 @@ import {
   LinkBreak,
   ListPlus,
   Plus,
+  PencilSimple,
   ShareNetwork,
   Swap,
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
 import { useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
+import { CaretDown, CaretUp } from "phosphor-react-native";
 import Animated from "react-native-reanimated";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
+const AnimatedKeyboardAwareScrollView = Animated.createAnimatedComponent(KeyboardAwareScrollView);
+
+import { BodyMapPair } from "@/body-map";
+import { workoutMuscles } from "../workout-muscles";
+import { MUSCLE_GROUP_KEYS } from "@workspace/shared";
 import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
@@ -95,6 +103,9 @@ function LoadedEditor({
   const actions = useWorkoutActions();
   const programActions = useProgramActions();
   const { shareWorkout } = useSharePlan();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [programSheet, setProgramSheet] = useState(false);
   const pickExercises = usePickExercises("train");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,6 +128,9 @@ function LoadedEditor({
         ),
       ),
     [workout.exercises],
+  );
+  const muscles = workoutMuscles(
+    workout.exercises.flatMap((entry) => (entry.exercise ? [entry.exercise] : [])),
   );
   const exerciseIds = useMemo(
     () => workout.exercises.map((entry) => entry.exerciseId),
@@ -202,6 +216,15 @@ function LoadedEditor({
     (rowPlace === "none" || rowPlace === "last");
   const rowActions: SwipeAction[] = rowMenu
     ? [
+        {
+          key: "details",
+          label: t("training__exercise_details"),
+          icon: PencilSimple,
+          onPress: () => {
+            writer.flush();
+            onOpenExercise(rowMenu.id);
+          },
+        },
         ...(canJoin
           ? [
               {
@@ -259,27 +282,94 @@ function LoadedEditor({
         }
       >
         {({ header, contentContainerStyle, ...scroll }) => (
-          <Animated.ScrollView
+          <AnimatedKeyboardAwareScrollView
+            bottomOffset={24}
             {...scroll}
             className="flex-1"
             contentContainerStyle={contentContainerStyle}
             contentContainerClassName="gap-4"
             scrollEnabled={!dragging}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
           >
             <View className="px-4">{header}</View>
             <View className="gap-3 px-4">
-              <SavedTextField
-                label={t("training__name_label")}
-                value={workout.title}
-                onText={(next) => writer.queue({ title: next })}
-                placeholder={title}
-                maxLength={TRAINING_LIMITS.titleMax}
-                returnKeyType="done"
-              />
-              <WorkoutNote value={workout.note} onText={(next) => writer.queue({ note: next })} />
+              {editingDetails ? (
+                <>
+                  <SavedTextField
+                    label={t("training__name_label")}
+                    value={workout.title}
+                    onText={(next) => writer.queue({ title: next })}
+                    placeholder={title}
+                    maxLength={TRAINING_LIMITS.titleMax}
+                    returnKeyType="next"
+                  />
+                  <WorkoutNote
+                    value={workout.note}
+                    onText={(next) => writer.queue({ note: next })}
+                  />
+                  <Button
+                    variant="secondary"
+                    onPress={() => {
+                      writer.flush();
+                      Keyboard.dismiss();
+                      setEditingDetails(false);
+                    }}
+                  >
+                    <Button.Label>{t("training__effort_done")}</Button.Label>
+                  </Button>
+                </>
+              ) : null}
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showMore }}
+              accessibilityLabel={t(showMore ? "training__show_less" : "training__show_more")}
+              onPress={() => setShowMore((open) => !open)}
+              className="mx-4 h-11 flex-row items-center justify-between"
+            >
+              <Text className="font-medium text-label text-foreground">
+                {t(showMore ? "training__show_less" : "training__show_more")}
+              </Text>
+              {showMore ? (
+                <CaretUp size={16} color={foreground} weight="bold" />
+              ) : (
+                <CaretDown size={16} color={foreground} weight="bold" />
+              )}
+            </Pressable>
+            {showMore ? (
+              <View className="gap-3 px-4">
+                {workout.note && !editingDetails ? (
+                  <Text className="text-body text-muted">{workout.note}</Text>
+                ) : null}
+                <View className="flex-row items-center gap-4 rounded-2xl bg-surface p-4">
+                  <BodyMapPair
+                    primary={muscles.primary}
+                    secondary={muscles.secondary}
+                    gap={8}
+                    style={{ width: 112 }}
+                  />
+                  <View className="flex-1 gap-2">
+                    <Text className="font-medium text-label text-foreground">
+                      {t("training__muscles_trained")}
+                    </Text>
+                    <Text className="text-caption text-muted">
+                      {muscles.primary.map((muscle) => t(MUSCLE_GROUP_KEYS[muscle])).join(" · ") ||
+                        t("bodymap__none")}
+                    </Text>
+                    {muscles.secondary.length > 0 ? (
+                      <Text className="text-caption text-muted">
+                        {t("training__assisting_muscles", {
+                          names: muscles.secondary
+                            .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))
+                            .join(" · "),
+                        })}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            ) : null}
             <ReorderList
               items={workout.exercises}
               onDraggingChange={setDragging}
@@ -287,12 +377,12 @@ function LoadedEditor({
               renderItem={(entry, { collapsed }) => (
                 <WorkoutExerciseRow
                   entry={entry}
+                  expanded={expandedId === entry.id}
+                  onToggle={() =>
+                    setExpandedId((current) => (current === entry.id ? null : entry.id))
+                  }
                   collapsed={collapsed}
                   place={places.get(entry.id) ?? "none"}
-                  onOpen={(row) => {
-                    writer.flush();
-                    onOpenExercise(row.id);
-                  }}
                   onMenu={setRowMenu}
                 />
               )}
@@ -307,10 +397,23 @@ function LoadedEditor({
                 <Button.Label>{t("training__add_exercises")}</Button.Label>
               </Button>
             </View>
-          </Animated.ScrollView>
+          </AnimatedKeyboardAwareScrollView>
         )}
       </Page>
-      <ActionSheet title={title} actions={menu} isOpen={menuOpen} onOpenChange={setMenuOpen} />
+      <ActionSheet
+        title={title}
+        actions={[
+          {
+            key: "rename",
+            label: t("training__edit_details"),
+            icon: PencilSimple,
+            onPress: () => setEditingDetails(true),
+          },
+          ...menu,
+        ]}
+        isOpen={menuOpen}
+        onOpenChange={setMenuOpen}
+      />
       <AddToProgramSheet
         workoutId={workout.id}
         isOpen={programSheet}

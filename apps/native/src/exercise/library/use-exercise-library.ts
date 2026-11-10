@@ -6,9 +6,11 @@ import {
   type LibraryPage,
   type LibraryRow,
 } from "@workspace/sync";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useSyncStatus } from "@/sync";
+
+import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 
 import { libraryStatus, type LibraryStatus } from "./library-status";
 
@@ -21,52 +23,57 @@ const NO_RECENT: LibraryRow[] = [];
  * about itself (`status`). Components never query directly.
  */
 export function useExerciseLibrary(filters: LibraryFilters) {
-  const local = useLocalData();
   const { snapshot } = useSyncStatus();
-  const database = local?.status === "ready" ? local.database : null;
   const { search, muscles, includeSecondary, equipment, show, sort } = filters;
   // The same filters give the same key, so a new object per render does not restart the watch.
   const key = JSON.stringify({ search, muscles, includeSecondary, equipment, show, sort });
 
   const [widen, setWindow] = useState({ key, limit: LIBRARY_PAGE_SIZE });
   const limit = widen.key === key ? widen.limit : LIBRARY_PAGE_SIZE;
-  const [page, setPage] = useState<LibraryPage | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    if (!database) return;
-    const parsed: LibraryFilters = JSON.parse(key);
-    const stopRows = watchExerciseLibrary(database, parsed, limit, {
-      onPage: (next) => {
-        setFailed(false);
-        setPage(next);
-      },
-      onError: () => setFailed(true),
-    });
-    const stopCount = watchExerciseLibraryCount(database, parsed, {
-      onCount: setTotal,
-      onError: () => setFailed(true),
-    });
-    return () => {
-      stopRows();
-      stopCount();
-    };
-  }, [database, key, limit, attempt]);
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchExerciseLibrary>[0],
+      onValue: (value: { page: LibraryPage; total: number }) => void,
+      onError: () => void,
+    ) => {
+      const parsed: LibraryFilters = JSON.parse(key);
+      let page: LibraryPage | undefined;
+      let total: number | undefined;
+      const emit = () => {
+        if (page !== undefined && total !== undefined) onValue({ page, total });
+      };
+      const stopRows = watchExerciseLibrary(database, parsed, limit, {
+        onPage: (value) => {
+          page = value;
+          emit();
+        },
+        onError,
+      });
+      const stopCount = watchExerciseLibraryCount(database, parsed, {
+        onCount: (value) => {
+          total = value;
+          emit();
+        },
+        onError,
+      });
+      return () => {
+        stopRows();
+        stopCount();
+      };
+    },
+    [key, limit],
+  );
+  const state = useLocalWatch(subscribe);
+  const page = state.value?.page;
+  const total = state.value?.total ?? null;
+  const retry = state.retry;
 
   const loadMore = useCallback(
     () => setWindow({ key, limit: limit + LIBRARY_PAGE_SIZE }),
     [key, limit],
   );
-  const retry = useCallback(() => {
-    setFailed(false);
-    setPage(null);
-    setAttempt((current) => current + 1);
-  }, []);
-
   const status: LibraryStatus = libraryStatus({
-    failed: failed || local?.status === "unavailable",
+    failed: state.failed,
     snapshot,
     show,
   });
@@ -77,7 +84,7 @@ export function useExerciseLibrary(filters: LibraryFilters) {
     total,
     hasMore: page?.hasMore ?? false,
     /** No result has arrived yet for these filters. */
-    isLoading: status !== "error" && (local === null || (database !== null && page === null)),
+    isLoading: state.loading,
     status,
     loadMore,
     retry,

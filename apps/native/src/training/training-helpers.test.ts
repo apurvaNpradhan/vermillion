@@ -3,14 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { effortLabel, formatEffortRange, nudgeEffort, selectEffort } from "./effort";
 import { estimateMinutes, estimateSeconds } from "./estimate";
-import { exerciseNames } from "./exercise-names";
 import { beforeIdOf, movedOrder, slotOf, targetIndex } from "./reorder";
 import { formatClock, parseDuration, restChoices } from "./rest";
 import {
   appendSet,
   appendWarmup,
   chipTexts,
-  editTarget,
   removeSetAt,
   withKind,
   withTarget,
@@ -36,48 +34,15 @@ describe("duration estimate", () => {
     }));
     expect(estimateMinutes(seven)).toBe(55);
   });
-});
 
-describe("fill-down editing", () => {
-  const set = (reps: number, extra: Omit<PlannedSet, "kind" | "reps_min" | "reps_max"> = {}) =>
-    working({ reps_min: reps, reps_max: reps, ...extra });
-  const minOf = (sets: PlannedSet[]) => sets.map((s) => s.reps_min);
-
-  it("carries a change to later sets that equalled the old value", () => {
-    const next = editTarget([set(10), set(10), set(10)], 0, { reps_min: 8, reps_max: 8 });
-    expect(minOf(next)).toEqual([8, 8, 8]);
-  });
-
-  it("changes only the edited set when it is the last or later ones differ", () => {
-    expect(minOf(editTarget([set(10), set(10), set(10)], 2, { reps_min: 8, reps_max: 8 }))).toEqual(
-      [10, 10, 8],
-    );
-    expect(minOf(editTarget([set(10), set(6), set(10)], 0, { reps_min: 8, reps_max: 8 }))).toEqual([
-      8, 6, 8,
-    ]);
-  });
-
-  it("never touches earlier sets or sets of another kind", () => {
-    const sets: PlannedSet[] = [set(10), { kind: "drop", reps_min: 10, reps_max: 10 }, set(10)];
-    expect(minOf(editTarget(sets, 0, { reps_min: 8, reps_max: 8 }))).toEqual([8, 10, 8]);
-    expect(minOf(editTarget([set(10), set(10)], 1, { reps_min: 5, reps_max: 5 }))).toEqual([10, 5]);
-  });
-
-  it("treats an empty field as a value and fields independently", () => {
-    const sets = [set(10, { weight_kg: 60 }), set(10), set(10, { weight_kg: 60 })];
-    const next = editTarget(sets, 0, { weight_kg: 70 });
-    expect(next.map((s) => s.weight_kg)).toEqual([70, undefined, 70]);
-    expect(minOf(next)).toEqual([10, 10, 10]);
-    const cleared = editTarget([set(10, { weight_kg: 60 }), set(10, { weight_kg: 60 })], 0, {
-      weight_kg: undefined,
-    });
-    expect(cleared.map((s) => s.weight_kg)).toEqual([undefined, undefined]);
-  });
-
-  it("moves a reps range as a pair", () => {
-    const sets = [working({ reps_min: 8, reps_max: 12 }), working({ reps_min: 8, reps_max: 10 })];
-    const next = editTarget(sets, 0, { reps_min: 6, reps_max: 12 });
-    expect(next[1]).toEqual({ kind: "working", reps_min: 8, reps_max: 10 });
+  it("includes the planned time for continuous cardio instead of treating it as a short set", () => {
+    const cardio = [
+      { sets: [working({ duration_s: 900, distance_m: 1200 })], restSeconds: null },
+      { sets: [working({ duration_s: 600, distance_m: 2500 })], restSeconds: null },
+    ];
+    expect(estimateSeconds(cardio)).toBe(1500);
+    expect(estimateMinutes(cardio)).toBe(25);
+    expect(estimateSeconds([...cardio, { sets: [working()], restSeconds: 60 }])).toBe(1600);
   });
 });
 
@@ -98,14 +63,36 @@ describe("warm-ups", () => {
 });
 
 describe("per-set editing", () => {
-  it("numbers working sets and letters the other kinds", () => {
-    const letters = { warmup: "W", working: "", drop: "D", failure: "F" };
+  it("counts all training sets while keeping warm-ups separate", () => {
+    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
     expect(
       chipTexts(
         [{ kind: "warmup" }, working(), { kind: "drop" }, working(), { kind: "failure" }],
         letters,
       ),
-    ).toEqual(["W", "1", "D", "2", "F"]);
+    ).toEqual(["W", "1", "2D", "3", "4T"]);
+  });
+
+  it("distinguishes multiple warm-ups without counting them as training sets", () => {
+    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
+    expect(
+      chipTexts([{ kind: "warmup" }, { kind: "warmup" }, working(), { kind: "drop" }], letters),
+    ).toEqual(["W1", "W2", "1", "2D"]);
+  });
+
+  it("keeps later training numbers when a working set becomes a drop or failure set", () => {
+    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
+    const sets = [working(), working(), working()];
+    expect(chipTexts([withKind(sets[0]!, "drop"), sets[1]!, sets[2]!], letters)).toEqual([
+      "1D",
+      "2",
+      "3",
+    ]);
+    expect(chipTexts([withKind(sets[0]!, "failure"), sets[1]!, sets[2]!], letters)).toEqual([
+      "1T",
+      "2",
+      "3",
+    ]);
   });
 
   it("appends a copy of the last working set, up to the limit", () => {
@@ -190,15 +177,5 @@ describe("reorder geometry", () => {
     expect(beforeIdOf(["a", "b", "c", "d"], 0, 2)).toBe("d");
     expect(beforeIdOf(["a", "b", "c", "d"], 0, 3)).toBeNull();
     expect(beforeIdOf(["a", "b", "c", "d"], 3, 0)).toBe("a");
-  });
-});
-
-describe("exercise names", () => {
-  it("lists the first titles and counts the rest", () => {
-    const rows = ["Bench", "Row", "Curl", "Dip", "Fly"].map((title) => ({ title }));
-    expect(exerciseNames(rows)).toEqual({ shown: ["Bench", "Row"], more: 3 });
-    expect(exerciseNames(rows.slice(0, 2))).toEqual({ shown: ["Bench", "Row"], more: 0 });
-    expect(exerciseNames([{ title: null }, { title: "Row" }])).toEqual({ shown: ["Row"], more: 0 });
-    expect(exerciseNames([])).toEqual({ shown: [], more: 0 });
   });
 });

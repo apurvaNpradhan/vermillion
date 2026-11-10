@@ -15,6 +15,18 @@ export function isFullSwipe(translation: number, rowWidth: number, actionCount: 
   return rowWidth > 0 && distance >= threshold;
 }
 
+/** Share of the row's width a drag must pass to fire a direct swipe. */
+export const DIRECT_SWIPE_RATIO = 0.4;
+
+/** Whether a drag has gone far enough to fire a direct (no buttons) swipe on release. */
+export function isDirectSwipe(translation: number, rowWidth: number): boolean {
+  "worklet";
+  return (
+    rowWidth > 0 &&
+    Math.abs(translation) >= Math.max(rowWidth * DIRECT_SWIPE_RATIO, SWIPE_ACTION_WIDTH)
+  );
+}
+
 /** Seconds of a fling counted as distance already travelled when deciding to open or close. */
 export const VELOCITY_LOOKAHEAD = 0.12;
 

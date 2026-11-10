@@ -46,6 +46,9 @@ export const roleNames = [
   "warning",
   "warning-text",
   "on-warning",
+  "set-warmup",
+  "set-drop",
+  "set-failure",
   // Macros (data colors): fill for rings and bars, `*-text` for values.
   "protein",
   "protein-text",
@@ -87,6 +90,9 @@ const dark: RoleTokens = {
   warning: "#FFC533",
   "warning-text": "#FFC533",
   "on-warning": "#07080A",
+  "set-warmup": "#57C1FF",
+  "set-drop": "#FFC533",
+  "set-failure": "#D98BC4",
   protein: "#57C1FF",
   "protein-text": "#57C1FF",
   carbs: "#FFC533",
@@ -124,6 +130,9 @@ const light: RoleTokens = {
   warning: "#F2B21B",
   "warning-text": "#8F6200",
   "on-warning": "#FFFFFF",
+  "set-warmup": "#0B6FA8",
+  "set-drop": "#8F6200",
+  "set-failure": "#9B407F",
   protein: "#1A86CC",
   "protein-text": "#0B6FA8",
   carbs: "#BF8500",
@@ -137,6 +146,9 @@ const light: RoleTokens = {
  * `text-secondary` role: the library has no free name for it.
  */
 export const sharedTokenSources = {
+  "set-warmup": "set-warmup",
+  "set-drop": "set-drop",
+  "set-failure": "set-failure",
   subtle: "text-secondary",
   identity: "identity",
   "identity-soft": "identity-soft",

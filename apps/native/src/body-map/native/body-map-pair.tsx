@@ -8,10 +8,11 @@ const MAX_FIGURE_WIDTH = 150;
 /** The front and the back side by side, each half the width of the box (less the gap). */
 export function BodyMapPair({
   style,
+  gap = 16,
   ...props
-}: Omit<BodyMapProps, "view" | "style"> & { style?: ViewStyle }) {
+}: Omit<BodyMapProps, "view" | "style"> & { style?: ViewStyle; gap?: number }) {
   return (
-    <View style={[{ flexDirection: "row", justifyContent: "center", gap: 16 }, style]}>
+    <View style={[{ flexDirection: "row", justifyContent: "center", gap }, style]}>
       <View style={{ flex: 1, maxWidth: MAX_FIGURE_WIDTH }}>
         <BodyMap view="front" {...props} />
       </View>

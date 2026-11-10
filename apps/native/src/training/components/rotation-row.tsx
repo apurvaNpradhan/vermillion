@@ -1,13 +1,13 @@
 import type { TranslationKey } from "@workspace/i18n";
 import type { ProgramSlotDetail } from "@workspace/sync";
-import { Barbell, DotsSixVertical, DotsThreeVertical, Moon } from "phosphor-react-native";
+import { DotsSixVertical, DotsThreeVertical, Moon } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ExerciseThumbnail } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
+import { PlanInitialTile } from "./plan-initial-tile";
 import { displayTitle } from "../derived-title";
 import { estimateMinutes } from "../estimate";
 
@@ -23,7 +23,7 @@ export function slotTitle(slot: ProgramSlotDetail, t: (key: TranslationKey) => s
 }
 
 /**
- * One Slot of the Rotation: its day number, then the Workout (first exercise thumbnail, name, `6 exercises · ~55 min`,
+ * One Slot of the Rotation: its day number, then the Workout (title initial, name, `6 exercises · ~55 min`,
  * and `×2` when it fills several Slots) or a quiet Rest row. While the list is dragged it is a
  * single line.
  */
@@ -55,7 +55,10 @@ export const RotationRow = memo(function RotationRow({
   if (collapsed) {
     return (
       <View className="h-14 flex-row items-center gap-3 border-b border-border bg-surface px-4">
-        <Text className="w-6 text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text
+          className="w-8 text-center text-label font-semibold text-muted"
+          style={{ fontVariant: ["tabular-nums"] }}
+        >
           {number}
         </Text>
         <Text
@@ -85,14 +88,17 @@ export const RotationRow = memo(function RotationRow({
     return (
       <View
         accessible={false}
-        className="min-h-14 flex-row items-center border-b border-border bg-background"
+        className="min-h-14 flex-row items-center border-b border-border bg-surface"
       >
         <View
           accessibilityLabel={t("training__slot_rest_label", { number })}
           accessible
           className="min-h-14 flex-1 flex-row items-center gap-3 pl-4"
         >
-          <Text className="w-6 text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className="w-8 text-center text-label font-semibold text-muted"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {number}
           </Text>
           <View
@@ -103,12 +109,14 @@ export const RotationRow = memo(function RotationRow({
           </View>
           <Text className="flex-1 text-body text-muted">{name}</Text>
         </View>
+        <View accessible accessibilityLabel={t("training__drag_hint")}>
+          <DotsSixVertical size={18} color={subtle} />
+        </View>
         {menu}
       </View>
     );
   }
 
-  const first = workout.exercises[0];
   const count = workout.exercises.length;
   const meta =
     count === 0
@@ -116,7 +124,7 @@ export const RotationRow = memo(function RotationRow({
       : t("training__workout_meta", { count, minutes: estimateMinutes(workout.exercises) });
 
   return (
-    <View className="min-h-[72px] flex-row items-center border-b border-border bg-background">
+    <View className="min-h-[72px] flex-row items-center border-b border-border bg-surface">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("training__slot_label", { number, title })}, ${meta}${
@@ -126,27 +134,15 @@ export const RotationRow = memo(function RotationRow({
         onPress={() => onOpen(slot)}
         className="min-h-[72px] flex-1 flex-row items-center gap-3 py-2 pl-4 active:bg-default"
       >
-        <Text className="w-6 text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text
+          className="w-8 text-center text-label font-semibold text-muted"
+          style={{ fontVariant: ["tabular-nums"] }}
+        >
           {number}
         </Text>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          className="items-center justify-center rounded-xl bg-default"
-          style={{ width: TILE, height: TILE }}
-        >
-          {first?.primaryMuscle ? (
-            <ExerciseThumbnail
-              thumbnailKey={first.thumbnailKey}
-              muscle={first.primaryMuscle}
-              size={TILE}
-            />
-          ) : (
-            <Barbell size={22} color={subtle} />
-          )}
-        </View>
+        <PlanInitialTile title={title} size={TILE} />
         <View className="flex-1 gap-0.5">
-          <Text numberOfLines={1} className="font-medium text-body text-foreground">
+          <Text numberOfLines={2} className="font-medium text-body text-foreground">
             {title}
           </Text>
           <Text numberOfLines={1} className="text-caption text-muted">
@@ -165,6 +161,9 @@ export const RotationRow = memo(function RotationRow({
           </View>
         ) : null}
       </Pressable>
+      <View accessible accessibilityLabel={t("training__drag_hint")}>
+        <DotsSixVertical size={18} color={subtle} />
+      </View>
       {menu}
     </View>
   );

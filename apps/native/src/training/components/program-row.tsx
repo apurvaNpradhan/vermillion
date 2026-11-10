@@ -1,41 +1,31 @@
-import type { MuscleGroup } from "@workspace/shared";
 import type { ProgramSummary } from "@workspace/sync";
 import { Image } from "expo-image";
-import { CaretRight, Copy, Trash } from "phosphor-react-native";
-import { memo, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Copy, Trash } from "phosphor-react-native";
+import { memo, useMemo, useState, type ComponentProps } from "react";
+import { View } from "react-native";
 
-import { ExerciseThumbnail } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
-import { Card } from "@/platform/ui/card";
-import { SwipeRow, type SwipeAction } from "@/platform/ui/swipe-row";
+import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { rotationSummary } from "../rotation";
 import { useProgramMeta } from "../use-program-meta";
+import { PlanInitialTile } from "./plan-initial-tile";
+import { PlanRow } from "./plan-row";
 
-const TILE = 72;
-
-/** The first letter of a title, for the generated tile. */
-export function initialOf(title: string): string {
-  return [...title.trim()][0]?.toUpperCase() ?? "?";
-}
+const TILE = 36;
 
 /**
- * The tile of a Program: its cover photo from this device when there is one, else the thumbnail of
- * the first exercise of its first Workout, else the generated tile (its initial on a tint). A
+ * The tile of a Program: its cover photo from this device or a generated initial. A
  * photo that cannot be read falls back the same way.
  */
 export function ProgramTile({
   title,
   size,
   coverUri = null,
-  firstExercise = null,
 }: {
   title: string;
   size: number;
   coverUri?: string | null;
-  firstExercise?: { thumbnailKey: string | null; primaryMuscle: MuscleGroup } | null;
 }) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   if (coverUri !== null && failedUri !== coverUri) {
@@ -57,40 +47,10 @@ export function ProgramTile({
       </View>
     );
   }
-  if (firstExercise?.thumbnailKey) {
-    return (
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        className="overflow-hidden rounded-xl bg-default"
-        style={{ width: size, height: size }}
-      >
-        <ExerciseThumbnail
-          thumbnailKey={firstExercise.thumbnailKey}
-          muscle={firstExercise.primaryMuscle}
-          size={size}
-        />
-      </View>
-    );
-  }
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      className="items-center justify-center rounded-xl bg-default"
-      style={{ width: size, height: size }}
-    >
-      <Text
-        className="font-semibold text-title-md text-foreground"
-        style={{ fontSize: size * 0.42 }}
-      >
-        {initialOf(title)}
-      </Text>
-    </View>
-  );
+  return <PlanInitialTile title={title} size={size} />;
 }
 
-/** One Program as a card: tile, title, `4 days · 6-day rotation · 12 weeks` and a chevron. */
+/** A compact program row; the same menu and swipe actions are available in either list. */
 export const ProgramRow = memo(function ProgramRow({
   program,
   onOpen,
@@ -103,7 +63,6 @@ export const ProgramRow = memo(function ProgramRow({
   onDelete: (id: string, title: string) => void;
 }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
   const meta = useProgramMeta(rotationSummary(program.slots), program.plannedWeeks);
 
   const swipe = useMemo<SwipeAction[]>(
@@ -126,34 +85,30 @@ export const ProgramRow = memo(function ProgramRow({
   );
 
   return (
-    <SwipeRow actions={swipe}>
-      {(a11y) => (
-        <Pressable
-          {...a11y}
-          accessibilityRole="button"
-          accessibilityLabel={`${program.title}, ${meta}`}
-          onPress={() => onOpen(program.id)}
-          className="active:opacity-80"
-        >
-          <Card className="flex-row items-center gap-3 p-3">
-            <ProgramTile
-              title={program.title}
-              size={TILE}
-              coverUri={program.coverUri}
-              firstExercise={program.firstExercise}
-            />
-            <View className="flex-1 gap-1">
-              <Text numberOfLines={2} className="font-semibold text-title-md text-foreground">
-                {program.title}
-              </Text>
-              <Text numberOfLines={2} className="text-caption text-muted">
-                {meta}
-              </Text>
-            </View>
-            <CaretRight size={18} color={subtle} />
-          </Card>
-        </Pressable>
-      )}
-    </SwipeRow>
+    <PlanRow
+      title={program.title}
+      meta={meta}
+      tile={<ProgramTile title={program.title} size={TILE} coverUri={program.coverUri} />}
+      menuLabel={t("training__program_menu")}
+      onOpen={() => onOpen(program.id)}
+      actions={swipe}
+    />
   );
 });
+
+/** Grouped rows keep programs compact while exposing their full actions. */
+export function ProgramList({
+  programs,
+  ...actions
+}: Omit<ComponentProps<typeof ProgramRow>, "program"> & { programs: readonly ProgramSummary[] }) {
+  return (
+    <View className="overflow-hidden rounded-2xl border border-border bg-surface">
+      {programs.map((program, index) => (
+        <View key={program.id}>
+          {index > 0 ? <View className="h-px bg-border" /> : null}
+          <ProgramRow program={program} {...actions} />
+        </View>
+      ))}
+    </View>
+  );
+}

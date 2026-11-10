@@ -64,3 +64,17 @@ An `exercise_id` always resolves; exercises are never deleted; an exercise's typ
 - An equipment slug or muscle group added later needs a code change, an i18n key and (for a group) body-map art, plus an additive `CHECK` migration.
 - Prefetch treats Wi-Fi and Ethernet as unmetered because expo-network exposes no metered flag, so a metered hotspot over Wi-Fi is still prefetched on.
 - Spike ADR 0025's FTS5 index, Postgres enum and `custom_equipment` table are not carried over.
+
+## Amendment: catalog replacement policy (2026-11-10)
+
+Keep the existing exercise ids so plans and future history retain their references. Titles,
+instructions, videos, thumbnails and interim body art need independently recorded provenance
+before a public release. Our default is original descriptions and commissioned or self-produced
+media, with contributor licences recorded alongside the replacement inventory. Do not assume a
+publicly accessible catalog or another app's exercise videos are licensed for redistribution.
+
+Replace content in place through the catalog importer; retire genuinely removed exercises rather
+than recycling their ids. Never change an existing exercise's recording type to fit replacement
+content. Future Session rows snapshot the title and recording type as described in ADR 0037.
+The third-party assets remain development fixtures until replacement or a verified licence is
+recorded. This decision does not claim that the existing content has acquired redistribution rights.

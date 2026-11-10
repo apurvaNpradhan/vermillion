@@ -1,55 +1,33 @@
 import {
   EQUIPMENT_KEYS,
   MUSCLE_GROUP_KEYS,
-  SET_KINDS,
-  SET_KIND_KEYS,
   TRAINING_LIMITS,
   supersetPlaces,
   type SupersetPlace,
   type ExerciseType,
   type PlannedSet,
-  type SetKind,
 } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
-import { CaretRight, Plus, Timer, X } from "phosphor-react-native";
+import { CaretRight, X } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { ExerciseThumbnail } from "@/exercise";
-import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { useSubtleColor } from "@/platform/theme";
-import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { OptionSheet, type SheetOption } from "@/platform/ui/option-sheet";
 import { Skeleton } from "@/platform/ui/skeleton";
 
-import { formatClock, restChoices } from "../rest";
-import {
-  MAX_WARMUPS,
-  appendSet,
-  appendWarmup,
-  chipTexts,
-  editTarget,
-  removeSetAt,
-  replaceSet,
-  supportsWarmups,
-  withKind,
-} from "../set-editing";
 import { useCoalescedWriter } from "../use-coalesced-writer";
-import { useTrainingPreferences } from "../use-training-preferences";
 import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
-import { EffortSheet } from "./effort-sheet";
+import { RestPicker } from "./rest-picker";
+import { DetailedTargets } from "./detailed-targets";
 import { InlineNote } from "./inline-note";
-import { SetTable } from "./set-table";
 import { SheetFrame } from "./sheet-frame";
 
 const HEADER_THUMBNAIL = 44;
-const REST_OFF = "off";
-const REMOVE_SET = "remove";
-type SetKindChoice = SetKind | typeof REMOVE_SET;
 
 const FALLBACK_TYPE: ExerciseType = "weight_reps";
 
@@ -128,7 +106,6 @@ function LoadedSheet({
 }) {
   const { t } = useTranslation();
   const { updateExercise } = useWorkoutActions();
-  const preferences = useTrainingPreferences();
   const subtle = useSubtleColor();
   const info = entry.exercise;
   const type = info?.exerciseType ?? FALLBACK_TYPE;
@@ -140,9 +117,6 @@ function LoadedSheet({
   );
   const [draft, setDraft] = useState<Draft>(() => draftOf(entry));
   const draftRef = useRef(draft);
-  const [kindFor, setKindFor] = useState<number | null>(null);
-  const [effortFor, setEffortFor] = useState<number | null>(null);
-  const [restOpen, setRestOpen] = useState(false);
 
   // Take in changes from the database (another device) unless an edit of ours is on its way.
   const sourceKey = JSON.stringify(draftOf(entry));
@@ -166,35 +140,6 @@ function LoadedSheet({
       ...(change.note === undefined ? {} : { note: change.note }),
     });
   };
-  // Set edits read the latest sets, so two quick edits in a row never overwrite each other.
-  const editSets = (change: (sets: readonly PlannedSet[]) => PlannedSet[]) =>
-    edit({ sets: change(draftRef.current.sets) });
-
-  const letters = {
-    warmup: t("training__chip_warmup"),
-    working: "",
-    drop: t("training__chip_drop"),
-    failure: t("training__chip_failure"),
-  } satisfies Record<SetKind, string>;
-  const chips = chipTexts(draft.sets, letters);
-  const full = draft.sets.length >= TRAINING_LIMITS.setsPerExercise;
-  const warmups = draft.sets.filter((set) => set.kind === "warmup").length;
-  const restValue =
-    draft.restSeconds === null ? t("training__rest_off") : formatClock(draft.restSeconds);
-  const kindOptions: SheetOption<SetKindChoice>[] = [
-    ...SET_KINDS.filter((kind) => kind !== "warmup" || supportsWarmups(type)).map(
-      (kind): SheetOption<SetKindChoice> => ({ value: kind, label: t(SET_KIND_KEYS[kind]) }),
-    ),
-    ...(draft.sets.length > 1
-      ? [
-          {
-            value: REMOVE_SET,
-            label: t("training__remove_set"),
-          } satisfies SheetOption<SetKindChoice>,
-        ]
-      : []),
-  ];
-  const effortSet = effortFor === null ? undefined : draft.sets[effortFor];
 
   return (
     <SheetFrame
@@ -254,123 +199,16 @@ function LoadedSheet({
       />
 
       {place === "first" || place === "middle" ? (
-        // A superset rests once, after its last exercise.
         <Text className="text-body text-muted">{t("training__rest_group_member")}</Text>
       ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("training__rest_chip_label", { value: restValue })}
-          onPress={() => {
-            haptic.tick();
-            setRestOpen(true);
-          }}
-          className="h-10 flex-row items-center gap-2 self-start rounded-full bg-default px-4 active:bg-border"
-        >
-          <Timer size={16} color={subtle} />
-          <Text className="text-label font-medium text-foreground">
-            {t(place === "last" ? "training__rest_chip_group" : "training__rest_chip", {
-              value: restValue,
-            })}
-          </Text>
-        </Pressable>
+        <RestPicker
+          value={draft.restSeconds}
+          group={place === "last"}
+          onChange={(restSeconds) => edit({ restSeconds })}
+        />
       )}
 
-      <View className="gap-4">
-        <SetTable
-          type={type}
-          sets={draft.sets}
-          chips={chips}
-          weightUnit={preferences.weightUnit}
-          effortScale={preferences.effortScale}
-          onChange={(index, change) => editSets((sets) => editTarget(sets, index, change))}
-          onKind={setKindFor}
-          onEffort={setEffortFor}
-        />
-        <View className="flex-row gap-3">
-          <Button
-            variant="secondary"
-            className="flex-1"
-            isDisabled={full}
-            onPress={() => editSets((sets) => appendSet(sets, type))}
-          >
-            <Plus size={16} color={subtle} weight="bold" />
-            <Button.Label>{t("training__add_set")}</Button.Label>
-          </Button>
-          {supportsWarmups(type) ? (
-            <Button
-              variant="secondary"
-              className="flex-1"
-              isDisabled={full || warmups >= MAX_WARMUPS}
-              onPress={() => editSets((sets) => appendWarmup(sets, type))}
-            >
-              <Plus size={16} color={subtle} weight="bold" />
-              <Button.Label>{t("training__add_warmup")}</Button.Label>
-            </Button>
-          ) : null}
-        </View>
-      </View>
-
-      <OptionSheet<SetKindChoice>
-        isOpen={kindFor !== null}
-        onOpenChange={(open) => {
-          if (!open) setKindFor(null);
-        }}
-        title={t("training__set_kind_title")}
-        options={kindOptions}
-        value={kindFor === null ? "working" : (draft.sets[kindFor]?.kind ?? "working")}
-        onSelect={(choice) => {
-          const index = kindFor;
-          if (index === null) return;
-          if (choice === REMOVE_SET) {
-            editSets((sets) => removeSetAt(sets, index));
-            return;
-          }
-          editSets((sets) => {
-            const set = sets[index];
-            return set ? replaceSet(sets, index, withKind(set, choice)) : [...sets];
-          });
-        }}
-      />
-
-      <OptionSheet<string>
-        isOpen={restOpen}
-        onOpenChange={setRestOpen}
-        title={t(place === "last" ? "training__rest_group_title" : "training__rest_title")}
-        options={[
-          { value: REST_OFF, label: t("training__rest_off") },
-          ...restChoices(draft.restSeconds).map((seconds) => ({
-            value: String(seconds),
-            label: formatClock(seconds),
-          })),
-        ]}
-        value={draft.restSeconds === null ? REST_OFF : String(draft.restSeconds)}
-        onSelect={(choice) => edit({ restSeconds: choice === REST_OFF ? null : Number(choice) })}
-      />
-
-      <EffortSheet
-        isOpen={effortFor !== null}
-        onOpenChange={(open) => {
-          if (!open) setEffortFor(null);
-        }}
-        title={t("training__field_effort", {
-          scale: t(
-            preferences.effortScale === "rpe" ? "training__effort_rpe" : "training__effort_rir",
-          ),
-        })}
-        value={
-          effortSet?.effort_min !== undefined && effortSet.effort_max !== undefined
-            ? { min: effortSet.effort_min, max: effortSet.effort_max }
-            : null
-        }
-        scale={preferences.effortScale}
-        onChange={(range) => {
-          const index = effortFor;
-          if (index === null) return;
-          editSets((sets) =>
-            editTarget(sets, index, { effort_min: range?.min, effort_max: range?.max }),
-          );
-        }}
-      />
+      <DetailedTargets sets={draft.sets} type={type} onSets={(sets) => edit({ sets })} />
     </SheetFrame>
   );
 }

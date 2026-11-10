@@ -40,3 +40,6 @@ Account first, derived from the profile: `pendingOnboardingSteps` in `@workspace
 ## Passkeys
 
 Sign-in only for existing accounts; registration needs a fresh session. RP ID = `AUTH_RP_ID`, default the hostname of `APP_URL` (`api.<domain>`; permanent: never change it once passkeys exist); the accepted origins are exactly `AUTH_PASSKEY_ORIGINS` plus the `android:apk-key-hash:` origin of every `ANDROID_CERT_SHA256` fingerprint, resolved in `apps/server/src/index.ts`. HTTPS origins from that list are also trusted origins. `/.well-known/assetlinks.json` and `apple-app-site-association` are served by the API (`platform/well-known.ts`) from `ANDROID_CERT_SHA256` / `APPLE_TEAM_ID`, 404 while unset. Phone testing needs the dev tunnel: see `docs/guides/native-dev.md`. Endpoints (under `/api/auth`): `GET /passkey/generate-register-options`, `POST /passkey/verify-registration`, `GET /passkey/generate-authenticate-options`, `POST /passkey/verify-authentication`, `GET /passkey/list-user-passkeys`, `POST /passkey/delete-passkey`, `POST /passkey/update-passkey`. The challenge travels in a signed cookie, so a native client must send back the cookies of the options response.
+
+Sign-in sessions explicitly expire after 30 days and refresh after one day of use. Sensitive
+operations retain a one-day freshness window; longer sign-in persistence does not extend it.

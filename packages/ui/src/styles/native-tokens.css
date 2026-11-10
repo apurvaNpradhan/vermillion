@@ -38,6 +38,9 @@
       --separator: #C9C9CF;
       --focus: #C9C9CF;
       --link: #111214;
+      --set-warmup: #0B6FA8;
+      --set-drop: #8F6200;
+      --set-failure: #9B407F;
       --subtle: #3C3D42;
       --identity: #111214;
       --identity-soft: #ECECEF;
@@ -87,6 +90,9 @@
       --separator: #393B3F;
       --focus: #393B3F;
       --link: #F4F4F6;
+      --set-warmup: #57C1FF;
+      --set-drop: #FFC533;
+      --set-failure: #D98BC4;
       --subtle: #CDCDCF;
       --identity: #F4F4F6;
       --identity-soft: #1C1D20;
@@ -107,6 +113,9 @@
 }
 
 @theme inline {
+  --color-set-warmup: var(--set-warmup);
+  --color-set-drop: var(--set-drop);
+  --color-set-failure: var(--set-failure);
   --color-subtle: var(--subtle);
   --color-identity: var(--identity);
   --color-identity-soft: var(--identity-soft);

@@ -1,3 +1,4 @@
+import { useBottomSheetAwareHandlers } from "heroui-native";
 /**
  * Source: PanelUI (panelui-native 1.2.0), `Field` and `InputGroup`. MIT licence,
  * https://github.com/panel-ui/PanelUI.
@@ -44,6 +45,7 @@ export function Field({
   ...input
 }: FieldProps) {
   const [focused, setFocused] = useState(false);
+  const sheetKeyboard = useBottomSheetAwareHandlers();
   const danger = useThemeColor("danger");
   const hasError = error !== undefined && error.length > 0;
 
@@ -67,10 +69,12 @@ export function Field({
           aria-invalid={hasError}
           placeholderTextColorClassName="accent-muted"
           onFocus={(event) => {
+            sheetKeyboard.onFocus(event);
             setFocused(true);
             onFocus?.(event);
           }}
           onBlur={(event) => {
+            sheetKeyboard.onBlur(event);
             setFocused(false);
             onBlur?.(event);
           }}
