@@ -169,8 +169,8 @@ export function applySessionWorkout(
         const values = {
           exercise_id: entry.exercise_id,
           position: keys[index] ?? "a0",
-          rest_seconds: entry.rest_seconds,
-          note: entry.note,
+          rest_seconds: old ? old.rest_seconds : entry.rest_seconds,
+          note: old ? old.note : entry.note,
           superset_group: entry.superset_group,
           sets: plannedSetsSchema(entry.exercise_type).parse(targets),
         };

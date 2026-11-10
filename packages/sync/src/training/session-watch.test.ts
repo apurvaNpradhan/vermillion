@@ -18,6 +18,8 @@ import {
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
   exerciseHistoriesSql,
+  exerciseRecordsSql,
+  sessionsPageSql,
   parseActiveSessions,
   parseEquipment,
   parseExerciseHistories,
@@ -252,4 +254,46 @@ describe("gym equipment", () => {
     expect(items[1]).toMatchObject({ label: "EZ", enabled: false, unit: "kg" });
     expect(items[2]).toMatchObject({ count: 2 });
   });
+});
+
+it("pages beyond 500 Sessions and includes the oldest exercise best in Record comparisons", async () => {
+  const s = await setupSessions();
+  try {
+    await finishedSquat(s, daysAgo(3), [200]);
+    const recent = await finishedSquat(s, daysAgo(1), [100]);
+    const entry = String(s.exercises(recent)[0]?.["id"]);
+    const set = String(s.sets(entry)[1]?.["id"]);
+    for (let i = 0; i < 501; i++) {
+      s.sqlite
+        .prepare(`INSERT INTO training_session (id, user_id, title, started_at, finished_at, device_id, created_at)
+        SELECT ?, user_id, title, started_at, finished_at, device_id, created_at FROM training_session WHERE id = ?`)
+        .run(`filler-${i}`, recent);
+      s.sqlite
+        .prepare(`INSERT INTO session_exercise (id, user_id, session_id, exercise_id, exercise_title, exercise_type, position, created_at)
+        SELECT ?, user_id, ?, exercise_id, exercise_title, exercise_type, position, created_at FROM session_exercise WHERE id = ?`)
+        .run(`entry-${i}`, `filler-${i}`, entry);
+      s.sqlite
+        .prepare(`INSERT INTO session_set (id, user_id, session_exercise_id, position, kind, weight_kg, reps, completed_at, created_at)
+        SELECT ?, user_id, ?, position, kind, weight_kg, reps, completed_at, created_at FROM session_set WHERE id = ?`)
+        .run(`set-${i}`, `entry-${i}`, set);
+    }
+    const history = parseFinishedSessions(s.sqlite.prepare(exerciseRecordsSql(1)).all(SQUAT));
+    expect(history).toHaveLength(503);
+    expect(recordFlags(history).has(set)).toBe(false);
+    let cursor = { startedAt: "9999", id: "~" };
+    const ids: string[] = [];
+    while (true) {
+      const page = parseFinishedSessions(
+        s.sqlite.prepare(sessionsPageSql()).all(cursor.startedAt, cursor.startedAt, cursor.id, 50),
+      );
+      ids.push(...page.map((session) => session.id));
+      const last = page.at(-1);
+      if (!last) break;
+      cursor = { startedAt: last.started_at, id: last.id };
+    }
+    expect(ids).toHaveLength(503);
+    expect(new Set(ids).size).toBe(503);
+  } finally {
+    s.sqlite.close();
+  }
 });

@@ -88,12 +88,7 @@ export async function checkSessionRun(db: DbExecutor, userId: string, values: Se
       .from(programSlot)
       .where(eq(programSlot.id, values.slot_id))
       .limit(1);
-    if (
-      !slot ||
-      slot.userId !== userId ||
-      slot.programId !== values.program_id ||
-      slot.workoutId !== values.workout_id
-    )
+    if (!slot || slot.userId !== userId || slot.programId !== values.program_id)
       throw new SyncRejection("RUN_SLOT_PROGRAM_MISMATCH");
   }
 }

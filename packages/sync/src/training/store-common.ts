@@ -145,7 +145,7 @@ export type Tx = Parameters<Parameters<ReturnType<typeof open>["transaction"]>[0
 export function write<T>(
   database: TrainingDatabase,
   expectedInstallId: string | undefined,
-  run: (tx: Tx) => Promise<T>,
+  run: (tx: Tx, active: Awaited<ReturnType<typeof reconcileRuns>>) => Promise<T>,
 ): Promise<T> {
   return local(database).transaction(async (tx) => {
     if (expectedInstallId !== undefined) {
@@ -156,8 +156,8 @@ export function write<T>(
         .limit(1);
       if (!install) throw new Error("The device account changed; reopen the screen");
     }
-    await reconcileRuns(tx);
-    return run(tx);
+    const active = await reconcileRuns(tx);
+    return run(tx, active);
   });
 }
 

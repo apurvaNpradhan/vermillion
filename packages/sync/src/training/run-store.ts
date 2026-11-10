@@ -1,14 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import {
-  reconcileRuns,
-  assertProgramExists,
-  nowIso,
-  ownerOf,
-  write,
-  type TrainingDatabase,
-} from "./store-common";
+import { assertProgramExists, nowIso, ownerOf, write, type TrainingDatabase } from "./store-common";
 import { programRun } from "./tables";
 
 const runSchema = z.object({
@@ -35,9 +28,8 @@ export async function readRuns(database: TrainingDatabase) {
 export { reconcileRuns } from "./store-common";
 
 export function activateProgram(database: TrainingDatabase, programId: string, scope?: string) {
-  return write(database, scope, async (tx) => {
+  return write(database, scope, async (tx, current) => {
     await assertProgramExists(tx, programId);
-    const current = await reconcileRuns(tx);
     if (current?.program_id === programId) return current.id;
     if (current)
       await tx
@@ -62,7 +54,6 @@ function endRun(
   scope?: string,
 ) {
   return write(database, scope, async (tx) => {
-    await reconcileRuns(tx);
     await tx
       .update(programRun)
       .set({ finished_at: nowIso(), outcome })
@@ -75,7 +66,6 @@ export const finishRun = (db: TrainingDatabase, id: string, scope?: string) =>
   endRun(db, id, "completed", scope);
 export function keepGoing(database: TrainingDatabase, id: string, scope?: string) {
   return write(database, scope, async (tx) => {
-    await reconcileRuns(tx);
     await tx.update(programRun).set({ continued_at: nowIso() }).where(eq(programRun.id, id));
   });
 }
@@ -90,7 +80,6 @@ export async function runAgain(
     const [previous] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
     if (!previous || previous.program_id !== programId)
       throw new Error("The Run does not belong to this Program");
-    await reconcileRuns(tx);
     if (previous.finished_at === null)
       await tx
         .update(programRun)

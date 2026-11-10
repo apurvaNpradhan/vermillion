@@ -1,5 +1,9 @@
 import {
   ACTIVE_SESSIONS_SQL,
+  createProgram,
+  addSlot,
+  updateSlot,
+  activateProgram,
   SESSION_DETAIL_SQL,
   addSessionExercises,
   claimDeviceOwner,
@@ -97,6 +101,42 @@ const codes = (client: SyncClient) =>
   verdicts(client).map((v) => (v.status === "rejected" ? v.code : v.status));
 
 describe("sessions sync", () => {
+  it("finishes a snapshot after another device changes the slot workout", async () => {
+    const user = await createUser();
+    const press = await catalogExercise("weight_reps");
+    const a = await device(user),
+      b = await device(user);
+    await hasExercise(a, press);
+    const programId = await createProgram(a.database, {
+      title: "Plan",
+      description: null,
+      planned_weeks: null,
+    });
+    const workoutA = await createWorkout(a.database, { title: "A", program_id: programId });
+    const workoutB = await createWorkout(a.database, { title: "B", program_id: programId });
+    await addExercises(a.database, workoutA, [press]);
+    const slotId = await addSlot(a.database, programId, workoutA);
+    await activateProgram(a.database, programId);
+    const sessionId = await startSession(a.database, { workoutId: workoutA, derivedTitle: "A" });
+    const detail = parseSessionDetail(await a.database.getAll(SESSION_DETAIL_SQL, [sessionId]));
+    await tickSet(a.database, detail?.exercises[0]?.sets[0]?.id ?? "", { weight: 60, reps: 8 });
+    await a.uploaded();
+    await vi.waitFor(async () => {
+      expect(
+        await b.database.getOptional("SELECT id FROM program_slot WHERE id = ?", [slotId]),
+      ).not.toBeNull();
+    }, within);
+    await updateSlot(b.database, slotId, workoutB);
+    await b.uploaded();
+    await finishSession(a.database, sessionId);
+    await a.uploaded();
+    const stored = await database.query(
+      "SELECT workout_id, finished_at FROM training_session WHERE id = $1",
+      [sessionId],
+    );
+    expect(stored.rows[0]).toMatchObject({ workout_id: workoutA, finished_at: expect.any(Date) });
+    expect(codes(a)).not.toContain("RUN_SLOT_PROGRAM_MISMATCH");
+  });
   it("delivers a Session started on one device to another, with its sets and equipment", async () => {
     const user = await createUser();
     const press = await catalogExercise("weight_reps");

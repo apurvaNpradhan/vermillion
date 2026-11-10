@@ -178,6 +178,8 @@ export {
   watchExerciseHistories,
   watchSession,
   watchSessionsBetween,
+  watchSessionPage,
+  watchRecordHistory,
   parseActiveSessions,
   parseEquipment,
   parseFinishedSessions,

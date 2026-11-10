@@ -89,6 +89,8 @@ export {
   watchPrograms,
   watchSession,
   watchSessionsBetween,
+  watchSessionPage,
+  watchRecordHistory,
   watchWorkout,
   watchWorkouts,
   type ProgramDetail,

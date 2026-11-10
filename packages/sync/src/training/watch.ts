@@ -16,6 +16,8 @@ import {
   EQUIPMENT_SQL,
   EXERCISE_HISTORY_SQL,
   exerciseHistoriesSql,
+  exerciseRecordsSql,
+  sessionsPageSql,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -689,6 +691,43 @@ export function watchEquipment(
     [],
     ["gym_equipment"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches a cursor page, including one extra Session so the caller can detect the next page. */
+export function watchSessionPage(
+  database: TrainingDatabase,
+  cursor: { startedAt: string; id: string },
+  limit: number,
+  handlers: { onSessions: (sessions: FinishedSession[]) => void; onError: (error: Error) => void },
+) {
+  return watch(
+    database,
+    sessionsPageSql(),
+    [cursor.startedAt, cursor.startedAt, cursor.id, String(Math.min(500, Math.max(1, limit)))],
+    SESSION_TABLES,
+    parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Complete exercise-scoped chronological history for Record comparisons. */
+export function watchRecordHistory(
+  database: TrainingDatabase,
+  ids: readonly string[],
+  handlers: { onSessions: (sessions: FinishedSession[]) => void; onError: (error: Error) => void },
+) {
+  if (!ids.length) {
+    handlers.onSessions([]);
+    return () => undefined;
+  }
+  return watch(
+    database,
+    exerciseRecordsSql(ids.length),
+    [...ids],
+    SESSION_TABLES,
+    parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,
   );
 }

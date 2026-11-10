@@ -15,6 +15,17 @@ async function fixture() {
   return { s, plan, id, setId };
 }
 describe("applying Session changes", () => {
+  it("preserves later workout rest and pinned note edits when applying structure", async () => {
+    const { s, plan, id } = await fixture();
+    s.sqlite
+      .prepare("UPDATE workout_exercise SET rest_seconds = 45, note = 'New note' WHERE id = ?")
+      .run(plan.squat);
+    await applySessionWorkout(s.training, id, { structure: true, targets: false, saveNew: false });
+    expect(s.one("workout_exercise", plan.squat)).toMatchObject({
+      rest_seconds: 45,
+      note: "New note",
+    });
+  });
   it("leaves both options off and changes only weights when targets are on", async () => {
     const { s, plan, id } = await fixture();
     const before = s.one("workout_exercise", plan.squat);

@@ -406,6 +406,27 @@ export const SESSIONS_BETWEEN_SQL = `SELECT ${SET_COLUMNS}
     ORDER BY s2.started_at DESC, s2.id DESC LIMIT ${SESSION_READ_LIMIT})
   ${SET_ORDER}`;
 
+/** Cursor pages use the same stable start/id ordering as the History list. */
+export function sessionsPageSql(): string {
+  return SESSIONS_BETWEEN_SQL.replace(
+    "s2.started_at >= ? AND s2.started_at < ?",
+    "(s2.started_at < ? OR (s2.started_at = ? AND s2.id < ?))",
+  ).replace(`LIMIT ${SESSION_READ_LIMIT}`, "LIMIT ?");
+}
+
+/**
+ * Records must include the oldest best, and historical flags need chronological sets, not
+ * just today's maxima. Scope to the displayed exercises but deliberately omit a session cap.
+ * The ordinary Previous/chart read remains bounded.
+ */
+export function exerciseRecordsSql(count: number): string {
+  const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
+  return `SELECT ${SET_COLUMNS} FROM training_session s
+    JOIN session_exercise se ON se.session_id = s.id AND se.exercise_id IN (${ids})
+    JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+    WHERE s.finished_at IS NOT NULL ${SET_ORDER}`;
+}
+
 const finishedRowSchema = z.object({
   session_id: z.string(),
   title: z.string(),

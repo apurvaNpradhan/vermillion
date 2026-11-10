@@ -9,7 +9,6 @@ import {
 } from "@workspace/shared";
 import { asc, eq, inArray } from "drizzle-orm";
 
-import { reconcileRuns } from "./run-store";
 import { programRun, programSlot } from "./tables";
 import { keysAfterLast } from "./position";
 import {
@@ -51,6 +50,7 @@ async function createSessionIn(
   tx: Tx,
   source: SessionSource,
   fields: { id: string; startedAt: string; finishedAt: string | null; durationS: number | null },
+  run: typeof programRun.$inferSelect | null,
 ) {
   const userId = await ownerOf(tx);
   const deviceId = await installIdOf(tx);
@@ -68,7 +68,6 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
-  const run = fields.finishedAt === null ? await reconcileRuns(tx) : null;
   const active = run && plan?.program_id === run.program_id ? run : null;
   const slots = active
     ? await tx
@@ -175,12 +174,12 @@ export function startSession(
   options: { id?: string } = {},
   expectedInstallId?: string,
 ): Promise<string> {
-  return write(database, expectedInstallId, async (tx) => {
+  return write(database, expectedInstallId, async (tx, active) => {
     const id = options.id ?? uuidv7();
     const [existing] = await tx.select({ id: session.id }).from(session).where(eq(session.id, id));
     if (existing) return id;
     const startedAt = nowIso();
-    await createSessionIn(tx, source, { id, startedAt, finishedAt: null, durationS: null });
+    await createSessionIn(tx, source, { id, startedAt, finishedAt: null, durationS: null }, active);
     return id;
   });
 }
@@ -203,12 +202,17 @@ export function logPastSession(
     }
     const id = uuidv7();
     const end = new Date(Date.parse(when.startedAt) + (durationS ?? 0) * 1000).toISOString();
-    await createSessionIn(tx, source, {
-      id,
-      startedAt: new Date(when.startedAt).toISOString(),
-      finishedAt: end,
-      durationS,
-    });
+    await createSessionIn(
+      tx,
+      source,
+      {
+        id,
+        startedAt: new Date(when.startedAt).toISOString(),
+        finishedAt: end,
+        durationS,
+      },
+      null,
+    );
     return id;
   });
 }

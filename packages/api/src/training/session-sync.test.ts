@@ -71,6 +71,44 @@ describe("session upload handlers", () => {
   }
   type Writer = Awaited<ReturnType<typeof writer>>;
 
+  it("finishes a snapshotted workout after its program slot changes", async () => {
+    const a = await writer("slot-changed@example.com");
+    const program = uuidv7(),
+      workoutA = uuidv7(),
+      workoutB = uuidv7();
+    const run = uuidv7(),
+      slot = uuidv7(),
+      session = uuidv7();
+    expect(
+      await a.send([
+        op("PUT", "program", program, { title: "Plan" }),
+        op("PUT", "workout", workoutA, { program_id: program, title: "A" }),
+        op("PUT", "workout", workoutB, { program_id: program, title: "B" }),
+        op("PUT", "program_slot", slot, {
+          program_id: program,
+          workout_id: workoutA,
+          position: "a0",
+        }),
+        op("PUT", "program_run", run, { program_id: program, activated_at: minutesAgo(31) }),
+        putSession(session, {
+          program_id: program,
+          workout_id: workoutA,
+          run_id: run,
+          slot_id: slot,
+          cycle: 1,
+        }),
+      ]),
+    ).toEqual(applied);
+    expect(await a.send([op("PATCH", "program_slot", slot, { workout_id: workoutB })])).toEqual(
+      applied,
+    );
+    expect(
+      await a.send([
+        op("PATCH", "training_session", session, { finished_at: new Date().toISOString() }),
+      ]),
+    ).toEqual(applied);
+  });
+
   it("refuses foreign Runs and Slots from a different Program", async () => {
     const a = await writer("run-owner@example.com");
     const b = await writer("run-other@example.com");
