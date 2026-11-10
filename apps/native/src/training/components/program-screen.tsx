@@ -9,6 +9,7 @@ import {
   PencilSimple,
   Plus,
   Repeat,
+  ShareNetwork,
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
@@ -29,14 +30,19 @@ import { repeatCounts, rotationSummary } from "../rotation";
 import { useProgram } from "../use-program";
 import { useProgramActions } from "../use-program-actions";
 import { useProgramMeta } from "../use-program-meta";
+import { useSharePlan } from "../use-share-plan";
 import { useStartWorkout } from "../use-start-workout";
 import {
   AddWorkoutSheet,
   RepeatWorkoutSheet,
   type ProgramWorkoutChoice,
 } from "./program-workout-sheets";
+import { ProgramTile } from "./program-row";
 import { ReorderList } from "./reorder-list";
 import { RotationRow, slotTitle } from "./rotation-row";
+
+/** The cover tile in the header. */
+const COVER_SIZE = 88;
 
 /** Lines of the description shown before "More". */
 const DESCRIPTION_LINES = 4;
@@ -97,6 +103,7 @@ function LoadedProgram({
   const foreground = useThemeColor("foreground");
   const actions = useProgramActions();
   const { fromPicker } = useStartWorkout();
+  const { shareProgram } = useSharePlan();
   const [menuOpen, setMenuOpen] = useState(false);
   const [slotMenu, setSlotMenu] = useState<ProgramSlotDetail | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -130,6 +137,12 @@ function LoadedProgram({
       label: t("training__edit_details"),
       icon: PencilSimple,
       onPress: onOpenDetails,
+    },
+    {
+      key: "share",
+      label: t("training__share_as_text"),
+      icon: ShareNetwork,
+      onPress: () => void shareProgram(program.id, program.title),
     },
     {
       key: "duplicate",
@@ -216,12 +229,17 @@ function LoadedProgram({
           >
             <View className="px-4">{header}</View>
             <View className="gap-3 px-4">
-              <Text className="text-body text-muted">{meta}</Text>
-              {program.plannedWeeks !== null ? (
-                <Text className="text-body text-muted">
-                  {t("training__planned_summary", { count: program.plannedWeeks })}
-                </Text>
-              ) : null}
+              <View className="flex-row items-center gap-4">
+                <ProgramTile title={program.title} size={COVER_SIZE} coverUri={program.coverUri} />
+                <View className="flex-1 gap-1">
+                  <Text className="text-body text-muted">{meta}</Text>
+                  {program.plannedWeeks !== null ? (
+                    <Text className="text-body text-muted">
+                      {t("training__planned_summary", { count: program.plannedWeeks })}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}

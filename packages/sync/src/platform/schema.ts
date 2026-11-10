@@ -2,7 +2,7 @@ import { getTableName } from "drizzle-orm";
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
 import { exercise } from "../exercise/tables";
-import { program, programSlot, workout, workoutExercise } from "../training/tables";
+import { program, programCover, programSlot, workout, workoutExercise } from "../training/tables";
 import { deviceOwner, installMeta, rejectedWrites } from "./tables";
 
 /** Drizzle tables for typed local queries. */
@@ -12,6 +12,7 @@ export const drizzleSchema = {
   workout,
   workoutExercise,
   programSlot,
+  programCover,
   deviceOwner,
   installMeta,
   rejectedWrites,
@@ -27,6 +28,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },
   program_slot: { tableDefinition: programSlot },
+  program_cover: { tableDefinition: programCover, options: { localOnly: true } },
   deviceOwner: { tableDefinition: deviceOwner, options: { localOnly: true } },
   installMeta: { tableDefinition: installMeta, options: { localOnly: true } },
   rejectedWrites: { tableDefinition: rejectedWrites, options: { localOnly: true } },

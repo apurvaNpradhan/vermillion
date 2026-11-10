@@ -16,6 +16,7 @@ const labels: SummaryLabels = {
   weight: (value, unit) => `${value} ${unit}`,
   effort: (scale, value) => `${scale.toUpperCase()} ${value}`,
   restOff: "Rest off",
+  noRest: "No rest",
 };
 const kg: SummaryPrefs = { weightUnit: "kg", effortScale: "rpe" };
 const working = (set: Omit<PlannedSet, "kind"> = {}): PlannedSet => ({ kind: "working", ...set });
@@ -107,5 +108,14 @@ describe("summariseSets", () => {
   it("falls back to a count when no target is set, and to rest alone without sets", () => {
     expect(summariseSets(three({}), "reps_only", 60, kg, labels)).toBe("3 sets · 1:00");
     expect(summariseSets([], "weight_reps", null, kg, labels)).toBe("Rest off");
+  });
+
+  it("shows No rest for a superset member that does not hold the group's rest", () => {
+    const sets = three({ reps_min: 8, reps_max: 10 });
+    expect(summariseSets(sets, "weight_reps", null, kg, labels, "group")).toBe(
+      "3 × 8–10 · No rest",
+    );
+    expect(summariseSets(sets, "weight_reps", 90, kg, labels, "group")).toBe("3 × 8–10 · No rest");
+    expect(summariseSets(sets, "weight_reps", 90, kg, labels, "own")).toBe("3 × 8–10 · 1:30");
   });
 });

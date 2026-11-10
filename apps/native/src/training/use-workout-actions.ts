@@ -10,6 +10,8 @@ import {
   replaceExercise,
   restoreWorkout,
   restoreWorkoutExercise,
+  removeFromSuperset,
+  supersetWithNext,
   updateWorkout,
   updateWorkoutExercise,
   type WorkoutExerciseDetail,
@@ -168,9 +170,22 @@ export function useWorkoutActions() {
     [write, writeScope, undoToast, t],
   );
 
+  /** "Superset with next": groups the exercise with the one after it. */
+  const superset = useCallback(
+    (id: string) => write((db) => supersetWithNext(db, id, writeScope), false),
+    [write, writeScope],
+  );
+
+  const leaveSuperset = useCallback(
+    (id: string) => write((db) => removeFromSuperset(db, id, writeScope), false),
+    [write, writeScope],
+  );
+
   return {
     create,
     append,
+    superset,
+    leaveSuperset,
     update,
     remove,
     duplicate,

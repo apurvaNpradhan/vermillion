@@ -38,6 +38,11 @@ export type LifecyclePorts = {
   transport: SyncTransport;
   uploadColumns: ReadonlyMap<string, ReadonlySet<string>>;
   now?: () => number;
+  /**
+   * Runs after the local database was wiped, for what lives outside it (the Program cover files).
+   * A failure is ignored: the wipe itself stands, and the owner of the files sweeps them later.
+   */
+  onWiped?: () => Promise<void>;
 };
 
 export type SyncLifecycle = {
@@ -147,6 +152,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
         // Clears local-only tables too: the install id is new afterwards (ADR 0018).
         await database.disconnectAndClear();
         await ensureInstallId(database);
+        await ports.onWiped?.().catch(() => undefined);
         return { follow: [{ type: "wiped" }], abort: false };
     }
   }

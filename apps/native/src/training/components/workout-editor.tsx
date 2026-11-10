@@ -1,12 +1,15 @@
-import { TRAINING_LIMITS } from "@workspace/shared";
+import { TRAINING_LIMITS, supersetPlaces } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
 import {
   Copy,
   DotsThreeVertical,
   FloppyDisk,
+  Link,
+  LinkBreak,
   ListPlus,
   Plus,
+  ShareNetwork,
   Swap,
   Trash,
   WarningCircle,
@@ -27,6 +30,7 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { displayTitle } from "../derived-title";
 import { useCoalescedWriter } from "../use-coalesced-writer";
 import { useProgramActions } from "../use-program-actions";
+import { useSharePlan } from "../use-share-plan";
 import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
 import { AddToProgramSheet } from "./add-to-program-sheet";
@@ -90,6 +94,7 @@ function LoadedEditor({
   const foreground = useThemeColor("foreground");
   const actions = useWorkoutActions();
   const programActions = useProgramActions();
+  const { shareWorkout } = useSharePlan();
   const [programSheet, setProgramSheet] = useState(false);
   const pickExercises = usePickExercises("train");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,6 +108,15 @@ function LoadedEditor({
   );
   const writer = useCoalescedWriter((patch: { title?: string | null; note?: string | null }) =>
     actions.update(workout.id, patch),
+  );
+  const places = useMemo(
+    () =>
+      new Map(
+        supersetPlaces(workout.exercises, (entry) => entry.supersetGroup).map(
+          (place, index) => [workout.exercises[index]?.id ?? "", place] as const,
+        ),
+      ),
+    [workout.exercises],
   );
   const exerciseIds = useMemo(
     () => workout.exercises.map((entry) => entry.exerciseId),
@@ -130,10 +144,20 @@ function LoadedEditor({
       });
     },
   };
+  const share: SwipeAction = {
+    key: "share",
+    label: t("training__share_as_text"),
+    icon: ShareNetwork,
+    onPress: () => {
+      writer.flush();
+      void shareWorkout(workout.id, title);
+    },
+  };
   // A Workout of a Program leaves it only by a copy; a standalone one can be copied into one.
   const menu: SwipeAction[] =
     workout.programId === null
       ? [
+          share,
           {
             key: "duplicate",
             label: t("training__duplicate"),
@@ -157,6 +181,7 @@ function LoadedEditor({
           remove,
         ]
       : [
+          share,
           {
             key: "standalone",
             label: t("training__save_standalone"),
@@ -168,8 +193,35 @@ function LoadedEditor({
           },
           remove,
         ];
+  const rowPlace = rowMenu ? (places.get(rowMenu.id) ?? "none") : "none";
+  const rowIndex = rowMenu ? workout.exercises.findIndex((entry) => entry.id === rowMenu.id) : -1;
+  // "With next" needs a next row that is not already in the same run.
+  const canJoin =
+    rowIndex >= 0 &&
+    rowIndex < workout.exercises.length - 1 &&
+    (rowPlace === "none" || rowPlace === "last");
   const rowActions: SwipeAction[] = rowMenu
     ? [
+        ...(canJoin
+          ? [
+              {
+                key: "superset",
+                label: t("training__superset_with_next"),
+                icon: Link,
+                onPress: () => void actions.superset(rowMenu.id),
+              },
+            ]
+          : []),
+        ...(rowPlace === "none"
+          ? []
+          : [
+              {
+                key: "leave-superset",
+                label: t("training__superset_remove"),
+                icon: LinkBreak,
+                onPress: () => void actions.leaveSuperset(rowMenu.id),
+              },
+            ]),
         {
           key: "replace",
           label: t("training__replace"),
@@ -236,6 +288,7 @@ function LoadedEditor({
                 <WorkoutExerciseRow
                   entry={entry}
                   collapsed={collapsed}
+                  place={places.get(entry.id) ?? "none"}
                   onOpen={(row) => {
                     writer.flush();
                     onOpenExercise(row.id);

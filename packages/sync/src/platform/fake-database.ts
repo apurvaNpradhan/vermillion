@@ -43,6 +43,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         sets TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE program_cover (id TEXT PRIMARY KEY, program_id TEXT, uri TEXT, updated_at TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
       CREATE TABLE rejected_writes (id TEXT PRIMARY KEY, tx_id TEXT, op_ordinal INTEGER,
@@ -129,6 +130,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "workout",
         "workout_exercise",
         "program_slot",
+        "program_cover",
         "device_owner",
         "install_meta",
         "rejected_writes",

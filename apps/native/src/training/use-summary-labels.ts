@@ -30,6 +30,7 @@ export function useSummaryLabels(): SummaryLabels {
           value,
         }),
       restOff: t("training__rest_off_summary"),
+      noRest: t("training__rest_none_summary"),
     }),
     [t],
   );

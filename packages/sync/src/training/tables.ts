@@ -77,3 +77,19 @@ export const programSlot = sqliteTable(
     index("program_slot_workout_id_idx").on(table.workout_id),
   ],
 );
+
+/**
+ * Local-only (never synced or uploaded): the cover photo of a Program on this device. `id` is the
+ * Program id (PowerSync requires one) and `uri` points at `program-covers/<programId>.jpg` in the
+ * documents directory. `program.cover_key` stays null until covers can upload (ADR 0036).
+ */
+export const programCover = sqliteTable(
+  "program_cover",
+  {
+    id: text("id").primaryKey().notNull(),
+    program_id: text("program_id").notNull(),
+    uri: text("uri").notNull(),
+    updated_at: text("updated_at").notNull(),
+  },
+  (table) => [index("program_cover_program_id_idx").on(table.program_id)],
+);

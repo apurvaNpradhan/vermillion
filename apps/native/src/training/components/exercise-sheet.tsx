@@ -2,6 +2,8 @@ import {
   SET_KINDS,
   SET_KIND_KEYS,
   TRAINING_LIMITS,
+  supersetPlaces,
+  type SupersetPlace,
   type ExerciseType,
   type PlannedSet,
   type SetKind,
@@ -86,8 +88,17 @@ export function ExerciseSheetScreen({
     if (gone) onClose();
   }, [gone, onClose]);
 
-  if (entry) {
-    return <LoadedSheet entry={entry} onClose={onClose} onOpenExercise={onOpenExercise} />;
+  if (entry && state.status === "ready") {
+    const index = state.workout.exercises.findIndex((candidate) => candidate.id === entry.id);
+    const place = supersetPlaces(state.workout.exercises, (row) => row.supersetGroup)[index];
+    return (
+      <LoadedSheet
+        entry={entry}
+        place={place ?? "none"}
+        onClose={onClose}
+        onOpenExercise={onOpenExercise}
+      />
+    );
   }
   return (
     <SheetFrame title={t("training__exercise_sheet_title")} onClose={onClose}>
@@ -105,10 +116,13 @@ export function ExerciseSheetScreen({
 
 function LoadedSheet({
   entry,
+  place,
   onClose,
   onOpenExercise,
 }: {
   entry: WorkoutExerciseDetail;
+  /** Where the exercise sits in a superset. */
+  place: SupersetPlace;
   onClose: () => void;
   onOpenExercise: (exerciseId: string) => void;
 }) {
@@ -198,45 +212,50 @@ function LoadedSheet({
         maxLength={TRAINING_LIMITS.noteMax}
       />
 
-      <Section title={t("training__rest_title")}>
-        <View className="flex-row items-center gap-3">
-          <View className="flex-1">
-            <Stepper
-              label={t("training__rest_title")}
-              valueText={
-                draft.restSeconds === null
-                  ? t("training__rest_off")
-                  : formatClock(draft.restSeconds)
-              }
-              disabled={!restOn}
-              onStep={(direction) =>
-                edit({
-                  restSeconds: stepRest(
-                    draft.restSeconds ?? lastRest ?? preferences.defaultRestSeconds,
-                    direction,
-                  ),
-                })
-              }
-              canDecrement={restOn && (draft.restSeconds ?? 0) > REST_MIN_SECONDS}
-              canIncrement={restOn && (draft.restSeconds ?? 0) < REST_MAX_SECONDS}
-              decrementLabel={t("training__rest_less")}
-              incrementLabel={t("training__rest_more")}
-            />
+      <Section title={t(place === "last" ? "training__rest_group_title" : "training__rest_title")}>
+        {place === "first" || place === "middle" ? (
+          // A superset rests once, after its last exercise.
+          <Text className="text-body text-muted">{t("training__rest_group_member")}</Text>
+        ) : (
+          <View className="flex-row items-center gap-3">
+            <View className="flex-1">
+              <Stepper
+                label={t("training__rest_title")}
+                valueText={
+                  draft.restSeconds === null
+                    ? t("training__rest_off")
+                    : formatClock(draft.restSeconds)
+                }
+                disabled={!restOn}
+                onStep={(direction) =>
+                  edit({
+                    restSeconds: stepRest(
+                      draft.restSeconds ?? lastRest ?? preferences.defaultRestSeconds,
+                      direction,
+                    ),
+                  })
+                }
+                canDecrement={restOn && (draft.restSeconds ?? 0) > REST_MIN_SECONDS}
+                canIncrement={restOn && (draft.restSeconds ?? 0) < REST_MAX_SECONDS}
+                decrementLabel={t("training__rest_less")}
+                incrementLabel={t("training__rest_more")}
+              />
+            </View>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-body text-foreground">{t("training__rest_off")}</Text>
+              <Switch
+                isSelected={!restOn}
+                onSelectedChange={(off) => {
+                  haptic.tick();
+                  edit({
+                    restSeconds: off ? null : restWhenOn(lastRest, preferences.defaultRestSeconds),
+                  });
+                }}
+                accessibilityLabel={t("training__rest_off_toggle")}
+              />
+            </View>
           </View>
-          <View className="flex-row items-center gap-2">
-            <Text className="text-body text-foreground">{t("training__rest_off")}</Text>
-            <Switch
-              isSelected={!restOn}
-              onSelectedChange={(off) => {
-                haptic.tick();
-                edit({
-                  restSeconds: off ? null : restWhenOn(lastRest, preferences.defaultRestSeconds),
-                });
-              }}
-              accessibilityLabel={t("training__rest_off_toggle")}
-            />
-          </View>
-        </View>
+        )}
       </Section>
 
       <Section title={t("training__targets_title")}>

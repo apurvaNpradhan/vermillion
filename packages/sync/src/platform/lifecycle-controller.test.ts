@@ -10,7 +10,13 @@ import { createSyncLifecycle } from "./lifecycle-controller";
 
 const EXERCISE = "01900000-0000-7000-8000-000000000001";
 
-function setup(options: { transport?: Partial<SyncTransport>; owner?: string } = {}) {
+function setup(
+  options: {
+    transport?: Partial<SyncTransport>;
+    owner?: string;
+    onWiped?: () => Promise<void>;
+  } = {},
+) {
   const fake = createFakeDatabase();
   const transport: SyncTransport = {
     credentials: async () => ({
@@ -26,6 +32,7 @@ function setup(options: { transport?: Partial<SyncTransport>; owner?: string } =
     database: fake.database,
     transport,
     uploadColumns,
+    onWiped: options.onWiped,
   });
   const ready = async () => {
     await ensureInstallId(fake.database);
@@ -148,6 +155,25 @@ describe("sync lifecycle", () => {
     await s.lifecycle.accountDeleted("a");
     expect(s.state.clears).toBe(1);
     expect(await readDeviceOwner(s.database)).toBeNull();
+    expect(phase(s)).toBe("unclaimed");
+  });
+
+  it("tells the app after a wipe so it can delete files outside the database", async () => {
+    let wiped = 0;
+    const s = setup({
+      owner: "a",
+      onWiped: async () => {
+        wiped += 1;
+        throw new Error("files are busy");
+      },
+    });
+    await s.ready();
+    await s.lifecycle.accountDeleted("someone-else");
+    expect(wiped).toBe(0);
+    await s.lifecycle.accountDeleted("a");
+    // A failing callback does not undo the wipe.
+    expect(wiped).toBe(1);
+    expect(s.state.clears).toBe(1);
     expect(phase(s)).toBe("unclaimed");
   });
 

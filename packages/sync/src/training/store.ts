@@ -5,11 +5,18 @@ import {
   defaultPlannedSets,
   defaultRestSeconds,
   plannedSetsSchema,
+  planSupersetAfterMove,
+  planSupersetAfterRemoval,
+  planLeaveSuperset,
+  planSupersetRepair,
+  planSupersetWithNext,
   programInput,
   TRAINING_LIMITS,
   workoutExerciseInput,
   workoutInput,
   type ProgramInput,
+  type SupersetChange,
+  type SupersetItem,
 } from "@workspace/shared";
 import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
@@ -28,7 +35,7 @@ import {
   sortByPosition,
   type Positioned,
 } from "./position";
-import { program, programSlot, workout, workoutExercise } from "./tables";
+import { program, programCover, programSlot, workout, workoutExercise } from "./tables";
 
 export type TrainingDatabase = AbstractPowerSyncDatabase;
 
@@ -183,6 +190,24 @@ const slotListOf = (tx: Tx, programId: string) =>
     .from(programSlot)
     .where(eq(programSlot.program_id, programId))
     .orderBy(asc(programSlot.position), asc(programSlot.id));
+
+/** The superset-relevant fields of a Workout's exercises, in order. */
+const supersetRowsOf = (tx: Tx, workoutId: string): Promise<SupersetItem[]> =>
+  tx
+    .select({
+      id: workoutExercise.id,
+      superset_group: workoutExercise.superset_group,
+      rest_seconds: workoutExercise.rest_seconds,
+    })
+    .from(workoutExercise)
+    .where(eq(workoutExercise.workout_id, workoutId))
+    .orderBy(asc(workoutExercise.position), asc(workoutExercise.id));
+
+async function applySupersetChanges(tx: Tx, changes: readonly SupersetChange[]) {
+  for (const { id, ...fields } of changes) {
+    await tx.update(workoutExercise).set(fields).where(eq(workoutExercise.id, id));
+  }
+}
 
 /** Renumbers a list whose keys grew long or collided, in the same transaction as the move. */
 async function rebalanceExercises(tx: Tx, items: Positioned[]): Promise<Positioned[]> {
@@ -531,6 +556,11 @@ export async function updateWorkoutExercise(
       ...changes,
     });
     await tx.update(workoutExercise).set(changes).where(eq(workoutExercise.id, id));
+    if ("rest_seconds" in changes || "superset_group" in changes) {
+      // A group of one is no group, and only the last member of a group holds its rest.
+      const rows = await supersetRowsOf(tx, current.workout_id);
+      await applySupersetChanges(tx, planSupersetRepair(rows));
+    }
     return true;
   });
 }
@@ -552,7 +582,11 @@ export function moveWorkoutExercise(
     const items = await rebalanceExercises(tx, await exerciseListOf(tx, current.workout_id));
     if (beforeId === id) return false;
     const position = keyForMove(items, id, beforeId);
+    const rowsBefore = await supersetRowsOf(tx, current.workout_id);
     await tx.update(workoutExercise).set({ position }).where(eq(workoutExercise.id, id));
+    // A member dragged out of its run leaves the group; a row dropped inside one joins it.
+    const rowsAfter = await supersetRowsOf(tx, current.workout_id);
+    await applySupersetChanges(tx, planSupersetAfterMove(rowsBefore, rowsAfter, id));
     return true;
   });
 }
@@ -593,11 +627,64 @@ export function removeWorkoutExercise(
   expectedInstallId?: string,
 ): Promise<boolean> {
   return write(database, expectedInstallId, async (tx) => {
-    const removed = await tx
-      .delete(workoutExercise)
+    const [current] = await tx
+      .select({ workout_id: workoutExercise.workout_id })
+      .from(workoutExercise)
       .where(eq(workoutExercise.id, id))
-      .returning({ id: workoutExercise.id });
-    return removed.length > 0;
+      .limit(1);
+    if (!current) return false;
+    const rows = await supersetRowsOf(tx, current.workout_id);
+    await tx.delete(workoutExercise).where(eq(workoutExercise.id, id));
+    // A group left with one member is cleared; the group's rest passes to its new last member.
+    await applySupersetChanges(tx, planSupersetAfterRemoval(rows, id));
+    return true;
+  });
+}
+
+/**
+ * "Superset with next": the exercise and the one after it share a group, joining the next one's
+ * group when it has one. The group's rest stays on its last member and the others' rest is null.
+ * Returns whether it wrote.
+ */
+export function supersetWithNext(
+  database: TrainingDatabase,
+  id: string,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx
+      .select({ workout_id: workoutExercise.workout_id })
+      .from(workoutExercise)
+      .where(eq(workoutExercise.id, id))
+      .limit(1);
+    if (!current) return false;
+    const rows = await supersetRowsOf(tx, current.workout_id);
+    const changes = planSupersetWithNext(rows, id, uuidv7());
+    await applySupersetChanges(tx, changes);
+    return changes.length > 0;
+  });
+}
+
+/**
+ * "Remove from superset": the exercise leaves its group, which is cleared when only one member is
+ * left. Whoever ends up alone, or last, keeps the group's rest. Returns whether it wrote.
+ */
+export function removeFromSuperset(
+  database: TrainingDatabase,
+  id: string,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx
+      .select({ workout_id: workoutExercise.workout_id })
+      .from(workoutExercise)
+      .where(eq(workoutExercise.id, id))
+      .limit(1);
+    if (!current) return false;
+    const rows = await supersetRowsOf(tx, current.workout_id);
+    const changes = planLeaveSuperset(rows, id);
+    await applySupersetChanges(tx, changes);
+    return changes.length > 0;
   });
 }
 
@@ -960,6 +1047,96 @@ export function restoreWorkoutExercise(
     await tx
       .insert(workoutExercise)
       .values(marked({ ...removed, user_id: userId, created_at: nowIso() }));
+    // Its group may be gone meanwhile: clear what is left of one.
+    await applySupersetChanges(
+      tx,
+      planSupersetRepair(await supersetRowsOf(tx, removed.workout_id)),
+    );
     return true;
+  });
+}
+
+// ---- Program covers (local only) ----
+
+/** The cover photo of a Program on this device: where the file is. */
+export type ProgramCoverRow = typeof programCover.$inferSelect;
+
+/**
+ * Records `uri` as the Program's cover photo, replacing an earlier one. The table is local only,
+ * so this never uploads. Returns the uri it replaced (the same one when the file was overwritten).
+ */
+export function setProgramCover(
+  database: TrainingDatabase,
+  programId: string,
+  uri: string,
+  expectedInstallId?: string,
+): Promise<string | null> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [existing] = await tx
+      .select({ uri: programCover.uri })
+      .from(programCover)
+      .where(eq(programCover.id, programId))
+      .limit(1);
+    const row = { program_id: programId, uri, updated_at: nowIso() };
+    if (existing) await tx.update(programCover).set(row).where(eq(programCover.id, programId));
+    else await tx.insert(programCover).values({ id: programId, ...row });
+    return existing?.uri ?? null;
+  });
+}
+
+/** Forgets the Program's cover photo and returns its uri (the caller deletes the file), or null. */
+export function clearProgramCover(
+  database: TrainingDatabase,
+  programId: string,
+  expectedInstallId?: string,
+): Promise<string | null> {
+  return write(database, expectedInstallId, async (tx) => {
+    const removed = await tx
+      .delete(programCover)
+      .where(eq(programCover.id, programId))
+      .returning({ uri: programCover.uri });
+    return removed[0]?.uri ?? null;
+  });
+}
+
+/**
+ * Called once a deleted Program's Undo window has passed: forgets its cover when the Program is
+ * still gone and returns the uri to delete, or null (it came back, or it had no cover).
+ */
+export function releaseProgramCover(
+  database: TrainingDatabase,
+  programId: string,
+  expectedInstallId?: string,
+): Promise<string | null> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [live] = await tx
+      .select({ id: program.id })
+      .from(program)
+      .where(eq(program.id, programId))
+      .limit(1);
+    if (live) return null;
+    const removed = await tx
+      .delete(programCover)
+      .where(eq(programCover.id, programId))
+      .returning({ uri: programCover.uri });
+    return removed[0]?.uri ?? null;
+  });
+}
+
+/**
+ * Forgets the covers of Programs that no longer exist (deleted here or on another device, after
+ * their Undo window) and returns the Program ids that are left. The caller deletes every cover
+ * file that is not among them, which also removes the files of a wiped account.
+ */
+export function sweepProgramCovers(
+  database: TrainingDatabase,
+  expectedInstallId?: string,
+): Promise<string[]> {
+  return write(database, expectedInstallId, async (tx) => {
+    const covers = await tx.select({ id: programCover.id }).from(programCover);
+    const live = new Set((await tx.select({ id: program.id }).from(program)).map((row) => row.id));
+    const gone = covers.map((cover) => cover.id).filter((id) => !live.has(id));
+    if (gone.length > 0) await tx.delete(programCover).where(inArray(programCover.id, gone));
+    return covers.map((cover) => cover.id).filter((id) => live.has(id));
   });
 }

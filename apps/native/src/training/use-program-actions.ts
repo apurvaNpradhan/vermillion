@@ -9,6 +9,7 @@ import {
   moveSlot,
   removeFromRotation,
   restoreFromRotation,
+  releaseProgramCover,
   restoreProgram,
   updateProgram,
   updateWorkout,
@@ -20,9 +21,10 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { deleteCoverFile } from "@/platform/media/cover-files";
 
 import { copyTitle } from "./use-workout-actions";
-import { useTrainingWrite } from "./use-training-write";
+import { UNDO_MS, useTrainingWrite } from "./use-training-write";
 
 /**
  * Writes to Programs and their Rotations on the local database, as {@link useWorkoutActions}
@@ -64,6 +66,14 @@ export function useProgramActions() {
       undoToast(t("training__program_deleted_toast", { title }), () => {
         void write((db) => restoreProgram(db, deleted, writeScope), false);
       });
+      // The photo stays through the Undo window, then goes unless the Program came back.
+      setTimeout(() => {
+        void write(async (db) => {
+          const uri = await releaseProgramCover(db, id, writeScope);
+          if (uri !== null) deleteCoverFile(uri);
+          return true;
+        }, false);
+      }, UNDO_MS + 500);
       return true;
     },
     [write, writeScope, undoToast, t],

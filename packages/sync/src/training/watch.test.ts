@@ -10,6 +10,7 @@ import {
   moveWorkoutExercise,
   removeWorkoutExercise,
   restoreWorkoutExercise,
+  setProgramCover,
   updateWorkoutExercise,
   type TrainingDatabase,
 } from "./store";
@@ -23,6 +24,8 @@ import {
   parseWorkoutDetail,
   parseWorkoutList,
   readExerciseType,
+  readProgramPlan,
+  readWorkoutDetail,
 } from "./watch";
 
 const SQUAT = "0192f0a0-0000-7000-8000-000000000001";
@@ -162,5 +165,39 @@ describe("program reads", () => {
     const { training, program } = await setup();
     const id = await createProgram(training, input);
     expect(program(id)?.slots).toEqual([]);
+  });
+});
+
+describe("covers and plans", () => {
+  it("shows the local cover in the Program list and detail, null without one", async () => {
+    const { training, programs, program } = await setup();
+    const id = await createProgram(training, {
+      title: "PPL",
+      description: "Hi",
+      planned_weeks: null,
+    });
+    expect(programs()[0]?.coverUri).toBeNull();
+    await setProgramCover(training, id, "file:///covers/x.jpg");
+    expect(programs()[0]?.coverUri).toBe("file:///covers/x.jpg");
+    expect(program(id)?.coverUri).toBe("file:///covers/x.jpg");
+  });
+
+  it("reads a Workout and a whole Program plan once, for sharing", async () => {
+    const { training } = await setup();
+    const programId = await createProgram(training, {
+      title: "PPL",
+      description: "A split",
+      planned_weeks: null,
+    });
+    const workoutId = await createWorkout(training, { program_id: programId, title: "Push" });
+    await addExercises(training, workoutId, [SQUAT, PLANK]);
+    await addSlot(training, programId, workoutId);
+    await addSlot(training, programId, null);
+    expect((await readWorkoutDetail(training, workoutId))?.exercises).toHaveLength(2);
+    expect(await readWorkoutDetail(training, "missing")).toBeNull();
+    const plan = await readProgramPlan(training, programId);
+    expect(plan?.title).toBe("PPL");
+    expect(plan?.slots.map((slot) => slot.workout?.title ?? null)).toEqual(["Push", null]);
+    expect(await readProgramPlan(training, "missing")).toBeNull();
   });
 });

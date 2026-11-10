@@ -4,12 +4,14 @@ import {
   ensureInstallId,
   purgeOrphanRejectedWrites,
   powerSyncSchema,
+  sweepProgramCovers,
   uploadColumns,
   type StorageUnavailableReason,
   type SyncLifecycle,
   type SyncTransport,
 } from "@workspace/sync";
 
+import { deleteCoversExcept } from "../media/cover-files";
 import { client } from "../orpc";
 import { openNativeDatabase } from "./native-database";
 
@@ -39,10 +41,17 @@ export function openLocalData(): Promise<LocalData> {
       await ensureInstallId(database);
       // Rejections of tables that no longer sync (notes) have no screen and cannot be retried.
       await purgeOrphanRejectedWrites(database, SYNCED_TABLE_NAMES);
+      // Cover files of Programs that are gone (deleted past Undo, on another device, or by a
+      // wipe that was interrupted) are deleted; a failure only leaves them for the next start.
+      await sweepProgramCovers(database)
+        .then((kept) => deleteCoversExcept(kept))
+        .catch(() => undefined);
       const lifecycle = createSyncLifecycle({
         database,
         transport,
         uploadColumns,
+        // Cover photos are files outside the database: they go with the account.
+        onWiped: async () => deleteCoversExcept([]),
       });
       await lifecycle.start();
       return { status: "ready", database, lifecycle };

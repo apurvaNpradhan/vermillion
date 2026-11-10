@@ -64,6 +64,8 @@ export type ProgramSummary = {
   title: string;
   plannedWeeks: number | null;
   createdAt: string;
+  /** The cover photo on this device, or null (it never syncs). */
+  coverUri: string | null;
   slots: { id: string; workoutId: string | null }[];
 };
 
@@ -83,6 +85,7 @@ export type ProgramDetail = {
   title: string;
   description: string | null;
   plannedWeeks: number | null;
+  coverUri: string | null;
   slots: ProgramSlotDetail[];
 };
 
@@ -215,20 +218,22 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
 }
 
 const WORKOUT_TABLES = ["workout", "workout_exercise", "exercise"];
-const PROGRAM_TABLES = ["program", "program_slot", ...WORKOUT_TABLES];
+const PROGRAM_TABLES = ["program", "program_cover", "program_slot", ...WORKOUT_TABLES];
 
 const programListRowSchema = z.object({
   id: z.string(),
   title: z.string(),
   planned_weeks: z.number().nullable(),
   created_at: z.string(),
+  cover_uri: z.string().nullable(),
   slot_id: z.string().nullable(),
   workout_id: z.string().nullable(),
 });
 
 export const PROGRAM_LIST_SQL = `SELECT p.id AS id, p.title AS title, p.planned_weeks AS planned_weeks,
-    p.created_at AS created_at, s.id AS slot_id, s.workout_id AS workout_id
+    p.created_at AS created_at, pc.uri AS cover_uri, s.id AS slot_id, s.workout_id AS workout_id
   FROM program p
+  LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
   ORDER BY p.created_at DESC, p.id DESC, s.position, s.id`;
 
@@ -243,6 +248,7 @@ export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
         title: row.title,
         plannedWeeks: row.planned_weeks,
         createdAt: row.created_at,
+        coverUri: row.cover_uri,
         slots: [],
       };
       result.push(current);
@@ -257,6 +263,7 @@ const programDetailRowSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   planned_weeks: z.number().nullable(),
+  cover_uri: z.string().nullable(),
   slot_id: z.string().nullable(),
   slot_position: z.string().nullable(),
   slot_workout_id: z.string().nullable(),
@@ -270,11 +277,12 @@ const programDetailRowSchema = z.object({
 });
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
-    p.planned_weeks AS planned_weeks, s.id AS slot_id, s.position AS slot_position,
+    p.planned_weeks AS planned_weeks, pc.uri AS cover_uri, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle
   FROM program p
+  LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
   LEFT JOIN workout w ON w.id = s.workout_id
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
@@ -323,6 +331,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
     title: first.title,
     description: first.description,
     plannedWeeks: first.planned_weeks,
+    coverUri: first.cover_uri,
     slots,
   };
 }
@@ -445,4 +454,63 @@ export async function readExerciseType(
   );
   const parsed = z.enum(EXERCISE_TYPES).safeParse(row?.exercise_type);
   return parsed.success ? parsed.data : null;
+}
+
+/** One Workout read once, with its exercises, for sharing; null if it is gone. */
+export async function readWorkoutDetail(
+  database: TrainingDatabase,
+  id: string,
+): Promise<WorkoutDetail | null> {
+  return parseWorkoutDetail(await database.getAll(WORKOUT_DETAIL_SQL, [id]));
+}
+
+/** A Program with its Rotation and the full detail of every Workout in it, read once. */
+export type ProgramPlan = {
+  title: string;
+  description: string | null;
+  /** In Rotation order; `workout` is null for a Rest Slot. */
+  slots: { workout: WorkoutDetail | null }[];
+};
+
+const programRowSchema = z.object({
+  title: z.string(),
+  description: z.string().nullable(),
+});
+const slotRowSchema = z.object({ workout_id: z.string().nullable() });
+
+/** The Program's plan for sharing as text; null if it is gone. */
+export async function readProgramPlan(
+  database: TrainingDatabase,
+  id: string,
+): Promise<ProgramPlan | null> {
+  const found = await database.getOptional<object>(
+    "SELECT title, description FROM program WHERE id = ?",
+    [id],
+  );
+  if (!found) return null;
+  const head = programRowSchema.parse(found);
+  const slotRows = z
+    .array(slotRowSchema)
+    .parse(
+      await database.getAll(
+        "SELECT workout_id FROM program_slot WHERE program_id = ? ORDER BY position, id",
+        [id],
+      ),
+    );
+  const details = new Map<string, WorkoutDetail | null>();
+  for (const { workout_id } of slotRows) {
+    if (workout_id !== null && !details.has(workout_id)) {
+      details.set(workout_id, await readWorkoutDetail(database, workout_id));
+    }
+  }
+  const slots: ProgramPlan["slots"] = [];
+  for (const { workout_id } of slotRows) {
+    if (workout_id === null) {
+      slots.push({ workout: null });
+      continue;
+    }
+    const workout = details.get(workout_id);
+    if (workout) slots.push({ workout });
+  }
+  return { title: head.title, description: head.description, slots };
 }

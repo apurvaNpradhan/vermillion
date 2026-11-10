@@ -7,6 +7,7 @@ import { ensureInstallId } from "../platform/install-meta";
 import {
   addExercises,
   addSlot,
+  clearProgramCover,
   copyProgram,
   copyWorkout,
   copyWorkoutIntoProgram,
@@ -24,6 +25,12 @@ import {
   restoreFromRotation,
   restoreProgram,
   restoreWorkout,
+  restoreWorkoutExercise,
+  releaseProgramCover,
+  removeFromSuperset,
+  setProgramCover,
+  supersetWithNext,
+  sweepProgramCovers,
   TrainingLimitError,
   updateProgram,
   updateSlot,
@@ -363,6 +370,167 @@ describe("workout exercises", () => {
     expect(await removeWorkoutExercise(s.training, ids[0] ?? "")).toBe(true);
     expect(await removeWorkoutExercise(s.training, ids[0] ?? "")).toBe(false);
     expect(s.all("workout_exercise")).toHaveLength(1);
+  });
+});
+
+describe("supersets", () => {
+  async function trio() {
+    const s = await setup();
+    const workoutId = await createWorkout(s.training);
+    const ids = await addExercises(s.training, workoutId, [SQUAT, CURL, PLANK, PUSHUP]);
+    const [a, b, c, d] = ids as [string, string, string, string];
+    const fields = (id: string) => {
+      const row = s.one("workout_exercise", id);
+      return { group: row?.["superset_group"] ?? null, rest: row?.["rest_seconds"] ?? null };
+    };
+    return { s, workoutId, a, b, c, d, fields };
+  }
+
+  it("groups an exercise with the next one, rest staying on the last member", async () => {
+    const { s, a, b, c, fields } = await trio();
+    const bRest = fields(b).rest;
+    expect(await supersetWithNext(s.training, a)).toBe(true);
+    expect(fields(a).group).toEqual(fields(b).group);
+    expect(fields(a).group).not.toBeNull();
+    expect(fields(a).rest).toBeNull();
+    expect(fields(b).rest).toBe(bRest);
+    expect(fields(c).group).toBeNull();
+    // Again, or for the last row, there is nothing to do.
+    expect(await supersetWithNext(s.training, a)).toBe(false);
+    expect(await supersetWithNext(s.training, "missing")).toBe(false);
+  });
+
+  it("joins the next exercise's group and keeps growing it", async () => {
+    const { s, a, b, c, d, fields } = await trio();
+    await supersetWithNext(s.training, b);
+    const group = fields(b).group;
+    await supersetWithNext(s.training, a);
+    expect(fields(a).group).toBe(group);
+    await supersetWithNext(s.training, b);
+    expect(fields(d).group).toBeNull();
+    await supersetWithNext(s.training, b);
+    expect([a, b, c].map((id) => fields(id).group)).toEqual([group, group, group]);
+    expect([a, b, c].map((id) => fields(id).rest === null)).toEqual([true, true, false]);
+  });
+
+  it("removes from a superset, clears a group of one and keeps the group's rest", async () => {
+    const { s, a, b, fields } = await trio();
+    await supersetWithNext(s.training, a);
+    const rest = fields(b).rest;
+    expect(await removeFromSuperset(s.training, a)).toBe(true);
+    expect(fields(a)).toEqual({ group: null, rest });
+    expect(fields(b)).toEqual({ group: null, rest });
+    expect(await removeFromSuperset(s.training, a)).toBe(false);
+  });
+
+  it("removes a member dragged out of its run", async () => {
+    const { s, a, b, c, d, fields } = await trio();
+    await supersetWithNext(s.training, a);
+    await supersetWithNext(s.training, b);
+    const group = fields(a).group;
+    // Drag the first member to the end: it leaves, the other two stay together.
+    await moveWorkoutExercise(s.training, a, null);
+    expect(fields(a).group).toBeNull();
+    expect(fields(a).rest).not.toBeNull();
+    expect(fields(b).group).toBe(group);
+    expect(fields(c).group).toBe(group);
+    // Drag one of the two away: the pair dissolves.
+    await moveWorkoutExercise(s.training, c, null);
+    expect(fields(b).group).toBeNull();
+    expect(fields(c).group).toBeNull();
+    expect(fields(d).group).toBeNull();
+    expect(fields(b).rest).not.toBeNull();
+  });
+
+  it("keeps a member that moves inside its run and lets a row dropped inside join", async () => {
+    const { s, a, b, c, d, fields } = await trio();
+    await supersetWithNext(s.training, a);
+    await supersetWithNext(s.training, b);
+    const group = fields(a).group;
+    await moveWorkoutExercise(s.training, a, c);
+    expect(fields(a).group).toBe(group);
+    await moveWorkoutExercise(s.training, d, c);
+    expect(fields(d).group).toBe(group);
+    expect(fields(d).rest).toBeNull();
+    expect(fields(c).rest).not.toBeNull();
+  });
+
+  it("clears the partner when one member is removed, and Undo restores the row", async () => {
+    const { s, workoutId, a, b, fields } = await trio();
+    await supersetWithNext(s.training, a);
+    const row = s.one("workout_exercise", b);
+    const rest = fields(b).rest;
+    expect(await removeWorkoutExercise(s.training, b)).toBe(true);
+    expect(fields(a)).toEqual({ group: null, rest });
+    await restoreWorkoutExercise(s.training, {
+      id: b,
+      workout_id: workoutId,
+      exercise_id: String(row?.["exercise_id"]),
+      position: String(row?.["position"]),
+      rest_seconds: rest === null ? null : Number(rest),
+      note: null,
+      superset_group: null,
+      sets: [],
+    });
+    expect(s.ordered("workout_exercise", "workout_id", workoutId).slice(0, 2)).toEqual([a, b]);
+  });
+
+  it("repairs a patch that sets a rest on a non-last member", async () => {
+    const { s, a, fields } = await trio();
+    await supersetWithNext(s.training, a);
+    await updateWorkoutExercise(s.training, a, { rest_seconds: 45 });
+    expect(fields(a).rest).toBeNull();
+  });
+});
+
+describe("program covers", () => {
+  it("records a cover per Program, replaces it and forgets it", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    expect(await setProgramCover(s.training, id, "file:///covers/a.jpg")).toBeNull();
+    expect(await setProgramCover(s.training, id, "file:///covers/b.jpg")).toBe(
+      "file:///covers/a.jpg",
+    );
+    expect(s.all("program_cover")).toHaveLength(1);
+    expect(s.one("program_cover", id)).toMatchObject({
+      program_id: id,
+      uri: "file:///covers/b.jpg",
+    });
+    // The synced row never carries a key.
+    expect(s.one("program", id)).toMatchObject({ cover_key: null });
+    expect(await clearProgramCover(s.training, id)).toBe("file:///covers/b.jpg");
+    expect(await clearProgramCover(s.training, id)).toBeNull();
+  });
+
+  it("releases a cover only once its Program is still gone", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    await setProgramCover(s.training, id, "file:///covers/a.jpg");
+    expect(await releaseProgramCover(s.training, id)).toBeNull();
+    expect(s.all("program_cover")).toHaveLength(1);
+    const deleted = await deleteProgram(s.training, id);
+    await restoreProgram(s.training, deleted as NonNullable<typeof deleted>);
+    expect(await releaseProgramCover(s.training, id)).toBeNull();
+    await deleteProgram(s.training, id);
+    expect(await releaseProgramCover(s.training, id)).toBe("file:///covers/a.jpg");
+    expect(s.all("program_cover")).toHaveLength(0);
+    expect(await releaseProgramCover(s.training, id)).toBeNull();
+  });
+
+  it("keeps the cover through a delete and Undo, and sweeps it once the Program is gone", async () => {
+    const s = await setup();
+    const kept = await createProgram(s.training, programInput);
+    const gone = await createProgram(s.training, programInput);
+    await setProgramCover(s.training, kept, "file:///covers/kept.jpg");
+    await setProgramCover(s.training, gone, "file:///covers/gone.jpg");
+    const deleted = await deleteProgram(s.training, gone);
+    // During the Undo window nothing sweeps, and Undo brings the cover back with the Program.
+    expect(s.all("program_cover")).toHaveLength(2);
+    await restoreProgram(s.training, deleted as NonNullable<typeof deleted>);
+    expect(await sweepProgramCovers(s.training)).toEqual(expect.arrayContaining([kept, gone]));
+    await deleteProgram(s.training, gone);
+    expect(await sweepProgramCovers(s.training)).toEqual([kept]);
+    expect(s.all("program_cover")).toHaveLength(1);
   });
 });
 

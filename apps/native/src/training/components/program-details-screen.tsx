@@ -1,10 +1,12 @@
 import { TRAINING_LIMITS } from "@workspace/shared";
-import { X } from "phosphor-react-native";
+import { ImageSquare, Trash, X } from "phosphor-react-native";
+import { useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useHideTabBar } from "@/platform/navigation/tab-action";
+import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Field } from "@/platform/ui/field";
 import { Skeleton } from "@/platform/ui/skeleton";
@@ -12,9 +14,14 @@ import { Skeleton } from "@/platform/ui/skeleton";
 import { useCoalescedWriter } from "../use-coalesced-writer";
 import { useProgram } from "../use-program";
 import { useProgramActions } from "../use-program-actions";
+import { useProgramCover } from "../use-program-cover";
+import { ProgramTile } from "./program-row";
 import { SavedTextField } from "./saved-text-field";
 import { SheetFrame } from "./sheet-frame";
 import { Stepper } from "./stepper";
+
+/** The cover preview in the details sheet. */
+const COVER_PREVIEW = 96;
 
 type Patch = { title?: string; description?: string | null; planned_weeks?: number | null };
 
@@ -58,6 +65,9 @@ function LoadedDetails({
   const { t } = useTranslation();
   const actions = useProgramActions();
   const writer = useCoalescedWriter((patch: Patch) => actions.update(program.id, patch));
+  const cover = useProgramCover(program.id);
+  const foreground = useThemeColor("foreground");
+  const danger = useThemeColor("danger");
 
   const [title, setTitle] = useState(program.title);
   const [weeks, setWeeks] = useState(program.plannedWeeks);
@@ -128,6 +138,40 @@ function LoadedDetails({
             incrementLabel={t("training__planned_more")}
           />
         </View>
+      </View>
+
+      <View className="gap-2">
+        <Text className="text-label font-medium text-foreground">{t("training__cover_title")}</Text>
+        <View className="flex-row items-center gap-4">
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={t("training__cover_label", { title: program.title })}
+          >
+            <ProgramTile title={program.title} size={COVER_PREVIEW} coverUri={program.coverUri} />
+          </View>
+          <View className="flex-1 gap-2">
+            <Button variant="secondary" isDisabled={cover.busy} onPress={() => void cover.pick()}>
+              <ImageSquare size={16} color={foreground} />
+              <Button.Label>
+                {t(program.coverUri === null ? "training__cover_add" : "training__cover_replace")}
+              </Button.Label>
+            </Button>
+            {program.coverUri !== null ? (
+              <Button
+                variant="danger-soft"
+                isDisabled={cover.busy}
+                onPress={() => void cover.remove()}
+              >
+                <Trash size={16} color={danger} />
+                <Button.Label>{t("training__cover_remove")}</Button.Label>
+              </Button>
+            ) : null}
+          </View>
+        </View>
+        {program.coverUri !== null ? (
+          <Text className="text-caption text-muted">{t("training__cover_local_only")}</Text>
+        ) : null}
       </View>
 
       <SavedTextField

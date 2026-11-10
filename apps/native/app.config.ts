@@ -13,8 +13,9 @@ import { appConfig } from "../../app.config.ts";
  * 5: @sbaiahmed1/react-native-blur removed (its Android view crashed the release build).
  * 6: expo-image for the exercise library thumbnails.
  * 7: expo-video for the exercise detail video hero.
+ * 8: expo-image-picker and expo-image-manipulator for Program cover photos.
  */
-const NATIVE_STACK_REVISION = 7;
+const NATIVE_STACK_REVISION = 8;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -65,6 +66,15 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-localization",
     "expo-video",
+    // Program cover photos: the system photo picker. The camera and microphone are never used.
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow $(PRODUCT_NAME) to use a photo as a program cover.",
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
     // The backup rules plugin replaces the store's own so key and database exclusions stay together.
     ["expo-secure-store", { configureAndroidBackup: false }],
     "./plugins/with-local-database-backup-rules.js",

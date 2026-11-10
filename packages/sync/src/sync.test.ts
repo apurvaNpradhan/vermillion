@@ -74,12 +74,13 @@ describe("row conversion", () => {
 describe("powerSyncSchema", () => {
   const tables = Object.fromEntries(powerSyncSchema.tables.map((table) => [table.name, table]));
 
-  it("has the synced tables and three local-only tables", () => {
+  it("has the synced tables and four local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
       "device_owner",
       "exercise",
       "install_meta",
       "program",
+      "program_cover",
       "program_slot",
       "rejected_writes",
       "workout",
@@ -96,6 +97,9 @@ describe("powerSyncSchema", () => {
       "workout_exercise",
     ]);
     expect(tables.install_meta?.localOnly).toBe(true);
+    // The cover photo stays on the device: never synced, never uploaded.
+    expect(tables.program_cover?.localOnly).toBe(true);
+    expect(uploadColumns.has("program_cover")).toBe(false);
     expect(tables.rejected_writes?.localOnly).toBe(true);
   });
 

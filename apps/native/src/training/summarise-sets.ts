@@ -27,6 +27,8 @@ export type SummaryLabels = {
   weight: (value: string, unit: WeightUnit) => string;
   effort: (scale: EffortScale, value: string) => string;
   restOff: string;
+  /** What a superset member that does not rest shows: its rest is held by the last member. */
+  noRest: string;
 };
 
 const SEPARATOR = " · ";
@@ -69,23 +71,72 @@ function targetText(set: PlannedSet, type: ExerciseType, labels: SummaryLabels):
   return parts.join(SEPARATOR);
 }
 
-function withWeight(
-  text: string,
-  set: PlannedSet,
+/** What the working sets of an exercise come to, for one line of text. */
+export type WorkingSummary = {
+  /** `3 × 8–10`, `3 sets · 6–10` when they differ, `3 sets`; null without working sets. */
+  text: string | null;
+  /** The weight of alike sets (`100 kg`), or null. */
+  weight: string | null;
+  /** The effort of alike sets (`RPE 8–9`), or null. */
+  effort: string | null;
+};
+
+/** The working (non warm-up) sets, counted and spanned. Working sets that differ lose weight and effort. */
+export function summariseWorking(
+  sets: readonly PlannedSet[],
   type: ExerciseType,
   prefs: SummaryPrefs,
   labels: SummaryLabels,
-): string {
-  if (!SET_FIELDS[type].some((field) => field === "weight") || set.weight_kg === undefined) {
-    return text;
+): WorkingSummary {
+  const working = sets.filter((set) => set.kind !== "warmup");
+  const first = working[0];
+  if (!first) return { text: null, weight: null, effort: null };
+  const alike = working.every((set) => sameTarget(targetOf(set), targetOf(first)));
+  if (alike) {
+    const targets = targetText(first, type, labels);
+    const weight =
+      SET_FIELDS[type].some((field) => field === "weight") && first.weight_kg !== undefined
+        ? labels.weight(formatWeight(first.weight_kg, prefs.weightUnit), prefs.weightUnit)
+        : null;
+    const effort =
+      first.effort_min !== undefined && first.effort_max !== undefined
+        ? labels.effort(
+            prefs.effortScale,
+            formatEffortRange(first.effort_min, first.effort_max, prefs.effortScale),
+          )
+        : null;
+    return {
+      text: targets === "" ? labels.sets(working.length) : `${working.length} × ${targets}`,
+      weight,
+      effort,
+    };
   }
-  const weight = labels.weight(formatWeight(set.weight_kg, prefs.weightUnit), prefs.weightUnit);
-  return text === "" ? `@ ${weight}` : `${text} @ ${weight}`;
+  const mins = working.flatMap((set) => (set.reps_min === undefined ? [] : [set.reps_min]));
+  const maxs = working.flatMap((set) => (set.reps_max === undefined ? [] : [set.reps_max]));
+  const spread = range(
+    mins.length > 0 ? Math.min(...mins) : undefined,
+    maxs.length > 0 ? Math.max(...maxs) : undefined,
+  );
+  return {
+    text: spread
+      ? `${labels.sets(working.length)}${SEPARATOR}${spread}`
+      : labels.sets(working.length),
+    weight: null,
+    effort: null,
+  };
 }
+
+/** How an exercise row shows its rest. */
+export type RestDisplay =
+  /** Its own rest: off when null. */
+  | "own"
+  /** A superset member before the last: no rest, the group's rest is on the last member. */
+  | "group";
 
 /**
  * One line for an exercise row: `3 × 8–10 · RPE 8–9 · 2:00`, `2 warm-up + 3 × 6–8 @ 100 kg`,
- * `3 × 30 s`, `Rest off`. Working sets that differ are counted and their reps spanned.
+ * `3 × 30 s`, `Rest off`. Working sets that differ are counted and their reps spanned. A
+ * superset member that is not last shows "No rest" (`rest: "group"`).
  */
 export function summariseSets(
   sets: readonly PlannedSet[],
@@ -93,44 +144,23 @@ export function summariseSets(
   restSeconds: number | null,
   prefs: SummaryPrefs,
   labels: SummaryLabels,
+  rest: RestDisplay = "own",
 ): string {
   const warmups = sets.filter((set) => set.kind === "warmup");
-  const working = sets.filter((set) => set.kind !== "warmup");
-  const first = working[0];
+  const working = summariseWorking(sets, type, prefs, labels);
   const pieces: string[] = [];
   if (warmups.length > 0) pieces.push(labels.warmup(warmups.length));
-  let effort: string | null = null;
-  if (first) {
-    const alike = working.every((set) => sameTarget(targetOf(set), targetOf(first)));
-    if (alike) {
-      const text = withWeight(targetText(first, type, labels), first, type, prefs, labels);
-      pieces.push(text === "" ? labels.sets(working.length) : `${working.length} × ${text}`);
-      if (first.effort_min !== undefined && first.effort_max !== undefined) {
-        effort = labels.effort(
-          prefs.effortScale,
-          formatEffortRange(first.effort_min, first.effort_max, prefs.effortScale),
-        );
-      }
-    } else {
-      const mins = working.flatMap((set) => (set.reps_min === undefined ? [] : [set.reps_min]));
-      const maxs = working.flatMap((set) => (set.reps_max === undefined ? [] : [set.reps_max]));
-      const spread = range(
-        mins.length > 0 ? Math.min(...mins) : undefined,
-        maxs.length > 0 ? Math.max(...maxs) : undefined,
-      );
-      pieces.push(
-        spread
-          ? `${labels.sets(working.length)}${SEPARATOR}${spread}`
-          : labels.sets(working.length),
-      );
-    }
+  if (working.text !== null) {
+    pieces.push(working.weight === null ? working.text : `${working.text} @ ${working.weight}`);
   }
   const head = pieces.join(" + ");
-  return [
-    head === "" ? null : head,
-    effort,
-    restSeconds === null ? labels.restOff : formatClock(restSeconds),
-  ]
+  const restText =
+    rest === "group"
+      ? labels.noRest
+      : restSeconds === null
+        ? labels.restOff
+        : formatClock(restSeconds);
+  return [head === "" ? null : head, working.effort, restText]
     .filter((part) => part !== null)
     .join(SEPARATOR);
 }
