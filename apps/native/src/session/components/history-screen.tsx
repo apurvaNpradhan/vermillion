@@ -48,6 +48,8 @@ export function HistoryScreen() {
           {...scroll}
           data={history.loading || history.failed ? [] : items}
           keyExtractor={(item) => item.id}
+          onEndReached={history.loadMore}
+          onEndReachedThreshold={0.5}
           estimatedItemSize={100}
           contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16 }}
           ListHeaderComponent={header}

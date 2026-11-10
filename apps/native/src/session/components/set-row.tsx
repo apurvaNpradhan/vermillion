@@ -33,6 +33,7 @@ export type ActiveEntry = { cell: CellRef; text: string };
 export type Refusal = { setId: string; fields: readonly SetField[]; nonce: number };
 
 export type SetRowProps = {
+  historyReady: boolean;
   editingFinished: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
@@ -221,7 +222,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className="text-center text-caption text-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          {previousText ?? "–"}
+          {!props.historyReady ? t("common__loading") : (previousText ?? "–")}
         </Text>
       </Pressable>
       {fields.map(cell)}
@@ -249,7 +250,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           accessibilityRole="checkbox"
           accessibilityState={{ checked: ticked }}
           accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
-          disabled={readOnly}
+          disabled={readOnly || (!ticked && !props.historyReady)}
           onPress={() => props.onTick(set.id)}
           hitSlop={4}
           className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-identity" : "bg-field"}`}

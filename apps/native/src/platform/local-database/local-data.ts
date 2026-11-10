@@ -27,14 +27,17 @@ const transport: SyncTransport = {
   upload: (request) => client.sync.upload(request),
 };
 
-let opening: Promise<LocalData> | undefined;
+// Fast Refresh re-evaluates modules; the database and all watches must retain one owner.
+declare global {
+  var vermillionLocalData: Promise<LocalData> | undefined;
+}
 
 /**
  * The app's encrypted local database plus its sync lifecycle, started once per app start. A
  * database that cannot be opened is reported, never replaced by an in-memory one.
  */
 export function openLocalData(): Promise<LocalData> {
-  opening ??= (async (): Promise<LocalData> => {
+  globalThis.vermillionLocalData ??= (async (): Promise<LocalData> => {
     try {
       const database = await openNativeDatabase(powerSyncSchema);
       await database.init();
@@ -59,5 +62,5 @@ export function openLocalData(): Promise<LocalData> {
       return { status: "unavailable", reason: "open-failed" };
     }
   })();
-  return opening;
+  return globalThis.vermillionLocalData;
 }

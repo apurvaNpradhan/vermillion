@@ -25,7 +25,7 @@ import { formatVolume } from "../summary";
 import { useSession } from "../use-session";
 import { useSessionActions } from "../use-session-actions";
 import { useFinishSession } from "../use-finish-session";
-import { useSessionHistory } from "../use-session-history";
+import { useRecordHistory } from "../use-session-history";
 
 export function SessionSummaryScreen({ id, onDone }: { id: string; onDone: () => void }) {
   const state = useSession(id);
@@ -51,7 +51,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   const source = useWorkout(session.workoutId ?? "");
   const actions = useSessionActions();
   const finish = useFinishSession();
-  const history = useSessionHistory();
+  const history = useRecordHistory(session.exercises.map((entry) => entry.exerciseId));
   const [step, setStep] = useState<"summary" | "workout" | "celebration">("summary");
   useEffect(() => {
     if (step === "celebration") haptic.success();

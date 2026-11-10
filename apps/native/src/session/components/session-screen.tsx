@@ -148,7 +148,7 @@ function LoadedSession({
     () => session.exercises.map((entry) => entry.exerciseId),
     [session.exercises],
   );
-  const previous = usePreviousSets(exerciseIds);
+  const { history: previous, ready: historyReady } = usePreviousSets(exerciseIds);
   const { bottom } = useSafeAreaInsets();
   const restRunning = useRestRunning(session.rest);
 
@@ -161,6 +161,7 @@ function LoadedSession({
   const logging = useLoggingState({
     session,
     previous,
+    historyReady,
     unit,
     effortScale,
     bodyweightKg,

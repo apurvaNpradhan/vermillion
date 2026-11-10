@@ -104,6 +104,7 @@ export function SetGrid({
               badge={badges[index] ?? String(index + 1)}
               number={index + 1}
               logEffort={exercise.logEffort}
+              historyReady={logging.historyReady}
               previous={logging.previousOf(set.id)}
               ghosts={logging.ghostsFor(set.id)}
               unit={unit}

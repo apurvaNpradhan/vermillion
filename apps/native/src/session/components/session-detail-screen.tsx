@@ -28,7 +28,7 @@ import { doneSummary, formatVolume } from "../summary";
 import { useSession } from "../use-session";
 import { useSessionActions } from "../use-session-actions";
 import { useFinishSession } from "../use-finish-session";
-import { useSessionHistory } from "../use-session-history";
+import { useRecordHistory } from "../use-session-history";
 
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
@@ -40,7 +40,9 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const { preferences } = usePreferences();
   const actions = useSessionActions();
   const finish = useFinishSession();
-  const history = useSessionHistory();
+  const history = useRecordHistory(
+    state.status === "ready" ? state.session.exercises.map((entry) => entry.exerciseId) : [],
+  );
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const totals = sessionTotals(session ? loggedSetsOf(session) : [], preferences.ui.bodyweightKg);

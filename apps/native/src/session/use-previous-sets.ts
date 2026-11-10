@@ -24,7 +24,7 @@ export function watchHistories(
 }
 
 /** Previous for every exercise of a Session, live; empty until the histories have loaded. */
-export function usePreviousSets(exerciseIds: readonly string[]): PreviousSets {
+export function usePreviousSets(exerciseIds: readonly string[]) {
   const key = [...new Set(exerciseIds)].sort().join("|");
   const subscribe = useCallback(
     (database: Database, onValue: (history: PreviousSets) => void, onError: () => void) =>
@@ -32,5 +32,5 @@ export function usePreviousSets(exerciseIds: readonly string[]): PreviousSets {
     [key],
   );
   const state = useLocalWatch(subscribe);
-  return state.value ?? EMPTY;
+  return { history: state.value ?? EMPTY, ready: !state.loading && !state.failed };
 }

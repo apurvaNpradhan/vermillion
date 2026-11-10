@@ -1,3 +1,4 @@
+import { createRestReconciler } from "../rest-reconciler";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
@@ -26,6 +27,7 @@ export function RestNotificationHost() {
   const { sessions, loading } = useActiveSessions();
   const installId = useInstallId();
   const permission = useRestPermission();
+  const reconciler = useRef(createRestReconciler());
   const known = useRef(new Map<string, number>());
 
   // Once: the channel and how notifications show in the foreground, then ask the system how it stands.
@@ -43,35 +45,39 @@ export function RestNotificationHost() {
   const heading = t("session__rest_over_title");
   useEffect(() => {
     if (loading || installId === null || permission === "unknown") return;
-    let current = true;
-    void (async () => {
-      const plan = planRestSchedule({
-        sessions: sessions.map((session) => ({
-          id: session.id,
-          title: session.title,
-          restEndsAt: session.restEndsAt,
-          owned: session.deviceId === installId,
-        })),
-        scheduledIds: await scheduledRestIds(),
-        known: known.current,
-        now: Date.now(),
-        granted: permission === "granted",
-      });
-      if (!current) return;
-      for (const id of plan.cancel) {
-        await cancelRestNotification(id);
-        known.current.delete(id.slice(REST_NOTIFICATION_PREFIX.length));
-      }
-      for (const entry of plan.schedule) {
-        await scheduleRestNotification(entry.sessionId, entry.endsAt, {
-          title: heading,
-          body: body(entry.title),
+    void reconciler.current
+      .enqueue(async (current) => {
+        const plan = planRestSchedule({
+          sessions: sessions.map((session) => ({
+            id: session.id,
+            title: session.title,
+            restEndsAt: session.restEndsAt,
+            owned: session.deviceId === installId,
+          })),
+          scheduledIds: await scheduledRestIds(),
+          known: known.current,
+          now: Date.now(),
+          granted: permission === "granted",
         });
-        known.current.set(entry.sessionId, entry.endsAt);
-      }
-    })();
+        if (!current()) return;
+        for (const id of plan.cancel) {
+          await cancelRestNotification(id);
+          known.current.delete(id.slice(REST_NOTIFICATION_PREFIX.length));
+          if (!current()) return;
+        }
+        for (const entry of plan.schedule) {
+          await scheduleRestNotification(entry.sessionId, entry.endsAt, {
+            title: heading,
+            body: body(entry.title),
+          });
+          // Even an obsolete job must record what the system now holds for the next plan.
+          known.current.set(entry.sessionId, entry.endsAt);
+          if (!current()) return;
+        }
+      })
+      .catch(() => undefined);
     return () => {
-      current = false;
+      reconciler.current.invalidate();
     };
     // `body` and `heading` only change with the language.
     // eslint-disable-next-line react-hooks/exhaustive-deps

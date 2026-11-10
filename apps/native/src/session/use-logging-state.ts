@@ -71,6 +71,7 @@ type Entry = { cell: CellRef; raw: string; fresh: boolean };
 export function useLoggingState({
   session,
   previous,
+  historyReady,
   unit,
   effortScale,
   bodyweightKg,
@@ -80,6 +81,7 @@ export function useLoggingState({
 }: {
   session: SessionDetail;
   previous: PreviousSets;
+  historyReady: boolean;
   unit: WeightUnit;
   effortScale: EffortScale;
   bodyweightKg: number | null;
@@ -164,10 +166,10 @@ export function useLoggingState({
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {
       const at = found.get(setId);
-      if (!at) return {};
+      if (!at || !historyReady) return {};
       return ghostsOf(at.exercise.type, previousOf(setId), at.set.target, at.exercise.logEffort);
     },
-    [found, previousOf],
+    [found, previousOf, historyReady],
   );
 
   // ---- The keypad ----
@@ -333,7 +335,7 @@ export function useLoggingState({
   const tickWith = useCallback(
     async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
       const at = found.get(setId);
-      if (!at) return false;
+      if (!at || !historyReady) return false;
       const block = blockOfSet(setId);
       // A finished Session being edited has no timers.
       const seconds =
@@ -366,7 +368,7 @@ export function useLoggingState({
       if (result.rest) onRestStarted?.();
       return true;
     },
-    [found, actions, session, previous, bodyweightKg, blockOfSet, onRestStarted],
+    [found, historyReady, actions, session, previous, bodyweightKg, blockOfSet, onRestStarted],
   );
 
   const onTick = useCallback(
@@ -418,7 +420,7 @@ export function useLoggingState({
   });
   const firing = useRef(new Set<string>());
   useEffect(() => {
-    if (readOnly) return;
+    if (readOnly || !historyReady) return;
     const run = () => {
       const sets = exercises.flatMap((exercise) => exercise.sets);
       for (const due of dueTimers(sets, Date.now())) {
@@ -436,7 +438,7 @@ export function useLoggingState({
       clearInterval(timer);
       subscription.remove();
     };
-  }, [exercises, readOnly]);
+  }, [exercises, readOnly, historyReady]);
 
   // ---- Previous, kind, add and remove ----
   const onPrevious = useCallback(
@@ -476,6 +478,7 @@ export function useLoggingState({
   );
 
   return {
+    historyReady,
     blocks,
     places,
     openBlockId: openBlockId ?? null,
