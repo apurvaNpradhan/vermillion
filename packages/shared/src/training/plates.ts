@@ -86,8 +86,7 @@ export function loadBar(
           existing === undefined ||
           (existing !== null &&
             (candidate.size < existing.size ||
-              (candidate.size === existing.size &&
-                fewerOrLarger(unpack(candidate), unpack(existing)))))
+              (candidate.size === existing.size && largerFirst(candidate, existing))))
         )
           sums.set(total, candidate);
       }
@@ -118,12 +117,16 @@ export function loadBar(
   return { ...chosen, exact: Math.abs(chosen.totalKg - targetKg) < EPSILON, below, above };
 }
 
-/** Whether `a` loads a side with fewer plates than `b`, or as many but larger ones first. */
-function fewerOrLarger(a: readonly LoadPlate[], b: readonly LoadPlate[]): boolean {
-  if (a.length !== b.length) return a.length < b.length;
-  for (let index = 0; index < a.length; index++) {
-    const diff = (a[index]?.weightKg ?? 0) - (b[index]?.weightKg ?? 0);
-    if (diff !== 0) return diff > 0;
+/** Equal-size solutions compare denomination counts without expanding tiny plate bundles. */
+function largerFirst(a: Node, b: Node): boolean {
+  const counts = new Map<number, number>();
+  for (let at: Node | null = a; at; at = at.previous)
+    counts.set(at.plate.weightKg, (counts.get(at.plate.weightKg) ?? 0) + at.count);
+  for (let at: Node | null = b; at; at = at.previous)
+    counts.set(at.plate.weightKg, (counts.get(at.plate.weightKg) ?? 0) - at.count);
+  for (const weight of [...counts.keys()].sort((x, y) => y - x)) {
+    const difference = counts.get(weight) ?? 0;
+    if (difference !== 0) return difference > 0;
   }
   return false;
 }

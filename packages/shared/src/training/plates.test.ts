@@ -17,6 +17,12 @@ describe("loadBar", () => {
     expect(result.platesPerSide).toHaveLength(10);
     expect(performance.now() - start).toBeLessThan(2000);
   });
+  it("compares duplicate tiny denominations without expanding every tied solution", () => {
+    const start = performance.now();
+    const result = loadBar(20, { weightKg: 0 }, [plate(0.001), { ...plate(0.001), id: "second" }]);
+    expect(result.exact).toBe(true);
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
   it.each([60, 61, 142.5])("loads %s kg exactly, largest first", (target) => {
     const result = loadBar(target, { weightKg: 20 }, kit);
     expect(result.exact).toBe(true);
