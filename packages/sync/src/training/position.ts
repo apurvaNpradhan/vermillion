@@ -13,7 +13,8 @@ export function byPosition(a: Positioned, b: Positioned): number {
 }
 
 export function sortByPosition<T extends Positioned>(items: readonly T[]): T[] {
-  return items.toSorted(byPosition);
+  // A copy then `sort`: Hermes on the device has no `toSorted`.
+  return [...items].sort(byPosition);
 }
 
 /** A key between two neighbours; `null` is the start or the end of the list. */

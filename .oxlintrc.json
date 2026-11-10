@@ -3,7 +3,8 @@
   "plugins": ["typescript", "unicorn", "oxc"],
   "jsPlugins": [
     { "name": "boundaries", "specifier": "./scripts/lint/boundaries-plugin.mjs" },
-    { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" }
+    { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" },
+    { "name": "hermes", "specifier": "./scripts/lint/hermes-plugin.mjs" }
   ],
   "categories": {
     "correctness": "error"
@@ -30,6 +31,21 @@
   },
   "overrides": [
     {
+      // Code that runs on the device (Hermes); tests and Node scripts run on Node.
+      "files": [
+        "apps/native/src/**",
+        "apps/native/app/**",
+        "packages/shared/src/**",
+        "packages/sync/src/**",
+        "packages/client/src/**",
+        "packages/i18n/src/**",
+        "packages/ui/src/**"
+      ],
+      "rules": {
+        "hermes/no-es2023-array-methods": "error"
+      }
+    },
+    {
       // Repo tooling is plain JavaScript without zod; `typeof` is its boundary check.
       "files": ["scripts/**", "tools/**"],
       "rules": {
@@ -41,7 +57,15 @@
       "rules": {
         "anti-slop/no-chained-type-assertions": "off",
         "anti-slop/no-known-value-widening": "off",
-        "anti-slop/require-safety-comment-for-type-assertion": "off"
+        "anti-slop/require-safety-comment-for-type-assertion": "off",
+        "hermes/no-es2023-array-methods": "off"
+      }
+    },
+    {
+      // Generates the body-map assets on Node at build time; never bundled.
+      "files": ["apps/native/src/body-map/generate-assets.ts"],
+      "rules": {
+        "hermes/no-es2023-array-methods": "off"
       }
     }
   ],

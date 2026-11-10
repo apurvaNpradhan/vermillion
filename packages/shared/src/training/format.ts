@@ -34,10 +34,11 @@ export function derivedTitleMuscles(primaryMuscles: readonly MuscleGroup[]): Mus
   const counts = new Map<MuscleGroup, number>();
   for (const muscle of primaryMuscles) counts.set(muscle, (counts.get(muscle) ?? 0) + 1);
   const appearance = [...counts.keys()];
-  return appearance
-    .toSorted((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
-    .slice(0, DERIVED_TITLE_MUSCLES)
-    .toSorted((a, b) => appearance.indexOf(a) - appearance.indexOf(b));
+  // `sort` on copies, not `toSorted`: Hermes on the device has no ES2023 array methods.
+  const top = [...appearance]
+    .sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
+    .slice(0, DERIVED_TITLE_MUSCLES);
+  return top.sort((a, b) => appearance.indexOf(a) - appearance.indexOf(b));
 }
 
 /** "Chest · Shoulders · Triceps". `label` gives a muscle group's translated name. */

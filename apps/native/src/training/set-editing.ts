@@ -23,7 +23,7 @@ export function targetOf(set: PlannedSet): Target {
 const targetKeys = (target: Target) =>
   Object.entries(target)
     .filter(([, value]) => value !== undefined)
-    .toSorted(([a], [b]) => a.localeCompare(b));
+    .sort(([a], [b]) => a.localeCompare(b));
 
 export function sameTarget(a: Target, b: Target): boolean {
   return JSON.stringify(targetKeys(a)) === JSON.stringify(targetKeys(b));
@@ -119,7 +119,7 @@ export function removeSetAt(sets: readonly PlannedSet[], index: number): Planned
 /** A new working set after the last one, copying the last working set's target. */
 export function appendSet(sets: readonly PlannedSet[], type: ExerciseType): PlannedSet[] {
   if (sets.length >= TRAINING_LIMITS.setsPerExercise) return [...sets];
-  const last = sets.findLast((set) => set.kind !== "warmup");
+  const last = [...sets].reverse().find((set) => set.kind !== "warmup");
   const target = last
     ? targetOf(last)
     : targetOf(defaultPlannedSets(type)[0] ?? { kind: "working" });

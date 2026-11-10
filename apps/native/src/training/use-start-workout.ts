@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { usePickExercises } from "@/exercise";
 
@@ -17,11 +17,19 @@ export function useStartWorkout() {
   const pickExercises = usePickExercises("train");
   const { create } = useWorkoutActions();
 
+  // A row inside a bottom sheet can fire twice on Android; one press makes one Workout.
+  const creating = useRef(false);
   const withExercises = useCallback(
     async (exerciseIds: readonly string[], programId: string | null = null) => {
-      const id = await create(exerciseIds, programId);
-      if (id) router.push({ pathname: "/train/workout/[id]", params: { id } });
-      return id;
+      if (creating.current) return null;
+      creating.current = true;
+      try {
+        const id = await create(exerciseIds, programId);
+        if (id) router.push({ pathname: "/train/workout/[id]", params: { id } });
+        return id;
+      } finally {
+        creating.current = false;
+      }
     },
     [create, router],
   );

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback } from "react";
 
 import type { PickOptions } from "./pick-selection";
-import { openPickSession } from "./pick-session";
+import { hasOpenPickSession, openPickSession } from "./pick-session";
 
 /**
  * Opens the exercise picker over the current screen and resolves with the chosen exercise ids in
@@ -23,6 +23,8 @@ export function usePickExercises(tab: "exercises" | "train" = "exercises") {
   const router = useRouter();
   return useCallback(
     (options: PickOptions = {}): Promise<string[] | null> => {
+      // One picker at a time: a repeated press answers the extra caller with nothing.
+      if (hasOpenPickSession()) return Promise.resolve(null);
       const { id, result } = openPickSession(options);
       router.push({
         pathname: tab === "train" ? "/train/pick" : "/exercises/pick",

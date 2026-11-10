@@ -5,6 +5,7 @@ import {
   clearPick,
   finishPick,
   getPickSession,
+  hasOpenPickSession,
   openPickSession,
   selectCreated,
   togglePick,
@@ -72,5 +73,14 @@ describe("pick session", () => {
     expect(getPickSession(second.id)?.selected).toEqual([]);
     cancelPick(first.id);
     cancelPick(second.id);
+  });
+
+  it("reports an open picker until it is answered", async () => {
+    expect(hasOpenPickSession()).toBe(false);
+    const { id, result } = openPickSession({});
+    expect(hasOpenPickSession()).toBe(true);
+    cancelPick(id);
+    expect(await result).toBeNull();
+    expect(hasOpenPickSession()).toBe(false);
   });
 });

@@ -45,6 +45,15 @@ export function openPickSession(options: PickOptions): OpenedPick {
   return { id, result };
 }
 
+/**
+ * Whether a picker is open and unanswered. The picker is a full-screen sheet, so a second one is
+ * never wanted: a row inside a bottom sheet can fire its press twice on Android, which would stack
+ * two pickers.
+ */
+export function hasOpenPickSession(): boolean {
+  return entries.size > 0;
+}
+
 export function getPickSession(id: string): PickSession | null {
   return entries.get(id)?.session ?? null;
 }

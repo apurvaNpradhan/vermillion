@@ -32,7 +32,7 @@ export function TrainingPreferenceRows() {
   };
   const restChoices = REST_CHOICES.some((seconds) => seconds === defaultRestSeconds)
     ? REST_CHOICES
-    : [...REST_CHOICES, defaultRestSeconds].toSorted((a, b) => a - b);
+    : [...REST_CHOICES, defaultRestSeconds].sort((a, b) => a - b);
 
   return (
     <>
