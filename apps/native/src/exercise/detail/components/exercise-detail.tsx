@@ -20,6 +20,9 @@ import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
+import { usePreferences } from "@/preferences";
+import { ExerciseNumbers } from "./exercise-numbers";
+import { RecentSessions } from "./recent-sessions";
 import { appConfig } from "@/platform/app-config";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
@@ -44,6 +47,7 @@ const HERO_RATIO_WITH_HISTORY = 9 / 16;
 
 export type ExerciseDetailProps = {
   id: string;
+  onSeeHistory: () => void;
   /** Open the library filtered to a muscle group. */
   onBrowseGroup: (group: MuscleGroup) => void;
   /** Open another exercise (a swap candidate). */
@@ -102,10 +106,13 @@ function LoadedDetail({
   onArchive,
   onRestore,
   onAddToWorkout,
+  onSeeHistory,
 }: ExerciseDetailProps & { exercise: ExerciseDetail }) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
+  const { preferences } = usePreferences();
+  const hasHistory = history.status === "ready" && history.sessions.length > 0;
   const swaps = useSwapCandidates(exercise);
   const foreground = useThemeColor("foreground");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -113,7 +120,9 @@ function LoadedDetail({
   const video = videoUrl(appConfig.urls.exerciseMedia, exercise.videoKey);
   const poster = thumbnailUrl(appConfig.urls.exerciseMedia, exercise.thumbnailKey);
   const hasMedia = video !== null || poster !== null;
-  const heroHeight = Math.round(width * (history ? HERO_RATIO_WITH_HISTORY : HERO_RATIO_CATALOG));
+  const heroHeight = Math.round(
+    width * (hasHistory ? HERO_RATIO_WITH_HISTORY : HERO_RATIO_CATALOG),
+  );
 
   const menu = useMemo<SwipeAction[]>(() => {
     if (!exercise.isCustom) return [];
@@ -162,7 +171,7 @@ function LoadedDetail({
       <Page
         title={exercise.title}
         back
-        hero={hasMedia ? { height: heroHeight } : undefined}
+        hero={hasMedia ? { height: heroHeight, fadeDistance: 120 } : undefined}
         actions={menu.length > 0 ? <MenuButton onPress={() => setMenuOpen(true)} /> : undefined}
       >
         {({ header, contentContainerStyle, ...scroll }) => (
@@ -229,8 +238,41 @@ function LoadedDetail({
                 </Button>
               </View>
             ) : null}
+            {!hasHistory && steps.length > 0 ? (
+              <FormSection steps={steps} collapsible={false} />
+            ) : null}
+            {hasHistory ? (
+              <>
+                <ExerciseNumbers
+                  sessions={history.sessions}
+                  exerciseId={exercise.id}
+                  type={exercise.exerciseType}
+                  bodyweightKg={preferences.ui.bodyweightKg}
+                  unit={preferences.ui.weightUnit}
+                  timezone={preferences.timezone}
+                />
+                <View className="px-4">
+                  <RecentSessions
+                    sessions={history.sessions.slice(0, 3)}
+                    unit={preferences.ui.weightUnit}
+                    timezone={preferences.timezone}
+                    onSeeAll={onSeeHistory}
+                  />
+                </View>
+              </>
+            ) : (
+              <Text className="px-4 text-body text-muted">
+                {t(
+                  history.status === "loading"
+                    ? "exercise__history_loading"
+                    : history.status === "error"
+                      ? "exercise__load_failed"
+                      : "exercise__numbers_empty",
+                )}
+              </Text>
+            )}
             <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
-            {steps.length > 0 ? <FormSection steps={steps} collapsible={history !== null} /> : null}
+            {hasHistory && steps.length > 0 ? <FormSection steps={steps} collapsible /> : null}
             <SwapRow candidates={swaps} onOpen={onOpenExercise} />
           </Animated.ScrollView>
         )}

@@ -88,9 +88,10 @@ export function Page({
    * A full-bleed picture at the top of the content, `height` tall from the top of the screen. The
    * content starts at the screen edge, `header` is empty (the page draws its own title), and the
    * compact bar fades in as the picture scrolls under it, so the title appears only once the
-   * picture is nearly gone. Pages with a back button only.
+   * picture is nearly gone, or over the first `fadeDistance` points when supplied.
+   * Pages with a back button only.
    */
-  hero?: { height: number };
+  hero?: { height: number; fadeDistance?: number };
   children: (scroll: PageScroll) => ReactNode;
 }) {
   const { t } = useTranslation();
@@ -108,7 +109,9 @@ export function Page({
   const height = rowTop + ROW_HEIGHT + ROW_PADDING;
   // The compact bar fades in over the last 48pt before the picture reaches it.
   const collapse: readonly [number, number] = hero
-    ? [Math.max(hero.height - height - 48, 1), Math.max(hero.height - height, 2)]
+    ? hero.fadeDistance
+      ? [0, hero.fadeDistance]
+      : [Math.max(hero.height - height - 48, 1), Math.max(hero.height - height, 2)]
     : COLLAPSE;
 
   return (

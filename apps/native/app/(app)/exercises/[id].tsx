@@ -16,6 +16,7 @@ export default function ExerciseDetailRoute() {
     <>
       <ExerciseDetailScreen
         id={id}
+        onSeeHistory={() => router.push({ pathname: "/exercises/[id]/history", params: { id } })}
         onOpenExercise={(next) =>
           router.push({ pathname: "/exercises/[id]", params: { id: next } })
         }

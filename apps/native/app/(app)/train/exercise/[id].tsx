@@ -12,6 +12,7 @@ export default function TrainExerciseDetail() {
   return (
     <ExerciseDetailScreen
       id={id}
+      onSeeHistory={() => router.push({ pathname: "/exercises/[id]/history", params: { id } })}
       onOpenExercise={(next) =>
         router.push({ pathname: "/train/exercise/[id]", params: { id: next } })
       }

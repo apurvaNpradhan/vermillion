@@ -1,15 +1,31 @@
-/** What the user's own sessions say about an exercise; filled in when training exists. */
-export type ExerciseHistory = {
-  /** Sessions that logged the exercise. */
-  sessions: number;
-};
+import { watchExerciseHistory, type FinishedSession } from "@workspace/sync";
+import { useEffect, useState } from "react";
+import { useLocalData } from "@/sync";
 
-/**
- * The user's history with an exercise, for the "Your numbers" block at the top of the detail
- * screen. Training does not exist yet, so there is none: the screen then shows the catalog view
- * (4:3 video, form open) and no numbers block.
- */
-export function useExerciseHistory(exerciseId: string): ExerciseHistory | null {
-  void exerciseId;
-  return null;
+type HistoryState =
+  | { status: "loading" | "error"; sessions: FinishedSession[] }
+  | { status: "ready"; sessions: FinishedSession[] };
+
+/** Finished history stays keyed to both database and exercise, including on account changes. */
+export function useExerciseHistory(exerciseId: string): HistoryState {
+  const local = useLocalData();
+  const database = local?.status === "ready" ? local.database : null;
+  const [result, setResult] = useState<{
+    database: typeof database;
+    id: string;
+    state: HistoryState;
+  } | null>(null);
+  useEffect(() => {
+    if (!database) return;
+    return watchExerciseHistory(database, exerciseId, {
+      onHistory: (sessions) =>
+        setResult({ database, id: exerciseId, state: { status: "ready", sessions } }),
+      onError: () =>
+        setResult({ database, id: exerciseId, state: { status: "error", sessions: [] } }),
+    });
+  }, [database, exerciseId]);
+  if (local?.status === "unavailable") return { status: "error", sessions: [] };
+  return result?.database === database && result?.id === exerciseId
+    ? result.state
+    : { status: "loading", sessions: [] };
 }

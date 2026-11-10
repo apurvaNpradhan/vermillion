@@ -50,6 +50,20 @@ The Android device was unavailable while the Sessions slices were built. Before 
 - [ ] Muscle distribution sheet from the session header and in Session detail.
 - [ ] Workout card opens the preview; Start begins a Session; Edit opens the editor.
 
+Device unavailable during implementation. Pending checks:
+
+- [ ] Exercise hero extends behind the camera cutout. Header canvas and title fade over the
+      first 120 pt, with no frosted header, in light and dark themes.
+- [ ] Scrub LineChart and BarChart horizontally inside the vertical scroll. Readout follows the
+      nearest point; vertical scrolling remains usable. Try 3M, 1Y, All, empty and one-point ranges.
+- [ ] Check VoiceOver/TalkBack point values, range/metric selection, large text and Reduce Motion.
+- [ ] New exercise history puts How to first and collapses numbers to one line. Loading and
+      failed history remain distinct from empty history.
+- [ ] With finished history, verify per-session metrics, weight units, record values and dates,
+      and help definitions against known sets. Warm-ups appear in Recent but change no totals.
+- [ ] See all opens exercise history; verify its body intensity, ranked set bars and half-set
+      secondary-muscle contributions. Edit/delete old sessions and confirm recomputed numbers.
+
 ## Slice 6: plates
 
 Device unavailable during implementation; the following checks remain pending.
