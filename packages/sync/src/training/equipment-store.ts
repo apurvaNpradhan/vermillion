@@ -1,13 +1,25 @@
 import { v7 as uuidv7 } from "uuid";
 
-import { exerciseSettingInput, gymEquipmentInput } from "@workspace/shared";
+import {
+  defaultGymKit,
+  exerciseSettingInput,
+  gymEquipmentInput,
+  type WeightUnit,
+} from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { changedFields, nowIso, ownerOf, write, type TrainingDatabase } from "./store-common";
+import {
+  changedFields,
+  marked,
+  nowIso,
+  ownerOf,
+  write,
+  type TrainingDatabase,
+} from "./store-common";
 import { exerciseSetting, gymEquipment } from "./tables";
 
-const equipmentItem = gymEquipmentInput.extend({ id: z.uuid().optional() });
+const equipmentItem = gymEquipmentInput.safeExtend({ id: z.uuid().optional() });
 /** A bar or plate to write; with an `id` it updates that item (only what changed). */
 export type EquipmentItem = z.input<typeof equipmentItem>;
 
@@ -88,5 +100,40 @@ export async function setExerciseSetting(
       await tx.update(exerciseSetting).set(changes).where(eq(exerciseSetting.id, current.id));
     }
     return current.id;
+  });
+}
+
+/** Seeds once, inside the same write transaction as the empty-inventory check. */
+export async function seedEquipment(database: TrainingDatabase, unit: WeightUnit, scope: string) {
+  return write(database, scope, async (tx) => {
+    const [existing] = await tx.select({ id: gymEquipment.id }).from(gymEquipment).limit(1);
+    if (existing) return;
+    const userId = await ownerOf(tx);
+    for (const item of defaultGymKit(unit)) {
+      await tx
+        .insert(gymEquipment)
+        .values({ ...item, id: uuidv7(), user_id: userId, created_at: nowIso() });
+    }
+  });
+}
+
+/** Deletes locally; sync retains a tombstone. The returned row is the Undo snapshot. */
+export async function deleteEquipment(database: TrainingDatabase, id: string, scope: string) {
+  return write(database, scope, async (tx) => {
+    const [row] = await tx.select().from(gymEquipment).where(eq(gymEquipment.id, id)).limit(1);
+    if (!row) return null;
+    await tx.delete(gymEquipment).where(eq(gymEquipment.id, id));
+    return row;
+  });
+}
+
+/** Explicit restore preserves the equipment id, including remembered exercise references. */
+export async function restoreEquipment(
+  database: TrainingDatabase,
+  row: NonNullable<Awaited<ReturnType<typeof deleteEquipment>>>,
+  scope: string,
+) {
+  return write(database, scope, async (tx) => {
+    await tx.insert(gymEquipment).values(marked(row)).onConflictDoNothing();
   });
 }

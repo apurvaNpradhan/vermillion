@@ -201,6 +201,10 @@ describe("kit and settings inputs", () => {
     expect(gymEquipmentInput.safeParse(item).success).toBe(true);
     expect(gymEquipmentInput.safeParse({ ...item, kind: "rack" }).success).toBe(false);
     expect(gymEquipmentInput.safeParse({ ...item, count: -1 }).success).toBe(false);
+    expect(gymEquipmentInput.safeParse({ ...item, count: 0 }).success).toBe(false);
+    expect(gymEquipmentInput.safeParse({ ...item, weight_kg: 0 }).success).toBe(false);
+    expect(gymEquipmentInput.safeParse({ ...item, kind: "bar", weight_kg: 0 }).success).toBe(true);
+    expect(gymEquipmentInput.safeParse({ ...item, unit: "oz" }).success).toBe(false);
     expect(gymEquipmentInput.safeParse({ ...item, weight_kg: 1001 }).success).toBe(false);
     expect(
       exerciseSettingInput.safeParse({ exercise_id: id, bar_id: null, log_effort: true }).success,

@@ -183,14 +183,19 @@ export function sessionSetSchema(type: ExerciseType) {
 }
 
 /** A bar or a plate of the user's kit; `count` null means unlimited. */
-export const gymEquipmentInput = z.strictObject({
-  kind: z.enum(["bar", "plate"]),
-  weight_kg: z.number().min(0).max(MAX_WEIGHT_KG),
-  unit: z.enum(WEIGHT_UNITS),
-  label: z.string().min(1).max(100).nullable(),
-  count: z.number().int().min(0).max(1000).nullable(),
-  enabled: z.boolean(),
-});
+export const gymEquipmentInput = z
+  .strictObject({
+    kind: z.enum(["bar", "plate"]),
+    weight_kg: z.number().min(0).max(MAX_WEIGHT_KG),
+    unit: z.enum(WEIGHT_UNITS),
+    label: z.string().min(1).max(100).nullable(),
+    count: z.number().int().min(1).max(1000).nullable(),
+    enabled: z.boolean(),
+  })
+  .refine((item) => item.kind === "bar" || item.weight_kg > 0, {
+    path: ["weight_kg"],
+    message: "A plate must weigh more than zero",
+  });
 export type GymEquipmentInput = z.infer<typeof gymEquipmentInput>;
 
 /** Per exercise: the remembered bar and whether the effort column is on. One row per exercise. */

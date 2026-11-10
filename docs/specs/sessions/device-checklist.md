@@ -52,6 +52,17 @@ The Android device was unavailable while the Sessions slices were built. Before 
 
 ## Slice 6: plates
 
+Device unavailable during implementation; the following checks remain pending.
+
+- [ ] Settings → Training → Plate calculator opens the 60 kg preview; Manage equipment is reachable.
+- [ ] Swipe-delete bars and plates, Undo, restart offline, then reconnect; restored ids persist.
+- [ ] Toggle every bar off, retry after a storage error, and check large text and screen readers.
+- [ ] Add a custom lb item while using lb, then switch to kg; both kits remain available.
+- [ ] Disable the 0.5 kg plates: 61 kg offers neighbours. Re-enable them: 61 kg is exact.
+
+Spec correction: a 1.25 kg pair changes a load by 2.5 kg, not 1 kg. The default 0.5 kg
+pairs already make 61 kg loadable with a 20 kg bar. Check the custom pair at 62.5 kg.
+
 - [ ] Plate chip on barbell exercises opens the calculator with the current target.
 - [ ] 60, 61 and 142.5 kg loads draw correctly; inexact targets offer closest below/above with Use.
 - [ ] Add a custom 1.25 kg pair; 61 kg becomes loadable. Add a custom bar.

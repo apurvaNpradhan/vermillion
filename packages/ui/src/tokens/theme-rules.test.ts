@@ -108,3 +108,15 @@ describe.each(Object.entries(themes))("theme rules: %s", (_name, { mode, colors,
     expect(c["surface-floating"]).not.toBe(c["surface-control"]);
   });
 });
+
+// Plate labels use a dedicated ink, independent of the surrounding theme.
+describe.each(Object.entries(brandTokens.colors))("plate contrast: %s", (_mode, c) => {
+  it("keeps every standard plate label readable", () => {
+    for (const role of ["plate-red", "plate-blue", "plate-green", "plate-black"] as const) {
+      expect(contrastRatio(c[role], c["on-plate-dark"])).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const role of ["plate-yellow", "plate-white"] as const) {
+      expect(contrastRatio(c[role], c["on-plate-light"])).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

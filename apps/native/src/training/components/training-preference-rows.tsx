@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import {
   EFFORT_SCALES,
   EFFORT_SCALE_NAME_KEYS,
@@ -24,6 +25,7 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
 /** Weight unit, effort scale and default rest as settings rows, each opening a short sheet. */
 export function TrainingPreferenceRows() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { preferences, setUi } = usePreferences();
   const { weightUnit, effortScale, defaultRestSeconds } = preferences.ui;
   const [picker, setPicker] = useState<Picker>(null);
@@ -54,6 +56,13 @@ export function TrainingPreferenceRows() {
           title={t("training__setting_rest")}
           value={formatClock(defaultRestSeconds)}
           onPress={() => setPicker("rest")}
+        />
+        <ListRow
+          icon={Barbell}
+          title={t("plates__title")}
+          onPress={() =>
+            router.push({ pathname: "/settings/plates", params: { calculator: "open" } })
+          }
         />
       </ListSection>
       <OptionSheet<WeightUnit>

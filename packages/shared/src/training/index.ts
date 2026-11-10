@@ -13,3 +13,4 @@ export * from "./volume";
 export * from "./records";
 export * from "./muscle-distribution";
 export * from "./gym-kit";
+export * from "./plates";

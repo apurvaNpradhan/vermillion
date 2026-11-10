@@ -154,6 +154,9 @@ export {
   type TickResult,
 } from "./session-content-store";
 export {
+  seedEquipment,
+  deleteEquipment,
+  restoreEquipment,
   setExerciseSetting,
   upsertEquipment,
   type EquipmentItem,

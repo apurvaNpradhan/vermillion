@@ -363,6 +363,26 @@ describe("session upload handlers", () => {
     );
   });
 
+  it("validates equipment weights, pair counts and units", async () => {
+    const me = await writer("plate-validation@example.com");
+    const invalid: Record<string, Value>[] = [
+      { kind: "plate", weight_kg: 0 },
+      { kind: "plate", weight_kg: -1 },
+      { count: 0 },
+      { count: 1.5 },
+      { unit: "oz" },
+    ];
+    for (const extra of invalid) {
+      expect(await me.send([putEquipment(uuidv7(), extra)])).toMatchObject(
+        rejected("SYNC_INVALID_OP"),
+      );
+    }
+    expect(await me.send([putEquipment(uuidv7(), { kind: "bar", weight_kg: 0 })])).toEqual(applied);
+    expect(
+      await me.send([putEquipment(uuidv7(), { kind: "plate", count: 1, weight_kg: 1.25 })]),
+    ).toEqual(applied);
+  });
+
   it("accepts two unfinished Sessions of one account", async () => {
     const me = await writer("session-two-active@example.com");
     const [a, b] = [uuidv7(), uuidv7()];
