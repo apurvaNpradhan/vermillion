@@ -8,6 +8,8 @@ import { Play } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
 import { MuscleIcon } from "../../library/components/muscle-icon";
@@ -40,6 +42,9 @@ export function VideoHero({
   const [firstFrame, setFirstFrame] = useState(false);
   const [posterFailed, setPosterFailed] = useState(false);
   const foreground = useThemeColor("foreground");
+  const background = useThemeColor("background");
+  // The pictures are mostly white: the status bar and the back button need a shade under them.
+  const scrim = useSafeAreaInsets().top + 72;
 
   const player = useVideoPlayer(videoUri, (instance) => {
     instance.muted = true;
@@ -98,6 +103,20 @@ export function VideoHero({
           style={{ position: "absolute", width, height }}
         />
       ) : null}
+      <Svg
+        pointerEvents="none"
+        width={width}
+        height={scrim}
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        <Defs>
+          <LinearGradient id="hero-top-scrim" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={background} stopOpacity={0.75} />
+            <Stop offset="1" stopColor={background} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect width={width} height={scrim} fill="url(#hero-top-scrim)" />
+      </Svg>
       {showVideo && paused ? (
         <View
           pointerEvents="none"

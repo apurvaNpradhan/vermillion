@@ -5,7 +5,9 @@
 Fixed while checking: fast keypad presses lost digits; a tick took about 2 s to show (one
 history query per exercise, and the tick and its Rest were two writes; ticks and Rest changes now
 show at once); the plate calculator sheet never opened from the keypad; 61 kg loaded 41 × 0.5 kg
-plates; every plate drew black. Known development-only issue: a Fast Refresh of a `packages/*`
+plates; every plate drew black. On the exercise page: the selected metric and range chips looked unselected, volume read
+"305 kg × reps", and the status bar vanished over the white picture (a top shade fixes it).
+Known development-only issue: a Fast Refresh of a `packages/*`
 file leaves the Session screen frozen until the app restarts.
 
 The Android device was unavailable while the Sessions slices were built. Before calling them done, run every item below on a device with a dev-client build that includes `expo-notifications` and `expo-keep-awake` (rebuild first). Tick an item only after you have seen it on the device; note failures inline.

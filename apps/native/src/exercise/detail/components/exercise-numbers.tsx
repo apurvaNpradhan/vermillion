@@ -93,7 +93,7 @@ export function ExerciseNumbers({
           <Button
             key={key}
             size="sm"
-            variant={key === metric ? "secondary" : "tertiary"}
+            variant={key === metric ? "primary" : "tertiary"}
             accessibilityState={{ selected: key === metric }}
             onPress={() => setSelected(key)}
           >

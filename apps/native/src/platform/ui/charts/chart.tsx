@@ -99,7 +99,7 @@ function Chart({ points, label, formatValue, mode }: Props & { mode: "line" | "b
           <Button
             key={value}
             size="sm"
-            variant={range === value ? "secondary" : "tertiary"}
+            variant={range === value ? "primary" : "tertiary"}
             accessibilityState={{ selected: range === value }}
             onPress={() => {
               setRange(value);

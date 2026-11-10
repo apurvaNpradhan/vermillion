@@ -668,7 +668,7 @@
   "exercise__muscle_scale": "Body intensity: 0–{{value}} sets",
   "exercise__muscle_sets": "{{value}} sets",
   "exercise__records_help_symbol": "?",
-  "exercise__value_volume": "{{value}} {{unit}} × reps",
+  "exercise__value_volume": "{{value}} {{unit}}",
   "exercise__history_drop": "Set {{number}} · Drop",
   "exercise__history_failure": "Set {{number}} · To failure",
   "session__untitled": "Workout",
