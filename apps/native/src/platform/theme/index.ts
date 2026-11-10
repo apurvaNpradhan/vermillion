@@ -54,6 +54,12 @@ export function useIdentityColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
+/** The icon and text colour on an `identity` fill. */
+export function useOnIdentityColor(): string | undefined {
+  const value = useCSSVariable("--color-on-identity");
+  return isColorString(value) ? value : undefined;
+}
+
 export function isColorString(value: ColorValue | number | undefined): value is string {
   return typeof value === "string";
 }

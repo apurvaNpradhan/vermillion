@@ -8,6 +8,7 @@ import {
   Link,
   LinkBreak,
   ListPlus,
+  PlayCircle,
   Plus,
   PencilSimple,
   ShareNetwork,
@@ -56,6 +57,8 @@ export type WorkoutEditorProps = {
   onClosed: () => void;
   /** A copy was made: open it in place of this one. */
   onOpenCopy: (id: string) => void;
+  /** Start a Session from this Workout. */
+  onStart: (id: string) => void;
 };
 
 /**
@@ -97,6 +100,7 @@ function LoadedEditor({
   onOpenExercise,
   onClosed,
   onOpenCopy,
+  onStart,
 }: WorkoutEditorProps & { workout: Loaded }) {
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
@@ -403,6 +407,16 @@ function LoadedEditor({
       <ActionSheet
         title={title}
         actions={[
+          // Temporary: the Workout preview with Start replaces this in a later slice.
+          {
+            key: "start",
+            label: t("session__start"),
+            icon: PlayCircle,
+            onPress: () => {
+              writer.flush();
+              onStart(workout.id);
+            },
+          },
           {
             key: "rename",
             label: t("training__edit_details"),

@@ -59,6 +59,8 @@ type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
   menuHeader?: (closeMenu: () => void) => ReactNode;
   /** How many tabs get their own button on the pill; the rest are in the menu. */
   directTabCount?: number;
+  /** A floating strip above the pill (the Resume bar); it steps aside with the bar. */
+  aboveBar?: ReactNode;
 };
 type TabRoute = TabBarProps["state"]["routes"][number];
 
@@ -97,6 +99,7 @@ export function TabBar({
   navigateToTab,
   menuHeader,
   directTabCount,
+  aboveBar,
 }: TabBarProps) {
   const { t } = useTranslation();
   const [foreground, muted, background] = useThemeColor(["foreground", "muted", "background"]);
@@ -291,6 +294,7 @@ export function TabBar({
         className="absolute inset-0"
         style={barStyle}
       >
+        {aboveBar}
         {hint ? (
           <Animated.View
             entering={FadeIn.duration(120).reduceMotion(ReduceMotion.System)}

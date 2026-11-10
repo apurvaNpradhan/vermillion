@@ -33,7 +33,7 @@ export function ExercisePickScreen({
 }: {
   requestId: string;
   /** Where closing goes when there is nothing to go back to. */
-  closeFallback?: "/exercises" | "/train";
+  closeFallback?: "/exercises" | "/train" | "/";
   /** Open the new-exercise form for this request, prefilled with the searched title. */
   onCreate: (title: string) => void;
 }) {

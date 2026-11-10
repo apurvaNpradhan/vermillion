@@ -1,4 +1,4 @@
-import { TrainingLimitError, type TrainingDatabase } from "@workspace/sync";
+import { SessionLimitError, TrainingLimitError, type TrainingDatabase } from "@workspace/sync";
 import { useToast } from "heroui-native";
 import { useCallback } from "react";
 
@@ -17,7 +17,13 @@ const LIMIT_KEYS = {
   slotsPerProgram: "training__limit_slots",
 } as const;
 
+const SESSION_LIMIT_KEYS = {
+  exercisesPerSession: "session__limit_exercises",
+  setsPerExercise: "session__limit_sets",
+} as const;
+
 function limitMessage(error: Error) {
+  if (error instanceof SessionLimitError) return SESSION_LIMIT_KEYS[error.limit];
   if (!(error instanceof TrainingLimitError)) return null;
   if (error.limit === "exercisesPerWorkout") return LIMIT_KEYS.exercisesPerWorkout;
   if (error.limit === "liveWorkouts") return LIMIT_KEYS.liveWorkouts;

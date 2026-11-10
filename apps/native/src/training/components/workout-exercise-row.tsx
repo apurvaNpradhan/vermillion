@@ -19,7 +19,7 @@ const FALLBACK_TYPE = "weight_reps";
  * The left bracket of a superset in the `identity` role: one bar that runs through the run's rows,
  * rounded where the run starts and ends.
  */
-function SupersetBracket({ place }: { place: SupersetPlace }) {
+export function SupersetBracket({ place }: { place: SupersetPlace }) {
   if (place === "none") return null;
   const edges =
     place === "first"

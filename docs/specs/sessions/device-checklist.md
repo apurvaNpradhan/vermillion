@@ -20,6 +20,18 @@ The Android device was unavailable while the Sessions slices were built. Before 
 - [ ] Two sessions started offline on two devices: both appear, chooser lets you finish/discard/resume each.
 - [ ] Forgotten session: with the last tick more than 3 h ago (adjust device clock), the three-choice sheet appears.
 - [ ] Basic Finish drops unticked sets and states the count.
+- [ ] Hardware keyboard (adb/USB keyboard): digits, `.`/`,`, Backspace edit the cell, Tab moves to the next cell, Enter closes the keypad; no soft keyboard shows.
+- [ ] Duration cells type like a microwave (1, 3, 0 reads 1:30); reps typed as 0 leaves the cell empty with no error toast.
+- [ ] The cell being edited stays visible above the keypad on a small phone, including the last set of a long exercise; Back closes the keypad first, then minimises.
+- [ ] Opening another exercise scrolls it to the top; a superset opens as one block and its bracket spans both members.
+- [ ] Long-press the grip: every row collapses to one line, the drop position is right, and the open block comes back afterwards; no drag starts from a cell.
+- [ ] Set badge sheet changes the kind (warm-up shows W and records no effort); swipe a set to remove it; the effort sheet shows RPE or RIR by preference and clears.
+- [ ] Removing an exercise that has ticked sets asks first; with none it just removes.
+- [ ] Finishing with no ticked set offers to discard instead; discarding offers Undo.
+- [ ] The Session modal rises over the tabs; swipe-down (iOS) or Back (Android) minimises it; the exercise picker and "create exercise" open above it and return to it.
+- [ ] Resume bar: pages on every tab scroll clear of it, it steps aside with the keyboard, the switcher menu opens over it, and it vanishes after Finish; the summary's Done closes the modal.
+- [ ] A Session owned by another device has every cell, tick and menu disabled; Take over makes it editable.
+- [ ] Forgotten sheet: Keep going does not ask again for 3 h; Discard offers Undo; Finish at … uses the last tick plus its rest.
 
 ## Slice 3: rest, timers, awake, haptics
 

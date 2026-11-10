@@ -11,6 +11,7 @@ import { useThumbnailPrefetch } from "@/exercise";
 import { useAccountLocale } from "@/preferences";
 import { useSyncStatus } from "@/sync";
 import { AccountSummary } from "@/account";
+import { ForgottenSessionHost, ResumeBar } from "@/session";
 
 // Vermillion icon rules: Phosphor Regular, Fill when selected. The tab bar passes a plain color
 // string; Phosphor does not take React Native's opaque platform colors.
@@ -45,7 +46,12 @@ export default function AppLayout() {
     <TabActionProvider key={snapshot?.writeScope ?? "unclaimed"}>
       <Tabs
         tabBar={(props) => (
-          <TabBar {...props} directTabCount={DIRECT_TABS} menuHeader={() => <AccountSummary />} />
+          <TabBar
+            {...props}
+            directTabCount={DIRECT_TABS}
+            menuHeader={() => <AccountSummary />}
+            aboveBar={<ResumeBar />}
+          />
         )}
         // Direction-aware horizontal slide: a tab to the right enters from the right.
         screenOptions={{
@@ -98,6 +104,7 @@ export default function AppLayout() {
           options={{ title: t("nav__settings"), tabBarIcon: tabIcon(GearSix) }}
         />
       </Tabs>
+      <ForgottenSessionHost />
     </TabActionProvider>
   );
 }

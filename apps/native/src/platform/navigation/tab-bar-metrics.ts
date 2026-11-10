@@ -1,5 +1,7 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useReservedAboveBar } from "./tab-action";
+
 /** Height of the pill and diameter of the action button beside it. */
 export const TAB_BAR_HEIGHT = 56;
 /** Space between the pill and the bottom safe-area edge. */
@@ -20,5 +22,5 @@ export function useTabBarBottom(): number {
 
 /** Bottom padding a tab screen needs so its last row scrolls clear of the floating pill. */
 export function useTabBarClearance(): number {
-  return useTabBarBottom() + TAB_BAR_HEIGHT + 16;
+  return useTabBarBottom() + TAB_BAR_HEIGHT + 16 + useReservedAboveBar();
 }

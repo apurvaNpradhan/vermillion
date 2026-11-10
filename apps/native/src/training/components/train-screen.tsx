@@ -2,7 +2,7 @@ import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native";
-import { Barbell, CaretRight, ListNumbers, Plus } from "phosphor-react-native";
+import { Barbell, CaretRight, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -29,7 +29,7 @@ const NO_WORKOUTS: WorkoutSummary[] = [];
 const workoutKey = (workout: WorkoutSummary) => workout.id;
 
 /** One library: a compact program preview, then matching workout rows, with one creation action. */
-export function TrainScreen() {
+export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const workoutList = useWorkouts();
@@ -52,8 +52,14 @@ export function TrainScreen() {
     () => [
       { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
       { key: "program", label: t("training__new_program"), icon: ListNumbers, onPress: newProgram },
+      {
+        key: "session",
+        label: t("session__empty_session"),
+        icon: PlayCircle,
+        onPress: onStartEmpty,
+      },
     ],
-    [t, newWorkout, newProgram],
+    [t, newWorkout, newProgram, onStartEmpty],
   );
   const open = useCallback(
     (id: string) => router.push({ pathname: "/train/workout/[id]", params: { id } }),

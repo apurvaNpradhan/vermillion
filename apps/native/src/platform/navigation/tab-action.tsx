@@ -26,6 +26,9 @@ type TabActionContextValue = {
   barHidden: boolean;
   /** Hides the bar until the returned release function is called (reference-counted). */
   holdBarHidden: () => () => void;
+  /** Height of what sits above the pill (the Resume bar), so pages scroll clear of it. */
+  reserved: number;
+  setReserved: (height: number) => void;
 };
 
 const TabActionContext = createContext<TabActionContextValue>({
@@ -33,6 +36,8 @@ const TabActionContext = createContext<TabActionContextValue>({
   setAction: () => undefined,
   barHidden: false,
   holdBarHidden: () => () => undefined,
+  reserved: 0,
+  setReserved: () => undefined,
 });
 
 /** Holds the focused tab's action; wraps the tab navigator so its tab bar can read it. */
@@ -40,12 +45,29 @@ export function TabActionProvider({ children }: { children: ReactNode }) {
   const [action, setAction] = useState<TabAction | null>(null);
   const [barHidden, setBarHidden] = useState(false);
   const [holds] = useState(() => createTabBarHolds(setBarHidden));
+  const [reserved, setReserved] = useState(0);
   const holdBarHidden = holds.hold;
   return (
-    <TabActionContext value={{ action, setAction, barHidden, holdBarHidden }}>
+    <TabActionContext
+      value={{ action, setAction, barHidden, holdBarHidden, reserved, setReserved }}
+    >
       {children}
     </TabActionContext>
   );
+}
+
+/** The height pages must leave above the tab pill for what floats over it. */
+export function useReservedAboveBar() {
+  return useContext(TabActionContext).reserved;
+}
+
+/** Reserves `height` above the tab pill while mounted (0 reserves nothing). */
+export function useReserveAboveBar(height: number) {
+  const { setReserved } = useContext(TabActionContext);
+  useEffect(() => {
+    setReserved(height);
+    return () => setReserved(0);
+  }, [height, setReserved]);
 }
 
 export function useCurrentTabAction() {

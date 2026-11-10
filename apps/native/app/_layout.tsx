@@ -76,6 +76,15 @@ function RootStack() {
     <Stack screenOptions={STACK_OPTIONS}>
       <Stack.Protected guard={guards.app}>
         <Stack.Screen name="(app)" />
+        {/* The logging screen rises over the tabs; its chevron minimises it. */}
+        <Stack.Screen
+          name="session"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            animationDuration: 220,
+          }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={guards.auth}>
         <Stack.Screen name="(auth)" />
