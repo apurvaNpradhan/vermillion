@@ -345,7 +345,14 @@ function LoadedSession({
       ? (() => {
           const at = logging.found.get(logging.entry.cell.setId);
           return at
-            ? { exercise: at.exercise, setId: at.set.id, field: logging.activeField, unit }
+            ? {
+                exercise: at.exercise,
+                setId: at.set.id,
+                field: logging.activeField,
+                unit,
+                currentKg: at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null,
+                putKg: logging.putValue,
+              }
             : null;
         })()
       : null;

@@ -62,10 +62,8 @@ export function TrainingPreferenceRows({ extraRows = [] }: { extraRows?: ReactNo
         />
         <ListRow
           icon={Barbell}
-          title={t("plates__title")}
-          onPress={() =>
-            router.push({ pathname: "/settings/plates", params: { calculator: "open" } })
-          }
+          title={t("plates__manage")}
+          onPress={() => router.push("/settings/plates")}
         />
         {extraRows}
       </ListSection>

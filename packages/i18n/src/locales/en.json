@@ -602,7 +602,6 @@
   "plates__loading": "Loading equipment…",
   "plates__deleted": "Equipment deleted",
   "plates__undo": "Undo",
-  "plates__preview_used": "Selected {{weight}} {{unit}} for this preview.",
   "plates__bars": "Bars",
   "plates__plates": "Plates",
   "plates__delete": "Delete",

@@ -231,6 +231,21 @@ export function useLoggingState({
     [unit, commit],
   );
 
+  /** Puts a whole value into the cell being edited (the plate calculator's Use). */
+  const putValue = useCallback(
+    (value: number) => {
+      const current = entryRef.current;
+      if (!current) return;
+      setEntry({
+        cell: current.cell,
+        raw: textOfValue(current.cell.field, value, unit),
+        fresh: false,
+      });
+      commit(current.cell, value);
+    },
+    [unit, commit],
+  );
+
   const onStep = useCallback(
     (direction: 1 | -1) => {
       const current = entryRef.current;
@@ -485,6 +500,7 @@ export function useLoggingState({
     closeKeypad,
     onKey,
     onStep,
+    putValue,
     onNext,
     refusal,
     onTick,

@@ -17,33 +17,14 @@ import { ScrollPage } from "@/platform/ui/page";
 import { ListSection, ListRow } from "@/platform/ui/list";
 import { SwipeGroup, SwipeRow } from "@/platform/ui/swipe-row";
 import { useEquipment } from "./use-plates";
-import { PlateCalculatorSheet } from "./plate-calculator-sheet";
 
-export function ManageEquipmentScreen({ openCalculator = false }: { openCalculator?: boolean }) {
+export function ManageEquipmentScreen() {
   const { t } = useTranslation();
   const state = useEquipment();
   const [control, foreground, background] = useThemeColor(["default", "foreground", "background"]);
-  const [calculator, setCalculator] = useState(openCalculator);
   const [kind, setKind] = useState<GymEquipmentInput["kind"] | null>(null);
-  const [used, setUsed] = useState<number | null>(null);
   return (
     <ScrollPage title={t("plates__manage")}>
-      <Button variant="secondary" onPress={() => setCalculator(true)}>
-        {t("plates__title")}
-      </Button>
-      {used !== null ? (
-        <Text className="text-body text-foreground">
-          {t("plates__preview_used", { weight: formatWeight(used, state.unit), unit: state.unit })}
-        </Text>
-      ) : null}
-      {calculator ? (
-        <PlateCalculatorSheet
-          targetKg={60}
-          exerciseId=""
-          onUse={setUsed}
-          onClose={() => setCalculator(false)}
-        />
-      ) : null}
       {state.failed ? (
         <Button onPress={state.retry}>{t("plates__retry")}</Button>
       ) : state.loading ? (
