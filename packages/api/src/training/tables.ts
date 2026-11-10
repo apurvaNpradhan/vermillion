@@ -411,3 +411,33 @@ export const exerciseSetting = pgTable(
       .where(sql`${table.deletedAt} IS NULL`),
   ],
 );
+
+/** Run dates survive plan edits and soft deletion. */
+export const programRun = pgTable(
+  "program_run",
+  {
+    id: id(),
+    userId: owner(),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => program.id),
+    activatedAt: timestamptz("activated_at").notNull(),
+    startedAt: timestamptz("started_at"),
+    finishedAt: timestamptz("finished_at"),
+    outcome: text("outcome"),
+    continuedAt: timestamptz("continued_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (table) => [
+    index("program_run_user_id_live_idx")
+      .on(table.userId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    index("program_run_program_id_idx").on(table.programId),
+    check(
+      "program_run_outcome",
+      sql`(${table.finishedAt} IS NULL AND ${table.outcome} IS NULL) OR (${table.finishedAt} IS NOT NULL AND ${table.outcome} IN ('completed', 'stopped'))`,
+    ),
+  ],
+);

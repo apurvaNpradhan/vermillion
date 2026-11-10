@@ -1,3 +1,4 @@
+import { runSyncHandler } from "./run-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
   plannedSetsSchema,
@@ -447,6 +448,7 @@ const programSlotSyncHandler: SyncTableHandler = {
  * rows are small and a purge needs a marker table against late PUTs (see the ADR follow-ups).
  */
 export const trainingSyncHandlers: readonly SyncTableHandler[] = [
+  runSyncHandler,
   programSyncHandler,
   workoutSyncHandler,
   workoutExerciseSyncHandler,

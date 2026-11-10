@@ -7,6 +7,7 @@ import {
   gymEquipment,
   program,
   programCover,
+  programRun,
   programSlot,
   session,
   sessionExercise,
@@ -29,6 +30,7 @@ export const drizzleSchema = {
   gymEquipment,
   exerciseSetting,
   programCover,
+  programRun,
   deviceOwner,
   installMeta,
   rejectedWrites,
@@ -41,6 +43,7 @@ export const drizzleSchema = {
 export const powerSyncSchema = new DrizzleAppSchema({
   exercise: { tableDefinition: exercise },
   program: { tableDefinition: program },
+  program_run: { tableDefinition: programRun },
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },
   program_slot: { tableDefinition: programSlot },
@@ -59,6 +62,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
 export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(exercise),
   getTableName(program),
+  getTableName(programRun),
   getTableName(workout),
   getTableName(workoutExercise),
   getTableName(programSlot),

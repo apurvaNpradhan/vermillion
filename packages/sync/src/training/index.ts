@@ -170,3 +170,15 @@ export {
   type ExerciseSettingPatch,
 } from "./equipment-store";
 export { editFinishedSession, applySessionWorkout } from "./session-workout-store";
+
+export {
+  watchRunState,
+  activateProgram,
+  stopProgram,
+  finishRun,
+  keepGoing,
+  runAgain,
+  readRuns,
+  reconcileRuns,
+} from "./run-store";
+export { programRun } from "./tables";

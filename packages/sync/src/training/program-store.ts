@@ -1,9 +1,9 @@
 import { v7 as uuidv7 } from "uuid";
 
 import { programInput, type ProgramInput } from "@workspace/shared";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
-import { program, programSlot, workout, workoutExercise } from "./tables";
+import { programRun, program, programSlot, workout, workoutExercise } from "./tables";
 
 import {
   type TrainingDatabase,
@@ -78,6 +78,10 @@ export function deleteProgram(
         ? await tx.select().from(workoutExercise).where(inArray(workoutExercise.workout_id, ids))
         : [];
     const slots = await tx.select().from(programSlot).where(eq(programSlot.program_id, id));
+    await tx
+      .update(programRun)
+      .set({ finished_at: nowIso(), outcome: "stopped" })
+      .where(and(eq(programRun.program_id, id), isNull(programRun.finished_at)));
     // Parent first: the server soft-deletes the whole plan under the one timestamp.
     await tx.delete(program).where(eq(program.id, id));
     await tx.delete(programSlot).where(eq(programSlot.program_id, id));

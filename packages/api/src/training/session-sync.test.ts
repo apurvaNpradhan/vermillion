@@ -71,6 +71,41 @@ describe("session upload handlers", () => {
   }
   type Writer = Awaited<ReturnType<typeof writer>>;
 
+  it("refuses foreign Runs and Slots from a different Program", async () => {
+    const a = await writer("run-owner@example.com");
+    const b = await writer("run-other@example.com");
+    const programId = uuidv7();
+    const otherProgram = uuidv7();
+    const runId = uuidv7();
+    const slotId = uuidv7();
+    expect(
+      await a.send([
+        op("PUT", "program", programId, { title: "One" }),
+        op("PUT", "program", otherProgram, { title: "Two" }),
+        op("PUT", "program_slot", slotId, {
+          program_id: otherProgram,
+          workout_id: null,
+          position: "a0",
+        }),
+        op("PUT", "program_run", runId, {
+          program_id: programId,
+          activated_at: new Date().toISOString(),
+        }),
+      ]),
+    ).toEqual(applied);
+    expect(
+      await b.send([op("PATCH", "program_run", runId, { started_at: new Date().toISOString() })]),
+    ).toMatchObject(rejected("RUN_NOT_FOUND"));
+    expect(
+      await b.send([putSession(uuidv7(), { run_id: runId, program_id: programId })]),
+    ).toMatchObject(rejected("RUN_NOT_FOUND"));
+    expect(
+      await a.send([
+        putSession(uuidv7(), { run_id: runId, program_id: programId, slot_id: slotId }),
+      ]),
+    ).toMatchObject(rejected("RUN_SLOT_PROGRAM_MISMATCH"));
+  });
+
   const applied: SyncUploadResult = { status: "applied" };
   const rejected = (code: SyncFailureCode): Partial<SyncUploadResult> => ({
     status: "rejected",

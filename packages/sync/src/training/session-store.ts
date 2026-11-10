@@ -1,6 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
+  cycleState,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -8,6 +9,8 @@ import {
 } from "@workspace/shared";
 import { asc, eq, inArray } from "drizzle-orm";
 
+import { reconcileRuns } from "./run-store";
+import { programRun, programSlot } from "./tables";
 import { keysAfterLast } from "./position";
 import {
   assertSessionRoom,
@@ -65,13 +68,41 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
+  const run = fields.finishedAt === null ? await reconcileRuns(tx) : null;
+  const active = run && plan?.program_id === run.program_id ? run : null;
+  const slots = active
+    ? await tx
+        .select()
+        .from(programSlot)
+        .where(eq(programSlot.program_id, active.program_id))
+        .orderBy(asc(programSlot.position), asc(programSlot.id))
+    : [];
+  const history = active
+    ? await tx.select().from(session).where(eq(session.run_id, active.id))
+    : [];
+  const progress = cycleState(
+    slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
+    history.map((s) => ({
+      id: s.id,
+      workoutId: s.workout_id,
+      cycle: s.cycle,
+      startedAt: s.started_at,
+      finishedAt: s.finished_at,
+    })),
+  );
+  const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
+  if (active && !active.started_at)
+    await tx
+      .update(programRun)
+      .set({ started_at: fields.startedAt })
+      .where(eq(programRun.id, active.id));
   const title = plan?.title ?? source.derivedTitle;
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
-    run_id: null,
-    slot_id: null,
-    cycle: null,
+    run_id: active?.id ?? null,
+    slot_id: slot?.id ?? null,
+    cycle: active ? progress.cycle : null,
     title,
     title_derived: plan?.title == null,
     note: null,

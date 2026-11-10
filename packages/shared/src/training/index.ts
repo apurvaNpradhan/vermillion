@@ -15,3 +15,4 @@ export * from "./muscle-distribution";
 export * from "./gym-kit";
 export * from "./plates";
 export * from "./session-workout-diff";
+export { activeRun, cycleState, runWeek } from "./cycle";

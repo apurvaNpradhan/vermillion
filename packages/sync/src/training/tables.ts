@@ -126,6 +126,7 @@ export const session = sqliteTable(
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
+    index("session_run_id_idx").on(table.run_id),
     index("session_finished_at_idx").on(table.finished_at),
   ],
 );
@@ -204,4 +205,23 @@ export const exerciseSetting = sqliteTable(
     restore: integer("restore"),
   },
   (table) => [index("exercise_setting_exercise_id_idx").on(table.exercise_id)],
+);
+
+export const programRun = sqliteTable(
+  "program_run",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    program_id: text("program_id").notNull(),
+    activated_at: text("activated_at").notNull(),
+    started_at: text("started_at"),
+    finished_at: text("finished_at"),
+    outcome: text("outcome"),
+    continued_at: text("continued_at"),
+    created_at: text("created_at").notNull(),
+  },
+  (table) => [
+    index("program_run_program_id_idx").on(table.program_id),
+    index("program_run_activated_at_idx").on(table.activated_at),
+  ],
 );

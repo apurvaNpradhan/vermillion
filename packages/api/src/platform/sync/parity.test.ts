@@ -277,6 +277,27 @@ const expectation: Expectation = {
           "CREATE UNIQUE INDEX exercise_setting_user_exercise_live_idx ON public.exercise_setting USING btree (user_id, exercise_id) WHERE (deleted_at IS NULL)",
       },
     },
+    program_run: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        program_id: { type: "uuid", notNull: true, default: null },
+        activated_at: { type: "timestamp with time zone", notNull: true, default: null },
+        started_at: { type: "timestamp with time zone", notNull: false, default: null },
+        finished_at: { type: "timestamp with time zone", notNull: false, default: null },
+        outcome: { type: "text", notNull: false, default: null },
+        continued_at: { type: "timestamp with time zone", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        program_run_user_id_live_idx:
+          "CREATE INDEX program_run_user_id_live_idx ON public.program_run USING btree (user_id) WHERE (deleted_at IS NULL)",
+        program_run_program_id_idx:
+          "CREATE INDEX program_run_program_id_idx ON public.program_run USING btree (program_id)",
+      },
+    },
     // Server-only: never published, never streamed.
     reference_import: {
       columns: {
@@ -295,6 +316,7 @@ const expectation: Expectation = {
       "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
+      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
       "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at)",
       "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at)",
@@ -348,6 +370,7 @@ describe("server schema parity", () => {
       "exercise_setting",
       "gym_equipment",
       "program",
+      "program_run",
       "program_slot",
       "session_exercise",
       "session_set",

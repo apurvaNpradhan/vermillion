@@ -1,18 +1,19 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import {
+  activeRun,
   DEFAULT_REST_SECONDS,
   TRAINING_LIMITS,
   type SupersetChange,
   type SupersetItem,
 } from "@workspace/shared";
-import { asc, count, eq } from "drizzle-orm";
+import { asc, count, eq, isNull } from "drizzle-orm";
 
 import { DEVICE_OWNER_ID } from "../platform/device-owner";
 import { drizzleSchema } from "../platform/schema";
 import { deviceOwner, installMeta } from "../platform/tables";
 import { needsRebalance, rebalanced, sortByPosition, type Positioned } from "./position";
-import { program, programSlot, workout, workoutExercise } from "./tables";
+import { programRun, program, programSlot, workout, workoutExercise } from "./tables";
 
 export type TrainingDatabase = AbstractPowerSyncDatabase;
 
@@ -46,6 +47,14 @@ export class TrainingLimitError extends Error {
 
 /** Columns of the training tables the server accepts in an upload; the rest are local only. */
 export const trainingUploadColumns = {
+  program_run: new Set([
+    "program_id",
+    "activated_at",
+    "started_at",
+    "finished_at",
+    "outcome",
+    "continued_at",
+  ]),
   program: new Set(["title", "description", "planned_weeks", "restore"]),
   workout: new Set(["program_id", "title", "note", "restore"]),
   workout_exercise: new Set([
@@ -147,6 +156,7 @@ export function write<T>(
         .limit(1);
       if (!install) throw new Error("The device account changed; reopen the screen");
     }
+    await reconcileRuns(tx);
     return run(tx);
   });
 }
@@ -275,4 +285,21 @@ export async function assertProgramExists(tx: Tx, programId: string) {
     .where(eq(program.id, programId))
     .limit(1);
   if (!found) throw new Error("The program is gone");
+}
+
+/** Resolve offline duplicates in the same transaction as the next Run or Session write. */
+export async function reconcileRuns(tx: Tx) {
+  const runs = await tx.select().from(programRun).where(isNull(programRun.finished_at));
+  const active = activeRun(runs);
+  for (const run of runs) {
+    if (run.id !== active?.id)
+      await tx
+        .update(programRun)
+        .set({
+          finished_at: nowIso(),
+          outcome: "stopped",
+        })
+        .where(eq(programRun.id, run.id));
+  }
+  return active;
 }

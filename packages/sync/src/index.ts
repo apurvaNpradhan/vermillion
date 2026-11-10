@@ -235,3 +235,15 @@ export type {
   WorkoutRow,
 } from "./training";
 export { editFinishedSession, applySessionWorkout } from "./training";
+
+export {
+  watchRunState,
+  activateProgram,
+  stopProgram,
+  finishRun,
+  keepGoing,
+  runAgain,
+  readRuns,
+  reconcileRuns,
+} from "./training";
+export { programRun } from "./training";

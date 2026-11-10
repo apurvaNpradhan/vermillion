@@ -85,6 +85,7 @@ describe("powerSyncSchema", () => {
       "install_meta",
       "program",
       "program_cover",
+      "program_run",
       "program_slot",
       "rejected_writes",
       "session_exercise",
@@ -98,6 +99,7 @@ describe("powerSyncSchema", () => {
       "exercise_setting",
       "gym_equipment",
       "program",
+      "program_run",
       "program_slot",
       "session_exercise",
       "session_set",
@@ -153,12 +155,13 @@ describe("powerSyncSchema", () => {
       // PowerSync adds `id`; `restore` is local only.
       const listed = (columns ?? "").split(", ").filter((name) => name !== "id");
       expect(names.filter((name) => name !== "restore").sort(), table).toEqual(listed.sort());
-      expect(names, table).toContain("restore");
+      if (table !== "program_run") expect(names, table).toContain("restore");
     }
     expect(checked.sort()).toEqual([
       "exercise_setting",
       "gym_equipment",
       "program",
+      "program_run",
       "program_slot",
       "session_exercise",
       "session_set",

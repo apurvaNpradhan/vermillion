@@ -1,3 +1,4 @@
+import { checkSessionRun } from "./run-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
   EXERCISE_TYPES,
@@ -175,6 +176,7 @@ const sessionSyncHandler: SyncTableHandler = {
       const { restore, ...data } = accept(putSession.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionInput.safeParse(data));
+      await checkSessionRun(db, userId, values);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         checkSessionTimes(values, null);
@@ -196,6 +198,7 @@ const sessionSyncHandler: SyncTableHandler = {
     const patch = accept(patchSession.safeParse(op.opData ?? {}));
     const before = sessionRowAsInput(row);
     const merged = accept(sessionInput.safeParse({ ...before, ...patch }));
+    await checkSessionRun(db, userId, merged);
     checkSessionTimes(merged, before.started_at);
     await db
       .update(session)

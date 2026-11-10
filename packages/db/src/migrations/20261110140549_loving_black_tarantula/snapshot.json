@@ -1,0 +1,370 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "31e9018d-2ee7-4829-8ad4-6081779bb90a",
+  "prevIds": ["be758e16-3ccb-4813-91bb-499836287722"],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "program_run"],
+      "writes": [
+        "s|tbl|public.program_run",
+        "n|tbl|public.program_run",
+        "e|tbl|public.program_run",
+        "n|rel|public.program_run",
+        "n|type|public.program_run",
+        "n|rel|public.program_run_pkey"
+      ],
+      "reads": ["n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "program_run", "program_run_user_id_live_idx"],
+      "writes": [
+        "s|idx|public.program_run_user_id_live_idx",
+        "n|idx|public.program_run_user_id_live_idx",
+        "e|idx|public.program_run_user_id_live_idx",
+        "n|rel|public.program_run_user_id_live_idx"
+      ],
+      "reads": ["n|tbl|public.program_run", "n|sch|public", "n|col|public.program_run.user_id"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "program_run", "program_run_program_id_idx"],
+      "writes": [
+        "s|idx|public.program_run_program_id_idx",
+        "n|idx|public.program_run_program_id_idx",
+        "e|idx|public.program_run_program_id_idx",
+        "n|rel|public.program_run_program_id_idx"
+      ],
+      "reads": ["n|tbl|public.program_run", "n|sch|public", "n|col|public.program_run.program_id"]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "program_run"],
+      "writes": [
+        "s|fk|public.program_run.program_run_user_id_user_id_fkey",
+        "n|fk|public.program_run.program_run_user_id_user_id_fkey",
+        "e|fk|public.program_run.program_run_user_id_user_id_fkey",
+        "n|con|public.program_run.program_run_user_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.program_run",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.program_run.user_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "program_run"],
+      "writes": [
+        "s|fk|public.program_run.program_run_program_id_program_id_fkey",
+        "n|fk|public.program_run.program_run_program_id_program_id_fkey",
+        "e|fk|public.program_run.program_run_program_id_program_id_fkey",
+        "n|con|public.program_run.program_run_program_id_program_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.program_run",
+        "n|sch|public",
+        "n|tbl|public.program",
+        "n|sch|public",
+        "n|col|public.program_run.program_id",
+        "n|col|public.program.id",
+        "e|uniqueness|public.program.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "program_run",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "user_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "activated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "finished_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "outcome",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "continued_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "deleted_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_user_id_live_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"deleted_at\" IS NULL",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_program_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "program_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_user_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": ["user_id"],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_program_id_program_id_fkey",
+        "nameExplicit": false,
+        "columns": ["program_id"],
+        "schemaTo": "public",
+        "tableTo": "program",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_outcome",
+        "value": "(\"finished_at\" IS NULL AND \"outcome\" IS NULL) OR (\"finished_at\" IS NOT NULL AND \"outcome\" IN ('completed', 'stopped'))",
+        "entityType": "checks"
+      }
+    }
+  ]
+}
