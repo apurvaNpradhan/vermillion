@@ -1,97 +1,99 @@
-import { useRouter } from "expo-router";
+import { KG_PER_LB, muscleDistribution } from "@workspace/shared";
+import { useRouter, type Href } from "expo-router";
 import { Text, View } from "react-native";
-
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { Skeleton } from "@/platform/ui/skeleton";
+import { BarChart } from "@/platform/ui/charts/chart";
+import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
+import { useActiveSessions, useStartSession } from "@/session";
+import { useHomeTraining } from "../use-home-training";
+import { ActiveProgramCard } from "./active-program-card";
 
-import { displayTitle } from "../derived-title";
-import { usePrograms } from "../use-programs";
-import { useWorkouts } from "../use-workouts";
-
-/** Saved plans until Sessions provide an active program and completed-workout history. */
+/** History routes are supplied by Sessions slice 4, developed alongside this slice. */
+function historyRoute(id?: string) {
+  // SAFETY: both paths are owned by slice 4; no arbitrary user URL is accepted.
+  return (id ? `/history/${id}` : "/history") as Href;
+}
 export function TrainingHome() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
-  const workouts = useWorkouts();
-  const programs = usePrograms();
-  const failed = workouts.status === "error" || programs.status === "error";
-  const loading =
-    workouts.status === "loading" ||
-    programs.status === "loading" ||
-    workouts.status === "first-sync" ||
-    programs.status === "first-sync";
+  const { start, sheet } = useStartSession();
+  const state = useHomeTraining();
+  const active = useActiveSessions();
+  const current = state.buckets[7];
+  const last = state.buckets[6];
+  const weekSets = current?.items.flatMap((s) => s.sets) ?? [];
+  const hasMuscles = muscleDistribution(weekSets, state.exercises).length > 0;
+  const format = (n: number) =>
+    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(n);
+  const volume = (kg: number) =>
+    t("home__volume_value", {
+      value: format(state.weightUnit === "lb" ? kg / KG_PER_LB : kg),
+      unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
+    });
   return (
     <View className="gap-5">
-      <View className="gap-3 rounded-2xl bg-surface p-5">
-        <Text className="text-title-lg font-semibold text-foreground">
-          {t("dashboard__plans_title")}
-        </Text>
-        <Text className="text-body text-muted">{t("dashboard__plans_body")}</Text>
-        <Button variant="primary" onPress={() => router.push("/train")}>
-          <Button.Label>{t("dashboard__open_training")}</Button.Label>
-        </Button>
-      </View>
-      {failed ? (
+      {active.sessions.map((session) => (
         <Button
+          key={session.id}
           variant="secondary"
-          onPress={() => {
-            workouts.retry();
-            programs.retry();
-          }}
+          onPress={() => router.push({ pathname: "/session/[id]", params: { id: session.id } })}
         >
+          <Button.Label>{t("home__resume", { title: session.title })}</Button.Label>
+        </Button>
+      ))}
+      <ActiveProgramCard />
+      {state.failed ? (
+        <Button variant="secondary" onPress={state.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
-      ) : loading ? (
-        <Skeleton className="h-24 w-full" label={t("common__loading")} />
-      ) : (
-        <>
-          {programs.programs.length > 0 ? (
-            <View className="gap-2">
-              <Text accessibilityRole="header" className="text-label text-muted">
-                {t("dashboard__saved_programs")}
+      ) : null}
+      {!state.loading &&
+      !state.failed &&
+      state.sessions.length === 0 &&
+      active.sessions.length === 0 ? (
+        <Button onPress={() => void start(null)}>
+          <Button.Label>{t("home__first")}</Button.Label>
+        </Button>
+      ) : null}
+      {current && last && current.items.length > 0 ? (
+        <View className="gap-3 rounded-2xl bg-surface p-4">
+          <Text className="text-title-md font-semibold text-foreground">{t("home__week")}</Text>
+          <Text className="text-body text-muted">
+            {t("home__comparison", {
+              sessions: current.items.length,
+              sets: current.sets,
+              volume: volume(current.volume),
+              lastSessions: last.items.length,
+              lastSets: last.sets,
+              lastVolume: volume(last.volume),
+            })}
+          </Text>
+          <BarChart points={state.buckets} label={t("home__volume")} formatValue={format} />
+          {hasMuscles ? (
+            <View className="gap-3">
+              <Text className="text-title-md font-semibold text-foreground">
+                {t("home__muscles")}
               </Text>
-              {programs.programs.slice(0, 3).map((program) => (
-                <Button
-                  key={program.id}
-                  variant="secondary"
-                  onPress={() =>
-                    router.push({ pathname: "/train/program/[id]", params: { id: program.id } })
-                  }
-                >
-                  <Button.Label>{program.title}</Button.Label>
-                </Button>
-              ))}
+              <MuscleDistribution sets={weekSets} exercises={state.exercises} />
             </View>
           ) : null}
-          {workouts.workouts.length > 0 ? (
-            <View className="gap-2">
-              <Text accessibilityRole="header" className="text-label text-muted">
-                {t("dashboard__saved_workouts")}
-              </Text>
-              {workouts.workouts.slice(0, 3).map((workout) => (
-                <Button
-                  key={workout.id}
-                  variant="secondary"
-                  onPress={() =>
-                    router.push({ pathname: "/train/workout/[id]", params: { id: workout.id } })
-                  }
-                >
-                  <Button.Label>
-                    {displayTitle(
-                      workout.title,
-                      workout.exercises.flatMap((entry) =>
-                        entry.primaryMuscle ? [entry.primaryMuscle] : [],
-                      ),
-                      t,
-                    )}
-                  </Button.Label>
-                </Button>
-              ))}
-            </View>
-          ) : null}
-        </>
-      )}
+        </View>
+      ) : null}
+      {state.sessions.length > 0 ? (
+        <View className="gap-2">
+          <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
+          {state.sessions.slice(0, 3).map((s) => (
+            <Button key={s.id} variant="secondary" onPress={() => router.push(historyRoute(s.id))}>
+              <Button.Label>{s.title}</Button.Label>
+            </Button>
+          ))}
+          <Button variant="tertiary" onPress={() => router.push(historyRoute())}>
+            <Button.Label>{t("home__see_all")}</Button.Label>
+          </Button>
+        </View>
+      ) : null}
+      {sheet}
     </View>
   );
 }

@@ -1,5 +1,5 @@
-import { DashboardScreen } from "@/dashboard";
+import { HomeScreen } from "@/training";
 
-export default function Dashboard() {
-  return <DashboardScreen />;
+export default function Home() {
+  return <HomeScreen />;
 }

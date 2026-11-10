@@ -7,7 +7,7 @@ export { TrainingPreferenceRows } from "./components/training-preference-rows";
 export { NewProgramScreen } from "./components/new-program-screen";
 export { ProgramDetailsScreen } from "./components/program-details-screen";
 export { ProgramScreen } from "./components/program-screen";
-export { TrainingHome } from "./components/training-home";
+export { HomeScreen } from "./components/home-screen";
 export { SetTypeSheet } from "./components/set-type-sheet";
 export { RestPicker } from "./components/rest-picker";
 export { ReorderList } from "./components/reorder-list";

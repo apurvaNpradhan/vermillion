@@ -154,3 +154,19 @@ pairs already make 61 kg loadable with a 20 kg bar. Check the custom pair at 62.
 - [ ] Train a full Cycle out of order; dots and Next up follow.
 - [ ] Reaching the planned weeks shows the end-of-Run sheet on the next Train visit; Run again keeps old dates.
 - [ ] Home: Resume, Next up, This week, Muscles this week, Recent; a new account sees only the first-workout card.
+
+Device unavailable during slice 7 implementation. Additional checks pending:
+
+- [ ] Switch Programs from the header and menu; cancel first, then confirm. Earlier Run is stopped.
+- [ ] Start on a different Workout in the active Rotation; repeated Workout Slots fill in order.
+- [ ] Rest Slots stay dimmed and never block completion. An all-Rest Rotation has no Start action.
+- [ ] Delete a completed Session in the current Cycle; its Slot becomes available again.
+- [ ] Edit the Rotation mid-Cycle and verify Next up uses the edited order.
+- [ ] Reach the planned duration in a timezone crossing DST; Keep going dismisses the sheet
+      on both devices; Finish removes the active card; Run again starts at week 1.
+- [ ] Activate different Programs offline on two devices. Reconnect, then write; the latest
+      activation wins and the other Run stops without losing Sessions.
+- [ ] Home totals exclude warm-ups, compare with last week and include bodyweight volume.
+      Inspect all eight bars and muscle intensity with known primary/secondary muscle sets.
+- [ ] Recent shows at most three Sessions; each row and See all reach slice 4's History routes.
+- [ ] Check Home/Train in light/dark themes, large text and TalkBack, including Cycle dots.

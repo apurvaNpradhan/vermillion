@@ -1,3 +1,4 @@
+import { useActiveProgram } from "../use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -102,6 +103,13 @@ function LoadedProgram({
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useProgramActions();
+  const active = useActiveProgram();
+  const isActive = active.run?.program_id === program.id;
+  const activationLabel = t(isActive ? "run__stop" : "run__set_active");
+  const toggleActive = () => {
+    if (isActive) void active.stop();
+    else active.activate(program.id);
+  };
   const { fromPicker } = useStartWorkout();
   const { shareProgram } = useSharePlan();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -133,6 +141,7 @@ function LoadedProgram({
   }, [slots, t]);
 
   const menu: SwipeAction[] = [
+    { key: "active", label: activationLabel, icon: Repeat, onPress: toggleActive },
     {
       key: "details",
       label: t("training__edit_details"),
@@ -247,6 +256,9 @@ function LoadedProgram({
                 </View>
                 <PencilSimple size={18} color={foreground} />
               </Pressable>
+              <Button variant="secondary" onPress={toggleActive}>
+                <Button.Label>{activationLabel}</Button.Label>
+              </Button>
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}

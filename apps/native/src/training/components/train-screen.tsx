@@ -1,3 +1,4 @@
+import { ActiveProgramCard } from "./active-program-card";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
@@ -112,6 +113,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               <View className="gap-6 px-4 pb-3">
                 {header}
                 <SyncBanner />
+                <ActiveProgramCard offerEnd />
                 <TrainingListState status={status} onRetry={retry} />
                 {status === "list" && programs.length > 0 ? (
                   <View className="gap-2">
