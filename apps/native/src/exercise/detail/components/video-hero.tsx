@@ -5,7 +5,7 @@ import { useIsFocused } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useThemeColor } from "heroui-native";
 import { Play } from "phosphor-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,8 +17,9 @@ import { MuscleIcon } from "../../library/components/muscle-icon";
 /**
  * The picture at the top of the detail screen: the demonstration video, muted and looping, playing
  * while the screen is focused, over the thumbnail as its poster. Offline or on an error it stays
- * on the thumbnail, and with neither it shows the muscle's icon. Tapping pauses and plays; under
- * Reduce Motion the video starts paused.
+ * on the thumbnail, and with neither it shows the muscle's icon. Tapping opens it full screen with
+ * the system player's controls (play and pause, seeking, playback speed); under Reduce Motion the
+ * video starts paused.
  */
 export function VideoHero({
   title,
@@ -40,6 +41,8 @@ export function VideoHero({
   const focused = useIsFocused();
   const [paused, setPaused] = useState(reduced);
   const [firstFrame, setFirstFrame] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const view = useRef<VideoView>(null);
   const [posterFailed, setPosterFailed] = useState(false);
   const foreground = useThemeColor("foreground");
   const background = useThemeColor("background");
@@ -69,11 +72,14 @@ export function VideoHero({
       accessibilityRole={showVideo ? "button" : "image"}
       accessibilityLabel={
         showVideo
-          ? `${t("exercise__video_label", { title })}. ${t(paused ? "exercise__video_play" : "exercise__video_pause")}`
+          ? `${t("exercise__video_label", { title })}. ${t("exercise__video_fullscreen")}`
           : title
       }
       disabled={!showVideo}
-      onPress={() => setPaused((current) => !current)}
+      onPress={() => {
+        setPaused(false);
+        void view.current?.enterFullscreen();
+      }}
       className="bg-default"
       style={{ width, height }}
     >
@@ -84,8 +90,15 @@ export function VideoHero({
       ) : null}
       {showVideo ? (
         <VideoView
+          ref={view}
           player={player}
-          nativeControls={false}
+          // The system controls (play and pause, seeking, speed) show only in full screen.
+          nativeControls={fullscreen}
+          onFullscreenEnter={() => setFullscreen(true)}
+          onFullscreenExit={() => {
+            setFullscreen(false);
+            setPaused(!player.playing);
+          }}
           contentFit="cover"
           surfaceType="textureView"
           allowsPictureInPicture={false}
