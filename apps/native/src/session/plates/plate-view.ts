@@ -135,7 +135,6 @@ const COLLAR_WIDTH = 10;
 const COLLAR_HEIGHT = 46;
 const END_PAD = 14;
 const PLATE_GAP = 2;
-const MIN_SCALE = 0.35;
 const LABEL_CHAR = 6.2;
 /** Plates heavier than this are drawn at the largest size. */
 const BIGGEST_KG = 25;
@@ -175,7 +174,7 @@ export function plateLayout(
 ): PlateLayout {
   const natural = plates.reduce((sum, p) => sum + plateWidth(p.weightKg) + PLATE_GAP, 0);
   const fixed = SHAFT + COLLAR_WIDTH + END_PAD;
-  const scale = natural === 0 ? 1 : Math.max(MIN_SCALE, Math.min(1, (maxWidth - fixed) / natural));
+  const scale = natural === 0 ? 1 : Math.max(0, Math.min(1, (maxWidth - fixed) / natural));
   let x = SHAFT + COLLAR_WIDTH + PLATE_GAP;
   let height = COLLAR_HEIGHT;
   const slots = plates.map((plate) => {

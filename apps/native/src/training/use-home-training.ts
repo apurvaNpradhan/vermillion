@@ -120,6 +120,7 @@ export function useHomeTraining(workoutId?: string) {
     retry: () => {
       history.retry();
       recent.retry();
+      muscles.retry();
     },
   };
 }

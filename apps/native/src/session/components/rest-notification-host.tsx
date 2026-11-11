@@ -55,6 +55,7 @@ export function RestNotificationHost() {
   const heading = t("session__rest_over_title");
   useEffect(() => {
     if (loading || installId === null || permission === "unknown") return;
+    const jobSound = soundOn;
     void reconciler.current
       .enqueue(async (current) => {
         const plan = planRestSchedule({
@@ -80,8 +81,13 @@ export function RestNotificationHost() {
             title: heading,
             body: body(entry.title),
           });
-          // Even an obsolete job must record what the system now holds for the next plan.
-          known.current.set(entry.sessionId, entry.endsAt);
+          // Even an obsolete job must record what the system now holds for the next plan, unless
+          // the sound setting changed meanwhile: then it holds the old sound and must be redone.
+          if (scheduledWithSound.current === jobSound) {
+            known.current.set(entry.sessionId, entry.endsAt);
+          } else {
+            known.current.delete(entry.sessionId);
+          }
           if (!current()) return;
         }
       })

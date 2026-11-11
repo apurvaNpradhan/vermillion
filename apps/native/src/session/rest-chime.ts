@@ -25,9 +25,15 @@ export function preloadRestChime(): void {
 /** Plays the chime from the start. */
 export function playRestChime(): void {
   preloadRestChime();
-  try {
-    void player?.seekTo(0).then(() => player?.play());
-  } catch {
-    // The haptic still plays.
-  }
+  const current = player;
+  if (current === null) return;
+  // Any failure, sync or async, leaves the haptic as the only cue.
+  void (async () => {
+    try {
+      await current.seekTo(0);
+      current.play();
+    } catch {
+      // The haptic still plays.
+    }
+  })();
 }

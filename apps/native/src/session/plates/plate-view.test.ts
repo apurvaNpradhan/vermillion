@@ -161,6 +161,11 @@ describe("plateLayout", () => {
     const { width } = plateLayout(many, label, 300);
     expect(width).toBeLessThanOrEqual(300 + 1);
   });
+  it("fits even a very long stack of small plates", () => {
+    const many = Array.from({ length: 80 }, () => plate(0.5));
+    const { width } = plateLayout(many, label, 300);
+    expect(width).toBeLessThanOrEqual(300 + 2);
+  });
   it("draws a bare bar with a shaft and collar and no plates", () => {
     const layout = plateLayout([], label, 300);
     expect(layout.slots).toEqual([]);
