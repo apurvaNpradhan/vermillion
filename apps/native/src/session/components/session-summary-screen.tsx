@@ -319,7 +319,13 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
                           : formatCell("weight", weight, unit),
                       )
                       .join(", "),
-                    after: formatCell("weight", change.after, unit),
+                    after: change.after
+                      .map((weight) =>
+                        weight === null
+                          ? t("session__no_target")
+                          : formatCell("weight", weight, unit),
+                      )
+                      .join(", "),
                     unit: unitLabel,
                   })}
                 </Text>

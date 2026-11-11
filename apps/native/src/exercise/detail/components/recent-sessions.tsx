@@ -1,8 +1,21 @@
 import type { FinishedSession } from "@workspace/sync";
-import { KG_PER_LB, type WeightUnit } from "@workspace/shared";
+import { KG_PER_LB, SET_KIND_KEYS, type SetKind, type WeightUnit } from "@workspace/shared";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+
+import { workingSetNumber } from "../numbers";
+
+/** Each kind in its data colour; working sets stay muted and numbered. */
+const KIND_TEXT = {
+  working: "text-muted",
+  warmup: "text-set-warmup",
+  drop: "text-set-drop",
+  failure: "text-set-failure",
+  top: "text-set-top",
+  backoff: "text-set-backoff",
+  myo: "text-set-myo",
+} as const satisfies Record<SetKind, string>;
 
 /** Ticked warm-ups remain visible here; they never contribute to the numbers above. */
 export function RecentSessions({
@@ -46,21 +59,10 @@ export function RecentSessions({
           </Text>
           {session.sets.map((set, index) => (
             <View key={set.id} className="flex-row gap-3">
-              <Text className="text-caption text-muted">
-                {t(
-                  set.kind === "warmup"
-                    ? "exercise__history_warmup"
-                    : set.kind === "drop"
-                      ? "exercise__history_drop"
-                      : set.kind === "failure"
-                        ? "exercise__history_failure"
-                        : "exercise__history_set",
-                  {
-                    number: session.sets
-                      .slice(0, index + 1)
-                      .reduce((count, row) => count + (row.kind === "warmup" ? 0 : 1), 0),
-                  },
-                )}
+              <Text className={`text-caption ${KIND_TEXT[set.kind]}`}>
+                {set.kind === "working"
+                  ? t("exercise__history_set", { number: workingSetNumber(session.sets, index) })
+                  : t(SET_KIND_KEYS[set.kind])}
               </Text>
               <View className="flex-1 flex-row flex-wrap gap-2">
                 {set.weight_kg != null ? (

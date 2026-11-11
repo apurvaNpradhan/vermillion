@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pushWorkout, setupSessions } from "./session-fixtures";
+import { updateWorkoutExercise } from "./exercise-store";
 import { startSession, finishSession, logPastSession } from "./session-store";
 import { tickSet, updateSet } from "./session-content-store";
 import { applySessionWorkout, editFinishedSession } from "./session-workout-store";
@@ -41,6 +42,28 @@ describe("applying Session changes", () => {
       effort_max: 8,
     });
     expect(s.one("workout_exercise", plan.plank)).toBeDefined();
+  });
+  it("updates top and back-off targets from their own logged weights", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s, "Legs");
+    await updateWorkoutExercise(s.training, plan.squat, {
+      sets: [
+        { kind: "top", reps_min: 3, reps_max: 3, weight_kg: 140 },
+        { kind: "backoff", reps_min: 6, reps_max: 6, weight_kg: 110 },
+      ],
+    });
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const entry = String(s.exercises(id)[0]?.["id"]);
+    const [top, backoff] = s.sets(entry);
+    await tickSet(s.training, String(top?.["id"]), { weight: 145, reps: 3 });
+    await tickSet(s.training, String(backoff?.["id"]), { weight: 115, reps: 6 });
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, { structure: false, targets: true, saveNew: false });
+    const sets = JSON.parse(String(s.one("workout_exercise", plan.squat)?.["sets"]));
+    expect(sets).toMatchObject([
+      { kind: "top", weight_kg: 145 },
+      { kind: "backoff", weight_kg: 115 },
+    ]);
   });
   it("changes structure alone while preserving planned weight", async () => {
     const { s, plan, id } = await fixture();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LoggedSet, SessionHistory } from "@workspace/shared";
-import { datedRecords, metricSeries, metricsFor } from "./numbers";
+import { datedRecords, metricSeries, metricsFor, workingSetNumber } from "./numbers";
 const set: LoggedSet = {
   id: "set",
   exercise_id: "ex",
@@ -81,5 +81,17 @@ describe("exercise numbers", () => {
     expect(datedRecords([history[0]!], "ex", null).find((r) => r.key === "best_pace")?.date).toBe(
       "2026-11-02",
     );
+  });
+});
+
+describe("workingSetNumber", () => {
+  it("numbers only working sets among mixed kinds", () => {
+    const sets = [
+      { kind: "top" },
+      { kind: "backoff" },
+      { kind: "working" },
+      { kind: "myo" },
+    ] as const;
+    expect(sets.map((_, i) => workingSetNumber(sets, i))).toEqual([null, null, 1, null]);
   });
 });

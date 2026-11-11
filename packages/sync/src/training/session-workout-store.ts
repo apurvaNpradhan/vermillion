@@ -1,6 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 import {
   diffSessionAgainstWorkout,
+  loggedTargetWeight,
   plannedSetsSchema,
   sessionInput,
   sessionStartAllowed,
@@ -156,16 +157,19 @@ export function applySessionWorkout(
           (item) =>
             item.id === entry.source_workout_exercise_id && item.exercise_id === entry.exercise_id,
         );
-        const targetWeight = [...sets].reverse().find((set) => set.kind === "working")?.weight_kg;
-        const targets: PlannedSet[] = sets.map((set, i) => ({
-          ...(old?.sets.filter((target) => target.kind === set.kind)[
-            sets.slice(0, i).filter((prior) => prior.kind === set.kind).length
-          ] ?? set.target),
-          kind: set.kind,
-          ...((options.targets || !source) && targetWeight != null && set.kind !== "warmup"
-            ? { weight_kg: targetWeight }
-            : {}),
-        }));
+        const loggedWeights = sets.map((set) => ({ kind: set.kind, weightKg: set.weight_kg }));
+        const targets: PlannedSet[] = sets.map((set, i) => {
+          const targetWeight = loggedTargetWeight(loggedWeights, set.kind);
+          return {
+            ...(old?.sets.filter((target) => target.kind === set.kind)[
+              sets.slice(0, i).filter((prior) => prior.kind === set.kind).length
+            ] ?? set.target),
+            kind: set.kind,
+            ...((options.targets || !source) && targetWeight !== null
+              ? { weight_kg: targetWeight }
+              : {}),
+          };
+        });
         const values = {
           exercise_id: entry.exercise_id,
           position: keys[index] ?? "a0",
@@ -197,9 +201,14 @@ export function applySessionWorkout(
           await tx
             .update(workoutExercise)
             .set({
-              sets: old.sets.map((set) =>
-                set.kind === "warmup" ? set : { ...set, weight_kg: change.after },
-              ),
+              sets: (() => {
+                let index = 0;
+                return old.sets.map((set) => {
+                  if (set.kind === "warmup") return set;
+                  const weight = change.after[index++];
+                  return weight == null ? set : { ...set, weight_kg: weight };
+                });
+              })(),
             })
             .where(eq(workoutExercise.id, old.id));
       }

@@ -5,6 +5,7 @@ import {
   SET_FIELDS,
   type ExerciseType,
   type RecordKey,
+  type SetKind,
   type SessionHistory,
 } from "@workspace/shared";
 
@@ -62,4 +63,10 @@ export function datedRecords(
     }
   }
   return [...bests].map(([key, best]) => ({ key, ...best }));
+}
+
+/** The set's number among the working sets before it (1-based); other kinds are not numbered. */
+export function workingSetNumber(sets: readonly { kind: SetKind }[], index: number): number | null {
+  if (sets[index]?.kind !== "working") return null;
+  return sets.slice(0, index + 1).filter((set) => set.kind === "working").length;
 }
