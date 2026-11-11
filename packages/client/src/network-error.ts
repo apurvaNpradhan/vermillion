@@ -3,9 +3,12 @@ import { ORPCError } from "@orpc/client";
 /** What a failed call can throw; the same shape as `ApiError` without importing it. */
 type Thrown = Error | null | undefined;
 
-/** Messages the platforms' `fetch` throws when no response arrived (Hermes, Safari, Chrome). */
+/**
+ * Messages the platforms' `fetch` throws when no response arrived: Hermes, Safari, Chrome, and
+ * `expo/fetch`, which wraps native failures as "fetch failed: <OkHttp / NSURLSession message>".
+ */
 const NETWORK_MESSAGE =
-  /network request failed|failed to fetch|network error|load failed|internet connection appears to be offline|network connection was lost|timed out|timeout|aborted/i;
+  /network request failed|failed to fetch|fetch failed|network error|load failed|internet connection appears to be offline|network connection was lost|unable to resolve host|no address associated with hostname|failed to connect|connection refused|connection reset|connection abort|software caused connection abort|unknownhostexception|connectexception|sockettimeoutexception|could not connect to the server|timed out|timeout|aborted/i;
 
 /** Error names a fetch raises for a cancelled or timed-out request. */
 const NETWORK_NAMES = new Set(["AbortError", "TimeoutError", "NetworkError"]);
@@ -17,9 +20,8 @@ function isNetworkFailure(error: Error, depth: number): boolean {
   // An ORPCError is an answer from the server (even a 5xx): never the device's connection.
   const own =
     !(error instanceof ORPCError) &&
-    (NETWORK_NAMES.has(error.name) ||
-      ((error instanceof TypeError || error.name === "Error") &&
-        NETWORK_MESSAGE.test(error.message)));
+    // Any other error class may carry the transport's message (expo/fetch has its own).
+    (NETWORK_NAMES.has(error.name) || NETWORK_MESSAGE.test(error.message));
   if (own) return true;
   const cause = error.cause;
   return depth < MAX_CAUSE_DEPTH && cause instanceof Error && isNetworkFailure(cause, depth + 1);

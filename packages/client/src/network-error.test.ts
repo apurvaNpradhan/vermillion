@@ -12,6 +12,21 @@ describe("isNetworkError", () => {
     expect(isNetworkError(new TypeError("Load failed"))).toBe(true);
   });
 
+  it("recognises expo/fetch failures on Android and iOS", () => {
+    for (const message of [
+      'fetch failed: Unable to resolve host "api.example.com": No address associated with hostname',
+      "fetch failed: Failed to connect to api.example.com/10.0.2.2:443",
+      "fetch failed: java.net.ConnectException: Connection refused",
+      "fetch failed: Software caused connection abort",
+      "fetch failed: The Internet connection appears to be offline.",
+      "fetch failed: Could not connect to the server.",
+    ]) {
+      expect(isNetworkError(new Error(message))).toBe(true);
+      const named = new Error(message);
+      named.name = "FetchError";
+      expect(isNetworkError(named)).toBe(true);
+    }
+  });
   it("recognises timeouts and aborts", () => {
     expect(isNetworkError(new DOMException("The operation timed out", "TimeoutError"))).toBe(true);
     expect(isNetworkError(new DOMException("Aborted", "AbortError"))).toBe(true);

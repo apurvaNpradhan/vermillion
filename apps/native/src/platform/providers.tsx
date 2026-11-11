@@ -4,7 +4,7 @@ import { errorMessage } from "@workspace/client/error-message";
 import { isUnauthorized } from "@workspace/client/orpc-error";
 import { createQueryClient } from "@workspace/client/query-client";
 import { HeroUINativeProvider } from "heroui-native";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
@@ -22,6 +22,10 @@ import { useAppToast } from "./ui/use-app-toast";
  */
 function QueryProvider({ children }: { children: ReactNode }) {
   const { toast } = useAppToast();
+  // The client lives for the app's life, so it reads the current toast API, never the first one
+  // (HeroUI's `hide` closes over the toasts of the render it came from).
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [queryClient] = useState(() => {
     const client = createQueryClient({
       onError: (error) => {
@@ -31,7 +35,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
           if (client.getQueryData(SESSION_QUERY_KEY) !== null) void clearSession(client);
           return;
         }
-        toast.show({ variant: "danger", label: errorMessage(i18n.t, error) });
+        toastRef.current.show({ variant: "danger", label: errorMessage(i18n.t, error) });
       },
     });
     return client;
