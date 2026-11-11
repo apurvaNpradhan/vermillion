@@ -1,7 +1,7 @@
 import type { Equipment, ExerciseType, MuscleGroup } from "../exercise/vocabulary";
 
 /** What a planned set is for. A kind is a label; partials and the like are notes. */
-export const SET_KINDS = ["warmup", "working", "drop", "failure"] as const;
+export const SET_KINDS = ["warmup", "working", "drop", "failure", "top", "backoff", "myo"] as const;
 export type SetKind = (typeof SET_KINDS)[number];
 
 /** Effort is stored as RPE in halves, 6 to 10. */

@@ -4,6 +4,14 @@ import { loggedSet, setOf, untickedSet } from "./session-fixtures";
 import { sessionTotals } from "./volume";
 
 describe("sessionTotals", () => {
+  it.each(["top", "backoff", "myo"] as const)("counts %s like working sets", (kind) => {
+    expect(sessionTotals([loggedSet({ kind, weight_kg: 100, reps: 5 })])).toEqual({
+      volume: 500,
+      sets: 1,
+      reps: 5,
+    });
+  });
+
   it("is empty for no sets", () => {
     expect(sessionTotals([])).toEqual({ volume: 0, sets: 0, reps: 0 });
   });

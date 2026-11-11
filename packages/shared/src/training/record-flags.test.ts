@@ -6,6 +6,20 @@ import { loggedSet, sessionOf, setOf } from "./session-fixtures";
 const day = (n: number) => `2026-01-${String(n).padStart(2, "0")}T10:00:00Z`;
 
 describe("recordFlags", () => {
+  it.each(["top", "backoff", "myo"] as const)("awards and compares records for %s", (kind) => {
+    const better = loggedSet({ kind, weight_kg: 110, reps: 5 });
+    const tied = loggedSet({ weight_kg: 110, reps: 5 });
+    const flags = recordFlags([
+      sessionOf("a", day(1), [loggedSet({ weight_kg: 100, reps: 5 })]),
+      sessionOf("b", day(2), [better]),
+      sessionOf("c", day(3), [tied]),
+    ]);
+    expect(flags.get(better.id)).toEqual(
+      expect.arrayContaining(["heaviest_weight", "set_volume", "session_volume", "reps_5"]),
+    );
+    expect(flags.has(tied.id)).toBe(false);
+  });
+
   it("flags nothing in the first Session of an exercise", () => {
     const sets = [loggedSet({ weight_kg: 100, reps: 5 }), loggedSet({ weight_kg: 110, reps: 3 })];
     expect(recordFlags([sessionOf("a", day(1), sets)]).size).toBe(0);

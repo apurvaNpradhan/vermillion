@@ -4,6 +4,19 @@ import { previousFor } from "./previous-for";
 import { loggedSet, sessionOf, untickedSet } from "./session-fixtures";
 
 describe("previousFor", () => {
+  it.each(["top", "backoff", "myo"] as const)("matches %s by kind and ordinal only", (kind) => {
+    const first = loggedSet({ kind, weight_kg: 90 });
+    const second = loggedSet({ kind, weight_kg: 80 });
+    const history = [
+      sessionOf("a", "2026-01-02T10:00:00Z", [loggedSet(), first, untickedSet({ kind }), second]),
+    ];
+    expect(previousFor(history, kind, 0)).toBe(first);
+    expect(previousFor(history, kind, 1)).toBe(second);
+    expect(previousFor(history, kind, 2)).toBeNull();
+    const latest = sessionOf("b", "2026-01-03T10:00:00Z", [loggedSet()]);
+    expect(previousFor([...history, latest], kind, 0)).toBeNull();
+  });
+
   it("is null without history", () => {
     expect(previousFor([], "working", 0)).toBeNull();
   });

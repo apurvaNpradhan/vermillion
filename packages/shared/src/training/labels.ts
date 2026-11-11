@@ -7,6 +7,9 @@ export const SET_KIND_KEYS = {
   working: "training__set_kind_working",
   drop: "training__set_kind_drop",
   failure: "training__set_kind_failure",
+  top: "training__set_kind_top",
+  backoff: "training__set_kind_backoff",
+  myo: "training__set_kind_myo",
 } as const satisfies Record<SetKind, string>;
 
 /** Short name of each effort scale, as shown next to a value ("RPE 8"). */

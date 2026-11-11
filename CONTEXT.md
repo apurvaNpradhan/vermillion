@@ -42,7 +42,7 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Cycle** — one pass through a Rotation. Training a Workout from the Program marks its first untrained Slot done for the Cycle, in any order; "next up" is the first untrained Slot. The Cycle completes when every Slot is trained, then the next begins.
 - **Superset** — consecutive exercises in a Workout grouped to be done back to back; rest follows the last one. A circuit is a Superset of more than two.
 - **Effort** — how hard a set is, one scale shown as RPE (6–10 in halves) or RIR (10 − RPE) by preference. A target may be a range.
-- **Set kind** — warm-up, working, drop or failure. Everything else (partials, myo-reps, negatives) is a note.
+- **Set kind** — warm-up, working, drop, failure, top, back-off or myo-reps. Partials and negatives are notes.
 - **Pinned exercise note** — a note on an exercise within one Workout ("Smith machine, seat 4"), shown every time that Workout is trained.
 - **Active session** — a Session not yet finished. One is expected per account; duplicates from offline starts are shown to the user, never auto-deleted. Owned by one device at a time ([0038](docs/adr/0038-sessions.md)).
 - **Logged set** — one performed set in a Session: its kind, actual values, optional effort, completion time and a snapshot of its Planned set. Written as its own row.
@@ -51,7 +51,7 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Ghost value** — the muted suggestion in an empty set cell: Previous, else the planned target (reps: Previous only when inside the planned range).
 - **Take over** — moving an Active session to this device; the other device becomes read-only for it.
 - **Record** — an exercise best (heaviest weight, estimated 1RM, best set volume, best session volume, rep records 1–12, longest duration/distance, best pace). Computed from Logged sets when read, warm-ups excluded.
-- **Counted set** — a working, drop or failure Logged set. Volume, set counts, Records and muscle distribution use only Counted sets.
+- **Counted set** — any Logged set except a warm-up. Volume, set counts, Records and muscle distribution use only Counted sets.
 - **Muscle distribution** — Counted sets per muscle group: 1 for the exercise's primary muscle, 0.5 for each secondary.
 - **Gym equipment** — a user's bars and plates (seeded kit plus custom items, with plate counts) used by the plate calculator. Not part of the exercise equipment taxonomy.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).

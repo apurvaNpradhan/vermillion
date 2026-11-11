@@ -129,6 +129,10 @@ describe("sessionExerciseInput", () => {
 });
 
 describe("sessionSetSchema", () => {
+  it.each(["top", "backoff", "myo"] as const)("accepts %s with logged effort", (kind) => {
+    expect(sessionSetSchema("weight_reps").parse({ ...emptySet, kind, rpe: 8 }).kind).toBe(kind);
+  });
+
   const fieldValues = {
     weight: { weight_kg: 60 },
     reps: { reps: 8 },

@@ -16,7 +16,7 @@ import {
 describe("effort", () => {
   it("has halves from 6 to 10", () => {
     expect(EFFORT_STEPS).toEqual([6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]);
-    expect(SET_KINDS).toEqual(["warmup", "working", "drop", "failure"]);
+    expect(SET_KINDS).toEqual(["warmup", "working", "drop", "failure", "top", "backoff", "myo"]);
   });
   it("converts RPE and RIR both ways", () => {
     expect(rpeToRir(8)).toBe(2);
@@ -39,6 +39,14 @@ describe("plannedSetsSchema", () => {
     floors_duration: { floors: 20, duration_s: 600 },
     steps_duration: { steps: 3000, duration_s: 900 },
   } as const;
+
+  it.each(["top", "backoff", "myo"] as const)("accepts %s with effort targets", (kind) => {
+    expect(
+      plannedSetsSchema("weight_reps").parse([
+        { kind, reps_min: 5, reps_max: 8, effort_min: 8, effort_max: 9 },
+      ])[0]?.kind,
+    ).toBe(kind);
+  });
 
   it("accepts the fields each exercise type records and refuses every other field", () => {
     const groups = [
