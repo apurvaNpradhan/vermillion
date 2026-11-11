@@ -23,10 +23,17 @@ type Picker = "unit" | "effort" | "rest" | null;
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
 
 /**
- * Weight unit, effort scale and default rest as settings rows, each opening a short sheet. Other
- * verticals add rows of their own to the section through `extraRows`.
+ * Weight unit, effort scale and default rest as settings rows, each opening a short sheet, then
+ * the rows other verticals add through `extraRows`, then Manage equipment.
  */
-export function TrainingPreferenceRows({ extraRows = [] }: { extraRows?: ReactNode[] }) {
+export function TrainingPreferenceRows({
+  extraRows = [],
+  onManageEquipment,
+}: {
+  extraRows?: ReactNode[];
+  /** Opens the bars and plates; Settings' own screen by default. */
+  onManageEquipment?: () => void;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
@@ -60,12 +67,12 @@ export function TrainingPreferenceRows({ extraRows = [] }: { extraRows?: ReactNo
           value={formatClock(defaultRestSeconds)}
           onPress={() => setPicker("rest")}
         />
+        {extraRows}
         <ListRow
           icon={Barbell}
           title={t("plates__manage")}
-          onPress={() => router.push("/settings/plates")}
+          onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
         />
-        {extraRows}
       </ListSection>
       <OptionSheet<WeightUnit>
         isOpen={picker === "unit"}

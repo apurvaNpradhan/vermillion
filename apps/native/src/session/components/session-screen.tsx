@@ -1,4 +1,5 @@
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
+import { SessionSettingsSheet } from "./session-settings-sheet";
 import { SheetShell } from "./sheet-shell";
 import {
   MUSCLE_GROUP_KEYS,
@@ -13,6 +14,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
   Gauge,
+  GearSix,
   Info,
   Person,
   Link,
@@ -246,6 +248,7 @@ function LoadedSession({
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const closeSheet = useCallback(() => setSheet(null), []);
 
@@ -603,6 +606,12 @@ function LoadedSession({
         title={title}
         actions={[
           {
+            key: "settings",
+            label: t("session__settings_title"),
+            icon: GearSix,
+            onPress: () => setSettingsOpen(true),
+          },
+          {
             key: "muscles",
             label: t("session__muscles"),
             icon: Person,
@@ -621,6 +630,7 @@ function LoadedSession({
             : []),
         ]}
       />
+      <SessionSettingsSheet isOpen={settingsOpen} onOpenChange={setSettingsOpen} />
       <ConfirmationDialog
         isOpen={confirmDiscard}
         onOpenChange={setConfirmDiscard}

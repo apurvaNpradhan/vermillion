@@ -767,6 +767,8 @@
   "session__setting_sound_sets_hint": "A tick when you complete a set, and an error when a set can't be completed.",
   "session__setting_sound_milestones": "Milestone sounds",
   "session__setting_sound_milestones_hint": "A new record and finishing the workout.",
+  "session__settings_title": "Session settings",
+  "session__settings_footnote": "These are your account settings, the same as in Settings.",
   "session__setting_rest_notifications": "Rest notifications",
   "session__setting_rest_hint_ask": "Asks for permission to notify you",
   "session__setting_rest_hint_open": "Opens the system settings",
