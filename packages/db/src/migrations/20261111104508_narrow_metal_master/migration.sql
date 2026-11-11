@@ -1,0 +1,1 @@
+ALTER TABLE "session_set" DROP CONSTRAINT "session_set_kind_known", ADD CONSTRAINT "session_set_kind_known" CHECK ("kind" IN ('warmup','working','drop','failure','top','backoff','myo'));

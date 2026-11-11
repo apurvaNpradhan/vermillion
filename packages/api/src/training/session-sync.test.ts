@@ -271,6 +271,23 @@ describe("session upload handlers", () => {
     return ids;
   }
 
+  it.each(["top", "backoff", "myo"] as const)(
+    "persists %s and its effort through sync upload",
+    async (kind) => {
+      const me = await writer(`session-kind-${kind}@example.com`);
+      const t = await training(me);
+      const setId = uuidv7();
+      expect(
+        await me.send([putSet(setId, t.exerciseId, { kind, position: "a2", rpe: 8 })]),
+      ).toEqual(applied);
+      expect(await stored("session_set", setId)).toMatchObject({ kind, rpe: 8 });
+      expect(await me.send([op("PATCH", "session_set", t.set1, { kind, rpe: 9 })])).toEqual(
+        applied,
+      );
+      expect(await stored("session_set", t.set1)).toMatchObject({ kind, rpe: 9 });
+    },
+  );
+
   it("creates, patches dirty fields and deletes each table", async () => {
     const me = await writer("session-crud@example.com");
     const t = await training(me);

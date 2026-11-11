@@ -10,6 +10,17 @@ const exercises = [
 ] as const;
 
 describe("muscleDistribution", () => {
+  it.each(["top", "backoff", "myo"] as const)("counts %s like working sets", (kind) => {
+    expect(muscleDistribution([loggedSet({ exercise_id: "bench", kind })], exercises)).toEqual([
+      { muscle: "chest", sets: 1 },
+      { muscle: "shoulders", sets: 0.5 },
+      { muscle: "triceps", sets: 0.5 },
+    ]);
+    expect(muscleDistribution([untickedSet({ exercise_id: "bench", kind })], exercises)).toEqual(
+      [],
+    );
+  });
+
   it("is empty without sets", () => {
     expect(muscleDistribution([], exercises)).toEqual([]);
   });

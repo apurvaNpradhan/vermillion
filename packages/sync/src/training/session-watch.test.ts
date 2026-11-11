@@ -50,6 +50,21 @@ async function finishedSquat(s: Sessions, startedAt: string, weights: number[], 
   return id;
 }
 
+it.each(["top", "backoff", "myo"] as const)(
+  "reads %s sets with effort from local storage",
+  async (kind) => {
+    const s = await setupSessions();
+    const id = await startSession(s.training, { workoutId: null, derivedTitle });
+    const [exercise] = await addSessionExercises(s.training, id, [SQUAT]);
+    const [first] = s.sets(exercise ?? "");
+    const setId = String(first?.["id"]);
+    await updateSet(s.training, setId, { kind });
+    await tickSet(s.training, setId, { weight: 100, reps: 5, rpe: 8 });
+    const detail = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    expect(detail?.exercises[0]?.sets[0]).toMatchObject({ kind, rpe: 8, weightKg: 100, reps: 5 });
+  },
+);
+
 describe("active Sessions", () => {
   it("lists every unfinished Session, newest first, with its counts and last tick", async () => {
     const s = await setupSessions();

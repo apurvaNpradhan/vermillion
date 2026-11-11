@@ -1,0 +1,30 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "37b04f54-e524-4ea2-b917-4a26ec093d55",
+  "prevIds": ["31e9018d-2ee7-4829-8ad4-6081779bb90a"],
+  "footprints": [
+    {
+      "statementType": "alter_check",
+      "statementTarget": ["table", "public", "session_set"],
+      "writes": ["s|ck|public.session_set.session_set_kind_known"],
+      "reads": [
+        "n|tbl|public.session_set",
+        "n|sch|public",
+        "n|col|public.session_set.kind",
+        "e|col|public.session_set.kind"
+      ],
+      "sqlHash": "186dc91ba352856e"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"session_set\",\"session_set_kind_known\"]",
+      "set": {
+        "value": "\"kind\" IN ('warmup','working','drop','failure','top','backoff','myo')"
+      }
+    }
+  ]
+}
