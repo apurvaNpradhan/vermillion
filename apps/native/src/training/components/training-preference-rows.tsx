@@ -24,16 +24,18 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
 
 /**
  * Weight unit, effort scale and default rest as settings rows, each opening a short sheet, then
- * the rows other verticals add through `extraRows`, then Manage equipment.
+ * the rows other verticals add through `extraRows`, then Manage equipment. The section and its
+ * sheets come apart so a caller can draw the section inside another sheet's portal (which has no
+ * query client) while the preferences are read here and the pickers open as their own sheets.
  */
-export function TrainingPreferenceRows({
+export function useTrainingPreferenceRows({
   extraRows = [],
   onManageEquipment,
 }: {
   extraRows?: ReactNode[];
   /** Opens the bars and plates; Settings' own screen by default. */
   onManageEquipment?: () => void;
-}) {
+} = {}) {
   const { t } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
@@ -46,34 +48,36 @@ export function TrainingPreferenceRows({
     ? REST_CHOICES
     : [...REST_CHOICES, defaultRestSeconds].sort((a, b) => a - b);
 
-  return (
+  const section = (
+    <ListSection title={t("training__settings_title")}>
+      <ListRow
+        icon={Barbell}
+        title={t("training__setting_unit")}
+        value={t(WEIGHT_UNIT_KEYS[weightUnit])}
+        onPress={() => setPicker("unit")}
+      />
+      <ListRow
+        icon={Gauge}
+        title={t("training__setting_effort")}
+        value={t(EFFORT_SCALE_NAME_KEYS[effortScale])}
+        onPress={() => setPicker("effort")}
+      />
+      <ListRow
+        icon={Timer}
+        title={t("training__setting_rest")}
+        value={formatClock(defaultRestSeconds)}
+        onPress={() => setPicker("rest")}
+      />
+      {extraRows}
+      <ListRow
+        icon={Barbell}
+        title={t("plates__manage")}
+        onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
+      />
+    </ListSection>
+  );
+  const sheets = (
     <>
-      <ListSection title={t("training__settings_title")}>
-        <ListRow
-          icon={Barbell}
-          title={t("training__setting_unit")}
-          value={t(WEIGHT_UNIT_KEYS[weightUnit])}
-          onPress={() => setPicker("unit")}
-        />
-        <ListRow
-          icon={Gauge}
-          title={t("training__setting_effort")}
-          value={t(EFFORT_SCALE_NAME_KEYS[effortScale])}
-          onPress={() => setPicker("effort")}
-        />
-        <ListRow
-          icon={Timer}
-          title={t("training__setting_rest")}
-          value={formatClock(defaultRestSeconds)}
-          onPress={() => setPicker("rest")}
-        />
-        {extraRows}
-        <ListRow
-          icon={Barbell}
-          title={t("plates__manage")}
-          onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
-        />
-      </ListSection>
       <OptionSheet<WeightUnit>
         isOpen={picker === "unit"}
         onOpenChange={onOpenChange}
@@ -106,4 +110,5 @@ export function TrainingPreferenceRows({
       />
     </>
   );
+  return { section, sheets };
 }

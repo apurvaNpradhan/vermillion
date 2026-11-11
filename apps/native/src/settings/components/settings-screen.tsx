@@ -12,7 +12,7 @@ import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 import { PreferenceRows } from "@/preferences";
 import { useSessionSettings } from "@/session";
-import { TrainingPreferenceRows } from "@/training";
+import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 /**
@@ -24,11 +24,13 @@ export function SettingsScreen() {
   const signOut = useSignOut();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
   const sessionSettings = useSessionSettings();
+  const training = useTrainingPreferenceRows({ extraRows: sessionSettings.rows });
 
   return (
     <>
       <ConfirmationDialog {...confirmationProps} />
       {sessionSettings.sheets}
+      {training.sheets}
       <ScrollPage title={t("settings__title")}>
         <View>
           <SyncBanner />
@@ -37,9 +39,7 @@ export function SettingsScreen() {
           <PreferenceRows />
         </View>
         <ListSection title={t("session__setting_sounds")}>{sessionSettings.soundRows}</ListSection>
-        <View>
-          <TrainingPreferenceRows extraRows={sessionSettings.rows} />
-        </View>
+        <View>{training.section}</View>
         <ListSection title={t("settings__section_account")}>
           <ListRow
             icon={UserCircle}

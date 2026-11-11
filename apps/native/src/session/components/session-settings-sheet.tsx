@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
-import { TrainingPreferenceRows } from "@/training";
+import { useTrainingPreferenceRows } from "@/training";
 
 import { useSessionSettings } from "../use-session-settings";
 
@@ -27,6 +27,14 @@ export function SessionSettingsSheet({
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const settings = useSessionSettings();
+  // Read here, outside the sheet's portal: the portal has no query client.
+  const training = useTrainingPreferenceRows({
+    extraRows: settings.rows,
+    onManageEquipment: () => {
+      onOpenChange(false);
+      router.push("/session/equipment");
+    },
+  });
   return (
     <>
       <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -50,13 +58,7 @@ export function SessionSettingsSheet({
               contentContainerStyle={{ gap: 24, paddingHorizontal: 20, paddingBottom: bottom + 16 }}
             >
               <ListSection title={t("session__setting_sounds")}>{settings.soundRows}</ListSection>
-              <TrainingPreferenceRows
-                extraRows={settings.rows}
-                onManageEquipment={() => {
-                  onOpenChange(false);
-                  router.push("/session/equipment");
-                }}
-              />
+              {training.section}
               <Text className="px-1 text-caption text-muted">
                 {t("session__settings_footnote")}
               </Text>
@@ -65,6 +67,7 @@ export function SessionSettingsSheet({
         </BottomSheet.Portal>
       </BottomSheet>
       {settings.sheets}
+      {training.sheets}
     </>
   );
 }
