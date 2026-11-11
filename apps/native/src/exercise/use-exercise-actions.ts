@@ -13,7 +13,7 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 
 /** How long the toast after archiving offers Undo. */
 const UNDO_MS = 5000;
@@ -27,8 +27,7 @@ export function useExerciseActions() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const local = useLocalData();
-  const { snapshot } = useSyncStatus();
-  const writeScope = snapshot?.writeScope ?? "";
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
   const database = local?.status === "ready" ? local.database : null;
 
   const write = useCallback(

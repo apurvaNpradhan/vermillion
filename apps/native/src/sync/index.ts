@@ -7,4 +7,4 @@ export { SyncStatusLine } from "./sync-status-line";
 export { SyncProvider } from "./sync-provider";
 export { useDeviceOwner } from "./use-device-owner";
 export { useLocalData } from "./use-local-data";
-export { useSyncStatus } from "./use-sync-status";
+export { useSyncStatus, useSyncValue } from "./use-sync-status";

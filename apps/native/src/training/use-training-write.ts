@@ -4,7 +4,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { useTranslation } from "@/platform/i18n";
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 
 import { useTrainingPreferences } from "./use-training-preferences";
 
@@ -42,9 +42,8 @@ export function useTrainingWrite() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const local = useLocalData();
-  const { snapshot } = useSyncStatus();
   const { defaultRestSeconds } = useTrainingPreferences();
-  const writeScope = snapshot?.writeScope ?? "";
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
   const database = local?.status === "ready" ? local.database : null;
 
   const write = useCallback(

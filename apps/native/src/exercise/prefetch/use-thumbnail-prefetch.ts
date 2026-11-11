@@ -4,7 +4,7 @@ import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { useEffect, useState } from "react";
 
 import { appConfig } from "@/platform/app-config";
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 
 import { thumbnailUrl } from "../media-url";
 import { isUnmetered, prefetchMissing } from "./prefetch-plan";
@@ -36,11 +36,10 @@ function useUnmetered(): boolean {
  */
 export function useThumbnailPrefetch() {
   const local = useLocalData();
-  const { snapshot } = useSyncStatus();
   const unmetered = useUnmetered();
   const database = local?.status === "ready" ? local.database : null;
-  const writeScope = snapshot?.writeScope ?? null;
-  const catalogSynced = snapshot?.catalogSynced === true;
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
+  const catalogSynced = useSyncValue((snapshot) => snapshot?.catalogSynced === true);
   const [keysSignature, setKeysSignature] = useState("");
 
   const watching = database !== null && catalogSynced;

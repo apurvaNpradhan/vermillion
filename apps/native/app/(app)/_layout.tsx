@@ -16,7 +16,7 @@ import { TabBar } from "@/platform/navigation/tab-bar";
 import { isColorString } from "@/platform/theme";
 import { useThumbnailPrefetch } from "@/exercise";
 import { useAccountLocale } from "@/preferences";
-import { useSyncStatus } from "@/sync";
+import { useSyncValue } from "@/sync";
 import { AccountSummary } from "@/account";
 import { ForgottenSessionHost, RestNotificationHost, ResumeBar } from "@/session";
 
@@ -46,11 +46,11 @@ export default function AppLayout() {
   const { t } = useTranslation();
   useAccountLocale();
   useThumbnailPrefetch();
-  const { snapshot } = useSyncStatus();
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
 
   return (
     // Reset account-scoped screens and drafts, not the root auth/deep-link state.
-    <TabActionProvider key={snapshot?.writeScope ?? "unclaimed"}>
+    <TabActionProvider key={writeScope ?? "unclaimed"}>
       <Tabs
         tabBar={(props) => (
           <TabBar

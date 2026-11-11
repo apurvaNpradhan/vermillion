@@ -29,3 +29,20 @@ export function useSyncStatus() {
     },
   };
 }
+
+/**
+ * One value read from the sync state, re-rendering only when that value changes. The state
+ * changes several times on every write (pending count, upload progress), so a screen that needs
+ * only the write scope or a flag reads it here instead of through `useSyncStatus`.
+ */
+export function useSyncValue<T extends string | number | boolean | null>(
+  select: (snapshot: SyncSnapshot | null) => T,
+): T {
+  const local = useLocalData();
+  const lifecycle = local?.status === "ready" ? local.lifecycle : null;
+  return useSyncExternalStore(
+    lifecycle ? lifecycle.subscribe : noSubscription,
+    () => select(lifecycle ? lifecycle.getSnapshot() : null),
+    () => select(null),
+  );
+}

@@ -1,4 +1,4 @@
-import { useSyncStatus } from "@/sync";
+import { useSyncValue } from "@/sync";
 import { watchExerciseHistories, type FinishedSession } from "@workspace/sync";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -33,8 +33,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
     [key],
   );
   const state = useLocalWatch(subscribe);
-  const { snapshot } = useSyncStatus();
-  const scope = snapshot?.writeScope ?? null;
+  const scope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   const cached = useRef<{ scope: string; history: PreviousSets } | null>(null);
   useEffect(() => {
     if (scope && state.value) cached.current = { scope, history: state.value };

@@ -7,7 +7,7 @@ import {
 } from "@workspace/sync";
 import { useEffect, useState } from "react";
 
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 
 export type RejectedExercise = { write: RejectedWrite; title: string | null };
 
@@ -18,8 +18,7 @@ export type RejectedExercise = { write: RejectedWrite; title: string | null };
  */
 export function useRejectedExercises() {
   const local = useLocalData();
-  const { snapshot } = useSyncStatus();
-  const writeScope = snapshot?.writeScope ?? "";
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
   const database = local?.status === "ready" ? local.database : null;
   const [items, setItems] = useState<RejectedExercise[]>([]);
 

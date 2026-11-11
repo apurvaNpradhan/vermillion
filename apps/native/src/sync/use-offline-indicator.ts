@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { OFFLINE_GRACE_MS, createDelayedFlag, isDisconnected } from "./connectivity";
-import { useSyncStatus } from "./use-sync-status";
+import { useSyncValue } from "./use-sync-status";
 
 /**
  * Whether to show the Offline pill: true once sync has been disconnected for the grace period
@@ -9,8 +9,7 @@ import { useSyncStatus } from "./use-sync-status";
  * connection status the lifecycle already publishes, so no extra network listener is needed.
  */
 export function useOfflineIndicator() {
-  const { snapshot } = useSyncStatus();
-  const disconnected = isDisconnected(snapshot);
+  const disconnected = useSyncValue(isDisconnected);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
