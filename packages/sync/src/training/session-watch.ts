@@ -517,6 +517,16 @@ export type EquipmentRow = {
 export const EQUIPMENT_SQL = `SELECT id, kind, weight_kg, unit, label, count, enabled FROM gym_equipment
   ORDER BY kind, weight_kg DESC, id LIMIT ${EQUIPMENT_LIMIT}`;
 
+/** The bar an exercise remembers; one placeholder, the exercise id. */
+export const EXERCISE_BAR_SQL = "SELECT bar_id FROM exercise_setting WHERE exercise_id = ?";
+
+const exerciseBarSchema = z.array(z.object({ bar_id: z.string().nullable() }));
+
+/** The remembered bar id from an `EXERCISE_BAR_SQL` result; null when none is remembered. */
+export function parseExerciseBar(rows: readonly object[]): string | null {
+  return exerciseBarSchema.parse(rows)[0]?.bar_id ?? null;
+}
+
 const equipmentRowSchema = z.object({
   id: z.string(),
   kind: z.enum(["bar", "plate"]),

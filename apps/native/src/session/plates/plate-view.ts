@@ -130,43 +130,89 @@ export function plateGroups(plates: readonly LoadPlate[]): { weightKg: number; c
   return groups;
 }
 
-const FIRST_PLATE_X = 55;
+const SHAFT = 40;
+const COLLAR_WIDTH = 10;
+const COLLAR_HEIGHT = 46;
+const END_PAD = 14;
 const PLATE_GAP = 2;
-const BAR_END_PAD = 28;
-const MIN_WIDTH = 150;
-const LABEL_CHAR = 6;
-const LABEL_PAD = 6;
+const MIN_SCALE = 0.35;
+const LABEL_CHAR = 6.2;
+/** Plates heavier than this are drawn at the largest size. */
+const BIGGEST_KG = 25;
 
-/** Narrower for light plates, so a drawing reads as the real stack and does not overflow. */
+/** Drawn width of a plate: thicker for heavier plates, never a sliver. */
 export function plateWidth(weightKg: number): number {
-  return Math.min(36, 12 + weightKg * 1.5);
+  return 9 + Math.min(weightKg, BIGGEST_KG) * 0.5;
 }
 
-/** Whether a plate's label fits inside its drawn width at 10pt. */
-export function labelFits(width: number, label: string): boolean {
-  return width >= label.length * LABEL_CHAR + LABEL_PAD;
+/** Drawn height of a plate: grows with its weight, like the diameter of a real plate. */
+export function plateHeight(weightKg: number): number {
+  return 34 + Math.min(weightKg, BIGGEST_KG) * 3.4;
 }
 
-export type PlateLayout = { slots: PlateSlot[]; width: number };
-export type PlateSlot = { x: number; width: number; showLabel: boolean };
+export type PlateSlot = { x: number; width: number; height: number; showLabel: boolean };
+export type PlateLayout = {
+  slots: PlateSlot[];
+  /** Total drawing width and height, in the same units as the slots. */
+  width: number;
+  height: number;
+  /** Where the collar starts (the shaft ends) and how tall it is. */
+  collarX: number;
+  collarWidth: number;
+  collarHeight: number;
+};
 
 /**
- * Where each plate is drawn: stacked from the collar, each against the last. The drawing is as
- * wide as the actual stack, and a plate too narrow for its label has none (the per-side text
- * names every plate).
+ * Where each plate of one side is drawn: the bar's shaft, then the collar, then the plates from
+ * the collar outwards (heaviest first), each against the last. Plate widths shrink together when
+ * the stack would not fit `maxWidth`. A plate's label runs along its height, and is left out
+ * only when the plate is too short to hold it.
  */
 export function plateLayout(
   plates: readonly LoadPlate[],
   label: (weightKg: number) => string,
+  maxWidth: number,
 ): PlateLayout {
-  let x = FIRST_PLATE_X;
+  const natural = plates.reduce((sum, p) => sum + plateWidth(p.weightKg) + PLATE_GAP, 0);
+  const fixed = SHAFT + COLLAR_WIDTH + END_PAD;
+  const scale = natural === 0 ? 1 : Math.max(MIN_SCALE, Math.min(1, (maxWidth - fixed) / natural));
+  let x = SHAFT + COLLAR_WIDTH + PLATE_GAP;
+  let height = COLLAR_HEIGHT;
   const slots = plates.map((plate) => {
-    const width = plateWidth(plate.weightKg);
-    const slot = { x, width, showLabel: labelFits(width, label(plate.weightKg)) };
-    x += width + PLATE_GAP;
+    const width = plateWidth(plate.weightKg) * scale;
+    const tall = plateHeight(plate.weightKg);
+    const slot = {
+      x,
+      width,
+      height: tall,
+      showLabel: label(plate.weightKg).length * LABEL_CHAR <= tall - 6 && width >= 7,
+    };
+    x += width + PLATE_GAP * scale;
+    height = Math.max(height, tall);
     return slot;
   });
-  return { slots, width: Math.max(MIN_WIDTH, x - PLATE_GAP + BAR_END_PAD) };
+  return {
+    slots,
+    width: x + END_PAD,
+    height,
+    collarX: SHAFT,
+    collarWidth: COLLAR_WIDTH,
+    collarHeight: COLLAR_HEIGHT,
+  };
+}
+
+export type PlateRole = "red" | "blue" | "yellow" | "green" | "white" | "black";
+
+/** The competition colour of a plate by its weight in the kit's unit (IWF kg; lb by analogy). */
+export function plateRole(weightKg: number, unit: WeightUnit): PlateRole {
+  // Rounded, so a converted 45 lb plate is not 44.999… lb.
+  const weight = Math.round((unit === "lb" ? weightKg / KG_PER_LB : weightKg) * 100) / 100;
+  if (weight >= (unit === "lb" ? 55 : 25)) return "red";
+  if (weight >= (unit === "lb" ? 45 : 20)) return "blue";
+  if (weight >= (unit === "lb" ? 35 : 15)) return "yellow";
+  if (weight >= (unit === "lb" ? 25 : 10)) return "green";
+  if (weight >= (unit === "lb" ? 10 : 5)) return "white";
+  return "black";
 }
 
 /** A key that changes only when the bar or a plate that matters to the solver changes. */

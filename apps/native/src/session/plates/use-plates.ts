@@ -1,5 +1,4 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
 import { loadBar, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
 import {
   deleteEquipment,
@@ -8,6 +7,7 @@ import {
   setExerciseSetting,
   upsertEquipment,
   watchEquipment,
+  watchExerciseBar,
   type EquipmentRow,
   type TrainingDatabase,
 } from "@workspace/sync";
@@ -155,27 +155,11 @@ export function usePlates(targetKg: number, exerciseId: string, enabled = true) 
   } | null>(null);
   const subscribe = useCallback(
     (db: TrainingDatabase, onValue: (barId: string | null) => void, onError: () => void) => {
-      const controller = new AbortController();
       if (!enabled || !exerciseId) {
         onValue(null);
-        return () => controller.abort();
+        return () => undefined;
       }
-      db.watchWithCallback(
-        "SELECT bar_id FROM exercise_setting WHERE exercise_id = ?",
-        [exerciseId, enabled],
-        {
-          onResult: (result) => {
-            const parsed = z
-              .array(z.object({ bar_id: z.string().nullable() }))
-              .safeParse(result.array);
-            if (parsed.success) onValue(parsed.data[0]?.bar_id ?? null);
-            else onError();
-          },
-          onError,
-        },
-        { signal: controller.signal, tables: ["exercise_setting"] },
-      );
-      return () => controller.abort();
+      return watchExerciseBar(db, exerciseId, { onBar: onValue, onError });
     },
     [exerciseId, enabled],
   );

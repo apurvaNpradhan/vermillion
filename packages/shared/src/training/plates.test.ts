@@ -91,3 +91,33 @@ describe("loadBar", () => {
     expect(loadBar(60, { weightKg: 20 }, [plate(0), plate(20, 0)]).totalKg).toBe(20);
   });
 });
+
+describe("loadBar on typed targets", () => {
+  const lbPlates = defaultGymKit("lb").flatMap((p) =>
+    p.kind === "plate" ? [plate(p.weight_kg)] : [],
+  );
+  const lbBar = { weightKg: 45 * KG_PER_LB };
+  it("is exact for every pound weight the lb kit can load, as typed into a cell", () => {
+    // 45 lb bar plus pairs of 2.5 lb or more: every 5 lb step from the bar up is loadable.
+    for (let lb = 45; lb <= 1000; lb += 5) {
+      const result = loadBar(parseWeight(String(lb), "lb") ?? 0, lbBar, lbPlates);
+      expect(result.exact, `${lb} lb`).toBe(true);
+    }
+  });
+  it("is exact for every 2.5 kg step the kg kit can load, as typed into a cell", () => {
+    for (let kg = 20; kg <= 500; kg += 2.5) {
+      const result = loadBar(parseWeight(String(kg), "kg") ?? 0, { weightKg: 20 }, kit);
+      expect(result.exact, `${kg} kg`).toBe(true);
+    }
+  });
+  it("reports the gap to both neighbours for an unreachable target", () => {
+    const result = loadBar(61, { weightKg: 20 }, [plate(20), plate(5)]);
+    expect(result.below?.totalKg).toBe(60);
+    expect(result.above?.totalKg).toBe(70);
+  });
+  it("keeps one pair of each plate when the inventory holds a single pair", () => {
+    const result = loadBar(100, { weightKg: 20 }, [plate(20, 1), plate(10, 1), plate(5, 1)]);
+    expect(result.platesPerSide.map((p) => p.weightKg)).toEqual([20, 10, 5]);
+    expect(result.totalKg).toBe(90);
+  });
+});

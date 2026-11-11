@@ -855,6 +855,8 @@
   "plates__syncing": "Waiting for your equipment to sync…",
   "plates__per_side": "Each side: {{plates}}",
   "plates__bare_bar": "Bare bar, no plates",
+  "plates__bar_weight": "Bar {{weight}}",
+  "plates__side_weight": "{{weight}} per side",
   "plates__plate_count": "{{count}} × {{weight}}",
   "plates__total": "Total {{weight}}",
   "plates__exact": "Exact",

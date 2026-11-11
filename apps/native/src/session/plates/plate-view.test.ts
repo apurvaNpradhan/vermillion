@@ -9,7 +9,6 @@ import {
   formatDifference,
   hasTarget,
   kitGroups,
-  labelFits,
   loadChoices,
   loadInputKey,
   missingKitItems,
@@ -17,6 +16,7 @@ import {
   plateGroups,
   plateLayout,
   platesForBar,
+  plateRole,
   selectedChoice,
 } from "./plate-view";
 
@@ -145,23 +145,49 @@ describe("plateGroups", () => {
 
 describe("plateLayout", () => {
   const label = (kg: number) => String(kg);
-  it("sizes the drawing from the real stack", () => {
-    const few = plateLayout([plate(20)], label);
-    const many = plateLayout([plate(20), plate(20), plate(20), plate(20)], label);
-    expect(many.width).toBeGreaterThan(few.width);
-    const last = many.slots[3];
-    expect(last && many.width).toBeGreaterThan((last?.x ?? 0) + (last?.width ?? 0));
-    expect(many.slots[1]?.x).toBe((many.slots[0]?.x ?? 0) + (many.slots[0]?.width ?? 0) + 2);
+  it("stacks plates from the collar, each against the last", () => {
+    const { slots, collarX, collarWidth } = plateLayout([plate(20), plate(10)], label, 400);
+    expect(slots[0]?.x).toBeGreaterThan(collarX + collarWidth - 1);
+    expect(slots[1]?.x).toBeGreaterThan((slots[0]?.x ?? 0) + (slots[0]?.width ?? 0) - 0.001);
   });
-  it("has a minimum width for a bare bar", () => {
-    expect(plateLayout([], label).width).toBeGreaterThan(0);
+  it("draws heavier plates taller and wider", () => {
+    const { slots } = plateLayout([plate(25), plate(5), plate(1.25)], label, 400);
+    expect(slots[0]?.height).toBeGreaterThan(slots[1]?.height ?? 0);
+    expect(slots[1]?.height).toBeGreaterThan(slots[2]?.height ?? 0);
+    expect(slots[0]?.width).toBeGreaterThan(slots[2]?.width ?? 0);
   });
-  it("hides labels that do not fit", () => {
-    const { slots } = plateLayout([plate(20), plate(1.25)], label);
-    expect(slots[0]?.showLabel).toBe(true);
-    expect(slots[1]?.showLabel).toBe(false);
-    expect(labelFits(36, "25")).toBe(true);
-    expect(labelFits(14, "1.25")).toBe(false);
+  it("keeps the stack inside the available width by thinning plates", () => {
+    const many = Array.from({ length: 10 }, () => plate(20));
+    const { width } = plateLayout(many, label, 300);
+    expect(width).toBeLessThanOrEqual(300 + 1);
+  });
+  it("draws a bare bar with a shaft and collar and no plates", () => {
+    const layout = plateLayout([], label, 300);
+    expect(layout.slots).toEqual([]);
+    expect(layout.width).toBeGreaterThan(layout.collarX + layout.collarWidth);
+    expect(layout.height).toBe(layout.collarHeight);
+  });
+  it("labels every plate tall enough to hold its weight", () => {
+    const { slots } = plateLayout([plate(25), plate(1.25), plate(0.5)], label, 400);
+    expect(slots.every((slot) => slot.showLabel)).toBe(true);
+  });
+});
+
+describe("plateRole", () => {
+  it("colours kg plates the competition way", () => {
+    expect(plateRole(25, "kg")).toBe("red");
+    expect(plateRole(20, "kg")).toBe("blue");
+    expect(plateRole(15, "kg")).toBe("yellow");
+    expect(plateRole(10, "kg")).toBe("green");
+    expect(plateRole(5, "kg")).toBe("white");
+    expect(plateRole(1.25, "kg")).toBe("black");
+  });
+  it("colours lb plates by their pound weight, not a converted-kg float", () => {
+    expect(plateRole(45 * KG_PER_LB, "lb")).toBe("blue");
+    expect(plateRole(35 * KG_PER_LB, "lb")).toBe("yellow");
+    expect(plateRole(25 * KG_PER_LB, "lb")).toBe("green");
+    expect(plateRole(10 * KG_PER_LB, "lb")).toBe("white");
+    expect(plateRole(2.5 * KG_PER_LB, "lb")).toBe("black");
   });
 });
 

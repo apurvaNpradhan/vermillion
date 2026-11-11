@@ -83,6 +83,7 @@ export {
   readWorkoutDetail,
   watchActiveSessions,
   watchEquipment,
+  watchExerciseBar,
   watchExerciseHistory,
   watchExerciseHistories,
   watchProgram,

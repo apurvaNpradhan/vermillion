@@ -174,6 +174,7 @@ export {
   sessionSet,
   watchActiveSessions,
   watchEquipment,
+  watchExerciseBar,
   watchExerciseHistory,
   watchExerciseHistories,
   watchSession,

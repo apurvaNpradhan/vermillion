@@ -14,6 +14,8 @@ import { z } from "zod";
 import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
+  EXERCISE_BAR_SQL,
+  parseExerciseBar,
   EXERCISE_HISTORY_SQL,
   exerciseHistoriesSql,
   exerciseRecordsSql,
@@ -696,6 +698,22 @@ export function watchEquipment(
     [],
     ["gym_equipment"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the bar an exercise remembers (null when none); the exercise id is the one parameter. */
+export function watchExerciseBar(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onBar: (barId: string | null) => void; onError: (error: Error) => void },
+): () => void {
+  return watch(
+    database,
+    EXERCISE_BAR_SQL,
+    [exerciseId],
+    ["exercise_setting"],
+    parsing(parseExerciseBar, { onResult: handlers.onBar, onError: handlers.onError }),
     handlers.onError,
   );
 }
