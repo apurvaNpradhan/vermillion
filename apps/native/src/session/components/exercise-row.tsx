@@ -9,6 +9,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { SupersetBracket } from "@/training";
 
+const HIDDEN = { display: "none" } as const;
 const FALLBACK_TITLE_KEY = "training__exercise_missing";
 
 /**
@@ -25,6 +26,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   summary,
   showAddSet,
   readOnly,
+  warm,
   onToggle,
   onMenu,
   onAddSet,
@@ -42,6 +44,8 @@ export const ExerciseRow = memo(function ExerciseRow({
   /** "+ Add set" on this collapsed row: it was just finished and is resting. */
   showAddSet: boolean;
   readOnly: boolean;
+  /** Build the body while closed (hidden), so opening it only flips visibility. */
+  warm: boolean;
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
@@ -138,7 +142,16 @@ export const ExerciseRow = memo(function ExerciseRow({
           </Pressable>
         )}
       </View>
-      {open ? <View className="gap-3 border-b border-border px-3 py-3">{children}</View> : null}
+      {open || warm ? (
+        <View
+          className="gap-3 border-b border-border px-3 py-3"
+          style={open ? undefined : HIDDEN}
+          accessibilityElementsHidden={!open}
+          importantForAccessibility={open ? "auto" : "no-hide-descendants"}
+        >
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 });

@@ -65,3 +65,15 @@ export function useRowReveal() {
 
   return { scrollRef, viewportRef, registerRow, onScroll, reveal, alignTop };
 }
+
+/** Runs `run` after the next two frames, when the layout of the current render is committed. */
+export function afterLayout(run: () => void): () => void {
+  let second = 0;
+  const first = requestAnimationFrame(() => {
+    second = requestAnimationFrame(run);
+  });
+  return () => {
+    cancelAnimationFrame(first);
+    cancelAnimationFrame(second);
+  };
+}

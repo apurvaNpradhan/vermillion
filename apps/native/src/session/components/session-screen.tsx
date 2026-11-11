@@ -6,7 +6,6 @@ import {
   derivedWorkoutTitle,
   sessionTotals,
   type SetKind,
-  type SupersetPlace,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useFocusEffect } from "expo-router";
@@ -37,7 +36,7 @@ import { Keypad } from "@/platform/ui/keypad";
 import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
-import { RestPicker, ReorderList, SetTypeSheet, supportsWarmups } from "@/training";
+import { ReorderList, SetTypeSheet, supportsWarmups } from "@/training";
 
 import { setRestSurfaceVisible } from "../rest-notification";
 import {
@@ -55,19 +54,25 @@ import { useOptimisticSession } from "../use-optimistic-session";
 import { usePreviousSets } from "../use-previous-sets";
 import { restBelongsTo } from "../rest-rules";
 import { useRestRunning } from "../use-rest-running";
-import { useRowReveal } from "../use-row-reveal";
+import { afterLayout, useRowReveal } from "../use-row-reveal";
+import { useWarmCount } from "../use-warm-count";
 import { useSession } from "../use-session";
 import { loggedSetsOf } from "../set-values";
-import { ExerciseRow } from "./exercise-row";
+import { ExerciseItem } from "./exercise-item";
 import { NoteSheet } from "./note-sheet";
 import { SessionEffortSheet } from "./effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "./rest-bar";
 import { RestPermissionSheet } from "./rest-permission-sheet";
-import { SetGrid } from "./set-grid";
 import { SessionHeader } from "./session-header";
+import type { ActiveEntry } from "./set-row";
 
 const KEEP_AWAKE_TAG = "session";
+
+/** The keypad's cell when it sits in this exercise; null for every other exercise. */
+function ownEntry(exercise: SessionExerciseDetail, entry: ActiveEntry | null): ActiveEntry | null {
+  return entry && exercise.sets.some((set) => set.id === entry.cell.setId) ? entry : null;
+}
 
 /** Where the screen sends the user. */
 export type SessionScreenProps = {
@@ -265,8 +270,8 @@ function LoadedSession({
     ?.id;
   useEffect(() => {
     if (!openFirst) return;
-    const timer = setTimeout(() => alignTop(`ex:${openFirst}`), 120);
-    return () => clearTimeout(timer);
+    // After the next layout pass, not a fixed delay.
+    return afterLayout(() => alignTop(`ex:${openFirst}`));
   }, [openFirst, alignTop]);
   const activeSetId = logging.activeSetId;
   // Back closes the keypad before it minimises the workout.
@@ -378,8 +383,29 @@ function LoadedSession({
     setSheet({ kind: "menu", exercise });
   }, []);
   const removeSet = useCallback((setId: string) => void actions.removeOneSet(setId), [actions]);
-  const { toggleBlock, addSet } = logging;
+  const { toggleBlock, addSet, openCell, onTick, onPrevious, onTimer } = logging;
   const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
+  const { updateExercise } = actions;
+  const onNote = useCallback(
+    (exercise: SessionExerciseDetail) => setSheet({ kind: "note", exercise }),
+    [],
+  );
+  const onRest = useCallback(
+    (exerciseId: string, restSeconds: number | null) =>
+      void updateExercise(exerciseId, { rest_seconds: restSeconds }),
+    [updateExercise],
+  );
+  const registerSetRow = reveal.registerRow;
+  // The open block's exercises, and those whose closed body is already built.
+  const openIds = useMemo(() => {
+    const open = logging.blocks.find((block) => block.id === logging.openBlockId);
+    return new Set(open?.members.map((member) => member.id));
+  }, [logging.blocks, logging.openBlockId]);
+  const warmCount = useWarmCount(session.exercises.length);
+  const warmIds = useMemo(
+    () => new Set(session.exercises.slice(0, warmCount).map((entry) => entry.id)),
+    [session.exercises, warmCount],
+  );
 
   return (
     <View className="flex-1 bg-background">
@@ -456,14 +482,11 @@ function LoadedSession({
               onMove={(id, beforeId) => void actions.moveExercise(id, beforeId)}
               renderItem={(entry, { collapsed }) => (
                 <View ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
-                  <ExerciseRow
+                  <ExerciseItem
                     exercise={entry}
                     place={logging.places.get(entry.id) ?? "none"}
-                    open={
-                      logging.blocks
-                        .find((block) => block.id === logging.openBlockId)
-                        ?.members.some((member) => member.id === entry.id) ?? false
-                    }
+                    open={openIds.has(entry.id)}
+                    warm={warmIds.has(entry.id)}
                     dragging={collapsed}
                     progress={progressText(entry.sets)}
                     summary={
@@ -476,31 +499,36 @@ function LoadedSession({
                       restBelongsTo(session.rest, entry, restRunning)
                     }
                     readOnly={readOnly}
+                    unit={unit}
+                    effortScale={effortScale}
+                    historyReady={logging.historyReadyFor(entry.exerciseId)}
+                    editingFinished={logging.editingFinished}
+                    entry={ownEntry(entry, logging.entry)}
+                    refusal={
+                      logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
+                        ? logging.refusal
+                        : null
+                    }
+                    highlightedSetId={
+                      entry.sets.find((set) => logging.highlights.get(set.id) === entry.id)?.id ??
+                      null
+                    }
+                    previousOf={logging.previousOf}
+                    ghostsFor={logging.ghostsFor}
                     onToggle={toggleBlock}
                     onMenu={onMenu}
                     onAddSet={onAddSet}
-                  >
-                    <ExerciseBody
-                      entry={entry}
-                      place={logging.places.get(entry.id) ?? "none"}
-                      readOnly={readOnly}
-                      onNote={() => setSheet({ kind: "note", exercise: entry })}
-                      onRest={(restSeconds) =>
-                        void actions.updateExercise(entry.id, { rest_seconds: restSeconds })
-                      }
-                    />
-                    <SetGrid
-                      exercise={entry}
-                      logging={logging}
-                      unit={unit}
-                      effortScale={effortScale}
-                      readOnly={readOnly}
-                      onKind={onKind}
-                      onEffort={onEffort}
-                      onRemoveSet={removeSet}
-                      registerRow={reveal.registerRow}
-                    />
-                  </ExerciseRow>
+                    onNote={onNote}
+                    onRest={onRest}
+                    onCell={openCell}
+                    onTick={onTick}
+                    onKind={onKind}
+                    onEffort={onEffort}
+                    onPrevious={onPrevious}
+                    onRemoveSet={removeSet}
+                    onTimer={onTimer}
+                    registerRow={registerSetRow}
+                  />
                 </View>
               )}
             />
@@ -671,39 +699,6 @@ function LoadedSession({
           if (confirmRemove) void actions.removeExercise(confirmRemove.id);
         }}
       />
-    </View>
-  );
-}
-
-/** The pinned note and rest chip at the top of an open exercise. */
-function ExerciseBody({
-  entry,
-  place,
-  readOnly,
-  onNote,
-  onRest,
-}: {
-  entry: SessionExerciseDetail;
-  place: SupersetPlace;
-  readOnly: boolean;
-  onNote: () => void;
-  onRest: (restSeconds: number | null) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View className="gap-2">
-      {entry.note ? (
-        <Text
-          accessibilityLabel={t("session__note_label", { note: entry.note })}
-          className="px-1 text-body text-muted"
-          onPress={readOnly ? undefined : onNote}
-        >
-          {entry.note}
-        </Text>
-      ) : null}
-      {readOnly || place === "first" || place === "middle" ? null : (
-        <RestPicker value={entry.restSeconds} group={place === "last"} onChange={onRest} />
-      )}
     </View>
   );
 }

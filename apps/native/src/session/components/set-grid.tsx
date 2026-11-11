@@ -1,6 +1,14 @@
-import { SET_FIELDS, type EffortScale, type SetField, type WeightUnit } from "@workspace/shared";
+import {
+  SET_FIELDS,
+  type EffortScale,
+  type Ghosts,
+  type LoggedSet,
+  type SetField,
+  type WeightUnit,
+} from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
+import { memo } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -9,18 +17,26 @@ import { Button } from "@/platform/ui/button";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { chipTexts } from "@/training";
 
-import type { useLoggingState } from "../use-logging-state";
-import { SetRow } from "./set-row";
-
-type Logging = ReturnType<typeof useLoggingState>;
+import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
 
 /**
  * The sets of one exercise: a header over the columns, then a row for each set, then "+ Add set".
  * All state lives in the logging hook; a row gets only what it draws.
  */
-export function SetGrid({
+export const SetGrid = memo(function SetGrid({
   exercise,
-  logging,
+  historyReady,
+  editingFinished,
+  entry,
+  refusal,
+  highlightedSetId,
+  previousOf,
+  ghostsFor,
+  onCell,
+  onTick,
+  onPrevious,
+  onTimer,
+  onAddSet,
   unit,
   effortScale,
   readOnly,
@@ -30,7 +46,22 @@ export function SetGrid({
   registerRow,
 }: {
   exercise: SessionExerciseDetail;
-  logging: Logging;
+  /** Previous values of this exercise have loaded. */
+  historyReady: boolean;
+  editingFinished: boolean;
+  /** The keypad's cell, only when it is in this exercise. */
+  entry: ActiveEntry | null;
+  /** A refused tick, only when it is in this exercise. */
+  refusal: Refusal | null;
+  /** The set to log next in this exercise's block, if it is in this exercise. */
+  highlightedSetId: string | null;
+  previousOf: (setId: string) => LoggedSet | null;
+  ghostsFor: (setId: string) => Ghosts;
+  onCell: (setId: string, field: SetField) => void;
+  onTick: (setId: string) => void;
+  onPrevious: (setId: string) => void;
+  onTimer: (setId: string) => void;
+  onAddSet: (exerciseId: string) => void;
   unit: WeightUnit;
   effortScale: EffortScale;
   readOnly: boolean;
@@ -98,39 +129,39 @@ export function SetGrid({
         {exercise.sets.map((set, index) => (
           <View key={set.id} ref={registerRow(set.id)} collapsable={false}>
             <SetRow
-              editingFinished={logging.editingFinished}
+              editingFinished={editingFinished}
               set={set}
               type={exercise.type}
               badge={badges[index] ?? String(index + 1)}
               number={index + 1}
               logEffort={exercise.logEffort}
-              historyReady={logging.historyReadyFor(exercise.exerciseId)}
-              previous={logging.previousOf(set.id)}
-              ghosts={logging.ghostsFor(set.id)}
+              historyReady={historyReady}
+              previous={previousOf(set.id)}
+              ghosts={ghostsFor(set.id)}
               unit={unit}
               effortScale={effortScale}
-              entry={logging.entry?.cell.setId === set.id ? logging.entry : null}
-              refusal={logging.refusal?.setId === set.id ? logging.refusal : null}
-              highlighted={logging.highlights.get(set.id) === exercise.id}
+              entry={entry?.cell.setId === set.id ? entry : null}
+              refusal={refusal?.setId === set.id ? refusal : null}
+              highlighted={highlightedSetId === set.id}
               readOnly={readOnly}
               canRemove={exercise.sets.length > 1}
-              onCell={logging.openCell}
-              onTick={logging.onTick}
+              onCell={onCell}
+              onTick={onTick}
               onKind={onKind}
               onEffort={onEffort}
-              onPrevious={logging.onPrevious}
+              onPrevious={onPrevious}
               onRemove={onRemoveSet}
-              onTimer={logging.onTimer}
+              onTimer={onTimer}
             />
           </View>
         ))}
       </View>
       {readOnly ? null : (
-        <Button variant="secondary" onPress={() => void logging.addSet(exercise.id)}>
+        <Button variant="secondary" onPress={() => onAddSet(exercise.id)}>
           <Plus size={16} color={subtle} weight="bold" />
           <Button.Label>{t("session__add_set")}</Button.Label>
         </Button>
       )}
     </SwipeGroup>
   );
-}
+});
