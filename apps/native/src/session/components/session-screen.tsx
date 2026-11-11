@@ -40,7 +40,13 @@ import { Keypad } from "@/platform/ui/keypad";
 import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
-import { ReorderList, useReorderScroll, SetTypeSheet, supportsWarmups } from "@/training";
+import {
+  HideWhileDragging,
+  ReorderList,
+  useReorderScroll,
+  SetTypeSheet,
+  supportsWarmups,
+} from "@/training";
 
 import { setRestSurfaceVisible } from "../rest-notification";
 import {
@@ -560,16 +566,18 @@ function LoadedSession({
             />
           </View>
           {readOnly ? null : (
-            <View className="mt-4 px-4">
-              <Button
-                variant={session.exercises.length === 0 ? "primary" : "secondary"}
-                isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
-                onPress={() => void addExercises()}
-              >
-                <Plus size={16} color={foreground} weight="bold" />
-                <Button.Label>{t("training__add_exercises")}</Button.Label>
-              </Button>
-            </View>
+            <HideWhileDragging dragging={reorderScroll.dragging}>
+              <View className="mt-4 px-4">
+                <Button
+                  variant={session.exercises.length === 0 ? "primary" : "secondary"}
+                  isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
+                  onPress={() => void addExercises()}
+                >
+                  <Plus size={16} color={foreground} weight="bold" />
+                  <Button.Label>{t("training__add_exercises")}</Button.Label>
+                </Button>
+              </View>
+            </HideWhileDragging>
           )}
         </Animated.ScrollView>
       </View>

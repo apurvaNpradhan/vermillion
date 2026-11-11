@@ -11,6 +11,7 @@ export { HomeScreen } from "./components/home-screen";
 export { SetTypeSheet } from "./components/set-type-sheet";
 export { RestPicker } from "./components/rest-picker";
 export { ReorderList, ReorderHeader } from "./components/reorder-list";
+export { HideWhileDragging } from "./components/hide-while-dragging";
 export { InlineNote } from "./components/inline-note";
 export { TargetPickerSheet } from "./components/target-picker-sheet";
 export { SET_TONES } from "./set-tones";

@@ -43,6 +43,7 @@ import { useSharePlan } from "../use-share-plan";
 import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
 import { AddToProgramSheet } from "./add-to-program-sheet";
+import { HideWhileDragging } from "./hide-while-dragging";
 import { ReorderList } from "./reorder-list";
 import { useReorderScroll } from "../use-reorder-scroll";
 import { SavedTextField } from "./saved-text-field";
@@ -399,16 +400,18 @@ function LoadedEditor({
                 />
               )}
             />
-            <View className="px-4">
-              <Button
-                variant={workout.exercises.length === 0 ? "primary" : "secondary"}
-                isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
-                onPress={() => void addExercises()}
-              >
-                <Plus size={16} color={foreground} weight="bold" />
-                <Button.Label>{t("training__add_exercises")}</Button.Label>
-              </Button>
-            </View>
+            <HideWhileDragging dragging={reorderScroll.dragging}>
+              <View className="px-4">
+                <Button
+                  variant={workout.exercises.length === 0 ? "primary" : "secondary"}
+                  isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
+                  onPress={() => void addExercises()}
+                >
+                  <Plus size={16} color={foreground} weight="bold" />
+                  <Button.Label>{t("training__add_exercises")}</Button.Label>
+                </Button>
+              </View>
+            </HideWhileDragging>
           </AnimatedKeyboardAwareScrollView>
         )}
       </Page>
