@@ -1,9 +1,11 @@
 import type { EffortScale, Ghosts, LoggedSet, SetField, SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { NotePencil } from "phosphor-react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
 import { RestPicker } from "@/training";
 import type { WeightUnit } from "@workspace/shared";
 
@@ -129,7 +131,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   );
 });
 
-/** The pinned note and rest chip at the top of an open exercise. */
+/** The rest and note chips at the top of an open exercise, with the note's text below them. */
 function ExerciseBody({
   entry,
   place,
@@ -144,8 +146,35 @@ function ExerciseBody({
   onRest: (exerciseId: string, restSeconds: number | null) => void;
 }) {
   const { t } = useTranslation();
+  const subtle = useSubtleColor();
+  const showsRest = !readOnly && place !== "first" && place !== "middle";
   return (
     <View className="gap-2">
+      {readOnly ? null : (
+        <View className="flex-row gap-2">
+          {showsRest ? (
+            <RestPicker
+              compact
+              value={entry.restSeconds}
+              group={place === "last"}
+              onChange={(restSeconds) => onRest(entry.id, restSeconds)}
+            />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              entry.note
+                ? t("session__note_label", { note: entry.note })
+                : t("session__pinned_note")
+            }
+            onPress={() => onNote(entry)}
+            className="min-h-11 flex-row items-center gap-2 self-start rounded-xl bg-default px-3"
+          >
+            <NotePencil size={18} color={subtle} />
+            <Text className="text-label text-muted">{t("session__pinned_note")}</Text>
+          </Pressable>
+        </View>
+      )}
       {entry.note ? (
         <Text
           accessibilityLabel={t("session__note_label", { note: entry.note })}
@@ -155,13 +184,6 @@ function ExerciseBody({
           {entry.note}
         </Text>
       ) : null}
-      {readOnly || place === "first" || place === "middle" ? null : (
-        <RestPicker
-          value={entry.restSeconds}
-          group={place === "last"}
-          onChange={(restSeconds) => onRest(entry.id, restSeconds)}
-        />
-      )}
     </View>
   );
 }

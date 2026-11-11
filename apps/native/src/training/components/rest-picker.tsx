@@ -130,10 +130,13 @@ export function RestPicker({
   value,
   onChange,
   group = false,
+  compact = false,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   group?: boolean;
+  /** A small chip with the icon and the time only, for rows that sit beside other chips. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -158,16 +161,22 @@ export function RestPicker({
           choose(value ?? 120);
           setOpen(true);
         }}
-        className="min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
+        className={
+          compact
+            ? "min-h-11 flex-row items-center gap-2 self-start rounded-xl bg-default px-3"
+            : "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
+        }
       >
         <Timer size={18} color={subtle} />
-        <Text className="flex-1 text-label text-muted">
-          {t(group ? "training__rest_group_title" : "training__rest_title")}
-        </Text>
+        {compact ? null : (
+          <Text className="flex-1 text-label text-muted">
+            {t(group ? "training__rest_group_title" : "training__rest_title")}
+          </Text>
+        )}
         <Text className="font-medium text-label text-foreground tabular-nums">
           {value === null ? t("training__rest_off") : formatClock(value)}
         </Text>
-        <CaretRight size={14} color={subtle} />
+        {compact ? null : <CaretRight size={14} color={subtle} />}
       </Pressable>
       <TargetPickerSheet
         isOpen={open}
