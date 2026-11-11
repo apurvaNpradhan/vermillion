@@ -274,7 +274,6 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
 
   return canRemove && !readOnly ? (
     <SwipeRow
-      direct
       actions={[
         {
           key: "remove",

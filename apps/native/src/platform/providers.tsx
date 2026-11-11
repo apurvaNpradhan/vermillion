@@ -14,6 +14,7 @@ import { I18nextProvider, i18n } from "./i18n";
 import { TAB_BAR_GAP, TAB_BAR_HEIGHT } from "./navigation/tab-bar-metrics";
 import { NavigationTheme } from "./theme/navigation-theme";
 import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
+import { SwipeRoot } from "./ui/swipe-row";
 import { useAppToast } from "./ui/use-app-toast";
 
 /**
@@ -56,18 +57,20 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <HeroUINativeProvider config={HEROUI_CONFIG}>
-            <NavigationTheme>
-              <QueryProvider>
-                <SyncProvider>
-                  {children}
-                  <LocalDataResetNotice />
-                </SyncProvider>
-              </QueryProvider>
-            </NavigationTheme>
-          </HeroUINativeProvider>
-        </KeyboardProvider>
+        <SwipeRoot>
+          <KeyboardProvider>
+            <HeroUINativeProvider config={HEROUI_CONFIG}>
+              <NavigationTheme>
+                <QueryProvider>
+                  <SyncProvider>
+                    {children}
+                    <LocalDataResetNotice />
+                  </SyncProvider>
+                </QueryProvider>
+              </NavigationTheme>
+            </HeroUINativeProvider>
+          </KeyboardProvider>
+        </SwipeRoot>
       </GestureHandlerRootView>
     </I18nextProvider>
   );

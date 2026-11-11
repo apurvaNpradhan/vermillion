@@ -15,23 +15,15 @@ import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   ReduceMotion,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { haptic } from "@/platform/haptics";
 import { useSubtleColor } from "@/platform/theme";
 
-import {
-  SWIPE_ACTION_WIDTH,
-  isDirectSwipe,
-  isFullSwipe,
-  shouldSettleOpen,
-} from "./swipe-threshold";
+import { SWIPE_ACTION_WIDTH, shouldSettleOpen } from "./swipe-threshold";
 
 export type SwipeAction = {
   key: string;
@@ -64,10 +56,12 @@ type RowHandle = { close: () => void };
 const SwipeGroupContext = createContext<{
   willOpen: (row: RowHandle) => void;
   didClose: (row: RowHandle) => void;
+  closeOpen: () => void;
 } | null>(null);
 
 /** Rows inside a group close each other: only one is open at a time. */
 export function SwipeGroup({ children }: { children: ReactNode }) {
+  const parent = useContext(SwipeGroupContext);
   const open = useRef<RowHandle | null>(null);
   const willOpen = useCallback((row: RowHandle) => {
     if (open.current && open.current !== row) open.current.close();
@@ -76,40 +70,64 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
   const didClose = useCallback((row: RowHandle) => {
     if (open.current === row) open.current = null;
   }, []);
-  return <SwipeGroupContext value={{ willOpen, didClose }}>{children}</SwipeGroupContext>;
+  const closeOpen = useCallback(() => {
+    open.current?.close();
+    open.current = null;
+  }, []);
+  return (
+    <SwipeGroupContext value={parent ?? { willOpen, didClose, closeOpen }}>
+      {children}
+    </SwipeGroupContext>
+  );
+}
+
+/** Dismisses open actions on outside touches or vertical scrolling throughout the app. */
+export function SwipeRoot({ children }: { children: ReactNode }) {
+  return (
+    <SwipeGroup>
+      <SwipeDismissSurface>{children}</SwipeDismissSurface>
+    </SwipeGroup>
+  );
+}
+
+function SwipeDismissSurface({ children }: { children: ReactNode }) {
+  const group = useContext(SwipeGroupContext);
+  const startY = useRef(0);
+  return (
+    <View
+      style={{ flex: 1 }}
+      onStartShouldSetResponderCapture={(event) => {
+        startY.current = event.nativeEvent.pageY;
+        return false;
+      }}
+      onTouchStart={() => group?.closeOpen()}
+      onMoveShouldSetResponderCapture={(event) => {
+        if (Math.abs(event.nativeEvent.pageY - startY.current) > SCROLL_WINS) group?.closeOpen();
+        return false;
+      }}
+    >
+      {children}
+    </View>
+  );
 }
 
 /**
- * A row that slides left to reveal actions behind it, in the manner of PanelUI's Swipe. The drag
- * starts only after a clear sideways move and gives way to the list as soon as the finger moves
- * vertically, so scrolling that starts on a row still scrolls. Dragging well past the buttons and
- * letting go fires the outermost (last) action, with a tick when the drag crosses that point.
- * While open, a tap on the row closes it. The same actions are offered to screen readers through
- * `accessibilityActions`, which the row's content spreads from the render prop.
+ * A left swipe reveals buttons and snaps open or closed; only a button tap runs an action.
+ * Screen readers can run the same actions through the content's accessibility menu.
  */
 export function SwipeRow({
   actions,
-  fullSwipe = true,
-  direct = false,
   children,
 }: {
   actions: SwipeAction[];
-  fullSwipe?: boolean;
-  /**
-   * One action that fires as soon as the swipe passes a short distance, with no button to tap
-   * afterwards; the action's icon follows the drag as the cue. Never settles open.
-   */
-  direct?: boolean;
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
-  const [width, setWidth] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const translateX = useSharedValue(0);
   const start = useSharedValue(0);
   const count = actions.length;
   const panel = count * SWIPE_ACTION_WIDTH + PANEL_GAP;
-  const outermost = actions.at(-1);
 
   const handle = useMemo<RowHandle>(
     () => ({
@@ -129,11 +147,6 @@ export function SwipeRow({
     group?.willOpen(handle);
   };
   const onDragStart = () => group?.willOpen(handle);
-  const onFullSwipe = () => {
-    setIsOpen(false);
-    group?.didClose(handle);
-    outermost?.onPress();
-  };
   const run = (action: SwipeAction) => {
     close();
     action.onPress();
@@ -148,28 +161,12 @@ export function SwipeRow({
     },
     onUpdate: (event) => {
       const next = Math.min(0, start.value + event.translationX);
-      // Past the buttons the row follows the finger for a full swipe, or resists without one.
-      translateX.value = fullSwipe || next > -panel ? next : -panel + (next + panel) / 3;
+      // Resist dragging beyond the buttons; no distance can execute an action.
+      translateX.value = next > -panel ? next : -panel + (next + panel) / 3;
     },
     onDeactivate: (event) => {
       const x = translateX.value;
-      if (direct && outermost) {
-        if (isDirectSwipe(x, width)) {
-          translateX.value = withTiming(-width, SNAP, () => {
-            translateX.value = withDelay(400, withTiming(0, { duration: 0 }));
-          });
-          scheduleOnRN(onFullSwipe);
-        } else {
-          translateX.value = withTiming(0, SNAP);
-          scheduleOnRN(close);
-        }
-      } else if (fullSwipe && outermost && isFullSwipe(x, width, count)) {
-        // Slide out, fire, then come back unseen (the row is usually hidden by then).
-        translateX.value = withTiming(-width, SNAP, () => {
-          translateX.value = withDelay(400, withTiming(0, { duration: 0 }));
-        });
-        scheduleOnRN(onFullSwipe);
-      } else if (shouldSettleOpen(x, event.velocityX, panel)) {
+      if (shouldSettleOpen(x, event.velocityX, panel)) {
         translateX.value = withTiming(-panel, SNAP);
         scheduleOnRN(onOpened);
       } else {
@@ -179,19 +176,8 @@ export function SwipeRow({
     },
   });
 
-  useAnimatedReaction(
-    () =>
-      direct
-        ? isDirectSwipe(translateX.value, width)
-        : fullSwipe && isFullSwipe(translateX.value, width, count),
-    (armed, previous) => {
-      // Tick on crossing into a full swipe only, not on the way back.
-      if (armed && previous === false) scheduleOnRN(haptic.tick);
-    },
-  );
-
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  // The panel widens with the drag; past the buttons the outermost action fills it.
+  // The panel follows the drag while the row resists beyond its resting width.
   const panelStyle = useAnimatedStyle(() => ({
     width: Math.max(-translateX.value, 0),
     opacity: translateX.value < 0 ? 1 : 0,
@@ -201,13 +187,18 @@ export function SwipeRow({
     accessibilityActions: actions.map((action) => ({ name: action.key, label: action.label })),
     onAccessibilityAction: (event) => {
       const action = actions.find((candidate) => candidate.key === event.nativeEvent.actionName);
-      if (action) action.onPress();
+      if (action) run(action);
     },
   };
 
   return (
     <GestureDetector gesture={pan}>
-      <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+      <View
+        onTouchStart={(event) => {
+          event.stopPropagation();
+          group?.willOpen(handle);
+        }}
+      >
         <Animated.View
           className="absolute inset-y-0 right-0 flex-row justify-end overflow-hidden"
           style={[{ paddingLeft: PANEL_GAP - 8 }, panelStyle]}

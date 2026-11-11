@@ -246,7 +246,6 @@ export function SetTable({
           return onRemove && sets.length > 1 ? (
             <SwipeRow
               key={index}
-              direct
               actions={[
                 {
                   key: "remove",
