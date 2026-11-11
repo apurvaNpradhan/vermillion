@@ -111,7 +111,7 @@ export function SessionScreen(props: SessionScreenProps) {
       </View>
     );
   }
-  return <LoadedSession session={state.session} {...props} />;
+  return <LoadedSession key={state.session.id} session={state.session} {...props} />;
 }
 
 function SessionSkeleton() {

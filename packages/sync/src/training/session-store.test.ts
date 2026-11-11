@@ -440,6 +440,20 @@ describe("exercises of a Session", () => {
 });
 
 describe("Rest", () => {
+  it("caps remaining rest at 600 seconds in the store", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await startRest(s.training, t.id, t.work1, 595);
+    const before = Date.now();
+    const capped = await adjustRest(s.training, t.id, 1000);
+    const end = Date.parse(capped?.endsAt ?? "");
+    expect(end).toBeGreaterThanOrEqual(before + 600_000);
+    expect(end).toBeLessThanOrEqual(Date.now() + 600_000);
+    expect(s.one("training_session", t.id)).toMatchObject({ rest_ends_at: capped?.endsAt });
+    const shorter = await adjustRest(s.training, t.id, -15);
+    expect(Date.parse(shorter?.endsAt ?? "")).toBe(end - 15_000);
+  });
+
   it("starts, adjusts and clears with absolute times tied to the set", async () => {
     const s = await setupSessions();
     const t = await started(s);

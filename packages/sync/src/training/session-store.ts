@@ -1,6 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
+  REST_SECONDS_MAX,
   cycleState,
   sessionInput,
   sessionStartAllowed,
@@ -452,8 +453,12 @@ export function adjustRest(
   return write(database, expectedInstallId, async (tx) => {
     const current = await requireSession(tx, sessionId);
     if (current.rest_started_at === null || current.rest_ends_at === null) return null;
-    const end = Date.parse(current.rest_ends_at) + deltaSeconds * 1000;
-    if (end <= Date.now()) {
+    const now = Date.now();
+    const end = Math.min(
+      Date.parse(current.rest_ends_at) + deltaSeconds * 1000,
+      now + REST_SECONDS_MAX * 1000,
+    );
+    if (end <= now) {
       await clearRestIn(tx, sessionId);
       return null;
     }

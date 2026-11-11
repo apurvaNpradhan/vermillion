@@ -1,4 +1,10 @@
-import { SET_FIELDS, tickValues, type ExerciseType, type Ghosts } from "@workspace/shared";
+import {
+  REST_SECONDS_MAX,
+  SET_FIELDS,
+  tickValues,
+  type ExerciseType,
+  type Ghosts,
+} from "@workspace/shared";
 import type { SessionDetail, SessionSetDetail } from "@workspace/sync";
 
 /** The parts of a set a tick or untick changes. */
@@ -143,6 +149,9 @@ export function restFrom(setId: string, seconds: number, nowMs: number): NonNull
 /** The running Rest moved by `deltaSeconds`; null once it is pushed to or past now. */
 export function nudged(rest: Rest, deltaSeconds: number, nowMs: number): Rest {
   if (!rest) return null;
-  const end = Date.parse(rest.endsAt) + deltaSeconds * 1000;
+  const end = Math.min(
+    Date.parse(rest.endsAt) + deltaSeconds * 1000,
+    nowMs + REST_SECONDS_MAX * 1000,
+  );
   return end <= nowMs ? null : { ...rest, endsAt: new Date(end).toISOString() };
 }

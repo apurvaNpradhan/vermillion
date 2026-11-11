@@ -9,7 +9,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
 import { formatElapsed } from "../clock";
-import { REST_ADJUST_SECONDS, clampedAdjustment, restView } from "../rest-rules";
+import { REST_ADJUST_SECONDS, restView } from "../rest-rules";
 import { isRestSurfaceVisible } from "../rest-notification";
 import { useNow } from "../use-now";
 import { countdownBeepSecond } from "../sound-rules";
@@ -66,11 +66,8 @@ export function RestBar({
   if (!view.running) return null;
   const progress = view.total === 0 ? 1 : 1 - view.remaining / view.total;
   const adjust = (delta: number) => {
-    const change = clampedAdjustment(view.remaining, delta);
-    if (change.ends) return onSkip();
-    if (change.delta === 0) return;
     haptic.tick();
-    onAdjust(change.delta);
+    onAdjust(delta);
   };
   return (
     <View

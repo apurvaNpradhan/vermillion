@@ -115,6 +115,10 @@ describe("withPending and settled", () => {
 describe("nudged", () => {
   const rest = restFrom("set-1", 60, Date.parse(NOW));
 
+  it("caps the actual end time at 600 seconds from now", () => {
+    expect(nudged(rest, 1000, Date.parse(NOW))?.endsAt).toBe("2026-01-01T10:10:00.000Z");
+  });
+
   it("moves the end and ends the Rest when pulled to now", () => {
     expect(nudged(rest, 15, Date.parse(NOW))?.endsAt).toBe("2026-01-01T10:01:15.000Z");
     expect(nudged(rest, -60, Date.parse(NOW))).toBeNull();

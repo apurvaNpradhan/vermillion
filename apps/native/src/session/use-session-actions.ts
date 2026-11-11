@@ -53,10 +53,16 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
-  /** Moves the end of the running Rest; a Rest pushed to now is ended. */
+  /**
+   * Moves the running Rest. The wrapper distinguishes a successfully ended Rest (`rest: null`)
+   * from a failed write (`null`), so the immediate preview can roll back either kind of nudge.
+   */
   const nudgeRest = useCallback(
     (sessionId: string, deltaSeconds: number) =>
-      write((db) => adjustRest(db, sessionId, deltaSeconds, writeScope), null),
+      write(
+        async (db) => ({ rest: await adjustRest(db, sessionId, deltaSeconds, writeScope) }),
+        null,
+      ),
     [write, writeScope],
   );
 

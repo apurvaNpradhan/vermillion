@@ -1,10 +1,11 @@
+import { AppState } from "react-native";
+
 import type { Ghosts } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   NO_PENDING,
-  nudged,
   restFrom,
   restKey,
   setKey,
@@ -14,6 +15,7 @@ import {
   type Pending,
   type SetChange,
 } from "./optimistic";
+import { RestNudges } from "./rest-nudges";
 import type { useSessionActions } from "./use-session-actions";
 
 type Actions = ReturnType<typeof useSessionActions>;
@@ -31,13 +33,34 @@ export function useOptimisticSession(session: SessionDetail, actions: Actions) {
   const stored = useRef(session);
   stored.current = session;
   const shownRef = useRef(session);
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  const [restTarget, setRestTarget] = useState<SessionDetail["rest"] | undefined>();
+  const [nudges] = useState(
+    () => new RestNudges((delta) => actionsRef.current.nudgeRest(session.id, delta), setRestTarget),
+  );
+  useEffect(() => {
+    nudges.observe(session.rest);
+  }, [nudges, session.rest, restTarget]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") void nudges.flush();
+    });
+    return () => {
+      subscription.remove();
+      void nudges.flush();
+    };
+  }, [nudges]);
 
   // The watch delivered: drop what it has caught up with.
   useEffect(() => {
     setPending((current) => settled(current, session));
   }, [session]);
 
-  const shown = useMemo(() => withPending(session, pending), [session, pending]);
+  const shown = useMemo(() => {
+    const result = withPending(session, pending);
+    return restTarget === undefined ? result : { ...result, rest: restTarget };
+  }, [session, pending, restTarget]);
   shownRef.current = shown;
 
   const putSet = useCallback((setId: string, change: SetChange | null) => {
@@ -74,6 +97,7 @@ export function useOptimisticSession(session: SessionDetail, actions: Actions) {
 
   const tick = useCallback(
     async (setId: string, ghosts: Ghosts, restSeconds: number | null = null) => {
+      await nudges.release();
       const exercise = stored.current.exercises.find((entry) =>
         entry.sets.some((set) => set.id === setId),
       );
@@ -97,11 +121,12 @@ export function useOptimisticSession(session: SessionDetail, actions: Actions) {
       }
       return result;
     },
-    [actions, putSet, putRest],
+    [actions, nudges, putSet, putRest],
   );
 
   const untick = useCallback(
     async (setId: string) => {
+      await nudges.release();
       const undoSet = putSet(setId, { completedAt: null });
       const undoRest = stored.current.rest?.setId === setId ? putRest(null) : () => undefined;
       const wrote = await actions.untick(setId);
@@ -111,26 +136,25 @@ export function useOptimisticSession(session: SessionDetail, actions: Actions) {
       }
       return wrote;
     },
-    [actions, putSet, putRest],
+    [actions, nudges, putSet, putRest],
   );
 
   const skipRest = useCallback(
     async (sessionId: string) => {
+      await nudges.release();
       const undo = putRest(null);
       const skipped = await actions.skipRest(sessionId);
       if (!skipped) undo();
       return skipped;
     },
-    [actions, putRest],
+    [actions, nudges, putRest],
   );
 
   const nudgeRest = useCallback(
-    async (sessionId: string, deltaSeconds: number) => {
-      // Successive taps build on what is shown, not on what the database has delivered so far.
-      putRest(nudged(shownRef.current.rest, deltaSeconds, Date.now()));
-      return actions.nudgeRest(sessionId, deltaSeconds);
+    (_sessionId: string, deltaSeconds: number) => {
+      nudges.add(shownRef.current.rest, deltaSeconds, Date.now());
     },
-    [actions, putRest],
+    [nudges],
   );
 
   const optimisticActions = useMemo(

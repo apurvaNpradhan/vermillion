@@ -50,7 +50,10 @@ import {
 } from "./set-values";
 import type { ActiveEntry, Refusal } from "./components/set-row";
 
-type Actions = ReturnType<typeof useSessionActions>;
+type Actions = Pick<
+  ReturnType<typeof useSessionActions>,
+  "tick" | "untick" | "updateValues" | "addExtraSet"
+>;
 
 /** Where a set sits: its exercise, its place in it. */
 type Found = { exercise: SessionExerciseDetail; set: SessionSetDetail; index: number };
