@@ -86,6 +86,14 @@ function RootStack() {
             animationDuration: 220,
           }}
         />
+        <Stack.Screen
+          name="exercise-view"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            animationDuration: 220,
+          }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={guards.auth}>
         <Stack.Screen name="(auth)" />

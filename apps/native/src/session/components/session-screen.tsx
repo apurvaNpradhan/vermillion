@@ -8,11 +8,12 @@ import {
   type SetKind,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
   Gauge,
+  Info,
   Person,
   Link,
   LinkBreak,
@@ -132,6 +133,11 @@ function LoadedSession({
 }: SessionScreenProps & { session: SessionDetail }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
+  const router = useRouter();
+  const viewExercise = useCallback(
+    (id: string) => router.push({ pathname: "/exercise-view/[id]", params: { id } }),
+    [router],
+  );
   // Ticks and Rest changes show at once; the database's watch catches up a moment later.
   const { session, actions } = useOptimisticSession(stored, useSessionActions());
   const { preferences } = usePreferences();
@@ -276,14 +282,16 @@ function LoadedSession({
   const activeSetId = logging.activeSetId;
   // Back closes the keypad before it minimises the workout.
   const { closeKeypad } = logging;
-  useEffect(() => {
-    if (!activeSetId) return;
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      closeKeypad();
-      return true;
-    });
-    return () => subscription.remove();
-  }, [activeSetId, closeKeypad]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!activeSetId) return;
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        closeKeypad();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [activeSetId, closeKeypad]),
+  );
   useEffect(() => {
     if (!activeSetId) return;
     const timer = setTimeout(() => revealRow(activeSetId), 90);
@@ -302,6 +310,12 @@ function LoadedSession({
     (menuPlace === "none" || menuPlace === "last");
   const menuActions: SwipeAction[] = menuExercise
     ? [
+        {
+          key: "view",
+          label: t("session__view_exercise"),
+          icon: Info,
+          onPress: () => viewExercise(menuExercise.exerciseId),
+        },
         {
           key: "replace",
           label: t("training__replace"),
@@ -515,6 +529,7 @@ function LoadedSession({
                     }
                     previousOf={logging.previousOf}
                     ghostsFor={logging.ghostsFor}
+                    onView={viewExercise}
                     onToggle={toggleBlock}
                     onMenu={onMenu}
                     onAddSet={onAddSet}

@@ -166,7 +166,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   <Text
                     accessibilityRole="link"
                     onPress={() =>
-                      router.push({ pathname: "/exercises/[id]", params: { id: entry.exerciseId } })
+                      router.push({
+                        pathname: "/exercise-view/[id]",
+                        params: { id: entry.exerciseId },
+                      })
                     }
                     className="text-title-md text-foreground"
                   >

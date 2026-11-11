@@ -48,8 +48,8 @@ const HERO_RATIO_WITH_HISTORY = 9 / 16;
 export type ExerciseDetailProps = {
   id: string;
   onSeeHistory: () => void;
-  /** Open the library filtered to a muscle group. */
-  onBrowseGroup: (group: MuscleGroup) => void;
+  /** Open the library filtered to a muscle group, when browsing is available. */
+  onBrowseGroup?: (group: MuscleGroup) => void;
   /** Open another exercise (a swap candidate). */
   onOpenExercise: (id: string) => void;
   /** The header menu of a Custom exercise; a menu with none of them is not shown. */
@@ -316,7 +316,7 @@ function MuscleSection({
   onBrowseGroup,
 }: {
   exercise: ExerciseDetail;
-  onBrowseGroup: (group: MuscleGroup) => void;
+  onBrowseGroup?: (group: MuscleGroup) => void;
 }) {
   const { t } = useTranslation();
   const [tapped, setTapped] = useState<BodyGroup | null>(null);
@@ -374,7 +374,7 @@ function MuscleLegend({
   secondary: readonly MuscleGroup[];
   tapped: BodyGroup | null;
   role: (group: MuscleGroup) => string;
-  onBrowse: (group: MuscleGroup) => void;
+  onBrowse?: (group: MuscleGroup) => void;
 }) {
   const { t } = useTranslation();
   // The tapped group, else the muscles the exercise works, so the card never sits empty.
@@ -389,7 +389,7 @@ function MuscleLegend({
             </Text>
             <Text className="text-caption text-muted">{role(group)}</Text>
           </View>
-          {tapped !== null && isBodyGroup(group) ? (
+          {onBrowse && tapped !== null && isBodyGroup(group) ? (
             <Button variant="secondary" size="sm" onPress={() => onBrowse(group)}>
               <Button.Label>
                 {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[group]) })}

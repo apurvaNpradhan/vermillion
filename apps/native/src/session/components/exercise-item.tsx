@@ -35,6 +35,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   highlightedSetId,
   previousOf,
   ghostsFor,
+  onView,
   onToggle,
   onMenu,
   onAddSet,
@@ -67,6 +68,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   highlightedSetId: string | null;
   previousOf: (setId: string) => LoggedSet | null;
   ghostsFor: (setId: string) => Ghosts;
+  onView: (exerciseId: string) => void;
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
@@ -92,6 +94,7 @@ export const ExerciseItem = memo(function ExerciseItem({
       summary={summary}
       showAddSet={showAddSet}
       readOnly={readOnly}
+      onView={onView}
       onToggle={onToggle}
       onMenu={onMenu}
       onAddSet={onAddSet}

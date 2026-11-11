@@ -680,6 +680,8 @@
   "session__tick_set": "Mark set {{number}} done",
   "session__untick_set": "Set {{number}} done. Tap to undo",
   "session__add_set": "Add set",
+  "session__view_exercise": "View exercise",
+  "session__view_exercise_named": "View {{title}}",
   "session__add_set_to": "Add a set to {{title}}",
   "session__pinned_note": "Note",
   "session__note_hint": "Shown every time you train this workout.",

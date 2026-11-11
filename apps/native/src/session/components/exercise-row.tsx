@@ -27,6 +27,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   showAddSet,
   readOnly,
   warm,
+  onView,
   onToggle,
   onMenu,
   onAddSet,
@@ -46,6 +47,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   readOnly: boolean;
   /** Build the body while closed (hidden), so opening it only flips visibility. */
   warm: boolean;
+  onView: (exerciseId: string) => void;
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
@@ -91,13 +93,20 @@ export const ExerciseRow = memo(function ExerciseRow({
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={t("session__view_exercise_named", { title: name })}
+          onPress={() => onView(exercise.exerciseId)}
+          className={`min-h-[64px] min-w-12 items-center justify-center py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
+        >
+          {thumbnail(open ? 44 : 36)}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityState={{ expanded: open }}
           accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
           accessibilityHint={t("training__row_open_hint")}
           onPress={() => onToggle(exercise.id)}
-          className={`min-h-[64px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
+          className="min-h-[64px] flex-1 flex-row items-center py-2 pl-3 active:bg-default"
         >
-          {thumbnail(open ? 44 : 36)}
           <View className="flex-1 gap-0.5">
             {place === "first" ? (
               <Text className="font-semibold text-overline uppercase text-identity">
