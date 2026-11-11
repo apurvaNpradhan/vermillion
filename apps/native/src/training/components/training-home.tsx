@@ -11,6 +11,7 @@ import { BarChart } from "@/platform/ui/charts/chart";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { useActiveSessions, useStartSession } from "@/session";
 import { useHomeTraining } from "../use-home-training";
+import { useActiveProgram } from "../use-active-program";
 import { ActiveProgramCard } from "./active-program-card";
 
 export function TrainingHome() {
@@ -19,6 +20,9 @@ export function TrainingHome() {
   const { start, sheet } = useStartSession();
   const state = useHomeTraining();
   const active = useActiveSessions();
+  const programState = useActiveProgram();
+  // One ready state for the whole screen: the card, the week and the recent list appear together.
+  const loading = state.loading || !programState.ready;
   const current = state.buckets[7];
   const last = state.buckets[6];
   const weekSets = current?.items.flatMap((s) => s.sets) ?? [];
@@ -42,8 +46,8 @@ export function TrainingHome() {
     });
   return (
     <View className="gap-5">
-      <ActiveProgramCard />
-      {state.loading ? (
+      {loading ? null : <ActiveProgramCard state={programState} />}
+      {loading ? (
         <Skeleton label={t("common__loading")} className="h-40 w-full rounded-2xl" />
       ) : null}
       {state.failed ? (
@@ -51,15 +55,12 @@ export function TrainingHome() {
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
       ) : null}
-      {!state.loading &&
-      !state.failed &&
-      state.recent.length === 0 &&
-      active.sessions.length === 0 ? (
+      {!loading && !state.failed && state.recent.length === 0 && active.sessions.length === 0 ? (
         <Button onPress={() => void start(null)}>
           <Button.Label>{t("home__first")}</Button.Label>
         </Button>
       ) : null}
-      {current && last && current.items.length > 0 ? (
+      {!loading && current && last && current.items.length > 0 ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           <Text className="text-title-md font-semibold text-foreground">{t("home__week")}</Text>
           <StatTiles
@@ -101,7 +102,7 @@ export function TrainingHome() {
           ) : null}
         </View>
       ) : null}
-      {state.recent.length > 0 ? (
+      {!loading && state.recent.length > 0 ? (
         <View className="gap-2">
           <View className="flex-row items-center justify-between">
             <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>

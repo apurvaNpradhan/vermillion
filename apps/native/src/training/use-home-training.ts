@@ -48,23 +48,31 @@ export function useHomeTraining(workoutId?: string) {
   const { preferences } = usePreferences();
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const muscles = useLocalWatch(
-    useCallback((db, onValue: (rows: z.infer<typeof exerciseSchema>[]) => void, onError) => {
-      const controller = new AbortController();
-      db.watchWithCallback(
-        "SELECT id, primary_muscle, secondary_muscles FROM exercise LIMIT 10000",
-        [],
-        {
-          onResult: (result) => {
-            const parsed = z.array(exerciseSchema).safeParse(result.array);
-            if (parsed.success) onValue(parsed.data);
-            else onError();
+    useCallback(
+      (db, onValue: (rows: z.infer<typeof exerciseSchema>[]) => void, onError) => {
+        // One Workout's history draws no muscle chart: skip reading the whole catalog for it.
+        if (workoutId) {
+          onValue([]);
+          return () => undefined;
+        }
+        const controller = new AbortController();
+        db.watchWithCallback(
+          "SELECT id, primary_muscle, secondary_muscles FROM exercise LIMIT 10000",
+          [],
+          {
+            onResult: (result) => {
+              const parsed = z.array(exerciseSchema).safeParse(result.array);
+              if (parsed.success) onValue(parsed.data);
+              else onError();
+            },
+            onError,
           },
-          onError,
-        },
-        { signal: controller.signal, tables: ["exercise"] },
-      );
-      return () => controller.abort();
-    }, []),
+          { signal: controller.signal, tables: ["exercise"] },
+        );
+        return () => controller.abort();
+      },
+      [workoutId],
+    ),
   );
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: zone,
@@ -107,8 +115,8 @@ export function useHomeTraining(workoutId?: string) {
     timezone: zone,
     bodyweightKg: preferences.ui.bodyweightKg,
     weightUnit: preferences.ui.weightUnit,
-    loading: history.loading || recent.loading,
-    failed: history.failed || recent.failed,
+    loading: history.loading || recent.loading || muscles.loading,
+    failed: history.failed || recent.failed || muscles.failed,
     retry: () => {
       history.retry();
       recent.retry();

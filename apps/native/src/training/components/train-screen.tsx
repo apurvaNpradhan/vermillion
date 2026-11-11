@@ -17,6 +17,7 @@ import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
 import { combineStatus } from "../train-status";
+import { useActiveProgram } from "../use-active-program";
 import { useProgramLibrary } from "../use-program-library";
 import { useStartWorkout } from "../use-start-workout";
 import { useWorkoutActions } from "../use-workout-actions";
@@ -34,10 +35,14 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const workoutList = useWorkouts();
-  const programList = useProgramLibrary();
+  const active = useActiveProgram();
+  const programList = useProgramLibrary(active);
   const { workouts } = workoutList;
   const { programs } = programList;
-  const status = combineStatus(workoutList.status, programList.status);
+  // One ready state: the active program, programs and workouts all come from the local database,
+  // and nothing is drawn until every one of them has answered, so the screen appears at once.
+  const combined = combineStatus(workoutList.status, programList.status);
+  const status = combined !== "error" && !active.ready ? "loading" : combined;
   const retry = useCallback(() => {
     workoutList.retry();
     programList.retry();
@@ -114,7 +119,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               <View className="gap-6 px-4 pb-3">
                 {header}
                 <SyncBanner />
-                <ActiveProgramCard offerEnd />
+                {status === "loading" ? null : <ActiveProgramCard state={active} offerEnd />}
                 <TrainingListState status={status} onRetry={retry} />
                 {status === "list" && programs.length > 0 ? (
                   <View className="gap-2">
@@ -137,6 +142,9 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                     </View>
                     <ProgramList
                       programs={programs.slice(0, PROGRAM_PREVIEW_COUNT)}
+                      activeId={programList.activeId}
+                      onActivate={programList.activate}
+                      onStop={programList.stop}
                       onOpen={programList.open}
                       onDuplicate={programList.duplicate}
                       onDelete={programList.remove}

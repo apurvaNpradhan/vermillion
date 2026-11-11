@@ -1,4 +1,4 @@
-import { useActiveProgram } from "../use-active-program";
+import { useActiveRun } from "../use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -103,7 +103,7 @@ function LoadedProgram({
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useProgramActions();
-  const active = useActiveProgram();
+  const active = useActiveRun();
   const isActive = active.run?.program_id === program.id;
   const activationLabel = t(isActive ? "run__stop" : "run__set_active");
   const toggleActive = () => {

@@ -7,14 +7,20 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { useStartSession } from "@/session";
-import { useActiveProgram } from "../use-active-program";
+import type { useActiveProgram } from "../use-active-program";
 import { slotTitle } from "./rotation-row";
 import { ProgramTile } from "./program-row";
 
-export function ActiveProgramCard({ offerEnd = false }: { offerEnd?: boolean }) {
+export function ActiveProgramCard({
+  state,
+  offerEnd = false,
+}: {
+  /** Read by the screen, so the card appears together with the rest of it. */
+  state: ReturnType<typeof useActiveProgram>;
+  offerEnd?: boolean;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
-  const state = useActiveProgram();
   const { program, run, progress, week } = state;
   const { start, sheet } = useStartSession();
   const [endOpen, setEndOpen] = useState(false);

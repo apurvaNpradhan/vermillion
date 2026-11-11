@@ -7,7 +7,6 @@ import { View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
-import { useActiveProgram } from "../use-active-program";
 import { rotationSummary } from "../rotation";
 import { useProgramMeta } from "../use-program-meta";
 import { PlanInitialTile } from "./plan-initial-tile";
@@ -54,28 +53,35 @@ export function ProgramTile({
 /** A compact program row; the same menu and swipe actions are available in either list. */
 export const ProgramRow = memo(function ProgramRow({
   program,
+  activeId,
+  onActivate,
+  onStop,
   onOpen,
   onDuplicate,
   onDelete,
 }: {
   program: ProgramSummary;
+  /** The Program of the active Run, read once by the list. */
+  activeId: string | null;
+  onActivate: (id: string) => void;
+  onStop: () => void;
   onOpen: (id: string) => void;
   onDuplicate: (program: ProgramSummary) => void;
   onDelete: (id: string, title: string) => void;
 }) {
   const { t } = useTranslation();
-  const active = useActiveProgram();
+  const isActive = activeId === program.id;
   const meta = useProgramMeta(rotationSummary(program.slots), program.plannedWeeks);
 
   const swipe = useMemo<SwipeAction[]>(
     () => [
       {
         key: "active",
-        label: t(active.run?.program_id === program.id ? "run__stop" : "run__set_active"),
-        icon: active.run?.program_id === program.id ? Stop : Play,
+        label: t(isActive ? "run__stop" : "run__set_active"),
+        icon: isActive ? Stop : Play,
         onPress: () => {
-          if (active.run?.program_id === program.id) void active.stop();
-          else active.activate(program.id);
+          if (isActive) onStop();
+          else onActivate(program.id);
         },
       },
       {
@@ -92,7 +98,7 @@ export const ProgramRow = memo(function ProgramRow({
         onPress: () => onDelete(program.id, program.title),
       },
     ],
-    [t, onDuplicate, onDelete, program, active],
+    [t, onDuplicate, onDelete, program, isActive, onActivate, onStop],
   );
 
   return (
