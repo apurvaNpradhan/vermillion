@@ -503,6 +503,11 @@ export function useLoggingState({
     ),
     activeSetId,
     activeField: entry?.cell.field ?? null,
+    /**
+     * What is typed in the cell being edited, or undefined when nothing has been typed yet. The
+     * saved set trails it while typing pauses are coalesced into one write.
+     */
+    typedValue: entry && !entry.fresh ? valueOfText(entry.cell.field, entry.raw, unit) : undefined,
     hasNext: next !== null,
     stepText,
     openCell,

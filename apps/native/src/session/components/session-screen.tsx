@@ -383,7 +383,10 @@ function LoadedSession({
                 setId: at.set.id,
                 field: logging.activeField,
                 unit,
-                currentKg: at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null,
+                currentKg:
+                  logging.typedValue !== undefined
+                    ? logging.typedValue
+                    : (at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null),
                 putKg: logging.putValue,
               }
             : null;
