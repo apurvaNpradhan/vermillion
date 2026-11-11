@@ -5,7 +5,6 @@ import {
   type DistributionExercise,
   type LoggedSet,
 } from "@workspace/shared";
-import { useThemeColor } from "heroui-native";
 import { useState } from "react";
 import { Button } from "./button";
 import { Text, View } from "react-native";
@@ -26,8 +25,6 @@ export function MuscleDistribution({
 }) {
   const { t, i18n } = useTranslation();
   const [showAll, setShowAll] = useState(false);
-  // One neutral tone that strengthens with sets, rather than the drawing's red.
-  const tone = useThemeColor("foreground");
   const loads = muscleDistribution(sets, exercises);
   const max = loads[0]?.sets ?? 0;
   const intensity: Partial<Record<BodyGroup, number>> = {};
@@ -38,7 +35,7 @@ export function MuscleDistribution({
       <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
         {title ?? t("exercise__muscle_distribution")}
       </Text>
-      <BodyMapPair intensity={intensity} tint={tone} />
+      <BodyMapPair intensity={intensity} />
       <Text className="text-caption text-muted">
         {t("exercise__muscle_scale", { value: new Intl.NumberFormat(i18n.language).format(max) })}
       </Text>

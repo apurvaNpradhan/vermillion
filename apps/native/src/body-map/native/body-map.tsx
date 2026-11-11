@@ -23,11 +23,6 @@ export type BodyMapProps = {
   selected?: readonly MuscleGroup[];
   /** Called with the group under a tap, or from an accessibility action; never a coordinate. */
   onPressGroup?: (group: BodyGroup) => void;
-  /**
-   * One colour for every highlighted muscle instead of its drawn colour, so a heat map reads as
-   * one tone getting stronger (the theme's foreground: white on dark, ink on light).
-   */
-  tint?: string;
   style?: ViewStyle;
 };
 
@@ -47,7 +42,6 @@ export function BodyMap({
   intensity,
   selected,
   onPressGroup,
-  tint,
   style,
 }: BodyMapProps) {
   const { t } = useTranslation();
@@ -114,7 +108,7 @@ export function BodyMap({
               key={layer}
               source={LAYER_SOURCES[layer]}
               resizeMode="stretch"
-              style={[FILL, { opacity: alpha, tintColor: tint }]}
+              style={[FILL, { opacity: alpha }]}
             />
           ));
         })}
