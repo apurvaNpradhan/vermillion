@@ -74,6 +74,23 @@ describe.each(Object.entries(themes))("theme rules: %s", (_name, { mode, colors,
     expect(ratio("on-action", "action"), "on-action").toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps completed-set text, badges and checks readable", () => {
+    for (const role of [
+      "success-soft-foreground",
+      "text-muted",
+      "text-primary",
+      "set-warmup",
+      "set-drop",
+      "set-failure",
+      "set-top",
+      "set-backoff",
+      "set-myo",
+    ] as const) {
+      expect(ratio(role, "success-soft"), role).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(ratio("on-success", "success")).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Classic is neutral by design: identity is its text color and its focus ring a quiet hairline.
   it.skipIf(classic)("keeps identity roles visible and readable", () => {
     expect(ratio("identity", "canvas")).toBeGreaterThanOrEqual(3);

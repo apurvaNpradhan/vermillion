@@ -1,3 +1,4 @@
+import { useThemeColor } from "heroui-native";
 import { Skeleton } from "@/platform/ui/skeleton";
 import {
   SET_FIELDS,
@@ -104,6 +105,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const onIdentity = useOnIdentityColor();
+  const onSuccess = useThemeColor("success-foreground");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   const showsEffort = logEffort && fields.includes("reps") && set.kind !== "warmup";
@@ -186,7 +188,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
 
   const row = (a11y?: SwipeA11yProps) => (
     <View
-      className={`flex-row items-center gap-1.5 rounded-xl px-1 py-1 ${ticked ? "bg-default" : highlighted ? "bg-identity-soft" : ""}`}
+      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-success-soft" : highlighted ? "border-identity" : "border-transparent"}`}
     >
       <Pressable
         {...a11y}
@@ -201,7 +203,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           props.onKind(set.id);
         }}
         hitSlop={4}
-        className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}
+        className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
       >
         <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>{badge}</Text>
       </Pressable>
@@ -244,7 +246,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
         >
           <Text
-            className={`text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
+            className={`text-body ${effortValue === null ? "text-muted" : ticked ? "text-success-soft-foreground" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
@@ -262,9 +264,9 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           disabled={readOnly || (!ticked && !props.historyReady)}
           onPress={() => props.onTick(set.id)}
           hitSlop={4}
-          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-identity" : "bg-field"}`}
+          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-success-soft-foreground bg-success" : "border-transparent bg-field"}`}
         >
-          <Check size={18} weight="bold" color={ticked ? onIdentity : subtle} />
+          <Check size={18} weight="bold" color={ticked ? onSuccess : subtle} />
         </Pressable>
       )}
     </View>

@@ -67,12 +67,12 @@ export function SetCell({
         accessibilityValue={{ text: empty ? (ghost === "" ? undefined : ghost) : text }}
         disabled={disabled}
         onPress={onPress}
-        className={`h-10 flex-row items-center justify-center rounded-lg border px-1 ${border} ${active ? "bg-default" : done ? "bg-transparent" : "bg-field"}`}
+        className={`h-10 flex-row items-center justify-center rounded-lg border px-1 ${border} ${done ? "bg-transparent" : active ? "bg-default" : "bg-field"}`}
       >
         {children ?? (
           <Text
             numberOfLines={1}
-            className={`text-center text-body ${empty ? "text-muted" : "text-foreground"}`}
+            className={`text-center text-body ${empty ? "text-muted" : done ? "text-success-soft-foreground" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {empty ? (ghost === "" ? "–" : ghost) : text}
