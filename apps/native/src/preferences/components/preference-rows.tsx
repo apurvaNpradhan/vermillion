@@ -3,11 +3,14 @@ import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
 import { useState } from "react";
 
-import type { TranslationKey } from "@workspace/i18n";
-
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
-import { THEME_CHOICES, type ThemeChoice } from "@/platform/theme/theme-state";
+import {
+  ThemePicker,
+  AppearancePicker,
+  THEME_LABELS,
+  APPEARANCE_LABELS,
+} from "@/platform/theme/theme-picker";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 
@@ -16,17 +19,7 @@ import { usePreferences } from "../use-preferences";
 const LOCALE_NAMES = { en: "English" };
 const DEVICE = "device";
 
-type Picker = "theme" | "language" | "timezone" | null;
-
-const THEME_LABELS = {
-  system: "theme__system",
-  light: "theme__light",
-  dark: "theme__dark",
-} as const satisfies Record<ThemeChoice, TranslationKey>;
-
-function isThemeChoice(value: string): value is ThemeChoice {
-  return THEME_CHOICES.some((choice) => choice === value);
-}
+type Picker = "theme" | "appearance" | "language" | "timezone" | null;
 
 /**
  * Theme, language and time zone as settings rows. Each shows their current
@@ -35,14 +28,13 @@ function isThemeChoice(value: string): value is ThemeChoice {
 export function PreferenceRows() {
   const { t } = useTranslation();
   const { preferences, setLocale, setTimezone } = usePreferences();
-  const { choice, setChoice } = useThemeChoice();
+  const { choice } = useThemeChoice();
   const [picker, setPicker] = useState<Picker>(null);
   const deviceZone = getCalendars()[0]?.timeZone ?? null;
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
 
-  const themeOptions = THEME_CHOICES.map((value) => ({ value, label: t(THEME_LABELS[value]) }));
   const localeValue = preferences.locale ?? DEVICE;
   const localeOptions = [
     { value: DEVICE, label: t("settings__language_device") },
@@ -62,8 +54,14 @@ export function PreferenceRows() {
         <ListRow
           icon={Palette}
           title={t("settings__theme_title")}
-          value={t(THEME_LABELS[choice])}
+          value={t(THEME_LABELS[choice.theme])}
           onPress={() => setPicker("theme")}
+        />
+        <ListRow
+          icon={Palette}
+          title={t("settings__appearance_title")}
+          value={t(APPEARANCE_LABELS[choice.appearance])}
+          onPress={() => setPicker("appearance")}
         />
         {SUPPORTED_LOCALES.length > 1 && (
           <ListRow
@@ -82,17 +80,8 @@ export function PreferenceRows() {
         />
       </ListSection>
 
-      <OptionSheet
-        isOpen={picker === "theme"}
-        onOpenChange={onOpenChange}
-        title={t("settings__theme_title")}
-        description={t("settings__theme_hint")}
-        options={themeOptions}
-        value={choice}
-        onSelect={(value) => {
-          if (isThemeChoice(value)) setChoice(value);
-        }}
-      />
+      <ThemePicker isOpen={picker === "theme"} onOpenChange={onOpenChange} />
+      <AppearancePicker isOpen={picker === "appearance"} onOpenChange={onOpenChange} />
       <OptionSheet
         isOpen={picker === "language"}
         onOpenChange={onOpenChange}

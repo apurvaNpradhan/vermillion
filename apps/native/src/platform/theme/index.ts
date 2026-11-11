@@ -1,20 +1,58 @@
+import { brandThemes } from "@workspace/ui/tokens/brand";
+import * as SystemUI from "expo-system-ui";
 import { useSyncExternalStore } from "react";
-import { Appearance, type ColorValue } from "react-native";
+import { AppState, Appearance, type ColorValue } from "react-native";
 import { Uniwind, useCSSVariable, useUniwind } from "uniwind";
 
 import { deviceStorage } from "../storage";
-import { createThemeStore, forcedScheme, resolveTheme, type ThemeChoice } from "./theme-state";
+import { createThemeStore, resolvedScheme, resolveTheme, type ThemeChoice } from "./theme-state";
+
+let systemScheme = Appearance.getColorScheme();
+let applying = false;
+let lastAppearance: ThemeChoice["appearance"] | undefined;
+let refreshFrame: number | undefined;
+
+function refreshSystemScheme() {
+  if (refreshFrame !== undefined) cancelAnimationFrame(refreshFrame);
+  applying = true;
+  // Release a previous forced mode before reading the OS again, including after backgrounding.
+  Appearance.setColorScheme("auto");
+  refreshFrame = requestAnimationFrame(() => {
+    refreshFrame = requestAnimationFrame(() => {
+      refreshFrame = undefined;
+      systemScheme = Appearance.getColorScheme();
+      applying = false;
+      applyTheme(store.getSnapshot());
+    });
+  });
+}
+
+function applyTheme(choice: ThemeChoice) {
+  const returningToSystem =
+    choice.appearance === "system" && lastAppearance !== undefined && lastAppearance !== "system";
+  lastAppearance = choice.appearance;
+  if (returningToSystem) {
+    refreshSystemScheme();
+    return;
+  }
+  if (refreshFrame !== undefined) {
+    cancelAnimationFrame(refreshFrame);
+    refreshFrame = undefined;
+  }
+  const scheme = resolvedScheme(choice, systemScheme);
+  applying = true;
+  Uniwind.setTheme(resolveTheme(choice, systemScheme));
+  // Custom Uniwind themes reset Appearance; force native chrome AFTER setting the theme.
+  Appearance.setColorScheme(scheme);
+  applying = false;
+  void SystemUI.setBackgroundColorAsync(brandThemes[choice.theme][scheme].canvas);
+}
 
 const THEME_KEY = "device.theme";
 const store = createThemeStore({
   read: () => deviceStorage.get(THEME_KEY),
   write: (serialized) => deviceStorage.set(THEME_KEY, serialized),
-  apply: (choice) => {
-    // System releases any forced scheme so the OS keeps reporting its own appearance; Light and
-    // Dark force it so native alerts, keyboards and the status bar match.
-    Appearance.setColorScheme(forcedScheme(choice));
-    Uniwind.setTheme(resolveTheme(choice, Appearance.getColorScheme()));
-  },
+  apply: applyTheme,
 });
 
 let listening = false;
@@ -24,9 +62,15 @@ export function applyStoredTheme() {
   store.applyStored();
   if (listening) return;
   listening = true;
+  AppState.addEventListener("change", (state) => {
+    if (state === "active" && store.getSnapshot().appearance === "system") refreshSystemScheme();
+  });
   Appearance.addChangeListener(({ colorScheme }) => {
     const choice = store.getSnapshot();
-    if (choice === "system") Uniwind.setTheme(resolveTheme(choice, colorScheme));
+    if (applying || choice.appearance !== "system") return;
+    if (systemScheme === colorScheme) return;
+    systemScheme = colorScheme;
+    applyTheme(choice);
   });
 }
 
@@ -39,7 +83,7 @@ export function useThemeChoice() {
 /** Native chrome reads the mode, not the theme name. */
 export function useThemeMode(): "light" | "dark" {
   const { theme } = useUniwind();
-  return theme === "dark" ? "dark" : "light";
+  return theme === "dark" || theme.endsWith("-dark") ? "dark" : "light";
 }
 
 /** Supporting text for icons whose props require a color string. */
@@ -68,4 +112,10 @@ export function useOnIdentityColor(): string | undefined {
 
 export function isColorString(value: ColorValue | number | undefined): value is string {
   return typeof value === "string";
+}
+
+/** Chart marks have their own palette role, independent of selection. */
+export function useChartColor() {
+  const value = useCSSVariable("--color-chart");
+  return isColorString(value) ? value : undefined;
 }

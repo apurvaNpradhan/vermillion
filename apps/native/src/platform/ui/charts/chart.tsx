@@ -13,6 +13,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
+import { useChartColor } from "@/platform/theme";
 import { Button } from "../button";
 import {
   nearestIndex,
@@ -45,7 +46,7 @@ function Chart({
   showRanges = true,
 }: Props & { mode: "line" | "bar" }) {
   const { t } = useTranslation();
-  const ink = useThemeColor("foreground");
+  const ink = useChartColor();
   const border = useThemeColor("border");
   const [range, setRange] = useState<ChartRange>("3M");
   const [width, setWidth] = useState(0);

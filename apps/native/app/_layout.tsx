@@ -13,7 +13,9 @@ import {
 import { pendingOnboardingSteps } from "@workspace/shared";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
+import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
 import { useEffect } from "react";
 
 import {
@@ -110,7 +112,13 @@ function RootStack() {
 
 function ThemedStatusBar() {
   const mode = useThemeMode();
-  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+  const style = mode === "dark" ? "light" : "dark";
+  return (
+    <>
+      <StatusBar style={style} />
+      {Platform.OS === "android" ? <NavigationBar style={style} /> : null}
+    </>
+  );
 }
 
 export default function Layout() {

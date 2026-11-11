@@ -1,74 +1,63 @@
+import { themeNames } from "@workspace/ui/tokens/brand";
 import { describe, expect, it, vi } from "vitest";
+import {
+  APPEARANCES,
+  createThemeStore,
+  parseTheme,
+  resolvedScheme,
+  resolveTheme,
+} from "./theme-state";
 
-import { createThemeStore, forcedScheme, parseTheme, resolveTheme } from "./theme-state";
-
-describe("parseTheme", () => {
-  it("reads the three current values", () => {
-    expect(parseTheme("system")).toBe("system");
-    expect(parseTheme("light")).toBe("light");
-    expect(parseTheme("dark")).toBe("dark");
-  });
-
-  it("defaults to system when nothing or garbage is stored", () => {
-    expect(parseTheme(null)).toBe("system");
-    expect(parseTheme("")).toBe("system");
-    expect(parseTheme("{broken")).toBe("system");
-    expect(parseTheme("sepia")).toBe("system");
-    expect(parseTheme(JSON.stringify({ sync: "yes" }))).toBe("system");
-  });
-
-  it("maps former theme names to light or dark", () => {
-    for (const name of ["polar-light", "flexoki-light", "classic-light", "rose-pine-dawn"]) {
-      expect(parseTheme(name), name).toBe("light");
-    }
-    for (const name of ["polar-dark", "everforest-dark", "rose-pine-moon", "catppuccin-mocha"]) {
-      expect(parseTheme(name), name).toBe("dark");
+describe("device theme selection", () => {
+  it("migrates only the previous bare appearance values", () => {
+    for (const appearance of APPEARANCES) {
+      expect(parseTheme(appearance)).toEqual({ theme: "classic", appearance });
     }
   });
-
-  it("migrates the former JSON selection", () => {
-    const pair = { light: "flexoki-light", dark: "kanagawa-wave" };
-    expect(parseTheme(JSON.stringify({ ...pair, sync: true, single: "polar-dark" }))).toBe(
-      "system",
-    );
-    expect(parseTheme(JSON.stringify({ ...pair, sync: false, single: "polar-dark" }))).toBe("dark");
-    expect(parseTheme(JSON.stringify({ ...pair, sync: false, single: "catppuccin-latte" }))).toBe(
-      "light",
-    );
-    expect(parseTheme(JSON.stringify({ ...pair, sync: false, single: "nonsense" }))).toBe("system");
+  it("falls back safely on invalid and retired storage formats", () => {
+    for (const stored of [
+      null,
+      "",
+      "{broken",
+      "sepia",
+      "polar-dark",
+      '{"sync":true,"light":"classic-light","dark":"classic-dark","single":"polar-dark"}',
+      '{"theme":"chalk","appearance":"sepia"}',
+    ]) {
+      expect(parseTheme(stored)).toEqual({ theme: "classic", appearance: "system" });
+    }
   });
-});
-
-describe("resolveTheme and forcedScheme", () => {
-  it("follows the OS only for system", () => {
-    expect(resolveTheme("system", "dark")).toBe("dark");
-    expect(resolveTheme("system", "light")).toBe("light");
-    expect(resolveTheme("system", null)).toBe("light");
-    expect(resolveTheme("dark", "light")).toBe("dark");
-    expect(resolveTheme("light", "dark")).toBe("light");
+  it("round-trips and resolves every theme and appearance", () => {
+    for (const theme of themeNames)
+      for (const appearance of APPEARANCES) {
+        const choice = { theme, appearance };
+        expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
+        // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
+        for (const os of ["light", "dark", null] as const) {
+          const mode = appearance === "system" ? (os ?? "light") : appearance;
+          expect(resolvedScheme(choice, os)).toBe(mode);
+          expect(resolveTheme(choice, os)).toBe(theme === "classic" ? mode : `${theme}-${mode}`);
+        }
+      }
   });
-
-  it("releases the forced scheme for system", () => {
-    expect(forcedScheme("system")).toBe("unspecified");
-    expect(forcedScheme("light")).toBe("light");
-    expect(forcedScheme("dark")).toBe("dark");
-  });
-});
-
-describe("createThemeStore", () => {
-  it("applies, stores and announces a change once", () => {
+  it("applies, persists and announces each actual change once", () => {
     const write = vi.fn();
     const apply = vi.fn();
     const listener = vi.fn();
-    const store = createThemeStore({ read: () => "polar-dark", write, apply });
-    expect(store.getSnapshot()).toBe("dark");
-    store.subscribe(listener);
-    store.set("dark");
+    const store = createThemeStore({ read: () => "dark", write, apply });
+    const unsubscribe = store.subscribe(listener);
+    store.applyStored();
+    expect(apply).toHaveBeenCalledWith({ theme: "classic", appearance: "dark" });
+    store.set({ theme: "classic", appearance: "dark" });
     expect(write).not.toHaveBeenCalled();
-    store.set("system");
-    expect(apply).toHaveBeenCalledWith("system");
-    expect(write).toHaveBeenCalledWith("system");
+    // SAFETY: keep the supported selection literals for the store contract.
+    const next = { theme: "chalk", appearance: "system" } as const;
+    store.set(next);
+    expect(apply).toHaveBeenLastCalledWith(next);
+    expect(parseTheme(write.mock.calls[0]?.[0])).toEqual(next);
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(store.getSnapshot()).toBe("system");
+    unsubscribe();
+    store.set({ theme: "iron", appearance: "light" });
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

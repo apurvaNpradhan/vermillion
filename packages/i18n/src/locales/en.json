@@ -71,7 +71,7 @@
   "settings__timezone_unset": "Not set",
   "settings__timezone_device": "Use this device's time zone ({{zone}})",
   "settings__theme_title": "Theme",
-  "settings__theme_hint": "Stored on this device only.",
+  "settings__theme_hint": "Choose a palette. Light and dark previews are shown side by side.",
   "settings__delete_title": "Delete account",
   "settings__delete_body": "Permanently deletes your account and all of your data. We email you a link to confirm.",
   "settings__delete_confirm_label": "Type {{email}} to confirm",
@@ -892,5 +892,16 @@
   "plates__no_load": "No load is possible with the enabled plates.",
   "plates__bars_in": "Bars ({{unit}})",
   "plates__plates_in": "Plates ({{unit}})",
-  "plates__add_kit": "Add the {{unit}} kit"
+  "plates__add_kit": "Add the {{unit}} kit",
+  "settings__appearance_title": "Appearance",
+  "theme__classic": "Classic",
+  "theme__classic_description": "Neutral greys, the original",
+  "theme__chalk": "Chalk",
+  "theme__chalk_description": "Ink on warm paper",
+  "theme__frost": "Frost",
+  "theme__frost_description": "Cool slate and glacier blue",
+  "theme__iron": "Iron",
+  "theme__iron_description": "Warm rust and dark metal",
+  "theme__dusk": "Dusk",
+  "theme__dusk_description": "Muted rose and evening plum"
 }

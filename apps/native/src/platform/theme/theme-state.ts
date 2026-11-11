@@ -1,71 +1,43 @@
+import { themeNames, type ThemeName } from "@workspace/ui/tokens/brand";
 import { z } from "zod";
 
-/** The device's theme choice: follow the OS, or force Light or Dark. */
-export const THEME_CHOICES = ["system", "light", "dark"] as const;
-export type ThemeChoice = (typeof THEME_CHOICES)[number];
-
-export const DEFAULT_THEME: ThemeChoice = "system";
-
+// SAFETY: literal values define the appearance union used at the storage boundary.
+export const APPEARANCES = ["system", "light", "dark"] as const;
+export type AppearanceChoice = (typeof APPEARANCES)[number];
+const appearanceSchema = z.enum(APPEARANCES);
+const selectionSchema = z.object({ theme: z.enum(themeNames), appearance: appearanceSchema });
+export type ThemeChoice = z.infer<typeof selectionSchema>;
+export const DEFAULT_THEME: ThemeChoice = { theme: "classic", appearance: "system" };
 export type SystemScheme = "light" | "dark" | null | undefined;
+export type NativeTheme = "light" | "dark" | `${Exclude<ThemeName, "classic">}-${"light" | "dark"}`;
 
-const themeChoiceSchema = z.enum(THEME_CHOICES);
-
-/** Older builds stored a named theme; map it to the nearest of the three. */
-function fromName(name: string): ThemeChoice | null {
-  if (
-    name.endsWith("-light") ||
-    ["rose-pine-dawn", "catppuccin-latte", "kanagawa-lotus"].includes(name)
-  ) {
-    return "light";
-  }
-  if (
-    name.endsWith("-dark") ||
-    ["rose-pine-moon", "catppuccin-mocha", "kanagawa-wave"].includes(name)
-  ) {
-    return "dark";
-  }
-  return null;
-}
-
-const legacySchema = z.object({
-  sync: z.boolean(),
-  light: z.string(),
-  dark: z.string(),
-  single: z.string(),
-});
-
-/**
- * Read the stored value: the current string, a former bare theme name, or the former JSON
- * `{sync, light, dark, single}`. Anything else is "system".
- */
+/** Only the immediately preceding bare appearance values migrate. Invalid storage resets safely. */
 export function parseTheme(stored: string | null): ThemeChoice {
   if (!stored) return DEFAULT_THEME;
-  const direct = themeChoiceSchema.safeParse(stored);
-  if (direct.success) return direct.data;
-  const named = fromName(stored);
-  if (named) return named;
+  const appearance = appearanceSchema.safeParse(stored);
+  if (appearance.success) return { theme: "classic", appearance: appearance.data };
   try {
-    const legacy = legacySchema.safeParse(JSON.parse(stored));
-    if (!legacy.success) return DEFAULT_THEME;
-    if (legacy.data.sync) return "system";
-    return fromName(legacy.data.single) ?? DEFAULT_THEME;
+    const selection = selectionSchema.safeParse(JSON.parse(stored));
+    return selection.success ? selection.data : DEFAULT_THEME;
   } catch {
     return DEFAULT_THEME;
   }
 }
 
-/** The Uniwind theme in effect. Without a known OS scheme, System falls back to light. */
-export function resolveTheme(choice: ThemeChoice, systemScheme: SystemScheme): "light" | "dark" {
-  if (choice === "system") return systemScheme === "dark" ? "dark" : "light";
-  return choice;
+export function resolvedScheme(choice: ThemeChoice, systemScheme: SystemScheme): "light" | "dark" {
+  return choice.appearance === "system"
+    ? systemScheme === "dark"
+      ? "dark"
+      : "light"
+    : choice.appearance;
 }
 
-/** What `Appearance.setColorScheme` gets: System releases any forced scheme. */
-export function forcedScheme(choice: ThemeChoice): "light" | "dark" | "unspecified" {
-  return choice === "system" ? "unspecified" : choice;
+export function resolveTheme(choice: ThemeChoice, systemScheme: SystemScheme): NativeTheme {
+  const mode = resolvedScheme(choice, systemScheme);
+  return choice.theme === "classic" ? mode : `${choice.theme}-${mode}`;
 }
 
-/** One persisted choice; every change is applied, stored and announced together. */
+/** One device-local selection; apply, persist and notify atomically. */
 export function createThemeStore({
   read,
   write,
@@ -89,10 +61,10 @@ export function createThemeStore({
       apply(current);
     },
     set(next: ThemeChoice) {
-      if (next === current) return;
-      apply(next);
+      if (next.theme === current.theme && next.appearance === current.appearance) return;
       current = next;
-      write(next);
+      apply(next);
+      write(JSON.stringify(next));
       for (const listener of listeners) listener();
     },
   };

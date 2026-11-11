@@ -18,7 +18,8 @@ import { appConfig } from "../../app.config.ts";
  * 11: expo-audio and the Rest-end chime registered as a notification sound.
  * 9: expo-notifications (Rest notifications) and expo-keep-awake (screen on during a workout).
  */
-const NATIVE_STACK_REVISION = 11;
+// 12: expo-navigation-bar for theme-resolved Android system bar controls.
+const NATIVE_STACK_REVISION = 12;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -67,6 +68,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    ["expo-navigation-bar", { enforceContrast: false }],
     "expo-localization",
     "expo-video",
     // Rest notifications: a local notification when rest is over. Android 13+ asks at the first Rest.

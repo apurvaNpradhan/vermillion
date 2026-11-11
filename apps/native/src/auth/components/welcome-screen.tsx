@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { env } from "@/platform/env";
 import { useTranslation } from "@/platform/i18n";
 import { appConfig } from "@/platform/app-config";
+import { SignedOutThemeSettings } from "@/platform/theme/theme-picker";
 import { Button } from "@/platform/ui/button";
 
 import { splitLegal } from "../legal-text";
@@ -75,6 +76,8 @@ export function WelcomeScreen() {
             </Button.Label>
           </Button>
         </Animated.View>
+
+        <SignedOutThemeSettings />
 
         <Animated.View entering={rise(180)} className="pt-5">
           <Text className="text-center text-caption text-muted">
