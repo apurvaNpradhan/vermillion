@@ -24,6 +24,9 @@ let soundOn = true;
 export function setRestSurfaceVisible(visible: boolean) {
   surfaceVisible = visible;
 }
+export function isRestSurfaceVisible(): boolean {
+  return surfaceVisible;
+}
 export function setRestSoundEnabled(enabled: boolean) {
   soundOn = enabled;
 }

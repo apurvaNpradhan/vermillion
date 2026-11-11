@@ -28,23 +28,38 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const uiFields = {
   bodyweightKg: z.number().min(20).max(400).nullable(),
   keepAwake: z.boolean(),
-  restSound: z.boolean(),
+  sounds: z.boolean(),
+  soundRest: z.boolean(),
+  soundSets: z.boolean(),
+  soundMilestones: z.boolean(),
   sidebarCollapsed: z.boolean(),
   dismissedHints: z.array(z.string().max(100)).max(100),
   weightUnit: z.enum(WEIGHT_UNITS),
   effortScale: z.enum(EFFORT_SCALES),
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
 };
-export const uiPreferencesSchema = z.object({
-  bodyweightKg: uiFields.bodyweightKg.default(null),
-  keepAwake: uiFields.keepAwake.default(true),
-  restSound: uiFields.restSound.default(true),
-  sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
-  dismissedHints: uiFields.dismissedHints.default([]),
-  weightUnit: uiFields.weightUnit.default("kg"),
-  effortScale: uiFields.effortScale.default("rpe"),
-  defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
-});
+export const uiPreferencesSchema = z
+  .object({
+    bodyweightKg: uiFields.bodyweightKg.default(null),
+    keepAwake: uiFields.keepAwake.default(true),
+    sounds: uiFields.sounds.default(true),
+    // Optional so a stored value from before the groups existed can be told from a default.
+    soundRest: uiFields.soundRest.optional(),
+    soundSets: uiFields.soundSets.default(true),
+    soundMilestones: uiFields.soundMilestones.default(true),
+    /** Legacy: the single "Rest timer sound" switch. Read only to migrate it into `soundRest`. */
+    restSound: z.boolean().optional(),
+    sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
+    dismissedHints: uiFields.dismissedHints.default([]),
+    weightUnit: uiFields.weightUnit.default("kg"),
+    effortScale: uiFields.effortScale.default("rpe"),
+    defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
+  })
+  // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
+  .transform(({ restSound, soundRest, ...rest }) => ({
+    ...rest,
+    soundRest: soundRest ?? restSound ?? true,
+  }));
 export type UiPreferences = z.infer<typeof uiPreferencesSchema>;
 
 /** A sparse update (and the sparse value stored in the database): any subset of the fields. */

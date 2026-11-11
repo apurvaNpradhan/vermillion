@@ -19,6 +19,7 @@ import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
+import { useSoundCues } from "./use-sound-cues";
 import { useStableHandler } from "./use-stable-handler";
 
 import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
@@ -310,6 +311,7 @@ export function useLoggingState({
   }, [entry, found, readOnly]);
 
   // ---- Ticking ----
+  const sound = useSoundCues();
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const refusals = useRef(0);
 
@@ -332,6 +334,7 @@ export function useLoggingState({
         refusals.current += 1;
         setRefusal({ setId, fields: result.missing, nonce: refusals.current });
         haptic.alert();
+        sound.play("refused");
         return false;
       }
       if (!result.wrote) return true;
@@ -351,10 +354,22 @@ export function useLoggingState({
       });
       if (record || strong) haptic.success();
       else haptic.tick();
+      // A countdown that reached zero is the only `strong` tick.
+      sound.playTick({ record, countdown: strong });
       if (result.rest) onRestStarted?.();
       return true;
     },
-    [found, historyReady, actions, session, previous, bodyweightKg, blockOfSet, onRestStarted],
+    [
+      found,
+      historyReady,
+      actions,
+      session,
+      previous,
+      bodyweightKg,
+      blockOfSet,
+      onRestStarted,
+      sound,
+    ],
   );
 
   const onTick = useCallback(

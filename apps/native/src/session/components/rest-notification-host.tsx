@@ -12,6 +12,7 @@ import {
   scheduleRestNotification,
   scheduledRestIds,
 } from "../rest-notification";
+import { restSoundOn } from "../rest-sound";
 import { refreshRestPermission, useRestPermission } from "../rest-permission-store";
 import { REST_NOTIFICATION_PREFIX, planRestSchedule } from "../rest-schedule";
 import { useActiveSessions } from "../use-active-sessions";
@@ -31,7 +32,8 @@ export function RestNotificationHost() {
   const permission = useRestPermission();
   const reconciler = useRef(createRestReconciler());
   const known = useRef(new Map<string, number>());
-  const soundOn = usePreferences().preferences.ui.restSound;
+  const { sounds, soundRest } = usePreferences().preferences.ui;
+  const soundOn = restSoundOn({ sounds, soundRest });
   const scheduledWithSound = useRef(soundOn);
   setRestSoundEnabled(soundOn);
   // A scheduled notification keeps the sound it was made with, so a changed setting reschedules all.

@@ -1,4 +1,4 @@
-import { Bell, SpeakerHigh, Sun } from "phosphor-react-native";
+import { Bell, CheckCircle, SpeakerHigh, Sun, Timer, Trophy } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 import { Linking } from "react-native";
 
@@ -9,26 +9,31 @@ import { usePreferences } from "@/preferences";
 
 import { askRestPermission, useRestPermission } from "./rest-permission-store";
 
-/** The rows for the Training section and the sheets they open. */
-export type SessionSettings = { rows: ReactNode[]; sheets: ReactNode };
+/**
+ * The session settings, as rows and the sheets they open. `soundRows` go in a "Sounds" section,
+ * `rows` in the Training section, and `sheets` render beside them. Settings and the Session's own
+ * settings sheet use the same rows, so they behave the same.
+ */
+export type SessionSettings = { soundRows: ReactNode[]; rows: ReactNode[]; sheets: ReactNode };
 
 const ON = "on";
 const OFF = "off";
 
+type Picker = "sounds" | "soundRest" | "soundSets" | "soundMilestones" | "awake" | null;
+
 /**
- * The Settings → Training rows of the Session: whether Rest notifications are allowed (it shows
- * the system's answer, and opens the system settings once the user has declined or to change it)
- * and whether the Rest ends with a chime, whether the screen stays awake during a workout. `rows` go in the Training section; `sheets`
- * render beside it.
+ * The session rows of Settings: the Sounds (a master switch, and the Rest, set and milestone
+ * groups under it while it is on), whether Rest notifications are allowed (it shows the system's
+ * answer, and opens the system settings once the user has declined or to change it), and whether
+ * the screen stays awake during a workout.
  */
 export function useSessionSettings(): SessionSettings {
   const { t } = useTranslation();
   const { preferences, setUi } = usePreferences();
   const permission = useRestPermission();
-  const [pickingAwake, setPickingAwake] = useState(false);
-  const keepAwake = preferences.ui.keepAwake;
-  const restSound = preferences.ui.restSound;
-  const [pickingSound, setPickingSound] = useState(false);
+  const [picker, setPicker] = useState<Picker>(null);
+  const { keepAwake, sounds, soundRest, soundSets, soundMilestones } = preferences.ui;
+  const onOff = (on: boolean) => (on ? t("session__setting_on") : t("session__setting_off"));
 
   const notificationStatus =
     permission === "granted"
@@ -37,6 +42,53 @@ export function useSessionSettings(): SessionSettings {
         ? t("session__setting_denied")
         : t("session__setting_not_set");
 
+  const groups = [
+    {
+      key: "soundRest",
+      icon: Timer,
+      title: t("session__setting_sound_rest"),
+      hint: t("session__setting_sound_rest_hint"),
+      on: soundRest,
+      patch: (on: boolean) => ({ soundRest: on }),
+    },
+    {
+      key: "soundSets",
+      icon: CheckCircle,
+      title: t("session__setting_sound_sets"),
+      hint: t("session__setting_sound_sets_hint"),
+      on: soundSets,
+      patch: (on: boolean) => ({ soundSets: on }),
+    },
+    {
+      key: "soundMilestones",
+      icon: Trophy,
+      title: t("session__setting_sound_milestones"),
+      hint: t("session__setting_sound_milestones_hint"),
+      on: soundMilestones,
+      patch: (on: boolean) => ({ soundMilestones: on }),
+    },
+  ] as const;
+
+  const soundRows = [
+    <ListRow
+      key="sounds"
+      icon={SpeakerHigh}
+      title={t("session__setting_sounds")}
+      value={onOff(sounds)}
+      onPress={() => setPicker("sounds")}
+    />,
+    ...(sounds
+      ? groups.map((group) => (
+          <ListRow
+            key={group.key}
+            icon={group.icon}
+            title={group.title}
+            value={onOff(group.on)}
+            onPress={() => setPicker(group.key)}
+          />
+        ))
+      : []),
+  ];
   const rows = [
     <ListRow
       key="rest-notifications"
@@ -54,47 +106,54 @@ export function useSessionSettings(): SessionSettings {
       }}
     />,
     <ListRow
-      key="rest-sound"
-      icon={SpeakerHigh}
-      title={t("session__setting_rest_sound")}
-      value={restSound ? t("session__setting_on") : t("session__setting_off")}
-      onPress={() => setPickingSound(true)}
-    />,
-    <ListRow
       key="keep-awake"
       icon={Sun}
       title={t("session__setting_keep_awake")}
-      value={keepAwake ? t("session__setting_on") : t("session__setting_off")}
-      onPress={() => setPickingAwake(true)}
+      value={onOff(keepAwake)}
+      onPress={() => setPicker("awake")}
     />,
+  ];
+
+  const onOpenChange = (open: boolean) => {
+    if (!open) setPicker(null);
+  };
+  const onOffOptions = [
+    { value: ON, label: t("session__setting_on") },
+    { value: OFF, label: t("session__setting_off") },
   ];
   const sheets = (
     <>
       <OptionSheet
-        isOpen={pickingSound}
-        onOpenChange={setPickingSound}
-        title={t("session__setting_rest_sound")}
-        description={t("session__setting_rest_sound_hint")}
-        options={[
-          { value: ON, label: t("session__setting_on") },
-          { value: OFF, label: t("session__setting_off") },
-        ]}
-        value={restSound ? ON : OFF}
-        onSelect={(value) => setUi({ restSound: value === ON })}
+        isOpen={picker === "sounds"}
+        onOpenChange={onOpenChange}
+        title={t("session__setting_sounds")}
+        description={t("session__setting_sounds_hint")}
+        options={onOffOptions}
+        value={sounds ? ON : OFF}
+        onSelect={(value) => setUi({ sounds: value === ON })}
       />
+      {groups.map((group) => (
+        <OptionSheet
+          key={group.key}
+          isOpen={picker === group.key}
+          onOpenChange={onOpenChange}
+          title={group.title}
+          description={group.hint}
+          options={onOffOptions}
+          value={group.on ? ON : OFF}
+          onSelect={(value) => setUi(group.patch(value === ON))}
+        />
+      ))}
       <OptionSheet
-        isOpen={pickingAwake}
-        onOpenChange={setPickingAwake}
+        isOpen={picker === "awake"}
+        onOpenChange={onOpenChange}
         title={t("session__setting_keep_awake")}
         description={t("session__setting_keep_awake_hint")}
-        options={[
-          { value: ON, label: t("session__setting_on") },
-          { value: OFF, label: t("session__setting_off") },
-        ]}
+        options={onOffOptions}
         value={keepAwake ? ON : OFF}
         onSelect={(value) => setUi({ keepAwake: value === ON })}
       />
     </>
   );
-  return { rows, sheets };
+  return { soundRows, rows, sheets };
 }

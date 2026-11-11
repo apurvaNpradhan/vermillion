@@ -1,6 +1,6 @@
 import { Minus, Plus } from "phosphor-react-native";
 import { useEffect, useRef } from "react";
-import { Pressable, Text, View } from "react-native";
+import { AppState, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
@@ -10,8 +10,10 @@ import { Button } from "@/platform/ui/button";
 
 import { formatElapsed } from "../clock";
 import { REST_ADJUST_SECONDS, clampedAdjustment, restView } from "../rest-rules";
+import { isRestSurfaceVisible } from "../rest-notification";
 import { useNow } from "../use-now";
-import { useRestChime } from "../use-rest-chime";
+import { countdownBeepSecond } from "../sound-rules";
+import { useSoundCues } from "../use-sound-cues";
 
 /**
  * The bar at the bottom of the logging screen while a Rest runs: the countdown, −15, +15, Skip
@@ -36,7 +38,7 @@ export function RestBar({
   const foreground = useThemeColor("foreground");
   const now = useNow(true, 250);
   const view = restView(rest, now);
-  const chime = useRestChime();
+  const { play } = useSoundCues();
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
   const seen = useRef<string | null>(null);
@@ -45,11 +47,21 @@ export function RestBar({
     else if (seen.current === rest.endsAt) {
       seen.current = null;
       haptic.success();
-      chime();
+      play("restOver");
     }
-    // `chime` only changes with the setting, which must not replay a finished Rest.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.running, rest.endsAt]);
+  }, [view.running, rest.endsAt, play]);
+
+  // The 3-2-1 beeps, once per second left, while this screen is in front.
+  const beeped = useRef<string | null>(null);
+  const beepSecond = view.running ? countdownBeepSecond(view.remaining) : null;
+  useEffect(() => {
+    if (beepSecond === null) return;
+    const key = `${rest.endsAt}:${beepSecond}`;
+    if (beeped.current === key || AppState.currentState !== "active" || !isRestSurfaceVisible())
+      return;
+    beeped.current = key;
+    play("restCountdown");
+  }, [beepSecond, rest.endsAt, play]);
 
   if (!view.running) return null;
   const progress = view.total === 0 ? 1 : 1 - view.remaining / view.total;

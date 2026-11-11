@@ -36,6 +36,7 @@ export function SettingsScreen() {
         <View>
           <PreferenceRows />
         </View>
+        <ListSection title={t("session__setting_sounds")}>{sessionSettings.soundRows}</ListSection>
         <View>
           <TrainingPreferenceRows extraRows={sessionSettings.rows} />
         </View>

@@ -13,7 +13,10 @@ describe("ui preferences schema", () => {
     const defaults = {
       bodyweightKg: null,
       keepAwake: true,
-      restSound: true,
+      sounds: true,
+      soundRest: true,
+      soundSets: true,
+      soundMilestones: true,
       sidebarCollapsed: false,
       dismissedHints: [],
       weightUnit: "kg",
@@ -54,6 +57,37 @@ describe("ui preferences schema", () => {
     expect(uiPreferencesPatchSchema.parse({ bodyweightKg: null })).toEqual({ bodyweightKg: null });
     expect(uiPreferencesSchema.parse({}).keepAwake).toBe(true);
     expect(uiPreferencesSchema.parse({ keepAwake: false }).keepAwake).toBe(false);
+  });
+  it("migrates a stored restSound:false into soundRest without breaking other values", () => {
+    const migrated = uiPreferencesSchema.parse({ restSound: false, weightUnit: "lb" });
+    expect(migrated).toEqual({
+      ...DEFAULT_UI_PREFERENCES,
+      weightUnit: "lb",
+      soundRest: false,
+    });
+    expect("restSound" in migrated).toBe(false);
+    expect(uiPreferencesSchema.parse({ restSound: true }).soundRest).toBe(true);
+  });
+  it("lets an explicit soundRest win over the legacy restSound", () => {
+    expect(uiPreferencesSchema.parse({ restSound: false, soundRest: true }).soundRest).toBe(true);
+    expect(uiPreferencesSchema.parse({ restSound: true, soundRest: false }).soundRest).toBe(false);
+  });
+  it("holds the sound switches independently, all on by default", () => {
+    const off = uiPreferencesSchema.parse({
+      sounds: false,
+      soundSets: false,
+      soundMilestones: false,
+    });
+    expect(off).toMatchObject({
+      sounds: false,
+      soundRest: true,
+      soundSets: false,
+      soundMilestones: false,
+    });
+    expect(uiPreferencesSchema.safeParse({ soundSets: "no" }).success).toBe(false);
+    expect(uiPreferencesPatchSchema.parse({ soundRest: false, restSound: false })).toEqual({
+      soundRest: false,
+    });
   });
   it("keeps a patch sparse, without defaults", () => {
     expect(uiPreferencesPatchSchema.parse({})).toEqual({});

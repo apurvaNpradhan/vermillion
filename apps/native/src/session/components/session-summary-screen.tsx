@@ -28,6 +28,7 @@ import { useSession } from "../use-session";
 import { useSessionActions } from "../use-session-actions";
 import { useFinishSession } from "../use-finish-session";
 import { useRecordHistory } from "../use-session-history";
+import { useSoundCues } from "../use-sound-cues";
 
 export function SessionSummaryScreen({ id, onDone }: { id: string; onDone: () => void }) {
   const state = useSession(id);
@@ -55,9 +56,12 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   const finish = useFinishSession();
   const history = useRecordHistory(session.exercises.map((entry) => entry.exerciseId));
   const [step, setStep] = useState<"summary" | "workout" | "celebration">("summary");
+  const { play } = useSoundCues();
   useEffect(() => {
-    if (step === "celebration") haptic.success();
-  }, [step]);
+    if (step !== "celebration") return;
+    haptic.success();
+    play("finished");
+  }, [step, play]);
   const router = useRouter();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const backToWorkout = useCallback(() => {
