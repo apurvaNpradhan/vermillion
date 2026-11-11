@@ -1,12 +1,17 @@
-import type { EffortScale, Ghosts, LoggedSet, SetField, SupersetPlace } from "@workspace/shared";
+import {
+  SESSION_LIMITS,
+  type EffortScale,
+  type Ghosts,
+  type LoggedSet,
+  type SetField,
+  type SupersetPlace,
+} from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { memo } from "react";
-import { NotePencil } from "phosphor-react-native";
-import { Pressable, Text, View } from "react-native";
+import { memo, useRef } from "react";
+import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
-import { RestPicker } from "@/training";
+import { InlineNote, RestPicker } from "@/training";
 import type { WeightUnit } from "@workspace/shared";
 
 import { ExerciseRow } from "./exercise-row";
@@ -72,7 +77,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
-  onNote: (exercise: SessionExerciseDetail) => void;
+  onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
@@ -131,7 +136,10 @@ export const ExerciseItem = memo(function ExerciseItem({
   );
 });
 
-/** The rest and note chips at the top of an open exercise, with the note's text below them. */
+/**
+ * The note and the rest timer under an open exercise's name: the note is edited in place and saved
+ * when the field is left; the rest timer is a link to its picker.
+ */
 function ExerciseBody({
   entry,
   place,
@@ -142,47 +150,42 @@ function ExerciseBody({
   entry: SessionExerciseDetail;
   place: SupersetPlace;
   readOnly: boolean;
-  onNote: (exercise: SessionExerciseDetail) => void;
+  onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
 }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
+  // What was typed since the field was last left; undefined when nothing was typed.
+  const draft = useRef<string | null | undefined>(undefined);
   const showsRest = !readOnly && place !== "first" && place !== "middle";
   return (
-    <View className="gap-2">
-      {readOnly ? null : (
-        <View className="flex-row gap-2">
-          {showsRest ? (
-            <RestPicker
-              compact
-              value={entry.restSeconds}
-              group={place === "last"}
-              onChange={(restSeconds) => onRest(entry.id, restSeconds)}
-            />
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              entry.note
-                ? t("session__note_label", { note: entry.note })
-                : t("session__pinned_note")
-            }
-            onPress={() => onNote(entry)}
-            className="min-h-11 flex-row items-center gap-2 self-start rounded-xl bg-default px-3"
-          >
-            <NotePencil size={18} color={subtle} />
-            <Text className="text-label text-muted">{t("session__pinned_note")}</Text>
-          </Pressable>
-        </View>
+    <View>
+      {readOnly ? (
+        entry.note ? (
+          <Text className="py-2 text-body text-muted">{entry.note}</Text>
+        ) : null
+      ) : (
+        <InlineNote
+          label={t("training__pinned_note")}
+          value={entry.note}
+          placeholder={t("session__note_placeholder")}
+          maxLength={SESSION_LIMITS.noteMax}
+          onText={(text) => {
+            draft.current = text;
+          }}
+          onDone={() => {
+            const typed = draft.current;
+            draft.current = undefined;
+            if (typed !== undefined && typed !== entry.note) onNote(entry.id, typed);
+          }}
+        />
       )}
-      {entry.note ? (
-        <Text
-          accessibilityLabel={t("session__note_label", { note: entry.note })}
-          className="px-1 text-body text-muted"
-          onPress={readOnly ? undefined : () => onNote(entry)}
-        >
-          {entry.note}
-        </Text>
+      {showsRest ? (
+        <RestPicker
+          link
+          value={entry.restSeconds}
+          group={place === "last"}
+          onChange={(restSeconds) => onRest(entry.id, restSeconds)}
+        />
       ) : null}
     </View>
   );

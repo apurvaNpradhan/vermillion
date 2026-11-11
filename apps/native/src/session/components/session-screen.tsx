@@ -407,8 +407,8 @@ function LoadedSession({
   const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
   const { updateExercise } = actions;
   const onNote = useCallback(
-    (exercise: SessionExerciseDetail) => setSheet({ kind: "note", exercise }),
-    [],
+    (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
+    [updateExercise],
   );
   const onRest = useCallback(
     (exerciseId: string, restSeconds: number | null) =>

@@ -12,12 +12,15 @@ export function InlineNote({
   placeholder,
   label,
   maxLength,
+  onDone,
 }: {
   value: string | null;
   onText: (text: string | null) => void;
   placeholder: string;
   label: string;
   maxLength: number;
+  /** Called when the field loses focus, for callers that save once editing ends. */
+  onDone?: () => void;
 }) {
   const [text, setText] = useState(value ?? "");
   const [focused, setFocused] = useState(false);
@@ -34,7 +37,10 @@ export function InlineNote({
       placeholder={placeholder}
       placeholderTextColorClassName="accent-muted"
       onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onBlur={() => {
+        setFocused(false);
+        onDone?.();
+      }}
       onChangeText={(next) => {
         setText(next);
         onText(next.trim() === "" ? null : next);
