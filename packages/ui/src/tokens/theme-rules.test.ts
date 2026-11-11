@@ -64,6 +64,9 @@ describe.each(Object.entries(themes))("theme rules: %s", (_name, { mode, colors,
         "set-warmup",
         "set-drop",
         "set-failure",
+        "set-top",
+        "set-backoff",
+        "set-myo",
       ] as const) {
         expect(ratio(role, bg), `${role} on ${bg}`).toBeGreaterThanOrEqual(4.5);
       }

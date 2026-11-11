@@ -41,6 +41,9 @@
       --set-warmup: #0B6FA8;
       --set-drop: #8F6200;
       --set-failure: #9B407F;
+      --set-top: #7052AD;
+      --set-backoff: #137858;
+      --set-myo: #A34D1B;
       --subtle: #3C3D42;
       --identity: #111214;
       --identity-soft: #ECECEF;
@@ -101,6 +104,9 @@
       --set-warmup: #57C1FF;
       --set-drop: #FFC533;
       --set-failure: #D98BC4;
+      --set-top: #B6A1FF;
+      --set-backoff: #68D4B0;
+      --set-myo: #FFAA78;
       --subtle: #CDCDCF;
       --identity: #F4F4F6;
       --identity-soft: #1C1D20;
@@ -132,6 +138,9 @@
   --color-set-warmup: var(--set-warmup);
   --color-set-drop: var(--set-drop);
   --color-set-failure: var(--set-failure);
+  --color-set-top: var(--set-top);
+  --color-set-backoff: var(--set-backoff);
+  --color-set-myo: var(--set-myo);
   --color-subtle: var(--subtle);
   --color-identity: var(--identity);
   --color-identity-soft: var(--identity-soft);
