@@ -526,10 +526,6 @@ function LoadedSession({
                         ? logging.refusal
                         : null
                     }
-                    highlightedSetId={
-                      entry.sets.find((set) => logging.highlights.get(set.id) === entry.id)?.id ??
-                      null
-                    }
                     previousOf={logging.previousOf}
                     ghostsFor={logging.ghostsFor}
                     onView={viewExercise}

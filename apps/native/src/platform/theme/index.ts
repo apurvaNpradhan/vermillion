@@ -48,6 +48,12 @@ export function useSubtleColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
+/** The check on a completed set's tick. */
+export function useOnSetDoneColor(): string | undefined {
+  const value = useCSSVariable("--color-on-set-done");
+  return isColorString(value) ? value : undefined;
+}
+
 /** The selected theme's identity color, independent of its action and data roles. */
 export function useIdentityColor(): string | undefined {
   const value = useCSSVariable("--color-identity");

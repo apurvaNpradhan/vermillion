@@ -19,14 +19,7 @@ import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
-import {
-  blocksOf,
-  firstUnfinished,
-  highlightOf,
-  isBlockDone,
-  nextAfter,
-  type Block,
-} from "./blocks";
+import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
 import {
   applyKey,
   cellOrder,
@@ -143,15 +136,6 @@ export function useLoggingState({
     },
     [blocks],
   );
-
-  const highlights = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const block of blocks) {
-      const highlight = highlightOf(block);
-      if (highlight) map.set(highlight.setId, highlight.exerciseId);
-    }
-    return map;
-  }, [blocks]);
 
   // ---- Previous and Ghost values ----
   const previousOf = useCallback(
@@ -485,7 +469,6 @@ export function useLoggingState({
     openBlockId: openBlockId ?? null,
     justCollapsedId,
     toggleBlock,
-    highlights,
     previousOf,
     ghostsFor,
     unit,

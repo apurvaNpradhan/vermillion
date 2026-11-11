@@ -44,8 +44,10 @@
       --set-top: #7052AD;
       --set-backoff: #137858;
       --set-myo: #A34D1B;
-      --success-soft: #E4F5EB;
-      --success-soft-foreground: #111214;
+      --set-done: #111214;
+      --on-set-done: #FFFFFF;
+      --set-done-soft: #EBEBEE;
+      --set-done-soft-foreground: #111214;
       --subtle: #3C3D42;
       --identity: #111214;
       --identity-soft: #ECECEF;
@@ -109,8 +111,10 @@
       --set-top: #B6A1FF;
       --set-backoff: #68D4B0;
       --set-myo: #FFAA78;
-      --success-soft: #10271D;
-      --success-soft-foreground: #F4F4F6;
+      --set-done: #F4F4F6;
+      --on-set-done: #07080A;
+      --set-done-soft: #2C2D31;
+      --set-done-soft-foreground: #F4F4F6;
       --subtle: #CDCDCF;
       --identity: #F4F4F6;
       --identity-soft: #1C1D20;
@@ -145,8 +149,10 @@
   --color-set-top: var(--set-top);
   --color-set-backoff: var(--set-backoff);
   --color-set-myo: var(--set-myo);
-  --color-success-soft: var(--success-soft);
-  --color-success-soft-foreground: var(--success-soft-foreground);
+  --color-set-done: var(--set-done);
+  --color-on-set-done: var(--on-set-done);
+  --color-set-done-soft: var(--set-done-soft);
+  --color-set-done-soft-foreground: var(--set-done-soft-foreground);
   --color-subtle: var(--subtle);
   --color-identity: var(--identity);
   --color-identity-soft: var(--identity-soft);

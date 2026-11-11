@@ -1,4 +1,3 @@
-import { useThemeColor } from "heroui-native";
 import { Skeleton } from "@/platform/ui/skeleton";
 import {
   SET_FIELDS,
@@ -17,7 +16,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnIdentityColor, useSubtleColor } from "@/platform/theme";
+import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
 
@@ -50,8 +49,6 @@ export type SetRowProps = {
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
-  /** The set to log next in its block. */
-  highlighted: boolean;
   readOnly: boolean;
   canRemove: boolean;
   onCell: (setId: string, field: SetField) => void;
@@ -98,14 +95,13 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     effortScale,
     entry,
     refusal,
-    highlighted,
     readOnly,
     canRemove,
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const onIdentity = useOnIdentityColor();
-  const onSuccess = useThemeColor("success-foreground");
+  const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   const showsEffort = logEffort && fields.includes("reps") && set.kind !== "warmup";
@@ -188,7 +184,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
 
   const row = (a11y?: SwipeA11yProps) => (
     <View
-      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-success-soft" : highlighted ? "border-identity" : "border-transparent"}`}
+      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
     >
       <Pressable
         {...a11y}
@@ -246,7 +242,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
         >
           <Text
-            className={`text-body ${effortValue === null ? "text-muted" : ticked ? "text-success-soft-foreground" : "text-foreground"}`}
+            className={`text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
@@ -264,7 +260,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           disabled={readOnly || (!ticked && !props.historyReady)}
           onPress={() => props.onTick(set.id)}
           hitSlop={4}
-          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-success-soft-foreground bg-success" : "border-transparent bg-field"}`}
+          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
         >
           <Check size={18} weight="bold" color={ticked ? onSuccess : subtle} />
         </Pressable>

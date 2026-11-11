@@ -32,7 +32,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   editingFinished,
   entry,
   refusal,
-  highlightedSetId,
   previousOf,
   ghostsFor,
   onView,
@@ -65,7 +64,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   editingFinished: boolean;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
-  highlightedSetId: string | null;
   previousOf: (setId: string) => LoggedSet | null;
   ghostsFor: (setId: string) => Ghosts;
   onView: (exerciseId: string) => void;
@@ -112,7 +110,6 @@ export const ExerciseItem = memo(function ExerciseItem({
         editingFinished={editingFinished}
         entry={entry}
         refusal={refusal}
-        highlightedSetId={highlightedSetId}
         previousOf={previousOf}
         ghostsFor={ghostsFor}
         unit={unit}

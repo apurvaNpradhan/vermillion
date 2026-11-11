@@ -72,7 +72,7 @@ export function SetCell({
         {children ?? (
           <Text
             numberOfLines={1}
-            className={`text-center text-body ${empty ? "text-muted" : done ? "text-success-soft-foreground" : "text-foreground"}`}
+            className={`text-center text-body ${empty ? "text-muted" : done ? "text-set-done-soft-foreground" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {empty ? (ghost === "" ? "–" : ghost) : text}
