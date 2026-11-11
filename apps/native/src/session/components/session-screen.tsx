@@ -98,15 +98,7 @@ export function SessionScreen(props: SessionScreenProps) {
     if (state.status === "missing") props.onGone();
   }, [state.status, props]);
 
-  if (state.status === "loading" || state.status === "missing") {
-    return (
-      <View className="flex-1 gap-3 bg-background p-4 pt-16">
-        <Skeleton label={t("common__loading")} className="h-12 w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
-      </View>
-    );
-  }
+  if (state.status === "loading" || state.status === "missing") return <SessionSkeleton />;
   if (state.status === "error") {
     return (
       <View className="flex-1 justify-center gap-4 bg-background p-4">
@@ -118,6 +110,17 @@ export function SessionScreen(props: SessionScreenProps) {
     );
   }
   return <LoadedSession session={state.session} {...props} />;
+}
+
+function SessionSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <View className="flex-1 gap-3 bg-background p-4 pt-16">
+      <Skeleton label={t("common__loading")} className="h-12 w-full" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-20 w-full" />
+    </View>
+  );
 }
 
 type Sheet =
@@ -423,6 +426,10 @@ function LoadedSession({
     () => new Set(session.exercises.slice(0, warmCount).map((entry) => entry.id)),
     [session.exercises, warmCount],
   );
+
+  // One ready state: the screen draws once it knows whose Session this is and the exercises'
+  // Previous values, instead of drawing read-only and empty first and filling in.
+  if (installId === null || !(historyReady || historyFailed)) return <SessionSkeleton />;
 
   return (
     <View className="flex-1 bg-background">

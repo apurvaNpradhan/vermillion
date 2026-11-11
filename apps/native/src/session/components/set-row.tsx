@@ -82,6 +82,24 @@ const grow = (field: SetField) => (field === "reps" ? "flex-[1.2]" : "flex-1");
  * of the exercise's type, effort when the exercise logs it, and the tick. Cells are pressables
  * that open the keypad. Warm-ups record no effort.
  */
+/** Props rebuilt on every database change even when their values did not change. */
+const COMPARED_BY_VALUE = new Set<keyof SetRowProps>(["set", "ghosts", "previous"]);
+
+/**
+ * A row redraws only when something it draws changed. Every database change parses the Session
+ * again, so the set, its Ghost values and Previous are new objects; they are compared by value.
+ */
+function sameRowProps(before: SetRowProps, after: SetRowProps): boolean {
+  // SAFETY: both objects are SetRowProps, so their own keys are SetRowProps keys.
+  const keys = Object.keys(after) as (keyof SetRowProps)[];
+  if (keys.length !== Object.keys(before).length) return false;
+  return keys.every(
+    (key) =>
+      Object.is(before[key], after[key]) ||
+      (COMPARED_BY_VALUE.has(key) && JSON.stringify(before[key]) === JSON.stringify(after[key])),
+  );
+}
+
 export const SetRow = memo(function SetRow(props: SetRowProps) {
   const {
     set,
@@ -286,4 +304,4 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   ) : (
     row()
   );
-});
+}, sameRowProps);

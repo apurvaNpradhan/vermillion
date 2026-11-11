@@ -19,6 +19,8 @@ import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
+import { useStableHandler } from "./use-stable-handler";
+
 import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
 import {
   applyKey,
@@ -461,12 +463,22 @@ export function useLoggingState({
     [exercises, readOnly, actions, blocks],
   );
 
+  // Rows are memoized: hand them handlers that keep their identity across data changes.
+  const stableOpenCell = useStableHandler(openCell);
+  const stableOnTick = useStableHandler(onTick);
+  const stableOnTimer = useStableHandler(onTimer);
+  const stableOnPrevious = useStableHandler(onPrevious);
   return {
     historyReadyFor: (exerciseId: string) => previous.has(exerciseId),
     historyReady,
     blocks,
     places,
-    openBlockId: openBlockId ?? null,
+    // Before the effect settles the first choice, the block it will open is shown open already,
+    // so the screen's first frame matches the next one.
+    openBlockId:
+      openBlockId === undefined
+        ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
+        : openBlockId,
     justCollapsedId,
     toggleBlock,
     previousOf,
@@ -493,17 +505,17 @@ export function useLoggingState({
     typedValue: entry && !entry.fresh ? valueOfText(entry.cell.field, entry.raw, unit) : undefined,
     hasNext: next !== null,
     stepText,
-    openCell,
+    openCell: stableOpenCell,
     closeKeypad,
     onKey,
     onStep,
     putValue,
     onNext,
     refusal,
-    onTick,
+    onTick: stableOnTick,
     editingFinished: session.finishedAt !== null,
-    onTimer,
-    onPrevious,
+    onTimer: stableOnTimer,
+    onPrevious: stableOnPrevious,
     onKindSelected,
     addSet,
     found,
