@@ -1,34 +1,59 @@
 # Native themes
 
-The native app offers System, Light and Dark. Light and Dark are the Classic palette from
-`brand.ts`, the same as web and email (Raycast-like: near-black steps, neutral identity). Named
-themes, including Polar Graphite, were sunset on 2026-11-09; history in
-[ADR 0031](../adr/0031-native-themes-colour-only-oklch.md).
+The app offers Classic, Chalk, Frost, Iron and Dusk in that order. Theme changes colour only.
+Appearance independently chooses System, Light or Dark. Both settings live on the device,
+including before sign-in. Email always uses Classic.
 
-## How it works
+## Palette author workflow
 
-1. `packages/ui/src/tokens/brand.ts` holds `brandTokens.colors.light` and `.dark`, complete role
-   sets shared by every platform.
-2. `pnpm --filter @workspace/ui tokens` writes them into `native-tokens.css` as the values of
-   Uniwind's built-in `light` and `dark` variants. No custom themes, no Metro `extraThemes`.
-   Never hand-edit the generated CSS.
-3. `platform/theme/theme-state.ts` parses, migrates and stores the choice (`"system" | "light" |
-   "dark"`) at `device.theme`, per device. `platform/theme/index.ts` applies it before render:
-   System releases the forced scheme and follows the OS through an `Appearance` listener; Light and
-   Dark force the scheme so the status bar, keyboard and alerts match.
-4. Settings → Preferences → Theme is a plain HeroUI `Select`.
+`packages/ui/src/tokens/brand.ts` exports `brandThemes`, `themeNames` and `ThemeName`.
+`roles.ts` defines the complete `RoleTokens` contract. `brandTokens.colors` still points to
+Classic for existing consumers.
 
-Old stored values (the JSON selection and named themes) migrate to the nearest of the three.
+Each palette lives in `packages/ui/src/tokens/themes/`:
 
-## Edit a colour
+- `classic.ts` holds the original light and dark roles.
+- `chalk.ts`, `frost.ts`, `iron.ts`, `dusk.ts` each export complete `light` and `dark` objects
+  and a `pending` flag. Their current values are explicit copies of Classic.
 
-Change the hex in `brand.ts` (this also changes web and email), run `pnpm --filter @workspace/ui tokens`, then
-`pnpm --filter @workspace/ui test`. `theme-rules.test.ts` enforces contrast and layer steps for
-Classic Light and Dark. Restart Metro after regenerating CSS.
+Replace both objects in the chosen file. Set `action` and its hover/pressed/on roles to the
+primary accent button; set `identity`, its soft/on roles and `focus-ring` for selection.
+Set `chart` to the accent. Tune the existing `set-done` roles for completed sets. Leave the
+muscle map red. Classic keeps neutral actions and foreground chart marks.
 
-## Validation on device
+Set that file's `pending` to `false`, remove the PLACEHOLDER comment and TODO, and run
+`pnpm --filter @workspace/ui tokens`, then `pnpm --filter @workspace/ui test`. Commit the
+palette and generated `packages/ui/src/styles/native-tokens.css` together. No structure or
+component edit is needed. Pending skips only identity visibility and layer order. All text,
+status, completed-set and plate tests still apply. Only Classic keeps permanent exemptions.
 
-- Each of System, Light and Dark; restart and confirm persistence.
-- System: change the OS appearance and watch the app follow.
-- Layers (canvas, cards, sheets, tab pill) stay distinguishable at low brightness.
-- Auth, CAPTCHA, keyboard, modal layers, empty and error states.
+## Runtime
+
+`platform/theme/theme-state.ts` parses `{ theme, appearance }` at `device.theme`. Previous
+bare `system`, `light` and `dark` values migrate to Classic with that appearance. Unknown
+values, including the retired multi-theme JSON format, fall back to Classic × System.
+
+The app caches the OS scheme and listens for Appearance changes. System resolves to the
+selected theme's light/dark variant, falling back to light if no OS scheme is available.
+Explicit Light and Dark ignore OS changes. Uniwind custom themes disable its built-in
+adaptive mode and reset native Appearance, so the app calls `Uniwind.setTheme` first and
+`Appearance.setColorScheme` second. `useThemeMode()` reads the resolved suffix for chrome.
+`expo-system-ui` paints the root background from the selected palette. Android edge-to-edge
+bars show that background; status and navigation icon styles follow the resolved mode.
+
+The CSS adapter emits all variables in all ten variants. Classic uses `light` and `dark`;
+Metro registers the other eight flat names through `extraThemes`. After changing Metro
+registration, restart Metro with `--clear`. Never hand-edit generated CSS.
+
+Preferences has Theme preview cards with light and dark side by side, plus an Appearance
+row. Android bar controls use `expo-navigation-bar` with contrast enforcement disabled;
+the added native module requires a development-client rebuild. The welcome screen exposes the same sheets before sign-in. Tapping a palette applies
+it immediately and keeps the gallery open for comparison.
+
+## Device verification
+
+Try every Theme × Appearance combination and restart to check persistence. With System,
+change the OS appearance while active and while backgrounded. Switch from forced Light or
+Dark back to System. Check keyboard, alerts, CAPTCHA, sheets, status and navigation bars,
+and layer separation at low brightness. Automated tests cover storage and resolution,
+not native rendering.

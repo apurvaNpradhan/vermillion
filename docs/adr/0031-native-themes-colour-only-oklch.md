@@ -4,6 +4,9 @@ Status: accepted (2026-11-08). Amended 2026-11-09: superseded, named themes suns
 
 > **Amended 2026-11-09: superseded, named themes sunset.** Native now offers only System, Light and Dark. Light and Dark use the Polar Graphite values from `native-themes.ts` through Uniwind's built-in `light` and `dark` variants. The other families, the generator, `palette-sources.ts`, `oklch.ts`, the Appearance screen and `extraThemes` registration were removed. The colour-only rule, the role set and the contrast and layer tests still hold, now over Polar and Classic. The record below is kept as history.
 
+> The named-theme removal, generator and neutral-only colour grammar are superseded by
+> [0039](0039-hand-tuned-native-themes.md). The historical record below remains unchanged.
+
 ## Context
 
 The theme gallery was an experiment: Polar Graphite and Classic, with Classic restoring the old layout and a long list of editor palettes (Gruvbox, GitHub Dark, Catppuccin Mocha, Kanagawa Dragon, Refire, Prometheus, Lusion). Those extra themes were mapped role by role by hand from editor palettes. They had no consistent layer steps, so cards and sheets merged into the canvas, and no contrast guarantees, so muted text and status colours failed on some. Two layouts doubled the screens to verify. A single picker with 15 entries also mixed light and dark with no link to the OS appearance.

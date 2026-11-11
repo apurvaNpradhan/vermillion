@@ -6,35 +6,38 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native themes
 
-Native offers System, Light and Dark, colour-only: one layout. Light and Dark are Classic (`brand.ts`),
-the same palette as transactional email, written into Uniwind's built-in `light` and
-`dark` variants by the token build; there are no custom themes. Named themes, Polar Graphite
-included, were sunset on 2026-11-09 ([ADR 0031](docs/adr/0031-native-themes-colour-only-oklch.md)).
-How-to: [Native themes](docs/guides/native-themes.md).
+Native offers Classic, Chalk, Frost, Iron and Dusk, each with light and dark palettes.
+Theme and Appearance are independent device settings. Appearance offers System, Light and Dark.
+Themes change colour only; every theme shares one layout. See
+[ADR 0039](docs/adr/0039-hand-tuned-native-themes.md) and the [guide](docs/guides/native-themes.md).
 
-- **Rules (tests over Classic Light/Dark):** text 7:1 / 4.5:1, identity roles 3:1,
-  `on-identity` 4.5:1, layers stepping 0.015 to 0.06 in L. Classic is exempt from the identity
-  checks (neutral by design) and Classic dark from the layer order (darker sheet).
-- **Colour grammar:** the primary action is neutral. `identity` marks focus, checks, selection and
-  the active tab capsule (`identity-soft` fill, `identity` icon); the compose button is an
-  `identity` fill with an `on-identity` icon. `brand-detail` is decorative only.
-- **Selection:** `device.theme` is `"system" | "light" | "dark"`, default `"system"`. System
-  follows the OS; Light and Dark force the colour scheme for native chrome. Choose it with the
-  Theme select at Settings → Preferences. There is no picker before sign-in.
-- Native chrome, status bars, blur and CAPTCHA use `useThemeMode()`.
+- `brandThemes` in `packages/ui/src/tokens/brand.ts` collects the complete role sets. Classic
+  remains the email palette and Uniwind's built-in `light` / `dark`; the others use flat names
+  such as `chalk-light`. New palettes are placeholders until their author removes `pending`.
+- Contrast and layer tests run across all ten palettes. Classic alone keeps its neutral
+  identity and dark layer exemptions. Pending palettes temporarily skip identity visibility
+  and layer order; text, status, completed-set and plate rules still run.
+- Classic uses neutral primary actions. Other themes use their accent for `action`, `identity`,
+  active tabs, current sets, progress, selected filters and the active program. `on-action` and
+  `on-identity` provide readable ink. `chart` is foreground in Classic and accent in the others.
+- Completed sets use `set-done` roles. The muscle map stays red in every theme.
+- `device.theme` stores `{ theme, appearance }`, defaulting to Classic × System. It never syncs
+  to an account. Preferences and the signed-out welcome screen expose the same controls.
+- The app resolves System, applies the flat Uniwind name, then forces native Appearance to the
+  resolved mode. Native chrome, status bars, blur and CAPTCHA use `useThemeMode()`.
 
 The sections below describe the Classic palette's contract and the shared layout.
 
 ## Overview
 
-Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the interface. It is built on near-black surface steps, hairline borders, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
+Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the Classic interface. It is built on near-black surface steps, hairline borders, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
 Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
 ### Principles
 
 1. **Numbers are the headline.** Weight, reps, calories and macros get the biggest type on screen, set in tabular figures.
-2. **Color is meaning, never decoration.** Neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
+2. **Color is meaning, never decoration.** In Classic, neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
 3. **One loud thing per screen.** At most one filled primary button (white in dark mode) in any view.
 4. **Quiet surfaces, crisp edges.** Depth comes from surface steps and 1px hairlines, not shadows. Floating layers and buttons (a raised keycap edge) are the only exceptions.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
@@ -43,17 +46,17 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 
 ### Foundations at a glance
 
-| Area     | Rule                                                         |
-| -------- | ------------------------------------------------------------ |
-| Modes    | Dark default + light mode via role tokens                    |
-| Action   | White primary button in dark, near-black in light            |
-| Color    | No accent hue; color only for data (macros) and status       |
-| Surfaces | Four steps, spaced for phone screens                         |
-| Depth    | No shadows except floating layers and the button keycap edge |
-| Controls | 44pt Standard, 56–64pt Active                                |
-| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt     |
-| Radius   | 4/8/12/16/28                                                 |
-| Motion   | Full motion and haptic token sets                            |
+| Area     | Rule                                                               |
+| -------- | ------------------------------------------------------------------ |
+| Modes    | Dark default + light mode via role tokens                          |
+| Action   | White primary button in dark, near-black in light                  |
+| Color    | Classic has no accent hue; color only for data (macros) and status |
+| Surfaces | Four steps, spaced for phone screens                               |
+| Depth    | No shadows except floating layers and the button keycap edge       |
+| Controls | 44pt Standard, 56–64pt Active                                      |
+| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt           |
+| Radius   | 4/8/12/16/28                                                       |
+| Motion   | Full motion and haptic token sets                                  |
 
 ## Decision log
 
@@ -80,7 +83,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 
 Every color is a role with a dark and a light value; components never reference a hex. All text pairs below were checked against WCAG 2.1: 4.5:1 for text, 3:1 for icons and graphics.
 
-The interface has no accent hue: the primary button is the brightest neutral (`#FFFFFF` on dark, `#111214` on light), so the only saturated colors on screen are data (macros) and status.
+The Classic interface has no accent hue: the primary button is the brightest neutral (`#FFFFFF` on dark, `#111214` on light), so the only saturated colors on screen are data (macros) and status.
 
 ### Surfaces and lines
 
@@ -319,7 +322,7 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 ### Icon color
 
 - Default `text-secondary`; inactive tabs `text-muted`; selected tab `text-primary` + Fill weight.
-- No accent hue on icons; the primary button's icon takes `on-action`.
+- Classic has no accent hue on icons; the primary button's icon takes `on-action`.
 - Macro icons may take their macro color, only next to that macro's value.
 
 ### Core icon map
@@ -351,7 +354,7 @@ Exercise demonstrations and muscle-group body maps are out of scope for the icon
 
 ## Data visualization
 
-Charts are minimal and color carries meaning: neutral data and macro colors for macros; PRs and today stand out by brightness, not hue.
+Charts are minimal and color carries meaning: the `chart` role for ordinary series and macro colors for macros; PRs and today stand out by brightness, not hue.
 
 | Chart                | Spec                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -596,3 +599,9 @@ The token layer is complete; what remains is verification on device and a few sy
 3. `NumberStepper`, `SetRow`, `RestTimer`, `LiveWorkoutBar` (the Active-mode core)
 4. `MacroSummary`, `MealSlotCard`, `FoodRow`
 5. Charts, then the web dashboard on coss ui
+
+## Palette credits
+
+Hand-tuned themes take inspiration from Flexoki by Steph Ango, Nord by Arctic Ice Studio,
+Gruvbox by Pavel Pertsev, and Rosé Pine. All four projects use the MIT licence. Source links
+and attribution are in [palette credits](docs/licenses/palette-credits.md).

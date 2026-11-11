@@ -16,7 +16,13 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native themes ([ADR 0031](../docs/adr/0031-native-themes-colour-only-oklch.md), amended; [guide](../docs/guides/native-themes.md)): only System, Light and Dark, colour-only, one layout. Light and Dark are Classic from `tokens/brand.ts` (shared with email), emitted into Uniwind's built-in `light` and `dark` variants. Every role is defined, and `theme-rules.test.ts` enforces contrast and layer steps. After changing them run `pnpm --filter @workspace/ui tokens`, commit the generated CSS, and restart Metro. Layout never branches on the theme; use `useThemeMode()` for native chrome, not `theme === "dark"`. Use `identity` / `identity-soft` / `focus-ring` for focus, checks and selection, `on-identity` on an identity fill; `brand-detail` is decorative only.
+Native themes ([ADR 0039](../docs/adr/0039-hand-tuned-native-themes.md), [guide](../docs/guides/native-themes.md)):
+Classic, Chalk, Frost, Iron and Dusk, each light/dark, with independent device-local Appearance
+System/Light/Dark. Palette files live under `tokens/themes/`; `brandThemes` collects them and
+`brandTokens.colors` remains Classic for email. Regenerate CSS after editing palettes and restart
+Metro with `--clear` after registration changes. Layout never branches on theme; use
+`useThemeMode()` for native chrome. Identity roles drive selection, `action` drives primary
+buttons, and `chart` drives chart marks. Other palettes use an accent; Classic stays neutral.
 
 Classic rules: no brand accent color in the UI; the primary action is the one white (dark) or near-black (light) filled button per screen; selected states use the surface step and `foreground`; numbers use tabular figures.
 
