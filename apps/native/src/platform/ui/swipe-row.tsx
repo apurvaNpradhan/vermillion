@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -92,18 +93,26 @@ export function SwipeRoot({ children }: { children: ReactNode }) {
 
 function SwipeDismissSurface({ children }: { children: ReactNode }) {
   const group = useContext(SwipeGroupContext);
-  const startY = useRef(0);
+  const start = useRef({ x: 0, y: 0 });
   return (
     <View
       style={{ flex: 1 }}
       onStartShouldSetResponderCapture={(event) => {
-        startY.current = event.nativeEvent.pageY;
+        start.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
         return false;
       }}
       onTouchStart={() => group?.closeOpen()}
       onMoveShouldSetResponderCapture={(event) => {
-        if (Math.abs(event.nativeEvent.pageY - startY.current) > SCROLL_WINS) group?.closeOpen();
+        if (Math.abs(event.nativeEvent.pageY - start.current.y) > SCROLL_WINS) group?.closeOpen();
         return false;
+      }}
+      // A native scroll can take the touch before any move reaches JS (Android): the touch is
+      // cancelled instead. A mostly vertical cancel is a scroll; a horizontal one is a row's own
+      // swipe taking over, which must not close it.
+      onTouchCancel={(event) => {
+        const dx = Math.abs(event.nativeEvent.pageX - start.current.x);
+        const dy = Math.abs(event.nativeEvent.pageY - start.current.y);
+        if (dy >= dx) group?.closeOpen();
       }}
     >
       {children}
@@ -138,6 +147,8 @@ export function SwipeRow({
     }),
     [translateX],
   );
+  // A row that unmounts while open (navigation, data change) must not stay registered.
+  useEffect(() => () => group?.didClose(handle), [group, handle]);
   const close = () => {
     handle.close();
     group?.didClose(handle);
