@@ -1,6 +1,8 @@
 import { ORPCError } from "@orpc/client";
 import type { TranslationKey } from "@workspace/i18n";
 
+import { isNetworkError } from "./network-error";
+
 /** Translation keys for the typed error codes the API throws. */
 const CODE_KEYS = new Map<string, TranslationKey>([
   ["BAD_REQUEST", "errors__bad_request"],
@@ -55,6 +57,7 @@ export function isUnauthorized(error: ApiError): boolean {
  * never shown.
  */
 export function errorMessageKey(error: ApiError): TranslationKey {
+  if (isNetworkError(error)) return "errors__offline";
   const detail = detailCode(error);
   const code = errorCode(error);
   return (

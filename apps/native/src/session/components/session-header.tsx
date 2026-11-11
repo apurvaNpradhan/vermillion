@@ -5,6 +5,7 @@ import { useThemeColor } from "heroui-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { OfflinePill } from "@/sync";
 
 import { elapsedSeconds, formatElapsed } from "../clock";
 import { useNow } from "../use-now";
@@ -81,6 +82,7 @@ export function SessionHeader({
           >
             {t("session__header_stats", { volume, count: sets })}
           </Text>
+          <OfflinePill />
         </View>
       </View>
       <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>

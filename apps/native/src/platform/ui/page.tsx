@@ -16,6 +16,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
 import { useTabBarClearance } from "@/platform/navigation/tab-bar-metrics";
+import { OfflinePill, useOfflineIndicator } from "@/sync";
 
 import { FloatingSurface } from "./floating-surface";
 
@@ -27,6 +28,8 @@ const BUTTON = 44;
 const BUTTON_GAP = 12;
 /** Space kept clear on the right of the compact title for a page's action capsule. */
 const ACTIONS_CLEARANCE = 128;
+/** Extra room kept clear for the Offline pill while it shows. */
+const PILL_CLEARANCE = 88;
 /**
  * Scroll distance over which the header changes over: the large title has scrolled most of the
  * way under the bar by the end, so the two titles never show at once.
@@ -100,6 +103,7 @@ export function Page({
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const offline = useOfflineIndicator();
   const scrollY = useSharedValue(0);
   const target = useRef<ScrollTarget | null>(null);
   useScrollToTop(target);
@@ -165,17 +169,20 @@ export function Page({
         ) : (
           <View />
         )}
-        {actions ? (
-          <FloatingSurface radius={22} className="h-11 flex-row items-center px-1">
-            {actions}
-          </FloatingSurface>
-        ) : null}
+        <View pointerEvents="box-none" className="flex-row items-center gap-2">
+          <OfflinePill />
+          {actions ? (
+            <FloatingSurface radius={22} className="h-11 flex-row items-center px-1">
+              {actions}
+            </FloatingSurface>
+          ) : null}
+        </View>
         <CompactTitle
           title={title}
           scrollY={scrollY}
           collapse={collapse}
           left={back ? SIDE + BUTTON + BUTTON_GAP : SIDE}
-          right={actions ? ACTIONS_CLEARANCE : SIDE}
+          right={(actions ? ACTIONS_CLEARANCE : SIDE) + (offline ? PILL_CLEARANCE : 0)}
           onPress={() => scrollToTop(target.current)}
         />
       </View>

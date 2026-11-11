@@ -100,7 +100,6 @@ export function createConnector({
   /** Maps a failed call to a signal and the error the SDK retries on. */
   function fail(error: Error | null | undefined): never {
     const kind = classifyFailure(error);
-    console.log("UPLOADDBG", kind, String(error), JSON.stringify(error)?.slice(0, 800));
     if (kind === "unauthorized" || kind === "wrong-account") onSignal(kind);
     if (kind === "incompatible") onSignal("update-required");
     throw new SyncUploadError(kind);

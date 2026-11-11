@@ -1,5 +1,7 @@
 import type { TranslationKey } from "@workspace/i18n";
 
+import { isOfflineAuthFailure } from "./network-error";
+
 /** What Better Auth's client returns on failure. */
 export type AuthFailure = { code?: string | undefined; status?: number | undefined };
 
@@ -24,6 +26,7 @@ export function authErrorKey(failure: AuthFailure | null | undefined): Translati
     const key = KEYS.get(failure.code);
     if (key) return key;
   }
+  if (isOfflineAuthFailure(failure)) return "errors__offline";
   if (failure?.status === 429) return "errors__too_many_requests";
   return "auth__error_unknown";
 }
