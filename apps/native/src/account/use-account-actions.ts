@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { isNetworkError } from "@workspace/client/network-error";
 import { SESSION_QUERY_KEY } from "@workspace/client/session";
 
 import { orpc } from "@/platform/orpc";
@@ -23,6 +24,8 @@ export function useRequestDeletion() {
   const mutation = useMutation(orpc.account.requestDeletion.mutationOptions());
   return {
     requestDeletion: mutation.mutate,
+    /** The request failed because there is no connection. */
+    isOffline: isNetworkError(mutation.error),
     isPending: mutation.isPending,
     isSuccess: mutation.isSuccess,
   };

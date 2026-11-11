@@ -1,5 +1,7 @@
+import { isNetworkError } from "@workspace/client/network-error";
 import { useForm } from "@tanstack/react-form";
-import { Spinner, useToast } from "heroui-native";
+import { Spinner } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { z } from "zod";
@@ -12,16 +14,18 @@ import { useCurrentUser } from "../use-current-user";
 import { Button } from "@/platform/ui/button";
 import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
+import { FormError } from "@/platform/ui/form-error";
 
 import { ChangeEmailSection } from "./change-email-section";
 
 export function ProfileSection() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { user } = useCurrentUser();
 
   const { updateProfile } = useUpdateProfile();
   const [changingEmail, setChangingEmail] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const schema = useMemo(
     () => z.object({ name: z.string().trim().min(1, t("auth__error_name_required")).max(200) }),
@@ -31,7 +35,17 @@ export function ProfileSection() {
     defaultValues: { name: user?.name ?? "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
-      await updateProfile({ name: value.name });
+      setFailure(null);
+      try {
+        await updateProfile({ name: value.name });
+      } catch (error) {
+        // Offline: say so where the user tapped; any other failure is toasted by the query client.
+        if (error instanceof Error && isNetworkError(error)) {
+          setFailure(t("errors__offline"));
+          return;
+        }
+        throw error;
+      }
       toast.show({ variant: "success", label: t("settings__profile_saved") });
     },
   });
@@ -47,6 +61,7 @@ export function ProfileSection() {
         </Text>
         <Card>
           <Card.Body className="gap-4">
+            <FormError message={failure} />
             <form.Field name="name">
               {(field) => (
                 <FormTextField

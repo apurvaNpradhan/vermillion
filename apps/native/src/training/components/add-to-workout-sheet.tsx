@@ -1,5 +1,6 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { BottomSheet, useToast } from "heroui-native";
+import { BottomSheet } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Plus } from "phosphor-react-native";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,7 +30,7 @@ export function AddToWorkoutSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { bottom } = useSafeAreaInsets();
   const { status, workouts } = useWorkouts();
   const actions = useWorkoutActions();

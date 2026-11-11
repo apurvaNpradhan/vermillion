@@ -1,5 +1,6 @@
+import { isNetworkError } from "@workspace/client/network-error";
 import { SessionLimitError, TrainingLimitError, type TrainingDatabase } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -39,7 +40,7 @@ function limitMessage(error: Error) {
  */
 export function useTrainingWrite() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const local = useLocalData();
   const { snapshot } = useSyncStatus();
   const { defaultRestSeconds } = useTrainingPreferences();
@@ -52,6 +53,8 @@ export function useTrainingWrite() {
         if (!database) throw new Error("Local storage is not available");
         return await action(database);
       } catch (error) {
+        // A local write never needs the network; a connection error is never worth a toast.
+        if (error instanceof Error && isNetworkError(error)) return fallback;
         const limit = error instanceof Error ? limitMessage(error) : null;
         toast.show({ variant: "danger", label: t(limit ?? "errors__unknown") });
         return fallback;

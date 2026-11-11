@@ -139,6 +139,7 @@ export type PasskeyFailure =
   | "none-found"
   | "exists"
   | "misconfigured"
+  | "offline"
   | "failed";
 
 /** A cancelled sheet is silent; the rest become a short message. */
@@ -166,6 +167,7 @@ export const PASSKEY_FAILURE_KEYS = {
   "none-found": "passkeys__error_none_found",
   exists: "passkeys__error_exists",
   misconfigured: "passkeys__error_misconfigured",
+  offline: "errors__offline",
   failed: "passkeys__error_failed",
 } as const satisfies Record<Exclude<PasskeyFailure, "cancelled">, string>;
 

@@ -1,5 +1,5 @@
 import { readProgramPlan, readWorkoutDetail, type WorkoutDetail } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback, useMemo } from "react";
 import { Share } from "react-native";
 
@@ -25,7 +25,7 @@ const FALLBACK_TYPE = "weight_reps";
  */
 export function useSharePlan() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const local = useLocalData();
   const database = local?.status === "ready" ? local.database : null;
   const { weightUnit, effortScale } = useTrainingPreferences();

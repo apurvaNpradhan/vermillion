@@ -1,5 +1,5 @@
 import { clearProgramCover, setProgramCover } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback, useState } from "react";
 
 import { haptic } from "@/platform/haptics";
@@ -16,7 +16,7 @@ import { useTrainingWrite } from "./use-training-write";
  */
 export function useProgramCover(programId: string) {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { write, writeScope } = useTrainingWrite();
   const [busy, setBusy] = useState(false);
 

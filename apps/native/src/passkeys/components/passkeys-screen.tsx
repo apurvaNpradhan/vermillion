@@ -1,4 +1,5 @@
-import { useToast } from "heroui-native";
+import { isNetworkError } from "@workspace/client/network-error";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Fingerprint, PencilSimple, Trash } from "phosphor-react-native";
 import { useState } from "react";
 import { Alert as NativeAlert, Text } from "react-native";
@@ -21,9 +22,9 @@ import { RenameSheet } from "./rename-sheet";
 /** Settings > Profile > Passkeys: list, add, rename and delete the account's passkeys. */
 export function PasskeysScreen() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { locale } = useLocale();
-  const { passkeys, isPending, isError, reload, rename, remove } = usePasskeys();
+  const { passkeys, isPending, isError, isOffline, reload, rename, remove } = usePasskeys();
   const { register } = useRegisterPasskey();
   const [adding, setAdding] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -58,7 +59,8 @@ export function PasskeysScreen() {
           onPress: () =>
             void remove(row.id).then(
               () => toast.show({ variant: "success", label: t("passkeys__deleted") }),
-              () => setFailure(t("passkeys__error_failed")),
+              (error: Error) =>
+                setFailure(t(isNetworkError(error) ? "errors__offline" : "passkeys__error_failed")),
             ),
         },
       ],
@@ -72,8 +74,14 @@ export function PasskeysScreen() {
       await rename({ id: selected.id, name });
       setRenameOpen(false);
       toast.show({ variant: "success", label: t("passkeys__renamed") });
-    } catch {
-      setFailure(t("passkeys__error_failed"));
+    } catch (error) {
+      setFailure(
+        t(
+          error instanceof Error && isNetworkError(error)
+            ? "errors__offline"
+            : "passkeys__error_failed",
+        ),
+      );
       setRenameOpen(false);
     } finally {
       setRenaming(false);
@@ -89,7 +97,7 @@ export function PasskeysScreen() {
       ) : isError ? (
         <EmptyState
           icon={Fingerprint}
-          title={t("passkeys__error_load")}
+          title={t(isOffline ? "errors__offline" : "passkeys__error_load")}
           action={{ label: t("sync__rejected_send"), onPress: () => void reload() }}
         />
       ) : passkeys.length === 0 ? (

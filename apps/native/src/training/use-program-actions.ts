@@ -16,7 +16,7 @@ import {
   type ProgramPatch,
 } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
@@ -34,7 +34,7 @@ import { UNDO_MS, useTrainingWrite } from "./use-training-write";
  */
 export function useProgramActions() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
 

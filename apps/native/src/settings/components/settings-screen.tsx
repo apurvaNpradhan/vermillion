@@ -1,3 +1,4 @@
+import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
 import { SignOut, Trash, UserCircle } from "phosphor-react-native";
 import { Text, View } from "react-native";
@@ -6,6 +7,7 @@ import { useSignOut } from "@/auth";
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
+import { FormError } from "@/platform/ui/form-error";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 import { PreferenceRows } from "@/preferences";
@@ -44,6 +46,7 @@ export function SettingsScreen() {
             onPress={() => router.push("/settings/profile")}
           />
         </ListSection>
+        {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
         <ListSection>
           <ListRow
             icon={SignOut}

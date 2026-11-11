@@ -6,6 +6,7 @@ import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { rememberDeletionRequest } from "@/sync";
 import { useRequestDeletion } from "../use-account-actions";
+import { FormError } from "@/platform/ui/form-error";
 import { Notice } from "@/platform/ui/notice";
 
 import { useCurrentUser } from "../use-current-user";
@@ -22,7 +23,7 @@ export function DeleteAccountSection() {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
   const [typed, setTyped] = useState("");
-  const { requestDeletion, isPending, isSuccess } = useRequestDeletion();
+  const { requestDeletion, isPending, isSuccess, isOffline } = useRequestDeletion();
 
   return (
     <Card>
@@ -40,6 +41,7 @@ export function DeleteAccountSection() {
               autoCorrect={false}
               keyboardType="email-address"
             />
+            <FormError message={isOffline ? t("errors__offline") : null} />
             <Button
               variant="danger-soft"
               isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}

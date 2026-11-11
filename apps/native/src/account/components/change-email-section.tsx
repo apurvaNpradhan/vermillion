@@ -1,4 +1,5 @@
-import { Spinner, useToast } from "heroui-native";
+import { Spinner } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useState } from "react";
 import { Text } from "react-native";
 import { z } from "zod";
@@ -19,7 +20,7 @@ import { useChangeEmail } from "../use-change-email";
  */
 export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { requestChange, confirmChange } = useChangeEmail();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState<string | null>(null);

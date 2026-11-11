@@ -19,7 +19,7 @@ import {
   type WorkoutPatch,
 } from "@workspace/sync";
 import { EXERCISE_TYPE_KEYS, TRAINING_LIMITS } from "@workspace/shared";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
@@ -42,7 +42,7 @@ export function copyTitle(title: string) {
  */
 export function useWorkoutActions() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { write, writeScope, training, undoToast } = useTrainingWrite();
 
   /**

@@ -7,7 +7,8 @@ import {
   type ExerciseDatabase,
   type ExercisePatch,
 } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { isNetworkError } from "@workspace/client/network-error";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
@@ -24,7 +25,7 @@ const UNDO_MS = 5000;
  */
 export function useExerciseActions() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const local = useLocalData();
   const { snapshot } = useSyncStatus();
   const writeScope = snapshot?.writeScope ?? "";
@@ -36,6 +37,7 @@ export function useExerciseActions() {
         if (!database) throw new Error("Local storage is not available");
         return await action(database);
       } catch (error) {
+        if (error instanceof Error && isNetworkError(error)) throw error;
         const limit = error instanceof Error && error.message.startsWith("Too many custom");
         toast.show({
           variant: "danger",

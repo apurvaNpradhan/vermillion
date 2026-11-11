@@ -3,7 +3,7 @@ import { SESSION_QUERY_KEY, clearSession } from "@workspace/client/session";
 import { errorMessage } from "@workspace/client/error-message";
 import { isUnauthorized } from "@workspace/client/orpc-error";
 import { createQueryClient } from "@workspace/client/query-client";
-import { HeroUINativeProvider, useToast } from "heroui-native";
+import { HeroUINativeProvider } from "heroui-native";
 import { useState, type ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -14,10 +14,14 @@ import { I18nextProvider, i18n } from "./i18n";
 import { TAB_BAR_GAP, TAB_BAR_HEIGHT } from "./navigation/tab-bar-metrics";
 import { NavigationTheme } from "./theme/navigation-theme";
 import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
+import { useAppToast } from "./ui/use-app-toast";
 
-/** Query client whose failures surface as toasts; a lost session just clears the cached user. */
+/**
+ * Query client whose failures surface as toasts; a lost session just clears the cached user.
+ * Network failures never reach `onError` (the client drops them): offline has its own pill.
+ */
 function QueryProvider({ children }: { children: ReactNode }) {
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const [queryClient] = useState(() => {
     const client = createQueryClient({
       onError: (error) => {

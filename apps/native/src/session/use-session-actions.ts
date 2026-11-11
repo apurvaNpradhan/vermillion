@@ -26,7 +26,7 @@ import {
   type SetPatch,
   type TickResult,
 } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
@@ -40,7 +40,7 @@ import { useTrainingWrite } from "@/training";
  */
 export function useSessionActions() {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const { write, writeScope, training, undoToast } = useTrainingWrite();
 
   /**

@@ -11,7 +11,8 @@ import {
   type EquipmentRow,
   type TrainingDatabase,
 } from "@workspace/sync";
-import { useToast } from "heroui-native";
+import { isNetworkError } from "@workspace/client/network-error";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
@@ -32,7 +33,7 @@ const seededScopes = new Set<string>();
 /** Owns all calculator inventory reads and writes, including account-scoped errors and Undo. */
 export function useEquipment(enabled = true) {
   const { t } = useTranslation();
-  const { toast } = useToast();
+  const { toast } = useAppToast();
   const local = useLocalData();
   const { snapshot } = useSyncStatus();
   const database = local?.status === "ready" ? local.database : null;
@@ -55,7 +56,8 @@ export function useEquipment(enabled = true) {
       try {
         if (!database) throw new Error("Local storage unavailable");
         return await action(database);
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && isNetworkError(error)) return null;
         toast.show({ variant: "danger", label: t("plates__error") });
         return null;
       }

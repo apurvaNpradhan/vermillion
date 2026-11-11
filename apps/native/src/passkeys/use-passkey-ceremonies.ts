@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { isNetworkError, isOfflineAuthFailure } from "@workspace/client/network-error";
 import { refreshSession } from "@workspace/client/session";
 import { useCallback } from "react";
 import { Passkey } from "react-native-passkey";
@@ -36,6 +37,7 @@ export function useRegisterPasskey() {
         method: "GET",
       });
       const parsed = RegistrationOptionsSchema.safeParse(options.data);
+      if (isOfflineAuthFailure(options.error)) return outcomeFor("offline");
       if (options.error || !parsed.success) return outcomeFor("failed");
       const created = CreatedCredentialSchema.safeParse(
         await Passkey.create(toCreateRequest(parsed.data)),
@@ -45,10 +47,12 @@ export function useRegisterPasskey() {
         method: "POST",
         body: { response: toRegistrationResponse(created.data) },
       });
+      if (isOfflineAuthFailure(verified.error)) return outcomeFor("offline");
       if (verified.error) return outcomeFor("failed");
       await queryClient.invalidateQueries({ queryKey: PASSKEYS_QUERY_KEY });
       return { status: "done" };
     } catch (caught) {
+      if (caught instanceof Error && isNetworkError(caught)) return outcomeFor("offline");
       return outcomeFromCaught(NativePasskeyErrorSchema.safeParse(caught));
     }
   }, [queryClient]);
@@ -64,6 +68,7 @@ export function useSignInWithPasskey() {
         method: "GET",
       });
       const parsed = AuthenticationOptionsSchema.safeParse(options.data);
+      if (isOfflineAuthFailure(options.error)) return outcomeFor("offline");
       if (options.error || !parsed.success) return outcomeFor("failed");
       const asserted = AssertedCredentialSchema.safeParse(
         await Passkey.get(toGetRequest(parsed.data)),
@@ -73,10 +78,12 @@ export function useSignInWithPasskey() {
         method: "POST",
         body: { response: toAuthenticationResponse(asserted.data) },
       });
+      if (isOfflineAuthFailure(verified.error)) return outcomeFor("offline");
       if (verified.error) return outcomeFor("failed");
       await refreshSession(queryClient, authClient);
       return { status: "done" };
     } catch (caught) {
+      if (caught instanceof Error && isNetworkError(caught)) return outcomeFor("offline");
       return outcomeFromCaught(NativePasskeyErrorSchema.safeParse(caught));
     }
   }, [queryClient]);
