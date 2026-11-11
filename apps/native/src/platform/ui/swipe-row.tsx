@@ -53,17 +53,21 @@ const PANEL_GAP = 12;
 const SNAP = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
 type RowHandle = { close: () => void };
+type Point = { x: number; y: number };
 
 const SwipeGroupContext = createContext<{
   willOpen: (row: RowHandle) => void;
   didClose: (row: RowHandle) => void;
   closeOpen: () => void;
+  /** Where the current touch began, so a cancelled touch can tell a scroll from a swipe. */
+  touchStart: { current: Point };
 } | null>(null);
 
 /** Rows inside a group close each other: only one is open at a time. */
 export function SwipeGroup({ children }: { children: ReactNode }) {
   const parent = useContext(SwipeGroupContext);
   const open = useRef<RowHandle | null>(null);
+  const touchStart = useRef<Point>({ x: 0, y: 0 });
   const willOpen = useCallback((row: RowHandle) => {
     if (open.current && open.current !== row) open.current.close();
     open.current = row;
@@ -76,7 +80,7 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
     open.current = null;
   }, []);
   return (
-    <SwipeGroupContext value={parent ?? { willOpen, didClose, closeOpen }}>
+    <SwipeGroupContext value={parent ?? { willOpen, didClose, closeOpen, touchStart }}>
       {children}
     </SwipeGroupContext>
   );
@@ -93,26 +97,29 @@ export function SwipeRoot({ children }: { children: ReactNode }) {
 
 function SwipeDismissSurface({ children }: { children: ReactNode }) {
   const group = useContext(SwipeGroupContext);
-  const start = useRef({ x: 0, y: 0 });
+  // Capture handlers do not see every touch (Android), and a row stops its touchStart from
+  // bubbling here, so the row records its own start into the group and this records the rest.
   return (
     <View
       style={{ flex: 1 }}
-      onStartShouldSetResponderCapture={(event) => {
-        start.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
-        return false;
+      onTouchStart={(event) => {
+        if (group) group.touchStart.current = pointOf(event.nativeEvent);
+        group?.closeOpen();
       }}
-      onTouchStart={() => group?.closeOpen()}
       onMoveShouldSetResponderCapture={(event) => {
-        if (Math.abs(event.nativeEvent.pageY - start.current.y) > SCROLL_WINS) group?.closeOpen();
+        const start = group?.touchStart.current;
+        if (start && Math.abs(event.nativeEvent.pageY - start.y) > SCROLL_WINS) group?.closeOpen();
         return false;
       }}
       // A native scroll can take the touch before any move reaches JS (Android): the touch is
       // cancelled instead. A mostly vertical cancel is a scroll; a horizontal one is a row's own
       // swipe taking over, which must not close it.
       onTouchCancel={(event) => {
-        const dx = Math.abs(event.nativeEvent.pageX - start.current.x);
-        const dy = Math.abs(event.nativeEvent.pageY - start.current.y);
-        if (dy >= dx) group?.closeOpen();
+        if (!group) return;
+        const start = group.touchStart.current;
+        const dx = Math.abs(event.nativeEvent.pageX - start.x);
+        const dy = Math.abs(event.nativeEvent.pageY - start.y);
+        if (dy >= dx) group.closeOpen();
       }}
     >
       {children}
@@ -207,6 +214,7 @@ export function SwipeRow({
       <View
         onTouchStart={(event) => {
           event.stopPropagation();
+          if (group) group.touchStart.current = pointOf(event.nativeEvent);
           group?.willOpen(handle);
         }}
       >
@@ -238,6 +246,10 @@ export function SwipeRow({
       </View>
     </GestureDetector>
   );
+}
+
+function pointOf(event: { pageX: number; pageY: number }): Point {
+  return { x: event.pageX, y: event.pageY };
 }
 
 function SwipeButton({
