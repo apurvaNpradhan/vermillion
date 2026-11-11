@@ -9,6 +9,7 @@
     "rootDir": "..",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "../ui/src/tokens/brand.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../ui/src/tokens/**/*.ts"],
+  "exclude": ["../ui/src/tokens/**/*.test.ts"],
   "references": [{ "path": "../i18n" }, { "path": "../shared" }, { "path": "../logger" }]
 }

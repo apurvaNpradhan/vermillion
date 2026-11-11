@@ -1,3 +1,29 @@
+import type { RoleName, RoleTokens } from "./roles";
+import { light, dark } from "./themes/classic";
+import * as chalk from "./themes/chalk";
+import * as frost from "./themes/frost";
+import * as iron from "./themes/iron";
+import * as dusk from "./themes/dusk";
+export { roleNames, type RoleName, type RoleTokens } from "./roles";
+
+// SAFETY: fixed UI order also defines the theme-name union.
+export const themeNames = ["classic", "chalk", "frost", "iron", "dusk"] as const;
+export type ThemeName = (typeof themeNames)[number];
+
+interface ThemePalette {
+  light: RoleTokens;
+  dark: RoleTokens;
+  pending: boolean;
+}
+
+export const brandThemes = {
+  classic: { light, dark, pending: false },
+  chalk,
+  frost,
+  iron,
+  dusk,
+} satisfies Record<ThemeName, ThemePalette>;
+
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The values are the
  * Vermillion design system (DESIGN.md). Rebranding a fork means editing this file and running
@@ -11,187 +37,12 @@
  * (secondary text, macros) exposed under one name.
  */
 
-export const roleNames = [
-  // Surfaces and lines
-  "canvas",
-  "surface",
-  "surface-control",
-  "surface-floating",
-  "hairline",
-  "hairline-strong",
-  "backdrop",
-  // Text
-  "text-primary",
-  "text-secondary",
-  "text-muted",
-  "text-disabled",
-  // Identity is separate from actions, data and status. Classic remains neutral.
-  "identity",
-  "identity-soft",
-  /** Icon and label color on an `identity` fill. */
-  "on-identity",
-  "brand-detail",
-  "focus-ring",
-  // Primary action: the brightest thing on screen, no hue.
-  "action",
-  "action-hover",
-  "action-pressed",
-  "on-action",
-  // Status. `*-text` is the readable text tone; `on-*` is text placed on the status fill.
-  "danger",
-  "on-danger",
-  "success",
-  "success-text",
-  "on-success",
-  "warning",
-  "warning-text",
-  "on-warning",
-  // A completed set: a light green row and a green tick.
-  "set-done",
-  "on-set-done",
-  "set-done-soft",
-  "set-done-soft-foreground",
-  "set-warmup",
-  "set-drop",
-  "set-failure",
-  "set-top",
-  "set-backoff",
-  "set-myo",
-  "plate-red",
-  "plate-blue",
-  "plate-yellow",
-  "plate-green",
-  "plate-white",
-  "plate-black",
-  "on-plate-dark",
-  "on-plate-light",
-  // Macros (data colors): fill for rings and bars, `*-text` for values.
-  "protein",
-  "protein-text",
-  "carbs",
-  "carbs-text",
-  "fat",
-  "fat-text",
-] as const;
-
-export type RoleName = (typeof roleNames)[number];
-export type RoleTokens = Record<RoleName, string>;
-
-const dark: RoleTokens = {
-  canvas: "#07080A",
-  surface: "#111214",
-  "surface-control": "#1C1D20",
-  "surface-floating": "#18191C",
-  hairline: "#26282B",
-  "hairline-strong": "#393B3F",
-  backdrop: "rgb(0 0 0 / 60%)",
-  "text-primary": "#F4F4F6",
-  "text-secondary": "#CDCDCF",
-  "text-muted": "#9C9C9F",
-  "text-disabled": "#6A6B6E",
-  identity: "#F4F4F6",
-  "identity-soft": "#1C1D20",
-  "on-identity": "#07080A",
-  "brand-detail": "#F4F4F6",
-  "focus-ring": "#393B3F",
-  action: "#E6E6E6",
-  "action-hover": "#FFFFFF",
-  "action-pressed": "#CDCECE",
-  "on-action": "#2F3031",
-  danger: "#FF5C7A",
-  "on-danger": "#07080A",
-  success: "#59D499",
-  "success-text": "#59D499",
-  "on-success": "#07080A",
-  "set-done": "#59D499",
-  "on-set-done": "#07080A",
-  "set-done-soft": "#17392A",
-  "set-done-soft-foreground": "#F4F4F6",
-  warning: "#FFC533",
-  "warning-text": "#FFC533",
-  "on-warning": "#07080A",
-  "set-warmup": "#57C1FF",
-  "set-drop": "#FFC533",
-  "set-failure": "#D98BC4",
-  "set-top": "#B6A1FF",
-  "set-backoff": "#68D4B0",
-  "set-myo": "#FFAA78",
-  "plate-red": "#C62828",
-  "plate-blue": "#1556B8",
-  "plate-yellow": "#F2C230",
-  "plate-green": "#197A42",
-  "plate-white": "#F4F4F6",
-  "plate-black": "#202124",
-  "on-plate-dark": "#FFFFFF",
-  "on-plate-light": "#111214",
-  protein: "#57C1FF",
-  "protein-text": "#57C1FF",
-  carbs: "#FFC533",
-  "carbs-text": "#FFC533",
-  fat: "#D98BC4",
-  "fat-text": "#D98BC4",
-};
-
-const light: RoleTokens = {
-  canvas: "#F4F4F6",
-  surface: "#FFFFFF",
-  "surface-control": "#ECECEF",
-  "surface-floating": "#FFFFFF",
-  hairline: "#E2E2E6",
-  "hairline-strong": "#C9C9CF",
-  backdrop: "rgb(0 0 0 / 30%)",
-  "text-primary": "#111214",
-  "text-secondary": "#3C3D42",
-  "text-muted": "#65666C",
-  "text-disabled": "#A3A4AA",
-  identity: "#111214",
-  "identity-soft": "#ECECEF",
-  "on-identity": "#FFFFFF",
-  "brand-detail": "#111214",
-  "focus-ring": "#C9C9CF",
-  action: "#111214",
-  "action-hover": "#2A2B2F",
-  "action-pressed": "#000000",
-  "on-action": "#FFFFFF",
-  danger: "#D21F4B",
-  "on-danger": "#FFFFFF",
-  success: "#2FB872",
-  "success-text": "#177A4B",
-  "on-success": "#111214",
-  "set-done": "#2FB872",
-  "on-set-done": "#111214",
-  "set-done-soft": "#EEF9F2",
-  "set-done-soft-foreground": "#111214",
-  warning: "#F2B21B",
-  "warning-text": "#8F6200",
-  "on-warning": "#FFFFFF",
-  "set-warmup": "#0B6FA8",
-  "set-drop": "#8F6200",
-  "set-failure": "#9B407F",
-  "set-top": "#7052AD",
-  "set-backoff": "#137858",
-  "set-myo": "#A34D1B",
-  "plate-red": "#C62828",
-  "plate-blue": "#1556B8",
-  "plate-yellow": "#F2C230",
-  "plate-green": "#197A42",
-  "plate-white": "#F4F4F6",
-  "plate-black": "#202124",
-  "on-plate-dark": "#FFFFFF",
-  "on-plate-light": "#111214",
-  protein: "#1A86CC",
-  "protein-text": "#0B6FA8",
-  carbs: "#BF8500",
-  "carbs-text": "#8F6200",
-  fat: "#B0509B",
-  "fat-text": "#94407F",
-};
-
 /**
  * Colors outside HeroUI Native's vocabulary (`text-subtle`, `bg-protein`). `subtle` is the
  * `text-secondary` role: the library has no free name for it.
  */
 export const sharedTokenSources = {
+  chart: "chart",
   "set-warmup": "set-warmup",
   "set-drop": "set-drop",
   "set-failure": "set-failure",

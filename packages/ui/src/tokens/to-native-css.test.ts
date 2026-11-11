@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { brandTokens } from "./brand";
+import { brandTokens, themeNames } from "./brand";
 import { nativeTokenSources, toNativeCss } from "./to-native-css";
 
 describe("native brand tokens", () => {
@@ -17,10 +17,19 @@ describe("native brand tokens", () => {
     expect(css).toContain(`--accent: ${brandTokens.colors.dark.action};`);
   });
 
-  it("fills only the built-in light and dark variants, with the Classic palette", () => {
+  it("fills all ten variants with complete matching variable sets", () => {
     const css = toNativeCss();
     const names = [...css.matchAll(/@variant ([\w-]+) \{/g)].map((match) => match[1]);
-    expect(names).toEqual(["light", "dark"]);
+    expect(names).toEqual(
+      themeNames.flatMap((name) =>
+        name === "classic" ? ["light", "dark"] : [`${name}-light`, `${name}-dark`],
+      ),
+    );
+    const blocks = [...css.matchAll(/@variant [\w-]+ \{([^}]+)\}/g)];
+    const variables = blocks.map((block) =>
+      [...(block[1] ?? "").matchAll(/--([\w-]+):/g)].map((match) => match[1]),
+    );
+    for (const set of variables) expect(set).toEqual(variables[0]);
     expect(css).toContain(`--background: ${brandTokens.colors.light.canvas};`);
     expect(css).toContain(`--background: ${brandTokens.colors.dark.canvas};`);
   });

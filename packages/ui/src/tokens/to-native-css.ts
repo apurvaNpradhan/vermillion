@@ -1,4 +1,11 @@
-import { brandTokens, sharedTokenSources, type RoleName, type RoleTokens } from "./brand";
+import {
+  brandThemes,
+  themeNames,
+  brandTokens,
+  sharedTokenSources,
+  type RoleName,
+  type RoleTokens,
+} from "./brand";
 
 /**
  * HeroUI Native variable -> application role. Every custom variant defines the same set, per
@@ -53,8 +60,8 @@ const shadows = {
   },
 } as const;
 
-function block(name: "light" | "dark", colors: RoleTokens) {
-  const depth = shadows[name];
+function block(name: string, mode: "light" | "dark", colors: RoleTokens) {
+  const depth = shadows[mode];
   return [
     `    @variant ${name} {`,
     ...Object.entries(nativeTokenSources).map(
@@ -71,8 +78,8 @@ function block(name: "light" | "dark", colors: RoleTokens) {
 const px = (value: number) => `${value / 16}rem`;
 
 /**
- * Build-time CSS for Uniwind's built-in `light` and `dark` variants, filled with the Classic
- * palette from brand.ts, the same as email. Imported after heroui-native/styles.
+ * Build-time CSS for every flat theme variant. Classic retains light/dark and email aliases.
+ * Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
   return [
@@ -83,8 +90,15 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       `    --radius: ${tokens.nativeRadius};`,
       "    --field-radius: calc(var(--radius) * 1.5);",
       "    --field-border-width: 1px;",
-      block("light", tokens.colors.light),
-      block("dark", tokens.colors.dark),
+      ...themeNames.flatMap((name) =>
+        (["light", "dark"] satisfies ("light" | "dark")[]).map((mode) =>
+          block(
+            name === "classic" ? mode : `${name}-${mode}`,
+            mode,
+            name === "classic" ? tokens.colors[mode] : brandThemes[name][mode],
+          ),
+        ),
+      ),
       "  }",
       "}",
     ].join("\n"),
