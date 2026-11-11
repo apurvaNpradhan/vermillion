@@ -11,11 +11,12 @@ import { Button } from "@/platform/ui/button";
 import { formatElapsed } from "../clock";
 import { REST_ADJUST_SECONDS, clampedAdjustment, restView } from "../rest-rules";
 import { useNow } from "../use-now";
+import { useRestChime } from "../use-rest-chime";
 
 /**
  * The bar at the bottom of the logging screen while a Rest runs: the countdown, −15, +15, Skip
  * and a thin progress line. Times come from the stored start and end, so it is right after the
- * app was backgrounded or killed. When it reaches zero it plays the end haptic and goes away.
+ * app was backgrounded or killed. When it reaches zero it plays the end haptic and chime and goes away.
  * It is mounted while the Session holds a Rest and draws nothing once that Rest is over.
  */
 export function RestBar({
@@ -35,6 +36,7 @@ export function RestBar({
   const foreground = useThemeColor("foreground");
   const now = useNow(true, 250);
   const view = restView(rest, now);
+  const chime = useRestChime();
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
   const seen = useRef<string | null>(null);
@@ -43,7 +45,10 @@ export function RestBar({
     else if (seen.current === rest.endsAt) {
       seen.current = null;
       haptic.success();
+      chime();
     }
+    // `chime` only changes with the setting, which must not replay a finished Rest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.running, rest.endsAt]);
 
   if (!view.running) return null;

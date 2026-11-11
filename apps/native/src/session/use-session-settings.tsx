@@ -1,4 +1,4 @@
-import { Bell, Sun } from "phosphor-react-native";
+import { Bell, SpeakerHigh, Sun } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 import { Linking } from "react-native";
 
@@ -18,7 +18,7 @@ const OFF = "off";
 /**
  * The Settings → Training rows of the Session: whether Rest notifications are allowed (it shows
  * the system's answer, and opens the system settings once the user has declined or to change it)
- * and whether the screen stays awake during a workout. `rows` go in the Training section; `sheets`
+ * and whether the Rest ends with a chime, whether the screen stays awake during a workout. `rows` go in the Training section; `sheets`
  * render beside it.
  */
 export function useSessionSettings(): SessionSettings {
@@ -27,6 +27,8 @@ export function useSessionSettings(): SessionSettings {
   const permission = useRestPermission();
   const [pickingAwake, setPickingAwake] = useState(false);
   const keepAwake = preferences.ui.keepAwake;
+  const restSound = preferences.ui.restSound;
+  const [pickingSound, setPickingSound] = useState(false);
 
   const notificationStatus =
     permission === "granted"
@@ -52,6 +54,13 @@ export function useSessionSettings(): SessionSettings {
       }}
     />,
     <ListRow
+      key="rest-sound"
+      icon={SpeakerHigh}
+      title={t("session__setting_rest_sound")}
+      value={restSound ? t("session__setting_on") : t("session__setting_off")}
+      onPress={() => setPickingSound(true)}
+    />,
+    <ListRow
       key="keep-awake"
       icon={Sun}
       title={t("session__setting_keep_awake")}
@@ -60,18 +69,32 @@ export function useSessionSettings(): SessionSettings {
     />,
   ];
   const sheets = (
-    <OptionSheet
-      isOpen={pickingAwake}
-      onOpenChange={setPickingAwake}
-      title={t("session__setting_keep_awake")}
-      description={t("session__setting_keep_awake_hint")}
-      options={[
-        { value: ON, label: t("session__setting_on") },
-        { value: OFF, label: t("session__setting_off") },
-      ]}
-      value={keepAwake ? ON : OFF}
-      onSelect={(value) => setUi({ keepAwake: value === ON })}
-    />
+    <>
+      <OptionSheet
+        isOpen={pickingSound}
+        onOpenChange={setPickingSound}
+        title={t("session__setting_rest_sound")}
+        description={t("session__setting_rest_sound_hint")}
+        options={[
+          { value: ON, label: t("session__setting_on") },
+          { value: OFF, label: t("session__setting_off") },
+        ]}
+        value={restSound ? ON : OFF}
+        onSelect={(value) => setUi({ restSound: value === ON })}
+      />
+      <OptionSheet
+        isOpen={pickingAwake}
+        onOpenChange={setPickingAwake}
+        title={t("session__setting_keep_awake")}
+        description={t("session__setting_keep_awake_hint")}
+        options={[
+          { value: ON, label: t("session__setting_on") },
+          { value: OFF, label: t("session__setting_off") },
+        ]}
+        value={keepAwake ? ON : OFF}
+        onSelect={(value) => setUi({ keepAwake: value === ON })}
+      />
+    </>
   );
   return { rows, sheets };
 }

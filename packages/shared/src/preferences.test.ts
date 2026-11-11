@@ -13,6 +13,7 @@ describe("ui preferences schema", () => {
     const defaults = {
       bodyweightKg: null,
       keepAwake: true,
+      restSound: true,
       sidebarCollapsed: false,
       dismissedHints: [],
       weightUnit: "kg",

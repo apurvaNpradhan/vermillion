@@ -28,6 +28,7 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const uiFields = {
   bodyweightKg: z.number().min(20).max(400).nullable(),
   keepAwake: z.boolean(),
+  restSound: z.boolean(),
   sidebarCollapsed: z.boolean(),
   dismissedHints: z.array(z.string().max(100)).max(100),
   weightUnit: z.enum(WEIGHT_UNITS),
@@ -37,6 +38,7 @@ const uiFields = {
 export const uiPreferencesSchema = z.object({
   bodyweightKg: uiFields.bodyweightKg.default(null),
   keepAwake: uiFields.keepAwake.default(true),
+  restSound: uiFields.restSound.default(true),
   sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
   dismissedHints: uiFields.dismissedHints.default([]),
   weightUnit: uiFields.weightUnit.default("kg"),

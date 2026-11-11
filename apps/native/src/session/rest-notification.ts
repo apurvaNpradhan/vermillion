@@ -3,8 +3,15 @@ import { Platform } from "react-native";
 
 import { REST_NOTIFICATION_PREFIX, restNotificationId } from "./rest-schedule";
 
-/** The Android channel of the Rest notification. */
-const CHANNEL_ID = "rest-timer";
+import {
+  REST_CHANNEL_SILENT,
+  REST_CHANNEL_WITH_SOUND,
+  REST_SOUND_FILE,
+  RETIRED_REST_CHANNELS,
+  restChannelId,
+  restNotificationSound,
+  shouldChimeInForeground,
+} from "./rest-sound";
 
 export type RestPermission = "granted" | "denied" | "undetermined";
 
@@ -12,32 +19,49 @@ export type RestPermission = "granted" | "denied" | "undetermined";
 let surfaceVisible = false;
 /** Resolves once the Android channel exists, so a notification never lands on the default one. */
 let channelReady: Promise<void> = Promise.resolve();
+/** The "Rest timer sound" setting, kept here for the notification handler and the scheduler. */
+let soundOn = true;
 export function setRestSurfaceVisible(visible: boolean) {
   surfaceVisible = visible;
+}
+export function setRestSoundEnabled(enabled: boolean) {
+  soundOn = enabled;
 }
 
 /**
  * Sets up Rest notifications once: how one that arrives while the app is open is shown, and the
- * Android channel (high importance, vibrating, no sound: ADR 0038 has haptics and no sounds).
- * `channelName` is the translated "Rest timer".
+ * Android channels (high importance, vibrating; one with the chime and one silent, because a
+ * channel's sound cannot change once created: ADR 0038). `channelName` is the translated "Rest
+ * timer".
  */
 export function installRestNotifications(channelName: string): Promise<void> {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: !surfaceVisible,
       shouldShowList: !surfaceVisible,
-      shouldPlaySound: false,
+      shouldPlaySound: shouldChimeInForeground({ soundOn, surfaceVisible }),
       shouldSetBadge: false,
     }),
   });
   if (Platform.OS !== "android") return Promise.resolve();
-  channelReady = Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: channelName,
-    importance: Notifications.AndroidImportance.HIGH,
-    enableVibrate: true,
-    vibrationPattern: [0, 250, 200, 250],
-    sound: null,
-  }).then(
+  const channel = (id: string, sound: string | null) =>
+    Notifications.setNotificationChannelAsync(id, {
+      name: channelName,
+      importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+      vibrationPattern: [0, 250, 200, 250],
+      sound,
+      // Notification usage, so the ringer mode and Do Not Disturb silence the chime.
+      audioAttributes: {
+        usage: Notifications.AndroidAudioUsage.NOTIFICATION,
+        contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      },
+    });
+  channelReady = Promise.all([
+    channel(REST_CHANNEL_WITH_SOUND, REST_SOUND_FILE),
+    channel(REST_CHANNEL_SILENT, null),
+    ...RETIRED_REST_CHANNELS.map((id) => Notifications.deleteNotificationChannelAsync(id)),
+  ]).then(
     () => undefined,
     // Without the channel the notification still arrives, on the default one.
     () => undefined,
@@ -115,11 +139,15 @@ export async function scheduleRestNotification(
   try {
     await Notifications.scheduleNotificationAsync({
       identifier,
-      content: { title: content.title, body: content.body, sound: false },
+      content: {
+        title: content.title,
+        body: content.body,
+        sound: restNotificationSound(soundOn),
+      },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: endsAt,
-        channelId: CHANNEL_ID,
+        channelId: restChannelId(soundOn),
       },
     });
   } catch {

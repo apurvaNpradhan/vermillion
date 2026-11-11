@@ -741,6 +741,8 @@
   "session__timer_start": "Start timer for set {{number}}",
   "session__timer_stop": "Stop timer and log set {{number}}",
   "session__timer_cancel": "Cancel timer for set {{number}}",
+  "session__setting_rest_sound": "Rest timer sound",
+  "session__setting_rest_sound_hint": "Plays a chime when rest ends. It stays quiet when your phone is silent. Off keeps the vibration only.",
   "session__setting_rest_notifications": "Rest notifications",
   "session__setting_rest_hint_ask": "Asks for permission to notify you",
   "session__setting_rest_hint_open": "Opens the system settings",

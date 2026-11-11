@@ -67,6 +67,7 @@ describe("preferences", () => {
       ui: {
         bodyweightKg: null,
         keepAwake: true,
+        restSound: true,
         sidebarCollapsed: false,
         dismissedHints: [],
         weightUnit: "kg",
@@ -87,6 +88,7 @@ describe("preferences", () => {
       ui: {
         bodyweightKg: null,
         keepAwake: true,
+        restSound: true,
         sidebarCollapsed: false,
         dismissedHints: [],
         weightUnit: "kg",
@@ -99,6 +101,7 @@ describe("preferences", () => {
       ui: {
         bodyweightKg: null,
         keepAwake: true,
+        restSound: true,
         sidebarCollapsed: true,
         dismissedHints: [],
         weightUnit: "kg",
@@ -117,6 +120,7 @@ describe("preferences", () => {
       ui: {
         bodyweightKg: null,
         keepAwake: true,
+        restSound: true,
         sidebarCollapsed: true,
         dismissedHints: ["tour"],
         weightUnit: "kg",

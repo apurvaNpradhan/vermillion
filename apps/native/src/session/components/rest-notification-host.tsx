@@ -3,10 +3,12 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { usePreferences } from "@/preferences";
 
 import {
   cancelRestNotification,
   installRestNotifications,
+  setRestSoundEnabled,
   scheduleRestNotification,
   scheduledRestIds,
 } from "../rest-notification";
@@ -29,6 +31,14 @@ export function RestNotificationHost() {
   const permission = useRestPermission();
   const reconciler = useRef(createRestReconciler());
   const known = useRef(new Map<string, number>());
+  const soundOn = usePreferences().preferences.ui.restSound;
+  const scheduledWithSound = useRef(soundOn);
+  setRestSoundEnabled(soundOn);
+  // A scheduled notification keeps the sound it was made with, so a changed setting reschedules all.
+  if (scheduledWithSound.current !== soundOn) {
+    scheduledWithSound.current = soundOn;
+    known.current.clear();
+  }
 
   // Once: the channel and how notifications show in the foreground, then ask the system how it stands.
   const channelName = t("session__rest_channel");
@@ -81,7 +91,7 @@ export function RestNotificationHost() {
     };
     // `body` and `heading` only change with the language.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, loading, installId, permission, heading]);
+  }, [sessions, loading, installId, permission, heading, soundOn]);
 
   return null;
 }

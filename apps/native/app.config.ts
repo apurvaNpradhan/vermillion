@@ -15,9 +15,10 @@ import { appConfig } from "../../app.config.ts";
  * 7: expo-video for the exercise detail video hero.
  * 8: expo-image-picker and expo-image-manipulator for Program cover photos.
  * 10: original Android rest notification small icon. Requires a dev-client rebuild.
+ * 11: expo-audio and the Rest-end chime registered as a notification sound.
  * 9: expo-notifications (Rest notifications) and expo-keep-awake (screen on during a workout).
  */
-const NATIVE_STACK_REVISION = 10;
+const NATIVE_STACK_REVISION = 11;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -69,7 +70,16 @@ const config: ExpoConfig = {
     "expo-localization",
     "expo-video",
     // Rest notifications: a local notification when rest is over. Android 13+ asks at the first Rest.
-    ["expo-notifications", { icon: "./assets/images/notification-icon.png" }],
+    // The chime is the Rest notification's sound (iOS bundle file, Android raw resource).
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/images/notification-icon.png",
+        sounds: ["./assets/sounds/rest_end.wav"],
+      },
+    ],
+    // The in-app chime follows the silent switch; no microphone use.
+    ["expo-audio", { microphonePermission: false }],
     // Program cover photos: the system photo picker. The camera and microphone are never used.
     [
       "expo-image-picker",
