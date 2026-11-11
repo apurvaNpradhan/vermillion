@@ -1,14 +1,26 @@
 import { useRouter } from "expo-router";
 import { BottomSheet, useThemeColor } from "heroui-native";
+import { useState } from "react";
 import { Text, View, ScrollView, Pressable } from "react-native";
 import Svg, { Rect, Text as SvgText, G } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
-import { formatWeight, KG_PER_LB, type LoadPlate } from "@workspace/shared";
+import { formatWeight, KG_PER_LB, type LoadPlate, type WeightUnit } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { isColorString } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import {
+  formatDifference,
+  hasTarget,
+  loadChoices,
+  plateGroups,
+  plateLayout,
+  selectedChoice,
+  type LoadSide,
+  type PlateSlot,
+} from "./plate-view";
+import { useEquipmentLabel } from "./use-equipment-label";
 import { usePlates } from "./use-plates";
 
 export function PlateChip({
@@ -44,8 +56,9 @@ export function PlateChip({
 type PlateRole = "red" | "blue" | "yellow" | "green" | "white" | "black";
 
 /** The competition colour of a plate by its weight in the kit's unit. */
-function plateRole(weightKg: number, unit: "kg" | "lb"): PlateRole {
-  const weight = unit === "lb" ? weightKg / KG_PER_LB : weightKg;
+function plateRole(weightKg: number, unit: WeightUnit): PlateRole {
+  // Rounded, so a converted 45 lb plate is not 44.999… lb.
+  const weight = Math.round((unit === "lb" ? weightKg / KG_PER_LB : weightKg) * 100) / 100;
   if (weight >= (unit === "lb" ? 55 : 25)) return "red";
   if (weight >= (unit === "lb" ? 45 : 20)) return "blue";
   if (weight >= (unit === "lb" ? 35 : 15)) return "yellow";
@@ -73,29 +86,15 @@ const FILL: Record<PlateRole, string> = {
   black: "--color-plate-black",
 };
 
-const plateWidth = (weightKg: number) => Math.min(36, 22 + weightKg / 2);
-const PLATE_GAP = 2;
-const FIRST_PLATE_X = 55;
-
-/** Where each plate starts: stacked against the collar and each other, as on a real bar. */
-function plateOffsets(plates: readonly LoadPlate[]): number[] {
-  let x = FIRST_PLATE_X;
-  return plates.map((plate) => {
-    const at = x;
-    x += plateWidth(plate.weightKg) + PLATE_GAP;
-    return at;
-  });
-}
-
 function PlateDrawing({
   plate,
   unit,
-  x,
+  slot,
   label,
 }: {
   plate: LoadPlate;
-  unit: "kg" | "lb";
-  x: number;
+  unit: WeightUnit;
+  slot: PlateSlot;
   label: string;
 }) {
   const role = plateRole(plate.weightKg, unit);
@@ -104,14 +103,13 @@ function PlateDrawing({
     role === "yellow" || role === "white" ? "--color-on-plate-light" : "--color-on-plate-dark",
   );
   const height = Math.min(140, 45 + plate.weightKg * 4);
-  const width = plateWidth(plate.weightKg);
   const edge = useThemeColor("muted");
   return (
     <G>
       <Rect
-        x={x}
+        x={slot.x}
         y={(160 - height) / 2}
-        width={width}
+        width={slot.width}
         height={height}
         rx={3}
         fill={isColorString(fill) ? fill : undefined}
@@ -120,20 +118,26 @@ function PlateDrawing({
         strokeOpacity={0.5}
         strokeWidth={1}
       />
-      <SvgText
-        x={x + width / 2}
-        y={84}
-        fontSize={10}
-        textAnchor="middle"
-        fill={isColorString(ink) ? ink : undefined}
-      >
-        {label}
-      </SvgText>
+      {slot.showLabel ? (
+        <SvgText
+          x={slot.x + slot.width / 2}
+          y={84}
+          fontSize={10}
+          textAnchor="middle"
+          fill={isColorString(ink) ? ink : undefined}
+        >
+          {label}
+        </SvgText>
+      ) : null}
     </G>
   );
 }
 
-/** The plate calculator for one exercise's bar; it stays mounted and `isOpen` opens it. */
+/** Keeps content mounted through the sheet's close animation, then lets it go. */
+/**
+ * The plate calculator for one exercise's bar. It stays mounted and `isOpen` opens it, but its
+ * body is rendered only while open, and closed sheets disable inventory watches and solving.
+ */
 export function PlateCalculatorSheet({
   isOpen,
   targetKg,
@@ -143,20 +147,16 @@ export function PlateCalculatorSheet({
 }: {
   /** The sheet stays mounted and opens on a change to true; mounting it open shows nothing. */
   isOpen: boolean;
+  /** Fixed for as long as the sheet is open; the caller captures it when opening. */
   targetKg: number;
   exerciseId: string;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const state = usePlates(targetKg, exerciseId);
-  const metal = useThemeColor("muted");
-  const weight = (kg: number) =>
-    t("plates__weight", { weight: formatWeight(kg, state.unit), unit: state.unit });
-  const result = state.result;
-  const offsets = plateOffsets(result?.platesPerSide ?? []);
+  // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
+  const state = usePlates(targetKg, exerciseId, isOpen);
   return (
     <BottomSheet
       isOpen={isOpen}
@@ -173,102 +173,168 @@ export function PlateCalculatorSheet({
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
           <BottomSheet.Title>{t("plates__title")}</BottomSheet.Title>
-          <Text className="text-title-md text-foreground tabular-nums">
-            {t("plates__target", { weight: weight(targetKg) })}
-          </Text>
-          {state.failed ? (
-            <Button variant="secondary" onPress={state.retry}>
-              {t("plates__retry")}
-            </Button>
-          ) : state.loading ? (
-            <Text className="text-body text-muted">{t("plates__loading")}</Text>
-          ) : (
+          {isOpen ? <CalculatorBody state={state} onUse={onUse} onClose={onClose} /> : null}
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
+  );
+}
+
+function CalculatorBody({
+  state,
+  onUse,
+  onClose,
+}: {
+  state: ReturnType<typeof usePlates>;
+  onUse: (weightKg: number) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const label = useEquipmentLabel();
+  const metal = useThemeColor("muted");
+  const unit = state.barUnit;
+  const weight = (kg: number, own: WeightUnit = unit) =>
+    t("plates__weight", { weight: formatWeight(kg, own), unit: own });
+  const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
+  const result = state.result;
+  const choices = result ? loadChoices(state.target, result) : [];
+  const choice = selectedChoice(
+    choices,
+    picked && picked.barId === state.bar?.id ? picked.side : null,
+  );
+  const platesPerSide = choice?.load.platesPerSide ?? [];
+  const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, unit));
+  const sideText =
+    platesPerSide.length === 0
+      ? t("plates__bare_bar")
+      : t("plates__per_side", {
+          plates: plateGroups(platesPerSide)
+            .map((group) =>
+              group.count === 1
+                ? weight(group.weightKg)
+                : t("plates__plate_count", { count: group.count, weight: weight(group.weightKg) }),
+            )
+            .join(", "),
+        });
+  const difference = (kg: number) =>
+    t(kg < 0 ? "plates__under" : "plates__over", {
+      weight: t("plates__weight", { weight: formatDifference(kg, unit), unit }),
+    });
+  const use = async () => {
+    if (!choice || !state.bar) return;
+    if (await state.chooseBar(state.bar.id)) {
+      onUse(choice.load.totalKg);
+      onClose();
+    }
+  };
+  const syncing = state.rows.length === 0 && !state.hasSynced;
+  const barWidth = layout.width;
+  return (
+    <>
+      {hasTarget(state.target) ? (
+        <Text className="text-title-md text-foreground tabular-nums">
+          {t("plates__target", { weight: weight(state.target) })}
+        </Text>
+      ) : null}
+      {state.failed ? (
+        <Button variant="secondary" onPress={state.retry}>
+          {t("plates__retry")}
+        </Button>
+      ) : state.loading ? (
+        <Text className="text-body text-muted">{t("plates__loading")}</Text>
+      ) : (
+        <>
+          {state.bars.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row gap-2">
+                {state.bars.map((bar) => (
+                  <PlateChip
+                    key={bar.id}
+                    label={label(bar)}
+                    selected={bar.id === state.bar?.id}
+                    onPress={() => void state.chooseBar(bar.id)}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          ) : null}
+          {!state.bar ? (
+            <Text className="text-body text-muted">
+              {syncing ? t("plates__syncing") : t("plates__no_bar")}
+            </Text>
+          ) : !hasTarget(state.target) ? (
+            <Text className="text-body text-muted">{t("plates__enter_weight")}</Text>
+          ) : choice ? (
             <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row gap-2">
-                  {state.bars.map((bar) => (
+              {choices.length > 1 ? (
+                <View className="flex-row flex-wrap gap-2">
+                  {choices.map((option) => (
                     <PlateChip
-                      key={bar.id}
-                      label={t("plates__bar_label", {
-                        name: bar.label ?? "",
-                        weight: weight(bar.weightKg),
+                      key={option.side}
+                      label={t("plates__option", {
+                        weight: weight(option.load.totalKg),
+                        difference: difference(option.differenceKg),
                       })}
-                      selected={bar.id === state.bar?.id}
-                      onPress={() => void state.chooseBar(bar.id)}
+                      selected={option.side === choice.side}
+                      onPress={() => setPicked({ barId: state.bar?.id ?? "", side: option.side })}
                     />
                   ))}
                 </View>
-              </ScrollView>
-              {result ? (
-                <>
-                  <ScrollView horizontal>
-                    <Svg
-                      width={Math.max(300, 80 + result.platesPerSide.length * 40)}
-                      height={160}
-                      accessibilityLabel={t("plates__one_side", { weight: weight(result.totalKg) })}
-                    >
-                      <Rect
-                        x={0}
-                        y={74}
-                        width={Math.max(300, 80 + result.platesPerSide.length * 40)}
-                        height={12}
-                        fill={metal}
+              ) : null}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Svg
+                  width={barWidth}
+                  height={160}
+                  accessible
+                  accessibilityRole="image"
+                  accessibilityLabel={sideText}
+                >
+                  <Rect x={0} y={74} width={barWidth} height={12} fill={metal} />
+                  <Rect x={35} y={57} width={12} height={46} rx={2} fill={metal} />
+                  {platesPerSide.map((plate, i) => {
+                    const slot = layout.slots[i];
+                    return slot ? (
+                      <PlateDrawing
+                        key={`${plate.id}-${i}`}
+                        plate={plate}
+                        unit={unit}
+                        slot={slot}
+                        label={formatWeight(plate.weightKg, unit)}
                       />
-                      <Rect x={35} y={57} width={12} height={46} rx={2} fill={metal} />
-                      {result.platesPerSide.map((plate, i) => (
-                        <PlateDrawing
-                          key={`${plate.id}-${i}`}
-                          plate={plate}
-                          unit={state.unit}
-                          x={offsets[i] ?? FIRST_PLATE_X}
-                          label={formatWeight(plate.weightKg, state.unit)}
-                        />
-                      ))}
-                    </Svg>
-                  </ScrollView>
-                  <Text className="text-body text-foreground">
-                    {t("plates__one_side", { weight: weight(result.totalKg) })}
-                  </Text>
-                  {!result.exact ? (
-                    <Text className="text-body text-muted">
-                      {t("plates__closest", {
-                        below: result.below ? weight(result.below.totalKg) : t("plates__none"),
-                        above: result.above ? weight(result.above.totalKg) : t("plates__none"),
-                      })}
-                    </Text>
-                  ) : null}
-                  {(result.exact ? [result] : [result.below, result.above]).map((load, i) =>
-                    load ? (
-                      <Button
-                        key={i}
-                        variant={i === 0 ? "primary" : "secondary"}
-                        onPress={() => {
-                          void (async () => {
-                            if (state.bar && (await state.chooseBar(state.bar.id))) {
-                              onUse(load.totalKg);
-                              onClose();
-                            }
-                          })();
-                        }}
-                      >
-                        {t("plates__use", { weight: weight(load.totalKg) })}
-                      </Button>
-                    ) : null,
-                  )}
-                </>
-              ) : (
-                <Text className="text-body text-muted">{t("plates__no_bar")}</Text>
-              )}
+                    ) : null;
+                  })}
+                </Svg>
+              </ScrollView>
+              <View className="gap-1">
+                <Text className="text-body text-foreground">{sideText}</Text>
+                <Text className="text-body text-muted tabular-nums">
+                  {t("plates__total", { weight: weight(choice.load.totalKg) })}
+                  {choice.differenceKg === 0 ? ` · ${t("plates__exact")}` : null}
+                </Text>
+                {result && result.below === null && !result.exact ? (
+                  <Text className="text-body text-muted">{t("plates__below_bar")}</Text>
+                ) : null}
+              </View>
+              <Button variant="primary" onPress={() => void use()}>
+                {t("plates__use", { weight: weight(choice.load.totalKg) })}
+              </Button>
+            </>
+          ) : (
+            <Text className="text-body text-muted">{t("plates__no_load")}</Text>
+          )}
+          {state.bar ? (
+            <>
               <Text className="text-label text-muted">{t("plates__available")}</Text>
-              <ScrollView horizontal>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View className="flex-row gap-2">
                   {state.rows.flatMap((p) =>
-                    p.kind === "plate"
+                    p.kind === "plate" && p.unit === unit
                       ? [
                           <PlateChip
                             key={p.id}
-                            swatch={SWATCH[plateRole(p.weightKg, state.unit)]}
-                            label={weight(p.weightKg)}
+                            swatch={SWATCH[plateRole(p.weightKg, p.unit)]}
+                            label={label(p)}
                             selected={p.enabled}
                             onPress={() => void state.toggle(p)}
                           />,
@@ -278,21 +344,21 @@ export function PlateCalculatorSheet({
                 </View>
               </ScrollView>
             </>
-          )}
-          <Button
-            variant="ghost"
-            onPress={() => {
-              onClose();
-              router.push({ pathname: "/settings/plates", params: { calculator: "closed" } });
-            }}
-          >
-            {t("plates__manage")}
-          </Button>
-          <Button variant="ghost" onPress={onClose}>
-            {t("plates__close")}
-          </Button>
-        </BottomSheet.Content>
-      </BottomSheet.Portal>
-    </BottomSheet>
+          ) : null}
+        </>
+      )}
+      <Button
+        variant="ghost"
+        onPress={() => {
+          onClose();
+          router.push("/session/equipment");
+        }}
+      >
+        {t("plates__manage")}
+      </Button>
+      <Button variant="ghost" onPress={onClose}>
+        {t("plates__close")}
+      </Button>
+    </>
   );
 }

@@ -228,6 +228,8 @@ describe("exercise history and ranges", () => {
     expect(between.map((row) => row.id)).toEqual([b, empty, a]);
     expect(between[1]?.sets).toEqual([]);
     expect(between[0]?.sets).toHaveLength(2);
+    // Repeated set rows carry the exercise title once, without a per-card detail query.
+    expect(between[0]?.exerciseTitles).toEqual(["Squat"]);
     expect(
       parseFinishedSessions(s.sqlite.prepare(SESSIONS_BETWEEN_SQL).all(daysAgo(100), daysAgo(50))),
     ).toEqual([]);

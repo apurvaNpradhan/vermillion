@@ -101,6 +101,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
       >
         {({ header, contentContainerStyle, ...scroll }) => (
           <AnimatedLegendList
+            recycleItems={false}
             {...scroll}
             className="flex-1"
             contentContainerStyle={contentContainerStyle}

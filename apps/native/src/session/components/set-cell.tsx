@@ -20,6 +20,7 @@ const SHAKE_MS = 60;
  */
 export function SetCell({
   text,
+  done = false,
   ghost,
   active,
   refused,
@@ -31,6 +32,7 @@ export function SetCell({
 }: {
   /** The value as text; empty when the cell has none. */
   text: string;
+  done?: boolean;
   /** The Ghost value as text, shown muted when `text` is empty. */
   ghost: string;
   active: boolean;
@@ -65,7 +67,7 @@ export function SetCell({
         accessibilityValue={{ text: empty ? (ghost === "" ? undefined : ghost) : text }}
         disabled={disabled}
         onPress={onPress}
-        className={`h-10 flex-row items-center justify-center rounded-lg border px-1 ${border} ${active ? "bg-default" : "bg-field"}`}
+        className={`h-10 flex-row items-center justify-center rounded-lg border px-1 ${border} ${active ? "bg-default" : done ? "bg-transparent" : "bg-field"}`}
       >
         {children ?? (
           <Text

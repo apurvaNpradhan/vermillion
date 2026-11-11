@@ -1,4 +1,3 @@
-import { brandTokens } from "@workspace/ui/tokens/brand";
 import type { ExpoConfig } from "expo/config";
 
 import { appConfig } from "../../app.config.ts";
@@ -70,10 +69,7 @@ const config: ExpoConfig = {
     "expo-localization",
     "expo-video",
     // Rest notifications: a local notification when rest is over. Android 13+ asks at the first Rest.
-    [
-      "expo-notifications",
-      { icon: "./assets/images/notification-icon.png", color: brandTokens.colors.light.action },
-    ],
+    ["expo-notifications", { icon: "./assets/images/notification-icon.png" }],
     // Program cover photos: the system photo picker. The camera and microphone are never used.
     [
       "expo-image-picker",

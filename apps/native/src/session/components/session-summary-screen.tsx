@@ -1,3 +1,5 @@
+import { useFocusEffect, useRouter } from "expo-router";
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useIdentityColor, useOnIdentityColor } from "@/platform/theme";
 import { haptic } from "@/platform/haptics";
 import { SessionRecord } from "./session-record";
@@ -10,9 +12,9 @@ import {
   SET_KIND_KEYS,
 } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useThemeColor } from "heroui-native";
-import { ScrollView, Switch, Text, View } from "react-native";
+import { BackHandler, ScrollView, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -56,6 +58,21 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   useEffect(() => {
     if (step === "celebration") haptic.success();
   }, [step]);
+  const router = useRouter();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const backToWorkout = useCallback(() => {
+    router.replace({ pathname: "/session/[id]", params: { id: session.id } });
+  }, [router, session.id]);
+  useFocusEffect(
+    useCallback(() => {
+      const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step === "summary" && session.finishedAt === null) backToWorkout();
+        else onDone();
+        return true;
+      });
+      return () => listener.remove();
+    }, [step, session.finishedAt, backToWorkout, onDone]),
+  );
   const [structure, setStructure] = useState(false);
   const [targets, setTargets] = useState(false);
   const [saveNew, setSaveNew] = useState(false);
@@ -249,6 +266,11 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
               {t("session__invalid_summary")}
             </Text>
           ) : null}
+          {session.finishedAt === null ? (
+            <Button variant="secondary" isDisabled={busy} onPress={backToWorkout}>
+              <Button.Label>{t("session__back_to_workout")}</Button.Label>
+            </Button>
+          ) : null}
           <Button
             isDisabled={
               busy ||
@@ -259,6 +281,11 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
           >
             <Button.Label>{t("session__save_continue")}</Button.Label>
           </Button>
+          {session.finishedAt === null ? (
+            <Button variant="danger-soft" isDisabled={busy} onPress={() => setConfirmDiscard(true)}>
+              <Button.Label>{t("session__discard_workout")}</Button.Label>
+            </Button>
+          ) : null}
         </>
       ) : step === "workout" ? (
         <>
@@ -323,6 +350,28 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
           </Button>
         </>
       )}
+      <ConfirmationDialog
+        isOpen={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title={t("session__discard_confirm_title")}
+        description={t("session__discard_confirm_body", {
+          count: session.exercises.reduce(
+            (sum, entry) => sum + entry.sets.filter((set) => set.completedAt !== null).length,
+            0,
+          ),
+        })}
+        cancelLabel={t("session__keep_logging")}
+        confirmLabel={t("session__discard_workout")}
+        destructive
+        onConfirm={() => {
+          if (busy) return;
+          setBusy(true);
+          void actions.discard(session.id, session.title).then((ok) => {
+            setBusy(false);
+            if (ok) onDone();
+          });
+        }}
+      />
     </ScrollView>
   );
 }

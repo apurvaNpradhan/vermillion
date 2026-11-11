@@ -65,6 +65,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
     <Page
       title={session?.title ?? t("session__history")}
       back
+      backFallback="/history"
       actions={
         session ? (
           <Button
@@ -162,13 +163,21 @@ export function SessionDetailScreen({ id }: { id: string }) {
               />
               {session.exercises.map((entry) => (
                 <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
-                  <Text className="text-title-md text-foreground">{entry.title}</Text>
+                  <Text
+                    accessibilityRole="link"
+                    onPress={() =>
+                      router.push({ pathname: "/exercises/[id]", params: { id: entry.exerciseId } })
+                    }
+                    className="text-title-md text-foreground"
+                  >
+                    {entry.title}
+                  </Text>
                   {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
                   {entry.sets.map((set, index) => (
                     <View key={set.id} className="flex-row items-center gap-3 py-1">
                       <View
-                        accessibilityLabel={t("training__set_kind_change", {
-                          index: index + 1,
+                        accessibilityLabel={t("session__set_label", {
+                          number: index + 1,
                           kind: t(SET_KIND_KEYS[set.kind]),
                         })}
                         className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}

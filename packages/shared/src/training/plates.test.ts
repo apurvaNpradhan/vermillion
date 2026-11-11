@@ -17,6 +17,13 @@ describe("loadBar", () => {
     expect(result.platesPerSide).toHaveLength(10);
     expect(performance.now() - start).toBeLessThan(2000);
   });
+  it("keeps a mixed kit with an odd one-pound plate exact and bounded", () => {
+    const start = performance.now();
+    const result = loadBar(150, { weightKg: 20 }, [...kit, plate(KG_PER_LB)]);
+    expect(result.exact).toBe(true);
+    expect(result.totalKg).toBe(150);
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
   it("compares duplicate tiny denominations without expanding every tied solution", () => {
     const start = performance.now();
     const result = loadBar(20, { weightKg: 0 }, [plate(0.001), { ...plate(0.001), id: "second" }]);

@@ -16,6 +16,7 @@
     "@better-auth/expo": "catalog:",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~58.0.14",
+    "@formatjs/intl-pluralrules": "^7.0.4",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@legendapp/list": "^3.7.1",
     "@op-engineering/op-sqlite": "18.2.5",

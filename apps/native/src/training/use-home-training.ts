@@ -1,5 +1,10 @@
 import { KG_PER_LB, MUSCLE_GROUPS, sessionTotals } from "@workspace/shared";
-import { watchSessionsBetween, type FinishedSession, type TrainingDatabase } from "@workspace/sync";
+import {
+  watchSessionPage,
+  watchSessionsBetween,
+  type FinishedSession,
+  type TrainingDatabase,
+} from "@workspace/sync";
 import { useCallback } from "react";
 import { z } from "zod";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
@@ -7,16 +12,15 @@ import { useTranslation } from "@/platform/i18n";
 import { formatWeekLabel } from "./week-label";
 import { usePreferences } from "@/preferences";
 
-const subscribe = (
+const subscribeRecent = (
   db: TrainingDatabase,
   onValue: (sessions: FinishedSession[]) => void,
   onError: () => void,
 ) =>
-  watchSessionsBetween(
-    db,
-    { from: "1970-01-01", to: "9999-01-01" },
-    { onSessions: onValue, onError },
-  );
+  watchSessionPage(db, { startedAt: "9999-01-01T00:00:00.000Z", id: "~" }, 3, {
+    onSessions: onValue,
+    onError,
+  });
 const exerciseSchema = z.object({
   id: z.string(),
   primary_muscle: z.enum(MUSCLE_GROUPS),
@@ -25,9 +29,22 @@ const exerciseSchema = z.object({
     .transform((text) => JSON.parse(text))
     .pipe(z.array(z.enum(MUSCLE_GROUPS))),
 });
-export function useHomeTraining() {
+export function useHomeTraining(workoutId?: string) {
   const { i18n } = useTranslation();
-  const history = useLocalWatch(subscribe);
+  // Home needs eight chart weeks, plus a small recent list even after a long break.
+  const from = new Date(Date.now() - 9 * 7 * 86400000).toISOString().slice(0, 10);
+  const history = useLocalWatch(
+    useCallback(
+      (db: TrainingDatabase, onValue: (sessions: FinishedSession[]) => void, onError: () => void) =>
+        watchSessionsBetween(
+          db,
+          { from: workoutId ? "1970-01-01" : from, to: "9999-01-01", workoutId },
+          { onSessions: onValue, onError },
+        ),
+      [from, workoutId],
+    ),
+  );
+  const recent = useLocalWatch(subscribeRecent);
   const { preferences } = usePreferences();
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const muscles = useLocalWatch(
@@ -84,13 +101,17 @@ export function useHomeTraining() {
   });
   return {
     sessions,
+    recent: recent.value ?? [],
     buckets,
     exercises: muscles.value ?? [],
     timezone: zone,
     bodyweightKg: preferences.ui.bodyweightKg,
     weightUnit: preferences.ui.weightUnit,
-    loading: history.loading,
-    failed: history.failed,
-    retry: history.retry,
+    loading: history.loading || recent.loading,
+    failed: history.failed || recent.failed,
+    retry: () => {
+      history.retry();
+      recent.retry();
+    },
   };
 }

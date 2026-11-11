@@ -329,11 +329,12 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
   title: string;
   durationS: number | null;
   workoutId: string | null;
+  exerciseTitles?: string[];
 };
 
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
-    se.exercise_id AS exercise_id, se.exercise_type AS exercise_type,
+    se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
     ss.steps AS steps, ss.rpe AS rpe, ss.completed_at AS completed_at`;
@@ -428,6 +429,7 @@ export function exerciseRecordsSql(count: number): string {
 }
 
 const finishedRowSchema = z.object({
+  exercise_title: z.string().nullable().optional(),
   session_id: z.string(),
   title: z.string(),
   started_at: z.string(),
@@ -464,6 +466,15 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         sets: [],
       };
       result.push(current);
+    }
+    if (row.exercise_title) {
+      current.exerciseTitles ??= [];
+      if (
+        current.exerciseTitles.length < 3 &&
+        !current.exerciseTitles.includes(row.exercise_title)
+      ) {
+        current.exerciseTitles.push(row.exercise_title);
+      }
     }
     if (
       row.set_id !== null &&

@@ -1,4 +1,4 @@
-import { useRouter, useScrollToTop } from "expo-router";
+import { type Href, useRouter, useScrollToTop } from "expo-router";
 import { useThemeColor } from "heroui-native";
 import { CaretLeft } from "phosphor-react-native";
 import { useRef, type ReactElement, type ReactNode } from "react";
@@ -68,6 +68,7 @@ function scrollToTop(target: ScrollTarget | null) {
 export function Page({
   title,
   back = false,
+  backFallback = "/",
   actions,
   pinned,
   hero,
@@ -76,6 +77,7 @@ export function Page({
   title: string;
   /** A back button, for pages pushed over another page. */
   back?: boolean;
+  backFallback?: Href;
   /** Icon buttons on the right of the header row, in a floating capsule. */
   actions?: ReactNode;
   /**
@@ -154,7 +156,7 @@ export function Page({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("nav__back")}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace(backFallback))}
           >
             <FloatingSurface radius={22} className="h-11 w-11 items-center justify-center">
               <BackIcon />

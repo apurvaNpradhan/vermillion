@@ -166,10 +166,10 @@ export function useLoggingState({
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {
       const at = found.get(setId);
-      if (!at || !historyReady) return {};
+      if (!at || !previous.has(at.exercise.exerciseId)) return {};
       return ghostsOf(at.exercise.type, previousOf(setId), at.set.target, at.exercise.logEffort);
     },
-    [found, previousOf, historyReady],
+    [found, previousOf, previous],
   );
 
   // ---- The keypad ----
@@ -335,7 +335,7 @@ export function useLoggingState({
   const tickWith = useCallback(
     async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
       const at = found.get(setId);
-      if (!at || !historyReady) return false;
+      if (!at || !previous.has(at.exercise.exerciseId)) return false;
       const block = blockOfSet(setId);
       // A finished Session being edited has no timers.
       const seconds =
@@ -478,6 +478,7 @@ export function useLoggingState({
   );
 
   return {
+    historyReadyFor: (exerciseId: string) => previous.has(exerciseId),
     historyReady,
     blocks,
     places,

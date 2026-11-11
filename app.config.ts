@@ -24,8 +24,8 @@ export const appConfig = {
     android: "com.anonymous.vermillion",
   },
   scheme: "vermillion",
-  /** Expo project id from `eas init`; enables EAS Update. Leave empty until the project exists. */
-  easProjectId: "",
+  /** Expo project id from `eas init`; links EAS Build and enables EAS Update. */
+  easProjectId: "0e4f60c6-c991-403e-9182-6212a8bca424",
 } as const;
 
 export type AppConfig = typeof appConfig;

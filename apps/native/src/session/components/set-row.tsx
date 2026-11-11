@@ -1,3 +1,4 @@
+import { Skeleton } from "@/platform/ui/skeleton";
 import {
   SET_FIELDS,
   SET_KIND_KEYS,
@@ -137,6 +138,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     return (
       <View key={field} className={`min-w-0 flex-row gap-1 ${grow(field)}`}>
         <SetCell
+          done={ticked}
           text={text}
           ghost={ghost}
           active={editing}
@@ -184,7 +186,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
 
   const row = (a11y?: SwipeA11yProps) => (
     <View
-      className={`flex-row items-center gap-1.5 rounded-xl px-1 py-1 ${highlighted && !ticked ? "bg-identity-soft" : ""}`}
+      className={`flex-row items-center gap-1.5 rounded-xl px-1 py-1 ${ticked ? "bg-default" : highlighted ? "bg-identity-soft" : ""}`}
     >
       <Pressable
         {...a11y}
@@ -217,13 +219,17 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         }}
         className="h-10 min-w-0 flex-[1.3] items-center justify-center rounded-lg px-1 active:bg-default"
       >
-        <Text
-          numberOfLines={1}
-          className="text-center text-caption text-muted"
-          style={{ fontVariant: ["tabular-nums"] }}
-        >
-          {!props.historyReady ? t("common__loading") : (previousText ?? "–")}
-        </Text>
+        {!props.historyReady ? (
+          <Skeleton label={t("common__loading")} className="h-3 w-10" />
+        ) : (
+          <Text
+            numberOfLines={1}
+            className="text-center text-caption text-muted"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {previousText ?? "–"}
+          </Text>
+        )}
       </Pressable>
       {fields.map(cell)}
       {showsEffort ? (
@@ -235,7 +241,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           })}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
-          className="h-10 w-11 items-center justify-center rounded-lg bg-field active:bg-default"
+          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
         >
           <Text
             className={`text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
@@ -248,7 +254,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       {props.editingFinished ? null : (
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityState={{ checked: ticked }}
+          accessibilityState={{
+            checked: ticked,
+            disabled: readOnly || (!ticked && !props.historyReady),
+          }}
           accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
           disabled={readOnly || (!ticked && !props.historyReady)}
           onPress={() => props.onTick(set.id)}

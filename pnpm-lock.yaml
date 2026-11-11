@@ -213,6 +213,9 @@ catalogs:
       specifier: ^4.5.4
       version: 4.6.7
 
+patchedDependencies:
+  '@gorhom/bottom-sheet@5.2.14': 570f3e915232157fe668d7917d63a263b4beee2825739c53196976c19e29b850
+
 importers:
 
   .:
@@ -265,9 +268,12 @@ importers:
       '@expo/metro-runtime':
         specifier: ~58.0.14
         version: 58.0.17(@expo/log-box@58.0.15)(expo@58.0.23)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
+      '@formatjs/intl-pluralrules':
+        specifier: ^7.0.4
+        version: 7.0.4
       '@gorhom/bottom-sheet':
         specifier: ^5.2.14
-        version: 5.2.14(ba302b158e27304d672f7186b94750b2)
+        version: 5.2.14(patch_hash=570f3e915232157fe668d7917d63a263b4beee2825739c53196976c19e29b850)(ba302b158e27304d672f7186b94750b2)
       '@legendapp/list':
         specifier: ^3.7.1
         version: 3.7.1(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
@@ -378,7 +384,7 @@ importers:
         version: 58.0.7(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))
       heroui-native:
         specifier: ^1.0.10
-        version: 1.0.11(27aca5669b6bd69dd94057b888343084)
+        version: 1.0.11(de82deeca606a417796a5c9da5123a3f)
       i18next:
         specifier: ^26.7.2
         version: 26.7.2(typescript@7.0.2)
@@ -1843,6 +1849,18 @@ packages:
   '@expo/xcpretty@4.4.7':
     resolution: {integrity: sha512-EbxYllZ7/ozONVZd425cm4XnolfW+AmSFT5aP7Jdno6oc3WrYQcHz2CO20z/2rwWwYgztmV2PXvYH+BQ8YFjqg==}
     hasBin: true
+
+  '@formatjs/bigdecimal@0.2.10':
+    resolution: {integrity: sha512-npIs6UARNOg5amJY5UOVsd6HUQQfzYjet0sa0SWIqzsnVhxLSpaIx2DjoIVrr/vqmjURjvroeW6dItjfy3Uf8A==}
+
+  '@formatjs/fast-memoize@3.1.7':
+    resolution: {integrity: sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA==}
+
+  '@formatjs/intl-localematcher@0.10.1':
+    resolution: {integrity: sha512-gBqglQK9rXuHsLmM8wzTMBy4Xo4d0jamirIVKuEL8F1rwbskWdpMA1kZarSkny+uvr5q/K6GSzE0Rcq1wZLl3g==}
+
+  '@formatjs/intl-pluralrules@7.0.4':
+    resolution: {integrity: sha512-EeQ8YUs1QOpYLUiNHkHfR1rsOMtQUBQXEQwR9WmJRWfzvVXeYZ7vBeMARtlb2KuHUgdmfXjoin5oNn68hjyrEQ==}
 
   '@gorhom/bottom-sheet@5.2.14':
     resolution: {integrity: sha512-uLQFlDjp9z+jrOFcMSEldPqL5JdaXL3vXOh+juhwoNvXgTsEorJLjHTugXu+YccAG/0KJnShzKCrb71MHBsvJg==}
@@ -8305,7 +8323,20 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.3.2
 
-  '@gorhom/bottom-sheet@5.2.14(ba302b158e27304d672f7186b94750b2)':
+  '@formatjs/bigdecimal@0.2.10': {}
+
+  '@formatjs/fast-memoize@3.1.7': {}
+
+  '@formatjs/intl-localematcher@0.10.1':
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.7
+
+  '@formatjs/intl-pluralrules@7.0.4':
+    dependencies:
+      '@formatjs/bigdecimal': 0.2.10
+      '@formatjs/intl-localematcher': 0.10.1
+
+  '@gorhom/bottom-sheet@5.2.14(patch_hash=570f3e915232157fe668d7917d63a263b4beee2825739c53196976c19e29b850)(ba302b158e27304d672f7186b94750b2)':
     dependencies:
       '@gorhom/portal': 1.0.14(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       invariant: 2.2.4
@@ -11032,7 +11063,7 @@ snapshots:
     dependencies:
       hermes-estree: 0.36.1
 
-  heroui-native@1.0.11(27aca5669b6bd69dd94057b888343084):
+  heroui-native@1.0.11(de82deeca606a417796a5c9da5123a3f):
     dependencies:
       react: 19.3.0
       react-native: 0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
@@ -11044,7 +11075,7 @@ snapshots:
       tailwind-merge: 3.7.0
       tailwind-variants: 3.3.1(tailwind-merge@3.7.0)(tailwindcss@4.3.4)
     optionalDependencies:
-      '@gorhom/bottom-sheet': 5.2.14(ba302b158e27304d672f7186b94750b2)
+      '@gorhom/bottom-sheet': 5.2.14(patch_hash=570f3e915232157fe668d7917d63a263b4beee2825739c53196976c19e29b850)(ba302b158e27304d672f7186b94750b2)
       expo-blur: 58.0.5(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       react-native-screens: 4.30.1(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
 

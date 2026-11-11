@@ -11,3 +11,5 @@ export { LogPastScreen } from "./components/log-past-screen";
 export { useActiveSessions } from "./use-active-sessions";
 export { formatElapsed } from "./clock";
 export { doneSummary } from "./summary";
+
+export { usePreviousSets } from "./use-previous-sets";

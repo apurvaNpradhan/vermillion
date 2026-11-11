@@ -664,7 +664,7 @@ export function watchExerciseHistories(
 /** Watches the finished Sessions that started in `[from, to)` (ISO times), newest first. */
 export function watchSessionsBetween(
   database: TrainingDatabase,
-  range: { from: string; to: string },
+  range: { from: string; to: string; workoutId?: string },
   handlers: {
     onSessions: (sessions: FinishedSession[]) => void;
     onError: (error: Error) => void;
@@ -672,8 +672,13 @@ export function watchSessionsBetween(
 ): () => void {
   return watch(
     database,
-    SESSIONS_BETWEEN_SQL,
-    [range.from, range.to],
+    range.workoutId
+      ? SESSIONS_BETWEEN_SQL.replace(
+          "s2.finished_at IS NOT NULL",
+          "s2.finished_at IS NOT NULL AND s2.workout_id = ?",
+        )
+      : SESSIONS_BETWEEN_SQL,
+    range.workoutId ? [range.workoutId, range.from, range.to] : [range.from, range.to],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,

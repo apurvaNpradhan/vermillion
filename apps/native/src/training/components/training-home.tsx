@@ -1,3 +1,4 @@
+import { Skeleton } from "@/platform/ui/skeleton";
 import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
@@ -42,6 +43,9 @@ export function TrainingHome() {
   return (
     <View className="gap-5">
       <ActiveProgramCard />
+      {state.loading ? (
+        <Skeleton label={t("common__loading")} className="h-40 w-full rounded-2xl" />
+      ) : null}
       {state.failed ? (
         <Button variant="secondary" onPress={state.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
@@ -49,7 +53,7 @@ export function TrainingHome() {
       ) : null}
       {!state.loading &&
       !state.failed &&
-      state.sessions.length === 0 &&
+      state.recent.length === 0 &&
       active.sessions.length === 0 ? (
         <Button onPress={() => void start(null)}>
           <Button.Label>{t("home__first")}</Button.Label>
@@ -62,14 +66,14 @@ export function TrainingHome() {
             items={[
               {
                 label: t("stats__sessions"),
-                value: t("stats__sessions", { count: current.items.length }),
+                value: format(current.items.length),
                 detail: t("home__delta", {
                   value: delta(current.items.length - last.items.length),
                 }),
               },
               {
                 label: t("stats__sets"),
-                value: t("stats__sets", { count: current.sets }),
+                value: format(current.sets),
                 detail: t("home__delta", { value: delta(current.sets - last.sets) }),
               },
               {
@@ -97,7 +101,7 @@ export function TrainingHome() {
           ) : null}
         </View>
       ) : null}
-      {state.sessions.length > 0 ? (
+      {state.recent.length > 0 ? (
         <View className="gap-2">
           <View className="flex-row items-center justify-between">
             <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
@@ -106,7 +110,7 @@ export function TrainingHome() {
             </Button>
           </View>
           <ListSection>
-            {state.sessions.slice(0, 3).map((s) => {
+            {state.recent.map((s) => {
               const totals = sessionTotals(s.sets, state.bodyweightKg);
               return (
                 <ListRow
@@ -125,7 +129,12 @@ export function TrainingHome() {
                     sets: t("stats__sets", { count: totals.sets }),
                     volume: volume(totals.volume),
                   })}
-                  onPress={() => router.push({ pathname: "/history/[id]", params: { id: s.id } })}
+                  onPress={() =>
+                    router.push(
+                      { pathname: "/history/[id]", params: { id: s.id } },
+                      { withAnchor: true },
+                    )
+                  }
                 />
               );
             })}

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { loadBar, type GymEquipmentInput } from "@workspace/shared";
+import { loadBar, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
 import {
   deleteEquipment,
   restoreEquipment,
@@ -16,9 +16,21 @@ import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
 import { useLocalData, useSyncStatus } from "@/sync";
+import {
+  canSeedEquipment,
+  defaultBar,
+  enabledBars,
+  hasTarget,
+  loadInputKey,
+  missingKitItems,
+  platesForBar,
+} from "./plate-view";
+
+/** Write scopes whose empty inventory this app run has already seeded. */
+const seededScopes = new Set<string>();
 
 /** Owns all calculator inventory reads and writes, including account-scoped errors and Undo. */
-export function useEquipment() {
+export function useEquipment(enabled = true) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const local = useLocalData();
@@ -28,9 +40,14 @@ export function useEquipment() {
   const { preferences, isLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const subscribe = useCallback(
-    (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) =>
-      watchEquipment(db, { onEquipment: onValue, onError }),
-    [],
+    (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) => {
+      if (!enabled) {
+        onValue([]);
+        return () => undefined;
+      }
+      return watchEquipment(db, { onEquipment: onValue, onError });
+    },
+    [enabled],
   );
   const state = useLocalWatch(subscribe);
   const run = useCallback(
@@ -45,10 +62,39 @@ export function useEquipment() {
     },
     [database, toast, t],
   );
+  const hasSynced = snapshot?.hasSynced === true;
+  const loaded = state.value !== undefined;
+  const rowCount = state.value?.length ?? 0;
+  // The first sync may deliver the account's own kit, so the default kit goes in only after it,
+  // into an inventory that loaded empty, and once per write scope.
   useEffect(() => {
-    if (!database || isLoading) return;
-    void run((db) => seedEquipment(db, unit, scope));
-  }, [database, isLoading, unit, scope, run]);
+    if (!enabled || !database || isLoading) return;
+    if (
+      !canSeedEquipment({
+        hasSynced,
+        scope: snapshot?.writeScope ?? null,
+        loaded,
+        rowCount,
+        alreadySeeded: seededScopes.has(scope),
+      })
+    )
+      return;
+    seededScopes.add(scope);
+    void run((db) => seedEquipment(db, unit, scope)).then((done) => {
+      if (done === null) seededScopes.delete(scope);
+    });
+  }, [
+    enabled,
+    database,
+    isLoading,
+    hasSynced,
+    snapshot?.writeScope,
+    loaded,
+    rowCount,
+    unit,
+    scope,
+    run,
+  ]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
     run((db) => upsertEquipment(db, [item], scope));
   const toggle = (item: EquipmentRow) =>
@@ -61,6 +107,13 @@ export function useEquipment() {
       count: item.count,
       enabled: !item.enabled,
     });
+  /** Adds a unit's default kit without duplicating what the inventory already holds. */
+  const addKit = (kitUnit: WeightUnit) => {
+    const items = missingKitItems(state.value ?? [], kitUnit);
+    return items.length === 0
+      ? Promise.resolve([])
+      : run((db) => upsertEquipment(db, items, scope));
+  };
   const remove = async (item: EquipmentRow) => {
     const deleted = await run((db) => deleteEquipment(db, item.id, scope));
     if (!deleted) return;
@@ -74,11 +127,26 @@ export function useEquipment() {
       },
     });
   };
-  return { ...state, rows: state.value ?? [], unit, save, toggle, remove, run, scope };
+  return {
+    ...state,
+    rows: state.value ?? [],
+    unit,
+    hasSynced,
+    save,
+    toggle,
+    addKit,
+    remove,
+    run,
+    scope,
+  };
 }
 
-export function usePlates(targetKg: number, exerciseId: string) {
-  const equipment = useEquipment();
+/**
+ * The calculator's state for one exercise. Enable it only while the calculator is open: it
+ * watches the equipment and the exercise's remembered bar, and solves the load.
+ */
+export function usePlates(targetKg: number, exerciseId: string, enabled = true) {
+  const equipment = useEquipment(enabled);
   const { run, scope } = equipment;
   const [selected, setSelected] = useState<{
     exerciseId: string;
@@ -88,13 +156,13 @@ export function usePlates(targetKg: number, exerciseId: string) {
   const subscribe = useCallback(
     (db: TrainingDatabase, onValue: (barId: string | null) => void, onError: () => void) => {
       const controller = new AbortController();
-      if (!exerciseId) {
+      if (!enabled || !exerciseId) {
         onValue(null);
         return () => controller.abort();
       }
       db.watchWithCallback(
         "SELECT bar_id FROM exercise_setting WHERE exercise_id = ?",
-        [exerciseId],
+        [exerciseId, enabled],
         {
           onResult: (result) => {
             const parsed = z
@@ -109,30 +177,26 @@ export function usePlates(targetKg: number, exerciseId: string) {
       );
       return () => controller.abort();
     },
-    [exerciseId],
+    [exerciseId, enabled],
   );
   const remembered = useLocalWatch(subscribe);
-  const bars = equipment.rows.filter((p) => p.kind === "bar" && p.enabled);
-  const bar =
-    bars.find(
-      (p) =>
-        p.id ===
-        (selected?.exerciseId === exerciseId && selected.scope === scope
-          ? selected.id
-          : remembered.value),
-    ) ??
-    bars.find((p) => p.unit === equipment.unit) ??
-    bars[0];
+  const bars = useMemo(() => enabledBars(equipment.rows), [equipment.rows]);
+  const bar = defaultBar(
+    bars,
+    selected?.exerciseId === exerciseId && selected.scope === scope
+      ? selected.id
+      : remembered.value,
+    equipment.unit,
+  );
+  const plates = bar ? platesForBar(equipment.rows, bar) : [];
+  const target = useDeferredValue(targetKg);
+  // The inventory emits a new array on every change; solve again only when the bar, a plate that
+  // matters to the solver or the target changes.
+  const inputKey = loadInputKey(bar, plates);
   const result = useMemo(
-    () =>
-      bar
-        ? loadBar(
-            targetKg,
-            bar,
-            equipment.rows.filter((p) => p.kind === "plate" && p.enabled && p.unit === bar.unit),
-          )
-        : null,
-    [targetKg, bar, equipment.rows],
+    () => (enabled && bar && hasTarget(target) ? loadBar(target, bar, plates) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `inputKey` stands for `bar` and `plates`.
+    [inputKey, target, enabled],
   );
   const chooseBar = async (id: string) => {
     if (exerciseId) {
@@ -152,6 +216,10 @@ export function usePlates(targetKg: number, exerciseId: string) {
     },
     bars,
     bar,
+    /** The unit the calculator works in: the bar's own. */
+    barUnit: bar?.unit ?? equipment.unit,
+    plates,
+    target,
     chooseBar,
     result,
   };

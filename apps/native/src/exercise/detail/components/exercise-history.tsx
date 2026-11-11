@@ -17,6 +17,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
     <Page title={t("exercise__history_title")} back>
       {({ header, contentContainerStyle, ...scroll }) => (
         <AnimatedLegendList
+          recycleItems={false}
           {...scroll}
           className="flex-1"
           contentContainerStyle={contentContainerStyle}

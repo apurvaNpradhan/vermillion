@@ -1,4 +1,4 @@
-import { CaretDown } from "phosphor-react-native";
+import { CaretDown, DotsThreeVertical } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
@@ -26,7 +26,7 @@ function Clock({ startedAt, frozen }: { startedAt: string; frozen: boolean }) {
  */
 export function SessionHeader({
   finished,
-  onMuscles,
+  onMenu,
   title,
   startedAt,
   volume,
@@ -36,7 +36,7 @@ export function SessionHeader({
   onFinish,
 }: {
   finished: boolean;
-  onMuscles: () => void;
+  onMenu: () => void;
   title: string;
   startedAt: string;
   /** Volume with its unit, "4,250 kg". */
@@ -83,12 +83,8 @@ export function SessionHeader({
           </Text>
         </View>
       </View>
-      <Button
-        variant="ghost"
-        onPress={onMuscles}
-        accessibilityLabel={t("exercise__muscle_distribution")}
-      >
-        <Button.Label>{t("session__muscles")}</Button.Label>
+      <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
+        <DotsThreeVertical size={22} color={foreground} />
       </Button>
       {readOnly ? null : (
         <Button variant="primary" className="rounded-full" onPress={onFinish}>

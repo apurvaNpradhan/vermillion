@@ -13,7 +13,6 @@ import { groupSessionWeeks } from "../history";
 import { formatElapsed } from "../clock";
 import { formatVolume } from "../summary";
 import { useSessionHistory } from "../use-session-history";
-import { useSession } from "../use-session";
 
 type HistoryItem =
   | { kind: "week"; id: string; sessions: FinishedSession[] }
@@ -38,13 +37,14 @@ export function HistoryScreen() {
     <Page
       title={t("session__history")}
       actions={
-        <Button onPress={() => router.push("/history/log-past")}>
+        <Button variant="ghost" onPress={() => router.push("/history/log-past")}>
           <Button.Label>{t("session__log_past")}</Button.Label>
         </Button>
       }
     >
       {({ header, contentContainerStyle, ...scroll }) => (
         <AnimatedLegendList
+          recycleItems={false}
           {...scroll}
           data={history.loading || history.failed ? [] : items}
           keyExtractor={(item) => item.id}
@@ -123,7 +123,9 @@ export function HistoryScreen() {
                     ),
                   })}
                 </Text>
-                <HistoryExerciseNames id={session.id} />
+                <Text className="text-caption text-muted">
+                  {session.exerciseTitles?.join(" · ")}
+                </Text>
               </Pressable>
             );
           }}
@@ -131,15 +133,4 @@ export function HistoryScreen() {
       )}
     </Page>
   );
-}
-function HistoryExerciseNames({ id }: { id: string }) {
-  const state = useSession(id);
-  return state.status === "ready" ? (
-    <Text className="text-caption text-muted">
-      {state.session.exercises
-        .slice(0, 3)
-        .map((entry) => entry.title)
-        .join(" · ")}
-    </Text>
-  ) : null;
 }

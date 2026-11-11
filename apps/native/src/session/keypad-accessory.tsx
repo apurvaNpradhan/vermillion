@@ -1,7 +1,7 @@
 import type { SetField, WeightUnit } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { Barbell } from "phosphor-react-native";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Pressable, Text } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -29,6 +29,10 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
   const { t } = useTranslation();
   const ink = useThemeColor("foreground");
   const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [cell?.setId, cell?.field]);
+  // The weight the calculator works on is fixed when it opens, so typing on the keypad behind the
+  // sheet does not recompute it.
+  const [openedKg, setOpenedKg] = useState(0);
   if (!cell || cell.field !== "weight" || cell.exercise.exercise?.equipment !== "barbell") {
     return null;
   }
@@ -37,7 +41,10 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("plates__title")}
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          setOpenedKg(cell.currentKg ?? 0);
+          setOpen(true);
+        }}
         className="min-h-11 flex-row items-center gap-2 rounded-xl border border-separator px-3"
       >
         <Barbell size={18} color={ink} />
@@ -45,7 +52,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
       </Pressable>
       <PlateCalculatorSheet
         isOpen={open}
-        targetKg={cell.currentKg ?? 0}
+        targetKg={openedKg}
         exerciseId={cell.exercise.exerciseId}
         onUse={(weightKg) => {
           cell.putKg(weightKg);

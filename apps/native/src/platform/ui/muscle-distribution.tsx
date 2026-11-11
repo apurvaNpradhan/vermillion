@@ -1,3 +1,4 @@
+import { haptic } from "@/platform/haptics";
 import {
   MUSCLE_GROUP_KEYS,
   muscleDistribution,
@@ -43,8 +44,8 @@ export function MuscleDistribution({
           <View className="flex-row justify-between">
             <Text className="text-body text-foreground">{t(MUSCLE_GROUP_KEYS[load.muscle])}</Text>
             <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
-              {t("exercise__muscle_sets", {
-                value: new Intl.NumberFormat(i18n.language).format(load.sets),
+              {t("stats__sets", {
+                count: load.sets,
               })}
             </Text>
           </View>
@@ -57,7 +58,13 @@ export function MuscleDistribution({
         </View>
       ))}
       {preview && !showAll && loads.length > 3 ? (
-        <Button variant="ghost" onPress={() => setShowAll(true)}>
+        <Button
+          variant="ghost"
+          onPress={() => {
+            haptic.tick();
+            setShowAll(true);
+          }}
+        >
           <Button.Label>{t("session__show_all_muscles")}</Button.Label>
         </Button>
       ) : null}

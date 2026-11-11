@@ -1,5 +1,6 @@
 // Must stay first: installs `crypto` for Hermes before anything creates an id or opens PowerSync.
 import "@/platform/local-database/crypto-polyfill";
+import "@/platform/i18n/polyfills";
 import "../global.css";
 
 import {

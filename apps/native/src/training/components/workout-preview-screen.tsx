@@ -1,28 +1,35 @@
+import { haptic } from "@/platform/haptics";
 import { isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { DotsThreeVertical, PencilSimple } from "phosphor-react-native";
+import { PencilSimple } from "phosphor-react-native";
 import { useThemeColor } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
-import { ActionSheet } from "@/platform/ui/action-sheet";
 import { LineChart } from "@/platform/ui/charts/chart";
-import { useStartSession, formatElapsed } from "@/session";
+import { usePreviousSets, useStartSession, formatElapsed } from "@/session";
 import { useHomeTraining } from "../use-home-training";
 import { lastDoneLabel } from "../last-done";
 import { doneSummary } from "@/session";
 import { useWorkout } from "../use-workout";
+import { summariseSets } from "../summarise-sets";
+import { useSummaryLabels } from "../use-summary-labels";
+import { usePreferences } from "@/preferences";
 
 export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const ink = useThemeColor("foreground");
+  const summaryLabels = useSummaryLabels();
+  const { preferences } = usePreferences();
   const state = useWorkout(id);
-  const history = useHomeTraining();
+  const history = useHomeTraining(id);
+  const previousHistory = usePreviousSets(
+    state.status === "ready" ? state.workout.exercises.map((entry) => entry.exerciseId) : [],
+  );
   const { start, sheet } = useStartSession();
-  const [menu, setMenu] = useState(false);
   const [metric, setMetric] = useState<"volume" | "reps" | "duration">("volume");
   const sessions = history.sessions.filter((s) => s.workoutId === id);
   const last = sessions[0];
@@ -62,10 +69,10 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           state.status === "ready" ? (
             <Button
               variant="ghost"
-              accessibilityLabel={t("training__workout_menu")}
-              onPress={() => setMenu(true)}
+              accessibilityLabel={t("session__edit")}
+              onPress={() => router.push({ pathname: "/train/workout/[id]/edit", params: { id } })}
             >
-              <DotsThreeVertical color={ink} />
+              <PencilSimple color={ink} />
             </Button>
           ) : undefined
         }
@@ -113,7 +120,10 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                       size="sm"
                       variant={metric === value ? "secondary" : "tertiary"}
                       accessibilityState={{ selected: metric === value }}
-                      onPress={() => setMetric(value)}
+                      onPress={() => {
+                        if (metric !== value) haptic.tick();
+                        setMetric(value);
+                      }}
                     >
                       <Button.Label>
                         {t(
@@ -136,20 +146,33 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
             ) : null}
             <View className="gap-3">
               {state.workout.exercises.map((entry) => {
-                const previous = history.sessions.find((s) =>
-                  s.sets.some((set) => set.exercise_id === entry.exerciseId),
-                );
+                const previous = previousHistory.history.get(entry.exerciseId)?.[0];
                 const sets =
                   previous?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
                   ) ?? [];
                 return (
                   <View key={entry.id} className="gap-1 rounded-xl bg-surface p-4">
-                    <Text className="text-title-md text-foreground">
+                    <Text
+                      accessibilityRole="link"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/exercises/[id]",
+                          params: { id: entry.exerciseId },
+                        })
+                      }
+                      className="text-title-md text-foreground"
+                    >
                       {entry.exercise?.title ?? t("training__workout")}
                     </Text>
                     <Text className="text-caption text-muted">
-                      {t("stats__sets", { count: entry.sets.length })}
+                      {summariseSets(
+                        entry.sets,
+                        entry.exercise?.exerciseType ?? "weight_reps",
+                        entry.restSeconds,
+                        { weightUnit: history.weightUnit, effortScale: preferences.ui.effortScale },
+                        summaryLabels,
+                      )}
                     </Text>
                     {sets.length ? (
                       <Text className="text-body text-muted">
@@ -184,19 +207,6 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         )}
       </ScrollPage>
       {sheet}
-      <ActionSheet
-        isOpen={menu}
-        onOpenChange={setMenu}
-        title={t("training__workout")}
-        actions={[
-          {
-            key: "edit",
-            label: t("session__edit"),
-            icon: PencilSimple,
-            onPress: () => router.push({ pathname: "/train/workout/[id]/edit", params: { id } }),
-          },
-        ]}
-      />
     </>
   );
 }

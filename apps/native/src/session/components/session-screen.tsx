@@ -14,6 +14,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
   Gauge,
+  Person,
   Link,
   LinkBreak,
   NotePencil,
@@ -148,7 +149,12 @@ function LoadedSession({
     () => session.exercises.map((entry) => entry.exerciseId),
     [session.exercises],
   );
-  const { history: previous, ready: historyReady } = usePreviousSets(exerciseIds);
+  const {
+    history: previous,
+    ready: historyReady,
+    failed: historyFailed,
+    retry: retryHistory,
+  } = usePreviousSets(exerciseIds);
   const { bottom } = useSafeAreaInsets();
   const restRunning = useRestRunning(session.rest);
 
@@ -220,6 +226,9 @@ function LoadedSession({
 
   // ---- Sheets and dialogs ----
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [sessionMenu, setSessionMenu] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
@@ -398,7 +407,7 @@ function LoadedSession({
       </SheetShell>
       <SessionHeader
         finished={session.finishedAt !== null}
-        onMuscles={() => setMusclesOpen(true)}
+        onMenu={() => setSessionMenu(true)}
         title={title}
         startedAt={session.startedAt}
         volume={volume}
@@ -427,6 +436,16 @@ function LoadedSession({
               onTakeOver={() => void actions.takeOver(session.id)}
             />
           )}
+          {historyFailed ? (
+            <View className="gap-2 p-4">
+              <Text accessibilityRole="alert" className="text-body text-muted">
+                {t("session__previous_failed")}
+              </Text>
+              <Button variant="secondary" onPress={retryHistory}>
+                <Button.Label>{t("training__retry")}</Button.Label>
+              </Button>
+            </View>
+          ) : null}
           <View className="mt-3">
             <ReorderList
               items={session.exercises}
@@ -529,6 +548,48 @@ function LoadedSession({
         />
       ) : null}
 
+      <ActionSheet
+        isOpen={sessionMenu}
+        onOpenChange={setSessionMenu}
+        title={title}
+        actions={[
+          {
+            key: "muscles",
+            label: t("session__muscles"),
+            icon: Person,
+            onPress: () => setMusclesOpen(true),
+          },
+          ...(!readOnly && session.finishedAt === null
+            ? [
+                {
+                  key: "discard",
+                  label: t("session__discard_workout"),
+                  icon: Trash,
+                  tone: "danger",
+                  onPress: () => setConfirmDiscard(true),
+                } satisfies SwipeAction,
+              ]
+            : []),
+        ]}
+      />
+      <ConfirmationDialog
+        isOpen={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title={t("session__discard_confirm_title")}
+        description={t("session__discard_confirm_body", { count: ticked })}
+        cancelLabel={t("session__keep_logging")}
+        confirmLabel={t("session__discard_workout")}
+        destructive
+        onConfirm={() => {
+          if (discarding) return;
+          setDiscarding(true);
+          logging.closeKeypad();
+          void actions.discard(session.id, title).then((ok) => {
+            setDiscarding(false);
+            if (ok) onMinimise();
+          });
+        }}
+      />
       <RestPermissionSheet
         isOpen={askOpen}
         onOpenChange={setAskOpen}
