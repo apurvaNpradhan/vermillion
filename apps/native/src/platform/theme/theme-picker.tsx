@@ -7,7 +7,8 @@ import {
 import type { TranslationKey } from "@workspace/i18n";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
@@ -70,22 +71,27 @@ export function ThemePicker({
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
+        {/* A fixed height and the sheet's own scroll view: a plain ScrollView loses its drags to
+            the sheet's pan gesture, so the lower cards could not be reached. */}
         <BottomSheet.Content
+          snapPoints={["88%"]}
+          enableDynamicSizing={false}
+          enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-3 px-4 pt-2"
-          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
+          contentContainerClassName="h-full"
         >
-          <BottomSheet.Title className="font-semibold text-title-lg">
-            {t("settings__theme_title")}
-          </BottomSheet.Title>
-          <BottomSheet.Description className="text-body text-muted">
-            {t("settings__theme_hint")}
-          </BottomSheet.Description>
-          <ScrollView
-            style={{ maxHeight: 480 }}
-            contentContainerClassName="gap-2"
+          <View className="gap-1 px-4 pb-3 pt-2">
+            <BottomSheet.Title className="font-semibold text-title-lg">
+              {t("settings__theme_title")}
+            </BottomSheet.Title>
+            <BottomSheet.Description className="text-body text-muted">
+              {t("settings__theme_hint")}
+            </BottomSheet.Description>
+          </View>
+          <BottomSheetScrollView
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: bottom + 16 }}
           >
             {themeNames.map((name) => (
               <Pressable
@@ -108,7 +114,7 @@ export function ThemePicker({
                 </View>
               </Pressable>
             ))}
-          </ScrollView>
+          </BottomSheetScrollView>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>
