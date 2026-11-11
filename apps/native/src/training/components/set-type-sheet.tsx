@@ -1,3 +1,4 @@
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { SET_KINDS, SET_KIND_KEYS, type SetKind } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { Check } from "phosphor-react-native";
@@ -15,12 +16,18 @@ const HINTS = {
   warmup: "training__set_type_warmup_hint",
   drop: "training__set_type_drop_hint",
   failure: "training__set_type_failure_hint",
+  top: "training__set_type_top_hint",
+  backoff: "training__set_type_backoff_hint",
+  myo: "training__set_type_myo_hint",
 } as const;
 const BADGES = {
   working: "1",
   warmup: "training__chip_warmup",
   drop: "training__chip_drop",
   failure: "training__chip_failure",
+  top: "training__chip_top",
+  backoff: "training__chip_backoff",
+  myo: "training__chip_myo",
 } as const;
 
 export function SetTypeSheet({
@@ -49,15 +56,19 @@ export function SetTypeSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
+          snapPoints={["80%"]}
+          enableDynamicSizing={false}
+          enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-4 px-4 pt-2"
-          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
+          contentContainerClassName="h-full gap-4 pt-2"
         >
-          <BottomSheet.Title className="font-semibold text-title-lg">
+          <BottomSheet.Title className="px-4 font-semibold text-title-lg">
             {title ?? t("training__set_kind_title")}
           </BottomSheet.Title>
-          <View className="gap-1">
+          <BottomSheetScrollView
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottom + 16, gap: 4 }}
+          >
             {SET_KINDS.flatMap((kind) =>
               (kind === "warmup" && !warmupsAllowed) || (kind === "working" && !workingAllowed)
                 ? []
@@ -90,7 +101,7 @@ export function SetTypeSheet({
                     </Pressable>,
                   ],
             )}
-          </View>
+          </BottomSheetScrollView>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>

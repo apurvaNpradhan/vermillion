@@ -43,18 +43,16 @@ export function appendWarmup(sets: readonly PlannedSet[], type: ExerciseType): P
   return at === -1 ? [...sets, warm] : [...sets.slice(0, at), warm, ...sets.slice(at)];
 }
 
-/** Warm-ups are W; every training set counts, with a type suffix for drop and failure. */
-export function chipTexts(sets: readonly PlannedSet[], letters: Record<SetKind, string>): string[] {
-  let training = 0;
-  let warmup = 0;
-  const warmups = sets.filter((set) => set.kind === "warmup").length;
+/** Only working sets are numbered; every other kind uses its letter. */
+export function chipTexts(
+  sets: readonly { kind: SetKind }[],
+  letters: Record<SetKind, string>,
+): string[] {
+  let working = 0;
   return sets.map((set) => {
-    if (set.kind === "warmup") {
-      warmup += 1;
-      return warmups > 1 ? `${letters.warmup}${warmup}` : letters.warmup;
-    }
-    training += 1;
-    return set.kind === "working" ? String(training) : `${training}${letters[set.kind]}`;
+    if (set.kind !== "working") return letters[set.kind];
+    working += 1;
+    return String(working);
   });
 }
 

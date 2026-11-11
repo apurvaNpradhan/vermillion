@@ -83,6 +83,9 @@ export const SetGrid = memo(function SetGrid({
       warmup: t("training__chip_warmup"),
       drop: t("training__chip_drop"),
       failure: t("training__chip_failure"),
+      top: t("training__chip_top"),
+      backoff: t("training__chip_backoff"),
+      myo: t("training__chip_myo"),
     },
   );
   const header = (field: SetField): string => {

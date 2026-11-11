@@ -16,11 +16,14 @@ const LABELS = {
   warmup: "training__add_warmup",
   drop: "training__add_drop",
   failure: "training__add_failure",
+  top: "training__add_top",
+  backoff: "training__add_backoff",
+  myo: "training__add_myo",
 } as const;
 
 /**
  * One split button for adding sets. The main part adds a set of the chosen type; the caret part
- * only changes that type (Working, Warm-up, Drop, Failure) and the choice sticks, so adding three
+ * only changes that type and the choice sticks, so adding three
  * drop sets in a row is three taps.
  */
 export function AddSetButton({

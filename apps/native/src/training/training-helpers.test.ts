@@ -63,36 +63,78 @@ describe("warm-ups", () => {
 });
 
 describe("per-set editing", () => {
-  it("counts all training sets while keeping warm-ups separate", () => {
-    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
+  it("numbers only working sets", () => {
+    const letters = {
+      warmup: "W",
+      working: "",
+      drop: "D",
+      failure: "F",
+      top: "T",
+      backoff: "B",
+      myo: "M",
+    };
     expect(
       chipTexts(
         [{ kind: "warmup" }, working(), { kind: "drop" }, working(), { kind: "failure" }],
         letters,
       ),
-    ).toEqual(["W", "1", "2D", "3", "4T"]);
+    ).toEqual(["W", "1", "D", "2", "F"]);
   });
 
-  it("distinguishes multiple warm-ups without counting them as training sets", () => {
-    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
+  it("uses letters for multiple warm-ups", () => {
+    const letters = {
+      warmup: "W",
+      working: "",
+      drop: "D",
+      failure: "F",
+      top: "T",
+      backoff: "B",
+      myo: "M",
+    };
     expect(
       chipTexts([{ kind: "warmup" }, { kind: "warmup" }, working(), { kind: "drop" }], letters),
-    ).toEqual(["W1", "W2", "1", "2D"]);
+    ).toEqual(["W", "W", "1", "D"]);
   });
 
-  it("keeps later training numbers when a working set becomes a drop or failure set", () => {
-    const letters = { warmup: "W", working: "", drop: "D", failure: "T" };
+  it("renumbers working sets after a kind change", () => {
+    const letters = {
+      warmup: "W",
+      working: "",
+      drop: "D",
+      failure: "F",
+      top: "T",
+      backoff: "B",
+      myo: "M",
+    };
     const sets = [working(), working(), working()];
     expect(chipTexts([withKind(sets[0]!, "drop"), sets[1]!, sets[2]!], letters)).toEqual([
-      "1D",
+      "D",
+      "1",
       "2",
-      "3",
     ]);
     expect(chipTexts([withKind(sets[0]!, "failure"), sets[1]!, sets[2]!], letters)).toEqual([
-      "1T",
+      "F",
+      "1",
       "2",
-      "3",
     ]);
+  });
+
+  it("uses T, B and M without advancing working numbers", () => {
+    const letters = {
+      warmup: "W",
+      working: "",
+      drop: "D",
+      failure: "F",
+      top: "T",
+      backoff: "B",
+      myo: "M",
+    };
+    expect(
+      chipTexts(
+        [working(), { kind: "top" }, { kind: "backoff" }, { kind: "myo" }, working()],
+        letters,
+      ),
+    ).toEqual(["1", "T", "B", "M", "2"]);
   });
 
   it("appends a copy of the last working set, up to the limit", () => {

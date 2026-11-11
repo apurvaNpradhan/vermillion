@@ -18,7 +18,7 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
-import { useWorkout, SET_TONES, formatEffortRange } from "@/training";
+import { useWorkout, SET_TONES, formatEffortRange, chipTexts } from "@/training";
 import { ListRow } from "@/platform/ui/list";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { useThemeColor } from "heroui-native";
@@ -161,68 +161,76 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     : [],
                 )}
               />
-              {session.exercises.map((entry) => (
-                <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
-                  <Text
-                    accessibilityRole="link"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/exercise-view/[id]",
-                        params: { id: entry.exerciseId },
-                      })
-                    }
-                    className="text-title-md text-foreground"
-                  >
-                    {entry.title}
-                  </Text>
-                  {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
-                  {entry.sets.map((set, index) => (
-                    <View key={set.id} className="flex-row items-center gap-3 py-1">
-                      <View
-                        accessibilityLabel={t("session__set_label", {
-                          number: index + 1,
-                          kind: t(SET_KIND_KEYS[set.kind]),
-                        })}
-                        className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}
-                      >
-                        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>
-                          {set.kind === "working"
-                            ? entry.sets.slice(0, index + 1).filter((s) => s.kind === "working")
-                                .length
-                            : set.kind === "warmup"
-                              ? "W"
-                              : set.kind === "drop"
-                                ? "D"
-                                : "F"}
-                        </Text>
-                      </View>
-                      <Text className="flex-1 text-body text-foreground">
-                        {doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel)}
-                      </Text>
-                      {set.rpe !== null ? (
-                        <Text className="text-caption text-muted">
-                          {t("session__effort_value", {
-                            scale: t(
-                              preferences.ui.effortScale === "rir"
-                                ? "training__effort_rir"
-                                : "training__effort_rpe",
-                            ),
-                            value: formatEffortRange(set.rpe, set.rpe, preferences.ui.effortScale),
+              {session.exercises.map((entry) => {
+                const chips = chipTexts(entry.sets, {
+                  working: "",
+                  warmup: t("training__chip_warmup"),
+                  drop: t("training__chip_drop"),
+                  failure: t("training__chip_failure"),
+                  top: t("training__chip_top"),
+                  backoff: t("training__chip_backoff"),
+                  myo: t("training__chip_myo"),
+                });
+                return (
+                  <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
+                    <Text
+                      accessibilityRole="link"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/exercise-view/[id]",
+                          params: { id: entry.exerciseId },
+                        })
+                      }
+                      className="text-title-md text-foreground"
+                    >
+                      {entry.title}
+                    </Text>
+                    {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
+                    {entry.sets.map((set, index) => (
+                      <View key={set.id} className="flex-row items-center gap-3 py-1">
+                        <View
+                          accessibilityLabel={t("session__set_label", {
+                            number: index + 1,
+                            kind: t(SET_KIND_KEYS[set.kind]),
                           })}
-                        </Text>
-                      ) : null}
-                      {flags.has(set.id) ? (
-                        <View className="flex-row items-center gap-1 rounded-lg bg-default p-2">
-                          <Trophy color={ink} size={14} />
-                          <Text className="text-caption text-foreground">
-                            {t("session__record_badge")}
+                          className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}
+                        >
+                          <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>
+                            {chips[index]}
                           </Text>
                         </View>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              ))}
+                        <Text className="flex-1 text-body text-foreground">
+                          {doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel)}
+                        </Text>
+                        {set.rpe !== null ? (
+                          <Text className="text-caption text-muted">
+                            {t("session__effort_value", {
+                              scale: t(
+                                preferences.ui.effortScale === "rir"
+                                  ? "training__effort_rir"
+                                  : "training__effort_rpe",
+                              ),
+                              value: formatEffortRange(
+                                set.rpe,
+                                set.rpe,
+                                preferences.ui.effortScale,
+                              ),
+                            })}
+                          </Text>
+                        ) : null}
+                        {flags.has(set.id) ? (
+                          <View className="flex-row items-center gap-1 rounded-lg bg-default p-2">
+                            <Trophy color={ink} size={14} />
+                            <Text className="text-caption text-foreground">
+                              {t("session__record_badge")}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
               <ActionSheet
                 isOpen={menu}
                 onOpenChange={setMenu}

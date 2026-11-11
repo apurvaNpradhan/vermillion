@@ -61,7 +61,7 @@ export function SetTable({
   onRemove?: (index: number) => void;
   type: ExerciseType;
   sets: readonly PlannedSet[];
-  /** The text of each set's chip (W, 1…n, D, F). */
+  /** The text of each set's chip (W, 1…n, D, F, T, B, M). */
   chips: readonly string[];
   weightUnit: WeightUnit;
   effortScale: EffortScale;
