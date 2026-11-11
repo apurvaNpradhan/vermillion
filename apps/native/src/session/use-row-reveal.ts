@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 import type { ScrollView, View } from "react-native";
 
 /**
@@ -6,8 +6,7 @@ import type { ScrollView, View } from "react-native";
  * when the accordion opens another exercise. Rows register by key; positions are measured in the
  * window, so it does not matter how deeply a row is nested.
  */
-export function useRowReveal() {
-  const scrollRef = useRef<ScrollView>(null);
+export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
   const viewportRef = useRef<View>(null);
   const offset = useRef(0);
   const rows = useRef(new Map<string, View>());

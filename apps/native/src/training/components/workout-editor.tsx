@@ -17,7 +17,7 @@ import {
   WarningCircle,
 } from "phosphor-react-native";
 import { useMemo, useState } from "react";
-import { Keyboard, Pressable, Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View, type ScrollView } from "react-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import Animated from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -44,6 +44,7 @@ import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
 import { AddToProgramSheet } from "./add-to-program-sheet";
 import { ReorderList } from "./reorder-list";
+import { useReorderScroll } from "../use-reorder-scroll";
 import { SavedTextField } from "./saved-text-field";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
 import { WorkoutNote } from "./workout-note";
@@ -114,7 +115,7 @@ function LoadedEditor({
   const pickExercises = usePickExercises("train");
   const [menuOpen, setMenuOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<WorkoutExerciseDetail | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const reorderScroll = useReorderScroll();
 
   const title = displayTitle(
     workout.title,
@@ -292,7 +293,12 @@ function LoadedEditor({
             className="flex-1"
             contentContainerStyle={contentContainerStyle}
             contentContainerClassName="gap-4"
-            scrollEnabled={!dragging}
+            ref={(node: ScrollView | null) => {
+              scroll.ref(node);
+              reorderScroll.ref(node);
+            }}
+            animatedProps={reorderScroll.animatedProps}
+            onContentSizeChange={reorderScroll.onContentSizeChange}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
@@ -376,7 +382,9 @@ function LoadedEditor({
             ) : null}
             <ReorderList
               items={workout.exercises}
-              onDraggingChange={setDragging}
+              scroll={reorderScroll}
+              topInset={contentContainerStyle.paddingTop}
+              bottomInset={contentContainerStyle.paddingBottom}
               onMove={(id, beforeId) => void actions.move(id, beforeId)}
               renderItem={(entry, { collapsed }) => (
                 <WorkoutExerciseRow

@@ -1,6 +1,7 @@
+import { ReorderHeader } from "./reorder-list";
 import type { TranslationKey } from "@workspace/i18n";
 import type { ProgramSlotDetail } from "@workspace/sync";
-import { DotsSixVertical, DotsThreeVertical, Moon } from "phosphor-react-native";
+import { DotsThreeVertical, Moon } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -67,7 +68,6 @@ export const RotationRow = memo(function RotationRow({
         >
           {name}
         </Text>
-        <DotsSixVertical size={20} color={subtle} weight="bold" />
       </View>
     );
   }
@@ -86,14 +86,15 @@ export const RotationRow = memo(function RotationRow({
 
   if (!workout) {
     return (
-      <View
+      <ReorderHeader
         accessible={false}
-        className="min-h-14 flex-row items-center border-b border-border bg-surface"
+        className="min-h-[72px] flex-row items-center border-b border-border bg-surface"
       >
         <View
           accessibilityLabel={t("training__slot_rest_label", { number })}
+          accessibilityHint={t("training__drag_hint")}
           accessible
-          className="min-h-14 flex-1 flex-row items-center gap-3 pl-4"
+          className="min-h-[72px] flex-1 flex-row items-center gap-3 pl-4"
         >
           <Text
             className="w-8 text-center text-label font-semibold text-muted"
@@ -109,11 +110,8 @@ export const RotationRow = memo(function RotationRow({
           </View>
           <Text className="flex-1 text-body text-muted">{name}</Text>
         </View>
-        <View accessible accessibilityLabel={t("training__drag_hint")}>
-          <DotsSixVertical size={18} color={subtle} />
-        </View>
         {menu}
-      </View>
+      </ReorderHeader>
     );
   }
 
@@ -124,13 +122,13 @@ export const RotationRow = memo(function RotationRow({
       : t("training__workout_meta", { count, minutes: estimateMinutes(workout.exercises) });
 
   return (
-    <View className="min-h-[72px] flex-row items-center border-b border-border bg-surface">
+    <ReorderHeader className="min-h-[72px] flex-row items-center border-b border-border bg-surface">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("training__slot_label", { number, title })}, ${meta}${
           repeats > 1 ? `, ${t("training__repeat_badge_label", { count: repeats })}` : ""
         }`}
-        accessibilityHint={t("training__slot_open_hint")}
+        accessibilityHint={`${t("training__slot_open_hint")}. ${t("training__drag_hint")}`}
         onPress={() => onOpen(slot)}
         className="min-h-[72px] flex-1 flex-row items-center gap-3 py-2 pl-4 active:bg-default"
       >
@@ -161,10 +159,7 @@ export const RotationRow = memo(function RotationRow({
           </View>
         ) : null}
       </Pressable>
-      <View accessible accessibilityLabel={t("training__drag_hint")}>
-        <DotsSixVertical size={18} color={subtle} />
-      </View>
       {menu}
-    </View>
+    </ReorderHeader>
   );
 });

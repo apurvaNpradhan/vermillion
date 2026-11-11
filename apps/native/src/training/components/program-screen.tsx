@@ -40,6 +40,7 @@ import {
 } from "./program-workout-sheets";
 import { ProgramTile } from "./program-row";
 import { ReorderList } from "./reorder-list";
+import { useReorderScroll } from "../use-reorder-scroll";
 import { RotationRow, slotTitle } from "./rotation-row";
 
 /** The cover tile in the header. */
@@ -117,7 +118,7 @@ function LoadedProgram({
   const [dayOpen, setDayOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
+  const reorderScroll = useReorderScroll();
 
   const slots = program.slots;
   const numbers = useMemo(() => new Map(slots.map((slot, index) => [slot.id, index + 1])), [slots]);
@@ -234,7 +235,12 @@ function LoadedProgram({
             className="flex-1"
             contentContainerStyle={contentContainerStyle}
             contentContainerClassName="gap-4"
-            scrollEnabled={!dragging}
+            ref={(node) => {
+              scroll.ref(node);
+              reorderScroll.ref(node);
+            }}
+            animatedProps={reorderScroll.animatedProps}
+            onContentSizeChange={reorderScroll.onContentSizeChange}
             keyboardShouldPersistTaps="handled"
           >
             <View className="px-4">{header}</View>
@@ -283,11 +289,12 @@ function LoadedProgram({
               {slots.length === 0 ? (
                 <Text className="px-4 text-body text-muted">{t("training__rotation_empty")}</Text>
               ) : (
-                <View className="mx-4 overflow-hidden rounded-2xl bg-surface">
+                <View className="mx-4 rounded-2xl bg-surface">
                   <ReorderList
-                    handleSide="right"
                     items={slots}
-                    onDraggingChange={setDragging}
+                    scroll={reorderScroll}
+                    topInset={contentContainerStyle.paddingTop}
+                    bottomInset={contentContainerStyle.paddingBottom}
                     onMove={(id, beforeId) => void actions.move(id, beforeId)}
                     renderItem={(slot, { collapsed }) => (
                       <RotationRow

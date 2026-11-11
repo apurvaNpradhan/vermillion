@@ -26,6 +26,7 @@ import {
   WarningCircle,
 } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Animated from "react-native-reanimated";
 import { BackHandler, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -39,7 +40,7 @@ import { Keypad } from "@/platform/ui/keypad";
 import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
-import { ReorderList, SetTypeSheet, supportsWarmups } from "@/training";
+import { ReorderList, useReorderScroll, SetTypeSheet, supportsWarmups } from "@/training";
 
 import { setRestSurfaceVisible } from "../rest-notification";
 import {
@@ -151,7 +152,8 @@ function LoadedSession({
   const bodyweightKg = preferences.ui.bodyweightKg;
   const installId = useInstallId();
   const pickExercises = usePickExercises("session");
-  const reveal = useRowReveal();
+  const reorderScroll = useReorderScroll();
+  const reveal = useRowReveal(reorderScroll.ref);
 
   // Ownership: another device's Session is read-only. A device that had it and lost it says so.
   const mine = installId !== null && session.deviceId === installId;
@@ -249,7 +251,6 @@ function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const closeSheet = useCallback(() => setSheet(null), []);
 
   const allSets = session.exercises.flatMap((entry) => entry.sets);
@@ -474,12 +475,13 @@ function LoadedSession({
         }}
       />
       <View ref={reveal.viewportRef} collapsable={false} className="flex-1">
-        <ScrollView
-          ref={reveal.scrollRef}
+        <Animated.ScrollView
+          ref={reorderScroll.ref}
           className="flex-1"
-          scrollEnabled={!dragging}
+          animatedProps={reorderScroll.animatedProps}
+          onContentSizeChange={reorderScroll.onContentSizeChange}
           keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={32}
+          scrollEventThrottle={16}
           onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
           contentContainerStyle={{ paddingBottom: bottom + 32 }}
         >
@@ -502,10 +504,10 @@ function LoadedSession({
           <View className="mt-3">
             <ReorderList
               items={session.exercises}
-              onDraggingChange={(value) => {
-                setDragging(value);
-                if (value) logging.closeKeypad();
-              }}
+              scroll={reorderScroll}
+              headerHeight={64}
+              enabled={!readOnly}
+              onDragStart={logging.closeKeypad}
               onMove={(id, beforeId) => void actions.moveExercise(id, beforeId)}
               renderItem={(entry, { collapsed }) => (
                 <View ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
@@ -569,7 +571,7 @@ function LoadedSession({
               </Button>
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
       {session.rest && !readOnly ? (
         <RestBar

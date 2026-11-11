@@ -1,6 +1,7 @@
+import { ReorderHeader } from "./reorder-list";
 import type { SupersetPlace } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
-import { DotsSixVertical, DotsThreeVertical } from "phosphor-react-native";
+import { DotsThreeVertical } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -90,21 +91,17 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
         <Text numberOfLines={1} className="flex-1 font-medium text-body text-foreground">
           {name}
         </Text>
-        <DotsSixVertical size={20} color={subtle} weight="bold" />
       </View>
     );
   }
   return (
     <View>
-      <View className="min-h-[72px] flex-row items-center border-b border-border bg-background">
+      <ReorderHeader className="min-h-[72px] flex-row items-center border-b border-border bg-background">
         <SupersetBracket place={place} />
-        <View accessible accessibilityLabel={t("training__drag_hint")} className="pl-2">
-          <DotsSixVertical size={18} color={subtle} />
-        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${summary}${entry.note ? `, ${entry.note}` : ""}`}
-          accessibilityHint={t("training__row_open_hint")}
+          accessibilityHint={`${t("training__row_open_hint")}. ${t("training__drag_hint")}`}
           onPress={onToggle}
           className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
@@ -141,7 +138,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
         >
           <DotsThreeVertical size={20} color={subtle} weight="bold" />
         </Pressable>
-      </View>
+      </ReorderHeader>
       {expanded ? (
         <View className="gap-3 border-b border-border px-4 py-3">
           <InlineTargets entry={entry} grouped={place === "first" || place === "middle"} />

@@ -10,7 +10,7 @@ export { ProgramScreen } from "./components/program-screen";
 export { HomeScreen } from "./components/home-screen";
 export { SetTypeSheet } from "./components/set-type-sheet";
 export { RestPicker } from "./components/rest-picker";
-export { ReorderList } from "./components/reorder-list";
+export { ReorderList, ReorderHeader } from "./components/reorder-list";
 export { InlineNote } from "./components/inline-note";
 export { TargetPickerSheet } from "./components/target-picker-sheet";
 export { SET_TONES } from "./set-tones";
@@ -22,3 +22,5 @@ export { useCoalescedWriter } from "./use-coalesced-writer";
 export { useWorkout } from "./use-workout";
 export { useWorkouts } from "./use-workouts";
 export { WorkoutPreviewScreen } from "./components/workout-preview-screen";
+
+export { useReorderScroll } from "./use-reorder-scroll";
