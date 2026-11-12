@@ -38,17 +38,6 @@ export function ExerciseProgress({
   const [range, setRange] = useState<ProgressRange>("3M");
   const now = Date.now();
   const best = bestProgressSet(sessions, exerciseId, "All", now);
-  const { sets, suggestion } = useExerciseProgression(
-    exerciseId,
-    type,
-    equipment,
-    sessions,
-    settings,
-  );
-  const firstIndex =
-    sets?.findIndex((set) => set.kind === "working" && set.reps_min !== undefined) ?? -1;
-  const target = sets?.[firstIndex];
-  const next = suggestion?.sets[firstIndex];
   const unit = settings.weightUnit;
   const date = (x: number, zone: string | undefined) =>
     new Intl.DateTimeFormat(i18n.language, {
@@ -108,33 +97,88 @@ export function ExerciseProgress({
       <BarChart
         showRanges={false}
         points={points(
-          exerciseWeeklyVolume(sessions, exerciseId, range, now, timezone ?? "UTC", bodyweightKg),
+          exerciseWeeklyVolume(
+            sessions,
+            exerciseId,
+            range,
+            now,
+            // Weeks follow the device's zone until the account has one, as on Home.
+            timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+            bodyweightKg,
+          ),
           "UTC",
         )}
         label={t("progress__weekly_volume")}
         formatValue={weight}
       />
-      {target && next && next.weightKg !== null && suggestion ? (
-        <View className="gap-2 border-t border-separator pt-3">
-          <View className="flex-row justify-between gap-3">
-            <Text className="text-body text-muted">{t("progress__next")}</Text>
-            <Text className="text-body text-foreground">
-              {t("progress__target", {
-                weight: formatWeight(next.weightKg, unit),
-                unit,
-                min: target.reps_min,
-                max: target.reps_max ?? target.reps_min,
-              })}
-            </Text>
-          </View>
-          <Text className="text-caption text-muted">
-            {t(progressionReasonKey(suggestion.reason), {
-              value: formatWeight(suggestion.incrementKg, unit),
-              unit,
-            })}
-          </Text>
-        </View>
-      ) : null}
+      <NextTimeLine
+        sessions={sessions}
+        exerciseId={exerciseId}
+        type={type}
+        equipment={equipment}
+        settings={settings}
+      />
+    </View>
+  );
+}
+
+/**
+ * What to aim for next time on the first ranged working set, and why. Weighted exercises show a
+ * weight and the rep range; reps-only ones show the reps.
+ */
+export function NextTimeLine({
+  sessions,
+  exerciseId,
+  type,
+  equipment,
+  settings,
+}: {
+  sessions: readonly SessionHistory[];
+  exerciseId: string;
+  type: ExerciseType;
+  equipment: Equipment;
+  settings: IncrementSettings;
+}) {
+  const { t } = useTranslation();
+  const { sets, suggestion } = useExerciseProgression(
+    exerciseId,
+    type,
+    equipment,
+    sessions,
+    settings,
+  );
+  const firstIndex =
+    sets?.findIndex((set) => set.kind === "working" && set.reps_min !== undefined) ?? -1;
+  const target = sets?.[firstIndex];
+  const next = suggestion?.sets[firstIndex];
+  const unit = settings.weightUnit;
+  if (!target || !next || !suggestion) return null;
+  const aim =
+    type === "weight_reps"
+      ? next.weightKg === null
+        ? null
+        : t("progress__target", {
+            weight: formatWeight(next.weightKg, unit),
+            unit,
+            min: target.reps_min,
+            max: target.reps_max ?? target.reps_min,
+          })
+      : next.reps === null
+        ? null
+        : t("progress__target_reps", { count: next.reps });
+  if (aim === null) return null;
+  return (
+    <View className="gap-2 border-t border-separator pt-3">
+      <View className="flex-row justify-between gap-3">
+        <Text className="text-body text-muted">{t("progress__next")}</Text>
+        <Text className="text-body text-foreground">{aim}</Text>
+      </View>
+      <Text className="text-caption text-muted">
+        {t(progressionReasonKey(suggestion.reason), {
+          value: formatWeight(suggestion.incrementKg, unit),
+          unit,
+        })}
+      </Text>
     </View>
   );
 }

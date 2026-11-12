@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { suggestNext, progressionIncrement } from "./progression";
-import { KG_PER_LB } from "./format";
+import { KG_PER_LB, parseWeight } from "./format";
 import type { LoggedSet } from "./logged-set";
 import type { PlannedSet } from "./planned-sets";
 
@@ -79,16 +79,36 @@ describe("double progression", () => {
   it("uses the lower bound as the cap when no upper bound exists", () => {
     expect(suggest([logged(8)], [], [{ kind: "working", reps_min: 8 }])?.reason).toBe("add_weight");
   });
-  it("caps reps-only progression and does not add external weight", () => {
+  it("adds a rep past the range once reps-only sets top it, without external weight", () => {
     for (const type of ["reps_only", "bodyweight_reps"] as const) {
       expect(suggestNext(plan, [[logged(12), logged(12)]], type, "none", settings)).toMatchObject({
         reason: "add_rep",
         sets: [
+          { weightKg: 80, reps: 13 },
+          { weightKg: 80, reps: 13 },
+        ],
+      });
+      expect(suggestNext(plan, [[logged(12), logged(10)]], type, "none", settings)).toMatchObject({
+        sets: [
           { weightKg: 80, reps: 12 },
-          { weightKg: 80, reps: 12 },
+          { weightKg: 80, reps: 11 },
         ],
       });
     }
+  });
+  it("treats weights that show the same in pounds as one load, and suggests a typed weight", () => {
+    const lb = { weightUnit: "lb", weightIncrementKg: null } as const;
+    const ghost = 140 * KG_PER_LB;
+    const typed = parseWeight("140", "lb") ?? 0;
+    const result = suggestNext(
+      plan,
+      [[logged(12, ghost), logged(12, typed)]],
+      "weight_reps",
+      "barbell",
+      lb,
+    );
+    expect(result?.reason).toBe("add_weight");
+    expect(result?.sets[0]?.weightKg).toBe(parseWeight("145", "lb"));
   });
   it("chooses increments in the user's unit and respects kg overrides", () => {
     expect(progressionIncrement("barbell", settings)).toBe(2.5);

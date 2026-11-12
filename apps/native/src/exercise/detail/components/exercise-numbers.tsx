@@ -7,7 +7,7 @@ import { ScrollView, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
-import { ExerciseProgress } from "./exercise-progress";
+import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
 import { datedRecords, metricSeries, metricsFor, type Metric } from "../numbers";
 
 const LABELS = {
@@ -127,6 +127,15 @@ export function ExerciseNumbers({
             label={label(metric)}
             formatValue={(value) => format(value, metric)}
           />
+          {type === "reps_only" || type === "bodyweight_reps" ? (
+            <NextTimeLine
+              sessions={sessions}
+              exerciseId={exerciseId}
+              type={type}
+              equipment={equipment}
+              settings={{ weightUnit: unit, weightIncrementKg }}
+            />
+          ) : null}
         </>
       )}
       <View className="gap-3">

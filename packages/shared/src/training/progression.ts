@@ -1,5 +1,5 @@
 import type { Equipment, ExerciseType } from "../exercise/vocabulary";
-import { KG_PER_LB } from "./format";
+import { KG_PER_LB, formatWeight, parseWeight } from "./format";
 import type { LoggedSet } from "./logged-set";
 import type { PlannedSet } from "./planned-sets";
 import type { WeightUnit } from "./vocabulary";
@@ -19,6 +19,16 @@ export function progressionIncrement(equipment: Equipment, settings: IncrementSe
     (settings.weightUnit === "lb" ? 5 * KG_PER_LB : equipment === "barbell" ? 2.5 : 2)
   );
 }
+
+/**
+ * Two weights are the same load when they show the same in the user's unit: a ticked Ghost of
+ * 140 lb and a typed 140 lb differ by a fraction of a gram in kilograms.
+ */
+const sameLoad = (a: number | null | undefined, b: number | null | undefined, unit: WeightUnit) =>
+  a == null || b == null ? a == b : formatWeight(a, unit) === formatWeight(b, unit);
+
+/** A weight as typing it would store it, so a suggestion ticked as a Ghost matches a typed one. */
+const loadable = (kg: number, unit: WeightUnit) => parseWeight(formatWeight(kg, unit), unit) ?? kg;
 
 /** Double progression, matching working sets by ordinal. History is newest first. */
 export function suggestNext(
@@ -53,7 +63,7 @@ export function suggestNext(
         target.reps_min !== undefined &&
         (last[i]?.reps ?? 0) >= (target.reps_max ?? target.reps_min),
     ) &&
-    last.every((set) => set.weight_kg === last[0]?.weight_kg) &&
+    last.every((set) => sameLoad(set.weight_kg, last[0]?.weight_kg, settings.weightUnit)) &&
     (type !== "weight_reps" || last[0]?.weight_kg != null);
   const incrementKg = progressionIncrement(equipment, settings);
   const reason = hold
@@ -72,7 +82,12 @@ export function suggestNext(
     if (hold || target.reps_min === undefined || before.reps == null) return same;
     const max = target.reps_max ?? target.reps_min;
     if (reason === "add_weight")
-      return { weightKg: (before.weight_kg ?? 0) + incrementKg, reps: target.reps_min };
+      return {
+        weightKg: loadable((before.weight_kg ?? 0) + incrementKg, settings.weightUnit),
+        reps: target.reps_min,
+      };
+    // With no weight to add, a topped prescription grows by a rep past the range.
+    if (topped) return { ...same, reps: before.reps + 1 };
     return { ...same, reps: before.reps < max ? Math.min(max, before.reps + 1) : before.reps };
   });
   return { reason, sets, incrementKg };

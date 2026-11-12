@@ -962,5 +962,7 @@
   "progress__best": "{{weight}} {{unit}} × {{reps}}",
   "progress__one_rm": "e1RM {{value}} {{unit}}",
   "progress__target": "{{weight}} {{unit}} × {{min}}–{{max}}",
+  "progress__target_reps_one": "{{count}} rep",
+  "progress__target_reps_other": "{{count}} reps",
   "progress__weekly_volume": "Weekly volume"
 }
