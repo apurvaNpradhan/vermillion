@@ -106,3 +106,16 @@ with the actual visible IME inset; a hidden action fails the check. For an inlin
 use `python scripts/adb/check-keyboard-visible.py --inline`. Check both bounds, Done dismissing
 the keyboard, switching from a weight field to the effort picker, and reopening after dismissal.
 The check expects the ordinary docked keyboard, not a floating keyboard.
+
+### Android live workout notification
+
+Native stack revision 13 adds the local `workout-live` Expo module and
+`POST_PROMOTED_NOTIFICATIONS`. Rebuild the dev client on every machine. Expo SDK 58's
+compile SDK 37 and target SDK 36 support the guarded Android 16 ProgressStyle APIs.
+No foreground service or additional runtime permission prompt is used.
+
+The live notification is silent; the existing scheduled Rest notification owns sound and vibration.
+Android force-stop removes notifications and blocks background work until the app is reopened.
+Test killed-process actions with process death, separately from force-stop. The native countdown
+continues without JS. The Rest-over text refresh uses a native timer while the process lives and an
+inexact system alarm after process death, so Android may defer that text refresh in Doze.

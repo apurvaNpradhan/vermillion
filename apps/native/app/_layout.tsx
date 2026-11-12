@@ -26,6 +26,7 @@ import {
   useSession,
   useSignedOut,
 } from "@/auth";
+import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 import { AppProviders } from "@/platform/providers";
 import { useDeviceOwner } from "@/sync";
@@ -76,37 +77,45 @@ function RootStack() {
 
   if (isPending) return null;
   return (
-    <Stack screenOptions={STACK_OPTIONS}>
-      <Stack.Protected guard={guards.app}>
-        <Stack.Screen name="(app)" />
-        {/* The logging screen rises over the tabs; its chevron minimises it. */}
-        <Stack.Screen
-          name="session"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            animationDuration: 220,
-          }}
-        />
-        <Stack.Screen
-          name="exercise-view"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            animationDuration: 220,
-          }}
-        />
-      </Stack.Protected>
-      <Stack.Protected guard={guards.auth}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
-      <Stack.Protected guard={guards.onboarding}>
-        <Stack.Screen name="onboarding" />
-      </Stack.Protected>
-      {/* Opened by the link in the deletion email. */}
-      <Stack.Screen name="account-deleted" />
-      <Stack.Screen name="confirm-deletion" />
-    </Stack>
+    <>
+      {guards.app && (
+        <>
+          <RestNotificationHost />
+          <WorkoutLiveHost />
+        </>
+      )}
+      <Stack screenOptions={STACK_OPTIONS}>
+        <Stack.Protected guard={guards.app}>
+          <Stack.Screen name="(app)" />
+          {/* The logging screen rises over the tabs; its chevron minimises it. */}
+          <Stack.Screen
+            name="session"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+              animationDuration: 220,
+            }}
+          />
+          <Stack.Screen
+            name="exercise-view"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+              animationDuration: 220,
+            }}
+          />
+        </Stack.Protected>
+        <Stack.Protected guard={guards.auth}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={guards.onboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        {/* Opened by the link in the deletion email. */}
+        <Stack.Screen name="account-deleted" />
+        <Stack.Screen name="confirm-deletion" />
+      </Stack>
+    </>
   );
 }
 

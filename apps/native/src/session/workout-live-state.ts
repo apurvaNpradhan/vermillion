@@ -54,6 +54,7 @@ export function workoutLiveState(input: {
     ? t("session__live_set", { index: current.index + 1, total: current.total })
     : t("session__live_all_done");
   const rest = action.phase === "rest";
+  const restText = current ? t("session__live_rest", { set }) : t("session__live_rest_last");
   return {
     restSetId: session.rest?.setId ?? null,
     sessionId: session.id,
@@ -62,7 +63,7 @@ export function workoutLiveState(input: {
     phase: action.phase,
     url: input.url,
     text: rest
-      ? t("session__live_rest", { set })
+      ? restText
       : current
         ? t("session__live_action", {
             title: current.title,
@@ -82,7 +83,7 @@ export function workoutLiveState(input: {
               : t("session__live_set_number", { index: action.next.number }),
         })
       : "",
-    restOver: t("session__live_rest_over", { set }),
+    restOver: current ? t("session__live_rest_over", { set }) : t("session__live_rest_over_last"),
     restEndsAtMs: rest && session.rest ? Date.parse(session.rest.endsAt) : null,
     sessionStartedAtMs: Date.parse(session.startedAt),
     workStartedAtMs: Date.parse(action.workStartedAt),

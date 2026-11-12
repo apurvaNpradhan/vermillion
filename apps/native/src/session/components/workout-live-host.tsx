@@ -21,11 +21,12 @@ function SessionLive({ id }: { id: string | null }) {
       soundOn: restSoundOn({ sounds, soundRest }),
     }).catch(() => undefined);
   }, [id, state, permission, weightUnit, weightIncrementKg, sounds, soundRest]);
+  // Only on unmount: a changed option must not flash the notification away.
   useEffect(
     () => () => {
-      void refreshWorkoutLive(null, { weightUnit, weightIncrementKg, soundOn: false });
+      void refreshWorkoutLive(null, { weightUnit: "kg", weightIncrementKg: null, soundOn: false });
     },
-    [weightUnit, weightIncrementKg],
+    [],
   );
   return null;
 }

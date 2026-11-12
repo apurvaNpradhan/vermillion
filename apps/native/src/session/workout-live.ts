@@ -16,9 +16,10 @@ import { appConfig } from "@/platform/app-config";
 import { i18n } from "@/platform/i18n";
 import { openLocalData } from "@/platform/local-database";
 import { blocksOf } from "./blocks";
-import { currentAction } from "./current-action";
+import { currentAction, orderedSets } from "./current-action";
 import { loggingGhosts } from "./logging-ghosts";
 import { restAfterTick } from "./rest-rules";
+import { markRestEnded, restEndedAt } from "./rest-ended";
 import {
   cancelRestNotification,
   getRestPermission,
@@ -36,7 +37,6 @@ import {
 type Options = z.infer<typeof liveOptionsSchema>;
 let queue = Promise.resolve();
 let held = "";
-const restEnds = new Map<string, { end: string | null; endedAt: number | null }>();
 
 async function snapshot(sessionId: string, options: Options) {
   const local = await openLocalData();
@@ -46,7 +46,9 @@ async function snapshot(sessionId: string, options: Options) {
   const session = parseSessionDetail(await db.getAll(SESSION_DETAIL_SQL, [sessionId]));
   if (!session || session.finishedAt !== null || session.deviceId !== installId) return null;
   const ghosts = new Map<string, Ghosts>();
-  for (const exercise of session.exercises) {
+  // Only the current set's values are shown or logged, so only its exercise needs its history.
+  const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
+  for (const exercise of first ? [first.exercise] : []) {
     const history = parseFinishedSessions(
       await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
     );
@@ -54,15 +56,11 @@ async function snapshot(sessionId: string, options: Options) {
       ghosts.set(set.id, loggingGhosts(exercise, index, history, options)),
     );
   }
-  const before = restEnds.get(session.id);
-  const end = session.rest?.endsAt ?? null;
-  const endedAt = before?.end && !end ? Date.now() : (before?.endedAt ?? null);
-  restEnds.set(session.id, { end, endedAt });
   const state = workoutLiveState({
     session,
     ghostsFor: (id) => ghosts.get(id) ?? {},
     now: Date.now(),
-    restEndedAt: endedAt,
+    restEndedAt: restEndedAt(session.id),
     unit: options.weightUnit,
     options,
     url: `${appConfig.scheme}:///session/${session.id}/timer`,
@@ -136,8 +134,10 @@ export function workoutLiveAction(data: { state: string; action: string }) {
         session.rest.setId === request.restSetId &&
         Date.parse(session.rest.endsAt) > Date.now()
       ) {
-        if (action === "skip") await clearRest(db, session.id, installId);
-        else await adjustRest(db, session.id, 15, installId);
+        if (action === "skip") {
+          await clearRest(db, session.id, installId);
+          markRestEnded(session.id);
+        } else await adjustRest(db, session.id, 15, installId);
       }
       const after = await snapshot(session.id, request.options);
       if (!after) {
@@ -145,6 +145,9 @@ export function workoutLiveAction(data: { state: string; action: string }) {
         held = "";
         return;
       }
+      // Show the new state first; the alert reconcile below is slower.
+      workoutLive?.update(after.state);
+      held = JSON.stringify(after.state);
       await installRestNotifications(i18n.t("session__rest_channel"));
       setRestSoundEnabled(request.options.soundOn);
       await cancelRestNotification(restNotificationId(session.id));
@@ -154,8 +157,6 @@ export function workoutLiveAction(data: { state: string; action: string }) {
           body: i18n.t("session__rest_over_body", { title: session.title }),
         });
       }
-      workoutLive?.update(after.state);
-      held = JSON.stringify(after.state);
     } catch {
       if (failed) {
         workoutLive?.update({

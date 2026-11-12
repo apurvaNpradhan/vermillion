@@ -1006,6 +1006,8 @@
   "session__live_action": "{{title}} · {{set}} · {{values}}",
   "session__live_rest": "Rest · next: {{set}}",
   "session__live_next": "Next: {{next}}",
+  "session__live_rest_last": "Rest · last set done",
+  "session__live_rest_over_last": "Rest over · all sets done",
   "session__live_rest_over": "Rest over · {{set}} next",
   "session__live_channel": "Live workout",
   "session__live_skip": "Skip",
