@@ -25,10 +25,17 @@ describe("preferences", () => {
     const client = app.client(headers);
     expect(
       await client.preferences.update({
-        ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 },
+        ui: {
+          weightUnit: "lb",
+          effortScale: "rir",
+          defaultRestSeconds: 90,
+          weightIncrementKg: 1.25,
+        },
       }),
     ).toMatchObject({ ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 } });
     for (const ui of [
+      { weightIncrementKg: 0 },
+      { weightIncrementKg: -1 },
       { weightUnit: "stone" },
       { effortScale: "borg" },
       { defaultRestSeconds: 601 },
@@ -39,7 +46,7 @@ describe("preferences", () => {
       await expect(client.preferences.update({ ui: ui as never })).rejects.toThrow();
     }
     expect(await client.preferences.get()).toMatchObject({
-      ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90 },
+      ui: { weightUnit: "lb", effortScale: "rir", defaultRestSeconds: 90, weightIncrementKg: 1.25 },
     });
   });
 
@@ -73,6 +80,7 @@ describe("preferences", () => {
         soundMilestones: true,
         sidebarCollapsed: false,
         dismissedHints: [],
+        weightIncrementKg: null,
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
@@ -97,6 +105,7 @@ describe("preferences", () => {
         soundMilestones: true,
         sidebarCollapsed: false,
         dismissedHints: [],
+        weightIncrementKg: null,
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
@@ -113,6 +122,7 @@ describe("preferences", () => {
         soundMilestones: true,
         sidebarCollapsed: true,
         dismissedHints: [],
+        weightIncrementKg: null,
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
@@ -135,6 +145,7 @@ describe("preferences", () => {
         soundMilestones: true,
         sidebarCollapsed: true,
         dismissedHints: ["tour"],
+        weightIncrementKg: null,
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
