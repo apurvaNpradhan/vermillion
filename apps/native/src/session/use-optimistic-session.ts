@@ -1,3 +1,4 @@
+import { markRestEnded } from "./rest-ended";
 import { AppState } from "react-native";
 
 import type { Ghosts } from "@workspace/shared";
@@ -145,6 +146,7 @@ export function useOptimisticSession(session: SessionDetail, actions: Actions) {
       const undo = putRest(null);
       const skipped = await actions.skipRest(sessionId);
       if (!skipped) undo();
+      else markRestEnded(sessionId);
       return skipped;
     },
     [actions, nudges, putRest],

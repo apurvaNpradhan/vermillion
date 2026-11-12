@@ -172,10 +172,13 @@ function LoadedSession({
 
   // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
   // next workout (started or resumed) opens in the view used last.
+  // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
+  const { closeKeypad } = logging;
   const openTimer = useCallback(() => {
+    closeKeypad();
     setUi({ sessionView: "timer" });
     onOpenTimer();
-  }, [setUi, onOpenTimer]);
+  }, [closeKeypad, setUi, onOpenTimer]);
   const openedTimer = useRef(false);
   const wantsTimer = preferences.ui.sessionView === "timer";
   useEffect(() => {
@@ -277,7 +280,6 @@ function LoadedSession({
   }, [openFirst, alignTop]);
   const activeSetId = logging.activeSetId;
   // Back closes the keypad before it minimises the workout.
-  const { closeKeypad } = logging;
   useFocusEffect(
     useCallback(() => {
       if (!activeSetId) return;

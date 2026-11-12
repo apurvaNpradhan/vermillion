@@ -335,6 +335,12 @@ export function useLoggingState({
     if (!next) return closeKeypad();
     openCell(next.setId, next.field);
   }, [next, openCell, closeKeypad]);
+  // The Timer edits one set: Next stays within it and closes after its last field.
+  const nextInSet = next !== null && next.setId === entry?.cell.setId;
+  const onNextInSet = useCallback(() => {
+    if (!next || next.setId !== entryRef.current?.cell.setId) return closeKeypad();
+    openCell(next.setId, next.field);
+  }, [next, openCell, closeKeypad]);
 
   // The keypad closes when its set goes away or the Session stops being editable.
   useEffect(() => {
@@ -575,6 +581,8 @@ export function useLoggingState({
      */
     typedValue: entry && !entry.fresh ? valueOfText(entry.cell.field, entry.raw, unit) : undefined,
     hasNext: next !== null,
+    hasNextInSet: nextInSet,
+    onNextInSet,
     stepText,
     openCell: stableOpenCell,
     closeKeypad,
