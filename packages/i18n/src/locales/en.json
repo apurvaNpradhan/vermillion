@@ -910,5 +910,6 @@
   "home__start_empty": "Start empty workout",
   "home__in_progress": "In progress",
   "session__copy_previous": "Copy previous",
-  "session__fill_remaining": "Fill remaining sets"
+  "session__fill_remaining": "Fill remaining sets",
+  "plates__empty": "No equipment yet"
 }

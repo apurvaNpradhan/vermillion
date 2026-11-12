@@ -164,12 +164,20 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             ListEmptyComponent={
               <View className="px-4">
                 {status === "empty" ? (
-                  <EmptyState icon={Barbell} title={t("training__empty_plans")} />
+                  <EmptyState
+                    icon={Barbell}
+                    title={t("training__empty_plans")}
+                    action={{ label: t("training__new_workout"), onPress: newWorkout }}
+                  />
                 ) : status === "list" ? (
                   workoutList.status === "first-sync" ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
                   ) : (
-                    <EmptyState icon={Barbell} title={t("training__no_workouts")} />
+                    <EmptyState
+                      icon={Barbell}
+                      title={t("training__no_workouts")}
+                      action={{ label: t("training__new_workout"), onPress: newWorkout }}
+                    />
                   )
                 ) : null}
               </View>

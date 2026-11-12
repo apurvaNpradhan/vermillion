@@ -226,7 +226,13 @@ export function ExerciseLibrary({
     if (status === "offline-unsynced") return <OfflineState onCreate={onCreate} />;
     if (library.rows.length > 0) return null;
     if (filters.show === "archived" && !searching && filters.muscles.length === 0) {
-      return <ArchivedEmptyState />;
+      return (
+        <ArchivedEmptyState
+          onBrowse={() =>
+            setFilters((current) => ({ ...withoutFacets(current), search: "", show: "all" }))
+          }
+        />
+      );
     }
     return (
       <NoMatchesState

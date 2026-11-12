@@ -61,7 +61,14 @@ export function HistoryScreen() {
             ) : history.loading ? (
               <Text className="text-body text-muted">{t("common__loading")}</Text>
             ) : (
-              <EmptyState icon={ClockCounterClockwise} title={t("session__history_empty")} />
+              <EmptyState
+                icon={ClockCounterClockwise}
+                title={t("session__history_empty")}
+                action={{
+                  label: t("session__log_past"),
+                  onPress: () => router.push("/history/log-past"),
+                }}
+              />
             )
           }
           renderItem={({ item }) => {

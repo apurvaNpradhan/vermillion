@@ -9,7 +9,8 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
-import { Trash } from "phosphor-react-native";
+import { EmptyState } from "@/platform/ui/empty-state";
+import { Barbell, Trash } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { Keyboard, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
@@ -47,10 +48,21 @@ export function ManageEquipmentScreen() {
         ) : state.loading ? (
           <Text className="text-body text-muted">{t("plates__loading")}</Text>
         ) : null}
+        {!state.loading && !state.failed && state.rows.length === 0 ? (
+          <EmptyState
+            icon={Barbell}
+            title={t("plates__empty")}
+            action={{
+              label: t("plates__add_kit", { unit: state.unit }),
+              onPress: () => void state.addKit(state.unit),
+            }}
+          />
+        ) : null}
         <SwipeGroup>
           {groups.flatMap((group, index) => {
             const incomplete = group.bars.length === 0 || group.plates.length === 0;
             const canAddKit =
+              state.rows.length > 0 &&
               index === 0 &&
               incomplete &&
               !state.loading &&
