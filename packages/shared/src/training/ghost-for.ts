@@ -1,3 +1,4 @@
+import type { SuggestedSet } from "./progression";
 import type { SetField } from "../exercise/vocabulary";
 import type { SetValues } from "./logged-set";
 import type { PlannedSet } from "./planned-sets";
@@ -17,7 +18,12 @@ export function ghostFor(
   field: GhostField,
   previous: SetValues | null,
   target: PlannedSet | null,
+  suggestion?: SuggestedSet | null,
 ): number | null {
+  if (target?.kind === "working" && suggestion) {
+    if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
+    if (field === "reps" && suggestion.reps !== null) return suggestion.reps;
+  }
   if (field === "rpe") return target?.effort_min ?? null;
   if (field === "reps") {
     const reps = previous?.reps ?? null;

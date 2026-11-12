@@ -247,6 +247,8 @@ function LoadedDetail({
                   sessions={history.sessions}
                   exerciseId={exercise.id}
                   type={exercise.exerciseType}
+                  equipment={exercise.equipment}
+                  weightIncrementKg={preferences.ui.weightIncrementKg}
                   bodyweightKg={preferences.ui.bodyweightKg}
                   unit={preferences.ui.weightUnit}
                   timezone={preferences.timezone}

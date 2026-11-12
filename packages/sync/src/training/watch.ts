@@ -754,3 +754,27 @@ export function watchRecordHistory(
     handlers.onError,
   );
 }
+
+/** Local rows exclude deleted Workouts and exercises through the sync stream. */
+export const LATEST_EXERCISE_PLAN_SQL = `SELECT we.sets FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
+     WHERE we.exercise_id = ? ORDER BY w.created_at DESC, w.id DESC, we.position, we.id LIMIT 1`;
+
+/** Most recently created surviving Workout that plans this exercise. */
+export function watchLatestExercisePlan(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onPlan: (sets: PlannedSet[] | null) => void; onError: (error: Error) => void },
+): () => void {
+  const parse = (rows: QueryResult["array"]) => {
+    const row = z.array(z.object({ sets: z.string() })).parse(rows)[0];
+    return row ? z.array(plannedSetSchema).parse(JSON.parse(row.sets)) : null;
+  };
+  return watch(
+    database,
+    LATEST_EXERCISE_PLAN_SQL,
+    [exerciseId],
+    WORKOUT_TABLES,
+    parsing(parse, { onResult: handlers.onPlan, onError: handlers.onError }),
+    handlers.onError,
+  );
+}

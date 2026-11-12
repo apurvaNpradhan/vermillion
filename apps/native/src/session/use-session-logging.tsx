@@ -57,6 +57,7 @@ export function useSessionLogging(stored: SessionDetail) {
     unit,
     effortScale,
     bodyweightKg,
+    weightIncrementKg: preferences.ui.weightIncrementKg,
     readOnly,
     actions,
     onRestStarted,

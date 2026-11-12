@@ -32,6 +32,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   onMenu,
   onAddSet,
   children,
+  progression,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
@@ -53,6 +54,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   onAddSet: (exerciseId: string) => void;
   /** The open body: note, rest chip, set grid. */
   children: ReactNode;
+  progression?: ReactNode;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -122,6 +124,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             </Text>
           </View>
         </Pressable>
+        {progression}
         {showAddSet && !open && !readOnly ? (
           <Pressable
             accessibilityRole="button"

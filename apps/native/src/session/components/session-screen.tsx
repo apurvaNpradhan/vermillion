@@ -480,6 +480,7 @@ function LoadedSession({
                 <View ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
                   <ExerciseItem
                     exercise={entry}
+                    suggestion={logging.suggestions.get(entry.id) ?? null}
                     place={logging.places.get(entry.id) ?? "none"}
                     open={openIds.has(entry.id)}
                     warm={warmIds.has(entry.id)}

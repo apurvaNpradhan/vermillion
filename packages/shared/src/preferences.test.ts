@@ -19,6 +19,7 @@ describe("ui preferences schema", () => {
       soundMilestones: true,
       sidebarCollapsed: false,
       dismissedHints: [],
+      weightIncrementKg: null,
       weightUnit: "kg",
       effortScale: "rpe",
       defaultRestSeconds: 120,
@@ -114,4 +115,16 @@ describe("update schema", () => {
     expect(isTimeZone("America/New_York")).toBe(true);
     expect(isTimeZone("Not/AZone")).toBe(false);
   });
+});
+
+it("stores a positive global kg increment or null for equipment defaults", () => {
+  expect(uiPreferencesSchema.parse({}).weightIncrementKg).toBeNull();
+  expect(uiPreferencesPatchSchema.parse({ weightIncrementKg: 1.25 })).toEqual({
+    weightIncrementKg: 1.25,
+  });
+  expect(uiPreferencesPatchSchema.parse({ weightIncrementKg: null })).toEqual({
+    weightIncrementKg: null,
+  });
+  for (const weightIncrementKg of [0, -1, 101])
+    expect(uiPreferencesPatchSchema.safeParse({ weightIncrementKg }).success).toBe(false);
 });

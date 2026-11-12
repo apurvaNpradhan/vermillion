@@ -1,4 +1,4 @@
-import { KG_PER_LB, type RecordKey, type WeightUnit } from "@workspace/shared";
+import { type Equipment, KG_PER_LB, type RecordKey, type WeightUnit } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
@@ -7,6 +7,7 @@ import { ScrollView, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
+import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
 import { datedRecords, metricSeries, metricsFor, type Metric } from "../numbers";
 
 const LABELS = {
@@ -33,6 +34,8 @@ export function ExerciseNumbers({
   bodyweightKg,
   unit,
   timezone,
+  equipment,
+  weightIncrementKg,
 }: {
   sessions: FinishedSession[];
   exerciseId: string;
@@ -40,6 +43,8 @@ export function ExerciseNumbers({
   bodyweightKg: number | null;
   unit: WeightUnit;
   timezone: string | null;
+  equipment: Equipment;
+  weightIncrementKg: number | null;
 }) {
   const { t, i18n } = useTranslation();
   const metrics = metricsFor(type);
@@ -81,31 +86,58 @@ export function ExerciseNumbers({
     metric === "total_reps" || metric === "floors" || metric === "steps" ? BarChart : LineChart;
   return (
     <View className="gap-6 px-4">
-      <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
-        {t("exercise__your_numbers")}
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2"
-      >
-        {metrics.map((key) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={key === metric ? "primary" : "tertiary"}
-            accessibilityState={{ selected: key === metric }}
-            onPress={() => setSelected(key)}
+      {type === "weight_reps" ? (
+        <ExerciseProgress
+          sessions={sessions}
+          exerciseId={exerciseId}
+          type={type}
+          equipment={equipment}
+          settings={{ weightUnit: unit, weightIncrementKg }}
+          timezone={timezone}
+          bodyweightKg={bodyweightKg}
+        />
+      ) : (
+        <>
+          <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
+            {t("exercise__your_numbers")}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-2"
           >
-            <Button.Label>{label(key)}</Button.Label>
-          </Button>
-        ))}
-      </ScrollView>
-      {bodyweightKg === null &&
-      (type === "bodyweight_reps" || type === "bodyweight_assisted_reps") ? (
-        <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
-      ) : null}
-      <Chart points={points} label={label(metric)} formatValue={(value) => format(value, metric)} />
+            {metrics.map((key) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={key === metric ? "primary" : "tertiary"}
+                accessibilityState={{ selected: key === metric }}
+                onPress={() => setSelected(key)}
+              >
+                <Button.Label>{label(key)}</Button.Label>
+              </Button>
+            ))}
+          </ScrollView>
+          {bodyweightKg === null &&
+          (type === "bodyweight_reps" || type === "bodyweight_assisted_reps") ? (
+            <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
+          ) : null}
+          <Chart
+            points={points}
+            label={label(metric)}
+            formatValue={(value) => format(value, metric)}
+          />
+          {type === "reps_only" || type === "bodyweight_reps" ? (
+            <NextTimeLine
+              sessions={sessions}
+              exerciseId={exerciseId}
+              type={type}
+              equipment={equipment}
+              settings={{ weightUnit: unit, weightIncrementKg }}
+            />
+          ) : null}
+        </>
+      )}
       <View className="gap-3">
         <View className="flex-row items-center justify-between">
           <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">

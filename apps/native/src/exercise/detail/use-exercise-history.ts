@@ -1,4 +1,4 @@
-import { watchExerciseHistory, type FinishedSession } from "@workspace/sync";
+import { watchRecordHistory, type FinishedSession } from "@workspace/sync";
 import { useEffect, useState } from "react";
 import { useLocalData } from "@/sync";
 
@@ -17,8 +17,8 @@ export function useExerciseHistory(exerciseId: string): HistoryState {
   } | null>(null);
   useEffect(() => {
     if (!database) return;
-    return watchExerciseHistory(database, exerciseId, {
-      onHistory: (sessions) =>
+    return watchRecordHistory(database, [exerciseId], {
+      onSessions: (sessions) =>
         setResult({ database, id: exerciseId, state: { status: "ready", sessions } }),
       onError: () =>
         setResult({ database, id: exerciseId, state: { status: "error", sessions: [] } }),

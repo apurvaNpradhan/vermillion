@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  suggestNext,
   supersetPlaces,
   type EffortScale,
   type Ghosts,
@@ -75,6 +76,7 @@ export function useLoggingState({
   unit,
   effortScale,
   bodyweightKg,
+  weightIncrementKg,
   readOnly,
   actions,
   onRestStarted,
@@ -85,6 +87,7 @@ export function useLoggingState({
   unit: WeightUnit;
   effortScale: EffortScale;
   bodyweightKg: number | null;
+  weightIncrementKg: number | null;
   readOnly: boolean;
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
@@ -154,13 +157,37 @@ export function useLoggingState({
     },
     [found, previous],
   );
+  const suggestions = useMemo(
+    () =>
+      new Map(
+        exercises.map((exercise) => [
+          exercise.id,
+          session.finishedAt !== null || !exercise.sourceWorkoutExerciseId
+            ? null
+            : suggestNext(
+                exercise.sets.map((set) => ({ ...set.target, kind: set.kind })),
+                (previous.get(exercise.exerciseId) ?? []).slice(0, 2).map((entry) => entry.sets),
+                exercise.type,
+                exercise.exercise?.equipment ?? "other",
+                { weightUnit: unit, weightIncrementKg },
+              ),
+        ]),
+      ),
+    [exercises, previous, session.finishedAt, unit, weightIncrementKg],
+  );
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {
       const at = found.get(setId);
       if (!at || !previous.has(at.exercise.exerciseId)) return {};
-      return ghostsOf(at.exercise.type, previousOf(setId), at.set.target, at.exercise.logEffort);
+      return ghostsOf(
+        at.exercise.type,
+        previousOf(setId),
+        at.set.target,
+        at.exercise.logEffort,
+        suggestions.get(at.exercise.id)?.sets[at.index],
+      );
     },
-    [found, previousOf, previous],
+    [found, previousOf, previous, suggestions],
   );
 
   // ---- The keypad ----
@@ -526,6 +553,7 @@ export function useLoggingState({
     toggleBlock,
     previousOf,
     ghostsFor,
+    suggestions,
     unit,
     effortScale,
     // The cell being edited, as the rows draw it.
