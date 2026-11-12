@@ -829,7 +829,6 @@
   "run__finish": "Finish program",
   "run__keep": "Keep going",
   "run__again": "Run again",
-  "home__first": "Start your first workout",
   "home__week": "This week",
   "home__volume": "Volume over 8 weeks",
   "home__muscles": "Muscles this week",
@@ -903,5 +902,11 @@
   "theme__iron": "Iron",
   "theme__iron_description": "Warm rust and dark metal",
   "theme__dusk": "Dusk",
-  "theme__dusk_description": "Muted rose and evening plum"
+  "theme__dusk_description": "Muted rose and evening plum",
+  "home__next_workout": "Next workout",
+  "home__next_summary_one": "{{count}} exercise · Last done: {{date}}",
+  "home__next_summary_other": "{{count}} exercises · Last done: {{date}}",
+  "home__never_done": "Not yet",
+  "home__start_empty": "Start empty workout",
+  "home__in_progress": "In progress"
 }

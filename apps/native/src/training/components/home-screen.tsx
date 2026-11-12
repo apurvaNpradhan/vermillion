@@ -8,7 +8,13 @@ export function HomeScreen() {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
   return (
-    <ScrollPage title={user ? t("dashboard__welcome", { name: user.name }) : t("nav__home")}>
+    <ScrollPage
+      title={
+        user
+          ? t("dashboard__welcome", { name: user.name.trim().split(/\s+/)[0] || user.name })
+          : t("nav__home")
+      }
+    >
       <SyncBanner />
       <TrainingHome />
     </ScrollPage>
