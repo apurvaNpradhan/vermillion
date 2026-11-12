@@ -1,5 +1,7 @@
 import type { RecordKey } from "@workspace/shared";
+import { Medal } from "phosphor-react-native";
 import { Text, View } from "react-native";
+import { useSubtleColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
 // Safety: fixed translation keys retain their literal types.
 const KEYS = {
@@ -14,6 +16,7 @@ const KEYS = {
 function hasLabel(key: RecordKey): key is keyof typeof KEYS {
   return key in KEYS;
 }
+/** One exercise's records as a plain line: a medal, the exercise, then what was beaten. */
 export function SessionRecord({
   exercise,
   records,
@@ -22,16 +25,22 @@ export function SessionRecord({
   records: readonly RecordKey[];
 }) {
   const { t } = useTranslation();
+  const subtle = useSubtleColor();
   return (
-    <View className="gap-1 rounded-xl bg-surface p-3">
-      <Text className="text-label text-foreground">{exercise}</Text>
-      {records.map((key) => (
-        <Text key={key} className="text-caption text-muted">
-          {hasLabel(key)
-            ? t(KEYS[key])
-            : t("exercise__record_reps", { count: Number(key.slice(5)) })}
+    <View className="flex-row items-start gap-3 py-2">
+      <Medal size={18} color={subtle} weight="fill" />
+      <View className="flex-1 gap-0.5">
+        <Text className="text-body text-foreground">{exercise}</Text>
+        <Text className="text-caption text-muted">
+          {records
+            .map((key) =>
+              hasLabel(key)
+                ? t(KEYS[key])
+                : t("exercise__record_reps", { count: Number(key.slice(5)) }),
+            )
+            .join(", ")}
         </Text>
-      ))}
+      </View>
     </View>
   );
 }

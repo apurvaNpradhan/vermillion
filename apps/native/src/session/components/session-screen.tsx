@@ -34,7 +34,7 @@ import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
-import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
+import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Keypad } from "@/platform/ui/keypad";
 import { Skeleton } from "@/platform/ui/skeleton";
@@ -641,7 +641,7 @@ function LoadedSession({
         ]}
       />
       <SessionSettingsSheet isOpen={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmationDialog
+      <ConfirmSheet
         isOpen={confirmDiscard}
         onOpenChange={setConfirmDiscard}
         title={t("session__discard_confirm_title")}
@@ -712,7 +712,7 @@ function LoadedSession({
           if (effortSet) void actions.updateValues(effortSet.set.id, { rpe });
         }}
       />
-      <ConfirmationDialog
+      <ConfirmSheet
         isOpen={confirmFinish}
         onOpenChange={setConfirmFinish}
         title={t(ticked === 0 ? "session__discard_empty_title" : "session__finish_title")}
@@ -725,8 +725,14 @@ function LoadedSession({
         destructive={ticked === 0}
         confirmLabel={t(ticked === 0 ? "session__discard" : "session__finish")}
         onConfirm={() => void finish()}
+        {...(ticked === 0 || session.finishedAt !== null
+          ? {}
+          : {
+              extraLabel: t("session__discard_workout"),
+              onExtra: () => setConfirmDiscard(true),
+            })}
       />
-      <ConfirmationDialog
+      <ConfirmSheet
         isOpen={confirmRemove !== null}
         onOpenChange={(open) => {
           if (!open) setConfirmRemove(null);

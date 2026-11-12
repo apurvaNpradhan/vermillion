@@ -14,7 +14,7 @@ import Animated from "react-native-reanimated";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
-import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
+import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
@@ -272,7 +272,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   },
                 ]}
               />
-              <ConfirmationDialog
+              <ConfirmSheet
                 destructive
                 isOpen={confirm}
                 onOpenChange={setConfirm}

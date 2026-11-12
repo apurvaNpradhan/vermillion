@@ -25,3 +25,4 @@ export { useWorkouts } from "./use-workouts";
 export { WorkoutPreviewScreen } from "./components/workout-preview-screen";
 
 export { useReorderScroll } from "./use-reorder-scroll";
+export { Stepper } from "./components/stepper";
