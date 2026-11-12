@@ -46,6 +46,7 @@ import { useNow } from "../use-now";
 import { useSession } from "../use-session";
 import { useSessionLogging } from "../use-session-logging";
 import { RestPermissionSheet } from "./rest-permission-sheet";
+import { restEndedAt } from "../rest-ended";
 import { SessionKeypad, useSessionKeypadAccessory } from "./session-keypad";
 
 const KEEP_AWAKE_TAG = "session-timer";
@@ -255,19 +256,13 @@ function LoadedTimer({
 
   // ---- What to show ----
   const now = useNow(session.finishedAt === null, 500);
-  const [restEndedAt, setRestEndedAt] = useState<number | null>(null);
   const { ghostsFor } = logging;
+  // A Rest that ran out counts from its stored end; a skipped one (cleared from the store) from
+  // when it was skipped, which outlives this screen.
   const action = useMemo(
-    () => currentAction({ session, ghostsFor, now, restEndedAt }),
-    [session, ghostsFor, now, restEndedAt],
+    () => currentAction({ session, ghostsFor, now, restEndedAt: restEndedAt(session.id) }),
+    [session, ghostsFor, now],
   );
-  // Skip clears the stored Rest, so the moment a Rest stops is kept here to count work from it.
-  const phase = action.phase;
-  const lastPhase = useRef(phase);
-  useEffect(() => {
-    if (lastPhase.current === "rest" && phase === "work") setRestEndedAt(Date.now());
-    lastPhase.current = phase;
-  }, [phase]);
   const stats = useMemo(
     () => sessionStats({ session, bodyweightKg, now }),
     [session, bodyweightKg, now],
@@ -307,14 +302,16 @@ function LoadedTimer({
   const complete = async () => {
     if (!current || readOnly || completing.current === current.setId) return;
     if (logging.found.get(current.setId)?.set.completedAt) return;
-    if (current.empty) {
+    // A running stopwatch logs what it counted, even with no value or Ghost to fall back on.
+    const stopwatch = current.timer !== null && current.timer.target === null;
+    if (current.empty && !stopwatch) {
       edit();
       return;
     }
     completing.current = current.setId;
     try {
-      // A running stopwatch logs what it counted; everything else ticks like the sets view does.
-      if (current.timer && current.timer.target === null) await logging.onTimer(current.setId);
+      // Everything else ticks like the sets view does.
+      if (stopwatch) await logging.onTimer(current.setId);
       else await logging.onTick(current.setId);
     } finally {
       // The next render has the next set; until then a repeat tap stays ignored.
@@ -338,7 +335,8 @@ function LoadedTimer({
 
   // ---- Leaving ----
   const close = useCallback(() => {
-    logging.flush();
+    // The sets view has its own keypad; leaving closes this one so no draft outlives the screen.
+    logging.closeKeypad();
     setUi({ sessionView: "sets" });
     onClose();
   }, [logging, setUi, onClose]);
@@ -604,7 +602,7 @@ function LoadedTimer({
         ) : null}
 
         {keypadOpen ? (
-          <SessionKeypad logging={logging} accessory={accessory} />
+          <SessionKeypad logging={logging} accessory={accessory} withinSet />
         ) : (
           <View className="gap-3 px-4" style={{ paddingBottom: bottom + 12 }}>
             <View className="flex-row gap-2">
