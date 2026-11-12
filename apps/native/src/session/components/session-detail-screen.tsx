@@ -1,4 +1,4 @@
-import { SET_KIND_KEYS, recordFlags, sessionTotals } from "@workspace/shared";
+import { recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   DotsThreeVertical,
@@ -6,7 +6,7 @@ import {
   ShareNetwork,
   Trash,
   FloppyDisk,
-  Trophy,
+  Medal,
 } from "phosphor-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -18,8 +18,10 @@ import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
-import { useWorkout, SET_TONES, formatEffortRange, chipTexts } from "@/training";
-import { ListRow } from "@/platform/ui/list";
+import { useWorkout, formatEffortRange, chipTexts, SetTextTable } from "@/training";
+import { ExerciseHeading } from "@/exercise";
+import { SectionHeader } from "@/platform/ui/section-header";
+import { ListRow, ListSection } from "@/platform/ui/list";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { useThemeColor } from "heroui-native";
 import { formatElapsed } from "../clock";
@@ -81,7 +83,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
       {({ header, contentContainerStyle, ...scroll }) => (
         <Animated.ScrollView
           {...scroll}
-          contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16, gap: 16 }}
+          contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16, gap: 32 }}
         >
           {header}
           {state.status === "error" ? (
@@ -95,59 +97,64 @@ export function SessionDetailScreen({ id }: { id: string }) {
             </Text>
           ) : (
             <>
-              <Text className="text-body text-muted">
-                {new Intl.DateTimeFormat(i18n.language, {
-                  dateStyle: "full",
-                  timeStyle: "short",
-                  timeZone: preferences.timezone ?? undefined,
-                }).format(new Date(session.startedAt))}
-              </Text>
-              {source.status === "ready" ? (
-                <ListRow
-                  title={t("session__from_workout", {
-                    title: source.workout.title ?? t("training__workout"),
-                  })}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/train/workout/[id]",
-                      params: { id: source.workout.id },
-                    })
-                  }
+              <View className="gap-4">
+                <Text className="text-body text-muted">
+                  {new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: "full",
+                    timeStyle: "short",
+                    timeZone: preferences.timezone ?? undefined,
+                  }).format(new Date(session.startedAt))}
+                </Text>
+                {source.status === "ready" ? (
+                  <ListSection variant="plain">
+                    <ListRow
+                      title={t("session__from_workout", {
+                        title: source.workout.title ?? t("training__workout"),
+                      })}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/train/workout/[id]",
+                          params: { id: source.workout.id },
+                        })
+                      }
+                    />
+                  </ListSection>
+                ) : null}
+                <StatTiles
+                  items={[
+                    {
+                      label: t("stats__duration"),
+                      value: formatElapsed(
+                        session.durationS ??
+                          (Date.parse(session.finishedAt ?? session.startedAt) -
+                            Date.parse(session.startedAt)) /
+                            1000,
+                      ),
+                    },
+                    {
+                      label: t("stats__volume"),
+                      value: t("home__volume_value", {
+                        value: formatVolume(totals.volume, unit, i18n.language),
+                        unit: unitLabel,
+                      }),
+                    },
+                    { label: t("stats__sets"), value: String(totals.sets) },
+                    {
+                      label: t("stats__records"),
+                      value: String(
+                        session.exercises.flatMap((e) => e.sets).filter((s) => flags.has(s.id))
+                          .length,
+                      ),
+                    },
+                  ]}
                 />
-              ) : null}
-              <StatTiles
-                items={[
-                  {
-                    label: t("stats__duration"),
-                    value: formatElapsed(
-                      session.durationS ??
-                        (Date.parse(session.finishedAt ?? session.startedAt) -
-                          Date.parse(session.startedAt)) /
-                          1000,
-                    ),
-                  },
-                  {
-                    label: t("stats__volume"),
-                    value: t("home__volume_value", {
-                      value: formatVolume(totals.volume, unit, i18n.language),
-                      unit: unitLabel,
-                    }),
-                  },
-                  { label: t("stats__sets"), value: String(totals.sets) },
-                  {
-                    label: t("stats__records"),
-                    value: String(
-                      session.exercises.flatMap((e) => e.sets).filter((s) => flags.has(s.id))
-                        .length,
-                    ),
-                  },
-                ]}
-              />
-              {session.note ? (
-                <Text className="text-body text-foreground">{session.note}</Text>
-              ) : null}
+                {session.note ? (
+                  <Text className="text-body text-foreground">{session.note}</Text>
+                ) : null}
+              </View>
               <MuscleDistribution
                 preview
+                split
                 sets={loggedSetsOf(session)}
                 exercises={session.exercises.flatMap((entry) =>
                   entry.exercise
@@ -161,76 +168,76 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     : [],
                 )}
               />
-              {session.exercises.map((entry) => {
-                const chips = chipTexts(entry.sets, {
-                  working: "",
-                  warmup: t("training__chip_warmup"),
-                  drop: t("training__chip_drop"),
-                  failure: t("training__chip_failure"),
-                  top: t("training__chip_top"),
-                  backoff: t("training__chip_backoff"),
-                  myo: t("training__chip_myo"),
-                });
-                return (
-                  <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
-                    <Text
-                      accessibilityRole="link"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/exercise-view/[id]",
-                          params: { id: entry.exerciseId },
-                        })
-                      }
-                      className="text-title-md text-foreground"
-                    >
-                      {entry.title}
-                    </Text>
-                    {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
-                    {entry.sets.map((set, index) => (
-                      <View key={set.id} className="flex-row items-center gap-3 py-1">
-                        <View
-                          accessibilityLabel={t("session__set_label", {
-                            number: index + 1,
-                            kind: t(SET_KIND_KEYS[set.kind]),
-                          })}
-                          className={`h-10 w-10 items-center justify-center rounded-lg ${SET_TONES[set.kind].background}`}
-                        >
-                          <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>
-                            {chips[index]}
-                          </Text>
-                        </View>
-                        <Text className="flex-1 text-body text-foreground">
-                          {doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel)}
-                        </Text>
-                        {set.rpe !== null ? (
-                          <Text className="text-caption text-muted">
-                            {t("session__effort_value", {
-                              scale: t(
-                                preferences.ui.effortScale === "rir"
-                                  ? "training__effort_rir"
-                                  : "training__effort_rpe",
-                              ),
-                              value: formatEffortRange(
-                                set.rpe,
-                                set.rpe,
-                                preferences.ui.effortScale,
-                              ),
-                            })}
-                          </Text>
-                        ) : null}
-                        {flags.has(set.id) ? (
-                          <View className="flex-row items-center gap-1 rounded-lg bg-default p-2">
-                            <Trophy color={ink} size={14} />
-                            <Text className="text-caption text-foreground">
-                              {t("session__record_badge")}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                );
-              })}
+              <View className="gap-1">
+                <SectionHeader
+                  title={t("session__workout_section")}
+                  actionLabel={t("session__edit")}
+                  onAction={() => router.push({ pathname: "/session/[id]", params: { id } })}
+                />
+                {session.exercises.map((entry) => {
+                  const chips = chipTexts(entry.sets, {
+                    working: "",
+                    warmup: t("training__chip_warmup"),
+                    drop: t("training__chip_drop"),
+                    failure: t("training__chip_failure"),
+                    top: t("training__chip_top"),
+                    backoff: t("training__chip_backoff"),
+                    myo: t("training__chip_myo"),
+                  });
+                  const rows = entry.sets.map((set, index) => ({
+                    key: set.id,
+                    marker: chips[index] ?? String(index + 1),
+                    kind: set.kind,
+                    cells: [
+                      doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel),
+                      set.rpe === null
+                        ? ""
+                        : t("session__effort_value", {
+                            scale: t(
+                              preferences.ui.effortScale === "rir"
+                                ? "training__effort_rir"
+                                : "training__effort_rpe",
+                            ),
+                            value: formatEffortRange(set.rpe, set.rpe, preferences.ui.effortScale),
+                          }),
+                    ],
+                  }));
+                  return (
+                    <View key={entry.id} className="gap-1 py-2">
+                      <ExerciseHeading
+                        title={entry.title}
+                        thumbnailKey={entry.exercise?.thumbnailKey ?? null}
+                        muscle={entry.exercise?.primaryMuscle ?? "chest"}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/exercise-view/[id]",
+                            params: { id: entry.exerciseId },
+                          })
+                        }
+                      />
+                      {entry.note ? (
+                        <Text className="px-1 text-caption text-muted">{entry.note}</Text>
+                      ) : null}
+                      <SetTextTable
+                        headers={[t("session__col_result"), ""]}
+                        flex={[2, 1]}
+                        rows={rows}
+                        trailing={(row) =>
+                          flags.has(row.key) ? (
+                            <View
+                              accessible
+                              accessibilityLabel={t("session__record_badge")}
+                              className="pl-2"
+                            >
+                              <Medal color={ink} size={18} weight="fill" />
+                            </View>
+                          ) : null
+                        }
+                      />
+                    </View>
+                  );
+                })}
+              </View>
               <ActionSheet
                 isOpen={menu}
                 onOpenChange={setMenu}

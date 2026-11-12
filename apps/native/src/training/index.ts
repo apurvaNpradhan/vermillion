@@ -26,3 +26,4 @@ export { WorkoutPreviewScreen } from "./components/workout-preview-screen";
 
 export { useReorderScroll } from "./use-reorder-scroll";
 export { Stepper } from "./components/stepper";
+export { SetTextTable } from "./components/set-text-table";

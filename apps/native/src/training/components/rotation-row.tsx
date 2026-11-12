@@ -55,7 +55,7 @@ export const RotationRow = memo(function RotationRow({
 
   if (collapsed) {
     return (
-      <View className="h-14 flex-row items-center gap-3 border-b border-border bg-surface px-4">
+      <View className="h-14 flex-row items-center gap-3 border-b border-separator bg-background px-4">
         <Text
           className="w-8 text-center text-label font-semibold text-muted"
           style={{ fontVariant: ["tabular-nums"] }}
@@ -88,7 +88,7 @@ export const RotationRow = memo(function RotationRow({
     return (
       <ReorderHeader
         accessible={false}
-        className="min-h-[72px] flex-row items-center border-b border-border bg-surface"
+        className="min-h-[72px] flex-row items-center border-b border-separator bg-background"
       >
         <View
           accessibilityLabel={t("training__slot_rest_label", { number })}
@@ -122,7 +122,7 @@ export const RotationRow = memo(function RotationRow({
       : t("training__workout_meta", { count, minutes: estimateMinutes(workout.exercises) });
 
   return (
-    <ReorderHeader className="min-h-[72px] flex-row items-center border-b border-border bg-surface">
+    <ReorderHeader className="min-h-[72px] flex-row items-center border-b border-separator bg-background">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("training__slot_label", { number, title })}, ${meta}${

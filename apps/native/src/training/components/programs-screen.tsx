@@ -30,22 +30,18 @@ export function ProgramsScreen() {
   // One ready state: the list and the active marker appear together.
   const status = list.status === "list" && active.loading ? "loading" : list.status;
   const renderProgram = useCallback(
-    ({ item, index }: { item: ProgramSummary; index: number }) => (
-      <View
-        className={`mx-4 overflow-hidden border-x border-b border-border ${index === 0 ? "rounded-t-2xl border-t" : ""} ${index === list.programs.length - 1 ? "rounded-b-2xl" : ""}`}
-      >
-        <ProgramRow
-          program={item}
-          activeId={list.activeId}
-          onActivate={list.activate}
-          onStop={list.stop}
-          onOpen={open}
-          onDuplicate={duplicate}
-          onDelete={remove}
-        />
-      </View>
+    ({ item }: { item: ProgramSummary }) => (
+      <ProgramRow
+        program={item}
+        activeId={list.activeId}
+        onActivate={list.activate}
+        onStop={list.stop}
+        onOpen={open}
+        onDuplicate={duplicate}
+        onDelete={remove}
+      />
     ),
-    [open, duplicate, remove, list.programs.length, list.activeId, list.activate, list.stop],
+    [open, duplicate, remove, list.activeId, list.activate, list.stop],
   );
   return (
     <SwipeGroup>

@@ -6,6 +6,7 @@ import { ClockCounterClockwise } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { Hairline } from "@/platform/ui/hairline";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
@@ -71,8 +72,11 @@ export function HistoryScreen() {
                 preferences.ui.bodyweightKg,
               );
               return (
-                <View className="gap-2 py-4">
-                  <Text accessibilityRole="header" className="text-title-md text-foreground">
+                <View className="gap-1 pb-2 pt-6">
+                  <Text
+                    accessibilityRole="header"
+                    className="font-semibold text-title-md text-foreground"
+                  >
                     {t("session__week", {
                       date: new Intl.DateTimeFormat(i18n.language, {
                         timeZone: "UTC",
@@ -97,36 +101,39 @@ export function HistoryScreen() {
             }
             const session = item.session;
             return (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() =>
-                  router.push({ pathname: "/history/[id]", params: { id: session.id } })
-                }
-                className="mb-2 gap-1 rounded-xl bg-surface p-4"
-              >
-                <Text className="text-title-md text-foreground">{session.title}</Text>
-                <Text className="text-body text-muted">
-                  {t("session__history_row", {
-                    date: new Intl.DateTimeFormat(i18n.language, {
-                      timeZone: timezone,
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(session.started_at)),
-                    duration: formatElapsed(
-                      session.durationS ??
-                        Math.max(
-                          0,
-                          (Date.parse(session.finished_at ?? session.started_at) -
-                            Date.parse(session.started_at)) /
-                            1000,
-                        ),
-                    ),
-                  })}
-                </Text>
-                <Text className="text-caption text-muted">
-                  {session.exerciseTitles?.join(" · ")}
-                </Text>
-              </Pressable>
+              <View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push({ pathname: "/history/[id]", params: { id: session.id } })
+                  }
+                  className="gap-1 py-3 active:bg-default"
+                >
+                  <Text className="text-title-md text-foreground">{session.title}</Text>
+                  <Text className="text-body text-muted">
+                    {t("session__history_row", {
+                      date: new Intl.DateTimeFormat(i18n.language, {
+                        timeZone: timezone,
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(new Date(session.started_at)),
+                      duration: formatElapsed(
+                        session.durationS ??
+                          Math.max(
+                            0,
+                            (Date.parse(session.finished_at ?? session.started_at) -
+                              Date.parse(session.started_at)) /
+                              1000,
+                          ),
+                      ),
+                    })}
+                  </Text>
+                  <Text className="text-caption text-muted">
+                    {session.exerciseTitles?.join(" · ")}
+                  </Text>
+                </Pressable>
+                <Hairline />
+              </View>
             );
           }}
         />

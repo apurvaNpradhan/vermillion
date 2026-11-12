@@ -5,7 +5,7 @@
  * range chips, SVG bars, and nearest-point scrub with JS notified only on index changes.
  */
 import { useThemeColor } from "heroui-native";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
@@ -29,6 +29,13 @@ type Props = {
   points: readonly ChartPoint[];
   label: string;
   formatValue: (value: number) => string;
+  /**
+   * The headline for the selected point (or the latest one), when the default "Label · date ·
+   * value" line is not wanted. It is shown larger.
+   */
+  readout?: (point: ChartPoint) => string;
+  /** Rendered under the chart, below its date axis (metric chips). */
+  footer?: ReactNode;
 };
 
 export function LineChart(props: Props) {
@@ -44,6 +51,8 @@ function Chart({
   formatValue,
   mode,
   showRanges = true,
+  readout,
+  footer,
 }: Props & { mode: "line" | "bar" }) {
   const { t } = useTranslation();
   const ink = useChartColor();
@@ -133,11 +142,15 @@ function Chart({
       ) : null}
       <Text
         accessibilityLiveRegion="polite"
-        className="text-body text-foreground"
+        className={
+          readout ? "font-semibold text-title-lg text-foreground" : "text-body text-foreground"
+        }
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {shown
-          ? t("charts__readout", { label, date: shown.label, value: formatValue(shown.y) })
+          ? readout
+            ? readout(shown)
+            : t("charts__readout", { label, date: shown.label, value: formatValue(shown.y) })
           : t("charts__empty")}
       </Text>
       {data.length ? (
@@ -232,6 +245,7 @@ function Chart({
           ) : null}
         </>
       ) : null}
+      {footer}
     </View>
   );
 }

@@ -1,11 +1,13 @@
 import { haptic } from "@/platform/haptics";
 import { isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { PencilSimple } from "phosphor-react-native";
-import { useThemeColor } from "heroui-native";
+import { Note, Timer } from "phosphor-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
+import { ExerciseHeading } from "@/exercise";
+import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
@@ -14,15 +16,18 @@ import { useHomeTraining } from "../use-home-training";
 import { lastDoneLabel } from "../last-done";
 import { doneSummary } from "@/session";
 import { useWorkout } from "../use-workout";
-import { summariseSets } from "../summarise-sets";
-import { useSummaryLabels } from "../use-summary-labels";
 import { usePreferences } from "@/preferences";
+import { formatClock } from "../rest";
+import { plannedColumns, plannedRows } from "../set-text-rows";
+import { chipTexts } from "../set-editing";
+import { useColumnHeaders } from "../use-column-headers";
+import { SetTextTable } from "./set-text-table";
 
 export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const ink = useThemeColor("foreground");
-  const summaryLabels = useSummaryLabels();
+  const subtle = useSubtleColor();
+  const columnHeader = useColumnHeaders();
   const { preferences } = usePreferences();
   const state = useWorkout(id);
   const history = useHomeTraining(id);
@@ -56,126 +61,161 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           : sessionTotals(s.sets, history.bodyweightKg).volume /
             (history.weightUnit === "lb" ? KG_PER_LB : 1),
   }));
+  const unit = history.weightUnit;
+  const unitLabel = t(unit === "lb" ? "training__unit_lb" : "training__unit_kg");
+  const shortDate = (at: number) =>
+    new Intl.DateTimeFormat(i18n.language, {
+      month: "short",
+      day: "numeric",
+      timeZone: history.timezone,
+    }).format(new Date(at));
+  const lastText = last
+    ? t("workout__last_done", {
+        date: lastDoneLabel(last.started_at, new Date(), i18n.language, history.timezone),
+      })
+    : t("workout__never_done");
+  const ready = state.status === "ready" ? state.workout : null;
   return (
     <>
       <ScrollPage
         back
-        title={
-          state.status === "ready"
-            ? (state.workout.title ?? t("training__workout"))
-            : t("training__workout")
-        }
-        actions={
-          state.status === "ready" ? (
-            <Button
-              variant="ghost"
-              accessibilityLabel={t("session__edit")}
-              onPress={() => router.push({ pathname: "/train/workout/[id]/edit", params: { id } })}
-            >
-              <PencilSimple color={ink} />
-            </Button>
-          ) : undefined
-        }
+        title={ready ? (ready.title ?? t("training__workout")) : t("training__workout")}
       >
         {state.status === "error" ? (
           <Button onPress={state.retry}>{t("training__retry")}</Button>
-        ) : state.status !== "ready" ? (
+        ) : !ready ? (
           <Text className="text-body text-muted">
             {t(state.status === "loading" ? "common__loading" : "session__load_failed")}
           </Text>
         ) : (
-          <>
-            {history.loading ? (
-              <Text className="text-body text-muted">{t("common__loading")}</Text>
-            ) : history.failed ? (
-              <Button variant="secondary" onPress={history.retry}>
-                {t("training__retry")}
+          <View className="gap-8">
+            <View className="gap-4">
+              {history.failed ? (
+                <Button variant="secondary" onPress={history.retry}>
+                  {t("training__retry")}
+                </Button>
+              ) : (
+                <Text className="text-body text-muted">
+                  {history.loading
+                    ? t("common__loading")
+                    : t("workout__subtitle", {
+                        exercises: t("workout__exercise_count", { count: ready.exercises.length }),
+                        last: lastText,
+                      })}
+                </Text>
+              )}
+              <Button onPress={() => void start(id)}>
+                <Button.Label>{t("session__start")}</Button.Label>
               </Button>
-            ) : (
-              <Text className="text-body text-muted">
-                {last
-                  ? t("workout__last_done", {
-                      date: lastDoneLabel(
-                        last.started_at,
-                        new Date(),
-                        i18n.language,
-                        history.timezone,
-                      ),
-                    })
-                  : t("workout__never_done")}
-              </Text>
-            )}
-            <Button onPress={() => void start(id)}>
-              <Button.Label>{t("session__start")}</Button.Label>
-            </Button>
-            {state.workout.note ? (
-              <Text className="text-body text-muted">{state.workout.note}</Text>
-            ) : null}
+              {ready.note ? <Text className="text-body text-muted">{ready.note}</Text> : null}
+            </View>
             {!history.loading && !history.failed && sessions.length ? (
-              <View className="gap-3">
-                <View className="flex-row flex-wrap gap-2">
-                  {(["volume", "reps", "duration"] satisfies (typeof metric)[]).map((value) => (
-                    <Button
-                      key={value}
-                      size="sm"
-                      variant={metric === value ? "secondary" : "tertiary"}
-                      accessibilityState={{ selected: metric === value }}
-                      onPress={() => {
-                        if (metric !== value) haptic.tick();
-                        setMetric(value);
-                      }}
-                    >
-                      <Button.Label>
-                        {t(
-                          value === "volume"
-                            ? "stats__volume"
-                            : value === "reps"
-                              ? "workout__reps"
-                              : "stats__duration",
-                        )}
-                      </Button.Label>
-                    </Button>
-                  ))}
-                </View>
-                <LineChart
-                  points={points}
-                  label={label}
-                  formatValue={metric === "duration" ? formatElapsed : number}
-                />
-              </View>
+              <LineChart
+                points={points}
+                label={label}
+                formatValue={metric === "duration" ? formatElapsed : number}
+                readout={(point) =>
+                  `${
+                    metric === "duration"
+                      ? formatElapsed(point.y)
+                      : metric === "volume"
+                        ? `${number(point.y)} ${unitLabel}`
+                        : number(point.y)
+                  } · ${shortDate(point.x)}`
+                }
+                footer={
+                  <View className="flex-row flex-wrap gap-2">
+                    {(["volume", "reps", "duration"] satisfies (typeof metric)[]).map((value) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={metric === value ? "secondary" : "tertiary"}
+                        accessibilityState={{ selected: metric === value }}
+                        onPress={() => {
+                          if (metric !== value) haptic.tick();
+                          setMetric(value);
+                        }}
+                      >
+                        <Button.Label>
+                          {t(
+                            value === "volume"
+                              ? "stats__volume"
+                              : value === "reps"
+                                ? "workout__reps"
+                                : "stats__duration",
+                          )}
+                        </Button.Label>
+                      </Button>
+                    ))}
+                  </View>
+                }
+              />
             ) : null}
-            <View className="gap-3">
-              {state.workout.exercises.map((entry) => {
+            <View className="gap-2">
+              <SectionHeader
+                title={t("workout__exercises")}
+                actionLabel={t("session__edit")}
+                onAction={() =>
+                  router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
+                }
+              />
+              {ready.exercises.map((entry) => {
                 const previous = previousHistory.history.get(entry.exerciseId)?.[0];
                 const sets =
                   previous?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
                   ) ?? [];
+                const type = entry.exercise?.exerciseType ?? "weight_reps";
+                const columns = plannedColumns(type, entry.sets);
+                const scale = preferences.ui.effortScale;
+                const rows = plannedRows(
+                  entry.sets,
+                  chipTexts(entry.sets, {
+                    working: "",
+                    warmup: t("training__chip_warmup"),
+                    drop: t("training__chip_drop"),
+                    failure: t("training__chip_failure"),
+                    top: t("training__chip_top"),
+                    backoff: t("training__chip_backoff"),
+                    myo: t("training__chip_myo"),
+                  }),
+                  columns,
+                  unit,
+                  scale,
+                );
                 return (
-                  <View key={entry.id} className="gap-1 rounded-xl bg-surface p-4">
-                    <Text
-                      accessibilityRole="link"
+                  <View key={entry.id} className="gap-1 py-2">
+                    <ExerciseHeading
+                      title={entry.exercise?.title ?? t("training__workout")}
+                      thumbnailKey={entry.exercise?.thumbnailKey ?? null}
+                      muscle={entry.exercise?.primaryMuscle ?? "chest"}
                       onPress={() =>
                         router.push({
                           pathname: "/exercises/[id]",
                           params: { id: entry.exerciseId },
                         })
                       }
-                      className="text-title-md text-foreground"
-                    >
-                      {entry.exercise?.title ?? t("training__workout")}
-                    </Text>
-                    <Text className="text-caption text-muted">
-                      {summariseSets(
-                        entry.sets,
-                        entry.exercise?.exerciseType ?? "weight_reps",
-                        entry.restSeconds,
-                        { weightUnit: history.weightUnit, effortScale: preferences.ui.effortScale },
-                        summaryLabels,
-                      )}
-                    </Text>
+                    />
+                    {entry.restSeconds !== null ? (
+                      <View className="min-h-8 flex-row items-center gap-2 px-1">
+                        <Timer size={16} color={subtle} />
+                        <Text className="text-caption text-muted tabular-nums">
+                          {t("training__rest_link", { value: formatClock(entry.restSeconds) })}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {entry.note ? (
+                      <View className="min-h-8 flex-row items-start gap-2 px-1">
+                        <Note size={16} color={subtle} />
+                        <Text className="flex-1 text-caption text-muted">{entry.note}</Text>
+                      </View>
+                    ) : null}
+                    <SetTextTable
+                      headers={columns.map((column) => columnHeader(column, unit, scale))}
+                      rows={rows}
+                    />
                     {sets.length ? (
-                      <Text className="text-body text-muted">
+                      <Text className="px-1 text-caption text-muted">
                         {t("workout__previous", {
                           values: doneSummary(
                             sets.map((set) => ({
@@ -189,12 +229,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                               steps: set.steps ?? null,
                             })),
                             sets[0]?.exercise_type ?? "weight_reps",
-                            history.weightUnit,
-                            t(
-                              history.weightUnit === "lb"
-                                ? "training__unit_lb"
-                                : "training__unit_kg",
-                            ),
+                            unit,
+                            unitLabel,
                           ),
                         })}
                       </Text>
@@ -203,7 +239,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 );
               })}
             </View>
-          </>
+          </View>
         )}
       </ScrollPage>
       {sheet}

@@ -20,7 +20,8 @@ import Animated from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
-import { Button } from "@/platform/ui/button";
+import { ListRow, ListSection } from "@/platform/ui/list";
+import { SectionHeader } from "@/platform/ui/section-header";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { MarkdownText } from "@/platform/ui/markdown-text";
 import { Page, ScrollPage } from "@/platform/ui/page";
@@ -234,7 +235,7 @@ function LoadedProgram({
             {...scroll}
             className="flex-1"
             contentContainerStyle={contentContainerStyle}
-            contentContainerClassName="gap-4"
+            contentContainerClassName="gap-8"
             ref={(node) => {
               scroll.ref(node);
               reorderScroll.ref(node);
@@ -249,7 +250,7 @@ function LoadedProgram({
                 accessibilityRole="button"
                 accessibilityLabel={t("training__edit_details")}
                 onPress={onOpenDetails}
-                className="min-h-20 flex-row items-center gap-3 rounded-2xl bg-surface p-4"
+                className="min-h-16 flex-row items-center gap-3 py-1"
               >
                 <ProgramTile title={program.title} size={COVER_SIZE} coverUri={program.coverUri} />
                 <View className="flex-1 gap-1">
@@ -262,9 +263,14 @@ function LoadedProgram({
                 </View>
                 <PencilSimple size={18} color={foreground} />
               </Pressable>
-              <Button variant="secondary" onPress={toggleActive}>
-                <Button.Label>{activationLabel}</Button.Label>
-              </Button>
+              <ListSection variant="plain">
+                <ListRow
+                  icon={Repeat}
+                  title={activationLabel}
+                  accessory="none"
+                  onPress={toggleActive}
+                />
+              </ListSection>
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}
@@ -274,22 +280,18 @@ function LoadedProgram({
                 />
               ) : null}
             </View>
-            <View className="gap-2">
-              <View className="flex-row items-center justify-between gap-3 px-4">
-                <Text
-                  accessibilityRole="header"
-                  className="font-semibold text-title-md text-foreground"
-                >
-                  {t("training__rotation")}
-                </Text>
-                <Button variant="secondary" isDisabled={full} onPress={() => setDayOpen(true)}>
-                  <Button.Label>{t("training__add_day")}</Button.Label>
-                </Button>
+            <View className="gap-1">
+              <View className="px-4">
+                <SectionHeader
+                  title={t("training__rotation")}
+                  actionLabel={full ? undefined : t("training__add_day")}
+                  onAction={() => setDayOpen(true)}
+                />
               </View>
               {slots.length === 0 ? (
                 <Text className="px-4 text-body text-muted">{t("training__rotation_empty")}</Text>
               ) : (
-                <View className="mx-4 rounded-2xl bg-surface">
+                <View className="px-4">
                   <ReorderList
                     items={slots}
                     scroll={reorderScroll}

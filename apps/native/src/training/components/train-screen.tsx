@@ -3,20 +3,23 @@ import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native";
-import { Barbell, CaretRight, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
+import { Barbell, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
+import { SectionHeader } from "@/platform/ui/section-header";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
+import { useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
 
+import { lastDoneLabel } from "../last-done";
 import { combineStatus } from "../train-status";
+import { useLastDone } from "../use-last-done";
 import { useActiveProgram } from "../use-active-program";
 import { useProgramLibrary } from "../use-program-library";
 import { useStartWorkout } from "../use-start-workout";
@@ -32,7 +35,7 @@ const workoutKey = (workout: WorkoutSummary) => workout.id;
 
 /** One library: a compact program preview, then matching workout rows, with one creation action. */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const workoutList = useWorkouts();
   const active = useActiveProgram();
@@ -51,7 +54,8 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const actions = useWorkoutActions();
   const [newOpen, setNewOpen] = useState(false);
   const onAction = useThemeColor("accent-foreground");
-  const subtle = useSubtleColor();
+  const { lastDone, timezone } = useLastDone();
+  const { start, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
   const newActions = useMemo(
@@ -82,15 +86,28 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     (id: string, title: string) => void actions.remove(id, title),
     [actions],
   );
+  const startWorkout = useCallback((id: string) => void start(id), [start]);
   const renderWorkout = useCallback(
-    ({ item, index }: { item: WorkoutSummary; index: number }) => (
-      <View
-        className={`mx-4 overflow-hidden border-x border-b border-border ${index === 0 ? "rounded-t-2xl border-t" : ""} ${index === workouts.length - 1 ? "rounded-b-2xl" : ""}`}
-      >
-        <WorkoutRow workout={item} onOpen={open} onDuplicate={duplicate} onDelete={remove} />
-      </View>
-    ),
-    [open, duplicate, remove, workouts.length],
+    ({ item }: { item: WorkoutSummary }) => {
+      const at = lastDone.get(item.id);
+      return (
+        <WorkoutRow
+          workout={item}
+          lastDone={
+            at
+              ? t("workout__last_done", {
+                  date: lastDoneLabel(at, new Date(), i18n.language, timezone),
+                })
+              : null
+          }
+          onOpen={open}
+          onStart={startWorkout}
+          onDuplicate={duplicate}
+          onDelete={remove}
+        />
+      );
+    },
+    [open, startWorkout, duplicate, remove, lastDone, t, i18n.language, timezone],
   );
 
   return (
@@ -116,55 +133,49 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             extraData={renderWorkout}
             renderItem={renderWorkout}
             ListHeaderComponent={
-              <View className="gap-6 px-4 pb-3">
+              <View className="gap-8 px-4 pb-1">
                 {header}
                 <SyncBanner />
                 {status === "loading" ? null : <ActiveProgramCard state={active} offerEnd />}
                 <TrainingListState status={status} onRetry={retry} />
                 {status === "list" && programs.length > 0 ? (
-                  <View className="gap-2">
-                    <View className="min-h-11 flex-row items-center justify-between gap-3">
-                      <Text
-                        accessibilityRole="header"
-                        className="font-semibold text-title-md text-foreground"
-                      >
-                        {t("training__programs")}
-                      </Text>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={t("training__view_all_programs")}
-                        onPress={() => router.push("/train/programs")}
-                        className="min-h-11 flex-row items-center gap-1 px-1 active:opacity-60"
-                      >
-                        <Text className="text-caption text-muted">{t("training__view_all")}</Text>
-                        <CaretRight size={13} color={subtle} />
-                      </Pressable>
-                    </View>
-                    <ProgramList
-                      programs={programs.slice(0, PROGRAM_PREVIEW_COUNT)}
-                      activeId={programList.activeId}
-                      onActivate={programList.activate}
-                      onStop={programList.stop}
-                      onOpen={programList.open}
-                      onDuplicate={programList.duplicate}
-                      onDelete={programList.remove}
+                  <View className="gap-1">
+                    <SectionHeader
+                      title={t("training__programs")}
+                      actionLabel={t("training__view_all")}
+                      actionAccessibilityLabel={t("training__view_all_programs")}
+                      onAction={() => router.push("/train/programs")}
                     />
+                    <View className="-mx-4">
+                      <ProgramList
+                        programs={programs.slice(0, PROGRAM_PREVIEW_COUNT)}
+                        activeId={programList.activeId}
+                        onActivate={programList.activate}
+                        onStop={programList.stop}
+                        onOpen={programList.open}
+                        onDuplicate={programList.duplicate}
+                        onDelete={programList.remove}
+                      />
+                    </View>
                   </View>
                 ) : null}
-                {status === "list" ? (
-                  <Text
-                    accessibilityRole="header"
-                    className="font-semibold text-title-md text-foreground"
-                  >
-                    {t("training__workouts")}
-                  </Text>
-                ) : null}
+                {status === "list" ? <SectionHeader title={t("training__workouts")} /> : null}
               </View>
             }
             ListEmptyComponent={
               <View className="px-4">
                 {status === "empty" ? (
-                  <EmptyState icon={Barbell} title={t("training__empty_plans")} />
+                  <View className="items-center gap-2">
+                    <EmptyState icon={Barbell} title={t("training__empty_plans")} />
+                    <View className="flex-row flex-wrap justify-center gap-3">
+                      <Button variant="secondary" onPress={newWorkout}>
+                        <Button.Label>{t("training__new_workout")}</Button.Label>
+                      </Button>
+                      <Button variant="secondary" onPress={newProgram}>
+                        <Button.Label>{t("training__new_program")}</Button.Label>
+                      </Button>
+                    </View>
+                  </View>
                 ) : status === "list" ? (
                   workoutList.status === "first-sync" ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
@@ -177,6 +188,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
           />
         )}
       </Page>
+      {startSheet}
       <ActionSheet
         title={t("training__create")}
         actions={newActions}

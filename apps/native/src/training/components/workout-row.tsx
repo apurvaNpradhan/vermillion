@@ -3,24 +3,29 @@ import { Copy, Trash } from "phosphor-react-native";
 import { memo, useMemo } from "react";
 
 import { useTranslation } from "@/platform/i18n";
+import { Button } from "@/platform/ui/button";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { displayTitle } from "../derived-title";
-import { estimateMinutes } from "../estimate";
-import { PlanInitialTile } from "./plan-initial-tile";
 import { PlanRow } from "./plan-row";
 
 /**
- * A compact workout row, matching programs with a title initial and one metadata line.
+ * A flat workout row: its title, the exercises on one muted line, when it was last done and a
+ * compact Start button on the right.
  */
 export const WorkoutRow = memo(function WorkoutRow({
   workout,
+  lastDone,
   onOpen,
+  onStart,
   onDuplicate,
   onDelete,
 }: {
   workout: WorkoutSummary;
+  /** "Last done 2 days ago", or null when it is not in recent history. */
+  lastDone: string | null;
   onOpen: (id: string) => void;
+  onStart: (id: string) => void;
   onDuplicate: (workout: WorkoutSummary, title: string) => void;
   onDelete: (id: string, title: string) => void;
 }) {
@@ -29,11 +34,10 @@ export const WorkoutRow = memo(function WorkoutRow({
     entry.primaryMuscle === null ? [] : [entry.primaryMuscle],
   );
   const title = displayTitle(workout.title, muscles, (key) => t(key));
-  const count = workout.exercises.length;
-  const meta =
-    count === 0
+  const exercises =
+    workout.exercises.length === 0
       ? t("training__workout_empty_meta")
-      : t("training__workout_meta", { count, minutes: estimateMinutes(workout.exercises) });
+      : workout.exercises.map((entry) => entry.title ?? t("training__exercise_missing")).join(", ");
 
   const swipe = useMemo<SwipeAction[]>(
     () => [
@@ -57,9 +61,18 @@ export const WorkoutRow = memo(function WorkoutRow({
   return (
     <PlanRow
       title={title}
-      meta={meta}
-      tile={<PlanInitialTile title={title} size={36} />}
-      menuLabel={t("training__workout_menu")}
+      lines={[exercises, lastDone]}
+      trailing={
+        <Button
+          size="sm"
+          variant="secondary"
+          className="rounded-full px-4"
+          accessibilityLabel={t("training__start_workout_named", { title })}
+          onPress={() => onStart(workout.id)}
+        >
+          <Button.Label>{t("training__start")}</Button.Label>
+        </Button>
+      }
       onOpen={() => onOpen(workout.id)}
       actions={swipe}
     />

@@ -104,7 +104,7 @@ export const ProgramRow = memo(function ProgramRow({
   return (
     <PlanRow
       title={program.title}
-      meta={meta}
+      lines={[meta]}
       tile={<ProgramTile title={program.title} size={TILE} coverUri={program.coverUri} />}
       menuLabel={t("training__program_menu")}
       onOpen={() => onOpen(program.id)}
@@ -113,18 +113,15 @@ export const ProgramRow = memo(function ProgramRow({
   );
 });
 
-/** Grouped rows keep programs compact while exposing their full actions. */
+/** Flat rows keep programs compact while exposing their full actions. */
 export function ProgramList({
   programs,
   ...actions
 }: Omit<ComponentProps<typeof ProgramRow>, "program"> & { programs: readonly ProgramSummary[] }) {
   return (
-    <View className="overflow-hidden rounded-2xl border border-border bg-surface">
-      {programs.map((program, index) => (
-        <View key={program.id}>
-          {index > 0 ? <View className="h-px bg-border" /> : null}
-          <ProgramRow program={program} {...actions} />
-        </View>
+    <View>
+      {programs.map((program) => (
+        <ProgramRow key={program.id} program={program} {...actions} />
       ))}
     </View>
   );
