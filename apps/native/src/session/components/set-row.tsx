@@ -10,14 +10,14 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import { Check, Play, Stop, Trash } from "phosphor-react-native";
+import { Check, Copy, Rows, Play, Stop, Trash } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
-import { SwipeRow, type SwipeA11yProps } from "@/platform/ui/swipe-row";
+import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
 
 import type { CellRef } from "../keypad-entry";
@@ -51,6 +51,9 @@ export type SetRowProps = {
   refusal: Refusal | null;
   readOnly: boolean;
   canRemove: boolean;
+  canCopyPrevious: boolean;
+  canFillRemaining: boolean;
+  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
@@ -286,21 +289,34 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     </View>
   );
 
-  return canRemove && !readOnly ? (
-    <SwipeRow
-      actions={[
-        {
-          key: "remove",
-          label: t("training__remove"),
-          icon: Trash,
-          tone: "danger",
-          iconOnly: true,
-          onPress: () => props.onRemove(set.id),
-        },
-      ]}
-    >
-      {(a11y) => row(a11y)}
-    </SwipeRow>
+  const actions: SwipeAction[] = [];
+  if (props.canCopyPrevious)
+    actions.push({
+      key: "copy",
+      label: t("session__copy_previous"),
+      icon: Copy,
+      iconOnly: true,
+      onPress: () => props.onCopySets(set.id, "previous"),
+    });
+  if (props.canFillRemaining)
+    actions.push({
+      key: "fill",
+      label: t("session__fill_remaining"),
+      icon: Rows,
+      iconOnly: true,
+      onPress: () => props.onCopySets(set.id, "remaining"),
+    });
+  if (canRemove)
+    actions.push({
+      key: "remove",
+      label: t("training__remove"),
+      icon: Trash,
+      tone: "danger",
+      iconOnly: true,
+      onPress: () => props.onRemove(set.id),
+    });
+  return !readOnly && actions.length > 0 ? (
+    <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
   ) : (
     row()
   );

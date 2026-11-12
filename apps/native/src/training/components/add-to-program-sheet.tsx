@@ -1,6 +1,9 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
-import { Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Plus } from "phosphor-react-native";
+import { EmptyState } from "@/platform/ui/empty-state";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
@@ -25,6 +28,7 @@ export function AddToProgramSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const { status, programs } = usePrograms();
   const actions = useProgramActions();
@@ -69,9 +73,17 @@ export function AddToProgramSheet({
               </ListSection>
             ) : null}
             {status === "empty" || status === "first-sync" ? (
-              <Text className="px-1 text-center text-caption text-muted">
-                {t("training__add_to_program_empty")}
-              </Text>
+              <EmptyState
+                icon={Plus}
+                title={t("training__no_programs")}
+                action={{
+                  label: t("training__new_program"),
+                  onPress: () => {
+                    onOpenChange(false);
+                    router.push("/train/new-program");
+                  },
+                }}
+              />
             ) : null}
           </BottomSheetScrollView>
         </BottomSheet.Content>

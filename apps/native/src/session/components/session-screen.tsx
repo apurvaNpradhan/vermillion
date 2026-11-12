@@ -557,6 +557,7 @@ function LoadedSession({
                     onKind={onKind}
                     onEffort={onEffort}
                     onPrevious={onPrevious}
+                    onCopySets={logging.onCopySets}
                     onRemoveSet={removeSet}
                     onTimer={onTimer}
                     registerRow={registerSetRow}

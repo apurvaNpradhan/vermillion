@@ -401,16 +401,27 @@ function LoadedEditor({
               )}
             />
             <HideWhileDragging dragging={reorderScroll.dragging}>
-              <View className="px-4">
-                <Button
-                  variant={workout.exercises.length === 0 ? "primary" : "secondary"}
-                  isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
-                  onPress={() => void addExercises()}
-                >
-                  <Plus size={16} color={foreground} weight="bold" />
-                  <Button.Label>{t("training__add_exercises")}</Button.Label>
-                </Button>
-              </View>
+              {workout.exercises.length === 0 ? (
+                <EmptyState
+                  icon={Plus}
+                  title={t("training__workout_empty_meta")}
+                  action={{
+                    label: t("training__add_exercises"),
+                    onPress: () => void addExercises(),
+                  }}
+                />
+              ) : (
+                <View className="px-4">
+                  <Button
+                    variant="secondary"
+                    isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
+                    onPress={() => void addExercises()}
+                  >
+                    <Plus size={16} color={foreground} weight="bold" />
+                    <Button.Label>{t("training__add_exercises")}</Button.Label>
+                  </Button>
+                </View>
+              )}
             </HideWhileDragging>
           </AnimatedKeyboardAwareScrollView>
         )}

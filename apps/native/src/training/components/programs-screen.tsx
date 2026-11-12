@@ -78,7 +78,14 @@ export function ProgramsScreen() {
             }
             ListEmptyComponent={
               status === "empty" ? (
-                <EmptyState icon={ListNumbers} title={t("training__no_programs")} />
+                <EmptyState
+                  icon={ListNumbers}
+                  title={t("training__no_programs")}
+                  action={{
+                    label: t("training__new_program"),
+                    onPress: () => router.push("/train/new-program"),
+                  }}
+                />
               ) : null
             }
           />

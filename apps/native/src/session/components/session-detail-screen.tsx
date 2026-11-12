@@ -207,7 +207,6 @@ export function SessionDetailScreen({ id }: { id: string }) {
                       <ExerciseHeading
                         title={entry.title}
                         thumbnailKey={entry.exercise?.thumbnailKey ?? null}
-                        muscle={entry.exercise?.primaryMuscle ?? "chest"}
                         onPress={() =>
                           router.push({
                             pathname: "/exercise-view/[id]",

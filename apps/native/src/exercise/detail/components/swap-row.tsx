@@ -59,7 +59,7 @@ export function SwapRow({
             >
               <ExerciseThumbnail
                 thumbnailKey={candidate.thumbnailKey}
-                muscle={candidate.primaryMuscle}
+                title={candidate.title}
                 size={CARD_WIDTH - 18}
               />
               <Text numberOfLines={2} className="min-h-10 text-caption font-medium text-foreground">

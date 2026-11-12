@@ -19,6 +19,7 @@ import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
+import { copySetUpdates } from "./copy-sets";
 import { useSoundCues } from "./use-sound-cues";
 import { useStableHandler } from "./use-stable-handler";
 
@@ -459,6 +460,20 @@ export function useLoggingState({
     },
     [previousOf, found, readOnly, flush, actions],
   );
+  const onCopySets = useCallback(
+    async (setId: string, mode: "previous" | "remaining") => {
+      if (readOnly) return;
+      flush();
+      const at = found.get(setId);
+      if (!at) return;
+      for (const update of copySetUpdates(at.exercise, setId, mode, previousOf(setId))) {
+        await actions.updateValues(update.id, update.patch);
+      }
+      setRefusal(null);
+    },
+    [readOnly, flush, found, previousOf, actions],
+  );
+  const stableOnCopySets = useStableHandler(onCopySets);
   const onKindSelected = useCallback(
     (setId: string, kind: SetKind) => void actions.updateValues(setId, { kind }),
     [actions],
@@ -534,6 +549,7 @@ export function useLoggingState({
     editingFinished: session.finishedAt !== null,
     onTimer: stableOnTimer,
     onPrevious: stableOnPrevious,
+    onCopySets: stableOnCopySets,
     onKindSelected,
     addSet,
     found,

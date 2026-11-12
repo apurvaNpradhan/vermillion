@@ -2,7 +2,6 @@ import { MagnifyingGlass, WarningCircle, WifiSlash } from "phosphor-react-native
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Skeleton } from "@/platform/ui/skeleton";
 
@@ -74,31 +73,32 @@ export function NoMatchesState({
 }) {
   const { t } = useTranslation();
   return (
-    <View className="items-center gap-4 px-6 py-12">
-      <EmptyState icon={MagnifyingGlass} title={t("exercise__no_matches")} />
-      <View className="gap-3 self-stretch">
-        {canClear ? (
-          <Button variant="secondary" onPress={onClear}>
-            <Button.Label>{t("exercise__clear_filters")}</Button.Label>
-          </Button>
-        ) : null}
-        {onCreate && query !== "" ? (
-          <Button variant="primary" onPress={() => onCreate(query)}>
-            <Button.Label>{t("exercise__create_named", { name: query })}</Button.Label>
-          </Button>
-        ) : null}
-      </View>
-    </View>
+    <EmptyState
+      icon={MagnifyingGlass}
+      title={t("exercise__no_matches")}
+      action={
+        canClear
+          ? { label: t("exercise__clear_filters"), onPress: onClear }
+          : onCreate
+            ? {
+                label: query ? t("exercise__create_named", { name: query }) : t("exercise__new"),
+                onPress: () => onCreate(query),
+              }
+            : undefined
+      }
+    />
   );
 }
 
 /** The Archived list is empty: a plain note, nothing to fix. */
-export function ArchivedEmptyState() {
+export function ArchivedEmptyState({ onBrowse }: { onBrowse: () => void }) {
   const { t } = useTranslation();
   return (
-    <Text className="px-6 py-12 text-center text-body text-muted">
-      {t("exercise__archived_empty")}
-    </Text>
+    <EmptyState
+      icon={MagnifyingGlass}
+      title={t("exercise__archived_empty")}
+      action={{ label: t("exercise__clear_filters"), onPress: onBrowse }}
+    />
   );
 }
 

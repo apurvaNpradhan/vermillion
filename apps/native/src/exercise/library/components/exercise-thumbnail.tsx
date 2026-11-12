@@ -1,36 +1,45 @@
-import type { MuscleGroup } from "@workspace/shared";
 import { Image } from "expo-image";
 import { memo, useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 import { appConfig } from "@/platform/app-config";
 
 import { thumbnailUrl } from "../../media-url";
-import { MuscleIcon } from "./muscle-icon";
 
-export const THUMBNAIL_SIZE = 56;
+export const THUMBNAIL_SIZE = 40;
 
 /**
- * An exercise's square thumbnail from the media bucket, cached on disk. A missing key, a failed
- * load or an offline device shows the muscle group's tile instead.
+ * An exercise's round thumbnail, cached on disk. Missing or failed media shows a neutral initial.
  */
 export const ExerciseThumbnail = memo(function ExerciseThumbnail({
   thumbnailKey,
-  muscle,
+  title,
   size = THUMBNAIL_SIZE,
 }: {
   thumbnailKey: string | null;
-  muscle: MuscleGroup;
+  title?: string;
   size?: number;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const uri = thumbnailUrl(appConfig.urls.exerciseMedia, thumbnailKey);
-  if (uri === null || failedUrl === uri) return <MuscleIcon muscle={muscle} size={size} />;
+  if (uri === null || failedUrl === uri)
+    return (
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        className="items-center justify-center rounded-full bg-default"
+        style={{ width: size, height: size }}
+      >
+        <Text className="font-medium text-label text-muted">
+          {title?.trim().slice(0, 1).toLocaleUpperCase() || "·"}
+        </Text>
+      </View>
+    );
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className="overflow-hidden rounded-lg bg-default"
+      className="overflow-hidden rounded-full bg-default"
       style={{ width: size, height: size }}
     >
       <Image

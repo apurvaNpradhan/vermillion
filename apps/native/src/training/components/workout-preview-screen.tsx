@@ -188,7 +188,6 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                     <ExerciseHeading
                       title={entry.exercise?.title ?? t("training__workout")}
                       thumbnailKey={entry.exercise?.thumbnailKey ?? null}
-                      muscle={entry.exercise?.primaryMuscle ?? "chest"}
                       onPress={() =>
                         router.push({
                           pathname: "/exercises/[id]",

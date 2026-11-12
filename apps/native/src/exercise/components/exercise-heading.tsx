@@ -1,4 +1,3 @@
-import type { MuscleGroup } from "@workspace/shared";
 import { Pressable, Text, View } from "react-native";
 
 import { ExerciseThumbnail } from "../library/components/exercise-thumbnail";
@@ -12,12 +11,10 @@ const SIZE = 40;
 export function ExerciseHeading({
   title,
   thumbnailKey,
-  muscle,
   onPress,
 }: {
   title: string;
   thumbnailKey: string | null;
-  muscle: MuscleGroup;
   onPress?: () => void;
 }) {
   return (
@@ -34,7 +31,7 @@ export function ExerciseHeading({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <ExerciseThumbnail thumbnailKey={thumbnailKey} muscle={muscle} size={SIZE} />
+        <ExerciseThumbnail thumbnailKey={thumbnailKey} title={title} size={SIZE} />
       </View>
       <Text numberOfLines={2} className="flex-1 font-semibold text-body text-identity">
         {title}

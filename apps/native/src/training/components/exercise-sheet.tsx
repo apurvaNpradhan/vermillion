@@ -27,7 +27,7 @@ import { DetailedTargets } from "./detailed-targets";
 import { InlineNote } from "./inline-note";
 import { SheetFrame } from "./sheet-frame";
 
-const HEADER_THUMBNAIL = 44;
+const HEADER_THUMBNAIL = 40;
 
 const FALLBACK_TYPE: ExerciseType = "weight_reps";
 
@@ -158,18 +158,11 @@ function LoadedSheet({
         }}
         className="min-h-11 flex-row items-center gap-3"
       >
-        {info ? (
-          <ExerciseThumbnail
-            thumbnailKey={info.thumbnailKey}
-            muscle={info.primaryMuscle}
-            size={HEADER_THUMBNAIL}
-          />
-        ) : (
-          <View
-            className="rounded-lg bg-default"
-            style={{ width: HEADER_THUMBNAIL, height: HEADER_THUMBNAIL }}
-          />
-        )}
+        <ExerciseThumbnail
+          title={name}
+          thumbnailKey={info?.thumbnailKey ?? null}
+          size={HEADER_THUMBNAIL}
+        />
         <View className="flex-1 gap-0.5">
           <Text
             accessibilityRole="header"

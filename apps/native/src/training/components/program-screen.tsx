@@ -289,7 +289,11 @@ function LoadedProgram({
                 />
               </View>
               {slots.length === 0 ? (
-                <Text className="px-4 text-body text-muted">{t("training__rotation_empty")}</Text>
+                <EmptyState
+                  icon={Plus}
+                  title={t("training__rotation_empty")}
+                  action={{ label: t("training__add_workout"), onPress: () => setAddOpen(true) }}
+                />
               ) : (
                 <View className="px-4">
                   <ReorderList
