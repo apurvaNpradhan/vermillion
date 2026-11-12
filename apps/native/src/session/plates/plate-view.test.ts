@@ -3,7 +3,9 @@ import type { EquipmentRow } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
 import {
+  addToStack,
   canSeedEquipment,
+  clearStack,
   defaultBar,
   enabledBars,
   formatDifference,
@@ -13,11 +15,17 @@ import {
   loadInputKey,
   missingKitItems,
   nearestChoice,
+  overInventory,
   plateGroups,
   plateLayout,
   platesForBar,
   plateRole,
+  removeFromStack,
+  removeKindFromStack,
   selectedChoice,
+  stackCount,
+  stackSideKg,
+  stackTotalKg,
 } from "./plate-view";
 
 let nextId = 0;
@@ -263,5 +271,40 @@ describe("kitGroups", () => {
     const groups = kitGroups([...kit("kg"), ...kit("lb")], "kg");
     expect(groups.map((g) => g.unit)).toEqual(["kg", "lb"]);
     expect(groups[0]?.bars.every((b) => b.unit === "kg")).toBe(true);
+  });
+});
+
+describe("plate stack", () => {
+  const p = (weightKg: number, count: number | null = null) => ({
+    id: String(weightKg),
+    weightKg,
+    count,
+  });
+  it("keeps the heaviest nearest the collar and repeats stack up", () => {
+    let stack = addToStack([], p(10));
+    stack = addToStack(stack, p(20));
+    stack = addToStack(stack, p(2.5));
+    stack = addToStack(stack, p(20));
+    expect(stack.map((x) => x.weightKg)).toEqual([20, 20, 10, 2.5]);
+  });
+  it("totals the bar plus both sides", () => {
+    const stack = [p(20), p(20), p(10), p(2.5)];
+    expect(stackSideKg(stack)).toBe(52.5);
+    expect(stackTotalKg(20, stack)).toBe(125);
+    expect(stackTotalKg(20, clearStack())).toBe(20);
+  });
+  it("removes by drawn position or one of a kind", () => {
+    const stack = [p(20), p(20), p(10)];
+    expect(removeFromStack(stack, 1).map((x) => x.weightKg)).toEqual([20, 10]);
+    expect(removeFromStack(stack, 9)).toHaveLength(3);
+    expect(removeKindFromStack(stack, "20").map((x) => x.weightKg)).toEqual([20, 10]);
+    expect(removeKindFromStack(stack, "5")).toHaveLength(3);
+    expect(stackCount(stack, "20")).toBe(2);
+  });
+  it("reports kinds used on more pairs than owned", () => {
+    const stack = [p(20), p(20), p(20), p(10), p(5)];
+    const inventory = [p(20, 2), p(10, null)];
+    expect(overInventory(stack, inventory)).toEqual(["20", "5"]);
+    expect(overInventory([p(20)], inventory)).toEqual([]);
   });
 });

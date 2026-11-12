@@ -130,6 +130,67 @@ export function plateGroups(plates: readonly LoadPlate[]): { weightKg: number; c
   return groups;
 }
 
+/**
+ * The plates of one side in build mode, heaviest nearest the collar. A stack is a plain list of
+ * the plates added, one entry per plate on that side; the bar carries a matching pair.
+ */
+export type PlateStack = readonly LoadPlate[];
+
+/** Adds one plate to a side, keeping the heaviest first and a repeated weight after its twins. */
+export function addToStack(stack: PlateStack, plate: LoadPlate): LoadPlate[] {
+  const at = stack.findIndex((item) => item.weightKg < plate.weightKg - SAME);
+  const next = [...stack];
+  next.splice(at === -1 ? next.length : at, 0, plate);
+  return next;
+}
+
+/** Removes the plate drawn at `index`; an index outside the stack changes nothing. */
+export function removeFromStack(stack: PlateStack, index: number): LoadPlate[] {
+  return stack.filter((_, i) => i !== index);
+}
+
+/** Removes the outermost plate of one kind, the one a chip's minus takes off. */
+export function removeKindFromStack(stack: PlateStack, plateId: string): LoadPlate[] {
+  let at = stack.length - 1;
+  while (at >= 0 && stack[at]?.id !== plateId) at -= 1;
+  return at === -1 ? [...stack] : removeFromStack(stack, at);
+}
+
+/** An empty bar. */
+export function clearStack(): LoadPlate[] {
+  return [];
+}
+
+/** How many plates of one kind a side holds. */
+export function stackCount(stack: PlateStack, plateId: string): number {
+  return stack.filter((item) => item.id === plateId).length;
+}
+
+/** The weight of one side's plates. */
+export function stackSideKg(stack: PlateStack): number {
+  return stack.reduce((sum, item) => sum + item.weightKg, 0);
+}
+
+/** The loaded bar: its own weight plus a matching stack on both sides. */
+export function stackTotalKg(barKg: number, stack: PlateStack): number {
+  return barKg + 2 * stackSideKg(stack);
+}
+
+/**
+ * The plate kinds the stack uses on more pairs than the inventory holds. A kind with no count is
+ * unlimited, and a plate that is not in the inventory at all counts as having none.
+ */
+export function overInventory(stack: PlateStack, inventory: readonly LoadPlate[]): string[] {
+  const ids = new Set(stack.map((item) => item.id));
+  return ids
+    .values()
+    .filter((id) => {
+      const have = inventory.find((item) => item.id === id);
+      return stackCount(stack, id) > (have ? (have.count ?? Infinity) : 0);
+    })
+    .toArray();
+}
+
 const SHAFT = 40;
 const COLLAR_WIDTH = 10;
 const COLLAR_HEIGHT = 46;

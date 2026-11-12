@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { formatWeight, type LoadPlate, type WeightUnit } from "@workspace/shared";
 import { plateLayout, plateRole, type PlateRole } from "./plate-view";
 
@@ -31,20 +31,25 @@ export function BarDiagram({
   platesPerSide,
   unit,
   label,
+  onPlatePress,
+  plateLabel,
 }: {
   platesPerSide: readonly LoadPlate[];
   unit: WeightUnit;
   /** Read by screen readers instead of the drawing. */
   label: string;
+  /** Makes each plate a button, with the screen-reader name the callback's caller gives it. */
+  onPlatePress?: (index: number) => void;
+  plateLabel?: (weightKg: number) => string;
 }) {
   const [width, setWidth] = useState(320);
   const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, unit), width);
   const middle = layout.height / 2;
   return (
     <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={label}
+      accessible={!onPlatePress}
+      accessibilityRole={onPlatePress ? undefined : "image"}
+      accessibilityLabel={onPlatePress ? undefined : label}
       onLayout={(event) => setWidth(Math.max(160, event.nativeEvent.layout.width))}
       className="w-full"
       style={{ height: layout.height }}
@@ -75,9 +80,15 @@ export function BarDiagram({
         const slot = layout.slots[index];
         if (!slot) return null;
         const role = plateRole(plate.weightKg, unit);
+        const press = onPlatePress;
         return (
-          <View
+          <Pressable
             key={`${plate.id}-${index}`}
+            disabled={!press}
+            accessibilityRole={press ? "button" : undefined}
+            accessibilityLabel={press ? plateLabel?.(plate.weightKg) : undefined}
+            onPress={press ? () => press(index) : undefined}
+            hitSlop={{ left: 2, right: 2 }}
             className={`absolute items-center justify-center rounded-[3px] border border-muted/60 ${PLATE_FILL[role]}`}
             style={{
               left: slot.x,
@@ -100,7 +111,7 @@ export function BarDiagram({
                 {formatWeight(plate.weightKg, unit)}
               </Text>
             ) : null}
-          </View>
+          </Pressable>
         );
       })}
     </View>
