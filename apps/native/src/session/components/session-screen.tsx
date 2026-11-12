@@ -36,10 +36,8 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { Keypad } from "@/platform/ui/keypad";
 import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
-import { usePreferences } from "@/preferences";
 import {
   HideWhileDragging,
   ReorderList,
@@ -49,23 +47,14 @@ import {
 } from "@/training";
 
 import { setRestSurfaceVisible } from "../rest-notification";
-import {
-  askRestPermission,
-  markRestPermissionAsked,
-  restPermissionAsked,
-  useRestPermission,
-} from "../rest-permission-store";
+import { askRestPermission, markRestPermissionAsked } from "../rest-permission-store";
 import { allTicked, doneSummary, formatVolume, progressText } from "../summary";
-import { useSessionActions } from "../use-session-actions";
-import { useInstallId } from "../use-install-id";
-import { useKeypadAccessory } from "../keypad-accessory";
-import { useLoggingState } from "../use-logging-state";
-import { useOptimisticSession } from "../use-optimistic-session";
-import { usePreviousSets } from "../use-previous-sets";
 import { restBelongsTo } from "../rest-rules";
 import { useRestRunning } from "../use-rest-running";
 import { afterLayout, useRowReveal } from "../use-row-reveal";
 import { useWarmCount } from "../use-warm-count";
+import { useFinishFlow } from "../use-finish-flow";
+import { useSessionLogging } from "../use-session-logging";
 import { useSession } from "../use-session";
 import { loggedSetsOf } from "../set-values";
 import { ExerciseItem } from "./exercise-item";
@@ -75,6 +64,7 @@ import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "./rest-bar";
 import { RestPermissionSheet } from "./rest-permission-sheet";
 import { SessionHeader } from "./session-header";
+import { SessionKeypad, useSessionKeypadAccessory } from "./session-keypad";
 import type { ActiveEntry } from "./set-row";
 
 const KEEP_AWAKE_TAG = "session";
@@ -93,6 +83,8 @@ export type SessionScreenProps = {
   onGone: () => void;
   /** Finished here: show the summary. */
   onFinished: (id: string) => void;
+  /** Open the full-screen Timer over this screen. */
+  onOpenTimer: () => void;
 };
 
 /**
@@ -142,6 +134,7 @@ function LoadedSession({
   session: stored,
   onMinimise,
   onFinished,
+  onOpenTimer,
 }: SessionScreenProps & { session: SessionDetail }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
@@ -150,55 +143,46 @@ function LoadedSession({
     (id: string) => router.push({ pathname: "/exercise-view/[id]", params: { id } }),
     [router],
   );
-  // Ticks and Rest changes show at once; the database's watch catches up a moment later.
-  const { session, actions } = useOptimisticSession(stored, useSessionActions());
-  const { preferences } = usePreferences();
-  const unit = preferences.ui.weightUnit;
-  const effortScale = preferences.ui.effortScale;
-  const bodyweightKg = preferences.ui.bodyweightKg;
-  const installId = useInstallId();
-  const pickExercises = usePickExercises("session");
-  const reorderScroll = useReorderScroll();
-  const reveal = useRowReveal(reorderScroll.ref);
-
-  // Ownership: another device's Session is read-only. A device that had it and lost it says so.
-  const mine = installId !== null && session.deviceId === installId;
-  const hadIt = useRef(false);
-  useEffect(() => {
-    if (mine) hadIt.current = true;
-  }, [mine]);
-  const readOnly = session.finishedAt === null && !mine;
-
-  const exerciseIds = useMemo(
-    () => session.exercises.map((entry) => entry.exerciseId),
-    [session.exercises],
-  );
   const {
-    history: previous,
-    ready: historyReady,
-    failed: historyFailed,
-    retry: retryHistory,
-  } = usePreviousSets(exerciseIds);
-  const { bottom } = useSafeAreaInsets();
-  const restRunning = useRestRunning(session.rest);
-
-  // Before the first Rest: our one-line explanation, then the system's dialog. Asked once.
-  const permission = useRestPermission();
-  const [askOpen, setAskOpen] = useState(false);
-  const onRestStarted = useCallback(() => {
-    if (permission === "undetermined" && !restPermissionAsked()) setAskOpen(true);
-  }, [permission]);
-  const logging = useLoggingState({
     session,
-    previous,
-    historyReady,
+    actions,
+    preferences,
+    setUi,
+    preferencesLoading,
     unit,
     effortScale,
     bodyweightKg,
+    installId,
+    mine,
+    hadIt,
     readOnly,
-    actions,
-    onRestStarted,
-  });
+    exerciseIds,
+    historyReady,
+    historyFailed,
+    retryHistory,
+    logging,
+    askOpen,
+    setAskOpen,
+  } = useSessionLogging(stored);
+  const pickExercises = usePickExercises("session");
+  const reorderScroll = useReorderScroll();
+  const reveal = useRowReveal(reorderScroll.ref);
+  const { bottom } = useSafeAreaInsets();
+  const restRunning = useRestRunning(session.rest);
+
+  // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
+  // next workout (started or resumed) opens in the view used last.
+  const openTimer = useCallback(() => {
+    setUi({ sessionView: "timer" });
+    onOpenTimer();
+  }, [setUi, onOpenTimer]);
+  const openedTimer = useRef(false);
+  const wantsTimer = preferences.ui.sessionView === "timer";
+  useEffect(() => {
+    if (openedTimer.current || preferencesLoading || installId === null) return;
+    openedTimer.current = true;
+    if (wantsTimer && !readOnly && session.finishedAt === null) onOpenTimer();
+  }, [preferencesLoading, installId, wantsTimer, readOnly, session.finishedAt, onOpenTimer]);
 
   // The screen stays awake while it is in front (a preference); a Rest is shown here, so the
   // system banner for it is held back meanwhile.
@@ -251,9 +235,6 @@ function LoadedSession({
   // ---- Sheets and dialogs ----
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [sessionMenu, setSessionMenu] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
-  const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -263,15 +244,17 @@ function LoadedSession({
   const ticked = allSets.filter((set) => set.completedAt !== null).length;
   const unticked = allSets.length - ticked;
 
-  const finish = async () => {
-    logging.flush();
-    if (ticked === 0 && session.finishedAt === null) {
-      // Nothing was logged: a finished empty Session would only be clutter, so it is discarded.
-      if (await actions.discard(session.id, title)) onMinimise();
-      return;
-    }
-    onFinished(session.id);
-  };
+  const flow = useFinishFlow({
+    session,
+    title,
+    ticked,
+    unticked,
+    actions,
+    flush: logging.flush,
+    closeKeypad: logging.closeKeypad,
+    onMinimise,
+    onFinished,
+  });
 
   const addExercises = async () => {
     const picked = await pickExercises({ exclude: exerciseIds });
@@ -386,26 +369,7 @@ function LoadedSession({
   const effortSet = sheet?.kind === "effort" ? logging.found.get(sheet.setId) : undefined;
   const noteExercise = sheet?.kind === "note" ? sheet.exercise : null;
 
-  const keypadCell =
-    logging.entry && logging.activeField
-      ? (() => {
-          const at = logging.found.get(logging.entry.cell.setId);
-          return at
-            ? {
-                exercise: at.exercise,
-                setId: at.set.id,
-                field: logging.activeField,
-                unit,
-                currentKg:
-                  logging.typedValue !== undefined
-                    ? logging.typedValue
-                    : (at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null),
-                putKg: logging.putValue,
-              }
-            : null;
-        })()
-      : null;
-  const accessory = useKeypadAccessory(keypadCell);
+  const accessory = useSessionKeypadAccessory(logging, unit);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
@@ -474,11 +438,8 @@ function LoadedSession({
         sets={totals.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
-        onFinish={() => {
-          logging.flush();
-          if (ticked === 0 || unticked > 0) setConfirmFinish(true);
-          else void finish();
-        }}
+        onFinish={flow.askFinish}
+        onOpenTimer={openTimer}
       />
       <View ref={reveal.viewportRef} collapsable={false} className="flex-1">
         <Animated.ScrollView
@@ -590,26 +551,7 @@ function LoadedSession({
           onSkip={() => void actions.skipRest(session.id)}
         />
       ) : null}
-      {logging.entry && logging.activeField ? (
-        <Keypad
-          labels={{
-            point: t("session__key_point"),
-            backspace: t("session__key_backspace"),
-            decrease: t("session__key_decrease", { step: logging.stepText }),
-            increase: t("session__key_increase", { step: logging.stepText }),
-            next: t("session__key_next"),
-            done: t("session__key_done"),
-          }}
-          allowPoint={logging.activeField === "weight" || logging.activeField === "distance"}
-          hasNext={logging.hasNext}
-          stepText={logging.stepText}
-          accessory={accessory}
-          onKey={logging.onKey}
-          onStep={logging.onStep}
-          onNext={logging.onNext}
-          onDone={logging.closeKeypad}
-        />
-      ) : null}
+      <SessionKeypad logging={logging} accessory={accessory} />
 
       <ActionSheet
         isOpen={sessionMenu}
@@ -635,31 +577,13 @@ function LoadedSession({
                   label: t("session__discard_workout"),
                   icon: Trash,
                   tone: "danger",
-                  onPress: () => setConfirmDiscard(true),
+                  onPress: flow.askDiscard,
                 } satisfies SwipeAction,
               ]
             : []),
         ]}
       />
       <SessionSettingsSheet isOpen={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ConfirmSheet
-        isOpen={confirmDiscard}
-        onOpenChange={setConfirmDiscard}
-        title={t("session__discard_confirm_title")}
-        description={t("session__discard_confirm_body", { count: ticked })}
-        cancelLabel={t("session__keep_logging")}
-        confirmLabel={t("session__discard_workout")}
-        destructive
-        onConfirm={() => {
-          if (discarding) return;
-          setDiscarding(true);
-          logging.closeKeypad();
-          void actions.discard(session.id, title).then((ok) => {
-            setDiscarding(false);
-            if (ok) onMinimise();
-          });
-        }}
-      />
       <RestPermissionSheet
         isOpen={askOpen}
         onOpenChange={setAskOpen}
@@ -713,26 +637,7 @@ function LoadedSession({
           if (effortSet) void actions.updateValues(effortSet.set.id, { rpe });
         }}
       />
-      <ConfirmSheet
-        isOpen={confirmFinish}
-        onOpenChange={setConfirmFinish}
-        title={t(ticked === 0 ? "session__discard_empty_title" : "session__finish_title")}
-        description={
-          ticked === 0
-            ? t("session__discard_empty_body")
-            : t("session__finish_unticked", { count: unticked })
-        }
-        cancelLabel={t("session__keep_logging")}
-        destructive={ticked === 0}
-        confirmLabel={t(ticked === 0 ? "session__discard" : "session__finish")}
-        onConfirm={() => void finish()}
-        {...(ticked === 0 || session.finishedAt !== null
-          ? {}
-          : {
-              extraLabel: t("session__discard_workout"),
-              onExtra: () => setConfirmDiscard(true),
-            })}
-      />
+      {flow.sheets}
       <ConfirmSheet
         isOpen={confirmRemove !== null}
         onOpenChange={(open) => {

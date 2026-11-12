@@ -15,6 +15,7 @@ export default function SessionRoute() {
       id={id}
       onMinimise={leave}
       onGone={leave}
+      onOpenTimer={() => router.push({ pathname: "/session/[id]/timer", params: { id } })}
       onFinished={(finished) =>
         router.replace({ pathname: "/session/[id]/summary", params: { id: finished } })
       }

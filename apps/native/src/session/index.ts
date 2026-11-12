@@ -1,4 +1,5 @@
 export { SessionScreen } from "./components/session-screen";
+export { TimerScreen } from "./components/timer-screen";
 export { SessionSummaryScreen } from "./components/session-summary-screen";
 export { ResumeBar } from "./components/resume-bar";
 export { ForgottenSessionHost } from "./components/forgotten-session-host";
