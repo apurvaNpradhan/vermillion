@@ -19,7 +19,8 @@ import { appConfig } from "../../app.config.ts";
  * 9: expo-notifications (Rest notifications) and expo-keep-awake (screen on during a workout).
  */
 // 12: expo-navigation-bar for theme-resolved Android system bar controls.
-const NATIVE_STACK_REVISION = 12;
+// 13: local Android workout-live module, promoted ongoing notification permission.
+const NATIVE_STACK_REVISION = 13;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -57,6 +58,7 @@ const config: ExpoConfig = {
     ...(rpId ? { associatedDomains: [`webcredentials:${rpId}`] } : {}),
   },
   android: {
+    permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",

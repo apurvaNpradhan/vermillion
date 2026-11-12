@@ -999,5 +999,19 @@
   "progress__target": "{{weight}} {{unit}} × {{min}}–{{max}}",
   "progress__target_reps_one": "{{count}} rep",
   "progress__target_reps_other": "{{count}} reps",
-  "progress__weekly_volume": "Weekly volume"
+  "progress__weekly_volume": "Weekly volume",
+  "session__live_set": "Set {{index}} of {{total}}",
+  "session__live_set_number": "Set {{index}}",
+  "session__live_all_done": "All sets done",
+  "session__live_action": "{{title}} · {{set}} · {{values}}",
+  "session__live_rest": "Rest · next: {{set}}",
+  "session__live_next": "Next: {{next}}",
+  "session__live_rest_over": "Rest over · {{set}} next",
+  "session__live_channel": "Live workout",
+  "session__live_skip": "Skip",
+  "session__live_nudge": "+15 s",
+  "session__live_done": "Done set",
+  "session__live_open": "Open to continue",
+  "session__live_setting": "Live updates",
+  "session__live_unsupported": "Not supported"
 }

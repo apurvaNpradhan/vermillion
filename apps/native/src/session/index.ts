@@ -14,3 +14,5 @@ export { formatElapsed } from "./clock";
 export { doneSummary } from "./summary";
 
 export { usePreviousSets } from "./use-previous-sets";
+
+export { WorkoutLiveHost } from "./components/workout-live-host";
