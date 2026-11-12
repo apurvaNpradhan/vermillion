@@ -74,12 +74,9 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
     place === "first" || place === "middle" ? "group" : "own",
   );
   const grouped = place !== "none";
-  const thumbnail = (size: number) =>
-    info ? (
-      <ExerciseThumbnail thumbnailKey={info.thumbnailKey} muscle={info.primaryMuscle} size={size} />
-    ) : (
-      <View className="rounded-lg bg-default" style={{ width: size, height: size }} />
-    );
+  const thumbnail = (size: number) => (
+    <ExerciseThumbnail title={name} thumbnailKey={info?.thumbnailKey ?? null} size={size} />
+  );
 
   if (collapsed) {
     return (
@@ -105,7 +102,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
           onPress={onToggle}
           className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
-          {thumbnail(48)}
+          {thumbnail(40)}
           <View className="flex-1 gap-0.5">
             {place === "first" ? (
               <Text className="font-semibold text-overline uppercase text-identity">

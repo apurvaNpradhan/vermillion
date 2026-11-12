@@ -89,7 +89,7 @@ export const ExerciseRow = memo(function ExerciseRow({
         selected ? "bg-default" : "bg-background active:bg-default"
       } ${disabled ? "opacity-40" : ""}`}
     >
-      <ExerciseThumbnail thumbnailKey={exercise.thumbnailKey} muscle={exercise.primaryMuscle} />
+      <ExerciseThumbnail title={exercise.title} thumbnailKey={exercise.thumbnailKey} />
       <View className="flex-1 gap-0.5">
         <View className="flex-row items-center gap-2">
           <Text numberOfLines={1} className="shrink font-medium text-body text-foreground">

@@ -59,12 +59,9 @@ export const ExerciseRow = memo(function ExerciseRow({
   const info = exercise.exercise;
   const name = exercise.title;
   const grouped = place !== "none";
-  const thumbnail = (size: number) =>
-    info ? (
-      <ExerciseThumbnail thumbnailKey={info.thumbnailKey} muscle={info.primaryMuscle} size={size} />
-    ) : (
-      <View className="rounded-lg bg-default" style={{ width: size, height: size }} />
-    );
+  const thumbnail = (size: number) => (
+    <ExerciseThumbnail title={name} thumbnailKey={info?.thumbnailKey ?? null} size={size} />
+  );
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
 
   if (dragging) {
@@ -93,7 +90,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           onPress={() => onView(exercise.exerciseId)}
           className={`min-h-[64px] min-w-12 items-center justify-center py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
-          {thumbnail(open ? 44 : 36)}
+          {thumbnail(40)}
         </Pressable>
         <Pressable
           accessibilityRole="button"

@@ -1,3 +1,4 @@
+import { ExerciseThumbnail } from "@/exercise";
 import { SET_KIND_KEYS, recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
@@ -173,18 +174,25 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 });
                 return (
                   <View key={entry.id} className="gap-2 rounded-xl bg-surface p-4">
-                    <Text
-                      accessibilityRole="link"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/exercise-view/[id]",
-                          params: { id: entry.exerciseId },
-                        })
-                      }
-                      className="text-title-md text-foreground"
-                    >
-                      {entry.title}
-                    </Text>
+                    <View className="flex-row items-center gap-3">
+                      <ExerciseThumbnail
+                        title={entry.title}
+                        thumbnailKey={entry.exercise?.thumbnailKey ?? null}
+                        size={40}
+                      />
+                      <Text
+                        accessibilityRole="link"
+                        onPress={() =>
+                          router.push({
+                            pathname: "/exercise-view/[id]",
+                            params: { id: entry.exerciseId },
+                          })
+                        }
+                        className="flex-1 text-title-md text-foreground"
+                      >
+                        {entry.title}
+                      </Text>
+                    </View>
                     {entry.note ? <Text className="text-body text-muted">{entry.note}</Text> : null}
                     {entry.sets.map((set, index) => (
                       <View key={set.id} className="flex-row items-center gap-3 py-1">
