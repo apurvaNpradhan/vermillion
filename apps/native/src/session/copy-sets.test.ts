@@ -69,6 +69,19 @@ describe("copying set values", () => {
     ]);
     expect(copySetUpdates(row, "d", "remaining", null)).toEqual([]);
   });
+  it("reads the unsaved keypad value of the source over the stored one", () => {
+    const row = exercise([set("a", { weightKg: 50, reps: 8 }), set("b")]);
+    expect(
+      copySetUpdates(row, "a", "remaining", null, { setId: "a", field: "weight", value: 60 }),
+    ).toEqual([{ id: "b", patch: { weight_kg: 60, reps: 8 } }]);
+    expect(
+      copySetUpdates(row, "b", "previous", null, { setId: "a", field: "reps", value: 10 }),
+    ).toEqual([{ id: "b", patch: { weight_kg: 50, reps: 10 } }]);
+    // A draft in another set leaves the source alone.
+    expect(
+      copySetUpdates(row, "a", "remaining", null, { setId: "b", field: "weight", value: 99 }),
+    ).toEqual([{ id: "b", patch: { weight_kg: 50, reps: 8 } }]);
+  });
   it("copies duration and distance for cardio and omits effort", () => {
     const row = exercise([set("a", { durationS: 60, distanceM: 200, rpe: 9 }), set("b")], {
       type: "distance_duration",

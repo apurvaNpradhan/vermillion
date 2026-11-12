@@ -463,15 +463,25 @@ export function useLoggingState({
   const onCopySets = useCallback(
     async (setId: string, mode: "previous" | "remaining") => {
       if (readOnly) return;
+      // The flush below saves the keypad's value without waiting, so read it from the draft.
+      const typing = entryRef.current;
+      const draft =
+        typing && !typing.fresh
+          ? {
+              setId: typing.cell.setId,
+              field: typing.cell.field,
+              value: valueOfText(typing.cell.field, typing.raw, unit),
+            }
+          : null;
       flush();
       const at = found.get(setId);
       if (!at) return;
-      for (const update of copySetUpdates(at.exercise, setId, mode, previousOf(setId))) {
+      for (const update of copySetUpdates(at.exercise, setId, mode, previousOf(setId), draft)) {
         await actions.updateValues(update.id, update.patch);
       }
       setRefusal(null);
     },
-    [readOnly, flush, found, previousOf, actions],
+    [readOnly, flush, found, previousOf, actions, unit],
   );
   const stableOnCopySets = useStableHandler(onCopySets);
   const onKindSelected = useCallback(

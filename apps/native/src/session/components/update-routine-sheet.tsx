@@ -1,3 +1,4 @@
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
@@ -16,6 +17,8 @@ export type RoutineUpdate = { structure: boolean; targets: boolean; saveNew: boo
  * keep it as it was. When the source is gone, offer to save the session as a new workout. A plain
  * list says what would change; "Choose what to update" reveals one switch per kind of change.
  */
+const LIST_MAX_HEIGHT = 280;
+
 export function UpdateRoutineSheet({
   isOpen,
   title,
@@ -54,9 +57,11 @@ export function UpdateRoutineSheet({
       }}
     >
       <BottomSheet.Portal>
-        <BottomSheet.Overlay />
+        <BottomSheet.Overlay isCloseOnPress={!busy} />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
+          // While the update saves the sheet stays put, so a failed save leaves it open to retry.
+          enablePanDownToClose={!busy}
           backgroundClassName="rounded-t-[28px] bg-overlay"
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
@@ -72,13 +77,16 @@ export function UpdateRoutineSheet({
             ) : null}
           </View>
           {!missing && lines.length > 0 ? (
-            <View className="gap-2 px-1">
-              {lines.map((line, index) => (
-                <Text key={index} className="text-body text-foreground">
-                  {line}
-                </Text>
-              ))}
-            </View>
+            // A workout can change in many places: the list scrolls and the actions stay in reach.
+            <BottomSheetScrollView style={{ maxHeight: LIST_MAX_HEIGHT }}>
+              <View className="gap-2 px-1">
+                {lines.map((line, index) => (
+                  <Text key={index} className="text-body text-foreground">
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            </BottomSheetScrollView>
           ) : null}
           {!missing && hasStructure && hasTargets ? (
             <View className="gap-1">
