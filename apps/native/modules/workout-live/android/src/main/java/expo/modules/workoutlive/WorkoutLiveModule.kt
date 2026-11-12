@@ -95,9 +95,10 @@ internal object WorkoutNotification {
     val builder = Notification.Builder(context, CHANNEL)
       .setSmallIcon(context.resources.getIdentifier("notification_icon", "drawable", context.packageName)
         .takeIf { it != 0 } ?: context.applicationInfo.icon)
-      .setContentTitle(state.getString("title"))
-      .setContentText(if (expired) state.getString("restOver") else state.getString("text"))
-      .setSubText(state.getString("next"))
+      // The action leads: collapsed views show only the title and the header line.
+      .setContentTitle(if (expired) state.getString("restOver") else state.getString("text"))
+      .setContentText(listOf(state.getString("title"), state.getString("next"))
+        .filter { it.isNotEmpty() }.joinToString(" · "))
       .setContentIntent(PendingIntent.getActivity(context, 0,
         Intent(Intent.ACTION_VIEW, Uri.parse(state.getString("url")))
           .setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
