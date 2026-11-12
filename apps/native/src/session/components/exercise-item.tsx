@@ -2,6 +2,7 @@ import {
   SESSION_LIMITS,
   type EffortScale,
   type Ghosts,
+  type Progression,
   type LoggedSet,
   type SetField,
   type SupersetPlace,
@@ -14,6 +15,7 @@ import { useTranslation } from "@/platform/i18n";
 import { InlineNote, RestPicker } from "@/training";
 import type { WeightUnit } from "@workspace/shared";
 
+import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import type { ActiveEntry, Refusal } from "./set-row";
 import { SetGrid } from "./set-grid";
@@ -25,6 +27,7 @@ import { SetGrid } from "./set-grid";
  */
 export const ExerciseItem = memo(function ExerciseItem({
   exercise,
+  suggestion,
   place,
   open,
   warm,
@@ -57,6 +60,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   registerRow,
 }: {
   exercise: SessionExerciseDetail;
+  suggestion: Progression | null;
   place: SupersetPlace;
   open: boolean;
   warm: boolean;
@@ -91,6 +95,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   return (
     <ExerciseRow
       exercise={exercise}
+      progression={suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null}
       place={place}
       open={open}
       warm={warm}

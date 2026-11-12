@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import {
   EFFORT_SCALES,
+  KG_PER_LB,
   EFFORT_SCALE_NAME_KEYS,
   WEIGHT_UNITS,
   WEIGHT_UNIT_KEYS,
@@ -17,7 +18,7 @@ import { usePreferences } from "@/preferences";
 
 import { formatClock } from "../rest";
 
-type Picker = "unit" | "effort" | "rest" | null;
+type Picker = "unit" | "effort" | "rest" | "increment" | null;
 
 /** Default rest choices, in seconds. */
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
@@ -48,6 +49,13 @@ export function useTrainingPreferenceRows({
     ? REST_CHOICES
     : [...REST_CHOICES, defaultRestSeconds].sort((a, b) => a - b);
 
+  const incrementLabel = (kg: number) =>
+    t("progress__increment_value", {
+      value: new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(
+        weightUnit === "lb" ? kg / KG_PER_LB : kg,
+      ),
+      unit: weightUnit,
+    });
   const section = (
     <ListSection title={t("training__settings_title")}>
       <ListRow
@@ -68,6 +76,16 @@ export function useTrainingPreferenceRows({
         value={formatClock(defaultRestSeconds)}
         onPress={() => setPicker("rest")}
       />
+      <ListRow
+        icon={Barbell}
+        title={t("progress__increment")}
+        value={
+          preferences.ui.weightIncrementKg === null
+            ? t("progress__auto")
+            : incrementLabel(preferences.ui.weightIncrementKg)
+        }
+        onPress={() => setPicker("increment")}
+      />
       {extraRows}
       <ListRow
         icon={Barbell}
@@ -78,6 +96,21 @@ export function useTrainingPreferenceRows({
   );
   const sheets = (
     <>
+      <OptionSheet
+        isOpen={picker === "increment"}
+        onOpenChange={onOpenChange}
+        title={t("progress__increment")}
+        options={[
+          { value: "auto", label: t("progress__auto") },
+          ...[1, 1.25, 2, 2.5, 5].map((kg) => ({ value: String(kg), label: incrementLabel(kg) })),
+        ]}
+        value={
+          preferences.ui.weightIncrementKg === null
+            ? "auto"
+            : String(preferences.ui.weightIncrementKg)
+        }
+        onSelect={(value) => setUi({ weightIncrementKg: value === "auto" ? null : Number(value) })}
+      />
       <OptionSheet<WeightUnit>
         isOpen={picker === "unit"}
         onOpenChange={onOpenChange}

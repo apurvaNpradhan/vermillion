@@ -55,3 +55,11 @@ export function nearestIndex(positions: readonly number[], x: number): number {
   }
   return nearest;
 }
+
+/** Rounding into display units can give several ticks the same label, especially near zero. */
+export function labelledTicks(
+  values: readonly number[],
+  format: (value: number) => string,
+): number[] {
+  return [...new Map(values.map((value) => [format(value), value])).values()];
+}

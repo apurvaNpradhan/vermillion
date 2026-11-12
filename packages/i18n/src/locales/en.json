@@ -946,5 +946,21 @@
   "theme__iron": "Iron",
   "theme__iron_description": "Warm rust and dark metal",
   "theme__dusk": "Dusk",
-  "theme__dusk_description": "Muted rose and evening plum"
+  "theme__dusk_description": "Muted rose and evening plum",
+  "progress__title": "Progress",
+  "progress__next": "Next time",
+  "progress__increment": "Weight increment",
+  "progress__auto": "Auto (by equipment)",
+  "progress__increment_value": "{{value}} {{unit}}",
+  "progress__add_weight_chip": "↑ {{value}} {{unit}}",
+  "progress__add_rep_chip": "+1 rep",
+  "progress__hold_chip": "Hold",
+  "progress__add_weight_reason": "You reached the top of your rep range on every working set at the same weight. Add {{value}} {{unit}} and start again at the bottom of the range.",
+  "progress__add_rep_reason": "Keep your weight and add one rep to each working set below the top of its range.",
+  "progress__hold_reason": "You missed the bottom of your rep range in both of your last two sessions. Keep the same weight and reps this time.",
+  "progress__same_reason": "Use your last session's weight and reps until you set a rep range.",
+  "progress__best": "{{weight}} {{unit}} × {{reps}}",
+  "progress__one_rm": "e1RM {{value}} {{unit}}",
+  "progress__target": "{{weight}} {{unit}} × {{min}}–{{max}}",
+  "progress__weekly_volume": "Weekly volume"
 }

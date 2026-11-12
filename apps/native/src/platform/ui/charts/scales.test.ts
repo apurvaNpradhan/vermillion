@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearestIndex, rangePoints, scale, ticks } from "./scales";
+import { labelledTicks, nearestIndex, rangePoints, scale, ticks } from "./scales";
 
 describe("chart scales", () => {
   it("centres a single date and maps ordinary domains", () => {
@@ -32,4 +32,11 @@ describe("chart scales", () => {
     const monthEnd = [{ id: "feb", x: Date.parse("2026-02-28"), y: 1, label: "Feb" }];
     expect(rangePoints(monthEnd, "3M", Date.parse("2026-05-31"))).toEqual(monthEnd);
   });
+});
+
+it("does not repeat rounded axis labels for zero and single-point series", () => {
+  for (const values of [[0], [0, 0], [0.1]]) {
+    const grid = labelledTicks(ticks(values), (value) => String(Math.round(value)));
+    expect(new Set(grid.map((value) => String(Math.round(value)))).size).toBe(grid.length);
+  }
 });

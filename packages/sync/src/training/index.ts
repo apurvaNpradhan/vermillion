@@ -93,6 +93,7 @@ export {
   watchSessionPage,
   watchRecordHistory,
   watchWorkout,
+  watchLatestExercisePlan,
   watchWorkouts,
   type ProgramDetail,
   type ProgramPlan,

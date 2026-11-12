@@ -17,6 +17,7 @@ import { useChartColor } from "@/platform/theme";
 import { Button } from "../button";
 import {
   nearestIndex,
+  labelledTicks,
   rangePoints,
   scale,
   ticks,
@@ -156,16 +157,22 @@ function Chart({
       {data.length ? (
         <>
           <View className="flex-row gap-2">
-            <View className="justify-between" style={{ height: 168 }}>
-              {[...grid].reverse().map((tick) => (
-                <Text
-                  key={tick}
-                  className="text-caption text-muted"
-                  style={{ fontVariant: ["tabular-nums"] }}
-                >
-                  {formatValue(tick)}
-                </Text>
-              ))}
+            <View style={{ height: 168, minWidth: 64 }}>
+              {labelledTicks(grid, formatValue)
+                .reverse()
+                .map((tick) => (
+                  <Text
+                    key={tick}
+                    className="text-caption text-muted"
+                    style={{
+                      fontVariant: ["tabular-nums"],
+                      position: "absolute",
+                      top: y(tick) - 8,
+                    }}
+                  >
+                    {formatValue(tick)}
+                  </Text>
+                ))}
             </View>
             <GestureDetector gesture={interaction}>
               <View

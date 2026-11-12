@@ -8,6 +8,7 @@ import {
   type ExerciseType,
   type GhostField,
   type Ghosts,
+  type SuggestedSet,
   type LoggedSet,
   type PlannedSet,
   type SessionHistory,
@@ -46,10 +47,11 @@ export function ghostsOf(
   previous: SetValues | null,
   target: PlannedSet | null,
   logEffort: boolean,
+  suggestion?: SuggestedSet | null,
 ): Ghosts {
   const fields: readonly GhostField[] = logEffort ? [...SET_FIELDS[type], "rpe"] : SET_FIELDS[type];
   const ghosts: Ghosts = {};
-  for (const field of fields) ghosts[field] = ghostFor(field, previous, target);
+  for (const field of fields) ghosts[field] = ghostFor(field, previous, target, suggestion);
   return ghosts;
 }
 

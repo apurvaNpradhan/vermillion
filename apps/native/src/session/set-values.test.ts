@@ -185,3 +185,24 @@ describe("patchFor", () => {
     expect(patchFor("steps", 100)).toEqual({ steps: 100 });
   });
 });
+
+it("uses progression before Previous for ghosts, retaining effort and other ADR 0038 fields", () => {
+  expect(
+    ghostsOf(
+      "weight_reps",
+      { weight_kg: 80, reps: 12 },
+      { kind: "working", reps_min: 8, reps_max: 12, effort_min: 8, effort_max: 8 },
+      true,
+      { weightKg: 82.5, reps: 8 },
+    ),
+  ).toEqual({ weight: 82.5, reps: 8, rpe: 8 });
+  expect(
+    ghostsOf(
+      "weight_reps",
+      { weight_kg: 80, reps: 12 },
+      { kind: "warmup", reps_min: 8, reps_max: 12 },
+      false,
+      { weightKg: 82.5, reps: 8 },
+    ),
+  ).toEqual({ weight: 80, reps: 12 });
+});
