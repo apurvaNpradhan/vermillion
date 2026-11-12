@@ -1,6 +1,6 @@
+import { exerciseSuggestion } from "./logging-ghosts";
 import {
   SET_FIELDS,
-  suggestNext,
   supersetPlaces,
   type EffortScale,
   type Ghosts,
@@ -164,13 +164,10 @@ export function useLoggingState({
           exercise.id,
           session.finishedAt !== null || !exercise.sourceWorkoutExerciseId
             ? null
-            : suggestNext(
-                exercise.sets.map((set) => ({ ...set.target, kind: set.kind })),
-                (previous.get(exercise.exerciseId) ?? []).slice(0, 2).map((entry) => entry.sets),
-                exercise.type,
-                exercise.exercise?.equipment ?? "other",
-                { weightUnit: unit, weightIncrementKg },
-              ),
+            : exerciseSuggestion(exercise, previous.get(exercise.exerciseId) ?? [], {
+                weightUnit: unit,
+                weightIncrementKg,
+              }),
         ]),
       ),
     [exercises, previous, session.finishedAt, unit, weightIncrementKg],
