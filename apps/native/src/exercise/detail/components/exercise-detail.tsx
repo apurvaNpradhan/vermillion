@@ -380,7 +380,7 @@ function MuscleLegend({
   // The tapped group, else the muscles the exercise works, so the card never sits empty.
   const shown: readonly MuscleGroup[] = tapped ? [tapped] : [primary, ...secondary];
   return (
-    <View className="gap-3 rounded-xl border border-border bg-surface p-4">
+    <View className="gap-3">
       {shown.map((group) => (
         <View key={group} className="flex-row items-center justify-between gap-3">
           <View className="flex-1">

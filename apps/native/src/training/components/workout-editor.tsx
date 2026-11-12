@@ -353,7 +353,7 @@ function LoadedEditor({
                 {workout.note && !editingDetails ? (
                   <Text className="text-body text-muted">{workout.note}</Text>
                 ) : null}
-                <View className="flex-row items-center gap-4 rounded-2xl bg-surface p-4">
+                <View className="flex-row items-center gap-4">
                   <BodyMapPair
                     primary={muscles.primary}
                     secondary={muscles.secondary}

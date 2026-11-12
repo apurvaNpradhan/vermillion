@@ -8,13 +8,19 @@ export function scale(value: number, domain: readonly [number, number], size: nu
     : ((value - domain[0]) / (domain[1] - domain[0])) * size;
 }
 
-/** A zero baseline and round, evenly spaced ticks, including for an empty/all-zero series. */
+/**
+ * A zero baseline and round, evenly spaced, distinct ticks, including for an empty or all-zero
+ * series. A series of whole numbers gets whole-number ticks (never 0.5 labelled "1" twice), so it
+ * has at least the two ticks 0 and 1.
+ */
 export function ticks(values: readonly number[]): number[] {
-  const max = Math.max(0, ...values.filter(Number.isFinite));
+  const finite = values.filter(Number.isFinite);
+  const max = Math.max(0, ...finite);
   const rough = (max || 1) / 4;
   const magnitude = 10 ** Math.floor(Math.log10(rough));
   const step = [1, 2, 5, 10].find((factor) => factor * magnitude >= rough) ?? 10;
-  const interval = step * magnitude;
+  const natural = step * magnitude;
+  const interval = finite.every(Number.isInteger) ? Math.max(1, natural) : natural;
   return Array.from({ length: Math.ceil((max || 1) / interval) + 1 }, (_, i) =>
     Number((i * interval).toPrecision(12)),
   );

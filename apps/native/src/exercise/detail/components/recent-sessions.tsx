@@ -52,7 +52,7 @@ export function RecentSessions({
         </View>
       ) : null}
       {sessions.map((session) => (
-        <View key={session.id} className="gap-2 rounded-xl bg-surface p-3">
+        <View key={session.id} className="gap-2 border-b border-separator pb-3 pt-1">
           <Text className="text-body font-semibold text-foreground">{session.title}</Text>
           <Text className="text-caption text-muted">
             {date.format(new Date(session.started_at))}

@@ -8,8 +8,10 @@ describe("chart scales", () => {
     expect(scale(20, [10, 20], 200)).toBe(200);
   });
   it("keeps zero baselines with readable tick spacing", () => {
-    expect(ticks([])).toEqual([0, 0.5, 1]);
-    expect(ticks([0, 0])).toEqual([0, 0.5, 1]);
+    expect(ticks([])).toEqual([0, 1]);
+    expect(ticks([0, 0])).toEqual([0, 1]);
+    expect(ticks([1, 1, 0])).toEqual([0, 1]);
+    expect(ticks([3])).toEqual([0, 1, 2, 3]);
     expect(ticks([99, 12])).toEqual([0, 50, 100]);
     expect(ticks([0.3])).toEqual([0, 0.1, 0.2, 0.3]);
   });

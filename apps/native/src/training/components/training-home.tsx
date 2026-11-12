@@ -1,9 +1,10 @@
 import { Skeleton } from "@/platform/ui/skeleton";
 import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
+import { SectionHeader } from "@/platform/ui/section-header";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { formatElapsed } from "@/session";
 import { Button } from "@/platform/ui/button";
@@ -40,12 +41,14 @@ export function TrainingHome() {
       unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
     });
   const volume = (kg: number) =>
-    t("home__volume_value", {
-      value: format(state.weightUnit === "lb" ? kg / KG_PER_LB : kg),
-      unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
-    });
+    kg <= 0
+      ? "—"
+      : t("home__volume_value", {
+          value: format(state.weightUnit === "lb" ? kg / KG_PER_LB : kg),
+          unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
+        });
   return (
-    <View className="gap-5">
+    <View className="gap-8">
       {loading ? null : <ActiveProgramCard state={programState} />}
       {loading ? (
         <Skeleton label={t("common__loading")} className="h-40 w-full rounded-2xl" />
@@ -61,8 +64,8 @@ export function TrainingHome() {
         </Button>
       ) : null}
       {!loading && current && last && current.items.length > 0 ? (
-        <View className="gap-3 rounded-2xl bg-surface p-4">
-          <Text className="text-title-md font-semibold text-foreground">{t("home__week")}</Text>
+        <View className="gap-4">
+          <SectionHeader title={t("home__week")} />
           <StatTiles
             items={[
               {
@@ -80,16 +83,21 @@ export function TrainingHome() {
               {
                 label: t("stats__volume"),
                 value: volume(current.volume),
-                detail: t("home__delta", { value: volumeDelta(current.volume - last.volume) }),
+                detail:
+                  current.volume === 0 && last.volume === 0
+                    ? undefined
+                    : t("home__delta", { value: volumeDelta(current.volume - last.volume) }),
               },
             ]}
           />
-          <BarChart
-            showRanges={false}
-            points={state.buckets}
-            label={t("home__volume")}
-            formatValue={format}
-          />
+          {state.buckets.some((bucket) => bucket.y > 0) ? (
+            <BarChart
+              showRanges={false}
+              points={state.buckets}
+              label={t("home__volume")}
+              formatValue={format}
+            />
+          ) : null}
           {hasMuscles ? (
             <View className="gap-3">
               <MuscleDistribution
@@ -103,14 +111,13 @@ export function TrainingHome() {
         </View>
       ) : null}
       {!loading && state.recent.length > 0 ? (
-        <View className="gap-2">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-title-md font-semibold text-foreground">{t("home__recent")}</Text>
-            <Button variant="tertiary" onPress={() => router.push("/history")}>
-              <Button.Label>{t("home__see_all")}</Button.Label>
-            </Button>
-          </View>
-          <ListSection>
+        <View className="gap-1">
+          <SectionHeader
+            title={t("home__recent")}
+            actionLabel={t("home__see_all")}
+            onAction={() => router.push("/history")}
+          />
+          <ListSection variant="plain">
             {state.recent.map((s) => {
               const totals = sessionTotals(s.sets, state.bodyweightKg);
               return (
