@@ -17,6 +17,7 @@ import { Button } from "@/platform/ui/button";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { chipTexts } from "@/training";
 
+import { copySetUpdates } from "../copy-sets";
 import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
 
 /**
@@ -34,6 +35,7 @@ export const SetGrid = memo(function SetGrid({
   onCell,
   onTick,
   onPrevious,
+  onCopySets,
   onTimer,
   onAddSet,
   unit,
@@ -57,6 +59,7 @@ export const SetGrid = memo(function SetGrid({
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onPrevious: (setId: string) => void;
+  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onTimer: (setId: string) => void;
   onAddSet: (exerciseId: string) => void;
   unit: WeightUnit;
@@ -144,11 +147,16 @@ export const SetGrid = memo(function SetGrid({
               refusal={refusal?.setId === set.id ? refusal : null}
               readOnly={readOnly}
               canRemove={exercise.sets.length > 1}
+              canCopyPrevious={
+                copySetUpdates(exercise, set.id, "previous", previousOf(set.id)).length > 0
+              }
+              canFillRemaining={copySetUpdates(exercise, set.id, "remaining", null).length > 0}
               onCell={onCell}
               onTick={onTick}
               onKind={onKind}
               onEffort={onEffort}
               onPrevious={onPrevious}
+              onCopySets={onCopySets}
               onRemove={onRemoveSet}
               onTimer={onTimer}
             />

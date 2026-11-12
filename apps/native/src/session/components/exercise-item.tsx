@@ -52,6 +52,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   onKind,
   onEffort,
   onPrevious,
+  onCopySets,
   onRemoveSet,
   onTimer,
   registerRow,
@@ -84,6 +85,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   onKind: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
+  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onRemoveSet: (setId: string) => void;
   onTimer: (setId: string) => void;
   registerRow: (setId: string) => (node: View | null) => void;
@@ -127,6 +129,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         onKind={onKind}
         onEffort={onEffort}
         onPrevious={onPrevious}
+        onCopySets={onCopySets}
         onRemoveSet={onRemoveSet}
         onTimer={onTimer}
         onAddSet={onAddSet}

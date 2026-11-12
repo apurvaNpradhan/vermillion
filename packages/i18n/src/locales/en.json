@@ -908,5 +908,7 @@
   "home__next_summary_other": "{{count}} exercises · Last done: {{date}}",
   "home__never_done": "Not yet",
   "home__start_empty": "Start empty workout",
-  "home__in_progress": "In progress"
+  "home__in_progress": "In progress",
+  "session__copy_previous": "Copy previous",
+  "session__fill_remaining": "Fill remaining sets"
 }
