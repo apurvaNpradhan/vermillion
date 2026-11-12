@@ -21,6 +21,10 @@ export function rirToRpe(rir: number): number {
 export const WEIGHT_UNITS = ["kg", "lb"] as const;
 export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 
+/** How a live workout opens: the sets view, or the full-screen Timer. */
+export const SESSION_VIEWS = ["sets", "timer"] as const;
+export type SessionView = (typeof SESSION_VIEWS)[number];
+
 export const EFFORT_SCALES = ["rpe", "rir"] as const;
 export type EffortScale = (typeof EFFORT_SCALES)[number];
 

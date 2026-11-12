@@ -22,6 +22,7 @@ describe("ui preferences schema", () => {
       weightUnit: "kg",
       effortScale: "rpe",
       defaultRestSeconds: 120,
+      sessionView: "sets",
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);

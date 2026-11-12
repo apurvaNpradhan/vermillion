@@ -76,6 +76,7 @@ describe("preferences", () => {
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
+        sessionView: "sets",
       },
     });
     expect(await rows()).toBe(before);
@@ -100,6 +101,7 @@ describe("preferences", () => {
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
+        sessionView: "sets",
       },
     });
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
@@ -116,6 +118,7 @@ describe("preferences", () => {
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
+        sessionView: "sets",
       },
     });
     expect(
@@ -138,6 +141,7 @@ describe("preferences", () => {
         weightUnit: "kg",
         effortScale: "rpe",
         defaultRestSeconds: 120,
+        sessionView: "sets",
       },
     });
     // null clears; omitted fields stay

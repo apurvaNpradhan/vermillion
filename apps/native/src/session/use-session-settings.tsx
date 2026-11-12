@@ -1,4 +1,12 @@
-import { Bell, CheckCircle, SpeakerHigh, Sun, Timer, Trophy } from "phosphor-react-native";
+import {
+  Bell,
+  CheckCircle,
+  ListChecks,
+  SpeakerHigh,
+  Sun,
+  Timer,
+  Trophy,
+} from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 import { Linking } from "react-native";
 
@@ -19,7 +27,7 @@ export type SessionSettings = { soundRows: ReactNode[]; rows: ReactNode[]; sheet
 const ON = "on";
 const OFF = "off";
 
-type Picker = "sounds" | "soundRest" | "soundSets" | "soundMilestones" | "awake" | null;
+type Picker = "sounds" | "soundRest" | "soundSets" | "soundMilestones" | "awake" | "view" | null;
 
 /**
  * The session rows of Settings: the Sounds (a master switch, and the Rest, set and milestone
@@ -32,7 +40,7 @@ export function useSessionSettings(): SessionSettings {
   const { preferences, setUi } = usePreferences();
   const permission = useRestPermission();
   const [picker, setPicker] = useState<Picker>(null);
-  const { keepAwake, sounds, soundRest, soundSets, soundMilestones } = preferences.ui;
+  const { keepAwake, sounds, soundRest, soundSets, soundMilestones, sessionView } = preferences.ui;
   const onOff = (on: boolean) => (on ? t("session__setting_on") : t("session__setting_off"));
 
   const notificationStatus =
@@ -91,6 +99,13 @@ export function useSessionSettings(): SessionSettings {
   ];
   const rows = [
     <ListRow
+      key="session-view"
+      icon={ListChecks}
+      title={t("session__setting_view")}
+      value={t(sessionView === "timer" ? "session__view_timer" : "session__view_sets")}
+      onPress={() => setPicker("view")}
+    />,
+    <ListRow
       key="rest-notifications"
       icon={Bell}
       title={t("session__setting_rest_notifications")}
@@ -123,6 +138,18 @@ export function useSessionSettings(): SessionSettings {
   ];
   const sheets = (
     <>
+      <OptionSheet
+        isOpen={picker === "view"}
+        onOpenChange={onOpenChange}
+        title={t("session__setting_view")}
+        description={t("session__setting_view_hint")}
+        options={[
+          { value: "sets", label: t("session__view_sets") },
+          { value: "timer", label: t("session__view_timer") },
+        ]}
+        value={sessionView}
+        onSelect={(value) => setUi({ sessionView: value })}
+      />
       <OptionSheet
         isOpen={picker === "sounds"}
         onOpenChange={onOpenChange}

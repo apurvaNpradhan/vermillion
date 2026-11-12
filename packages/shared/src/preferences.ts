@@ -5,6 +5,7 @@ import {
   DEFAULT_REST_SECONDS,
   EFFORT_SCALES,
   REST_SECONDS_MAX,
+  SESSION_VIEWS,
   WEIGHT_UNITS,
 } from "./training/vocabulary";
 
@@ -37,6 +38,7 @@ const uiFields = {
   weightUnit: z.enum(WEIGHT_UNITS),
   effortScale: z.enum(EFFORT_SCALES),
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
+  sessionView: z.enum(SESSION_VIEWS),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -54,6 +56,7 @@ export const uiPreferencesSchema = z
     weightUnit: uiFields.weightUnit.default("kg"),
     effortScale: uiFields.effortScale.default("rpe"),
     defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
+    sessionView: uiFields.sessionView.default("sets"),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({
