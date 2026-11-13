@@ -96,6 +96,7 @@ const config: ExpoConfig = {
     // The backup rules plugin replaces the store's own so key and database exclusions stay together.
     ["expo-secure-store", { configureAndroidBackup: false }],
     "./plugins/with-local-database-backup-rules.js",
+    "./plugins/with-release-signing.js",
     [
       "expo-splash-screen",
       {
