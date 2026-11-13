@@ -1,23 +1,54 @@
-# vermillion
+# Vermillion
 
-A mobile-first app with personal accounts: a native app and an API server, with the full account lifecycle, abuse protection, local-first sync, background jobs, tests, CI and operations docs. There is no web app. A marketing site and a companion app come later as separate apps ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)); the last commit with the old web app is tagged `pre-web-removal`.
+**An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
-| Part          | Stack                                                                         | Runs on                                      |
-| ------------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
-| `apps/native` | Expo, Expo Router, HeroUI Native, Uniwind, PowerSync                          | iOS and Android (EAS)                        |
-| `apps/server` | Hono, oRPC 2, Better Auth, Drizzle, pg-boss                                   | Dokploy at `api.<domain>`, separate Postgres |
-| `packages/*`  | `@workspace/{api,auth,db,ui,env,shared,logger,i18n,email,client,sync,config}` |                                              |
+Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync.
 
-Tooling: pnpm, Turborepo, TypeScript 7, oxlint and oxfmt, lefthook, commitlint, knip, zizmor, Renovate and Vitest (on Docker Postgres).
+<p align="center">
+  <img src="docs/screenshots/01-home.png" width="24%" alt="Home dashboard" />
+  <img src="docs/screenshots/07-live-session-rest-timer.png" width="24%" alt="Live session with rest timer" />
+  <img src="docs/screenshots/04-program-detail.png" width="24%" alt="Program detail" />
+  <img src="docs/screenshots/09-exercise-detail.png" width="24%" alt="Exercise detail" />
+</p>
 
-## What is included
+## Features
 
-- Passwordless sign-in with emailed codes and passkeys; account-first onboarding; Google and GitHub when configured; Turnstile CAPTCHA; disposable-email blocking; a registration switch.
-- Preferences (time zone), a System, Light or Dark theme per device, English only for now.
-- Local-first sync with PowerSync (the exercise library and Custom exercises), an upload queue and a rejected-writes review.
-- Account deletion with email confirmation.
-- Postgres-backed jobs with retries, localized React Email templates, structured JSON logs.
-- The exercise library as the first vertical (native, API, sync, tests); a worked example of a synced table.
+- **Programs and workouts:** multi-day programs with a rotation order, planned sets (weight, rep ranges, rest) and a workout editor that shows the muscles trained on a body map.
+- **Live session logging:** previous-session "ghost" values, one-tap set completion, set kinds (warm-up, drop, failure), a rest timer with ±15 s controls, rest notifications and sounds, and an Android live notification with in-notification actions.
+- **Progress:** weekly sessions, sets and volume, an 8-week volume chart, muscles-trained heat map, personal records and progressive-overload suggestions.
+- **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
+- **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
+- **Accounts:** passwordless email-code sign-in and passkeys, Google/GitHub OAuth, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
+- **Themes:** five hand-tuned palettes (Classic, Chalk, Frost, Iron, Dusk), each in light and dark.
+
+## Screenshots
+
+|                               Home                                |                         Home (Frost theme)                         |                                   Train                                   |                              Program                               |
+| :---------------------------------------------------------------: | :----------------------------------------------------------------: | :-----------------------------------------------------------------------: | :----------------------------------------------------------------: |
+|      <img src="docs/screenshots/01-home.png" width="200" />       | <img src="docs/screenshots/02-home-frost-theme.png" width="200" /> |          <img src="docs/screenshots/03-train.png" width="200" />          |  <img src="docs/screenshots/04-program-detail.png" width="200" />  |
+|                            **Workout**                            |                         **Workout editor**                         |                             **Live session**                              |                        **Exercise library**                        |
+| <img src="docs/screenshots/05-workout-detail.png" width="200" />  |  <img src="docs/screenshots/06-workout-editor.png" width="200" />  | <img src="docs/screenshots/07-live-session-rest-timer.png" width="200" /> | <img src="docs/screenshots/08-exercise-library.png" width="200" /> |
+|                        **Exercise detail**                        |                             **Themes**                             |                               **Settings**                                |                                                                    |
+| <img src="docs/screenshots/09-exercise-detail.png" width="200" /> |   <img src="docs/screenshots/10-theme-picker.png" width="200" />   |        <img src="docs/screenshots/11-settings.png" width="200" />         |                                                                    |
+
+## Tech stack
+
+| Part          | Stack                                                                                              | Runs on                              |
+| ------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `apps/native` | Expo, React Native, Expo Router, HeroUI Native, Uniwind (Tailwind), Reanimated, PowerSync (SQLite) | iOS and Android (EAS)                |
+| `apps/server` | Hono, oRPC, Better Auth, Drizzle ORM, PostgreSQL, pg-boss jobs, React Email                        | Docker on Dokploy, behind Cloudflare |
+| `packages/*`  | `@workspace/{api,auth,db,ui,env,shared,logger,i18n,email,client,sync,config}`                      |                                      |
+
+Tooling: pnpm workspaces, Turborepo, TypeScript, oxlint and oxfmt, Vitest (175 test files, run against real Postgres in Docker), knip, lefthook, commitlint, GitHub Actions, Renovate. Architecture decisions are recorded in [docs/adr/](docs/adr/) (39 ADRs).
+
+### Architecture
+
+```
+ Expo app ──(oRPC over HTTPS: auth, commands)──▶ Hono API ──▶ PostgreSQL
+    │                                              ▲             │
+    └──(local SQLite ⇄ PowerSync sync streams)─────┼── PowerSync ◀┘ (logical replication)
+                                                   └── upload queue writes validated by the API
+```
 
 ## Getting started
 
