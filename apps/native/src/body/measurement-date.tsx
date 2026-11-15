@@ -1,3 +1,4 @@
+import { stepZoned } from "@workspace/shared";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
@@ -13,9 +14,12 @@ const keys = {
 } as const; // Safety: literal i18n keys.
 export function MeasurementDate({
   value,
+  timeZone,
   onChange,
 }: {
   value: string;
+  /** The account time zone that `local_date` is derived in; display and stepping use it too. */
+  timeZone: string;
   onChange: (date: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -24,18 +28,10 @@ export function MeasurementDate({
   const label = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone,
   }).format(date);
   const step = (part: Part, direction: number) => {
-    const next = new Date(value);
-    if (part === "year" || part === "month") {
-      const day = next.getDate();
-      next.setDate(1);
-      if (part === "year") next.setFullYear(next.getFullYear() + direction);
-      else next.setMonth(next.getMonth() + direction);
-      next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
-    } else if (part === "day") next.setDate(next.getDate() + direction);
-    else if (part === "hour") next.setHours(next.getHours() + direction);
-    else next.setMinutes(next.getMinutes() + direction);
+    const next = new Date(stepZoned(value, timeZone, part, direction));
     const oldest = new Date();
     oldest.setFullYear(oldest.getFullYear() - 10);
     if (next <= new Date() && next >= oldest) onChange(next.toISOString());

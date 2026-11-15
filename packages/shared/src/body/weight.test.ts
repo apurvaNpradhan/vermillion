@@ -13,6 +13,8 @@ import {
   cmToIn,
   inToCm,
   displayMeasurement,
+  formatBodyWeight,
+  shownWeight,
   measurementPatch,
   measurementInput,
   validMeasurementDate,
@@ -67,7 +69,10 @@ describe("weight log", () => {
       "decrease",
     );
     expect(weeklyPoints(points).length).toBeLessThan(points.length);
-    expect(weeklyPoints(points).at(-1)).toEqual(points.at(-1));
+    expect(weeklyPoints(points).at(-1)).toMatchObject({
+      date: points.at(-1)?.date,
+      trend: points.at(-1)?.trend,
+    });
   });
   it("marks logged days once and converts display units without storing rounding", () => {
     expect(weighInDays([{ local_date: "2026-01-03", value: 80 }], "2026-01-03", 3)).toEqual([
@@ -144,5 +149,52 @@ describe("weight log", () => {
     expect(sessionTotals(sessions[0]!.sets, 100).volume).toBe(800);
     expect(exerciseRecords(sessions, 100).get("pullup")?.get("session_volume")).toBe(820);
     expect(recordFlags(sessions, 100).get("b")).toContain("session_volume");
+  });
+});
+
+describe("review fixes", () => {
+  it("gives no direction before any comparison history exists", () => {
+    const series = trendSeries(dailyWeights([{ local_date: "2026-01-05", value: 80 }]));
+    for (const row of weightChanges(series)) {
+      expect(row.change).toBeNull();
+      expect(row.direction).toBeNull();
+    }
+  });
+
+  it("keeps real weigh-ins when sampling sparse weeks", () => {
+    const series = trendSeries(
+      dailyWeights([
+        { local_date: "2026-01-05", value: 80 },
+        { local_date: "2026-01-12", value: 81 },
+        { local_date: "2026-01-19", value: 82 },
+      ]),
+    );
+    const weeks = weeklyPoints(series);
+    expect(weeks.map((p) => p.scale)).toEqual([80, 81, 82]);
+    expect(weeks.every((p) => !p.interpolated)).toBe(true);
+    expect(weeks[0]?.date).toBe("2026-01-11");
+  });
+
+  it("averages several weigh-ins inside one week", () => {
+    const series = trendSeries(
+      dailyWeights([
+        { local_date: "2026-01-05", value: 80 },
+        { local_date: "2026-01-07", value: 82 },
+      ]),
+    );
+    expect(weeklyPoints(series)[0]?.scale).toBe(81);
+  });
+
+  it("formats body weight to one decimal, not plate steps", () => {
+    expect(formatBodyWeight(80.1, "kg", "en")).toBe("80.1");
+    expect(formatBodyWeight(80, "lb", "en")).toBe("176.4");
+    expect(formatBodyWeight(-0.11, "kg", "en")).toBe("-0.1");
+  });
+
+  it("shows a stored kilogram value as the field does, so unchanged values compare equal", () => {
+    const kg = 80;
+    expect(shownWeight(kg, "lb")).toBe(176.4);
+    expect(shownWeight(lbToKg(176.4), "lb")).toBe(176.4);
+    expect(shownWeight(80.04, "kg")).toBe(80);
   });
 });

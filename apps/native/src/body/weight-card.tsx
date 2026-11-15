@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { formatWeight } from "@workspace/shared";
+import { formatBodyWeight } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
@@ -28,7 +28,7 @@ export function WeightCard() {
               : state.trend === null
                 ? t("body__empty")
                 : t("body__value", {
-                    value: formatWeight(state.trend, state.unit),
+                    value: formatBodyWeight(state.trend, state.unit),
                     unit: state.unit,
                   })}
           </Text>
@@ -37,7 +37,7 @@ export function WeightCard() {
         {state.change !== null ? (
           <Text className="text-caption text-muted">
             {t("body__month_change", {
-              value: formatWeight(state.change, state.unit),
+              value: formatBodyWeight(state.change, state.unit),
               unit: state.unit,
             })}
           </Text>

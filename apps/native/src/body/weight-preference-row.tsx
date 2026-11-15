@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { Scales } from "phosphor-react-native";
-import { formatWeight } from "@workspace/shared";
+import { formatBodyWeight } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
 import { useWeight } from "./use-weight";
@@ -16,7 +16,10 @@ export function WeightPreferenceRow() {
       value={
         weight.trend === null
           ? undefined
-          : t("body__value", { value: formatWeight(weight.trend, weight.unit), unit: weight.unit })
+          : t("body__value", {
+              value: formatBodyWeight(weight.trend, weight.unit),
+              unit: weight.unit,
+            })
       }
       onPress={() => router.push("/body/weight")}
     />

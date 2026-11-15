@@ -63,6 +63,7 @@ export function useWeight() {
     loadMoreEntries: () => setEntryLimit((limit) => limit + 50),
     today,
     localDate,
+    zone,
     trend: series.at(-1)?.trend ?? null,
     change: changeOver(series, 30),
     rate: ratePerWeek(series),

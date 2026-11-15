@@ -69,22 +69,46 @@ export function ratePerWeek(series: readonly TrendPoint[]): number | null {
   });
   return (numerator / denominator) * 7;
 }
+export type WeightDirection = "increase" | "decrease" | "stable";
 export function weightChanges(series: readonly TrendPoint[]) {
   return [3, 7, 14, 30, 90].map((days) => {
     const change = changeOver(series, days);
-    const direction: "increase" | "decrease" | "stable" =
-      change === null || Math.abs(change) <= 0.1 ? "stable" : change > 0 ? "increase" : "decrease";
+    // No comparison point yet: no direction either, rather than a misleading "Stable".
+    const direction: WeightDirection | null =
+      change === null
+        ? null
+        : Math.abs(change) <= 0.1
+          ? "stable"
+          : change > 0
+            ? "increase"
+            : "decrease";
     return { days, change, direction };
   });
 }
+/**
+ * One point per Monday-based week for long ranges: the week's last trend value, and the average
+ * of the scale weights actually logged that week (null, and `interpolated`, when none were).
+ */
 export function weeklyPoints(series: readonly TrendPoint[]): TrendPoint[] {
-  const weeks = new Map<string, TrendPoint>();
+  const weeks = new Map<string, { last: TrendPoint; total: number; count: number }>();
   for (const point of series) {
     const day = new Date(stamp(point.date));
     day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-    weeks.set(day.toISOString().slice(0, 10), point);
+    const key = day.toISOString().slice(0, 10);
+    const week = weeks.get(key) ?? { last: point, total: 0, count: 0 };
+    week.last = point;
+    if (point.scale !== null) {
+      week.total += point.scale;
+      week.count++;
+    }
+    weeks.set(key, week);
   }
-  return [...weeks.values()];
+  return [...weeks.values()].map(({ last, total, count }) => ({
+    date: last.date,
+    trend: last.trend,
+    scale: count ? total / count : null,
+    interpolated: count === 0,
+  }));
 }
 export function weighInDays(entries: readonly WeightEntry[], today: string, count = 30) {
   const dates = new Set(entries.map((e) => e.local_date));
@@ -98,3 +122,14 @@ export const lbToKg = (lb: number) => lb * 0.45359237;
 export const cmToIn = (cm: number) => cm / 2.54;
 export const inToCm = (inches: number) => inches * 2.54;
 export const displayMeasurement = (value: number) => Math.round(value * 10) / 10;
+/** A body weight for display: kilograms or pounds to one decimal, locale-formatted. */
+export function formatBodyWeight(kg: number, unit: "kg" | "lb", locale?: string): string {
+  const shown = unit === "lb" ? kgToLb(kg) : kg;
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(displayMeasurement(shown));
+}
+/** The value a weight field shows for a stored kilogram value: the unit's figure to one decimal. */
+export const shownWeight = (kg: number, unit: "kg" | "lb") =>
+  displayMeasurement(unit === "lb" ? kgToLb(kg) : kg);

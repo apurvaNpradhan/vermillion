@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Info, DotsThree, Target, Trash } from "phosphor-react-native";
 import { useThemeColor, BottomSheet } from "heroui-native";
-import { formatWeight, weeklyPoints, changeOver, type TrendPoint } from "@workspace/shared";
+import { formatBodyWeight, weeklyPoints, changeOver, type TrendPoint } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
@@ -41,7 +41,7 @@ export function WeightScreen() {
   const selected = state.series.filter((p) => Date.parse(p.date) >= start);
   const series = days >= 365 ? weeklyPoints(selected) : selected;
   const format = (value: number) =>
-    t("body__value", { value: formatWeight(value, state.unit), unit: state.unit });
+    t("body__value", { value: formatBodyWeight(value, state.unit), unit: state.unit });
   const date = (value: string) =>
     new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeZone: "UTC" }).format(
       new Date(value),
@@ -165,15 +165,17 @@ export function WeightScreen() {
                 <Text className="text-body text-foreground">
                   {change.change === null ? t("body__no_data") : format(change.change)}
                 </Text>
-                <Text className="text-caption text-muted">
-                  {t(
-                    change.direction === "stable"
-                      ? "body__stable"
-                      : change.direction === "increase"
-                        ? "body__increase"
-                        : "body__decrease",
-                  )}
-                </Text>
+                {change.direction === null ? null : (
+                  <Text className="text-caption text-muted">
+                    {t(
+                      change.direction === "stable"
+                        ? "body__stable"
+                        : change.direction === "increase"
+                          ? "body__increase"
+                          : "body__decrease",
+                    )}
+                  </Text>
+                )}
               </View>
             </View>
           ))}

@@ -66,7 +66,7 @@ export function WeightLogSheet({
             </Text>
             <Text className="text-body text-muted">{state.unit}</Text>
           </View>
-          {!goal ? <MeasurementDate value={date} onChange={setDate} /> : null}
+          {!goal ? <MeasurementDate value={date} timeZone={state.zone} onChange={setDate} /> : null}
           {action.error ? (
             <Text accessibilityRole="alert" className="text-body text-danger">
               {action.error}

@@ -5,7 +5,7 @@ import {
   restoreMeasurement,
   type WatchedMeasurement,
 } from "@workspace/sync";
-import { measurementInput, lbToKg } from "@workspace/shared";
+import { measurementInput, lbToKg, shownWeight } from "@workspace/shared";
 import { useState } from "react";
 import { useLocalData, useSyncValue } from "@/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -72,7 +72,11 @@ export function useLogWeight() {
       try {
         if (entry) {
           const patch = {
-            ...(entry.value !== parsed.data.value ? { value: parsed.data.value } : {}),
+            // Compare what the field showed, not a unit round trip, so a date-only edit never
+            // rewrites the weight (and never overwrites another device's correction).
+            ...(Math.abs(shownWeight(entry.value, weight.unit) - value) > 1e-9
+              ? { value: parsed.data.value }
+              : {}),
             ...(Date.parse(entry.measured_at) !== Date.parse(measuredAt)
               ? { measured_at: measuredAt, local_date: parsed.data.local_date }
               : {}),
