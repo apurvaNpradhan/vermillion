@@ -61,3 +61,12 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark are Classic, as in email ([0031](docs/adr/0031-native-themes-colour-only-oklch.md), amended: named themes sunset).
 - **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.
 - **Identity / on-identity** — the accent roles: `identity` (focus, checks, selection, active tab, compose fill) and `on-identity` for the icon or text on it. The primary action stays neutral.
+- **Media** — a user's uploaded image: a synced `media` row (made on the device) plus a full-size and a thumbnail object in the private user bucket. Rows point at media, never the reverse. Files reach R2 through presigned URLs and PowerSync's attachment queue ([0040](docs/adr/0040-user-media.md)).
+- **Media reference** — the column or child row that says where Media shows: `program.cover_media_id`, `exercise.image_media_id`, `ui.avatarMediaId`, `session_photo`, `progress_photo`.
+- **Catalog media** — exercise thumbnails and videos in the public bucket, named by keys on catalog rows and written only by the server or the admin site.
+- **Body measurement** — one value of one body metric (weight in kg or a tape site in cm) at a moment, with the user's `local_date` ([0041](docs/adr/0041-body-metrics.md)).
+- **Scale weight** — what the scale said: the logged weight entries (averaged per day).
+- **Trend weight** — the smoothed weight: an exponential moving average (α 0.1) over daily scale weight with gaps interpolated. Computed on read; the number the app leads with.
+- **Tracked metric** — a tape site the user chose to measure; only tracked metrics show in Check-in and on the Measurements page.
+- **Check-in** — everything logged on one `local_date`: measurements, weight and progress photos. Not stored as its own row.
+- **Progress photo** — a front, side or back body photo on a date; Media of kind `progress_photo`, blurred in lists while Hide photos is on.
