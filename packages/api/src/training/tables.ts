@@ -446,3 +446,26 @@ export const programRun = pgTable(
     ),
   ],
 );
+
+/** Images of one Session, ordered independently of its logged exercises. */
+export const sessionPhoto = pgTable(
+  "session_photo",
+  {
+    id: id(),
+    userId: owner(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => session.id),
+    mediaId: uuid("media_id").notNull(),
+    position: doublePrecision("position").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (t) => [
+    index("session_photo_user_id_live_idx")
+      .on(t.userId)
+      .where(sql`${t.deletedAt} IS NULL`),
+    index("session_photo_session_position_idx").on(t.sessionId, t.position, t.id),
+  ],
+);

@@ -11,10 +11,12 @@ const SIZE = 40;
 export function ExerciseHeading({
   title,
   thumbnailKey,
+  imageMediaId,
   onPress,
 }: {
   title: string;
   thumbnailKey: string | null;
+  imageMediaId?: string | null;
   onPress?: () => void;
 }) {
   return (
@@ -31,7 +33,12 @@ export function ExerciseHeading({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <ExerciseThumbnail thumbnailKey={thumbnailKey} title={title} size={SIZE} />
+        <ExerciseThumbnail
+          imageMediaId={imageMediaId}
+          thumbnailKey={thumbnailKey}
+          title={title}
+          size={SIZE}
+        />
       </View>
       <Text numberOfLines={2} className="flex-1 font-semibold text-body text-identity">
         {title}

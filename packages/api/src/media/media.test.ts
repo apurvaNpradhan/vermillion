@@ -39,6 +39,104 @@ describe("user media", () => {
   });
   afterAll(async () => app.close());
 
+  it("validates avatar references and retires the replaced avatar", async () => {
+    const me = await writer("avatar-owner@example.com");
+    const other = await writer("avatar-other@example.com");
+    const avatar = uuidv7(),
+      next = uuidv7(),
+      wrong = uuidv7();
+    expect(
+      await me.send([
+        putMedia(avatar, { kind: "avatar" }),
+        putMedia(next, { kind: "avatar" }),
+        putMedia(wrong),
+      ]),
+    ).toEqual(applied);
+    for (const id of [uuidv7(), wrong])
+      await expect(
+        me.client.preferences.update({ ui: { avatarMediaId: id } }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      other.client.preferences.update({ ui: { avatarMediaId: avatar } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await me.client.preferences.update({ ui: { avatarMediaId: avatar } });
+    expect(
+      (await me.client.preferences.update({ ui: { avatarMediaId: next } })).ui.avatarMediaId,
+    ).toBe(next);
+    expect(
+      (await app.rows(sql`SELECT deleted_at FROM media WHERE id = ${avatar}`))[0]?.deleted_at,
+    ).not.toBeNull();
+  });
+
+  it("accepts Custom exercise images and refuses foreign, missing and wrong-kind references", async () => {
+    const me = await writer("exercise-image-owner@example.com");
+    const other = await writer("exercise-image-other@example.com");
+    const image = uuidv7(),
+      wrong = uuidv7(),
+      foreign = uuidv7(),
+      exercise = uuidv7();
+    await me.send([putMedia(image, { kind: "exercise_image" }), putMedia(wrong)]);
+    await other.send([putMedia(foreign, { kind: "exercise_image" })]);
+    const fields = {
+      title: "Photo exercise",
+      primary_muscle: "chest",
+      equipment: "dumbbell",
+      exercise_type: "weight_reps",
+    };
+    expect(
+      await me.send([op("PUT", "exercise", exercise, { ...fields, image_media_id: image })]),
+    ).toEqual(applied);
+    for (const id of [uuidv7(), wrong, foreign])
+      expect(
+        await me.send([op("PATCH", "exercise", exercise, { image_media_id: id })]),
+      ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+    const catalog = uuidv7();
+    await app.services.db.execute(
+      sql`INSERT INTO exercise (id, title, primary_muscle, equipment, exercise_type) VALUES (${catalog}, 'Catalog photo fixture', 'chest', 'dumbbell', 'weight_reps')`,
+    );
+    expect(
+      await me.send([op("PATCH", "exercise", catalog, { image_media_id: image })]),
+    ).toMatchObject(rejected("EXERCISE_CATALOG_READ_ONLY"));
+  });
+
+  it("limits Session photos to four and validates both references", async () => {
+    const me = await writer("session-photo-owner@example.com");
+    const other = await writer("session-photo-other@example.com");
+    const session = uuidv7(),
+      foreignSession = uuidv7(),
+      foreign = uuidv7(),
+      wrong = uuidv7();
+    const sessionData = {
+      title: "Photos",
+      started_at: new Date().toISOString(),
+      device_id: uuidv7(),
+    };
+    expect(
+      await me.send([op("PUT", "training_session", session, sessionData), putMedia(wrong)]),
+    ).toEqual(applied);
+    await other.send([
+      op("PUT", "training_session", foreignSession, sessionData),
+      putMedia(foreign, { kind: "session_photo" }),
+    ]);
+    const photo = (parent: string, media: string, position = 0) =>
+      op("PUT", "session_photo", uuidv7(), { session_id: parent, media_id: media, position });
+    for (const id of [uuidv7(), wrong, foreign])
+      expect(await me.send([photo(session, id)])).toMatchObject(
+        rejected("MEDIA_REFERENCE_INVALID"),
+      );
+    for (let i = 0; i < 5; i++) {
+      const media = uuidv7();
+      await me.send([putMedia(media, { kind: "session_photo" })]);
+      if (i === 0)
+        expect(await me.send([photo(foreignSession, media)])).toMatchObject(
+          rejected("SESSION_PARENT_NOT_FOUND"),
+        );
+      expect(await me.send([photo(session, media, i)])).toMatchObject(
+        i < 4 ? applied : rejected("TRAINING_LIMIT_REACHED"),
+      );
+    }
+  });
+
   type Client = ReturnType<TestApp["client"]>;
   function installOf(client: Client, userId: string) {
     const installId = uuidv7();

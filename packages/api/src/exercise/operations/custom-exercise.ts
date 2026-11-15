@@ -8,6 +8,7 @@ export type ExerciseRow = typeof exercise.$inferSelect;
 /** Column values for the fields present in `patch`; absent fields are left out, not nulled. */
 export function patchValues(patch: ExercisePatch) {
   return {
+    ...(patch.image_media_id !== undefined ? { imageMediaId: patch.image_media_id } : {}),
     ...(patch.title !== undefined ? { title: patch.title } : {}),
     ...(patch.primary_muscle !== undefined ? { primaryMuscle: patch.primary_muscle } : {}),
     ...(patch.secondary_muscles !== undefined ? { secondaryMuscles: patch.secondary_muscles } : {}),

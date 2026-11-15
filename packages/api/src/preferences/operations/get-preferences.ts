@@ -1,11 +1,11 @@
-import type { Database } from "@workspace/db";
+import type { DbExecutor } from "@workspace/db";
 import { isLocale, uiPreferencesSchema, type Preferences } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 
 import { userPreferences } from "../tables";
 
 /** The user's saved preferences; a missing row reads as all defaults. */
-export async function getPreferences(db: Database, userId: string): Promise<Preferences> {
+export async function getPreferences(db: DbExecutor, userId: string): Promise<Preferences> {
   const [row] = await db
     .select()
     .from(userPreferences)

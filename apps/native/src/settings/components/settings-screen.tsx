@@ -1,3 +1,4 @@
+import { AvatarPicker } from "@/account";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
 import { SignOut, Trash, UserCircle } from "phosphor-react-native";
@@ -32,6 +33,7 @@ export function SettingsScreen() {
       {sessionSettings.sheets}
       {training.sheets}
       <ScrollPage title={t("settings__title")}>
+        <AvatarPicker />
         <View>
           <SyncBanner />
         </View>

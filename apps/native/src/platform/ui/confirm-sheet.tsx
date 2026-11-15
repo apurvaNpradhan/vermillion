@@ -20,9 +20,11 @@ export function ConfirmSheet({
   cancelLabel,
   onConfirm,
   destructive = false,
+  children,
   extraLabel,
   onExtra,
 }: {
+  children?: import("react").ReactNode;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -55,6 +57,7 @@ export function ConfirmSheet({
               </BottomSheet.Description>
             ) : null}
           </View>
+          {children}
           <View className="gap-2">
             <Button
               variant={destructive ? "danger-soft" : "primary"}

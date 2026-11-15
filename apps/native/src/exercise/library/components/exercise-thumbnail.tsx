@@ -1,3 +1,4 @@
+import { MediaImage } from "@/media";
 import { Image } from "expo-image";
 import { memo, useState } from "react";
 import { Text, View } from "react-native";
@@ -13,15 +14,19 @@ export const THUMBNAIL_SIZE = 40;
  */
 export const ExerciseThumbnail = memo(function ExerciseThumbnail({
   thumbnailKey,
+  imageMediaId,
   title,
   size = THUMBNAIL_SIZE,
 }: {
   thumbnailKey: string | null;
+  imageMediaId?: string | null;
   title?: string;
   size?: number;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const mediaId = imageMediaId;
   const uri = thumbnailUrl(appConfig.urls.exerciseMedia, thumbnailKey);
+  if (mediaId) return <MediaImage mediaId={mediaId} size={size} rounded="rounded-full" />;
   if (uri === null || failedUrl === uri)
     return (
       <View

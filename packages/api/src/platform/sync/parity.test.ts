@@ -72,6 +72,24 @@ const expectation: Expectation = {
       },
     },
 
+    session_photo: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        session_id: { type: "uuid", notNull: true, default: null },
+        media_id: { type: "uuid", notNull: true, default: null },
+        position: { type: "double precision", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        session_photo_user_id_live_idx:
+          "CREATE INDEX session_photo_user_id_live_idx ON public.session_photo USING btree (user_id) WHERE (deleted_at IS NULL)",
+        session_photo_session_position_idx:
+          'CREATE INDEX session_photo_session_position_idx ON public.session_photo USING btree (session_id, "position", id)',
+      },
+    },
     // Legacy (ADR 0035): the notes example vertical is gone, but its tables stay in Postgres and in
     // the publication because migrations are additive-only. No stream, handler or router uses them.
     notes: {
@@ -106,6 +124,7 @@ const expectation: Expectation = {
         aka: { type: "text", notNull: false, default: null },
         instructions: { type: "text", notNull: false, default: null },
         video_key: { type: "text", notNull: false, default: null },
+        image_media_id: { type: "uuid", notNull: false, default: null },
         thumbnail_key: { type: "text", notNull: false, default: null },
         retired_at: { type: "timestamp with time zone", notNull: false, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
@@ -373,7 +392,7 @@ const expectation: Expectation = {
     powersync: [
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
-      "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at)",
+      "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id)",
       "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
@@ -384,6 +403,7 @@ const expectation: Expectation = {
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at)",
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at)",
+      "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
       "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
       "progress_photo(id, user_id, media_id, pose, taken_at, local_date, created_at, updated_at, deleted_at)",
     ],
@@ -438,6 +458,7 @@ describe("server schema parity", () => {
       "program_run",
       "program_slot",
       "session_exercise",
+      "session_photo",
       "session_set",
       "training_session",
       "workout",

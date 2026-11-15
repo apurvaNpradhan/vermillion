@@ -9,6 +9,7 @@ import {
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 
+import { removeMedia } from "../media/index";
 import { DEVICE_OWNER_ID } from "../platform/device-owner";
 import { drizzleSchema } from "../platform/schema";
 import { deviceOwner, installMeta } from "../platform/tables";
@@ -24,6 +25,7 @@ export const exerciseUploadColumns: ReadonlySet<string> = new Set([
   "is_full_bodyweight",
   "instructions",
   "retired_at",
+  "image_media_id",
 ]);
 
 export type ExerciseDatabase = AbstractPowerSyncDatabase;
@@ -122,6 +124,9 @@ export async function updateCustomExercise(
       instructions: current.instructions,
     };
     const changes: ExercisePatch = {
+      ...(fields.image_media_id !== undefined && fields.image_media_id !== current.image_media_id
+        ? { image_media_id: fields.image_media_id }
+        : {}),
       ...(fields.title !== undefined && fields.title !== stored.title
         ? { title: fields.title }
         : {}),
@@ -149,6 +154,8 @@ export async function updateCustomExercise(
     if (Object.keys(changes).length === 0) return false;
     customExerciseInput.parse({ ...stored, ...changes });
     await tx.update(exercise).set(changes).where(eq(exercise.id, id));
+    if (changes.image_media_id !== undefined && current.image_media_id)
+      await removeMedia(tx, current.image_media_id);
     return true;
   });
 }

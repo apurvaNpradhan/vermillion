@@ -33,7 +33,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE exercise (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, primary_muscle TEXT,
         secondary_muscles TEXT, equipment TEXT, exercise_type TEXT, is_full_bodyweight INTEGER,
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
-        thumbnail_key TEXT, retired_at TEXT, created_at TEXT);
+        thumbnail_key TEXT, image_media_id TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
         planned_weeks INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
@@ -54,6 +54,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,
         source_workout_exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT,
         superset_group TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
+      CREATE TABLE session_photo (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT, media_id TEXT, position REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,
         position TEXT, kind TEXT, weight_kg REAL, reps INTEGER, duration_s INTEGER,
         distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,

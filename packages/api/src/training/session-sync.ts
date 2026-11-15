@@ -1,3 +1,4 @@
+import { sessionPhotoSyncHandler } from "./photo-sync";
 import { checkSessionRun } from "./run-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
@@ -621,6 +622,7 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
  */
 export const sessionSyncHandlers: readonly SyncTableHandler[] = [
   sessionSyncHandler,
+  sessionPhotoSyncHandler,
   sessionExerciseSyncHandler,
   sessionSetSyncHandler,
   gymEquipmentSyncHandler,

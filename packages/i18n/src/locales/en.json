@@ -1166,5 +1166,15 @@
   "body__photos_since_other": "{{count}} days since last photos",
   "body__photos_none_yet": "Add your first progress photos",
   "body__photo_first_tile": "Latest photo, {{date}}",
-  "body__compare_side_dates": "{{side}} date"
+  "body__compare_side_dates": "{{side}} date",
+  "media__save_failed": "Could not save photo. Try again.",
+  "media__remove": "Remove photo",
+  "media__add_photos": "Add photos",
+  "media__camera": "Camera",
+  "media__avatar": "Change avatar",
+  "media__exercise_image": "Choose exercise photo",
+  "media__photo_changed": "Photo changed",
+  "media__open_photo": "Open photo {{index}}",
+  "media__photo_count_one": "{{count}} photo",
+  "media__photo_count_other": "{{count}} photos"
 }

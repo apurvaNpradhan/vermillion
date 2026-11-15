@@ -13,6 +13,7 @@ describe("ui preferences schema", () => {
     const defaults = {
       weighInReminder: { enabled: false, time: "08:00" },
       checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+      avatarMediaId: null,
       lengthUnit: "cm",
       heightCm: null,
       trackedMetrics: ["waist", "chest", "left_bicep", "right_bicep", "left_thigh", "right_thigh"],

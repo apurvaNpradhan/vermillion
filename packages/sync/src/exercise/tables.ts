@@ -26,6 +26,7 @@ export const exercise = sqliteTable(
     instructions: text("instructions"),
     video_key: text("video_key"),
     thumbnail_key: text("thumbnail_key"),
+    image_media_id: text("image_media_id"),
     retired_at: text("retired_at"),
     created_at: text("created_at").notNull(),
   },

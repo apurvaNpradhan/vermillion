@@ -1,3 +1,4 @@
+import { AvatarPicker } from "./avatar-picker";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useForm } from "@tanstack/react-form";
 import { Spinner } from "heroui-native";
@@ -61,6 +62,7 @@ export function ProfileSection() {
         </Text>
         <Card>
           <Card.Body className="gap-4">
+            <AvatarPicker />
             <FormError message={failure} />
             <form.Field name="name">
               {(field) => (

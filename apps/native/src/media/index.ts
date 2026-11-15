@@ -7,3 +7,4 @@ export { saveWithMedia } from "./save-with-media";
 export { sendToBucket } from "./send-to-bucket";
 export { MediaViewer } from "./media-viewer";
 export type { ProcessedImage } from "./process-image";
+export { usePickedMedia } from "./use-picked-media";

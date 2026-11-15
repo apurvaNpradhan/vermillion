@@ -75,7 +75,12 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   );
   const grouped = place !== "none";
   const thumbnail = (size: number) => (
-    <ExerciseThumbnail title={name} thumbnailKey={info?.thumbnailKey ?? null} size={size} />
+    <ExerciseThumbnail
+      title={name}
+      imageMediaId={info?.imageMediaId}
+      thumbnailKey={info?.thumbnailKey ?? null}
+      size={size}
+    />
   );
 
   if (collapsed) {

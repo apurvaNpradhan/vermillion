@@ -20,7 +20,7 @@ import { appConfig } from "../../app.config.ts";
  */
 // 12: expo-navigation-bar for theme-resolved Android system bar controls.
 // 13: local Android workout-live module, promoted ongoing notification permission.
-// 14: camera permission for progress photos (expo-image-picker's manifest and Info.plist entries).
+// 14: camera permission for user photos (expo-image-picker's manifest and Info.plist entries).
 const NATIVE_STACK_REVISION = 14;
 
 /**
@@ -90,8 +90,8 @@ const config: ExpoConfig = {
     [
       "expo-image-picker",
       {
-        photosPermission: "Allow $(PRODUCT_NAME) to use a photo as a program cover.",
-        cameraPermission: "Allow $(PRODUCT_NAME) to take progress photos.",
+        photosPermission: "Allow $(PRODUCT_NAME) to choose photos.",
+        cameraPermission: "Allow $(PRODUCT_NAME) to take photos.",
         microphonePermission: false,
       },
     ],

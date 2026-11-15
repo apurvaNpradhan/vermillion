@@ -1,3 +1,6 @@
+import { Image } from "expo-image";
+import { useExerciseImage } from "../../use-exercise-image";
+import { MediaImage } from "@/media";
 import {
   EQUIPMENT,
   EQUIPMENT_KEYS,
@@ -190,12 +193,14 @@ function ExerciseForm({
   );
   const navigation = useNavigation();
   const actions = useExerciseActions();
+  const image = useExerciseImage();
   const typeLocked = useExerciseTypeLocked(id);
   const [draft, setDraft] = useState<ExerciseDraft>(() => startExerciseDraft(initial));
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const createdId = useRef<string | null>(null);
   const [done, setDone] = useState(false);
-  const dirty = isExerciseDraftDirty(draft);
+  const dirty = isExerciseDraftDirty(draft) || image.dirty;
 
   // The saved row changed while the form was open: untouched fields follow it.
   useEffect(() => {
@@ -236,9 +241,15 @@ function ExerciseForm({
     try {
       if (id === null) {
         // Await first: `onCreated?.(await ...)` would skip the create when no callback is given.
-        const newId = await actions.create(result.input);
+        if (createdId.current) await actions.update(createdId.current, result.input);
+        const newId = createdId.current ?? (await actions.create(result.input));
+        createdId.current = newId;
+        await image.save(newId);
         onCreated?.(newId);
-      } else await actions.update(id, exerciseDraftPatch(draft));
+      } else {
+        await actions.update(id, exerciseDraftPatch(draft));
+        await image.save(id);
+      }
       haptic.confirm();
       setDone(true);
     } catch {
@@ -267,7 +278,7 @@ function ExerciseForm({
             variant="primary"
             size="lg"
             className="h-14 rounded-xl"
-            isDisabled={saving || (id !== null && !dirty)}
+            isDisabled={saving || image.busy || (id !== null && !dirty)}
             accessibilityState={{ busy: saving }}
             onPress={() => void save()}
           >
@@ -278,6 +289,26 @@ function ExerciseForm({
           </Button>
         }
       >
+        <View className="flex-row items-center gap-2">
+          {image.previewUri ? (
+            <Image
+              source={{ uri: image.previewUri }}
+              style={{ width: 64, height: 64 }}
+              contentFit="cover"
+            />
+          ) : (
+            <MediaImage mediaId={image.removed ? null : (saved?.imageMediaId ?? null)} size={64} />
+          )}
+          <Button variant="secondary" isDisabled={image.busy} onPress={() => void image.pick()}>
+            <Button.Label>{t("media__exercise_image")}</Button.Label>
+          </Button>
+          <Button variant="danger-soft" onPress={image.remove}>
+            <Button.Label>{t("media__remove")}</Button.Label>
+          </Button>
+          {image.dirty ? (
+            <Text className="text-caption text-muted">{t("media__photo_changed")}</Text>
+          ) : null}
+        </View>
         <Field
           label={t("exercise__field_name")}
           value={draft.values.title}

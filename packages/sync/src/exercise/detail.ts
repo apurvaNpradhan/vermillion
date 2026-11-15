@@ -15,7 +15,7 @@ const muscleGroupSchema = z.enum(MUSCLE_GROUPS);
 const equipmentSchema = z.enum(EQUIPMENT);
 
 const DETAIL_COLUMNS =
-  "id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, aka, instructions, video_key, thumbnail_key, retired_at";
+  "id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at";
 
 const detailRowSchema = z.object({
   id: z.string(),
@@ -29,6 +29,7 @@ const detailRowSchema = z.object({
   aka: z.string().nullable(),
   instructions: z.string().nullable(),
   video_key: z.string().nullable(),
+  image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
 });
@@ -59,6 +60,7 @@ export type ExerciseDetail = {
   exerciseType: (typeof EXERCISE_TYPES)[number];
   isFullBodyweight: boolean;
   videoKey: string | null;
+  imageMediaId?: string | null;
   thumbnailKey: string | null;
   isCustom: boolean;
   isArchived: boolean;
@@ -91,6 +93,7 @@ const candidateRowSchema = z.object({
   title: z.string(),
   primary_muscle: muscleGroupSchema,
   equipment: equipmentSchema,
+  image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
 });
@@ -134,6 +137,7 @@ export function watchExercise(
         isFullBodyweight: row.is_full_bodyweight !== 0,
         videoKey: row.video_key,
         thumbnailKey: row.thumbnail_key,
+        imageMediaId: row.image_media_id ?? null,
         isCustom: row.user_id !== null,
         isArchived: row.retired_at !== null,
       });
@@ -164,6 +168,7 @@ export function watchSwapCandidates(
           primaryMuscle: row.primary_muscle,
           equipment: row.equipment,
           thumbnailKey: row.thumbnail_key,
+          imageMediaId: row.image_media_id ?? null,
           isCustom: row.user_id !== null,
           isArchived: row.retired_at !== null,
         })),

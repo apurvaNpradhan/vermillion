@@ -1,6 +1,6 @@
 # Media, slice 2: Custom exercise image, avatar and Session photos
 
-Status: ready after media slice 1. Decisions: [ADR 0040](../../adr/0040-user-media.md). Builds on [01-foundation](01-foundation.md).
+Status: implemented; device validation pending. Decisions: [ADR 0040](../../adr/0040-user-media.md). Builds on [01-foundation](01-foundation.md).
 
 ## Goal
 
@@ -25,3 +25,17 @@ Three more image uses on the single upload path.
 ## Done when
 
 Checks pass; on device each of the three flows uploads and shows on another device.
+
+## Integration and validation
+
+- Session photos expose `onOpenPhoto(index)` on `SessionPhotos`. The shared viewer is supplied
+  by the parallel progress-photo slice; no viewer was copied here.
+- Camera capture adds the camera permission and native runtime revision 14. A binary with that
+  revision is needed for the camera smoke test; the native app was not built during this work.
+- Session deletion retains its photo media through Undo, then releases it if the Session is still
+  absent. The discard snapshot keeps the media ids because sync can remove the photo rows before
+  the Undo timer fires.
+- Automated coverage includes reference ownership and kind refusals, the four-photo limit,
+  exercise-image replacement, Session deletion/Undo cleanup, and two-device photo replication.
+- Device validation remains: pick/replace/remove each image kind, camera permission and capture,
+  offline rendering, transfer Retry, and displaying the result on a second device.

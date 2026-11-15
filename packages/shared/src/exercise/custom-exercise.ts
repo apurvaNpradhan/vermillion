@@ -16,6 +16,7 @@ export const customExerciseFields = z.strictObject({
   equipment: z.enum(EQUIPMENT),
   exercise_type: z.enum(EXERCISE_TYPES),
   is_full_bodyweight: z.boolean(),
+  image_media_id: z.uuid().nullable().optional(),
   instructions: z.string().max(EXERCISE_INSTRUCTIONS_MAX).nullable(),
 });
 

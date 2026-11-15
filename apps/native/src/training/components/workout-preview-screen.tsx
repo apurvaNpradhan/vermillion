@@ -187,6 +187,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   <View key={entry.id} className="gap-1 py-2">
                     <ExerciseHeading
                       title={entry.exercise?.title ?? t("training__workout")}
+                      imageMediaId={entry.exercise?.imageMediaId}
                       thumbnailKey={entry.exercise?.thumbnailKey ?? null}
                       onPress={() =>
                         router.push({

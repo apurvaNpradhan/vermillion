@@ -34,6 +34,7 @@ const checkInReminder = weighInReminder.extend({ weekday: z.number().int().min(1
 const uiFields = {
   weighInReminder,
   checkInReminder,
+  avatarMediaId: z.uuid().nullable(),
   lengthUnit: z.enum(["cm", "in"]),
   heightCm: z.number().min(100).max(250).nullable(),
   trackedMetrics: z.array(z.enum(BODY_METRICS)).max(14),
@@ -62,6 +63,7 @@ export const uiPreferencesSchema = z
       time: "09:00",
     }),
     lengthUnit: uiFields.lengthUnit.optional(),
+    avatarMediaId: uiFields.avatarMediaId.default(null),
     heightCm: uiFields.heightCm.default(null),
     trackedMetrics: uiFields.trackedMetrics.default(DEFAULT_TRACKED_METRICS),
     weightGoalKg: uiFields.weightGoalKg.default(null),

@@ -1,3 +1,4 @@
+import { SessionPhotos } from "./session-photos";
 import { useWeight } from "@/body";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
@@ -271,6 +272,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
               />
             )}
           </form.Field>
+          <SessionPhotos sessionId={session.id} />
           <form.Field name="note">
             {(field) => (
               <TextInput

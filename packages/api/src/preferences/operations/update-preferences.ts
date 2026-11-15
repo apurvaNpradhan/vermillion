@@ -1,6 +1,9 @@
+import { ORPCError } from "@orpc/server";
+import { SyncRejection } from "../../platform/sync/handler";
+import { media, assertMediaReference } from "../../media/index";
 import type { Database } from "@workspace/db";
 import type { Preferences, UpdatePreferences } from "@workspace/shared";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { userPreferences } from "../tables";
 import { getPreferences } from "./get-preferences";
@@ -20,16 +23,38 @@ export async function updatePreferences(
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
   };
   const ui = input.ui ?? {};
-  await db
-    .insert(userPreferences)
-    .values({ userId, ...patch, ui })
-    .onConflictDoUpdate({
-      target: userPreferences.userId,
-      set: {
-        ...patch,
-        ui: sql`${userPreferences.ui} || excluded.ui`,
-        updatedAt: new Date(),
-      },
-    });
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`avatar:${userId}`}, 0))`);
+    const previous = await getPreferences(tx, userId);
+    if (ui.avatarMediaId) {
+      try {
+        await assertMediaReference(tx, userId, ui.avatarMediaId, "avatar");
+      } catch (error) {
+        if (error instanceof SyncRejection) throw new ORPCError("BAD_REQUEST");
+        throw error;
+      }
+    }
+    await tx
+      .insert(userPreferences)
+      .values({ userId, ...patch, ui })
+      .onConflictDoUpdate({
+        target: userPreferences.userId,
+        set: {
+          ...patch,
+          ui: sql`${userPreferences.ui} || excluded.ui`,
+          updatedAt: new Date(),
+        },
+      });
+    if (
+      ui.avatarMediaId !== undefined &&
+      previous.ui.avatarMediaId &&
+      previous.ui.avatarMediaId !== ui.avatarMediaId
+    ) {
+      await tx
+        .update(media)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(media.id, previous.ui.avatarMediaId), eq(media.userId, userId)));
+    }
+  });
   return getPreferences(db, userId);
 }

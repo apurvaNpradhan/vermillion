@@ -1,3 +1,4 @@
+import { SessionPhotos } from "./components/session-photos";
 import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -87,6 +88,7 @@ export function useFinishFlow({
         cancelLabel={t("session__keep_logging")}
         destructive={ticked === 0}
         confirmLabel={t(ticked === 0 ? "session__discard" : "session__finish")}
+        children={ticked > 0 ? <SessionPhotos sessionId={session.id} /> : null}
         onConfirm={() => void finish()}
         {...(ticked === 0 || session.finishedAt !== null
           ? {}
