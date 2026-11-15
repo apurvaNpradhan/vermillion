@@ -1,5 +1,4 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -7,6 +6,7 @@ import { useTranslation } from "@/platform/i18n";
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";
 import { PrivatePhoto } from "./private-photo";
+import { useReveal } from "./use-reveal";
 import { useHidePhotos } from "./use-hide-photos";
 import { useLatestProgressPhoto } from "./use-progress-photos";
 
@@ -20,7 +20,7 @@ export function PhotoFirstTile() {
   const router = useRouter();
   const latest = useLatestProgressPhoto();
   const hide = useHidePhotos();
-  const [revealed, setRevealed] = useState(false);
+  const reveal = useReveal(hide.hidden);
   const photo = latest.photo;
   if (!photo) {
     return (
@@ -33,7 +33,7 @@ export function PhotoFirstTile() {
     );
   }
   const date = formatCalendarDate(photo.local_date, i18n.language);
-  const hidden = hide.hidden && !revealed;
+  const hidden = reveal.hidden(photo.id);
   return (
     <View className="w-1/2 gap-2 border-b border-separator p-3">
       <PrivatePhoto
@@ -43,7 +43,7 @@ export function PhotoFirstTile() {
         hidden={hidden}
         label={t("body__photo_first_tile", { date })}
         hiddenLabel={t("body__photo_hidden")}
-        onPress={() => (hidden ? setRevealed(true) : router.push("/body/photos"))}
+        onPress={() => (hidden ? reveal.reveal(photo.id) : router.push("/body/photos"))}
       />
       <Text className="text-caption text-muted">
         {t("body__photo_tile", { pose: t(poseLabels[photo.pose]), date })}

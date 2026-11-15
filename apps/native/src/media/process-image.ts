@@ -23,20 +23,18 @@ export async function processImage(
   source: { uri: string; width: number; height: number },
   options: { square: boolean },
 ): Promise<ProcessedImage> {
-  // Loaded on demand: the native module is only needed once the user picks a photo.
-  const { ImageManipulator, SaveFormat } = await import("expo-image-manipulator");
-  const plan = planImage(source.width, source.height, options.square);
-
-  const render = async (size: { width: number; height: number }, quality: number) => {
-    const context = ImageManipulator.manipulate(source.uri);
-    if (plan.crop) context.crop(plan.crop);
-    context.resize(size);
-    const image = await context.renderAsync();
-    return image.saveAsync({ format: SaveFormat.JPEG, compress: quality });
-  };
-
   const rendered: string[] = [];
   try {
+    // Loaded on demand, inside the cleanup scope even if the native module cannot load.
+    const { ImageManipulator, SaveFormat } = await import("expo-image-manipulator");
+    const plan = planImage(source.width, source.height, options.square);
+    const render = async (size: { width: number; height: number }, quality: number) => {
+      const context = ImageManipulator.manipulate(source.uri);
+      if (plan.crop) context.crop(plan.crop);
+      context.resize(size);
+      const image = await context.renderAsync();
+      return image.saveAsync({ format: SaveFormat.JPEG, compress: quality });
+    };
     const full = await render(plan.full, FULL_QUALITY);
     rendered.push(full.uri);
     const thumb = await render(plan.thumb, THUMB_QUALITY);

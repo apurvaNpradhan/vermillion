@@ -1166,5 +1166,11 @@
   "body__photos_since_other": "{{count}} days since last photos",
   "body__photos_none_yet": "Add your first progress photos",
   "body__photo_first_tile": "Latest photo, {{date}}",
-  "body__compare_side_dates": "{{side}} date"
+  "body__compare_side_dates": "{{side}} date",
+  "body__photos_empty_pose": "No {{pose}} photos yet",
+  "body__check_in_not_saved": "Check-in could not be saved. Please select your photos again and retry.",
+  "body__photos_preference_failed": "Privacy choice saved on this device. Account preference could not be updated.",
+  "body__photo_slot_add_optional": "Add {{pose}} photo, Optional",
+  "body__photo_slot_replace_optional": "Replace {{pose}} photo, Optional",
+  "body__compare_date_label": "{{side}}: {{date}}"
 }

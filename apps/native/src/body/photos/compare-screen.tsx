@@ -6,7 +6,6 @@ import {
   formatBodyValue,
   formatBodyWeight,
   photoOnDate,
-  poseDates,
   type ProgressPose,
 } from "@workspace/shared";
 
@@ -21,7 +20,7 @@ import { useWeight } from "../use-weight";
 import { sideStats, statsChange, type SideStats } from "./compare-stats";
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";
-import { useProgressPhotos } from "./use-progress-photos";
+import { useComparePhotos, usePoseDates, usePoseSummaries } from "./use-progress-photos";
 
 const SIDE = 16;
 
@@ -36,7 +35,7 @@ type Picks = { before?: string; after?: string };
 export function CompareScreen() {
   const { t, i18n } = useTranslation();
   const { width, height } = useWindowDimensions();
-  const photos = useProgressPhotos(null);
+  const summaries = usePoseSummaries();
   const weight = useWeight();
   const measurements = useMeasurements();
   const [chosen, setChosen] = useState<ProgressPose | null>(null);
@@ -44,11 +43,18 @@ export function CompareScreen() {
 
   // Until a pose is chosen: the first one that has two dates to compare.
   const pose =
-    chosen ?? PROGRESS_POSES.find((p) => poseDates(photos.photos, p).length >= 2) ?? "front";
-  const dates = poseDates(photos.photos, pose);
+    chosen ??
+    PROGRESS_POSES.find((p) =>
+      summaries.value?.some((summary) => summary.pose === p && summary.dates >= 2),
+    ) ??
+    "front";
+  const recentDates = usePoseDates(pose);
+  const first = summaries.value?.find((summary) => summary.pose === pose)?.first;
+  const dates = [...new Set([...(first ? [first] : []), ...recentDates])].sort();
   const defaults = defaultCompareDates(dates);
   const before = picks.before && dates.includes(picks.before) ? picks.before : defaults.before;
   const after = picks.after && dates.includes(picks.after) ? picks.after : defaults.after;
+  const photos = useComparePhotos(pose, before, after);
   const frame = Math.min(Math.round(((width - SIDE * 2) * 4) / 3), Math.round(height * 0.6));
   const date = (value: string) => formatCalendarDate(value, i18n.language);
 
@@ -146,6 +152,10 @@ export function CompareScreen() {
             key={value}
             size="sm"
             variant={value === selected ? "secondary" : "tertiary"}
+            accessibilityLabel={t("body__compare_date_label", {
+              side: t(side === "before" ? "body__compare_before" : "body__compare_after"),
+              date: date(value),
+            })}
             accessibilityState={{ selected: value === selected }}
             onPress={() => onPick(value)}
           >
@@ -168,6 +178,7 @@ export function CompareScreen() {
             key={value}
             size="sm"
             variant={value === pose ? "secondary" : "tertiary"}
+            accessibilityLabel={t("body__pose_filter", { pose: t(poseLabels[value]) })}
             accessibilityState={{ selected: value === pose }}
             onPress={() => {
               setChosen(value);
@@ -182,11 +193,11 @@ export function CompareScreen() {
         <Button onPress={photos.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
-      ) : photos.loading ? (
+      ) : photos.loading || summaries.loading ? (
         <Text className="text-body text-muted">{t("common__loading")}</Text>
       ) : !ready ? (
         <Text className="text-body text-muted">
-          {t("body__compare_need_two", { pose: t(poseLabels[pose]).toLowerCase() })}
+          {t("body__compare_need_two", { pose: t(poseLabels[pose]) })}
         </Text>
       ) : (
         <>

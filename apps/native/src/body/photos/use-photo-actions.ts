@@ -54,7 +54,7 @@ export function usePhotoActions() {
   /**
    * Saves a Check-in with photos: the measurements, the media and the photos in one transaction
    * (`saveCheckInWithPhotos`). Resolves to whether it was saved. On false nothing was written, the
-   * pending pictures are untouched and `error` says so, so the sheet stays open for another try.
+   * pending files are discarded and `error` asks the reader to pick them again. The sheet stays open.
    */
   const saveCheckIn = useCallback(
     async (
@@ -65,6 +65,7 @@ export function usePhotoActions() {
     ): Promise<boolean> => {
       setSaveError(null);
       if (local?.status !== "ready" || !queue) {
+        for (const image of Object.values(photos)) discardProcessed(image);
         setSaveError(t("body__check_in_not_saved"));
         return false;
       }
@@ -83,6 +84,7 @@ export function usePhotoActions() {
         haptic.confirm();
         return true;
       } catch {
+        for (const image of Object.values(photos)) discardProcessed(image);
         setSaveError(t("body__check_in_not_saved"));
         return false;
       } finally {

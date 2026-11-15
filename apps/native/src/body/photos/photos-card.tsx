@@ -1,5 +1,4 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { daysSince } from "@workspace/shared";
 
@@ -10,6 +9,7 @@ import { usePreferences } from "@/preferences";
 import { formatCalendarDate, localDateIn } from "./local-date";
 import { poseLabels } from "./pose-labels";
 import { PrivatePhoto } from "./private-photo";
+import { useReveal } from "./use-reveal";
 import { useHidePhotos } from "./use-hide-photos";
 import { useLatestProgressPhoto } from "./use-progress-photos";
 
@@ -25,7 +25,7 @@ export function PhotosCard() {
   const latest = useLatestProgressPhoto();
   const hide = useHidePhotos();
   const { preferences } = usePreferences();
-  const [revealed, setRevealed] = useState(false);
+  const reveal = useReveal(hide.hidden);
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const open = () => router.push("/body/photos");
   const photo = latest.photo;
@@ -48,13 +48,13 @@ export function PhotosCard() {
             mediaId={photo.media_id}
             width={THUMB.width}
             height={THUMB.height}
-            hidden={hide.hidden && !revealed}
+            hidden={reveal.hidden(photo.id)}
             label={t("body__photo_tile", {
               pose: t(poseLabels[photo.pose]),
               date: formatCalendarDate(photo.local_date, i18n.language),
             })}
             hiddenLabel={t("body__photo_hidden")}
-            onPress={() => (hide.hidden && !revealed ? setRevealed(true) : open())}
+            onPress={() => (reveal.hidden(photo.id) ? reveal.reveal(photo.id) : open())}
           />
           <Pressable accessibilityRole="button" onPress={open} className="flex-1">
             <Text className="text-body text-muted">

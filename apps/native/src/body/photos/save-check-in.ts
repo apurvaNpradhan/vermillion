@@ -1,5 +1,10 @@
 import { PROGRESS_POSES, type MeasurementInput, type ProgressPose } from "@workspace/shared";
-import { newMediaId, saveCheckIn, type MediaDatabase, type NewProgressPhoto } from "@workspace/sync";
+import {
+  newMediaId,
+  saveCheckIn,
+  type MediaDatabase,
+  type NewProgressPhoto,
+} from "@workspace/sync";
 
 import type { MediaQueue, ProcessedImage } from "@/media";
 
@@ -33,8 +38,12 @@ export async function saveCheckInWithPhotos(args: {
   takenAt: string;
   localDate: string;
 }): Promise<void> {
-  const staged: Array<{ mediaId: string; clone: ProcessedImage; original: ProcessedImage; pose: ProgressPose }> =
-    [];
+  const staged: Array<{
+    mediaId: string;
+    clone: ProcessedImage;
+    original: ProcessedImage;
+    pose: ProgressPose;
+  }> = [];
   const dropStaged = async () => {
     for (const item of staged) {
       await args.queue.discard(item.mediaId).catch(() => undefined);
@@ -63,11 +72,7 @@ export async function saveCheckInWithPhotos(args: {
         thumbBytes: original.thumbBytes,
       },
     }));
-    await saveCheckIn(
-      args.database,
-      { measurements: args.measurements, photos },
-      args.scope,
-    );
+    await saveCheckIn(args.database, { measurements: args.measurements, photos }, args.scope);
   } catch (error) {
     await dropStaged();
     throw error;

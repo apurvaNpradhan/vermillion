@@ -37,6 +37,15 @@ describe("progress photo watches", () => {
     expect((bigger.at(-1) as { local_date: string }).local_date).toBe("2026-01-01");
   });
 
+  it("can read beyond the old 500-photo cutoff", () => {
+    const s = setup();
+    for (let n = 0; n < 610; n++) s.add("front", "2026-01-01");
+    expect(s.sqlite.prepare(progressPhotosSql(false, 631)).all()).toHaveLength(610);
+    expect(parsePoseSummaries(s.sqlite.prepare(POSE_SUMMARY_SQL).all())).toEqual([
+      { pose: "front", first: "2026-01-01", last: "2026-01-01", dates: 1 },
+    ]);
+  });
+
   it("filters the gallery by pose", () => {
     const s = setup();
     s.add("front", "2026-01-01");

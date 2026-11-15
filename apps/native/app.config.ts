@@ -21,7 +21,8 @@ import { appConfig } from "../../app.config.ts";
 // 12: expo-navigation-bar for theme-resolved Android system bar controls.
 // 13: local Android workout-live module, promoted ongoing notification permission.
 // 14: camera permission for progress photos (expo-image-picker's manifest and Info.plist entries).
-const NATIVE_STACK_REVISION = 14;
+// 15: photo-library permission copy covers all user image features.
+const NATIVE_STACK_REVISION = 15;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -90,7 +91,8 @@ const config: ExpoConfig = {
     [
       "expo-image-picker",
       {
-        photosPermission: "Allow $(PRODUCT_NAME) to use a photo as a program cover.",
+        photosPermission:
+          "Allow $(PRODUCT_NAME) to access photos for covers, exercise images, progress photos and workout photos.",
         cameraPermission: "Allow $(PRODUCT_NAME) to take progress photos.",
         microphonePermission: false,
       },

@@ -1,4 +1,4 @@
-import type { AbstractPowerSyncDatabase } from "@powersync/common";
+import type { AbstractPowerSyncDatabase, SqliteRecord } from "@powersync/common";
 import { PROGRESS_POSES } from "@workspace/shared";
 import { z } from "zod";
 
@@ -35,14 +35,12 @@ function watch(db: AbstractPowerSyncDatabase, sql: string, params: string[], han
 
 /** Photos one page of the gallery reads; the screen asks for more as the reader scrolls. */
 export const PHOTO_PAGE_SIZE = 90;
-/** The most photos any one watch reads, whatever a caller asks for. */
-const PHOTO_MAX_LIMIT = 5000;
 
 const ORDER = "ORDER BY local_date DESC, julianday(taken_at) DESC, id DESC";
 
 /** The SQL of the gallery: newest first, optionally of one pose, limited to a whole number. */
 export function progressPhotosSql(byPose: boolean, limit: number) {
-  const bounded = Math.min(Math.max(Math.trunc(limit), 1), PHOTO_MAX_LIMIT);
+  const bounded = Math.max(Math.trunc(limit), 1);
   return `SELECT * FROM progress_photo ${byPose ? "WHERE pose = ? " : ""}${ORDER} LIMIT ${bounded}`;
 }
 
@@ -69,12 +67,17 @@ const summaryRowSchema = z.array(
   }),
 );
 /** What Compare knows of each pose, in one row per pose, however many photos there are. */
-export type PoseSummary = { pose: (typeof PROGRESS_POSES)[number]; first: string; last: string; dates: number };
+export type PoseSummary = {
+  pose: (typeof PROGRESS_POSES)[number];
+  first: string;
+  last: string;
+  dates: number;
+};
 
 export const POSE_SUMMARY_SQL = `SELECT pose, MIN(local_date) AS first_date, MAX(local_date) AS last_date,
   COUNT(DISTINCT local_date) AS dates FROM progress_photo GROUP BY pose`;
 
-export function parsePoseSummaries(rows: unknown): PoseSummary[] | null {
+export function parsePoseSummaries(rows: readonly SqliteRecord[]): PoseSummary[] | null {
   const parsed = summaryRowSchema.safeParse(rows);
   return parsed.success
     ? parsed.data.map((row) => ({
@@ -118,7 +121,7 @@ export const POSE_DATES_SQL = `SELECT local_date FROM progress_photo WHERE pose 
 
 const dateRowSchema = z.array(z.object({ local_date: z.string() }));
 
-export function parsePoseDates(rows: unknown): string[] | null {
+export function parsePoseDates(rows: readonly SqliteRecord[]): string[] | null {
   const parsed = dateRowSchema.safeParse(rows);
   return parsed.success ? parsed.data.map((row) => row.local_date).sort() : null;
 }
