@@ -2,7 +2,7 @@ import { setProgramCover, setProgramCoverToNewMedia, newMediaId } from "@workspa
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback, useState } from "react";
 
-import { pickImage } from "@/media";
+import { pickImage, saveWithMedia } from "@/media";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalData } from "@/sync";
@@ -27,35 +27,37 @@ export function useProgramCover(programId: string) {
   const pick = useCallback(async () => {
     if (!queue) return false;
     setBusy(true);
-    let mediaId: string | null = null;
     try {
       const picked = await pickImage({ square: true });
       if (picked === null) return false;
-      mediaId = newMediaId();
-      // Files first, row after (the queue keeps an upload until its media row exists).
-      await queue.addFiles(mediaId, { fullUri: picked.fullUri, thumbUri: picked.thumbUri });
-      const id = mediaId;
-      const saved = await write(async (db) => {
-        const result = await setProgramCoverToNewMedia(
-          db,
-          programId,
-          {
-            id,
-            width: picked.width,
-            height: picked.height,
-            bytes: picked.bytes,
-            thumbBytes: picked.thumbBytes,
-          },
-          writeScope,
-        );
-        if (result.replaced !== null) await queue.discard(result.replaced);
-        haptic.confirm();
-        return true;
-      }, false);
-      if (!saved) await queue.discard(id);
+      const id = newMediaId();
+      // Files first, row after. A write that fails (the toast is `write`'s) drops the new files;
+      // one that committed keeps them even if the old cover's files cannot be removed.
+      const saved = await saveWithMedia(
+        queue,
+        { fullUri: picked.fullUri, thumbUri: picked.thumbUri },
+        id,
+        () =>
+          write(
+            (db) =>
+              setProgramCoverToNewMedia(
+                db,
+                programId,
+                {
+                  id,
+                  width: picked.width,
+                  height: picked.height,
+                  bytes: picked.bytes,
+                  thumbBytes: picked.thumbBytes,
+                },
+                writeScope,
+              ),
+            null,
+          ),
+      );
+      if (saved) haptic.confirm();
       return saved;
     } catch {
-      if (mediaId !== null) await queue.discard(mediaId).catch(() => undefined);
       toast.show({ variant: "danger", label: t("training__cover_failed") });
       return false;
     } finally {
@@ -67,7 +69,8 @@ export function useProgramCover(programId: string) {
     () =>
       write(async (db) => {
         const replaced = await setProgramCover(db, programId, null, writeScope);
-        if (replaced !== null) await queue?.discard(replaced);
+        // The removal committed; dropping the old files is best effort.
+        if (replaced !== null) await queue?.discard(replaced).catch(() => undefined);
         haptic.confirm();
         return true;
       }, false),

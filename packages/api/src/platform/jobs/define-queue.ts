@@ -61,14 +61,16 @@ export type AnyQueue = {
   work(boss: PgBoss, services: Services, defaults: QueueDefaults): Promise<void>;
 };
 
+/** Per-job options of a send. */
+export type SendOptions = {
+  singletonKey?: string;
+  /** The job is not picked up before this many seconds have passed. */
+  startAfterSeconds?: number;
+};
+
 export type Queue<T extends object = object> = AnyQueue & {
   /** Validates and sends one job. */
-  send(
-    boss: PgBoss,
-    data: T,
-    defaults: QueueDefaults,
-    options?: { singletonKey?: string },
-  ): Promise<void>;
+  send(boss: PgBoss, data: T, defaults: QueueDefaults, options?: SendOptions): Promise<void>;
 };
 
 export function defineQueue<T extends object>(definition: QueueDefinition<T>): Queue<T> {
@@ -95,7 +97,10 @@ export function defineQueue<T extends object>(definition: QueueDefinition<T>): Q
     name,
     async send(boss, data, defaults, options = {}) {
       await ensureQueue(boss, defaults);
-      await boss.send(name, schema.parse(data), { singletonKey: options.singletonKey });
+      await boss.send(name, schema.parse(data), {
+        singletonKey: options.singletonKey,
+        startAfter: options.startAfterSeconds,
+      });
     },
     async work(boss, services, defaults) {
       await ensureQueue(boss, defaults);

@@ -1,4 +1,4 @@
-import { purgeUserMedia } from "../media/index";
+import { purgeUserMedia, retireUserMedia } from "../media/index";
 import { purgePreferences } from "../preferences/index";
 import type { Services } from "./services";
 
@@ -23,4 +23,12 @@ export async function purgeUserData(
   userId: string,
 ) {
   for (const purge of purgers) await purge(services, userId);
+}
+
+/**
+ * Runs first when an account deletion begins, before anything is purged: whatever a user could
+ * still start with the data about to go (a signed URL for an upload) is stopped. Idempotent.
+ */
+export async function retireUserData(services: Pick<Services, "db">, userId: string) {
+  await retireUserMedia(services.db, userId);
 }

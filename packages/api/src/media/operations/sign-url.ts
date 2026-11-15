@@ -1,12 +1,15 @@
 import { ORPCError } from "@orpc/server";
 import type { Database } from "@workspace/db";
-import { mediaObjectKey, MEDIA_MIME, type MediaVariant } from "@workspace/shared";
+import {
+  mediaObjectKey,
+  MEDIA_MIME,
+  MEDIA_UPLOAD_URL_SECONDS,
+  type MediaVariant,
+} from "@workspace/shared";
 
 import type { ObjectStore } from "../storage";
 import { findLiveMedia } from "./lookup";
 
-/** A PUT is valid for 5 minutes: long enough for a slow upload, too short to share. */
-export const UPLOAD_URL_SECONDS = 5 * 60;
 /** A GET is valid for 1 hour: an image view signs once and the device stores the file. */
 export const DOWNLOAD_URL_SECONDS = 60 * 60;
 
@@ -33,7 +36,7 @@ export async function signUpload(
   const signed = await context.objectStore.signPut(mediaObjectKey(userId, row.id, variant), {
     contentType: MEDIA_MIME,
     contentLength: variant === "thumb" ? row.thumbBytes : row.bytes,
-    expiresInSeconds: UPLOAD_URL_SECONDS,
+    expiresInSeconds: MEDIA_UPLOAD_URL_SECONDS,
   });
   return { url: signed.url, expiresAt: signed.expiresAt.toISOString(), headers: signed.headers };
 }

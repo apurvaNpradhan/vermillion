@@ -1,4 +1,4 @@
-import { accountCleanupQueue } from "../../account/index";
+import { accountCleanupQueue, accountFinalPurgeQueue } from "../../account/index";
 import { sendEmailQueue } from "../../auth/index";
 import { mediaPurgeQueue } from "../../media/index";
 import { syncPurgeQueue } from "../sync/purge";
@@ -9,6 +9,7 @@ import type { AnyQueue } from "./define-queue";
 export const queues: readonly AnyQueue[] = [
   sendEmailQueue,
   accountCleanupQueue,
+  accountFinalPurgeQueue,
   slotLagQueue,
   syncPurgeQueue,
   mediaPurgeQueue,
