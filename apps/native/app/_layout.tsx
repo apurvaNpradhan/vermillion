@@ -26,6 +26,8 @@ import {
   useSession,
   useSignedOut,
 } from "@/auth";
+import { BodyReminderHost } from "@/body";
+import { useNotificationNavigation } from "@/platform/navigation/use-notification-navigation";
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 import { AppProviders } from "@/platform/providers";
@@ -70,6 +72,7 @@ function RootStack() {
   const isPending = guards === null || (!fontsLoaded && !fontError);
   // Keep the destination until onboarding is complete and the protected stack is mounted.
   useAuthReturn(Boolean(session), !isPending && guards?.app === true);
+  useNotificationNavigation(!isPending && guards?.app === true);
 
   useEffect(() => {
     if (!isPending) void SplashScreen.hideAsync();
@@ -81,6 +84,7 @@ function RootStack() {
       {guards.app && (
         <>
           <RestNotificationHost />
+          <BodyReminderHost />
           <WorkoutLiveHost />
         </>
       )}

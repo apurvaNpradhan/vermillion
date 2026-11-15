@@ -27,7 +27,13 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
  * a missing row, a missing key and an old row all read the same way. Unknown
  * keys are dropped. Add new settings here with a default.
  */
+const reminderTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const weighInReminder = z.object({ enabled: z.boolean(), time: reminderTime });
+const checkInReminder = weighInReminder.extend({ weekday: z.number().int().min(1).max(7) });
+
 const uiFields = {
+  weighInReminder,
+  checkInReminder,
   lengthUnit: z.enum(["cm", "in"]),
   heightCm: z.number().min(100).max(250).nullable(),
   trackedMetrics: z.array(z.enum(BODY_METRICS)).max(14),
@@ -48,6 +54,12 @@ const uiFields = {
 };
 export const uiPreferencesSchema = z
   .object({
+    weighInReminder: uiFields.weighInReminder.default({ enabled: false, time: "08:00" }),
+    checkInReminder: uiFields.checkInReminder.default({
+      enabled: false,
+      weekday: 1,
+      time: "09:00",
+    }),
     lengthUnit: uiFields.lengthUnit.optional(),
     heightCm: uiFields.heightCm.default(null),
     trackedMetrics: uiFields.trackedMetrics.default(DEFAULT_TRACKED_METRICS),

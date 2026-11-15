@@ -8,3 +8,6 @@ export { MetricScreen } from "./metric-screen";
 export { TrackedMetricsScreen } from "./tracked-metrics-screen";
 export { HeightRow } from "./height-row";
 export { MeasurementsCard, WeighInHabitCard } from "./measurement-cards";
+
+export { BodyReminderHost } from "./body-reminder-host";
+export { BodyReminderSettings } from "./body-reminder-settings";

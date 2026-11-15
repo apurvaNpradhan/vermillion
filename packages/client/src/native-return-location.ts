@@ -1,6 +1,8 @@
 const DESTINATIONS = [
   "/",
   "/exercises",
+  "/body/weight",
+  "/body/measurements",
   "/settings",
   "/settings/profile",
   "/confirm-deletion",

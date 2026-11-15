@@ -16,3 +16,6 @@ export { doneSummary } from "./summary";
 export { usePreviousSets } from "./use-previous-sets";
 
 export { WorkoutLiveHost } from "./components/workout-live-host";
+export { createRestReconciler } from "./rest-reconciler";
+export { getRestPermission } from "./rest-notification";
+export { askRestPermission } from "./rest-permission-store";
