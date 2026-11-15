@@ -8,6 +8,8 @@ import { useLocalData } from "@/sync";
 
 import { mediaFile, type MediaFile, type MediaFileState } from "./media-state";
 
+import { useImageBatch } from "./media-image-batch";
+
 const fileRow = z.array(
   z.object({ state: z.number().nullable(), local_uri: z.string().nullable() }),
 );
@@ -32,6 +34,8 @@ export type MediaImageState = {
  * with a size cap. A media row renders at once from the local file while it uploads.
  */
 export function useMediaImage(mediaId: string | null, variant: MediaVariant): MediaImageState {
+  const batch = useImageBatch();
+  const batched = variant === "thumb" && batch !== null;
   const local = useLocalData();
   const queue = local?.status === "ready" ? local.media : null;
   const attachmentId = mediaId === null ? null : mediaAttachmentId(mediaId, variant);
@@ -42,7 +46,7 @@ export function useMediaImage(mediaId: string | null, variant: MediaVariant): Me
       onValue: (row: { present: boolean; state: number | null; uri: string | null }) => void,
       onError: () => void,
     ) => {
-      if (mediaId === null || attachmentId === null) {
+      if (batched || mediaId === null || attachmentId === null) {
         onValue({ present: false, state: null, uri: null });
         return () => undefined;
       }
@@ -65,9 +69,10 @@ export function useMediaImage(mediaId: string | null, variant: MediaVariant): Me
       );
       return () => controller.abort();
     },
-    [mediaId, attachmentId],
+    [mediaId, attachmentId, batched],
   );
-  const { value } = useLocalWatch(subscribe);
+  const watched = useLocalWatch(subscribe);
+  const value = batched ? batch?.get(mediaId ?? "") : watched.value;
 
   const failed = useSyncExternalStore(
     queue ? queue.failures.subscribe : noSubscription,

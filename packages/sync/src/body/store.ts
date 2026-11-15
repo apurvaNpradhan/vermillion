@@ -26,6 +26,21 @@ async function write<T>(
     return run(tx, owner.user_id);
   });
 }
+/** Writes one validated measurement inside a transaction the caller owns. Returns its id. */
+export async function insertMeasurement(
+  tx: Tx,
+  owner: string,
+  value: MeasurementInput,
+): Promise<string> {
+  const id = uuidv7();
+  await tx.insert(bodyMeasurement).values({
+    ...value,
+    id,
+    user_id: owner,
+    created_at: new Date().toISOString(),
+  });
+  return id;
+}
 export function logMeasurements(
   db: AbstractPowerSyncDatabase,
   entries: readonly MeasurementInput[],
@@ -37,16 +52,7 @@ export function logMeasurements(
   return (async () => {
     const ids: string[] = [];
     for (const value of values) {
-      const id = uuidv7();
-      await write(db, scope, async (tx, owner) => {
-        await tx.insert(bodyMeasurement).values({
-          ...value,
-          id,
-          user_id: owner,
-          created_at: new Date().toISOString(),
-        });
-      });
-      ids.push(id);
+      ids.push(await write(db, scope, (tx, owner) => insertMeasurement(tx, owner, value)));
     }
     return ids;
   })();

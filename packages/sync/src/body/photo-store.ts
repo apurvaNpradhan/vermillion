@@ -8,6 +8,7 @@ import {
   removeMedia,
   writeMedia,
   type MediaDatabase,
+  type MediaTx,
   type NewMedia,
 } from "../media";
 import { progressPhoto } from "./tables";
@@ -24,38 +25,40 @@ export type NewProgressPhoto = Pick<ProgressPhotoInput, "pose" | "local_date" | 
  * Adds a progress photo (ADR 0041): the `media` row and the photo that points at it are written in
  * one local transaction, so they upload as one unit and the server never sees a reference to a
  * media it has not got (`setProgramCoverToNewMedia` is the pattern). The photo shows at once from
- * the local file. Each photo is its own transaction, so a Check-in's rejected photo cannot take
- * its siblings with it. Returns the photo's id.
+ * the local file. Returns the photo's id. A Check-in with photos uses `saveCheckIn` instead.
  */
 export function addProgressPhoto(
   database: MediaDatabase,
   input: NewProgressPhoto,
   expectedInstallId?: string,
 ): Promise<string> {
-  return writeMedia(database, expectedInstallId, async (tx) => {
-    const values = progressPhotoInput.parse({
-      media_id: input.media.id,
-      pose: input.pose,
-      local_date: input.local_date,
-      taken_at: input.taken_at,
-    });
-    // The media goes first: its upload must precede the PUT that references it.
-    const mediaId = await insertMedia(tx, { ...input.media, kind: "progress_photo" });
-    const [owner] = await tx
-      .select({ userId: media.user_id })
-      .from(media)
-      .where(eq(media.id, mediaId))
-      .limit(1);
-    if (!owner) throw new Error("The media was not written");
-    const id = uuidv7();
-    await tx.insert(progressPhoto).values({
-      id,
-      user_id: owner.userId,
-      ...values,
-      created_at: new Date().toISOString(),
-    });
-    return id;
+  return writeMedia(database, expectedInstallId, (tx) => insertProgressPhoto(tx, input));
+}
+
+/** Writes a photo's media row and the photo inside a transaction the caller owns. Returns the id. */
+export async function insertProgressPhoto(tx: MediaTx, input: NewProgressPhoto): Promise<string> {
+  const values = progressPhotoInput.parse({
+    media_id: input.media.id,
+    pose: input.pose,
+    local_date: input.local_date,
+    taken_at: input.taken_at,
   });
+  // The media goes first: its upload must precede the PUT that references it.
+  const mediaId = await insertMedia(tx, { ...input.media, kind: "progress_photo" });
+  const [owner] = await tx
+    .select({ userId: media.user_id })
+    .from(media)
+    .where(eq(media.id, mediaId))
+    .limit(1);
+  if (!owner) throw new Error("The media was not written");
+  const id = uuidv7();
+  await tx.insert(progressPhoto).values({
+    id,
+    user_id: owner.userId,
+    ...values,
+    created_at: new Date().toISOString(),
+  });
+  return id;
 }
 
 /**

@@ -67,6 +67,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
       CREATE TABLE progress_photo (id TEXT PRIMARY KEY, user_id TEXT, media_id TEXT, pose TEXT,
         taken_at TEXT, local_date TEXT, created_at TEXT);
+      CREATE TABLE body_measurement (id TEXT PRIMARY KEY, user_id TEXT, metric TEXT, value REAL,
+        measured_at TEXT, local_date TEXT, source TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE attachments (id TEXT PRIMARY KEY, filename TEXT, local_uri TEXT, timestamp INTEGER,
         size INTEGER, media_type TEXT, state INTEGER, has_synced INTEGER, meta_data TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
@@ -106,9 +108,26 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     }),
   };
 
+  let depth = 0;
   const database = {
     ...tx,
-    writeTransaction: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
+    // A real SQLite transaction: a throw rolls every write back, like PowerSync's. Nested calls
+    // join the outer one.
+    writeTransaction: async <T>(fn: (t: typeof tx) => Promise<T>) => {
+      if (depth > 0) return fn(tx);
+      sqlite.exec("BEGIN");
+      depth += 1;
+      try {
+        const result = await fn(tx);
+        sqlite.exec("COMMIT");
+        return result;
+      } catch (error) {
+        sqlite.exec("ROLLBACK");
+        throw error;
+      } finally {
+        depth -= 1;
+      }
+    },
     readLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
     writeLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
     getNextCrudTransaction: async () => {
@@ -161,6 +180,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "gym_equipment",
         "exercise_setting",
         "media",
+        "progress_photo",
+        "body_measurement",
         "attachments",
         "device_owner",
         "install_meta",

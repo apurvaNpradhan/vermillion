@@ -1,15 +1,16 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { BottomSheet } from "heroui-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Pressable, ScrollView, Text } from "react-native";
 import { changedCanonical, lastN, type BodyMetric, type MeasurementInput } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
 import { Button } from "@/platform/ui/button";
-import { useAppToast } from "@/platform/ui/use-app-toast";
+import { discardProcessed } from "@/media";
+import { createPendingPhotos } from "./photos/pending-photos";
 import { PhotoSlots } from "./photos/photo-slots";
-import { usePhotoActions, type PendingPhotos } from "./photos/use-photo-actions";
+import { usePhotoActions } from "./photos/use-photo-actions";
 import { MeasurementDate } from "./measurement-date";
 import { metricLabels } from "./metric-labels";
 import { useMeasurements } from "./use-measurements";
@@ -25,10 +26,14 @@ function CheckInForm({
 }) {
   const actions = useMeasurementActions();
   const photoActions = usePhotoActions();
-  const { toast } = useAppToast();
   const { t } = useTranslation();
   // Photos picked for this Check-in: processed already, written with the rest on Save.
-  const [photos, setPhotos] = useState<PendingPhotos>({});
+  const [photoStore] = useState(() => createPendingPhotos(discardProcessed));
+  const photos = useSyncExternalStore(photoStore.subscribe, photoStore.getSnapshot);
+  useEffect(() => {
+    photoStore.reopen();
+    return () => photoStore.dispose();
+  }, [photoStore]);
   const busy = actions.busy || photoActions.busy;
   const metrics: BodyMetric[] = entry ? [entry.metric] : [...state.tracked, "weight"];
   const [active, setActive] = useState(0);
@@ -82,13 +87,16 @@ function CheckInForm({
       );
       const hasPhotos = Object.keys(photos).length > 0;
       if (!rows.length && !hasPhotos) return;
-      if (rows.length && !(await actions.save(rows))) return;
       if (hasPhotos) {
-        const failed = await photoActions.save(photos, value.date, state.localDate(value.date));
-        // The measurements are saved already, so the sheet closes either way: saving them again
-        // for a retry would log every one twice.
-        if (failed > 0) toast.show({ variant: "danger", label: t("body__photos_not_saved") });
-      }
+        if (
+          !(await photoActions.saveCheckIn(rows, photos, value.date, state.localDate(value.date)))
+        ) {
+          photoStore.dispose();
+          photoStore.reopen();
+          return;
+        }
+        photoStore.release();
+      } else if (!(await actions.save(rows))) return;
       onClose();
     },
   });
@@ -122,14 +130,7 @@ function CheckInForm({
           <BottomSheet.Title>
             {t(entry ? "body__edit_measurement" : "body__check_in")}
           </BottomSheet.Title>
-          {entry ? null : (
-            <PhotoSlots
-              pending={photos}
-              onChange={setPhotos}
-              actions={photoActions}
-              disabled={busy}
-            />
-          )}
+          {entry ? null : <PhotoSlots store={photoStore} actions={photoActions} disabled={busy} />}
           <MeasurementDate
             value={date}
             timeZone={state.zone}
@@ -161,9 +162,9 @@ function CheckInForm({
               </Pressable>
             ))}
           </ScrollView>
-          {actions.error ? (
+          {actions.error || photoActions.error ? (
             <Text accessibilityRole="alert" className="text-body text-danger">
-              {actions.error}
+              {actions.error || photoActions.error}
             </Text>
           ) : null}
           <Button

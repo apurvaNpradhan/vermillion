@@ -1176,5 +1176,11 @@
   "media__photo_changed": "Photo changed",
   "media__open_photo": "Open photo {{index}}",
   "media__photo_count_one": "{{count}} photo",
-  "media__photo_count_other": "{{count}} photos"
+  "media__photo_count_other": "{{count}} photos",
+  "body__photos_empty_pose": "No {{pose}} photos yet",
+  "body__check_in_not_saved": "Check-in could not be saved. Please select your photos again and retry.",
+  "body__photos_preference_failed": "Privacy choice saved on this device. Account preference could not be updated.",
+  "body__photo_slot_add_optional": "Add {{pose}} photo, Optional",
+  "body__photo_slot_replace_optional": "Replace {{pose}} photo, Optional",
+  "body__compare_date_label": "{{side}}: {{date}}"
 }

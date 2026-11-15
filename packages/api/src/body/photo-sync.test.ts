@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { uuidv7 } from "@workspace/db/columns";
 import { computeOpsDigest, SYNC_SCHEMA_VERSION, type SyncOp } from "@workspace/shared";
 import { sql } from "drizzle-orm";
@@ -114,6 +116,30 @@ describe("progress photo uploads", () => {
       status: "rejected",
       code: "MEDIA_REFERENCE_INVALID",
     });
+  });
+
+  it("refuses a photo of the writer's own deleted media", async () => {
+    const a = await writer();
+    const media = a.mediaOp();
+    await a.send([media]);
+    expect(await a.send([{ op: "DELETE", table: "media", id: media.id }])).toMatchObject({
+      status: "applied",
+    });
+    expect(await a.send([putPhoto(media.id)])).toMatchObject({
+      status: "rejected",
+      code: "MEDIA_REFERENCE_INVALID",
+    });
+  });
+
+  it("refuses a photo id that is not a UUIDv7 and writes nothing", async () => {
+    const a = await writer();
+    const media = a.mediaOp();
+    await a.send([media]);
+    const id = randomUUID();
+    expect(
+      await a.send([{ op: "PUT", table: "progress_photo", id, opData: photoData(media.id) }]),
+    ).toMatchObject({ status: "rejected", code: "SYNC_INVALID_OP" });
+    expect(await app.rows(sql`SELECT id FROM progress_photo WHERE id = ${id}`)).toEqual([]);
   });
 
   it("refuses unknown poses, bad dates, foreign ownership fields and a reused media", async () => {

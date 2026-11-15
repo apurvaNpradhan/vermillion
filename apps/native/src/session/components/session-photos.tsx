@@ -1,20 +1,20 @@
+import { useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
-import { MediaImage } from "@/media";
+import { MediaImage, MediaViewer } from "@/media";
 import { Button } from "@/platform/ui/button";
 import { useTranslation } from "@/platform/i18n";
 import { useSessionPhotos } from "../use-session-photos";
-/** The shared full-screen viewer connects through onOpenPhoto in the consuming screen. */
+/** A Session's photos as a strip; tapping one opens the shared full-screen viewer on it. */
 export function SessionPhotos({
   sessionId,
-  onOpenPhoto,
   readOnly = false,
 }: {
   sessionId: string;
-  onOpenPhoto?: (index: number) => void;
   readOnly?: boolean;
 }) {
   const state = useSessionPhotos(sessionId);
   const { t } = useTranslation();
+  const [viewing, setViewing] = useState<number | null>(null);
   if (state.failed)
     return (
       <Button onPress={state.retry}>
@@ -35,8 +35,7 @@ export function SessionPhotos({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("media__open_photo", { index: index + 1 })}
-              disabled={!onOpenPhoto}
-              onPress={() => onOpenPhoto?.(index)}
+              onPress={() => setViewing(index)}
             >
               <MediaImage mediaId={photo.media_id} size={readOnly ? 40 : 112} />
             </Pressable>
@@ -57,6 +56,14 @@ export function SessionPhotos({
             <Button.Label>{t("media__camera")}</Button.Label>
           </Button>
         </View>
+      ) : null}
+      {viewing !== null && state.photos.length ? (
+        <MediaViewer
+          mediaIds={state.photos.map((photo) => photo.media_id)}
+          index={Math.min(viewing, state.photos.length - 1)}
+          onIndexChange={setViewing}
+          onClose={() => setViewing(null)}
+        />
       ) : null}
     </View>
   );

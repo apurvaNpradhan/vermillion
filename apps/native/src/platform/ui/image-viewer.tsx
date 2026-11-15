@@ -215,8 +215,8 @@ function ZoomPage({
       shrink.value = dragScale(event.translationY, H);
       fade.value = dragFade(event.translationY, H);
     })
-    .onEnd((event) => {
-      if (shouldDismiss(event.translationY, event.velocityY)) {
+    .onEnd((event, success) => {
+      if (success && shouldDismiss(event.translationY, event.velocityY)) {
         const away = Math.sign(event.translationY || 1) * H * 0.3;
         fade.value = withTiming(0, { duration: 140 });
         dragY.value = withTiming(dragY.value + away, { duration: 140 }, (finished) => {
@@ -330,9 +330,9 @@ export function ImageViewer({
 
   // A rotation re-lays the pages out, so the open one is brought back into view.
   useEffect(() => {
-    list.current?.scrollToIndex({ index: page, animated: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewport.width]);
+    if (count) list.current?.scrollToIndex({ index: page, animated: false });
+    if (page !== index) onIndexChange(page);
+  }, [viewport.width, page, count, items, index, onIndexChange]);
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
   const chromeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
