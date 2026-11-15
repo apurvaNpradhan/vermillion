@@ -37,3 +37,5 @@ export {
 export { rejectedExercisePayloadTitle, rejectedExerciseTitle } from "./rejected";
 export { watchCatalogThumbnailKeys } from "./thumbnails";
 export { retiredExerciseIds } from "./retired";
+
+export { setExerciseImage } from "./image-store";

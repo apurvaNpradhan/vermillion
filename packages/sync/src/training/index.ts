@@ -183,3 +183,6 @@ export {
   reconcileRuns,
 } from "./run-store";
 export { programRun } from "./tables";
+
+export { addSessionPhoto, removeSessionPhoto, moveSessionPhoto } from "./photo-store";
+export { watchSessionPhotos, type SessionPhoto } from "./photo-watch";

@@ -1,7 +1,7 @@
 import type { DbExecutor } from "@workspace/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
-import { session, sessionExercise, sessionSet } from "../tables";
+import { session, sessionExercise, sessionSet, sessionPhoto } from "../tables";
 
 /**
  * Deleting a Session is a soft delete with one timestamp, and so is everything it takes with it.
@@ -18,6 +18,10 @@ const exerciseIdsOfSession = (db: DbExecutor, sessionId: string) =>
 /** Soft-deletes a Session with its exercises and their sets. */
 export async function deleteSessionCascade(db: DbExecutor, id: string, now: Date) {
   const mark = { deletedAt: now, updatedAt: now };
+  await db
+    .update(sessionPhoto)
+    .set(mark)
+    .where(and(eq(sessionPhoto.sessionId, id), isNull(sessionPhoto.deletedAt)));
   await db
     .update(sessionSet)
     .set(mark)
@@ -55,6 +59,10 @@ const live = { deletedAt: null } as const;
 /** Brings back what `deleteSessionCascade` took down at `at`, then the Session itself. */
 export async function restoreSessionCascade(db: DbExecutor, id: string, at: Date, now: Date) {
   const mark = { ...live, updatedAt: now };
+  await db
+    .update(sessionPhoto)
+    .set(mark)
+    .where(and(eq(sessionPhoto.sessionId, id), eq(sessionPhoto.deletedAt, at)));
   await db
     .update(sessionSet)
     .set(mark)

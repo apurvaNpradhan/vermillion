@@ -1,12 +1,13 @@
 # Media
 
-User images (covers, later avatars and photos) live in a private R2 bucket; the app is local-first, so a row renders offline and its file arrives later. Decisions: [ADR 0040](../docs/adr/0040-user-media.md); plan: [docs/specs/media/](../docs/specs/media/). Terms: Media, Media reference, Catalog media in [CONTEXT.md](../CONTEXT.md).
+User images (covers, exercise images, avatars and Session photos) live in a private R2 bucket; the app is local-first, so a row renders offline and its file arrives later. Decisions: [ADR 0040](../docs/adr/0040-user-media.md); plan: [docs/specs/media/](../docs/specs/media/). Terms: Media, Media reference, Catalog media in [CONTEXT.md](../CONTEXT.md).
 
 ## Layout
 
 - `packages/shared/src/media.ts`: kinds, variants, limits, `mediaObjectKey`, attachment ids, sizing maths.
 - `packages/api/src/media/`: `tables.ts` (`media`), `storage.ts` (`ObjectStore` on `aws4fetch`), `procedures.ts` (`media.uploadUrl`, `media.downloadUrl`), `sync.ts` (upload handler), `reference.ts` (`assertMediaReference` for other verticals' rows), `purge.ts` (hourly `media.purge-objects`), `operations/`.
 - `packages/sync/src/media/`: client `media` table, the local-only `attachments` table (owned by PowerSync's `AttachmentQueue`), `createMedia` / `deleteMedia`, and the transaction helpers (`insertMedia`, `removeMedia`) that reference stores use.
+- `packages/sync/src/training/photo-store.ts`: atomic Session photo/media writes; `photo-watch.ts` reads the ordered strip. `exercise/image-store.ts` replaces Custom exercise images.
 - `apps/native/src/media/`: `process-image.ts` (re-encode), `attachment-queue.ts`, `local-storage.ts` and `remote-storage.ts` (the queue's adapters), `use-media-image.ts`, `MediaImage`.
 
 ## Rules

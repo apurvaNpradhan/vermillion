@@ -1,3 +1,4 @@
+import { SessionPhotos } from "./session-photos";
 import { useWeight } from "@/body";
 import { recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -160,6 +161,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   <Text className="text-body text-foreground">{session.note}</Text>
                 ) : null}
               </View>
+              <SessionPhotos sessionId={id} />
               <MuscleDistribution
                 preview
                 split
@@ -214,6 +216,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     <View key={entry.id} className="gap-1 py-2">
                       <ExerciseHeading
                         title={entry.title}
+                        imageMediaId={entry.exercise?.imageMediaId}
                         thumbnailKey={entry.exercise?.thumbnailKey ?? null}
                         onPress={() =>
                           router.push({

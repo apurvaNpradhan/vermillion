@@ -1,3 +1,4 @@
+import { SessionPhotos } from "./session-photos";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { sessionTotals } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
@@ -117,6 +118,7 @@ export function HistoryScreen() {
                   className="gap-1 py-3 active:bg-default"
                 >
                   <Text className="text-title-md text-foreground">{session.title}</Text>
+                  <SessionPhotos sessionId={session.id} readOnly />
                   <Text className="text-body text-muted">
                     {t("session__history_row", {
                       date: new Intl.DateTimeFormat(i18n.language, {

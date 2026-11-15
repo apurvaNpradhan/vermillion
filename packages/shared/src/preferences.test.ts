@@ -11,6 +11,7 @@ import {
 describe("ui preferences schema", () => {
   it("fills every default for an empty or missing value", () => {
     const defaults = {
+      avatarMediaId: null,
       lengthUnit: "cm",
       heightCm: null,
       trackedMetrics: ["waist", "chest", "left_bicep", "right_bicep", "left_thigh", "right_thigh"],

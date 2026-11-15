@@ -209,3 +209,17 @@ export const programRun = sqliteTable(
     index("program_run_activated_at_idx").on(table.activated_at),
   ],
 );
+
+export const sessionPhoto = sqliteTable(
+  "session_photo",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    session_id: text("session_id").notNull(),
+    media_id: text("media_id").notNull(),
+    position: real("position").notNull(),
+    restore: integer("restore"),
+    created_at: text("created_at").notNull(),
+  },
+  (t) => [index("session_photo_session_position_idx").on(t.session_id, t.position, t.id)],
+);

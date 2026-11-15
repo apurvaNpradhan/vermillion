@@ -1105,5 +1105,15 @@
   "body__right_thigh": "Right thigh",
   "body__left_calf": "Left calf",
   "body__right_calf": "Right calf",
-  "body__ratio_change": "{{arrow}} {{value}} since previous entry"
+  "body__ratio_change": "{{arrow}} {{value}} since previous entry",
+  "media__save_failed": "Could not save photo. Try again.",
+  "media__remove": "Remove photo",
+  "media__add_photos": "Add photos",
+  "media__camera": "Camera",
+  "media__avatar": "Change avatar",
+  "media__exercise_image": "Choose exercise photo",
+  "media__photo_changed": "Photo changed",
+  "media__open_photo": "Open photo {{index}}",
+  "media__photo_count_one": "{{count}} photo",
+  "media__photo_count_other": "{{count}} photos"
 }

@@ -7,10 +7,17 @@ const SQUARE: [number, number] = [1, 1];
  * when the user cancelled. The system picker needs no permission. `square` asks the picker for a
  * 1:1 crop; a picker that ignored it is centre-cropped when processed.
  */
-export async function pickImage(options: { square: boolean }): Promise<ProcessedImage | null> {
+export async function pickImage(options: {
+  square: boolean;
+  camera?: boolean;
+}): Promise<ProcessedImage | null> {
   // Loaded on demand: the native module is only needed once the user picks a photo.
-  const { launchImageLibraryAsync } = await import("expo-image-picker");
-  const picked = await launchImageLibraryAsync({
+  const { launchImageLibraryAsync, launchCameraAsync, requestCameraPermissionsAsync } =
+    await import("expo-image-picker");
+  if (options.camera && !(await requestCameraPermissionsAsync()).granted)
+    throw new Error("Camera permission denied");
+  const launch = options.camera ? launchCameraAsync : launchImageLibraryAsync;
+  const picked = await launch({
     mediaTypes: ["images"],
     allowsEditing: options.square,
     ...(options.square ? { aspect: SQUARE } : {}),

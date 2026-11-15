@@ -25,6 +25,7 @@ export async function createCustomExercise(
     exerciseType: input.exercise_type,
     isFullBodyweight: input.is_full_bodyweight,
     instructions: input.instructions,
+    imageMediaId: input.image_media_id,
     retiredAt: retired ? new Date() : null,
   });
 }

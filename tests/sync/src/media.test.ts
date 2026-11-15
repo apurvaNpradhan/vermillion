@@ -1,5 +1,10 @@
 import {
   claimDeviceOwner,
+  ensureInstallId,
+  startSession,
+  addSessionPhoto,
+  removeSessionPhoto,
+  moveSessionPhoto,
   createProgram,
   deleteMedia,
   powerSyncSchema,
@@ -22,6 +27,7 @@ const newClient = useSyncSuite();
 async function device(user: TestUser): Promise<SyncClient> {
   const client = await newClient(user, {}, powerSyncSchema);
   await claimDeviceOwner(client.database, user.userId);
+  await ensureInstallId(client.database);
   await client.connect();
   return client;
 }
@@ -35,6 +41,49 @@ const mediaIds = async (client: SyncClient) =>
   );
 
 describe("user media sync", () => {
+  it("replicates offline Session photos, ordering and removal to a second device", async () => {
+    const user = await createUser();
+    const [a, b] = [await device(user), await device(user)];
+    await a.database.disconnect();
+    const session = await startSession(a.database, { workoutId: null, derivedTitle: "Photos" });
+    const first = await addSessionPhoto(a.database, session, image);
+    await addSessionPhoto(a.database, session, image);
+    await a.connect();
+    await a.uploaded();
+    await vi.waitFor(
+      async () =>
+        expect(
+          (await b.database.getAll("SELECT * FROM session_photo WHERE session_id = ?", [session]))
+            .length,
+        ).toBe(2),
+      within,
+    );
+    const photo = await a.database.get<{ id: string }>(
+      "SELECT id FROM session_photo WHERE media_id = ?",
+      [first],
+    );
+    await moveSessionPhoto(a.database, session, photo.id, 9);
+    await a.uploaded();
+    await vi.waitFor(
+      async () =>
+        expect(
+          await b.database.get("SELECT position FROM session_photo WHERE id = ?", [photo.id]),
+        ).toMatchObject({ position: 9 }),
+      within,
+    );
+    await removeSessionPhoto(a.database, photo.id);
+    await a.uploaded();
+    await vi.waitFor(
+      async () =>
+        expect(
+          (await b.database.getAll("SELECT * FROM session_photo WHERE session_id = ?", [session]))
+            .length,
+        ).toBe(1),
+      within,
+    );
+    expect(await b.database.getOptional("SELECT id FROM media WHERE id = ?", [first])).toBeNull();
+  });
+
   it("replicates a cover and its media row to a second device, never to another account", async () => {
     const [alice, bob] = [await createUser(), await createUser()];
     const [a, a2, b] = [await device(alice), await device(alice), await device(bob)];

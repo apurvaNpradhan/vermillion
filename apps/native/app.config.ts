@@ -20,7 +20,8 @@ import { appConfig } from "../../app.config.ts";
  */
 // 12: expo-navigation-bar for theme-resolved Android system bar controls.
 // 13: local Android workout-live module, promoted ongoing notification permission.
-const NATIVE_STACK_REVISION = 13;
+// 14: camera permission for Session photos.
+const NATIVE_STACK_REVISION = 14;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -88,8 +89,8 @@ const config: ExpoConfig = {
     [
       "expo-image-picker",
       {
-        photosPermission: "Allow $(PRODUCT_NAME) to use a photo as a program cover.",
-        cameraPermission: false,
+        photosPermission: "Allow $(PRODUCT_NAME) to choose photos.",
+        cameraPermission: "Allow $(PRODUCT_NAME) to take Session photos.",
         microphonePermission: false,
       },
     ],

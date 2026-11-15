@@ -4,6 +4,7 @@ import {
   customExerciseInput,
   MUSCLE_GROUPS,
 } from "@workspace/shared";
+import { assertMediaReference } from "../media/index";
 import { sql } from "drizzle-orm";
 import type { DbExecutor } from "@workspace/db";
 import { z } from "zod";
@@ -49,6 +50,7 @@ const putData = z.strictObject({
   exercise_type: customExerciseFields.shape.exercise_type,
   is_full_bodyweight: wireBoolean.default(false),
   instructions: customExerciseFields.shape.instructions.default(null),
+  image_media_id: z.uuid().nullable().default(null),
   retired_at: wireRetiredAt.default(null),
 });
 const patchData = z.strictObject({
@@ -59,6 +61,7 @@ const patchData = z.strictObject({
   exercise_type: customExerciseFields.shape.exercise_type.optional(),
   is_full_bodyweight: wireBoolean.optional(),
   instructions: customExerciseFields.shape.instructions.optional(),
+  image_media_id: z.uuid().nullable().optional(),
   retired_at: wireRetiredAt.optional(),
 });
 
@@ -104,6 +107,8 @@ export const exerciseSyncHandler: SyncTableHandler = {
       const { retired_at: retiredAt, ...fields } = data.data;
       const input = customExerciseInput.safeParse(fields);
       if (!input.success) throw new SyncRejection("SYNC_INVALID_OP");
+      if (input.data.image_media_id)
+        await assertMediaReference(db, userId, input.data.image_media_id, "exercise_image");
       const retired = retiredAt !== null;
 
       if (ownership.kind === "absent") {
@@ -131,6 +136,8 @@ export const exerciseSyncHandler: SyncTableHandler = {
     const merged = customExerciseInput.safeParse({ ...rowAsInput(ownership.row), ...patch.data });
     if (!merged.success) throw new SyncRejection("SYNC_INVALID_OP");
 
+    if (patch.data.image_media_id)
+      await assertMediaReference(db, userId, patch.data.image_media_id, "exercise_image");
     const newType = patch.data.exercise_type;
     if (newType !== undefined && newType !== ownership.row.exerciseType) {
       if (await exerciseTypeLocked(db, id.data)) throw new SyncRejection("EXERCISE_TYPE_LOCKED");

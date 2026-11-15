@@ -1,3 +1,4 @@
+import { MediaImage } from "@/media";
 import {
   EQUIPMENT_KEYS,
   EXERCISE_TYPE_KEYS,
@@ -119,7 +120,7 @@ function LoadedDetail({
 
   const video = videoUrl(appConfig.urls.exerciseMedia, exercise.videoKey);
   const poster = thumbnailUrl(appConfig.urls.exerciseMedia, exercise.thumbnailKey);
-  const hasMedia = video !== null || poster !== null;
+  const hasMedia = video !== null || poster !== null || !!exercise.imageMediaId;
   const heroHeight = Math.round(
     width * (hasHistory ? HERO_RATIO_WITH_HISTORY : HERO_RATIO_CATALOG),
   );
@@ -185,7 +186,11 @@ function LoadedDetail({
             contentContainerStyle={contentContainerStyle}
           >
             {hasMedia ? header : <View className="px-4">{header}</View>}
-            {hasMedia ? (
+            {exercise.imageMediaId ? (
+              <View className="items-center">
+                <MediaImage mediaId={exercise.imageMediaId} size={width} />
+              </View>
+            ) : hasMedia ? (
               <VideoHero
                 title={exercise.title}
                 muscle={exercise.primaryMuscle}

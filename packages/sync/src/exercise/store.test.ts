@@ -1,3 +1,4 @@
+import { setExerciseImage } from "./image-store";
 import type { CustomExerciseInput } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
@@ -33,6 +34,20 @@ const row = (s: Awaited<ReturnType<typeof setup>>, id: string) =>
   s.sqlite.prepare("SELECT * FROM exercise WHERE id = ?").get(id);
 
 describe("exercise store", () => {
+  it("replaces an image in one transaction and removes its previous media", async () => {
+    const s = await setup();
+    const id = await createCustomExercise(s.exercises, input);
+    const image = { width: 512, height: 512, bytes: 1000, thumbBytes: 100 };
+    expect(await setExerciseImage(s.exercises, id, image)).toBeNull();
+    const first = row(s, id)?.image_media_id;
+    expect(first).toBeTypeOf("string");
+    expect(await setExerciseImage(s.exercises, id, image)).toBe(first);
+    expect(s.sqlite.prepare("SELECT * FROM media").all()).toHaveLength(1);
+    expect(await updateCustomExercise(s.exercises, id, { image_media_id: null })).toBe(true);
+    expect(row(s, id)?.image_media_id).toBeNull();
+    expect(s.sqlite.prepare("SELECT * FROM media").all()).toHaveLength(0);
+  });
+
   it("creates a Custom exercise for the Device owner with arrays as JSON text", async () => {
     const s = await setup();
     const id = await createCustomExercise(s.exercises, input);

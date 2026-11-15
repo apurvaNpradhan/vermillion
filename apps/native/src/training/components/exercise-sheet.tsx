@@ -160,6 +160,7 @@ function LoadedSheet({
       >
         <ExerciseThumbnail
           title={name}
+          imageMediaId={info?.imageMediaId}
           thumbnailKey={info?.thumbnailKey ?? null}
           size={HEADER_THUMBNAIL}
         />

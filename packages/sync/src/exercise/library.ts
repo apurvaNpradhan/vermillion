@@ -26,6 +26,7 @@ const libraryRowSchema = z.object({
   primary_muscle: muscleGroupSchema,
   equipment: equipmentSchema,
   thumbnail_key: z.string().nullable(),
+  image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
 });
 
@@ -36,6 +37,7 @@ export type LibraryRow = {
   primaryMuscle: z.infer<typeof muscleGroupSchema>;
   equipment: z.infer<typeof equipmentSchema>;
   thumbnailKey: string | null;
+  imageMediaId?: string | null;
   isCustom: boolean;
   isArchived: boolean;
 };
@@ -71,6 +73,7 @@ export function watchExerciseLibrary(
           primaryMuscle: row.primary_muscle,
           equipment: row.equipment,
           thumbnailKey: row.thumbnail_key,
+          imageMediaId: row.image_media_id ?? null,
           isCustom: row.user_id !== null,
           isArchived: row.retired_at !== null,
         })),

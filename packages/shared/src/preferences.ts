@@ -28,6 +28,7 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
  * keys are dropped. Add new settings here with a default.
  */
 const uiFields = {
+  avatarMediaId: z.uuid().nullable(),
   lengthUnit: z.enum(["cm", "in"]),
   heightCm: z.number().min(100).max(250).nullable(),
   trackedMetrics: z.array(z.enum(BODY_METRICS)).max(14),
@@ -49,6 +50,7 @@ const uiFields = {
 export const uiPreferencesSchema = z
   .object({
     lengthUnit: uiFields.lengthUnit.optional(),
+    avatarMediaId: uiFields.avatarMediaId.default(null),
     heightCm: uiFields.heightCm.default(null),
     trackedMetrics: uiFields.trackedMetrics.default(DEFAULT_TRACKED_METRICS),
     weightGoalKg: uiFields.weightGoalKg.default(null),

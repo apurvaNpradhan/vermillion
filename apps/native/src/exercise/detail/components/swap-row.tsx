@@ -58,6 +58,7 @@ export function SwapRow({
               style={{ width: CARD_WIDTH }}
             >
               <ExerciseThumbnail
+                imageMediaId={candidate.imageMediaId}
                 thumbnailKey={candidate.thumbnailKey}
                 title={candidate.title}
                 size={CARD_WIDTH - 18}

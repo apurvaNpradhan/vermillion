@@ -44,6 +44,7 @@ export type WorkoutExerciseInfo = {
   equipment: Equipment;
   exerciseType: ExerciseType;
   thumbnailKey: string | null;
+  imageMediaId?: string | null;
   isArchived: boolean;
 };
 
@@ -79,6 +80,7 @@ export type WorkoutSummary = {
     /** The library title, or null while the exercise has not arrived on this device. */
     title: string | null;
     thumbnailKey: string | null;
+    imageMediaId?: string | null;
     sets: PlannedSet[];
     restSeconds: number | null;
   }[];
@@ -140,6 +142,7 @@ const listRowSchema = z.object({
   secondary_muscles: secondaryText,
   exercise_title: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
+  image_media_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
 });
@@ -148,7 +151,7 @@ const workoutListSql = (
   includeProgramWorkouts: boolean,
 ) => `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
-    e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
+    e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -173,6 +176,7 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
         secondaryMuscles: row.secondary_muscles,
         title: row.exercise_title,
         thumbnailKey: row.thumbnail_key,
+        imageMediaId: row.image_media_id ?? null,
         sets: row.sets ?? [],
         restSeconds: row.rest_seconds,
       });
@@ -199,6 +203,7 @@ const detailRowSchema = z.object({
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   thumbnail_key: z.string().nullable(),
+  image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
 });
 
@@ -207,7 +212,7 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
-    e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.retired_at AS retired_at
+    e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -243,6 +248,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
               equipment: row.equipment,
               exerciseType: row.exercise_type,
               thumbnailKey: row.thumbnail_key,
+              imageMediaId: row.image_media_id ?? null,
               isArchived: row.retired_at !== null,
             }
           : null,
@@ -317,6 +323,7 @@ const programDetailRowSchema = z.object({
   secondary_muscles: secondaryText,
   exercise_title: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
+  image_media_id: z.string().nullable().optional(),
 });
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
@@ -324,7 +331,7 @@ export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.descri
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
-    e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
+    e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM program p
   LEFT JOIN program_slot s ON s.program_id = p.id
   LEFT JOIN workout w ON w.id = s.workout_id
@@ -367,6 +374,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
         secondaryMuscles: row.secondary_muscles,
         title: row.exercise_title,
         thumbnailKey: row.thumbnail_key,
+        imageMediaId: row.image_media_id ?? null,
         sets: row.sets ?? [],
         restSeconds: row.rest_seconds,
       });

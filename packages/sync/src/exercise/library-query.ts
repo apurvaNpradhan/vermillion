@@ -32,7 +32,7 @@ export type LibraryQuery = { sql: string; params: LibraryParam[] };
 
 /** The columns a row of the list needs. */
 export const LIBRARY_ROW_COLUMNS =
-  "id, user_id, title, primary_muscle, equipment, thumbnail_key, retired_at";
+  "id, user_id, title, primary_muscle, equipment, thumbnail_key, image_media_id, retired_at";
 
 /** Whether any filter beyond the search text is set. */
 export function hasActiveFilters(filters: LibraryFilters): boolean {

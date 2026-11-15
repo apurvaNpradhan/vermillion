@@ -62,7 +62,12 @@ export const ExerciseRow = memo(function ExerciseRow({
   const name = exercise.title;
   const grouped = place !== "none";
   const thumbnail = (size: number) => (
-    <ExerciseThumbnail title={name} thumbnailKey={info?.thumbnailKey ?? null} size={size} />
+    <ExerciseThumbnail
+      title={name}
+      imageMediaId={info?.imageMediaId}
+      thumbnailKey={info?.thumbnailKey ?? null}
+      size={size}
+    />
   );
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
 
