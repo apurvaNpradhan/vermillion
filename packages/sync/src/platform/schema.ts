@@ -1,7 +1,7 @@
 import { getTableName } from "drizzle-orm";
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
-import { bodyMeasurement } from "../body/tables";
+import { bodyMeasurement, progressPhoto } from "../body/tables";
 import { exercise } from "../exercise/tables";
 import { attachments, media } from "../media/tables";
 import {
@@ -21,6 +21,7 @@ import { deviceOwner, installMeta, rejectedWrites } from "./tables";
 /** Drizzle tables for typed local queries. */
 export const drizzleSchema = {
   bodyMeasurement,
+  progressPhoto,
   exercise,
   program,
   workout,
@@ -45,6 +46,7 @@ export const drizzleSchema = {
  */
 export const powerSyncSchema = new DrizzleAppSchema({
   body_measurement: { tableDefinition: bodyMeasurement },
+  progress_photo: { tableDefinition: progressPhoto },
   exercise: { tableDefinition: exercise },
   program: { tableDefinition: program },
   program_run: { tableDefinition: programRun },
@@ -67,6 +69,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
 export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(exercise),
   getTableName(bodyMeasurement),
+  getTableName(progressPhoto),
   getTableName(program),
   getTableName(programRun),
   getTableName(workout),

@@ -251,6 +251,16 @@ export { programRun } from "./training";
 
 export {
   bodyMeasurement,
+  progressPhoto,
+  addProgressPhoto,
+  deleteProgressPhoto,
+  watchProgressPhotos,
+  watchPhotosOnDate,
+  watchLatestProgressPhoto,
+  PHOTO_WATCH_LIMIT,
+  type NewProgressPhoto,
+  type ProgressPhotoRow,
+  type WatchedPhoto,
   logMeasurement,
   logMeasurements,
   updateMeasurement,

@@ -1,7 +1,17 @@
 import { createdAt, deletedAt, id, updatedAt } from "@workspace/db/columns";
 import { user } from "@workspace/db/schema/auth";
 import { sql } from "drizzle-orm";
-import { check, date, doublePrecision, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  check,
+  date,
+  doublePrecision,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const bodyMeasurement = pgTable(
   "body_measurement",
@@ -37,6 +47,43 @@ export const bodyMeasurement = pgTable(
 
 /** Minimal markers survive content purging and prevent stale offline resurrection. */
 export const deletedBodyMeasurement = pgTable("deleted_body_measurement", {
+  id: id(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+/**
+ * A front, side or back photo on a date (ADR 0041). The image is the `media` row `media_id` names
+ * (kind `progress_photo`); the row points at media and media never points back, so there is no
+ * foreign key: a deleted media stays as a tombstone. One photo per media.
+ */
+export const progressPhoto = pgTable(
+  "progress_photo",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id").notNull(),
+    pose: text("pose").notNull(),
+    takenAt: timestamp("taken_at", { withTimezone: true }).notNull(),
+    localDate: date("local_date").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (t) => [
+    index("progress_photo_date_idx")
+      .on(t.userId, t.localDate.desc())
+      .where(sql`${t.deletedAt} IS NULL`),
+    uniqueIndex("progress_photo_media_id_idx").on(t.mediaId),
+    check("progress_photo_pose", sql`${t.pose} IN ('front','side','back')`),
+  ],
+);
+
+/** Minimal markers survive content purging and prevent stale offline resurrection. */
+export const deletedProgressPhoto = pgTable("deleted_progress_photo", {
   id: id(),
   userId: text("user_id")
     .notNull()

@@ -87,6 +87,7 @@ export function ListRow({
   disabled,
   onPress,
   accessibilityHint,
+  trailing,
 }: {
   icon?: ComponentType<IconProps>;
   title: string;
@@ -97,6 +98,8 @@ export function ListRow({
   disabled?: boolean;
   onPress?: () => void;
   accessibilityHint?: string;
+  /** Replaces the accessory: a switch that toggles what the row names. */
+  trailing?: ReactNode;
 }) {
   const [muted, danger, foreground] = useThemeColor(["muted", "danger", "foreground"]);
   const subtle = useSubtleColor();
@@ -128,7 +131,9 @@ export function ListRow({
           {value}
         </Text>
       ) : null}
-      {accessory === "none" ? null : (
+      {trailing ? (
+        <ListGroup.ItemSuffix>{trailing}</ListGroup.ItemSuffix>
+      ) : accessory === "none" ? null : (
         <ListGroup.ItemSuffix>
           {accessory === "check" ? (
             <Check size={18} color={foreground} weight="bold" />

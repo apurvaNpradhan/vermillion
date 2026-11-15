@@ -11,3 +11,7 @@ export { MeasurementsCard, WeighInHabitCard } from "./measurement-cards";
 
 export { BodyReminderHost } from "./body-reminder-host";
 export { BodyReminderSettings } from "./body-reminder-settings";
+export { PhotosScreen } from "./photos/photos-screen";
+export { CompareScreen } from "./photos/compare-screen";
+export { PhotosCard } from "./photos/photos-card";
+export { HidePhotosRow } from "./photos/hide-photos-row";

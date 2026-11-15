@@ -1,4 +1,4 @@
-import { BodyReminderSettings, WeightPreferenceRow } from "@/body";
+import { BodyReminderSettings, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
@@ -53,6 +53,7 @@ export function PreferenceRows() {
     <>
       <ListSection title={t("settings__section_preferences")}>
         <WeightPreferenceRow />
+        <HidePhotosRow />
         <ListRow
           icon={Palette}
           title={t("settings__theme_title")}

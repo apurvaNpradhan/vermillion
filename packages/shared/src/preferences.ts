@@ -39,6 +39,7 @@ const uiFields = {
   trackedMetrics: z.array(z.enum(BODY_METRICS)).max(14),
   weightGoalKg: z.number().min(20).max(400).nullable(),
   bodyweightKg: z.number().min(20).max(400).nullable(),
+  hidePhotos: z.boolean(),
   keepAwake: z.boolean(),
   sounds: z.boolean(),
   soundRest: z.boolean(),
@@ -65,6 +66,8 @@ export const uiPreferencesSchema = z
     trackedMetrics: uiFields.trackedMetrics.default(DEFAULT_TRACKED_METRICS),
     weightGoalKg: uiFields.weightGoalKg.default(null),
     bodyweightKg: uiFields.bodyweightKg.default(null),
+    // Progress photos stay blurred in lists until tapped (ADR 0041).
+    hidePhotos: uiFields.hidePhotos.default(true),
     keepAwake: uiFields.keepAwake.default(true),
     sounds: uiFields.sounds.default(true),
     // Optional so a stored value from before the groups existed can be told from a default.

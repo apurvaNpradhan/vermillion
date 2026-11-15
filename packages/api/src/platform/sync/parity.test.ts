@@ -52,6 +52,25 @@ const expectation: Expectation = {
           "CREATE INDEX body_measurement_metric_date_idx ON public.body_measurement USING btree (user_id, metric, local_date DESC NULLS LAST) WHERE (deleted_at IS NULL)",
       },
     },
+    progress_photo: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        media_id: { type: "uuid", notNull: true, default: null },
+        pose: { type: "text", notNull: true, default: null },
+        taken_at: { type: "timestamp with time zone", notNull: true, default: null },
+        local_date: { type: "date", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        progress_photo_date_idx:
+          "CREATE INDEX progress_photo_date_idx ON public.progress_photo USING btree (user_id, local_date DESC NULLS LAST) WHERE (deleted_at IS NULL)",
+        progress_photo_media_id_idx:
+          "CREATE UNIQUE INDEX progress_photo_media_id_idx ON public.progress_photo USING btree (media_id)",
+      },
+    },
 
     // Legacy (ADR 0035): the notes example vertical is gone, but its tables stay in Postgres and in
     // the publication because migrations are additive-only. No stream, handler or router uses them.
@@ -366,6 +385,7 @@ const expectation: Expectation = {
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at)",
       "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
+      "progress_photo(id, user_id, media_id, pose, taken_at, local_date, created_at, updated_at, deleted_at)",
     ],
   },
 };
