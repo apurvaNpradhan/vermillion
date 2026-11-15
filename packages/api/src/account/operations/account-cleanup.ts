@@ -8,7 +8,7 @@ export const accountCleanupQueue = defineQueue({
   name: "account.cleanup",
   schema: z.object({ userId: z.string().min(1) }),
   handler: async ({ userId }, { services }) => {
-    await purgeUserData(services.db, userId);
+    await purgeUserData(services, userId);
   },
   describe: ({ userId }) => ({ userId }),
 });

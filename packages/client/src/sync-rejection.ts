@@ -24,6 +24,8 @@ const REJECTION_KEYS = new Map<string, TranslationKey>([
   ["SESSION_SET_INVALID_FOR_TYPE", "sync__rejected_code_session_set"],
   ["SESSION_LIMIT_REACHED", "sync__rejected_code_session_limit"],
   ["SESSION_DATE_OUT_OF_RANGE", "sync__rejected_code_session_date"],
+  ["MEDIA_IMMUTABLE", "sync__rejected_code_media_immutable"],
+  ["MEDIA_REFERENCE_INVALID", "sync__rejected_code_media_reference"],
   ["SYNC_TRANSACTION_ROLLED_BACK", "sync__rejected_code_rolled_back"],
 ]);
 

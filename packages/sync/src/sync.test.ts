@@ -78,14 +78,15 @@ describe("powerSyncSchema", () => {
 
   it("has the synced tables and four local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
+      "attachments",
       "body_measurement",
       "device_owner",
       "exercise",
       "exercise_setting",
       "gym_equipment",
       "install_meta",
+      "media",
       "program",
-      "program_cover",
       "program_run",
       "program_slot",
       "rejected_writes",
@@ -100,6 +101,7 @@ describe("powerSyncSchema", () => {
       "exercise",
       "exercise_setting",
       "gym_equipment",
+      "media",
       "program",
       "program_run",
       "program_slot",
@@ -112,9 +114,9 @@ describe("powerSyncSchema", () => {
     for (const name of synced) expect(tables[name]?.localOnly, name).toBe(false);
     expect([...SYNCED_TABLE_NAMES].sort()).toEqual(synced);
     expect(tables.install_meta?.localOnly).toBe(true);
-    // The cover photo stays on the device: never synced, never uploaded.
-    expect(tables.program_cover?.localOnly).toBe(true);
-    expect(uploadColumns.has("program_cover")).toBe(false);
+    // The state of the media files stays on the device: never synced, never uploaded.
+    expect(tables.attachments?.localOnly).toBe(true);
+    expect(uploadColumns.has("attachments")).toBe(false);
     expect(tables.rejected_writes?.localOnly).toBe(true);
   });
 
@@ -173,12 +175,35 @@ describe("powerSyncSchema", () => {
     ]);
   });
 
+  it("has the columns the media stream lists, and indexes the kind", () => {
+    const config = readFileSync(
+      new URL("../../../powersync/sync-config.yaml", import.meta.url),
+      "utf8",
+    );
+    const listed = /SELECT (.+?) FROM media WHERE user_id = auth\.user_id\(\)/.exec(config)?.[1];
+    const names = tables.media?.columns.map((column) => column.name);
+    expect(names?.toSorted()).toEqual(
+      (listed ?? "")
+        .split(", ")
+        .filter((n) => n !== "id")
+        .toSorted(),
+    );
+    expect(tables.media?.indexes.map((index) => index.columns.map((c) => c.name))).toContainEqual([
+      "kind",
+    ]);
+    // Uploads carry what the server's media handler accepts, nothing it owns.
+    expect([...(uploadColumns.get("media") ?? [])].toSorted()).toEqual(
+      ["bytes", "height", "kind", "mime", "thumb_bytes", "width"].toSorted(),
+    );
+  });
+
   it("uploads only the columns the server accepts, never server-owned ones", () => {
     for (const [table, columns] of uploadColumns) {
       expect(columns.has("user_id"), table).toBe(false);
       expect(columns.has("created_at"), table).toBe(false);
     }
     expect(uploadColumns.get("program")?.has("cover_key")).toBe(false);
+    expect(uploadColumns.get("program")?.has("cover_media_id")).toBe(true);
     expect(uploadColumns.get("workout_exercise")?.has("sets")).toBe(true);
     expect([...uploadColumns.keys()].sort()).toEqual([...SYNCED_TABLE_NAMES].sort());
   });

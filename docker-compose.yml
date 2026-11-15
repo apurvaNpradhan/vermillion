@@ -3,6 +3,7 @@
 #
 # `pnpm db:start` builds the bootstrap bundle, then starts everything:
 #   postgres -> powersync-bootstrap (one shot) -> powersync
+#   minio -> minio-init (one shot: the private user-media bucket, ADR 0040)
 # Passwords below are development defaults; override them in a root .env if you like.
 name: vermillion
 
@@ -96,5 +97,48 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # S3-compatible stand-in for the private R2 bucket of user media (ADR 0040). It checks
+  # presigned signatures the way R2 does. The community minio/minio images are no longer
+  # published, so this pins the last Bitnami build (MinIO 2025-07-23, final) by tag and digest
+  # (the multi-arch index). Development and CI only; staging and production use R2.
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+    container_name: vermillion-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vermillion}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vermillion-local-secret}
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - vermillion_minio_data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: unless-stopped
+
+  # One shot: creates the dev bucket. No bucket policy and no CORS rules are set, so nothing is
+  # publicly readable and browsers cannot call it; the app only uses presigned URLs. Rerunning is safe.
+  minio-init:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Healthy can come a moment before MinIO accepts connections on the network; retry briefly.
+        n=0; until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          n=$$((n + 1)); [ "$$n" -ge 30 ] && exit 1; sleep 1;
+        done &&
+        mc mb --ignore-existing local/${MEDIA_S3_BUCKET:-vermillion-user-media}
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vermillion}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vermillion-local-secret}
+    restart: "no"
+
 volumes:
   vermillion_postgres_data:
+  vermillion_minio_data:

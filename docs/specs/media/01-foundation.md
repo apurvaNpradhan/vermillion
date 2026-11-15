@@ -59,3 +59,11 @@ A user picks a Program cover on one device; it shows at once, uploads to the pri
 ## Done when
 
 Lint, typecheck, knip, test, i18n:check pass; on device a cover picked offline shows at once and uploads when online; a second device shows it.
+
+## Implementation notes
+
+- The `minio/minio` and `quay.io/minio` images are no longer pullable. `docker-compose.yml` pins `bitnamilegacy/minio:2025.7.23-debian-12-r5` (MinIO 2025-07-23) by tag and digest, and runs `minio-init` from the same image (it ships `mc`). Replace it with RustFS if this image becomes a problem (ADR 0040).
+- `program.cover_media_id` is `uuid`, like the other id columns (the spec said text).
+- The attachment queue keeps two records per media: the full image under the media id, the thumbnail under `<id>_t`. The watch list holds every thumbnail, and a full image only once a record exists (the device made it, or a view asked for it); an evicted full image is archived and leaves the list.
+- A cover deleted with its Program is released after the Undo window; a Program deleted on a device that was killed in that window leaves its media orphaned until account deletion (an orphan sweep is not safe before a device has finished its first sync).
+- `purgeTombstones` of `media` returns 0, like the training handlers: the tombstone row stays as the marker that stops a late PUT.

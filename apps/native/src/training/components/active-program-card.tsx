@@ -56,7 +56,7 @@ export function ActiveProgramCard({
         onAction={() => router.push("/train/programs")}
       />
       <View className="flex-row items-center gap-3">
-        <ProgramTile title={program.title} size={40} coverUri={program.coverUri} />
+        <ProgramTile title={program.title} size={40} coverMediaId={program.coverMediaId} />
         <View className="flex-1">
           <Text numberOfLines={1} className="font-semibold text-body text-foreground">
             {program.title}

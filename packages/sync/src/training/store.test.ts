@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
+import { createMedia } from "../media/index";
 import { ensureInstallId } from "../platform/install-meta";
 import {
   addExercises,
   addSlot,
-  clearProgramCover,
   copyProgram,
   copyWorkout,
   copyWorkoutIntoProgram,
@@ -29,8 +29,8 @@ import {
   releaseProgramCover,
   removeFromSuperset,
   setProgramCover,
+  setProgramCoverToNewMedia,
   supersetWithNext,
-  sweepProgramCovers,
   TrainingLimitError,
   updateProgram,
   updateSlot,
@@ -80,7 +80,7 @@ describe("programs", () => {
     expect(s.one("program", id)).toMatchObject({
       user_id: "owner",
       title: "Push Pull Legs",
-      cover_key: null,
+      cover_media_id: null,
     });
     expect(await updateProgram(s.training, id, { title: "Push Pull Legs" })).toBe(false);
     expect(await updateProgram(s.training, id, { planned_weeks: 8 })).toBe(true);
@@ -484,53 +484,80 @@ describe("supersets", () => {
 });
 
 describe("program covers", () => {
-  it("records a cover per Program, replaces it and forgets it", async () => {
+  const image = { width: 1024, height: 768, bytes: 90_000, thumbBytes: 8_000 };
+
+  it("creates the media and the reference in one transaction, then replaces both", async () => {
     const s = await setup();
     const id = await createProgram(s.training, programInput);
-    expect(await setProgramCover(s.training, id, "file:///covers/a.jpg")).toBeNull();
-    expect(await setProgramCover(s.training, id, "file:///covers/b.jpg")).toBe(
-      "file:///covers/a.jpg",
-    );
-    expect(s.all("program_cover")).toHaveLength(1);
-    expect(s.one("program_cover", id)).toMatchObject({
-      program_id: id,
-      uri: "file:///covers/b.jpg",
+    const first = await setProgramCoverToNewMedia(s.training, id, image);
+    expect(first.replaced).toBeNull();
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: first.mediaId });
+    expect(s.one("media", first.mediaId)).toMatchObject({
+      user_id: "owner",
+      kind: "program_cover",
+      mime: "image/jpeg",
+      width: 1024,
+      height: 768,
+      bytes: 90_000,
+      thumb_bytes: 8_000,
     });
-    // The synced row never carries a key.
-    expect(s.one("program", id)).toMatchObject({ cover_key: null });
-    expect(await clearProgramCover(s.training, id)).toBe("file:///covers/b.jpg");
-    expect(await clearProgramCover(s.training, id)).toBeNull();
+
+    const second = await setProgramCoverToNewMedia(s.training, id, image);
+    expect(second.replaced).toBe(first.mediaId);
+    expect(s.one("media", first.mediaId)).toBeUndefined();
+    expect(s.all("media")).toHaveLength(1);
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: second.mediaId });
   });
 
-  it("releases a cover only once its Program is still gone", async () => {
+  it("sets and clears a cover that exists, and reports the media it deleted", async () => {
     const s = await setup();
     const id = await createProgram(s.training, programInput);
-    await setProgramCover(s.training, id, "file:///covers/a.jpg");
-    expect(await releaseProgramCover(s.training, id)).toBeNull();
-    expect(s.all("program_cover")).toHaveLength(1);
-    const deleted = await deleteProgram(s.training, id);
-    await restoreProgram(s.training, deleted as NonNullable<typeof deleted>);
-    expect(await releaseProgramCover(s.training, id)).toBeNull();
-    await deleteProgram(s.training, id);
-    expect(await releaseProgramCover(s.training, id)).toBe("file:///covers/a.jpg");
-    expect(s.all("program_cover")).toHaveLength(0);
-    expect(await releaseProgramCover(s.training, id)).toBeNull();
+    const media = await createMedia(s.training, { kind: "program_cover", ...image });
+    expect(await setProgramCover(s.training, id, media)).toBeNull();
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: media });
+    expect(await setProgramCover(s.training, id, media)).toBeNull();
+    expect(await setProgramCover(s.training, id, null)).toBe(media);
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: null });
+    expect(s.one("media", media)).toBeUndefined();
+    expect(await setProgramCover(s.training, id, null)).toBeNull();
+    expect(await setProgramCover(s.training, "missing", null)).toBeNull();
   });
 
-  it("keeps the cover through a delete and Undo, and sweeps it once the Program is gone", async () => {
+  it("refuses a cover for a Program that is gone and writes nothing", async () => {
     const s = await setup();
-    const kept = await createProgram(s.training, programInput);
-    const gone = await createProgram(s.training, programInput);
-    await setProgramCover(s.training, kept, "file:///covers/kept.jpg");
-    await setProgramCover(s.training, gone, "file:///covers/gone.jpg");
-    const deleted = await deleteProgram(s.training, gone);
-    // During the Undo window nothing sweeps, and Undo brings the cover back with the Program.
-    expect(s.all("program_cover")).toHaveLength(2);
+    await expect(setProgramCoverToNewMedia(s.training, "missing", image)).rejects.toThrow("gone");
+    expect(s.all("media")).toHaveLength(0);
+  });
+
+  it("refuses an image the server would refuse", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    await expect(
+      setProgramCoverToNewMedia(s.training, id, { ...image, width: 4096 }),
+    ).rejects.toThrow();
+    await expect(
+      setProgramCoverToNewMedia(s.training, id, { ...image, bytes: 20 * 1024 * 1024 }),
+    ).rejects.toThrow();
+    expect(s.all("media")).toHaveLength(0);
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: null });
+  });
+
+  it("keeps the cover through a delete and Undo, and releases it once the Program is still gone", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    const { mediaId } = await setProgramCoverToNewMedia(s.training, id, image);
+    // The Program is still there: nothing is released.
+    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
+    const deleted = await deleteProgram(s.training, id);
+    expect(deleted?.program.cover_media_id).toBe(mediaId);
+    expect(s.one("media", mediaId)).toBeDefined();
     await restoreProgram(s.training, deleted as NonNullable<typeof deleted>);
-    expect(await sweepProgramCovers(s.training)).toEqual(expect.arrayContaining([kept, gone]));
-    await deleteProgram(s.training, gone);
-    expect(await sweepProgramCovers(s.training)).toEqual([kept]);
-    expect(s.all("program_cover")).toHaveLength(1);
+    expect(s.one("program", id)).toMatchObject({ cover_media_id: mediaId });
+    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
+    await deleteProgram(s.training, id);
+    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(true);
+    expect(s.one("media", mediaId)).toBeUndefined();
+    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
   });
 });
 

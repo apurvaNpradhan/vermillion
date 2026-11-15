@@ -1,5 +1,6 @@
 import { bodySyncHandler } from "../../body/index";
 import { exerciseSyncHandler } from "../../exercise/index";
+import { mediaSyncHandler } from "../../media/index";
 import { trainingSyncHandlers } from "../../training/index";
 import type { SyncTableHandler } from "./handler";
 
@@ -10,6 +11,7 @@ import type { SyncTableHandler } from "./handler";
 export const syncTableHandlers: readonly SyncTableHandler[] = [
   exerciseSyncHandler,
   bodySyncHandler,
+  mediaSyncHandler,
   ...trainingSyncHandlers,
 ];
 

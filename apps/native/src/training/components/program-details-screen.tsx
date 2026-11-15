@@ -148,16 +148,22 @@ function LoadedDetails({
             accessibilityRole="image"
             accessibilityLabel={t("training__cover_label", { title: program.title })}
           >
-            <ProgramTile title={program.title} size={COVER_PREVIEW} coverUri={program.coverUri} />
+            <ProgramTile
+              title={program.title}
+              size={COVER_PREVIEW}
+              coverMediaId={program.coverMediaId}
+            />
           </View>
           <View className="flex-1 gap-2">
             <Button variant="secondary" isDisabled={cover.busy} onPress={() => void cover.pick()}>
               <ImageSquare size={16} color={foreground} />
               <Button.Label>
-                {t(program.coverUri === null ? "training__cover_add" : "training__cover_replace")}
+                {t(
+                  program.coverMediaId === null ? "training__cover_add" : "training__cover_replace",
+                )}
               </Button.Label>
             </Button>
-            {program.coverUri !== null ? (
+            {program.coverMediaId !== null ? (
               <Button
                 variant="danger-soft"
                 isDisabled={cover.busy}
@@ -169,9 +175,6 @@ function LoadedDetails({
             ) : null}
           </View>
         </View>
-        {program.coverUri !== null ? (
-          <Text className="text-caption text-muted">{t("training__cover_local_only")}</Text>
-        ) : null}
       </View>
 
       <SavedTextField

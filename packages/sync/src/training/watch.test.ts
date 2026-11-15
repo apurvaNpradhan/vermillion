@@ -10,7 +10,7 @@ import {
   moveWorkoutExercise,
   removeWorkoutExercise,
   restoreWorkoutExercise,
-  setProgramCover,
+  setProgramCoverToNewMedia,
   updateWorkoutExercise,
   type TrainingDatabase,
 } from "./store";
@@ -179,17 +179,22 @@ describe("program reads", () => {
 });
 
 describe("covers and plans", () => {
-  it("shows the local cover in the Program list and detail, null without one", async () => {
+  it("shows the cover media in the Program list and detail, null without one", async () => {
     const { training, programs, program } = await setup();
     const id = await createProgram(training, {
       title: "PPL",
       description: "Hi",
       planned_weeks: null,
     });
-    expect(programs()[0]?.coverUri).toBeNull();
-    await setProgramCover(training, id, "file:///covers/x.jpg");
-    expect(programs()[0]?.coverUri).toBe("file:///covers/x.jpg");
-    expect(program(id)?.coverUri).toBe("file:///covers/x.jpg");
+    expect(programs()[0]?.coverMediaId).toBeNull();
+    const { mediaId } = await setProgramCoverToNewMedia(training, id, {
+      width: 100,
+      height: 100,
+      bytes: 10,
+      thumbBytes: 5,
+    });
+    expect(programs()[0]?.coverMediaId).toBe(mediaId);
+    expect(program(id)?.coverMediaId).toBe(mediaId);
   });
 
   it("reads a Workout and a whole Program plan once, for sharing", async () => {

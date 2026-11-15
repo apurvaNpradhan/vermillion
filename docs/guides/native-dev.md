@@ -5,7 +5,7 @@ The native app needs a **dev client**. Local sync uses `@op-engineering/op-sqlit
 ## Run it
 
 ```sh
-pnpm db:start                    # Postgres, bootstrap, PowerSync on 127.0.0.1:8090
+pnpm db:start                    # Postgres, bootstrap, PowerSync on 127.0.0.1:8090, MinIO on 127.0.0.1:9000
 pnpm dev                         # API (3000) and Metro
 pnpm --filter native android     # first build is slow; installs the dev client
 ```
@@ -29,6 +29,7 @@ checks for Sessions are in [the device checklist](../specs/sessions/device-check
 ```sh
 adb reverse tcp:3000 tcp:3000   # API (app.config.ts ports.server)
 adb reverse tcp:8090 tcp:8090   # PowerSync
+adb reverse tcp:9000 tcp:9000   # MinIO: the presigned URLs of user media point at it
 adb reverse tcp:8081 tcp:8081   # Metro
 ```
 

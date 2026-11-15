@@ -48,6 +48,13 @@ const config: ApiConfig = {
   google: credentials(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET),
   github: credentials(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET),
   openApiReference: !isProduction,
+  media: {
+    endpoint: env.MEDIA_S3_ENDPOINT,
+    region: env.MEDIA_S3_REGION,
+    bucket: env.MEDIA_S3_BUCKET,
+    accessKeyId: env.MEDIA_S3_ACCESS_KEY_ID,
+    secretAccessKey: env.MEDIA_S3_SECRET_ACCESS_KEY,
+  },
   sync: {
     endpoint:
       env.SYNC_ENDPOINT_URL ??

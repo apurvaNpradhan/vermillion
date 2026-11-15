@@ -51,8 +51,13 @@ export const program = pgTable(
     title: text("title").notNull(),
     description: text("description"),
     plannedWeeks: smallint("planned_weeks"),
-    /** Stays null until covers can be uploaded; the photo lives on the device meanwhile. */
+    /** Retired by ADR 0040: always null, kept because migrations are additive. */
     coverKey: text("cover_key"),
+    /**
+     * The cover's `media` row. No foreign key: a media can be deleted while this reference lags
+     * on another device. The sync handler checks it belongs to the writer and is a program cover.
+     */
+    coverMediaId: uuid("cover_media_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

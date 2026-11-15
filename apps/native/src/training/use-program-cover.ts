@@ -1,53 +1,77 @@
-import { clearProgramCover, setProgramCover } from "@workspace/sync";
+import { setProgramCover, setProgramCoverToNewMedia, newMediaId } from "@workspace/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useCallback, useState } from "react";
 
+import { pickImage } from "@/media";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { deleteCoverFile, storeCoverFile, versionedCoverUri } from "@/platform/media/cover-files";
-import { pickCoverImage } from "@/platform/media/cover-pick";
+import { useLocalData } from "@/sync";
 
 import { useTrainingWrite } from "./use-training-write";
 
 /**
- * Adds, replaces and removes the cover photo of one Program. The photo is a file on this device
- * and a row in a local-only table, so none of it syncs. `pick` resolves to whether a photo was
- * saved (false when cancelled); a failure shows a toast.
+ * Adds, replaces and removes the cover photo of one Program (ADR 0040). A picked photo is
+ * re-encoded on the device, its files join the attachment queue, and the media row and the
+ * Program's reference are written in one local transaction, so the cover shows at once, uploads
+ * when there is a connection and reaches the other devices. The replaced cover's files go at once.
+ * `pick` resolves to whether a photo was saved (false when cancelled); a failure shows a toast.
  */
 export function useProgramCover(programId: string) {
   const { t } = useTranslation();
   const { toast } = useAppToast();
+  const local = useLocalData();
+  const queue = local?.status === "ready" ? local.media : null;
   const { write, writeScope } = useTrainingWrite();
   const [busy, setBusy] = useState(false);
 
   const pick = useCallback(async () => {
+    if (!queue) return false;
     setBusy(true);
+    let mediaId: string | null = null;
     try {
-      const picked = await pickCoverImage();
+      const picked = await pickImage({ square: true });
       if (picked === null) return false;
-      const uri = versionedCoverUri(storeCoverFile(programId, picked));
-      return await write(async (db) => {
-        await setProgramCover(db, programId, uri, writeScope);
+      mediaId = newMediaId();
+      // Files first, row after (the queue keeps an upload until its media row exists).
+      await queue.addFiles(mediaId, { fullUri: picked.fullUri, thumbUri: picked.thumbUri });
+      const id = mediaId;
+      const saved = await write(async (db) => {
+        const result = await setProgramCoverToNewMedia(
+          db,
+          programId,
+          {
+            id,
+            width: picked.width,
+            height: picked.height,
+            bytes: picked.bytes,
+            thumbBytes: picked.thumbBytes,
+          },
+          writeScope,
+        );
+        if (result.replaced !== null) await queue.discard(result.replaced);
         haptic.confirm();
         return true;
       }, false);
+      if (!saved) await queue.discard(id);
+      return saved;
     } catch {
+      if (mediaId !== null) await queue.discard(mediaId).catch(() => undefined);
       toast.show({ variant: "danger", label: t("training__cover_failed") });
       return false;
     } finally {
       setBusy(false);
     }
-  }, [programId, write, writeScope, toast, t]);
+  }, [queue, programId, write, writeScope, toast, t]);
 
   const remove = useCallback(
     () =>
       write(async (db) => {
-        const uri = await clearProgramCover(db, programId, writeScope);
-        if (uri !== null) deleteCoverFile(uri);
+        const replaced = await setProgramCover(db, programId, null, writeScope);
+        if (replaced !== null) await queue?.discard(replaced);
         haptic.confirm();
         return true;
       }, false),
-    [programId, write, writeScope],
+    [programId, queue, write, writeScope],
   );
 
   return { pick, remove, busy };

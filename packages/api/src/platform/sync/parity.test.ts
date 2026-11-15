@@ -110,6 +110,7 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        cover_media_id: { type: "uuid", notNull: false, default: null },
       },
       indexes: {
         program_user_id_live_idx:
@@ -317,6 +318,27 @@ const expectation: Expectation = {
           "CREATE INDEX program_run_program_id_idx ON public.program_run USING btree (program_id)",
       },
     },
+    media: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        kind: { type: "text", notNull: true, default: null },
+        mime: { type: "text", notNull: true, default: null },
+        width: { type: "integer", notNull: true, default: null },
+        height: { type: "integer", notNull: true, default: null },
+        bytes: { type: "integer", notNull: true, default: null },
+        thumb_bytes: { type: "integer", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        objects_purged_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        media_user_id_live_idx:
+          "CREATE INDEX media_user_id_live_idx ON public.media USING btree (user_id) WHERE (deleted_at IS NULL)",
+        media_deleted_at_idx:
+          "CREATE INDEX media_deleted_at_idx ON public.media USING btree (deleted_at) WHERE (deleted_at IS NOT NULL)",
+      },
+    },
     // Server-only: never published, never streamed.
     reference_import: {
       columns: {
@@ -333,7 +355,7 @@ const expectation: Expectation = {
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at)",
-      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at)",
+      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
       "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
@@ -343,6 +365,7 @@ const expectation: Expectation = {
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at)",
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at)",
+      "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
     ],
   },
 };
@@ -379,6 +402,7 @@ describe("server schema parity", () => {
       "exercise_catalog",
       "my_body",
       "my_library",
+      "my_media",
       "my_training",
     ]);
     // my_training is one subscription over the plan tables and the session tables.

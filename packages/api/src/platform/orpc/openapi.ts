@@ -14,6 +14,7 @@ const TAGS = [
   { name: "Auth", description: "What the sign-in screens need before anyone is signed in." },
   { name: "Account", description: "The signed-in user's own account." },
   { name: "Preferences", description: "Per-user settings such as the language." },
+  { name: "Media", description: "Presigned URLs for the images users upload and download." },
   { name: "Sync", description: "Local-first sync: PowerSync credentials and client uploads." },
 ];
 

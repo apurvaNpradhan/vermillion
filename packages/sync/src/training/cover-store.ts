@@ -1,89 +1,88 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { program, programCover } from "./tables";
+import { insertMedia, removeMedia, type NewMedia } from "../media/index";
+import { program } from "./tables";
+import { type TrainingDatabase, type Tx, write } from "./store-common";
 
-import { type TrainingDatabase, write, nowIso } from "./store-common";
-// ---- Program covers (local only) ----
+// ---- Program covers (ADR 0040) ----
+// A cover is a `media` row of kind `program_cover` that `program.cover_media_id` points at. Changing
+// the cover writes the reference and drops the old media in one local transaction, so the upload
+// is one transaction too: the server never sees a reference to a media it has not got.
 
-/** The cover photo of a Program on this device: where the file is. */
-export type ProgramCoverRow = typeof programCover.$inferSelect;
+/** Points the Program at `mediaId` and deletes the media it pointed at. Returns the deleted id. */
+async function replaceCover(tx: Tx, programId: string, mediaId: string | null) {
+  const [current] = await tx
+    .select({ cover: program.cover_media_id })
+    .from(program)
+    .where(eq(program.id, programId))
+    .limit(1);
+  if (!current) return { found: false as const, replaced: null };
+  if (current.cover === mediaId) return { found: true as const, replaced: null };
+  await tx.update(program).set({ cover_media_id: mediaId }).where(eq(program.id, programId));
+  if (current.cover === null) return { found: true as const, replaced: null };
+  const removed = await removeMedia(tx, current.cover);
+  return { found: true as const, replaced: removed ? current.cover : null };
+}
 
 /**
- * Records `uri` as the Program's cover photo, replacing an earlier one. The table is local only,
- * so this never uploads. Returns the uri it replaced (the same one when the file was overwritten).
+ * Sets (or clears, with null) the cover of a Program to a media that already exists, and deletes
+ * the previous cover media in the same transaction. Returns the id of the deleted media, so the
+ * caller can drop its files, or null (nothing was replaced, or the Program is gone).
  */
 export function setProgramCover(
   database: TrainingDatabase,
   programId: string,
-  uri: string,
+  mediaId: string | null,
   expectedInstallId?: string,
 ): Promise<string | null> {
   return write(database, expectedInstallId, async (tx) => {
-    const [existing] = await tx
-      .select({ uri: programCover.uri })
-      .from(programCover)
-      .where(eq(programCover.id, programId))
-      .limit(1);
-    const row = { program_id: programId, uri, updated_at: nowIso() };
-    if (existing) await tx.update(programCover).set(row).where(eq(programCover.id, programId));
-    else await tx.insert(programCover).values({ id: programId, ...row });
-    return existing?.uri ?? null;
-  });
-}
-
-/** Forgets the Program's cover photo and returns its uri (the caller deletes the file), or null. */
-export function clearProgramCover(
-  database: TrainingDatabase,
-  programId: string,
-  expectedInstallId?: string,
-): Promise<string | null> {
-  return write(database, expectedInstallId, async (tx) => {
-    const removed = await tx
-      .delete(programCover)
-      .where(eq(programCover.id, programId))
-      .returning({ uri: programCover.uri });
-    return removed[0]?.uri ?? null;
+    return (await replaceCover(tx, programId, mediaId)).replaced;
   });
 }
 
 /**
- * Called once a deleted Program's Undo window has passed: forgets its cover when the Program is
- * still gone and returns the uri to delete, or null (it came back, or it had no cover).
+ * Creates a media and makes it the Program's cover, deleting the previous cover media, in one
+ * transaction: a cover picked offline shows at once and uploads as one unit. Returns the new
+ * media id and the id of the deleted one. Throws if the Program is gone (nothing is written).
+ */
+export function setProgramCoverToNewMedia(
+  database: TrainingDatabase,
+  programId: string,
+  media: Omit<NewMedia, "kind">,
+  expectedInstallId?: string,
+): Promise<{ mediaId: string; replaced: string | null }> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [existing] = await tx
+      .select({ id: program.id })
+      .from(program)
+      .where(eq(program.id, programId))
+      .limit(1);
+    if (!existing) throw new Error("The Program is gone");
+    // The media goes first: its upload must precede the PATCH that references it.
+    const mediaId = await insertMedia(tx, { ...media, kind: "program_cover" });
+    const { replaced } = await replaceCover(tx, programId, mediaId);
+    return { mediaId, replaced };
+  });
+}
+
+/**
+ * Called once a deleted Program's Undo window has passed: deletes its cover media when the Program
+ * is still gone. Returns true if it deleted it (the caller drops the files), false if the Program
+ * came back or the media was already gone.
  */
 export function releaseProgramCover(
   database: TrainingDatabase,
   programId: string,
+  mediaId: string,
   expectedInstallId?: string,
-): Promise<string | null> {
+): Promise<boolean> {
   return write(database, expectedInstallId, async (tx) => {
     const [live] = await tx
       .select({ id: program.id })
       .from(program)
       .where(eq(program.id, programId))
       .limit(1);
-    if (live) return null;
-    const removed = await tx
-      .delete(programCover)
-      .where(eq(programCover.id, programId))
-      .returning({ uri: programCover.uri });
-    return removed[0]?.uri ?? null;
-  });
-}
-
-/**
- * Forgets the covers of Programs that no longer exist (deleted here or on another device, after
- * their Undo window) and returns the Program ids that are left. The caller deletes every cover
- * file that is not among them, which also removes the files of a wiped account.
- */
-export function sweepProgramCovers(
-  database: TrainingDatabase,
-  expectedInstallId?: string,
-): Promise<string[]> {
-  return write(database, expectedInstallId, async (tx) => {
-    const covers = await tx.select({ id: programCover.id }).from(programCover);
-    const live = new Set((await tx.select({ id: program.id }).from(program)).map((row) => row.id));
-    const gone = covers.map((cover) => cover.id).filter((id) => !live.has(id));
-    if (gone.length > 0) await tx.delete(programCover).where(inArray(programCover.id, gone));
-    return covers.map((cover) => cover.id).filter((id) => live.has(id));
+    if (live) return false;
+    return removeMedia(tx, mediaId);
   });
 }

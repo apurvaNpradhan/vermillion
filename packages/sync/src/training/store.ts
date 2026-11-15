@@ -51,10 +51,4 @@ export {
   removeFromRotation,
   restoreFromRotation,
 } from "./slot-store";
-export {
-  type ProgramCoverRow,
-  setProgramCover,
-  clearProgramCover,
-  releaseProgramCover,
-  sweepProgramCovers,
-} from "./cover-store";
+export { setProgramCover, setProgramCoverToNewMedia, releaseProgramCover } from "./cover-store";

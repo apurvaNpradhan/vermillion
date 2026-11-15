@@ -4,21 +4,20 @@ import {
   ensureInstallId,
   purgeOrphanRejectedWrites,
   powerSyncSchema,
-  sweepProgramCovers,
   uploadColumns,
   type StorageUnavailableReason,
   type SyncLifecycle,
   type SyncTransport,
 } from "@workspace/sync";
 
-import { deleteCoversExcept } from "../media/cover-files";
+import { createMediaQueue, deleteLegacyCovers, sendToBucket, type MediaQueue } from "../../media";
 import { client } from "../orpc";
 import { openNativeDatabase } from "./native-database";
 
 type OpenDatabase = Awaited<ReturnType<typeof openNativeDatabase>>;
 
 export type LocalData =
-  | { status: "ready"; database: OpenDatabase; lifecycle: SyncLifecycle }
+  | { status: "ready"; database: OpenDatabase; lifecycle: SyncLifecycle; media: MediaQueue }
   | { status: "unavailable"; reason: StorageUnavailableReason };
 
 /** The two sync procedures over the app's oRPC client (ADR 0017, 0018). */
@@ -44,20 +43,27 @@ export function openLocalData(): Promise<LocalData> {
       await ensureInstallId(database);
       // Rejections of tables that no longer sync (notes) have no screen and cannot be retried.
       await purgeOrphanRejectedWrites(database, SYNCED_TABLE_NAMES);
-      // Cover files of Programs that are gone (deleted past Undo, on another device, or by a
-      // wipe that was interrupted) are deleted; a failure only leaves them for the next start.
-      await sweepProgramCovers(database)
-        .then((kept) => deleteCoversExcept(kept))
-        .catch(() => undefined);
+      // The local-only covers of before user media (ADR 0036) are not migrated: their folder goes
+      // once; a failure only leaves it for the next start.
+      deleteLegacyCovers();
+      const media = createMediaQueue(database, client.media, sendToBucket);
       const lifecycle = createSyncLifecycle({
         database,
         transport,
         uploadColumns,
-        // Cover photos are files outside the database: they go with the account.
-        onWiped: async () => deleteCoversExcept([]),
+        // Media files are outside the database: they go with the account.
+        onWiped: () => media.clear(),
       });
       await lifecycle.start();
-      return { status: "ready", database, lifecycle };
+      // Files move only while the owner's data is on the device and sync may run: started after
+      // connect, stopped on sign-out and when the device switches accounts.
+      const follow = () => {
+        const active = lifecycle.getSnapshot().phase.kind === "active";
+        void (active ? media.start() : media.stop()).catch(() => undefined);
+      };
+      lifecycle.subscribe(follow);
+      follow();
+      return { status: "ready", database, lifecycle, media };
     } catch {
       return { status: "unavailable", reason: "open-failed" };
     }

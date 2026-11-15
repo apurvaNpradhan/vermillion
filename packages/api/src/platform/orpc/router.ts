@@ -2,6 +2,7 @@ import type { RouterClient } from "@orpc/server";
 
 import { accountRouter } from "../../account/index";
 import { authRouter } from "../../auth/index";
+import { mediaRouter } from "../../media/index";
 import { preferencesRouter } from "../../preferences/index";
 import { syncRouter } from "../sync/procedures";
 
@@ -9,6 +10,7 @@ import { syncRouter } from "../sync/procedures";
 export const appRouter = {
   account: accountRouter,
   auth: authRouter,
+  media: mediaRouter,
   preferences: preferencesRouter,
   sync: syncRouter,
 };

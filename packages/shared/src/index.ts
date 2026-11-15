@@ -10,3 +10,4 @@ export * from "./exercise/index";
 export * from "./training/index";
 
 export * from "./body";
+export * from "./media";
