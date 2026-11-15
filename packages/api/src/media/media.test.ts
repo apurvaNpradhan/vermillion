@@ -66,6 +66,9 @@ describe("user media", () => {
     expect(
       (await app.rows(sql`SELECT deleted_at FROM media WHERE id = ${avatar}`))[0]?.deleted_at,
     ).not.toBeNull();
+    await expect(
+      me.client.preferences.update({ ui: { avatarMediaId: avatar } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("accepts Custom exercise images and refuses foreign, missing and wrong-kind references", async () => {
@@ -90,6 +93,13 @@ describe("user media", () => {
       expect(
         await me.send([op("PATCH", "exercise", exercise, { image_media_id: id })]),
       ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+    expect(
+      await me.send([op("PUT", "exercise", uuidv7(), { ...fields, image_media_id: image })]),
+    ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+    await me.send([op("DELETE", "media", image)]);
+    expect(
+      await me.send([op("PATCH", "exercise", exercise, { image_media_id: image })]),
+    ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
     const catalog = uuidv7();
     await app.services.db.execute(
       sql`INSERT INTO exercise (id, title, primary_muscle, equipment, exercise_type) VALUES (${catalog}, 'Catalog photo fixture', 'chest', 'dumbbell', 'weight_reps')`,
@@ -131,9 +141,70 @@ describe("user media", () => {
         expect(await me.send([photo(foreignSession, media)])).toMatchObject(
           rejected("SESSION_PARENT_NOT_FOUND"),
         );
+      if (i === 1) {
+        const [existing] = await app.rows(
+          sql`SELECT media_id FROM session_photo WHERE session_id = ${session} AND deleted_at IS NULL`,
+        );
+        expect(await me.send([photo(session, String(existing?.media_id))])).toMatchObject(
+          rejected("MEDIA_REFERENCE_INVALID"),
+        );
+      }
       expect(await me.send([photo(session, media, i)])).toMatchObject(
         i < 4 ? applied : rejected("TRAINING_LIMIT_REACHED"),
       );
+    }
+  });
+
+  it("cleans Session photo media after deletion, and neutralises cleanup after Undo", async () => {
+    const me = await writer("session-photo-cleanup@example.com");
+    for (const undo of [false, true]) {
+      const session = uuidv7(),
+        photo = uuidv7(),
+        media = uuidv7();
+      const data = { title: "Cleanup", started_at: new Date().toISOString(), device_id: uuidv7() };
+      expect(
+        await me.send([
+          op("PUT", "training_session", session, data),
+          putMedia(media, { kind: "session_photo" }),
+          op("PUT", "session_photo", photo, { session_id: session, media_id: media, position: 0 }),
+        ]),
+      ).toEqual(applied);
+      expect(await me.send([op("DELETE", "training_session", session)])).toEqual(applied);
+      const [job] = await app.rows(
+        sql`SELECT id, extract(epoch from (start_after - now()))::int as delay FROM pgboss.job WHERE name = 'training.session-media-cleanup' AND data->>'sessionId' = ${session}`,
+      );
+      expect(Number(job?.delay)).toBeGreaterThan(45);
+      expect((await stored(media))?.deleted_at).toBeNull();
+      if (undo)
+        expect(
+          await me.send([op("PUT", "training_session", session, { ...data, restore: 1 })]),
+        ).toEqual(applied);
+      else
+        await app.rows(
+          sql`UPDATE training_session SET deleted_at = now() - interval '2 minutes' WHERE id = ${session}`,
+        );
+      await app.rows(sql`UPDATE pgboss.job SET start_after = now() WHERE id = ${job?.id}`);
+      await expect
+        .poll(
+          async () =>
+            (await app.rows(sql`SELECT state FROM pgboss.job WHERE id = ${job?.id}`))[0]?.state,
+          { timeout: 20_000 },
+        )
+        .toBe("completed");
+      if (undo) {
+        expect((await stored(media))?.deleted_at).toBeNull();
+        expect(await me.send([op("DELETE", "session_photo", photo)])).toEqual(applied);
+      }
+      expect((await stored(media))?.deleted_at).not.toBeNull();
+      expect(
+        await me.send([
+          op("PUT", "session_photo", uuidv7(), {
+            session_id: session,
+            media_id: media,
+            position: 1,
+          }),
+        ]),
+      ).toMatchObject(rejected(undo ? "MEDIA_REFERENCE_INVALID" : "SESSION_PARENT_NOT_FOUND"));
     }
   });
 

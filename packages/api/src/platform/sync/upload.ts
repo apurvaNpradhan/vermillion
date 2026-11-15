@@ -1,3 +1,4 @@
+import type { Services } from "../services";
 import type { Database, DbExecutor } from "@workspace/db";
 import { log } from "@workspace/logger";
 import {
@@ -42,12 +43,17 @@ class OpFailure extends Error {
   }
 }
 
-async function applyOps(tx: DbExecutor, userId: string, request: SyncUploadRequest) {
+async function applyOps(
+  tx: DbExecutor,
+  userId: string,
+  request: SyncUploadRequest,
+  jobs: Services["jobs"],
+) {
   for (const [index, op] of request.ops.entries()) {
     const handler = findSyncHandler(op.table);
     if (!handler) throw new OpFailure(index, "SYNC_UNKNOWN_TABLE");
     try {
-      await handler.apply(tx, userId, op);
+      await handler.apply(tx, userId, op, jobs);
     } catch (error) {
       if (error instanceof SyncRejection) throw new OpFailure(index, error.code);
       const code = error instanceof Error ? classifyDbError(error) : null;
@@ -62,9 +68,10 @@ async function runOps(
   tx: DbExecutor,
   userId: string,
   request: SyncUploadRequest,
+  jobs: Services["jobs"],
 ): Promise<SyncUploadResult> {
   try {
-    await tx.transaction((savepoint) => applyOps(savepoint, userId, request));
+    await tx.transaction((savepoint) => applyOps(savepoint, userId, request, jobs));
     return { status: "applied" };
   } catch (error) {
     if (!(error instanceof OpFailure)) throw error;
@@ -90,6 +97,7 @@ export async function applyUpload(
   db: Database,
   userId: string,
   request: SyncUploadRequest,
+  jobs: Services["jobs"],
 ): Promise<SyncUploadResult> {
   if (request.userId !== userId) throw new SyncRefusal({ code: "SYNC_WRONG_ACCOUNT" });
   if (!isSyncSchemaVersionSupported(request.schemaVersion)) {
@@ -136,7 +144,7 @@ export async function applyUpload(
         return { replayed: true, outcome: syncUploadResultSchema.parse(existing.outcome) };
       }
 
-      const outcome = await runOps(tx, userId, request);
+      const outcome = await runOps(tx, userId, request, jobs);
       await tx.update(syncUploadReceipts).set({ outcome }).where(key);
       return { replayed: false, outcome };
     });

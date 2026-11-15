@@ -1,12 +1,33 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { setExerciseImage } from "@workspace/sync";
-import { pickImage } from "@/media";
+import {
+  createPendingImage,
+  cloneProcessed,
+  discardProcessed,
+  pickImage,
+  saveWithMedia,
+  type ProcessedImage,
+} from "@/media";
 import { useLocalData, useSyncValue } from "@/sync";
 import { newMediaId } from "@workspace/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useTranslation } from "@/platform/i18n";
 export function useExerciseImage() {
   const [picked, setPicked] = useState<Awaited<ReturnType<typeof pickImage>>>(null);
+  const pending = useRef(createPendingImage<ProcessedImage>(discardProcessed)).current;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    pending.reopen();
+    return () => {
+      mounted.current = false;
+      pending.dispose();
+    };
+  }, [pending]);
+  const replace = (image: ProcessedImage | null) => {
+    pending.replace(image);
+    setPicked(image);
+  };
   const [removed, setRemoved] = useState(false);
   const [busy, setBusy] = useState(false);
   const local = useLocalData();
@@ -23,7 +44,11 @@ export function useExerciseImage() {
       try {
         const image = await pickImage({ square: true });
         if (image) {
-          setPicked(image);
+          if (!mounted.current) {
+            discardProcessed(image);
+            return;
+          }
+          replace(image);
           setRemoved(false);
         }
       } catch {
@@ -33,35 +58,42 @@ export function useExerciseImage() {
       }
     },
     remove: () => {
-      setPicked(null);
+      replace(null);
       setRemoved(true);
     },
     save: async (id: string) => {
       if (!picked && !removed) return;
       if (local?.status !== "ready") throw new Error("Local storage unavailable");
-      const mediaId = picked ? newMediaId() : null;
       try {
-        if (mediaId && picked) await local.media.addFiles(mediaId, picked);
-        const replaced = await setExerciseImage(
-          local.database,
-          id,
-          picked && mediaId
-            ? {
-                id: mediaId,
-                width: picked.width,
-                height: picked.height,
-                bytes: picked.bytes,
-                thumbBytes: picked.thumbBytes,
-              }
-            : null,
-          scope,
-        );
-        if (replaced) await local.media.discard(replaced);
-        setPicked(null);
+        if (picked) {
+          const mediaId = newMediaId();
+          const copy = cloneProcessed(picked);
+          try {
+            await saveWithMedia(local.media, copy, mediaId, async () => ({
+              replaced: await setExerciseImage(
+                local.database,
+                id,
+                {
+                  id: mediaId,
+                  width: picked.width,
+                  height: picked.height,
+                  bytes: picked.bytes,
+                  thumbBytes: picked.thumbBytes,
+                },
+                scope,
+              ),
+            }));
+          } finally {
+            discardProcessed(copy);
+          }
+        } else {
+          const replaced = await setExerciseImage(local.database, id, null, scope);
+          if (replaced) await local.media.discard(replaced).catch(() => undefined);
+        }
+        replace(null);
         setRemoved(false);
       } catch (error) {
         toast.show({ variant: "danger", label: t("media__save_failed") });
-        if (mediaId) await local.media.discard(mediaId);
         throw error;
       }
     },

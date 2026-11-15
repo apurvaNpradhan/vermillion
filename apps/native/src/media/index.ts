@@ -10,3 +10,5 @@ export type { ProcessedImage } from "./process-image";
 export { usePickedMedia } from "./use-picked-media";
 export { cloneProcessed, discardProcessed } from "./processed-files";
 export { MediaImageBatch, useMediaImageBatch } from "./media-image-batch";
+
+export { createPendingImage } from "./pending-image";

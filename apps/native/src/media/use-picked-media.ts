@@ -3,6 +3,9 @@ import { newMediaId, type MediaDatabase, type NewMedia } from "@workspace/sync";
 import { useLocalData, useSyncValue } from "@/sync";
 import { useTranslation } from "@/platform/i18n";
 import { useAppToast } from "@/platform/ui/use-app-toast";
+import { saveWithMedia } from "./save-with-media";
+import { discardProcessed } from "./processed-files";
+import { pickerErrorKey } from "./picker-error";
 import { pickImage } from "./pick-image";
 
 /** Files precede the transaction; a failed save removes the unreferenced files. */
@@ -20,27 +23,33 @@ export function usePickedMedia(
     if (locked.current || local?.status !== "ready") return;
     locked.current = true;
     setBusy(true);
-    let id: string | null = null;
+
     try {
       const image = await pickImage({ square, source: camera ? "camera" : "library" });
       if (!image) return;
-      id = newMediaId();
-      await local.media.addFiles(id, image);
-      const replaced = await save(
-        local.database,
-        {
-          id,
-          width: image.width,
-          height: image.height,
-          bytes: image.bytes,
-          thumbBytes: image.thumbBytes,
-        },
-        scope,
-      );
-      if (replaced) await local.media.discard(replaced);
-    } catch {
-      if (id) await local.media.discard(id).catch(() => undefined);
-      toast.show({ variant: "danger", label: t("media__save_failed") });
+      const id = newMediaId();
+      try {
+        await saveWithMedia(local.media, image, id, async () => ({
+          replaced: await save(
+            local.database,
+            {
+              id,
+              width: image.width,
+              height: image.height,
+              bytes: image.bytes,
+              thumbBytes: image.thumbBytes,
+            },
+            scope,
+          ),
+        }));
+      } finally {
+        discardProcessed(image);
+      }
+    } catch (error) {
+      toast.show({
+        variant: "danger",
+        label: t(error instanceof Error ? pickerErrorKey(error) : "media__save_failed"),
+      });
     } finally {
       locked.current = false;
       setBusy(false);

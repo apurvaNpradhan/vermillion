@@ -2,13 +2,8 @@ import { processImage, type ProcessedImage } from "./process-image";
 
 const SQUARE: [number, number] = [1, 1];
 
-/** The camera permission was refused, so there is no picture: the caller says how to allow it. */
-export class CameraDeniedError extends Error {
-  constructor() {
-    super("The camera permission was refused");
-    this.name = "CameraDeniedError";
-  }
-}
+import { CameraDeniedError } from "./picker-error";
+export { CameraDeniedError } from "./picker-error";
 
 /**
  * Opens the system photo picker (or, with `source: "camera"`, the system camera) and returns the

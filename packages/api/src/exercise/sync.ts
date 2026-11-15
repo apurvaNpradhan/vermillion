@@ -5,7 +5,7 @@ import {
   MUSCLE_GROUPS,
 } from "@workspace/shared";
 import { assertMediaReference } from "../media/index";
-import { sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import type { DbExecutor } from "@workspace/db";
 import { z } from "zod";
 
@@ -16,6 +16,17 @@ import { createCustomExercise } from "./operations/create-custom-exercise";
 import { exerciseOwnership } from "./operations/exercise-ownership";
 import { exerciseTypeLocked } from "./operations/exercise-type-locked";
 import { updateCustomExercise, type RetireChange } from "./operations/update-custom-exercise";
+
+import { exercise } from "./tables";
+
+async function assertUnusedImage(db: DbExecutor, mediaId: string, id: string) {
+  const [taken] = await db
+    .select({ id: exercise.id })
+    .from(exercise)
+    .where(and(eq(exercise.imageMediaId, mediaId), ne(exercise.id, id)))
+    .limit(1);
+  if (taken) throw new SyncRejection("MEDIA_REFERENCE_INVALID");
+}
 
 const exerciseId = z.uuid();
 const newExerciseId = z.uuidv7();
@@ -109,6 +120,8 @@ export const exerciseSyncHandler: SyncTableHandler = {
       if (!input.success) throw new SyncRejection("SYNC_INVALID_OP");
       if (input.data.image_media_id)
         await assertMediaReference(db, userId, input.data.image_media_id, "exercise_image");
+      if (input.data.image_media_id)
+        await assertUnusedImage(db, input.data.image_media_id, id.data);
       const retired = retiredAt !== null;
 
       if (ownership.kind === "absent") {
@@ -138,6 +151,7 @@ export const exerciseSyncHandler: SyncTableHandler = {
 
     if (patch.data.image_media_id)
       await assertMediaReference(db, userId, patch.data.image_media_id, "exercise_image");
+    if (patch.data.image_media_id) await assertUnusedImage(db, patch.data.image_media_id, id.data);
     const newType = patch.data.exercise_type;
     if (newType !== undefined && newType !== ownership.row.exerciseType) {
       if (await exerciseTypeLocked(db, id.data)) throw new SyncRejection("EXERCISE_TYPE_LOCKED");

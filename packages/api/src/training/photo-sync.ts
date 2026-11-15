@@ -1,7 +1,7 @@
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { MEDIA_LIMITS } from "@workspace/shared";
-import { assertMediaReference } from "../media/index";
+import { assertMediaReference, softDeleteMedia } from "../media/index";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import { liveSession, lockUserTraining } from "./operations/lookup";
 import { accept, idOf, invalid, newRowId, restoreMarker } from "./sync-common";
@@ -21,11 +21,15 @@ export const sessionPhotoSyncHandler: SyncTableHandler = {
     if (row && row.userId !== userId) throw new SyncRejection("SYNC_ROW_NOT_FOUND");
     if (op.op === "DELETE") {
       if (!row) throw new SyncRejection("SYNC_ROW_NOT_FOUND");
-      if (row.deletedAt !== null) return;
+      if (row.deletedAt !== null) {
+        await softDeleteMedia(db, userId, row.mediaId);
+        return;
+      }
       await db
         .update(sessionPhoto)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(eq(sessionPhoto.id, id));
+      await softDeleteMedia(db, userId, row.mediaId);
       return;
     }
     if (row?.deletedAt) throw new SyncRejection("SYNC_ROW_DELETED");
@@ -48,6 +52,12 @@ export const sessionPhotoSyncHandler: SyncTableHandler = {
     if (!(await liveSession(db, userId, values.session_id)))
       throw new SyncRejection("SESSION_PARENT_NOT_FOUND");
     await assertMediaReference(db, userId, values.media_id, "session_photo");
+    const [taken] = await db
+      .select({ id: sessionPhoto.id })
+      .from(sessionPhoto)
+      .where(and(eq(sessionPhoto.mediaId, values.media_id), ne(sessionPhoto.id, id)))
+      .limit(1);
+    if (taken) throw new SyncRejection("MEDIA_REFERENCE_INVALID");
     if (!row) {
       accept(newRowId.safeParse(id));
       const [total] = await db

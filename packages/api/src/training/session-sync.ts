@@ -1,3 +1,4 @@
+import { sessionMediaCleanupQueue } from "./session-media-cleanup";
 import { sessionPhotoSyncHandler } from "./photo-sync";
 import { checkSessionRun } from "./run-sync";
 import type { DbExecutor } from "@workspace/db";
@@ -161,14 +162,21 @@ function checkSessionTimes(values: SessionInput, previousStart: string | null) {
 
 const sessionSyncHandler: SyncTableHandler = {
   table: "training_session",
-  async apply(db, userId, op) {
+  async apply(db, userId, op, jobs) {
     const id = idOf(op.id);
     await lockUserTraining(db, userId);
     const found = await findSession(db, userId, id);
 
     if (op.op === "DELETE") {
       const row = ownRow(found);
-      if (row.deletedAt === null) await deleteSessionCascade(db, id, now());
+      if (row.deletedAt === null) {
+        await deleteSessionCascade(db, id, now());
+        await jobs.enqueue(
+          sessionMediaCleanupQueue,
+          { userId, sessionId: id },
+          { startAfterSeconds: 60 },
+        );
+      }
       return;
     }
 

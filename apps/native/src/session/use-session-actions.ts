@@ -204,7 +204,7 @@ export function useSessionActions() {
             deleted.photoMediaIds,
             writeScope,
           )) {
-            await media?.discard(mediaId);
+            await media?.discard(mediaId).catch(() => undefined);
           }
           return true;
         }, false);

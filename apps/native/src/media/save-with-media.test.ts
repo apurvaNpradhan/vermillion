@@ -1,4 +1,12 @@
-import { createProgram, setProgramCoverToNewMedia, newMediaId } from "@workspace/sync";
+import { copyFileSync, existsSync, rmSync } from "node:fs";
+import { createPendingImage } from "./pending-image";
+import {
+  setExerciseImage,
+  createCustomExercise,
+  createProgram,
+  setProgramCoverToNewMedia,
+  newMediaId,
+} from "@workspace/sync";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createMediaQueue } from "./attachment-queue";
@@ -75,6 +83,51 @@ describe("saving a new media with what points at it", () => {
     await expect(failed.saved).rejects.toThrow("The Program is gone");
     expect(await s.mediaIds()).toEqual([]);
     expect(s.storage.files()).toEqual([]);
+  });
+
+  it("retains an exercise draft across a failed DB write, then saves a fresh copy on retry", async () => {
+    const s = await setup();
+    const original = writePickedFiles(`${s.storage.root}/draft`, "original", {
+      full: 100,
+      thumb: 10,
+    });
+    const draft = createPendingImage((files: typeof original) => {
+      rmSync(files.fullUri, { force: true });
+      rmSync(files.thumbUri, { force: true });
+    });
+    draft.replace(original);
+    const attempt = async (exerciseId: string) => {
+      const files = writePickedFiles(`${s.storage.root}/copies`, newMediaId(), {
+        full: 0,
+        thumb: 0,
+      });
+      copyFileSync(original.fullUri, files.fullUri);
+      copyFileSync(original.thumbUri, files.thumbUri);
+      const id = newMediaId();
+      await saveWithMedia(s.queue, files, id, async () => ({
+        replaced: await setExerciseImage(s.db, exerciseId, { ...image, id }),
+      }));
+      draft.replace(null);
+      return id;
+    };
+    await expect(attempt(newMediaId())).rejects.toThrow("Custom exercise not found");
+    expect(existsSync(original.fullUri)).toBe(true);
+    expect(existsSync(original.thumbUri)).toBe(true);
+    expect(draft.current()).toEqual(original);
+    const exerciseId = await createCustomExercise(s.db, {
+      title: "Draft press",
+      primary_muscle: "chest",
+      equipment: "dumbbell",
+      exercise_type: "weight_reps",
+      secondary_muscles: [],
+      is_full_bodyweight: false,
+      instructions: null,
+    });
+    const id = await attempt(exerciseId);
+    expect(await s.mediaIds()).toEqual([id]);
+    expect(s.storage.files()).toContain(`full/${id}.jpg`);
+    expect(existsSync(original.fullUri)).toBe(false);
+    expect(draft.current()).toBeNull();
   });
 
   it("discards the new files when the write was refused", async () => {

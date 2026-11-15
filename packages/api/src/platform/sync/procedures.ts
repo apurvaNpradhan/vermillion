@@ -73,9 +73,11 @@ const upload = syncApi
       max: 600,
     });
     if (!allowed) throw refusal({ code: "SYNC_RATE_LIMITED" });
-    return applyUpload(context.services.db, context.userId, input).catch((error) => {
-      throw error instanceof SyncRefusal ? refusal(syncErrorDataSchema.parse(error.data)) : error;
-    });
+    return applyUpload(context.services.db, context.userId, input, context.services.jobs).catch(
+      (error) => {
+        throw error instanceof SyncRefusal ? refusal(syncErrorDataSchema.parse(error.data)) : error;
+      },
+    );
   });
 
 export const syncRouter = { credentials, upload };

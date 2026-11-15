@@ -1,3 +1,4 @@
+import type { Services } from "../services";
 import type { DbExecutor } from "@workspace/db";
 import type { SyncFailureCode, SyncOp } from "@workspace/shared";
 
@@ -19,7 +20,7 @@ export class SyncRejection extends Error {
 export type SyncTableHandler = {
   /** The table's name in the client schema and in uploads. */
   table: string;
-  apply(db: DbExecutor, userId: string, op: SyncOp): Promise<void>;
+  apply(db: DbExecutor, userId: string, op: SyncOp, jobs: Services["jobs"]): Promise<void>;
   /** Hard-deletes tombstones older than `olderThan`; returns how many. */
   purgeTombstones(db: DbExecutor, olderThan: Date): Promise<number>;
 };
