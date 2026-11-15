@@ -90,6 +90,37 @@ describe("body measurement uploads", () => {
       ).toMatchObject({ status: "rejected", code: "SYNC_INVALID_OP" });
     }
   });
+  it("refuses only the bad measurement in an independently queued Check-in batch", async () => {
+    const a = await writer();
+    const rows = [
+      { id: uuidv7(), metric: "waist", value: 80 },
+      { id: uuidv7(), metric: "chest", value: 251 },
+      { id: uuidv7(), metric: "left_bicep", value: 35 },
+    ];
+    // logMeasurements queues one transaction per row, preserving the upload protocol.
+    const outcomes = [];
+    for (const row of rows)
+      outcomes.push(
+        await a.send([
+          {
+            op: "PUT",
+            table: "body_measurement",
+            id: row.id,
+            opData: { ...values, metric: row.metric, value: row.value },
+          },
+        ]),
+      );
+    expect(outcomes).toMatchObject([
+      { status: "applied" },
+      { status: "rejected", code: "SYNC_INVALID_OP" },
+      { status: "applied" },
+    ]);
+    expect(
+      await app.rows(
+        sql`SELECT metric FROM body_measurement WHERE user_id = ${a.userId} ORDER BY metric`,
+      ),
+    ).toEqual([{ metric: "left_bicep" }, { metric: "waist" }]);
+  });
   it("purges content atomically but keeps a marker against stale recreation", async () => {
     const a = await writer();
     const id = uuidv7();

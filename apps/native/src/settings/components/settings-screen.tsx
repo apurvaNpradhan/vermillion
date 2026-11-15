@@ -40,6 +40,12 @@ export function SettingsScreen() {
         </View>
         <ListSection title={t("session__setting_sounds")}>{sessionSettings.soundRows}</ListSection>
         <View>{training.section}</View>
+        <ListSection title={t("body__measurements")}>
+          <ListRow
+            title={t("body__tracked_metrics")}
+            onPress={() => router.push("/settings/tracked-metrics")}
+          />
+        </ListSection>
         <ListSection title={t("settings__section_account")}>
           <ListRow
             icon={UserCircle}

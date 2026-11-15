@@ -1,3 +1,4 @@
+import { HeightRow } from "@/body";
 import { useRouter } from "expo-router";
 import { Fingerprint } from "phosphor-react-native";
 import { Text, View } from "react-native";
@@ -40,6 +41,9 @@ export function ProfileScreen() {
     <ScrollPage title={t("settings__profile_title")} back>
       <ProfileHero />
       <ProfileSection />
+      <ListSection>
+        <HeightRow />
+      </ListSection>
       <ListSection title={t("settings__profile_security")}>
         <ListRow
           icon={Fingerprint}

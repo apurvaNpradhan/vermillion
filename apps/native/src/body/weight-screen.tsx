@@ -1,3 +1,4 @@
+import { WeighInGrid } from "./weigh-in-grid";
 import { SyncBanner } from "@/sync";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -182,25 +183,7 @@ export function WeightScreen() {
           <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
             {t("body__habit")}
           </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {state.days.map((day) => (
-              <View
-                key={day.date}
-                accessible
-                accessibilityLabel={t(day.logged ? "body__day_logged" : "body__day_missing", {
-                  date: date(day.date),
-                })}
-                className={`h-7 w-7 items-center justify-center rounded-sm ${day.logged ? "bg-foreground" : "bg-default"}`}
-              >
-                <Text className={`text-caption ${day.logged ? "text-background" : "text-muted"}`}>
-                  {Number(day.date.slice(-2))}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text className="text-caption text-muted">
-            {t("body__habit_count", { count: state.days.filter((d) => d.logged).length })}
-          </Text>
+          <WeighInGrid days={state.days} />
         </View>
         <View className="gap-4">
           <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">

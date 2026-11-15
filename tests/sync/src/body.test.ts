@@ -2,6 +2,7 @@ import {
   claimDeviceOwner,
   ensureInstallId,
   logMeasurement,
+  logMeasurements,
   watchMetric,
   updateMeasurement,
   deleteMeasurement,
@@ -108,4 +109,39 @@ it("delivers an offline weigh-in to another device and isolates another account"
       "stale-scope",
     ),
   ).rejects.toThrow();
+});
+
+it("syncs a six-site Check-in from one batch call", async () => {
+  const user = await createUser();
+  const a = await newClient(user, {}, powerSyncSchema);
+  const b = await newClient(user, {}, powerSyncSchema);
+  for (const client of [a, b]) await claimDeviceOwner(client.database, user.userId);
+  await Promise.all([a.connect(), b.connect()]);
+  const scope = await ensureInstallId(a.database);
+  const now = new Date().toISOString();
+  const metrics = [
+    "waist",
+    "chest",
+    "left_bicep",
+    "right_bicep",
+    "left_thigh",
+    "right_thigh",
+  ] as const;
+  const ids = await logMeasurements(
+    a.database,
+    metrics.map((metric) => ({
+      metric,
+      value: 40,
+      measured_at: now,
+      local_date: now.slice(0, 10),
+      source: "manual",
+    })),
+    scope,
+  );
+  await a.uploaded();
+  await vi.waitFor(async () => {
+    const rows = await b.database.getAll("SELECT id FROM body_measurement");
+    expect(rows).toHaveLength(6);
+  }, within);
+  expect(ids).toHaveLength(6);
 });
