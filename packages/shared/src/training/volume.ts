@@ -33,7 +33,11 @@ export function effectiveWeight(
  * reps but no volume until a bodyweight is known. Does not look at the kind or the tick.
  */
 export function setVolume(set: LoggedSet, bodyweightKg: number | null = null): number {
-  const weight = effectiveWeight(set.exercise_type, set.weight_kg, bodyweightKg);
+  const weight = effectiveWeight(
+    set.exercise_type,
+    set.weight_kg,
+    set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
+  );
   return weight === null || !set.reps ? 0 : weight * set.reps;
 }
 

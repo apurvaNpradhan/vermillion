@@ -7,6 +7,8 @@ export type SetValues = { [Key in keyof ActualValues]?: number | null };
 
 /** One Logged set with what the numbers need to read it: its exercise and the snapshot type. */
 export type LoggedSet = SetValues & {
+  /** Computed on read from the weight log on this Session’s local date. */
+  bodyweight_kg?: number | null;
   id: string;
   exercise_id: string;
   exercise_type: ExerciseType;

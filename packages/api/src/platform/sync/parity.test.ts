@@ -34,6 +34,25 @@ afterAll(async () => {
  * nullability, defaults, indexes and publication membership. */
 const expectation: Expectation = {
   tables: {
+    body_measurement: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        metric: { type: "text", notNull: true, default: null },
+        value: { type: "double precision", notNull: true, default: null },
+        measured_at: { type: "timestamp with time zone", notNull: true, default: null },
+        local_date: { type: "date", notNull: true, default: null },
+        source: { type: "text", notNull: true, default: "'manual'::text" },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        body_measurement_metric_date_idx:
+          "CREATE INDEX body_measurement_metric_date_idx ON public.body_measurement USING btree (user_id, metric, local_date DESC NULLS LAST) WHERE (deleted_at IS NULL)",
+      },
+    },
+
     // Legacy (ADR 0035): the notes example vertical is gone, but its tables stay in Postgres and in
     // the publication because migrations are additive-only. No stream, handler or router uses them.
     notes: {
@@ -311,6 +330,7 @@ const expectation: Expectation = {
   // Created by the test setup the way the bootstrap does, filled by the migrations.
   publications: {
     powersync: [
+      "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at)",
       "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at)",
@@ -346,7 +366,7 @@ describe("server schema parity", () => {
     expect(problems).toMatch(/exercise\.equipment is/);
     expect(problems).toContain("exercise.title is not declared");
     expect(problems).toContain("index missing_idx is missing");
-    expect(problems).toContain("publication powersync has [exercise(id, user_id");
+    expect(problems).toContain("publication powersync has [body_measurement(id, user_id");
   });
 
   it("keeps every stream consistent with the table, the publication and the upload handlers", async () => {
@@ -357,6 +377,7 @@ describe("server schema parity", () => {
     const streams = parseStreams(config);
     expect([...new Set(streams.map((stream) => stream.name))].sort()).toEqual([
       "exercise_catalog",
+      "my_body",
       "my_library",
       "my_training",
     ]);

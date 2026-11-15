@@ -75,6 +75,7 @@ export function usePreferences() {
     },
     setTimezone: (timezone: string | null) => update.mutate({ timezone }),
     /** Saves some of the `ui` preferences (weight unit, effort scale, default rest). */
+    setUiAsync: (ui: UiPreferencesPatch) => update.mutateAsync({ ui }),
     setUi: (ui: UiPreferencesPatch) => update.mutate({ ui }),
   };
 }

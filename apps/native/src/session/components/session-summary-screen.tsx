@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -56,6 +57,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   const { t, i18n } = useTranslation();
   const { top, bottom } = useSafeAreaInsets();
   const { preferences } = usePreferences();
+  const weight = useWeight();
   const source = useWorkout(session.workoutId ?? "");
   const actions = useSessionActions();
   const finish = useFinishSession();
@@ -105,7 +107,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
       return () => listener.remove();
     }, [updateOpen, keepOriginal, session.finishedAt, backToWorkout, onDone]),
   );
-  const totals = sessionTotals(loggedSetsOf(session), preferences.ui.bodyweightKg);
+  const totals = sessionTotals(loggedSetsOf(session), weight.bodyweightOn(session.startedAt));
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const records = recordFlags(
@@ -118,7 +120,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
         sets: loggedSetsOf(session),
       },
     ],
-    preferences.ui.bodyweightKg,
+    weight.bodyweightOn(session.startedAt),
   );
   const recordCount = records.values().reduce((sum, keys) => sum + keys.length, 0);
   const [baseline] = useState({

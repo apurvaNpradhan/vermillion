@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { BODY_METRICS, DEFAULT_TRACKED_METRICS } from "./body";
 import { localeSchema } from "./locale";
 import {
   DEFAULT_REST_SECONDS,
@@ -27,6 +28,10 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
  * keys are dropped. Add new settings here with a default.
  */
 const uiFields = {
+  lengthUnit: z.enum(["cm", "in"]),
+  heightCm: z.number().min(100).max(250).nullable(),
+  trackedMetrics: z.array(z.enum(BODY_METRICS)).max(14),
+  weightGoalKg: z.number().min(20).max(400).nullable(),
   bodyweightKg: z.number().min(20).max(400).nullable(),
   keepAwake: z.boolean(),
   sounds: z.boolean(),
@@ -43,6 +48,10 @@ const uiFields = {
 };
 export const uiPreferencesSchema = z
   .object({
+    lengthUnit: uiFields.lengthUnit.optional(),
+    heightCm: uiFields.heightCm.default(null),
+    trackedMetrics: uiFields.trackedMetrics.default(DEFAULT_TRACKED_METRICS),
+    weightGoalKg: uiFields.weightGoalKg.default(null),
     bodyweightKg: uiFields.bodyweightKg.default(null),
     keepAwake: uiFields.keepAwake.default(true),
     sounds: uiFields.sounds.default(true),
@@ -63,6 +72,7 @@ export const uiPreferencesSchema = z
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({
     ...rest,
+    lengthUnit: rest.lengthUnit ?? (rest.weightUnit === "lb" ? "in" : "cm"),
     soundRest: soundRest ?? restSound ?? true,
   }));
 export type UiPreferences = z.infer<typeof uiPreferencesSchema>;

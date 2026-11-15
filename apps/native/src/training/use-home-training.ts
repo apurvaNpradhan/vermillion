@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { KG_PER_LB, MUSCLE_GROUPS, sessionTotals } from "@workspace/shared";
 import {
   watchSessionPage,
@@ -31,6 +32,7 @@ const exerciseSchema = z.object({
 });
 export function useHomeTraining(workoutId?: string) {
   const { i18n } = useTranslation();
+  const weight = useWeight();
   // Home needs eight chart weeks, plus a small recent list even after a long break.
   const from = new Date(Date.now() - 9 * 7 * 86400000).toISOString().slice(0, 10);
   const history = useLocalWatch(
@@ -87,7 +89,7 @@ export function useHomeTraining(workoutId?: string) {
   };
   const today = day(new Date());
   const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * 86400000;
-  const sessions = history.value ?? [];
+  const sessions = weight.withBodyweight(history.value ?? []);
   const buckets = Array.from({ length: 8 }, (_, index) => {
     const from = monday - (7 - index) * 604800000;
     const items = sessions.flatMap((s) => {
@@ -109,7 +111,7 @@ export function useHomeTraining(workoutId?: string) {
   });
   return {
     sessions,
-    recent: recent.value ?? [],
+    recent: weight.withBodyweight(recent.value ?? []),
     buckets,
     exercises: muscles.value ?? [],
     timezone: zone,

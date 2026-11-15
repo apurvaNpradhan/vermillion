@@ -1,3 +1,4 @@
+import { WeightCard } from "@/body";
 import { Skeleton } from "@/platform/ui/skeleton";
 import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -102,6 +103,7 @@ export function TrainingHome() {
           )}
         </View>
       ) : null}
+      <WeightCard />
       {loading ? (
         <Skeleton label={t("common__loading")} className="h-40 w-full rounded-2xl" />
       ) : null}

@@ -8,3 +8,5 @@ export * from "./onboarding";
 export * from "./passkey";
 export * from "./exercise/index";
 export * from "./training/index";
+
+export * from "./body";

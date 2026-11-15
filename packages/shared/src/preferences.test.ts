@@ -11,6 +11,10 @@ import {
 describe("ui preferences schema", () => {
   it("fills every default for an empty or missing value", () => {
     const defaults = {
+      lengthUnit: "cm",
+      heightCm: null,
+      trackedMetrics: ["waist", "chest", "left_bicep", "right_bicep", "left_thigh", "right_thigh"],
+      weightGoalKg: null,
       bodyweightKg: null,
       keepAwake: true,
       sounds: true,
@@ -65,6 +69,7 @@ describe("ui preferences schema", () => {
     expect(migrated).toEqual({
       ...DEFAULT_UI_PREFERENCES,
       weightUnit: "lb",
+      lengthUnit: "in",
       soundRest: false,
     });
     expect("restSound" in migrated).toBe(false);

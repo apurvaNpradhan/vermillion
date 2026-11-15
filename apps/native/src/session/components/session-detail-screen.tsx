@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
@@ -40,6 +41,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const session = state.status === "ready" ? state.session : null;
   const source = useWorkout(session?.workoutId ?? "");
   const { preferences } = usePreferences();
+  const weight = useWeight();
   const actions = useSessionActions();
   const finish = useFinishSession();
   const history = useRecordHistory(
@@ -47,8 +49,14 @@ export function SessionDetailScreen({ id }: { id: string }) {
   );
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const totals = sessionTotals(session ? loggedSetsOf(session) : [], preferences.ui.bodyweightKg);
-  const flags = recordFlags(history.sessions, preferences.ui.bodyweightKg);
+  const totals = sessionTotals(
+    session ? loggedSetsOf(session) : [],
+    weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
+  );
+  const flags = recordFlags(
+    history.sessions,
+    weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
+  );
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const stats = t("session__share_stats", {

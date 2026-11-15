@@ -78,6 +78,7 @@ describe("powerSyncSchema", () => {
 
   it("has the synced tables and four local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
+      "body_measurement",
       "device_owner",
       "exercise",
       "exercise_setting",
@@ -95,6 +96,7 @@ describe("powerSyncSchema", () => {
       "workout_exercise",
     ]);
     const synced = [
+      "body_measurement",
       "exercise",
       "exercise_setting",
       "gym_equipment",

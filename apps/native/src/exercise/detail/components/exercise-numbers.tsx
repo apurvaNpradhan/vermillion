@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { type Equipment, KG_PER_LB, type RecordKey, type WeightUnit } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { BottomSheet } from "heroui-native";
@@ -28,7 +29,7 @@ function isMetricLabel(key: Metric): key is keyof typeof LABELS {
 }
 
 export function ExerciseNumbers({
-  sessions,
+  sessions: rawSessions,
   exerciseId,
   type,
   bodyweightKg,
@@ -46,6 +47,8 @@ export function ExerciseNumbers({
   equipment: Equipment;
   weightIncrementKg: number | null;
 }) {
+  const weight = useWeight();
+  const sessions = weight.withBodyweight(rawSessions);
   const { t, i18n } = useTranslation();
   const metrics = metricsFor(type);
   const [selected, setSelected] = useState<Metric>(metrics[0] ?? "total_reps");
@@ -119,6 +122,7 @@ export function ExerciseNumbers({
             ))}
           </ScrollView>
           {bodyweightKg === null &&
+          weight.entries.length === 0 &&
           (type === "bodyweight_reps" || type === "bodyweight_assisted_reps") ? (
             <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
           ) : null}

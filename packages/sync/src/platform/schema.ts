@@ -1,6 +1,7 @@
 import { getTableName } from "drizzle-orm";
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
+import { bodyMeasurement } from "../body/tables";
 import { exercise } from "../exercise/tables";
 import {
   exerciseSetting,
@@ -19,6 +20,7 @@ import { deviceOwner, installMeta, rejectedWrites } from "./tables";
 
 /** Drizzle tables for typed local queries. */
 export const drizzleSchema = {
+  bodyMeasurement,
   exercise,
   program,
   workout,
@@ -41,6 +43,7 @@ export const drizzleSchema = {
  * are never synced or uploaded. Index declarations on the Drizzle tables carry over.
  */
 export const powerSyncSchema = new DrizzleAppSchema({
+  body_measurement: { tableDefinition: bodyMeasurement },
   exercise: { tableDefinition: exercise },
   program: { tableDefinition: program },
   program_run: { tableDefinition: programRun },
@@ -61,6 +64,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
 /** Names of the tables that sync with the server (not the local-only ones). */
 export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(exercise),
+  getTableName(bodyMeasurement),
   getTableName(program),
   getTableName(programRun),
   getTableName(workout),

@@ -27,6 +27,10 @@ import {
 
 type Props = {
   showRanges?: boolean;
+  secondaryPoints?: readonly ChartPoint[];
+  goal?: number | null;
+  domain?: "data";
+  hideDots?: ReadonlySet<string>;
   points: readonly ChartPoint[];
   label: string;
   formatValue: (value: number) => string;
@@ -54,6 +58,10 @@ function Chart({
   showRanges = true,
   readout,
   footer,
+  secondaryPoints = [],
+  goal,
+  domain,
+  hideDots,
 }: Props & { mode: "line" | "bar" }) {
   const { t } = useTranslation();
   const ink = useChartColor();
@@ -67,7 +75,13 @@ function Chart({
     () => (showRanges ? rangePoints(points, range, Date.now()) : points),
     [points, range, showRanges],
   );
-  const grid = ticks(data.map((p) => p.y));
+  const values = [
+    ...data.map((p) => p.y),
+    ...secondaryPoints.map((p) => p.y),
+    ...(goal == null ? [] : [goal]),
+  ];
+  const low = domain === "data" ? Math.floor(Math.min(...values) - 0.5) : 0;
+  const grid = ticks(values.map((v) => v - low)).map((v) => v + low);
   const max = grid[grid.length - 1] ?? 1;
   const plotWidth = Math.max(0, width - 16);
   const first = data[0];
@@ -77,7 +91,7 @@ function Chart({
       ? ((i + 0.5) / data.length) * plotWidth + 8
       : scale(p.x, [first?.x ?? 0, last?.x ?? 0], plotWidth) + 8,
   );
-  const y = (value: number) => 160 - scale(value, [0, max], 152);
+  const y = (value: number) => 160 - scale(value, [low, max], 152);
   const path = data.map((p, i) => `${i === 0 ? "M" : "L"}${positions[i]},${y(p.y)}`).join(" ");
   const pan = Gesture.Pan()
     .activeOffsetX([-8, 8])
@@ -211,6 +225,31 @@ function Chart({
                   {grid.map((tick) => (
                     <Line key={tick} x1={0} x2={width} y1={y(tick)} y2={y(tick)} stroke={border} />
                   ))}
+                  {goal != null ? (
+                    <Line
+                      x1={0}
+                      x2={width}
+                      y1={y(goal)}
+                      y2={y(goal)}
+                      stroke={ink}
+                      strokeDasharray="4 4"
+                      strokeOpacity={0.5}
+                    />
+                  ) : null}
+                  {secondaryPoints.length ? (
+                    <Path
+                      d={secondaryPoints
+                        .map(
+                          (p, i) =>
+                            `${i ? "L" : "M"}${scale(p.x, [first?.x ?? 0, last?.x ?? 0], plotWidth) + 8},${y(p.y)}`,
+                        )
+                        .join(" ")}
+                      fill="none"
+                      stroke={ink}
+                      strokeOpacity={0.25}
+                      strokeWidth={1}
+                    />
+                  ) : null}
                   {mode === "line" ? (
                     <Path d={path} fill="none" stroke={ink} strokeWidth={2} />
                   ) : null}
@@ -224,7 +263,7 @@ function Chart({
                         height={160 - y(p.y)}
                         fill={ink}
                       />
-                    ) : (
+                    ) : hideDots?.has(p.id) ? null : (
                       <Circle key={p.id} cx={positions[i]} cy={y(p.y)} r={3} fill={ink} />
                     ),
                   )}

@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import type { SessionDetail } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -22,7 +23,7 @@ export function useSessionLogging(stored: SessionDetail) {
   const { preferences, setUi, isLoading: preferencesLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const effortScale = preferences.ui.effortScale;
-  const bodyweightKg = preferences.ui.bodyweightKg;
+  const bodyweightKg = useWeight().bodyweightOn(session.startedAt);
   const installId = useInstallId();
 
   // Ownership: another device's Session is read-only. A device that had it and lost it says so.

@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { watchSessionPage, watchRecordHistory, type FinishedSession } from "@workspace/sync";
 import { useCallback, useRef } from "react";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
@@ -67,9 +68,10 @@ export function useSessionHistory() {
     [],
   );
   const state = useLocalWatch(subscribe);
+  const weight = useWeight();
   const loadMore = useCallback(() => more.current(), []);
   return {
-    sessions: state.value?.sessions ?? [],
+    sessions: weight.withBodyweight(state.value?.sessions ?? []),
     loading: state.loading,
     failed: state.failed,
     retry: state.retry,
@@ -90,8 +92,9 @@ export function useRecordHistory(exerciseIds: readonly string[]) {
     [key],
   );
   const state = useLocalWatch(subscribe);
+  const weight = useWeight();
   return {
-    sessions: state.value ?? [],
+    sessions: weight.withBodyweight(state.value ?? []),
     loading: state.loading,
     failed: state.failed,
     retry: state.retry,

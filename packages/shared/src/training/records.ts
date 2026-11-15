@@ -23,7 +23,11 @@ export type ExerciseBests = Map<RecordKey, number>;
 function setMetrics(set: LoggedSet, bodyweightKg: number | null): [RecordKey, number][] {
   const fields: readonly string[] = SET_FIELDS[set.exercise_type];
   const metrics: [RecordKey, number][] = [];
-  const weight = effectiveWeight(set.exercise_type, set.weight_kg, bodyweightKg);
+  const weight = effectiveWeight(
+    set.exercise_type,
+    set.weight_kg,
+    set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
+  );
   if (fields.includes("weight") && weight !== null && weight > 0) {
     metrics.push(["heaviest_weight", weight]);
     const reps = set.reps ?? 0;

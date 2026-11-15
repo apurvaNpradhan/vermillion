@@ -1,3 +1,4 @@
+import { WeightPreferenceRow } from "@/body";
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
@@ -51,6 +52,7 @@ export function PreferenceRows() {
   return (
     <>
       <ListSection title={t("settings__section_preferences")}>
+        <WeightPreferenceRow />
         <ListRow
           icon={Palette}
           title={t("settings__theme_title")}

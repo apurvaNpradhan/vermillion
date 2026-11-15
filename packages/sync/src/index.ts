@@ -251,3 +251,17 @@ export {
   reconcileRuns,
 } from "./training";
 export { programRun } from "./training";
+
+export {
+  bodyMeasurement,
+  logMeasurement,
+  logMeasurements,
+  updateMeasurement,
+  deleteMeasurement,
+  restoreMeasurement,
+  watchMetric,
+  watchLatestByMetric,
+  watchWeighInDays,
+  type MeasurementRow,
+  type WatchedMeasurement,
+} from "./body";

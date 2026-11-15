@@ -1,3 +1,4 @@
+import { useWeight } from "@/body";
 import { useSyncValue } from "@/sync";
 import { watchExerciseHistories, type FinishedSession } from "@workspace/sync";
 import { useCallback, useEffect, useRef } from "react";
@@ -33,6 +34,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
     [key],
   );
   const state = useLocalWatch(subscribe);
+  const weight = useWeight();
   const scope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   const cached = useRef<{ scope: string; history: PreviousSets } | null>(null);
   useEffect(() => {
@@ -44,7 +46,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
     ? EMPTY
     : (state.value ?? (scope && cached.current?.scope === scope ? cached.current.history : EMPTY));
   return {
-    history,
+    history: new Map([...history].map(([id, sessions]) => [id, weight.withBodyweight(sessions)])),
     ready: !state.loading && !state.failed,
     failed: state.failed,
     retry: state.retry,
