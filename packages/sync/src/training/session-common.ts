@@ -20,6 +20,7 @@ export type SessionSetRow = typeof sessionSet.$inferSelect;
 /** What a discard removed, so Undo can put it back with the same ids (the server restores them). */
 export type DeletedSession = {
   session: SessionRow;
+  photoMediaIds: string[];
   exercises: SessionExerciseRow[];
   sets: SessionSetRow[];
 };

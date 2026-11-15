@@ -184,5 +184,10 @@ export {
 } from "./run-store";
 export { programRun } from "./tables";
 
-export { addSessionPhoto, removeSessionPhoto, moveSessionPhoto } from "./photo-store";
+export {
+  addSessionPhoto,
+  removeSessionPhoto,
+  moveSessionPhoto,
+  releaseSessionPhotos,
+} from "./photo-store";
 export { watchSessionPhotos, type SessionPhoto } from "./photo-watch";

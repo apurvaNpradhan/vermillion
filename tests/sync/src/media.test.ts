@@ -1,5 +1,7 @@
 import {
   claimDeviceOwner,
+  discardSession,
+  releaseSessionPhotos,
   ensureInstallId,
   startSession,
   addSessionPhoto,
@@ -82,6 +84,24 @@ describe("user media sync", () => {
       within,
     );
     expect(await b.database.getOptional("SELECT id FROM media WHERE id = ?", [first])).toBeNull();
+    const deleted = await discardSession(a.database, session);
+    if (!deleted) throw new Error("Missing Session");
+    await a.uploaded();
+    await vi.waitFor(
+      async () =>
+        expect(
+          await a.database.getAll("SELECT id FROM session_photo WHERE session_id = ?", [session]),
+        ).toEqual([]),
+      within,
+    );
+    expect(await releaseSessionPhotos(a.database, session, deleted.photoMediaIds)).toHaveLength(1);
+    await a.uploaded();
+    await vi.waitFor(async () => {
+      expect(
+        await b.database.getAll("SELECT id FROM session_photo WHERE session_id = ?", [session]),
+      ).toEqual([]);
+      expect(await mediaIds(b)).toEqual([]);
+    }, within);
   });
 
   it("replicates a cover and its media row to a second device, never to another account", async () => {

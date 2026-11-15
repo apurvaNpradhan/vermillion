@@ -28,6 +28,7 @@ import {
   session,
   sessionExercise,
   sessionSet,
+  sessionPhoto,
   workout,
   workoutExercise,
 } from "./tables";
@@ -364,8 +365,18 @@ export function discardSession(
       );
     }
     await tx.delete(sessionExercise).where(eq(sessionExercise.session_id, id));
+    const photos = await tx
+      .select({ mediaId: sessionPhoto.media_id })
+      .from(sessionPhoto)
+      .where(eq(sessionPhoto.session_id, id))
+      .limit(4);
     await tx.delete(session).where(eq(session.id, id));
-    return { session: current, exercises, sets };
+    return {
+      session: current,
+      exercises,
+      sets,
+      photoMediaIds: photos.map((photo) => photo.mediaId),
+    };
   });
 }
 

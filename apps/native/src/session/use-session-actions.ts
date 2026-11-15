@@ -5,6 +5,7 @@ import {
   adjustRest,
   clearRest,
   discardSession,
+  releaseSessionPhotos,
   finishSession,
   leaveSessionSuperset,
   moveSessionExercise,
@@ -31,7 +32,8 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useTrainingWrite } from "@/training";
+import { UNDO_MS, useTrainingWrite } from "@/training";
+import { useLocalData } from "@/sync";
 
 /**
  * Writes to the Session on the local database, each returning once the change is saved on the
@@ -40,6 +42,8 @@ import { useTrainingWrite } from "@/training";
  */
 export function useSessionActions() {
   const { t } = useTranslation();
+  const local = useLocalData();
+  const media = local?.status === "ready" ? local.media : null;
   const { toast } = useAppToast();
   const { write, writeScope, training, undoToast } = useTrainingWrite();
 
@@ -192,9 +196,22 @@ export function useSessionActions() {
       undoToast(t("session__discarded_toast", { title }), () => {
         void write((db) => restoreSession(db, deleted, writeScope), false);
       });
+      setTimeout(() => {
+        void write(async (db) => {
+          for (const mediaId of await releaseSessionPhotos(
+            db,
+            id,
+            deleted.photoMediaIds,
+            writeScope,
+          )) {
+            await media?.discard(mediaId);
+          }
+          return true;
+        }, false);
+      }, UNDO_MS + 500);
       return true;
     },
-    [write, writeScope, undoToast, t],
+    [write, writeScope, undoToast, t, media],
   );
 
   return {

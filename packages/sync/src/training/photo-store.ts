@@ -61,3 +61,26 @@ export function moveSessionPhoto(
       .where(and(eq(sessionPhoto.id, id), eq(sessionPhoto.session_id, sessionId)));
   });
 }
+
+/** Releases a discarded Session's files after Undo, only while the Session is still absent. */
+export function releaseSessionPhotos(
+  database: MediaDatabase,
+  sessionId: string,
+  mediaIds: readonly string[],
+  scope?: string,
+) {
+  return writeMedia(database, scope, async (tx) => {
+    const [live] = await tx
+      .select({ id: session.id })
+      .from(session)
+      .where(eq(session.id, sessionId))
+      .limit(1);
+    if (live) return [];
+    await tx.delete(sessionPhoto).where(eq(sessionPhoto.session_id, sessionId)).returning();
+    const released: string[] = [];
+    for (const mediaId of mediaIds) {
+      if (await removeMedia(tx, mediaId)) released.push(mediaId);
+    }
+    return released;
+  });
+}

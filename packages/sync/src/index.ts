@@ -271,6 +271,11 @@ export {
   type MediaDatabase,
   type NewMedia,
 } from "./media";
-export { addSessionPhoto, removeSessionPhoto, moveSessionPhoto } from "./training";
+export {
+  addSessionPhoto,
+  removeSessionPhoto,
+  moveSessionPhoto,
+  releaseSessionPhotos,
+} from "./training";
 export { setExerciseImage } from "./exercise";
 export { watchSessionPhotos, type SessionPhoto } from "./training";
