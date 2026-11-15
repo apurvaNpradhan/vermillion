@@ -58,7 +58,7 @@ Bodyweight and assisted exercises use the **trend weight on the Session's date**
 
 ### Reminders
 
-Two local notifications, both off by default: a daily weigh-in at a chosen time, and a weekly check-in on a chosen weekday and time. Tapping opens the weight sheet or the Check-in sheet. There are no inline notification actions.
+Two local notifications, both off by default: a daily weigh-in at a chosen time, and a weekly check-in on a chosen weekday and time. Tapping opens the weight sheet or the Check-in sheet. There are no inline notification actions. Times are wall-clock times wherever the phone is, and a reminder fires even on a day that already has a weigh-in: repeating requests cannot skip one day.
 
 ### Components
 

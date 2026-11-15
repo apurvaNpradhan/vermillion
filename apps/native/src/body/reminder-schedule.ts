@@ -7,66 +7,30 @@ export type ReminderSchedule = {
   kind: ReminderKind;
   time: string;
   weekday?: number;
-  date?: number;
 };
 
-/** Weekdays use Expo's convention: Sunday = 1. Date setters follow device time and DST. */
-export function nextReminderFire(now: number, time: string, weekday?: number): number {
-  const [hour = 0, minute = 0] = time.split(":").map(Number);
-  const next = new Date(now);
-  next.setHours(hour, minute, 0, 0);
-  if (weekday !== undefined) next.setDate(next.getDate() + ((weekday - 1 - next.getDay() + 7) % 7));
-  if (next.getTime() <= now) {
-    next.setDate(next.getDate() + (weekday === undefined ? 1 : 7));
-    next.setHours(hour, minute, 0, 0);
-  }
-  return next.getTime();
-}
-
+/**
+ * One repeating request per enabled reminder: a daily weigh-in and a weekly Check-in (Expo
+ * weekdays, Sunday = 1). Reminder times are wall-clock times wherever the phone is, so the OS
+ * keeps them at the chosen hour across DST and travel. A reminder always fires, even after a
+ * weigh-in that day: a repeating request cannot skip one day, and dated workarounds either
+ * expire or exhaust iOS's 64 pending requests (ADR 0041).
+ */
 export function desiredBodyReminders({
   ui,
-  now,
-  loggedToday,
   granted,
 }: {
   ui: Pick<UiPreferences, "weighInReminder" | "checkInReminder">;
-  now: number;
-  loggedToday: boolean;
   granted: boolean;
 }): ReminderSchedule[] {
   if (!granted) return [];
   const desired: ReminderSchedule[] = [];
-  const weight = ui.weighInReminder;
-  const today = new Date(now).getDay() + 1;
-  const todayFire = nextReminderFire(now, weight.time);
-  if (weight.enabled) {
-    if (loggedToday && new Date(todayFire).toDateString() === new Date(now).toDateString()) {
-      // Expo cannot give a repeating trigger a delayed start. Keep the other six weekdays
-      // repeating, and cover this weekday with dated requests until the next app reconciliation.
-      // 48 requests + six repeats + Check-in leaves room below iOS's 64-request limit.
-      for (let weekday = 1; weekday <= 7; weekday++) {
-        if (weekday !== today)
-          desired.push({
-            id: `${BODY_REMINDER_PREFIX}weight:${weekday}`,
-            kind: "weight",
-            time: weight.time,
-            weekday,
-          });
-      }
-      const next = new Date(todayFire);
-      const [hour = 0, minute = 0] = weight.time.split(":").map(Number);
-      for (let week = 1; week <= 48; week++) {
-        next.setDate(next.getDate() + 7);
-        next.setHours(hour, minute, 0, 0);
-        desired.push({
-          id: `${BODY_REMINDER_PREFIX}weight:skip:${week}`,
-          kind: "weight",
-          time: weight.time,
-          date: next.getTime(),
-        });
-      }
-    } else desired.push({ id: `${BODY_REMINDER_PREFIX}weight`, kind: "weight", time: weight.time });
-  }
+  if (ui.weighInReminder.enabled)
+    desired.push({
+      id: `${BODY_REMINDER_PREFIX}weight`,
+      kind: "weight",
+      time: ui.weighInReminder.time,
+    });
   if (ui.checkInReminder.enabled)
     desired.push({
       id: `${BODY_REMINDER_PREFIX}check-in`,
@@ -77,7 +41,7 @@ export function desiredBodyReminders({
   return desired;
 }
 
-/** Only owned requests are touched; signatures include translated content and the device zone. */
+/** Only owned requests are touched; signatures include the translated content. */
 export function planBodyReminders(
   desired: readonly ReminderSchedule[],
   scheduled: readonly { id: string; signature: string }[],

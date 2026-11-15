@@ -39,25 +39,19 @@ export async function scheduleBodyReminder(
       },
     },
     trigger:
-      entry.date !== undefined
+      entry.weekday !== undefined
         ? {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: entry.date,
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday: entry.weekday,
+            hour,
+            minute,
             channelId: BODY_CHANNEL,
           }
-        : entry.weekday !== undefined
-          ? {
-              type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-              weekday: entry.weekday,
-              hour,
-              minute,
-              channelId: BODY_CHANNEL,
-            }
-          : {
-              type: Notifications.SchedulableTriggerInputTypes.DAILY,
-              hour,
-              minute,
-              channelId: BODY_CHANNEL,
-            },
+        : {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+            channelId: BODY_CHANNEL,
+          },
   });
 }
