@@ -21,7 +21,7 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { deleteCoverFile } from "@/platform/media/cover-files";
+import { useLocalData } from "@/sync";
 
 import { copyTitle } from "./use-workout-actions";
 import { UNDO_MS, useTrainingWrite } from "./use-training-write";
@@ -37,6 +37,8 @@ export function useProgramActions() {
   const { toast } = useAppToast();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
+  const local = useLocalData();
+  const media = local?.status === "ready" ? local.media : null;
 
   const create = useCallback(
     (title: string) =>
@@ -67,16 +69,20 @@ export function useProgramActions() {
         void write((db) => restoreProgram(db, deleted, writeScope), false);
       });
       // The photo stays through the Undo window, then goes unless the Program came back.
-      setTimeout(() => {
-        void write(async (db) => {
-          const uri = await releaseProgramCover(db, id, writeScope);
-          if (uri !== null) deleteCoverFile(uri);
-          return true;
-        }, false);
-      }, UNDO_MS + 500);
+      const coverMediaId = deleted.program.cover_media_id;
+      if (coverMediaId !== null) {
+        setTimeout(() => {
+          void write(async (db) => {
+            if (await releaseProgramCover(db, id, coverMediaId, writeScope)) {
+              await media?.discard(coverMediaId);
+            }
+            return true;
+          }, false);
+        }, UNDO_MS + 500);
+      }
       return true;
     },
-    [write, writeScope, undoToast, t],
+    [write, writeScope, undoToast, t, media],
   );
 
   const duplicate = useCallback(

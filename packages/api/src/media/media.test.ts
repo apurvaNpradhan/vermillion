@@ -409,19 +409,19 @@ describe("user media", () => {
   });
 
   describe("purging objects", () => {
+    const completedRuns = async () =>
+      Number(
+        (
+          await app.rows(
+            sql`select count(*)::int as n from pgboss.job where name = 'media.purge-objects' and state = 'completed'`,
+          )
+        )[0]?.n,
+      );
+    /** Enqueues the job and waits for that run (not an earlier one) to complete. */
     async function runPurgeJob() {
+      const before = await completedRuns();
       await app.services.jobs.enqueue(mediaPurgeQueue, {});
-      await expect
-        .poll(
-          async () =>
-            (
-              await app.rows(
-                sql`select count(*)::int as n from pgboss.job where name = 'media.purge-objects' and state = 'completed'`,
-              )
-            )[0]?.n,
-          { timeout: 15_000 },
-        )
-        .toBeGreaterThan(0);
+      await expect.poll(completedRuns, { timeout: 20_000 }).toBeGreaterThan(before);
     }
     const age = (id: string, minutes: number) =>
       app.rows(
@@ -453,7 +453,7 @@ describe("user media", () => {
       const marked = (await stored(old))?.objects_purged_at;
       await age(fresh, 90);
       await runPurgeJob();
-      await expect.poll(async () => (await stored(fresh))?.objects_purged_at).not.toBeNull();
+      expect((await stored(fresh))?.objects_purged_at).not.toBeNull();
       expect(await exists(me, fresh, "full")).toBe(false);
       expect((await stored(old))?.objects_purged_at).toEqual(marked);
       expect(await exists(me, live, "full")).toBe(true);
@@ -465,7 +465,7 @@ describe("user media", () => {
       await me.send([op("DELETE", "media", id)]);
       await age(id, 120);
       await runPurgeJob();
-      await expect.poll(async () => (await stored(id))?.objects_purged_at).not.toBeNull();
+      expect((await stored(id))?.objects_purged_at).not.toBeNull();
     });
   });
 

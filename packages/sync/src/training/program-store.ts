@@ -33,7 +33,7 @@ export async function createProgram(
     const id = uuidv7();
     await tx
       .insert(program)
-      .values({ id, user_id: userId, cover_key: null, created_at: nowIso(), ...values });
+      .values({ id, user_id: userId, cover_media_id: null, created_at: nowIso(), ...values });
     return id;
   });
 }

@@ -90,8 +90,8 @@ export type ProgramSummary = {
   title: string;
   plannedWeeks: number | null;
   createdAt: string;
-  /** The cover photo on this device, or null (it never syncs). */
-  coverUri: string | null;
+  /** The cover's media (ADR 0040), or null. The file may still be uploading or downloading. */
+  coverMediaId: string | null;
   slots: { id: string; workoutId: string | null }[];
 };
 
@@ -111,7 +111,7 @@ export type ProgramDetail = {
   title: string;
   description: string | null;
   plannedWeeks: number | null;
-  coverUri: string | null;
+  coverMediaId: string | null;
   slots: ProgramSlotDetail[];
 };
 
@@ -258,23 +258,22 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
 }
 
 const WORKOUT_TABLES = ["workout", "workout_exercise", "exercise"];
-const PROGRAM_TABLES = ["program", "program_cover", "program_slot", ...WORKOUT_TABLES];
+const PROGRAM_TABLES = ["program", "program_slot", ...WORKOUT_TABLES];
 
 const programListRowSchema = z.object({
   id: z.string(),
   title: z.string(),
   planned_weeks: z.number().nullable(),
   created_at: z.string(),
-  cover_uri: z.string().nullable(),
+  cover_media_id: z.string().nullable(),
   slot_id: z.string().nullable(),
   workout_id: z.string().nullable(),
 });
 
 export const PROGRAM_LIST_SQL = `SELECT p.id AS id, p.title AS title, p.planned_weeks AS planned_weeks,
-    p.created_at AS created_at, pc.uri AS cover_uri,
+    p.created_at AS created_at, p.cover_media_id AS cover_media_id,
     s.id AS slot_id, s.workout_id AS workout_id
   FROM program p
-  LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
   ORDER BY p.created_at DESC, p.id DESC, s.position, s.id`;
 
@@ -289,7 +288,7 @@ export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
         title: row.title,
         plannedWeeks: row.planned_weeks,
         createdAt: row.created_at,
-        coverUri: row.cover_uri,
+        coverMediaId: row.cover_media_id,
         slots: [],
       };
       result.push(current);
@@ -304,7 +303,7 @@ const programDetailRowSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   planned_weeks: z.number().nullable(),
-  cover_uri: z.string().nullable(),
+  cover_media_id: z.string().nullable(),
   slot_id: z.string().nullable(),
   slot_position: z.string().nullable(),
   slot_workout_id: z.string().nullable(),
@@ -321,13 +320,12 @@ const programDetailRowSchema = z.object({
 });
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
-    p.planned_weeks AS planned_weeks, pc.uri AS cover_uri, s.id AS slot_id, s.position AS slot_position,
+    p.planned_weeks AS planned_weeks, p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.title AS exercise_title, e.thumbnail_key AS thumbnail_key
   FROM program p
-  LEFT JOIN program_cover pc ON pc.id = p.id
   LEFT JOIN program_slot s ON s.program_id = p.id
   LEFT JOIN workout w ON w.id = s.workout_id
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
@@ -379,7 +377,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
     title: first.title,
     description: first.description,
     plannedWeeks: first.planned_weeks,
-    coverUri: first.cover_uri,
+    coverMediaId: first.cover_media_id,
     slots,
   };
 }

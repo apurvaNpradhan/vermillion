@@ -1,9 +1,9 @@
 import type { ProgramSummary } from "@workspace/sync";
-import { Image } from "expo-image";
 import { Copy, Trash, Play, Stop } from "phosphor-react-native";
-import { memo, useMemo, useState, type ComponentProps } from "react";
+import { memo, useMemo, type ComponentProps } from "react";
 import { View } from "react-native";
 
+import { MediaImage } from "@/media";
 import { useTranslation } from "@/platform/i18n";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
@@ -15,39 +15,28 @@ import { PlanRow } from "./plan-row";
 const TILE = 36;
 
 /**
- * The tile of a Program: its cover photo from this device or a generated initial. A
- * photo that cannot be read falls back the same way.
+ * The tile of a Program: its cover photo (a media, ADR 0040) or a generated initial. The initial
+ * also shows while the photo is still arriving on this device.
  */
 export function ProgramTile({
   title,
   size,
-  coverUri = null,
+  coverMediaId = null,
 }: {
   title: string;
   size: number;
-  coverUri?: string | null;
+  coverMediaId?: string | null;
 }) {
-  const [failedUri, setFailedUri] = useState<string | null>(null);
-  if (coverUri !== null && failedUri !== coverUri) {
-    return (
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        className="overflow-hidden rounded-xl bg-default"
-        style={{ width: size, height: size }}
-      >
-        <Image
-          source={{ uri: coverUri }}
-          recyclingKey={coverUri}
-          contentFit="cover"
-          transition={120}
-          onError={() => setFailedUri(coverUri)}
-          style={{ width: size, height: size }}
-        />
-      </View>
-    );
-  }
-  return <PlanInitialTile title={title} size={size} />;
+  if (coverMediaId === null) return <PlanInitialTile title={title} size={size} />;
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <MediaImage
+        mediaId={coverMediaId}
+        size={size}
+        fallback={<PlanInitialTile title={title} size={size} />}
+      />
+    </View>
+  );
 }
 
 /** A compact program row; the same menu and swipe actions are available in either list. */
@@ -105,7 +94,7 @@ export const ProgramRow = memo(function ProgramRow({
     <PlanRow
       title={program.title}
       lines={[meta]}
-      tile={<ProgramTile title={program.title} size={TILE} coverUri={program.coverUri} />}
+      tile={<ProgramTile title={program.title} size={TILE} coverMediaId={program.coverMediaId} />}
       menuLabel={t("training__program_menu")}
       onOpen={() => onOpen(program.id)}
       actions={swipe}

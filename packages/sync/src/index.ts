@@ -99,7 +99,6 @@ export {
   moveWorkoutExercise,
   needsRebalance,
   program,
-  programCover,
   programSlot,
   rebalanced,
   removeFromRotation,
@@ -111,12 +110,11 @@ export {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  clearProgramCover,
   releaseProgramCover,
   setProgramCover,
+  setProgramCoverToNewMedia,
   sortByPosition,
   supersetWithNext,
-  sweepProgramCovers,
   parseProgramDetail,
   parseProgramList,
   parseWorkoutDetail,
@@ -219,7 +217,6 @@ export type {
   Positioned,
   ProgramPatch,
   ProgramRow,
-  ProgramCoverRow,
   ProgramDetail,
   ProgramPlan,
   ProgramSlotDetail,
@@ -251,3 +248,12 @@ export {
   reconcileRuns,
 } from "./training";
 export { programRun } from "./training";
+export {
+  attachments,
+  createMedia,
+  deleteMedia,
+  media,
+  newMediaId,
+  type MediaDatabase,
+  type NewMedia,
+} from "./media";

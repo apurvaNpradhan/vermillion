@@ -252,7 +252,11 @@ function LoadedProgram({
                 onPress={onOpenDetails}
                 className="min-h-16 flex-row items-center gap-3 py-1"
               >
-                <ProgramTile title={program.title} size={COVER_SIZE} coverUri={program.coverUri} />
+                <ProgramTile
+                  title={program.title}
+                  size={COVER_SIZE}
+                  coverMediaId={program.coverMediaId}
+                />
                 <View className="flex-1 gap-1">
                   <Text className="text-label font-medium text-foreground">{meta}</Text>
                   <Text className="text-caption text-muted">

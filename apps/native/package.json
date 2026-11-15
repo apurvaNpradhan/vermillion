@@ -20,6 +20,7 @@
     "@gorhom/bottom-sheet": "^5.2.14",
     "@legendapp/list": "^3.7.1",
     "@op-engineering/op-sqlite": "18.2.5",
+    "@powersync/common": "2.5.0",
     "@powersync/react-native": "2.4.0",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",

@@ -1,0 +1,95 @@
+import { type MediaVariant } from "@workspace/shared";
+import { Image } from "expo-image";
+import { CloudArrowUp, WarningCircle } from "phosphor-react-native";
+import { Spinner, useThemeColor } from "heroui-native";
+import { useState, type ReactNode } from "react";
+import { Pressable, View } from "react-native";
+
+import { useTranslation } from "@/platform/i18n";
+
+import { useMediaImage } from "./use-media-image";
+
+const BADGE = 18;
+
+/**
+ * An image of a media (ADR 0040) that is honest about the file lagging the row: the local file
+ * as soon as there is one, a placeholder while it downloads (the thumbnail stands in for a full
+ * image), a quiet badge while it uploads, and a badge that retries when a transfer failed.
+ * `fallback` shows when there is no picture to draw (no media, or the file has not arrived).
+ */
+export function MediaImage({
+  mediaId,
+  variant = "thumb",
+  size,
+  fallback = null,
+  rounded = "rounded-xl",
+}: {
+  mediaId: string | null;
+  variant?: MediaVariant;
+  /** Square size in dp. */
+  size: number;
+  fallback?: ReactNode;
+  /** Radius class; the view clips its image to it. */
+  rounded?: string;
+}) {
+  const { t } = useTranslation();
+  const file = useMediaImage(mediaId, variant);
+  // The thumbnail is what a full image shows while it downloads.
+  const thumb = useMediaImage(variant === "full" ? mediaId : null, "thumb");
+  const danger = useThemeColor("danger");
+  const foreground = useThemeColor("foreground");
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+
+  const uri = file.uri ?? thumb.uri;
+  const drawable = uri !== null && failedUri !== uri;
+
+  return (
+    <View className={`overflow-hidden bg-default ${rounded}`} style={{ width: size, height: size }}>
+      {drawable ? (
+        <Image
+          source={{ uri }}
+          recyclingKey={uri}
+          contentFit="cover"
+          transition={120}
+          onError={() => setFailedUri(uri)}
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        fallback
+      )}
+      {file.state === "downloading" && !drawable ? (
+        <View
+          accessible
+          accessibilityLabel={t("media__downloading")}
+          className="absolute inset-0 items-center justify-center"
+          pointerEvents="none"
+        >
+          <Spinner size="sm" />
+        </View>
+      ) : null}
+      {file.state === "uploading" ? (
+        <View
+          accessible
+          accessibilityLabel={t("media__uploading")}
+          pointerEvents="none"
+          className="absolute bottom-1 right-1 items-center justify-center rounded-full bg-background/80"
+          style={{ width: BADGE, height: BADGE }}
+        >
+          <CloudArrowUp size={12} color={foreground} />
+        </View>
+      ) : null}
+      {file.state === "failed" ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("media__failed_label")}
+          hitSlop={8}
+          onPress={file.retry}
+          className="absolute bottom-1 right-1 items-center justify-center rounded-full bg-background/80"
+          style={{ width: BADGE, height: BADGE }}
+        >
+          <WarningCircle size={14} color={danger} weight="fill" />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}

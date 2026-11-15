@@ -35,7 +35,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
         thumbnail_key TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
-        planned_weeks INTEGER, cover_key TEXT, created_at TEXT, restore INTEGER);
+        planned_weeks INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
         note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout_exercise (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
@@ -62,7 +62,10 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
         bar_id TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
-      CREATE TABLE program_cover (id TEXT PRIMARY KEY, program_id TEXT, uri TEXT, updated_at TEXT);
+      CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
+        height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
+      CREATE TABLE attachments (id TEXT PRIMARY KEY, filename TEXT, local_uri TEXT, timestamp INTEGER,
+        size INTEGER, media_type TEXT, state INTEGER, has_synced INTEGER, meta_data TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
       CREATE TABLE rejected_writes (id TEXT PRIMARY KEY, tx_id TEXT, op_ordinal INTEGER,
@@ -154,7 +157,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "session_set",
         "gym_equipment",
         "exercise_setting",
-        "program_cover",
+        "media",
+        "attachments",
         "device_owner",
         "install_meta",
         "rejected_writes",
