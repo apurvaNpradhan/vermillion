@@ -39,12 +39,21 @@ export function setRestSoundEnabled(enabled: boolean) {
  */
 export function installRestNotifications(channelName: string): Promise<void> {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: !surfaceVisible,
-      shouldShowList: !surfaceVisible,
-      shouldPlaySound: shouldChimeInForeground({ soundOn, surfaceVisible }),
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      if (notification.request.identifier.startsWith("body-reminder:"))
+        return {
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        };
+      return {
+        shouldShowBanner: !surfaceVisible,
+        shouldShowList: !surfaceVisible,
+        shouldPlaySound: shouldChimeInForeground({ soundOn, surfaceVisible }),
+        shouldSetBadge: false,
+      };
+    },
   });
   if (Platform.OS !== "android") return Promise.resolve();
   const channel = (id: string, sound: string | null) =>

@@ -67,6 +67,7 @@ export function usePreferences() {
   return {
     preferences: query.data ?? EMPTY,
     isLoading: query.isPending,
+    hasPreferences: query.data !== undefined,
     isSaving: update.isPending,
     /** Account language, remembered on this device too. `null` follows the phone again. */
     setLocale: (locale: Locale | null) => {

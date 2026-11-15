@@ -1,6 +1,7 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { WeighInGrid } from "./weigh-in-grid";
 import { SyncBanner } from "@/sync";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Info, DotsThree, Target, Trash } from "phosphor-react-native";
 import { useThemeColor, BottomSheet } from "heroui-native";
@@ -26,12 +27,20 @@ const ranges = [
   { label: "charts__all", days: Infinity },
 ] as const; // Safety: fixed range labels are i18n keys.
 export function WeightScreen() {
+  const router = useRouter();
+  const { reminder } = useLocalSearchParams<{ reminder?: string }>();
   const state = useWeight();
   const actions = useLogWeight();
   const { t, i18n } = useTranslation();
   const { setUiAsync } = usePreferences();
   const [range, setRange] = useState(1);
   const [logging, setLogging] = useState(false);
+  useEffect(() => {
+    if (reminder === "1" && !state.loading && !state.failed) {
+      setLogging(true);
+      router.setParams({ reminder: undefined });
+    }
+  }, [reminder, router, state.loading, state.failed]);
   const [entry, setEntry] = useState<WatchedMeasurement>();
   const [info, setInfo] = useState(false);
   const [menu, setMenu] = useState(false);

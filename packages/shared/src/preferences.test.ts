@@ -11,6 +11,8 @@ import {
 describe("ui preferences schema", () => {
   it("fills every default for an empty or missing value", () => {
     const defaults = {
+      weighInReminder: { enabled: false, time: "08:00" },
+      checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
       lengthUnit: "cm",
       heightCm: null,
       trackedMetrics: ["waist", "chest", "left_bicep", "right_bicep", "left_thigh", "right_thigh"],
@@ -132,4 +134,24 @@ it("stores a positive global kg increment or null for equipment defaults", () =>
   });
   for (const weightIncrementKg of [0, -1, 101])
     expect(uiPreferencesPatchSchema.safeParse({ weightIncrementKg }).success).toBe(false);
+});
+
+it("validates reminder times and Expo weekdays, and keeps patches sparse", () => {
+  const weighInReminder = { enabled: true, time: "07:05" };
+  expect(uiPreferencesPatchSchema.parse({ weighInReminder })).toEqual({ weighInReminder });
+  for (const time of ["24:00", "08:60", "8:00", "08:00:00", ""]) {
+    expect(
+      uiPreferencesPatchSchema.safeParse({ weighInReminder: { enabled: true, time } }).success,
+    ).toBe(false);
+  }
+  for (const weekday of [0, 8, 1.5]) {
+    expect(
+      uiPreferencesPatchSchema.safeParse({
+        checkInReminder: { enabled: true, time: "09:00", weekday },
+      }).success,
+    ).toBe(false);
+  }
+  expect(uiPreferencesPatchSchema.safeParse({ weighInReminder: { enabled: true } }).success).toBe(
+    false,
+  );
 });

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 import {
   BODY_GROUPS,
   BODY_METRICS,
@@ -18,10 +18,17 @@ import { useMeasurements } from "./use-measurements";
 import { CheckInSheet } from "./check-in-sheet";
 import { groupLabels, metricLabels } from "./metric-labels";
 export function MeasurementsScreen() {
+  const router = useRouter();
+  const { reminder } = useLocalSearchParams<{ reminder?: string }>();
   const state = useMeasurements();
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (reminder === "1") {
+      setOpen(true);
+      router.setParams({ reminder: undefined });
+    }
+  }, [reminder, router]);
   const latest: Partial<Record<BodyMetric, number>> = {};
   for (const metric of BODY_METRICS) {
     const row = lastN(state.forMetric(metric), 1)[0];

@@ -1101,5 +1101,19 @@
   "body__right_thigh": "Right thigh",
   "body__left_calf": "Left calf",
   "body__right_calf": "Right calf",
-  "body__ratio_change": "{{arrow}} {{value}} since previous entry"
+  "body__ratio_change": "{{arrow}} {{value}} since previous entry",
+  "body__reminder_section": "Body",
+  "body__reminder_channel": "Body reminders",
+  "body__reminder_weight_title": "Daily weigh-in",
+  "body__reminder_weight_body": "Take a moment to log your weight.",
+  "body__reminder_check_title": "Weekly check-in",
+  "body__reminder_check_body": "Ready to record your measurements?",
+  "body__reminder_permission": "Get a reminder to log your weight or take your weekly measurements.",
+  "body__reminder_enabled": "Reminder",
+  "body__reminder_open_settings": "Allow notifications in Settings",
+  "body__reminder_weekday": "Weekday",
+  "body__reminder_hour": "Hour",
+  "body__reminder_minute": "Minute",
+  "body__reminder_time_option": "{{part}}: {{value}}",
+  "body__reminder_weekly_value": "{{weekday}}, {{time}}"
 }

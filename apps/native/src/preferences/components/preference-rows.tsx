@@ -1,4 +1,4 @@
-import { WeightPreferenceRow } from "@/body";
+import { BodyReminderSettings, WeightPreferenceRow } from "@/body";
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
@@ -82,6 +82,7 @@ export function PreferenceRows() {
         />
       </ListSection>
 
+      <BodyReminderSettings />
       <ThemePicker isOpen={picker === "theme"} onOpenChange={onOpenChange} />
       <AppearancePicker isOpen={picker === "appearance"} onOpenChange={onOpenChange} />
       <OptionSheet

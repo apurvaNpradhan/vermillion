@@ -72,6 +72,8 @@ describe("preferences", () => {
       locale: null,
       timezone: null,
       ui: {
+        weighInReminder: { enabled: false, time: "08:00" },
+        checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -109,6 +111,8 @@ describe("preferences", () => {
       locale: "en",
       timezone: null,
       ui: {
+        weighInReminder: { enabled: false, time: "08:00" },
+        checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -138,6 +142,8 @@ describe("preferences", () => {
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
       locale: "en",
       ui: {
+        weighInReminder: { enabled: false, time: "08:00" },
+        checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -173,6 +179,8 @@ describe("preferences", () => {
       locale: "en",
       timezone: "Europe/Berlin",
       ui: {
+        weighInReminder: { enabled: false, time: "08:00" },
+        checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
