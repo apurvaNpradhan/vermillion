@@ -124,8 +124,8 @@ describe("training plans sync", () => {
     }, within);
     expect(await localOrder(b, workoutId)).toEqual([first, second]);
     // The server wrote nothing the plan did not say: no cover, no deletion.
-    expect(await b.database.get("SELECT cover_key FROM program")).toMatchObject({
-      cover_key: null,
+    expect(await b.database.get("SELECT cover_media_id FROM program")).toMatchObject({
+      cover_media_id: null,
     });
   });
 

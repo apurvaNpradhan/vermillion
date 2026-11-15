@@ -13,17 +13,17 @@ Read the guide for the area you touch before editing. Terms are defined in [CONT
 
 ## Commands
 
-| Task                                           | Command                                       |
-| ---------------------------------------------- | --------------------------------------------- |
-| Start Postgres + PowerSync, then everything    | `pnpm db:start` then `pnpm dev`               |
-| Sync bootstrap / infra tests (need `db:start`) | `pnpm sync:bootstrap`, `pnpm test:sync-infra` |
-| Sync seam 3 (stack and API running)            | `pnpm test:sync`                              |
-| Lint and format check                          | `pnpm lint` (fix: `pnpm lint:fix`)            |
-| Typecheck                                      | `pnpm typecheck`                              |
-| Dead code and unused deps                      | `pnpm knip`                                   |
-| Unit and API tests (need `db:start`)           | `pnpm test`                                   |
-| i18n consistency / key usage                   | `pnpm i18n:check`, `pnpm i18n:report`         |
-| Generate a migration                           | `pnpm db:generate`                            |
+| Task                                               | Command                                       |
+| -------------------------------------------------- | --------------------------------------------- |
+| Start Postgres, MinIO + PowerSync, then everything | `pnpm db:start` then `pnpm dev`               |
+| Sync bootstrap / infra tests (need `db:start`)     | `pnpm sync:bootstrap`, `pnpm test:sync-infra` |
+| Sync seam 3 (stack and API running)                | `pnpm test:sync`                              |
+| Lint and format check                              | `pnpm lint` (fix: `pnpm lint:fix`)            |
+| Typecheck                                          | `pnpm typecheck`                              |
+| Dead code and unused deps                          | `pnpm knip`                                   |
+| Unit and API tests (need `db:start`)               | `pnpm test`                                   |
+| i18n consistency / key usage                       | `pnpm i18n:check`, `pnpm i18n:report`         |
+| Generate a migration                               | `pnpm db:generate`                            |
 
 Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 
@@ -56,6 +56,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [i18n](.agents/i18n.md)                 | Keys, locale resolution, checks                               |
 | [ui](.agents/ui.md)                     | HeroUI Native, tokens                                         |
 | [sync](.agents/sync.md)                 | Local-first sync: tables, streams, uploads, tests, ops        |
+| [media](.agents/media.md)               | User images: private bucket, presigned URLs, attachment queue |
 | [deploy](.agents/deploy.md)             | Where things run; pointers to docs                            |
 
 Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo and Turborepo work.

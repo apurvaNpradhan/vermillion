@@ -1,6 +1,6 @@
 # oRPC testing (seam 1)
 
-Test procedures and Better Auth through the router in-process against the Docker Postgres (`pnpm db:start`), on a database cloned from a template with every migration applied. No HTTP. Without Postgres the suite fails and says to run `pnpm db:start`.
+Test procedures and Better Auth through the router in-process against the Docker Postgres (`pnpm db:start`), on a database cloned from a template with every migration applied. No HTTP. Without Postgres the suite fails and says to run `pnpm db:start`. The media tests also need the MinIO that `pnpm db:start` brings up (`127.0.0.1:9000`): they sign real URLs and call the real store, and fail with a hint when it is down.
 
 ```ts
 import { createTestApp } from "../platform/testing/harness";
