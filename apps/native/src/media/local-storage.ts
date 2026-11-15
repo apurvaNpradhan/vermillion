@@ -1,8 +1,9 @@
-import type { AttachmentData, StreamingLocalStorageAdapter } from "@powersync/common";
+import type { AttachmentData } from "@powersync/common";
 import { Directory, File, Paths } from "expo-file-system";
 
 import { excludeFromBackup } from "../../modules/vermillion-backup";
-import { FULL_FOLDER, MEDIA_DIRECTORY, relativePath, THUMB_FOLDER } from "./files";
+import type { MediaLocalStorage } from "./attachment-queue";
+import { FULL_FOLDER, isInsideRoot, MEDIA_DIRECTORY, relativePath, THUMB_FOLDER } from "./files";
 
 const mediaRoot = () => new Directory(Paths.document, MEDIA_DIRECTORY);
 
@@ -21,8 +22,15 @@ function ensureDirectories() {
  * `expo-file-system`; `moveFile` lets a processed picture join the queue without being read into
  * memory (`AttachmentQueue.saveFileFromUri`).
  */
-export function createLocalMediaStorage(): StreamingLocalStorageAdapter {
-  const fileAt = (path: string) => new File(path);
+export function createLocalMediaStorage(): MediaLocalStorage {
+  // Every path the queue hands over lies inside the media folder; one that does not is refused.
+  const fileAt = (path: string) => {
+    if (!isInsideRoot(path, mediaRoot().uri))
+      throw new Error("The path is outside the media folder");
+    return new File(path);
+  };
+  // The source of a move is the picker's file, outside the folder; only the target is checked.
+  const anywhere = (path: string) => new File(path);
   return {
     async initialize() {
       ensureDirectories();
@@ -51,6 +59,11 @@ export function createLocalMediaStorage(): StreamingLocalStorageAdapter {
       return fileAt(filePath).exists;
     },
 
+    async fileSize(uri) {
+      const file = fileAt(uri);
+      return file.exists ? file.size : null;
+    },
+
     async makeDir(path) {
       new Directory(path).create({ intermediates: true, idempotent: true });
     },
@@ -70,7 +83,7 @@ export function createLocalMediaStorage(): StreamingLocalStorageAdapter {
     async moveFile(sourceUri, targetUri) {
       if (sourceUri === targetUri) return fileAt(targetUri).size;
       ensureDirectories();
-      const source = fileAt(sourceUri);
+      const source = anywhere(sourceUri);
       const target = fileAt(targetUri);
       await source.move(target, { overwrite: true });
       return target.size;

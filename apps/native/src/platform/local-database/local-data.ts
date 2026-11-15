@@ -10,7 +10,13 @@ import {
   type SyncTransport,
 } from "@workspace/sync";
 
-import { createMediaQueue, deleteLegacyCovers, sendToBucket, type MediaQueue } from "../../media";
+import {
+  createLocalMediaStorage,
+  createMediaQueue,
+  deleteLegacyCovers,
+  sendToBucket,
+  type MediaQueue,
+} from "../../media";
 import { client } from "../orpc";
 import { openNativeDatabase } from "./native-database";
 
@@ -46,13 +52,21 @@ export function openLocalData(): Promise<LocalData> {
       // The local-only covers of before user media (ADR 0036) are not migrated: their folder goes
       // once; a failure only leaves it for the next start.
       deleteLegacyCovers();
-      const media = createMediaQueue(database, client.media, sendToBucket);
+      const media = createMediaQueue(
+        database,
+        client.media,
+        sendToBucket,
+        createLocalMediaStorage(),
+      );
       const lifecycle = createSyncLifecycle({
         database,
         transport,
         uploadColumns,
         // Media files are outside the database: they go with the account.
         onWiped: () => media.clear(),
+        // The queue stops, and its in-flight transfer is cancelled, before the database is
+        // disconnected or wiped: a download finishing later must not write into the next account.
+        beforeDisconnect: () => media.stop(),
       });
       await lifecycle.start();
       // Files move only while the owner's data is on the device and sync may run: started after

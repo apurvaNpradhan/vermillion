@@ -9,9 +9,10 @@ import {
   type AnyQueue,
   type Queue,
   type QueueDefaults,
+  type SendOptions,
 } from "./define-queue";
 
-export { defineQueue, type JobContext, type Queue } from "./define-queue";
+export { defineQueue, type JobContext, type Queue, type SendOptions } from "./define-queue";
 
 export type JobsOptions = {
   /** pg-boss connection: a `connectionString` in production, the cloned test database in tests. */
@@ -48,11 +49,7 @@ export function createJobs(options: JobsOptions) {
 
   return {
     /** Sends a job. Starts the connection on first use; never after `stop`. */
-    async enqueue<T extends object>(
-      queue: Queue<T>,
-      data: T,
-      sendOptions?: { singletonKey?: string },
-    ) {
+    async enqueue<T extends object>(queue: Queue<T>, data: T, sendOptions?: SendOptions) {
       await queue.send(await connect(), data, defaults, sendOptions);
     },
     /** Starts pg-boss and a worker for every queue. */

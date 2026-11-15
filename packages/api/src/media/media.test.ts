@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  MEDIA_FINAL_PURGE_DELAY_SECONDS,
   mediaObjectKey,
   SYNC_SCHEMA_VERSION,
   type SyncFailureCode,
@@ -11,7 +12,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
-import { mediaPurgeQueue } from "./index";
+import { mediaPurgeQueue, retireUserMedia } from "./index";
 
 const syncOptions = {
   config: {
@@ -470,12 +471,24 @@ describe("user media", () => {
   });
 
   describe("account deletion", () => {
-    it("removes every object under the user's prefix and leaves other users alone", async () => {
-      const email = "media-leaving@example.com";
+    async function signedInWriter(email: string) {
       const session = await createSignedInUser(app, email);
       const client = app.client(session);
       const { userId } = await client.sync.credentials();
-      const me = installOf(client, userId);
+      return installOf(client, userId);
+    }
+    async function deleteAccount(me: Writer, email: string) {
+      await me.client.account.requestDeletion({ callbackURL: "vermillion://confirm-deletion" });
+      const mail = await app.waitForEmail(
+        (m) => m.to === email && /deleting|Löschen/.test(m.subject),
+      );
+      const token = /confirm-deletion\?token=([a-z0-9]+)/.exec(mail.text)?.[1];
+      await me.client.account.confirmDeletion({ token: token ?? "" });
+    }
+
+    it("removes every object under the user's prefix and leaves other users alone", async () => {
+      const email = "media-leaving@example.com";
+      const me = await signedInWriter(email);
       const bystander = await writer("media-staying@example.com");
 
       const ids = [await newMedia(me), await newMedia(me), await newMedia(me)];
@@ -486,19 +499,102 @@ describe("user media", () => {
       await upload(bystander, kept);
       expect(await exists(me, ids[1] ?? "", "full")).toBe(true);
 
-      await client.account.requestDeletion({ callbackURL: "vermillion://confirm-deletion" });
-      const mail = await app.waitForEmail(
-        (m) => m.to === email && /deleting|Löschen/.test(m.subject),
-      );
-      const token = /confirm-deletion\?token=([a-z0-9]+)/.exec(mail.text)?.[1];
-      await client.account.confirmDeletion({ token: token ?? "" });
+      await deleteAccount(me, email);
 
       for (const id of ids) {
         expect(await exists(me, id, "full")).toBe(false);
         expect(await exists(me, id, "thumb")).toBe(false);
       }
       expect(await exists(bystander, kept, "full")).toBe(true);
-      expect(await app.rows(sql`SELECT id FROM media WHERE user_id = ${userId}`)).toEqual([]);
+      expect(await app.rows(sql`SELECT id FROM media WHERE user_id = ${me.userId}`)).toEqual([]);
     });
+
+    it("refuses new URLs from the moment deletion begins", async () => {
+      const me = await writer("media-retired@example.com");
+      const id = await newMedia(me);
+      await retireUserMedia(app.services.db, me.userId);
+      await expect(
+        me.client.media.uploadUrl({ mediaId: id, variant: "full" }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(
+        me.client.media.downloadUrl({ mediaId: id, variant: "thumb" }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect((await stored(id))?.deleted_at).not.toBeNull();
+      // Idempotent, and another user's media is untouched.
+      const other = await writer("media-not-retired@example.com");
+      const otherId = await newMedia(other);
+      await retireUserMedia(app.services.db, me.userId);
+      expect((await stored(otherId))?.deleted_at).toBeNull();
+    });
+
+    it("removes an object uploaded after the deletion with a URL signed before it", async () => {
+      const email = "media-late-put@example.com";
+      const me = await signedInWriter(email);
+      const id = await newMedia(me);
+      // A 5-minute PUT URL, signed just before the account is deleted.
+      const signed = await me.client.media.uploadUrl({ mediaId: id, variant: "full" });
+
+      await deleteAccount(me, email);
+      expect(await exists(me, id, "full")).toBe(false);
+
+      // The URL still works: the object comes back, in a prefix nobody owns any more.
+      const late = await fetch(signed.url, {
+        method: "PUT",
+        headers: signed.headers,
+        body: bodyOf(FULL),
+      });
+      expect(late.status).toBe(200);
+      expect(await exists(me, id, "full")).toBe(true);
+
+      // A final purge was persisted, due after the URL's lifetime plus time for a slow upload.
+      const jobs = () =>
+        app.rows(
+          sql`select id, extract(epoch from (start_after - now()))::int as in_seconds
+              from pgboss.job where name = 'account.final-purge' and data->>'userId' = ${me.userId}`,
+        );
+      const [job] = await jobs();
+      expect(job).toBeDefined();
+      expect(Number(job?.in_seconds)).toBeGreaterThan(MEDIA_FINAL_PURGE_DELAY_SECONDS - 120);
+      expect(Number(job?.in_seconds)).toBeLessThanOrEqual(MEDIA_FINAL_PURGE_DELAY_SECONDS);
+      expect(MEDIA_FINAL_PURGE_DELAY_SECONDS).toBeGreaterThan(5 * 60);
+
+      // When it falls due, it removes the object.
+      await app.rows(sql`update pgboss.job set start_after = now() where id = ${job?.id}`);
+      await expect.poll(() => exists(me, id, "full"), { timeout: 30_000 }).toBe(false);
+    });
+  });
+
+  describe("object store", () => {
+    it("deletes a prefix of more than a thousand objects, a page at a time", async () => {
+      const prefix = `tests/many-${uuidv7()}/`;
+      const count = 1_050;
+      const put = async (index: number) => {
+        const { url, headers } = await app.services.objectStore.signPut(`${prefix}${index}.jpg`, {
+          contentType: "image/jpeg",
+          contentLength: 3,
+          expiresInSeconds: 60,
+        });
+        const response = await fetch(url, { method: "PUT", headers, body: bodyOf(3) });
+        expect(response.status).toBe(200);
+      };
+      for (let start = 0; start < count; start += 50) {
+        await Promise.all(
+          Array.from({ length: Math.min(50, count - start) }, (_, i) => put(start + i)),
+        );
+      }
+      const other = `tests/other-${uuidv7()}/keep.jpg`;
+      const kept = await app.services.objectStore.signPut(other, {
+        contentType: "image/jpeg",
+        contentLength: 3,
+        expiresInSeconds: 60,
+      });
+      await fetch(kept.url, { method: "PUT", headers: kept.headers, body: bodyOf(3) });
+
+      expect(await app.services.objectStore.deletePrefix(prefix)).toBe(count);
+      expect(await app.services.objectStore.deletePrefix(prefix)).toBe(0);
+      const { url } = await app.services.objectStore.signGet(other, { expiresInSeconds: 60 });
+      expect((await fetch(url)).status).toBe(200);
+      await app.services.objectStore.deleteObject(other);
+    }, 60_000);
   });
 });

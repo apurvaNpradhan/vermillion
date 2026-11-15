@@ -15,6 +15,7 @@ function setup(
     transport?: Partial<SyncTransport>;
     owner?: string;
     onWiped?: () => Promise<void>;
+    beforeDisconnect?: () => Promise<void>;
   } = {},
 ) {
   const fake = createFakeDatabase();
@@ -33,6 +34,7 @@ function setup(
     transport,
     uploadColumns,
     onWiped: options.onWiped,
+    beforeDisconnect: options.beforeDisconnect,
   });
   const ready = async () => {
     await ensureInstallId(fake.database);
@@ -173,6 +175,43 @@ describe("sync lifecycle", () => {
     await s.lifecycle.accountDeleted("a");
     // A failing callback does not undo the wipe.
     expect(wiped).toBe(1);
+    expect(s.state.clears).toBe(1);
+    expect(phase(s)).toBe("unclaimed");
+  });
+
+  it("lets outside work stop before the database is disconnected or wiped", async () => {
+    let release: () => void = () => undefined;
+    const stopped = new Promise<void>((resolve) => (release = resolve));
+    let asked = 0;
+    const s = setup({
+      owner: "a",
+      beforeDisconnect: async () => {
+        asked += 1;
+        await stopped;
+      },
+    });
+    await s.ready();
+    const deleted = s.lifecycle.accountDeleted("a");
+    await settle();
+    // The app's files are still draining: neither the disconnect nor the wipe may start.
+    expect(asked).toBeGreaterThan(0);
+    expect(s.state.disconnects).toBe(0);
+    expect(s.state.clears).toBe(0);
+    release();
+    await deleted;
+    expect(s.state.disconnects).toBe(1);
+    expect(s.state.clears).toBe(1);
+  });
+
+  it("goes on when the outside work fails to stop", async () => {
+    const s = setup({
+      owner: "a",
+      beforeDisconnect: async () => {
+        throw new Error("files are busy");
+      },
+    });
+    await s.ready();
+    await s.lifecycle.accountDeleted("a");
     expect(s.state.clears).toBe(1);
     expect(phase(s)).toBe("unclaimed");
   });

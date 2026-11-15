@@ -34,6 +34,16 @@ export const MEDIA_LIMITS = {
   sessionPhotos: 4,
 } as const;
 
+/** A signed upload URL is valid this long: long enough for a slow upload, too short to share. */
+export const MEDIA_UPLOAD_URL_SECONDS = 5 * 60;
+
+/**
+ * After an account is deleted a last purge of its prefix runs this long after the deletion: the
+ * lifetime of an upload URL signed just before it, plus time for an upload that began at the last
+ * moment of that lifetime and is still running on a slow connection.
+ */
+export const MEDIA_FINAL_PURGE_DELAY_SECONDS = MEDIA_UPLOAD_URL_SECONDS + 30 * 60;
+
 /** What one `media` row says about an image; the server validates it, the client mirrors it. */
 export const mediaInput = z.strictObject({
   kind: mediaKindSchema,

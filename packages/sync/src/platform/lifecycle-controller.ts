@@ -43,6 +43,12 @@ export type LifecyclePorts = {
    * A failure is ignored: the wipe itself stands, and the owner of the files sweeps them later.
    */
   onWiped?: () => Promise<void>;
+  /**
+   * Runs before the database is disconnected or wiped, and is awaited: work outside it that writes
+   * into it (the media files and their attachment records) must have stopped by then, or a transfer
+   * still in flight could land in the next account's data. A failure is ignored.
+   */
+  beforeDisconnect?: () => Promise<void>;
 };
 
 export type SyncLifecycle = {
@@ -146,9 +152,12 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
       }
       case "disconnect":
         generation += 1;
+        await ports.beforeDisconnect?.().catch(() => undefined);
         await database.disconnect();
         return DONE;
       case "wipe":
+        // A wipe always follows a disconnect; asking again is cheap and keeps the guarantee local.
+        await ports.beforeDisconnect?.().catch(() => undefined);
         // Clears local-only tables too: the install id is new afterwards (ADR 0018).
         await database.disconnectAndClear();
         await ensureInstallId(database);
