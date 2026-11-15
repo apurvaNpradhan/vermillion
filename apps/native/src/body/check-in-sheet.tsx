@@ -7,6 +7,9 @@ import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
 import { Button } from "@/platform/ui/button";
+import { useAppToast } from "@/platform/ui/use-app-toast";
+import { PhotoSlots } from "./photos/photo-slots";
+import { usePhotoActions, type PendingPhotos } from "./photos/use-photo-actions";
 import { MeasurementDate } from "./measurement-date";
 import { metricLabels } from "./metric-labels";
 import { useMeasurements } from "./use-measurements";
@@ -21,7 +24,12 @@ function CheckInForm({
   state: ReturnType<typeof useMeasurements>;
 }) {
   const actions = useMeasurementActions();
+  const photoActions = usePhotoActions();
+  const { toast } = useAppToast();
   const { t } = useTranslation();
+  // Photos picked for this Check-in: processed already, written with the rest on Save.
+  const [photos, setPhotos] = useState<PendingPhotos>({});
+  const busy = actions.busy || photoActions.busy;
   const metrics: BodyMetric[] = entry ? [entry.metric] : [...state.tracked, "weight"];
   const [active, setActive] = useState(0);
   const [fresh, setFresh] = useState(true);
@@ -72,7 +80,16 @@ function CheckInForm({
             ]
           : [],
       );
-      if (!rows.length || (await actions.save(rows))) onClose();
+      const hasPhotos = Object.keys(photos).length > 0;
+      if (!rows.length && !hasPhotos) return;
+      if (rows.length && !(await actions.save(rows))) return;
+      if (hasPhotos) {
+        const failed = await photoActions.save(photos, value.date, state.localDate(value.date));
+        // The measurements are saved already, so the sheet closes either way: saving them again
+        // for a retry would log every one twice.
+        if (failed > 0) toast.show({ variant: "danger", label: t("body__photos_not_saved") });
+      }
+      onClose();
     },
   });
   const { rows, date } = useStore(form.store, (s) => s.values);
@@ -93,7 +110,7 @@ function CheckInForm({
     <BottomSheet
       isOpen
       onOpenChange={(open) => {
-        if (!open && !actions.busy) onClose();
+        if (!open && !busy) onClose();
       }}
     >
       <BottomSheet.Portal>
@@ -105,6 +122,14 @@ function CheckInForm({
           <BottomSheet.Title>
             {t(entry ? "body__edit_measurement" : "body__check_in")}
           </BottomSheet.Title>
+          {entry ? null : (
+            <PhotoSlots
+              pending={photos}
+              onChange={setPhotos}
+              actions={photoActions}
+              disabled={busy}
+            />
+          )}
           <MeasurementDate
             value={date}
             timeZone={state.zone}
@@ -122,7 +147,7 @@ function CheckInForm({
                   value: item.value || t("body__no_data"),
                   unit: state.unit(item.metric),
                 })}
-                disabled={actions.busy}
+                disabled={busy}
                 onPress={() => select(index)}
                 className={`flex-row justify-between gap-3 border-b border-separator px-2 py-3 ${index === active ? "bg-default" : ""}`}
               >
@@ -142,7 +167,7 @@ function CheckInForm({
             </Text>
           ) : null}
           <Button
-            isDisabled={actions.busy || state.loading || state.failed}
+            isDisabled={busy || state.loading || state.failed}
             onPress={() => void form.handleSubmit()}
           >
             <Button.Label>{t("body__save")}</Button.Label>
@@ -160,7 +185,7 @@ function CheckInForm({
               done: t("session__done"),
             }}
             onKey={(key) => {
-              if (actions.busy) return;
+              if (busy) return;
               const current = row?.value ?? "";
               const next =
                 key === "backspace"
@@ -176,7 +201,7 @@ function CheckInForm({
               setFresh(false);
             }}
             onStep={(direction) => {
-              if (actions.busy) return;
+              if (busy) return;
               edit(
                 (Number(row?.value || 0) + direction * step).toFixed(
                   unit === "in" && metric !== "weight" ? 2 : 1,
@@ -185,10 +210,10 @@ function CheckInForm({
               setFresh(true);
             }}
             onNext={() => {
-              if (!actions.busy) select(Math.min(active + 1, rows.length - 1));
+              if (!busy) select(Math.min(active + 1, rows.length - 1));
             }}
             onDone={() => {
-              if (!actions.busy) void form.handleSubmit();
+              if (!busy) void form.handleSubmit();
             }}
           />
         </BottomSheet.Content>

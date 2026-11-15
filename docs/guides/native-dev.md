@@ -108,6 +108,13 @@ use `python scripts/adb/check-keyboard-visible.py --inline`. Check both bounds, 
 the keyboard, switching from a weight field to the effort picker, and reopening after dismissal.
 The check expects the ordinary docked keyboard, not a floating keyboard.
 
+### Camera permission for progress photos
+
+Native stack revision 14 gives `expo-image-picker` a camera permission string (progress photos can
+be taken in the app), which adds the camera permission to the Android manifest and an Info.plist
+usage description. No new native module: rebuild the dev client once on every machine. The system
+camera is used through the picker, so there is no ghost overlay yet (needs `expo-camera`).
+
 ### Android live workout notification
 
 Native stack revision 13 adds the local `workout-live` Expo module and

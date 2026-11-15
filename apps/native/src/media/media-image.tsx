@@ -21,13 +21,22 @@ export function MediaImage({
   mediaId,
   variant = "thumb",
   size,
+  height = size,
+  blurRadius = 0,
   fallback = null,
   rounded = "rounded-xl",
 }: {
   mediaId: string | null;
   variant?: MediaVariant;
-  /** Square size in dp. */
+  /** Width in dp; the view is square unless `height` says otherwise. */
   size: number;
+  /** Height in dp, for a portrait or landscape tile. */
+  height?: number;
+  /**
+   * Blurs the picture itself (not a layer over it), for private photos kept hidden until tapped.
+   * Strong enough that the picture cannot be made out.
+   */
+  blurRadius?: number;
   fallback?: ReactNode;
   /** Radius class; the view clips its image to it. */
   rounded?: string;
@@ -44,15 +53,16 @@ export function MediaImage({
   const drawable = uri !== null && failedUri !== uri;
 
   return (
-    <View className={`overflow-hidden bg-default ${rounded}`} style={{ width: size, height: size }}>
+    <View className={`overflow-hidden bg-default ${rounded}`} style={{ width: size, height }}>
       {drawable ? (
         <Image
           source={{ uri }}
           recyclingKey={uri}
           contentFit="cover"
+          blurRadius={blurRadius}
           transition={120}
           onError={() => setFailedUri(uri)}
-          style={{ width: size, height: size }}
+          style={{ width: size, height }}
         />
       ) : (
         fallback

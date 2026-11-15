@@ -1,0 +1,226 @@
+import { useState } from "react";
+import { ScrollView, Text, View, useWindowDimensions } from "react-native";
+import {
+  PROGRESS_POSES,
+  defaultCompareDates,
+  formatBodyValue,
+  formatBodyWeight,
+  photoOnDate,
+  poseDates,
+  type ProgressPose,
+} from "@workspace/shared";
+
+import { MediaImage } from "@/media";
+import { useTranslation } from "@/platform/i18n";
+import { Button } from "@/platform/ui/button";
+import { Compare } from "@/platform/ui/compare";
+import { ScrollPage } from "@/platform/ui/page";
+
+import { useMeasurements } from "../use-measurements";
+import { useWeight } from "../use-weight";
+import { sideStats, statsChange, type SideStats } from "./compare-stats";
+import { formatCalendarDate } from "./local-date";
+import { poseLabels } from "./pose-labels";
+import { useProgressPhotos } from "./use-progress-photos";
+
+const SIDE = 16;
+
+type Picks = { before?: string; after?: string };
+
+/**
+ * Compare (ADR 0041): one pose on two dates, side by side under a Compare slider. The pose and
+ * the two dates are chosen with chips (defaults: the first and the latest date of the pose), and
+ * under each side sit the weight trend and the waist on that date. A pose with fewer than two
+ * dates says so. Photos here are shown clear: opening Compare is the reader's own choice.
+ */
+export function CompareScreen() {
+  const { t, i18n } = useTranslation();
+  const { width, height } = useWindowDimensions();
+  const photos = useProgressPhotos(null);
+  const weight = useWeight();
+  const measurements = useMeasurements();
+  const [chosen, setChosen] = useState<ProgressPose | null>(null);
+  const [picks, setPicks] = useState<Picks>({});
+
+  // Until a pose is chosen: the first one that has two dates to compare.
+  const pose =
+    chosen ?? PROGRESS_POSES.find((p) => poseDates(photos.photos, p).length >= 2) ?? "front";
+  const dates = poseDates(photos.photos, pose);
+  const defaults = defaultCompareDates(dates);
+  const before = picks.before && dates.includes(picks.before) ? picks.before : defaults.before;
+  const after = picks.after && dates.includes(picks.after) ? picks.after : defaults.after;
+  const frame = Math.min(Math.round(((width - SIDE * 2) * 4) / 3), Math.round(height * 0.6));
+  const date = (value: string) => formatCalendarDate(value, i18n.language);
+
+  const pickBefore = (value: string) =>
+    setPicks(
+      after !== null && value > after
+        ? { before: after, after: value }
+        : { ...picks, before: value },
+    );
+  const pickAfter = (value: string) =>
+    setPicks(
+      before !== null && value < before
+        ? { before: value, after: before }
+        : { ...picks, after: value },
+    );
+
+  const waist = measurements.forMetric("waist");
+  const beforeStats = before ? sideStats(before, weight.series, waist) : null;
+  const afterStats = after ? sideStats(after, weight.series, waist) : null;
+  const change = beforeStats && afterStats ? statsChange(beforeStats, afterStats) : null;
+  const beforePhoto = before ? photoOnDate(photos.photos, pose, before) : null;
+  const afterPhoto = after ? photoOnDate(photos.photos, pose, after) : null;
+  const ready = before !== null && after !== null && beforePhoto && afterPhoto;
+
+  const arrow = (value: number) => (value > 0 ? "↑" : value < 0 ? "↓" : "→");
+  const weightText = (kg: number) =>
+    t("body__value", {
+      value: formatBodyWeight(kg, weight.unit, i18n.language),
+      unit: weight.unit,
+    });
+  const waistText = (cm: number) =>
+    t("body__value", {
+      value: formatBodyValue(measurements.display("waist", cm), i18n.language),
+      unit: measurements.unit("waist"),
+    });
+
+  const stats = (side: SideStats | null, delta: SideStats | null, since: string | null) => (
+    <View className="flex-1 gap-2">
+      <View className="gap-1">
+        <Text className="text-caption text-muted">{t("body__compare_trend")}</Text>
+        <Text className="text-numeric-md tabular-nums text-foreground">
+          {side?.weightKg == null ? t("body__no_data") : weightText(side.weightKg)}
+        </Text>
+        {delta?.weightKg != null && since ? (
+          <Text className="text-caption text-muted">
+            {t("body__compare_change", {
+              arrow: arrow(delta.weightKg),
+              value: formatBodyWeight(Math.abs(delta.weightKg), weight.unit, i18n.language),
+              unit: weight.unit,
+              date: date(since),
+            })}
+          </Text>
+        ) : null}
+      </View>
+      <View className="gap-1">
+        <Text className="text-caption text-muted">{t("body__compare_waist")}</Text>
+        <Text className="text-numeric-md tabular-nums text-foreground">
+          {side?.waistCm == null ? t("body__no_data") : waistText(side.waistCm)}
+        </Text>
+        {delta?.waistCm != null && since ? (
+          <Text className="text-caption text-muted">
+            {t("body__compare_change", {
+              arrow: arrow(delta.waistCm),
+              value: formatBodyValue(
+                Math.abs(measurements.display("waist", delta.waistCm)),
+                i18n.language,
+              ),
+              unit: measurements.unit("waist"),
+              date: date(since),
+            })}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const chips = (
+    side: "before" | "after",
+    selected: string | null,
+    onPick: (value: string) => void,
+  ) => (
+    <View className="gap-2">
+      <Text className="text-label text-muted">
+        {t("body__compare_side_dates", {
+          side: t(side === "before" ? "body__compare_before" : "body__compare_after"),
+        })}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="gap-2"
+      >
+        {[...dates].reverse().map((value) => (
+          <Button
+            key={value}
+            size="sm"
+            variant={value === selected ? "secondary" : "tertiary"}
+            accessibilityState={{ selected: value === selected }}
+            onPress={() => onPick(value)}
+          >
+            <Button.Label>{date(value)}</Button.Label>
+          </Button>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  return (
+    <ScrollPage back title={t("body__compare_title")}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="gap-2"
+      >
+        {PROGRESS_POSES.map((value) => (
+          <Button
+            key={value}
+            size="sm"
+            variant={value === pose ? "secondary" : "tertiary"}
+            accessibilityState={{ selected: value === pose }}
+            onPress={() => {
+              setChosen(value);
+              setPicks({});
+            }}
+          >
+            <Button.Label>{t(poseLabels[value])}</Button.Label>
+          </Button>
+        ))}
+      </ScrollView>
+      {photos.failed ? (
+        <Button onPress={photos.retry}>
+          <Button.Label>{t("training__retry")}</Button.Label>
+        </Button>
+      ) : photos.loading ? (
+        <Text className="text-body text-muted">{t("common__loading")}</Text>
+      ) : !ready ? (
+        <Text className="text-body text-muted">
+          {t("body__compare_need_two", { pose: t(poseLabels[pose]).toLowerCase() })}
+        </Text>
+      ) : (
+        <>
+          <Compare height={frame} handleLabel={t("body__compare_handle")}>
+            <Compare.After>
+              <MediaImage
+                mediaId={afterPhoto.media_id}
+                variant="full"
+                size={width - SIDE * 2}
+                height={frame}
+                rounded=""
+              />
+            </Compare.After>
+            <Compare.Before>
+              <MediaImage
+                mediaId={beforePhoto.media_id}
+                variant="full"
+                size={width - SIDE * 2}
+                height={frame}
+                rounded=""
+              />
+            </Compare.Before>
+            <Compare.Label side="start">{date(before)}</Compare.Label>
+            <Compare.Label side="end">{date(after)}</Compare.Label>
+            <Compare.Handle />
+          </Compare>
+          <View className="flex-row gap-4">
+            {stats(beforeStats, null, null)}
+            {stats(afterStats, change, before)}
+          </View>
+          {chips("before", before, pickBefore)}
+          {chips("after", after, pickAfter)}
+        </>
+      )}
+    </ScrollPage>
+  );
+}

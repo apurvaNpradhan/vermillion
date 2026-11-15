@@ -15,16 +15,20 @@ HeroUI Native covers buttons, cards, sheets, toasts and alerts, but not what the
 
 ## Ported
 
-| Component                                 | Source                            | Used by                           |
-| ----------------------------------------- | --------------------------------- | --------------------------------- |
-| `OtpInput`                                | PanelUI                           | Code screen, change-email         |
-| `Field`                                   | PanelUI (`Field`, `InputGroup`)   | Email, onboarding, profile, forms |
-| `SearchBar`                               | PanelUI                           | Notes                             |
-| `Skeleton`, `SkeletonRow`, `SkeletonList` | PanelUI                           | Notes while loading               |
-| `EmptyState`                              | PanelUI                           | Notes (empty, no results)         |
-| `SegmentedControl`                        | Reacticx                          | Settings theme                    |
-| `NumberFlow`                              | Reacticx                          | `StatTile`                        |
-| `StatTile`                                | Ours (DESIGN.md), on `NumberFlow` | Home                              |
+| Component                                 | Source                             | Used by                           |
+| ----------------------------------------- | ---------------------------------- | --------------------------------- |
+| `OtpInput`                                | PanelUI                            | Code screen, change-email         |
+| `Field`                                   | PanelUI (`Field`, `InputGroup`)    | Email, onboarding, profile, forms |
+| `SearchBar`                               | PanelUI                            | Notes                             |
+| `Skeleton`, `SkeletonRow`, `SkeletonList` | PanelUI                            | Notes while loading               |
+| `EmptyState`                              | PanelUI                            | Notes (empty, no results)         |
+| `SegmentedControl`                        | Reacticx                           | Settings theme                    |
+| `NumberFlow`                              | Reacticx                           | `StatTile`                        |
+| `StatTile`                                | Ours (DESIGN.md), on `NumberFlow`  | Home                              |
+| `Compare`                                 | PanelUI 1.4.0                      | Compare photos (body)             |
+| `ImageViewer`                             | PanelUI 1.4.0 (gestures, geometry) | `MediaViewer`: photos             |
+
+`ImageViewer` keeps PanelUI's gesture design and geometry (`image-viewer-geometry.ts`, tested) but not its trigger registry or the thumbnail-to-screen flight: the viewer is generic over `items` and `renderImage`, with pages in a native paging `FlatList` inside a `Modal`, and `MediaViewer` (`apps/native/src/media/`) feeds it media ids. `Compare` drops the vertical orientation and keeps the clipped-window structure; its seam maths is in `compare-math.ts`.
 
 `SwipeRow` took one idea from PanelUI's swipeable row, the velocity look-ahead (`shouldSettleOpen`, which settles by where the drag is heading, not only where it is). Rejected: its spring settle (motion tokens say no bounce on repeated actions), bidirectional swipe, the imperative ref API and the solid action tiles (ours are rose on a faint tint).
 

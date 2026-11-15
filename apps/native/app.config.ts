@@ -20,7 +20,8 @@ import { appConfig } from "../../app.config.ts";
  */
 // 12: expo-navigation-bar for theme-resolved Android system bar controls.
 // 13: local Android workout-live module, promoted ongoing notification permission.
-const NATIVE_STACK_REVISION = 13;
+// 14: camera permission for progress photos (expo-image-picker's manifest and Info.plist entries).
+const NATIVE_STACK_REVISION = 14;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -84,12 +85,13 @@ const config: ExpoConfig = {
     ],
     // The in-app chime follows the silent switch; no microphone use.
     ["expo-audio", { microphonePermission: false }],
-    // Program cover photos: the system photo picker. The camera and microphone are never used.
+    // Photos: the system photo picker for covers and progress photos, and the system camera for
+    // progress photos. The microphone is never used.
     [
       "expo-image-picker",
       {
         photosPermission: "Allow $(PRODUCT_NAME) to use a photo as a program cover.",
-        cameraPermission: false,
+        cameraPermission: "Allow $(PRODUCT_NAME) to take progress photos.",
         microphonePermission: false,
       },
     ],

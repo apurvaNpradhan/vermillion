@@ -17,6 +17,7 @@ import { Sparkline } from "@/platform/ui/charts/sparkline";
 import { SyncBanner } from "@/sync";
 import { useMeasurements } from "./use-measurements";
 import { CheckInSheet } from "./check-in-sheet";
+import { PhotoFirstTile } from "./photos/photo-first-tile";
 import { groupLabels, metricLabels } from "./metric-labels";
 export function MeasurementsScreen() {
   const state = useMeasurements();
@@ -47,10 +48,7 @@ export function MeasurementsScreen() {
         </Button>
       ) : (
         <>
-          <View className="w-1/2 gap-2 border-b border-separator py-6">
-            <Text className="text-body text-muted">{t("body__photo_slot")}</Text>
-            <Text className="text-caption text-muted">{t("body__photo_later")}</Text>
-          </View>
+          <PhotoFirstTile />
           {Object.entries(BODY_GROUPS).map(([group, metrics]) => {
             const tracked = metrics.filter((metric) => state.tracked.includes(metric));
             return tracked.length ? (
