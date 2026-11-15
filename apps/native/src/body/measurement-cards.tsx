@@ -1,7 +1,7 @@
 import { WeighInGrid } from "./weigh-in-grid";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { changeSincePrevious } from "@workspace/shared";
+import { changeSincePrevious, formatBodyValue } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useMeasurements } from "./use-measurements";
@@ -52,9 +52,7 @@ export function MeasurementsCard() {
             {t("body__home_change", {
               metric: t(metricLabels[metric]),
               arrow: delta > 0 ? "↑" : "↓",
-              value: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(
-                Math.abs(state.display(metric, delta)),
-              ),
+              value: formatBodyValue(Math.abs(state.display(metric, delta)), i18n.language),
               unit: state.unit(metric),
             })}
           </Text>

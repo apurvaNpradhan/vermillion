@@ -2,7 +2,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { BottomSheet } from "heroui-native";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, Text } from "react-native";
-import { lastN, type BodyMetric, type MeasurementInput } from "@workspace/shared";
+import { changedCanonical, lastN, type BodyMetric, type MeasurementInput } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
@@ -29,23 +29,29 @@ function CheckInForm({
   const offsets = useRef(new Map<number, number>());
   const form = useForm({
     defaultValues: {
-      rows: metrics.map((metric) => ({
-        metric,
-        value: (() => {
-          const last = entry ?? lastN(state.forMetric(metric), 1)[0];
-          return last ? state.display(metric, last.value).toFixed(1) : "";
-        })(),
-        touched: false,
-      })),
+      rows: metrics.map((metric) => {
+        const last = entry ?? lastN(state.forMetric(metric), 1)[0];
+        const shown = last ? state.display(metric, last.value).toFixed(1) : "";
+        return {
+          metric,
+          value: shown,
+          // What the row showed when the sheet opened; an edit writes the value only if it differs.
+          initial: shown,
+          touched: false,
+        };
+      }),
       date: entry ? new Date(entry.measured_at).toISOString() : new Date().toISOString(),
     },
     onSubmit: async ({ value }) => {
+      const changedValue = (row: { metric: BodyMetric; value: string; initial: string }) =>
+        changedCanonical(row.value, row.initial, (shown) => state.canonical(row.metric, shown));
       if (entry) {
         // An edit sends only what changed, so a date-only edit never rewrites the value.
         const row = value.rows[0];
         const dateChanged = value.date !== new Date(entry.measured_at).toISOString();
+        const changed = row ? changedValue(row) : undefined;
         const patch = {
-          ...(row?.touched ? { value: state.canonical(row.metric, Number(row.value)) } : {}),
+          ...(changed !== undefined ? { value: changed } : {}),
           ...(dateChanged
             ? { measured_at: value.date, local_date: state.localDate(value.date) }
             : {}),

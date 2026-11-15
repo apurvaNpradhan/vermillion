@@ -2,7 +2,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text } from "react-native";
-import { cmToIn, inToCm } from "@workspace/shared";
+import { changedCanonical, cmToIn, formatBodyValue, inToCm } from "@workspace/shared";
 import { usePreferences } from "@/preferences";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
@@ -14,20 +14,24 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
   const unit = preferences.ui.lengthUnit;
   const [error, setError] = useState<string | null>(null);
   const [fresh, setFresh] = useState(true);
+  const saved = preferences.ui.heightCm;
+  const initial = saved === null ? "" : (unit === "in" ? cmToIn(saved) : saved).toFixed(1);
   const form = useForm({
-    defaultValues: {
-      value:
-        preferences.ui.heightCm === null
-          ? ""
-          : (unit === "in" ? cmToIn(preferences.ui.heightCm) : preferences.ui.heightCm).toFixed(1),
-    },
+    defaultValues: { value: initial },
     onSubmit: async ({ value }) => {
-      const cm =
-        value.value === ""
-          ? null
-          : unit === "in"
-            ? inToCm(Number(value.value))
-            : Number(value.value);
+      // An untouched (or re-entered) height keeps its precise stored value: no write at all.
+      const changed = changedCanonical(value.value, initial, (shown) =>
+        unit === "in" ? inToCm(shown) : shown,
+      );
+      if (changed === undefined && value.value !== "") {
+        onClose();
+        return;
+      }
+      const cm = value.value === "" ? null : (changed ?? null);
+      if (cm === null && saved === null) {
+        onClose();
+        return;
+      }
       if (cm !== null && (!Number.isFinite(cm) || cm < 100 || cm > 250)) {
         setError(t("body__invalid_height"));
         return;
@@ -115,9 +119,7 @@ export function HeightRow() {
           cm === null
             ? t("body__not_set")
             : t("body__value", {
-                value: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(
-                  unit === "in" ? cmToIn(cm) : cm,
-                ),
+                value: formatBodyValue(unit === "in" ? cmToIn(cm) : cm, i18n.language),
                 unit,
               })
         }

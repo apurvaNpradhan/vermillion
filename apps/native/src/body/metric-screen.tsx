@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, Text } from "react-native";
 import { Trash } from "phosphor-react-native";
-import { type BodyMetric } from "@workspace/shared";
+import { type BodyMetric, formatBodyValue } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
@@ -31,9 +31,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
   const start = Date.parse(state.today) - (ranges[range]?.days ?? 30) * 86400000;
   const format = (value: number) =>
     t("body__value", {
-      value: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(
-        state.display(metric, value),
-      ),
+      value: formatBodyValue(state.display(metric, value), i18n.language),
       unit: state.unit(metric),
     });
   const date = (value: string) =>

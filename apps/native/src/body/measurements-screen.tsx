@@ -8,6 +8,7 @@ import {
   lastN,
   ratios,
   type BodyMetric,
+  formatBodyValue,
 } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
@@ -28,8 +29,7 @@ export function MeasurementsScreen() {
     if (row) latest[metric] = row.value;
   }
   const computed = ratios(latest, state.heightCm);
-  const number = (value: number) =>
-    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(value);
+  const number = (value: number) => formatBodyValue(value, i18n.language);
   return (
     <ScrollPage back title={t("body__measurements")}>
       <SyncBanner />

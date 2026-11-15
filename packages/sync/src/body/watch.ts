@@ -51,7 +51,7 @@ export function watchMetric(
     keys[page] = key;
     stops[page] = watch(
       db,
-      `SELECT * FROM body_measurement WHERE metric = ? AND local_date >= ? ${after ? "AND (local_date, measured_at, id) > (?, ?, ?)" : ""} ORDER BY local_date, measured_at, id LIMIT 501`,
+      `SELECT * FROM body_measurement WHERE metric = ? AND local_date >= ? ${after ? "AND (local_date, julianday(measured_at), id) > (?, julianday(?), ?)" : ""} ORDER BY local_date, julianday(measured_at), id LIMIT 501`,
       after ? [metric, from, after.local_date, after.measured_at, after.id] : [metric, from],
       {
         onError: handlers.onError,
@@ -79,7 +79,7 @@ export function watchMetric(
 export function watchLatestByMetric(db: AbstractPowerSyncDatabase, handlers: Handlers) {
   return watch(
     db,
-    "SELECT * FROM (SELECT *, row_number() OVER (PARTITION BY metric ORDER BY local_date DESC, measured_at DESC, id DESC) AS rank FROM body_measurement) WHERE rank = 1 LIMIT 14",
+    "SELECT * FROM (SELECT *, row_number() OVER (PARTITION BY metric ORDER BY local_date DESC, julianday(measured_at) DESC, id DESC) AS rank FROM body_measurement) WHERE rank = 1 LIMIT 14",
     [],
     handlers,
   );
