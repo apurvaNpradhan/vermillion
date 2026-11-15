@@ -28,6 +28,14 @@ const baseConfig: ApiConfig = {
   trustedProxies: "127.0.0.0/8",
   registrationOpen: true,
   openApiReference: false,
+  // The MinIO of docker-compose.yml (`pnpm db:start`): media tests talk to the real store.
+  media: {
+    endpoint: "http://127.0.0.1:9000",
+    region: "auto",
+    bucket: "vermillion-user-media",
+    accessKeyId: "vermillion",
+    secretAccessKey: "vermillion-local-secret",
+  },
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };
 

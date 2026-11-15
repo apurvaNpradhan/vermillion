@@ -64,15 +64,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Start Postgres
-        run: docker compose up -d --wait postgres
+      - name: Start Postgres and MinIO
+        run: docker compose up -d --wait postgres minio minio-init
       - name: Unit and API tests
         run: pnpm test
       - name: Sync infrastructure tests
         run: pnpm test:sync-infra
       - name: Postgres log
         if: failure()
-        run: docker compose logs postgres
+        run: docker compose logs postgres minio
 
   # Seam 3 (ADR 0024): headless PowerSync clients against the real API, Postgres and
   # powersync-service, all from the repo's compose file. Order matters: the bootstrap creates
@@ -105,7 +105,7 @@ jobs:
       - name: Start Postgres and run the replication bootstrap
         run: |
           pnpm --filter server build:bootstrap
-          docker compose up -d --wait postgres
+          docker compose up -d --wait postgres minio minio-init
           docker compose up --no-deps powersync-bootstrap
       - name: Start the API (migrates, serves the JWKS)
         run: |
@@ -124,7 +124,7 @@ jobs:
         if: failure()
         run: |
           cat server.log
-          docker compose logs powersync postgres
+          docker compose logs powersync postgres minio
 
   workflows:
     runs-on: ubuntu-latest

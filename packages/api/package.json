@@ -25,6 +25,7 @@
     "@workspace/email": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
+    "aws4fetch": "1.0.20",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "evlog": "^2.33.1",

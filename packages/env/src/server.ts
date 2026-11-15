@@ -9,6 +9,15 @@ import { z } from "zod";
 
 import { exitOnInvalidEnv, PLACEHOLDER_SECRET } from "./shared";
 
+const isProductionEnv = process.env.NODE_ENV === "production";
+
+/**
+ * Development and CI use the MinIO of `docker-compose.yml`. Production has no default: the empty
+ * string fails validation, so the bucket must be configured.
+ */
+const mediaDefault = (value: string) => (isProductionEnv ? "" : value);
+const DEV_MEDIA_SECRET = "vermillion-local-secret";
+
 /**
  * Server environment. Importing this module validates `process.env` and exits
  * with a readable message when something is missing or malformed. Only the
@@ -88,6 +97,20 @@ export const env = createEnv({
     SYNC_SLOT_LAG_WARN_MB: z.coerce.number().int().positive().default(1024),
     /** Lag that logs an error and marks `/api/ready` degraded. */
     SYNC_SLOT_LAG_CRITICAL_MB: z.coerce.number().int().positive().default(3072),
+    /** S3 API of the private user-media bucket (ADR 0040): MinIO locally, R2 in production. */
+    MEDIA_S3_ENDPOINT: z.url().default(mediaDefault("http://127.0.0.1:9000")),
+    /** `auto` for R2. */
+    MEDIA_S3_REGION: z.string().min(1).default("auto"),
+    MEDIA_S3_BUCKET: z.string().min(1).default(mediaDefault("vermillion-user-media")),
+    MEDIA_S3_ACCESS_KEY_ID: z.string().min(1).default(mediaDefault("vermillion")),
+    MEDIA_S3_SECRET_ACCESS_KEY: z
+      .string()
+      .min(1)
+      .default(mediaDefault(DEV_MEDIA_SECRET))
+      .refine(
+        (secret) => !isProductionEnv || secret !== DEV_MEDIA_SECRET,
+        "Use the R2 API token's secret as MEDIA_S3_SECRET_ACCESS_KEY in production",
+      ),
   },
   createFinalSchema: (fields) =>
     z

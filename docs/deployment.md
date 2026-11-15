@@ -60,6 +60,17 @@ Sync infrastructure (PowerSync, phase 2; the sync features themselves are not li
 | `SYNC_ENDPOINT_URL`                                            | prod       | Public PowerSync URL (the `sync.` subdomain) returned by `sync.credentials`. Unset in development uses `127.0.0.1:8090`; unset in production disables sync credentials. |
 | `SYNC_SLOT_LAG_WARN_MB`, `SYNC_SLOT_LAG_CRITICAL_MB`           | no         | Slot lag thresholds. Defaults 1024 and 3072. Critical marks `/api/ready` degraded.                                                                                      |
 
+User media (the private bucket, [ADR 0040](adr/0040-user-media.md)):
+
+| Variable                                               | Required   | Notes                                                                                                                                                       |
+| ------------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MEDIA_S3_ENDPOINT`                                    | production | S3 API of the bucket: `https://<account id>.r2.cloudflarestorage.com`. Development defaults to the MinIO of `docker-compose.yml` (`http://127.0.0.1:9000`). |
+| `MEDIA_S3_BUCKET`                                      | production | The private R2 bucket (`vermillion-user-media` in development). No public access, no custom domain, no CORS rules: the app only uses presigned URLs.        |
+| `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY` | production | An R2 API token scoped to this one bucket with Object Read & Write. The development MinIO secret is refused in production.                                  |
+| `MEDIA_S3_REGION`                                      | no         | Default `auto` (what R2 expects).                                                                                                                           |
+
+R2 setup: create the bucket (no public access), create an API token limited to it, put the four values on the server service. Objects live under `users/<userId>/`; account deletion and the hourly `media.purge-objects` job delete them. The bucket is a processor of health-adjacent data: keep it on the [privacy readiness](privacy-readiness.md) checklist.
+
 ### Sync infrastructure
 
 1. **Postgres flags.** Set on the Postgres service (Dokploy: Advanced, command arguments): `-c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c max_slot_wal_keep_size=<budget>`. Changing `wal_level` needs a restart. The development value (4GB) is not a production sizing; size it from write rate and outage plus resnapshot time ([ADR 0025](adr/0025-sync-observability.md)).

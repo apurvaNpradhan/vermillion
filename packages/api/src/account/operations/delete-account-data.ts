@@ -12,7 +12,7 @@ import { accountCleanupQueue } from "./account-cleanup";
  */
 export async function deleteAccountData(services: Services, userId: string) {
   try {
-    await purgeUserData(services.db, userId);
+    await purgeUserData(services, userId);
   } catch {
     // The cleanup job retries it.
     logFailure("account.purge", { userId });

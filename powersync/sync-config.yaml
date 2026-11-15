@@ -30,7 +30,7 @@ streams:
     priority: 1
     queries:
       - SELECT id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at FROM program_run WHERE user_id = auth.user_id() AND deleted_at IS NULL
-      - SELECT id, user_id, title, description, planned_weeks, cover_key, created_at FROM program WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, title, description, planned_weeks, cover_media_id, created_at FROM program WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, program_id, title, note, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at FROM workout_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, program_id, workout_id, position, created_at FROM program_slot WHERE user_id = auth.user_id() AND deleted_at IS NULL
@@ -39,3 +39,11 @@ streams:
       - SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at FROM session_set WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, kind, weight_kg, unit, label, count, enabled, created_at FROM gym_equipment WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, exercise_id, bar_id, log_effort, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
+
+  # A user's media rows (ADR 0040): what each image is. The bytes are not here: the device
+  # fetches the objects through presigned URLs. Deleted media leave the stream, which is what
+  # tells the other devices to drop their files. `deleted_at` and `objects_purged_at` stay on the server.
+  my_media:
+    auto_subscribe: true
+    priority: 1
+    query: SELECT id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at FROM media WHERE user_id = auth.user_id() AND deleted_at IS NULL

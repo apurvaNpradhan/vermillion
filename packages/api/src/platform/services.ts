@@ -3,6 +3,7 @@ import type { Database } from "@workspace/db";
 import type { EmailTransport } from "@workspace/email";
 
 import { deleteAccountData } from "../account/index";
+import { createObjectStore, type ObjectStore } from "../media/index";
 import { hasPendingEmails, queueEmail, resumeEmailOutbox, sendEmailQueue } from "../auth/index";
 import { createBackgroundTasks, type BackgroundTasks } from "./background-tasks";
 import type { ApiConfig } from "./config";
@@ -17,6 +18,8 @@ export type Services = {
   auth: Auth;
   jobs: Jobs;
   emailTransport: EmailTransport;
+  /** The private bucket of user media; signs URLs and deletes objects, never carries bytes. */
+  objectStore: ObjectStore;
   background: BackgroundTasks;
   rateLimiter: RateLimiter;
   /** Runs the work that needs a migrated database: job workers. */
@@ -68,6 +71,7 @@ export function createServices(options: CreateServicesOptions): Services {
     auth,
     jobs,
     emailTransport: options.emailTransport,
+    objectStore: createObjectStore(config.media),
     background,
     rateLimiter: createRateLimiter(),
     async start() {

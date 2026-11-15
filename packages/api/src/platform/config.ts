@@ -1,3 +1,4 @@
+import type { ObjectStoreConfig } from "../media/index";
 import type { SlotLagThresholds } from "./sync/slot-lag";
 
 /**
@@ -32,6 +33,8 @@ export type ApiConfig = {
   github?: { clientId: string; clientSecret: string } | undefined;
   /** Serve the OpenAPI reference (off in production by default). */
   openApiReference: boolean;
+  /** The private bucket of user media (ADR 0040). */
+  media: ObjectStoreConfig;
   sync: {
     /** Public URL of the PowerSync service, handed to clients by `sync.credentials`. */
     endpoint?: string | undefined;

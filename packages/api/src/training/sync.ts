@@ -12,6 +12,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { assertMediaReference } from "../media/index";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import {
   countSlotsDeletedWith,
@@ -52,21 +53,43 @@ import { sessionSyncHandlers } from "./session-sync";
 
 // ---- Program ----
 
+/** The cover is a `media` row (ADR 0040); the media handler owns its fields, this only points at it. */
+const coverMediaId = z.uuid().nullable();
+
 const putProgram = z.strictObject({
   restore: restoreMarker,
   title: programInput.shape.title,
   description: programInput.shape.description.default(null),
   planned_weeks: programInput.shape.planned_weeks.default(null),
+  cover_media_id: coverMediaId.default(null),
 });
-const patchProgram = programInput.partial();
+const patchProgram = programInput.partial().extend({ cover_media_id: coverMediaId.optional() });
 
-async function updateProgram(db: DbExecutor, id: string, values: z.infer<typeof programInput>) {
+/** A new or changed cover must be the writer's own live program-cover media. */
+async function assertCover(
+  db: DbExecutor,
+  userId: string,
+  coverId: string | null,
+  current: string | null,
+) {
+  if (coverId === null) return;
+  await assertMediaReference(db, userId, coverId, "program_cover", {
+    unchanged: coverId === current,
+  });
+}
+
+async function updateProgram(
+  db: DbExecutor,
+  id: string,
+  values: z.infer<typeof programInput> & { cover_media_id?: string | null },
+) {
   await db
     .update(program)
     .set({
       title: values.title,
       description: values.description,
       plannedWeeks: values.planned_weeks,
+      ...(values.cover_media_id !== undefined ? { coverMediaId: values.cover_media_id } : {}),
       updatedAt: now(),
     })
     .where(eq(program.id, id));
@@ -92,15 +115,18 @@ const programSyncHandler: SyncTableHandler = {
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         assertRoom(await countLivePrograms(db, userId, id), 1, TRAINING_LIMITS.livePrograms);
+        await assertCover(db, userId, values.cover_media_id, null);
         await db.insert(program).values({
           id,
           userId,
           title: values.title,
           description: values.description,
           plannedWeeks: values.planned_weeks,
+          coverMediaId: values.cover_media_id,
         });
         return;
       }
+      await assertCover(db, userId, values.cover_media_id, found.row.coverMediaId);
       const deletedAt = found.row.deletedAt;
       if (deletedAt !== null) {
         // Putting a deleted row again is the Undo of a delete: it brings back what that delete took.
@@ -114,7 +140,7 @@ const programSyncHandler: SyncTableHandler = {
     }
 
     const row = liveRow(found);
-    const patch = accept(patchProgram.safeParse(op.opData ?? {}));
+    const { cover_media_id: cover, ...patch } = accept(patchProgram.safeParse(op.opData ?? {}));
     const merged = accept(
       programInput.safeParse({
         title: row.title,
@@ -123,7 +149,11 @@ const programSyncHandler: SyncTableHandler = {
         ...patch,
       }),
     );
-    await updateProgram(db, id, merged);
+    if (cover !== undefined) await assertCover(db, userId, cover, row.coverMediaId);
+    await updateProgram(db, id, {
+      ...merged,
+      ...(cover !== undefined ? { cover_media_id: cover } : {}),
+    });
   },
   purgeTombstones: async () => 0,
 };

@@ -107,6 +107,9 @@ export const SYNC_REJECTION_CODES = [
   "SESSION_SET_INVALID_FOR_TYPE",
   "SESSION_LIMIT_REACHED",
   "SESSION_DATE_OUT_OF_RANGE",
+  // User media (ADR 0040).
+  "MEDIA_IMMUTABLE",
+  "MEDIA_REFERENCE_INVALID",
 ] as const;
 export const syncFailureCodeSchema = z.enum(SYNC_REJECTION_CODES);
 export type SyncFailureCode = z.infer<typeof syncFailureCodeSchema>;
