@@ -64,6 +64,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         bar_id TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
         height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
+      CREATE TABLE progress_photo (id TEXT PRIMARY KEY, user_id TEXT, media_id TEXT, pose TEXT,
+        taken_at TEXT, local_date TEXT, created_at TEXT);
       CREATE TABLE attachments (id TEXT PRIMARY KEY, filename TEXT, local_uri TEXT, timestamp INTEGER,
         size INTEGER, media_type TEXT, state INTEGER, has_synced INTEGER, meta_data TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);

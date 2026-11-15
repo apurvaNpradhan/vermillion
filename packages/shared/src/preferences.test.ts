@@ -16,6 +16,7 @@ describe("ui preferences schema", () => {
       trackedMetrics: ["waist", "chest", "left_bicep", "right_bicep", "left_thigh", "right_thigh"],
       weightGoalKg: null,
       bodyweightKg: null,
+      hidePhotos: true,
       keepAwake: true,
       sounds: true,
       soundRest: true,

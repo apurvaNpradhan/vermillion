@@ -1,4 +1,17 @@
-export { bodyMeasurement } from "./tables";
+export { bodyMeasurement, progressPhoto } from "./tables";
+export {
+  addProgressPhoto,
+  deleteProgressPhoto,
+  type NewProgressPhoto,
+  type ProgressPhotoRow,
+} from "./photo-store";
+export {
+  PHOTO_WATCH_LIMIT,
+  watchLatestProgressPhoto,
+  watchPhotosOnDate,
+  watchProgressPhotos,
+  type WatchedPhoto,
+} from "./photo-watch";
 export {
   logMeasurement,
   logMeasurements,

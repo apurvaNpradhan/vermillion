@@ -43,6 +43,19 @@ export function validMeasurementDate(date: string, today = new Date().toISOStrin
   oldest.setUTCFullYear(oldest.getUTCFullYear() - BODY_LIMITS.backfillYears);
   return date <= today && date >= oldest.toISOString().slice(0, 10);
 }
+/**
+ * Whether a capture instant and the calendar date it was made on agree and are plausible: not in
+ * the future, within the backfill window, and a day apart at most (a local day may be one day
+ * ahead of or behind the UTC instant). Shared by measurements and progress photos.
+ */
+export function plausibleCaptureDate(takenAt: string, localDate: string, now = Date.now()) {
+  const taken = Date.parse(takenAt);
+  if (!Number.isFinite(taken)) return false;
+  const utcDay = new Date(taken).toISOString().slice(0, 10);
+  const offset = Date.parse(localDate) - Date.parse(utcDay);
+  if (taken > now || Math.abs(offset) > 86400000) return false;
+  return validMeasurementDate(localDate, new Date(now + offset).toISOString().slice(0, 10));
+}
 const measurementFields = z.strictObject({
   metric: z.enum(BODY_METRICS),
   value: z.number().finite(),
@@ -59,24 +72,28 @@ export const measurementInput = measurementFields
       v.value >= (v.metric === "weight" ? 20 : 5) && v.value <= (v.metric === "weight" ? 400 : 250),
     { path: ["value"], message: "Measurement out of range" },
   )
-  .refine(
-    (v) => {
-      const measured = Date.parse(v.measured_at);
-      const now = Date.now();
-      if (!Number.isFinite(measured)) return false;
-      // A local calendar day may be one day ahead of or behind the UTC instant.
-      // Preserve that offset when checking today, including devices without a saved time zone.
-      const utcDay = new Date(measured).toISOString().slice(0, 10);
-      const offset = Date.parse(v.local_date) - Date.parse(utcDay);
-      if (measured > now || Math.abs(offset) > 86400000) return false;
-      return validMeasurementDate(v.local_date, new Date(now + offset).toISOString().slice(0, 10));
-    },
-    {
-      path: ["local_date"],
-      message: "Measurement date out of range",
-    },
-  );
+  .refine((v) => plausibleCaptureDate(v.measured_at, v.local_date), {
+    path: ["local_date"],
+    message: "Measurement date out of range",
+  });
 export type MeasurementInput = z.infer<typeof measurementInput>;
 export * from "./body/weight";
 export * from "./body/zoned-time";
+export const PROGRESS_POSES = ["front", "side", "back"] as const;
+export type ProgressPose = (typeof PROGRESS_POSES)[number];
+
+/** What one `progress_photo` row says (ADR 0041); the image itself is the `media` it points at. */
+export const progressPhotoInput = z
+  .strictObject({
+    media_id: z.uuid(),
+    pose: z.enum(PROGRESS_POSES),
+    local_date: z.iso.date(),
+    taken_at: z.iso.datetime({ offset: true }),
+  })
+  .refine((v) => plausibleCaptureDate(v.taken_at, v.local_date), {
+    path: ["local_date"],
+    message: "Photo date out of range",
+  });
+export type ProgressPhotoInput = z.infer<typeof progressPhotoInput>;
 export * from "./body/measurements";
+export * from "./body/photos";

@@ -1,0 +1,419 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ba986ca4-3d43-4973-bbf9-6630e6e795fe",
+  "prevIds": ["7ff4a794-8653-441a-a5c3-3359915e067a", "d1bc04ae-b1cc-4d8b-ba8a-1725ae0f68a7"],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "deleted_progress_photo"],
+      "writes": [
+        "s|tbl|public.deleted_progress_photo",
+        "n|tbl|public.deleted_progress_photo",
+        "e|tbl|public.deleted_progress_photo",
+        "n|rel|public.deleted_progress_photo",
+        "n|type|public.deleted_progress_photo",
+        "n|rel|public.deleted_progress_photo_pkey"
+      ],
+      "reads": ["n|sch|public"]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "progress_photo"],
+      "writes": [
+        "s|tbl|public.progress_photo",
+        "n|tbl|public.progress_photo",
+        "e|tbl|public.progress_photo",
+        "n|rel|public.progress_photo",
+        "n|type|public.progress_photo",
+        "n|rel|public.progress_photo_pkey"
+      ],
+      "reads": ["n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "progress_photo", "progress_photo_date_idx"],
+      "writes": [
+        "s|idx|public.progress_photo_date_idx",
+        "n|idx|public.progress_photo_date_idx",
+        "e|idx|public.progress_photo_date_idx",
+        "n|rel|public.progress_photo_date_idx"
+      ],
+      "reads": [
+        "n|tbl|public.progress_photo",
+        "n|sch|public",
+        "n|col|public.progress_photo.user_id",
+        "n|col|public.progress_photo.local_date"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "progress_photo", "progress_photo_media_id_idx"],
+      "writes": [
+        "s|idx|public.progress_photo_media_id_idx",
+        "n|idx|public.progress_photo_media_id_idx",
+        "e|idx|public.progress_photo_media_id_idx",
+        "n|rel|public.progress_photo_media_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.progress_photo",
+        "n|sch|public",
+        "n|col|public.progress_photo.media_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "deleted_progress_photo"],
+      "writes": [
+        "s|fk|public.deleted_progress_photo.deleted_progress_photo_user_id_user_id_fkey",
+        "n|fk|public.deleted_progress_photo.deleted_progress_photo_user_id_user_id_fkey",
+        "e|fk|public.deleted_progress_photo.deleted_progress_photo_user_id_user_id_fkey",
+        "n|con|public.deleted_progress_photo.deleted_progress_photo_user_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.deleted_progress_photo",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.deleted_progress_photo.user_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "progress_photo"],
+      "writes": [
+        "s|fk|public.progress_photo.progress_photo_user_id_user_id_fkey",
+        "n|fk|public.progress_photo.progress_photo_user_id_user_id_fkey",
+        "e|fk|public.progress_photo.progress_photo_user_id_user_id_fkey",
+        "n|con|public.progress_photo.progress_photo_user_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.progress_photo",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.progress_photo.user_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "deleted_progress_photo",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "progress_photo",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "deleted_progress_photo",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "deleted_progress_photo",
+        "name": "user_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "user_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "media_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "pose",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "taken_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "local_date",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "deleted_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "progress_photo_date_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "local_date",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"deleted_at\" IS NULL",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "progress_photo_media_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "media_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "deleted_progress_photo",
+        "name": "deleted_progress_photo_user_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": ["user_id"],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "progress_photo_user_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": ["user_id"],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "deleted_progress_photo",
+        "name": "deleted_progress_photo_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "progress_photo_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "progress_photo",
+        "name": "progress_photo_pose",
+        "value": "\"pose\" IN ('front','side','back')",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

@@ -46,6 +46,9 @@ streams:
       - SELECT id, user_id, metric, value, measured_at, local_date, source, created_at
         FROM body_measurement
         WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, media_id, pose, taken_at, local_date, created_at
+        FROM progress_photo
+        WHERE user_id = auth.user_id() AND deleted_at IS NULL
 
   # A user's media rows (ADR 0040): what each image is. The bytes are not here: the device
   # fetches the objects through presigned URLs. Deleted media leave the stream, which is what
