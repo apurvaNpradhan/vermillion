@@ -2,6 +2,7 @@ import { MEDIA_LIMITS } from "@workspace/shared";
 import { File } from "expo-file-system";
 
 import { FULL_QUALITY, planImage, THUMB_QUALITY } from "./plan-image";
+import { removeCachedFile } from "./processed-files";
 
 /** A picked or captured picture, re-encoded for upload (ADR 0040). The files are in the cache. */
 export type ProcessedImage = {
@@ -34,19 +35,32 @@ export async function processImage(
     return image.saveAsync({ format: SaveFormat.JPEG, compress: quality });
   };
 
-  const full = await render(plan.full, FULL_QUALITY);
-  const thumb = await render(plan.thumb, THUMB_QUALITY);
-  const bytes = new File(full.uri).size;
-  const thumbBytes = new File(thumb.uri).size;
-  if (bytes <= 0 || bytes > MEDIA_LIMITS.maxBytes || thumbBytes <= 0) {
-    throw new Error("The image could not be prepared");
+  const rendered: string[] = [];
+  try {
+    const full = await render(plan.full, FULL_QUALITY);
+    rendered.push(full.uri);
+    const thumb = await render(plan.thumb, THUMB_QUALITY);
+    rendered.push(thumb.uri);
+    const bytes = new File(full.uri).size;
+    const thumbBytes = new File(thumb.uri).size;
+    if (bytes <= 0 || bytes > MEDIA_LIMITS.maxBytes || thumbBytes <= 0) {
+      throw new Error("The image could not be prepared");
+    }
+    return {
+      fullUri: full.uri,
+      thumbUri: thumb.uri,
+      width: full.width,
+      height: full.height,
+      bytes,
+      thumbBytes,
+    };
+  } catch (error) {
+    // Nothing is returned, so nobody else will ever drop what was rendered.
+    for (const uri of rendered) removeCachedFile(uri);
+    throw error;
+  } finally {
+    // The source still holds the original's EXIF, location included: it never outlives this call.
+    // Only the app's own cache copy is deleted, never the user's library original.
+    removeCachedFile(source.uri);
   }
-  return {
-    fullUri: full.uri,
-    thumbUri: thumb.uri,
-    width: full.width,
-    height: full.height,
-    bytes,
-    thumbBytes,
-  };
 }

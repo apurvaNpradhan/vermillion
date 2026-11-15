@@ -1,4 +1,5 @@
 export { bodyMeasurement, progressPhoto } from "./tables";
+export { saveCheckIn } from "./check-in-store";
 export {
   addProgressPhoto,
   deleteProgressPhoto,
@@ -6,10 +7,19 @@ export {
   type ProgressPhotoRow,
 } from "./photo-store";
 export {
-  PHOTO_WATCH_LIMIT,
+  PHOTO_PAGE_SIZE,
+  POSE_DATES_SQL,
+  POSE_SUMMARY_SQL,
+  progressPhotosSql,
+  parsePoseDates,
+  parsePoseSummaries,
   watchLatestProgressPhoto,
   watchPhotosOnDate,
+  watchPoseDates,
+  watchPoseOnDates,
+  watchPoseSummaries,
   watchProgressPhotos,
+  type PoseSummary,
   type WatchedPhoto,
 } from "./photo-watch";
 export {
