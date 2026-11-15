@@ -1,4 +1,4 @@
-import { WeightCard } from "@/body";
+import { WeightCard, MeasurementsCard, WeighInHabitCard } from "@/body";
 import { Skeleton } from "@/platform/ui/skeleton";
 import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -159,6 +159,8 @@ export function TrainingHome() {
           ) : null}
         </View>
       ) : null}
+      <MeasurementsCard />
+      <WeighInHabitCard />
       {!loading && state.recent.length > 0 ? (
         <View className="gap-1">
           <SectionHeader

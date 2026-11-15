@@ -79,3 +79,4 @@ export const measurementInput = measurementFields
 export type MeasurementInput = z.infer<typeof measurementInput>;
 export * from "./body/weight";
 export * from "./body/zoned-time";
+export * from "./body/measurements";

@@ -32,17 +32,24 @@ export function logMeasurements(
   scope: string,
 ) {
   const values = entries.map((e) => measurementInput.parse(e));
-  return write(db, scope, async (tx, owner) => {
+  // Each measurement is independent. Separate queue transactions keep one rejected site
+  // from rolling back the rest of a Check-in under the atomic upload protocol.
+  return (async () => {
     const ids: string[] = [];
     for (const value of values) {
       const id = uuidv7();
+      await write(db, scope, async (tx, owner) => {
+        await tx.insert(bodyMeasurement).values({
+          ...value,
+          id,
+          user_id: owner,
+          created_at: new Date().toISOString(),
+        });
+      });
       ids.push(id);
-      await tx
-        .insert(bodyMeasurement)
-        .values({ ...value, id, user_id: owner, created_at: new Date().toISOString() });
     }
     return ids;
-  });
+  })();
 }
 export async function logMeasurement(
   db: AbstractPowerSyncDatabase,
