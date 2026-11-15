@@ -10,6 +10,10 @@ pnpm dev                         # API (3000) and Metro
 pnpm --filter native android     # first build is slow; installs the dev client
 ```
 
+Typed routes (`.expo/types/router.d.ts`, git-ignored) refresh while Metro runs. After adding a route
+without Metro (an agent worktree, or when `expo start` runs out of file watchers), run
+`pnpm --filter native routes:types` before `pnpm typecheck`.
+
 Rebuild the dev client (`expo run:android` or `expo run:ios`) whenever a native module or build flag changes, including `"op-sqlite": { "sqlcipher": true }`. That flag lives in both `apps/native/package.json` and the root `package.json`; keep them equal. JS-only changes need only Metro.
 
 Sessions (ADR 0038, slice 3) added `expo-notifications` (Rest notifications and their Android channel

@@ -9,6 +9,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
+    "routes:types": "node scripts/router-types.mjs",
     "test": "vitest run",
     "typecheck": "tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/i18n ../../packages/shared && tsc --noEmit"
   },
