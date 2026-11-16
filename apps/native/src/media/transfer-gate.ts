@@ -18,6 +18,18 @@ export class MediaNotCommitted extends Error {
 }
 
 /**
+ * The media row is on this device but its write has not reached the server yet (the device was
+ * offline). Signing an upload now would only be refused as `NOT_FOUND`, so the upload waits until
+ * the row's write is sent. Not a failure.
+ */
+export class MediaNotSynced extends Error {
+  constructor() {
+    super("The media row has not reached the server yet");
+    this.name = "MediaNotSynced";
+  }
+}
+
+/**
  * One generation of the queue: open from `start()` to `stop()`. Every transfer captures the signal
  * of the generation it began in, so nothing that finishes after a stop (and so after a wipe or an
  * account switch) writes a file or a record. A fresh generation starts at each `open()`.

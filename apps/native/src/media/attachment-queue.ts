@@ -25,6 +25,7 @@ import {
   cancellable,
   createTransferGate,
   MediaNotCommitted,
+  MediaNotSynced,
   TransferCancelled,
   type TransferGate,
 } from "./transfer-gate";
@@ -166,6 +167,21 @@ export function createMediaQueue(
     return row !== null;
   };
 
+  /** Whether the device still holds an unsent write of this media row. */
+  const hasUnsentMediaWrite = async (attachmentId: string) => {
+    const parsed = parseMediaAttachmentId(attachmentId);
+    if (!parsed) return false;
+    const row = await database.getOptional(
+      `SELECT 1 AS pending FROM ps_crud
+       WHERE json_extract(data, '$.type') = 'media' AND json_extract(data, '$.id') = ? LIMIT 1`,
+      [parsed.mediaId],
+    );
+    return row !== null;
+  };
+
+  /** Set when an upload waited for its row's write: the next change to the upload queue retries. */
+  let waitingForSync = false;
+
   /** A transfer is only worth retrying while the media still exists on this device. */
   const mediaStillWanted = (attachment: AttachmentRecord) => hasMediaRow(attachment.id);
 
@@ -177,6 +193,11 @@ export function createMediaQueue(
     async upload(attachment) {
       const signal = gate.signal;
       if (!(await hasMediaRow(attachment.id))) throw new MediaNotCommitted();
+      // The server only signs for a media row it has: wait for the row's write, without asking.
+      if (await hasUnsentMediaWrite(attachment.id)) {
+        waitingForSync = true;
+        throw new MediaNotSynced();
+      }
       const data = await cancellable(signal, () => storage.readFile(attachment.localUri));
       await cancellable(signal, () => remote.uploadFile(data, attachment));
     },
@@ -196,6 +217,8 @@ export function createMediaQueue(
     async onUploadError(attachment, error) {
       // Stopped, not failed: the record stays queued for the next start.
       if (error instanceof TransferCancelled) return true;
+      // Waiting for the row's write to be sent: not a failure, however long the device is offline.
+      if (error instanceof MediaNotSynced) return true;
       // Staged: wait for the media row, unless it never came (a crash, a failed write).
       if (error instanceof MediaNotCommitted) {
         return Date.now() - (attachment.timestamp ?? 0) < stagingGraceMs;
@@ -247,13 +270,16 @@ export function createMediaQueue(
           await onUpdate(items);
         });
         // A media row that just appeared may be the one a staged upload was waiting for.
-        if (fresh) await queue.syncStorage();
+        if (fresh || waitingForSync) {
+          waitingForSync = false;
+          await queue.syncStorage();
+        }
       };
       database.watchWithCallback(
         WATCHED_MEDIA_SQL,
         [],
         { onResult: () => void apply().catch(() => undefined), onError: () => undefined },
-        { signal, tables: ["media", "attachments"] },
+        { signal, tables: ["media", "attachments", "ps_crud"] },
       );
     },
   });

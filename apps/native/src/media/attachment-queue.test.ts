@@ -40,6 +40,14 @@ async function setup(
       await createMedia(db.database, { ...image, id });
       return id;
     },
+    /** The device's writes reach the server: it has the media row and the unsent write is gone. */
+    async sent(id: string) {
+      bucket.server.add(id);
+      await db.database.execute(
+        "DELETE FROM ps_crud WHERE json_extract(data, '$.type') = 'media' AND json_extract(data, '$.id') = ?",
+        [id],
+      );
+    },
     records: () =>
       db.database.getAll<{ id: string; state: number; size: number | null; timestamp: number }>(
         "SELECT id, state, size, timestamp FROM attachments ORDER BY id",
@@ -139,9 +147,18 @@ describe("media queue and the media row", () => {
       AttachmentState.QUEUED_UPLOAD,
     ]);
 
-    // The transaction commits, and the server has the row once the device's writes reach it.
-    s.bucket.server.add(id);
+    // The transaction commits, but the row's write has not been sent: nothing is signed yet.
     await createMedia(s.db, { ...image, id });
+    await settle(300);
+    expect(s.bucket.signedUploads).toEqual([]);
+    expect((await s.records()).map((r) => r.state)).toEqual([
+      AttachmentState.QUEUED_UPLOAD,
+      AttachmentState.QUEUED_UPLOAD,
+    ]);
+    expect(s.queue.failures.has(`${id}`)).toBe(false);
+
+    // The device's writes reach the server, which now has the row.
+    await s.sent(id);
     await eventually(async () =>
       (await s.records()).every((r) => r.state === AttachmentState.SYNCED),
     );
@@ -212,8 +229,8 @@ describe("media queue full-size cache", () => {
         id,
         writePickedFiles(`${s.storage.root}/picked`, name, { full: 100, thumb: 10 }),
       );
-      s.bucket.server.add(id);
       await createMedia(s.db, { ...image, id });
+      await s.sent(id);
       await eventually(() => s.bucket.puts.includes(`${id}/full`));
       await settle(5);
     }
