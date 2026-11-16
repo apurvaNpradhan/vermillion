@@ -1,6 +1,6 @@
 # 0039. Hand-tuned native palettes with independent appearance
 
-Status: accepted, 2026-11-11. Supersedes the named-theme removal, generator and neutral-only
+Status: superseded by [0043](0043-graphite-base-and-accents.md), 2026-11-16. Accepted 2026-11-11. Supersedes the named-theme removal, generator and neutral-only
 colour grammar in [0031](0031-native-themes-colour-only-oklch.md). Its colour-only layout
 rule and contrast requirements remain.
 
@@ -32,8 +32,7 @@ semantics. Completed sets use each palette's set-done green roles. The muscle bo
 untinted red in every theme. Splash, icon and notification colour stay unchanged.
 
 Chalk draws inspiration from Flexoki by Steph Ango, Frost from Nord by Arctic Ice Studio,
-Iron from Gruvbox by Pavel Pertsev, and Dusk from Rosé Pine. All are MIT licensed. See
-[credits](../licenses/palette-credits.md). These are hand-tuned app palettes, not generated
+Iron from Gruvbox by Pavel Pertsev, and Dusk from Rosé Pine. All are MIT licensed. These are hand-tuned app palettes, not generated
 copies of editor themes.
 
 ## Consequences

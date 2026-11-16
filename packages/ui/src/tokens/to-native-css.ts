@@ -1,10 +1,13 @@
 import {
+  accentNames,
   brandThemes,
-  themeNames,
+  themeModes,
+  variantName,
   brandTokens,
   sharedTokenSources,
   type RoleName,
   type RoleTokens,
+  type ThemeMode,
 } from "./brand";
 
 /**
@@ -60,8 +63,8 @@ const shadows = {
   },
 } as const;
 
-function block(name: string, mode: "light" | "dark", colors: RoleTokens) {
-  const depth = shadows[mode];
+function block(name: string, mode: ThemeMode, colors: RoleTokens) {
+  const depth = shadows[mode === "light" ? "light" : "dark"];
   return [
     `    @variant ${name} {`,
     ...Object.entries(nativeTokenSources).map(
@@ -78,7 +81,7 @@ function block(name: string, mode: "light" | "dark", colors: RoleTokens) {
 const px = (value: number) => `${value / 16}rem`;
 
 /**
- * Build-time CSS for every flat theme variant. Classic retains light/dark and email aliases.
+ * Build-time CSS: one variant per accent and mode. Mono keeps the plain light/dark names.
  * Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
@@ -90,14 +93,8 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       `    --radius: ${tokens.nativeRadius};`,
       "    --field-radius: calc(var(--radius) * 1.5);",
       "    --field-border-width: 1px;",
-      ...themeNames.flatMap((name) =>
-        (["light", "dark"] satisfies ("light" | "dark")[]).map((mode) =>
-          block(
-            name === "classic" ? mode : `${name}-${mode}`,
-            mode,
-            name === "classic" ? tokens.colors[mode] : brandThemes[name][mode],
-          ),
-        ),
+      ...accentNames.flatMap((accent) =>
+        themeModes.map((mode) => block(variantName(accent, mode), mode, brandThemes[accent][mode])),
       ),
       "  }",
       "}",

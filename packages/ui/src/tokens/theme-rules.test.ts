@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { brandThemes, themeNames, roleNames, type RoleName } from "./brand";
+import { accentNames, brandThemes, roleNames, themeModes, type RoleName } from "./brand";
 
 const linear = (hex: string) =>
   [1, 3, 5].map((at) => {
@@ -27,27 +27,25 @@ function oklabL(hex: string) {
 }
 
 /**
- * Rules the Classic palette (native and email) must satisfy. Layer direction:
- * - dark: canvas < surface < control < floating, each step 0.015..0.06 in OKLCH L.
- * - light: surface is the lightest layer (floating may equal it), canvas sits one step below
- *   surface and control one step below canvas. Classic Light does this.
+ * Rules every accent and mode must satisfy. Layers: in dark and black, canvas < surface < control
+ * with the floating sheet between canvas and control; in light, surface is the lightest layer,
+ * canvas sits one step below it and control one step below canvas.
  */
-// SAFETY: light and dark are the complete supported palette modes.
-const themes = themeNames.flatMap((name) =>
-  (["light", "dark"] as const).map((mode) => ({
-    name: `${name}-${mode}`,
+const themes = accentNames.flatMap((accent) =>
+  themeModes.map((mode) => ({
+    name: `${accent}-${mode}`,
     mode,
-    colors: brandThemes[name][mode],
-    classic: name === "classic",
-    pending: brandThemes[name].pending,
+    colors: brandThemes[accent][mode],
   })),
 );
 
 const L = (hex: string) => oklabL(hex);
 const MIN_STEP = 0.015;
-const MAX_STEP = 0.06;
+const MAX_STEP = 0.08;
+// Pure black sits further below its first surface than any grey canvas does.
+const MAX_BLACK_STEP = 0.2;
 
-describe.each(themes)("theme rules: $name", ({ mode, colors, classic, pending }) => {
+describe.each(themes)("theme rules: $name", ({ mode, colors }) => {
   const c = colors;
   const ratio = (a: RoleName, b: RoleName) => contrastRatio(c[a], c[b]);
 
@@ -97,46 +95,45 @@ describe.each(themes)("theme rules: $name", ({ mode, colors, classic, pending })
     expect(ratio("on-set-done", "set-done")).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Classic is neutral by design: identity is its text color and its focus ring a quiet hairline.
-  // TODO: enable identity and layer checks when each placeholder palette is hand-tuned.
-  it.skipIf(classic || pending)("keeps identity roles visible and readable", () => {
-    expect(ratio("identity", "canvas")).toBeGreaterThanOrEqual(3);
+  it("keeps the accent visible as a mark and readable as text", () => {
+    for (const bg of ["canvas", "surface"] as const) {
+      expect(ratio("identity", bg), `identity on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio("chart", bg), `chart on ${bg}`).toBeGreaterThanOrEqual(3);
+    }
     expect(ratio("focus-ring", "canvas")).toBeGreaterThanOrEqual(3);
-    expect(ratio("hairline-strong", "canvas")).toBeGreaterThanOrEqual(3);
     expect(ratio("identity", "identity-soft")).toBeGreaterThanOrEqual(3);
+    expect(ratio("text-primary", "identity-soft")).toBeGreaterThanOrEqual(7);
   });
 
   it("keeps on-identity readable on the identity fill", () => {
     expect(ratio("on-identity", "identity")).toBeGreaterThanOrEqual(4.5);
+    expect(ratio("on-action", "action-hover")).toBeGreaterThanOrEqual(4.5);
+    expect(ratio("on-action", "action-pressed")).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Classic dark has surface-floating below surface-control by design (a darker sheet).
-  it.skipIf(pending || (classic && mode === "dark"))(
-    "orders the layers in the documented direction",
-    () => {
-      const [canvas, surface, control, floating] = [
-        L(c.canvas),
-        L(c.surface),
-        L(c["surface-control"]),
-        L(c["surface-floating"]),
-      ] as [number, number, number, number];
-      const within = (step: number) => {
-        expect(step).toBeGreaterThanOrEqual(MIN_STEP);
-        expect(step).toBeLessThanOrEqual(MAX_STEP);
-      };
-      if (mode === "dark") {
-        within(surface - canvas);
-        within(control - surface);
-        within(floating - control);
-      } else {
-        within(surface - canvas);
-        within(canvas - control);
-        expect(floating).toBeGreaterThanOrEqual(surface);
-        expect(floating - surface).toBeLessThanOrEqual(MAX_STEP);
-      }
-      expect(c["surface-floating"]).not.toBe(c["surface-control"]);
-    },
-  );
+  it("orders the layers in the documented direction", () => {
+    const [canvas, surface, control, floating] = [
+      L(c.canvas),
+      L(c.surface),
+      L(c["surface-control"]),
+      L(c["surface-floating"]),
+    ] as [number, number, number, number]; // SAFETY: four items
+    const within = (step: number) => {
+      expect(step).toBeGreaterThanOrEqual(MIN_STEP);
+      expect(step).toBeLessThanOrEqual(MAX_STEP);
+    };
+    if (mode === "light") {
+      within(surface - canvas);
+      within(canvas - control);
+      expect(floating).toBe(surface);
+    } else {
+      if (mode === "black") expect(surface - canvas).toBeLessThanOrEqual(MAX_BLACK_STEP);
+      else within(surface - canvas);
+      within(control - surface);
+      expect(floating).toBeGreaterThan(surface);
+      expect(floating).toBeLessThan(control);
+    }
+  });
 });
 
 // Plate labels use a dedicated ink, independent of the surrounding theme.

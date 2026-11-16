@@ -13,7 +13,7 @@ export const roleNames = [
   "text-secondary",
   "text-muted",
   "text-disabled",
-  // Identity is separate from actions, data and status. Classic remains neutral.
+  // Identity (selection and marks) takes the accent; Mono keeps it neutral.
   "chart",
   "identity",
   "identity-soft",
@@ -21,7 +21,7 @@ export const roleNames = [
   "on-identity",
   "brand-detail",
   "focus-ring",
-  // Primary action: neutral in Classic; the palette accent in other themes.
+  // Primary action: the accent fill.
   "action",
   "action-hover",
   "action-pressed",

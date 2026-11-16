@@ -6,12 +6,7 @@ import { useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
-import {
-  ThemePicker,
-  AppearancePicker,
-  THEME_LABELS,
-  APPEARANCE_LABELS,
-} from "@/platform/theme/theme-picker";
+import { AppearanceSheet, useAppearanceSummary } from "@/platform/theme/theme-picker";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 
@@ -20,16 +15,17 @@ import { usePreferences } from "../use-preferences";
 const LOCALE_NAMES = { en: "English" };
 const DEVICE = "device";
 
-type Picker = "theme" | "appearance" | "language" | "timezone" | null;
+type Picker = "appearance" | "language" | "timezone" | null;
 
 /**
- * Theme, language and time zone as settings rows. Each shows their current
+ * Appearance, language and time zone as settings rows. Each shows their current
  * value and open a sheet; account settings go through the one preferences hook.
  */
 export function PreferenceRows() {
   const { t } = useTranslation();
   const { preferences, setLocale, setTimezone } = usePreferences();
   const { choice } = useThemeChoice();
+  const appearance = useAppearanceSummary(choice);
   const [picker, setPicker] = useState<Picker>(null);
   const deviceZone = getCalendars()[0]?.timeZone ?? null;
   const onOpenChange = (open: boolean) => {
@@ -56,14 +52,8 @@ export function PreferenceRows() {
         <HidePhotosRow />
         <ListRow
           icon={Palette}
-          title={t("settings__theme_title")}
-          value={t(THEME_LABELS[choice.theme])}
-          onPress={() => setPicker("theme")}
-        />
-        <ListRow
-          icon={Palette}
           title={t("settings__appearance_title")}
-          value={t(APPEARANCE_LABELS[choice.appearance])}
+          value={appearance}
           onPress={() => setPicker("appearance")}
         />
         {SUPPORTED_LOCALES.length > 1 && (
@@ -84,8 +74,7 @@ export function PreferenceRows() {
       </ListSection>
 
       <BodyReminderSettings />
-      <ThemePicker isOpen={picker === "theme"} onOpenChange={onOpenChange} />
-      <AppearancePicker isOpen={picker === "appearance"} onOpenChange={onOpenChange} />
+      <AppearanceSheet isOpen={picker === "appearance"} onOpenChange={onOpenChange} />
       <OptionSheet
         isOpen={picker === "language"}
         onOpenChange={onOpenChange}

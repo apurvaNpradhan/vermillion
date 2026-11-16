@@ -19,7 +19,7 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
 - **Accounts:** passwordless email-code sign-in and passkeys, Google/GitHub OAuth, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
-- **Themes:** five hand-tuned palettes (Classic, Chalk, Frost, Iron, Dusk), each in light and dark.
+- **Appearance:** one neutral base in light, dark and true black, with five accents.
 
 ## Screenshots
 
