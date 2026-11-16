@@ -82,7 +82,7 @@ export function WeightScreen() {
             </Pressable>
           </View>
         </View>
-        <View className="gap-2 border-b border-separator pb-5">
+        <View className="gap-2 pb-5">
           <Text
             className="text-numeric-xl text-foreground"
             style={{ fontVariant: ["tabular-nums"] }}
@@ -163,10 +163,7 @@ export function WeightScreen() {
             {t("body__changes")}
           </Text>
           {state.changes.map((change) => (
-            <View
-              key={change.days}
-              className="flex-row items-center justify-between gap-3 border-b border-separator py-3"
-            >
+            <View key={change.days} className="flex-row items-center justify-between gap-3 py-3">
               <Text className="text-body text-muted">
                 {t("body__days", { count: change.days })}
               </Text>
@@ -234,7 +231,7 @@ export function WeightScreen() {
                         setEntry(row);
                         setLogging(true);
                       }}
-                      className="flex-row justify-between border-b border-separator py-4"
+                      className="flex-row justify-between rounded-xl py-4 active:bg-default"
                     >
                       <Text className="text-body text-muted">{date(row.local_date)}</Text>
                       <Text className="text-body text-foreground">{format(row.value)}</Text>

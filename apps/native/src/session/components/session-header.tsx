@@ -77,7 +77,7 @@ export function SessionHeader({
   const foreground = useThemeColor("foreground");
   return (
     <View
-      className="flex-row items-center gap-2 border-b border-border bg-background px-3 pb-2"
+      className="flex-row items-center gap-2 bg-background px-3 pb-2"
       style={{ paddingTop: top + 8 }}
     >
       <Pressable

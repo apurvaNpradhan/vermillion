@@ -134,7 +134,7 @@ function SetProgress({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** A small keycap: hairline border, an overline label. */
+/** A small filled keycap with an overline label. */
 function Keycap({
   label,
   onPress,
@@ -153,7 +153,7 @@ function Keycap({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={`h-11 items-center justify-center rounded-lg border border-border px-2 active:bg-default ${disabled ? "opacity-40" : ""}`}
+      className={`h-11 items-center justify-center rounded-lg bg-default px-2 active:bg-field ${disabled ? "opacity-40" : ""}`}
       style={{ flexGrow: grow, flexBasis: 0 }}
     >
       <Text
@@ -169,7 +169,7 @@ function Keycap({
 
 function Stat({ label, value, first }: { label: string; value: string; first: boolean }) {
   return (
-    <View className={`flex-1 gap-0.5 px-3 ${first ? "" : "border-l border-border"}`}>
+    <View className={`flex-1 gap-0.5 px-3 ${first ? "pl-0" : ""}`}>
       <Text className="text-overline uppercase text-muted" numberOfLines={1}>
         {label}
       </Text>
@@ -487,7 +487,7 @@ function LoadedTimer({
           )}
         </View>
 
-        <View className="mt-2 flex-row items-center gap-3 border-b border-border px-5 pb-3">
+        <View className="mt-2 flex-row items-center gap-3 px-5 pb-3">
           <Text className="text-overline uppercase text-muted">
             {t("session__timer_progress_label")}
           </Text>
@@ -641,7 +641,7 @@ function LoadedTimer({
             >
               <Button.Label className="font-semibold text-title-md">{primary.label}</Button.Label>
             </Button>
-            <View className="flex-row border-t border-border pt-3">
+            <View className="flex-row rounded-xl bg-surface p-3">
               <Stat
                 first
                 label={t("session__stat_volume")}

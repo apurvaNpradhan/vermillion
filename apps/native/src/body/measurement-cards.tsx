@@ -26,11 +26,11 @@ export function MeasurementsCard() {
     })
     .slice(0, 3);
   return (
-    <View className="gap-3 border-b border-separator pb-5">
+    <View className="gap-3 rounded-2xl bg-surface p-4">
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push("/body/measurements")}
-        className="gap-3"
+        className="gap-3 active:opacity-70"
       >
         <Text className="text-title-md font-semibold text-foreground">
           {t("body__measurements")}
@@ -75,7 +75,7 @@ export function WeighInHabitCard() {
       accessibilityRole="button"
       accessibilityLabel={t("body__habit")}
       onPress={() => router.push("/body/weight")}
-      className="gap-3 border-b border-separator pb-5"
+      className="gap-3 rounded-2xl bg-surface p-4 active:opacity-70"
     >
       <Text className="text-title-md font-semibold text-foreground">{t("body__habit")}</Text>
       {state.loading ? (

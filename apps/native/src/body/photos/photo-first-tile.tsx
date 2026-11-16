@@ -24,7 +24,7 @@ export function PhotoFirstTile() {
   const photo = latest.photo;
   if (!photo) {
     return (
-      <View className="w-1/2 gap-2 border-b border-separator py-6">
+      <View className="w-1/2 gap-2 py-6">
         <Text className="text-body text-muted">{t("body__photo_slot")}</Text>
         <Text className="text-caption text-muted">
           {latest.loading ? t("common__loading") : t("body__photo_later")}
@@ -35,7 +35,7 @@ export function PhotoFirstTile() {
   const date = formatCalendarDate(photo.local_date, i18n.language);
   const hidden = reveal.hidden(photo.id);
   return (
-    <View className="w-1/2 gap-2 border-b border-separator p-3">
+    <View className="w-1/2 gap-2 p-3">
       <PrivatePhoto
         mediaId={photo.media_id}
         width={120}

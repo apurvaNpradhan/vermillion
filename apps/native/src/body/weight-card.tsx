@@ -13,12 +13,12 @@ export function WeightCard() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
-    <View className="gap-3 border-b border-separator pb-5">
+    <View className="gap-3 rounded-2xl bg-surface p-4">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("body__title")}
         onPress={() => router.push("/body/weight")}
-        className="gap-2"
+        className="gap-2 active:opacity-70"
       >
         <Text className="text-caption text-muted">{t("body__title")}</Text>
         <View className="flex-row items-center justify-between gap-4">

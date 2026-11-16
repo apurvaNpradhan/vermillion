@@ -62,7 +62,7 @@ export function TrainingHome() {
   return (
     <View className="gap-8">
       {!loading && !active.loading && !state.failed ? (
-        <View className="gap-2 border-b border-separator pb-5">
+        <View className="gap-2 rounded-2xl bg-surface p-4">
           <Text className="text-caption text-muted">{t("home__next_workout")}</Text>
           {resume || workout.status === "ready" ? (
             <View className="flex-row items-center gap-3">

@@ -45,7 +45,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
           setOpenedKg(cell.currentKg ?? 0);
           setOpen(true);
         }}
-        className="min-h-11 flex-row items-center gap-2 rounded-xl border border-separator px-3"
+        className="min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3 active:bg-field"
       >
         <Barbell size={18} color={ink} />
         <Text className="text-body text-foreground">{t("plates__title")}</Text>

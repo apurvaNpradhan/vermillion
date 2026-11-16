@@ -18,10 +18,7 @@ export function TrackedMetricsScreen() {
           title={t(groupLabels[group === "upper" ? "upper" : group === "arms" ? "arms" : "legs"])}
         >
           {metrics.map((metric) => (
-            <View
-              key={metric}
-              className="flex-row items-center justify-between gap-4 border-b border-separator py-4"
-            >
+            <View key={metric} className="flex-row items-center justify-between gap-4 px-4 py-4">
               <Text className="flex-1 text-body text-foreground">{t(metricLabels[metric])}</Text>
               <Switch
                 accessibilityLabel={t(metricLabels[metric])}

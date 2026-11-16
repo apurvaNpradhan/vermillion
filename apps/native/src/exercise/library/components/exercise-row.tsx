@@ -85,7 +85,7 @@ export const ExerciseRow = memo(function ExerciseRow({
       accessibilityState={mode === "pick" ? { checked: selected, disabled } : undefined}
       disabled={onPress === undefined || disabled}
       onPress={() => onPress?.(exercise.id)}
-      className={`min-h-[72px] flex-row items-center gap-3 border-b border-border px-4 py-2 ${
+      className={`min-h-[72px] flex-row items-center gap-3 px-4 py-3 ${
         selected ? "bg-default" : "bg-background active:bg-default"
       } ${disabled ? "opacity-40" : ""}`}
     >
@@ -112,7 +112,7 @@ export const ExerciseRow = memo(function ExerciseRow({
       {mode === "pick" ? (
         <View
           className={`size-7 items-center justify-center rounded-full border ${
-            selected ? "border-identity bg-identity" : "border-border"
+            selected ? "border-identity bg-identity" : "border-transparent bg-default"
           }`}
         >
           {selected ? (

@@ -63,7 +63,7 @@ export function SessionPhotos({
         {!readOnly && state.photos.length < 4 ? (
           <Pressable
             disabled={state.busy}
-            className="size-28 items-center justify-center rounded-xl border border-separator bg-default"
+            className="size-28 items-center justify-center rounded-xl bg-default active:opacity-70"
             accessibilityRole="button"
             accessibilityLabel={t("media__add_photos")}
             onPress={() => setAdding(true)}

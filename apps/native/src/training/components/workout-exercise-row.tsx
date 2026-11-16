@@ -86,7 +86,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   if (collapsed) {
     return (
       <View
-        className={`h-14 flex-row items-center gap-3 border-b border-border bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
+        className={`h-14 flex-row items-center gap-3 bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
       >
         <SupersetBracket place={place} />
         {thumbnail(32)}
@@ -98,7 +98,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   }
   return (
     <View>
-      <ReorderHeader className="min-h-[72px] flex-row items-center border-b border-border bg-background">
+      <ReorderHeader className="min-h-[72px] flex-row items-center bg-background">
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
@@ -142,7 +142,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
         </Pressable>
       </ReorderHeader>
       {expanded ? (
-        <View className="gap-3 border-b border-border px-4 py-3">
+        <View className="gap-3 bg-surface px-4 py-4">
           <InlineTargets entry={entry} grouped={place === "first" || place === "middle"} />
         </View>
       ) : null}

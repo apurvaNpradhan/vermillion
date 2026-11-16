@@ -7,7 +7,7 @@ import { iconFrame } from "../core/icon-framing";
 import { LAYER_SOURCES } from "./layer-sources.generated";
 
 /** The disc is light in both themes so the grey anatomy and its colours read the same. */
-export const DISC_CLASS = "overflow-hidden rounded-full border border-border bg-white";
+export const DISC_CLASS = "overflow-hidden rounded-full bg-white";
 
 /**
  * A circular icon of one group: the drawn body (front or back, whichever shows the group best)

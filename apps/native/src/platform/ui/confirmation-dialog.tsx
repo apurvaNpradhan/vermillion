@@ -29,7 +29,7 @@ export function ConfirmationDialog({
         <Dialog.Overlay variant="default" />
         <Dialog.Content
           isSwipeable={false}
-          className="w-full max-w-sm self-center gap-6 rounded-2xl border border-border bg-overlay p-6"
+          className="w-full max-w-sm self-center gap-6 rounded-2xl bg-overlay p-6"
         >
           <View className="gap-3">
             <Dialog.Title className="font-semibold text-title-lg text-foreground">

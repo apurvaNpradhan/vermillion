@@ -48,7 +48,7 @@ export function SegmentedControl<T extends string>({
     >
       <Animated.View
         pointerEvents="none"
-        className="absolute rounded-[10px] border border-border bg-surface"
+        className="absolute rounded-[10px] bg-surface"
         style={[{ top: PAD, bottom: PAD, left: PAD }, pill]}
       />
       {options.map((option) => (
@@ -62,7 +62,7 @@ export function SegmentedControl<T extends string>({
             haptic.tick();
             onChange(option.value);
           }}
-          className="flex-1 items-center justify-center"
+          className="flex-1 items-center justify-center rounded-[10px] active:opacity-60"
         >
           <Text
             className={`text-body font-medium ${option.value === value ? "text-foreground" : "text-muted"}`}

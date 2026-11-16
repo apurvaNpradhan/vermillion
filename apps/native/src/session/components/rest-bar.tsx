@@ -70,10 +70,7 @@ export function RestBar({
     onAdjust(delta);
   };
   return (
-    <View
-      className="border-t border-border bg-surface"
-      style={{ paddingBottom: withInset ? bottom : 0 }}
-    >
+    <View className="bg-surface" style={{ paddingBottom: withInset ? bottom : 0 }}>
       <View
         accessibilityRole="progressbar"
         accessibilityLabel={t("session__rest_label")}

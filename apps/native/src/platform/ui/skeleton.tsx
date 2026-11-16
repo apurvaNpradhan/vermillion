@@ -113,10 +113,10 @@ export function SkeletonList({ count = 4, label }: { count?: number; label: stri
         accessibilityRole="progressbar"
         accessibilityLabel={label}
         accessibilityState={{ busy: true }}
-        className="overflow-hidden rounded-2xl border border-border bg-surface"
+        className="overflow-hidden rounded-2xl py-1 bg-surface"
       >
         {Array.from({ length: count }, (_, index) => (
-          <SkeletonRow key={index} className={index > 0 ? "border-t border-border" : undefined} />
+          <SkeletonRow key={index} />
         ))}
       </View>
     </Appearing>

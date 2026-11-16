@@ -2,7 +2,7 @@
 
 The app UI is native: HeroUI Native with Uniwind (Tailwind classes). Load `heroui-native` and `vercel-react-native-skills`. Expo web is off; a future companion or marketing site picks its own UI kit ([ADR 0033](../docs/adr/0033-mobile-first-api-host.md)).
 
-Import `Button` and `Card` from `@/platform/ui/button` and `@/platform/ui/card`, not from `heroui-native`: they carry the Vermillion radius and hairline. Destructive buttons use `variant="danger-soft"`, never `danger`. Icons come from `phosphor-react-native`.
+Import `Button` and `Card` from `@/platform/ui/button` and `@/platform/ui/card`, not from `heroui-native`: they carry the Vermillion radius and tonal fills. Destructive buttons use `variant="danger-soft"`, never `danger`. Icons come from `phosphor-react-native`.
 
 Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input`/`Label`; inside TanStack Form use `@/platform/forms/text-field`. A borderless input that must not look like a form field (a note field that sits on a sheet) may use `TextInput` directly.
 
@@ -25,6 +25,8 @@ Metro with `--clear` after registration changes. Layout never branches on theme;
 buttons, and `chart` drives chart marks. Other palettes use an accent; Classic stays neutral.
 
 Classic rules: no brand accent color in the UI; the primary action is the one white (dark) or near-black (light) filled button per screen; selected states use the surface step and `foreground`; numbers use tabular figures.
+
+Native groups use spacing, rounded corners and canvas/surface/default fills, with no row dividers or card outlines. Keep outlines only for fields and selected chips, swatches or option tiles; preserve diagram strokes and progress tracks. When removing a line, review row padding and group gaps, and keep a visible pressed state.
 
 ## Behaviour
 

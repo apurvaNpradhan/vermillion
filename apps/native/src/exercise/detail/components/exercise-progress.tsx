@@ -168,7 +168,7 @@ export function NextTimeLine({
         : t("progress__target_reps", { count: next.reps });
   if (aim === null) return null;
   return (
-    <View className="gap-2 border-t border-separator pt-3">
+    <View className="gap-2 pt-3">
       <View className="flex-row justify-between gap-3">
         <Text className="text-body text-muted">{t("progress__next")}</Text>
         <Text className="text-body text-foreground">{aim}</Text>

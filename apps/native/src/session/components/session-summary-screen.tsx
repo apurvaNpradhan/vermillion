@@ -306,7 +306,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
         </View>
         <form.Subscribe selector={(state) => state.values.duration}>
           {(duration) => (
-            <View className="flex-row gap-8 border-y border-separator px-4 py-3">
+            <View className="flex-row gap-8 px-4 py-3">
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${t("session__stat_duration")}, ${formatElapsed(Number(duration))}`}

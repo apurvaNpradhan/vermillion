@@ -53,8 +53,8 @@ export function PlateChip({
     <View
       className={
         selected
-          ? "min-h-11 flex-row items-center rounded-xl bg-default"
-          : "min-h-11 flex-row items-center rounded-xl border border-separator"
+          ? "min-h-11 flex-row items-center rounded-xl border border-identity bg-default"
+          : "min-h-11 flex-row items-center rounded-xl border border-transparent bg-surface"
       }
     >
       <Pressable
@@ -62,11 +62,9 @@ export function PlateChip({
         accessibilityLabel={label}
         accessibilityState={{ selected }}
         onPress={onPress}
-        className="min-h-11 flex-row items-center gap-2 px-3"
+        className="min-h-11 flex-row items-center gap-2 px-3 active:opacity-60"
       >
-        {swatch ? (
-          <View className={`size-3 rounded-full border border-separator ${swatch}`} />
-        ) : null}
+        {swatch ? <View className={`size-3 rounded-full ${swatch}`} /> : null}
         <Text className="text-body text-foreground tabular-nums">{label}</Text>
         {count ? (
           <Text className="font-semibold text-body text-foreground tabular-nums">×{count}</Text>
@@ -77,7 +75,7 @@ export function PlateChip({
           accessibilityRole="button"
           accessibilityLabel={removeLabel}
           onPress={onRemove}
-          className="min-h-11 min-w-9 items-center justify-center border-l border-separator"
+          className="min-h-11 min-w-9 items-center justify-center rounded-r-xl bg-surface active:opacity-60"
         >
           <Text className="text-body text-muted">−</Text>
         </Pressable>
@@ -372,10 +370,7 @@ function CalculatorBody({
         </Button>
       </BottomSheetScrollView>
       {loaded && state.bar && canUse ? (
-        <View
-          className="border-t border-separator px-4 pt-3"
-          style={{ paddingBottom: bottom + 12 }}
-        >
+        <View className="bg-overlay px-4 pt-3" style={{ paddingBottom: bottom + 12 }}>
           <Button variant="primary" onPress={() => void use()}>
             {t("plates__use", { weight: weight(totalKg) })}
           </Button>

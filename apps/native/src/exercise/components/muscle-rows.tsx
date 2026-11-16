@@ -78,8 +78,8 @@ export function MuscleRows({
                     haptic.tick();
                     onPress(muscle);
                   }}
-                  className={`flex-row items-center gap-3 rounded-2xl border p-2 ${
-                    selected ? "border-identity bg-identity-soft" : "border-border bg-surface"
+                  className={`flex-row items-center gap-3 rounded-2xl border active:opacity-70 p-2 ${
+                    selected ? "border-identity bg-identity-soft" : "border-transparent bg-surface"
                   }`}
                 >
                   <MuscleIcon muscle={muscle} size={DISC} />

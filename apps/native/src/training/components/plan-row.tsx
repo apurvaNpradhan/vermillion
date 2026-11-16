@@ -3,12 +3,11 @@ import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
-import { Hairline } from "@/platform/ui/hairline";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { SwipeRow, type SwipeAction } from "@/platform/ui/swipe-row";
 
 /**
- * Workouts and programs share one flat row: on the canvas, divided from the next by a hairline,
+ * Workouts and programs share one flat row: on the canvas, separated by generous row padding,
  * with the title, muted lines under it and optionally a tile, a trailing control (a Start button)
  * and a menu button. Swipe or long press opens the actions.
  */
@@ -47,7 +46,7 @@ export function PlanRow({
                   accessibilityLabel={[title, ...shown].join(", ")}
                   onPress={onOpen}
                   onLongPress={() => setMenuOpen(true)}
-                  className={`min-h-[72px] flex-row items-center gap-3 bg-background py-3 pl-4 active:bg-default ${menuLabel ? "pr-1" : "pr-4"}`}
+                  className={`min-h-[72px] flex-row items-center gap-3 bg-background py-4 pl-4 active:bg-default ${menuLabel ? "pr-1" : "pr-4"}`}
                 >
                   {tile}
                   <View className="flex-1 gap-0.5">
@@ -76,7 +75,6 @@ export function PlanRow({
             </Pressable>
           ) : null}
         </View>
-        <Hairline />
       </View>
       <ActionSheet title={title} actions={actions} isOpen={menuOpen} onOpenChange={setMenuOpen} />
     </>

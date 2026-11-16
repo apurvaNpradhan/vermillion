@@ -33,7 +33,7 @@ export function TrainingListState({
       accessibilityRole="progressbar"
     >
       {Array.from({ length: 3 }, (_, index) => (
-        <View key={index} className="gap-3 rounded-2xl border border-border bg-surface p-4">
+        <View key={index} className="gap-3 rounded-2xl bg-surface p-4">
           <Skeleton className="h-5 w-1/2" />
           <Skeleton className="h-4 w-2/3" />
         </View>

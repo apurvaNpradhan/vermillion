@@ -4,21 +4,18 @@ import type { ComponentProps } from "react";
 type ButtonProps = ComponentProps<typeof HeroButton>;
 
 /**
- * HeroUI Button as a raised keycap: 8pt corners, 44pt tall (the touch minimum), 14pt medium label.
- * `primary` is the one bright action on a screen; `secondary` and `outline` are quiet with a
- * hairline ring; destructive actions use `danger-soft`, rose text on a faint tint with a rose
- * ring. Never use the filled `danger` variant.
+ * Filled controls with 12pt corners and 44pt standard touch targets. `primary` is the bright
+ * action; `secondary` and `outline` use a quiet default fill. Destructive actions use
+ * `danger-soft`, rose text on a faint tint. Callers may add an outline to mark selection.
  */
 function ButtonRoot(props: ButtonProps) {
   return (
     <HeroButton
       {...props}
       className={cn(
-        "rounded-xl",
+        "rounded-xl border-0",
         props.size !== "sm" && props.size !== "lg" && "h-11 px-3",
-        (props.variant === "secondary" || props.variant === "outline") &&
-          "border border-border bg-default",
-        props.variant === "danger-soft" && "border border-danger/40",
+        (props.variant === "secondary" || props.variant === "outline") && "bg-default",
         props.className,
       )}
     />

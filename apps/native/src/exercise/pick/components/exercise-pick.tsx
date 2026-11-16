@@ -129,7 +129,7 @@ export function ExercisePickScreen({
         }
       />
       <View
-        className="absolute inset-x-0 bottom-0 flex-row items-center gap-3 border-t border-separator bg-background px-4 pt-3"
+        className="absolute inset-x-0 bottom-0 flex-row items-center gap-3 bg-background px-4 pt-3"
         style={{ paddingBottom: bottom + 12, minHeight: BAR_HEIGHT + bottom }}
       >
         <Button
