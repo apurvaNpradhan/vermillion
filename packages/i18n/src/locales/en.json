@@ -390,6 +390,7 @@
   "exercise__field_secondary": "Secondary muscle groups",
   "exercise__field_secondary_hint": "Optional. Other muscles it works.",
   "exercise__field_log": "How you log it",
+  "exercise__more_details": "More details",
   "exercise__field_notes": "Notes",
   "exercise__field_notes_hint": "Steps or cues. They show on the exercise.",
   "exercise__form_body_hint": "Tap a muscle group to choose it.",

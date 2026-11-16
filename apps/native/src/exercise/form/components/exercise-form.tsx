@@ -10,7 +10,7 @@ import {
 import type { ExerciseDetail } from "@workspace/sync";
 import { useNavigation, usePreventRemove } from "expo-router";
 import { Spinner, useThemeColor } from "heroui-native";
-import { Info, X } from "phosphor-react-native";
+import { CaretDown, CaretUp, Info, X } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -193,6 +193,12 @@ function ExerciseForm({
   const image = useExerciseImage();
   const typeLocked = useExerciseTypeLocked(id);
   const [draft, setDraft] = useState<ExerciseDraft>(() => startExerciseDraft(initial));
+  const [detailsOpen, setDetailsOpen] = useState(
+    () =>
+      initial.secondaryMuscles.length > 0 ||
+      initial.notes.trim() !== "" ||
+      saved?.imageMediaId != null,
+  );
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const createdId = useRef<string | null>(null);
@@ -231,6 +237,7 @@ function ExerciseForm({
   async function save() {
     setAttempted(true);
     if (!result.ok) {
+      if (result.errors.notes) setDetailsOpen(true);
       haptic.tick();
       return;
     }
@@ -286,28 +293,6 @@ function ExerciseForm({
           </Button>
         }
       >
-        <View className="flex-row flex-wrap items-center gap-2">
-          {image.previewUri ? (
-            <Image
-              source={{ uri: image.previewUri }}
-              style={{ width: 64, height: 64 }}
-              contentFit="cover"
-            />
-          ) : (
-            <MediaImage mediaId={image.removed ? null : (saved?.imageMediaId ?? null)} size={64} />
-          )}
-          <Button variant="secondary" isDisabled={image.busy} onPress={() => void image.pick()}>
-            <Button.Label>{t("media__exercise_image")}</Button.Label>
-          </Button>
-          {image.previewUri || (!image.removed && saved?.imageMediaId) ? (
-            <Button variant="danger-soft" onPress={image.remove}>
-              <Button.Label>{t("media__remove")}</Button.Label>
-            </Button>
-          ) : null}
-          {image.dirty ? (
-            <Text className="text-caption text-muted">{t("media__photo_changed")}</Text>
-          ) : null}
-        </View>
         <Field
           label={t("exercise__field_name")}
           value={draft.values.title}
@@ -347,16 +332,6 @@ function ExerciseForm({
           />
         </Section>
 
-        <Section title={t("exercise__field_secondary")} hint={t("exercise__field_secondary_hint")}>
-          <SecondaryMusclePicker
-            primary={draft.values.primaryMuscle}
-            value={draft.values.secondaryMuscles}
-            onToggle={(muscle) =>
-              set("secondaryMuscles", toggleSecondary(draft.values.secondaryMuscles, muscle))
-            }
-          />
-        </Section>
-
         <Section title={t("exercise__field_log")}>
           <TypePicker
             value={draft.values.exerciseType}
@@ -365,17 +340,70 @@ function ExerciseForm({
           />
         </Section>
 
-        <Field
-          label={t("exercise__field_notes")}
-          description={t("exercise__field_notes_hint")}
-          value={draft.values.notes}
-          onChangeText={(value) => set("notes", value)}
-          maxLength={EXERCISE_INSTRUCTIONS_MAX + 100}
-          multiline
-          textAlignVertical="top"
-          className="min-h-28"
-          error={errors.notes ? t(errors.notes) : undefined}
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: detailsOpen }}
+          onPress={() => setDetailsOpen((open) => !open)}
+          className="min-h-12 flex-row items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 active:bg-default"
+        >
+          <Text className="text-label font-medium text-foreground">
+            {t("exercise__more_details")}
+          </Text>
+          <DetailsCaret expanded={detailsOpen} />
+        </Pressable>
+        {detailsOpen ? (
+          <View className="gap-6">
+            <View className="flex-row flex-wrap items-center gap-2">
+              {image.previewUri ? (
+                <Image
+                  source={{ uri: image.previewUri }}
+                  style={{ width: 64, height: 64 }}
+                  contentFit="cover"
+                />
+              ) : (
+                <MediaImage
+                  mediaId={image.removed ? null : (saved?.imageMediaId ?? null)}
+                  size={64}
+                />
+              )}
+              <Button variant="secondary" isDisabled={image.busy} onPress={() => void image.pick()}>
+                <Button.Label>{t("media__exercise_image")}</Button.Label>
+              </Button>
+              {image.previewUri || (!image.removed && saved?.imageMediaId) ? (
+                <Button variant="danger-soft" onPress={image.remove}>
+                  <Button.Label>{t("media__remove")}</Button.Label>
+                </Button>
+              ) : null}
+              {image.dirty ? (
+                <Text className="text-caption text-muted">{t("media__photo_changed")}</Text>
+              ) : null}
+            </View>
+            <Section
+              title={t("exercise__field_secondary")}
+              hint={t("exercise__field_secondary_hint")}
+            >
+              <SecondaryMusclePicker
+                primary={draft.values.primaryMuscle}
+                value={draft.values.secondaryMuscles}
+                onToggle={(muscle) =>
+                  set("secondaryMuscles", toggleSecondary(draft.values.secondaryMuscles, muscle))
+                }
+              />
+            </Section>
+
+            <Field
+              label={t("exercise__field_notes")}
+              description={t("exercise__field_notes_hint")}
+              value={draft.values.notes}
+              onChangeText={(value) => set("notes", value)}
+              maxLength={EXERCISE_INSTRUCTIONS_MAX + 100}
+              multiline
+              textAlignVertical="top"
+              className="min-h-28"
+              error={errors.notes ? t(errors.notes) : undefined}
+            />
+          </View>
+        ) : null}
       </FormFrame>
     </>
   );
@@ -408,4 +436,10 @@ function Section({
       ) : null}
     </View>
   );
+}
+
+function DetailsCaret({ expanded }: { expanded: boolean }) {
+  const foreground = useThemeColor("foreground");
+  const Icon = expanded ? CaretUp : CaretDown;
+  return <Icon size={18} color={foreground} />;
 }
