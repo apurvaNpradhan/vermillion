@@ -24,6 +24,9 @@ export const THEME_LABELS = {
   frost: "theme__frost",
   iron: "theme__iron",
   dusk: "theme__dusk",
+  cinnabar: "theme__cinnabar",
+  tide: "theme__tide",
+  volt: "theme__volt",
 } satisfies Record<ThemeName, TranslationKey>;
 const DESCRIPTIONS = {
   classic: "theme__classic_description",
@@ -31,6 +34,9 @@ const DESCRIPTIONS = {
   frost: "theme__frost_description",
   iron: "theme__iron_description",
   dusk: "theme__dusk_description",
+  cinnabar: "theme__cinnabar_description",
+  tide: "theme__tide_description",
+  volt: "theme__volt_description",
 } satisfies Record<ThemeName, TranslationKey>;
 export const APPEARANCE_LABELS = {
   system: "theme__system",

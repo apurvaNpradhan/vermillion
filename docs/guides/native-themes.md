@@ -1,6 +1,6 @@
 # Native themes
 
-The app offers Classic, Chalk, Frost, Iron and Dusk in that order. Theme changes colour only.
+The app offers Classic, Chalk, Frost, Iron, Dusk, Cinnabar, Tide and Volt in that order. Theme changes colour only.
 Appearance independently chooses System, Light or Dark. Both settings live on the device,
 including before sign-in. Email always uses Classic.
 
@@ -13,7 +13,7 @@ Classic for existing consumers.
 Each palette lives in `packages/ui/src/tokens/themes/`:
 
 - `classic.ts` holds the original light and dark roles.
-- `chalk.ts`, `frost.ts`, `iron.ts`, `dusk.ts` each export complete `light` and `dark` objects
+- `chalk.ts`, `frost.ts`, `iron.ts`, `dusk.ts`, `cinnabar.ts`, `tide.ts`, `volt.ts` each export complete `light` and `dark` objects
   and a `pending` flag. Their current values are explicit copies of Classic.
 
 Replace both objects in the chosen file. Set `action` and its hover/pressed/on roles to the
@@ -41,8 +41,8 @@ adaptive mode and reset native Appearance, so the app calls `Uniwind.setTheme` f
 `expo-system-ui` paints the root background from the selected palette. Android edge-to-edge
 bars show that background; status and navigation icon styles follow the resolved mode.
 
-The CSS adapter emits all variables in all ten variants. Classic uses `light` and `dark`;
-Metro registers the other eight flat names through `extraThemes`. After changing Metro
+The CSS adapter emits all variables in all sixteen variants. Classic uses `light` and `dark`;
+Metro registers the other fourteen flat names through `extraThemes`. After changing Metro
 registration, restart Metro with `--clear`. Never hand-edit generated CSS.
 
 Preferences has Theme preview cards with light and dark side by side, plus an Appearance

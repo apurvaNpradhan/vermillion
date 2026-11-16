@@ -4,10 +4,22 @@ import * as chalk from "./themes/chalk";
 import * as frost from "./themes/frost";
 import * as iron from "./themes/iron";
 import * as dusk from "./themes/dusk";
+import * as cinnabar from "./themes/cinnabar";
+import * as tide from "./themes/tide";
+import * as volt from "./themes/volt";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
 // SAFETY: fixed UI order also defines the theme-name union.
-export const themeNames = ["classic", "chalk", "frost", "iron", "dusk"] as const;
+export const themeNames = [
+  "classic",
+  "chalk",
+  "frost",
+  "iron",
+  "dusk",
+  "cinnabar",
+  "tide",
+  "volt",
+] as const;
 export type ThemeName = (typeof themeNames)[number];
 
 interface ThemePalette {
@@ -22,6 +34,9 @@ export const brandThemes = {
   frost,
   iron,
   dusk,
+  cinnabar,
+  tide,
+  volt,
 } satisfies Record<ThemeName, ThemePalette>;
 
 /**
