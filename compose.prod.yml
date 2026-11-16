@@ -1,0 +1,191 @@
+# Production-shaped stack for a local end-to-end check. It runs the same server image Dokploy
+# runs, against Postgres with the logical-WAL flags, the replication bootstrap, PowerSync and
+# MinIO standing in for the private R2 bucket. Not a deployment: production is Dokploy
+# (docs/deployment.md). Every value comes from an env file; nothing has a default secret.
+#
+#   cp .env.prod.example .env.prod        # then generate the secrets (see the file)
+#   docker compose -p vermillion-prodcheck --env-file .env.prod -f compose.prod.yml up -d --build --wait
+#   curl http://127.0.0.1:13000/api/ready
+#   docker compose -p vermillion-prodcheck --env-file .env.prod -f compose.prod.yml down -v
+#
+# Start order (docs/deployment.md, "Order of operations"):
+#   postgres -> powersync-bootstrap (roles, empty publication) -> server (migrations) -> powersync
+#   minio -> minio-init (the bucket) -> server
+# Only the API and PowerSync publish a port, on 127.0.0.1. The project name differs from the
+# development stack (`vermillion`), so the two never share containers, networks or volumes.
+name: vermillion-prodcheck
+
+x-server-image: &server-image
+  image: ${SERVER_IMAGE:-vermillion-server:prodcheck}
+  build:
+    context: .
+    dockerfile: apps/server/Dockerfile
+
+services:
+  postgres:
+    image: postgres:18
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_slot_wal_keep_size=${POSTGRES_MAX_SLOT_WAL_KEEP_SIZE:?set POSTGRES_MAX_SLOT_WAL_KEEP_SIZE}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      APP_DB_USER: ${APP_DB_USER:?set APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+    configs:
+      - source: postgres-app-role
+        target: /docker-entrypoint-initdb.d/10-app-role.sh
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # One shot from the server image, as in production: roles, the storage database, grants and
+  # the empty publication (ADR 0023). It connects as the Postgres superuser; the server gets
+  # the unprivileged application role (the job refuses a privileged one in production).
+  powersync-bootstrap:
+    <<: *server-image
+    command: ["node", "sync-bootstrap.mjs"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: &database-url postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SYNC_ADMIN_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POWERSYNC_REPLICATION_PASSWORD: ${POWERSYNC_REPLICATION_PASSWORD:?set POWERSYNC_REPLICATION_PASSWORD}
+      POWERSYNC_STORAGE_PASSWORD: ${POWERSYNC_STORAGE_PASSWORD:?set POWERSYNC_STORAGE_PASSWORD}
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  server:
+    <<: *server-image
+    depends_on:
+      postgres:
+        condition: service_healthy
+      powersync-bootstrap:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:?set API_HOST_PORT}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *database-url
+      APP_URL: ${APP_URL:?set APP_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-none}
+      REGISTRATION_OPEN: ${REGISTRATION_OPEN:-true}
+      # No mail provider here: sign-in codes are printed to the server log.
+      EMAIL_CONSOLE: ${EMAIL_CONSOLE:-true}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+      SYNC_ENDPOINT_URL: ${SYNC_ENDPOINT_URL:?set SYNC_ENDPOINT_URL}
+      MEDIA_S3_ENDPOINT: ${MEDIA_S3_ENDPOINT:-http://minio:9000}
+      MEDIA_S3_REGION: ${MEDIA_S3_REGION:-auto}
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:?set MEDIA_S3_BUCKET}
+      MEDIA_S3_ACCESS_KEY_ID: ${MEDIA_S3_ACCESS_KEY_ID:?set MEDIA_S3_ACCESS_KEY_ID}
+      MEDIA_S3_SECRET_ACCESS_KEY: ${MEDIA_S3_SECRET_ACCESS_KEY:?set MEDIA_S3_SECRET_ACCESS_KEY}
+    restart: unless-stopped
+
+  powersync:
+    # Same pin as docker-compose.yml (tag and multi-arch digest).
+    image: journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c
+    command: ["start", "-r", "unified"]
+    depends_on:
+      # The server's migrations add the synced tables to the publication; a stream for a table
+      # that is not in it breaks replication, so PowerSync starts after the server is healthy.
+      server:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${POWERSYNC_HOST_PORT:?set POWERSYNC_HOST_PORT}:8080"
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      NODE_OPTIONS: --max-old-space-size=1000
+      PS_PORT: "8080"
+      # Postgres in this stack has no TLS. Production uses verify-full or verify-ca.
+      PS_SSLMODE: ${PS_SSLMODE:-disable}
+      PS_DATA_SOURCE_URI: postgresql://powersync_replication:${POWERSYNC_REPLICATION_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PS_STORAGE_SOURCE_URI: postgresql://powersync_storage:${POWERSYNC_STORAGE_PASSWORD}@postgres:5432/powersync_storage
+      PS_JWKS_URI: http://server:3000/api/auth/jwks
+      PS_ADMIN_TOKEN: ${PS_ADMIN_TOKEN:?set PS_ADMIN_TOKEN}
+    volumes:
+      - ./powersync/service.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/probes/readiness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  # Stands in for the private R2 bucket (ADR 0040); same pin as docker-compose.yml. Its root
+  # credentials are the server's media credentials. No host port: presigned URLs name
+  # `minio:9000`, so they resolve only inside this network.
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+    environment:
+      MINIO_ROOT_USER: ${MEDIA_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${MEDIA_S3_SECRET_ACCESS_KEY}
+    volumes:
+      - minio_data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: unless-stopped
+
+  minio-init:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        n=0; until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          n=$$((n + 1)); [ "$$n" -ge 30 ] && exit 1; sleep 1;
+        done &&
+        mc mb --ignore-existing "local/$$MEDIA_S3_BUCKET"
+    environment:
+      MINIO_ROOT_USER: ${MEDIA_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${MEDIA_S3_SECRET_ACCESS_KEY}
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET}
+    restart: "no"
+
+configs:
+  # Runs once, when the data volume is first initialised: the unprivileged role the server
+  # connects as. It owns the database, so it can create its schemas and own the publication.
+  # The entrypoint sources this file (it is not executable).
+  postgres-app-role:
+    content: |
+      psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" \
+        -v app="$$APP_DB_USER" -v password="$$APP_DB_PASSWORD" -v db="$$POSTGRES_DB" <<'SQL'
+      CREATE ROLE :"app" LOGIN PASSWORD :'password';
+      ALTER DATABASE :"db" OWNER TO :"app";
+      SQL
+
+volumes:
+  postgres_data:
+  minio_data:

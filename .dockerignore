@@ -1,10 +1,30 @@
+# Build context of apps/server/Dockerfile (the repository root). Keep it small and free of
+# secrets: the build stage copies the whole context.
 **/node_modules
 **/dist
 **/.turbo
+**/*.tsbuildinfo
+**/coverage
+
+# Env files never enter an image; the examples are harmless.
 **/.env
 **/.env.*
 !**/.env.example
-.git
-.scratch
-repos
+!**/.env.prod.example
+
+# Not part of the server: the native app and anything prebuild or Gradle generates.
 apps/native
+**/android
+**/ios
+**/.expo
+
+.git
+.github
+.agents
+.claude
+.scratch
+.evlog
+repos
+docs
+**/*.log
+**/*.md
