@@ -18,6 +18,7 @@ import { discardProcessed } from "@/media";
 import { createPendingPhotos } from "./photos/pending-photos";
 import { PhotoSlotSheet, PhotoSlots } from "./photos/photo-slots";
 import { usePhotoActions } from "./photos/use-photo-actions";
+import { acceptsMeasurementDraft } from "./measurement-draft";
 import { MeasurementDate } from "./measurement-date";
 import { metricLabels } from "./metric-labels";
 import { useMeasurements } from "./use-measurements";
@@ -54,7 +55,9 @@ function CheckInForm({
     defaultValues: {
       rows: metrics.map((metric) => {
         const last = entry ?? lastN(state.forMetric(metric), 1)[0];
-        const shown = last ? state.display(metric, last.value).toFixed(1) : "";
+        const shown = last
+          ? state.display(metric, last.value).toFixed(state.unit(metric) === "in" ? 2 : 1)
+          : "";
         return {
           metric,
           value: shown,
@@ -214,7 +217,7 @@ function CheckInForm({
                           ? current
                           : current + "."
                       : (fresh ? "" : current) + key;
-                if ((next.split(".")[1]?.length ?? 0) <= 1) edit(next);
+                if (acceptsMeasurementDraft(next, unit)) edit(next);
                 setFresh(false);
               }}
               onStep={(direction) => {
