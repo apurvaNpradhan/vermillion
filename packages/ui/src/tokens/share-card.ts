@@ -14,7 +14,7 @@ export type CardPaletteKind = CardBackground | "sticker";
 
 /** How strongly the theme background's accent glow tints the top of the card (0..1). */
 export const GLOW_ALPHA = 0.12;
-/** The photo scrim's opacity where text sits (the bottom of the card). */
+/** The photo scrim's opacity across the entire card, including the headings at y=168. */
 export const PHOTO_SCRIM_ALPHA = 0.9;
 
 export interface CardPalette {

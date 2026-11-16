@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export const SHARE_KINDS = ["session", "workout", "program"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 
-/** The card's fixed size in logical units; the capture is exactly this many pixels. */
+/** The card's design units and final pixel dimensions; the capture frame is density-adjusted. */
 export const CARD_WIDTH = 1080;
 export const CARD_HEIGHT = 1920;
 
@@ -44,8 +44,8 @@ export type ShareTemplate<Id extends string> = {
 
 /** A picture that can fill the card behind the content, offered as the Photo background. */
 export type SharePhoto<Id extends string> = {
-  /** The toggle that gates the Photo background. */
-  requires: Id;
+  /** Optional privacy gate. Omit it for an always-available Program cover. */
+  requires?: Id;
   /** A full-bleed picture; the composer places it behind the content and adds the scrim. */
   render: () => ReactNode;
 };

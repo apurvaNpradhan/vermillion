@@ -1,5 +1,6 @@
 import {
   muscleDistribution,
+  type recordFlags,
   sessionTotals,
   type MuscleGroup,
   type MuscleLoad,
@@ -62,7 +63,7 @@ export type SessionCardLabels = BestLabels & {
 export function buildCardData(input: {
   session: SessionDetail;
   /** Which set ids set a Record. */
-  flagged: { has: (setId: string) => boolean };
+  flagged: ReturnType<typeof recordFlags>;
   bodyweightKg: number | null;
   distribution: readonly {
     id: string;
@@ -77,7 +78,11 @@ export function buildCardData(input: {
   const totals = sessionTotals(sets, bodyweightKg);
   const records = session.exercises
     .flatMap((entry) => entry.sets)
-    .filter((set) => flagged.has(set.id)).length;
+    .reduce(
+      (count, set) =>
+        count + (set.kind !== "warmup" && set.completedAt ? (flagged.get(set.id)?.length ?? 0) : 0),
+      0,
+    );
   const rows = shareRows(session, flagged, toggles.weights);
   const { shown, more } = compactRows(rows);
   const loads = muscleDistribution(sets, input.distribution);

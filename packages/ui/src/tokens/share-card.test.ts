@@ -4,6 +4,7 @@ import { brandThemes, themeNames } from "./brand";
 import {
   CARD_BACKGROUNDS,
   GLOW_ALPHA,
+  PHOTO_SCRIM_ALPHA,
   cardPalette,
   mixHex,
   type CardPaletteKind,
@@ -69,6 +70,19 @@ describe("share card palettes", () => {
       }
       expect(cardPalette(theme, "dark", "light").fill).toBe(brandThemes[theme].light.canvas);
       expect(cardPalette(theme, "light", "dark").fill).toBe(brandThemes[theme].dark.canvas);
+    }
+  });
+
+  it("protects top headings, exercise rows, stats and footer over a white photo", () => {
+    // CardCanvas applies this same opacity at every y, including Summary/Muscles headings.
+    for (const theme of themeNames) {
+      const c = cardPalette(theme, "dark", "photo");
+      for (const y of [168, 461, 998, 1752, 1836]) {
+        const ground = mixHex("#ffffff", c.scrim ?? c.ground, PHOTO_SCRIM_ALPHA);
+        for (const ink of [c.text, c.textSecondary, c.textMuted]) {
+          expect(contrast(ink, ground), `${theme} text at y=${y}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
     }
   });
 

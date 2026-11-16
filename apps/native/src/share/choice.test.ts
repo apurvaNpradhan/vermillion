@@ -126,6 +126,12 @@ describe("what the composer offers", () => {
     expect(availableBackgrounds<Id>("photo", { weights: true, photo: true })).toContain("photo");
   });
 
+  it("offers an ungated Program cover", () => {
+    expect(availableBackgrounds<Id>(undefined, { weights: false, photo: false })).toContain(
+      "photo",
+    );
+  });
+
   it("falls back to Theme when the chosen background is gone, and honours a fixed one", () => {
     const offered = availableBackgrounds<Id>("photo", { weights: true, photo: false });
     expect(effectiveBackground("photo", template("summary"), offered)).toBe("theme");

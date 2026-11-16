@@ -4,6 +4,8 @@ import { Check, Image as ImageIcon, X } from "phosphor-react-native";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   FlatList,
+  PixelRatio,
+  Platform,
   Linking,
   Pressable,
   Text,
@@ -18,6 +20,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useRouter } from "expo-router";
 
+import { captureDimensions } from "./capture-dimensions";
 import { CardCanvas } from "./card-canvas";
 import { useCardPalettes } from "./card-theme";
 import { availableBackgrounds, availableTemplates, effectiveBackground } from "./choice";
@@ -67,7 +70,8 @@ export function ShareComposer<Id extends string>({
   const pages = availableTemplates(templates, choice.toggles);
   const current = pages.find((page) => page.id === choice.template) ?? pages[0];
   const index = current ? pages.indexOf(current) : 0;
-  const offered = availableBackgrounds(photo?.requires ?? null, choice.toggles);
+  const offered = availableBackgrounds(photo ? photo.requires : null, choice.toggles);
+  const target = captureDimensions(Platform.OS, PixelRatio.get());
   const background = current ? effectiveBackground(choice.background, current, offered) : "theme";
   const [box, setBox] = useState({ width: 0, height: 0 });
   const pager = useRef<FlatList<ShareTemplate<Id>>>(null);
@@ -156,9 +160,9 @@ export function ShareComposer<Id extends string>({
                           position: "absolute",
                           top: 0,
                           left: 0,
-                          width: CARD_WIDTH,
-                          height: CARD_HEIGHT,
-                          transform: [{ scale }],
+                          width: target.layoutWidth,
+                          height: target.layoutHeight,
+                          transform: [{ scale: scale / target.designScale }],
                           transformOrigin: "top left",
                         }}
                       >

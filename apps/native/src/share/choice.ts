@@ -107,11 +107,13 @@ export function availableTemplates<Id extends string>(
  * a picture and its toggle is on.
  */
 export function availableBackgrounds<Id extends string>(
-  photoToggle: Id | null,
+  photoToggle: Id | null | undefined,
   toggles: Readonly<Record<Id, boolean>>,
 ): CardBackground[] {
   const base = CARD_BACKGROUNDS.filter((background) => background !== "photo");
-  return photoToggle !== null && toggles[photoToggle] ? [...base, "photo"] : base;
+  return photoToggle !== null && (photoToggle === undefined || toggles[photoToggle])
+    ? [...base, "photo"]
+    : base;
 }
 
 /**

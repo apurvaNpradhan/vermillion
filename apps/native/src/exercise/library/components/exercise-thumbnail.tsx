@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 
 import { appConfig } from "@/platform/app-config";
 
+import { useCachedThumbnail } from "../../use-cached-thumbnail";
 import { thumbnailUrl } from "../../media-url";
 
 export const THUMBNAIL_SIZE = 40;
@@ -19,8 +20,11 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
   size = THUMBNAIL_SIZE,
   plate,
   onSettled,
+  localOnly = false,
 }: {
   thumbnailKey: string | null;
+  /** Share cards only draw local media and existing catalog cache entries. */
+  localOnly?: boolean;
   imageMediaId?: string | null;
   title?: string;
   size?: number;
@@ -31,7 +35,9 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const mediaId = imageMediaId;
-  const uri = thumbnailUrl(appConfig.urls.exerciseMedia, thumbnailKey);
+  const remoteUri = thumbnailUrl(appConfig.urls.exerciseMedia, thumbnailKey);
+  const cached = useCachedThumbnail(remoteUri, localOnly && !mediaId);
+  const uri = localOnly ? cached.uri : remoteUri;
   const avatar = (
     <View
       accessibilityElementsHidden
@@ -53,12 +59,13 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
   );
   const showsAvatar = !mediaId && (uri === null || failedUrl === uri);
   useEffect(() => {
-    if (showsAvatar) onSettled?.();
-  }, [showsAvatar, onSettled]);
+    if (showsAvatar && !cached.loading) onSettled?.();
+  }, [showsAvatar, cached.loading, onSettled]);
   if (mediaId)
     return (
       <MediaImage
         mediaId={mediaId}
+        localOnly={localOnly}
         size={size}
         rounded="rounded-full"
         fallback={plate ? avatar : null}
@@ -78,7 +85,7 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
         cachePolicy="disk"
         recyclingKey={uri}
         contentFit="cover"
-        transition={120}
+        transition={localOnly ? 0 : 120}
         onLoad={onSettled}
         onError={() => {
           setFailedUrl(uri);

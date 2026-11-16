@@ -1,10 +1,11 @@
 import { GLOW_ALPHA, PHOTO_SCRIM_ALPHA, type CardPalette } from "@workspace/ui/tokens/share-card";
 import type { ReactNode, Ref } from "react";
-import { Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
+import { PixelRatio, Platform, Text, View } from "react-native";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { appConfig } from "@/platform/app-config";
 
+import { captureDimensions } from "./capture-dimensions";
 import { CARD_HEIGHT, CARD_WIDTH } from "./types";
 
 /** Instagram and other story viewers cover the top and bottom of a 9:16 image with their own UI. */
@@ -14,7 +15,7 @@ export const FOOTER_HEIGHT = 168;
 
 /**
  * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat, with a glow,
- * or a photo under a bottom scrim), the card's content, and a footer with the app's wordmark and
+ * or a photo under a full-card scrim), the card's content, and a footer with the app's wordmark and
  * a slot reserved for the public link, empty until that link exists (ADR 0042). A transparent
  * canvas (a Sticker) has no background and no footer.
  */
@@ -36,65 +37,73 @@ export function CardCanvas({
   link?: string | null;
   children: ReactNode;
 }) {
+  const target = captureDimensions(Platform.OS, PixelRatio.get());
   return (
     <View
       ref={viewRef}
       collapsable={false}
-      style={{
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        overflow: "hidden",
-        // A photo that has not loaded still leaves a dark card, never a transparent one.
-        backgroundColor: transparent
-          ? "transparent"
-          : (palette.fill ?? palette.scrim ?? "transparent"),
-      }}
+      style={{ width: target.layoutWidth, height: target.layoutHeight, overflow: "hidden" }}
     >
-      {photo ? <View style={{ position: "absolute", inset: 0 }}>{photo}</View> : null}
-      {palette.glow ? <Glow color={palette.glow} /> : null}
-      {palette.scrim && photo ? <Scrim color={palette.scrim} /> : null}
       <View
+        collapsable={false}
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: transparent ? 0 : FOOTER_HEIGHT,
-          paddingHorizontal: CARD_PADDING_X,
-          paddingTop: transparent ? 0 : CARD_PADDING_TOP,
+          width: CARD_WIDTH,
+          height: CARD_HEIGHT,
+          transform: [{ scale: target.designScale }],
+          transformOrigin: "top left",
+          overflow: "hidden",
+          // A photo that has not loaded still leaves a dark card, never a transparent one.
+          backgroundColor: transparent
+            ? "transparent"
+            : (palette.fill ?? palette.scrim ?? "transparent"),
         }}
       >
-        {children}
-      </View>
-      {transparent ? null : (
+        {photo ? <View style={{ position: "absolute", inset: 0 }}>{photo}</View> : null}
+        {palette.glow ? <Glow color={palette.glow} /> : null}
+        {palette.scrim && photo ? <Scrim color={palette.scrim} /> : null}
         <View
           style={{
             position: "absolute",
-            left: CARD_PADDING_X,
-            right: CARD_PADDING_X,
-            bottom: 0,
-            height: FOOTER_HEIGHT,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: transparent ? 0 : FOOTER_HEIGHT,
+            paddingHorizontal: CARD_PADDING_X,
+            paddingTop: transparent ? 0 : CARD_PADDING_TOP,
           }}
         >
-          <Text
-            className="font-semibold"
-            style={{ fontSize: 36, letterSpacing: 6, color: palette.textSecondary }}
-          >
-            {appConfig.displayName.toLocaleUpperCase()}
-          </Text>
-          {/* Reserved for the public link; nothing is drawn until the link exists. */}
-          <View style={{ minWidth: 320, alignItems: "flex-end" }}>
-            {link ? (
-              <Text className="font-medium" style={{ fontSize: 32, color: palette.textMuted }}>
-                {link}
-              </Text>
-            ) : null}
-          </View>
+          {children}
         </View>
-      )}
+        {transparent ? null : (
+          <View
+            style={{
+              position: "absolute",
+              left: CARD_PADDING_X,
+              right: CARD_PADDING_X,
+              bottom: 0,
+              height: FOOTER_HEIGHT,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text
+              className="font-semibold"
+              style={{ fontSize: 36, letterSpacing: 6, color: palette.textSecondary }}
+            >
+              {appConfig.displayName.toLocaleUpperCase()}
+            </Text>
+            {/* Reserved for the public link; nothing is drawn until the link exists. */}
+            <View style={{ minWidth: 320, alignItems: "flex-end" }}>
+              {link ? (
+                <Text className="font-medium" style={{ fontSize: 32, color: palette.textMuted }}>
+                  {link}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -126,14 +135,8 @@ function Scrim({ color }: { color: string }) {
       style={{ position: "absolute", top: 0, left: 0 }}
       pointerEvents="none"
     >
-      <Defs>
-        <LinearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0.24" stopColor={color} stopOpacity={0} />
-          <Stop offset="0.52" stopColor={color} stopOpacity={PHOTO_SCRIM_ALPHA} />
-          <Stop offset="1" stopColor={color} stopOpacity={PHOTO_SCRIM_ALPHA} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width="100%" height="100%" fill="url(#scrim)" />
+      {/* A uniform scrim protects headings at y=168, rows, stats and footer alike. */}
+      <Rect x={0} y={0} width="100%" height="100%" fill={color} opacity={PHOTO_SCRIM_ALPHA} />
     </Svg>
   );
 }

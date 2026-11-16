@@ -156,6 +156,7 @@ function CardThumb({
   const settle = useImageSettle();
   return (
     <ExerciseThumbnail
+      localOnly
       title={title}
       thumbnailKey={thumbnailKey}
       imageMediaId={imageMediaId}

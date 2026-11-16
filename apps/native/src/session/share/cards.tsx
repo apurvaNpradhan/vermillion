@@ -129,6 +129,7 @@ export function SessionPhotoLayer({ mediaId }: { mediaId: string }) {
     <MediaImage
       mediaId={mediaId}
       variant="full"
+      localOnly
       size={1080}
       height={1920}
       rounded="rounded-none"

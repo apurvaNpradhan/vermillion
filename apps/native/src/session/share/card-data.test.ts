@@ -80,7 +80,7 @@ const session = (count: number): SessionDetail => ({
 });
 const distribution = [{ id: "x1", primary_muscle: "chest" as const, secondary_muscles: [] }];
 const base = {
-  flagged: new Set<string>(),
+  flagged: new Map(),
   bodyweightKg: null,
   distribution,
   labels,
@@ -126,9 +126,13 @@ describe("session card data", () => {
 
   it("counts Records only when there are any", () => {
     expect(buildCardData({ ...base, session: session(2), toggles: on }).records).toBeNull();
-    const flagged = new Set(["s1b", "s2c"]);
+    const flagged: Parameters<typeof buildCardData>[0]["flagged"] = new Map([
+      ["s1a", ["heaviest_weight"]],
+      ["s1b", ["heaviest_weight", "set_volume"]],
+      ["s2c", ["heaviest_weight"]],
+    ]);
     const data = buildCardData({ ...base, flagged, session: session(2), toggles: on });
-    expect(data.records).toBe("2 Records");
+    expect(data.records).toBe("3 Records");
     expect(data.exercises?.items.map((item) => item.record)).toEqual([true, true]);
   });
 

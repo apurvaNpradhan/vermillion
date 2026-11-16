@@ -26,8 +26,11 @@ export function MediaImage({
   fallback = null,
   rounded = "rounded-xl",
   onSettled,
+  localOnly = false,
 }: {
   mediaId: string | null;
+  /** Read only existing device files; never request transfers or show transfer controls. */
+  localOnly?: boolean;
   variant?: MediaVariant;
   /** Width in dp; the view is square unless `height` says otherwise. */
   size: number;
@@ -48,16 +51,16 @@ export function MediaImage({
   onSettled?: () => void;
 }) {
   const { t } = useTranslation();
-  const file = useMediaImage(mediaId, variant);
+  const file = useMediaImage(mediaId, variant, localOnly);
   // The thumbnail is what a full image shows while it downloads.
-  const thumb = useMediaImage(variant === "full" ? mediaId : null, "thumb");
+  const thumb = useMediaImage(variant === "full" ? mediaId : null, "thumb", localOnly);
   const danger = useThemeColor("danger");
   const foreground = useThemeColor("foreground");
   const [failedUri, setFailedUri] = useState<string | null>(null);
 
   const uri = file.uri ?? thumb.uri;
   const drawable = uri !== null && failedUri !== uri;
-  const nothingToLoad = !drawable && file.state !== "downloading";
+  const nothingToLoad = !drawable && file.state !== "downloading" && thumb.state !== "downloading";
   useEffect(() => {
     if (nothingToLoad) onSettled?.();
   }, [nothingToLoad, onSettled]);
@@ -70,7 +73,7 @@ export function MediaImage({
           recyclingKey={uri}
           contentFit="cover"
           blurRadius={blurRadius}
-          transition={120}
+          transition={localOnly ? 0 : 120}
           onLoad={onSettled}
           onError={() => {
             setFailedUri(uri);
