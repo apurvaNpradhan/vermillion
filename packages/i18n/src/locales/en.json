@@ -1126,8 +1126,6 @@
   "body__increase": "Increase",
   "body__decrease": "Decrease",
   "body__habit": "Weigh-ins · last 30 days",
-  "body__day_logged": "{{date}}, logged",
-  "body__day_missing": "{{date}}, no weigh-in",
   "body__habit_count_one": "{{count}} of 30 days logged",
   "body__habit_count_other": "{{count}} of 30 days logged",
   "body__entries": "Entries",
