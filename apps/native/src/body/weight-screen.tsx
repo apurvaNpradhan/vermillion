@@ -14,6 +14,7 @@ import { LineChart } from "@/platform/ui/charts/chart";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 import { SwipeRow } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
+import { BodyState } from "./body-state";
 import { useWeight } from "./use-weight";
 import { useLogWeight } from "./use-log-weight";
 import { WeightLogSheet } from "./weight-log-sheet";
@@ -57,6 +58,38 @@ export function WeightScreen() {
   const points = (rows: readonly TrendPoint[]) =>
     rows.map((p) => ({ id: p.date, x: Date.parse(p.date), y: p.trend, label: date(p.date) }));
   const delta = changeOver(selected, Math.max(0, selected.length - 1));
+  if (state.loading || state.failed || !state.entries.length)
+    return (
+      <ScrollPage title={t("body__title")}>
+        <SyncBanner />
+        <BodyState
+          loading={state.loading}
+          failed={state.failed}
+          retry={state.retry}
+          empty={t("body__empty")}
+        />
+        <Button isDisabled={state.loading || state.failed} onPress={() => setLogging(true)}>
+          <Button.Label>{t("body__log")}</Button.Label>
+        </Button>
+        <Button
+          variant="tertiary"
+          isDisabled={state.loading || state.failed}
+          onPress={() => setGoal(true)}
+        >
+          <Button.Label>{t("body__goal")}</Button.Label>
+        </Button>
+        {logging ? <WeightLogSheet onClose={() => setLogging(false)} /> : null}
+        {goal ? (
+          <WeightLogSheet
+            goal
+            onGoal={async (weightGoalKg) => {
+              await setUiAsync({ weightGoalKg });
+            }}
+            onClose={() => setGoal(false)}
+          />
+        ) : null}
+      </ScrollPage>
+    );
   return (
     <ScrollPage title={t("body__title")}>
       <SyncBanner />

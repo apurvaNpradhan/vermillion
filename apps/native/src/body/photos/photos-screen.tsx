@@ -1,7 +1,7 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { useReveal } from "./use-reveal";
 import { useThemeColor } from "heroui-native";
-import { Camera, DotsThreeVertical, Eye, EyeSlash, Trash } from "phosphor-react-native";
+import { DotsThreeVertical, Eye, EyeSlash, Trash } from "phosphor-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
@@ -13,7 +13,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
-import { EmptyState } from "@/platform/ui/empty-state";
+import { BodyState } from "../body-state";
 import { Page } from "@/platform/ui/page";
 import { SyncBanner } from "@/sync";
 
@@ -158,23 +158,16 @@ export function PhotosScreen() {
               </View>
             }
             ListEmptyComponent={
-              state.failed ? (
-                <Button onPress={state.retry}>
-                  <Button.Label>{t("training__retry")}</Button.Label>
-                </Button>
-              ) : state.loading ? (
-                <Text className="text-body text-muted">{t("common__loading")}</Text>
-              ) : (
-                <EmptyState
-                  icon={Camera}
-                  title={
-                    pose === null
-                      ? t("body__photos_empty")
-                      : t("body__photos_empty_pose", { pose: poseName(pose) })
-                  }
-                  action={{ label: t("body__check_in"), onPress: () => setCheckIn(true) }}
-                />
-              )
+              <BodyState
+                loading={state.loading}
+                failed={state.failed}
+                retry={state.retry}
+                empty={
+                  pose === null
+                    ? t("body__photos_empty")
+                    : t("body__photos_empty_pose", { pose: poseName(pose) })
+                }
+              />
             }
             renderItem={({ item: day }) => (
               <View className="gap-3 pb-3">

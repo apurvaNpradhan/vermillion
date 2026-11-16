@@ -15,6 +15,7 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 import { SyncBanner } from "@/sync";
+import { BodyState } from "./body-state";
 import { useMeasurements } from "./use-measurements";
 import { CheckInSheet } from "./check-in-sheet";
 import { PhotoFirstTile } from "./photos/photo-first-tile";
@@ -47,15 +48,13 @@ export function MeasurementsScreen() {
       <Button variant="tertiary" onPress={() => router.push("/settings/tracked-metrics")}>
         <Button.Label>{t("body__tracked_metrics")}</Button.Label>
       </Button>
-      {state.loading ? (
-        <Text className="text-body text-muted">{t("common__loading")}</Text>
-      ) : state.failed ? (
-        <Button onPress={state.retry}>
-          <Button.Label>{t("training__retry")}</Button.Label>
-        </Button>
+      {state.loading || state.failed ? (
+        <BodyState loading={state.loading} failed={state.failed} retry={state.retry} />
       ) : (
         <>
           <PhotoFirstTile />
+          {!state.entries.length ? <BodyState empty={t("body__no_measurements")} /> : null}
+          {!state.tracked.length ? <BodyState empty={t("body__no_tracked")} /> : null}
           {Object.entries(BODY_GROUPS).map(([group, metrics]) => {
             const tracked = metrics.filter((metric) => state.tracked.includes(metric));
             return tracked.length ? (

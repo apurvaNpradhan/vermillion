@@ -36,7 +36,7 @@ const subscribe = (
 };
 export function useMeasurements() {
   const state = useLocalWatch(subscribe);
-  const { preferences, isLoading } = usePreferences();
+  const { preferences, isLoading, hasPreferences, refresh } = usePreferences();
   const weight = useWeight();
   const ui = preferences.ui;
   const entries = state.value ?? [];
@@ -76,6 +76,11 @@ export function useMeasurements() {
   return {
     ...state,
     loading: state.loading || isLoading,
+    failed: state.failed || (!isLoading && !hasPreferences),
+    retry: () => {
+      state.retry();
+      void refresh().catch(() => undefined);
+    },
     ratioHistory,
     entries,
     forMetric,
