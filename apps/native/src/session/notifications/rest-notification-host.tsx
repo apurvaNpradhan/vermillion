@@ -1,4 +1,4 @@
-import { createRestReconciler } from "@/session/rest/rest-reconciler";
+import { createNotificationReconciler } from "@/platform/notifications/reconciler";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
@@ -13,7 +13,10 @@ import {
   scheduledRestIds,
 } from "./rest-notification";
 import { restSoundOn } from "@/session/settings/rest-sound";
-import { refreshRestPermission, useRestPermission } from "./rest-permission-store";
+import {
+  refreshNotificationPermission,
+  useNotificationPermission,
+} from "@/platform/notifications/permission-store";
 import { REST_NOTIFICATION_PREFIX, planRestSchedule } from "@/session/rest/rest-schedule";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
@@ -29,8 +32,8 @@ export function RestNotificationHost() {
   const { t } = useTranslation();
   const { sessions, loading } = useActiveSessions();
   const installId = useInstallId();
-  const permission = useRestPermission();
-  const reconciler = useRef(createRestReconciler());
+  const permission = useNotificationPermission();
+  const reconciler = useRef(createNotificationReconciler());
   const known = useRef(new Map<string, number>());
   const { sounds, soundRest } = usePreferences().preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
@@ -46,9 +49,9 @@ export function RestNotificationHost() {
   const channelName = t("session__rest_channel");
   useEffect(() => {
     void installRestNotifications(channelName);
-    void refreshRestPermission();
+    void refreshNotificationPermission();
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") void refreshRestPermission();
+      if (next === "active") void refreshNotificationPermission();
     });
     return () => subscription.remove();
   }, [channelName]);

@@ -22,12 +22,12 @@ import { restAfterTick } from "@/session/rest/rest-rules";
 import { markRestEnded, restEndedAt } from "@/session/rest/rest-ended";
 import {
   cancelRestNotification,
-  getRestPermission,
   installRestNotifications,
   scheduleRestNotification,
   setRestSoundEnabled,
 } from "./rest-notification";
 import { restNotificationId } from "@/session/rest/rest-schedule";
+import { getNotificationPermission } from "@/platform/notifications/permission";
 import {
   workoutLivePayloadSchema,
   liveOptionsSchema,
@@ -78,7 +78,7 @@ export function refreshWorkoutLive(sessionId: string | null, options: Options) {
   return enqueue(async () => {
     if (!workoutLive) return;
     const current =
-      sessionId && (await getRestPermission()) === "granted"
+      sessionId && (await getNotificationPermission()) === "granted"
         ? await snapshot(sessionId, options)
         : null;
     if (!current) {
@@ -102,7 +102,7 @@ export function workoutLiveAction(data: { state: string; action: string }) {
       failed = request;
       const action = z.enum(["skip", "nudge", "done"]).parse(data.action);
       const current = await snapshot(request.sessionId, request.options);
-      if (!current || (await getRestPermission()) !== "granted") {
+      if (!current || (await getNotificationPermission()) !== "granted") {
         workoutLive?.dismiss();
         held = "";
         return;

@@ -1,3 +1,6 @@
+// The device copy of the account preferences. It lives in `platform` because sign-out (`auth`)
+// clears it and `preferences` reads the session: in `preferences` the two verticals would import
+// each other.
 import { z } from "zod";
 import { preferencesSchema, type Preferences } from "@workspace/shared";
 import { deviceStorage } from "@/platform/storage";

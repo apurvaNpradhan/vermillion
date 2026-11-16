@@ -39,9 +39,9 @@ import { timerView } from "./duration-timer";
 import { REST_ADJUST_SECONDS } from "@/session/rest/rest-rules";
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import {
-  askRestPermission,
-  markRestPermissionAsked,
-} from "@/session/notifications/rest-permission-store";
+  askNotificationPermission,
+  markNotificationPermissionAsked,
+} from "@/platform/notifications/permission-store";
 import { formatVolume } from "@/session/finish/summary";
 import { clockTime, padCount, progressStyle } from "./timer-progress";
 import { useFinishFlow } from "@/session/finish/use-finish-flow";
@@ -677,10 +677,10 @@ function LoadedTimer({
           onOpenChange={setAskOpen}
           onAllow={() => {
             setAskOpen(false);
-            void askRestPermission();
+            void askNotificationPermission();
           }}
           onDecline={() => {
-            markRestPermissionAsked();
+            markNotificationPermissionAsked();
             setAskOpen(false);
           }}
         />

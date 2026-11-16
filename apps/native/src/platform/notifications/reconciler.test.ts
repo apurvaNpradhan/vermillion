@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
-import { createRestReconciler } from "./rest-reconciler";
+import { createNotificationReconciler } from "./reconciler";
 
 it("serializes pending schedules before the newest cancellation", async () => {
-  const reconciler = createRestReconciler();
+  const reconciler = createNotificationReconciler();
   let release = () => {};
   const pending = new Promise<void>((resolve) => {
     release = resolve;

@@ -17,9 +17,9 @@ import { OptionSheet } from "@/platform/ui/option-sheet";
 import { usePreferences } from "@/preferences";
 
 import {
-  askRestPermission,
-  useRestPermission,
-} from "@/session/notifications/rest-permission-store";
+  askNotificationPermission,
+  useNotificationPermission,
+} from "@/platform/notifications/permission-store";
 
 /**
  * The session settings, as rows and the sheets they open. `soundRows` go in a "Sounds" section,
@@ -39,7 +39,7 @@ type Picker = "view" | null;
 export function useSessionSettings(): SessionSettings {
   const { t } = useTranslation();
   const { preferences, setUi } = usePreferences();
-  const permission = useRestPermission();
+  const permission = useNotificationPermission();
   const [picker, setPicker] = useState<Picker>(null);
   const { keepAwake, sounds, soundRest, soundSets, soundMilestones, sessionView } = preferences.ui;
 
@@ -132,7 +132,7 @@ export function useSessionSettings(): SessionSettings {
           : "session__setting_rest_hint_open",
       )}
       onPress={() => {
-        if (permission === "undetermined") void askRestPermission();
+        if (permission === "undetermined") void askNotificationPermission();
         else void Linking.openSettings();
       }}
     />,

@@ -7,7 +7,8 @@ import { FlowStep, stepPosition } from "@/auth";
 import type { TranslationKey } from "@workspace/i18n";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { askRestPermission, getRestPermission } from "@/session";
+import { getNotificationPermission } from "@/platform/notifications/permission";
+import { askNotificationPermission } from "@/platform/notifications/permission-store";
 
 const BENEFITS: { icon: ComponentType<IconProps>; title: TranslationKey; body: TranslationKey }[] =
   [
@@ -31,8 +32,8 @@ export function RemindersStep({ onDone }: { onDone: () => void }) {
   const allow = async () => {
     setPending(true);
     try {
-      await askRestPermission();
-      if (remind && (await getRestPermission()) === "granted") {
+      await askNotificationPermission();
+      if (remind && (await getNotificationPermission()) === "granted") {
         // Best effort: offline, the reminder can still be turned on in Settings.
         await setUiAsync({
           weighInReminder: { ...preferences.ui.weighInReminder, enabled: true },

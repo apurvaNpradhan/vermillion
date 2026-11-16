@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreferences } from "@/preferences";
 
 import {
-  useRestPermission,
-  restPermissionAsked,
-} from "@/session/notifications/rest-permission-store";
+  useNotificationPermission,
+  notificationPermissionAsked,
+} from "@/platform/notifications/permission-store";
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useLoggingState } from "./use-logging-state";
 import { useOptimisticSession } from "./use-optimistic-session";
@@ -49,10 +49,10 @@ export function useSessionLogging(stored: SessionDetail) {
   } = usePreviousSets(exerciseIds);
 
   // Before the first Rest: our one-line explanation, then the system's dialog. Asked once.
-  const permission = useRestPermission();
+  const permission = useNotificationPermission();
   const [askOpen, setAskOpen] = useState(false);
   const onRestStarted = useCallback(() => {
-    if (permission === "undetermined" && !restPermissionAsked()) setAskOpen(true);
+    if (permission === "undetermined" && !notificationPermissionAsked()) setAskOpen(true);
   }, [permission]);
   const logging = useLoggingState({
     session,

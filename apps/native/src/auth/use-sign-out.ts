@@ -1,4 +1,4 @@
-import { clearPreferencesCache } from "@/preferences";
+import { clearPreferencesCache } from "@/platform/preferences-cache";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearSession } from "@workspace/client/session";
 
