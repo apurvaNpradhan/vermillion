@@ -24,6 +24,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
   const state = useMeasurements();
   const actions = useMeasurementActions();
   const { t, i18n } = useTranslation();
+  const [logging, setLogging] = useState(false);
   const [range, setRange] = useState(1);
   const [entry, setEntry] = useState<WatchedMeasurement>();
   const [limit, setLimit] = useState(50);
@@ -40,6 +41,9 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
     );
   return (
     <ScrollPage back title={t(metricLabels[metric])}>
+      <Button isDisabled={state.loading || state.failed} onPress={() => setLogging(true)}>
+        <Button.Label>{t("body__log")}</Button.Label>
+      </Button>
       {state.loading ? (
         <Text className="text-body text-muted">{t("common__loading")}</Text>
       ) : state.failed ? (
@@ -127,6 +131,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
           ) : null}
         </>
       )}
+      {logging ? <CheckInSheet onlyMetric={metric} onClose={() => setLogging(false)} /> : null}
       {entry ? <CheckInSheet entry={entry} onClose={() => setEntry(undefined)} /> : null}
     </ScrollPage>
   );

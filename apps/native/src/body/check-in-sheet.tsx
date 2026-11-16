@@ -30,9 +30,11 @@ function CheckInForm({
   onClose,
   entry,
   state,
+  onlyMetric,
 }: {
   onClose: () => void;
   entry?: WatchedMeasurement;
+  onlyMetric?: BodyMetric;
   state: ReturnType<typeof useMeasurements>;
 }) {
   const sheet = useSheetPresent();
@@ -48,7 +50,11 @@ function CheckInForm({
     return () => photoStore.dispose();
   }, [photoStore]);
   const busy = actions.busy || photoActions.busy;
-  const metrics: BodyMetric[] = entry ? [entry.metric] : [...state.tracked, "weight"];
+  const metrics: BodyMetric[] = entry
+    ? [entry.metric]
+    : onlyMetric
+      ? [onlyMetric]
+      : [...state.tracked, "weight"];
   const [active, setActive] = useState(0);
   const [fresh, setFresh] = useState(true);
   const form = useForm({
@@ -149,7 +155,9 @@ function CheckInForm({
             <BottomSheet.Title>
               {t(entry ? "body__edit_measurement" : "body__check_in")}
             </BottomSheet.Title>
-            {entry ? null : <PhotoSlots store={photoStore} disabled={busy} onSelect={setPose} />}
+            {entry || onlyMetric ? null : (
+              <PhotoSlots store={photoStore} disabled={busy} onSelect={setPose} />
+            )}
             <MeasurementDate
               value={date}
               timeZone={state.zone}
@@ -282,7 +290,7 @@ function CheckInForm({
           </BottomSheet.Content>
         </BottomSheet.Portal>
       </BottomSheet>
-      {entry || !sheet.isOpen ? null : (
+      {entry || onlyMetric || !sheet.isOpen ? null : (
         <PhotoSlotSheet
           store={photoStore}
           actions={photoActions}
@@ -294,7 +302,11 @@ function CheckInForm({
   );
 }
 
-export function CheckInSheet(props: { onClose: () => void; entry?: WatchedMeasurement }) {
+export function CheckInSheet(props: {
+  onClose: () => void;
+  entry?: WatchedMeasurement;
+  onlyMetric?: BodyMetric;
+}) {
   const state = useMeasurements();
   const { t } = useTranslation();
   const sheet = useSheetPresent();
