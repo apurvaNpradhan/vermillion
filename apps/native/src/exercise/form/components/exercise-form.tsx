@@ -289,7 +289,7 @@ function ExerciseForm({
           </Button>
         }
       >
-        <View className="flex-row items-center gap-2">
+        <View className="flex-row flex-wrap items-center gap-2">
           {image.previewUri ? (
             <Image
               source={{ uri: image.previewUri }}
@@ -302,9 +302,11 @@ function ExerciseForm({
           <Button variant="secondary" isDisabled={image.busy} onPress={() => void image.pick()}>
             <Button.Label>{t("media__exercise_image")}</Button.Label>
           </Button>
-          <Button variant="danger-soft" onPress={image.remove}>
-            <Button.Label>{t("media__remove")}</Button.Label>
-          </Button>
+          {image.previewUri || (!image.removed && saved?.imageMediaId) ? (
+            <Button variant="danger-soft" onPress={image.remove}>
+              <Button.Label>{t("media__remove")}</Button.Label>
+            </Button>
+          ) : null}
           {image.dirty ? (
             <Text className="text-caption text-muted">{t("media__photo_changed")}</Text>
           ) : null}

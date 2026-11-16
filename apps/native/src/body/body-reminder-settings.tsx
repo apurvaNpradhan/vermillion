@@ -1,13 +1,14 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { UiPreferences } from "@workspace/shared";
-import { BottomSheet } from "heroui-native";
-import { Bell } from "phosphor-react-native";
+import { BottomSheet, useThemeColor } from "heroui-native";
+import { Bell, Minus, Plus } from "phosphor-react-native";
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
+import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
 import { getRestPermission, askRestPermission } from "@/session";
 
@@ -22,6 +23,8 @@ function ReminderEditor({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  const foreground = useThemeColor("foreground");
+  const sheet = useSheetPresent();
   const { setUiAsync } = usePreferences();
   const form = useForm({ defaultValues: { reminder: initial } });
   const draft = useStore(form.store, (state) => state.values.reminder);
@@ -68,7 +71,7 @@ function ReminderEditor({
   return (
     <>
       <BottomSheet
-        isOpen={!weekdayOpen}
+        isOpen={sheet.isOpen && !weekdayOpen}
         onOpenChange={(open) => {
           if (!open && !busy) onClose();
         }}
@@ -79,6 +82,7 @@ function ReminderEditor({
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 px-4 pb-8"
           >
+            {sheet.probe}
             <BottomSheet.Title>
               {t(
                 kind === "weighInReminder"
@@ -136,51 +140,66 @@ function ReminderEditor({
                 ) : null}
                 <View className="flex-row gap-4">
                   {[
-                    { part: "hour", count: 24, selected: hour, label: t("body__reminder_hour") },
+                    {
+                      part: "hour",
+                      count: 24,
+                      step: 1,
+                      selected: hour,
+                      label: t("body__reminder_hour"),
+                    },
                     {
                       part: "minute",
                       count: 60,
+                      step: 5,
                       selected: minute,
                       label: t("body__reminder_minute"),
                     },
-                  ].map((column) => (
-                    <View key={column.part} className="flex-1 gap-2">
-                      <Text className="text-body text-foreground">{column.label}</Text>
-                      <ScrollView style={{ maxHeight: 200 }}>
-                        <View className="flex-row flex-wrap">
-                          {Array.from({ length: column.count }, (_, value) => {
-                            const text = String(value).padStart(2, "0");
-                            return (
-                              <Pressable
-                                key={text}
-                                accessibilityRole="button"
-                                accessibilityLabel={t("body__reminder_time_option", {
-                                  part: column.label,
-                                  value: text,
-                                })}
-                                accessibilityState={{ selected: text === column.selected }}
-                                disabled={busy}
-                                onPress={() =>
-                                  setDraft({
-                                    ...draft,
-                                    time:
-                                      column.part === "hour"
-                                        ? `${text}:${minute}`
-                                        : `${hour}:${text}`,
-                                  })
-                                }
-                                className={`min-h-12 w-1/3 items-center justify-center rounded-xl ${text === column.selected ? "bg-default" : ""}`}
-                              >
-                                <Text className="text-body tabular-nums text-foreground">
-                                  {text}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
+                  ].map((column) => {
+                    const move = (direction: 1 | -1) => {
+                      const next =
+                        (Number(column.selected) + direction * column.step + column.count) %
+                        column.count;
+                      const text = String(next).padStart(2, "0");
+                      setDraft({
+                        ...draft,
+                        time: column.part === "hour" ? `${text}:${minute}` : `${hour}:${text}`,
+                      });
+                    };
+                    return (
+                      <View key={column.part} className="flex-1 gap-2">
+                        <Text className="text-body text-foreground">{column.label}</Text>
+                        <View className="flex-row items-center justify-between rounded-xl bg-default">
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("session__key_decrease", { step: column.step })}
+                            disabled={busy}
+                            onPress={() => move(-1)}
+                            className="h-12 w-12 items-center justify-center"
+                          >
+                            <Minus size={18} color={foreground} weight="bold" />
+                          </Pressable>
+                          <Text
+                            accessibilityLabel={t("body__reminder_time_option", {
+                              part: column.label,
+                              value: column.selected,
+                            })}
+                            className="text-numeric-md tabular-nums text-foreground"
+                          >
+                            {column.selected}
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("session__key_increase", { step: column.step })}
+                            disabled={busy}
+                            onPress={() => move(1)}
+                            className="h-12 w-12 items-center justify-center"
+                          >
+                            <Plus size={18} color={foreground} weight="bold" />
+                          </Pressable>
                         </View>
-                      </ScrollView>
-                    </View>
-                  ))}
+                      </View>
+                    );
+                  })}
                 </View>
                 {error ? (
                   <Text accessibilityRole="alert" className="text-body text-danger">
@@ -195,14 +214,16 @@ function ReminderEditor({
           </BottomSheet.Content>
         </BottomSheet.Portal>
       </BottomSheet>
-      <OptionSheet
-        isOpen={weekdayOpen}
-        onOpenChange={setWeekdayOpen}
-        title={t("body__reminder_weekday")}
-        options={weekdayOptions}
-        value={String(draft.weekday)}
-        onSelect={(value) => setDraft({ ...draft, weekday: Number(value) })}
-      />
+      {kind === "checkInReminder" && sheet.isOpen ? (
+        <OptionSheet
+          isOpen={weekdayOpen}
+          onOpenChange={setWeekdayOpen}
+          title={t("body__reminder_weekday")}
+          options={weekdayOptions}
+          value={String(draft.weekday)}
+          onSelect={(value) => setDraft({ ...draft, weekday: Number(value) })}
+        />
+      ) : null}
     </>
   );
 }

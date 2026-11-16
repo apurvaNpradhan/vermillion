@@ -31,3 +31,13 @@ Classic rules: no brand accent color in the UI; the primary action is the one wh
 - Forms use TanStack Form; show field errors with translated messages.
 - Toasts through HeroUI Native's `useToast`.
 - Interactive elements need accessible names.
+
+## Bottom sheets
+
+A bottom sheet that fails to open shows no error: the screen simply does not change, and a transparent overlay may swallow touches. Found on a device in November 2026; the checks and the simulator do not catch it.
+
+- A sheet presents when `isOpen` **changes**. One that mounts already open (`{open ? <Sheet isOpen /> : null}`) never appears. Mount it and open it a moment later with `useSheetPresent()` (`platform/ui/use-sheet-present.tsx`): pass `isOpen={sheet.isOpen}` and render `{sheet.probe}` first in `BottomSheet.Content`. Or keep the sheet mounted and toggle `isOpen`, as the shared `ActionSheet` and `OptionSheet` do.
+- Never mount two sheets in the same render, and never put one inside another's content. The second one, or the parent, stays off-screen or closes. Mount the second after the first has opened (`{sheet.isOpen ? <Other/> : null}`).
+- Never swap one sheet for another (a loading sheet, then the real one). Render nothing while loading.
+- No `ScrollView` inside a sheet, and no content taller than the sheet: use a short list, a window of rows, or steppers. Dynamic sizing cannot measure it.
+- Check a new sheet by opening it on a device, with a screenshot (`adb exec-out screencap -p`), not an accessibility dump: the dump omits a sheet that is on screen.
