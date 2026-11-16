@@ -2,7 +2,7 @@ import { mixHex } from "../mix";
 import type { AccentTokens, BaseTokens } from "./graphite";
 
 // SAFETY: the fixed picker order also defines the accent-name union.
-export const accentNames = ["mono", "vermilion", "cobalt", "violet", "teal"] as const;
+export const accentNames = ["mono", "vermilion", "indigo", "orchid", "sky"] as const;
 export type AccentName = (typeof accentNames)[number];
 
 /** A fill and the ink on that fill. */
@@ -21,17 +21,17 @@ export const accents: Record<AccentName, { light: AccentPair; dark: AccentPair }
     light: { fill: "#C8380F", ink: "#FFFFFF" },
     dark: { fill: "#FF6A3D", ink: "#1F0A03" },
   },
-  cobalt: {
-    light: { fill: "#2F5BE0", ink: "#FFFFFF" },
-    dark: { fill: "#6E9BFF", ink: "#06102A" },
+  indigo: {
+    light: { fill: "#4B54D6", ink: "#FFFFFF" },
+    dark: { fill: "#8E96FF", ink: "#0C0F33" },
   },
-  violet: {
-    light: { fill: "#6B4CE0", ink: "#FFFFFF" },
-    dark: { fill: "#A48CFF", ink: "#130A30" },
+  orchid: {
+    light: { fill: "#A12BB8", ink: "#FFFFFF" },
+    dark: { fill: "#D98CF2", ink: "#2A0833" },
   },
-  teal: {
-    light: { fill: "#0A786B", ink: "#FFFFFF" },
-    dark: { fill: "#3FD0C0", ink: "#03201D" },
+  sky: {
+    light: { fill: "#0A6FA8", ink: "#FFFFFF" },
+    dark: { fill: "#5CC6F5", ink: "#04202F" },
   },
 };
 

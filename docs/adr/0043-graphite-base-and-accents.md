@@ -15,8 +15,8 @@ accent, data and status.
 
 - One neutral base, Graphite, in three modes: light, dark, and dark on a true-black canvas for
   OLED screens.
-- A separate accent chosen by the user: Mono (the brightest neutral), Vermilion, Cobalt, Violet
-  or Teal. An accent is one fill and its ink, for light and for dark; true black reuses dark.
+- A separate accent chosen by the user: Mono (the brightest neutral), Vermilion, Indigo, Orchid
+  or Sky. An accent is one fill and its ink, for light and for dark; true black reuses dark.
 - The accent supplies `action`, `identity`, `chart`, `focus-ring` and their soft, hover and
   pressed tones, which are derived from the fill and the base. Every other role is the base's.
 - Appearance (System, Light, Dark), the true-black switch and the accent live in one sheet and in

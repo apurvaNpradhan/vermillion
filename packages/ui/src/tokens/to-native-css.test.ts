@@ -20,7 +20,7 @@ describe("native brand tokens", () => {
   it("fills every accent and mode variant with complete matching variable sets", () => {
     const css = toNativeCss();
     expect(variantName("mono", "black")).toBe("black");
-    expect(variantName("teal", "light")).toBe("teal-light");
+    expect(variantName("sky", "light")).toBe("sky-light");
     const names = [...css.matchAll(/@variant ([\w-]+) \{/g)].map((match) => match[1]);
     expect(names).toEqual(
       accentNames.flatMap((accent) => themeModes.map((mode) => variantName(accent, mode))),

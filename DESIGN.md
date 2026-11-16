@@ -7,7 +7,7 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 ## Native appearance
 
 Native has one neutral base, Graphite, in three modes (light, dark and true black) and a
-separate accent: Mono, Vermilion, Cobalt, Violet or Teal. Appearance (System, Light, Dark), the
+separate accent: Mono, Vermilion, Indigo, Orchid or Sky. Appearance (System, Light, Dark), the
 true-black switch and the accent are device settings in one sheet. They change colour only; every
 combination shares one layout. See [ADR 0043](docs/adr/0043-graphite-base-and-accents.md) and the
 [guide](docs/guides/native-themes.md).
@@ -16,7 +16,7 @@ combination shares one layout. See [ADR 0043](docs/adr/0043-graphite-base-and-ac
   ink per accent for light and dark. `brandThemes[accent][mode]` is the complete role set; the
   soft, hover and pressed accent tones are derived, never hand-picked.
 - Mono owns the email palette and Uniwind's built-in `light` / `dark`; other variants use flat
-  names such as `cobalt-black` (`variantName`).
+  names such as `indigo-black` (`variantName`).
 - Contrast and layer tests run across every accent and mode with no exemptions.
 - The accent drives `action`, `identity`, active tabs, current sets, progress, selected filters,
   the active program and `chart`. Mono uses the brightest neutral for all of them.

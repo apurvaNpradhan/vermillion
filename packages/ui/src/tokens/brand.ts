@@ -25,9 +25,9 @@ function palette(accent: AccentName): Record<ThemeMode, RoleTokens> {
 export const brandThemes: Record<AccentName, Record<ThemeMode, RoleTokens>> = {
   mono: palette("mono"),
   vermilion: palette("vermilion"),
-  cobalt: palette("cobalt"),
-  violet: palette("violet"),
-  teal: palette("teal"),
+  indigo: palette("indigo"),
+  orchid: palette("orchid"),
+  sky: palette("sky"),
 };
 
 export type ThemeVariant = ThemeMode | `${Exclude<AccentName, "mono">}-${ThemeMode}`;

@@ -1,7 +1,7 @@
 # Native appearance
 
 The app has one neutral base, Graphite, in light, dark and true black, and a separate accent:
-Mono, Vermilion, Cobalt, Violet or Teal. Appearance chooses System, Light or Dark; true black
+Mono, Vermilion, Indigo, Orchid or Sky. Appearance chooses System, Light or Dark; true black
 replaces the dark canvas with pure black. All three settings live on the device, including before
 sign-in, and change colour only. Email always uses Mono. See
 [ADR 0043](../adr/0043-graphite-base-and-accents.md).

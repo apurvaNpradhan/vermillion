@@ -18,9 +18,9 @@ import { APPEARANCES, type AppearanceChoice, type ThemeChoice } from "./theme-st
 const ACCENT_LABELS = {
   mono: "theme__accent_mono",
   vermilion: "theme__accent_vermilion",
-  cobalt: "theme__accent_cobalt",
-  violet: "theme__accent_violet",
-  teal: "theme__accent_teal",
+  indigo: "theme__accent_indigo",
+  orchid: "theme__accent_orchid",
+  sky: "theme__accent_sky",
 } satisfies Record<AccentName, TranslationKey>;
 const APPEARANCE_LABELS = {
   system: "theme__system",
@@ -28,7 +28,7 @@ const APPEARANCE_LABELS = {
   dark: "theme__dark",
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
-/** "Dark · Cobalt": the current choice as one settings value. */
+/** "Dark · Indigo": the current choice as one settings value. */
 export function useAppearanceSummary(choice: ThemeChoice): string {
   const { t } = useTranslation();
   return `${t(APPEARANCE_LABELS[choice.appearance])} · ${t(ACCENT_LABELS[choice.accent])}`;

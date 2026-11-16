@@ -68,7 +68,7 @@ describe("device theme selection", () => {
     store.set({ ...DEFAULT_THEME, appearance: "dark" });
     expect(write).not.toHaveBeenCalled();
     // SAFETY: keep the supported selection literals for the store contract.
-    const next = { accent: "cobalt", appearance: "system", black: true } as const;
+    const next = { accent: "indigo", appearance: "system", black: true } as const;
     store.set(next);
     expect(apply).toHaveBeenLastCalledWith(next);
     expect(parseTheme(write.mock.calls[0]?.[0])).toEqual(next);
