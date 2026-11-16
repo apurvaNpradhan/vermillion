@@ -8,6 +8,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
 import { MeasurementDate } from "./measurement-date";
 import { Button } from "@/platform/ui/button";
+import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { useWeight } from "./use-weight";
 import { useLogWeight } from "./use-log-weight";
 export function WeightLogSheet({
@@ -22,6 +23,7 @@ export function WeightLogSheet({
   onGoal?: (value: number | null) => Promise<void>;
 }) {
   const state = useWeight();
+  const sheet = useSheetPresent();
   const action = useLogWeight();
   const { t } = useTranslation();
   const initial = entry?.value ?? (goal ? state.goal : state.trend) ?? 70;
@@ -45,7 +47,7 @@ export function WeightLogSheet({
   const save = () => form.handleSubmit();
   return (
     <BottomSheet
-      isOpen
+      isOpen={sheet.isOpen}
       onOpenChange={(open) => {
         if (!open && !action.busy) onClose();
       }}
@@ -56,6 +58,7 @@ export function WeightLogSheet({
           backgroundClassName="bg-overlay"
           contentContainerClassName="gap-4 px-4 pb-4"
         >
+          {sheet.probe}
           <BottomSheet.Title>{t(goal ? "body__goal" : "body__log")}</BottomSheet.Title>
           <View className="flex-row items-baseline gap-2">
             <Text

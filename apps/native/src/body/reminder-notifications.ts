@@ -8,8 +8,8 @@ export async function installBodyChannel(name: string) {
   if (Platform.OS === "android")
     await Notifications.setNotificationChannelAsync(BODY_CHANNEL, {
       name,
+      // The default importance plays the system default sound; "default" is not a sound file.
       importance: Notifications.AndroidImportance.DEFAULT,
-      sound: "default",
     });
 }
 export async function scheduledBodyReminders() {
@@ -32,7 +32,7 @@ export async function scheduleBodyReminder(
     identifier: entry.id,
     content: {
       ...content,
-      sound: "default",
+      sound: true,
       data: {
         signature: entry.signature,
         url: entry.kind === "weight" ? "/body/weight?reminder=1" : "/body/measurements?reminder=1",

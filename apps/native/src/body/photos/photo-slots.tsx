@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useThemeColor } from "heroui-native";
 import { Camera, Image as ImageIcon, Trash } from "phosphor-react-native";
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
 import { PROGRESS_POSES, type ProgressPose } from "@workspace/shared";
 
@@ -20,24 +20,16 @@ import type { usePhotoActions } from "./use-photo-actions";
  */
 export function PhotoSlots({
   store,
-  actions,
   disabled,
+  onSelect,
 }: {
   store: PendingPhotoStore;
-  actions: Pick<ReturnType<typeof usePhotoActions>, "pick">;
   disabled: boolean;
+  onSelect: (pose: ProgressPose) => void;
 }) {
   const { t } = useTranslation();
   const muted = useThemeColor("muted");
   const pending = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  const [pose, setPose] = useState<ProgressPose | null>(null);
-
-  const take = async (selected: ProgressPose, source: "camera" | "library") => {
-    const image = await actions.pick(source);
-    if (image) store.set(selected, image);
-  };
-  const remove = (selected: ProgressPose) => store.remove(selected);
-  const open = pose ? pending[pose] : undefined;
   // Back is optional; say so to a screen reader, which never sees the visible "Optional" caption.
   const slotLabel = (slot: ProgressPose, name: string, filled: boolean) =>
     slot === "back"
@@ -57,7 +49,7 @@ export function PhotoSlots({
             accessibilityRole="button"
             accessibilityLabel={slotLabel(slot, name, image !== undefined)}
             disabled={disabled}
-            onPress={() => setPose(slot)}
+            onPress={() => onSelect(slot)}
             className="h-[72px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-separator bg-default"
           >
             {image ? (
@@ -83,42 +75,70 @@ export function PhotoSlots({
           </Pressable>
         );
       })}
-      <ActionSheet
-        title={pose ? t("body__photo_slot_add", { pose: t(poseLabels[pose]) }) : ""}
-        isOpen={pose !== null}
-        onOpenChange={(next) => {
-          if (!next) setPose(null);
-        }}
-        actions={
-          pose
-            ? [
-                {
-                  key: "camera",
-                  label: t("body__photo_take"),
-                  icon: Camera,
-                  onPress: () => void take(pose, "camera"),
-                },
-                {
-                  key: "library",
-                  label: t("body__photo_choose"),
-                  icon: ImageIcon,
-                  onPress: () => void take(pose, "library"),
-                },
-                ...(open
-                  ? [
-                      {
-                        key: "remove",
-                        label: t("body__photo_remove"),
-                        icon: Trash,
-                        tone: "danger" as const,
-                        onPress: () => remove(pose),
-                      },
-                    ]
-                  : []),
-              ]
-            : []
-        }
-      />
     </View>
+  );
+}
+
+/**
+ * The action sheet of a slot. It is a sibling of the Check-in sheet, not inside it (a bottom sheet
+ * inside another one's content closes its parent), and the Check-in renders it only after its own
+ * sheet has opened (one that mounts in the same render leaves it off-screen).
+ */
+export function PhotoSlotSheet({
+  store,
+  actions,
+  pose,
+  onClose,
+}: {
+  store: PendingPhotoStore;
+  actions: Pick<ReturnType<typeof usePhotoActions>, "pick">;
+  pose: ProgressPose | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const pending = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const take = async (selected: ProgressPose, source: "camera" | "library") => {
+    const image = await actions.pick(source);
+    if (image) store.set(selected, image);
+  };
+  const remove = (selected: ProgressPose) => store.remove(selected);
+  const open = pose ? pending[pose] : undefined;
+  return (
+    <ActionSheet
+      title={pose ? t("body__photo_slot_add", { pose: t(poseLabels[pose]) }) : ""}
+      isOpen={pose !== null}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      actions={
+        pose
+          ? [
+              {
+                key: "camera",
+                label: t("body__photo_take"),
+                icon: Camera,
+                onPress: () => void take(pose, "camera"),
+              },
+              {
+                key: "library",
+                label: t("body__photo_choose"),
+                icon: ImageIcon,
+                onPress: () => void take(pose, "library"),
+              },
+              ...(open
+                ? [
+                    {
+                      key: "remove",
+                      label: t("body__photo_remove"),
+                      icon: Trash,
+                      tone: "danger" as const,
+                      onPress: () => remove(pose),
+                    },
+                  ]
+                : []),
+            ]
+          : []
+      }
+    />
   );
 }

@@ -7,9 +7,11 @@ import { usePreferences } from "@/preferences";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
 import { Button } from "@/platform/ui/button";
+import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { Keypad } from "@/platform/ui/keypad";
 function HeightSheet({ onClose }: { onClose: () => void }) {
   const { preferences, setUiAsync, isSaving } = usePreferences();
+  const sheet = useSheetPresent();
   const { t } = useTranslation();
   const unit = preferences.ui.lengthUnit;
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
   const value = useStore(form.store, (s) => s.values.value);
   return (
     <BottomSheet
-      isOpen
+      isOpen={sheet.isOpen}
       onOpenChange={(open) => {
         if (!open && !isSaving) onClose();
       }}
@@ -55,6 +57,7 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content backgroundClassName="bg-overlay" contentContainerClassName="gap-4 p-4">
+          {sheet.probe}
           <BottomSheet.Title>{t("body__height")}</BottomSheet.Title>
           <Text className="text-numeric-xl tabular-nums text-foreground">
             {t("body__value", { value, unit })}

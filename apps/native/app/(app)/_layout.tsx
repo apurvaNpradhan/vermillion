@@ -114,6 +114,8 @@ export default function AppLayout() {
           name="settings"
           options={{ title: t("nav__settings"), tabBarIcon: tabIcon(GearSix) }}
         />
+        {/* Pages pushed from Home and Settings; no icon, so the tab bar leaves it out. */}
+        <Tabs.Screen name="body" options={{ title: t("body__title") }} />
       </Tabs>
       <ForgottenSessionHost />
     </TabActionProvider>
