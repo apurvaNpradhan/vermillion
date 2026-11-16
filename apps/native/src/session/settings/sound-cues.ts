@@ -4,14 +4,14 @@ import type { SoundCue } from "./sound-rules";
 
 /** The zen pack files (assets/sounds/CREDITS.md). Metro resolves each `require` to an asset id. */
 const SOURCES = {
-  tick: require("../../assets/sounds/cue_check.mp3"),
-  refused: require("../../assets/sounds/cue_error.mp3"),
-  restCountdown: require("../../assets/sounds/cue_progress_step.mp3"),
+  tick: require("../../../assets/sounds/cue_check.mp3"),
+  refused: require("../../../assets/sounds/cue_error.mp3"),
+  restCountdown: require("../../../assets/sounds/cue_progress_step.mp3"),
   // The same file as the notification's sound (Android needs the raw resource `rest_end`).
-  restOver: require("../../assets/sounds/rest_end.wav"),
-  countdownDone: require("../../assets/sounds/cue_complete.mp3"),
-  record: require("../../assets/sounds/cue_achievement.mp3"),
-  finished: require("../../assets/sounds/cue_success.mp3"),
+  restOver: require("../../../assets/sounds/rest_end.wav"),
+  countdownDone: require("../../../assets/sounds/cue_complete.mp3"),
+  record: require("../../../assets/sounds/cue_achievement.mp3"),
+  finished: require("../../../assets/sounds/cue_success.mp3"),
 } satisfies Record<SoundCue, number>;
 
 let players: Promise<Map<SoundCue, AudioPlayer> | null> | null = null;
