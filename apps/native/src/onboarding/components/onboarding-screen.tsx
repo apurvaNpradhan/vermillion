@@ -5,7 +5,14 @@ import { Text, View } from "react-native";
 import { useThemeColor } from "heroui-native";
 import { z } from "zod";
 
-import { FlowStep, nextAfterCode, stepPosition, useSession } from "@/auth";
+import {
+  FlowStep,
+  firstOnboardingStep,
+  nextOnboardingStep,
+  stepPosition,
+  useSession,
+  type OnboardingStepId,
+} from "@/auth";
 import { TextField } from "@/platform/forms/text-field";
 import { haptic } from "@/platform/haptics";
 import type { TranslationKey } from "@workspace/i18n";
@@ -13,10 +20,14 @@ import { useTranslation } from "@/platform/i18n";
 import { FormError } from "@/platform/ui/form-error";
 import { rememberPasskeySetup, shouldOfferPasskeySetup, useRegisterPasskey } from "@/passkeys";
 
+import { beginSetup, finishSetup } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
+import { BodyStep } from "./body-step";
+import { RemindersStep } from "./reminders-step";
+import { UnitsStep } from "./units-step";
 
-/** The required step: there is no skip. */
-function NameStep() {
+/** The required step: there is no skip. Saving it starts the setup steps that follow. */
+function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) {
   const { t } = useTranslation();
   const { saveName } = useSaveName();
   const [failure, setFailure] = useState<string | null>(null);
@@ -31,8 +42,11 @@ function NameStep() {
     onSubmit: async ({ value }) => {
       setFailure(null);
       try {
+        // Marked before the save: the refreshed session must not open the app in between.
+        beginSetup(userId);
         await saveName(value.name.trim());
         haptic.confirm();
+        onSaved();
       } catch {
         // Offline or refused: the text stays so the person can try again.
         setFailure(t("onboarding__save_failed"));
@@ -133,17 +147,35 @@ function PasskeyStep({ userId, onFinished }: { userId: string; onFinished: () =>
 }
 
 /**
- * Account first: one question per screen, the only way into the app until every required step
- * is done. A passkey is offered once per device and can be skipped; the name cannot. Saving the
- * name refreshes the session, and the root guard then opens the app.
+ * Account first: one question per screen, the only way into the app until the last step is done
+ * or skipped. A passkey is offered once per device, the name is required, then the units, the
+ * body numbers and the notifications. Finishing clears the setup mark and the root guard opens
+ * the app; an account that was closed mid-way resumes at the units.
  */
 export function OnboardingScreen() {
   const { session } = useSession();
   const userId = session?.user.id ?? "";
-  const [step, setStep] = useState(() => nextAfterCode(shouldOfferPasskeySetup(userId)));
-  return step === "passkey" ? (
-    <PasskeyStep userId={userId} onFinished={() => setStep("name")} />
-  ) : (
-    <NameStep />
+  const [step, setStep] = useState<OnboardingStepId>(() =>
+    firstOnboardingStep({
+      hasName: (session?.user.name ?? "").trim() !== "",
+      offerPasskey: shouldOfferPasskeySetup(userId),
+    }),
   );
+  const advance = () => {
+    const next = nextOnboardingStep(step);
+    if (next) setStep(next);
+    else finishSetup(userId);
+  };
+  switch (step) {
+    case "passkey":
+      return <PasskeyStep userId={userId} onFinished={advance} />;
+    case "name":
+      return <NameStep userId={userId} onSaved={advance} />;
+    case "units":
+      return <UnitsStep onDone={advance} />;
+    case "body":
+      return <BodyStep onDone={advance} />;
+    case "reminders":
+      return <RemindersStep onDone={advance} />;
+  }
 }

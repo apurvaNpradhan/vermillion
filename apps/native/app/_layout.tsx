@@ -11,6 +11,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { pendingOnboardingSteps } from "@workspace/shared";
+import { useSetupPending } from "@/onboarding";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { NavigationBar } from "expo-navigation-bar";
@@ -51,6 +52,8 @@ function RootStack() {
     Inter_700Bold,
   });
   const signedOut = useSignedOut();
+  // A new account stays in onboarding until the steps after its name are done (or skipped).
+  const setupPending = useSetupPending(session?.user.id ?? "");
   // Any session (a sign-in, or one restored on start) ends an explicit sign-out.
   useEffect(() => {
     if (session) setSignedOut(false);
@@ -62,7 +65,9 @@ function RootStack() {
       session: {
         isPending: sessionPending,
         hasSession: Boolean(session),
-        needsOnboarding: session ? pendingOnboardingSteps(session.user).length > 0 : false,
+        needsOnboarding: session
+          ? pendingOnboardingSteps(session.user).length > 0 || setupPending
+          : false,
       },
       owner,
       signedOut,
