@@ -10,7 +10,8 @@ import { ListRow } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
-import { getRestPermission, askRestPermission } from "@/session";
+import { getNotificationPermission } from "@/platform/notifications/permission";
+import { askNotificationPermission } from "@/platform/notifications/permission-store";
 
 type ReminderKey = "weighInReminder" | "checkInReminder";
 function ReminderEditor({
@@ -44,7 +45,7 @@ function ReminderEditor({
   const enable = async () => {
     setBusy(true);
     try {
-      const permission = await getRestPermission();
+      const permission = await getNotificationPermission();
       if (permission === "granted") setDraft({ ...draft, enabled: true });
       else if (permission === "denied") setDenied(true);
       else setExplain(true);
@@ -97,8 +98,8 @@ function ReminderEditor({
                   isDisabled={busy}
                   onPress={() => {
                     setBusy(true);
-                    void askRestPermission()
-                      .then(getRestPermission)
+                    void askNotificationPermission()
+                      .then(getNotificationPermission)
                       .then((permission) => {
                         setDraft({ ...draft, enabled: permission === "granted" });
                         setDenied(permission !== "granted");

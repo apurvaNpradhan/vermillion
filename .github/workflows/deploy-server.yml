@@ -1,0 +1,210 @@
+name: Deploy server
+
+# Builds the API image once, pushes it to GHCR and tells Dokploy to run exactly that image
+# (ADR 0045). Dokploy never builds: its application is a Docker-image application with
+# autodeploy off.
+#
+# The CI jobs run inside this workflow (ci.yml through `workflow_call`) and the image job needs
+# them, so nothing is built or deployed from a commit whose checks or tests fail. `workflow_run`
+# on CI was the alternative: it cannot filter by path, always runs the default branch's copy
+# of this file and needs the head commit passed by hand. The price of `workflow_call` is that a
+# push to main that touches the server runs the CI jobs twice (once here, once in CI).
+#
+# Secrets live in the `production` environment, so the deploy job can require an approval:
+#   DOKPLOY_URL             https://dokploy.example.com (the panel's origin, no path)
+#   DOKPLOY_API_KEY         an API key from the Dokploy profile settings
+#   DOKPLOY_APPLICATION_ID  the server application's id
+#   GHCR_PULL_USERNAME      GitHub user that owns the read token below
+#   GHCR_PULL_TOKEN         a token with read:packages only; Dokploy pulls the image with it
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/server/**
+      - packages/**
+      # Used only by the native app.
+      - "!packages/client/**"
+      - "!packages/sync/**"
+      - app.config.ts
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .dockerignore
+      - .github/workflows/deploy-server.yml
+  workflow_dispatch:
+
+# One deploy at a time, in order; a running deploy is never cancelled half way.
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  ci:
+    name: CI
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      # The `workflows` job of ci.yml uploads zizmor's findings.
+      security-events: write
+    # `$/` is this repository at the running commit (GitHub changelog 2026-07-30); zizmor asks
+    # for it instead of `./`. actionlint 1.7.12 does not know the syntax yet.
+    uses: $/.github/workflows/ci.yml
+
+  image:
+    name: Build and push the image
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Image name
+        id: name
+        # GHCR names are lower case; the repository name may not be.
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-server" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
+            ${{ steps.name.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=server-image
+          cache-to: type=gha,scope=server-image,mode=max
+      - name: Summary
+        env:
+          IMAGE: ${{ steps.name.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Server image"
+            echo "- \`$IMAGE:$GITHUB_SHA\`"
+            echo "- digest \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy on Dokploy
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Add required reviewers to this environment to make every deploy wait for an approval.
+    environment: production
+    permissions: {}
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+      GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+      IMAGE: ${{ needs.image.outputs.image }}:${{ github.sha }}
+      # Unique per run and attempt: the wait step finds its own deployment by this title.
+      DEPLOY_TITLE: Deploy ${{ github.sha }} (run ${{ github.run_id }}.${{ github.run_attempt }})
+    steps:
+      - name: Check the deploy secrets
+        run: |
+          missing=""
+          for name in DOKPLOY_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID GHCR_PULL_USERNAME GHCR_PULL_TOKEN; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Missing deploy secrets::Set these secrets in the production environment:$missing (docs/deployment.md, What the owner must do once)."
+            exit 1
+          fi
+          case "$DOKPLOY_URL" in
+            https://*) ;;
+            *)
+              echo "::error title=DOKPLOY_URL::DOKPLOY_URL must start with https://"
+              exit 1
+              ;;
+          esac
+
+      # Dokploy API (docs.dokploy.com/docs/api, application.*), authenticated with x-api-key.
+      # Request bodies go through files and responses are never printed, only the HTTP status
+      # and a deployment's status word.
+      - name: Point the application at this image
+        run: |
+          umask 077
+          jq -n \
+            --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+            --arg dockerImage "$IMAGE" \
+            --arg username "$GHCR_PULL_USERNAME" \
+            --arg password "$GHCR_PULL_TOKEN" \
+            '{applicationId: $applicationId, dockerImage: $dockerImage, username: $username, password: $password, registryUrl: "ghcr.io"}' \
+            > "$RUNNER_TEMP/provider.json"
+          status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --max-time 60 --request POST "${DOKPLOY_URL%/}/api/application.saveDockerProvider" \
+            --header 'Content-Type: application/json' \
+            --header "x-api-key: $DOKPLOY_API_KEY" \
+            --data-binary "@$RUNNER_TEMP/provider.json")
+          rm -f "$RUNNER_TEMP/provider.json"
+          if [ "$status" != 200 ]; then
+            echo "::error title=Dokploy::application.saveDockerProvider answered HTTP $status"
+            exit 1
+          fi
+
+      - name: Trigger the deployment
+        run: |
+          jq -n \
+            --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+            --arg title "$DEPLOY_TITLE" \
+            --arg description "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{applicationId: $applicationId, title: $title, description: $description}' \
+            > "$RUNNER_TEMP/deploy.json"
+          status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --max-time 60 --request POST "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header 'Content-Type: application/json' \
+            --header "x-api-key: $DOKPLOY_API_KEY" \
+            --data-binary "@$RUNNER_TEMP/deploy.json")
+          if [ "$status" != 200 ]; then
+            echo "::error title=Dokploy::application.deploy answered HTTP $status"
+            exit 1
+          fi
+
+      # application.deploy only queues the deployment. Wait for the verdict of the deployment
+      # with this run's title (not the application's status, which still says "done" from the
+      # previous deploy for a moment), so a failed deploy fails this run.
+      - name: Wait for the deployment
+        run: |
+          for attempt in $(seq 1 90); do
+            sleep 10
+            state=$(curl --silent --show-error --max-time 30 --get \
+              --data-urlencode "applicationId=$DOKPLOY_APPLICATION_ID" \
+              --header "x-api-key: $DOKPLOY_API_KEY" \
+              "${DOKPLOY_URL%/}/api/deployment.all" \
+              | jq -r --arg title "$DEPLOY_TITLE" \
+                '[.[] | select(.title == $title)] | first | .status // "queued"' || echo unreachable)
+            echo "attempt $attempt: $state"
+            case "$state" in
+              done)
+                echo "Deployed \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              error)
+                echo "::error title=Dokploy::The deployment failed. Read its log in Dokploy (the application, Deployments)."
+                exit 1
+                ;;
+            esac
+          done
+          echo "::error title=Dokploy::No verdict for \"$DEPLOY_TITLE\" within 15 minutes. Check the application's Deployments in Dokploy."
+          exit 1

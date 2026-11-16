@@ -4,13 +4,13 @@ import { usePreferences } from "@/preferences";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useSession } from "@/session/screen/use-session";
-import { useRestPermission } from "./rest-permission-store";
+import { useNotificationPermission } from "@/platform/notifications/permission-store";
 import { refreshWorkoutLive } from "./workout-live";
 import { restSoundOn } from "@/session/settings/rest-sound";
 
 function SessionLive({ id }: { id: string | null }) {
   const state = useSession(id ?? "");
-  const permission = useRestPermission();
+  const permission = useNotificationPermission();
   const { preferences } = usePreferences();
   const { weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest } = preferences.ui;
   useEffect(() => {

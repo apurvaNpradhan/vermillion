@@ -1,0 +1,215 @@
+name: Android release
+
+# Builds a signed release APK with Gradle on a GitHub-hosted runner and attaches it, with its
+# SHA-256, to a GitHub Release. No EAS account or build quota is involved.
+#
+#   git tag v1.0.0 && git push origin v1.0.0   -> release v1.0.0 with the arm64 APK
+#   Run workflow (Actions tab)                 -> the APK as a workflow artifact, no release
+#
+# android/ is not committed: the job runs `expo prebuild`, and the with-release-signing config
+# plugin writes the signing config that reads the keystore from the environment.
+#
+# Needs (docs/guides/android-release.md):
+#   variable  EXPO_PUBLIC_SERVER_URL            https://api.<domain>, baked into the app
+#   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
+#   secret    ANDROID_UPLOAD_KEYSTORE_BASE64    base64 of the release keystore
+#   secret    ANDROID_UPLOAD_STORE_PASSWORD
+#   secret    ANDROID_UPLOAD_KEY_ALIAS
+#   secret    ANDROID_UPLOAD_KEY_PASSWORD
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      abis:
+        description: CPU architectures in the APK (universal adds about 15 minutes)
+        type: choice
+        default: arm64-v8a
+        options:
+          - arm64-v8a
+          - universal
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build the signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    env:
+      EXPO_PUBLIC_SERVER_URL: ${{ vars.EXPO_PUBLIC_SERVER_URL }}
+      EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
+      REF_NAME: ${{ github.ref_name }}
+      REF_TYPE: ${{ github.ref_type }}
+      ABIS: ${{ inputs.abis || 'arm64-v8a' }}
+    outputs:
+      apk: ${{ steps.apk.outputs.name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the configuration
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          echo "KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          failed=0
+          case "$EXPO_PUBLIC_SERVER_URL" in
+            https://*) ;;
+            *)
+              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://api.<domain>)."
+              failed=1
+              ;;
+          esac
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_KEYSTORE_BASE64 is not set."; failed=1; }
+          [ -n "$STORE_PASSWORD" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_STORE_PASSWORD is not set."; failed=1; }
+          [ -n "$KEY_ALIAS" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_KEY_ALIAS is not set."; failed=1; }
+          [ -n "$KEY_PASSWORD" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_KEY_PASSWORD is not set."; failed=1; }
+          # A release tag names the version that app.config.ts declares.
+          version=$(sed -n 's/^  version: "\(.*\)",$/\1/p' app.config.ts)
+          if [ "$REF_TYPE" = tag ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error title=Version::Tag $REF_NAME does not match version $version in app.config.ts. Bump the version, then tag v<version>."
+            failed=1
+          fi
+          exit "$failed"
+
+      # Caches. zizmor flags any cache in a workflow that publishes (cache-poisoning). They are
+      # kept on purpose, to keep a release build near 15 minutes: a tag run can restore only
+      # caches written on the default branch, so poisoning one takes a commit on main, which
+      # could change this build directly. The pnpm store is also checked against the lockfile's
+      # integrity hashes on install. To build with no cache, set `package-manager-cache: false`
+      # here and `cache-disabled: true` on setup-gradle.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+      # Gradle's cache is written only by runs on the default branch and read everywhere else,
+      # so a tag build cannot store anything a later build would trust. Run this workflow by
+      # hand on main once to fill it.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1 # zizmor: ignore[cache-poisoning]
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Decode the keystore and print its certificate fingerprint
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE")
+          fingerprint=$(keytool -list -v -keystore "$KEYSTORE" -alias "$KEY_ALIAS" -storepass:env STORE_PASSWORD \
+            | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)
+          if [ -z "$fingerprint" ]; then
+            echo "::error title=Keystore::Could not read the certificate. Check the keystore, its password and the alias."
+            exit 1
+          fi
+          echo "FINGERPRINT=$fingerprint" >> "$GITHUB_ENV"
+          {
+            echo "### Signing certificate"
+            echo "SHA-256: \`$fingerprint\`"
+            echo
+            echo "The server's \`ANDROID_CERT_SHA256\` must contain this value, or passkeys and"
+            echo "\`/.well-known/assetlinks.json\` will not accept this app."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate the Android project
+        working-directory: apps/native
+        env:
+          # Rises with every run, so each APK installs over the previous one.
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          pnpm exec expo prebuild --platform android --no-install
+          grep -q "with-release-signing" android/app/build.gradle
+
+      - name: Build the release APK
+        working-directory: apps/native/android
+        env:
+          VERMILLION_UPLOAD_STORE_FILE: ${{ env.KEYSTORE }}
+          VERMILLION_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          VERMILLION_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          VERMILLION_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          # arm64 covers nearly every current phone and keeps the APK small.
+          if [ "$ABIS" = universal ]; then
+            architectures=armeabi-v7a,arm64-v8a,x86,x86_64
+          else
+            architectures=arm64-v8a
+          fi
+          ./gradlew assembleRelease --no-daemon \
+            -PreactNativeArchitectures="$architectures" \
+            -Dorg.gradle.jvmargs="-Xmx5g -XX:MaxMetaspaceSize=1g"
+
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "$KEYSTORE"
+
+      - name: Check the signature, name the APK
+        id: apk
+        run: |
+          built=apps/native/android/app/build/outputs/apk/release/app-release.apk
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          signer=$("$apksigner" verify --print-certs "$built" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          expected=$(printf '%s' "$FINGERPRINT" | tr -d ':' | tr 'A-F' 'a-f')
+          if [ "$signer" != "$expected" ]; then
+            echo "::error title=Signature::The APK is not signed with the release keystore (signer $signer)."
+            exit 1
+          fi
+          name="vermillion-${REF_NAME//\//-}-$ABIS.apk"
+          mkdir -p release
+          mv "$built" "release/$name"
+          (cd release && sha256sum "$name" > "$name.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          {
+            echo "### APK"
+            echo "\`$name\` ($(du -h "release/$name" | cut -f1)), version code $GITHUB_RUN_NUMBER"
+            echo
+            echo "SHA-256: \`$(cut -d' ' -f1 "release/$name.sha256")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-apk
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  # A separate job holds the write token: it runs no project code, only `gh`.
+  release:
+    name: Publish the GitHub Release
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: android-apk
+          path: release
+      - name: Create the release or add to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Vermillion $REF_NAME" --generate-notes
+          fi
+          gh release upload "$REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber

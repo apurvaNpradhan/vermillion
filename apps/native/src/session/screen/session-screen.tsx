@@ -48,9 +48,9 @@ import {
 
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import {
-  askRestPermission,
-  markRestPermissionAsked,
-} from "@/session/notifications/rest-permission-store";
+  askNotificationPermission,
+  markNotificationPermissionAsked,
+} from "@/platform/notifications/permission-store";
 import { allTicked, doneSummary, formatVolume, progressText } from "@/session/finish/summary";
 import { restBelongsTo } from "@/session/rest/rest-rules";
 import { useRestRunning } from "@/session/rest/use-rest-running";
@@ -597,10 +597,10 @@ function LoadedSession({
         onOpenChange={setAskOpen}
         onAllow={() => {
           setAskOpen(false);
-          void askRestPermission();
+          void askNotificationPermission();
         }}
         onDecline={() => {
-          markRestPermissionAsked();
+          markNotificationPermissionAsked();
           setAskOpen(false);
         }}
       />

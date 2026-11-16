@@ -23,7 +23,7 @@
     "db:stop": "docker compose stop",
     "db:down": "docker compose down",
     "sync:bootstrap": "pnpm --filter server sync:bootstrap",
-    "lint": "oxlint && oxfmt --check && node scripts/structure/check-folder-size.mjs",
+    "lint": "oxlint && oxfmt --check && node scripts/structure/check-folder-size.mjs && node scripts/structure/check-vertical-cycles.mjs",
     "lint:fix": "oxlint --fix && oxfmt --write",
     "format": "oxfmt --write",
     "knip": "knip",

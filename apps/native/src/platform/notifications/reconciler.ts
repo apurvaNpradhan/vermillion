@@ -1,5 +1,5 @@
 /** Serializes system notification mutations; superseded jobs stop after every await. */
-export function createRestReconciler() {
+export function createNotificationReconciler() {
   let generation = 0;
   let queue = Promise.resolve();
   return {

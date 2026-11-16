@@ -17,6 +17,3 @@ export { doneSummary } from "./finish/summary";
 export { usePreviousSets } from "./logging/use-previous-sets";
 
 export { WorkoutLiveHost } from "./notifications/workout-live-host";
-export { createRestReconciler } from "./rest/rest-reconciler";
-export { getRestPermission } from "./notifications/rest-notification";
-export { askRestPermission } from "./notifications/rest-permission-store";

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { createRestReconciler, getRestPermission } from "@/session";
+import { getNotificationPermission } from "@/platform/notifications/permission";
+import { createNotificationReconciler } from "@/platform/notifications/reconciler";
 import { desiredBodyReminders, planBodyReminders } from "./reminder-schedule";
 import {
   cancelBodyReminder,
@@ -11,10 +12,9 @@ import {
 } from "./reminder-notifications";
 
 // Shared across mounts: sign-out cancellation must finish before a new account schedules.
-// Created on first use: calling into another vertical while this module loads breaks when the two
-// verticals import each other (the other one is not initialised yet).
-let shared: ReturnType<typeof createRestReconciler> | undefined;
-const reconciler = () => (shared ??= createRestReconciler());
+// Created on first use, so loading this module has no side effect.
+let shared: ReturnType<typeof createNotificationReconciler> | undefined;
+const reconciler = () => (shared ??= createNotificationReconciler());
 export function BodyReminderHost() {
   const { preferences, hasPreferences } = usePreferences();
   const { t } = useTranslation();
@@ -30,7 +30,7 @@ export function BodyReminderHost() {
       .enqueue(async (current) => {
         await installBodyChannel(title);
         if (!current()) return;
-        const granted = await getRestPermission();
+        const granted = await getNotificationPermission();
         if (!current()) return;
         const scheduled = await scheduledBodyReminders();
         if (!current()) return;

@@ -1,6 +1,7 @@
 // Compares the reference locale with the keys the source code uses: keys the
 // code uses that no locale defines, and keys nothing uses. A plural family
-// counts as used when its base key appears.
+// counts as used when its base key appears. A key built in a template literal
+// (`share__part_${x}`) marks every key that starts with its literal prefix as used.
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -11,6 +12,9 @@ const SKIP = new Set(["node_modules", "dist", "locales", ".turbo", "routeTree.ge
 // Appears in documentation comments as the naming pattern.
 const IGNORED = new Set(["feature__identifier"]);
 const KEY_IN_SOURCE = /["'`]([a-z]+__[a-z_]+)["'`]/gu;
+// The prefix must name more than the feature (`feature__part_`), so one dynamic key cannot
+// hide a whole feature's unused keys.
+const DYNAMIC_KEY_PREFIX = /`([a-z]+__[a-z_]+_)\$\{/gu;
 
 async function* walk(dir) {
   for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
@@ -23,11 +27,13 @@ async function* walk(dir) {
 }
 
 const used = new Set();
+const usedPrefixes = new Set();
 for (const root of SOURCE_ROOTS) {
   for await (const file of walk(path.join(repoRoot, root))) {
     const text = await fs.readFile(file, "utf8");
     for (const match of text.matchAll(KEY_IN_SOURCE))
       if (!IGNORED.has(match[1])) used.add(match[1]);
+    for (const match of text.matchAll(DYNAMIC_KEY_PREFIX)) usedPrefixes.add(match[1]);
   }
 }
 
@@ -36,7 +42,10 @@ const defined = new Set(Object.keys(reference.data));
 const definedBases = new Set([...defined].map((key) => pluralBase(key) ?? key));
 
 const missing = [...used].filter((key) => !defined.has(key) && !definedBases.has(key));
-const unused = [...defined].filter((key) => !used.has(key) && !used.has(pluralBase(key) ?? key));
+const isDynamic = (key) => [...usedPrefixes].some((prefix) => key.startsWith(prefix));
+const unused = [...defined].filter(
+  (key) => !used.has(key) && !used.has(pluralBase(key) ?? key) && !isDynamic(key),
+);
 
 for (const [title, keys] of [
   ["Keys used in code but not defined", missing],

@@ -18,7 +18,11 @@ import { AppState } from "react-native";
 import { useSession } from "@/auth";
 import { useSyncValue } from "@/sync";
 import { client } from "@/platform/orpc";
-import { clearPreferencesCache, readPreferencesCache, writePreferencesCache } from "./cache";
+import {
+  clearPreferencesCache,
+  readPreferencesCache,
+  writePreferencesCache,
+} from "@/platform/preferences-cache";
 import { useEffect } from "react";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";

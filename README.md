@@ -84,14 +84,15 @@ The API listens on <http://localhost:3000>; `/api/health` answers when it is up.
 
 ## Documentation
 
-| Read                                            | For                                                                 |
-| ----------------------------------------------- | ------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md) and [.agents/](.agents/) | Conventions for coding agents and contributors                      |
-| [CONTEXT.md](CONTEXT.md)                        | Glossary                                                            |
-| [docs/adr/](docs/adr/)                          | Why each major decision was made                                    |
-| [docs/deployment.md](docs/deployment.md)        | Dokploy, Cloudflare DNS, firewall, trusted proxies, env, EAS        |
-| [docs/runbook.md](docs/runbook.md)              | Deploy, rollback, backups, restore drill, secrets, closing sign-ups |
-| [DESIGN.md](DESIGN.md)                          | Brand tokens                                                        |
+| Read                                                             | For                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [AGENTS.md](AGENTS.md) and [.agents/](.agents/)                  | Conventions for coding agents and contributors                      |
+| [CONTEXT.md](CONTEXT.md)                                         | Glossary                                                            |
+| [docs/adr/](docs/adr/)                                           | Why each major decision was made                                    |
+| [docs/deployment.md](docs/deployment.md)                         | Dokploy, Cloudflare DNS, firewall, trusted proxies, env, EAS        |
+| [docs/runbook.md](docs/runbook.md)                               | Deploy, rollback, backups, restore drill, secrets, closing sign-ups |
+| [docs/guides/android-release.md](docs/guides/android-release.md) | Signed APK builds on GitHub Actions and GitHub Releases             |
+| [DESIGN.md](DESIGN.md)                                           | Brand tokens                                                        |
 
 ## Marketing site and companion app
 

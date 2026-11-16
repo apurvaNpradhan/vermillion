@@ -2,38 +2,43 @@ import { useSyncExternalStore } from "react";
 
 import { deviceStorage } from "@/platform/storage";
 
-import { getRestPermission, requestRestPermission, type RestPermission } from "./rest-notification";
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  type NotificationPermission,
+} from "./permission";
 
 /** "unknown" until the system has been asked how it stands. */
-export type RestPermissionState = RestPermission | "unknown";
+export type NotificationPermissionState = NotificationPermission | "unknown";
 
+// The key predates the move out of `session`; renaming it would ask everyone again.
 const ASKED_KEY = "session.rest-notifications-asked";
 
-let current: RestPermissionState = "unknown";
+let current: NotificationPermissionState = "unknown";
 const listeners = new Set<() => void>();
-const set = (next: RestPermissionState) => {
+const set = (next: NotificationPermissionState) => {
   if (next === current) return;
   current = next;
   for (const listener of listeners) listener();
 };
 
 /** Reads the system's answer; call when the app opens and each time it comes to the front. */
-export async function refreshRestPermission(): Promise<void> {
-  set(await getRestPermission());
+export async function refreshNotificationPermission(): Promise<void> {
+  set(await getNotificationPermission());
 }
 
 /** The user was asked, with our one-line explanation and then the system dialog, or declined to be. */
-export const restPermissionAsked = () => deviceStorage.get(ASKED_KEY) === "1";
-export const markRestPermissionAsked = () => deviceStorage.set(ASKED_KEY, "1");
+export const notificationPermissionAsked = () => deviceStorage.get(ASKED_KEY) === "1";
+export const markNotificationPermissionAsked = () => deviceStorage.set(ASKED_KEY, "1");
 
 /** Shows the system dialog (once the user agreed to our explanation) and remembers the answer. */
-export async function askRestPermission(): Promise<void> {
-  markRestPermissionAsked();
-  set(await requestRestPermission());
+export async function askNotificationPermission(): Promise<void> {
+  markNotificationPermissionAsked();
+  set(await requestNotificationPermission());
 }
 
 /** The permission, shared by every screen that reads it. */
-export function useRestPermission(): RestPermissionState {
+export function useNotificationPermission(): NotificationPermissionState {
   return useSyncExternalStore(
     (listener) => {
       listeners.add(listener);

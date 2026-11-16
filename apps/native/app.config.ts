@@ -45,6 +45,12 @@ const rpId = passkeyRpId(process.env.EXPO_PUBLIC_SERVER_URL);
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 
+/**
+ * The Android release workflow passes its run number, so every APK it builds installs over the
+ * previous one. Unset (local builds, EAS with its remote version source) keeps the default.
+ */
+const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE);
+
 const config: ExpoConfig = {
   name: appConfig.displayName,
   slug: appConfig.name,
@@ -70,6 +76,9 @@ const config: ExpoConfig = {
     },
     predictiveBackGestureEnabled: false,
     package: appConfig.bundleIds.android,
+    ...(Number.isInteger(androidVersionCode) && androidVersionCode > 0
+      ? { versionCode: androidVersionCode }
+      : {}),
   },
   plugins: [
     "expo-router",
@@ -113,6 +122,8 @@ const config: ExpoConfig = {
     // The backup rules plugin replaces the store's own so key and database exclusions stay together.
     ["expo-secure-store", { configureAndroidBackup: false }],
     "./plugins/with-local-database-backup-rules.js",
+    // Release builds sign with the keystore the Android release workflow provides.
+    "./plugins/with-release-signing.js",
     [
       "expo-splash-screen",
       {

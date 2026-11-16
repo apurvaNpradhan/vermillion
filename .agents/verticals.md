@@ -27,6 +27,17 @@ Past a handful of files, group by feature, not by kind. A feature folder holds i
 
 If two verticals need each other's internals, either export a deliberate function from one `index.ts` or move the shared piece to `platform`. Do not add a wildcard export.
 
+## No cycles between native verticals
+
+Two verticals must not import each other, directly or through a third. Metro evaluates modules in import order, so in a cycle one `index.ts` is still half evaluated when the other runs, and a binding read while a file loads is `undefined`. `body` and `session` did this and the release app crashed at launch; types and tests do not catch it.
+
+`scripts/structure/check-vertical-cycles.mjs` (part of `pnpm lint`) builds the import graph of `apps/native/src` (one node per vertical, `platform` excluded; `import type` and tests ignored) and fails on:
+
+- **A cycle.** Break it: move the shared piece to `platform` (`platform/notifications` holds the notification permission and reconciler that `body`, `onboarding` and `session` share; `platform/preferences-cache.ts` is cleared by sign-out), or invert the dependency. If that is too invasive for the change at hand, add the back edge to `ALLOWED_EDGES` in the script with a one-line reason. A stale entry fails the check.
+- **A module-level call of another vertical's export**, cycle or not: `const shared = createThing()` at the top of a file, where `createThing` comes from `@/other`. There is no allowlist. Create it on first use: `let shared; const thing = () => (shared ??= createThing());`.
+
+The scan is textual and relies on oxfmt's layout (a top-level statement starts in column 0).
+
 ## Add a vertical
 
 1. Create the folder with `tables.ts`, `operations/`, `procedures.ts`, `index.ts` and a test.
