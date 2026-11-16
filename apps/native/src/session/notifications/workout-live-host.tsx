@@ -12,19 +12,25 @@ function SessionLive({ id }: { id: string | null }) {
   const state = useSession(id ?? "");
   const permission = useRestPermission();
   const { preferences } = usePreferences();
-  const { weightUnit, weightIncrementKg, sounds, soundRest } = preferences.ui;
+  const { weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest } = preferences.ui;
   useEffect(() => {
     if (id && state.status === "loading") return;
     void refreshWorkoutLive(id, {
       weightUnit,
       weightIncrementKg,
+      lighterWeeks,
       soundOn: restSoundOn({ sounds, soundRest }),
     }).catch(() => undefined);
-  }, [id, state, permission, weightUnit, weightIncrementKg, sounds, soundRest]);
+  }, [id, state, permission, weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest]);
   // Only on unmount: a changed option must not flash the notification away.
   useEffect(
     () => () => {
-      void refreshWorkoutLive(null, { weightUnit: "kg", weightIncrementKg: null, soundOn: false });
+      void refreshWorkoutLive(null, {
+        weightUnit: "kg",
+        weightIncrementKg: null,
+        lighterWeeks: [],
+        soundOn: false,
+      });
     },
     [],
   );

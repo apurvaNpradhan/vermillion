@@ -62,6 +62,7 @@ export function useSessionLogging(stored: SessionDetail) {
     effortScale,
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
+    lighterWeeks: preferences.ui.lighterWeeks,
     readOnly,
     actions,
     onRestStarted,

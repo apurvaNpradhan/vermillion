@@ -18,7 +18,7 @@ import {
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
-import { progressionReasonKey } from "@/platform/ui/progression-reason";
+import { breakWeeks, progressionLabelKey } from "@/platform/ui/progression-reason";
 import { useExerciseProgression } from "../use-exercise-progression";
 
 export function ExerciseProgress({
@@ -207,9 +207,10 @@ export function NextTimeLine({
         <Text className="text-body text-foreground">{aim}</Text>
       </View>
       <Text className="text-caption text-muted">
-        {t(progressionReasonKey(suggestion.reason), {
+        {t(progressionLabelKey(suggestion.reason), {
           value: formatWeight(suggestion.incrementKg, unit),
           unit,
+          count: breakWeeks(suggestion),
         })}
       </Text>
     </View>

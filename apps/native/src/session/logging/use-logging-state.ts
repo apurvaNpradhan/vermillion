@@ -6,6 +6,7 @@ import {
   type EffortScale,
   type Ghosts,
   type SetKind,
+  type LighterPeriod,
   type WeightUnit,
 } from "@workspace/shared";
 import type {
@@ -78,6 +79,7 @@ export function useLoggingState({
   effortScale,
   bodyweightKg,
   weightIncrementKg,
+  lighterWeeks,
   readOnly,
   actions,
   onRestStarted,
@@ -89,6 +91,7 @@ export function useLoggingState({
   effortScale: EffortScale;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
+  lighterWeeks: readonly LighterPeriod[];
   readOnly: boolean;
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
@@ -176,10 +179,11 @@ export function useLoggingState({
             : exerciseSuggestion(exercise, previousByWorkout.get(exercise.exerciseId) ?? [], {
                 weightUnit: unit,
                 weightIncrementKg,
+                lighterWeeks,
               }),
         ]),
       ),
-    [exercises, previousByWorkout, session.finishedAt, unit, weightIncrementKg],
+    [exercises, previousByWorkout, session.finishedAt, unit, weightIncrementKg, lighterWeeks],
   );
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {

@@ -35,6 +35,9 @@ describe("ui preferences schema", () => {
       weekStart: "monday",
       sessionsPerWeek: null,
       muscleGoals: {},
+      deloadUntil: null,
+      lighterWeeks: [],
+      deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);

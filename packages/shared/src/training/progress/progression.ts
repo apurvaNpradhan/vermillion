@@ -1,95 +1,241 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
-import { KG_PER_LB, formatWeight, parseWeight } from "../vocabulary/format";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
-import type { WeightUnit } from "../vocabulary/vocabulary";
+import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
+import {
+  LIGHTER_WEEK_LOAD,
+  activeLighterWeek,
+  outsideLighterWeeks,
+  type LighterPeriod,
+} from "./lighter-week";
+import { incrementFor, lightenLoad, loadable } from "./progression-steps";
+
+export { incrementFor } from "./progression-steps";
 
 export type IncrementSettings = { weightUnit: WeightUnit; weightIncrementKg: number | null };
 export type SuggestedSet = { weightKg: number | null; reps: number | null };
+
+/** Why a suggestion is what it is: a small closed set, each with its own short label. */
+export const PROGRESSION_REASONS = [
+  "add_weight",
+  "add_rep",
+  "hold",
+  "hold_effort",
+  "after_break",
+  "same_as_last",
+  "deload",
+] as const;
+export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
+
 export type Progression = {
-  reason: "add_weight" | "add_rep" | "hold" | "same_as_last";
+  reason: ProgressionReason;
   sets: (SuggestedSet | null)[];
+  /** The load the first progressing set adds, in kilograms (what "Add 2.5 kg" shows). */
   incrementKg: number;
+  /** Whole days since the last Session with this exercise, for `after_break`; else null. */
+  breakDays: number | null;
 };
 
-/** Increments are chosen in the display unit and stored in kilograms. */
-export function progressionIncrement(equipment: Equipment, settings: IncrementSettings): number {
-  return (
-    settings.weightIncrementKg ??
-    (settings.weightUnit === "lb" ? 5 * KG_PER_LB : equipment === "barbell" ? 2.5 : 2)
-  );
-}
+/** What a suggestion needs besides the history: the clock and the Lighter weeks. */
+export type ProgressionContext = {
+  now: Date;
+  /** Every Lighter week, past and running. Their Sessions are never a baseline. */
+  lighterWeeks?: readonly LighterPeriod[];
+  /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
+  deload?: boolean;
+};
+
+/** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
+export type ProgressionSession = { started_at: string; sets: readonly LoggedSet[] };
+
+const DAY_MS = 86_400_000;
+/** Back after this many days: start at 90% of the last load, and after the longer one at 80%. */
+const SHORT_BREAK_DAYS = 14;
+const LONG_BREAK_DAYS = 28;
+const SHORT_BREAK_LOAD = 0.9;
+const LONG_BREAK_LOAD = 0.8;
+/** At this effort or harder a set was a grind; at the easier one it was easy. */
+const GRIND_RPE = 9.5;
+const EASY_RPE = 7;
+
+/** Kinds that progress against their own previous counterparts; the rest only show Previous. */
+const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
+const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
+
+const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
 
 /**
- * Two weights are the same load when they show the same in the user's unit: a ticked Ghost of
- * 140 lb and a typed 140 lb differ by a fraction of a gram in kilograms.
+ * The set of `sets` a planned set progresses from: the same kind at the same position, or the
+ * last one of that kind when this Session had fewer; with none of that kind (a back-off set where
+ * there was none), the nearest working set.
  */
-const sameLoad = (a: number | null | undefined, b: number | null | undefined, unit: WeightUnit) =>
-  a == null || b == null ? a == b : formatWeight(a, unit) === formatWeight(b, unit);
+function counterpart(
+  sets: readonly LoggedSet[],
+  kind: SetKind,
+  ordinal: number,
+): LoggedSet | undefined {
+  const same = sets.filter((set) => set.kind === kind);
+  const pool = same.length > 0 ? same : sets.filter((set) => set.kind === "working");
+  return pool[Math.min(ordinal, pool.length - 1)];
+}
 
-/** A weight as typing it would store it, so a suggestion ticked as a Ghost matches a typed one. */
-const loadable = (kg: number, unit: WeightUnit) => parseWeight(formatWeight(kg, unit), unit) ?? kg;
+type Slot = { index: number; target: PlannedSet; ordinal: number };
 
-/** Double progression, matching working sets by ordinal. History is newest first. */
+/** The planned sets that progress, with their position among sets of their own kind. */
+function slotsOf(planned: readonly PlannedSet[]): Slot[] {
+  const seen = new Map<SetKind, number>();
+  return planned.flatMap((target, index): Slot[] => {
+    const ordinal = seen.get(target.kind) ?? 0;
+    seen.set(target.kind, ordinal + 1);
+    return progresses(target.kind) ? [{ index, target, ordinal }] : [];
+  });
+}
+
+/** Whether the Session missed a planned range minimum at a grind (or with no effort logged). */
+function missedRange(slots: readonly Slot[], sets: readonly LoggedSet[]): boolean {
+  return slots.some(({ target, ordinal }) => {
+    const set = counterpart(sets, target.kind, ordinal);
+    return (
+      target.reps_min !== undefined &&
+      set?.reps != null &&
+      set.reps < target.reps_min &&
+      (set.rpe == null || set.rpe >= GRIND_RPE)
+    );
+  });
+}
+
+type Outcome = "add_weight" | "add_rep" | "hold" | "hold_effort" | "same";
+const OUTCOME_ORDER = ["add_weight", "add_rep", "hold_effort", "hold", "same"] as const;
+const REASON_OF = {
+  add_weight: "add_weight",
+  add_rep: "add_rep",
+  hold_effort: "hold_effort",
+  hold: "hold",
+  same: "same_as_last",
+} as const satisfies Record<Outcome, ProgressionReason>;
+
+/**
+ * Progression for the planned sets, set by set (ADR 0038). `history` is newest first. Each
+ * progressing set (working, top, back-off) is matched to the same set last time: at the top of
+ * its rep range it adds load and returns to the bottom of the range, otherwise it adds a rep.
+ * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
+ * minimum on two Sessions running holds, a break lowers the load and a Lighter week or the
+ * stalled-lift deload suggests 90%. Warm-ups and Lighter-week Sessions are never a baseline.
+ */
 export function suggestNext(
   planned: readonly PlannedSet[],
-  sessions: readonly (readonly LoggedSet[])[],
+  history: readonly ProgressionSession[],
   type: ExerciseType,
   equipment: Equipment,
   settings: IncrementSettings,
+  context: ProgressionContext,
 ): Progression | null {
   const loaded = type === "weight_reps" || type === "bodyweight_weighted_reps";
   if (!loaded && type !== "reps_only" && type !== "bodyweight_reps") return null;
-  const working = (sets: readonly LoggedSet[]) =>
-    sets.filter((set) => set.kind === "working" && set.completed_at !== null);
-  const last = working(sessions[0] ?? []);
-  if (!last.length) return null;
-  const targets = planned.filter((set) => set.kind === "working");
-  if (!targets.length) return null;
-  const older = working(sessions[1] ?? []);
-  const misses = (sets: readonly LoggedSet[]) =>
-    targets.some(
-      (target, i) =>
-        target.reps_min !== undefined &&
-        sets[i]?.reps != null &&
-        (sets[i]?.reps ?? 0) < target.reps_min,
-    );
-  const hold = misses(last) && misses(older);
-  const ranged = targets.some((set) => set.reps_min !== undefined);
-  // Missing sets never qualify as having completed the entire prescription.
-  const topped =
-    targets.length === last.length &&
-    targets.every(
-      (target, i) =>
-        target.reps_min !== undefined &&
-        (last[i]?.reps ?? 0) >= (target.reps_max ?? target.reps_min),
-    ) &&
-    last.every((set) => sameLoad(set.weight_kg, last[0]?.weight_kg, settings.weightUnit)) &&
-    (!loaded || last[0]?.weight_kg != null);
-  const incrementKg = progressionIncrement(equipment, settings);
-  const reason = hold
-    ? "hold"
-    : !ranged
-      ? "same_as_last"
-      : topped && loaded
-        ? "add_weight"
-        : "add_rep";
-  let ordinal = 0;
-  const sets = planned.map((target): SuggestedSet | null => {
-    if (target.kind !== "working") return null;
-    const before = last[ordinal++];
-    if (!before) return null;
-    const same = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
-    if (hold || target.reps_min === undefined || before.reps == null) return same;
-    const max = target.reps_max ?? target.reps_min;
-    if (reason === "add_weight")
-      return {
-        weightKg: loadable((before.weight_kg ?? 0) + incrementKg, settings.weightUnit),
-        reps: target.reps_min,
-      };
-    // With no weight to add, a topped prescription grows by a rep past the range.
-    if (topped) return { ...same, reps: before.reps + 1 };
-    return { ...same, reps: before.reps < max ? Math.min(max, before.reps + 1) : before.reps };
+  const slots = slotsOf(planned);
+  if (slots.length === 0) return null;
+  const unit = settings.weightUnit;
+  const baselines = outsideLighterWeeks(history, context.lighterWeeks ?? []).flatMap((session) => {
+    const sets = done(session.sets).filter((set) => progresses(set.kind));
+    return sets.length > 0 ? [{ ...session, sets }] : [];
   });
-  return { reason, sets, incrementKg };
+  const last = baselines[0];
+  if (!last) return null;
+  const lastTrained = history[0] ?? last;
+  const breakDays = Math.floor(
+    (context.now.getTime() - Date.parse(lastTrained.started_at)) / DAY_MS,
+  );
+  const breakLoad =
+    breakDays >= LONG_BREAK_DAYS
+      ? LONG_BREAK_LOAD
+      : breakDays >= SHORT_BREAK_DAYS
+        ? SHORT_BREAK_LOAD
+        : null;
+  const lighter =
+    context.deload === true || activeLighterWeek(context.lighterWeeks ?? [], context.now) !== null;
+  // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
+  const factor = Math.min(
+    lighter ? LIGHTER_WEEK_LOAD : 1,
+    loaded && breakLoad !== null ? breakLoad : 1,
+  );
+  const resetReason: ProgressionReason | null =
+    factor === 1
+      ? null
+      : loaded && breakLoad !== null && breakLoad < (lighter ? LIGHTER_WEEK_LOAD : 1)
+        ? "after_break"
+        : "deload";
+
+  const sets: (SuggestedSet | null)[] = planned.map(() => null);
+  if (resetReason !== null) {
+    for (const { index, target, ordinal } of slots) {
+      const before = counterpart(last.sets, target.kind, ordinal);
+      if (!before) continue;
+      sets[index] = {
+        weightKg:
+          before.weight_kg == null ? null : lightenLoad(before.weight_kg, factor, equipment, unit),
+        reps: target.reps_min ?? before.reps ?? null,
+      };
+    }
+    return {
+      reason: resetReason,
+      sets,
+      incrementKg: incrementFor(null, equipment, settings),
+      breakDays: resetReason === "after_break" ? breakDays : null,
+    };
+  }
+
+  const older = baselines[1];
+  const held =
+    older !== undefined && missedRange(slots, last.sets) && missedRange(slots, older.sets);
+  // Without a weight to add, a rep range grows past its top only when every set topped it.
+  const allTopped = slots.every(({ target, ordinal }) => {
+    const before = counterpart(last.sets, target.kind, ordinal);
+    return (
+      target.reps_min !== undefined &&
+      before?.reps != null &&
+      before.reps >= (target.reps_max ?? target.reps_min)
+    );
+  });
+  const outcomes: Outcome[] = [];
+  let incrementKg: number | null = null;
+  for (const { index, target, ordinal } of slots) {
+    const before = counterpart(last.sets, target.kind, ordinal);
+    if (!before) continue;
+    const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
+    let outcome: Outcome = "same";
+    let next = same;
+    if (held) outcome = "hold";
+    else if (target.reps_min !== undefined && before.reps != null) {
+      const max = target.reps_max ?? target.reps_min;
+      const canLoad = loaded && before.weight_kg != null;
+      if (before.reps >= max) {
+        if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
+        else if (canLoad) {
+          const easy = before.rpe != null && before.rpe <= EASY_RPE;
+          const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
+          incrementKg ??= added;
+          outcome = "add_weight";
+          next = {
+            weightKg: loadable((before.weight_kg ?? 0) + added, unit),
+            reps: target.reps_min,
+          };
+        } else {
+          outcome = "add_rep";
+          next = { ...same, reps: allTopped ? before.reps + 1 : before.reps };
+        }
+      } else {
+        outcome = "add_rep";
+        next = { ...same, reps: Math.min(max, before.reps + 1) };
+      }
+    }
+    outcomes.push(outcome);
+    sets[index] = next;
+  }
+  const top = OUTCOME_ORDER.find((outcome) => outcomes.includes(outcome)) ?? "same";
+  return {
+    reason: REASON_OF[top],
+    sets,
+    incrementKg: incrementKg ?? incrementFor(last.sets[0]?.weight_kg ?? null, equipment, settings),
+    breakDays: null,
+  };
 }
