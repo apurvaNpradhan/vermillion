@@ -125,3 +125,7 @@ Amended after device feedback: Workout lists now use the same compact grouped ro
 with title initials replacing muscle tiles. Both share row typography, spacing and action
 placement. Program rotation rows also use Workout initials. Aggregate muscle coverage remains
 available in the expanded Workout details, rather than as the list's visual identity.
+
+## Amendment: Session goal
+
+A Program has an optional `sessions_per_week` (additive column, same upload path as `planned_weeks`). Home resolves the weekly goal with `sessionGoal`: the Program's own value, else its workout Slots for a Rotation of seven Slots or fewer, else the user's preference. Weeks follow the `weekStart` preference everywhere ([0010](0010-user-preferences-table.md)).

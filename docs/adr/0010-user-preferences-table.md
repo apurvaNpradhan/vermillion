@@ -14,3 +14,4 @@ Morrow stores locale and time zone on the `user` table. In this template that co
 
 - Code ported from morrow must be rewired from `user.locale` to this table.
 - A preferences read before the first write costs no row.
+- Amended: `ui` also holds `weekStart` (Monday, Sunday or Saturday; default Monday) and `sessionsPerWeek` (optional weekly Session goal). They need no migration: the zod schema supplies the defaults.
