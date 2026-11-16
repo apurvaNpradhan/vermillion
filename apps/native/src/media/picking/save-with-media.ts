@@ -1,4 +1,4 @@
-import type { MediaQueue } from "./attachment-queue";
+import type { MediaQueue } from "@/media/queue/attachment-queue";
 
 /**
  * Saves a new media together with what points at it (a Program's cover, later an avatar or a

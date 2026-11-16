@@ -1,7 +1,7 @@
 import type { AttachmentData } from "@powersync/common";
 import { Directory, File, Paths } from "expo-file-system";
 
-import { excludeFromBackup } from "../../modules/vermillion-backup";
+import { excludeFromBackup } from "../../../modules/vermillion-backup";
 import type { MediaLocalStorage } from "./attachment-queue";
 import { FULL_FOLDER, isInsideRoot, MEDIA_DIRECTORY, relativePath, THUMB_FOLDER } from "./files";
 
