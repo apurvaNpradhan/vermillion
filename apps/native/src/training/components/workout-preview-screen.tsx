@@ -1,11 +1,12 @@
 import { haptic } from "@/platform/haptics";
 import { isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { Note, Timer } from "phosphor-react-native";
+import { Note, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
+import { useThemeColor } from "heroui-native";
 import { ExerciseHeading } from "@/exercise";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
@@ -27,6 +28,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const subtle = useSubtleColor();
+  const foreground = useThemeColor("foreground");
   const columnHeader = useColumnHeaders();
   const { preferences } = usePreferences();
   const state = useWorkout(id);
@@ -80,6 +82,20 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       <ScrollPage
         back
         title={ready ? (ready.title ?? t("training__workout")) : t("training__workout")}
+        actions={
+          ready ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("share__share")}
+              className="h-11 w-11 items-center justify-center"
+              onPress={() =>
+                router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
+              }
+            >
+              <ShareNetwork size={22} color={foreground} />
+            </Pressable>
+          ) : undefined
+        }
       >
         {state.status === "error" ? (
           <Button onPress={state.retry}>{t("training__retry")}</Button>

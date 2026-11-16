@@ -87,6 +87,11 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     [actions],
   );
   const startWorkout = useCallback((id: string) => void start(id), [start]);
+  const share = useCallback(
+    (id: string) =>
+      router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } }),
+    [router],
+  );
   const renderWorkout = useCallback(
     ({ item }: { item: WorkoutSummary }) => {
       const at = lastDone.get(item.id);
@@ -102,12 +107,13 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
           }
           onOpen={open}
           onStart={startWorkout}
+          onShare={share}
           onDuplicate={duplicate}
           onDelete={remove}
         />
       );
     },
-    [open, startWorkout, duplicate, remove, lastDone, t, i18n.language, timezone],
+    [open, startWorkout, share, duplicate, remove, lastDone, t, i18n.language, timezone],
   );
 
   return (

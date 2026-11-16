@@ -917,6 +917,8 @@
   "share__save": "Save to Photos",
   "share__share": "Share…",
   "share__saved": "Saved to Photos",
+  "share__every_card_saved": "Saved all cards to Photos",
+  "share__every_card": "Save all {{total}} cards",
   "share__save_failed": "The card could not be saved.",
   "share__share_failed": "The card could not be shared.",
   "share__denied": "Photos access is off, so the card could not be saved. Allow adding photos in Settings.",

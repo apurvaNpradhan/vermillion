@@ -87,8 +87,12 @@ export function ShareComposer<Id extends string>({
   if (!current) return null;
   const scale = Math.min((box.width - SIDE * 2) / CARD_WIDTH, (box.height - SIDE) / CARD_HEIGHT);
   const showSwatches = !current.supportsTransparent && current.fixedBackground === undefined;
-  const capture = (run: typeof actions.save) =>
-    run(nodes.current.get(current.id) ?? null, current.supportsTransparent);
+  const cardTarget = (page: ShareTemplate<Id>) => ({
+    view: nodes.current.get(page.id) ?? null,
+    transparent: page.supportsTransparent,
+  });
+  // Every card of a Program in one go. A Sticker is a variant of a card, not one more card.
+  const whole = pages.filter((page) => !page.supportsTransparent);
 
   const onSettle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = pages[Math.round(event.nativeEvent.contentOffset.x / Math.max(box.width, 1))];
@@ -130,6 +134,10 @@ export function ShareComposer<Id extends string>({
               keyExtractor={(page) => page.id}
               getItemLayout={(_, at) => ({ length: box.width, offset: box.width * at, index: at })}
               initialScrollIndex={index}
+              // Every page stays mounted, so Save all can capture cards that are off screen.
+              initialNumToRender={pages.length}
+              maxToRenderPerBatch={pages.length}
+              windowSize={pages.length * 2 + 1}
               onMomentumScrollEnd={onSettle}
               renderItem={({ item }) => {
                 const own = item.supportsTransparent
@@ -262,13 +270,31 @@ export function ShareComposer<Id extends string>({
             </View>
           ) : null}
 
+          {whole.length > 1 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: actions.busy !== null,
+                busy: actions.busy === "save-all",
+              }}
+              disabled={actions.busy !== null}
+              onPress={() => void actions.saveAll(whole.map(cardTarget))}
+              className="min-h-11 flex-row items-center justify-center gap-2 active:opacity-60"
+            >
+              {actions.busy === "save-all" ? <Spinner size="sm" /> : null}
+              <Text className="text-label font-medium text-muted">
+                {t("share__every_card", { total: whole.length })}
+              </Text>
+            </Pressable>
+          ) : null}
+
           <View className="flex-row gap-3">
             <View className="flex-1">
               <Button
                 variant="secondary"
                 isDisabled={actions.busy !== null}
                 accessibilityState={{ busy: actions.busy === "save" }}
-                onPress={() => void capture(actions.save)}
+                onPress={() => void actions.save(cardTarget(current))}
               >
                 {actions.busy === "save" ? <Spinner size="sm" /> : null}
                 <Button.Label>{t("share__save")}</Button.Label>
@@ -278,7 +304,7 @@ export function ShareComposer<Id extends string>({
               <Button
                 isDisabled={actions.busy !== null}
                 accessibilityState={{ busy: actions.busy === "share" }}
-                onPress={() => void capture(actions.share)}
+                onPress={() => void actions.share(cardTarget(current))}
               >
                 {actions.busy === "share" ? <Spinner size="sm" /> : null}
                 <Button.Label>{t("share__share")}</Button.Label>

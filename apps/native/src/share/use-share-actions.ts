@@ -11,12 +11,24 @@ import { captureCard } from "./capture-card";
 import { saveToPhotos, shareCard } from "./deliver-card";
 import type { ImageGate } from "./image-gate";
 
-export type ShareAction = "save" | "share";
+export type ShareAction = "save" | "save-all" | "share";
+
+/** One card to capture: its frame and whether it keeps its transparency. */
+export type CardTarget = { view: View | null; transparent: boolean };
 
 /**
- * Save to Photos and Share…: capture the shown card, hand the file over, report what happened.
- * Only one runs at a time. Saved files are deleted at once. Shared files remain in the owned
- * cache for an hour, because a recipient can read them after the sheet or composer closes.
+ * A failed capture or delivery, written to the device log. The toast only says that it failed;
+ * this line is the one place the cause is kept, in release builds too.
+ */
+function report(action: ShareAction, message: string) {
+  console.warn(`[share] ${action} failed: ${message}`);
+}
+
+/**
+ * Save to Photos, Save all and Share…: capture the shown card (or every card), hand the files
+ * over, report what happened. Only one runs at a time. Saved files are deleted at once. Shared
+ * files remain in the owned cache for an hour, because a recipient can read them after the sheet
+ * or composer closes.
  */
 export function useShareActions(gate: ImageGate) {
   const { t } = useTranslation();
@@ -25,37 +37,52 @@ export function useShareActions(gate: ImageGate) {
   const [denied, setDenied] = useState(false);
   useEffect(() => pruneShareCache(), []);
 
-  const run = async (action: ShareAction, view: View | null, transparent: boolean) => {
-    if (busy) return;
+  /** Captures and saves one card; the capture never outlives the save. */
+  const saveOne = async ({ view, transparent }: CardTarget) => {
+    const card = await captureCard(view, { transparent, gate });
+    try {
+      return await saveToPhotos(card);
+    } finally {
+      removeCachedFile(card.uri);
+    }
+  };
+
+  const run = async (action: ShareAction, targets: readonly CardTarget[]) => {
+    if (busy || targets.length === 0) return;
     setBusy(action);
     setDenied(false);
     try {
-      const card = await captureCard(view, { transparent, gate });
-
-      if (action === "save") {
-        let result;
-        try {
-          result = await saveToPhotos(card);
-        } finally {
-          removeCachedFile(card.uri);
-        }
-        if (result === "denied") setDenied(true);
-        else {
-          haptic.success();
-          toast.show({ label: t("share__saved") });
-        }
-      } else {
-        await shareCard(card);
+      if (action === "share") {
+        const [target] = targets;
+        if (target) await shareCard(await captureCard(target.view, { ...target, gate }));
+        return;
       }
-    } catch {
+      for (const target of targets) {
+        if ((await saveOne(target)) === "denied") {
+          setDenied(true);
+          return;
+        }
+      }
+      haptic.success();
+      toast.show({
+        label: action === "save" ? t("share__saved") : t("share__every_card_saved"),
+      });
+    } catch (error) {
+      report(action, error instanceof Error ? error.message : String(error));
       toast.show({
         variant: "danger",
-        label: t(action === "save" ? "share__save_failed" : "share__share_failed"),
+        label: t(action === "share" ? "share__share_failed" : "share__save_failed"),
       });
     } finally {
       setBusy(null);
     }
   };
 
-  return { busy, denied, save: run.bind(null, "save"), share: run.bind(null, "share") };
+  return {
+    busy,
+    denied,
+    save: (target: CardTarget) => run("save", [target]),
+    saveAll: (targets: readonly CardTarget[]) => run("save-all", targets),
+    share: (target: CardTarget) => run("share", [target]),
+  };
 }

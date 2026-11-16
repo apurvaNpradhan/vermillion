@@ -1,5 +1,5 @@
 import type { WorkoutSummary } from "@workspace/sync";
-import { Copy, Trash } from "phosphor-react-native";
+import { Copy, ShareNetwork, Trash } from "phosphor-react-native";
 import { memo, useMemo } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -18,6 +18,7 @@ export const WorkoutRow = memo(function WorkoutRow({
   lastDone,
   onOpen,
   onStart,
+  onShare,
   onDuplicate,
   onDelete,
 }: {
@@ -26,6 +27,7 @@ export const WorkoutRow = memo(function WorkoutRow({
   lastDone: string | null;
   onOpen: (id: string) => void;
   onStart: (id: string) => void;
+  onShare: (id: string) => void;
   onDuplicate: (workout: WorkoutSummary, title: string) => void;
   onDelete: (id: string, title: string) => void;
 }) {
@@ -42,6 +44,12 @@ export const WorkoutRow = memo(function WorkoutRow({
   const swipe = useMemo<SwipeAction[]>(
     () => [
       {
+        key: "share",
+        label: t("share__share"),
+        icon: ShareNetwork,
+        onPress: () => onShare(workout.id),
+      },
+      {
         key: "duplicate",
         label: t("training__duplicate"),
         icon: Copy,
@@ -55,7 +63,7 @@ export const WorkoutRow = memo(function WorkoutRow({
         onPress: () => onDelete(workout.id, title),
       },
     ],
-    [t, onDuplicate, onDelete, workout, title],
+    [t, onShare, onDuplicate, onDelete, workout, title],
   );
 
   return (
