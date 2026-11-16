@@ -27,7 +27,7 @@ ADR 0037 fixed the storage constraints. This ADR fixes the behavior and the rema
 
 ### Ticking, Previous and Ghost values
 
-- **Previous** is the actual set from the most recent completed Session with the same exercise. It may come from any Workout, and is matched by set kind and position: warm-up 1 to warm-up 1, working set 2 to working set 2. Tapping Previous copies that set into the row.
+- **Previous** is the actual set from the most recent completed Session with the same exercise. A Session started from a Workout prefers that Workout's own Sessions, so a lift done fresh on one day is not compared with the same lift done tired on another; when none of them contains the exercise, or the Session has no Workout, it comes from any Workout. Records, charts and the exercise history stay global. It is matched by set kind and position: warm-up 1 to warm-up 1, working set 2 to working set 2. Tapping Previous copies that set into the row.
 - A **Ghost value** fills each empty cell.
   - Weight, duration and distance ghosts are the Previous value, else the planned target.
   - The reps ghost is the Previous reps when they fall inside the planned range, else the range's lower bound.

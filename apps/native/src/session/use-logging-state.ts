@@ -1,6 +1,7 @@
 import { exerciseSuggestion } from "./logging-ghosts";
 import {
   SET_FIELDS,
+  historyForWorkout,
   supersetPlaces,
   type EffortScale,
   type Ghosts,
@@ -148,14 +149,22 @@ export function useLoggingState({
   );
 
   // ---- Previous and Ghost values ----
+  // A Session started from a Workout compares with that Workout's own Sessions first. Records
+  // keep reading the global `previous`.
+  const workoutId = session.workoutId;
+  const previousByWorkout = useMemo(
+    () =>
+      new Map([...previous].map(([id, sessions]) => [id, historyForWorkout(sessions, workoutId)])),
+    [previous, workoutId],
+  );
   const previousOf = useCallback(
     (setId: string) => {
       const at = found.get(setId);
       return at
-        ? previousOfRow(previous.get(at.exercise.exerciseId), at.exercise.sets, at.index)
+        ? previousOfRow(previousByWorkout.get(at.exercise.exerciseId), at.exercise.sets, at.index)
         : null;
     },
-    [found, previous],
+    [found, previousByWorkout],
   );
   const suggestions = useMemo(
     () =>
@@ -164,13 +173,13 @@ export function useLoggingState({
           exercise.id,
           session.finishedAt !== null || !exercise.sourceWorkoutExerciseId
             ? null
-            : exerciseSuggestion(exercise, previous.get(exercise.exerciseId) ?? [], {
+            : exerciseSuggestion(exercise, previousByWorkout.get(exercise.exerciseId) ?? [], {
                 weightUnit: unit,
                 weightIncrementKg,
               }),
         ]),
       ),
-    [exercises, previous, session.finishedAt, unit, weightIncrementKg],
+    [exercises, previousByWorkout, session.finishedAt, unit, weightIncrementKg],
   );
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {

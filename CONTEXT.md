@@ -47,7 +47,7 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Active session** — a Session not yet finished. One is expected per account; duplicates from offline starts are shown to the user, never auto-deleted. Owned by one device at a time ([0038](docs/adr/0038-sessions.md)).
 - **Logged set** — one performed set in a Session: its kind, actual values, optional effort, completion time and a snapshot of its Planned set. Written as its own row.
 - **Tick** — completing a Logged set. Ticking fills empty cells from Ghost values; a set with a required field and no value or Ghost cannot be ticked, so an invalid completed set never exists. Unticked sets are dropped at Finish.
-- **Previous** — the matching set (same kind and position) from the latest finished Session containing the exercise, from any Workout.
+- **Previous** — the matching set (same kind and position) from the latest finished Session of the same Workout containing the exercise; with no such Session, or in a Session without a Workout, from the latest finished Session containing it from any Workout.
 - **Ghost value** — the muted suggestion in an empty set cell: Previous, else the planned target (reps: Previous only when inside the planned range).
 - **Take over** — moving an Active session to this device; the other device becomes read-only for it.
 - **Record** — an exercise best (heaviest weight, estimated 1RM, best set volume, best session volume, rep records 1–12, longest duration/distance, best pace). Computed from Logged sets when read, warm-ups excluded.
