@@ -49,6 +49,28 @@ describe("exerciseRecords", () => {
     expect(exerciseRecords([session], 80).get("pullup")?.get("set_volume")).toBe(640);
   });
 
+  it("ranks weighted bodyweight sets by added load, with volume on the effective weight", () => {
+    const sets = [
+      setOf("bodyweight_weighted_reps", "working", {
+        exercise_id: "pullup",
+        weight_kg: 20,
+        reps: 5,
+      }),
+      setOf("bodyweight_weighted_reps", "working", {
+        exercise_id: "pullup",
+        weight_kg: 0,
+        reps: 12,
+      }),
+    ];
+    const records = exerciseRecords([sessionOf("a", "2026-01-01T10:00:00Z", sets)], 80).get(
+      "pullup",
+    );
+    expect(records?.get("heaviest_weight")).toBe(20);
+    expect(records?.get("reps_5")).toBe(20);
+    expect(records?.has("reps_12")).toBe(false);
+    expect(records?.get("set_volume")).toBe(960);
+  });
+
   it("records the longest duration and distance and the best pace of timed types", () => {
     const records = exerciseRecords([
       sessionOf("a", "2026-01-01T10:00:00Z", [

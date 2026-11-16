@@ -40,6 +40,21 @@ describe("double progression", () => {
     expect(suggest([logged(12), logged(12, 70)])?.reason).toBe("add_rep");
     expect(suggest([logged(12)])?.reason).toBe("add_rep");
   });
+  it("raises the added load of a weighted bodyweight exercise like a weight", () => {
+    const pull = (reps: number): LoggedSet => ({
+      ...logged(reps, 20),
+      exercise_type: "bodyweight_weighted_reps",
+    });
+    const next = suggestNext(
+      plan,
+      [[pull(12), pull(12)]],
+      "bodyweight_weighted_reps",
+      "other",
+      settings,
+    );
+    expect(next?.reason).toBe("add_weight");
+    expect(next?.sets[0]?.weightKg).toBeGreaterThan(20);
+  });
   it("adds reps only below the cap and never reduces a logged weight", () => {
     expect(suggest([logged(10), logged(12, 70)])?.sets).toEqual([
       { weightKg: 80, reps: 11 },

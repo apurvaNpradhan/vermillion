@@ -20,6 +20,12 @@ describe("setVolume", () => {
     expect(setVolume(pushUp, null)).toBe(0);
   });
 
+  it("uses bodyweight plus the added load for weighted bodyweight types", () => {
+    const weighted = setOf("bodyweight_weighted_reps", "working", { weight_kg: 20, reps: 5 });
+    expect(setVolume(weighted, 80)).toBe(500);
+    expect(setVolume(weighted)).toBe(100);
+  });
+
   it("uses bodyweight minus assistance for assisted types, with and without a bodyweight", () => {
     const assisted = setOf("bodyweight_assisted_reps", "working", { weight_kg: 20, reps: 6 });
     expect(setVolume(assisted, 80)).toBe(360);

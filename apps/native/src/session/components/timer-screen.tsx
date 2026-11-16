@@ -406,7 +406,7 @@ function LoadedTimer({
     : undefined;
 
   // The values of the set, the cell being edited marked so the keypad has an obvious target.
-  const parts = current ? valueParts(current.values, unit, unitName) : [];
+  const parts = current ? valueParts(current.values, unit, unitName, current.type) : [];
   const editing =
     logging.entry && logging.entry.cell.setId === current?.setId ? logging.entry.cell.field : null;
   const valueRow = (

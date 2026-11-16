@@ -1,6 +1,7 @@
 import { Skeleton } from "@/platform/ui/skeleton";
 import {
   SET_FIELDS,
+  addsLoad,
   SET_KIND_KEYS,
   type EffortScale,
   type ExerciseType,
@@ -132,7 +133,9 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const header = (field: SetField): string => {
     switch (field) {
       case "weight":
-        return t("training__field_weight", { unit: unitName });
+        return t(addsLoad(type) ? "training__field_added_weight" : "training__field_weight", {
+          unit: unitName,
+        });
       case "reps":
         return t("training__field_reps");
       case "duration":

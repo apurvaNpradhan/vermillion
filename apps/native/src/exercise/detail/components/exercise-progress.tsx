@@ -4,6 +4,8 @@ import {
   bestProgressSet,
   oneRepMaxSeries,
   exerciseWeeklyVolume,
+  addsLoad,
+  formatLoad,
   formatWeight,
   type Equipment,
   type ExerciseType,
@@ -57,7 +59,7 @@ export function ExerciseProgress({
         <View className="flex-row flex-wrap items-baseline justify-between gap-2">
           <Text className="text-title-lg font-semibold text-foreground">
             {t("progress__best", {
-              weight: formatWeight(best.set.weight_kg ?? 0, unit),
+              weight: formatLoad(best.set.weight_kg ?? 0, unit, type),
               unit,
               reps: best.set.reps,
             })}
@@ -154,11 +156,11 @@ export function NextTimeLine({
   const unit = settings.weightUnit;
   if (!target || !next || !suggestion) return null;
   const aim =
-    type === "weight_reps"
+    type === "weight_reps" || addsLoad(type)
       ? next.weightKg === null
         ? null
         : t("progress__target", {
-            weight: formatWeight(next.weightKg, unit),
+            weight: formatLoad(next.weightKg, unit, type),
             unit,
             min: target.reps_min,
             max: target.reps_max ?? target.reps_min,

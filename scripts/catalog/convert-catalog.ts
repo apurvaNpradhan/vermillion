@@ -16,6 +16,20 @@ const OUTPUT = fileURLToPath(
   new URL("../../packages/api/src/exercise/data/exercises.json", import.meta.url),
 );
 
+// The source types these as plain bodyweight reps, which cannot record the added load. Keyed by
+// title; a title that no longer matches fails the conversion rather than silently reverting.
+const WEIGHTED_BODYWEIGHT_TITLES = new Set([
+  "Pull Up (Weighted)",
+  "Chin Up (Weighted)",
+  "Triceps Dip (Weighted)",
+  "Chest Dip (Weighted)",
+  "Push Up (Weighted)",
+  "Sit Up (Weighted)",
+  "Crunch (Weighted)",
+  "Decline Crunch (Weighted)",
+  "Back Extension (Weighted Hyperextension)",
+]);
+
 function fail(index, message) {
   throw new Error(`source catalog entry ${index}: ${message}`);
 }
@@ -87,7 +101,9 @@ export function convertEntry(entry, index) {
     primary_muscle: primary,
     secondary_muscles: secondary,
     equipment: slug(entry, index, "equipment_category", EQUIPMENT),
-    exercise_type: slug(entry, index, "exercise_type", EXERCISE_TYPES),
+    exercise_type: WEIGHTED_BODYWEIGHT_TITLES.has(text(entry, index, "title").trim())
+      ? "bodyweight_weighted_reps"
+      : slug(entry, index, "exercise_type", EXERCISE_TYPES),
     is_full_bodyweight: flag(entry, index, "hundred_percent_bodyweight_exercise"),
     rank: entry.priority,
     search_terms: tags === null ? null : tags.trim().toLowerCase(),

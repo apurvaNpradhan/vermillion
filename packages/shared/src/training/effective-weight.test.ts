@@ -15,6 +15,14 @@ describe("effectiveWeight", () => {
     expect(effectiveWeight("bodyweight_reps", null)).toBeNull();
   });
 
+  it("is the bodyweight plus the added load for weighted bodyweight types", () => {
+    expect(effectiveWeight("bodyweight_weighted_reps", 20, 80)).toBe(100);
+    expect(effectiveWeight("bodyweight_weighted_reps", null, 80)).toBe(80);
+    // The added load alone while the bodyweight is unknown.
+    expect(effectiveWeight("bodyweight_weighted_reps", 20, null)).toBe(20);
+    expect(effectiveWeight("bodyweight_weighted_reps", null, null)).toBe(0);
+  });
+
   it("is the bodyweight minus the assistance for assisted types, floored at 0", () => {
     expect(effectiveWeight("bodyweight_assisted_reps", 20, 80)).toBe(60);
     expect(effectiveWeight("bodyweight_assisted_reps", null, 80)).toBe(80);

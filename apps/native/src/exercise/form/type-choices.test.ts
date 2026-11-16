@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { MORE_TYPES, PLAIN_TYPE_CHOICES, typeChoice } from "./type-choices";
 
 describe("type choices", () => {
-  it("offers four plain choices and five more types that together cover all nine", () => {
+  it("offers four plain choices and six more types that together cover all ten", () => {
     expect(PLAIN_TYPE_CHOICES.map((choice) => choice.type)).toEqual([
       "weight_reps",
       "reps_only",
@@ -14,6 +14,7 @@ describe("type choices", () => {
     expect(MORE_TYPES).toEqual([
       "bodyweight_reps",
       "bodyweight_assisted_reps",
+      "bodyweight_weighted_reps",
       "short_distance_weight",
       "floors_duration",
       "steps_duration",

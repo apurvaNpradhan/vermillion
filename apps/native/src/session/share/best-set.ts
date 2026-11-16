@@ -1,5 +1,5 @@
 import type { ExerciseType, WeightUnit } from "@workspace/shared";
-import { formatWeight } from "@workspace/shared";
+import { addsLoad, formatWeight } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
 
 import { formatElapsed } from "../clock";
@@ -16,8 +16,8 @@ export type BestSet = {
 
 /** What a row says after its set count. */
 export type RowDetail =
-  /** "best 100 kg × 5" */
-  | { kind: "best"; set: BestSet }
+  /** "best 100 kg × 5"; `addedLoad` writes the weight with a plus ("+20 kg × 8"). */
+  | { kind: "best"; set: BestSet; addedLoad: boolean }
   /** "5–8 reps": the rep range, when weights are hidden. */
   | { kind: "reps"; min: number; max: number };
 
@@ -61,11 +61,13 @@ function heaviest<Set extends CountedSet>(
 /**
  * The best of an exercise's Counted sets (ticked, no warm-ups): the heaviest for weight and reps
  * (ties by reps), the most reps for bodyweight, assisted and rep-only exercises, otherwise the
- * longest. Bodyweight and assistance never appear: those types show reps only.
+ * longest. Bodyweight and assistance never appear: those types show reps only. A weighted
+ * bodyweight set is ranked by its added load, like weight and reps.
  */
 export function bestSet(type: ExerciseType, counted: readonly CountedSet[]): BestSet | null {
   switch (type) {
-    case "weight_reps": {
+    case "weight_reps":
+    case "bodyweight_weighted_reps": {
       const best = heaviest(counted, [(s) => value(s.weightKg), (s) => value(s.reps)]);
       if (!best) return null;
       return {
@@ -119,13 +121,14 @@ export function rowDetail(
 ): RowDetail | null {
   const best = bestSet(type, counted);
   if (!best) return null;
-  if (showWeights) return { kind: "best", set: best };
-  if (type === "weight_reps") {
+  const addedLoad = addsLoad(type);
+  if (showWeights) return { kind: "best", set: best, addedLoad };
+  if (type === "weight_reps" || addedLoad) {
     const reps = counted.flatMap((set) => (set.reps ? [set.reps] : []));
     if (reps.length === 0) return null;
     return { kind: "reps", min: Math.min(...reps), max: Math.max(...reps) };
   }
-  return { kind: "best", set: { ...best, weightKg: null } };
+  return { kind: "best", set: { ...best, weightKg: null }, addedLoad };
 }
 
 /** The words a row's numbers are written with; the caller supplies them from its locale. */
@@ -145,10 +148,10 @@ export type BestLabels = {
 export function formatDetail(detail: RowDetail, labels: BestLabels): string {
   if (detail.kind === "reps") return labels.repRange(detail.min, detail.max);
   const { set } = detail;
-  const weight =
-    set.weightKg === null ? null : `${formatWeight(set.weightKg, labels.unit)} ${labels.unitLabel}`;
+  const shown = (kg: number) => `${detail.addedLoad ? "+" : ""}${formatWeight(kg, labels.unit)}`;
+  const weight = set.weightKg === null ? null : `${shown(set.weightKg)} ${labels.unitLabel}`;
   if (set.weightKg !== null && set.reps !== null && set.reps > 0) {
-    return labels.weightReps(formatWeight(set.weightKg, labels.unit), set.reps);
+    return labels.weightReps(shown(set.weightKg), set.reps);
   }
   return [
     weight,

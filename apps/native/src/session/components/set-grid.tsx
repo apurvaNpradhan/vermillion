@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  addsLoad,
   type EffortScale,
   type Ghosts,
   type LoggedSet,
@@ -91,7 +92,12 @@ export const SetGrid = memo(function SetGrid({
   const header = (field: SetField): string => {
     switch (field) {
       case "weight":
-        return t("training__field_weight", { unit: unitName });
+        return t(
+          addsLoad(exercise.type) ? "training__field_added_weight" : "training__field_weight",
+          {
+            unit: unitName,
+          },
+        );
       case "reps":
         return t("training__field_reps");
       case "duration":

@@ -1,5 +1,5 @@
 import { inSessionOrder, isCounted, type LoggedSet, type SessionHistory } from "./logged-set";
-import { estimatedOneRepMax, setVolume } from "./volume";
+import { effectiveWeight, estimatedOneRepMax, setVolume } from "./volume";
 import { isoWeekKey } from "./week";
 
 export type ProgressRange = "3M" | "1Y" | "All";
@@ -25,7 +25,10 @@ function bestOf(sets: readonly LoggedSet[], exerciseId: string) {
   let best: { set: LoggedSet; oneRepMax: number } | null = null;
   for (const set of sets) {
     if (set.exercise_id !== exerciseId || !isCounted(set)) continue;
-    const oneRepMax = estimatedOneRepMax(set.weight_kg ?? 0, set.reps ?? 0);
+    const oneRepMax = estimatedOneRepMax(
+      effectiveWeight(set.exercise_type, set.weight_kg, set.bodyweight_kg ?? null) ?? 0,
+      set.reps ?? 0,
+    );
     if (oneRepMax !== null && (!best || oneRepMax > best.oneRepMax)) best = { set, oneRepMax };
   }
   return best;

@@ -38,7 +38,8 @@ export function suggestNext(
   equipment: Equipment,
   settings: IncrementSettings,
 ): Progression | null {
-  if (type !== "weight_reps" && type !== "reps_only" && type !== "bodyweight_reps") return null;
+  const loaded = type === "weight_reps" || type === "bodyweight_weighted_reps";
+  if (!loaded && type !== "reps_only" && type !== "bodyweight_reps") return null;
   const working = (sets: readonly LoggedSet[]) =>
     sets.filter((set) => set.kind === "working" && set.completed_at !== null);
   const last = working(sessions[0] ?? []);
@@ -64,13 +65,13 @@ export function suggestNext(
         (last[i]?.reps ?? 0) >= (target.reps_max ?? target.reps_min),
     ) &&
     last.every((set) => sameLoad(set.weight_kg, last[0]?.weight_kg, settings.weightUnit)) &&
-    (type !== "weight_reps" || last[0]?.weight_kg != null);
+    (!loaded || last[0]?.weight_kg != null);
   const incrementKg = progressionIncrement(equipment, settings);
   const reason = hold
     ? "hold"
     : !ranged
       ? "same_as_last"
-      : topped && type === "weight_reps"
+      : topped && loaded
         ? "add_weight"
         : "add_rep";
   let ordinal = 0;

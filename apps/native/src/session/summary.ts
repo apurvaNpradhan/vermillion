@@ -40,7 +40,7 @@ export function doneSummary(
   if (fields.includes("weight") && fields.includes("reps")) {
     const groups: { weight: string; reps: string[] }[] = [];
     for (const set of counted) {
-      const weight = formatCell("weight", set.weightKg ?? 0, unit);
+      const weight = formatCell("weight", set.weightKg ?? 0, unit, type);
       const reps = formatCell("reps", set.reps, unit);
       const last = groups.at(-1);
       if (last && last.weight === weight) last.reps.push(reps);

@@ -10,7 +10,7 @@ Every signed-in device holds the exercise catalog and its owner's Custom exercis
 
 ### Vocabulary (`packages/shared/src/exercise/`)
 
-- `MUSCLE_GROUPS` (20 slugs from the source: `abdominals, abductors, adductors, biceps, calves, cardio, chest, forearms, full_body, glutes, hamstrings, lats, lower_back, neck, other, quadriceps, shoulders, traps, triceps, upper_back`), `EQUIPMENT` (9: `none, barbell, dumbbell, kettlebell, machine, plate, resistance_band, suspension, other`), `EXERCISE_TYPES` (9: `weight_reps, reps_only, bodyweight_reps, bodyweight_assisted_reps, duration, distance_duration, short_distance_weight, floors_duration, steps_duration`), each `as const` with its type.
+- `MUSCLE_GROUPS` (20 slugs from the source: `abdominals, abductors, adductors, biceps, calves, cardio, chest, forearms, full_body, glutes, hamstrings, lats, lower_back, neck, other, quadriceps, shoulders, traps, triceps, upper_back`), `EQUIPMENT` (9: `none, barbell, dumbbell, kettlebell, machine, plate, resistance_band, suspension, other`), `EXERCISE_TYPES` (10: `weight_reps, reps_only, bodyweight_reps, bodyweight_assisted_reps, bodyweight_weighted_reps, duration, distance_duration, short_distance_weight, floors_duration, steps_duration`), each `as const` with its type.
 - `MUSCLE_REGION` (upper / lower / other) for the filter grouping.
 - `SET_FIELDS`: exercise type → the set fields it records (weight, reps, duration, distance, floors, steps). Unit-tested for totality.
 - `customExerciseInput` zod schema and limits (title 1–100 trimmed, instructions ≤ 2,000, secondary muscles unique and not containing the primary). Shared by the form (slice 4) and the server.

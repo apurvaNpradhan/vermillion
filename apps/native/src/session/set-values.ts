@@ -2,6 +2,7 @@ import {
   SET_FIELDS,
   actualValuesSchema,
   SET_VALUE_KEYS,
+  formatLoad,
   formatWeight,
   ghostFor,
   previousFor,
@@ -58,16 +59,20 @@ export function ghostsOf(
 const SEPARATOR = " · ";
 const meters = (value: number) => String(Number(value.toFixed(1)));
 
-/** One cell value as text, in the user's unit; empty for null. */
+/**
+ * One cell value as text, in the user's unit; empty for null. With a `type` that adds load, the
+ * weight carries a plus.
+ */
 export function formatCell(
   field: SetField,
   value: number | null | undefined,
   unit: WeightUnit,
+  type?: ExerciseType,
 ): string {
   if (value === null || value === undefined) return "";
   switch (field) {
     case "weight":
-      return formatWeight(value, unit);
+      return type === undefined ? formatWeight(value, unit) : formatLoad(value, unit, type);
     case "duration":
       return formatElapsed(value);
     case "distance":
@@ -90,7 +95,7 @@ export function previousLabel(
 ): string | null {
   const fields: readonly SetField[] = SET_FIELDS[type];
   const parts = fields.flatMap((field) => {
-    const text = formatCell(field, previous[SET_VALUE_KEYS[field]], unit);
+    const text = formatCell(field, previous[SET_VALUE_KEYS[field]], unit, type);
     return text === "" ? [] : [{ field, text }];
   });
   if (parts.length === 0) return null;

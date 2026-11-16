@@ -182,6 +182,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   columns,
                   unit,
                   scale,
+                  type,
                 );
                 return (
                   <View key={entry.id} className="gap-1 py-2">

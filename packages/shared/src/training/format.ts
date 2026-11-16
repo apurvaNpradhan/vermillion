@@ -1,4 +1,4 @@
-import type { MuscleGroup } from "../exercise/vocabulary";
+import type { ExerciseType, MuscleGroup } from "../exercise/vocabulary";
 import { MAX_WEIGHT_KG, type WeightUnit } from "./vocabulary";
 
 export const KG_PER_LB = 0.45359237;
@@ -10,6 +10,17 @@ const roundTo = (value: number, step: number) => Math.round(value / step) * step
 export function formatWeight(kg: number, unit: WeightUnit): string {
   const shown = unit === "kg" ? kg : kg / KG_PER_LB;
   return String(Number(roundTo(shown, STEP[unit]).toFixed(2)));
+}
+
+/** Whether a set's weight is a load added to the body (belt, vest, dumbbell), written "+20". */
+export function addsLoad(type: ExerciseType): boolean {
+  return type === "bodyweight_weighted_reps";
+}
+
+/** {@link formatWeight}, with a leading plus for a weight added to the body: "+20". */
+export function formatLoad(kg: number, unit: WeightUnit, type: ExerciseType): string {
+  const text = formatWeight(kg, unit);
+  return addsLoad(type) ? `+${text}` : text;
 }
 
 /**

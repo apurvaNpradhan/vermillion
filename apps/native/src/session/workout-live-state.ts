@@ -72,6 +72,7 @@ export function workoutLiveState(input: {
               current.values,
               input.unit,
               t(input.unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
+              current.type,
             ),
           })
         : set,

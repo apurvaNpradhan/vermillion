@@ -33,6 +33,13 @@ describe("plannedSetsSchema", () => {
     reps_only: { reps_min: 5, reps_max: 5, effort_min: 7, effort_max: 7 },
     bodyweight_reps: { reps_min: 10, reps_max: 15 },
     bodyweight_assisted_reps: { reps_min: 6, reps_max: 8, weight_kg: 20 },
+    bodyweight_weighted_reps: {
+      reps_min: 5,
+      reps_max: 8,
+      weight_kg: 20,
+      effort_min: 8,
+      effort_max: 9,
+    },
     duration: { duration_s: 60 },
     distance_duration: { distance_m: 5000, duration_s: 1800 },
     short_distance_weight: { weight_kg: 100, distance_m: 20 },

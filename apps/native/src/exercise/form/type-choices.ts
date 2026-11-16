@@ -2,7 +2,7 @@ import { EXERCISE_TYPES, type ExerciseType } from "@workspace/shared";
 
 /**
  * "How you log it": four plain choices that name what a set records, and "More" for the other
- * five exercise types. Written as literals so `pnpm i18n:report` sees every key as used.
+ * six exercise types. Written as literals so `pnpm i18n:report` sees every key as used.
  */
 export const PLAIN_TYPE_CHOICES = [
   { type: "weight_reps", labelKey: "exercise__choice_weight_reps" },

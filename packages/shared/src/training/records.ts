@@ -1,5 +1,6 @@
 import { SET_FIELDS } from "../exercise/vocabulary";
 import { inSessionOrder, isCounted, type LoggedSet, type SessionHistory } from "./logged-set";
+import { addsLoad } from "./format";
 import { effectiveWeight, estimatedOneRepMax, setVolume } from "./volume";
 
 /**
@@ -29,11 +30,14 @@ function setMetrics(set: LoggedSet, bodyweightKg: number | null): [RecordKey, nu
     set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
   );
   if (fields.includes("weight") && weight !== null && weight > 0) {
-    metrics.push(["heaviest_weight", weight]);
+    // A weighted bodyweight set ranks by its added load; its 1RM and volume use the effective
+    // weight (bodyweight plus the load).
+    const ranked = addsLoad(set.exercise_type) ? (set.weight_kg ?? 0) : weight;
     const reps = set.reps ?? 0;
+    if (ranked > 0) metrics.push(["heaviest_weight", ranked]);
     const oneRepMax = estimatedOneRepMax(weight, reps);
     if (oneRepMax !== null) metrics.push(["estimated_one_rep_max", oneRepMax]);
-    if (reps >= 1 && reps <= 12) metrics.push([`reps_${reps}`, weight]);
+    if (ranked > 0 && reps >= 1 && reps <= 12) metrics.push([`reps_${reps}`, ranked]);
   }
   const volume = setVolume(set, bodyweightKg);
   if (volume > 0) metrics.push(["set_volume", volume]);

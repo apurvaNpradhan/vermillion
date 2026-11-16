@@ -1,0 +1,49 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "1b7259c5-1e5d-4e4b-aa83-4ecf15187049",
+  "prevIds": ["ba986ca4-3d43-4973-bbf9-6630e6e795fe", "0d703ee5-7e87-4cb2-b59f-6b4db0e7f73c"],
+  "footprints": [
+    {
+      "statementType": "alter_check",
+      "statementTarget": ["table", "public", "exercise"],
+      "writes": ["s|ck|public.exercise.exercise_type_known"],
+      "reads": [
+        "n|tbl|public.exercise",
+        "n|sch|public",
+        "n|col|public.exercise.exercise_type",
+        "e|col|public.exercise.exercise_type"
+      ],
+      "sqlHash": "cc806f444129c2c2"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": ["table", "public", "session_exercise"],
+      "writes": ["s|ck|public.session_exercise.session_exercise_type_known"],
+      "reads": [
+        "n|tbl|public.session_exercise",
+        "n|sch|public",
+        "n|col|public.session_exercise.exercise_type",
+        "e|col|public.session_exercise.exercise_type"
+      ],
+      "sqlHash": "2702ce82afd26c14"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"exercise\",\"exercise_type_known\"]",
+      "set": {
+        "value": "\"exercise_type\" IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'bodyweight_assisted_reps', 'bodyweight_weighted_reps', 'duration', 'distance_duration', 'short_distance_weight', 'floors_duration', 'steps_duration')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"session_exercise\",\"session_exercise_type_known\"]",
+      "set": {
+        "value": "\"exercise_type\" IN ('weight_reps','reps_only','bodyweight_reps','bodyweight_assisted_reps','bodyweight_weighted_reps','duration','distance_duration','short_distance_weight','floors_duration','steps_duration')"
+      }
+    }
+  ]
+}

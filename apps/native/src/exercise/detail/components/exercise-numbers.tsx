@@ -1,5 +1,11 @@
 import { useWeight } from "@/body";
-import { type Equipment, KG_PER_LB, type RecordKey, type WeightUnit } from "@workspace/shared";
+import {
+  addsLoad,
+  type Equipment,
+  KG_PER_LB,
+  type RecordKey,
+  type WeightUnit,
+} from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
@@ -70,10 +76,13 @@ export function ExerciseNumbers({
     if (key === "longest_distance") return t("exercise__value_metres", { value: number(value) });
     if (key === "best_pace") return t("exercise__value_pace", { value: number(value) });
     if (key === "total_reps" || key === "floors" || key === "steps") return number(value);
+    const added = addsLoad(type) && (key === "heaviest_weight" || key.startsWith("reps_"));
     return t(
       key === "set_volume" || key === "session_volume"
         ? "exercise__value_volume"
-        : "exercise__value_weight",
+        : added
+          ? "exercise__value_added_weight"
+          : "exercise__value_weight",
       {
         value: number(unit === "lb" ? value / KG_PER_LB : value),
         unit,
@@ -89,7 +98,7 @@ export function ExerciseNumbers({
     metric === "total_reps" || metric === "floors" || metric === "steps" ? BarChart : LineChart;
   return (
     <View className="gap-6 px-4">
-      {type === "weight_reps" ? (
+      {type === "weight_reps" || addsLoad(type) ? (
         <ExerciseProgress
           sessions={sessions}
           exerciseId={exerciseId}
@@ -123,7 +132,9 @@ export function ExerciseNumbers({
           </ScrollView>
           {bodyweightKg === null &&
           weight.entries.length === 0 &&
-          (type === "bodyweight_reps" || type === "bodyweight_assisted_reps") ? (
+          (type === "bodyweight_reps" ||
+            type === "bodyweight_assisted_reps" ||
+            type === "bodyweight_weighted_reps") ? (
             <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
           ) : null}
           <Chart

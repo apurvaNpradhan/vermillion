@@ -80,6 +80,20 @@ describe("row detail", () => {
     expect(detail && formatDetail(detail, labels)).toBe("100 kg × 5");
   });
 
+  it("writes a weighted bodyweight best by its added load, with a plus", () => {
+    const weighted = [set({ weightKg: 20, reps: 5 }), set({ weightKg: 10, reps: 10 })];
+    const detail = rowDetail("bodyweight_weighted_reps", weighted, true);
+    expect(detail && formatDetail(detail, labels)).toBe("+20 kg × 5");
+    expect(rowDetail("bodyweight_weighted_reps", weighted, false)).toEqual({
+      kind: "reps",
+      min: 5,
+      max: 10,
+    });
+    // No added load is a plain bodyweight set: reps only.
+    const plain = rowDetail("bodyweight_weighted_reps", [set({ weightKg: 0, reps: 12 })], true);
+    expect(plain && formatDetail(plain, labels)).toBe("12 reps");
+  });
+
   it("writes the rep range with weights off", () => {
     const detail = rowDetail("weight_reps", sets, false);
     expect(detail).toEqual({ kind: "reps", min: 5, max: 8 });

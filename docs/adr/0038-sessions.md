@@ -81,6 +81,7 @@ There is no photo, gym, visibility or tagging step.
   - weighted types: the logged weight
   - bodyweight types: the bodyweight preference
   - assisted types: bodyweight minus the assistance, floored at 0
+  - weighted bodyweight types: bodyweight plus the added load (the added load alone while the bodyweight is unknown)
 
   Without a bodyweight, bodyweight and assisted exercises count reps only, and the user is prompted once to add a bodyweight.
 

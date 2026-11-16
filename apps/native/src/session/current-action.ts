@@ -226,9 +226,10 @@ export function valueParts(
   values: readonly DisplayValue[],
   unit: WeightUnit,
   unitLabel: string,
+  type?: ExerciseType,
 ): ValuePart[] {
   return values.flatMap((item) => {
-    const cell = formatCell(item.field, item.value, unit);
+    const cell = formatCell(item.field, item.value, unit, type);
     if (cell === "") return [];
     return [{ field: item.field, text: item.field === "weight" ? `${cell} ${unitLabel}` : cell }];
   });
@@ -243,8 +244,13 @@ export function partSeparator(before: ValuePart, after: ValuePart): string {
  * The current set's values as a line: "80 kg × 8" for weight and reps, otherwise the values joined
  * by " · ". Empty when no value is known.
  */
-export function valuesText(values: readonly DisplayValue[], unit: WeightUnit, unitLabel: string) {
-  const parts = valueParts(values, unit, unitLabel);
+export function valuesText(
+  values: readonly DisplayValue[],
+  unit: WeightUnit,
+  unitLabel: string,
+  type?: ExerciseType,
+) {
+  const parts = valueParts(values, unit, unitLabel, type);
   return parts
     .map((part, index) => {
       const before = parts[index - 1];

@@ -43,6 +43,7 @@ export const EXERCISE_TYPE_KEYS = {
   reps_only: "exercise__type_reps_only",
   bodyweight_reps: "exercise__type_bodyweight_reps",
   bodyweight_assisted_reps: "exercise__type_bodyweight_assisted_reps",
+  bodyweight_weighted_reps: "exercise__type_bodyweight_weighted_reps",
   duration: "exercise__type_duration",
   distance_duration: "exercise__type_distance_duration",
   short_distance_weight: "exercise__type_short_distance_weight",

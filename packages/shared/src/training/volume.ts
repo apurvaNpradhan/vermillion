@@ -4,7 +4,9 @@ import { isCounted, type LoggedSet } from "./logged-set";
 /**
  * The weight a set moves, by exercise type (ADR 0038). Weighted types: the logged weight.
  * Bodyweight types: the bodyweight preference. Assisted types: bodyweight minus the assistance,
- * floored at 0. Null when the type has no weight or the bodyweight is unknown.
+ * floored at 0. Weighted bodyweight types: bodyweight plus the added load, or the added load alone
+ * while the bodyweight is unknown. Null when the type has no weight (or, for the bodyweight and
+ * assisted types, the bodyweight is unknown).
  */
 export function effectiveWeight(
   type: ExerciseType,
@@ -19,6 +21,8 @@ export function effectiveWeight(
       return bodyweightKg;
     case "bodyweight_assisted_reps":
       return bodyweightKg === null ? null : Math.max(0, bodyweightKg - (weightKg ?? 0));
+    case "bodyweight_weighted_reps":
+      return (bodyweightKg ?? 0) + (weightKg ?? 0);
     case "reps_only":
     case "duration":
     case "distance_duration":

@@ -1,6 +1,6 @@
 import {
   SET_FIELDS,
-  formatWeight,
+  formatLoad,
   type EffortScale,
   type ExerciseType,
   type PlannedSet,
@@ -96,7 +96,7 @@ export function summariseWorking(
     const targets = targetText(first, type, labels);
     const weight =
       SET_FIELDS[type].some((field) => field === "weight") && first.weight_kg !== undefined
-        ? labels.weight(formatWeight(first.weight_kg, prefs.weightUnit), prefs.weightUnit)
+        ? labels.weight(formatLoad(first.weight_kg, prefs.weightUnit, type), prefs.weightUnit)
         : null;
     const effort =
       first.effort_min !== undefined && first.effort_max !== undefined

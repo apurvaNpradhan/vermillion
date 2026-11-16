@@ -22,7 +22,7 @@ describe("vocabulary", () => {
   it("has the agreed sizes", () => {
     expect(MUSCLE_GROUPS).toHaveLength(20);
     expect(EQUIPMENT).toHaveLength(9);
-    expect(EXERCISE_TYPES).toHaveLength(9);
+    expect(EXERCISE_TYPES).toHaveLength(10);
   });
 
   it("covers every slug with a region, a label key and (types) set fields", () => {

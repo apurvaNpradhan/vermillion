@@ -1,4 +1,5 @@
 import {
+  formatLoad,
   formatWeight,
   SET_FIELDS,
   type EffortScale,
@@ -48,11 +49,16 @@ export function plannedCells(
   columns: readonly SetColumn[],
   unit: WeightUnit,
   scale: EffortScale,
+  type?: ExerciseType,
 ): string[] {
   return columns.map((column) => {
     switch (column) {
       case "weight":
-        return set.weight_kg === undefined ? DASH : formatWeight(set.weight_kg, unit);
+        return set.weight_kg === undefined
+          ? DASH
+          : type === undefined
+            ? formatWeight(set.weight_kg, unit)
+            : formatLoad(set.weight_kg, unit, type);
       case "reps":
         return range(set.reps_min, set.reps_max);
       case "effort":
@@ -78,11 +84,12 @@ export function plannedRows(
   columns: readonly SetColumn[],
   unit: WeightUnit,
   scale: EffortScale,
+  type?: ExerciseType,
 ): SetTextRow[] {
   return sets.map((set, index) => ({
     key: String(index),
     marker: markers[index] ?? String(index + 1),
     kind: set.kind,
-    cells: plannedCells(set, columns, unit, scale),
+    cells: plannedCells(set, columns, unit, scale, type),
   }));
 }
