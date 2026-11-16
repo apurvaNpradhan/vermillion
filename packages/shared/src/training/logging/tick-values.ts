@@ -1,4 +1,4 @@
-import type { SetField } from "../exercise/vocabulary";
+import type { SetField } from "../../exercise/vocabulary";
 import type { GhostField } from "./ghost-for";
 import type { SetValues } from "./logged-set";
 import {

@@ -1,6 +1,6 @@
-import type { ExerciseType } from "../exercise/vocabulary";
+import type { ExerciseType } from "../../exercise/vocabulary";
 import type { ActualValues } from "./session-inputs";
-import type { SetKind } from "./vocabulary";
+import type { SetKind } from "../vocabulary/vocabulary";
 
 /** The actuals of a set; absent and null both mean empty. */
 export type SetValues = { [Key in keyof ActualValues]?: number | null };

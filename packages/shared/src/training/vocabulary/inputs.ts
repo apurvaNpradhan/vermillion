@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { plannedSetSchema } from "./planned-sets";
+import { plannedSetSchema } from "../plans/planned-sets";
 import { POSITION_KEY_MAX, REST_SECONDS_MAX, TRAINING_LIMITS } from "./vocabulary";
 
 const title = z.string().trim().min(TRAINING_LIMITS.titleMin).max(TRAINING_LIMITS.titleMax);

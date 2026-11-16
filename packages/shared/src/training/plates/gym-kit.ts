@@ -1,6 +1,6 @@
-import { KG_PER_LB } from "./format";
-import type { GymEquipmentInput } from "./session-inputs";
-import type { WeightUnit } from "./vocabulary";
+import { KG_PER_LB } from "../vocabulary/format";
+import type { GymEquipmentInput } from "../logging/session-inputs";
+import type { WeightUnit } from "../vocabulary/vocabulary";
 
 const KITS = {
   kg: { bars: [20, 15, 10, 0], plates: [25, 20, 15, 10, 5, 2.5, 1.25, 0.5] },

@@ -1,4 +1,4 @@
-import type { Equipment, ExerciseType, MuscleGroup } from "../exercise/vocabulary";
+import type { Equipment, ExerciseType, MuscleGroup } from "../../exercise/vocabulary";
 
 /** What a planned set is for. A kind is a label; partials and the like are notes. */
 export const SET_KINDS = ["warmup", "working", "drop", "failure", "top", "backoff", "myo"] as const;

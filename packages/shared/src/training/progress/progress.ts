@@ -1,7 +1,12 @@
-import { addsLoad } from "./format";
-import { inSessionOrder, isCounted, type LoggedSet, type SessionHistory } from "./logged-set";
-import { effectiveWeight, estimatedOneRepMax, setVolume } from "./volume";
-import { isoWeekKey } from "./week";
+import { addsLoad } from "../vocabulary/format";
+import {
+  inSessionOrder,
+  isCounted,
+  type LoggedSet,
+  type SessionHistory,
+} from "../logging/logged-set";
+import { effectiveWeight, estimatedOneRepMax, setVolume } from "../volume/volume";
+import { isoWeekKey } from "../plans/week";
 
 export type ProgressRange = "3M" | "1Y" | "All";
 

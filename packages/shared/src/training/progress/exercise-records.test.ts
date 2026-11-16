@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { exerciseRecords } from "./records";
-import { loggedSet, sessionOf, setOf } from "./session-fixtures";
+import { loggedSet, sessionOf, setOf } from "../logging/session-fixtures";
 
 describe("exerciseRecords", () => {
   it("is empty without Sessions", () => {

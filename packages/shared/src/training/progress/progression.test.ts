@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { suggestNext, progressionIncrement } from "./progression";
-import { KG_PER_LB, parseWeight } from "./format";
-import type { LoggedSet } from "./logged-set";
-import type { PlannedSet } from "./planned-sets";
+import { KG_PER_LB, parseWeight } from "../vocabulary/format";
+import type { LoggedSet } from "../logging/logged-set";
+import type { PlannedSet } from "../plans/planned-sets";
 
 const settings = { weightUnit: "kg", weightIncrementKg: null } as const;
 const plan: PlannedSet[] = [0, 1].map(() => ({ kind: "working", reps_min: 8, reps_max: 12 }));

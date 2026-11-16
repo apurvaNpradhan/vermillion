@@ -1,5 +1,5 @@
-import type { MuscleGroup } from "../exercise/vocabulary";
-import { isCounted, type LoggedSet } from "./logged-set";
+import type { MuscleGroup } from "../../exercise/vocabulary";
+import { isCounted, type LoggedSet } from "../logging/logged-set";
 
 export type MuscleLoad = { muscle: MuscleGroup; sets: number };
 

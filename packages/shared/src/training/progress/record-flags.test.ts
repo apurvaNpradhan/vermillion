@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { recordFlags } from "./records";
-import { loggedSet, sessionOf, setOf } from "./session-fixtures";
+import { loggedSet, sessionOf, setOf } from "../logging/session-fixtures";
 
 const day = (n: number) => `2026-01-${String(n).padStart(2, "0")}T10:00:00Z`;
 

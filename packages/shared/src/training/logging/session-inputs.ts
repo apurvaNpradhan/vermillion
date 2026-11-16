@@ -5,9 +5,9 @@ import {
   SET_FIELDS,
   type ExerciseType,
   type SetField,
-} from "../exercise/vocabulary";
-import { positionKey } from "./inputs";
-import { plannedSetSchema, plannedSetsSchema } from "./planned-sets";
+} from "../../exercise/vocabulary";
+import { positionKey } from "../vocabulary/inputs";
+import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
@@ -16,7 +16,7 @@ import {
   SET_KINDS,
   WEIGHT_UNITS,
   type EffortStep,
-} from "./vocabulary";
+} from "../vocabulary/vocabulary";
 
 const timestamp = z.iso.datetime({ offset: true });
 const reference = z.uuid().nullable();

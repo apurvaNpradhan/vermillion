@@ -1,7 +1,12 @@
-import { SET_FIELDS } from "../exercise/vocabulary";
-import { inSessionOrder, isCounted, type LoggedSet, type SessionHistory } from "./logged-set";
-import { addsLoad } from "./format";
-import { effectiveWeight, estimatedOneRepMax, setVolume } from "./volume";
+import { SET_FIELDS } from "../../exercise/vocabulary";
+import {
+  inSessionOrder,
+  isCounted,
+  type LoggedSet,
+  type SessionHistory,
+} from "../logging/logged-set";
+import { addsLoad } from "../vocabulary/format";
+import { effectiveWeight, estimatedOneRepMax, setVolume } from "../volume/volume";
 
 /**
  * What a Record can be about (ADR 0038). Rep records are the heaviest weight for 1 to 12 reps

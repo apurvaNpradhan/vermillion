@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-import { SET_FIELDS, type ExerciseType, type SetField } from "../exercise/vocabulary";
+import { SET_FIELDS, type ExerciseType, type SetField } from "../../exercise/vocabulary";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
   SET_KINDS,
   TRAINING_LIMITS,
   type EffortStep,
-} from "./vocabulary";
+} from "../vocabulary/vocabulary";
 
 const effortStep = z
   .number()

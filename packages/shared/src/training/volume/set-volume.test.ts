@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loggedSet, setOf } from "./session-fixtures";
+import { loggedSet, setOf } from "../logging/session-fixtures";
 import { setVolume } from "./volume";
 
 describe("setVolume", () => {

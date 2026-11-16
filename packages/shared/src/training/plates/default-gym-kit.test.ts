@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { KG_PER_LB } from "./format";
+import { KG_PER_LB } from "../vocabulary/format";
 import { defaultGymKit } from "./gym-kit";
-import { gymEquipmentInput } from "./session-inputs";
+import { gymEquipmentInput } from "../logging/session-inputs";
 
 describe("defaultGymKit", () => {
   it("is the kg kit: bars 20, 15, 10 (EZ) and 0, plates 25 down to 0.5", () => {

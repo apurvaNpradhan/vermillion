@@ -1,5 +1,5 @@
 import { inSessionOrder, type LoggedSet, type SessionHistory } from "./logged-set";
-import type { SetKind } from "./vocabulary";
+import type { SetKind } from "../vocabulary/vocabulary";
 
 /**
  * Previous: the ticked set of the latest finished Session that has the same kind and the same

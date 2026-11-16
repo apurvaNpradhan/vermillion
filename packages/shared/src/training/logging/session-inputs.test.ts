@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EXERCISE_TYPES, SET_FIELDS } from "../exercise/vocabulary";
+import { EXERCISE_TYPES, SET_FIELDS } from "../../exercise/vocabulary";
 import {
   exerciseSettingInput,
   gymEquipmentInput,
@@ -11,7 +11,7 @@ import {
   sessionTimesConsistent,
   SET_VALUE_KEYS,
 } from "./session-inputs";
-import { SESSION_LIMITS } from "./vocabulary";
+import { SESSION_LIMITS } from "../vocabulary/vocabulary";
 
 const id = "0192f0a0-0000-7000-8000-000000000001";
 const session = {

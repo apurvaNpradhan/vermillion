@@ -1,5 +1,5 @@
-import type { ExerciseType } from "../exercise/vocabulary";
-import { isCounted, type LoggedSet } from "./logged-set";
+import type { ExerciseType } from "../../exercise/vocabulary";
+import { isCounted, type LoggedSet } from "../logging/logged-set";
 
 /**
  * The weight a set moves, by exercise type (ADR 0038). Weighted types: the logged weight.

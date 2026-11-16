@@ -1,5 +1,5 @@
 import type { PlannedSet } from "./planned-sets";
-import type { SetKind } from "./vocabulary";
+import type { SetKind } from "../vocabulary/vocabulary";
 
 export type DiffSessionExercise = {
   exerciseId: string;

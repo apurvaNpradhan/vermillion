@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { muscleDistribution } from "./muscle-distribution";
-import { loggedSet, untickedSet } from "./session-fixtures";
+import { loggedSet, untickedSet } from "../logging/session-fixtures";
 
 const exercises = [
   { id: "bench", primary_muscle: "chest", secondary_muscles: ["triceps", "shoulders"] },

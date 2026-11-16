@@ -8,7 +8,7 @@ import {
   REST_SECONDS_MAX,
   SESSION_VIEWS,
   WEIGHT_UNITS,
-} from "./training/vocabulary";
+} from "./training/vocabulary/vocabulary";
 
 /** An IANA time zone name such as `Europe/Berlin`. */
 export function isTimeZone(value: string) {

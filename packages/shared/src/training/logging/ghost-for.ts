@@ -1,7 +1,7 @@
-import type { SuggestedSet } from "./progression";
-import type { SetField } from "../exercise/vocabulary";
+import type { SuggestedSet } from "../progress/progression";
+import type { SetField } from "../../exercise/vocabulary";
 import type { SetValues } from "./logged-set";
-import type { PlannedSet } from "./planned-sets";
+import type { PlannedSet } from "../plans/planned-sets";
 import { SET_VALUE_KEYS } from "./session-inputs";
 
 /** The cells that can show a Ghost value: the fields of `SET_FIELDS` and effort. */

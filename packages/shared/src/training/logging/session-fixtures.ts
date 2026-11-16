@@ -1,6 +1,6 @@
-import type { ExerciseType } from "../exercise/vocabulary";
+import type { ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet, SessionHistory } from "./logged-set";
-import type { SetKind } from "./vocabulary";
+import type { SetKind } from "../vocabulary/vocabulary";
 
 let counter = 0;
 

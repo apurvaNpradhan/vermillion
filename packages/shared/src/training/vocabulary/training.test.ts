@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { EXERCISE_TYPES } from "../exercise/vocabulary";
+import { EXERCISE_TYPES } from "../../exercise/vocabulary";
 import { derivedTitleMuscles, derivedWorkoutTitle, formatWeight, parseWeight } from "./format";
 import { workoutExerciseInput, programInput, programSlotInput, workoutInput } from "./inputs";
-import { defaultPlannedSets, plannedSetKeys, plannedSetsSchema } from "./planned-sets";
+import { defaultPlannedSets, plannedSetKeys, plannedSetsSchema } from "../plans/planned-sets";
 import {
   defaultRestSeconds,
   EFFORT_STEPS,

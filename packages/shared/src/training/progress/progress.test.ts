@@ -5,7 +5,7 @@ import {
   exerciseWeeklyVolume,
   oneRepMaxSeries,
 } from "./progress";
-import type { SessionHistory } from "./logged-set";
+import type { SessionHistory } from "../logging/logged-set";
 const now = Date.parse("2026-11-12T12:00:00Z");
 const session = (id: string, date: string, weight = 100): SessionHistory => ({
   id,

@@ -1,8 +1,8 @@
-import type { Equipment, ExerciseType } from "../exercise/vocabulary";
-import { KG_PER_LB, formatWeight, parseWeight } from "./format";
-import type { LoggedSet } from "./logged-set";
-import type { PlannedSet } from "./planned-sets";
-import type { WeightUnit } from "./vocabulary";
+import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
+import { KG_PER_LB, formatWeight, parseWeight } from "../vocabulary/format";
+import type { LoggedSet } from "../logging/logged-set";
+import type { PlannedSet } from "../plans/planned-sets";
+import type { WeightUnit } from "../vocabulary/vocabulary";
 
 export type IncrementSettings = { weightUnit: WeightUnit; weightIncrementKg: number | null };
 export type SuggestedSet = { weightKg: number | null; reps: number | null };

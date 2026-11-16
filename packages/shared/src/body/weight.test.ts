@@ -20,8 +20,8 @@ import {
   validMeasurementDate,
 } from "../body";
 import { uiPreferencesSchema } from "../preferences";
-import { sessionTotals } from "../training/volume";
-import { exerciseRecords, recordFlags } from "../training/records";
+import { sessionTotals } from "../training/volume/volume";
+import { exerciseRecords, recordFlags } from "../training/progress/records";
 const daily = [
   { date: "2026-01-01", scale: 80 },
   { date: "2026-01-03", scale: 82 },

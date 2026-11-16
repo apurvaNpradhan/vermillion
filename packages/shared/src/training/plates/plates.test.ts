@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadBar } from "./plates";
 import { defaultGymKit } from "./gym-kit";
-import { KG_PER_LB, parseWeight } from "./format";
+import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 
 const plate = (weightKg: number, count: number | null = null) => ({
   id: String(weightKg),

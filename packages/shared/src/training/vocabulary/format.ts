@@ -1,4 +1,4 @@
-import type { ExerciseType, MuscleGroup } from "../exercise/vocabulary";
+import type { ExerciseType, MuscleGroup } from "../../exercise/vocabulary";
 import { MAX_WEIGHT_KG, type WeightUnit } from "./vocabulary";
 
 export const KG_PER_LB = 0.45359237;
