@@ -22,6 +22,11 @@ running a build that includes them. An old dev client has no native module for t
 fails on start with a missing native module error rather than only missing the feature. The manual
 checks for Sessions are in [the device checklist](../specs/sessions/device-checklist.md).
 
+Share cards (ADR 0042, share slice 1) added `react-native-view-shot` (captures the card as an image),
+`expo-media-library` (Save to Photos, add-only: iOS shows the add-photos prompt and Android asks for
+no read access) and `expo-sharing` (the system share sheet), native stack revision 16: **rebuild the
+dev client** before running a build that includes them.
+
 ## Runtime version
 
 `apps/native/app.config.ts` sets `runtimeVersion` to `<version>+native.<NATIVE_STACK_REVISION>`. Bump `NATIVE_STACK_REVISION` whenever a native module or its build flags change, so an OTA update never reaches a binary without the native code it needs. Verify with `npx expo config`. New native build dependencies also go in `allowBuilds` in `pnpm-workspace.yaml`.

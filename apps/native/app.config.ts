@@ -22,7 +22,8 @@ import { appConfig } from "../../app.config.ts";
 // 13: local Android workout-live module, promoted ongoing notification permission.
 // 14: camera permission for user photos (expo-image-picker's manifest and Info.plist entries).
 // 15: photo-library permission copy covers all user image features.
-const NATIVE_STACK_REVISION = 15;
+// 16: react-native-view-shot, expo-media-library (add-only) and expo-sharing for Share cards.
+const NATIVE_STACK_REVISION = 16;
 
 /**
  * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
@@ -95,6 +96,18 @@ const config: ExpoConfig = {
           "Allow $(PRODUCT_NAME) to access photos for covers, exercise images, progress photos and workout photos.",
         cameraPermission: "Allow $(PRODUCT_NAME) to take photos.",
         microphonePermission: false,
+      },
+    ],
+    // Share cards: Save to Photos only adds images, so only the add permission string is new and
+    // Android asks for no read access. The read string repeats the picker's so this plugin never
+    // replaces it. Sharing needs no config.
+    [
+      "expo-media-library",
+      {
+        photosPermission:
+          "Allow $(PRODUCT_NAME) to access photos for covers, exercise images, progress photos and workout photos.",
+        savePhotosPermission: "Allow $(PRODUCT_NAME) to save your share cards to your photos.",
+        granularPermissions: [],
       },
     ],
     // The backup rules plugin replaces the store's own so key and database exclusions stay together.
