@@ -12,23 +12,24 @@ import { Page } from "@/platform/ui/page";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
-import { useActiveRun } from "../use-active-program";
+import { useActiveProgram } from "../use-active-program";
 import { useProgramLibrary } from "../use-program-library";
+import { ActiveProgramCard } from "./active-program-card";
 import { ProgramRow } from "./program-row";
 import { TrainingListState } from "./training-list-state";
 
 const NO_PROGRAMS: ProgramSummary[] = [];
 const programKey = (program: ProgramSummary) => program.id;
 
-/** The complete library behind the overview's two-program preview. */
+/** Program management behind the Train tab's header button: the active Run, then every Program. */
 export function ProgramsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const active = useActiveRun();
+  const active = useActiveProgram();
   const list = useProgramLibrary(active);
   const { open, duplicate, remove } = list;
   // One ready state: the list and the active marker appear together.
-  const status = list.status === "list" && active.loading ? "loading" : list.status;
+  const status = list.status === "list" && !active.ready ? "loading" : list.status;
   const renderProgram = useCallback(
     ({ item }: { item: ProgramSummary }) => (
       <ProgramRow
@@ -73,6 +74,7 @@ export function ProgramsScreen() {
               <View className="gap-6 px-4 pb-4">
                 {header}
                 <SyncBanner />
+                {status === "list" ? <ActiveProgramCard state={active} /> : null}
                 <TrainingListState status={status} onRetry={list.retry} />
               </View>
             }
