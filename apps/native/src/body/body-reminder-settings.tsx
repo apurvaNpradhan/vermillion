@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { ListRow, ListSection } from "@/platform/ui/list";
+import { ListRow } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
@@ -227,7 +227,11 @@ function ReminderEditor({
     </>
   );
 }
-export function BodyReminderSettings() {
+/**
+ * The two reminder rows (daily weigh-in, weekly check-in) and the sheet that edits one. The rows
+ * go in a settings group; the editor renders outside it.
+ */
+export function useBodyReminderRows() {
   const { preferences, isLoading } = usePreferences();
   const { t, i18n } = useTranslation();
   const [editing, setEditing] = useState<ReminderKey | null>(null);
@@ -248,36 +252,33 @@ export function BodyReminderSettings() {
       weekday: new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(date),
     });
   };
-  return (
+  const rows = (
     <>
-      <ListSection title={t("body__reminder_section")}>
-        <ListRow
-          icon={Bell}
-          title={t("body__reminder_weight_title")}
-          value={label("weighInReminder")}
-          disabled={isLoading}
-          onPress={() => setEditing("weighInReminder")}
-        />
-        <ListRow
-          icon={Bell}
-          title={t("body__reminder_check_title")}
-          value={label("checkInReminder")}
-          disabled={isLoading}
-          onPress={() => setEditing("checkInReminder")}
-        />
-      </ListSection>
-      {editing ? (
-        <ReminderEditor
-          key={editing}
-          kind={editing}
-          initial={
-            editing === "checkInReminder"
-              ? ui.checkInReminder
-              : { ...ui.weighInReminder, weekday: 1 }
-          }
-          onClose={() => setEditing(null)}
-        />
-      ) : null}
+      <ListRow
+        icon={Bell}
+        title={t("body__reminder_weight_title")}
+        value={label("weighInReminder")}
+        disabled={isLoading}
+        onPress={() => setEditing("weighInReminder")}
+      />
+      <ListRow
+        icon={Bell}
+        title={t("body__reminder_check_title")}
+        value={label("checkInReminder")}
+        disabled={isLoading}
+        onPress={() => setEditing("checkInReminder")}
+      />
     </>
   );
+  const editor = editing ? (
+    <ReminderEditor
+      key={editing}
+      kind={editing}
+      initial={
+        editing === "checkInReminder" ? ui.checkInReminder : { ...ui.weighInReminder, weekday: 1 }
+      }
+      onClose={() => setEditing(null)}
+    />
+  ) : null;
+  return { rows, editor };
 }

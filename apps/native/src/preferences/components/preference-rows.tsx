@@ -1,4 +1,3 @@
-import { BodyReminderSettings, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
@@ -18,8 +17,8 @@ const DEVICE = "device";
 type Picker = "appearance" | "language" | "timezone" | null;
 
 /**
- * Appearance, language and time zone as settings rows. Each shows their current
- * value and open a sheet; account settings go through the one preferences hook.
+ * The Appearance section: appearance, language and time zone as settings rows. Each shows its
+ * current value and opens a sheet; account settings go through the one preferences hook.
  */
 export function PreferenceRows() {
   const { t } = useTranslation();
@@ -47,9 +46,7 @@ export function PreferenceRows() {
 
   return (
     <>
-      <ListSection title={t("settings__section_preferences")}>
-        <WeightPreferenceRow />
-        <HidePhotosRow />
+      <ListSection title={t("settings__appearance_title")}>
         <ListRow
           icon={Palette}
           title={t("settings__appearance_title")}
@@ -73,7 +70,6 @@ export function PreferenceRows() {
         />
       </ListSection>
 
-      <BodyReminderSettings />
       <AppearanceSheet isOpen={picker === "appearance"} onOpenChange={onOpenChange} />
       <OptionSheet
         isOpen={picker === "language"}
