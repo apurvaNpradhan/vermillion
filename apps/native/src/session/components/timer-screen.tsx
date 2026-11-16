@@ -567,9 +567,6 @@ function LoadedTimer({
               ) : null}
             </>
           )}
-          <Text className="text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
-            {t("session__timer_total", { time: formatElapsed(stats.elapsedS) })}
-          </Text>
         </View>
 
         {current ? (
@@ -606,18 +603,22 @@ function LoadedTimer({
         ) : (
           <View className="gap-3 px-4" style={{ paddingBottom: bottom + 12 }}>
             <View className="flex-row gap-2">
-              <Keycap
-                label={t("session__timer_minus", { seconds: REST_ADJUST_SECONDS })}
-                disabled={!resting || !editable || action.allDone}
-                onPress={() => nudge(-REST_ADJUST_SECONDS)}
-                grow={0.8}
-              />
-              <Keycap
-                label={t("session__timer_plus", { seconds: REST_ADJUST_SECONDS })}
-                disabled={!resting || !editable || action.allDone}
-                onPress={() => nudge(REST_ADJUST_SECONDS)}
-                grow={0.8}
-              />
+              {resting ? (
+                <>
+                  <Keycap
+                    label={t("session__timer_minus", { seconds: REST_ADJUST_SECONDS })}
+                    disabled={!editable || action.allDone}
+                    onPress={() => nudge(-REST_ADJUST_SECONDS)}
+                    grow={0.8}
+                  />
+                  <Keycap
+                    label={t("session__timer_plus", { seconds: REST_ADJUST_SECONDS })}
+                    disabled={!editable || action.allDone}
+                    onPress={() => nudge(REST_ADJUST_SECONDS)}
+                    grow={0.8}
+                  />
+                </>
+              ) : null}
               <Keycap
                 label={t("session__timer_edit_set")}
                 disabled={current === null || !editable}
@@ -646,11 +647,6 @@ function LoadedTimer({
                 first
                 label={t("session__stat_volume")}
                 value={`${formatVolume(stats.volumeKg, unit, lang)} ${unitName}`}
-              />
-              <Stat
-                first={false}
-                label={t("session__stat_sets")}
-                value={`${stats.setsDone}/${stats.setsTotal}`}
               />
               <Stat
                 first={false}
