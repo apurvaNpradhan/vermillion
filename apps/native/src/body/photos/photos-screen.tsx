@@ -1,5 +1,5 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
-import { useReveal } from "./use-reveal";
+import { useReveal } from "./privacy/use-reveal";
 import { useThemeColor } from "heroui-native";
 import { DotsThreeVertical, Eye, EyeSlash, Trash } from "phosphor-react-native";
 import { useMemo, useState } from "react";
@@ -20,9 +20,9 @@ import { SyncBanner } from "@/sync";
 import { CheckInSheet } from "@/body/measurements/check-in-sheet";
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";
-import { PrivatePhoto } from "./private-photo";
-import { useHidePhotos } from "./use-hide-photos";
-import { usePhotoActions } from "./use-photo-actions";
+import { PrivatePhoto } from "./privacy/private-photo";
+import { useHidePhotos } from "./privacy/use-hide-photos";
+import { usePhotoActions } from "./capture/use-photo-actions";
 import { useProgressPhotos } from "./use-progress-photos";
 
 const GAP = 8;

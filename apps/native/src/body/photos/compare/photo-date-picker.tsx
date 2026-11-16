@@ -6,7 +6,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
-import { formatCalendarDate } from "./local-date";
+import { formatCalendarDate } from "@/body/photos/local-date";
 import { monthDays } from "./photo-calendar";
 
 export function PhotoDatePicker({

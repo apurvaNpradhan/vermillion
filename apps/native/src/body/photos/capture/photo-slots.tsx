@@ -8,7 +8,7 @@ import { PROGRESS_POSES, type ProgressPose } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 
-import { poseLabels } from "./pose-labels";
+import { poseLabels } from "@/body/photos/pose-labels";
 import type { PendingPhotoStore } from "./pending-photos";
 import type { usePhotoActions } from "./use-photo-actions";
 

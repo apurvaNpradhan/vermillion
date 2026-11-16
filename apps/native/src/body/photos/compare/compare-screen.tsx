@@ -1,4 +1,4 @@
-import { BodyState } from "../body-state";
+import { BodyState } from "@/body/body-state";
 import { PhotoDatePicker } from "./photo-date-picker";
 import { useState } from "react";
 import { ScrollView, Text, View, useWindowDimensions } from "react-native";
@@ -20,9 +20,13 @@ import { ScrollPage } from "@/platform/ui/page";
 import { useMeasurements } from "@/body/measurements/use-measurements";
 import { useWeight } from "@/body/weight/use-weight";
 import { sideStats, statsChange, type SideStats } from "./compare-stats";
-import { formatCalendarDate } from "./local-date";
-import { poseLabels } from "./pose-labels";
-import { useComparePhotos, usePoseDates, usePoseSummaries } from "./use-progress-photos";
+import { formatCalendarDate } from "@/body/photos/local-date";
+import { poseLabels } from "@/body/photos/pose-labels";
+import {
+  useComparePhotos,
+  usePoseDates,
+  usePoseSummaries,
+} from "@/body/photos/use-progress-photos";
 
 const SIDE = 16;
 
