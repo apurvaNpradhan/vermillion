@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { brandThemes, themeNames } from "./brand";
+import { accentNames as themeNames, brandThemes, themeModes } from "./brand";
 import {
   CARD_BACKGROUNDS,
   GLOW_ALPHA,
@@ -27,7 +27,7 @@ function contrast(a: string, b: string) {
 
 const kinds: CardPaletteKind[] = [...CARD_BACKGROUNDS, "sticker"];
 const cases = themeNames.flatMap((theme) =>
-  (["light", "dark"] as const).flatMap((appearance) =>
+  themeModes.flatMap((appearance) =>
     kinds.map((kind) => ({ theme, appearance, kind, name: `${theme} ${appearance} ${kind}` })),
   ),
 );
@@ -67,6 +67,7 @@ describe("share card palettes", () => {
     for (const theme of themeNames) {
       for (const kind of ["light", "dark", "photo", "sticker"] as const) {
         expect(cardPalette(theme, "light", kind)).toEqual(cardPalette(theme, "dark", kind));
+        expect(cardPalette(theme, "black", kind)).toEqual(cardPalette(theme, "dark", kind));
       }
       expect(cardPalette(theme, "dark", "light").fill).toBe(brandThemes[theme].light.canvas);
       expect(cardPalette(theme, "light", "dark").fill).toBe(brandThemes[theme].dark.canvas);

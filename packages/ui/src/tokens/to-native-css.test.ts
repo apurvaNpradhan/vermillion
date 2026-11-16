@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { brandTokens, themeNames } from "./brand";
+import { accentNames, brandTokens, themeModes, variantName } from "./brand";
 import { nativeTokenSources, toNativeCss } from "./to-native-css";
 
 describe("native brand tokens", () => {
@@ -17,13 +17,13 @@ describe("native brand tokens", () => {
     expect(css).toContain(`--accent: ${brandTokens.colors.dark.action};`);
   });
 
-  it("fills all ten variants with complete matching variable sets", () => {
+  it("fills every accent and mode variant with complete matching variable sets", () => {
     const css = toNativeCss();
+    expect(variantName("mono", "black")).toBe("black");
+    expect(variantName("teal", "light")).toBe("teal-light");
     const names = [...css.matchAll(/@variant ([\w-]+) \{/g)].map((match) => match[1]);
     expect(names).toEqual(
-      themeNames.flatMap((name) =>
-        name === "classic" ? ["light", "dark"] : [`${name}-light`, `${name}-dark`],
-      ),
+      accentNames.flatMap((accent) => themeModes.map((mode) => variantName(accent, mode))),
     );
     const blocks = [...css.matchAll(/@variant [\w-]+ \{([^}]+)\}/g)];
     const variables = blocks.map((block) =>

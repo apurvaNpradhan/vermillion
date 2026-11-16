@@ -1,43 +1,43 @@
 import type { RoleName, RoleTokens } from "./roles";
-import { light, dark } from "./themes/classic";
-import * as chalk from "./themes/chalk";
-import * as frost from "./themes/frost";
-import * as iron from "./themes/iron";
-import * as dusk from "./themes/dusk";
-import * as cinnabar from "./themes/cinnabar";
-import * as tide from "./themes/tide";
-import * as volt from "./themes/volt";
+import { accentRoles, accents, type AccentName } from "./themes/accents";
+import * as graphite from "./themes/graphite";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
+export { accentNames, type AccentName } from "./themes/accents";
 
-// SAFETY: fixed UI order also defines the theme-name union.
-export const themeNames = [
-  "classic",
-  "chalk",
-  "frost",
-  "iron",
-  "dusk",
-  "cinnabar",
-  "tide",
-  "volt",
-] as const;
-export type ThemeName = (typeof themeNames)[number];
+// SAFETY: the literal list defines the complete mode union.
+export const themeModes = ["light", "dark", "black"] as const;
+/** Light, dark, or dark on a true-black canvas. */
+export type ThemeMode = (typeof themeModes)[number];
 
-interface ThemePalette {
-  light: RoleTokens;
-  dark: RoleTokens;
-  pending: boolean;
+function palette(accent: AccentName): Record<ThemeMode, RoleTokens> {
+  const { light, dark } = accents[accent];
+  return {
+    light: {
+      ...graphite.light,
+      ...accentRoles(light, graphite.light, graphite.light["text-primary"]),
+    },
+    dark: { ...graphite.dark, ...accentRoles(dark, graphite.dark, graphite.dark.canvas) },
+    black: { ...graphite.black, ...accentRoles(dark, graphite.black, graphite.black.canvas) },
+  };
 }
 
-export const brandThemes = {
-  classic: { light, dark, pending: false },
-  chalk,
-  frost,
-  iron,
-  dusk,
-  cinnabar,
-  tide,
-  volt,
-} satisfies Record<ThemeName, ThemePalette>;
+/** Every complete role set: the Graphite base in each mode, with each accent applied. */
+export const brandThemes: Record<AccentName, Record<ThemeMode, RoleTokens>> = {
+  mono: palette("mono"),
+  vermilion: palette("vermilion"),
+  cobalt: palette("cobalt"),
+  violet: palette("violet"),
+  teal: palette("teal"),
+};
+
+export type ThemeVariant = ThemeMode | `${Exclude<AccentName, "mono">}-${ThemeMode}`;
+
+/** The CSS variant of one accent and mode. Mono owns the plain `light` and `dark` names. */
+export function variantName(accent: AccentName, mode: ThemeMode): ThemeVariant {
+  return accent === "mono" ? mode : `${accent}-${mode}`;
+}
+
+const { light, dark } = brandThemes.mono;
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The values are the

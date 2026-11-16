@@ -1,7 +1,10 @@
-import { brandThemes, type RoleTokens, type ThemeName } from "./brand";
+import { brandThemes, type AccentName, type RoleTokens, type ThemeMode } from "./brand";
+import { mixHex } from "./mix";
+
+export { mixHex };
 
 /**
- * Share card colours (ADR 0042): derived from a theme's roles, never hand-picked. The native
+ * Share card colours (ADR 0042): derived from the accent's roles, never hand-picked. The native
  * Share composer renders cards with these and `share-card.test.ts` holds every pair to AA.
  */
 
@@ -36,16 +39,6 @@ export interface CardPalette {
   hairline: string;
 }
 
-/** "#rrggbb" blended: `amount` of `top` over `base`. */
-export function mixHex(base: string, top: string, amount: number): string {
-  const channel = (hex: string, at: number) => Number.parseInt(hex.slice(at, at + 2), 16);
-  const part = (at: number) =>
-    Math.round(channel(base, at) * (1 - amount) + channel(top, at) * amount)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${part(1)}${part(3)}${part(5)}`;
-}
-
 function neutral(roles: RoleTokens, fill: string): CardPalette {
   return {
     fill,
@@ -66,8 +59,8 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
  * the Theme background follows; Light, Dark, Photo and the Sticker use that fixed palette.
  */
 export function cardPalette(
-  theme: ThemeName,
-  appearance: "light" | "dark",
+  theme: AccentName,
+  appearance: ThemeMode,
   kind: CardPaletteKind,
 ): CardPalette {
   const palette = brandThemes[theme];

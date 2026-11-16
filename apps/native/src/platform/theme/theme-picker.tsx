@@ -1,69 +1,41 @@
-import {
-  brandThemes,
-  themeNames,
-  type RoleTokens,
-  type ThemeName,
-} from "@workspace/ui/tokens/brand";
+import { accentNames, brandThemes, type AccentName } from "@workspace/ui/tokens/brand";
 import type { TranslationKey } from "@workspace/i18n";
-import { BottomSheet } from "heroui-native";
+import { BottomSheet, Switch } from "heroui-native";
+import { Check } from "phosphor-react-native";
 import { useState } from "react";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { OptionSheet } from "@/platform/ui/option-sheet";
+import { ListRow, ListSection } from "@/platform/ui/list";
+import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
-import { useThemeChoice } from "./index";
-import { APPEARANCES, type AppearanceChoice } from "./theme-state";
+import { usePaletteMode, useThemeChoice } from "./index";
+import { APPEARANCES, type AppearanceChoice, type ThemeChoice } from "./theme-state";
 
-export const THEME_LABELS = {
-  classic: "theme__classic",
-  chalk: "theme__chalk",
-  frost: "theme__frost",
-  iron: "theme__iron",
-  dusk: "theme__dusk",
-  cinnabar: "theme__cinnabar",
-  tide: "theme__tide",
-  volt: "theme__volt",
-} satisfies Record<ThemeName, TranslationKey>;
-const DESCRIPTIONS = {
-  classic: "theme__classic_description",
-  chalk: "theme__chalk_description",
-  frost: "theme__frost_description",
-  iron: "theme__iron_description",
-  dusk: "theme__dusk_description",
-  cinnabar: "theme__cinnabar_description",
-  tide: "theme__tide_description",
-  volt: "theme__volt_description",
-} satisfies Record<ThemeName, TranslationKey>;
-export const APPEARANCE_LABELS = {
+const ACCENT_LABELS = {
+  mono: "theme__accent_mono",
+  vermilion: "theme__accent_vermilion",
+  cobalt: "theme__accent_cobalt",
+  violet: "theme__accent_violet",
+  teal: "theme__accent_teal",
+} satisfies Record<AccentName, TranslationKey>;
+const APPEARANCE_LABELS = {
   system: "theme__system",
   light: "theme__light",
   dark: "theme__dark",
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
-/** Literal palette values let both previews remain visible regardless of the active CSS variant. */
-function Preview({ colors }: { colors: RoleTokens }) {
-  return (
-    <View
-      accessible={false}
-      className="flex-1 rounded-lg p-2"
-      style={{ backgroundColor: colors.canvas }}
-    >
-      <View className="gap-2 rounded-md p-2" style={{ backgroundColor: colors.surface }}>
-        <View
-          className="h-1 w-12 rounded-full"
-          style={{ backgroundColor: colors["text-primary"] }}
-        />
-        <View className="h-3 w-6 rounded-sm" style={{ backgroundColor: colors.action }} />
-      </View>
-    </View>
-  );
+/** "Dark · Cobalt": the current choice as one settings value. */
+export function useAppearanceSummary(choice: ThemeChoice): string {
+  const { t } = useTranslation();
+  return `${t(APPEARANCE_LABELS[choice.appearance])} · ${t(ACCENT_LABELS[choice.accent])}`;
 }
 
-export function ThemePicker({
+/** Appearance, true black and accent in one sheet. Every change applies at once. */
+export function AppearanceSheet({
   isOpen,
   onOpenChange,
 }: {
@@ -73,100 +45,98 @@ export function ThemePicker({
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const { choice, setChoice } = useThemeChoice();
+  const mode = usePaletteMode();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        {/* A fixed height and the sheet's own scroll view: a plain ScrollView loses its drags to
-            the sheet's pan gesture, so the lower cards could not be reached. */}
         <BottomSheet.Content
-          snapPoints={["88%"]}
-          enableDynamicSizing={false}
-          enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full"
+          contentContainerClassName="gap-5 px-4 pt-2"
+          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
-          <View className="gap-1 px-4 pb-3 pt-2">
-            <BottomSheet.Title className="font-semibold text-title-lg">
-              {t("settings__theme_title")}
-            </BottomSheet.Title>
-            <BottomSheet.Description className="text-body text-muted">
-              {t("settings__theme_hint")}
-            </BottomSheet.Description>
+          <BottomSheet.Title className="px-1 font-semibold text-title-lg">
+            {t("settings__appearance_title")}
+          </BottomSheet.Title>
+          <SegmentedControl
+            accessibilityLabel={t("settings__appearance_title")}
+            options={APPEARANCES.map((value) => ({ value, label: t(APPEARANCE_LABELS[value]) }))}
+            value={choice.appearance}
+            onChange={(appearance) => setChoice({ ...choice, appearance })}
+          />
+          <ListSection>
+            <ListRow
+              title={t("theme__true_black")}
+              description={t("theme__true_black_hint")}
+              accessory="none"
+              onPress={() => setChoice({ ...choice, black: !choice.black })}
+              trailing={
+                <Switch
+                  accessibilityLabel={t("theme__true_black")}
+                  isSelected={choice.black}
+                  onSelectedChange={(black) => setChoice({ ...choice, black })}
+                />
+              }
+            />
+          </ListSection>
+          <View className="gap-3">
+            <Text className="px-1 font-medium text-label text-muted">{t("theme__accent")}</Text>
+            <View accessibilityRole="radiogroup" className="flex-row justify-between px-1">
+              {accentNames.map((name) => {
+                // Literal palette values: every swatch shows its own colour, not the active one.
+                const colors = brandThemes[name][mode];
+                const selected = choice.accent === name;
+                return (
+                  <Pressable
+                    key={name}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={t(ACCENT_LABELS[name])}
+                    className="items-center gap-2 active:opacity-70"
+                    onPress={() => {
+                      haptic.tick();
+                      setChoice({ ...choice, accent: name });
+                    }}
+                  >
+                    <View
+                      className={`rounded-full border-2 p-1 ${selected ? "border-foreground" : "border-transparent"}`}
+                    >
+                      <View
+                        className="size-11 items-center justify-center rounded-full"
+                        style={{ backgroundColor: colors.identity }}
+                      >
+                        {selected ? (
+                          <Check size={20} weight="bold" color={colors["on-identity"]} />
+                        ) : null}
+                      </View>
+                    </View>
+                    <Text className={`text-caption ${selected ? "text-foreground" : "text-muted"}`}>
+                      {t(ACCENT_LABELS[name])}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-          <BottomSheetScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: bottom + 16 }}
-          >
-            {themeNames.map((name) => (
-              <Pressable
-                key={name}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: choice.theme === name }}
-                accessibilityLabel={t(THEME_LABELS[name])}
-                className={`gap-2 rounded-xl border active:opacity-70 p-3 ${choice.theme === name ? "border-identity bg-identity-soft" : "border-transparent bg-surface"}`}
-                onPress={() => setChoice({ ...choice, theme: name })}
-              >
-                <View className="gap-1">
-                  <Text className="font-medium text-body text-foreground">
-                    {t(THEME_LABELS[name])}
-                  </Text>
-                  <Text className="text-caption text-muted">{t(DESCRIPTIONS[name])}</Text>
-                </View>
-                <View className="flex-row gap-2">
-                  <Preview colors={brandThemes[name].light} />
-                  <Preview colors={brandThemes[name].dark} />
-                </View>
-              </Pressable>
-            ))}
-          </BottomSheetScrollView>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>
   );
 }
 
-export function AppearancePicker({
-  isOpen,
-  onOpenChange,
-}: {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const { choice, setChoice } = useThemeChoice();
-  return (
-    <OptionSheet
-      isOpen={isOpen}
-      onOpenChange={onOpenChange}
-      title={t("settings__appearance_title")}
-      options={APPEARANCES.map((value) => ({ value, label: t(APPEARANCE_LABELS[value]) }))}
-      value={choice.appearance}
-      onSelect={(appearance) => setChoice({ ...choice, appearance })}
-    />
-  );
-}
-
 /** The same device settings are available before an account exists. */
 export function SignedOutThemeSettings() {
   const { t } = useTranslation();
-  const [picker, setPicker] = useState<"theme" | "appearance" | null>(null);
-  const close = (open: boolean) => {
-    if (!open) setPicker(null);
-  };
+  const [open, setOpen] = useState(false);
   return (
     <>
       <View className="flex-row justify-center">
-        <Button variant="ghost" onPress={() => setPicker("theme")}>
-          <Button.Label>{t("settings__theme_title")}</Button.Label>
-        </Button>
-        <Button variant="ghost" onPress={() => setPicker("appearance")}>
+        <Button variant="ghost" onPress={() => setOpen(true)}>
           <Button.Label>{t("settings__appearance_title")}</Button.Label>
         </Button>
       </View>
-      <ThemePicker isOpen={picker === "theme"} onOpenChange={close} />
-      <AppearancePicker isOpen={picker === "appearance"} onOpenChange={close} />
+      <AppearanceSheet isOpen={open} onOpenChange={setOpen} />
     </>
   );
 }
