@@ -1,0 +1,49 @@
+# PowerSync for production, as a Dokploy Compose application (docs/deployment.md, "PowerSync
+# service"). Create it from this repository with compose path `powersync/compose.dokploy.yml`,
+# set the variables below in its Environment tab, and give the `powersync` service the domain
+# `sync.<domain>` on port 8080 in its Domains tab. No host port is published.
+#
+#   POSTGRES_HOST                   internal host name of the Dokploy Postgres service
+#   POSTGRES_DB                     the application database
+#   POWERSYNC_REPLICATION_PASSWORD  as given to the bootstrap job
+#   POWERSYNC_STORAGE_PASSWORD      as given to the bootstrap job
+#   PS_SSLMODE                      verify-full or verify-ca when Postgres has TLS, else disable
+#   PS_JWKS_URI                     http://<server application name>:3000/api/auth/jwks
+#   PS_ADMIN_TOKEN                  openssl rand -hex 32
+services:
+  powersync:
+    # Same pin as docker-compose.yml (tag and multi-arch digest). Upgrades are deliberate.
+    image: journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c
+    command: ["start", "-r", "unified"]
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      NODE_OPTIONS: --max-old-space-size=1000
+      PS_PORT: "8080"
+      PS_SSLMODE: ${PS_SSLMODE:?set PS_SSLMODE}
+      PS_DATA_SOURCE_URI: postgresql://powersync_replication:${POWERSYNC_REPLICATION_PASSWORD:?set POWERSYNC_REPLICATION_PASSWORD}@${POSTGRES_HOST:?set POSTGRES_HOST}:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      PS_STORAGE_SOURCE_URI: postgresql://powersync_storage:${POWERSYNC_STORAGE_PASSWORD:?set POWERSYNC_STORAGE_PASSWORD}@${POSTGRES_HOST}:5432/powersync_storage
+      PS_JWKS_URI: ${PS_JWKS_URI:?set PS_JWKS_URI}
+      PS_ADMIN_TOKEN: ${PS_ADMIN_TOKEN:?set PS_ADMIN_TOKEN}
+    volumes:
+      - ./service.yaml:/config/service.yaml:ro
+      - ./sync-config.yaml:/config/sync-config.yaml:ro
+    expose:
+      - "8080"
+    networks:
+      - dokploy-network
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/probes/readiness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+
+# The network Dokploy's Traefik, the server application and the Postgres service share.
+networks:
+  dokploy-network:
+    external: true

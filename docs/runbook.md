@@ -4,9 +4,11 @@ The short list of things to do by hand. Setup and configuration reference: [depl
 
 ## Deploy
 
-Merging to `main` runs CI (`checks`, `tests`, `sync`, `workflows`; watch the Actions tab) and deploys the server:
+Merging to `main` runs CI (`checks`, `tests`, `sync`, `workflows`; watch the Actions tab). A change that touches the server image also starts **Deploy server** ([continuous delivery](deployment.md#continuous-delivery)):
 
-- **Server**: Dokploy builds `apps/server/Dockerfile` from `main` and replaces the container. It waits for Postgres, migrates, then listens. Watch the deployment log; `db.startup` and `server.listening` are the two lines that matter.
+- **Server**: the workflow reruns CI for the commit, builds the image, pushes it to GHCR and, once the `production` environment is approved, tells Dokploy to run that image. The new container waits for Postgres, migrates, then listens. Watch the deployment log in Dokploy; `db.startup` and `server.listening` are the two lines that matter. To deploy by hand: Actions → Deploy server → Run workflow on `main`.
+- **PowerSync**: only after a change under `powersync/` has been deployed to the server, redeploy the PowerSync Compose application by hand in Dokploy.
+- **Android APK**: push a `v<version>` tag ([Android release](guides/android-release.md)).
 
 The app and the server release independently: installed apps lag the server by days or weeks. That is why migrations and API changes are additive: an old app must work against the new server.
 
@@ -14,10 +16,10 @@ If the container loops on start, a migration failed. The old container is alread
 
 ## Roll back
 
-| Half   | How                                                                                                                                                                     |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server | Dokploy → the application → Deployments → _Rollback_ to the previous image (Dokploy keeps recent builds when rollbacks are enabled), or revert the commit and redeploy. |
-| Native | `eas update:rollback` for the channel, or publish the previous commit with `eas update`. A store build cannot be rolled back; ship a fix.                               |
+| Half   | How                                                                                                                                                                                                                                                                                                  |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server | Every image stays in GHCR under its commit SHA. Fastest: Actions → the last good **Deploy server** run → Re-run all jobs (it deploys that commit's image again). Or in Dokploy set the application's image to `ghcr.io/<owner>/<repo>-server:<good sha>` and deploy. Or revert the commit and merge. |
+| Native | `eas update:rollback` for the channel, or publish the previous commit with `eas update`. A store build cannot be rolled back; ship a fix.                                                                                                                                                            |
 
 A rollback never undoes migrations. Because migrations are additive, the previous code runs on the newer schema. Only if a migration changed data in a way the old code cannot read, restore a backup first (below).
 
@@ -26,8 +28,11 @@ A rollback never undoes migrations. Because migrations are additive, the previou
 Postgres is a separate Dokploy database service in the same project, with no external port.
 
 1. Dokploy → **Destinations** → add an S3-compatible destination. For Cloudflare R2: endpoint `https://<account-id>.r2.cloudflarestorage.com`, region `auto`, a **private** bucket used only for backups, and an API token scoped to that bucket (Object Read & Write). Never reuse a public bucket: dumps contain sessions and email addresses.
-2. The database service → **Backups** → schedule `0 3 * * *` (daily) to that destination, retention 14 days.
-3. Run the restore drill once, and again whenever backups change.
+2. The database service → **Backups** → add a backup: that destination, the application database, schedule `0 3 * * *` (cron, the server's time zone; daily at 03:00), a prefix such as `vermillion/`, keep the latest 14, enabled.
+3. Press **Run manual backup** and check that a file appears in the bucket. A schedule that has never produced a file is not a backup.
+4. Run the restore drill (below) with that file, and again whenever backups change.
+
+The PowerSync storage database is not backed up: it is rebuilt from the application database ([sync restore checklist](sync-restore-checklist.md)). User media lives in R2, outside these backups.
 
 Backups cover Postgres only. pg-boss keeps its jobs in the `pgboss` schema of the same database, so they are included.
 
@@ -65,6 +70,11 @@ Change the value in Dokploy's environment for the server application and redeplo
 | `TURNSTILE_SECRET_KEY`        | Takes effect on restart. The site key is public and baked in at build time: change `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (new native build) together with the widget in Cloudflare.         |
 | Google / GitHub OAuth secrets | Takes effect on restart.                                                                                                                                                               |
 | `DATABASE_URL`                | Change in step with the database service's password.                                                                                                                                   |
+| `GHCR_PULL_TOKEN`             | Create a new `read:packages` token, update the GitHub environment secret, run Deploy server (it writes the token into Dokploy), then revoke the old one.                               |
+| `DOKPLOY_API_KEY`             | Create a new key in Dokploy, update the GitHub environment secret, delete the old key.                                                                                                 |
+| Android release keystore      | Cannot be rotated for installed apps: a new key means a reinstall. Keep the backup. If it must change, add the new fingerprint to `ANDROID_CERT_SHA256` before shipping.               |
+
+GitHub-side secrets (`DOKPLOY_*`, `GHCR_PULL_*`, `ANDROID_UPLOAD_*`) are changed under Settings → Environments → `production` or Settings → Secrets and variables → Actions.
 
 For a compromised auth secret or leaked deletion links or sign-in codes, stop the server before rotation. Revoke database-backed tokens and sessions in Postgres, then deploy with the new secret:
 

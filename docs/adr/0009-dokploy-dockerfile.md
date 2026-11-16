@@ -1,6 +1,6 @@
 # 0009. The server deploys from a Dockerfile
 
-Status: accepted (2026-11-06). Made while writing the deploy docs; the spec left "Dockerfile or Nixpacks" open.
+Status: accepted (2026-11-06); where the image is built is superseded by [0045](0045-build-in-ci-deploy-by-api.md) (2026-11-17): CI builds it, Dokploy only runs it. The Dockerfile itself stands. Made while writing the deploy docs; the spec left "Dockerfile or Nixpacks" open.
 
 ## Context
 
