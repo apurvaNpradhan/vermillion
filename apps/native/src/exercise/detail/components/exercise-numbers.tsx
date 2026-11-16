@@ -70,7 +70,9 @@ export function ExerciseNumbers({
   const label = (key: Metric) =>
     key.startsWith("reps_")
       ? t("exercise__record_reps", { count: Number(key.slice(5)) })
-      : t(LABELS[isMetricLabel(key) ? key : "total_reps"]);
+      : key === "heaviest_weight" && addsLoad(type)
+        ? t("exercise__metric_added_load")
+        : t(LABELS[isMetricLabel(key) ? key : "total_reps"]);
   const format = (value: number, key: Metric) => {
     if (key === "longest_duration") return t("exercise__value_seconds", { value: number(value) });
     if (key === "longest_distance") return t("exercise__value_metres", { value: number(value) });

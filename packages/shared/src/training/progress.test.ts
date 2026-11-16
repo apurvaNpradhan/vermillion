@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { bestProgressSet, exerciseWeeklyVolume, oneRepMaxSeries } from "./progress";
+import {
+  heaviestAddedLoadSeries,
+  bestProgressSet,
+  exerciseWeeklyVolume,
+  oneRepMaxSeries,
+} from "./progress";
 import type { SessionHistory } from "./logged-set";
 const now = Date.parse("2026-11-12T12:00:00Z");
 const session = (id: string, date: string, weight = 100): SessionHistory => ({
@@ -66,4 +71,41 @@ it("clamps calendar month ends and excludes future and unfinished sessions", () 
     { ...session("active", "2026-05-01"), finished_at: null },
   ];
   expect(oneRepMaxSeries(history, "e", "3M", now).map((p) => p.id)).toEqual(["edge"]);
+});
+
+it("charts added load without bodyweight, including zero, and ignores uncounted and other types", () => {
+  const recent = session("recent", "2026-11-01");
+  const set = {
+    ...recent.sets[0]!,
+    exercise_type: "bodyweight_weighted_reps" as const,
+    weight_kg: 20,
+    reps: 15,
+  };
+  recent.sets = [
+    set,
+    { ...set, weight_kg: 25 },
+    { ...set, weight_kg: 100, kind: "warmup" },
+    { ...set, weight_kg: 100, completed_at: null },
+    { ...set, weight_kg: 100, exercise_id: "other" },
+    { ...set, weight_kg: 100, exercise_type: "bodyweight_assisted_reps" },
+    { ...set, weight_kg: null },
+  ];
+  const zero = {
+    ...recent,
+    id: "zero",
+    started_at: "2026-10-01",
+    sets: [{ ...set, weight_kg: 0 }],
+  };
+  const history = [
+    recent,
+    zero,
+    session("old", "2025-01-01"),
+    { ...recent, id: "active", finished_at: null },
+    { ...recent, id: "future", started_at: "2027-01-01" },
+  ];
+  expect(heaviestAddedLoadSeries(history, "e", "3M", now).map(({ id, y }) => [id, y])).toEqual([
+    ["zero", 0],
+    ["recent", 25],
+  ]);
+  expect(heaviestAddedLoadSeries([], "e", "All", now)).toEqual([]);
 });

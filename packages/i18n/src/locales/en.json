@@ -1289,5 +1289,6 @@
   "share__plan_weeks_one": "{{count}} week",
   "share__plan_weeks_other": "{{count}} weeks",
   "session__set_removed_toast": "Set deleted",
-  "session__exercise_removed_toast": "Exercise deleted"
+  "session__exercise_removed_toast": "Exercise deleted",
+  "exercise__metric_added_load": "Heaviest added load"
 }

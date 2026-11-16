@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import {
   bestProgressSet,
   oneRepMaxSeries,
+  heaviestAddedLoadSeries,
   exerciseWeeklyVolume,
   addsLoad,
   formatLoad,
@@ -38,6 +39,8 @@ export function ExerciseProgress({
 }) {
   const { t, i18n } = useTranslation();
   const [range, setRange] = useState<ProgressRange>("3M");
+  const [metric, setMetric] = useState<"added" | "oneRm">("added");
+  const added = addsLoad(type) && metric === "added";
   const now = Date.now();
   const best = bestProgressSet(sessions, exerciseId, "All", now);
   const unit = settings.weightUnit;
@@ -90,11 +93,35 @@ export function ExerciseProgress({
           </Button>
         ))}
       </View>
+      {addsLoad(type) ? (
+        <View className="flex-row flex-wrap gap-2">
+          {(["added", "oneRm"] satisfies (typeof metric)[]).map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={metric === value ? "primary" : "tertiary"}
+              accessibilityState={{ selected: metric === value }}
+              onPress={() => setMetric(value)}
+            >
+              <Button.Label>
+                {t(value === "added" ? "exercise__metric_added_load" : "exercise__metric_one_rm")}
+              </Button.Label>
+            </Button>
+          ))}
+        </View>
+      ) : null}
       <LineChart
         showRanges={false}
-        points={points(oneRepMaxSeries(sessions, exerciseId, range, now))}
-        label={t("exercise__metric_one_rm")}
-        formatValue={weight}
+        points={points(
+          (added ? heaviestAddedLoadSeries : oneRepMaxSeries)(sessions, exerciseId, range, now),
+        )}
+        label={t(added ? "exercise__metric_added_load" : "exercise__metric_one_rm")}
+        formatValue={
+          added
+            ? (value) =>
+                t("progress__increment_value", { value: formatLoad(value, unit, type), unit })
+            : weight
+        }
       />
       <BarChart
         showRanges={false}

@@ -1,3 +1,4 @@
+import { addsLoad } from "./format";
 import { inSessionOrder, isCounted, type LoggedSet, type SessionHistory } from "./logged-set";
 import { effectiveWeight, estimatedOneRepMax, setVolume } from "./volume";
 import { isoWeekKey } from "./week";
@@ -75,4 +76,27 @@ export function exerciseWeeklyVolume(
     }
   }
   return [...weeks].map(([id, y]) => ({ id, x: Date.parse(id), y }));
+}
+
+/** The heaviest added load per finished session, independent of bodyweight and rep estimates. */
+export function heaviestAddedLoadSeries(
+  sessions: readonly SessionHistory[],
+  exerciseId: string,
+  range: ProgressRange,
+  now: number,
+) {
+  return withinRange(sessions, range, now).flatMap((session) => {
+    let best: number | null = null;
+    for (const set of session.sets) {
+      if (
+        set.exercise_id !== exerciseId ||
+        !addsLoad(set.exercise_type) ||
+        !isCounted(set) ||
+        set.weight_kg == null
+      )
+        continue;
+      if (best === null || set.weight_kg > best) best = set.weight_kg;
+    }
+    return best === null ? [] : [{ id: session.id, x: Date.parse(session.started_at), y: best }];
+  });
 }
