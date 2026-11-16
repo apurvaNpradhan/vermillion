@@ -1,3 +1,5 @@
+import { BodyState } from "../body-state";
+import { PhotoDatePicker } from "./photo-date-picker";
 import { useState } from "react";
 import { ScrollView, Text, View, useWindowDimensions } from "react-native";
 import {
@@ -28,7 +30,7 @@ type Picks = { before?: string; after?: string };
 
 /**
  * Compare (ADR 0041): one pose on two dates, side by side under a Compare slider. The pose and
- * the two dates are chosen with chips (defaults: the first and the latest date of the pose), and
+ * the two dates are chosen from a photo calendar (defaults: the first and latest dates), and
  * under each side sit the weight trend and the waist on that date. A pose with fewer than two
  * dates says so. Photos here are shown clear: opening Compare is the reader's own choice.
  */
@@ -39,6 +41,7 @@ export function CompareScreen() {
   const weight = useWeight();
   const measurements = useMeasurements();
   const [chosen, setChosen] = useState<ProgressPose | null>(null);
+  const [picking, setPicking] = useState<"before" | "after" | null>(null);
   const [picks, setPicks] = useState<Picks>({});
 
   // Until a pose is chosen: the first one that has two dates to compare.
@@ -50,7 +53,7 @@ export function CompareScreen() {
     "front";
   const recentDates = usePoseDates(pose);
   const first = summaries.value?.find((summary) => summary.pose === pose)?.first;
-  const dates = [...new Set([...(first ? [first] : []), ...recentDates])].sort();
+  const dates = [...new Set([...(first ? [first] : []), ...(recentDates.value ?? [])])].sort();
   const defaults = defaultCompareDates(dates);
   const before = picks.before && dates.includes(picks.before) ? picks.before : defaults.before;
   const after = picks.after && dates.includes(picks.after) ? picks.after : defaults.after;
@@ -131,39 +134,15 @@ export function CompareScreen() {
     </View>
   );
 
-  const chips = (
-    side: "before" | "after",
-    selected: string | null,
-    onPick: (value: string) => void,
-  ) => (
-    <View className="gap-2">
-      <Text className="text-label text-muted">
-        {t("body__compare_side_dates", {
+  const dateButton = (side: "before" | "after", selected: string | null) => (
+    <Button variant="secondary" onPress={() => setPicking(side)}>
+      <Button.Label>
+        {t("body__compare_date_label", {
           side: t(side === "before" ? "body__compare_before" : "body__compare_after"),
+          date: selected ? date(selected) : t("body__no_data"),
         })}
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2"
-      >
-        {[...dates].reverse().map((value) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={value === selected ? "secondary" : "tertiary"}
-            accessibilityLabel={t("body__compare_date_label", {
-              side: t(side === "before" ? "body__compare_before" : "body__compare_after"),
-              date: date(value),
-            })}
-            accessibilityState={{ selected: value === selected }}
-            onPress={() => onPick(value)}
-          >
-            <Button.Label>{date(value)}</Button.Label>
-          </Button>
-        ))}
-      </ScrollView>
-    </View>
+      </Button.Label>
+    </Button>
   );
 
   return (
@@ -189,16 +168,23 @@ export function CompareScreen() {
           </Button>
         ))}
       </ScrollView>
-      {photos.failed ? (
-        <Button onPress={photos.retry}>
-          <Button.Label>{t("training__retry")}</Button.Label>
-        </Button>
-      ) : photos.loading || summaries.loading ? (
-        <Text className="text-body text-muted">{t("common__loading")}</Text>
-      ) : !ready ? (
-        <Text className="text-body text-muted">
-          {t("body__compare_need_two", { pose: t(poseLabels[pose]) })}
-        </Text>
+      {photos.failed ||
+      summaries.failed ||
+      recentDates.failed ||
+      photos.loading ||
+      summaries.loading ||
+      recentDates.loading ||
+      !ready ? (
+        <BodyState
+          loading={photos.loading || summaries.loading || recentDates.loading}
+          failed={photos.failed || summaries.failed || recentDates.failed}
+          retry={() => {
+            photos.retry();
+            summaries.retry();
+            recentDates.retry();
+          }}
+          empty={t("body__compare_need_two", { pose: t(poseLabels[pose]) })}
+        />
       ) : (
         <>
           <Compare height={frame} handleLabel={t("body__compare_handle")}>
@@ -228,10 +214,19 @@ export function CompareScreen() {
             {stats(beforeStats, null, null)}
             {stats(afterStats, change, before)}
           </View>
-          {chips("before", before, pickBefore)}
-          {chips("after", after, pickAfter)}
+          {dateButton("before", before)}
+          {dateButton("after", after)}
         </>
       )}
+      {picking ? (
+        <PhotoDatePicker
+          dates={dates}
+          selected={picking === "before" ? before : after}
+          title={t(picking === "before" ? "body__compare_before" : "body__compare_after")}
+          onPick={picking === "before" ? pickBefore : pickAfter}
+          onClose={() => setPicking(null)}
+        />
+      ) : null}
     </ScrollPage>
   );
 }

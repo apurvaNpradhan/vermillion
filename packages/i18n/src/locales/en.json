@@ -1294,5 +1294,8 @@
   "body__save_readings_one": "Save {{count}} reading",
   "body__save_readings_other": "Save {{count}} readings",
   "body__load_error": "Could not load your body data. Try again.",
-  "body__no_tracked": "Choose the measurements you want to track."
+  "body__no_tracked": "Choose the measurements you want to track.",
+  "body__previous_month": "Earlier",
+  "body__next_month": "Later",
+  "body__photo_dates_hint": "Only dates with photos can be selected."
 }
