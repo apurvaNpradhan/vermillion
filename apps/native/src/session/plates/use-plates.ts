@@ -6,6 +6,8 @@ import {
   seedEquipment,
   setExerciseSetting,
   upsertEquipment,
+  updateEquipment,
+  type EquipmentPatch,
   watchEquipment,
   watchExerciseBar,
   type EquipmentRow,
@@ -99,6 +101,8 @@ export function useEquipment(enabled = true) {
   ]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
     run((db) => upsertEquipment(db, [item], scope));
+  const edit = (id: string, patch: EquipmentPatch) =>
+    run((db) => updateEquipment(db, id, patch, scope));
   const toggle = (item: EquipmentRow) =>
     save({
       id: item.id,
@@ -135,6 +139,7 @@ export function useEquipment(enabled = true) {
     unit,
     hasSynced,
     save,
+    edit,
     toggle,
     addKit,
     remove,

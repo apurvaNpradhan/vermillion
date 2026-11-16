@@ -151,6 +151,8 @@ export {
   moveSessionExercise,
   removeSessionExercise,
   removeSet,
+  restoreSet,
+  restoreSessionExercise,
   replaceSessionExercise,
   supersetSessionWithNext,
   tickSet,
@@ -168,6 +170,8 @@ export {
   restoreEquipment,
   setExerciseSetting,
   upsertEquipment,
+  updateEquipment,
+  type EquipmentPatch,
   type EquipmentItem,
   type ExerciseSettingPatch,
 } from "./equipment-store";

@@ -137,3 +137,39 @@ export async function restoreEquipment(
     await tx.insert(gymEquipment).values(marked(row)).onConflictDoNothing();
   });
 }
+
+const equipmentPatch = z
+  .strictObject({
+    weight_kg: gymEquipmentInput.shape.weight_kg,
+    label: gymEquipmentInput.shape.label,
+    count: gymEquipmentInput.shape.count,
+  })
+  .partial();
+export type EquipmentPatch = z.input<typeof equipmentPatch>;
+
+/** Edits only the draft's dirty fields, preserving concurrent changes and never recreating a deleted item. */
+export function updateEquipment(
+  database: TrainingDatabase,
+  id: string,
+  patch: EquipmentPatch,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  const fields = equipmentPatch.parse(patch);
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx.select().from(gymEquipment).where(eq(gymEquipment.id, id)).limit(1);
+    if (!current) return false;
+    gymEquipmentInput.parse({
+      kind: current.kind,
+      unit: current.unit,
+      weight_kg: current.weight_kg,
+      label: current.label,
+      count: current.count,
+      enabled: current.enabled,
+      ...fields,
+    });
+    const changes = changedFields(current, fields);
+    if (Object.keys(changes).length > 0)
+      await tx.update(gymEquipment).set(changes).where(eq(gymEquipment.id, id));
+    return true;
+  });
+}

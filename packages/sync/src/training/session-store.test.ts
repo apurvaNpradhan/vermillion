@@ -17,6 +17,8 @@ import {
   moveSessionExercise,
   removeSessionExercise,
   removeSet,
+  restoreSet,
+  restoreSessionExercise,
   replaceSessionExercise,
   tickSet,
   untickSet,
@@ -34,7 +36,7 @@ import {
   startSession,
   takeOver,
 } from "./session-store";
-import { setExerciseSetting, upsertEquipment } from "./equipment-store";
+import { setExerciseSetting, upsertEquipment, updateEquipment } from "./equipment-store";
 
 const derivedTitle = "Quadriceps";
 
@@ -731,4 +733,47 @@ describe("equipment and settings", () => {
     expect(s.all("exercise_setting")).toHaveLength(2);
     await expect(setExerciseSetting(s.training, SQUAT, { bar_id: "nope" })).rejects.toThrow();
   });
+});
+
+it("restores deleted sets and exercises with original values, order and completion", async () => {
+  const s = await setupSessions();
+  const t = await started(s);
+  await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
+  s.sqlite
+    .prepare("UPDATE session_exercise SET superset_group = ?, rest_seconds = NULL WHERE id = ?")
+    .run(t.id, t.squat);
+  s.sqlite
+    .prepare("UPDATE session_exercise SET superset_group = ?, rest_seconds = 90 WHERE id = ?")
+    .run(t.id, t.plank);
+  const sets = s.sets(t.squat);
+  const exercises = s.exercises(t.id);
+  const removedSet = await removeSet(s.training, t.work1);
+  expect(removedSet).not.toBeNull();
+  expect(await restoreSet(s.training, removedSet!)).toBe(true);
+  expect(s.sets(t.squat)).toMatchObject(sets.map(({ restore: _restore, ...row }) => row));
+  expect(await restoreSet(s.training, removedSet!)).toBe(false);
+  const removedExercise = await removeSessionExercise(s.training, t.squat);
+  expect(removedExercise).not.toBeNull();
+  expect(await restoreSessionExercise(s.training, removedExercise!)).toBe(true);
+  expect(s.exercises(t.id)).toMatchObject(exercises.map(({ restore: _restore, ...row }) => row));
+  expect(s.sets(t.squat)).toMatchObject(sets.map(({ restore: _restore, ...row }) => row));
+  expect(await restoreSessionExercise(s.training, removedExercise!)).toBe(false);
+  await removeSessionExercise(s.training, t.squat);
+  expect(await restoreSet(s.training, removedSet!)).toBe(false);
+});
+
+it("edits equipment without overwriting enabled state or recreating a deleted row", async () => {
+  const s = await setupSessions();
+  const [id] = await upsertEquipment(s.training, [
+    { kind: "bar", unit: "kg", weight_kg: 20, label: "Bar", count: null, enabled: false },
+  ]);
+  expect(await updateEquipment(s.training, id!, { label: "New bar", weight_kg: 15 })).toBe(true);
+  expect(s.one("gym_equipment", id!)).toMatchObject({
+    label: "New bar",
+    weight_kg: 15,
+    enabled: 0,
+  });
+  s.sqlite.prepare("DELETE FROM gym_equipment WHERE id = ?").run(id!);
+  expect(await updateEquipment(s.training, id!, { label: "Gone" })).toBe(false);
+  expect(s.one("gym_equipment", id!)).toBeUndefined();
 });
