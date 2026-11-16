@@ -11,15 +11,20 @@ import {
 import { usePickedMedia } from "@/media";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useLocalData, useSyncValue } from "@/sync";
-export function useSessionPhotos(id: string) {
-  const { t } = useTranslation();
-  const { toast } = useAppToast();
+/** The photos of a Session, live from the local database. */
+export function useSessionPhotoList(id: string) {
   const subscribe = useCallback(
     (db: MediaDatabase, onValue: (photos: SessionPhoto[]) => void, onError: () => void) =>
       watchSessionPhotos(db, id, onValue, onError),
     [id],
   );
-  const state = useLocalWatch(subscribe);
+  return useLocalWatch(subscribe);
+}
+
+export function useSessionPhotos(id: string) {
+  const { t } = useTranslation();
+  const { toast } = useAppToast();
+  const state = useSessionPhotoList(id);
   const local = useLocalData();
   const scope = useSyncValue((s) => s?.writeScope ?? "");
   const picker = usePickedMedia(async (db, image, scope) => {

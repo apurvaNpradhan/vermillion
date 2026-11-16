@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useActiveRun } from "../use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
@@ -32,7 +33,6 @@ import { repeatCounts, rotationSummary } from "../rotation";
 import { useProgram } from "../use-program";
 import { useProgramActions } from "../use-program-actions";
 import { useProgramMeta } from "../use-program-meta";
-import { useSharePlan } from "../use-share-plan";
 import { useStartWorkout } from "../use-start-workout";
 import {
   AddWorkoutSheet,
@@ -113,7 +113,7 @@ function LoadedProgram({
     else active.activate(program.id);
   };
   const { fromPicker } = useStartWorkout();
-  const { shareProgram } = useSharePlan();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [slotMenu, setSlotMenu] = useState<ProgramSlotDetail | null>(null);
   const [dayOpen, setDayOpen] = useState(false);
@@ -152,9 +152,13 @@ function LoadedProgram({
     },
     {
       key: "share",
-      label: t("training__share_as_text"),
+      label: t("share__share"),
       icon: ShareNetwork,
-      onPress: () => void shareProgram(program.id, program.title),
+      onPress: () =>
+        router.push({
+          pathname: "/share/[kind]/[id]",
+          params: { kind: "program", id: program.id },
+        }),
     },
     {
       key: "duplicate",
@@ -220,14 +224,29 @@ function LoadedProgram({
         title={program.title}
         back
         actions={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("training__program_menu")}
-            onPress={() => setMenuOpen(true)}
-            className="h-11 w-11 items-center justify-center"
-          >
-            <DotsThreeVertical size={22} weight="bold" color={foreground} />
-          </Pressable>
+          <View className="flex-row">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("share__share")}
+              className="h-11 w-11 items-center justify-center"
+              onPress={() => {
+                router.push({
+                  pathname: "/share/[kind]/[id]",
+                  params: { kind: "program", id: program.id },
+                });
+              }}
+            >
+              <ShareNetwork size={22} color={foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("training__program_menu")}
+              onPress={() => setMenuOpen(true)}
+              className="h-11 w-11 items-center justify-center"
+            >
+              <DotsThreeVertical size={22} weight="bold" color={foreground} />
+            </Pressable>
+          </View>
         }
       >
         {({ header, contentContainerStyle, ...scroll }) => (

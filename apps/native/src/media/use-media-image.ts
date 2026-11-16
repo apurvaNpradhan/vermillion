@@ -1,3 +1,4 @@
+import { File } from "expo-file-system";
 import { AttachmentState } from "@powersync/common";
 import { mediaAttachmentId, type MediaVariant } from "@workspace/shared";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
@@ -33,7 +34,11 @@ export type MediaImageState = {
  * the state of its transfer. `thumb` downloads on its own; `full` is requested here and cached
  * with a size cap. A media row renders at once from the local file while it uploads.
  */
-export function useMediaImage(mediaId: string | null, variant: MediaVariant): MediaImageState {
+export function useMediaImage(
+  mediaId: string | null,
+  variant: MediaVariant,
+  localOnly = false,
+): MediaImageState {
   const batch = useImageBatch();
   const batched = variant === "thumb" && batch !== null;
   const local = useLocalData();
@@ -84,21 +89,40 @@ export function useMediaImage(mediaId: string | null, variant: MediaVariant): Me
   const present = value?.present ?? false;
   // A full image is fetched when a view asks for it, and counts as used while it is shown.
   useEffect(() => {
-    if (!queue || mediaId === null || variant !== "full" || !present) return;
+    if (localOnly || !queue || mediaId === null || variant !== "full" || !present) return;
     if (rawState === null || rawState === AttachmentState.ARCHIVED) {
       void queue.wantFull(mediaId).catch(() => undefined);
     } else if (rawState === AttachmentState.SYNCED) {
       void queue.touchFull(mediaId).catch(() => undefined);
     }
-  }, [queue, mediaId, variant, present, rawState]);
+  }, [queue, mediaId, variant, present, rawState, localOnly]);
 
   const retry = useCallback(() => {
-    if (queue && attachmentId !== null) void queue.retry(attachmentId).catch(() => undefined);
-  }, [queue, attachmentId]);
+    if (!localOnly && queue && attachmentId !== null)
+      void queue.retry(attachmentId).catch(() => undefined);
+  }, [queue, attachmentId, localOnly]);
 
   const file: MediaFile = mediaFile(
     { mediaPresent: present, state: rawState, localUri: value?.uri ?? null },
     failed,
   );
+  if (localOnly) {
+    // Only local file URIs are drawable here. Never pass a remote source to expo-image.
+    let uri: string | null = null;
+    try {
+      if (file.uri?.startsWith("file://") && new File(file.uri).exists) uri = file.uri;
+    } catch {
+      // Evicted or unreadable local files fall back to the avatar.
+    }
+    return {
+      uri,
+      state: uri
+        ? "local"
+        : !batched && watched.loading && mediaId !== null
+          ? "downloading"
+          : "missing",
+      retry,
+    };
+  }
   return { uri: file.uri, state: file.state, retry };
 }

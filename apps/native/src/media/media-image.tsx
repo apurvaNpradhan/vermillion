@@ -2,7 +2,7 @@ import { type MediaVariant } from "@workspace/shared";
 import { Image } from "expo-image";
 import { CloudArrowUp, WarningCircle } from "phosphor-react-native";
 import { Spinner, useThemeColor } from "heroui-native";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -25,8 +25,12 @@ export function MediaImage({
   blurRadius = 0,
   fallback = null,
   rounded = "rounded-xl",
+  onSettled,
+  localOnly = false,
 }: {
   mediaId: string | null;
+  /** Read only existing device files; never request transfers or show transfer controls. */
+  localOnly?: boolean;
   variant?: MediaVariant;
   /** Width in dp; the view is square unless `height` says otherwise. */
   size: number;
@@ -40,17 +44,26 @@ export function MediaImage({
   fallback?: ReactNode;
   /** Radius class; the view clips its image to it. */
   rounded?: string;
+  /**
+   * Called once the picture has loaded or failed, or at once when there is nothing to load (a
+   * placeholder shows). A file still downloading does not settle it. Share cards wait on this.
+   */
+  onSettled?: () => void;
 }) {
   const { t } = useTranslation();
-  const file = useMediaImage(mediaId, variant);
+  const file = useMediaImage(mediaId, variant, localOnly);
   // The thumbnail is what a full image shows while it downloads.
-  const thumb = useMediaImage(variant === "full" ? mediaId : null, "thumb");
+  const thumb = useMediaImage(variant === "full" ? mediaId : null, "thumb", localOnly);
   const danger = useThemeColor("danger");
   const foreground = useThemeColor("foreground");
   const [failedUri, setFailedUri] = useState<string | null>(null);
 
   const uri = file.uri ?? thumb.uri;
   const drawable = uri !== null && failedUri !== uri;
+  const nothingToLoad = !drawable && file.state !== "downloading" && thumb.state !== "downloading";
+  useEffect(() => {
+    if (nothingToLoad) onSettled?.();
+  }, [nothingToLoad, onSettled]);
 
   return (
     <View className={`overflow-hidden bg-default ${rounded}`} style={{ width: size, height }}>
@@ -60,8 +73,12 @@ export function MediaImage({
           recyclingKey={uri}
           contentFit="cover"
           blurRadius={blurRadius}
-          transition={120}
-          onError={() => setFailedUri(uri)}
+          transition={localOnly ? 0 : 120}
+          onLoad={onSettled}
+          onError={() => {
+            setFailedUri(uri);
+            onSettled?.();
+          }}
           style={{ width: size, height }}
         />
       ) : (

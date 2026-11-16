@@ -27,3 +27,7 @@ export { WorkoutPreviewScreen } from "./components/workout-preview-screen";
 export { useReorderScroll } from "./use-reorder-scroll";
 export { Stepper } from "./components/stepper";
 export { SetTextTable } from "./components/set-text-table";
+
+export { WorkoutShareScreen, ProgramShareScreen } from "./components/plan-share-screen";
+/** @public Share card views for consumers of the training vertical. */
+export { WorkoutCard, ProgramOverview } from "./share/cards";
