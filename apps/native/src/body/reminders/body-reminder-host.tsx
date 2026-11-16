@@ -11,7 +11,10 @@ import {
 } from "./reminder-notifications";
 
 // Shared across mounts: sign-out cancellation must finish before a new account schedules.
-const reconciler = createRestReconciler();
+// Created on first use: calling into another vertical while this module loads breaks when the two
+// verticals import each other (the other one is not initialised yet).
+let shared: ReturnType<typeof createRestReconciler> | undefined;
+const reconciler = () => (shared ??= createRestReconciler());
 export function BodyReminderHost() {
   const { preferences, hasPreferences } = usePreferences();
   const { t } = useTranslation();
@@ -23,7 +26,7 @@ export function BodyReminderHost() {
   const ui = preferences.ui;
   useEffect(() => {
     if (!hasPreferences) return;
-    void reconciler
+    void reconciler()
       .enqueue(async (current) => {
         await installBodyChannel(title);
         if (!current()) return;
@@ -52,11 +55,11 @@ export function BodyReminderHost() {
         }
       })
       .catch(() => undefined);
-    return () => reconciler.invalidate();
+    return () => reconciler().invalidate();
   }, [ui, hasPreferences, title, weightTitle, weightBody, checkTitle, checkBody]);
   useEffect(
     () => () => {
-      void reconciler
+      void reconciler()
         .enqueue(async () => {
           for (const entry of await scheduledBodyReminders()) await cancelBodyReminder(entry.id);
         })
