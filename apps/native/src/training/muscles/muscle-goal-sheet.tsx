@@ -1,0 +1,151 @@
+import {
+  CUSTOM_GOAL_MAX,
+  GOAL_LEVELS,
+  GOAL_RANGES,
+  MUSCLE_GROUP_KEYS,
+  goalRange,
+  type GoalLevel,
+  type MuscleContribution,
+  type MuscleGoal,
+  type TargetMuscle,
+} from "@workspace/shared";
+import { BottomSheet } from "heroui-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
+
+import { useTranslation } from "@/platform/i18n";
+import { Button } from "@/platform/ui/button";
+import { Field } from "@/platform/ui/field";
+import { SegmentedControl } from "@/platform/ui/segmented-control";
+import { useSheetPresent } from "@/platform/ui/use-sheet-present";
+
+import { formatSets } from "./muscle-bars";
+import { customGoal } from "./custom-goal";
+
+/** How many contributing exercises the sheet lists; the sheet cannot scroll. */
+const LISTED = 4;
+
+const LEVEL_KEYS = {
+  maintain: "muscles__level_maintain",
+  grow: "muscles__level_grow",
+  focus: "muscles__level_focus",
+  custom: "muscles__level_custom",
+} as const satisfies Record<GoalLevel, string>;
+
+/**
+ * Pick a muscle's goal level (Maintain, Grow, Focus or Custom with two number fields) and see the
+ * exercises that gave it sets this week. Presets save at once; Custom saves with its button.
+ */
+export function MuscleGoalSheet({
+  muscle,
+  goal,
+  contributions,
+  onChange,
+  onClose,
+}: {
+  muscle: TargetMuscle;
+  goal: MuscleGoal | undefined;
+  contributions: readonly MuscleContribution[];
+  onChange: (goal: MuscleGoal) => void;
+  onClose: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const sheet = useSheetPresent();
+  const level: GoalLevel = goal?.level ?? "grow";
+  const [picked, setPicked] = useState<GoalLevel>(level);
+  const range = goalRange(goal);
+  const [min, setMin] = useState(String(range.min));
+  const [max, setMax] = useState(String(range.max));
+  const parsed = customGoal(min, max);
+  const preset = picked === "custom" ? null : GOAL_RANGES[picked];
+  return (
+    <BottomSheet
+      isOpen={sheet.isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <BottomSheet.Portal>
+        <BottomSheet.Overlay />
+        <BottomSheet.Content
+          backgroundClassName="rounded-t-[28px] bg-overlay"
+          contentContainerClassName="gap-4 px-4 pb-4"
+        >
+          {sheet.probe}
+          <BottomSheet.Title className="font-semibold text-title-lg">
+            {t("muscles__goal_title", { muscle: t(MUSCLE_GROUP_KEYS[muscle]) })}
+          </BottomSheet.Title>
+          <SegmentedControl
+            accessibilityLabel={t("muscles__goal_label")}
+            value={picked}
+            options={GOAL_LEVELS.map((value) => ({ value, label: t(LEVEL_KEYS[value]) }))}
+            onChange={(next) => {
+              setPicked(next);
+              if (next !== "custom") onChange({ level: next });
+            }}
+          />
+          {preset ? (
+            <Text className="text-caption tabular-nums text-muted">
+              {t("muscles__level_range", preset)}
+            </Text>
+          ) : (
+            <View className="gap-3">
+              <View className="flex-row gap-3">
+                <Field
+                  className="flex-1"
+                  label={t("muscles__custom_min")}
+                  value={min}
+                  onChangeText={setMin}
+                  keyboardType="number-pad"
+                  maxLength={String(CUSTOM_GOAL_MAX).length}
+                />
+                <Field
+                  className="flex-1"
+                  label={t("muscles__custom_max")}
+                  value={max}
+                  onChangeText={setMax}
+                  keyboardType="number-pad"
+                  maxLength={String(CUSTOM_GOAL_MAX).length}
+                  error={parsed === null ? t("muscles__custom_invalid") : undefined}
+                />
+              </View>
+              <Button
+                isDisabled={parsed === null}
+                onPress={() => {
+                  if (parsed) onChange(parsed);
+                }}
+              >
+                <Button.Label>{t("common__save")}</Button.Label>
+              </Button>
+            </View>
+          )}
+          <View className="gap-2 rounded-2xl bg-surface p-4">
+            <Text className="text-caption font-medium text-muted">{t("muscles__sets_from")}</Text>
+            {contributions.length === 0 ? (
+              <Text className="text-body text-muted">{t("muscles__sets_from_none")}</Text>
+            ) : (
+              contributions.slice(0, LISTED).map((item) => (
+                <View
+                  key={item.exerciseId}
+                  className="flex-row items-baseline justify-between gap-3"
+                >
+                  <Text numberOfLines={1} className="flex-1 text-body text-foreground">
+                    {item.title}
+                  </Text>
+                  <Text className="text-body tabular-nums text-muted">
+                    {formatSets(item.sets, i18n.language)}
+                  </Text>
+                </View>
+              ))
+            )}
+            {contributions.length > LISTED ? (
+              <Text className="text-caption text-muted">
+                {t("muscles__sets_from_more", { count: contributions.length - LISTED })}
+              </Text>
+            ) : null}
+          </View>
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
+  );
+}

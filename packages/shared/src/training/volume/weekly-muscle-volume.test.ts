@@ -1,0 +1,136 @@
+import { describe, expect, it } from "vitest";
+
+import { loggedSet, sessionOf, untickedSet } from "../logging/session-fixtures";
+import { weekRange } from "../plans/week";
+import {
+  muscleContributions,
+  muscleRows,
+  onTargetCount,
+  shiftWeek,
+  weeklyMuscleVolume,
+} from "./weekly-muscle-volume";
+
+const exercises = [
+  { id: "bench", title: "Bench", primary_muscle: "chest", secondary_muscles: ["triceps"] },
+  { id: "row", title: "Row", primary_muscle: "upper_back", secondary_muscles: ["biceps"] },
+] as const;
+
+const NOW = new Date("2026-11-18T12:00:00Z"); // a Wednesday
+const week = (weekStart: "monday" | "sunday" | "saturday", timezone = "UTC") =>
+  weekRange(NOW, timezone, weekStart);
+
+describe("weeklyMuscleVolume", () => {
+  it("gives 1 set to the primary muscle and 0.5 to each secondary", () => {
+    const sessions = [
+      sessionOf("a", "2026-11-17T10:00:00Z", [
+        loggedSet({ exercise_id: "bench" }),
+        loggedSet({ exercise_id: "bench" }),
+        loggedSet({ exercise_id: "row" }),
+      ]),
+    ];
+    expect(weeklyMuscleVolume(sessions, exercises, week("monday"), "UTC")).toEqual([
+      { muscle: "chest", sets: 2 },
+      { muscle: "triceps", sets: 1 },
+      { muscle: "upper_back", sets: 1 },
+      { muscle: "biceps", sets: 0.5 },
+    ]);
+  });
+
+  it("leaves out warm-ups and unticked sets, and counts every other kind", () => {
+    const kinds = ["warmup", "working", "top", "backoff", "drop", "myo", "failure"] as const;
+    const sessions = [
+      sessionOf("a", "2026-11-17T10:00:00Z", [
+        ...kinds.map((kind) => loggedSet({ exercise_id: "bench", kind })),
+        untickedSet({ exercise_id: "bench" }),
+      ]),
+    ];
+    const loads = weeklyMuscleVolume(sessions, exercises, week("monday"), "UTC");
+    expect(loads.find((load) => load.muscle === "chest")?.sets).toBe(6);
+    expect(loads.find((load) => load.muscle === "triceps")?.sets).toBe(3);
+  });
+
+  it("buckets by the week start preference: Sunday 15 Nov belongs to the next week for Monday", () => {
+    const sessions = [
+      sessionOf("sun", "2026-11-15T10:00:00Z", [loggedSet({ exercise_id: "bench" })]),
+      sessionOf("mon", "2026-11-16T10:00:00Z", [loggedSet({ exercise_id: "bench" })]),
+      sessionOf("old", "2026-11-14T10:00:00Z", [loggedSet({ exercise_id: "bench" })]),
+    ];
+    const chest = (weekStart: "monday" | "sunday" | "saturday") =>
+      weeklyMuscleVolume(sessions, exercises, week(weekStart), "UTC").find(
+        (load) => load.muscle === "chest",
+      )?.sets;
+    expect(chest("monday")).toBe(1); // 16 Nov only
+    expect(chest("sunday")).toBe(2); // 15 and 16 Nov
+    expect(chest("saturday")).toBe(3); // 14, 15 and 16 Nov
+  });
+
+  it("buckets by the calendar day in the user's time zone", () => {
+    // 23:30 UTC on Saturday is Sunday 12:30 in Auckland.
+    const sessions = [
+      sessionOf("a", "2026-11-14T23:30:00Z", [loggedSet({ exercise_id: "bench" })]),
+    ];
+    expect(weeklyMuscleVolume(sessions, exercises, week("sunday", "UTC"), "UTC")).toEqual([]);
+    expect(
+      weeklyMuscleVolume(
+        sessions,
+        exercises,
+        week("sunday", "Pacific/Auckland"),
+        "Pacific/Auckland",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("reads last week with shiftWeek and its end is exclusive", () => {
+    const sessions = [
+      sessionOf("last", "2026-11-12T10:00:00Z", [loggedSet({ exercise_id: "bench" })]),
+      sessionOf("edge", "2026-11-16T00:00:00Z", [loggedSet({ exercise_id: "row" })]),
+    ];
+    const previous = shiftWeek(week("monday"), 1);
+    expect(weeklyMuscleVolume(sessions, exercises, previous, "UTC").map((l) => l.muscle)).toEqual([
+      "chest",
+      "triceps",
+    ]);
+  });
+});
+
+describe("muscleRows", () => {
+  it("lists every targeted muscle with below target first, the furthest below first", () => {
+    const rows = muscleRows(
+      [
+        { muscle: "chest", sets: 12 },
+        { muscle: "lats", sets: 25 },
+        { muscle: "biceps", sets: 9 },
+        { muscle: "shoulders", sets: 2 },
+      ],
+      { biceps: { level: "maintain" } },
+    );
+    expect(rows).toHaveLength(12);
+    expect(rows[0]?.status).toBe("below");
+    expect(rows.at(-1)).toMatchObject({ muscle: "lats", status: "above" });
+    const biceps = rows.find((row) => row.muscle === "biceps");
+    expect(biceps).toMatchObject({ status: "on_target", range: { min: 6, max: 10 } });
+    expect(rows.find((row) => row.muscle === "chest")?.status).toBe("on_target");
+    expect(rows.findIndex((row) => row.muscle === "shoulders")).toBeLessThan(
+      rows.findIndex((row) => row.muscle === "chest"),
+    );
+    expect(onTargetCount(rows)).toBe(2);
+  });
+});
+
+describe("muscleContributions", () => {
+  it("lists the exercises that fed a muscle with their credit", () => {
+    const sessions = [
+      sessionOf("a", "2026-11-17T10:00:00Z", [
+        loggedSet({ exercise_id: "bench" }),
+        loggedSet({ exercise_id: "bench" }),
+        loggedSet({ exercise_id: "row" }),
+      ]),
+    ];
+    expect(muscleContributions(sessions, exercises, "triceps", week("monday"), "UTC")).toEqual([
+      { exerciseId: "bench", title: "Bench", sets: 1 },
+    ]);
+    expect(muscleContributions(sessions, exercises, "chest", week("monday"), "UTC")).toEqual([
+      { exerciseId: "bench", title: "Bench", sets: 2 },
+    ]);
+  });
+});

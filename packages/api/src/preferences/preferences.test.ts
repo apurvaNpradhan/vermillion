@@ -102,6 +102,10 @@ describe("preferences", () => {
         sessionView: "sets",
         weekStart: "monday",
         sessionsPerWeek: null,
+        muscleGoals: {},
+        deloadUntil: null,
+        lighterWeeks: [],
+        deloadCardDismissedAt: null,
       },
     });
     expect(await rows()).toBe(before);
@@ -145,6 +149,10 @@ describe("preferences", () => {
         sessionView: "sets",
         weekStart: "monday",
         sessionsPerWeek: null,
+        muscleGoals: {},
+        deloadUntil: null,
+        lighterWeeks: [],
+        deloadCardDismissedAt: null,
       },
     });
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
@@ -180,6 +188,10 @@ describe("preferences", () => {
         sessionView: "sets",
         weekStart: "monday",
         sessionsPerWeek: null,
+        muscleGoals: {},
+        deloadUntil: null,
+        lighterWeeks: [],
+        deloadCardDismissedAt: null,
       },
     });
     expect(
@@ -221,6 +233,10 @@ describe("preferences", () => {
         sessionView: "sets",
         weekStart: "monday",
         sessionsPerWeek: null,
+        muscleGoals: {},
+        deloadUntil: null,
+        lighterWeeks: [],
+        deloadCardDismissedAt: null,
       },
     });
     // null clears; omitted fields stay

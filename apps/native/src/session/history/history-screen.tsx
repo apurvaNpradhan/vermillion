@@ -61,9 +61,14 @@ export function HistoryScreen() {
     <Page
       title={t("session__history")}
       actions={
-        <Button variant="ghost" onPress={() => router.push("/history/log-past")}>
-          <Button.Label>{t("session__log_past")}</Button.Label>
-        </Button>
+        <>
+          <Button variant="ghost" onPress={() => router.push("/muscles")}>
+            <Button.Label>{t("muscles__open")}</Button.Label>
+          </Button>
+          <Button variant="ghost" onPress={() => router.push("/history/log-past")}>
+            <Button.Label>{t("session__log_past")}</Button.Label>
+          </Button>
+        </>
       }
     >
       {({ header, contentContainerStyle, ...scroll }) => (

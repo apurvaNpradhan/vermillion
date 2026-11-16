@@ -9,14 +9,14 @@ import {
 } from "@workspace/sync";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createMediaQueue } from "./attachment-queue";
+import { createMediaQueue } from "../queue/attachment-queue";
 import { saveWithMedia } from "./save-with-media";
 import {
   createDiskStorage,
   createFakeBucket,
   createTestDatabase,
   writePickedFiles,
-} from "./test-kit";
+} from "../queue/test-kit";
 
 const image = { width: 1024, height: 1024, bytes: 100, thumbBytes: 10 };
 

@@ -5,9 +5,9 @@ import { useTranslation } from "@/platform/i18n";
 
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";
-import { PrivatePhoto } from "./private-photo";
-import { useReveal } from "./use-reveal";
-import { useHidePhotos } from "./use-hide-photos";
+import { PrivatePhoto } from "./privacy/private-photo";
+import { useReveal } from "./privacy/use-reveal";
+import { useHidePhotos } from "./privacy/use-hide-photos";
 import { useLatestProgressPhoto } from "./use-progress-photos";
 
 /**

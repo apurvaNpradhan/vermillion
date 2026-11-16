@@ -11,3 +11,5 @@ export { ExerciseThumbnail } from "./library/components/exercise-thumbnail";
 export { MuscleIcon } from "./library/components/muscle-icon";
 export { ExerciseHistoryScreen } from "./detail/components/exercise-history";
 export { ExerciseHeading } from "./components/exercise-heading";
+export { StalledNote } from "./stall/stalled-note";
+export { changeStall, stallMemory, useStallVersion } from "./stall/stall-store";

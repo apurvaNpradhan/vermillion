@@ -39,3 +39,4 @@ export { watchCatalogThumbnailKeys } from "./thumbnails";
 export { retiredExerciseIds } from "./retired";
 
 export { setExerciseImage } from "./image-store";
+export { watchExerciseMuscles, type ExerciseMuscles } from "./muscles";

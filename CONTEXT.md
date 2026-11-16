@@ -55,6 +55,10 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Record** — an exercise best (heaviest weight, estimated 1RM, best set volume, best session volume, rep records 1–12, longest duration/distance, best pace). Computed from Logged sets when read, warm-ups excluded.
 - **Counted set** — any Logged set except a warm-up. Volume, set counts, Records and muscle distribution use only Counted sets.
 - **Muscle distribution** — Counted sets per muscle group: 1 for the exercise's primary muscle, 0.5 for each secondary.
+- **Muscle volume** — Counted sets per muscle over a Week: 1 for the primary muscle, 0.5 for each secondary ([0044](docs/adr/0044-muscle-volume-and-stalls.md)).
+- **Muscle goal** — a weekly set range per targeted muscle: Maintain 6–10, Grow 10–20 (default), Focus 16–24 or Custom. Stored in the `ui` preferences as `muscleGoals`. Status is below, on target or above.
+- **Stalled lift** — an exercise whose best Session (estimated 1RM, or best reps) over the latest three Sessions of its Workout has not beaten the Session before them by 1%, with no 14-day gap among them. Shows a note offering 90% for today.
+- **Lighter week** — seven days in which every progression suggestion is 90% of the last load and about half the planned sets are suggested (the rest optional). Offered on Home when three trained lifts have stalled; its Sessions are never a baseline.
 - **Gym equipment** — a user's bars and plates (seeded kit plus custom items, with plate counts) used by the plate calculator. Not part of the exercise equipment taxonomy.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam since the web app was removed.

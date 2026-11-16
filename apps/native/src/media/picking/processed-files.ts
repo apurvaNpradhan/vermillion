@@ -1,7 +1,7 @@
 import { newMediaId } from "@workspace/sync";
 import { File, Paths } from "expo-file-system";
 
-import { isInsideRoot } from "./files";
+import { isInsideRoot } from "../queue/files";
 import type { ProcessedImage } from "./process-image";
 
 /**

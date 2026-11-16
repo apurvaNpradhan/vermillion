@@ -8,6 +8,7 @@ export { NewProgramScreen } from "./programs/new-program-screen";
 export { ProgramDetailsScreen } from "./programs/program-details-screen";
 export { ProgramScreen } from "./programs/program-screen";
 export { HomeScreen } from "./home/home-screen";
+export { MusclesScreen } from "./muscles/muscles-screen";
 export { SetTypeSheet } from "./sets/set-type-sheet";
 export { RestPicker } from "./targets/rest-picker";
 export { ReorderList, ReorderHeader } from "./reorder/reorder-list";

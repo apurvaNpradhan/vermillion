@@ -36,6 +36,17 @@ ADR 0037 fixed the storage constraints. This ADR fixes the behavior and the rema
 - After a replace, Previous and the ghosts come from the new exercise's own history. Untouched sets that aren't ticked get fresh ghosts.
 - **Effort** shows as a column only when the plan has an effort target or the user turns it on for that exercise. It is never required, its ghost is the planned effort, and it displays as RPE or RIR by preference.
 
+### Progression v2 (amended 2026-11-17)
+
+`suggestNext` suggests each set on its own, from the same Workout's history ([0044](0044-muscle-volume-and-stalls.md) explains the Lighter-week exclusion).
+
+- **Per set.** A planned working, top or back-off set is matched to the same kind and position last time (a set with no counterpart copies the nearest previous working set). At the top of its rep range it adds load and returns to the bottom of the range; otherwise it adds a rep, capped at the top. Reps-only lifts grow past the top only when every set topped it. Warm-ups, drops, failure and myo sets are not suggested.
+- **Effort**, only when the previous set logged RPE. Topped at RPE 9.5 or more: hold ("hold_effort"). Topped at RPE 7 or less: add two increments. Missing the range minimum on two Sessions running holds ("hold"); when effort was logged the missed set must have been RPE 9.5 or more.
+- **Increment.** A manual `weightIncrementKg` always wins. Otherwise about 2.5% of the set's load, rounded to the equipment's step in the user's unit and never below it. Smallest steps: barbell and plate 2.5 kg (5 lb), kettlebell 2 kg (5 lb), everything else 1 kg (2.5 lb). Results go through `loadable`, so they survive the display-unit round trip.
+- **Break.** 14 to 27 days since the last Session with the exercise: 90% of the last load (rounded to the equipment's step, always lower) with the bottom of the range for reps, reason `after_break`. 28 days or more: 80%. Loaded lifts only.
+- **Reasons** are a closed set: `add_weight`, `add_rep`, `hold`, `hold_effort`, `after_break`, `same_as_last`, `deload`, each with a short label ("Add 2.5 kg", "One more rep", "Hold: last time was a grind", "Back after 3 weeks: start lighter").
+- `deload` is 90% of the last load at the bottom of the range. It is what the stalled-lift note applies and what every suggestion uses during a Lighter week.
+
 ### Number entry
 
 Set cells use an in-app keypad, not the system keyboard. It has digits and a decimal point, − and + steps, Next (weight → reps → the next set's weight), Done, and a plate-calculator chip on barbell-type exercises. Weight steps are 2.5 kg / 5 lb for barbell-type equipment and 1 kg / 2.5 lb otherwise. This avoids the Android IME problems found in the editor and gives step and plate shortcuts.
@@ -160,7 +171,7 @@ Limits: 40 exercises per Session, 20 sets per exercise, title 1–100 characters
 
 ### Deferred
 
-Progression suggestions, Apple Health / Health Connect, a watch app, Live Activities and an ongoing Android notification, a per-exercise unit in sessions, a dated bodyweight log, session photos, image share cards and a warm-up generator. Warm-ups are logged as ordinary W sets.
+Apple Health / Health Connect, a watch app, Live Activities and an ongoing Android notification, a per-exercise unit in sessions, a dated bodyweight log, session photos, image share cards and a warm-up generator. Warm-ups are logged as ordinary W sets.
 
 ## Consequences
 

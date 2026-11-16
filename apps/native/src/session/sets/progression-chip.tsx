@@ -3,7 +3,11 @@ import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
-import { progressionReasonKey } from "@/platform/ui/progression-reason";
+import {
+  breakWeeks,
+  progressionLabelKey,
+  progressionReasonKey,
+} from "@/platform/ui/progression-reason";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 export function ProgressionChip({
@@ -17,10 +21,8 @@ export function ProgressionChip({
   const [open, setOpen] = useState(false);
   if (suggestion.reason === "same_as_last") return null;
   const value = formatWeight(suggestion.incrementKg, unit);
-  const label =
-    suggestion.reason === "add_weight"
-      ? t("progress__add_weight_chip", { value, unit })
-      : t(suggestion.reason === "hold" ? "progress__hold_chip" : "progress__add_rep_chip");
+  const params = { value, unit, count: breakWeeks(suggestion) };
+  const label = t(progressionLabelKey(suggestion.reason), params);
   return (
     <>
       <Pressable
@@ -41,7 +43,7 @@ export function ProgressionChip({
           >
             <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
             <BottomSheet.Description>
-              {t(progressionReasonKey(suggestion.reason), { value, unit })}
+              {t(progressionReasonKey(suggestion.reason), params)}
             </BottomSheet.Description>
           </BottomSheet.Content>
         </BottomSheet.Portal>

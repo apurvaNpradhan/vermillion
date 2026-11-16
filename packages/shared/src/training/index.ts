@@ -19,6 +19,10 @@ export * from "./plans/session-workout-diff";
 export { activeRun, cycleState, runWeek } from "./plans/cycle";
 
 export * from "./progress/progression";
+export * from "./progress/lighter-week";
+export * from "./progress/stalled-lift";
 export * from "./progress/progress";
 export * from "./plans/week";
 export * from "./plans/session-goal";
+export * from "./volume/muscle-targets";
+export * from "./volume/weekly-muscle-volume";

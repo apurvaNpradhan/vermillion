@@ -34,9 +34,21 @@ describe("ui preferences schema", () => {
       sessionView: "sets",
       weekStart: "monday",
       sessionsPerWeek: null,
+      muscleGoals: {},
+      deloadUntil: null,
+      lighterWeeks: [],
+      deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);
+  });
+  it("keeps saved muscle goals and rejects an inverted Custom range", () => {
+    const goals = { chest: { level: "focus" }, calves: { level: "custom", min: 4, max: 9 } };
+    expect(uiPreferencesSchema.parse({ muscleGoals: goals }).muscleGoals).toEqual(goals);
+    expect(
+      uiPreferencesSchema.safeParse({ muscleGoals: { chest: { level: "custom", min: 9, max: 4 } } })
+        .success,
+    ).toBe(false);
   });
   it("keeps saved values and fills the rest", () => {
     expect(uiPreferencesSchema.parse({ sidebarCollapsed: true })).toEqual({

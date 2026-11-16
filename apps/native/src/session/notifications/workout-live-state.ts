@@ -1,3 +1,4 @@
+import { lighterPeriodSchema } from "@workspace/shared";
 import { z } from "zod";
 import type { TFunction } from "i18next";
 import type { Ghosts, WeightUnit } from "@workspace/shared";
@@ -7,6 +8,7 @@ import { currentAction, valuesText } from "../logging/current-action";
 export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),
   weightIncrementKg: z.number().positive().nullable(),
+  lighterWeeks: z.array(lighterPeriodSchema).default([]),
   soundOn: z.boolean(),
 });
 export const liveActionSchema = z.object({

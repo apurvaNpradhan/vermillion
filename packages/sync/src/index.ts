@@ -24,11 +24,13 @@ export {
   libraryQuery,
   watchExerciseLibrary,
   watchExerciseLibraryCount,
+  watchExerciseMuscles,
   watchCatalogThumbnailKeys,
 } from "./exercise";
 export type {
   ExerciseDatabase,
   ExerciseDetail,
+  ExerciseMuscles,
   ExercisePatch,
   LibraryFilters,
   LibraryPage,

@@ -15,6 +15,8 @@ import { useTranslation } from "@/platform/i18n";
 import { InlineNote, RestPicker } from "@/training";
 import type { WeightUnit } from "@workspace/shared";
 
+import { StalledNote } from "@/exercise";
+import type { StallInfo } from "@/session/logging/use-logging-state";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import type { ActiveEntry, Refusal } from "./set-row";
@@ -28,6 +30,8 @@ import { SetGrid } from "./set-grid";
 export const ExerciseItem = memo(function ExerciseItem({
   exercise,
   suggestion,
+  stall,
+  lighter,
   place,
   open,
   warm,
@@ -62,6 +66,10 @@ export const ExerciseItem = memo(function ExerciseItem({
 }: {
   exercise: SessionExerciseDetail;
   suggestion: Progression | null;
+  /** A stalled lift's note, when it shows. */
+  stall: StallInfo | null;
+  /** A Lighter week is running: about half the sets are optional. */
+  lighter: boolean;
   place: SupersetPlace;
   open: boolean;
   warm: boolean;
@@ -111,6 +119,14 @@ export const ExerciseItem = memo(function ExerciseItem({
       onMenu={onMenu}
       onAddSet={onAddSet}
     >
+      {stall ? (
+        <StalledNote
+          exerciseId={exercise.exerciseId}
+          latestSessionId={stall.latestSessionId}
+          count={stall.count}
+          applied={stall.applied}
+        />
+      ) : null}
       <ExerciseBody
         entry={exercise}
         place={place}
@@ -120,6 +136,7 @@ export const ExerciseItem = memo(function ExerciseItem({
       />
       <SetGrid
         exercise={exercise}
+        lighter={lighter}
         historyReady={historyReady}
         editingFinished={editingFinished}
         entry={entry}

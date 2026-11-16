@@ -1,13 +1,13 @@
 import { existsSync, rmSync, copyFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createMediaQueue } from "../../media/attachment-queue";
+import { createMediaQueue } from "../../../media/queue/attachment-queue";
 import {
   createDiskStorage,
   createFakeBucket,
   createTestDatabase,
   writePickedFiles,
-} from "../../media/test-kit";
+} from "../../../media/queue/test-kit";
 import type { ProcessedImage } from "@/media";
 
 import { saveCheckInWithPhotos, type CheckInFiles } from "./save-check-in";

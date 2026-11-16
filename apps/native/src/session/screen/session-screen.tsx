@@ -486,6 +486,8 @@ function LoadedSession({
                   <ExerciseItem
                     exercise={entry}
                     suggestion={logging.suggestions.get(entry.id) ?? null}
+                    stall={logging.stalls.get(entry.id) ?? null}
+                    lighter={logging.lighter}
                     place={logging.places.get(entry.id) ?? "none"}
                     open={openIds.has(entry.id)}
                     warm={warmIds.has(entry.id)}

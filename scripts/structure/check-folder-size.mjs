@@ -11,11 +11,7 @@ import { dirname, resolve } from "node:path";
 
 const LIMIT = 20;
 const TREES = ["apps/native/src", "packages/shared/src", "packages/sync/src"];
-const ALLOWLIST = new Set([
-  "apps/native/src/media",
-  "apps/native/src/platform/ui",
-  "apps/native/src/platform/theme",
-]);
+const ALLOWLIST = new Set(["apps/native/src/platform/ui"]);
 const SOURCE = /\.(?:tsx?|mts|mjs|js)$/;
 const TEST = /\.test\.(?:tsx?|mts|mjs|js)$/;
 

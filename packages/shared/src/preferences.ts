@@ -12,6 +12,8 @@ import {
   SESSION_VIEWS,
   WEIGHT_UNITS,
 } from "./training/vocabulary/vocabulary";
+import { lighterPeriodSchema, LIGHTER_WEEKS_KEPT } from "./training/progress/lighter-week";
+import { muscleGoalsSchema } from "./training/volume/muscle-targets";
 
 /** An IANA time zone name such as `Europe/Berlin`. */
 export function isTimeZone(value: string) {
@@ -57,6 +59,10 @@ const uiFields = {
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
   sessionView: z.enum(SESSION_VIEWS),
   weekStart: z.enum(WEEK_STARTS),
+  muscleGoals: muscleGoalsSchema,
+  deloadUntil: z.iso.datetime().nullable(),
+  lighterWeeks: z.array(lighterPeriodSchema).max(LIGHTER_WEEKS_KEPT),
+  deloadCardDismissedAt: z.iso.datetime().nullable(),
   sessionsPerWeek: z
     .number()
     .int()
@@ -96,6 +102,13 @@ export const uiPreferencesSchema = z
     defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
     sessionView: uiFields.sessionView.default("sets"),
     weekStart: uiFields.weekStart.default(DEFAULT_WEEK_START),
+    // Only muscles whose goal level was changed; a missing muscle is on Grow.
+    muscleGoals: uiFields.muscleGoals.default({}),
+    // The running Lighter week ends here (null when none), every Lighter week so far is in
+    // `lighterWeeks` (their Sessions are no baseline), and the Home card was dismissed at this time.
+    deloadUntil: uiFields.deloadUntil.default(null),
+    lighterWeeks: uiFields.lighterWeeks.default([]),
+    deloadCardDismissedAt: uiFields.deloadCardDismissedAt.default(null),
     sessionsPerWeek: uiFields.sessionsPerWeek.default(null),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
