@@ -4,6 +4,7 @@ import { sessionTotals } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { ClockCounterClockwise } from "phosphor-react-native";
+import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -13,7 +14,9 @@ import { usePreferences } from "@/preferences";
 import { groupSessionWeeks } from "../history";
 import { formatElapsed } from "../clock";
 import { formatVolume } from "../summary";
-import { useSessionHistory } from "../use-session-history";
+import { useSessionHistory, useSessionMonth } from "../use-session-history";
+import { localDate, monthOf, type Month } from "../history-calendar";
+import { HistoryCalendar } from "./history-calendar";
 
 type HistoryItem =
   | { kind: "week"; id: string; sessions: FinishedSession[] }
@@ -24,16 +27,34 @@ export function HistoryScreen() {
   const history = useSessionHistory();
   const { preferences } = usePreferences();
   const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const items: HistoryItem[] = groupSessionWeeks(history.sessions, timezone).flatMap(
-    (group): HistoryItem[] => [
-      { kind: "week", id: group.week, sessions: group.sessions },
-      ...group.sessions.map((session): HistoryItem => ({
-        kind: "session",
-        id: session.id,
-        session,
-      })),
-    ],
-  );
+  const latest = useMemo(() => monthOf(new Date().toISOString(), timezone), [timezone]);
+  const [shown, setShown] = useState<Month | null>(null);
+  const month = shown ?? latest;
+  const [selected, setSelected] = useState<string | null>(null);
+  const monthSessions = useSessionMonth(month, timezone);
+  const counts = new Map<string, number>();
+  for (const session of monthSessions.sessions) {
+    const date = localDate(session.started_at, timezone);
+    counts.set(date, (counts.get(date) ?? 0) + 1);
+  }
+  // A selected day lists that day's Sessions from the month's own read, so an older month needs
+  // no paging; with none selected the list pages through everything, grouped by week.
+  const daySessions =
+    selected === null
+      ? null
+      : monthSessions.sessions.filter(
+          (session) => localDate(session.started_at, timezone) === selected,
+        );
+  const items: HistoryItem[] = daySessions
+    ? daySessions.map((session): HistoryItem => ({ kind: "session", id: session.id, session }))
+    : groupSessionWeeks(history.sessions, timezone).flatMap((group): HistoryItem[] => [
+        { kind: "week", id: group.week, sessions: group.sessions },
+        ...group.sessions.map((session): HistoryItem => ({
+          kind: "session",
+          id: session.id,
+          session,
+        })),
+      ]);
   return (
     <Page
       title={t("session__history")}
@@ -49,11 +70,27 @@ export function HistoryScreen() {
           {...scroll}
           data={history.loading || history.failed ? [] : items}
           keyExtractor={(item) => item.id}
-          onEndReached={history.loadMore}
+          onEndReached={selected === null ? history.loadMore : undefined}
           onEndReachedThreshold={0.5}
           estimatedItemSize={100}
           contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16 }}
-          ListHeaderComponent={header}
+          ListHeaderComponent={
+            <View className="gap-2">
+              {header}
+              <HistoryCalendar
+                month={month}
+                latest={latest}
+                counts={counts}
+                total={monthSessions.sessions.length}
+                selected={selected}
+                onMonthChange={(next) => {
+                  setShown(next);
+                  setSelected(null);
+                }}
+                onSelect={setSelected}
+              />
+            </View>
+          }
           ListEmptyComponent={
             history.failed ? (
               <Button onPress={history.retry}>

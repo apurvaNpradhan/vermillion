@@ -16,7 +16,7 @@ import {
   PencilSimple,
   Plus,
 } from "phosphor-react-native";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -243,9 +243,6 @@ function LoadedDetail({
                 </Button>
               </View>
             ) : null}
-            {!hasHistory && steps.length > 0 ? (
-              <FormSection steps={steps} collapsible={false} />
-            ) : null}
             {hasHistory ? (
               <>
                 <ExerciseNumbers
@@ -278,8 +275,16 @@ function LoadedDetail({
                 )}
               </Text>
             )}
-            <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
-            {hasHistory && steps.length > 0 ? <FormSection steps={steps} collapsible /> : null}
+            {/* Closed once there is history to look at; open for a new exercise, so it still teaches itself. */}
+            {steps.length > 0 ? (
+              <FormSection key={`form-${hasHistory}`} steps={steps} defaultOpen={!hasHistory} />
+            ) : null}
+            <MuscleSection
+              key={`muscles-${hasHistory}`}
+              exercise={exercise}
+              defaultOpen={!hasHistory}
+              onBrowseGroup={onBrowseGroup}
+            />
             <SwapRow candidates={swaps} onOpen={onOpenExercise} />
           </Animated.ScrollView>
         )}
@@ -320,9 +325,11 @@ function InfoChip({ label }: { label: string }) {
 /** The body map with the exercise's groups; tapping a group names it and offers to browse it. */
 function MuscleSection({
   exercise,
+  defaultOpen,
   onBrowseGroup,
 }: {
   exercise: ExerciseDetail;
+  defaultOpen: boolean;
   onBrowseGroup?: (group: MuscleGroup) => void;
 }) {
   const { t } = useTranslation();
@@ -344,10 +351,7 @@ function MuscleSection({
         : t("exercise__muscle_not_worked");
 
   return (
-    <View className="gap-4 px-4">
-      <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
-        {t("exercise__muscles_title")}
-      </Text>
+    <CollapsibleSection title={t("exercise__muscles_title")} defaultOpen={defaultOpen}>
       {drawn ? (
         <BodyMapPair
           primary={primary}
@@ -366,7 +370,7 @@ function MuscleSection({
         role={role}
         onBrowse={onBrowseGroup}
       />
-    </View>
+    </CollapsibleSection>
   );
 }
 
@@ -409,61 +413,74 @@ function MuscleLegend({
   );
 }
 
-/** The numbered instructions; collapsible (closed) once the user has history with the exercise. */
-function FormSection({ steps, collapsible }: { steps: readonly string[]; collapsible: boolean }) {
-  const { t } = useTranslation();
+/** A titled section that opens and closes; the title row is the toggle. */
+function CollapsibleSection({
+  title,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
   const subtle = useThemeColor("muted");
-  const [open, setOpen] = useState(!collapsible);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <View className="gap-3 px-4">
       <Pressable
-        accessibilityRole={collapsible ? "button" : "header"}
-        accessibilityState={collapsible ? { expanded: open } : undefined}
-        disabled={!collapsible}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded: open }}
         onPress={() => setOpen((current) => !current)}
-        className="flex-row items-center justify-between"
+        className="min-h-11 flex-row items-center justify-between"
       >
-        <Text className="font-semibold text-title-md text-foreground">
-          {t("exercise__form_title")}
+        <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
+          {title}
         </Text>
-        {collapsible ? (
-          <CaretDown
-            size={18}
-            color={subtle}
-            style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
-          />
-        ) : null}
+        <CaretDown
+          size={18}
+          color={subtle}
+          style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
+        />
       </Pressable>
-      {open
-        ? steps.map((step, index) => (
-            <View
-              key={`${index}-${step}`}
-              accessible
-              accessibilityLabel={t("exercise__form_step", { number: index + 1, text: step })}
-              className="flex-row gap-3"
-            >
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                className="size-6 items-center justify-center rounded-full bg-default"
-              >
-                <Text
-                  className="text-caption text-foreground"
-                  style={{ fontVariant: ["tabular-nums"] }}
-                >
-                  {index + 1}
-                </Text>
-              </View>
-              <Text
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                className="flex-1 text-body text-foreground"
-              >
-                {step}
-              </Text>
-            </View>
-          ))
-        : null}
+      {open ? <View className="gap-4">{children}</View> : null}
     </View>
+  );
+}
+
+/** The numbered instructions. */
+function FormSection({ steps, defaultOpen }: { steps: readonly string[]; defaultOpen: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <CollapsibleSection title={t("exercise__form_title")} defaultOpen={defaultOpen}>
+      {steps.map((step, index) => (
+        <View
+          key={`${index}-${step}`}
+          accessible
+          accessibilityLabel={t("exercise__form_step", { number: index + 1, text: step })}
+          className="flex-row gap-3"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="size-6 items-center justify-center rounded-full bg-default"
+          >
+            <Text
+              className="text-caption text-foreground"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {index + 1}
+            </Text>
+          </View>
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="flex-1 text-body text-foreground"
+          >
+            {step}
+          </Text>
+        </View>
+      ))}
+    </CollapsibleSection>
   );
 }

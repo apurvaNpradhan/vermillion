@@ -28,8 +28,9 @@ export const WorkoutRow = memo(function WorkoutRow({
   onOpen: (id: string) => void;
   onStart: (id: string) => void;
   onShare: (id: string) => void;
-  onDuplicate: (workout: WorkoutSummary, title: string) => void;
-  onDelete: (id: string, title: string) => void;
+  /** Absent for a Workout a Program owns: copying and deleting it happen in the Program. */
+  onDuplicate?: (workout: WorkoutSummary, title: string) => void;
+  onDelete?: (id: string, title: string) => void;
 }) {
   const { t } = useTranslation();
   const muscles = workout.exercises.flatMap((entry) =>
@@ -49,19 +50,27 @@ export const WorkoutRow = memo(function WorkoutRow({
         icon: ShareNetwork,
         onPress: () => onShare(workout.id),
       },
-      {
-        key: "duplicate",
-        label: t("training__duplicate"),
-        icon: Copy,
-        onPress: () => onDuplicate(workout, title),
-      },
-      {
-        key: "delete",
-        label: t("training__delete"),
-        icon: Trash,
-        tone: "danger",
-        onPress: () => onDelete(workout.id, title),
-      },
+      ...(onDuplicate
+        ? [
+            {
+              key: "duplicate",
+              label: t("training__duplicate"),
+              icon: Copy,
+              onPress: () => onDuplicate(workout, title),
+            },
+          ]
+        : []),
+      ...(onDelete
+        ? [
+            {
+              key: "delete",
+              label: t("training__delete"),
+              icon: Trash,
+              tone: "danger" as const,
+              onPress: () => onDelete(workout.id, title),
+            },
+          ]
+        : []),
     ],
     [t, onShare, onDuplicate, onDelete, workout, title],
   );

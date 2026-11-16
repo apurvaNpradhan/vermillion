@@ -1,4 +1,5 @@
 import { AvatarPicker } from "@/account";
+import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
 import { SignOut, Trash } from "phosphor-react-native";
@@ -17,7 +18,9 @@ import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 /**
- * Settings as grouped rows: preferences that open picker sheets, the profile, then sign-out and account deletion apart at the bottom, and the app version.
+ * Settings as grouped rows: the profile picture, then Appearance, Training, Body and Account, and
+ * the app version. Rows that open picker sheets show their current value; switches sit with the
+ * training settings they belong to.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
@@ -25,31 +28,35 @@ export function SettingsScreen() {
   const signOut = useSignOut();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
   const sessionSettings = useSessionSettings();
-  const training = useTrainingPreferenceRows({ extraRows: sessionSettings.rows });
+  const reminders = useBodyReminderRows();
+  const training = useTrainingPreferenceRows({
+    extraRows: [...sessionSettings.rows, ...sessionSettings.soundRows],
+  });
 
   return (
     <>
       <ConfirmationDialog {...confirmationProps} />
       {sessionSettings.sheets}
       {training.sheets}
+      {reminders.editor}
       <ScrollPage title={t("settings__title")}>
         <AvatarPicker />
         <View>
           <SyncBanner />
         </View>
-        <View>
-          <PreferenceRows />
-        </View>
-        <ListSection title={t("session__setting_sounds")}>{sessionSettings.soundRows}</ListSection>
-        <View>{training.section}</View>
-        <ListSection title={t("body__measurements")}>
+        <PreferenceRows />
+        {training.section}
+        <ListSection title={t("settings__section_body")}>
+          <WeightPreferenceRow />
+          <HidePhotosRow />
           <ListRow
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
           />
+          {reminders.rows}
         </ListSection>
         {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
-        <ListSection>
+        <ListSection title={t("settings__section_account")}>
           <ListRow
             icon={SignOut}
             title={t("nav__sign_out")}

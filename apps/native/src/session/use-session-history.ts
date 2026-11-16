@@ -1,7 +1,13 @@
 import { useWeight } from "@/body";
-import { watchSessionPage, watchRecordHistory, type FinishedSession } from "@workspace/sync";
+import {
+  watchSessionPage,
+  watchRecordHistory,
+  watchSessionsBetween,
+  type FinishedSession,
+} from "@workspace/sync";
 import { useCallback, useRef } from "react";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
+import { inMonth, monthQueryRange, type Month } from "./history-calendar";
 
 const PAGE_SIZE = 50;
 const FIRST = { startedAt: "9999-01-01T00:00:00.000Z", id: "~" };
@@ -99,4 +105,29 @@ export function useRecordHistory(exerciseIds: readonly string[]) {
     failed: state.failed,
     retry: state.retry,
   };
+}
+
+/** The finished Sessions of one calendar month in the user's zone, newest first, for the calendar. */
+export function useSessionMonth(month: Month, timezone: string) {
+  const { year, month: index } = month;
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchSessionsBetween>[0],
+      onValue: (value: FinishedSession[]) => void,
+      onError: () => void,
+    ) =>
+      watchSessionsBetween(database, monthQueryRange({ year, month: index }), {
+        onSessions: onValue,
+        onError,
+      }),
+    [year, index],
+  );
+  const state = useLocalWatch(subscribe);
+  const weight = useWeight();
+  const sessions = weight.withBodyweight(
+    (state.value ?? []).filter((session) =>
+      inMonth(session.started_at, { year, month: index }, timezone),
+    ),
+  );
+  return { sessions, loading: state.loading, failed: state.failed };
 }

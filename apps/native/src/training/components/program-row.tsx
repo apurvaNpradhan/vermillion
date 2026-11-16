@@ -1,6 +1,6 @@
 import type { ProgramSummary } from "@workspace/sync";
 import { Copy, Trash, Play, Stop } from "phosphor-react-native";
-import { memo, useMemo, type ComponentProps } from "react";
+import { memo, useMemo } from "react";
 import { View } from "react-native";
 
 import { MediaImage } from "@/media";
@@ -101,17 +101,3 @@ export const ProgramRow = memo(function ProgramRow({
     />
   );
 });
-
-/** Flat rows keep programs compact while exposing their full actions. */
-export function ProgramList({
-  programs,
-  ...actions
-}: Omit<ComponentProps<typeof ProgramRow>, "program"> & { programs: readonly ProgramSummary[] }) {
-  return (
-    <View>
-      {programs.map((program) => (
-        <ProgramRow key={program.id} program={program} {...actions} />
-      ))}
-    </View>
-  );
-}
