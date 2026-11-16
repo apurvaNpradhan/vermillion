@@ -19,6 +19,7 @@ import {
   type Ghosts,
   type PlannedSet,
   type SetField,
+  type SupersetItem,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -46,6 +47,7 @@ import {
 import { clearRestIn } from "./session-store";
 import {
   changedFields,
+  marked,
   nowIso,
   ownerOf,
   write,
@@ -278,6 +280,8 @@ export function leaveSessionSuperset(
 export type RemovedSessionExercise = {
   exercise: SessionExerciseRow;
   sets: SessionSetRow[];
+  siblings: SupersetItem[];
+  removalChanges: ReturnType<typeof planSupersetAfterRemoval>;
 };
 
 /**
@@ -310,7 +314,17 @@ export function removeSessionExercise(
     await tx.delete(sessionExercise).where(eq(sessionExercise.id, id));
     // A group left with one member is cleared; the group's rest passes to its new last member.
     await applySessionSupersetChanges(tx, planSupersetAfterRemoval(rows, id));
-    return { exercise: current, sets };
+    return {
+      removalChanges: planSupersetAfterRemoval(rows, id),
+      exercise: current,
+      sets,
+      siblings: rows.filter(
+        (row) =>
+          row.id !== id &&
+          current.superset_group !== null &&
+          row.superset_group === current.superset_group,
+      ),
+    };
   });
 }
 
@@ -503,4 +517,71 @@ export function removeSet(
 async function clearRestStartedBy(tx: Tx, sessionId: string, setId: string) {
   const [owner] = await tx.select().from(session).where(eq(session.id, sessionId)).limit(1);
   if (owner?.rest_set_id === setId) await clearRestIn(tx, sessionId);
+}
+
+/** Restores a saved set without overwriting a live row or recreating its missing parent. */
+export function restoreSet(
+  database: TrainingDatabase,
+  removed: SessionSetRow,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(sessionSet)
+      .where(eq(sessionSet.id, removed.id))
+      .limit(1);
+    const [parent] = await tx
+      .select()
+      .from(sessionExercise)
+      .where(eq(sessionExercise.id, removed.session_exercise_id))
+      .limit(1);
+    if (existing || !parent) return false;
+    assertSessionRoom(await setsInExercise(tx, parent.id), 1, "setsPerExercise");
+    await tx.insert(sessionSet).values(marked(removed));
+    return true;
+  });
+}
+
+/** Restores the exercise and all saved sets atomically with their original ids and positions. */
+export function restoreSessionExercise(
+  database: TrainingDatabase,
+  removed: RemovedSessionExercise,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(sessionExercise)
+      .where(eq(sessionExercise.id, removed.exercise.id))
+      .limit(1);
+    const [parent] = await tx
+      .select()
+      .from(session)
+      .where(eq(session.id, removed.exercise.session_id))
+      .limit(1);
+    if (existing || !parent) return false;
+    assertSessionRoom(await exercisesInSession(tx, parent.id), 1, "exercisesPerSession");
+    await tx.insert(sessionExercise).values(marked(removed.exercise));
+    if (removed.sets.length > 0) await tx.insert(sessionSet).values(removed.sets.map(marked));
+    const expected = removed.removalChanges;
+    for (const sibling of removed.siblings) {
+      const [live] = await tx
+        .select()
+        .from(sessionExercise)
+        .where(eq(sessionExercise.id, sibling.id))
+        .limit(1);
+      const change = expected.find((row) => row.id === sibling.id);
+      if (
+        live &&
+        live.superset_group ===
+          (change?.superset_group === undefined ? sibling.superset_group : change.superset_group) &&
+        live.rest_seconds ===
+          (change?.rest_seconds === undefined ? sibling.rest_seconds : change.rest_seconds)
+      ) {
+        await applySessionSupersetChanges(tx, [sibling]);
+      }
+    }
+    return true;
+  });
 }

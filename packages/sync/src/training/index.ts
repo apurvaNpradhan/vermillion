@@ -151,6 +151,8 @@ export {
   moveSessionExercise,
   removeSessionExercise,
   removeSet,
+  restoreSet,
+  restoreSessionExercise,
   replaceSessionExercise,
   supersetSessionWithNext,
   tickSet,

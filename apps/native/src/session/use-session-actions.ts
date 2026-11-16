@@ -12,6 +12,8 @@ import {
   readExerciseType,
   removeSessionExercise,
   removeSet,
+  restoreSet,
+  restoreSessionExercise,
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
@@ -96,9 +98,15 @@ export function useSessionActions() {
   );
 
   const removeOneSet = useCallback(
-    (setId: string) =>
-      write(async (db) => (await removeSet(db, setId, writeScope)) !== null, false),
-    [write, writeScope],
+    async (setId: string) => {
+      const removed = await write((db) => removeSet(db, setId, writeScope), null);
+      if (!removed) return false;
+      undoToast(t("session__set_removed_toast"), () => {
+        void write((db) => restoreSet(db, removed, writeScope), false);
+      });
+      return true;
+    },
+    [write, writeScope, undoToast, t],
   );
 
   const addExercises = useCallback(
@@ -131,13 +139,16 @@ export function useSessionActions() {
   );
 
   const removeExercise = useCallback(
-    (id: string) =>
-      write(async (db) => {
-        const removed = await removeSessionExercise(db, id, writeScope);
-        if (removed) haptic.confirm();
-        return removed !== null;
-      }, false),
-    [write, writeScope],
+    async (id: string) => {
+      const removed = await write((db) => removeSessionExercise(db, id, writeScope), null);
+      if (!removed) return false;
+      haptic.confirm();
+      undoToast(t("session__exercise_removed_toast"), () => {
+        void write((db) => restoreSessionExercise(db, removed, writeScope), false);
+      });
+      return true;
+    },
+    [write, writeScope, undoToast, t],
   );
 
   const moveExercise = useCallback(
