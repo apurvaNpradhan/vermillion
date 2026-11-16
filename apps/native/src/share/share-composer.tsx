@@ -246,7 +246,7 @@ export function ShareComposer<Id extends string>({
                       update({ toggles: { ...choice.toggles, [toggle.id]: !on } });
                     }}
                     className={`h-9 flex-row items-center gap-1.5 rounded-full border px-3 ${
-                      on ? "border-foreground bg-default" : "border-separator"
+                      on ? "border-foreground bg-default" : "border-transparent bg-default"
                     }`}
                   >
                     {on ? <Check size={14} color={ink} weight="bold" /> : null}
@@ -345,7 +345,7 @@ function Swatch({
     >
       <View
         className={`items-center justify-center rounded-full border-2 ${
-          selected ? "border-foreground" : "border-separator"
+          selected ? "border-foreground" : "border-transparent"
         }`}
         style={{ width: 36, height: 36 }}
       >

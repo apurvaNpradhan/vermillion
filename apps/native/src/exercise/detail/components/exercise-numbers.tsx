@@ -96,8 +96,16 @@ export function ExerciseNumbers({
   const records = datedRecords(sessions, exerciseId, bodyweightKg);
   const Chart =
     metric === "total_reps" || metric === "floors" || metric === "steps" ? BarChart : LineChart;
+  // Volume and the estimated one-rep max of these types need a bodyweight to be right.
+  const needsBodyweight =
+    bodyweightKg === null &&
+    weight.entries.length === 0 &&
+    (type === "bodyweight_reps" || type === "bodyweight_assisted_reps" || addsLoad(type));
   return (
     <View className="gap-6 px-4">
+      {addsLoad(type) && needsBodyweight ? (
+        <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
+      ) : null}
       {type === "weight_reps" || addsLoad(type) ? (
         <ExerciseProgress
           sessions={sessions}
@@ -130,11 +138,7 @@ export function ExerciseNumbers({
               </Button>
             ))}
           </ScrollView>
-          {bodyweightKg === null &&
-          weight.entries.length === 0 &&
-          (type === "bodyweight_reps" ||
-            type === "bodyweight_assisted_reps" ||
-            type === "bodyweight_weighted_reps") ? (
+          {needsBodyweight ? (
             <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
           ) : null}
           <Chart
