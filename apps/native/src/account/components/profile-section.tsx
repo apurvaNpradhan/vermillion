@@ -62,7 +62,7 @@ export function ProfileSection() {
         </Text>
         <Card>
           <Card.Body className="gap-4">
-            <AvatarPicker showIdentity={false} />
+            <AvatarPicker />
             <FormError message={failure} />
             <form.Field name="name">
               {(field) => (
