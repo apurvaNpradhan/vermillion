@@ -1,7 +1,6 @@
 import { runServer, thresholdsFromMegabytes, type ApiConfig } from "@workspace/api";
 import { createEmailTransport } from "@workspace/email";
 import { initLogger } from "@workspace/logger";
-import { androidApkKeyHashOrigin, parseCsv } from "@workspace/shared";
 import { createFsDrain } from "evlog/fs";
 
 import { appConfig } from "../../../app.config";
@@ -14,32 +13,12 @@ const credentials = (clientId?: string, clientSecret?: string) =>
 
 const isProduction = env.NODE_ENV === "production";
 
-const appOrigin = new URL(env.APP_URL).origin;
-const passkeyOrigins = [
-  ...new Set([
-    ...(parseCsv(env.AUTH_PASSKEY_ORIGINS).length > 0
-      ? parseCsv(env.AUTH_PASSKEY_ORIGINS)
-      : [appOrigin]),
-    ...parseCsv(env.ANDROID_CERT_SHA256).map(androidApkKeyHashOrigin),
-  ]),
-];
-
 const config: ApiConfig = {
   appName: appConfig.displayName,
   appVersion: appConfig.version,
   appUrl: env.APP_URL,
   appScheme: appConfig.scheme,
   nativePort: appConfig.ports.native,
-  passkey: {
-    rpId: env.AUTH_RP_ID ?? new URL(env.APP_URL).hostname,
-    origins: passkeyOrigins,
-  },
-  appAssociation: {
-    androidPackage: appConfig.bundleIds.android,
-    iosBundleId: appConfig.bundleIds.ios,
-    androidCertFingerprints: parseCsv(env.ANDROID_CERT_SHA256),
-    appleTeamId: env.APPLE_TEAM_ID,
-  },
   isProduction,
   authSecret: env.BETTER_AUTH_SECRET,
   trustedProxies: env.TRUSTED_PROXIES,

@@ -64,11 +64,7 @@
     }
   },
   "globalEnv": [
-    "ANDROID_CERT_SHA256",
-    "APPLE_TEAM_ID",
     "APP_URL",
-    "AUTH_PASSKEY_ORIGINS",
-    "AUTH_RP_ID",
     "BETTER_AUTH_SECRET",
     "CI",
     "DATABASE_URL",

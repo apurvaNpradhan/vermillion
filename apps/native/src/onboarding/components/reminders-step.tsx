@@ -56,7 +56,7 @@ export function RemindersStep({ onDone }: { onDone: () => void }) {
         onPress: () => void allow(),
         loading: pending,
       }}
-      secondary={{ label: t("passkeys__setup_skip"), onPress: onDone, disabled: pending }}
+      secondary={{ label: t("onboarding__not_now"), onPress: onDone, disabled: pending }}
     >
       {BENEFITS.map(({ icon: Icon, title, body }) => (
         <View key={title} className="flex-row items-start gap-3 py-1">

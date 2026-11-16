@@ -1,8 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { Fingerprint, ShieldCheck, Devices, type IconProps } from "phosphor-react-native";
-import { useMemo, useState, type ComponentType } from "react";
-import { Text, View } from "react-native";
-import { useThemeColor } from "heroui-native";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 
 import {
@@ -15,10 +12,8 @@ import {
 } from "@/auth";
 import { TextField } from "@/platform/forms/text-field";
 import { haptic } from "@/platform/haptics";
-import type { TranslationKey } from "@workspace/i18n";
 import { useTranslation } from "@/platform/i18n";
 import { FormError } from "@/platform/ui/form-error";
-import { rememberPasskeySetup, shouldOfferPasskeySetup, useRegisterPasskey } from "@/passkeys";
 
 import { beginSetup, finishSetup } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
@@ -91,64 +86,9 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
   );
 }
 
-const BENEFITS: { icon: ComponentType<IconProps>; title: TranslationKey; body: TranslationKey }[] =
-  [
-    { icon: Fingerprint, title: "passkeys__benefit_fast", body: "passkeys__benefit_fast_body" },
-    { icon: ShieldCheck, title: "passkeys__benefit_safe", body: "passkeys__benefit_safe_body" },
-    { icon: Devices, title: "passkeys__benefit_sync", body: "passkeys__benefit_sync_body" },
-  ];
-
-/** Offers a passkey right after the account exists. Done or skipped, the name comes next. */
-function PasskeyStep({ userId, onFinished }: { userId: string; onFinished: () => void }) {
-  const { t } = useTranslation();
-  const { register } = useRegisterPasskey();
-  const foreground = useThemeColor("foreground");
-  const [pending, setPending] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
-
-  const finish = (answer: "done" | "skipped") => {
-    rememberPasskeySetup(userId, answer);
-    onFinished();
-  };
-
-  return (
-    <FlowStep
-      leading="none"
-      position={stepPosition("get-started", "passkey")}
-      title={t("passkeys__setup_title")}
-      subtitle={t("passkeys__setup_body")}
-      action={{
-        label: t("passkeys__setup_action"),
-        loading: pending,
-        onPress: async () => {
-          setFailure(null);
-          setPending(true);
-          const outcome = await register();
-          setPending(false);
-          if (outcome.status === "done") finish("done");
-          else if (outcome.status === "error") setFailure(t(outcome.messageKey));
-        },
-      }}
-      secondary={{ label: t("passkeys__setup_skip"), onPress: () => finish("skipped") }}
-    >
-      <FormError message={failure} />
-      {BENEFITS.map(({ icon: Icon, title, body }) => (
-        <View key={title} className="flex-row items-start gap-3 py-1">
-          <Icon size={24} color={foreground} />
-          <View className="flex-1 gap-0.5">
-            <Text className="text-body font-semibold text-foreground">{t(title)}</Text>
-            <Text className="text-body text-muted">{t(body)}</Text>
-          </View>
-        </View>
-      ))}
-      <Text className="pt-2 text-caption text-muted">{t("passkeys__setup_footnote")}</Text>
-    </FlowStep>
-  );
-}
-
 /**
  * Account first: one question per screen, the only way into the app until the last step is done
- * or skipped. A passkey is offered once per device, the name is required, then the units, the
+ * or skipped. The name is required, then the units, the
  * body numbers and the notifications. Finishing clears the setup mark and the root guard opens
  * the app; an account that was closed mid-way resumes at the units.
  */
@@ -156,10 +96,7 @@ export function OnboardingScreen() {
   const { session } = useSession();
   const userId = session?.user.id ?? "";
   const [step, setStep] = useState<OnboardingStepId>(() =>
-    firstOnboardingStep({
-      hasName: (session?.user.name ?? "").trim() !== "",
-      offerPasskey: shouldOfferPasskeySetup(userId),
-    }),
+    firstOnboardingStep({ hasName: (session?.user.name ?? "").trim() !== "" }),
   );
   const advance = () => {
     const next = nextOnboardingStep(step);
@@ -167,8 +104,6 @@ export function OnboardingScreen() {
     else finishSetup(userId);
   };
   switch (step) {
-    case "passkey":
-      return <PasskeyStep userId={userId} onFinished={advance} />;
     case "name":
       return <NameStep userId={userId} onSaved={advance} />;
     case "units":

@@ -2,12 +2,11 @@
  * Source: PanelUI (panelui-native 1.2.0), `Skeleton`. MIT licence, https://github.com/panel-ui/PanelUI.
  * Changed: `bg-default` fill with soft corners; it stays invisible for `APPEAR_DELAY_MS` (local
  * data usually lands first, so most loads never show it), then fades in and breathes slowly
- * between two low opacities. It holds still under Reduce Motion. Plus a `SkeletonList` sized to
- * `ListRow`.
+ * between two low opacities. It holds still under Reduce Motion.
  */
 import { cn } from "heroui-native";
-import { memo, useEffect, type ReactNode } from "react";
-import { View, type ViewProps } from "react-native";
+import { memo, useEffect } from "react";
+import type { ViewProps } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -79,46 +78,3 @@ export const Skeleton = memo(function Skeleton({ className, style, label }: Skel
     />
   );
 });
-
-/** Holds a group of placeholders (a card around them) back until the placeholders appear. */
-function Appearing({ children, className }: { children: ReactNode; className?: string }) {
-  const opacity = useAppearing();
-  const animated = useAnimatedStyle(() => ({ opacity: opacity.value > 0 ? 1 : 0 }));
-  return (
-    <Animated.View style={animated} className={className}>
-      {children}
-    </Animated.View>
-  );
-}
-
-/** One list row placeholder: 48pt tall (`ListRow` min height), icon block and a title bar. */
-export function SkeletonRow({ className }: { className?: string }) {
-  return (
-    <View className={cn("min-h-12 flex-row items-center gap-3 px-4 py-3", className)}>
-      <Skeleton className="size-5 rounded-full" />
-      <Skeleton className="h-3 w-1/2 rounded-full" />
-    </View>
-  );
-}
-
-/**
- * `count` placeholder rows on a section card, announced once as busy. `label` is the translated
- * "Loading" text.
- */
-export function SkeletonList({ count = 4, label }: { count?: number; label: string }) {
-  return (
-    <Appearing>
-      <View
-        accessible
-        accessibilityRole="progressbar"
-        accessibilityLabel={label}
-        accessibilityState={{ busy: true }}
-        className="overflow-hidden rounded-2xl py-1 bg-surface"
-      >
-        {Array.from({ length: count }, (_, index) => (
-          <SkeletonRow key={index} />
-        ))}
-      </View>
-    </Appearing>
-  );
-}

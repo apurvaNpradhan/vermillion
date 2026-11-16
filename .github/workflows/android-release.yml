@@ -123,8 +123,7 @@ jobs:
             echo "### Signing certificate"
             echo "SHA-256: \`$fingerprint\`"
             echo
-            echo "The server's \`ANDROID_CERT_SHA256\` must contain this value, or passkeys and"
-            echo "\`/.well-known/assetlinks.json\` will not accept this app."
+            echo "Keep this value: verified app links and passkeys will need it on the final domain."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate the Android project

@@ -5,7 +5,7 @@ export * from "./http";
 export * from "./sync";
 export * from "./otp";
 export * from "./onboarding";
-export * from "./passkey";
+export * from "./csv";
 export * from "./exercise/index";
 export * from "./training/index";
 

@@ -17,7 +17,6 @@
     "@workspace/email": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
-    "@workspace/shared": "workspace:*",
     "evlog": "^2.33.1"
   },
   "devDependencies": {

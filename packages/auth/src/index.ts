@@ -1,5 +1,4 @@
 import { expo } from "@better-auth/expo";
-import { passkey } from "@better-auth/passkey";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import type { Database } from "@workspace/db";
 import { uuidv7 } from "@workspace/db/columns";
@@ -9,7 +8,6 @@ import {
   OTP_ALLOWED_ATTEMPTS,
   OTP_EXPIRY_SECONDS,
   OTP_LENGTH,
-  isAndroidOrigin,
   readCookie,
   LOCALE_COOKIE,
   resolveLocale,
@@ -30,12 +28,6 @@ import { verifyTurnstile } from "./turnstile";
 import { parseUserAgent } from "./user-agent";
 
 export { authEmailSchema, type AuthEmail } from "./email-jobs";
-// Re-exported so the declaration of `createAuth` can name the passkey plugin's WebAuthn types.
-export type {
-  AuthenticationResponseJSON,
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/server";
 export { isDisposableEmail } from "./disposable-email";
 export { assertStrongSecret } from "./secret";
 export { TURNSTILE_ACTION, verifyTurnstile, type TurnstileResult } from "./turnstile";
@@ -56,11 +48,6 @@ export type AuthOptions = {
   /** Deep-link scheme of the native app, without "://". */
   appScheme: string;
   nativePort: number;
-  /**
-   * WebAuthn relying party. `origins` is the complete list a ceremony may come from (HTTPS origins
-   * and `android:apk-key-hash:` origins); the request cannot add to it.
-   */
-  passkey: { rpId: string; rpName: string; origins: readonly string[] };
   registrationOpen: boolean;
   turnstileSecret?: string | undefined;
   google?: OAuthCredentials | undefined;
@@ -146,9 +133,6 @@ export function createAuth(options: AuthOptions) {
       origin.origin,
       `${options.appScheme}://`,
       ...(options.isProduction ? [] : ["exp://", `http://localhost:${options.nativePort}`]),
-      // Other HTTPS origins of the app (a dev tunnel, a preview host). Android origins are not
-      // HTTP origins: the passkey plugin checks them against `passkey.origins` instead.
-      ...options.passkey.origins.filter((entry) => !isAndroidOrigin(entry)),
     ],
     user: {
       deleteUser: {
@@ -189,13 +173,6 @@ export function createAuth(options: AuthOptions) {
     plugins: [
       expo(),
       lastLoginMethod(),
-      // Passkeys sign in an existing account and are added from a signed-in session (fresh,
-      // the plugin default); they never create accounts. See ADR 0032.
-      passkey({
-        rpID: options.passkey.rpId,
-        rpName: options.passkey.rpName,
-        origin: [...options.passkey.origins],
-      }),
       // Email codes are the only way in besides social providers (ADR 0029). Every new address
       // gets a code and every code is redeemed through sign-in, so the answer is the same
       // whether or not the account exists, and the account is created verified on first redeem.
@@ -267,9 +244,6 @@ export function createAuth(options: AuthOptions) {
         [CHANGE_EMAIL_PATH]: { window: 60, max: 3 },
         "/delete-user": { window: 60, max: 3 },
         "/sign-in/social": { window: 60, max: 10 },
-        "/passkey/generate-authenticate-options": { window: 60, max: 20 },
-        "/passkey/verify-authentication": { window: 60, max: 10 },
-        "/passkey/verify-registration": { window: 60, max: 10 },
       },
     },
     databaseHooks: {
@@ -288,7 +262,6 @@ export function createAuth(options: AuthOptions) {
         if (
           session &&
           (ctx.path === "/sign-in/email-otp" ||
-            ctx.path === "/passkey/verify-authentication" ||
             ctx.path.startsWith("/callback/") ||
             ctx.path === "/sign-in/social")
         ) {

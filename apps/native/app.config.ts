@@ -23,25 +23,8 @@ import { appConfig } from "../../app.config.ts";
 // 14: camera permission for user photos (expo-image-picker's manifest and Info.plist entries).
 // 15: photo-library permission copy covers all user image features.
 // 16: react-native-view-shot, expo-media-library (add-only) and expo-sharing for Share cards.
-const NATIVE_STACK_REVISION = 16;
-
-/**
- * The relying-party domain passkeys are bound to: the host of the server URL, which is also the
- * server's default `AUTH_RP_ID` (ADR 0032). A bare IP or `localhost` cannot own a passkey, so iOS
- * then gets no webcredentials association. Android needs no app config: the domain's
- * assetlinks.json names the app.
- */
-function passkeyRpId(serverUrl: string | undefined): string | null {
-  if (!serverUrl) return null;
-  try {
-    const { hostname } = new URL(serverUrl);
-    const isIp = /^[\d.]+$/.test(hostname) || hostname.includes(":");
-    return hostname === "localhost" || isIp ? null : hostname;
-  } catch {
-    return null;
-  }
-}
-const rpId = passkeyRpId(process.env.EXPO_PUBLIC_SERVER_URL);
+// 17: react-native-passkey removed, no associated domains; new bundle id (Cinnabar).
+const NATIVE_STACK_REVISION = 17;
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 
@@ -64,7 +47,6 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: appConfig.bundleIds.ios,
-    ...(rpId ? { associatedDomains: [`webcredentials:${rpId}`] } : {}),
   },
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],

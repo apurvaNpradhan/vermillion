@@ -2,7 +2,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferenceHandlerPlugin } from "@orpc/openapi/plugins";
 import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
-import { HTTP_STATUS_BY_CODE, isAndroidOrigin } from "@workspace/shared";
+import { HTTP_STATUS_BY_CODE } from "@workspace/shared";
 import { currentRequestLog, log, requestLoggingOptions } from "@workspace/logger";
 import type { DrainFn } from "evlog";
 import { createAuthMiddleware } from "evlog/better-auth";
@@ -16,7 +16,6 @@ import { clientIpMiddleware } from "./http/client-ip";
 import { compressResponses } from "./http/compress";
 import { requireTrustedOrigin } from "./http/require-trusted-origin";
 import { healthRoutes, readinessRoutes } from "./health";
-import { wellKnownRoutes } from "./well-known";
 import { generateOpenApiDocument, OPENAPI_PREFIX, smartCoercion } from "./orpc/openapi";
 import { appRouter } from "./orpc/router";
 import type { Services } from "./services";
@@ -40,7 +39,7 @@ function reportUnexpected(error: Error | string) {
 
 /**
  * Assembles the HTTP app: client IP, request logging, one error handler,
- * compression, health, the auth routes, the `/.well-known` files, the RPC handler and the OpenAPI
+ * compression, health, the auth routes, the RPC handler and the OpenAPI
  * reference. Everything runs against the given services, so a test can build
  * the same app over an in-memory database.
  */
@@ -77,17 +76,13 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
 
   app.use(compressResponses);
 
-  const trustOrigin = requireTrustedOrigin([
-    config.appUrl,
-    ...config.passkey.origins.filter((origin) => !isAndroidOrigin(origin)),
-  ]);
+  const trustOrigin = requireTrustedOrigin([config.appUrl]);
   app.use("/rpc/*", trustOrigin);
   app.use("/api/*", trustOrigin);
 
   app.route("/api", healthRoutes);
   app.route("/api", readinessRoutes(services));
   app.route("/api", authRoutes(services));
-  app.route("/.well-known", wellKnownRoutes(config.appAssociation));
 
   // Larger than any accepted transaction (SYNC_LIMITS), so oversize bodies are cut before parsing.
   const uploadBodyLimit = bodyLimit({

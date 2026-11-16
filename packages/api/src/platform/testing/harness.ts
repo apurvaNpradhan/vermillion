@@ -17,12 +17,6 @@ const baseConfig: ApiConfig = {
   appUrl: "http://localhost:3000",
   appScheme: "cinnabar",
   nativePort: 8081,
-  passkey: { rpId: "localhost", origins: ["http://localhost:3000"] },
-  appAssociation: {
-    androidPackage: "com.example.app",
-    iosBundleId: "com.example.app",
-    androidCertFingerprints: [],
-  },
   isProduction: false,
   authSecret: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
   trustedProxies: "127.0.0.0/8",

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { z } from "zod";
 
-import { passkeysSupported } from "@/passkeys";
 import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { FormError } from "@/platform/ui/form-error";
@@ -14,7 +13,6 @@ import { stepPosition, type FlowKind } from "../flow";
 import { useEmailCode } from "../use-email-code";
 import { useRegistrationStatus } from "../use-registration-status";
 import { FlowStep } from "./flow-step";
-import { PasskeySignInButton } from "./passkey-sign-in-button";
 import { SocialButtons } from "./social-buttons";
 import { useTurnstile } from "./use-turnstile";
 
@@ -39,8 +37,6 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
   const { sendCode } = useEmailCode();
   const [failure, setFailure] = useState<string | null>(null);
   const creating = flow === "get-started";
-  // A passkey only signs in someone who already has one, so the create path leaves it out.
-  const hasPasskey = !creating && passkeysSupported();
   const hasSocial = Object.values(status?.providers ?? {}).some(Boolean);
 
   const schema = useMemo(() => z.object({ email: z.email(t("auth__error_email_invalid")) }), [t]);
@@ -96,12 +92,9 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
           <Text className="text-caption text-muted">
             {creating ? t("auth__email_helper_new") : t("auth__email_helper_back")}
           </Text>
-          {hasPasskey || hasSocial ? (
+          {hasSocial ? (
             <View className="gap-3 pt-6">
               <OrDivider label={t("auth__or")} />
-              {hasPasskey ? (
-                <PasskeySignInButton blocked={isSubmitting || turnstile.pending} />
-              ) : null}
               <SocialButtons
                 headers={turnstile.headers}
                 blocked={isSubmitting || turnstile.pending}
