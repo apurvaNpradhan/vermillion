@@ -8,6 +8,7 @@ export * from "./session-inputs";
 export * from "./logged-set";
 export * from "./previous-for";
 export * from "./ghost-for";
+export * from "./history-for-workout";
 export * from "./tick-values";
 export * from "./volume";
 export * from "./records";

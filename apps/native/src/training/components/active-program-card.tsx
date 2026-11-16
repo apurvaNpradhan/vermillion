@@ -14,34 +14,14 @@ import { ProgramTile } from "./program-row";
 
 export function ActiveProgramCard({
   state,
-  offerEnd = false,
 }: {
   /** Read by the screen, so the card appears together with the rest of it. */
   state: ReturnType<typeof useActiveProgram>;
-  offerEnd?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { program, run, progress, week } = state;
   const { start, sheet } = useStartSession();
-  const [endOpen, setEndOpen] = useState(false);
-  const offered = useRef<string | null>(null);
-  useFocusEffect(
-    useCallback(() => {
-      if (
-        offerEnd &&
-        run &&
-        program?.plannedWeeks &&
-        run.started_at &&
-        !run.continued_at &&
-        week > program.plannedWeeks &&
-        offered.current !== run.id
-      ) {
-        offered.current = run.id;
-        setEndOpen(true);
-      }
-    }, [offerEnd, run, program, week]),
-  );
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
   const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
@@ -124,21 +104,49 @@ export function ActiveProgramCard({
         </View>
       ) : null}
       {sheet}
-      <ActionSheet
-        title={t("run__end_title")}
-        isOpen={endOpen}
-        onOpenChange={setEndOpen}
-        actions={[
-          {
-            key: "finish",
-            label: t("run__finish"),
-            icon: Check,
-            onPress: () => void state.finish(),
-          },
-          { key: "keep", label: t("run__keep"), icon: Repeat, onPress: () => void state.keep() },
-          { key: "again", label: t("run__again"), icon: Repeat, onPress: () => void state.again() },
-        ]}
-      />
     </View>
+  );
+}
+
+/**
+ * Offers to finish, continue or repeat a Program once its planned weeks have passed, the first
+ * time the Train tab is focused for that Run. It draws nothing until the offer opens.
+ */
+export function RunEndOffer({ state }: { state: ReturnType<typeof useActiveProgram> }) {
+  const { t } = useTranslation();
+  const { program, run, week } = state;
+  const [endOpen, setEndOpen] = useState(false);
+  const offered = useRef<string | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        run &&
+        program?.plannedWeeks &&
+        run.started_at &&
+        !run.continued_at &&
+        week > program.plannedWeeks &&
+        offered.current !== run.id
+      ) {
+        offered.current = run.id;
+        setEndOpen(true);
+      }
+    }, [run, program, week]),
+  );
+  return (
+    <ActionSheet
+      title={t("run__end_title")}
+      isOpen={endOpen}
+      onOpenChange={setEndOpen}
+      actions={[
+        {
+          key: "finish",
+          label: t("run__finish"),
+          icon: Check,
+          onPress: () => void state.finish(),
+        },
+        { key: "keep", label: t("run__keep"), icon: Repeat, onPress: () => void state.keep() },
+        { key: "again", label: t("run__again"), icon: Repeat, onPress: () => void state.again() },
+      ]}
+    />
   );
 }

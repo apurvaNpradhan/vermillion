@@ -70,6 +70,7 @@ function scrollToTop(target: ScrollTarget | null) {
  */
 export function Page({
   title,
+  overline,
   back = false,
   backFallback = "/",
   actions,
@@ -78,6 +79,8 @@ export function Page({
   children,
 }: {
   title: string;
+  /** A small muted line above the large title (Home's date); it scrolls away with it. */
+  overline?: string;
   /** A back button, for pages pushed over another page. */
   back?: boolean;
   backFallback?: Href;
@@ -138,7 +141,13 @@ export function Page({
             <></>
           ) : (
             <>
-              <PageTitle title={title} scrollY={scrollY} back={back} collapse={collapse} />
+              <PageTitle
+                title={title}
+                overline={overline}
+                scrollY={scrollY}
+                back={back}
+                collapse={collapse}
+              />
               {pinned ? <View style={{ height: pinned.height }} /> : null}
             </>
           ),
@@ -247,11 +256,13 @@ function BackIcon() {
 
 function PageTitle({
   title,
+  overline,
   scrollY,
   back,
   collapse,
 }: {
   title: string;
+  overline?: string;
   scrollY: SharedValue<number>;
   back: boolean;
   collapse: readonly [number, number];
@@ -260,7 +271,11 @@ function PageTitle({
     opacity: interpolate(scrollY.value, collapse, [1, 0], Extrapolation.CLAMP),
   }));
   return (
-    <Animated.View className={back ? "pb-2" : "h-11 justify-center"} style={style}>
+    <Animated.View
+      className={back ? "pb-2" : overline ? "pb-1" : "h-11 justify-center"}
+      style={style}
+    >
+      {overline ? <Text className="text-caption text-muted">{overline}</Text> : null}
       <Text
         accessibilityRole="header"
         numberOfLines={1}

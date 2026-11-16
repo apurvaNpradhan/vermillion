@@ -1,5 +1,5 @@
 import { haptic } from "@/platform/haptics";
-import { isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
+import { historyForWorkout, isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Note, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
@@ -176,7 +176,10 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 }
               />
               {ready.exercises.map((entry) => {
-                const previous = previousHistory.history.get(entry.exerciseId)?.[0];
+                const previous = historyForWorkout(
+                  previousHistory.history.get(entry.exerciseId) ?? [],
+                  id,
+                )[0];
                 const sets =
                   previous?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
