@@ -149,6 +149,7 @@ const expectation: Expectation = {
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
         cover_media_id: { type: "uuid", notNull: false, default: null },
+        sessions_per_week: { type: "smallint", notNull: false, default: null },
       },
       indexes: {
         program_user_id_live_idx:
@@ -393,7 +394,7 @@ const expectation: Expectation = {
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id)",
-      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id)",
+      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
       "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",

@@ -1,0 +1,58 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "71238100-da71-4dbe-9216-519f7e79a327",
+  "prevIds": ["1b7259c5-1e5d-4e4b-aa83-4ecf15187049"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "program", "sessions_per_week"],
+      "writes": [
+        "s|col|public.program.sessions_per_week",
+        "n|col|public.program.sessions_per_week",
+        "e|col|public.program.sessions_per_week"
+      ],
+      "reads": ["n|tbl|public.program", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "program"],
+      "writes": [
+        "s|ck|public.program.program_sessions_per_week_range",
+        "n|ck|public.program.program_sessions_per_week_range",
+        "e|ck|public.program.program_sessions_per_week_range",
+        "n|con|public.program.program_sessions_per_week_range"
+      ],
+      "reads": ["n|tbl|public.program", "n|sch|public", "n|col|public.program.sessions_per_week"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program",
+        "name": "sessions_per_week",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program",
+        "name": "program_sessions_per_week_range",
+        "value": "\"sessions_per_week\" BETWEEN 1 AND 14",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

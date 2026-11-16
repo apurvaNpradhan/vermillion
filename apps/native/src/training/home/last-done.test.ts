@@ -40,3 +40,12 @@ it("localizes today, tomorrow and future calendar days with the supported locale
   expect(lastDoneLabel("2026-09-25T01:00:00Z", now, "en", "UTC")).toBe("tomorrow");
   expect(lastDoneLabel("2026-09-27T01:00:00Z", now, "en", "UTC")).toBe("in 3 days");
 });
+
+it("opens a line with a capitalised relative day", () => {
+  const now = new Date("2026-09-24T12:00:00Z");
+  expect(lastDoneLabel("2026-09-24T01:00:00Z", now, "en", "UTC", "leading")).toBe("Today");
+  expect(lastDoneLabel("2026-09-23T01:00:00Z", now, "en", "UTC", "leading")).toBe("Yesterday");
+  expect(lastDoneLabel("2026-09-25T01:00:00Z", now, "en", "UTC", "leading")).toBe("Tomorrow");
+  expect(lastDoneLabel("2026-09-27T01:00:00Z", now, "en", "UTC", "leading")).toBe("In 3 days");
+  expect(lastDoneLabel("2026-09-21T01:00:00Z", now, "en", "UTC", "leading")).toBe("3 days ago");
+});

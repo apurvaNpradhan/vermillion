@@ -19,6 +19,7 @@ it("activates, starts, continues and reruns without losing earlier dates", async
       title: "Plan",
       description: null,
       planned_weeks: 4,
+      sessions_per_week: null,
     });
     const workoutId = await createWorkout(s.training, { title: "Day", program_id: programId });
     const slotId = await addSlot(s.training, programId, workoutId);
@@ -58,11 +59,13 @@ it("switching stops the prior Run and rejects a stale account scope", async () =
       title: "One",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const two = await createProgram(s.training, {
       title: "Two",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const first = await activateProgram(s.training, one);
     const second = await activateProgram(s.training, two);
@@ -80,11 +83,13 @@ it("stops an offline losing activation on the next training write", async () => 
       title: "One",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const two = await createProgram(s.training, {
       title: "Two",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const first = await activateProgram(s.training, one);
     // Replication can deliver an independent offline activation before a client reconciles.

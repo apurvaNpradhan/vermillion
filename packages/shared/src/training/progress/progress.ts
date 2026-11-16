@@ -6,7 +6,8 @@ import {
   type SessionHistory,
 } from "../logging/logged-set";
 import { effectiveWeight, estimatedOneRepMax, setVolume } from "../volume/volume";
-import { isoWeekKey } from "../plans/week";
+import { weekStartKey } from "../plans/week";
+import type { WeekStart } from "../vocabulary/vocabulary";
 
 export type ProgressRange = "3M" | "1Y" | "All";
 
@@ -70,11 +71,12 @@ export function exerciseWeeklyVolume(
   range: ProgressRange,
   now: number,
   timezone: string,
+  weekStart: WeekStart,
   bodyweightKg: number | null = null,
 ) {
   const weeks = new Map<string, number>();
   for (const session of withinRange(sessions, range, now)) {
-    const key = isoWeekKey(session.started_at, timezone);
+    const key = weekStartKey(session.started_at, timezone, weekStart);
     for (const set of session.sets) {
       if (set.exercise_id !== exerciseId || !isCounted(set)) continue;
       weeks.set(key, (weeks.get(key) ?? 0) + setVolume(set, bodyweightKg));

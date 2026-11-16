@@ -4,9 +4,11 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
+import { weekDays, type WeekStart } from "@workspace/shared";
+
 import { monthCells, shiftMonth, type Month } from "./history-calendar";
 
-const WEEK_START = Date.UTC(2026, 0, 5); // a Monday, for the weekday letters
+const SUNDAY = Date.UTC(2026, 0, 4); // a Sunday, the base of the weekday letters
 
 /**
  * A compact month: one square per day in the Habit grid's style, the days with a Session filled
@@ -19,6 +21,7 @@ export function HistoryCalendar({
   counts,
   total,
   selected,
+  weekStart,
   onMonthChange,
   onSelect,
 }: {
@@ -27,12 +30,13 @@ export function HistoryCalendar({
   counts: ReadonlyMap<string, number>;
   total: number;
   selected: string | null;
+  weekStart: WeekStart;
   onMonthChange: (month: Month) => void;
   onSelect: (date: string | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const subtle = useSubtleColor();
-  const cells = monthCells(month, counts);
+  const cells = monthCells(month, counts, weekStart);
   const rows = Array.from({ length: Math.ceil(cells.length / 7) }, (_, row) =>
     cells.slice(row * 7, row * 7 + 7),
   );
@@ -74,9 +78,9 @@ export function HistoryCalendar({
         </View>
       </View>
       <View className="flex-row gap-1">
-        {Array.from({ length: 7 }, (_, index) => (
-          <Text key={index} className="flex-1 text-center text-caption text-muted">
-            {format({ weekday: "narrow" }, WEEK_START + index * 86_400_000)}
+        {weekDays(weekStart).map((weekday) => (
+          <Text key={weekday} className="flex-1 text-center text-caption text-muted">
+            {format({ weekday: "narrow" }, SUNDAY + weekday * 86_400_000)}
           </Text>
         ))}
       </View>

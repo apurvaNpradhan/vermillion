@@ -252,6 +252,7 @@ function LoadedDetail({
                   equipment={exercise.equipment}
                   weightIncrementKg={preferences.ui.weightIncrementKg}
                   bodyweightKg={preferences.ui.bodyweightKg}
+                  weekStart={preferences.ui.weekStart}
                   unit={preferences.ui.weightUnit}
                   timezone={preferences.timezone}
                 />

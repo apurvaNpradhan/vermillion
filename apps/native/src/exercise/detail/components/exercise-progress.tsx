@@ -13,6 +13,7 @@ import {
   type IncrementSettings,
   type ProgressRange,
   type SessionHistory,
+  type WeekStart,
 } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -27,6 +28,7 @@ export function ExerciseProgress({
   equipment,
   settings,
   timezone,
+  weekStart,
   bodyweightKg,
 }: {
   sessions: readonly SessionHistory[];
@@ -35,6 +37,7 @@ export function ExerciseProgress({
   equipment: Equipment;
   settings: IncrementSettings;
   timezone: string | null;
+  weekStart: WeekStart;
   bodyweightKg: number | null;
 }) {
   const { t, i18n } = useTranslation();
@@ -133,6 +136,7 @@ export function ExerciseProgress({
             now,
             // Weeks follow the device's zone until the account has one, as on Home.
             timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+            weekStart,
             bodyweightKg,
           ),
           "UTC",

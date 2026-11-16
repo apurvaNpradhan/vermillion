@@ -43,7 +43,10 @@ it("buckets volume by Monday in the account's timezone and keeps zero data", () 
     session("c", "2026-11-05", 0),
   ];
   expect(
-    exerciseWeeklyVolume(history, "e", "3M", now, "America/Los_Angeles").map((p) => [p.id, p.y]),
+    exerciseWeeklyVolume(history, "e", "3M", now, "America/Los_Angeles", "monday").map((p) => [
+      p.id,
+      p.y,
+    ]),
   ).toEqual([
     ["2026-10-26", 1000],
     ["2026-11-02", 0],

@@ -1,3 +1,5 @@
+import { weekColumn, type WeekStart } from "@workspace/shared";
+
 /** A calendar month: `month` is 0-11. */
 export type Month = { year: number; month: number };
 
@@ -44,11 +46,15 @@ export function inMonth(instant: string, month: Month, timezone: string): boolea
   return sameMonth(monthOf(instant, timezone), month);
 }
 
-/** The squares of a month, Monday first: blanks up to the 1st, then one cell per day. */
-export function monthCells(month: Month, counts: ReadonlyMap<string, number>): CalendarCell[] {
+/** The squares of a month: blanks up to the 1st (in the user's week order), then one cell per day. */
+export function monthCells(
+  month: Month,
+  counts: ReadonlyMap<string, number>,
+  weekStart: WeekStart,
+): CalendarCell[] {
   const first = new Date(Date.UTC(month.year, month.month, 1));
   const length = new Date(Date.UTC(month.year, month.month + 1, 0)).getUTCDate();
-  const lead = (first.getUTCDay() + 6) % 7;
+  const lead = weekColumn(first.getUTCDay(), weekStart);
   const pad = (value: number) => String(value).padStart(2, "0");
   return [
     ...Array.from({ length: lead }, (_, index): CalendarCell => ({

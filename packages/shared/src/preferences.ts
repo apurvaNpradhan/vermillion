@@ -4,7 +4,10 @@ import { BODY_METRICS, DEFAULT_TRACKED_METRICS } from "./body";
 import { localeSchema } from "./locale";
 import {
   DEFAULT_REST_SECONDS,
+  DEFAULT_WEEK_START,
   EFFORT_SCALES,
+  TRAINING_LIMITS,
+  WEEK_STARTS,
   REST_SECONDS_MAX,
   SESSION_VIEWS,
   WEIGHT_UNITS,
@@ -53,6 +56,13 @@ const uiFields = {
   effortScale: z.enum(EFFORT_SCALES),
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
   sessionView: z.enum(SESSION_VIEWS),
+  weekStart: z.enum(WEEK_STARTS),
+  sessionsPerWeek: z
+    .number()
+    .int()
+    .min(TRAINING_LIMITS.sessionsPerWeekMin)
+    .max(TRAINING_LIMITS.sessionsPerWeekMax)
+    .nullable(),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -85,6 +95,8 @@ export const uiPreferencesSchema = z
     effortScale: uiFields.effortScale.default("rpe"),
     defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
     sessionView: uiFields.sessionView.default("sets"),
+    weekStart: uiFields.weekStart.default(DEFAULT_WEEK_START),
+    sessionsPerWeek: uiFields.sessionsPerWeek.default(null),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

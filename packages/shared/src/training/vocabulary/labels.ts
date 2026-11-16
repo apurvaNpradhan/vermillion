@@ -1,4 +1,4 @@
-import type { EffortScale, SetKind, WeightUnit } from "./vocabulary";
+import type { EffortScale, SetKind, WeekStart, WeightUnit } from "./vocabulary";
 
 // Written out as literals so `pnpm i18n:report` sees every key as used.
 
@@ -23,6 +23,12 @@ export const EFFORT_SCALE_NAME_KEYS = {
   rpe: "training__effort_rpe_name",
   rir: "training__effort_rir_name",
 } as const satisfies Record<EffortScale, string>;
+
+export const WEEK_START_KEYS = {
+  monday: "training__week_start_monday",
+  sunday: "training__week_start_sunday",
+  saturday: "training__week_start_saturday",
+} as const satisfies Record<WeekStart, string>;
 
 export const WEIGHT_UNIT_KEYS = {
   kg: "training__unit_kg",

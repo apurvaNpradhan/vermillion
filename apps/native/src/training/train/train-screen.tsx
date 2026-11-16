@@ -136,7 +136,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
           onOpen={open}
           onStart={startWorkout}
           onShare={share}
-          onDuplicate={item.owned ? undefined : duplicate}
+          onDuplicate={duplicate}
           onDelete={item.owned ? undefined : remove}
         />
       );

@@ -47,14 +47,16 @@ export function HistoryScreen() {
         );
   const items: HistoryItem[] = daySessions
     ? daySessions.map((session): HistoryItem => ({ kind: "session", id: session.id, session }))
-    : groupSessionWeeks(history.sessions, timezone).flatMap((group): HistoryItem[] => [
-        { kind: "week", id: group.week, sessions: group.sessions },
-        ...group.sessions.map((session): HistoryItem => ({
-          kind: "session",
-          id: session.id,
-          session,
-        })),
-      ]);
+    : groupSessionWeeks(history.sessions, timezone, preferences.ui.weekStart).flatMap(
+        (group): HistoryItem[] => [
+          { kind: "week", id: group.week, sessions: group.sessions },
+          ...group.sessions.map((session): HistoryItem => ({
+            kind: "session",
+            id: session.id,
+            session,
+          })),
+        ],
+      );
   return (
     <Page
       title={t("session__history")}
@@ -83,6 +85,7 @@ export function HistoryScreen() {
                 counts={counts}
                 total={monthSessions.sessions.length}
                 selected={selected}
+                weekStart={preferences.ui.weekStart}
                 onMonthChange={(next) => {
                   setShown(next);
                   setSelected(null);

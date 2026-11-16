@@ -22,6 +22,15 @@ export const programInput = z.strictObject({
     .min(TRAINING_LIMITS.plannedWeeksMin)
     .max(TRAINING_LIMITS.plannedWeeksMax)
     .nullable(),
+  /** The Sessions a week the Program aims for; null derives it from the rotation. */
+  sessions_per_week: z
+    .number()
+    .int()
+    .min(TRAINING_LIMITS.sessionsPerWeekMin)
+    .max(TRAINING_LIMITS.sessionsPerWeekMax)
+    .nullable()
+    // Absent from writes of builds from before this field: it then stays or starts as null.
+    .optional(),
 });
 export type ProgramInput = z.infer<typeof programInput>;
 

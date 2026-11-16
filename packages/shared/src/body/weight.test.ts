@@ -68,8 +68,8 @@ describe("weight log", () => {
     expect(weightChanges(points.map((p) => ({ ...p, trend: -p.trend })))[0]?.direction).toBe(
       "decrease",
     );
-    expect(weeklyPoints(points).length).toBeLessThan(points.length);
-    expect(weeklyPoints(points).at(-1)).toMatchObject({
+    expect(weeklyPoints(points, "monday").length).toBeLessThan(points.length);
+    expect(weeklyPoints(points, "monday").at(-1)).toMatchObject({
       date: points.at(-1)?.date,
       trend: points.at(-1)?.trend,
     });
@@ -169,7 +169,7 @@ describe("review fixes", () => {
         { local_date: "2026-01-19", value: 82 },
       ]),
     );
-    const weeks = weeklyPoints(series);
+    const weeks = weeklyPoints(series, "monday");
     expect(weeks.map((p) => p.scale)).toEqual([80, 81, 82]);
     expect(weeks.every((p) => !p.interpolated)).toBe(true);
     expect(weeks[0]?.date).toBe("2026-01-11");
@@ -182,7 +182,7 @@ describe("review fixes", () => {
         { local_date: "2026-01-07", value: 82 },
       ]),
     );
-    expect(weeklyPoints(series)[0]?.scale).toBe(81);
+    expect(weeklyPoints(series, "monday")[0]?.scale).toBe(81);
   });
 
   it("formats body weight to one decimal, not plate steps", () => {

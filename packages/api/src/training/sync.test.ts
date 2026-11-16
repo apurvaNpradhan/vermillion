@@ -191,13 +191,16 @@ describe("training upload handlers", () => {
     });
     expect(await stored("program_slot", p.slot2)).toMatchObject({ workout_id: null });
 
-    expect(await me.send([op("PATCH", "program", p.programId, { planned_weeks: 12 })])).toEqual(
-      applied,
-    );
+    expect(
+      await me.send([
+        op("PATCH", "program", p.programId, { planned_weeks: 12, sessions_per_week: 4 }),
+      ]),
+    ).toEqual(applied);
     expect(await stored("program", p.programId)).toMatchObject({
       title: "Push Pull Legs",
       description: "Three days",
       planned_weeks: 12,
+      sessions_per_week: 4,
     });
     expect(
       await me.send([op("PATCH", "workout", p.workoutId, { title: "Push", note: "Hard" })]),
@@ -264,6 +267,8 @@ describe("training upload handlers", () => {
       { title: "x".repeat(101) },
       { title: "ok", planned_weeks: 53 },
       { title: "ok", planned_weeks: 0 },
+      { title: "ok", sessions_per_week: 0 },
+      { title: "ok", sessions_per_week: 15 },
       { title: "ok", description: "d".repeat(10_001) },
     ];
     for (const bad of badPrograms) {

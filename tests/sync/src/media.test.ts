@@ -35,7 +35,12 @@ async function device(user: TestUser): Promise<SyncClient> {
 }
 
 const image = { width: 1024, height: 1024, bytes: 120_000, thumbBytes: 9_000 };
-const programInput = { title: "Covered", description: null, planned_weeks: null };
+const programInput = {
+  title: "Covered",
+  description: null,
+  planned_weeks: null,
+  sessions_per_week: null,
+};
 
 const mediaIds = async (client: SyncClient) =>
   (await client.database.getAll<{ id: string }>("SELECT id FROM media ORDER BY id")).map(

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { calendarDay, ratioChange, trailingDays, weekCells, weekStart } from "./home-stats";
+import { ratioChange, sessionsInWeek, trailingDays, weekCells, weighInsInWeek } from "./home-stats";
 
 const NOW = new Date("2026-11-18T12:00:00Z"); // a Wednesday
 
 describe("weekCells", () => {
   it("runs Monday to Sunday and marks trained days and today", () => {
-    const cells = weekCells(["2026-11-16T07:00:00Z", "2026-11-18T09:00:00Z"], NOW, "UTC");
+    const cells = weekCells(["2026-11-16T07:00:00Z", "2026-11-18T09:00:00Z"], NOW, "UTC", "monday");
     expect(cells.map((cell) => cell.trained)).toEqual([
       true,
       false,
@@ -30,14 +30,14 @@ describe("weekCells", () => {
 
   it("uses the user's zone for the day a Session started on", () => {
     // 23:30 UTC Sunday is already Monday in Auckland.
-    const cells = weekCells(["2026-11-15T23:30:00Z"], NOW, "Pacific/Auckland");
+    const cells = weekCells(["2026-11-15T23:30:00Z"], NOW, "Pacific/Auckland", "monday");
     expect(cells[0]?.trained).toBe(true);
   });
 
   it("ignores Sessions of other weeks", () => {
-    expect(weekCells(["2026-11-09T09:00:00Z"], NOW, "UTC").some((cell) => cell.trained)).toBe(
-      false,
-    );
+    expect(
+      weekCells(["2026-11-09T09:00:00Z"], NOW, "UTC", "monday").some((cell) => cell.trained),
+    ).toBe(false);
   });
 });
 
@@ -48,10 +48,54 @@ describe("trailingDays", () => {
   });
 });
 
-describe("weekStart", () => {
-  it("is the Monday of the week, also for a Sunday", () => {
-    const sunday = calendarDay(new Date("2026-11-22T12:00:00Z"), "UTC");
-    expect(new Date(weekStart(sunday)).toISOString().slice(0, 10)).toBe("2026-11-16");
+describe("a week that starts on another day", () => {
+  it("runs Sunday to Saturday", () => {
+    const cells = weekCells(["2026-11-15T09:00:00Z", "2026-11-21T09:00:00Z"], NOW, "UTC", "sunday");
+    expect(new Date(cells[0]?.day ?? 0).toISOString().slice(0, 10)).toBe("2026-11-15");
+    expect(cells.map((cell) => cell.trained)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  it("runs Saturday to Friday and puts a Saturday in the new week", () => {
+    const cells = weekCells(["2026-11-14T09:00:00Z"], NOW, "UTC", "saturday");
+    expect(new Date(cells[0]?.day ?? 0).toISOString().slice(0, 10)).toBe("2026-11-14");
+    expect(cells[0]?.trained).toBe(true);
+  });
+});
+
+describe("sessionsInWeek", () => {
+  const sessions = [
+    { started_at: "2026-11-15T09:00:00Z" },
+    { started_at: "2026-11-16T09:00:00Z" },
+    { started_at: "2026-11-10T09:00:00Z" },
+  ];
+  it("keeps Sessions of this week or of an earlier one", () => {
+    expect(sessionsInWeek(sessions, NOW, "UTC", "monday")).toHaveLength(1);
+    expect(sessionsInWeek(sessions, NOW, "UTC", "monday", 1)).toHaveLength(2);
+    // With Sunday first the Sunday Session belongs to this week.
+    expect(sessionsInWeek(sessions, NOW, "UTC", "sunday")).toHaveLength(2);
+  });
+});
+
+describe("weighInsInWeek", () => {
+  const days = [
+    { date: "2026-11-14", logged: true },
+    { date: "2026-11-15", logged: true },
+    { date: "2026-11-16", logged: true },
+    { date: "2026-11-17", logged: false },
+    { date: "2026-11-18", logged: true },
+  ];
+  it("counts logged days since the week started, not the last seven", () => {
+    expect(weighInsInWeek(days, NOW, "UTC", "monday")).toBe(2);
+    expect(weighInsInWeek(days, NOW, "UTC", "sunday")).toBe(3);
+    expect(weighInsInWeek(days, NOW, "UTC", "saturday")).toBe(4);
   });
 });
 

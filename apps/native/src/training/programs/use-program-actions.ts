@@ -45,7 +45,7 @@ export function useProgramActions() {
       write(async (db) => {
         const id = await createProgram(
           db,
-          { title, description: null, planned_weeks: null },
+          { title, description: null, planned_weeks: null, sessions_per_week: null },
           writeScope,
         );
         haptic.confirm();

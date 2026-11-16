@@ -12,7 +12,7 @@ import {
 describe("monthCells", () => {
   it("starts on a Monday with blanks before the 1st and one cell per day", () => {
     // 1 November 2026 is a Sunday: six blanks.
-    const cells = monthCells({ year: 2026, month: 10 }, new Map([["2026-11-16", 2]]));
+    const cells = monthCells({ year: 2026, month: 10 }, new Map([["2026-11-16", 2]]), "monday");
     expect(cells.filter((cell) => cell.kind === "blank")).toHaveLength(6);
     const days = cells.flatMap((cell) => (cell.kind === "day" ? [cell] : []));
     expect(days).toHaveLength(30);
@@ -21,15 +21,28 @@ describe("monthCells", () => {
   });
 
   it("has no blanks when the 1st is a Monday", () => {
-    const cells = monthCells({ year: 2027, month: 1 }, new Map()); // 1 Feb 2027
+    const cells = monthCells({ year: 2027, month: 1 }, new Map(), "monday"); // 1 Feb 2027
     expect(cells.some((cell) => cell.kind === "blank")).toBe(false);
     expect(cells).toHaveLength(28);
   });
 
   it("counts the 29th of a leap February", () => {
-    const cells = monthCells({ year: 2028, month: 1 }, new Map());
+    const cells = monthCells({ year: 2028, month: 1 }, new Map(), "monday");
     expect(cells.filter((cell) => cell.kind === "day")).toHaveLength(29);
     expect(cells.filter((cell) => cell.kind === "blank")).toHaveLength(1); // a Tuesday
+  });
+});
+
+describe("monthCells for other week starts", () => {
+  const blanks = (weekStart: "monday" | "sunday" | "saturday") =>
+    monthCells({ year: 2026, month: 10 }, new Map(), weekStart).filter(
+      (cell) => cell.kind === "blank",
+    ).length;
+  it("puts the 1st (a Sunday) in the first column when weeks start on Sunday", () => {
+    expect(blanks("sunday")).toBe(0);
+  });
+  it("leaves one blank when weeks start on Saturday", () => {
+    expect(blanks("saturday")).toBe(1);
   });
 });
 

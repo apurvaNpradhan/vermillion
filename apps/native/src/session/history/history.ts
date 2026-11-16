@@ -1,12 +1,16 @@
+import type { WeekStart } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 
-import { isoWeekKey } from "@workspace/shared";
-export { isoWeekKey } from "@workspace/shared";
+import { weekStartKey } from "@workspace/shared";
 
-export function groupSessionWeeks(sessions: readonly FinishedSession[], timezone: string) {
+export function groupSessionWeeks(
+  sessions: readonly FinishedSession[],
+  timezone: string,
+  weekStart: WeekStart,
+) {
   const weeks = new Map<string, FinishedSession[]>();
   for (const session of [...sessions].sort((a, b) => b.started_at.localeCompare(a.started_at))) {
-    const key = isoWeekKey(session.started_at, timezone);
+    const key = weekStartKey(session.started_at, timezone, weekStart);
     const group = weeks.get(key) ?? [];
     group.push(session);
     weeks.set(key, group);

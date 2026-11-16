@@ -1,4 +1,4 @@
-import { TRAINING_LIMITS } from "@workspace/shared";
+import { TRAINING_LIMITS, displayedSessionsPerWeek } from "@workspace/shared";
 import { ImageSquare, Trash, X } from "phosphor-react-native";
 import { useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
@@ -23,7 +23,12 @@ import { Stepper } from "@/training/targets/stepper";
 /** The cover preview in the details sheet. */
 const COVER_PREVIEW = 96;
 
-type Patch = { title?: string; description?: string | null; planned_weeks?: number | null };
+type Patch = {
+  title?: string;
+  description?: string | null;
+  planned_weeks?: number | null;
+  sessions_per_week?: number | null;
+};
 
 /**
  * The details of a Program: title, planned length (Off, or 1 to 52 weeks) and the Markdown
@@ -71,6 +76,8 @@ function LoadedDetails({
 
   const [title, setTitle] = useState(program.title);
   const [weeks, setWeeks] = useState(program.plannedWeeks);
+  const [sessions, setSessions] = useState(program.sessionsPerWeek);
+  const shownSessions = displayedSessionsPerWeek(sessions, program.slots);
   const blank = title.trim() === "";
 
   // Take in changes from the database (another device) unless an edit of ours is on its way.
@@ -78,10 +85,11 @@ function LoadedDetails({
     if (!writer.busy()) {
       setTitle(program.title);
       setWeeks(program.plannedWeeks);
+      setSessions(program.sessionsPerWeek);
     }
     // `writer` is stable; the stored values are the only trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program.title, program.plannedWeeks]);
+  }, [program.title, program.plannedWeeks, program.sessionsPerWeek]);
 
   const stepWeeks = (direction: 1 | -1) => {
     const next =
@@ -94,6 +102,15 @@ function LoadedDetails({
           : Math.min(TRAINING_LIMITS.plannedWeeksMax, weeks + direction);
     setWeeks(next);
     writer.queue({ planned_weeks: next });
+  };
+
+  const stepSessions = (direction: 1 | -1) => {
+    const next = Math.min(
+      TRAINING_LIMITS.sessionsPerWeekMax,
+      Math.max(TRAINING_LIMITS.sessionsPerWeekMin, shownSessions + direction),
+    );
+    setSessions(next);
+    writer.queue({ sessions_per_week: next });
   };
 
   return (
@@ -138,6 +155,26 @@ function LoadedDetails({
             incrementLabel={t("training__planned_more")}
           />
         </View>
+      </View>
+
+      <View className="gap-1.5">
+        <Text className="text-label font-medium text-foreground">
+          {t("training__sessions_per_week")}
+        </Text>
+        <View className="rounded-xl bg-field px-2 py-1">
+          <Stepper
+            label={t("training__sessions_per_week")}
+            valueText={t("stats__sessions", { count: shownSessions })}
+            onStep={stepSessions}
+            canDecrement={shownSessions > TRAINING_LIMITS.sessionsPerWeekMin}
+            canIncrement={shownSessions < TRAINING_LIMITS.sessionsPerWeekMax}
+            decrementLabel={t("training__sessions_per_week_less")}
+            incrementLabel={t("training__sessions_per_week_more")}
+          />
+        </View>
+        {sessions === null ? (
+          <Text className="text-caption text-muted">{t("training__sessions_per_week_auto")}</Text>
+        ) : null}
       </View>
 
       <View className="gap-2">

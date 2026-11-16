@@ -71,7 +71,12 @@ async function setup() {
 
 type S = Awaited<ReturnType<typeof setup>>;
 
-const programInput = { title: "Push Pull Legs", description: null, planned_weeks: null };
+const programInput = {
+  title: "Push Pull Legs",
+  description: null,
+  planned_weeks: null,
+  sessions_per_week: null,
+};
 
 describe("programs", () => {
   it("creates for the Device owner and updates only dirty fields", async () => {
@@ -83,9 +88,17 @@ describe("programs", () => {
       cover_media_id: null,
     });
     expect(await updateProgram(s.training, id, { title: "Push Pull Legs" })).toBe(false);
-    expect(await updateProgram(s.training, id, { planned_weeks: 8 })).toBe(true);
-    expect(s.one("program", id)).toMatchObject({ planned_weeks: 8, title: "Push Pull Legs" });
-    await expect(updateProgram(s.training, id, { planned_weeks: 53 })).rejects.toThrow();
+    expect(await updateProgram(s.training, id, { planned_weeks: 8, sessions_per_week: null })).toBe(
+      true,
+    );
+    expect(s.one("program", id)).toMatchObject({
+      planned_weeks: 8,
+      sessions_per_week: null,
+      title: "Push Pull Legs",
+    });
+    await expect(
+      updateProgram(s.training, id, { planned_weeks: 53, sessions_per_week: null }),
+    ).rejects.toThrow();
     await expect(createProgram(s.training, { ...programInput, title: " " })).rejects.toThrow();
     expect(await updateProgram(s.training, "missing", { title: "x" })).toBe(false);
   });

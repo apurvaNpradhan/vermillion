@@ -3,12 +3,16 @@ import {
   EFFORT_SCALES,
   KG_PER_LB,
   EFFORT_SCALE_NAME_KEYS,
+  TRAINING_LIMITS,
+  WEEK_STARTS,
+  WEEK_START_KEYS,
   WEIGHT_UNITS,
   WEIGHT_UNIT_KEYS,
   type EffortScale,
+  type WeekStart,
   type WeightUnit,
 } from "@workspace/shared";
-import { Barbell, Gauge, Timer } from "phosphor-react-native";
+import { Barbell, CalendarBlank, Gauge, Target, Timer } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -18,7 +22,7 @@ import { usePreferences } from "@/preferences";
 
 import { formatClock } from "@/training/targets/rest";
 
-type Picker = "unit" | "effort" | "rest" | "increment" | null;
+type Picker = "unit" | "effort" | "rest" | "increment" | "weekStart" | "sessions" | null;
 
 /** Default rest choices, in seconds. */
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
@@ -29,6 +33,9 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
  * sheets come apart so a caller can draw the section inside another sheet's portal (which has no
  * query client) while the preferences are read here and the pickers open as their own sheets.
  */
+
+/** Weekly session goals to offer; a stored value outside the list is added. */
+const SESSION_CHOICES = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /** Weight increments to offer, in the unit the user weighs in. */
 const INCREMENT_CHOICES = {
@@ -47,7 +54,12 @@ export function useTrainingPreferenceRows({
   const { t } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
-  const { weightUnit, effortScale, defaultRestSeconds } = preferences.ui;
+  const { weightUnit, effortScale, defaultRestSeconds, weekStart, sessionsPerWeek } =
+    preferences.ui;
+  const sessionChoices: readonly number[] =
+    sessionsPerWeek === null || SESSION_CHOICES.some((count) => count === sessionsPerWeek)
+      ? SESSION_CHOICES
+      : [...SESSION_CHOICES, sessionsPerWeek].sort((a, b) => a - b);
   const [picker, setPicker] = useState<Picker>(null);
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
@@ -97,6 +109,22 @@ export function useTrainingPreferenceRows({
         }
         onPress={() => setPicker("increment")}
       />
+      <ListRow
+        icon={CalendarBlank}
+        title={t("training__setting_week_start")}
+        value={t(WEEK_START_KEYS[weekStart])}
+        onPress={() => setPicker("weekStart")}
+      />
+      <ListRow
+        icon={Target}
+        title={t("training__setting_sessions")}
+        value={
+          sessionsPerWeek === null
+            ? t("training__setting_sessions_none")
+            : t("stats__sessions", { count: sessionsPerWeek })
+        }
+        onPress={() => setPicker("sessions")}
+      />
       {extraRows}
       <ListRow
         icon={Barbell}
@@ -145,6 +173,31 @@ export function useTrainingPreferenceRows({
         options={EFFORT_SCALES.map((value) => ({ value, label: t(EFFORT_SCALE_NAME_KEYS[value]) }))}
         value={effortScale}
         onSelect={(value) => setUi({ effortScale: value })}
+      />
+      <OptionSheet<WeekStart>
+        isOpen={picker === "weekStart"}
+        onOpenChange={onOpenChange}
+        title={t("training__setting_week_start")}
+        description={t("training__setting_week_start_hint")}
+        options={WEEK_STARTS.map((value) => ({ value, label: t(WEEK_START_KEYS[value]) }))}
+        value={weekStart}
+        onSelect={(value) => setUi({ weekStart: value })}
+      />
+      <OptionSheet
+        isOpen={picker === "sessions"}
+        onOpenChange={onOpenChange}
+        title={t("training__setting_sessions")}
+        description={t("training__setting_sessions_hint")}
+        options={[
+          { value: "none", label: t("training__setting_sessions_none") },
+          ...sessionChoices.flatMap((count) =>
+            count <= TRAINING_LIMITS.sessionsPerWeekMax
+              ? [{ value: String(count), label: t("stats__sessions", { count }) }]
+              : [],
+          ),
+        ]}
+        value={sessionsPerWeek === null ? "none" : String(sessionsPerWeek)}
+        onSelect={(value) => setUi({ sessionsPerWeek: value === "none" ? null : Number(value) })}
       />
       <OptionSheet
         isOpen={picker === "rest"}

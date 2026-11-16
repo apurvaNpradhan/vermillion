@@ -194,6 +194,7 @@ describe("training store writes reach the upload queue", () => {
       title: "Plan",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const workoutId = await createWorkout(database, { program_id: programId });
     const [row] = await addExercises(database, workoutId, [PRESS]);

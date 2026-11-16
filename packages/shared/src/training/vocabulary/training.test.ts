@@ -222,24 +222,52 @@ describe("row inputs", () => {
   const id = "0192f0a0-7b3a-7c3e-8a4d-1f2e3d4c5b6a";
   it("caps titles, notes, descriptions and weeks", () => {
     expect(
-      programInput.safeParse({ title: " Push ", description: null, planned_weeks: 8 }).data?.title,
+      programInput.safeParse({
+        title: " Push ",
+        description: null,
+        planned_weeks: 8,
+        sessions_per_week: null,
+      }).data?.title,
     ).toBe("Push");
     expect(
-      programInput.safeParse({ title: " ", description: null, planned_weeks: null }).success,
+      programInput.safeParse({
+        title: " ",
+        description: null,
+        planned_weeks: null,
+        sessions_per_week: null,
+      }).success,
     ).toBe(false);
     expect(
-      programInput.safeParse({ title: "x".repeat(101), description: null, planned_weeks: null })
-        .success,
+      programInput.safeParse({
+        title: "x".repeat(101),
+        description: null,
+        planned_weeks: null,
+        sessions_per_week: null,
+      }).success,
     ).toBe(false);
     expect(
-      programInput.safeParse({ title: "x", description: "d".repeat(10001), planned_weeks: null })
-        .success,
+      programInput.safeParse({
+        title: "x",
+        description: "d".repeat(10001),
+        planned_weeks: null,
+        sessions_per_week: null,
+      }).success,
     ).toBe(false);
     expect(
-      programInput.safeParse({ title: "x", description: null, planned_weeks: 53 }).success,
+      programInput.safeParse({
+        title: "x",
+        description: null,
+        planned_weeks: 53,
+        sessions_per_week: null,
+      }).success,
     ).toBe(false);
     expect(
-      programInput.safeParse({ title: "x", description: null, planned_weeks: 0 }).success,
+      programInput.safeParse({
+        title: "x",
+        description: null,
+        planned_weeks: 0,
+        sessions_per_week: null,
+      }).success,
     ).toBe(false);
     expect(
       workoutInput.safeParse({ program_id: null, title: null, note: "n".repeat(1001) }).success,

@@ -16,6 +16,7 @@ export const program = sqliteTable(
     title: text("title").notNull(),
     description: text("description"),
     planned_weeks: integer("planned_weeks"),
+    sessions_per_week: integer("sessions_per_week"),
     cover_media_id: text("cover_media_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),

@@ -61,6 +61,7 @@ const putProgram = z.strictObject({
   title: programInput.shape.title,
   description: programInput.shape.description.default(null),
   planned_weeks: programInput.shape.planned_weeks.default(null),
+  sessions_per_week: programInput.shape.sessions_per_week.default(null),
   cover_media_id: coverMediaId.default(null),
 });
 const patchProgram = programInput.partial().extend({ cover_media_id: coverMediaId.optional() });
@@ -89,6 +90,7 @@ async function updateProgram(
       title: values.title,
       description: values.description,
       plannedWeeks: values.planned_weeks,
+      sessionsPerWeek: values.sessions_per_week,
       ...(values.cover_media_id !== undefined ? { coverMediaId: values.cover_media_id } : {}),
       updatedAt: now(),
     })
@@ -122,6 +124,7 @@ const programSyncHandler: SyncTableHandler = {
           title: values.title,
           description: values.description,
           plannedWeeks: values.planned_weeks,
+          sessionsPerWeek: values.sessions_per_week,
           coverMediaId: values.cover_media_id,
         });
         return;
@@ -146,6 +149,7 @@ const programSyncHandler: SyncTableHandler = {
         title: row.title,
         description: row.description,
         planned_weeks: row.plannedWeeks,
+        sessions_per_week: row.sessionsPerWeek,
         ...patch,
       }),
     );

@@ -4,6 +4,7 @@ import {
   type Equipment,
   KG_PER_LB,
   type RecordKey,
+  type WeekStart,
   type WeightUnit,
 } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
@@ -39,6 +40,7 @@ export function ExerciseNumbers({
   exerciseId,
   type,
   bodyweightKg,
+  weekStart,
   unit,
   timezone,
   equipment,
@@ -48,6 +50,7 @@ export function ExerciseNumbers({
   exerciseId: string;
   type: Parameters<typeof metricsFor>[0];
   bodyweightKg: number | null;
+  weekStart: WeekStart;
   unit: WeightUnit;
   timezone: string | null;
   equipment: Equipment;
@@ -116,6 +119,7 @@ export function ExerciseNumbers({
           equipment={equipment}
           settings={{ weightUnit: unit, weightIncrementKg }}
           timezone={timezone}
+          weekStart={weekStart}
           bodyweightKg={bodyweightKg}
         />
       ) : (

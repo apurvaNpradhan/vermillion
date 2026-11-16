@@ -113,6 +113,8 @@ export type ProgramDetail = {
   title: string;
   description: string | null;
   plannedWeeks: number | null;
+  /** The Sessions a week the Program aims for; null derives it from the rotation. */
+  sessionsPerWeek: number | null;
   coverMediaId: string | null;
   slots: ProgramSlotDetail[];
 };
@@ -309,6 +311,7 @@ const programDetailRowSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   planned_weeks: z.number().nullable(),
+  sessions_per_week: z.number().nullable(),
   cover_media_id: z.string().nullable(),
   slot_id: z.string().nullable(),
   slot_position: z.string().nullable(),
@@ -327,7 +330,8 @@ const programDetailRowSchema = z.object({
 });
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
-    p.planned_weeks AS planned_weeks, p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
+    p.planned_weeks AS planned_weeks, p.sessions_per_week AS sessions_per_week,
+    p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
@@ -385,6 +389,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
     title: first.title,
     description: first.description,
     plannedWeeks: first.planned_weeks,
+    sessionsPerWeek: first.sessions_per_week,
     coverMediaId: first.cover_media_id,
     slots,
   };

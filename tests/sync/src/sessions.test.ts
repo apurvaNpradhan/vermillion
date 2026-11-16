@@ -111,6 +111,7 @@ describe("sessions sync", () => {
       title: "Plan",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const workoutA = await createWorkout(a.database, { title: "A", program_id: programId });
     const workoutB = await createWorkout(a.database, { title: "B", program_id: programId });

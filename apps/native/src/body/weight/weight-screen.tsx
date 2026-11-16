@@ -32,7 +32,7 @@ export function WeightScreen() {
   const state = useWeight();
   const actions = useLogWeight();
   const { t, i18n } = useTranslation();
-  const { setUiAsync } = usePreferences();
+  const { preferences, setUiAsync } = usePreferences();
   const [range, setRange] = useState(1);
   const [logging, setLogging] = useState(false);
   useEffect(() => {
@@ -48,7 +48,7 @@ export function WeightScreen() {
   const days = ranges[range]?.days ?? 30;
   const start = Date.parse(state.today) - days * 86400000;
   const selected = state.series.filter((p) => Date.parse(p.date) >= start);
-  const series = days >= 365 ? weeklyPoints(selected) : selected;
+  const series = days >= 365 ? weeklyPoints(selected, preferences.ui.weekStart) : selected;
   const format = (value: number) =>
     t("body__value", { value: formatBodyWeight(value, state.unit), unit: state.unit });
   const date = (value: string) =>

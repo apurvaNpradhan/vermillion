@@ -100,6 +100,8 @@ describe("preferences", () => {
         effortScale: "rpe",
         defaultRestSeconds: 120,
         sessionView: "sets",
+        weekStart: "monday",
+        sessionsPerWeek: null,
       },
     });
     expect(await rows()).toBe(before);
@@ -141,6 +143,8 @@ describe("preferences", () => {
         effortScale: "rpe",
         defaultRestSeconds: 120,
         sessionView: "sets",
+        weekStart: "monday",
+        sessionsPerWeek: null,
       },
     });
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
@@ -174,6 +178,8 @@ describe("preferences", () => {
         effortScale: "rpe",
         defaultRestSeconds: 120,
         sessionView: "sets",
+        weekStart: "monday",
+        sessionsPerWeek: null,
       },
     });
     expect(
@@ -213,6 +219,8 @@ describe("preferences", () => {
         effortScale: "rpe",
         defaultRestSeconds: 120,
         sessionView: "sets",
+        weekStart: "monday",
+        sessionsPerWeek: null,
       },
     });
     // null clears; omitted fields stay

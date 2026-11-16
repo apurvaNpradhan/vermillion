@@ -43,6 +43,8 @@ export function useHomeTraining(workoutId?: string) {
     timezone: zone,
     bodyweightKg: preferences.ui.bodyweightKg,
     weightUnit: preferences.ui.weightUnit,
+    weekStart: preferences.ui.weekStart,
+    sessionsPerWeek: preferences.ui.sessionsPerWeek,
     loading: history.loading || recent.loading,
     failed: history.failed || recent.failed,
     retry: () => {

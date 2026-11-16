@@ -25,6 +25,11 @@ export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 export const SESSION_VIEWS = ["sets", "timer"] as const;
 export type SessionView = (typeof SESSION_VIEWS)[number];
 
+/** The weekday a week starts on. Monday is the default; every weekly figure follows it. */
+export const WEEK_STARTS = ["monday", "sunday", "saturday"] as const;
+export type WeekStart = (typeof WEEK_STARTS)[number];
+export const DEFAULT_WEEK_START: WeekStart = "monday";
+
 export const EFFORT_SCALES = ["rpe", "rir"] as const;
 export type EffortScale = (typeof EFFORT_SCALES)[number];
 
@@ -41,6 +46,9 @@ export const TRAINING_LIMITS = {
   descriptionMax: 10000,
   plannedWeeksMin: 1,
   plannedWeeksMax: 52,
+  /** Sessions per week a Program or the user aims for. */
+  sessionsPerWeekMin: 1,
+  sessionsPerWeekMax: 14,
   /** Live Workout exercises in one Workout. */
   exercisesPerWorkout: 40,
   setsPerExercise: 20,

@@ -6,10 +6,10 @@ import { ListRow, ListSection } from "@/platform/ui/list";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { Skeleton } from "@/platform/ui/skeleton";
 import { formatElapsed, useActiveSessions, useStartSession } from "@/session";
-import { KG_PER_LB, sessionTotals, type SessionHistory } from "@workspace/shared";
+import { KG_PER_LB, sessionGoal, sessionTotals, type SessionHistory } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { calendarDay, ratioChange, trailingDays, weekCells, weekStart } from "./home-stats";
+import { ratioChange, sessionsInWeek, trailingDays, weekCells, weighInsInWeek } from "./home-stats";
 import { lastDoneLabel } from "./last-done";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
@@ -94,24 +94,20 @@ export function TrainingHome() {
       : t("home__next_summary_new", { count: exercises });
 
   // ---- This week ----
-  const monday = weekStart(calendarDay(now, zone));
-  const inWeek = (from: number) =>
-    state.sessions.filter((session) => {
-      const day = calendarDay(session.started_at, zone);
-      return day >= from && day < from + 7 * 86_400_000;
-    });
-  const thisWeek = inWeek(monday);
-  const lastWeek = inWeek(monday - 7 * 86_400_000);
+  const { weekStart } = state;
+  const thisWeek = sessionsInWeek(state.sessions, now, zone, weekStart);
+  const lastWeek = sessionsInWeek(state.sessions, now, zone, weekStart, 1);
   const weekTotals = totalsOf(thisWeek);
   const volumeChange = ratioChange(weekTotals.volume, totalsOf(lastWeek).volume);
   const cells = weekCells(
     thisWeek.map((session) => session.started_at),
     now,
     zone,
+    weekStart,
   );
   const weekdayLetter = (day: number) =>
     new Intl.DateTimeFormat(i18n.language, { weekday: "narrow", timeZone: "UTC" }).format(day);
-  const weeklyCount = slots.filter((slot) => slot.workoutId !== null).length;
+  const goal = sessionGoal(programState.program, state.sessionsPerWeek);
 
   // ---- Habit grids ----
   const trained = trailingDays(
@@ -123,7 +119,7 @@ export function TrainingHome() {
   const trainedCount = trained.filter(Boolean).length;
   const weighIns = weight.days.map((day) => day.logged);
   const weighInCount = weighIns.filter(Boolean).length;
-  const weighInWeek = weighIns.slice(-7).filter(Boolean).length;
+  const weighInWeek = weighInsInWeek(weight.days, now, zone, weekStart);
 
   // ---- Last session ----
   const last = state.recent[0];
@@ -171,8 +167,8 @@ export function TrainingHome() {
             {t("home__week")}
           </Text>
           <Text className="text-caption tabular-nums text-muted">
-            {weeklyCount > 0
-              ? t("home__week_progress", { done: thisWeek.length, total: weeklyCount })
+            {goal !== null
+              ? t("home__week_progress", { done: thisWeek.length, total: goal })
               : t("stats__sessions", { count: thisWeek.length })}
           </Text>
         </View>
@@ -273,7 +269,7 @@ export function TrainingHome() {
             <ListRow
               title={last.title}
               description={t("home__last_session_meta", {
-                date: capitalise(lastDoneLabel(last.started_at, now, i18n.language, zone)),
+                date: lastDoneLabel(last.started_at, now, i18n.language, zone, "leading"),
                 duration: formatElapsed(
                   last.durationS ??
                     (Date.parse(last.finished_at ?? last.started_at) -
@@ -295,10 +291,6 @@ export function TrainingHome() {
       {sheet}
     </View>
   );
-}
-
-function capitalise(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** The loading layout: the same blocks as the finished screen, so nothing jumps when it lands. */

@@ -1,0 +1,2 @@
+ALTER TABLE "program" ADD COLUMN "sessions_per_week" smallint;--> statement-breakpoint
+ALTER TABLE "program" ADD CONSTRAINT "program_sessions_per_week_range" CHECK ("sessions_per_week" BETWEEN 1 AND 14);
