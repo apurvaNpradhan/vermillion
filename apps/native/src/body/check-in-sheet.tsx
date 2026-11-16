@@ -163,7 +163,7 @@ function CheckInForm({
                     })}
                     disabled={busy}
                     onPress={() => select(index)}
-                    className={`flex-row justify-between gap-3 border-b border-separator px-2 py-3 ${index === active ? "bg-default" : ""}`}
+                    className={`flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
                   >
                     <Text className="text-body text-foreground">
                       {t(metricLabels[item.metric])}

@@ -219,7 +219,7 @@ export function RestPicker({
             <Button
               key={preset}
               variant="secondary"
-              className={`flex-1 ${draft === preset ? "border-foreground bg-default" : ""}`}
+              className={`flex-1 ${draft === preset ? "border border-foreground bg-default" : ""}`}
               onPress={() => choose(preset)}
             >
               <Button.Label>{formatClock(preset)}</Button.Label>

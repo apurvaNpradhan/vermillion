@@ -30,7 +30,7 @@ The sections below describe the Classic palette's contract and the shared layout
 
 ## Overview
 
-Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the Classic interface. It is built on near-black surface steps, hairline borders, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
+Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the Classic interface. It is built on near-black surface steps, spaced groups, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
 Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
@@ -39,7 +39,7 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 1. **Numbers are the headline.** Weight, reps, calories and macros get the biggest type on screen, set in tabular figures.
 2. **Color is meaning, never decoration.** In Classic, neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
 3. **One loud thing per screen.** At most one filled primary button (white in dark mode) in any view.
-4. **Quiet surfaces, crisp edges.** Depth comes from surface steps and 1px hairlines, not shadows. Floating layers and buttons (a raised keycap edge) are the only exceptions.
+4. **Quiet surfaces, clear groups.** Depth comes from surface steps, rounded corners and spacing. Only floating layers add shadows.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
 6. **Celebrate once, then get out of the way.** PRs and streaks get one expressive moment; nothing loops or blocks.
 7. **Role tokens only.** Components reference roles (`surface`, `text-primary`), never hex values, so light and dark mode come from the same code.
@@ -71,7 +71,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 | 5   | Number typeface   | Inter for everything + numeric tier                                                                   | One font, smaller app, precise feel; `tnum` aligns numbers                       |
 | 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                       |
 | 7   | Radius            | 4 / 8 / 12 / 16 / 28 + full                                                                           | Precise corners, one step softer for phones                                      |
-| 8   | Depth             | No shadows except floating layers                                                                     | Flat cards with hairlines; sheets need separation in light mode                  |
+| 8   | Depth             | No shadows except floating layers                                                                     | Filled cards; sheets need separation in light mode                               |
 | 9   | Motion            | Fast and functional, expressive only for celebrations                                                 | No bounce on repeated actions; PRs feel earned                                   |
 | 10  | Icons             | Phosphor (Regular / Bold / Fill)                                                                      | Weights map onto Standard, Active and selected states                            |
 | 11  | Charts            | Clean and minimal, color = meaning                                                                    | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
@@ -87,15 +87,15 @@ The Classic interface has no accent hue: the primary button is the brightest neu
 
 ### Surfaces and lines
 
-| Role               | Dark      | Light     | Use                                                      |
-| ------------------ | --------- | --------- | -------------------------------------------------------- |
-| `canvas`           | `#07080A` | `#F4F4F6` | Screen background                                        |
-| `surface`          | `#111214` | `#FFFFFF` | Cards                                                    |
-| `surface-control`  | `#1C1D20` | `#ECECEF` | Inputs, steppers, inactive chips, ring and bar tracks    |
-| `surface-floating` | `#18191C` | `#FFFFFF` | Sheets, toasts, floating timer bar                       |
-| `hairline`         | `#26282B` | `#E2E2E6` | 1px card and input borders                               |
-| `hairline-strong`  | `#393B3F` | `#C9C9CF` | Focused inputs, table dividers, floating top edge (dark) |
-| `backdrop`         | black 60% | black 30% | Dimming behind sheets and dialogs                        |
+| Role               | Dark      | Light     | Use                                                   |
+| ------------------ | --------- | --------- | ----------------------------------------------------- |
+| `canvas`           | `#07080A` | `#F4F4F6` | Screen background                                     |
+| `surface`          | `#111214` | `#FFFFFF` | Cards                                                 |
+| `surface-control`  | `#1C1D20` | `#ECECEF` | Inputs, steppers, inactive chips, ring and bar tracks |
+| `surface-floating` | `#18191C` | `#FFFFFF` | Sheets, toasts, floating timer bar                    |
+| `hairline`         | `#26282B` | `#E2E2E6` | Input and selected-option outlines                    |
+| `hairline-strong`  | `#393B3F` | `#C9C9CF` | Focused inputs and selected options                   |
+| `backdrop`         | black 60% | black 30% | Dimming behind sheets and dialogs                     |
 
 ### Text
 
@@ -258,18 +258,18 @@ Five steps, 4 / 8 / 12 / 16 / 28, plus full; buttons are rounded rectangles, pil
 
 ## Depth
 
-Cards are flat: a surface step plus a 1px hairline. Only floating layers get extra separation, and only light mode uses a shadow.
+Native cards and row groups use canvas/surface/control fills, rounded corners and spacing, with no divider lines or card outlines. Keep outlines for fields and selected chips, swatches or option tiles; diagram strokes, chart axes and progress tracks remain. Review row padding, group gaps and visible pressed feedback whenever removing a line.
 
-| Level      | Dark                                                             | Light                                                                                                                     | Use                                              |
-| ---------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| 0 Canvas   | `canvas`                                                         | `canvas`                                                                                                                  | Screen background, section headers               |
-| 1 Card     | `surface` + 1px `hairline`                                       | `surface` + 1px `hairline`                                                                                                | All cards                                        |
-| 2 Control  | `surface-control`, no border (border on focus)                   | same                                                                                                                      | Inputs, steppers, tracks inside cards            |
-| 3 Floating | `surface-floating` + 1px `hairline-strong` top edge + `backdrop` | `surface-floating` + shadow `0 -4 24 rgba(0,0,0,0.10)` (sheets) or `0 8 24 rgba(0,0,0,0.12)` (toasts, menus) + `backdrop` | Sheets, dialogs, toasts, menus, live workout bar |
+| Level      | Dark                                           | Light                                                                                                                     | Use                                              |
+| ---------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 0 Canvas   | `canvas`                                       | `canvas`                                                                                                                  | Screen background, section headers               |
+| 1 Card     | `surface`                                      | `surface`                                                                                                                 | All cards                                        |
+| 2 Control  | `surface-control`, no border (border on focus) | same                                                                                                                      | Inputs, steppers, tracks inside cards            |
+| 3 Floating | `surface-floating` + `backdrop`                | `surface-floating` + shadow `0 -4 24 rgba(0,0,0,0.10)` (sheets) or `0 8 24 rgba(0,0,0,0.12)` (toasts, menus) + `backdrop` | Sheets, dialogs, toasts, menus, live workout bar |
 
 **Selection and lift** use the surface step, not shadow: a selected chip or row moves from `surface` to `surface-control`; the live set row moves to `surface-control` and adds a 3pt `text-primary` leading edge.
 
-**HeroUI Native override:** its default theme puts `shadow-surface` on cards in light mode. Set that shadow to none and give `Card`/`Surface` a `border border-border` (mapped to `hairline`). Keep its `shadow-overlay` for floating layers, which already matches level 3. Its dark mode already drops card shadows and gives overlays an inset edge, so dark needs no change.
+**HeroUI Native override:** remove card shadows and outlines, and use a `surface` fill. Floating controls keep `shadow-overlay` and their filled shape, without an outline.
 
 **Web:** same rule; remove `shadow-sm`/`shadow-xs` from coss/shadcn `Card` and keep shadows only on `Popover`, `Dialog`, `Sheet`, `Menu` and `Toast`.
 
@@ -400,7 +400,7 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 
 | Need              | Native (HeroUI)       | Web (coss)               | Vermillion notes                                                                  |
 | ----------------- | --------------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| Card              | `Card`, `Surface`     | `Card`                   | `surface` + hairline, `radius-lg`, no shadow                                      |
+| Card              | `Card`, `Surface`     | `Card`                   | `surface` fill, `radius-lg`, no outline or shadow                                 |
 | Text input        | `Field` (platform/ui) | `Input`, `Field`         | `surface-control`, `radius-md`, focus = `hairline-strong` border, no colored ring |
 | Chips and filters | `Chip`                | `Toggle Group`, `Badge`  | `radius-full`; selected = `surface-control` + `text-primary`                      |
 | Segmented tabs    | `Tabs`                | `Tabs`                   | Time ranges, meal slots                                                           |
@@ -431,7 +431,7 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 | `StatTile`         | `overline` label · `numeric-lg` value + unit · change vs last period                 | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                       |
 | `EmptyState`       | Phosphor icon (48pt, `text-muted`) · one line · one primary action                   | Never more than one sentence                                                                                                                                                                      |
 | `SwipeRow`         | Row content · actions revealed on a left swipe                                       | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet |
-| `ListSection`      | `overline` label · `surface` card of rows with inset hairlines                       | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
+| `ListSection`      | `overline` label · `surface` card of padded rows without dividers                    | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
 
 ### Accessibility (all components)
 
@@ -561,7 +561,7 @@ Icons: `phosphor-react-native` on native (`@phosphor-icons/react` would be the w
 | Show every macro graphic with its number                | Rely on ring color alone                                           |
 | Keep macro order P, C, F everywhere                     | Reorder macros per screen                                          |
 | Report over-target and weight changes neutrally         | Use red or `danger` for eating or weight results                   |
-| Build depth from surface steps and hairlines            | Add shadows to cards                                               |
+| Build depth from surface steps and spacing              | Add shadows to cards                                               |
 | Use `tnum` on every number                              | Let timers and columns shift width                                 |
 | Wrap the workout screen in `density="active"`           | Use Active sizes outside a live workout                            |
 | Offer undo by toast for logging actions                 | Interrupt logging with confirm dialogs                             |

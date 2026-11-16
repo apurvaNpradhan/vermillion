@@ -32,8 +32,8 @@ export function PhotosCard() {
   const since = photo ? daysSince(photo.local_date, localDateIn(zone)) : null;
 
   return (
-    <View className="gap-3 border-b border-separator pb-5">
-      <Pressable accessibilityRole="button" onPress={open} className="gap-1">
+    <View className="gap-3 rounded-2xl bg-surface p-4">
+      <Pressable accessibilityRole="button" onPress={open} className="gap-1 active:opacity-70">
         <Text className="text-title-md font-semibold text-foreground">{t("body__photos")}</Text>
       </Pressable>
       {latest.failed ? (
@@ -56,7 +56,7 @@ export function PhotosCard() {
             hiddenLabel={t("body__photo_hidden")}
             onPress={() => (reveal.hidden(photo.id) ? reveal.reveal(photo.id) : open())}
           />
-          <Pressable accessibilityRole="button" onPress={open} className="flex-1">
+          <Pressable accessibilityRole="button" onPress={open} className="flex-1 active:opacity-70">
             <Text className="text-body text-muted">
               {since === 0
                 ? t("body__photos_since_zero")
@@ -65,7 +65,7 @@ export function PhotosCard() {
           </Pressable>
         </View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={open}>
+        <Pressable accessibilityRole="button" onPress={open} className="active:opacity-70">
           <Text className="text-body text-muted">{t("body__photos_none_yet")}</Text>
         </Pressable>
       )}

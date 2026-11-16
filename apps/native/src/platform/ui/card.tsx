@@ -1,9 +1,9 @@
 import { Card as HeroCard, cn } from "heroui-native";
 import type { ComponentProps } from "react";
 
-/** Panels are separated ordinary panels by fill, not repeated outlines. */
+/** Panels use a surface fill and rounded corners for separation. */
 function CardRoot({ className, ...props }: ComponentProps<typeof HeroCard>) {
-  return <HeroCard className={cn("rounded-2xl border border-transparent", className)} {...props} />;
+  return <HeroCard className={cn("rounded-2xl border-0 shadow-none", className)} {...props} />;
 }
 
 function CardTitle({ className, ...props }: ComponentProps<typeof HeroCard.Title>) {

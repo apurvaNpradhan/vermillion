@@ -385,12 +385,12 @@ export function ImageViewer({
             accessibilityLabel={closeLabel}
             onPress={onClose}
             hitSlop={8}
-            className="size-11 items-center justify-center rounded-full border border-separator bg-surface"
+            className="size-11 items-center justify-center rounded-full bg-surface active:bg-default"
           >
             <X size={20} color={foreground} />
           </Pressable>
           {count > 1 ? (
-            <View className="rounded-full border border-separator bg-surface px-3 py-2">
+            <View className="rounded-full bg-surface px-3 py-2">
               <Text className="text-label tabular-nums text-foreground">
                 {pageLabel(page, count)}
               </Text>
@@ -406,7 +406,7 @@ export function ImageViewer({
             ]}
             className="items-center"
           >
-            <Text className="rounded-full border border-separator bg-surface px-3 py-2 text-label text-foreground">
+            <Text className="rounded-full bg-surface px-3 py-2 text-label text-foreground">
               {caption}
             </Text>
           </Animated.View>

@@ -18,13 +18,11 @@ import { PasskeySignInButton } from "./passkey-sign-in-button";
 import { SocialButtons } from "./social-buttons";
 import { useTurnstile } from "./use-turnstile";
 
-/** A hairline, "or", a hairline: separates the email field from the other ways in. */
+/** A quiet label with breathing room between the sign-in methods. */
 function OrDivider({ label }: { label: string }) {
   return (
-    <View className="flex-row items-center gap-3 py-2" accessibilityElementsHidden>
-      <View className="h-px flex-1 bg-border" />
+    <View className="items-center py-2" accessibilityElementsHidden>
       <Text className="text-caption text-muted">{label}</Text>
-      <View className="h-px flex-1 bg-border" />
     </View>
   );
 }

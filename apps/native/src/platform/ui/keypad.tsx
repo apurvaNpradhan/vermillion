@@ -84,10 +84,7 @@ export function Keypad({
   );
 
   return (
-    <View
-      className="gap-2 border-t border-border bg-surface px-3 pt-3"
-      style={{ paddingBottom: bottom + 8 }}
-    >
+    <View className="gap-2 bg-surface px-3 pt-3" style={{ paddingBottom: bottom + 8 }}>
       {/* Hardware keyboard: focused, invisible, never shows the IME and never keeps text. */}
       <TextInput
         ref={input}

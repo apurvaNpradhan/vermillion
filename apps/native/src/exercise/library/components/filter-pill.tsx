@@ -21,8 +21,8 @@ export function FilterPill({
       accessibilityRole="button"
       accessibilityLabel={`${accessibilityLabel}, ${label}`}
       onPress={onPress}
-      className={`h-9 flex-row items-center gap-1.5 rounded-full border px-3 ${
-        active ? "border-identity bg-default" : "border-border bg-surface"
+      className={`h-9 flex-row items-center gap-1.5 rounded-full border active:opacity-70 px-3 ${
+        active ? "border-identity bg-default" : "border-transparent bg-surface"
       }`}
     >
       <Text

@@ -104,8 +104,8 @@ export function DateSheet({
               onPress={() => onChange(notAfter(onDay(startedAt, value), now))}
               className={
                 selected
-                  ? "min-h-11 justify-center rounded-xl bg-default px-3"
-                  : "min-h-11 justify-center rounded-xl border border-separator px-3"
+                  ? "min-h-11 justify-center rounded-xl border border-identity bg-default px-3 active:opacity-60"
+                  : "min-h-11 justify-center rounded-xl border border-transparent bg-surface px-3 active:opacity-60"
               }
             >
               <Text className="text-body text-foreground">

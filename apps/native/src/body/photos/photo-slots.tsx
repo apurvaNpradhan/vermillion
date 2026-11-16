@@ -50,7 +50,7 @@ export function PhotoSlots({
             accessibilityLabel={slotLabel(slot, name, image !== undefined)}
             disabled={disabled}
             onPress={() => onSelect(slot)}
-            className="h-[72px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-separator bg-default"
+            className="h-[72px] flex-1 items-center justify-center overflow-hidden rounded-xl bg-default active:opacity-70"
           >
             {image ? (
               <>

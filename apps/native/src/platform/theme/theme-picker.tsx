@@ -105,7 +105,7 @@ export function ThemePicker({
                 accessibilityRole="radio"
                 accessibilityState={{ checked: choice.theme === name }}
                 accessibilityLabel={t(THEME_LABELS[name])}
-                className={`gap-2 rounded-xl border p-3 ${choice.theme === name ? "border-identity bg-identity-soft" : "border-border bg-surface"}`}
+                className={`gap-2 rounded-xl border active:opacity-70 p-3 ${choice.theme === name ? "border-identity bg-identity-soft" : "border-transparent bg-surface"}`}
                 onPress={() => setChoice({ ...choice, theme: name })}
               >
                 <View className="gap-1">

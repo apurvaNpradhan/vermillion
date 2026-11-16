@@ -7,7 +7,6 @@ import { ClockCounterClockwise } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { Hairline } from "@/platform/ui/hairline";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
 import { usePreferences } from "@/preferences";
@@ -115,7 +114,7 @@ export function HistoryScreen() {
                   onPress={() =>
                     router.push({ pathname: "/history/[id]", params: { id: session.id } })
                   }
-                  className="gap-1 py-3 active:bg-default"
+                  className="gap-1 py-4 active:bg-default"
                 >
                   <Text className="text-title-md text-foreground">{session.title}</Text>
                   <SessionPhotos sessionId={session.id} readOnly />
@@ -141,7 +140,6 @@ export function HistoryScreen() {
                     {session.exerciseTitles?.join(" · ")}
                   </Text>
                 </Pressable>
-                <Hairline />
               </View>
             );
           }}

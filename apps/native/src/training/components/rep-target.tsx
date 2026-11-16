@@ -69,7 +69,7 @@ export function RepTarget({
           {[false, true].map((choice) => (
             <Button
               key={String(choice)}
-              className={`flex-1 ${range === choice ? "border-foreground bg-default" : ""}`}
+              className={`flex-1 ${range === choice ? "border border-foreground bg-default" : ""}`}
               variant="secondary"
               accessibilityRole="radio"
               accessibilityState={{ checked: range === choice }}

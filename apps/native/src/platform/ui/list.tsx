@@ -1,13 +1,6 @@
-import { ListGroup, Separator, cn, useThemeColor } from "heroui-native";
+import { ListGroup, cn, useThemeColor } from "heroui-native";
 import { CaretRight, Check, type IconProps } from "phosphor-react-native";
-import {
-  Children,
-  Fragment,
-  createContext,
-  useContext,
-  type ComponentType,
-  type ReactNode,
-} from "react";
+import { Children, createContext, useContext, type ComponentType, type ReactNode } from "react";
 import { Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
@@ -16,9 +9,8 @@ const PlainContext = createContext(false);
 
 /**
  * A titled group of rows on one card, as in iOS settings: an overline label on the canvas, then
- * `surface` with a hairline and 16pt corners, rows divided by inset hairlines. `variant="plain"`
- * is for content pages: no fill and no corners, rows on the canvas divided by full-width
- * hairlines, with the page's own gutter. Settings screens keep the grouped look.
+ * `surface` with 16pt corners and padded rows. `variant="plain"` uses the page canvas and
+ * extra space between rows. Settings screens keep the filled, rounded group.
  */
 export function ListSection({
   title,
@@ -47,22 +39,10 @@ export function ListSection({
       ) : null}
       <PlainContext.Provider value={plain}>
         {plain ? (
-          <View>
-            {rows.map((row, index) => (
-              <Fragment key={index}>
-                {index > 0 ? <Separator /> : null}
-                {row}
-              </Fragment>
-            ))}
-          </View>
+          <View className="gap-2">{rows}</View>
         ) : (
-          <ListGroup className="rounded-2xl border border-transparent shadow-none">
-            {rows.map((row, index) => (
-              <Fragment key={index}>
-                {index > 0 ? <Separator className="ml-12" /> : null}
-                {row}
-              </Fragment>
-            ))}
+          <ListGroup className="overflow-hidden rounded-2xl border-0 bg-surface py-1 shadow-none">
+            {rows}
           </ListGroup>
         )}
       </PlainContext.Provider>
@@ -113,7 +93,11 @@ export function ListRow({
       accessibilityLabel={value ? `${title}, ${value}` : title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ selected: accessory === "check" ? true : undefined, disabled }}
-      className={cn("min-h-12 gap-3 py-3", plain && "px-0", disabled && "opacity-50")}
+      className={cn(
+        "min-h-12 gap-3 py-3 active:bg-default",
+        plain && "rounded-xl px-0 py-4",
+        disabled && "opacity-50",
+      )}
     >
       {Icon ? (
         <ListGroup.ItemPrefix>

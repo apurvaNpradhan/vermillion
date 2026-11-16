@@ -160,10 +160,7 @@ function FormFrame({
           offset={{ closed: 0, opened: insets.bottom }}
           style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
         >
-          <View
-            className="border-t border-separator bg-background px-4 pt-3"
-            style={{ paddingBottom: insets.bottom + 12 }}
-          >
+          <View className="bg-background px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
             {footer}
           </View>
         </KeyboardStickyView>

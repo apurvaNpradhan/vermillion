@@ -45,7 +45,7 @@ export function AccountSummary({ variant = "row" }: { variant?: "row" | "card" }
       onPress={() => router.navigate("/settings/profile")}
       className={cn(
         "flex-row items-center gap-3 active:opacity-80",
-        card ? "rounded-2xl border border-border bg-surface p-4" : "rounded-2xl px-2 py-1.5",
+        card ? "rounded-2xl bg-surface p-4" : "rounded-2xl px-2 py-1.5",
       )}
     >
       <AccountAvatar size={card ? "lg" : "md"} />

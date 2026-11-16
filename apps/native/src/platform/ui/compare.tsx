@@ -5,7 +5,7 @@
  * PanelUI contributors). The idea and the structure are PanelUI's: the revealed side is a clipped
  * window onto a full-size copy of its content, never a squeezed copy, so both halves always line
  * up. Changes for Vermillion (ADR 0030): restyled to role tokens (`bg-default`, `bg-background`,
- * `border-separator`, no shadow); haptics through `haptic.tick`; `scheduleOnRN` instead of
+ * filled handle, no shadow); haptics through `haptic.tick`; `scheduleOnRN` instead of
  * `runOnJS`; the right-to-left check is `I18nManager.isRTL`; the slot labels are plain `Text`;
  * the vertical orientation and Uniwind/tailwind-variants are dropped; the seam maths is in
  * `compare-math.ts` with tests. Strings (the handle's name) come from props.
@@ -275,7 +275,7 @@ function CompareHandle() {
       <View
         pointerEvents="none"
         style={{ width: KNOB, height: KNOB }}
-        className="items-center justify-center rounded-full border border-separator bg-background"
+        className="items-center justify-center rounded-full bg-background"
       >
         <View className="flex-row gap-1">
           <View className="h-3.5 w-1 rounded-full bg-foreground/60" />

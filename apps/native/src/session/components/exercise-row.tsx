@@ -74,7 +74,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   if (dragging) {
     return (
       <View
-        className={`h-14 flex-row items-center gap-3 border-b border-border bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
+        className={`h-14 flex-row items-center gap-3 bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
       >
         <SupersetBracket place={place} />
         {thumbnail(32)}
@@ -88,7 +88,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   return (
     <View>
       <ReorderHeader
-        className={`min-h-[64px] flex-row items-center border-b border-border ${open ? "bg-background" : "bg-surface"}`}
+        className={`min-h-[64px] flex-row items-center ${open ? "bg-background" : "bg-surface"}`}
       >
         <SupersetBracket place={place} />
         <Pressable
@@ -158,7 +158,7 @@ export const ExerciseRow = memo(function ExerciseRow({
       </ReorderHeader>
       {open || warm ? (
         <View
-          className="gap-3 border-b border-border px-3 py-3"
+          className="gap-3 bg-default/30 px-3 py-4"
           style={open ? undefined : HIDDEN}
           accessibilityElementsHidden={!open}
           importantForAccessibility={open ? "auto" : "no-hide-descendants"}

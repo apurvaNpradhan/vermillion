@@ -48,7 +48,7 @@ export function AddSetButton({
   return (
     <>
       <View
-        className={`h-11 flex-row overflow-hidden rounded-xl border border-border bg-default ${full ? "opacity-50" : ""}`}
+        className={`h-11 flex-row overflow-hidden rounded-xl bg-default ${full ? "opacity-50" : ""}`}
       >
         <Pressable
           accessibilityRole="button"
@@ -72,7 +72,7 @@ export function AddSetButton({
             Keyboard.dismiss();
             setOpen(true);
           }}
-          className="w-11 items-center justify-center border-l border-border active:bg-surface"
+          className="w-11 items-center justify-center bg-surface active:bg-field"
         >
           <CaretDown size={16} color={subtle} weight="bold" />
         </Pressable>

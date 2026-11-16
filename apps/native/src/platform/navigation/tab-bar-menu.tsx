@@ -15,8 +15,8 @@ export type MenuItem = {
 export const MENU_ROWS_INSET = 8;
 
 /**
- * What the pill shows once it has grown into a panel: an optional header (the account) over a
- * hairline, then one row per tab. Rows are a fixed height so a finger sliding up from the menu
+ * What the pill shows once it has grown into a panel: an optional account header, then
+ * a gap before the tab rows. Rows are a fixed height so a finger sliding up from the menu
  * button can be mapped to a row. The surface itself belongs to the tab bar.
  */
 export function TabBarMenu({
@@ -44,7 +44,7 @@ export function TabBarMenu({
       {header ? (
         <>
           <View className="px-2 pt-2 pb-1">{header}</View>
-          <View className="mx-4 my-1 h-px bg-separator" />
+          <View className="h-3" />
         </>
       ) : null}
       <View

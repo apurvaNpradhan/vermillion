@@ -84,8 +84,8 @@ export function ChoiceCell({
           haptic.tick();
           onPress();
         }}
-        className={`items-center gap-1.5 rounded-xl border px-1 py-2.5 ${
-          selected ? "border-identity bg-identity-soft" : "border-border bg-surface"
+        className={`items-center gap-1.5 rounded-xl border active:opacity-70 px-1 py-2.5 ${
+          selected ? "border-identity bg-identity-soft" : "border-transparent bg-surface"
         }`}
       >
         {icon}

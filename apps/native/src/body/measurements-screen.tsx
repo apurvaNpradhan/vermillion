@@ -79,7 +79,7 @@ export function MeasurementsScreen() {
                         onPress={() =>
                           router.push({ pathname: "/body/metric/[metric]", params: { metric } })
                         }
-                        className="w-1/2 gap-3 border-b border-separator p-3"
+                        className="w-1/2 gap-3 rounded-xl px-3 py-4 active:bg-default"
                       >
                         <Text className="text-label text-foreground">
                           {t(metricLabels[metric])}
@@ -137,7 +137,7 @@ export function MeasurementsScreen() {
                   }[]
                 ).map((item) =>
                   item.value === null ? null : (
-                    <View key={item.label} className="w-1/2 gap-3 border-b border-separator p-3">
+                    <View key={item.label} className="w-1/2 gap-3 px-3 py-4">
                       <Text className="text-label text-foreground">{t(item.label)}</Text>
                       <Sparkline values={item.history.slice(-7)} />
                       <Text className="text-numeric-md tabular-nums text-foreground">
