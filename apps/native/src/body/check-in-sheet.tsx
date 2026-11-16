@@ -18,6 +18,7 @@ import { discardProcessed } from "@/media";
 import { createPendingPhotos } from "./photos/pending-photos";
 import { PhotoSlotSheet, PhotoSlots } from "./photos/photo-slots";
 import { usePhotoActions } from "./photos/use-photo-actions";
+import { acceptsMeasurementDraft } from "./measurement-draft";
 import { MeasurementDate } from "./measurement-date";
 import { metricLabels } from "./metric-labels";
 import { useMeasurements } from "./use-measurements";
@@ -29,9 +30,11 @@ function CheckInForm({
   onClose,
   entry,
   state,
+  onlyMetric,
 }: {
   onClose: () => void;
   entry?: WatchedMeasurement;
+  onlyMetric?: BodyMetric;
   state: ReturnType<typeof useMeasurements>;
 }) {
   const sheet = useSheetPresent();
@@ -47,17 +50,24 @@ function CheckInForm({
     return () => photoStore.dispose();
   }, [photoStore]);
   const busy = actions.busy || photoActions.busy;
-  const metrics: BodyMetric[] = entry ? [entry.metric] : [...state.tracked, "weight"];
+  const metrics: BodyMetric[] = entry
+    ? [entry.metric]
+    : onlyMetric
+      ? [onlyMetric]
+      : [...state.tracked, "weight"];
   const [active, setActive] = useState(0);
   const [fresh, setFresh] = useState(true);
   const form = useForm({
     defaultValues: {
       rows: metrics.map((metric) => {
         const last = entry ?? lastN(state.forMetric(metric), 1)[0];
-        const shown = last ? state.display(metric, last.value).toFixed(1) : "";
+        const shown = last
+          ? state.display(metric, last.value).toFixed(state.unit(metric) === "in" ? 2 : 1)
+          : "";
         return {
           metric,
-          value: shown,
+          value: entry ? shown : "",
+          previous: last?.value,
           // What the row showed when the sheet opened; an edit writes the value only if it differs.
           initial: shown,
           touched: false,
@@ -83,11 +93,14 @@ function CheckInForm({
         return;
       }
       const rows: MeasurementInput[] = value.rows.flatMap((row) =>
-        row.touched
+        row.touched && row.value !== ""
           ? [
               {
                 metric: row.metric,
-                value: state.canonical(row.metric, Number(row.value)),
+                value:
+                  row.value === row.initial && row.previous !== undefined
+                    ? row.previous
+                    : state.canonical(row.metric, Number(row.value)),
                 measured_at: value.date,
                 local_date: state.localDate(value.date),
                 source: "manual",
@@ -142,7 +155,9 @@ function CheckInForm({
             <BottomSheet.Title>
               {t(entry ? "body__edit_measurement" : "body__check_in")}
             </BottomSheet.Title>
-            {entry ? null : <PhotoSlots store={photoStore} disabled={busy} onSelect={setPose} />}
+            {entry || onlyMetric ? null : (
+              <PhotoSlots store={photoStore} disabled={busy} onSelect={setPose} />
+            )}
             <MeasurementDate
               value={date}
               timeZone={state.zone}
@@ -152,42 +167,81 @@ function CheckInForm({
               {rows.slice(first, first + WINDOW).map((item, offset) => {
                 const index = first + offset;
                 return (
-                  <Pressable
-                    key={item.metric}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: index === active }}
-                    accessibilityLabel={t("body__measurement_row", {
-                      metric: t(metricLabels[item.metric]),
-                      value: item.value || t("body__no_data"),
-                      unit: state.unit(item.metric),
-                    })}
-                    disabled={busy}
-                    onPress={() => select(index)}
-                    className={`flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
-                  >
-                    <Text className="text-body text-foreground">
-                      {t(metricLabels[item.metric])}
-                    </Text>
-                    <Text className="text-body tabular-nums text-foreground">
-                      {t("body__value", {
-                        value: item.value || t("body__no_data"),
+                  <View key={item.metric} className="flex-row items-center gap-2">
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: index === active }}
+                      accessibilityLabel={t("body__measurement_row", {
+                        metric: t(metricLabels[item.metric]),
+                        value: item.touched
+                          ? item.value || t("body__no_data")
+                          : item.initial || t("body__no_data"),
                         unit: state.unit(item.metric),
                       })}
-                    </Text>
-                  </Pressable>
+                      disabled={busy}
+                      onPress={() => select(index)}
+                      className={`flex-1 flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
+                    >
+                      <Text className="text-body text-foreground">
+                        {t(metricLabels[item.metric])}
+                      </Text>
+                      <Text
+                        className={`text-body tabular-nums ${!entry && !item.touched ? "text-muted" : "text-foreground"}`}
+                      >
+                        {t("body__value", {
+                          value: item.touched
+                            ? item.value || t("body__no_data")
+                            : item.initial || t("body__no_data"),
+                          unit: state.unit(item.metric),
+                        })}
+                      </Text>
+                    </Pressable>
+                    {!entry && item.initial && !item.touched ? (
+                      <Button
+                        variant="tertiary"
+                        size="sm"
+                        isDisabled={busy}
+                        accessibilityLabel={t("body__same", {
+                          metric: t(metricLabels[item.metric]),
+                        })}
+                        onPress={() => {
+                          form.setFieldValue(`rows[${index}].value`, item.initial);
+                          form.setFieldValue(`rows[${index}].touched`, true);
+                        }}
+                      >
+                        <Button.Label>{t("body__same_short")}</Button.Label>
+                      </Button>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
+            {!entry ? (
+              <Text className="text-caption text-muted">{t("body__ghost_hint")}</Text>
+            ) : null}
             {actions.error || photoActions.error ? (
               <Text accessibilityRole="alert" className="text-body text-danger">
                 {actions.error || photoActions.error}
               </Text>
             ) : null}
             <Button
-              isDisabled={busy || state.loading || state.failed}
+              isDisabled={
+                busy ||
+                state.loading ||
+                state.failed ||
+                (!entry &&
+                  !rows.some((r) => r.touched && r.value !== "") &&
+                  !Object.keys(photos).length)
+              }
               onPress={() => void form.handleSubmit()}
             >
-              <Button.Label>{t("body__save")}</Button.Label>
+              <Button.Label>
+                {entry || Object.keys(photos).length
+                  ? t("body__save")
+                  : t("body__save_readings", {
+                      count: rows.filter((r) => r.touched && r.value !== "").length,
+                    })}
+              </Button.Label>
             </Button>
             <Keypad
               allowPoint
@@ -214,13 +268,13 @@ function CheckInForm({
                           ? current
                           : current + "."
                       : (fresh ? "" : current) + key;
-                if ((next.split(".")[1]?.length ?? 0) <= 1) edit(next);
+                if (acceptsMeasurementDraft(next, unit)) edit(next);
                 setFresh(false);
               }}
               onStep={(direction) => {
                 if (busy) return;
                 edit(
-                  (Number(row?.value || 0) + direction * step).toFixed(
+                  (Number(row?.value || row?.initial || 0) + direction * step).toFixed(
                     unit === "in" && metric !== "weight" ? 2 : 1,
                   ),
                 );
@@ -236,7 +290,7 @@ function CheckInForm({
           </BottomSheet.Content>
         </BottomSheet.Portal>
       </BottomSheet>
-      {entry || !sheet.isOpen ? null : (
+      {entry || onlyMetric || !sheet.isOpen ? null : (
         <PhotoSlotSheet
           store={photoStore}
           actions={photoActions}
@@ -248,7 +302,11 @@ function CheckInForm({
   );
 }
 
-export function CheckInSheet(props: { onClose: () => void; entry?: WatchedMeasurement }) {
+export function CheckInSheet(props: {
+  onClose: () => void;
+  entry?: WatchedMeasurement;
+  onlyMetric?: BodyMetric;
+}) {
   const state = useMeasurements();
   const { t } = useTranslation();
   const sheet = useSheetPresent();

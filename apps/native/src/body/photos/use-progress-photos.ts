@@ -1,8 +1,8 @@
+import { z } from "zod";
 import type { ProgressPose } from "@workspace/shared";
 import {
   PHOTO_PAGE_SIZE,
   watchPoseSummaries,
-  watchPoseDates,
   watchPoseOnDates,
   type PoseSummary,
   watchLatestProgressPhoto,
@@ -84,13 +84,29 @@ export function useComparePhotos(pose: ProgressPose, before: string | null, afte
   const state = useLocalWatch(subscribe);
   return { ...state, photos: state.value ?? NONE };
 }
+/** All available calendar dates, without loading photo files or limiting older dates. */
 export function usePoseDates(pose: ProgressPose) {
   const subscribe = useCallback(
-    (db: TrainingDatabase, onValue: (dates: string[]) => void, onError: () => void) =>
-      watchPoseDates(db, pose, { onDates: onValue, onError }),
+    (db: TrainingDatabase, onValue: (dates: string[]) => void, onError: () => void) => {
+      const controller = new AbortController();
+      db.watchWithCallback(
+        "SELECT local_date FROM progress_photo WHERE pose = ? GROUP BY local_date ORDER BY local_date",
+        [pose],
+        {
+          onResult: (result) => {
+            const parsed = z.array(z.object({ local_date: z.string() })).safeParse(result.array);
+            if (parsed.success) onValue(parsed.data.map((row) => row.local_date));
+            else onError();
+          },
+          onError,
+        },
+        { signal: controller.signal, tables: ["progress_photo"] },
+      );
+      return () => controller.abort();
+    },
     [pose],
   );
-  return useLocalWatch(subscribe).value ?? [];
+  return useLocalWatch(subscribe);
 }
 const subscribeSummaries = (
   db: TrainingDatabase,

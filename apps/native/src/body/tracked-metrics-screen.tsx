@@ -1,3 +1,4 @@
+import { BodyState } from "./body-state";
 import { Switch } from "heroui-native";
 import { BODY_GROUPS } from "@workspace/shared";
 import { Text, View } from "react-native";
@@ -8,8 +9,20 @@ import { ListSection, ListRow } from "@/platform/ui/list";
 import { groupLabels, metricLabels } from "./metric-labels";
 import { HeightRow } from "./height-row";
 export function TrackedMetricsScreen() {
-  const { preferences, setUi, isSaving, isLoading } = usePreferences();
+  const { preferences, setUi, isSaving, isLoading, hasPreferences, refresh } = usePreferences();
   const { t } = useTranslation();
+  if (isLoading || !hasPreferences)
+    return (
+      <ScrollPage back title={t("body__tracked_metrics")}>
+        <BodyState
+          loading={isLoading}
+          failed={!isLoading && !hasPreferences}
+          retry={() => {
+            void refresh().catch(() => undefined);
+          }}
+        />
+      </ScrollPage>
+    );
   return (
     <ScrollPage back title={t("body__tracked_metrics")}>
       {Object.entries(BODY_GROUPS).map(([group, metrics]) => (

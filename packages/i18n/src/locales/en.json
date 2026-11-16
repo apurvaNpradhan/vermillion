@@ -1282,5 +1282,15 @@
   "session__exercise_removed_toast": "Exercise deleted",
   "exercise__metric_added_load": "Heaviest added load",
   "plates__edit": "Edit equipment",
-  "plates__edit_item": "Edit {{name}}"
+  "plates__edit_item": "Edit {{name}}",
+  "body__same": "Use last {{metric}}",
+  "body__same_short": "Same",
+  "body__ghost_hint": "Muted values are from last time. Enter a value or use the last reading to log it today.",
+  "body__save_readings_one": "Save {{count}} reading",
+  "body__save_readings_other": "Save {{count}} readings",
+  "body__load_error": "Could not load your body data. Try again.",
+  "body__no_tracked": "Choose the measurements you want to track.",
+  "body__previous_month": "Earlier",
+  "body__next_month": "Later",
+  "body__photo_dates_hint": "Only dates with photos can be selected."
 }

@@ -3,7 +3,7 @@ import { WeighInGrid } from "./weigh-in-grid";
 import { SyncBanner } from "@/sync";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { Info, DotsThree, Target, Trash } from "phosphor-react-native";
+import { Info, Trash } from "phosphor-react-native";
 import { useThemeColor, BottomSheet } from "heroui-native";
 import { formatBodyWeight, weeklyPoints, changeOver, type TrendPoint } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
@@ -12,9 +12,9 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
-import { ActionSheet } from "@/platform/ui/action-sheet";
 import { SwipeRow } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
+import { BodyState } from "./body-state";
 import { useWeight } from "./use-weight";
 import { useLogWeight } from "./use-log-weight";
 import { WeightLogSheet } from "./weight-log-sheet";
@@ -43,7 +43,6 @@ export function WeightScreen() {
   }, [reminder, router, state.loading, state.failed]);
   const [entry, setEntry] = useState<WatchedMeasurement>();
   const [info, setInfo] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [goal, setGoal] = useState(false);
   const ink = useThemeColor("foreground");
   const days = ranges[range]?.days ?? 30;
@@ -59,6 +58,38 @@ export function WeightScreen() {
   const points = (rows: readonly TrendPoint[]) =>
     rows.map((p) => ({ id: p.date, x: Date.parse(p.date), y: p.trend, label: date(p.date) }));
   const delta = changeOver(selected, Math.max(0, selected.length - 1));
+  if (state.loading || state.failed || !state.entries.length)
+    return (
+      <ScrollPage title={t("body__title")}>
+        <SyncBanner />
+        <BodyState
+          loading={state.loading}
+          failed={state.failed}
+          retry={state.retry}
+          empty={t("body__empty")}
+        />
+        <Button isDisabled={state.loading || state.failed} onPress={() => setLogging(true)}>
+          <Button.Label>{t("body__log")}</Button.Label>
+        </Button>
+        <Button
+          variant="tertiary"
+          isDisabled={state.loading || state.failed}
+          onPress={() => setGoal(true)}
+        >
+          <Button.Label>{t("body__goal")}</Button.Label>
+        </Button>
+        {logging ? <WeightLogSheet onClose={() => setLogging(false)} /> : null}
+        {goal ? (
+          <WeightLogSheet
+            goal
+            onGoal={async (weightGoalKg) => {
+              await setUiAsync({ weightGoalKg });
+            }}
+            onClose={() => setGoal(false)}
+          />
+        ) : null}
+      </ScrollPage>
+    );
   return (
     <ScrollPage title={t("body__title")}>
       <SyncBanner />
@@ -73,13 +104,9 @@ export function WeightScreen() {
             >
               <Info size={24} color={ink} />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("body__options")}
-              onPress={() => setMenu(true)}
-            >
-              <DotsThree size={24} color={ink} />
-            </Pressable>
+            <Button variant="tertiary" size="sm" onPress={() => setGoal(true)}>
+              <Button.Label>{t("body__goal")}</Button.Label>
+            </Button>
           </View>
         </View>
         <View className="gap-2 pb-5">
@@ -258,14 +285,6 @@ export function WeightScreen() {
           onClose={() => setGoal(false)}
         />
       ) : null}
-      <ActionSheet
-        title={t("body__options")}
-        isOpen={menu}
-        onOpenChange={setMenu}
-        actions={[
-          { key: "goal", label: t("body__goal"), icon: Target, onPress: () => setGoal(true) },
-        ]}
-      />
       <BottomSheet isOpen={info} onOpenChange={setInfo}>
         <BottomSheet.Portal>
           <BottomSheet.Overlay />

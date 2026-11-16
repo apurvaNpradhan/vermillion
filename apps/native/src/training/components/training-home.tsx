@@ -1,4 +1,4 @@
-import { WeightCard, MeasurementsCard, PhotosCard, WeighInHabitCard } from "@/body";
+import { BodyCard } from "@/body";
 import { Skeleton } from "@/platform/ui/skeleton";
 import { KG_PER_LB, muscleDistribution, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -103,7 +103,7 @@ export function TrainingHome() {
           )}
         </View>
       ) : null}
-      <WeightCard />
+      <BodyCard />
       {loading ? (
         <Skeleton label={t("common__loading")} className="h-40 w-full rounded-2xl" />
       ) : null}
@@ -159,9 +159,6 @@ export function TrainingHome() {
           ) : null}
         </View>
       ) : null}
-      <MeasurementsCard />
-      <PhotosCard />
-      <WeighInHabitCard />
       {!loading && state.recent.length > 0 ? (
         <View className="gap-1">
           <SectionHeader

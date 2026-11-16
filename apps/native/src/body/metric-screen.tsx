@@ -8,6 +8,7 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { SwipeRow } from "@/platform/ui/swipe-row";
+import { BodyState } from "./body-state";
 import { useMeasurements } from "./use-measurements";
 import { useMeasurementActions } from "./use-measurement-actions";
 import { CheckInSheet } from "./check-in-sheet";
@@ -24,6 +25,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
   const state = useMeasurements();
   const actions = useMeasurementActions();
   const { t, i18n } = useTranslation();
+  const [logging, setLogging] = useState(false);
   const [range, setRange] = useState(1);
   const [entry, setEntry] = useState<WatchedMeasurement>();
   const [limit, setLimit] = useState(50);
@@ -40,12 +42,11 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
     );
   return (
     <ScrollPage back title={t(metricLabels[metric])}>
-      {state.loading ? (
-        <Text className="text-body text-muted">{t("common__loading")}</Text>
-      ) : state.failed ? (
-        <Button onPress={state.retry}>
-          <Button.Label>{t("training__retry")}</Button.Label>
-        </Button>
+      <Button isDisabled={state.loading || state.failed} onPress={() => setLogging(true)}>
+        <Button.Label>{t("body__log")}</Button.Label>
+      </Button>
+      {state.loading || state.failed ? (
+        <BodyState loading={state.loading} failed={state.failed} retry={state.retry} />
       ) : (
         <>
           <ScrollView horizontal contentContainerClassName="gap-2">
@@ -82,9 +83,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
           <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
             {t("body__entries")}
           </Text>
-          {!rows.length ? (
-            <Text className="text-body text-muted">{t("body__no_measurements")}</Text>
-          ) : null}
+          {!rows.length ? <BodyState empty={t("body__no_measurements")} /> : null}
           {rows
             .slice(-limit)
             .reverse()
@@ -127,6 +126,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
           ) : null}
         </>
       )}
+      {logging ? <CheckInSheet onlyMetric={metric} onClose={() => setLogging(false)} /> : null}
       {entry ? <CheckInSheet entry={entry} onClose={() => setEntry(undefined)} /> : null}
     </ScrollPage>
   );
