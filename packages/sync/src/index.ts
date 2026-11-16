@@ -24,6 +24,7 @@ export {
   libraryQuery,
   watchExerciseLibrary,
   watchExerciseLibraryCount,
+  watchExerciseMuscles,
   watchCatalogThumbnailKeys,
 } from "./exercise";
 export type {
