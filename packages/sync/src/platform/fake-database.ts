@@ -35,7 +35,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
         thumbnail_key TEXT, image_media_id TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
-        planned_weeks INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
+        planned_weeks INTEGER, sessions_per_week INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
         note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout_exercise (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
