@@ -1,3 +1,4 @@
+import { Switch } from "heroui-native";
 import {
   Bell,
   CheckCircle,
@@ -24,10 +25,7 @@ import { askRestPermission, useRestPermission } from "./rest-permission-store";
  */
 export type SessionSettings = { soundRows: ReactNode[]; rows: ReactNode[]; sheets: ReactNode };
 
-const ON = "on";
-const OFF = "off";
-
-type Picker = "sounds" | "soundRest" | "soundSets" | "soundMilestones" | "awake" | "view" | null;
+type Picker = "view" | null;
 
 /**
  * The session rows of Settings: the Sounds (a master switch, and the Rest, set and milestone
@@ -41,7 +39,6 @@ export function useSessionSettings(): SessionSettings {
   const permission = useRestPermission();
   const [picker, setPicker] = useState<Picker>(null);
   const { keepAwake, sounds, soundRest, soundSets, soundMilestones, sessionView } = preferences.ui;
-  const onOff = (on: boolean) => (on ? t("session__setting_on") : t("session__setting_off"));
 
   const notificationStatus =
     permission === "granted"
@@ -82,8 +79,16 @@ export function useSessionSettings(): SessionSettings {
       key="sounds"
       icon={SpeakerHigh}
       title={t("session__setting_sounds")}
-      value={onOff(sounds)}
-      onPress={() => setPicker("sounds")}
+      description={t("session__setting_sounds_hint")}
+      accessory="none"
+      onPress={() => setUi({ sounds: !sounds })}
+      trailing={
+        <Switch
+          accessibilityLabel={t("session__setting_sounds")}
+          isSelected={sounds}
+          onSelectedChange={(value) => setUi({ sounds: value })}
+        />
+      }
     />,
     ...(sounds
       ? groups.map((group) => (
@@ -91,8 +96,16 @@ export function useSessionSettings(): SessionSettings {
             key={group.key}
             icon={group.icon}
             title={group.title}
-            value={onOff(group.on)}
-            onPress={() => setPicker(group.key)}
+            description={group.hint}
+            accessory="none"
+            onPress={() => setUi(group.patch(!group.on))}
+            trailing={
+              <Switch
+                accessibilityLabel={group.title}
+                isSelected={group.on}
+                onSelectedChange={(value) => setUi(group.patch(value))}
+              />
+            }
           />
         ))
       : []),
@@ -124,18 +137,22 @@ export function useSessionSettings(): SessionSettings {
       key="keep-awake"
       icon={Sun}
       title={t("session__setting_keep_awake")}
-      value={onOff(keepAwake)}
-      onPress={() => setPicker("awake")}
+      description={t("session__setting_keep_awake_hint")}
+      accessory="none"
+      onPress={() => setUi({ keepAwake: !keepAwake })}
+      trailing={
+        <Switch
+          accessibilityLabel={t("session__setting_keep_awake")}
+          isSelected={keepAwake}
+          onSelectedChange={(value) => setUi({ keepAwake: value })}
+        />
+      }
     />,
   ];
 
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
-  const onOffOptions = [
-    { value: ON, label: t("session__setting_on") },
-    { value: OFF, label: t("session__setting_off") },
-  ];
   const sheets = (
     <>
       <OptionSheet
@@ -149,36 +166,6 @@ export function useSessionSettings(): SessionSettings {
         ]}
         value={sessionView}
         onSelect={(value) => setUi({ sessionView: value })}
-      />
-      <OptionSheet
-        isOpen={picker === "sounds"}
-        onOpenChange={onOpenChange}
-        title={t("session__setting_sounds")}
-        description={t("session__setting_sounds_hint")}
-        options={onOffOptions}
-        value={sounds ? ON : OFF}
-        onSelect={(value) => setUi({ sounds: value === ON })}
-      />
-      {groups.map((group) => (
-        <OptionSheet
-          key={group.key}
-          isOpen={picker === group.key}
-          onOpenChange={onOpenChange}
-          title={group.title}
-          description={group.hint}
-          options={onOffOptions}
-          value={group.on ? ON : OFF}
-          onSelect={(value) => setUi(group.patch(value === ON))}
-        />
-      ))}
-      <OptionSheet
-        isOpen={picker === "awake"}
-        onOpenChange={onOpenChange}
-        title={t("session__setting_keep_awake")}
-        description={t("session__setting_keep_awake_hint")}
-        options={onOffOptions}
-        value={keepAwake ? ON : OFF}
-        onSelect={(value) => setUi({ keepAwake: value === ON })}
       />
     </>
   );
