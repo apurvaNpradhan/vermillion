@@ -2,9 +2,9 @@
 
 Details live in the docs; this page says where things run.
 
-- Server: CI builds `apps/server/Dockerfile` once and pushes it to GHCR; `.github/workflows/deploy-server.yml` then points the Dokploy application (Docker image source, autodeploy off) at that commit's tag through the Dokploy API ([ADR 0045](../docs/adr/0045-build-in-ci-deploy-by-api.md)). Migrates on start. Served at `api.<domain>` behind Cloudflare.
+- Server: CI builds `apps/server/Dockerfile` once and pushes it to GHCR; `.github/workflows/deploy-server.yml` then points the Dokploy application (Docker image source, autodeploy off) at that commit's tag through the Dokploy API ([ADR 0045](../docs/adr/0045-build-in-ci-deploy-by-api.md)). Migrates on start. Served at `cinnabar-api.<domain>` behind Cloudflare.
 - Postgres: a separate Dokploy database service, backed up to R2. The server connects as an unprivileged role.
-- PowerSync: a Dokploy Compose application from `powersync/compose.dokploy.yml`, on `sync.<domain>`. Redeployed by hand.
+- PowerSync: a Dokploy Compose application from `powersync/compose.dokploy.yml`, on `cinnabar-sync.<domain>`. Redeployed by hand.
 - User media: a private R2 bucket (MinIO in development and in the local production check).
 - Android APK: `.github/workflows/android-release.yml` on a `v*` tag, signed with the keystore from secrets ([guide](../docs/guides/android-release.md)).
 - Native store builds: EAS profiles in `apps/native/eas.json`, EAS Update for JS fixes, store submission manual.

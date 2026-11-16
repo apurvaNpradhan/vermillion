@@ -101,7 +101,7 @@ describe("email code sign-in", () => {
     const seen = app.outbox.length;
     await app.services.auth.api.sendVerificationOTP({ body: { email, type: "sign-in" } });
     const mail = await app.waitForEmail((m) => m.to === email && app.outbox.indexOf(m) >= seen);
-    expect(mail.subject).toBe(`${codeIn(mail)} is your Vermillion code`);
+    expect(mail.subject).toBe(`${codeIn(mail)} is your Cinnabar code`);
   });
 
   describe("changing the email address", () => {

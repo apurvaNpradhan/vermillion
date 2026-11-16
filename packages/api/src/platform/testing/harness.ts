@@ -12,10 +12,10 @@ import { createServices } from "../services";
 import { cloneDatabase, dropDatabase, urlForDatabase } from "./postgres";
 
 const baseConfig: ApiConfig = {
-  appName: "Vermillion",
+  appName: "Cinnabar",
   appVersion: "1.0.0",
   appUrl: "http://localhost:3000",
-  appScheme: "vermillion",
+  appScheme: "cinnabar",
   nativePort: 8081,
   passkey: { rpId: "localhost", origins: ["http://localhost:3000"] },
   appAssociation: {

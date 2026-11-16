@@ -10,7 +10,7 @@ name: Android release
 # plugin writes the signing config that reads the keystore from the environment.
 #
 # Needs (docs/guides/android-release.md):
-#   variable  EXPO_PUBLIC_SERVER_URL            https://api.<domain>, baked into the app
+#   variable  EXPO_PUBLIC_SERVER_URL            https://cinnabar-api.<domain>, baked into the app
 #   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
 #   secret    ANDROID_UPLOAD_KEYSTORE_BASE64    base64 of the release keystore
 #   secret    ANDROID_UPLOAD_STORE_PASSWORD
@@ -67,7 +67,7 @@ jobs:
           case "$EXPO_PUBLIC_SERVER_URL" in
             https://*) ;;
             *)
-              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://api.<domain>)."
+              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://cinnabar-api.<domain>)."
               failed=1
               ;;
           esac
@@ -170,7 +170,7 @@ jobs:
             echo "::error title=Signature::The APK is not signed with the release keystore (signer $signer)."
             exit 1
           fi
-          name="vermillion-${REF_NAME//\//-}-$ABIS.apk"
+          name="cinnabar-${REF_NAME//\//-}-$ABIS.apk"
           mkdir -p release
           mv "$built" "release/$name"
           (cd release && sha256sum "$name" > "$name.sha256")
@@ -210,6 +210,6 @@ jobs:
         run: |
           if ! gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "Vermillion $REF_NAME" --generate-notes
+              --title "Cinnabar $REF_NAME" --generate-notes
           fi
           gh release upload "$REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber

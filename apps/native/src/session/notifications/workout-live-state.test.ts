@@ -73,7 +73,7 @@ const state = (s: SessionDetail, now = T0 + 60_000, restEndedAt: number | null =
     ghostsFor: () => ({ weight: 80, reps: 8 }),
     unit: "kg",
     options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
-    url: "vermillion:///session/s/timer",
+    url: "cinnabar:///session/s/timer",
     t,
   });
 describe("workout live notification", () => {
@@ -132,7 +132,7 @@ describe("workout live notification", () => {
       now: T0 + 60_000,
       ghostsFor: () => ({}),
       unit: "kg",
-      url: "vermillion:///session/s/timer",
+      url: "cinnabar:///session/s/timer",
       t,
       options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
     });

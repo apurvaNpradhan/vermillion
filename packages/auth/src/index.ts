@@ -44,7 +44,7 @@ type OAuthCredentials = { clientId: string; clientSecret: string };
 
 export type AuthOptions = {
   db: Database;
-  /** Public origin of the API (`https://api.<domain>`); auth cookies stay host-only. */
+  /** Public origin of the API (`https://cinnabar-api.<domain>`); auth cookies stay host-only. */
   baseUrl: string;
   secret: string;
   isProduction: boolean;

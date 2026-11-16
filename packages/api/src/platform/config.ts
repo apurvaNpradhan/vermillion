@@ -9,7 +9,7 @@ export type ApiConfig = {
   appName: string;
   /** Version of the app; the API document reports it. */
   appVersion: string;
-  /** Public origin of the API (`https://api.<domain>` in production). Auth links are built from it. */
+  /** Public origin of the API (`https://cinnabar-api.<domain>` in production). Auth links are built from it. */
   appUrl: string;
   /** Deep-link scheme of the native app, without "://". */
   appScheme: string;

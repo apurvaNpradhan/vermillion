@@ -19,7 +19,7 @@
       "environment": "production",
       "channel": "production",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_SERVER_URL": "https://api.example.com" }
+      "env": { "EXPO_PUBLIC_SERVER_URL": "https://cinnabar-api.lostsignal.cloud" }
     }
   },
   "submit": {
