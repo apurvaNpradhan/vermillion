@@ -1,0 +1,326 @@
+import { Skeleton } from "@/platform/ui/skeleton";
+import {
+  SET_FIELDS,
+  addsLoad,
+  SET_KIND_KEYS,
+  type EffortScale,
+  type ExerciseType,
+  type Ghosts,
+  type LoggedSet,
+  type SetField,
+  type WeightUnit,
+} from "@workspace/shared";
+import type { SessionSetDetail } from "@workspace/sync";
+import { Check, Copy, Rows, Play, Stop, Trash } from "phosphor-react-native";
+import { memo } from "react";
+import { Pressable, Text, View } from "react-native";
+
+import { haptic } from "@/platform/haptics";
+import { useTranslation } from "@/platform/i18n";
+import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
+import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
+import { SET_TONES, formatEffortRange } from "@/training";
+
+import type { CellRef } from "@/session/logging/keypad-entry";
+import { formatCell, previousLabel, valueOfSet } from "@/session/logging/set-values";
+import { formatElapsed } from "@/session/timer/clock";
+import { timerTarget, timerView } from "@/session/timer/duration-timer";
+import { useNow } from "@/session/shared/use-now";
+import { SetCell } from "./set-cell";
+
+/** The cell being edited and what is typed into it, as the row shows it. */
+export type ActiveEntry = { cell: CellRef; text: string };
+
+/** A refused tick: which cells lack a value, and a counter so a repeat shakes again. */
+export type Refusal = { setId: string; fields: readonly SetField[]; nonce: number };
+
+export type SetRowProps = {
+  historyReady: boolean;
+  editingFinished: boolean;
+  set: SessionSetDetail;
+  type: ExerciseType;
+  /** Number or letter on the badge. */
+  badge: string;
+  /** The row's place among the exercise's sets, for screen readers (1-based). */
+  number: number;
+  logEffort: boolean;
+  previous: LoggedSet | null;
+  ghosts: Ghosts;
+  unit: WeightUnit;
+  effortScale: EffortScale;
+  entry: ActiveEntry | null;
+  refusal: Refusal | null;
+  readOnly: boolean;
+  canRemove: boolean;
+  canCopyPrevious: boolean;
+  canFillRemaining: boolean;
+  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
+  onCell: (setId: string, field: SetField) => void;
+  onTick: (setId: string) => void;
+  onKind: (setId: string) => void;
+  onEffort: (setId: string) => void;
+  onPrevious: (setId: string) => void;
+  onRemove: (setId: string) => void;
+  /** Starts, cancels or stops (and ticks) the set's duration timer. */
+  onTimer: (setId: string) => void;
+};
+
+/** A running timer: counts down from its target, or up as a stopwatch; right after a restart. */
+function LiveTimer({ startedAt, target }: { startedAt: string; target: number | null }) {
+  const now = useNow(true, 250);
+  const view = timerView(startedAt, target, now);
+  return (
+    <Text
+      className="text-center font-semibold text-body text-identity"
+      style={{ fontVariant: ["tabular-nums"] }}
+    >
+      {formatElapsed(view.remaining ?? view.elapsed)}
+    </Text>
+  );
+}
+
+const grow = (field: SetField) => (field === "reps" ? "flex-[1.2]" : "flex-1");
+
+/**
+ * One Logged set: a badge that changes its kind, Previous (tap to copy), a cell for each field
+ * of the exercise's type, effort when the exercise logs it, and the tick. Cells are pressables
+ * that open the keypad. Warm-ups record no effort.
+ */
+/** Props rebuilt on every database change even when their values did not change. */
+const COMPARED_BY_VALUE = new Set<keyof SetRowProps>(["set", "ghosts", "previous"]);
+
+/**
+ * A row redraws only when something it draws changed. Every database change parses the Session
+ * again, so the set, its Ghost values and Previous are new objects; they are compared by value.
+ */
+function sameRowProps(before: SetRowProps, after: SetRowProps): boolean {
+  // SAFETY: both objects are SetRowProps, so their own keys are SetRowProps keys.
+  const keys = Object.keys(after) as (keyof SetRowProps)[];
+  if (keys.length !== Object.keys(before).length) return false;
+  return keys.every(
+    (key) =>
+      Object.is(before[key], after[key]) ||
+      (COMPARED_BY_VALUE.has(key) && JSON.stringify(before[key]) === JSON.stringify(after[key])),
+  );
+}
+
+export const SetRow = memo(function SetRow(props: SetRowProps) {
+  const {
+    set,
+    type,
+    badge,
+    number,
+    logEffort,
+    previous,
+    ghosts,
+    unit,
+    effortScale,
+    entry,
+    refusal,
+    readOnly,
+    canRemove,
+  } = props;
+  const { t } = useTranslation();
+  const subtle = useSubtleColor();
+  const onIdentity = useOnIdentityColor();
+  const onSuccess = useOnSetDoneColor();
+  const fields: readonly SetField[] = SET_FIELDS[type];
+  const ticked = set.completedAt !== null;
+  const showsEffort = logEffort && fields.includes("reps") && set.kind !== "warmup";
+  const previousText = previous ? previousLabel(previous, type, unit) : null;
+  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+
+  const header = (field: SetField): string => {
+    switch (field) {
+      case "weight":
+        return t(addsLoad(type) ? "training__field_added_weight" : "training__field_weight", {
+          unit: unitName,
+        });
+      case "reps":
+        return t("training__field_reps");
+      case "duration":
+        return t("training__field_duration");
+      case "distance":
+        return t("training__col_distance", { unit: t("training__unit_m") });
+      case "floors":
+        return t("training__field_floors");
+      case "steps":
+        return t("training__field_steps");
+    }
+  };
+
+  const cell = (field: SetField) => {
+    const stored = valueOfSet(set, field);
+    const editing = entry?.cell.setId === set.id && entry.cell.field === field;
+    const text = editing ? entry.text : formatCell(field, stored, unit);
+    const ghost = formatCell(field, ghosts[field] ?? null, unit);
+    const refused = refusal?.setId === set.id && refusal.fields.includes(field);
+    const running = field === "duration" && set.timerStartedAt !== null && !ticked;
+    const target = timerTarget(set);
+    return (
+      <View key={field} className={`min-w-0 flex-row gap-1 ${grow(field)}`}>
+        <SetCell
+          done={ticked}
+          text={text}
+          ghost={ghost}
+          active={editing}
+          refused={refused}
+          refusedNonce={refusal?.nonce ?? 0}
+          disabled={readOnly}
+          label={t("training__cell_label", { number, field: header(field) })}
+          onPress={() => props.onCell(set.id, field)}
+        >
+          {running && set.timerStartedAt !== null ? (
+            <LiveTimer startedAt={set.timerStartedAt} target={target} />
+          ) : undefined}
+        </SetCell>
+        {field === "duration" && !props.editingFinished && !ticked && !readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(
+              !running
+                ? "session__timer_start"
+                : target === null
+                  ? "session__timer_stop"
+                  : "session__timer_cancel",
+              { number },
+            )}
+            onPress={() => {
+              haptic.tick();
+              props.onTimer(set.id);
+            }}
+            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
+          >
+            {running ? (
+              <Stop size={16} weight="fill" color={onIdentity} />
+            ) : (
+              <Play size={16} weight="fill" color={subtle} />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  };
+
+  const rpeText = (rpe: number) => formatEffortRange(rpe, rpe, effortScale);
+  const effortValue = set.rpe === null ? null : rpeText(set.rpe);
+  const effortGhost = ghosts.rpe ?? null;
+
+  const row = (a11y?: SwipeA11yProps) => (
+    <View
+      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
+    >
+      <Pressable
+        {...a11y}
+        accessibilityRole="button"
+        accessibilityLabel={t("training__set_kind_change", {
+          number,
+          kind: t(SET_KIND_KEYS[set.kind]),
+        })}
+        disabled={readOnly}
+        onPress={() => {
+          haptic.tick();
+          props.onKind(set.id);
+        }}
+        hitSlop={4}
+        className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
+      >
+        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>{badge}</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          previousText === null
+            ? t("session__previous_none")
+            : t("session__previous_copy", { value: previousText })
+        }
+        disabled={readOnly || previous === null || previousText === null}
+        onPress={() => {
+          haptic.tick();
+          props.onPrevious(set.id);
+        }}
+        className="h-10 min-w-0 flex-[1.3] items-center justify-center rounded-lg px-1 active:bg-default"
+      >
+        {!props.historyReady ? (
+          <Skeleton label={t("common__loading")} className="h-3 w-10" />
+        ) : (
+          <Text
+            numberOfLines={1}
+            className="text-center text-caption text-muted"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {previousText ?? "–"}
+          </Text>
+        )}
+      </Pressable>
+      {fields.map(cell)}
+      {showsEffort ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("training__effort_cell_label", {
+            number,
+            value: effortValue ?? t("training__effort_none"),
+          })}
+          disabled={readOnly}
+          onPress={() => props.onEffort(set.id)}
+          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
+        >
+          <Text
+            className={`text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
+          </Text>
+        </Pressable>
+      ) : null}
+      {props.editingFinished ? null : (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{
+            checked: ticked,
+            disabled: readOnly || (!ticked && !props.historyReady),
+          }}
+          accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
+          disabled={readOnly || (!ticked && !props.historyReady)}
+          onPress={() => props.onTick(set.id)}
+          hitSlop={4}
+          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
+        >
+          <Check size={18} weight="bold" color={ticked ? onSuccess : subtle} />
+        </Pressable>
+      )}
+    </View>
+  );
+
+  const actions: SwipeAction[] = [];
+  if (props.canCopyPrevious)
+    actions.push({
+      key: "copy",
+      label: t("session__copy_previous"),
+      icon: Copy,
+      iconOnly: true,
+      onPress: () => props.onCopySets(set.id, "previous"),
+    });
+  if (props.canFillRemaining)
+    actions.push({
+      key: "fill",
+      label: t("session__fill_remaining"),
+      icon: Rows,
+      iconOnly: true,
+      onPress: () => props.onCopySets(set.id, "remaining"),
+    });
+  if (canRemove)
+    actions.push({
+      key: "remove",
+      label: t("training__remove"),
+      icon: Trash,
+      tone: "danger",
+      iconOnly: true,
+      onPress: () => props.onRemove(set.id),
+    });
+  return !readOnly && actions.length > 0 ? (
+    <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
+  ) : (
+    row()
+  );
+}, sameRowProps);

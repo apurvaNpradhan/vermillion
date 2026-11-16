@@ -17,7 +17,7 @@ import { BodyState } from "../body-state";
 import { Page } from "@/platform/ui/page";
 import { SyncBanner } from "@/sync";
 
-import { CheckInSheet } from "../check-in-sheet";
+import { CheckInSheet } from "@/body/measurements/check-in-sheet";
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";
 import { PrivatePhoto } from "./private-photo";

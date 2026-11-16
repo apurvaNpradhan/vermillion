@@ -32,6 +32,8 @@ describe("ui preferences schema", () => {
       effortScale: "rpe",
       defaultRestSeconds: 120,
       sessionView: "sets",
+      weekStart: "monday",
+      sessionsPerWeek: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);
@@ -156,4 +158,19 @@ it("validates reminder times and Expo weekdays, and keeps patches sparse", () =>
   expect(uiPreferencesPatchSchema.safeParse({ weighInReminder: { enabled: true } }).success).toBe(
     false,
   );
+});
+
+describe("week preferences", () => {
+  it("accepts the three week starts and a weekly session goal", () => {
+    expect(uiPreferencesSchema.parse({ weekStart: "saturday", sessionsPerWeek: 4 })).toMatchObject({
+      weekStart: "saturday",
+      sessionsPerWeek: 4,
+    });
+  });
+
+  it("rejects an unknown week start and an out-of-range goal", () => {
+    expect(uiPreferencesSchema.safeParse({ weekStart: "friday" }).success).toBe(false);
+    expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 0 }).success).toBe(false);
+    expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 15 }).success).toBe(false);
+  });
 });

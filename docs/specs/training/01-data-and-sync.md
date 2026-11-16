@@ -26,7 +26,7 @@ Add to `ui` with defaults: `weightUnit: "kg" | "lb"` (default `kg`), `effortScal
 
 Every table has `id uuid pk` (UUIDv7 from the client), `user_id text not null` (FK, cascade), `created_at`, `updated_at` and `deleted_at`, plus a partial index `(user_id) WHERE deleted_at IS NULL`. Length `CHECK`s match the zod caps.
 
-- `program`: `title text not null`, `description text`, `planned_weeks smallint null CHECK 1–52`, `cover_key text null`.
+- `program`: `title text not null`, `description text`, `planned_weeks smallint null CHECK 1–52`, `sessions_per_week smallint null CHECK 1–14` (the Program's Session goal; null derives it from the Rotation), `cover_key text null`.
 - `workout`: `program_id uuid null` (FK program), `title text null` (null = derived), `note text`.
 - `workout_exercise`: `workout_id uuid not null`, `exercise_id uuid not null` (FK exercise, no cascade: exercises are never deleted), `position text not null`, `rest_seconds smallint null` (null = off, 0–600), `note text`, `superset_group uuid null`, `sets jsonb not null default '[]'`.
 - `program_slot`: `program_id uuid not null`, `workout_id uuid null` (null = Rest), `position text not null`.

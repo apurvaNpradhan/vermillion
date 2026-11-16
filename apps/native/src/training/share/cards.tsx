@@ -6,9 +6,13 @@ import { ExerciseThumbnail } from "@/exercise";
 import { MediaImage } from "@/media";
 import { CardText, useImageSettle, type CardContext } from "@/share";
 import { useTranslation } from "@/platform/i18n";
-import { displayTitle } from "../derived-title";
-import { estimateMinutes } from "../estimate";
-import { summariseWorking, type SummaryLabels, type SummaryPrefs } from "../summarise-sets";
+import { displayTitle } from "@/training/workouts/derived-title";
+import { estimateMinutes } from "@/training/workouts/estimate";
+import {
+  summariseWorking,
+  type SummaryLabels,
+  type SummaryPrefs,
+} from "@/training/workouts/summarise-sets";
 import { cardRows, daysPerWeek, planLoads, setCounts } from "./plan-data";
 
 export function PlanMap({ loads, width }: { loads: MuscleLoad[]; width: number }) {

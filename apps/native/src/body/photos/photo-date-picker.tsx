@@ -1,9 +1,11 @@
+import { weekDays } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
+import { usePreferences } from "@/preferences";
 import { formatCalendarDate } from "./local-date";
 import { monthDays } from "./photo-calendar";
 
@@ -27,7 +29,9 @@ export function PhotoDatePicker({
   const index = months.indexOf(month);
   const enabled = new Set(dates);
   const dayFormat = new Intl.NumberFormat(i18n.language);
-  const weekdays = Array.from({ length: 7 }, (_, day) =>
+  const { preferences } = usePreferences();
+  const { weekStart } = preferences.ui;
+  const weekdays = weekDays(weekStart).map((day) =>
     new Intl.DateTimeFormat(i18n.language, { weekday: "short", timeZone: "UTC" }).format(
       new Date(Date.UTC(2026, 10, 1 + day)),
     ),
@@ -86,7 +90,7 @@ export function PhotoDatePicker({
             ))}
           </View>
           <View className="flex-row flex-wrap">
-            {monthDays(month).map((date, cell) => (
+            {monthDays(month, weekStart).map((date, cell) => (
               <View key={cell} style={{ width: "14.285714%" }}>
                 <Pressable
                   accessibilityRole="button"

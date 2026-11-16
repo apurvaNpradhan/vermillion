@@ -7,8 +7,8 @@ import {
 } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 
-import { formatElapsed } from "../clock";
-import { loggedSetsOf } from "../set-values";
+import { formatElapsed } from "../timer/clock";
+import { loggedSetsOf } from "../logging/set-values";
 import { formatDetail, type BestLabels } from "./best-set";
 import { topMuscles } from "./muscles";
 import { compactRows, shareRows, type ShareRow } from "./rows";

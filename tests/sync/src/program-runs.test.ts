@@ -25,6 +25,7 @@ it("activation on one device appears on another device", async () => {
     title: "Run sync",
     description: null,
     planned_weeks: 4,
+    sessions_per_week: null,
   });
   const id = await activateProgram(a.database, programId);
   await a.uploaded();

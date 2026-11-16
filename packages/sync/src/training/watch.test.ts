@@ -117,7 +117,12 @@ describe("workout reads", () => {
 });
 
 describe("program reads", () => {
-  const input = { title: "Upper Lower", description: "# Plan", planned_weeks: 8 };
+  const input = {
+    title: "Upper Lower",
+    description: "# Plan",
+    planned_weeks: 8,
+    sessions_per_week: null,
+  };
 
   it("keeps Program Workouts out of the standalone list", async () => {
     const { training, list } = await setup();
@@ -131,7 +136,12 @@ describe("program reads", () => {
     const { training, programs } = await setup();
     const first = await createProgram(training, input);
     await new Promise((resolve) => setTimeout(resolve, 2));
-    const second = await createProgram(training, { ...input, title: "Empty", planned_weeks: null });
+    const second = await createProgram(training, {
+      ...input,
+      title: "Empty",
+      planned_weeks: null,
+      sessions_per_week: null,
+    });
     const upper = await createWorkout(training, { program_id: first, title: "Upper" });
     const a = await addSlot(training, first, upper);
     const rest = await addSlot(training, first, null);
@@ -185,6 +195,7 @@ describe("covers and plans", () => {
       title: "PPL",
       description: "Hi",
       planned_weeks: null,
+      sessions_per_week: null,
     });
     expect(programs()[0]?.coverMediaId).toBeNull();
     const { mediaId } = await setProgramCoverToNewMedia(training, id, {
@@ -203,6 +214,7 @@ describe("covers and plans", () => {
       title: "PPL",
       description: "A split",
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const workoutId = await createWorkout(training, { program_id: programId, title: "Push" });
     await addExercises(training, workoutId, [SQUAT, PLANK]);

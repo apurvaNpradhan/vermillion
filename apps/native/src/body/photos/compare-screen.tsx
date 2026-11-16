@@ -17,8 +17,8 @@ import { Button } from "@/platform/ui/button";
 import { Compare } from "@/platform/ui/compare";
 import { ScrollPage } from "@/platform/ui/page";
 
-import { useMeasurements } from "../use-measurements";
-import { useWeight } from "../use-weight";
+import { useMeasurements } from "@/body/measurements/use-measurements";
+import { useWeight } from "@/body/weight/use-weight";
 import { sideStats, statsChange, type SideStats } from "./compare-stats";
 import { formatCalendarDate } from "./local-date";
 import { poseLabels } from "./pose-labels";

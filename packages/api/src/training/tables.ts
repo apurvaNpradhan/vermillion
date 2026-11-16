@@ -51,6 +51,8 @@ export const program = pgTable(
     title: text("title").notNull(),
     description: text("description"),
     plannedWeeks: smallint("planned_weeks"),
+    /** The Sessions a week the Program aims for; null derives it from the rotation. */
+    sessionsPerWeek: smallint("sessions_per_week"),
     /** Retired by ADR 0040: always null, kept because migrations are additive. */
     coverKey: text("cover_key"),
     /**
@@ -73,6 +75,10 @@ export const program = pgTable(
     check(
       "program_description_length",
       sql`char_length(${table.description}) <= ${raw(descriptionMax)}`,
+    ),
+    check(
+      "program_sessions_per_week_range",
+      sql`${table.sessionsPerWeek} BETWEEN ${raw(TRAINING_LIMITS.sessionsPerWeekMin)} AND ${raw(TRAINING_LIMITS.sessionsPerWeekMax)}`,
     ),
     check(
       "program_planned_weeks_range",

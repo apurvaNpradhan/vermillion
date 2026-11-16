@@ -15,6 +15,12 @@ packages/api/src/
 apps/native/src/exercise/ index.ts, hooks (use-exercise-library.ts), components/
 ```
 
+## Inside a vertical
+
+Past a handful of files, group by feature, not by kind. A feature folder holds its components, hooks, pure logic and tests together (`session/rest/`, `training/programs/`, `body/weight/`), and `index.ts` stays the only file other verticals import. Inside a feature folder import siblings relatively; across feature folders in native use the `@/` alias. A folder with few files stays flat, and a feature folder has at least three files. Pieces two features need go in a small `shared/` folder. Each large vertical keeps a `README.md` with one line per feature folder and the file to read first.
+
+`scripts/structure/check-folder-size.mjs` (part of `pnpm lint`) fails when a folder under `apps/native/src`, `packages/shared/src` or `packages/sync/src` has more than 20 loose non-test source files. Aim for about 15. Folders that predate the rule are on an allowlist in that script.
+
 ## Boundary rule
 
 `boundaries/vertical-boundaries` (oxlint, `scripts/lint/boundaries-plugin.mjs`) fails an import of another vertical unless it goes through that vertical's `index.ts`. `platform` is not a vertical. Tests are exempt.

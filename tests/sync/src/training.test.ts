@@ -85,6 +85,7 @@ describe("training plans sync", () => {
       title: "Upper Lower",
       description: "Four days",
       planned_weeks: 8,
+      sessions_per_week: null,
     });
     const workoutId = await createWorkout(a.database, { program_id: programId, title: "Upper" });
     const [first, second] = await addExercises(a.database, workoutId, [press, hold]);
@@ -109,6 +110,7 @@ describe("training plans sync", () => {
     expect(await b.database.get("SELECT * FROM program WHERE id = ?", [programId])).toMatchObject({
       title: "Upper Lower",
       planned_weeks: 8,
+      sessions_per_week: null,
     });
     // Sets arrive as JSON text that SQLite's JSON functions read. The edit is a later upload, so
     // B may see the created row first.
@@ -193,6 +195,7 @@ describe("training plans sync", () => {
       title: "Doomed",
       description: null,
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const keep = await createWorkout(a.database, { program_id: programId, title: "Day 1" });
     await addExercises(a.database, keep, [press, press]);
@@ -301,6 +304,7 @@ describe("training plans sync", () => {
       title: "Alice only",
       description: "secret",
       planned_weeks: null,
+      sessions_per_week: null,
     });
     const workoutId = await createWorkout(a.database, { program_id: programId });
     const [exerciseId] = await addExercises(a.database, workoutId, [press]);

@@ -56,7 +56,14 @@ export const trainingUploadColumns = {
     "outcome",
     "continued_at",
   ]),
-  program: new Set(["title", "description", "planned_weeks", "cover_media_id", "restore"]),
+  program: new Set([
+    "title",
+    "description",
+    "planned_weeks",
+    "sessions_per_week",
+    "cover_media_id",
+    "restore",
+  ]),
   workout: new Set(["program_id", "title", "note", "restore"]),
   workout_exercise: new Set([
     "workout_id",

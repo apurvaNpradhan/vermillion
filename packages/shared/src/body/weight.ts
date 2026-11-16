@@ -1,3 +1,6 @@
+import { weekStartDay } from "../training/plans/week";
+import type { WeekStart } from "../training/vocabulary/vocabulary";
+
 export type WeightEntry = { local_date: string; value: number };
 export type DailyWeight = { date: string; scale: number };
 export type TrendPoint = {
@@ -86,15 +89,13 @@ export function weightChanges(series: readonly TrendPoint[]) {
   });
 }
 /**
- * One point per Monday-based week for long ranges: the week's last trend value, and the average
+ * One point per week for long ranges (weeks start on `weekStart`): the week's last trend value, and the average
  * of the scale weights actually logged that week (null, and `interpolated`, when none were).
  */
-export function weeklyPoints(series: readonly TrendPoint[]): TrendPoint[] {
+export function weeklyPoints(series: readonly TrendPoint[], weekStart: WeekStart): TrendPoint[] {
   const weeks = new Map<string, { last: TrendPoint; total: number; count: number }>();
   for (const point of series) {
-    const day = new Date(stamp(point.date));
-    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-    const key = day.toISOString().slice(0, 10);
+    const key = new Date(weekStartDay(stamp(point.date), weekStart)).toISOString().slice(0, 10);
     const week = weeks.get(key) ?? { last: point, total: 0, count: 0 };
     week.last = point;
     if (point.scale !== null) {

@@ -1,0 +1,411 @@
+import { useRouter } from "expo-router";
+import { useActiveRun } from "./use-active-program";
+import { TRAINING_LIMITS } from "@workspace/shared";
+import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
+import { useThemeColor } from "heroui-native";
+import {
+  Copy,
+  DotsThreeVertical,
+  FloppyDisk,
+  Moon,
+  PencilSimple,
+  Plus,
+  Repeat,
+  ShareNetwork,
+  Trash,
+  WarningCircle,
+} from "phosphor-react-native";
+import { useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+
+import { useTranslation } from "@/platform/i18n";
+import { ActionSheet } from "@/platform/ui/action-sheet";
+import { ListRow, ListSection } from "@/platform/ui/list";
+import { SectionHeader } from "@/platform/ui/section-header";
+import { EmptyState } from "@/platform/ui/empty-state";
+import { MarkdownText } from "@/platform/ui/markdown-text";
+import { Page, ScrollPage } from "@/platform/ui/page";
+import { Skeleton } from "@/platform/ui/skeleton";
+import type { SwipeAction } from "@/platform/ui/swipe-row";
+
+import { repeatCounts, rotationSummary } from "@/training/rotation/rotation";
+import { useProgram } from "./use-program";
+import { useProgramActions } from "./use-program-actions";
+import { useProgramMeta } from "./use-program-meta";
+import { useStartWorkout } from "@/training/train/use-start-workout";
+import {
+  AddWorkoutSheet,
+  RepeatWorkoutSheet,
+  type ProgramWorkoutChoice,
+} from "@/training/rotation/program-workout-sheets";
+import { ProgramTile } from "./program-row";
+import { ReorderList } from "@/training/reorder/reorder-list";
+import { useReorderScroll } from "@/training/reorder/use-reorder-scroll";
+import { RotationRow, slotTitle } from "@/training/rotation/rotation-row";
+
+/** The cover tile in the header. */
+const COVER_SIZE = 56;
+
+/** Lines of the description shown before "More". */
+const DESCRIPTION_LINES = 4;
+
+/** Where the Program screen sends the user. */
+export type ProgramScreenProps = {
+  id: string;
+  /** Open the Workout editor (slice 2) for a Workout of this Program. */
+  onOpenWorkout: (workoutId: string) => void;
+  /** Open the details sheet. */
+  onOpenDetails: () => void;
+  /** The Program was deleted: leave the screen. */
+  onClosed: () => void;
+  /** A copy was made: open it in place of this one. */
+  onOpenCopy: (id: string) => void;
+};
+
+/**
+ * One Program: its description and planned length, then the Rotation as numbered Slots that
+ * reorder by long press, with the actions that build it. Every edit is saved as it happens.
+ */
+export function ProgramScreen(props: ProgramScreenProps) {
+  const { t } = useTranslation();
+  const state = useProgram(props.id);
+
+  if (state.status === "loading") {
+    return (
+      <ScrollPage title={t("training__program")} back>
+        <Skeleton label={t("common__loading")} className="h-11 w-full" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </ScrollPage>
+    );
+  }
+  if (state.status === "missing" || state.status === "error") {
+    return (
+      <ScrollPage title={t("training__program")} back>
+        <EmptyState
+          icon={WarningCircle}
+          title={t(
+            state.status === "missing" ? "training__program_missing" : "training__load_failed",
+          )}
+        />
+      </ScrollPage>
+    );
+  }
+  return <LoadedProgram program={state.program} {...props} />;
+}
+
+function LoadedProgram({
+  program,
+  onOpenWorkout,
+  onOpenDetails,
+  onClosed,
+  onOpenCopy,
+}: ProgramScreenProps & { program: ProgramDetail }) {
+  const { t } = useTranslation();
+  const foreground = useThemeColor("foreground");
+  const actions = useProgramActions();
+  const active = useActiveRun();
+  const isActive = active.run?.program_id === program.id;
+  const activationLabel = t(isActive ? "run__stop" : "run__set_active");
+  const toggleActive = () => {
+    if (isActive) void active.stop();
+    else active.activate(program.id);
+  };
+  const { fromPicker } = useStartWorkout();
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [slotMenu, setSlotMenu] = useState<ProgramSlotDetail | null>(null);
+  const [dayOpen, setDayOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const reorderScroll = useReorderScroll();
+
+  const slots = program.slots;
+  const numbers = useMemo(() => new Map(slots.map((slot, index) => [slot.id, index + 1])), [slots]);
+  const repeats = useMemo(() => repeatCounts(slots), [slots]);
+  const summary = rotationSummary(slots);
+  const meta = useProgramMeta(summary, null);
+  const full = slots.length >= TRAINING_LIMITS.slotsPerProgram;
+
+  /** One entry per Workout of this Program, in Rotation order. */
+  const own = useMemo(() => {
+    const seen = new Map<string, ProgramWorkoutChoice>();
+    for (const slot of slots) {
+      if (slot.workoutId === null || seen.has(slot.workoutId)) continue;
+      seen.set(slot.workoutId, {
+        id: slot.workoutId,
+        title: slot.workout?.title ?? null,
+        displayTitle: slotTitle(slot, (key) => t(key)),
+      });
+    }
+    return [...seen.values()];
+  }, [slots, t]);
+
+  const menu: SwipeAction[] = [
+    { key: "active", label: activationLabel, icon: Repeat, onPress: toggleActive },
+    {
+      key: "details",
+      label: t("training__edit_details"),
+      icon: PencilSimple,
+      onPress: onOpenDetails,
+    },
+    {
+      key: "share",
+      label: t("share__share"),
+      icon: ShareNetwork,
+      onPress: () =>
+        router.push({
+          pathname: "/share/[kind]/[id]",
+          params: { kind: "program", id: program.id },
+        }),
+    },
+    {
+      key: "duplicate",
+      label: t("training__duplicate"),
+      icon: Copy,
+      onPress: () => {
+        void actions.duplicate(program.id, program.title).then((copy) => {
+          if (copy) onOpenCopy(copy);
+        });
+      },
+    },
+    {
+      key: "delete",
+      label: t("training__delete"),
+      icon: Trash,
+      tone: "danger",
+      onPress: () => {
+        void actions.remove(program.id, program.title).then((removed) => {
+          if (removed) onClosed();
+        });
+      },
+    },
+  ];
+
+  const slotActions: SwipeAction[] = (() => {
+    if (!slotMenu) return [];
+    const { workoutId, workout } = slotMenu;
+    const title = workout ? slotTitle(slotMenu, (key) => t(key)) : null;
+    const remove: SwipeAction = {
+      key: "remove",
+      label: t("training__remove_from_rotation"),
+      icon: Trash,
+      tone: "danger",
+      onPress: () => void actions.removeSlot(slotMenu.id, title),
+    };
+    if (workoutId === null) return [remove];
+    return [
+      {
+        key: "edit",
+        label: t("training__edit_workout"),
+        icon: PencilSimple,
+        onPress: () => onOpenWorkout(workoutId),
+      },
+      {
+        key: "duplicate",
+        label: t("training__duplicate_as_new"),
+        icon: Copy,
+        onPress: () => void actions.duplicateSlot(slotMenu.id, workout?.title ?? null),
+      },
+      {
+        key: "standalone",
+        label: t("training__save_standalone"),
+        icon: FloppyDisk,
+        onPress: () => void actions.saveAsStandalone(workoutId),
+      },
+      remove,
+    ];
+  })();
+
+  return (
+    <>
+      <Page
+        title={program.title}
+        back
+        actions={
+          <View className="flex-row">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("share__share")}
+              className="h-11 w-11 items-center justify-center"
+              onPress={() => {
+                router.push({
+                  pathname: "/share/[kind]/[id]",
+                  params: { kind: "program", id: program.id },
+                });
+              }}
+            >
+              <ShareNetwork size={22} color={foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("training__program_menu")}
+              onPress={() => setMenuOpen(true)}
+              className="h-11 w-11 items-center justify-center"
+            >
+              <DotsThreeVertical size={22} weight="bold" color={foreground} />
+            </Pressable>
+          </View>
+        }
+      >
+        {({ header, contentContainerStyle, ...scroll }) => (
+          <Animated.ScrollView
+            {...scroll}
+            className="flex-1"
+            contentContainerStyle={contentContainerStyle}
+            contentContainerClassName="gap-8"
+            ref={(node) => {
+              scroll.ref(node);
+              reorderScroll.ref(node);
+            }}
+            animatedProps={reorderScroll.animatedProps}
+            onContentSizeChange={reorderScroll.onContentSizeChange}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View className="px-4">{header}</View>
+            <View className="gap-4 px-4">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("training__edit_details")}
+                onPress={onOpenDetails}
+                className="min-h-16 flex-row items-center gap-3 py-1"
+              >
+                <ProgramTile
+                  title={program.title}
+                  size={COVER_SIZE}
+                  coverMediaId={program.coverMediaId}
+                />
+                <View className="flex-1 gap-1">
+                  <Text className="text-label font-medium text-foreground">{meta}</Text>
+                  <Text className="text-caption text-muted">
+                    {program.plannedWeeks === null
+                      ? t("training__program_open_ended")
+                      : t("training__planned_summary", { count: program.plannedWeeks })}
+                  </Text>
+                </View>
+                <PencilSimple size={18} color={foreground} />
+              </Pressable>
+              <ListSection variant="plain">
+                <ListRow
+                  icon={Repeat}
+                  title={activationLabel}
+                  accessory="none"
+                  onPress={toggleActive}
+                />
+              </ListSection>
+              {program.description !== null ? (
+                <MarkdownText
+                  markdown={program.description}
+                  collapsedLines={DESCRIPTION_LINES}
+                  moreLabel={t("training__description_more")}
+                  lessLabel={t("training__description_less")}
+                />
+              ) : null}
+            </View>
+            <View className="gap-1">
+              <View className="px-4">
+                <SectionHeader
+                  title={t("training__rotation")}
+                  actionLabel={full ? undefined : t("training__add_day")}
+                  onAction={() => setDayOpen(true)}
+                />
+              </View>
+              {slots.length === 0 ? (
+                <EmptyState
+                  icon={Plus}
+                  title={t("training__rotation_empty")}
+                  action={{ label: t("training__add_workout"), onPress: () => setAddOpen(true) }}
+                />
+              ) : (
+                <View className="px-4">
+                  <ReorderList
+                    items={slots}
+                    scroll={reorderScroll}
+                    topInset={contentContainerStyle.paddingTop}
+                    bottomInset={contentContainerStyle.paddingBottom}
+                    onMove={(id, beforeId) => void actions.move(id, beforeId)}
+                    renderItem={(slot, { collapsed }) => (
+                      <RotationRow
+                        slot={slot}
+                        number={numbers.get(slot.id) ?? 0}
+                        title={slotTitle(slot, (key) => t(key))}
+                        repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                        collapsed={collapsed}
+                        onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
+                        onMenu={setSlotMenu}
+                      />
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+          </Animated.ScrollView>
+        )}
+      </Page>
+      <ActionSheet
+        title={program.title}
+        actions={menu}
+        isOpen={menuOpen}
+        onOpenChange={setMenuOpen}
+      />
+      <ActionSheet
+        title={
+          slotMenu?.workout
+            ? slotTitle(slotMenu, (key) => t(key))
+            : slotMenu
+              ? t("training__rest_day")
+              : ""
+        }
+        actions={slotActions}
+        isOpen={slotMenu !== null}
+        onOpenChange={(open) => {
+          if (!open) setSlotMenu(null);
+        }}
+      />
+      <ActionSheet
+        title={t("training__add_day")}
+        actions={[
+          {
+            key: "workout",
+            label: t("training__add_workout"),
+            icon: Plus,
+            onPress: () => setAddOpen(true),
+          },
+          ...(own.length > 0
+            ? [
+                {
+                  key: "reuse",
+                  label: t("training__repeat_workout"),
+                  icon: Repeat,
+                  onPress: () => setRepeatOpen(true),
+                },
+              ]
+            : []),
+          {
+            key: "rest",
+            label: t("training__add_rest"),
+            icon: Moon,
+            onPress: () => void actions.addRest(program.id),
+          },
+        ]}
+        isOpen={dayOpen}
+        onOpenChange={setDayOpen}
+      />
+      <AddWorkoutSheet
+        isOpen={addOpen}
+        onOpenChange={setAddOpen}
+        own={own}
+        onNew={() => void fromPicker(program.id)}
+        onCopyStandalone={(workoutId) => void actions.addCopy(program.id, workoutId, null)}
+        onCopyOwn={(choice) => void actions.addCopy(program.id, choice.id, { title: choice.title })}
+      />
+      <RepeatWorkoutSheet
+        isOpen={repeatOpen}
+        onOpenChange={setRepeatOpen}
+        own={own}
+        onPick={(workoutId) => void actions.repeat(program.id, workoutId)}
+      />
+    </>
+  );
+}
