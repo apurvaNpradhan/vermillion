@@ -4,14 +4,14 @@ const MAX_AGE_MS = 60 * 60 * 1000;
 const cache = () => new Directory(Paths.cache, "share-cards");
 
 /** Copy before releasing view-shot's temporary file. Recipients may read this copy later. */
-export function ownCapture(uri: string, transparent: boolean): string {
+export async function ownCapture(uri: string, transparent: boolean): Promise<string> {
   const directory = cache();
   directory.create({ intermediates: true, idempotent: true });
   const file = new File(
     directory,
     `${Date.now()}-${Math.random().toString(36).slice(2)}.${transparent ? "png" : "jpg"}`,
   );
-  new File(uri).copy(file);
+  await new File(uri).copy(file);
   return file.uri;
 }
 

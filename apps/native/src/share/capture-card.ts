@@ -33,7 +33,8 @@ export async function captureCard(
   });
   try {
     return {
-      uri: ownCapture(uri, transparent),
+      // SDK 58 copies asynchronously: keep view-shot's source until the copy is ready.
+      uri: await ownCapture(uri, transparent),
       mimeType: transparent ? "image/png" : "image/jpeg",
     };
   } finally {
