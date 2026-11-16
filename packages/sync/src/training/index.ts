@@ -170,6 +170,8 @@ export {
   restoreEquipment,
   setExerciseSetting,
   upsertEquipment,
+  updateEquipment,
+  type EquipmentPatch,
   type EquipmentItem,
   type ExerciseSettingPatch,
 } from "./equipment-store";

@@ -12,7 +12,7 @@ import type { EquipmentRow } from "@workspace/sync";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Barbell, Trash } from "phosphor-react-native";
 import { useEffect, useState } from "react";
-import { Keyboard, Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
@@ -26,7 +26,12 @@ import { kitGroups, missingKitItems } from "./plate-view";
 import { useEquipmentLabel } from "./use-equipment-label";
 import { useEquipment } from "./use-plates";
 
-type FormTarget = { kind: GymEquipmentInput["kind"]; unit: WeightUnit; opening: number };
+type FormTarget = {
+  kind: GymEquipmentInput["kind"];
+  unit: WeightUnit;
+  opening: number;
+  item?: EquipmentRow;
+};
 
 /** The user's bars and plates by unit; a Back button returns to wherever it was opened from. */
 export function ManageEquipmentScreen() {
@@ -36,8 +41,8 @@ export function ManageEquipmentScreen() {
   const groups = kitGroups(state.rows, state.unit);
   const [target, setTarget] = useState<FormTarget | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const openForm = (kind: FormTarget["kind"], unit: WeightUnit) => {
-    setTarget((current) => ({ kind, unit, opening: (current?.opening ?? 0) + 1 }));
+  const openForm = (kind: FormTarget["kind"], unit: WeightUnit, item?: EquipmentRow) => {
+    setTarget((current) => ({ kind, unit, item, opening: (current?.opening ?? 0) + 1 }));
     setFormOpen(true);
   };
   return (
@@ -105,7 +110,12 @@ export function ManageEquipmentScreen() {
                           {...a11y}
                           className="flex-row items-center gap-3 bg-surface px-4 py-3"
                         >
-                          <View className="flex-1">
+                          <Pressable
+                            className="flex-1 rounded-lg active:bg-default"
+                            accessibilityRole="button"
+                            accessibilityLabel={t("plates__edit_item", { name: label(item) })}
+                            onPress={() => openForm(item.kind, item.unit, item)}
+                          >
                             <Text className="text-body text-foreground">{label(item)}</Text>
                             {item.kind === "plate" ? (
                               <Text className="text-caption text-muted">
@@ -114,7 +124,7 @@ export function ManageEquipmentScreen() {
                                   : t("plates__pairs", { count: item.count })}
                               </Text>
                             ) : null}
-                          </View>
+                          </Pressable>
                           <EquipmentSwitch item={item} name={label(item)} save={state.save} />
                         </View>
                       )}
@@ -134,6 +144,7 @@ export function ManageEquipmentScreen() {
         isOpen={formOpen}
         target={target}
         save={state.save}
+        edit={state.edit}
         onClose={() => setFormOpen(false)}
       />
     </>
@@ -144,12 +155,14 @@ export function ManageEquipmentScreen() {
 function CustomEquipmentSheet({
   isOpen,
   target,
+  edit,
   save,
   onClose,
 }: {
   isOpen: boolean;
   target: FormTarget | null;
   save: ReturnType<typeof useEquipment>["save"];
+  edit: ReturnType<typeof useEquipment>["edit"];
   onClose: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
@@ -180,8 +193,10 @@ function CustomEquipmentSheet({
           {target ? (
             <CustomEquipmentForm
               key={target.opening}
+              item={target.item}
               kind={target.kind}
               unit={target.unit}
+              edit={edit}
               save={save}
               close={onClose}
             />
@@ -193,6 +208,8 @@ function CustomEquipmentSheet({
 }
 
 function CustomEquipmentForm({
+  item,
+  edit,
   kind,
   unit,
   save,
@@ -200,13 +217,19 @@ function CustomEquipmentForm({
 }: {
   kind: GymEquipmentInput["kind"];
   unit: WeightUnit;
-  save: (item: GymEquipmentInput) => Promise<string[] | null>;
+  item?: EquipmentRow;
+  save: ReturnType<typeof useEquipment>["save"];
+  edit: ReturnType<typeof useEquipment>["edit"];
   close: () => void;
 }) {
   const { t } = useTranslation();
   const [error, setError] = useState(false);
   const form = useForm({
-    defaultValues: { weight: "", name: "", pairs: "" },
+    defaultValues: {
+      weight: item ? formatWeight(item.weightKg, unit) : "",
+      name: item?.label ?? "",
+      pairs: item?.count?.toString() ?? "",
+    },
     onSubmit: async ({ value }) => {
       const parsedWeight = parseWeight(value.weight, unit);
       const weight =
@@ -218,27 +241,41 @@ function CustomEquipmentForm({
       const parsed = gymEquipmentInput.safeParse({
         kind,
         unit,
-        weight_kg: weight,
+        weight_kg:
+          item && value.weight === formatWeight(item.weightKg, unit) ? item.weightKg : weight,
         label: value.name.trim() || null,
         count: kind === "plate" && value.pairs.trim() ? Number(value.pairs) : null,
-        enabled: true,
+        enabled: item?.enabled ?? true,
       });
       if (
         !parsed.success ||
         (kind === "plate" && (weight === null || weight <= 0)) ||
         (kind === "plate" && parsed.data.count !== null && parsed.data.count < 1) ||
-        (kind === "bar" && !value.name.trim())
+        (kind === "bar" && !item && !value.name.trim())
       ) {
         setError(true);
         return;
       }
-      if (await save(parsed.data)) close();
+      const saved = item
+        ? await edit(item.id, {
+            ...(value.weight !== formatWeight(item.weightKg, unit)
+              ? { weight_kg: parsed.data.weight_kg }
+              : {}),
+            ...(kind === "bar" && value.name !== (item.label ?? "")
+              ? { label: parsed.data.label }
+              : {}),
+            ...(kind === "plate" && value.pairs !== (item.count?.toString() ?? "")
+              ? { count: parsed.data.count }
+              : {}),
+          })
+        : await save(parsed.data);
+      if (saved) close();
     },
   });
   return (
     <View className="gap-3">
       <BottomSheet.Title className="px-1 font-semibold text-title-lg">
-        {t(kind === "bar" ? "plates__custom_bar" : "plates__custom_plate")}
+        {t(item ? "plates__edit" : kind === "bar" ? "plates__custom_bar" : "plates__custom_plate")}
       </BottomSheet.Title>
       <form.Field name="weight">
         {(field) => (

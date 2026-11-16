@@ -1290,5 +1290,7 @@
   "share__plan_weeks_other": "{{count}} weeks",
   "session__set_removed_toast": "Set deleted",
   "session__exercise_removed_toast": "Exercise deleted",
-  "exercise__metric_added_load": "Heaviest added load"
+  "exercise__metric_added_load": "Heaviest added load",
+  "plates__edit": "Edit equipment",
+  "plates__edit_item": "Edit {{name}}"
 }

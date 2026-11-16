@@ -36,7 +36,7 @@ import {
   startSession,
   takeOver,
 } from "./session-store";
-import { setExerciseSetting, upsertEquipment } from "./equipment-store";
+import { setExerciseSetting, upsertEquipment, updateEquipment } from "./equipment-store";
 
 const derivedTitle = "Quadriceps";
 
@@ -760,4 +760,20 @@ it("restores deleted sets and exercises with original values, order and completi
   expect(await restoreSessionExercise(s.training, removedExercise!)).toBe(false);
   await removeSessionExercise(s.training, t.squat);
   expect(await restoreSet(s.training, removedSet!)).toBe(false);
+});
+
+it("edits equipment without overwriting enabled state or recreating a deleted row", async () => {
+  const s = await setupSessions();
+  const [id] = await upsertEquipment(s.training, [
+    { kind: "bar", unit: "kg", weight_kg: 20, label: "Bar", count: null, enabled: false },
+  ]);
+  expect(await updateEquipment(s.training, id!, { label: "New bar", weight_kg: 15 })).toBe(true);
+  expect(s.one("gym_equipment", id!)).toMatchObject({
+    label: "New bar",
+    weight_kg: 15,
+    enabled: 0,
+  });
+  s.sqlite.prepare("DELETE FROM gym_equipment WHERE id = ?").run(id!);
+  expect(await updateEquipment(s.training, id!, { label: "Gone" })).toBe(false);
+  expect(s.one("gym_equipment", id!)).toBeUndefined();
 });

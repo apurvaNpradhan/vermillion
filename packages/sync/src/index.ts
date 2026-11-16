@@ -169,6 +169,8 @@ export {
   restoreEquipment,
   setExerciseSetting,
   upsertEquipment,
+  updateEquipment,
+  type EquipmentPatch,
   exerciseSetting,
   gymEquipment,
   session,
