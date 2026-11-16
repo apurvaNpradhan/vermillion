@@ -1287,5 +1287,10 @@
   "share__plan_working_one": "{{count}} working set",
   "share__plan_working_other": "{{count}} working sets",
   "share__plan_weeks_one": "{{count}} week",
-  "share__plan_weeks_other": "{{count}} weeks"
+  "share__plan_weeks_other": "{{count}} weeks",
+  "body__same": "Use last {{metric}}",
+  "body__same_short": "Same",
+  "body__ghost_hint": "Muted values are from last time. Enter a value or use the last reading to log it today.",
+  "body__save_readings_one": "Save {{count}} reading",
+  "body__save_readings_other": "Save {{count}} readings"
 }

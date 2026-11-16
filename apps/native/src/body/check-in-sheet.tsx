@@ -60,7 +60,8 @@ function CheckInForm({
           : "";
         return {
           metric,
-          value: shown,
+          value: entry ? shown : "",
+          previous: last?.value,
           // What the row showed when the sheet opened; an edit writes the value only if it differs.
           initial: shown,
           touched: false,
@@ -86,11 +87,14 @@ function CheckInForm({
         return;
       }
       const rows: MeasurementInput[] = value.rows.flatMap((row) =>
-        row.touched
+        row.touched && row.value !== ""
           ? [
               {
                 metric: row.metric,
-                value: state.canonical(row.metric, Number(row.value)),
+                value:
+                  row.value === row.initial && row.previous !== undefined
+                    ? row.previous
+                    : state.canonical(row.metric, Number(row.value)),
                 measured_at: value.date,
                 local_date: state.localDate(value.date),
                 source: "manual",
@@ -155,42 +159,81 @@ function CheckInForm({
               {rows.slice(first, first + WINDOW).map((item, offset) => {
                 const index = first + offset;
                 return (
-                  <Pressable
-                    key={item.metric}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: index === active }}
-                    accessibilityLabel={t("body__measurement_row", {
-                      metric: t(metricLabels[item.metric]),
-                      value: item.value || t("body__no_data"),
-                      unit: state.unit(item.metric),
-                    })}
-                    disabled={busy}
-                    onPress={() => select(index)}
-                    className={`flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
-                  >
-                    <Text className="text-body text-foreground">
-                      {t(metricLabels[item.metric])}
-                    </Text>
-                    <Text className="text-body tabular-nums text-foreground">
-                      {t("body__value", {
-                        value: item.value || t("body__no_data"),
+                  <View key={item.metric} className="flex-row items-center gap-2">
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: index === active }}
+                      accessibilityLabel={t("body__measurement_row", {
+                        metric: t(metricLabels[item.metric]),
+                        value: item.touched
+                          ? item.value || t("body__no_data")
+                          : item.initial || t("body__no_data"),
                         unit: state.unit(item.metric),
                       })}
-                    </Text>
-                  </Pressable>
+                      disabled={busy}
+                      onPress={() => select(index)}
+                      className={`flex-1 flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
+                    >
+                      <Text className="text-body text-foreground">
+                        {t(metricLabels[item.metric])}
+                      </Text>
+                      <Text
+                        className={`text-body tabular-nums ${!entry && !item.touched ? "text-muted" : "text-foreground"}`}
+                      >
+                        {t("body__value", {
+                          value: item.touched
+                            ? item.value || t("body__no_data")
+                            : item.initial || t("body__no_data"),
+                          unit: state.unit(item.metric),
+                        })}
+                      </Text>
+                    </Pressable>
+                    {!entry && item.initial && !item.touched ? (
+                      <Button
+                        variant="tertiary"
+                        size="sm"
+                        isDisabled={busy}
+                        accessibilityLabel={t("body__same", {
+                          metric: t(metricLabels[item.metric]),
+                        })}
+                        onPress={() => {
+                          form.setFieldValue(`rows[${index}].value`, item.initial);
+                          form.setFieldValue(`rows[${index}].touched`, true);
+                        }}
+                      >
+                        <Button.Label>{t("body__same_short")}</Button.Label>
+                      </Button>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
+            {!entry ? (
+              <Text className="text-caption text-muted">{t("body__ghost_hint")}</Text>
+            ) : null}
             {actions.error || photoActions.error ? (
               <Text accessibilityRole="alert" className="text-body text-danger">
                 {actions.error || photoActions.error}
               </Text>
             ) : null}
             <Button
-              isDisabled={busy || state.loading || state.failed}
+              isDisabled={
+                busy ||
+                state.loading ||
+                state.failed ||
+                (!entry &&
+                  !rows.some((r) => r.touched && r.value !== "") &&
+                  !Object.keys(photos).length)
+              }
               onPress={() => void form.handleSubmit()}
             >
-              <Button.Label>{t("body__save")}</Button.Label>
+              <Button.Label>
+                {entry || Object.keys(photos).length
+                  ? t("body__save")
+                  : t("body__save_readings", {
+                      count: rows.filter((r) => r.touched && r.value !== "").length,
+                    })}
+              </Button.Label>
             </Button>
             <Keypad
               allowPoint
@@ -223,7 +266,7 @@ function CheckInForm({
               onStep={(direction) => {
                 if (busy) return;
                 edit(
-                  (Number(row?.value || 0) + direction * step).toFixed(
+                  (Number(row?.value || row?.initial || 0) + direction * step).toFixed(
                     unit === "in" && metric !== "weight" ? 2 : 1,
                   ),
                 );
