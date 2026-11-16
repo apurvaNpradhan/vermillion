@@ -2,8 +2,8 @@ import { v7 as uuidv7 } from "uuid";
 
 import { and, count, eq, ne } from "drizzle-orm";
 
-import { keyAfterLast, sortByPosition } from "./position";
-import { program, programSlot, workout, workoutExercise } from "./tables";
+import { keyAfterLast, sortByPosition } from "../position";
+import { program, programSlot, workout, workoutExercise } from "../tables";
 
 import {
   type TrainingDatabase,
@@ -20,7 +20,7 @@ import {
   slotListOf,
   rebalanceSlots,
   assertProgramExists,
-} from "./store-common";
+} from "../store-common";
 import { deleteWorkoutIn } from "./workout-store";
 
 // ---- Copies ----

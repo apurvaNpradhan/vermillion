@@ -7,11 +7,11 @@ import {
 } from "@workspace/shared";
 import { asc, count, eq } from "drizzle-orm";
 
-import { exercise } from "../exercise";
-import { installMeta } from "../platform/tables";
-import { needsRebalance, rebalanced, sortByPosition, type Positioned } from "./position";
-import { totalOf, type Tx } from "./store-common";
-import { session, sessionExercise, sessionSet } from "./tables";
+import { exercise } from "../../exercise";
+import { installMeta } from "../../platform/tables";
+import { needsRebalance, rebalanced, sortByPosition, type Positioned } from "../position";
+import { totalOf, type Tx } from "../store-common";
+import { session, sessionExercise, sessionSet } from "../tables";
 
 export type SessionRow = typeof session.$inferSelect;
 export type SessionExerciseRow = typeof sessionExercise.$inferSelect;

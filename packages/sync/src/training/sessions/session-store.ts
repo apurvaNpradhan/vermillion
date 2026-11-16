@@ -10,8 +10,8 @@ import {
 } from "@workspace/shared";
 import { asc, eq, inArray } from "drizzle-orm";
 
-import { programRun, programSlot } from "./tables";
-import { keysAfterLast } from "./position";
+import { programRun, programSlot } from "../tables";
+import { keysAfterLast } from "../position";
 import {
   assertSessionRoom,
   exerciseInfoOf,
@@ -22,7 +22,7 @@ import {
   type DeletedSession,
   type RestTimes,
 } from "./session-common";
-import { marked, nowIso, ownerOf, write, type Tx, type TrainingDatabase } from "./store-common";
+import { marked, nowIso, ownerOf, write, type Tx, type TrainingDatabase } from "../store-common";
 import {
   exerciseSetting,
   session,
@@ -31,7 +31,7 @@ import {
   sessionPhoto,
   workout,
   workoutExercise,
-} from "./tables";
+} from "../tables";
 
 /** The Workout a Session starts from, or none; `derivedTitle` names a Session with no title of its own. */
 export type SessionSource = {

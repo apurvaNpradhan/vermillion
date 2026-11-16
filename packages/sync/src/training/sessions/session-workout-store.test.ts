@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pushWorkout, setupSessions } from "./session-fixtures";
-import { updateWorkoutExercise } from "./exercise-store";
+import { updateWorkoutExercise } from "../plans/exercise-store";
 import { startSession, finishSession, logPastSession } from "./session-store";
 import { tickSet, updateSet } from "./session-content-store";
 import { applySessionWorkout, editFinishedSession } from "./session-workout-store";

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { z } from "zod";
 
-import { programSlot, workout, workoutExercise } from "./tables";
+import { programSlot, workout, workoutExercise } from "../tables";
 
 import {
   type TrainingDatabase,
@@ -20,7 +20,7 @@ import {
   slotsIn,
   changedFields,
   assertProgramExists,
-} from "./store-common";
+} from "../store-common";
 // ---- Workouts ----
 
 const workoutFields = workoutInput.pick({ title: true, note: true }).partial();

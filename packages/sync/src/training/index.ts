@@ -119,7 +119,7 @@ export {
   type SessionDetail,
   type SessionExerciseDetail,
   type SessionSetDetail,
-} from "./session-watch";
+} from "./sessions/session-watch";
 export {
   SessionLimitError,
   type DeletedSession,
@@ -127,7 +127,7 @@ export {
   type RestTimes,
   type SessionRow,
   type SessionSetRow,
-} from "./session-common";
+} from "./sessions/session-common";
 export {
   adjustRest,
   clearRest,
@@ -143,7 +143,7 @@ export {
   type FinishInput,
   type FinishResult,
   type SessionSource,
-} from "./session-store";
+} from "./sessions/session-store";
 export {
   addSessionExercises,
   addSet,
@@ -163,7 +163,7 @@ export {
   type SessionExercisePatch,
   type SetPatch,
   type TickResult,
-} from "./session-content-store";
+} from "./sessions/session-content-store";
 export {
   seedEquipment,
   deleteEquipment,
@@ -174,8 +174,8 @@ export {
   type EquipmentPatch,
   type EquipmentItem,
   type ExerciseSettingPatch,
-} from "./equipment-store";
-export { editFinishedSession, applySessionWorkout } from "./session-workout-store";
+} from "./sessions/equipment-store";
+export { editFinishedSession, applySessionWorkout } from "./sessions/session-workout-store";
 
 export {
   watchRunState,
@@ -186,7 +186,7 @@ export {
   runAgain,
   readRuns,
   reconcileRuns,
-} from "./run-store";
+} from "./plans/run-store";
 export { programRun } from "./tables";
 
 export {
@@ -194,5 +194,5 @@ export {
   removeSessionPhoto,
   moveSessionPhoto,
   releaseSessionPhotos,
-} from "./photo-store";
-export { watchSessionPhotos, type SessionPhoto } from "./photo-watch";
+} from "./sessions/photo-store";
+export { watchSessionPhotos, type SessionPhoto } from "./sessions/photo-watch";

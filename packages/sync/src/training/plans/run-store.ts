@@ -1,8 +1,14 @@
 import { v7 as uuidv7 } from "uuid";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { assertProgramExists, nowIso, ownerOf, write, type TrainingDatabase } from "./store-common";
-import { programRun } from "./tables";
+import {
+  assertProgramExists,
+  nowIso,
+  ownerOf,
+  write,
+  type TrainingDatabase,
+} from "../store-common";
+import { programRun } from "../tables";
 
 const runSchema = z.object({
   id: z.string(),
@@ -25,7 +31,7 @@ export async function readRuns(database: TrainingDatabase) {
     );
 }
 
-export { reconcileRuns } from "./store-common";
+export { reconcileRuns } from "../store-common";
 
 export function activateProgram(database: TrainingDatabase, programId: string, scope?: string) {
   return write(database, scope, async (tx, current) => {

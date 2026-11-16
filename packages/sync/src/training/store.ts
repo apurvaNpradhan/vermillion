@@ -16,14 +16,14 @@ export {
   updateProgram,
   deleteProgram,
   restoreProgram,
-} from "./program-store";
+} from "./plans/program-store";
 export {
   type WorkoutPatch,
   createWorkout,
   updateWorkout,
   deleteWorkout,
   restoreWorkout,
-} from "./workout-store";
+} from "./plans/workout-store";
 export {
   addExercises,
   type WorkoutExercisePatch,
@@ -35,13 +35,13 @@ export {
   removeFromSuperset,
   type RemovedWorkoutExercise,
   restoreWorkoutExercise,
-} from "./exercise-store";
+} from "./plans/exercise-store";
 export {
   copyWorkout,
   copyProgram,
   copyWorkoutIntoProgram,
   duplicateSlotWorkout,
-} from "./copy-store";
+} from "./plans/copy-store";
 export {
   addSlot,
   updateSlot,
@@ -50,5 +50,9 @@ export {
   type RemovedFromRotation,
   removeFromRotation,
   restoreFromRotation,
-} from "./slot-store";
-export { setProgramCover, setProgramCoverToNewMedia, releaseProgramCover } from "./cover-store";
+} from "./plans/slot-store";
+export {
+  setProgramCover,
+  setProgramCoverToNewMedia,
+  releaseProgramCover,
+} from "./plans/cover-store";

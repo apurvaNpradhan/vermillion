@@ -16,8 +16,8 @@ import {
   ownerOf,
   write,
   type TrainingDatabase,
-} from "./store-common";
-import { exerciseSetting, gymEquipment } from "./tables";
+} from "../store-common";
+import { exerciseSetting, gymEquipment } from "../tables";
 
 const equipmentItem = gymEquipmentInput.safeExtend({ id: z.uuid().optional() });
 /** A bar or plate to write; with an `id` it updates that item (only what changed). */

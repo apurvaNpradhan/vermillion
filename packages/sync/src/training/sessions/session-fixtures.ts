@@ -1,7 +1,12 @@
-import { claimDeviceOwner } from "../platform/device-owner";
-import { createFakeDatabase } from "../platform/fake-database";
-import { ensureInstallId } from "../platform/install-meta";
-import { addExercises, createWorkout, updateWorkoutExercise, type TrainingDatabase } from "./store";
+import { claimDeviceOwner } from "../../platform/device-owner";
+import { createFakeDatabase } from "../../platform/fake-database";
+import { ensureInstallId } from "../../platform/install-meta";
+import {
+  addExercises,
+  createWorkout,
+  updateWorkoutExercise,
+  type TrainingDatabase,
+} from "../store";
 
 export const SQUAT = "0192f0a0-0000-7000-8000-000000000001";
 export const CURL = "0192f0a0-0000-7000-8000-000000000002";

@@ -31,7 +31,7 @@ import {
   type EquipmentRow,
   type FinishedSession,
   type SessionDetail,
-} from "./session-watch";
+} from "./sessions/session-watch";
 import type { TrainingDatabase } from "./store";
 
 const THROTTLE_MS = 150;

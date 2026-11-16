@@ -24,7 +24,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { keyAfterLast, keyForMove, keysAfterLast } from "./position";
+import { keyAfterLast, keyForMove, keysAfterLast } from "../position";
 import {
   applySessionSupersetChanges,
   assertSessionRoom,
@@ -55,8 +55,8 @@ import {
   type TrainingDatabase,
   type TrainingPreferences,
   DEFAULT_PREFERENCES,
-} from "./store-common";
-import { session, sessionExercise, sessionSet } from "./tables";
+} from "../store-common";
+import { session, sessionExercise, sessionSet } from "../tables";
 
 /** The rest a Session exercise starts with, as the editor gives it (the preference, raised for barbell lifts). */
 function restFor(

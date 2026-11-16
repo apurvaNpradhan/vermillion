@@ -7,8 +7,8 @@ import {
   writeMedia,
   type MediaDatabase,
   type NewMedia,
-} from "../media/index";
-import { session, sessionPhoto } from "./tables";
+} from "../../media/index";
+import { session, sessionPhoto } from "../tables";
 
 export function addSessionPhoto(
   database: MediaDatabase,

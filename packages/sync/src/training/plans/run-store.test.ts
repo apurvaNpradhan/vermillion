@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createProgram, createWorkout, addSlot } from "./store";
+import { createProgram, createWorkout, addSlot } from "../store";
 import {
   activateProgram,
   finishRun,
@@ -8,8 +8,8 @@ import {
   runAgain,
   stopProgram,
 } from "./run-store";
-import { setupSessions } from "./session-fixtures";
-import { startSession } from "./session-store";
+import { setupSessions } from "../sessions/session-fixtures";
+import { startSession } from "../sessions/session-store";
 import { activeRun } from "@workspace/shared";
 
 it("activates, starts, continues and reruns without losing earlier dates", async () => {

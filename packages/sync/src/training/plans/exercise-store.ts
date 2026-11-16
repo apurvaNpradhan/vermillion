@@ -15,10 +15,10 @@ import { eq } from "drizzle-orm";
 
 import { z } from "zod";
 
-import { exercise } from "../exercise";
+import { exercise } from "../../exercise";
 
-import { keyAfterLast, keyForMove, keysAfterLast } from "./position";
-import { workout, workoutExercise } from "./tables";
+import { keyAfterLast, keyForMove, keysAfterLast } from "../position";
+import { workout, workoutExercise } from "../tables";
 
 import {
   type TrainingDatabase,
@@ -37,7 +37,7 @@ import {
   supersetRowsOf,
   applySupersetChanges,
   rebalanceExercises,
-} from "./store-common";
+} from "../store-common";
 // ---- Workout exercises ----
 
 async function exerciseTypeOf(tx: Tx, exerciseId: string) {

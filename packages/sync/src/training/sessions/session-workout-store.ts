@@ -9,7 +9,7 @@ import {
   type PlannedSet,
 } from "@workspace/shared";
 import { asc, eq } from "drizzle-orm";
-import { keysAfterLast } from "./position";
+import { keysAfterLast } from "../position";
 import { requireSession } from "./session-common";
 import {
   changedFields,
@@ -19,8 +19,8 @@ import {
   ownerOf,
   write,
   type TrainingDatabase,
-} from "./store-common";
-import { session, sessionExercise, sessionSet, workout, workoutExercise } from "./tables";
+} from "../store-common";
+import { session, sessionExercise, sessionSet, workout, workoutExercise } from "../tables";
 import type { FinishInput } from "./session-store";
 
 /** Finished-session metadata edits keep the end derived from the chosen duration. */

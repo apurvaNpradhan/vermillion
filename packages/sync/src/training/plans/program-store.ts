@@ -3,7 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import { programInput, type ProgramInput } from "@workspace/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
-import { programRun, program, programSlot, workout, workoutExercise } from "./tables";
+import { programRun, program, programSlot, workout, workoutExercise } from "../tables";
 
 import {
   type TrainingDatabase,
@@ -15,7 +15,7 @@ import {
   assertRoom,
   livePrograms,
   changedFields,
-} from "./store-common";
+} from "../store-common";
 // ---- Programs ----
 
 export type ProgramPatch = Partial<ProgramInput>;

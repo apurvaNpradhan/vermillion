@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import { insertMedia, removeMedia, type NewMedia } from "../media/index";
-import { program } from "./tables";
-import { type TrainingDatabase, type Tx, write } from "./store-common";
+import { insertMedia, removeMedia, type NewMedia } from "../../media/index";
+import { program } from "../tables";
+import { type TrainingDatabase, type Tx, write } from "../store-common";
 
 // ---- Program covers (ADR 0040) ----
 // A cover is a `media` row of kind `program_cover` that `program.cover_media_id` points at. Changing
