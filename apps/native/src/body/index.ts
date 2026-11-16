@@ -1,5 +1,5 @@
 export { useWeight } from "./use-weight";
-export { BodyCard } from "./body-card";
+export { WeightTrendCard } from "./weight-trend-card";
 export { WeightScreen } from "./weight-screen";
 export { WeightPreferenceRow } from "./weight-preference-row";
 
