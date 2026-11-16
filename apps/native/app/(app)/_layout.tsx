@@ -116,6 +116,7 @@ export default function AppLayout() {
         />
         {/* Pages pushed from Home and Settings; no icon, so the tab bar leaves it out. */}
         <Tabs.Screen name="body" options={{ title: t("body__title") }} />
+        <Tabs.Screen name="muscles" options={{ title: t("muscles__title") }} />
       </Tabs>
       <ForgottenSessionHost />
     </TabActionProvider>

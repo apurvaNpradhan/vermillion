@@ -30,6 +30,7 @@ export {
 export type {
   ExerciseDatabase,
   ExerciseDetail,
+  ExerciseMuscles,
   ExercisePatch,
   LibraryFilters,
   LibraryPage,
