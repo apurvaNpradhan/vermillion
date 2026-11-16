@@ -2,6 +2,8 @@ import { exerciseSuggestion } from "./logging-ghosts";
 import {
   SET_FIELDS,
   historyForWorkout,
+  activeLighterWeek,
+  stalledSessions,
   supersetPlaces,
   type EffortScale,
   type Ghosts,
@@ -18,6 +20,7 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
+import { stallMemory, useStallVersion } from "@/exercise";
 import { haptic } from "@/platform/haptics";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
@@ -71,6 +74,9 @@ type Entry = { cell: CellRef; raw: string; fresh: boolean };
  * writes. Edits show at once (the draft is the cell's text) and are saved together once typing
  * pauses; moving to another cell, Done and ticking save immediately.
  */
+/** What an exercise's stalled note needs. */
+export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
+
 export function useLoggingState({
   session,
   previous,
@@ -169,6 +175,26 @@ export function useLoggingState({
     },
     [found, previousByWorkout],
   );
+  // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
+  const stallVersion = useStallVersion();
+  const stalls = useMemo(
+    () =>
+      new Map(
+        exercises.flatMap((exercise): [string, StallInfo][] => {
+          if (session.finishedAt !== null || !exercise.sourceWorkoutExerciseId) return [];
+          const history = previousByWorkout.get(exercise.exerciseId) ?? [];
+          const latestSessionId = history[0]?.id ?? null;
+          const count = stalledSessions(history, exercise.type, { bodyweightKg, lighterWeeks });
+          if (latestSessionId === null || count === 0) return [];
+          const memory = stallMemory(exercise.exerciseId, latestSessionId);
+          return memory.dismissed && !memory.applied
+            ? []
+            : [[exercise.id, { count, latestSessionId, applied: memory.applied }]];
+        }),
+      ),
+    // `stallVersion` changes when a note is dismissed or applied: the memory lives on the device.
+    [exercises, previousByWorkout, session.finishedAt, bodyweightKg, lighterWeeks, stallVersion],
+  );
   const suggestions = useMemo(
     () =>
       new Map(
@@ -180,10 +206,19 @@ export function useLoggingState({
                 weightUnit: unit,
                 weightIncrementKg,
                 lighterWeeks,
+                deload: stalls.get(exercise.id)?.applied === true,
               }),
         ]),
       ),
-    [exercises, previousByWorkout, session.finishedAt, unit, weightIncrementKg, lighterWeeks],
+    [
+      exercises,
+      previousByWorkout,
+      session.finishedAt,
+      unit,
+      weightIncrementKg,
+      lighterWeeks,
+      stalls,
+    ],
   );
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {
@@ -570,6 +605,9 @@ export function useLoggingState({
     previousOf,
     ghostsFor,
     suggestions,
+    stalls,
+    // A Lighter week halves the suggested sets; the rest stay visible but optional.
+    lighter: activeLighterWeek(lighterWeeks, new Date()) !== null,
     unit,
     effortScale,
     // The cell being edited, as the rows draw it.

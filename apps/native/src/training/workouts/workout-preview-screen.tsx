@@ -1,5 +1,11 @@
 import { haptic } from "@/platform/haptics";
-import { historyForWorkout, isCounted, sessionTotals, KG_PER_LB } from "@workspace/shared";
+import {
+  historyForWorkout,
+  isCounted,
+  sessionTotals,
+  stalledSessions,
+  KG_PER_LB,
+} from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Note, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
@@ -7,7 +13,7 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { useThemeColor } from "heroui-native";
-import { ExerciseHeading } from "@/exercise";
+import { ExerciseHeading, StalledNote, stallMemory, useStallVersion } from "@/exercise";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
@@ -36,6 +42,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const previousHistory = usePreviousSets(
     state.status === "ready" ? state.workout.exercises.map((entry) => entry.exerciseId) : [],
   );
+  const stallVersion = useStallVersion();
   const { start, sheet } = useStartSession();
   const [metric, setMetric] = useState<"volume" | "reps" | "duration">("volume");
   const sessions = history.sessions.filter((s) => s.workoutId === id);
@@ -180,6 +187,17 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   previousHistory.history.get(entry.exerciseId) ?? [],
                   id,
                 )[0];
+                const fullHistory = historyForWorkout(
+                  previousHistory.history.get(entry.exerciseId) ?? [],
+                  id,
+                );
+                const stallCount = stalledSessions(
+                  fullHistory,
+                  entry.exercise?.exerciseType ?? "weight_reps",
+                  { bodyweightKg: history.bodyweightKg, lighterWeeks: preferences.ui.lighterWeeks },
+                );
+                // `stallVersion` re-renders this list when a note is dismissed or applied.
+                const memory = stallMemory(entry.exerciseId, fullHistory[0]?.id ?? null);
                 const sets =
                   previous?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
@@ -216,6 +234,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         })
                       }
                     />
+                    {stallCount > 0 && fullHistory[0] && (!memory.dismissed || memory.applied) ? (
+                      <StalledNote
+                        key={stallVersion}
+                        exerciseId={entry.exerciseId}
+                        latestSessionId={fullHistory[0].id}
+                        count={stallCount}
+                        applied={memory.applied}
+                      />
+                    ) : null}
                     {entry.restSeconds !== null ? (
                       <View className="min-h-8 flex-row items-center gap-2 px-1">
                         <Timer size={16} color={subtle} />

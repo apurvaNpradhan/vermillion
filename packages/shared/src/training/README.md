@@ -7,4 +7,4 @@ Pure, runtime-agnostic training logic. `index.ts` re-exports every name; import 
 - `logging/`: logged sets, session inputs, ghosts, previous values and tick values. Start at `logged-set.ts`.
 - `plates/`: the gym kit and plate maths. Start at `plates.ts`.
 - `volume/`: set and session volume, estimated 1RM, muscle distribution, weekly muscle volume and goals. Start at `volume.ts`.
-- `progress/`: records, progression and progress charts. Start at `progression.ts`.
+- `progress/`: records, progression v2, stalled lifts, Lighter weeks and progress charts. Start at `progression.ts`.

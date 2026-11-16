@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
-import { sessionScore, stalledSessions, type StallSession } from "./stalled-lift";
+import {
+  sessionScore,
+  stalledExerciseIds,
+  stalledSessions,
+  type StallSession,
+} from "./stalled-lift";
 
 const set = (weight: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({
   id: "s",
@@ -110,5 +115,38 @@ describe("stalledSessions", () => {
     const week = { from: day(1), until: day(-1) };
     expect(stalledSessions(sessions, "weight_reps", { lighterWeeks: [week] })).toBe(3);
     expect(stalledSessions(sessions, "weight_reps")).toBe(0);
+  });
+});
+
+describe("stalledExerciseIds", () => {
+  const stalledHistory = (workoutId: string | null) =>
+    history([set(100, 5), set(100, 5), set(100, 4), set(100, 5)]).map((session) => ({
+      ...session,
+      workoutId,
+    }));
+  const week = (exerciseId: string, workoutId: string | null = "w1") => ({
+    workoutId,
+    sets: [set(100, 5, { exercise_id: exerciseId })],
+  });
+
+  it("lists the exercises trained this week that have stalled, once each", () => {
+    const histories = new Map([
+      ["a", stalledHistory("w1")],
+      [
+        "b",
+        history([set(120, 5), set(100, 5), set(100, 5), set(100, 5)]).map((s) => ({
+          ...s,
+          workoutId: "w1",
+        })),
+      ],
+    ]);
+    expect(stalledExerciseIds([week("a"), week("b"), week("a")], histories)).toEqual(["a"]);
+  });
+
+  it("judges an exercise on the history of the Workout it was trained in", () => {
+    const histories = new Map([["a", stalledHistory("w1")]]);
+    // Trained in another Workout with no history of its own there: all history counts instead.
+    expect(stalledExerciseIds([week("a", "w2")], histories)).toEqual(["a"]);
+    expect(stalledExerciseIds([week("c")], histories)).toEqual([]);
   });
 });

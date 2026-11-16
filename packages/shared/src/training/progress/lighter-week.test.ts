@@ -5,6 +5,7 @@ import {
   activeLighterWeek,
   endLighterWeek,
   inLighterWeek,
+  offerLighterWeek,
   optionalSetIndexes,
   outsideLighterWeeks,
   startLighterWeek,
@@ -61,5 +62,31 @@ describe("Lighter week", () => {
     expect([...optionalSetIndexes(["warmup", "working", "working", "working"])]).toEqual([3]);
     expect([...optionalSetIndexes(["working"])]).toEqual([]);
     expect([...optionalSetIndexes(["working", "working"])]).toEqual([1]);
+  });
+});
+
+describe("offerLighterWeek", () => {
+  const base = {
+    stalledCount: 3,
+    periods: [],
+    now: NOW,
+    dismissedAt: null,
+    weekStartMs: Date.parse("2026-11-16T00:00:00.000Z"),
+  };
+
+  it("offers at three stalled lifts or more and not fewer", () => {
+    expect(offerLighterWeek(base)).toBe(true);
+    expect(offerLighterWeek({ ...base, stalledCount: 2 })).toBe(false);
+  });
+
+  it("does not offer while one is running", () => {
+    expect(offerLighterWeek({ ...base, periods: startLighterWeek([], NOW).lighterWeeks })).toBe(
+      false,
+    );
+  });
+
+  it("stays quiet for the rest of the week after a dismissal, and returns next week", () => {
+    expect(offerLighterWeek({ ...base, dismissedAt: "2026-11-16T08:00:00.000Z" })).toBe(false);
+    expect(offerLighterWeek({ ...base, dismissedAt: "2026-11-10T08:00:00.000Z" })).toBe(true);
   });
 });

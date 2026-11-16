@@ -16,6 +16,7 @@ import { useHomeTraining } from "./use-home-training";
 import { useWorkout } from "@/training/workouts/use-workout";
 import { useWorkoutRecency } from "@/training/train/use-workout-recency";
 import { slotTitle } from "@/training/rotation/rotation-row";
+import { LighterWeekCard } from "./lighter-week-card";
 import { MusclesTile } from "@/training/muscles/muscles-tile";
 
 const HABIT_DAYS = 30;
@@ -211,6 +212,8 @@ export function TrainingHome() {
           )}
         </View>
       </View>
+
+      <LighterWeekCard state={state} />
 
       <MusclesTile />
 

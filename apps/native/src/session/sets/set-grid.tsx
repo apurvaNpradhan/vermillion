@@ -1,6 +1,7 @@
 import {
   SET_FIELDS,
   addsLoad,
+  optionalSetIndexes,
   type EffortScale,
   type Ghosts,
   type LoggedSet,
@@ -27,6 +28,7 @@ import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
  */
 export const SetGrid = memo(function SetGrid({
   exercise,
+  lighter,
   historyReady,
   editingFinished,
   entry,
@@ -48,6 +50,8 @@ export const SetGrid = memo(function SetGrid({
   registerRow,
 }: {
   exercise: SessionExerciseDetail;
+  /** A Lighter week is running: sets past the first half are optional. */
+  lighter: boolean;
   /** Previous values of this exercise have loaded. */
   historyReady: boolean;
   editingFinished: boolean;
@@ -75,6 +79,9 @@ export const SetGrid = memo(function SetGrid({
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
+  const optional = lighter
+    ? optionalSetIndexes(exercise.sets.map((set) => set.kind))
+    : new Set<number>();
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const badges = chipTexts(
@@ -136,7 +143,12 @@ export const SetGrid = memo(function SetGrid({
           <View className="w-11" />
         </View>
         {exercise.sets.map((set, index) => (
-          <View key={set.id} ref={registerRow(set.id)} collapsable={false}>
+          <View
+            key={set.id}
+            ref={registerRow(set.id)}
+            collapsable={false}
+            style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
+          >
             <SetRow
               editingFinished={editingFinished}
               set={set}
@@ -166,6 +178,9 @@ export const SetGrid = memo(function SetGrid({
               onRemove={onRemoveSet}
               onTimer={onTimer}
             />
+            {optional.has(index) && set.completedAt === null ? (
+              <Text className="px-3 pb-1 text-caption text-muted">{t("lighter__optional")}</Text>
+            ) : null}
           </View>
         ))}
       </View>

@@ -62,3 +62,24 @@ export function optionalSetIndexes(kinds: readonly string[]): Set<number> {
   const working = kinds.flatMap((kind, index) => (kind === "warmup" ? [] : [index]));
   return new Set(working.slice(Math.ceil(working.length / 2)));
 }
+
+/** How many stalled lifts in a week it takes to suggest a Lighter week. */
+export const LIGHTER_WEEK_STALLED = 3;
+
+/**
+ * Whether Home suggests a Lighter week: enough lifts trained this week have stalled, none is
+ * running, and the suggestion was not dismissed since this week began (`weekStartMs`).
+ */
+export function offerLighterWeek(input: {
+  stalledCount: number;
+  periods: readonly LighterPeriod[];
+  now: Date;
+  dismissedAt: string | null;
+  weekStartMs: number;
+}): boolean {
+  return (
+    input.stalledCount >= LIGHTER_WEEK_STALLED &&
+    activeLighterWeek(input.periods, input.now) === null &&
+    (input.dismissedAt === null || Date.parse(input.dismissedAt) < input.weekStartMs)
+  );
+}
