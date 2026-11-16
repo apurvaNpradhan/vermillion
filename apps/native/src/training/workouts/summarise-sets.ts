@@ -7,9 +7,9 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 
-import { formatEffortRange } from "@/training/targets/effort";
-import { formatClock } from "@/training/targets/rest";
-import { sameTarget, targetOf } from "@/training/sets/set-editing";
+import { formatEffortRange } from "../targets/effort";
+import { formatClock } from "../targets/rest";
+import { sameTarget, targetOf } from "../sets/set-editing";
 
 export type SummaryPrefs = { weightUnit: WeightUnit; effortScale: EffortScale };
 

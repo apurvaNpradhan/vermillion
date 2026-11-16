@@ -1,6 +1,6 @@
 import { SET_FIELDS, type ExerciseType, type SetKind, type WeightUnit } from "@workspace/shared";
 
-import { formatCell } from "@/session/logging/set-values";
+import { formatCell } from "../logging/set-values";
 
 /** The fields of a Session set the summary reads. */
 export type SummarySet = {

@@ -20,7 +20,7 @@ import {
 } from "@workspace/shared";
 import type { SessionDetail, SessionSetDetail, SetPatch } from "@workspace/sync";
 
-import { formatElapsed } from "@/session/timer/clock";
+import { formatElapsed } from "../timer/clock";
 
 /** The place of a set among the sets of its kind in one exercise (0-based): warm-up 1, working 2. */
 export function ordinalOf(sets: readonly { kind: SetKind }[], index: number): number {

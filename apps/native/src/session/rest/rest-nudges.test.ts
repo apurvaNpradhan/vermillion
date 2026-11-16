@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { nudged, restFrom } from "@/session/logging/optimistic";
+import { nudged, restFrom } from "../logging/optimistic";
 import { RestNudges } from "./rest-nudges";
 import { planRestSchedule, restNotificationId } from "./rest-schedule";
 

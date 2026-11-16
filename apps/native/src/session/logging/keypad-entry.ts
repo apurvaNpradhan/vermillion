@@ -11,7 +11,7 @@ import {
 const MAX_DURATION_SECONDS = SESSION_LIMITS.durationMaxSeconds;
 
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
-import { formatElapsed } from "@/session/timer/clock";
+import { formatElapsed } from "../timer/clock";
 
 /** A key of the keypad that edits the text of a cell. */
 export type EntryKey = KeypadKey;

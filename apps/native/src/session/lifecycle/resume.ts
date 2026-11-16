@@ -1,9 +1,4 @@
-import {
-  blocksOf,
-  firstUnfinished,
-  highlightOf,
-  type BlockExercise,
-} from "@/session/logging/blocks";
+import { blocksOf, firstUnfinished, highlightOf, type BlockExercise } from "../logging/blocks";
 
 /**
  * The exercise being worked on, for the Resume bar: the one the accordion would open (the highlighted

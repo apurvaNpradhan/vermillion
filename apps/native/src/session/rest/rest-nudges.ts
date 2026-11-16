@@ -1,6 +1,6 @@
 import type { SessionDetail } from "@workspace/sync";
 
-import { nudged, restKey } from "@/session/logging/optimistic";
+import { nudged, restKey } from "../logging/optimistic";
 
 type Rest = SessionDetail["rest"];
 type Saved = Pick<NonNullable<Rest>, "startedAt" | "endsAt"> | null;

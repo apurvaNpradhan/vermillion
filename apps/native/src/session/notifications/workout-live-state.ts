@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFunction } from "i18next";
 import type { Ghosts, WeightUnit } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
-import { currentAction, valuesText } from "@/session/logging/current-action";
+import { currentAction, valuesText } from "../logging/current-action";
 
 export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),

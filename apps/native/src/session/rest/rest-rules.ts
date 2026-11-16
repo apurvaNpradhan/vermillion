@@ -1,7 +1,7 @@
 import { REST_SECONDS_MAX, WARMUP_REST_SECONDS, type SetKind } from "@workspace/shared";
 
-import type { Block, BlockExercise } from "@/session/logging/blocks";
-import { remainingSeconds, type Countdown } from "@/session/timer/clock";
+import type { Block, BlockExercise } from "../logging/blocks";
+import { remainingSeconds, type Countdown } from "../timer/clock";
 
 /** What the rest rules need of a Session exercise. */
 export type RestExercise = Omit<BlockExercise, "sets"> & {

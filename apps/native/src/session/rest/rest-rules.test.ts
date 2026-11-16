@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { blocksOf } from "@/session/logging/blocks";
+import { blocksOf } from "../logging/blocks";
 import {
   clampedAdjustment,
   restAfterTick,

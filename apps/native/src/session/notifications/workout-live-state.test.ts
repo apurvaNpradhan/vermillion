@@ -2,7 +2,7 @@ import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@wo
 import { createI18n } from "@workspace/i18n";
 import { describe, expect, it } from "vitest";
 import { workoutLivePayloadSchema, workoutLiveState } from "./workout-live-state";
-import { loggingGhosts } from "@/session/logging/logging-ghosts";
+import { loggingGhosts } from "../logging/logging-ghosts";
 
 const T0 = Date.parse("2026-01-01T10:00:00.000Z");
 const at = (seconds: number) => new Date(T0 + seconds * 1000).toISOString();

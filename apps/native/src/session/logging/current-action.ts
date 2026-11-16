@@ -10,9 +10,9 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
 import { blocksOf } from "./blocks";
-import { elapsedSeconds } from "@/session/timer/clock";
-import { timerTarget } from "@/session/timer/duration-timer";
-import { restView, type RestView } from "@/session/rest/rest-rules";
+import { elapsedSeconds } from "../timer/clock";
+import { timerTarget } from "../timer/duration-timer";
+import { restView, type RestView } from "../rest/rest-rules";
 import { formatCell, loggedSetsOf, valueOfSet } from "./set-values";
 
 /** One value of the current set as the Timer shows it. */

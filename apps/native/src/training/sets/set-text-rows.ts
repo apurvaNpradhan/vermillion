@@ -10,8 +10,8 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 
-import { formatEffortRange } from "@/training/targets/effort";
-import { formatClock } from "@/training/targets/rest";
+import { formatEffortRange } from "../targets/effort";
+import { formatClock } from "../targets/rest";
 
 /** One column of a read-only set table. */
 export type SetColumn = SetField | "effort";

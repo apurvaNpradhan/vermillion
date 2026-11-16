@@ -2,8 +2,8 @@ import type { PlannedSet } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import { effortLabel, formatEffortRange, nudgeEffort, selectEffort } from "./effort";
-import { estimateMinutes, estimateSeconds } from "@/training/workouts/estimate";
-import { beforeIdOf, movedOrder, slotOf, targetIndex } from "@/training/reorder/reorder";
+import { estimateMinutes, estimateSeconds } from "../workouts/estimate";
+import { beforeIdOf, movedOrder, slotOf, targetIndex } from "../reorder/reorder";
 import { formatClock, parseDuration, restChoices } from "./rest";
 import {
   appendSet,
@@ -12,7 +12,7 @@ import {
   removeSetAt,
   withKind,
   withTarget,
-} from "@/training/sets/set-editing";
+} from "../sets/set-editing";
 
 const working = (set: Omit<PlannedSet, "kind"> = {}): PlannedSet => ({ kind: "working", ...set });
 
