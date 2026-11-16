@@ -1,7 +1,7 @@
 import { AvatarPicker } from "@/account";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
-import { SignOut, Trash, UserCircle } from "phosphor-react-native";
+import { SignOut, Trash } from "phosphor-react-native";
 import { Text, View } from "react-native";
 
 import { useSignOut } from "@/auth";
@@ -46,13 +46,6 @@ export function SettingsScreen() {
           <ListRow
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
-          />
-        </ListSection>
-        <ListSection title={t("settings__section_account")}>
-          <ListRow
-            icon={UserCircle}
-            title={t("settings__nav_profile")}
-            onPress={() => router.push("/settings/profile")}
           />
         </ListSection>
         {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
