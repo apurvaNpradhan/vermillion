@@ -212,6 +212,8 @@ describe("covers and plans", () => {
     expect(await readWorkoutDetail(training, "missing")).toBeNull();
     const plan = await readProgramPlan(training, programId);
     expect(plan?.title).toBe("PPL");
+    expect(plan?.plannedWeeks).toBeNull();
+    expect(plan?.coverMediaId).toBeNull();
     expect(plan?.slots.map((slot) => slot.workout?.title ?? null)).toEqual(["Push", null]);
     expect(await readProgramPlan(training, "missing")).toBeNull();
   });

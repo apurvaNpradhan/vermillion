@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { TRAINING_LIMITS, supersetPlaces } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -39,7 +40,6 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { displayTitle } from "../derived-title";
 import { useCoalescedWriter } from "../use-coalesced-writer";
 import { useProgramActions } from "../use-program-actions";
-import { useSharePlan } from "../use-share-plan";
 import { useWorkout } from "../use-workout";
 import { useWorkoutActions } from "../use-workout-actions";
 import { AddToProgramSheet } from "./add-to-program-sheet";
@@ -108,7 +108,7 @@ function LoadedEditor({
   const foreground = useThemeColor("foreground");
   const actions = useWorkoutActions();
   const programActions = useProgramActions();
-  const { shareWorkout } = useSharePlan();
+  const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -166,11 +166,11 @@ function LoadedEditor({
   };
   const share: SwipeAction = {
     key: "share",
-    label: t("training__share_as_text"),
+    label: t("share__share"),
     icon: ShareNetwork,
     onPress: () => {
       writer.flush();
-      void shareWorkout(workout.id, title);
+      router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id: workout.id } });
     },
   };
   // A Workout of a Program leaves it only by a copy; a standalone one can be copied into one.
@@ -277,14 +277,30 @@ function LoadedEditor({
         title={title}
         back
         actions={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("training__workout_menu")}
-            onPress={() => setMenuOpen(true)}
-            className="h-11 w-11 items-center justify-center"
-          >
-            <DotsThreeVertical size={22} weight="bold" color={foreground} />
-          </Pressable>
+          <View className="flex-row">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("share__share")}
+              className="h-11 w-11 items-center justify-center"
+              onPress={() => {
+                writer.flush();
+                router.push({
+                  pathname: "/share/[kind]/[id]",
+                  params: { kind: "workout", id: workout.id },
+                });
+              }}
+            >
+              <ShareNetwork size={22} color={foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("training__workout_menu")}
+              onPress={() => setMenuOpen(true)}
+              className="h-11 w-11 items-center justify-center"
+            >
+              <DotsThreeVertical size={22} weight="bold" color={foreground} />
+            </Pressable>
+          </View>
         }
       >
         {({ header, contentContainerStyle, ...scroll }) => (

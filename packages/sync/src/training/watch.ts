@@ -529,6 +529,8 @@ export async function readWorkoutDetail(
 
 /** A Program with its Rotation and the full detail of every Workout in it, read once. */
 export type ProgramPlan = {
+  plannedWeeks: number | null;
+  coverMediaId: string | null;
   title: string;
   description: string | null;
   /** In Rotation order; `workout` is null for a Rest Slot. */
@@ -536,18 +538,20 @@ export type ProgramPlan = {
 };
 
 const programRowSchema = z.object({
+  planned_weeks: z.number().nullable(),
+  cover_media_id: z.string().nullable(),
   title: z.string(),
   description: z.string().nullable(),
 });
 const slotRowSchema = z.object({ workout_id: z.string().nullable() });
 
-/** The Program's plan for sharing as text; null if it is gone. */
+/** The Program's full plan for Share cards; null if it is gone. */
 export async function readProgramPlan(
   database: TrainingDatabase,
   id: string,
 ): Promise<ProgramPlan | null> {
   const found = await database.getOptional<object>(
-    "SELECT title, description FROM program WHERE id = ?",
+    "SELECT title, description, planned_weeks, cover_media_id FROM program WHERE id = ?",
     [id],
   );
   if (!found) return null;
@@ -575,7 +579,13 @@ export async function readProgramPlan(
     const workout = details.get(workout_id);
     if (workout) slots.push({ workout });
   }
-  return { title: head.title, description: head.description, slots };
+  return {
+    title: head.title,
+    description: head.description,
+    plannedWeeks: head.planned_weeks,
+    coverMediaId: head.cover_media_id,
+    slots,
+  };
 }
 
 // ---- Sessions (ADR 0038) ----
