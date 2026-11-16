@@ -8,7 +8,7 @@ export { sendToBucket } from "./send-to-bucket";
 export { MediaViewer } from "./media-viewer";
 export type { ProcessedImage } from "./process-image";
 export { usePickedMedia } from "./use-picked-media";
-export { cloneProcessed, discardProcessed } from "./processed-files";
+export { cloneProcessed, discardProcessed, removeCachedFile } from "./processed-files";
 export { MediaImageBatch, useMediaImageBatch } from "./media-image-batch";
 
 export { createPendingImage } from "./pending-image";

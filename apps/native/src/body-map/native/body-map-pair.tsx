@@ -9,14 +9,20 @@ const MAX_FIGURE_WIDTH = 150;
 export function BodyMapPair({
   style,
   gap = 16,
+  maxFigureWidth = MAX_FIGURE_WIDTH,
   ...props
-}: Omit<BodyMapProps, "view" | "style"> & { style?: ViewStyle; gap?: number }) {
+}: Omit<BodyMapProps, "view" | "style"> & {
+  style?: ViewStyle;
+  gap?: number;
+  /** Raise it for a large surface such as a Share card. */
+  maxFigureWidth?: number;
+}) {
   return (
     <View style={[{ flexDirection: "row", justifyContent: "center", gap }, style]}>
-      <View style={{ flex: 1, maxWidth: MAX_FIGURE_WIDTH }}>
+      <View style={{ flex: 1, maxWidth: maxFigureWidth }}>
         <BodyMap view="front" {...props} />
       </View>
-      <View style={{ flex: 1, maxWidth: MAX_FIGURE_WIDTH }}>
+      <View style={{ flex: 1, maxWidth: maxFigureWidth }}>
         <BodyMap view="back" {...props} />
       </View>
     </View>

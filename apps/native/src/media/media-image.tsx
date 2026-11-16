@@ -2,7 +2,7 @@ import { type MediaVariant } from "@workspace/shared";
 import { Image } from "expo-image";
 import { CloudArrowUp, WarningCircle } from "phosphor-react-native";
 import { Spinner, useThemeColor } from "heroui-native";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -25,6 +25,7 @@ export function MediaImage({
   blurRadius = 0,
   fallback = null,
   rounded = "rounded-xl",
+  onSettled,
 }: {
   mediaId: string | null;
   variant?: MediaVariant;
@@ -40,6 +41,11 @@ export function MediaImage({
   fallback?: ReactNode;
   /** Radius class; the view clips its image to it. */
   rounded?: string;
+  /**
+   * Called once the picture has loaded or failed, or at once when there is nothing to load (a
+   * placeholder shows). A file still downloading does not settle it. Share cards wait on this.
+   */
+  onSettled?: () => void;
 }) {
   const { t } = useTranslation();
   const file = useMediaImage(mediaId, variant);
@@ -51,6 +57,10 @@ export function MediaImage({
 
   const uri = file.uri ?? thumb.uri;
   const drawable = uri !== null && failedUri !== uri;
+  const nothingToLoad = !drawable && file.state !== "downloading";
+  useEffect(() => {
+    if (nothingToLoad) onSettled?.();
+  }, [nothingToLoad, onSettled]);
 
   return (
     <View className={`overflow-hidden bg-default ${rounded}`} style={{ width: size, height }}>
@@ -61,7 +71,11 @@ export function MediaImage({
           contentFit="cover"
           blurRadius={blurRadius}
           transition={120}
-          onError={() => setFailedUri(uri)}
+          onLoad={onSettled}
+          onError={() => {
+            setFailedUri(uri);
+            onSettled?.();
+          }}
           style={{ width: size, height }}
         />
       ) : (

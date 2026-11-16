@@ -60,18 +60,8 @@ export function SessionDetailScreen({ id }: { id: string }) {
   );
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const stats = t("session__share_stats", {
-    duration: formatElapsed(
-      session?.durationS ??
-        (session
-          ? (Date.parse(session.finishedAt ?? session.startedAt) - Date.parse(session.startedAt)) /
-            1000
-          : 0),
-    ),
-    sets: totals.sets,
-    volume: formatVolume(totals.volume, unit, i18n.language),
-    unit: unitLabel,
-  });
+  const openShare = () =>
+    router.push({ pathname: "/share/[kind]/[id]", params: { kind: "session", id } });
   return (
     <Page
       title={session?.title ?? t("session__history")}
@@ -79,13 +69,18 @@ export function SessionDetailScreen({ id }: { id: string }) {
       backFallback="/history"
       actions={
         session ? (
-          <Button
-            variant="ghost"
-            accessibilityLabel={t("session__menu")}
-            onPress={() => setMenu(true)}
-          >
-            <DotsThreeVertical color={ink} />
-          </Button>
+          <View className="flex-row">
+            <Button variant="ghost" accessibilityLabel={t("share__action")} onPress={openShare}>
+              <ShareNetwork color={ink} />
+            </Button>
+            <Button
+              variant="ghost"
+              accessibilityLabel={t("session__menu")}
+              onPress={() => setMenu(true)}
+            >
+              <DotsThreeVertical color={ink} />
+            </Button>
+          </View>
         ) : undefined
       }
     >
@@ -274,11 +269,9 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   },
                   {
                     key: "share",
-                    label: t("session__share_text"),
+                    label: t("share__action"),
                     icon: ShareNetwork,
-                    onPress: () => {
-                      void finish.share(session, stats);
-                    },
+                    onPress: openShare,
                   },
                   {
                     key: "delete",

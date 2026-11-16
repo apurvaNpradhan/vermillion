@@ -101,6 +101,14 @@ function RootStack() {
             }}
           />
           <Stack.Screen
+            name="share"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+              animationDuration: 220,
+            }}
+          />
+          <Stack.Screen
             name="exercise-view"
             options={{
               presentation: "modal",

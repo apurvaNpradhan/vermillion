@@ -7,7 +7,7 @@ import { ListRow, ListSection } from "@/platform/ui/list";
 import { haptic } from "@/platform/haptics";
 import { SessionRecord } from "./session-record";
 import { useForm } from "@tanstack/react-form";
-import { CalendarBlank, CaretLeft } from "phosphor-react-native";
+import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
   recordFlags,
@@ -72,6 +72,8 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   const [durationOpen, setDurationOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const closed = useRef(false);
+  // "Save and share": the card is made from the saved Session, so sharing follows the save.
+  const shareAfter = useRef(false);
   const backToWorkout = useCallback(() => {
     router.replace({ pathname: "/session/[id]", params: { id: session.id } });
   }, [router, session.id]);
@@ -83,7 +85,13 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
     play("finished");
     toast.show({ label: t("session__saved_toast") });
     onDone();
-  }, [play, toast, t, onDone]);
+    if (shareAfter.current) {
+      router.push({
+        pathname: "/share/[kind]/[id]",
+        params: { kind: "session", id: session.id },
+      });
+    }
+  }, [play, toast, t, onDone, router, session.id]);
   const [busy, setBusy] = useState(false);
   const [invalid, setInvalid] = useState(false);
   const diff =
@@ -150,6 +158,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
         duration > SESSION_LIMITS.durationMaxSeconds ||
         started > Date.now()
       ) {
+        shareAfter.current = false;
         setInvalid(true);
         return;
       }
@@ -174,7 +183,10 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
                 : {}),
             });
       setBusy(false);
-      if (!result) return;
+      if (!result) {
+        shareAfter.current = false;
+        return;
+      }
       if (needsWorkout) setUpdateOpen(true);
       else complete();
     },
@@ -247,7 +259,10 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
           size="sm"
           className="rounded-full px-5"
           isDisabled={!canSave}
-          onPress={() => void form.handleSubmit()}
+          onPress={() => {
+            shareAfter.current = false;
+            void form.handleSubmit();
+          }}
         >
           <Button.Label>{t("common__save")}</Button.Label>
         </Button>
@@ -318,6 +333,19 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
             </View>
           )}
         </form.Subscribe>
+        <View className="px-4">
+          <Button
+            variant="secondary"
+            isDisabled={!canSave}
+            onPress={() => {
+              shareAfter.current = true;
+              void form.handleSubmit();
+            }}
+          >
+            <ShareNetwork size={18} color={foreground} />
+            <Button.Label>{t("session__save_and_share")}</Button.Label>
+          </Button>
+        </View>
         {recordCount > 0 ? (
           <View className="gap-1 px-4">
             <Text
