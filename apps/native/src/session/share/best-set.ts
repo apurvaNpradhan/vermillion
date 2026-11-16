@@ -2,7 +2,7 @@ import type { ExerciseType, WeightUnit } from "@workspace/shared";
 import { addsLoad, formatWeight } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
 
-import { formatElapsed } from "../clock";
+import { formatElapsed } from "@/session/timer/clock";
 
 /** The numbers of the set a row shows as "best", with the fields the exercise does not log empty. */
 export type BestSet = {

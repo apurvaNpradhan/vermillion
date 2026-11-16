@@ -1,6 +1,6 @@
 import { requireOptionalNativeModule } from "expo";
 import { Platform } from "react-native";
-import type { WorkoutLiveState } from "../../src/session/workout-live-state";
+import type { WorkoutLiveState } from "../../src/session/notifications/workout-live-state";
 
 type WorkoutLiveModule = {
   show(state: string): void;
