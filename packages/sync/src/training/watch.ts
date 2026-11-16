@@ -506,6 +506,36 @@ export function watchProgram(
   );
 }
 
+/**
+ * Watches the Program's full plan for Share cards: re-reads it on any write to a Program,
+ * Workout or exercise table, so fields the detail query leaves out (supersets, sets) stay fresh.
+ */
+export function watchProgramPlan(
+  database: TrainingDatabase,
+  id: string,
+  handlers: { onPlan: (plan: ProgramPlan | null) => void; onError: (error: Error) => void },
+): () => void {
+  const controller = new AbortController();
+  let generation = 0;
+  const read = () => {
+    const current = ++generation;
+    readProgramPlan(database, id).then(
+      (plan) => {
+        if (!controller.signal.aborted && current === generation) handlers.onPlan(plan);
+      },
+      (error: Error) => {
+        if (!controller.signal.aborted && current === generation) handlers.onError(error);
+      },
+    );
+  };
+  database.onChangeWithCallback(
+    { onChange: read },
+    { signal: controller.signal, tables: PROGRAM_TABLES },
+  );
+  read();
+  return () => controller.abort();
+}
+
 /** The type of one library exercise, or null if the library does not hold it. */
 export async function readExerciseType(
   database: TrainingDatabase,
@@ -533,8 +563,11 @@ export type ProgramPlan = {
   coverMediaId: string | null;
   title: string;
   description: string | null;
-  /** In Rotation order; `workout` is null for a Rest Slot. */
-  slots: { workout: WorkoutDetail | null }[];
+  /**
+   * In Rotation order. `workoutId` is null for a Rest Slot; `workout` is also null when the
+   * Workout cannot be read yet (partial sync), so positions never shift.
+   */
+  slots: { workoutId: string | null; workout: WorkoutDetail | null }[];
 };
 
 const programRowSchema = z.object({
@@ -572,12 +605,10 @@ export async function readProgramPlan(
   }
   const slots: ProgramPlan["slots"] = [];
   for (const { workout_id } of slotRows) {
-    if (workout_id === null) {
-      slots.push({ workout: null });
-      continue;
-    }
-    const workout = details.get(workout_id);
-    if (workout) slots.push({ workout });
+    slots.push({
+      workoutId: workout_id,
+      workout: workout_id === null ? null : (details.get(workout_id) ?? null),
+    });
   }
   return {
     title: head.title,

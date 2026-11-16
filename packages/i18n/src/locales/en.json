@@ -1228,6 +1228,7 @@
   "share__title_workout": "Share Workout",
   "share__title_program": "Share Program",
   "share__plan_overview": "Overview",
+  "share__plan_workout_unavailable": "Not synced yet",
   "share__plan_counts": "{{exercises}} · {{sets}}",
   "share__plan_minutes": "~{{minutes}} min",
   "share__plan_warmup_one": "+{{count}} warm-up",

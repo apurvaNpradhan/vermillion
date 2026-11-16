@@ -38,13 +38,26 @@ describe("plan Share data", () => {
     });
   });
   it("counts repeated slots and keeps their Rotation day numbers around Rest", () => {
-    const slots = [{ workout }, { workout: null }, { workout }];
+    const slots = [
+      { workoutId: "w", workout },
+      { workoutId: null, workout: null },
+      { workoutId: "w", workout },
+    ];
     expect(daysPerWeek(slots)).toBe(2);
     expect(daysPerWeek([])).toBe(0);
     expect(workoutDays(slots).map(({ day, total, workout: w }) => [day, total, w.id])).toEqual([
       [1, 3, "w"],
       [3, 3, "w"],
     ]);
+  });
+  it("keeps day numbers and counts when a Workout is not synced yet", () => {
+    const slots = [
+      { workoutId: "gone", workout: null },
+      { workoutId: null, workout: null },
+      { workoutId: "w", workout },
+    ];
+    expect(daysPerWeek(slots)).toBe(2);
+    expect(workoutDays(slots).map(({ day, total }) => [day, total])).toEqual([[3, 3]]);
   });
   it("brackets only adjacent runs and closes a run at the truncation boundary", () => {
     const rows = [entry("a", "g"), entry("b", "g"), entry("c"), entry("d", "g")];

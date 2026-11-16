@@ -41,6 +41,10 @@ All checks pass. On device:
 
 ## As built
 
+- `readProgramPlan` keeps every slot with its `workoutId`; a Workout not synced yet keeps its day
+  number and counts as a day but gets no page, and reads "Not synced yet" in the day strip.
+  `watchProgramPlan` re-reads the plan on any Program, Workout or exercise write, so superset and
+  set changes from another device reach an open composer.
 - `training/share/cards.tsx` contains Workout and Program Overview cards, exposed through the
   training index. `WorkoutShareScreen` and `ProgramShareScreen` connect them to the composer.
 - Workouts use `displayTitle`, `estimateMinutes`, `summariseWorking` and the saved effort scale.

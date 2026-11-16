@@ -12,13 +12,18 @@ export function setCounts(sets: readonly PlannedSet[]) {
   return { working, warmup };
 }
 
-/** Rotation slots count individually, even when they repeat a Workout. */
-export function daysPerWeek(slots: readonly { workout: WorkoutDetail | null }[]) {
-  return slots.reduce((count, slot) => count + (slot.workout === null ? 0 : 1), 0);
+type PlanSlot = { workoutId: string | null; workout: WorkoutDetail | null };
+
+/** Rotation slots count individually, even when they repeat a Workout or it is not synced yet. */
+export function daysPerWeek(slots: readonly PlanSlot[]) {
+  return slots.reduce((count, slot) => count + (slot.workoutId === null ? 0 : 1), 0);
 }
 
-/** Day numbers include Rest slots, and repeated Workouts remain separate pages. */
-export function workoutDays(slots: readonly { workout: WorkoutDetail | null }[]) {
+/**
+ * Day numbers include Rest slots, and repeated Workouts remain separate pages. A Workout not
+ * synced yet gets no page but keeps its day number.
+ */
+export function workoutDays(slots: readonly PlanSlot[]) {
   return slots.flatMap((slot, index) =>
     slot.workout ? [{ workout: slot.workout, day: index + 1, total: slots.length }] : [],
   );

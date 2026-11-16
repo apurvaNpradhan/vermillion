@@ -77,6 +77,7 @@ export {
   parseWorkoutList,
   readExerciseType,
   readProgramPlan,
+  watchProgramPlan,
   readWorkoutDetail,
   watchActiveSessions,
   watchEquipment,

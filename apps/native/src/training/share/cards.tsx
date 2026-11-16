@@ -228,7 +228,11 @@ export function ProgramOverview({
               {t("share__plan_day_number", { day: index + 1 })}
             </CardText>
             <CardText size={dense ? 24 : 30} weight="semibold" color={palette.text} lines={1}>
-              {slot.workout ? titleOf(slot.workout) : t("training__rest_day")}
+              {slot.workout
+                ? titleOf(slot.workout)
+                : slot.workoutId === null
+                  ? t("training__rest_day")
+                  : t("share__plan_workout_unavailable")}
             </CardText>
           </View>
         ))}
