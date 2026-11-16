@@ -70,3 +70,7 @@ Vermillion is a mobile-first monorepo for an app with personal accounts: a nativ
 - **Tracked metric** — a tape site the user chose to measure; only tracked metrics show in Check-in and on the Measurements page.
 - **Check-in** — everything logged on one `local_date`: measurements, weight and progress photos. Not stored as its own row.
 - **Progress photo** — a front, side or back body photo on a date; Media of kind `progress_photo`, blurred in lists while Hide photos is on.
+- **Share card** — a 1080 × 1920 image of a Session, Workout or Program in the user's Theme, saved to Photos or sent through the system sheet. The only way to share; text share was removed ([0042](docs/adr/0042-share-cards.md)).
+- **Template** — one card layout for a kind: Session Summary, Muscles and Photo; the Workout card; Program Overview plus one card per Rotation slot.
+- **Sticker** — a Session's stats block alone as a transparent PNG, to lay over the user's own photo in a story.
+- **Share composer** — the full-screen route that previews a Share card and picks its Template, background and privacy toggles, remembered per kind on the device.
