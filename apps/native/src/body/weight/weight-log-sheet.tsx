@@ -6,7 +6,7 @@ import { kgToLb } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
-import { MeasurementDate } from "./measurement-date";
+import { MeasurementDate } from "@/body/measurements/measurement-date";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { useWeight } from "./use-weight";

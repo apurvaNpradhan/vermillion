@@ -14,7 +14,7 @@ import { LineChart } from "@/platform/ui/charts/chart";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 import { SwipeRow } from "@/platform/ui/swipe-row";
 import { usePreferences } from "@/preferences";
-import { BodyState } from "./body-state";
+import { BodyState } from "@/body/body-state";
 import { useWeight } from "./use-weight";
 import { useLogWeight } from "./use-log-weight";
 import { WeightLogSheet } from "./weight-log-sheet";

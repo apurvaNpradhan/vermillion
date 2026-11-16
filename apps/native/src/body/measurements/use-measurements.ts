@@ -12,7 +12,7 @@ import {
 import { watchMetric, type TrainingDatabase, type WatchedMeasurement } from "@workspace/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
-import { useWeight } from "./use-weight";
+import { useWeight } from "@/body/weight/use-weight";
 type RatioHistory = { waistToHeight: number[]; waistToHip: number[] };
 const subscribe = (
   db: TrainingDatabase,

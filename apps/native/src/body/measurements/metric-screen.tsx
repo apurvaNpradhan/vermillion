@@ -8,7 +8,7 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { SwipeRow } from "@/platform/ui/swipe-row";
-import { BodyState } from "./body-state";
+import { BodyState } from "@/body/body-state";
 import { useMeasurements } from "./use-measurements";
 import { useMeasurementActions } from "./use-measurement-actions";
 import { CheckInSheet } from "./check-in-sheet";

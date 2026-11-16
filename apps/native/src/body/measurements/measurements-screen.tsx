@@ -15,10 +15,10 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 import { SyncBanner } from "@/sync";
-import { BodyState } from "./body-state";
+import { BodyState } from "@/body/body-state";
 import { useMeasurements } from "./use-measurements";
 import { CheckInSheet } from "./check-in-sheet";
-import { PhotoFirstTile } from "./photos/photo-first-tile";
+import { PhotoFirstTile } from "@/body/photos/photo-first-tile";
 import { groupLabels, metricLabels } from "./metric-labels";
 export function MeasurementsScreen() {
   const router = useRouter();

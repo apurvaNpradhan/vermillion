@@ -1,4 +1,4 @@
-import { BodyState } from "./body-state";
+import { BodyState } from "@/body/body-state";
 import { Switch } from "heroui-native";
 import { BODY_GROUPS } from "@workspace/shared";
 import { Text, View } from "react-native";
@@ -7,7 +7,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
 import { ListSection, ListRow } from "@/platform/ui/list";
 import { groupLabels, metricLabels } from "./metric-labels";
-import { HeightRow } from "./height-row";
+import { HeightRow } from "@/body/weight/height-row";
 export function TrackedMetricsScreen() {
   const { preferences, setUi, isSaving, isLoading, hasPreferences, refresh } = usePreferences();
   const { t } = useTranslation();
