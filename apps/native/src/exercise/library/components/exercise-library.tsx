@@ -26,7 +26,7 @@ import { useExerciseLibrary } from "../use-exercise-library";
 import { ExerciseRow } from "./exercise-row";
 import { FilterChips, type FilterChip } from "./filter-chips";
 import { FilterPill } from "./filter-pill";
-import { FilterSheet, type FilterSection } from "./filter-sheet";
+import { FilterSheet } from "./filter-sheet";
 import { RejectedExercises } from "./rejected-exercises";
 import {
   ArchivedEmptyState,
@@ -83,8 +83,8 @@ type ExerciseLibraryProps = {
 };
 
 /**
- * The exercise library: search, two filter pills, removable chips, a sort toggle and a
- * virtualised list of rows, under the page header. The search and pills stay pinned under the
+ * The exercise library: search, one filter control, removable chips, a sort toggle and a
+ * virtualised list of rows, under the page header. The search and filter control stay pinned under the
  * compact bar. Everything is read from the local database through `useExerciseLibrary`.
  */
 export function ExerciseLibrary({
@@ -107,10 +107,7 @@ export function ExerciseLibrary({
     ...DEFAULT_LIBRARY_FILTERS,
     sort: parseSort(deviceStorage.get(SORT_KEY)),
   }));
-  const [sheet, setSheet] = useState<{ open: boolean; section: FilterSection | null }>({
-    open: false,
-    section: null,
-  });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const browsedMuscle = browseMuscle?.muscle;
   const browsedAt = browseMuscle?.at;
   useEffect(() => {
@@ -129,11 +126,6 @@ export function ExerciseLibrary({
     deviceStorage.set(SORT_KEY, sort);
     setFilters((current) => ({ ...current, sort }));
   }, []);
-  const openSheet = useCallback(
-    (section: FilterSection | null) => setSheet({ open: true, section }),
-    [],
-  );
-
   const chips = useMemo<FilterChip[]>(() => {
     const change = (next: Partial<LibraryFilters>) =>
       setFilters((current) => ({ ...current, ...next }));
@@ -246,25 +238,6 @@ export function ExerciseLibrary({
   // With rows to show (the user's own while the catalog downloads), the state goes below them.
   const rowsAboveState = library.rows.length > 0 && stateView !== null;
 
-  const musclePillLabel =
-    filters.muscles.length === 0
-      ? t("exercise__filter_muscle_any")
-      : filters.muscles.length === 1
-        ? t(MUSCLE_GROUP_KEYS[filters.muscles[0] ?? "other"])
-        : t("exercise__filter_more", {
-            first: t(MUSCLE_GROUP_KEYS[filters.muscles[0] ?? "other"]),
-            count: filters.muscles.length - 1,
-          });
-  const equipmentPillLabel =
-    filters.equipment.length === 0
-      ? t("exercise__filter_equipment_any")
-      : filters.equipment.length === 1
-        ? t(EQUIPMENT_KEYS[filters.equipment[0] ?? "other"])
-        : t("exercise__filter_more", {
-            first: t(EQUIPMENT_KEYS[filters.equipment[0] ?? "other"]),
-            count: filters.equipment.length - 1,
-          });
-
   return (
     <SwipeGroup>
       {onCreate && mode === "browse" ? <NewExerciseAction onCreate={onCreate} /> : null}
@@ -281,22 +254,12 @@ export function ExerciseLibrary({
                 placeholder={t("exercise__search_placeholder")}
                 clearLabel={t("exercise__search_clear")}
               />
-              <View className="flex-row gap-2">
+              <View className="flex-row">
                 <FilterPill
-                  label={musclePillLabel}
-                  active={filters.muscles.length > 0}
-                  accessibilityLabel={t("exercise__filter_open", {
-                    section: t("exercise__section_muscle"),
-                  })}
-                  onPress={() => openSheet("muscle")}
-                />
-                <FilterPill
-                  label={equipmentPillLabel}
-                  active={filters.equipment.length > 0}
-                  accessibilityLabel={t("exercise__filter_open", {
-                    section: t("exercise__section_equipment"),
-                  })}
-                  onPress={() => openSheet("equipment")}
+                  label={t("exercise__filters_title")}
+                  active={hasActiveFilters(filters)}
+                  accessibilityLabel={t("exercise__filters_title")}
+                  onPress={() => setFiltersOpen(true)}
                 />
               </View>
             </View>
@@ -363,9 +326,8 @@ export function ExerciseLibrary({
         )}
       </Page>
       <FilterSheet
-        isOpen={sheet.open}
-        onOpenChange={(open) => setSheet((current) => ({ ...current, open }))}
-        section={sheet.section}
+        isOpen={filtersOpen}
+        onOpenChange={setFiltersOpen}
         filters={filters}
         onChange={setFilters}
         total={library.total}

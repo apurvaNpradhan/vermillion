@@ -195,21 +195,24 @@ export function ShareComposer<Id extends string>({
         </View>
 
         <View className="gap-4 px-4 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
-          {pages.length > 1 ? (
-            <View
-              className="flex-row items-center justify-center gap-2"
-              accessible
-              accessibilityLabel={t("share__page", { index: index + 1, count: pages.length })}
-            >
-              {pages.map((page, at) => (
-                <View
-                  key={page.id}
-                  className={at === index ? "bg-foreground" : "bg-separator"}
-                  style={{ width: 7, height: 7, borderRadius: 4 }}
-                />
-              ))}
-            </View>
-          ) : null}
+          <View className="items-center gap-2">
+            <Text className="text-caption font-medium text-muted">{current.label}</Text>
+            {pages.length > 1 ? (
+              <View
+                className="flex-row items-center justify-center gap-2"
+                accessible
+                accessibilityLabel={t("share__page", { index: index + 1, count: pages.length })}
+              >
+                {pages.map((page, at) => (
+                  <View
+                    key={page.id}
+                    className={at === index ? "bg-foreground" : "bg-separator"}
+                    style={{ width: 7, height: 7, borderRadius: 4 }}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </View>
 
           {showSwatches ? (
             <View className="flex-row justify-center gap-5" accessibilityRole="radiogroup">

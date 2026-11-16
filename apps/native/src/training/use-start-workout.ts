@@ -25,7 +25,7 @@ export function useStartWorkout() {
       creating.current = true;
       try {
         const id = await create(exerciseIds, programId);
-        if (id) router.push({ pathname: "/train/workout/[id]", params: { id } });
+        if (id) router.push({ pathname: "/train/workout/[id]/edit", params: { id } });
         return id;
       } finally {
         creating.current = false;

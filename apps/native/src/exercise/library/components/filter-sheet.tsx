@@ -2,7 +2,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { EQUIPMENT, EQUIPMENT_KEYS, type MuscleGroup } from "@workspace/shared";
 import { LIBRARY_SHOW, type LibraryFilters, type LibraryShow } from "@workspace/sync";
 import { BottomSheet, Switch } from "heroui-native";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,22 +17,18 @@ import { ChoiceCell, ChoiceGrid, EquipmentIcon } from "../../components/choice-g
 import { MuscleRegions, MuscleRows } from "../../components/muscle-rows";
 import { toggled, withoutFacets } from "../filter-state";
 
-export type FilterSection = "muscle" | "equipment";
-
 type MuscleView = "body" | "list";
 
-/** Opens scrolled to `section` when it is set, so a pill lands on its own section. */
+/** All library filters in one sheet. */
 export function FilterSheet({
   isOpen,
   onOpenChange,
-  section,
   filters,
   onChange,
   total,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  section: FilterSection | null;
   filters: LibraryFilters;
   onChange: (filters: LibraryFilters) => void;
   /** How many exercises match right now; the filters apply to the list as they change. */
@@ -40,22 +36,7 @@ export function FilterSheet({
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
-  const scroll = useRef<{ scrollTo: (options: { y: number; animated: boolean }) => void } | null>(
-    null,
-  );
   const [muscleView, setMuscleView] = useState<MuscleView>("list");
-  const offsets = useRef<Record<FilterSection, number>>({ muscle: 0, equipment: 0 });
-
-  useEffect(() => {
-    if (!isOpen || section === null) return;
-    // After the sheet has come up and the sections have been measured.
-    const timer = setTimeout(
-      () => scroll.current?.scrollTo({ y: offsets.current[section], animated: true }),
-      450,
-    );
-    return () => clearTimeout(timer);
-  }, [isOpen, section]);
-
   const toggleMuscle = (muscle: MuscleGroup) =>
     onChange({ ...filters, muscles: toggled(filters.muscles, muscle) });
 
@@ -96,16 +77,9 @@ export function FilterSheet({
           </View>
           <BottomSheetScrollView
             showsVerticalScrollIndicator={false}
-            ref={(node) => {
-              scroll.current = node;
-            }}
             contentContainerStyle={{ gap: 24, paddingHorizontal: 20, paddingBottom: 16 }}
           >
-            <View
-              onLayout={(event) => {
-                offsets.current.muscle = event.nativeEvent.layout.y;
-              }}
-            >
+            <View>
               <SectionTitle>{t("exercise__section_muscle")}</SectionTitle>
               <View className="mb-4">
                 <SegmentedControl<MuscleView>
@@ -156,11 +130,7 @@ export function FilterSheet({
                 />
               </View>
             </View>
-            <View
-              onLayout={(event) => {
-                offsets.current.equipment = event.nativeEvent.layout.y;
-              }}
-            >
+            <View>
               <SectionTitle>{t("exercise__section_equipment")}</SectionTitle>
               <ChoiceGrid
                 items={EQUIPMENT}
