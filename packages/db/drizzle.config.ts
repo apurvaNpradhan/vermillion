@@ -8,6 +8,7 @@ export default defineConfig({
     "./src/schema/index.ts",
     "../api/src/*/tables.ts",
     "../api/src/platform/sync/tables.ts",
+    "../api/src/platform/settings/tables.ts",
     "../api/src/legacy/*.ts",
   ],
   out: "./src/migrations",

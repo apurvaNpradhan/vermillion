@@ -11,7 +11,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { bundledCatalogText } from "../exercise/operations/bundled-catalog";
-import { importCatalog } from "../exercise/operations/import-catalog";
+import { seedCatalog } from "../exercise/operations/seed-catalog";
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
 
 const syncOptions = {
@@ -32,7 +32,7 @@ describe("session upload handlers", () => {
   let bodyweight: string;
   beforeAll(async () => {
     app = await createTestApp(syncOptions);
-    await importCatalog(app.services.db, bundledCatalogText());
+    await seedCatalog(app.services.db, bundledCatalogText());
     const pick = async (type: string) => {
       const [row] = await app.rows(
         sql`SELECT id FROM exercise WHERE user_id IS NULL AND exercise_type = ${type} LIMIT 1`,

@@ -76,7 +76,8 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
 
   app.use(compressResponses);
 
-  const trustOrigin = requireTrustedOrigin([config.appUrl]);
+  // The site's Worker forwards browser requests with the site's origin.
+  const trustOrigin = requireTrustedOrigin([config.appUrl, config.siteUrl]);
   app.use("/rpc/*", trustOrigin);
   app.use("/api/*", trustOrigin);
 

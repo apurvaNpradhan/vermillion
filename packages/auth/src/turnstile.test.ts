@@ -4,7 +4,7 @@ import { verifyTurnstile, type TurnstileOptions } from "./turnstile";
 
 const options = (overrides: Partial<TurnstileOptions> = {}): TurnstileOptions => ({
   secret: "secret",
-  hostname: "app.example.com",
+  hostnames: ["app.example.com", "site.example.com"],
   isProduction: true,
   fetch: vi.fn<typeof fetch>(),
   ...overrides,
@@ -58,14 +58,19 @@ describe("Turnstile verification", () => {
       expect(await verifyTurnstile("token", options({ fetch }))).toEqual(failure);
   });
 
+  it("accepts a token from the site's hostname as well", async () => {
+    const fetch = respond({ success: true, hostname: "site.example.com", action: "auth" });
+    expect(await verifyTurnstile("token", options({ fetch }))).toEqual({ ok: true });
+  });
+
   it("refuses localhost in production, even with a perfect answer", async () => {
     const fetch = respond({ success: true, hostname: "localhost", action: "auth" });
-    const result = await verifyTurnstile("token", options({ fetch, hostname: "localhost" }));
+    const result = await verifyTurnstile("token", options({ fetch, hostnames: ["localhost"] }));
     expect(result.ok).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
     const dev = await verifyTurnstile(
       "token",
-      options({ fetch, hostname: "localhost", isProduction: false }),
+      options({ fetch, hostnames: ["localhost"], isProduction: false }),
     );
     expect(dev.ok).toBe(true);
   });

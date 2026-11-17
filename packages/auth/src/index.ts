@@ -17,9 +17,12 @@ import {
   TURNSTILE_TOKEN_HEADER,
 } from "@workspace/shared";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
-import { emailOTP, jwt, lastLoginMethod, openAPI } from "better-auth/plugins";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { emailOTP, jwt, lastLoginMethod, openAPI, twoFactor } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
+
+import { isAdminEmail, syncAdminRole } from "./admin-allowlist";
 
 import { isDisposableEmail } from "./disposable-email";
 import type { AuthEmail } from "./email-jobs";
@@ -28,6 +31,7 @@ import { verifyTurnstile } from "./turnstile";
 import { parseUserAgent } from "./user-agent";
 
 export { authEmailSchema, type AuthEmail } from "./email-jobs";
+export { isAdminEmail, parseAdminEmails, reconcileAdminRoles } from "./admin-allowlist";
 export { isDisposableEmail } from "./disposable-email";
 export { assertStrongSecret } from "./secret";
 export { TURNSTILE_ACTION, verifyTurnstile, type TurnstileResult } from "./turnstile";
@@ -38,6 +42,13 @@ export type AuthOptions = {
   db: Database;
   /** Public origin of the API (`https://cinnabar-api.<domain>`); auth cookies stay host-only. */
   baseUrl: string;
+  /**
+   * Public origin of the site (`https://cinnabar.<domain>`). Its Worker forwards `/api/auth` to
+   * the API, so browser requests carry this origin; it is trusted, and its Turnstile hostname too.
+   */
+  siteUrl: string;
+  /** Lower-cased `ADMIN_EMAILS`: the only addresses that hold the admin role. */
+  adminEmails: readonly string[];
   secret: string;
   isProduction: boolean;
   /**
@@ -45,10 +56,17 @@ export type AuthOptions = {
    * The reference UI is the API's (`/api/reference`), never Better Auth's own page.
    */
   openApi?: boolean;
+  /** Display name: the authenticator app shows it next to the account. */
+  appName: string;
   /** Deep-link scheme of the native app, without "://". */
   appScheme: string;
   nativePort: number;
+  /** True: anyone may create an account. False: only an address with a live invite. */
   registrationOpen: boolean;
+  /** Whether this verified address holds a live invite (closed registration only). */
+  hasLiveInvite: (email: string) => Promise<boolean>;
+  /** Runs after an account is created (its invite becomes redeemed). */
+  afterUserCreated: (user: { id: string; email: string }) => Promise<void>;
   turnstileSecret?: string | undefined;
   google?: OAuthCredentials | undefined;
   github?: OAuthCredentials | undefined;
@@ -68,6 +86,22 @@ const CHANGE_EMAIL_PATH = "/email-otp/change-email";
 
 /** An account this young was created by the sign-in that is being reported. */
 const NEW_ACCOUNT_MS = 30_000;
+
+/**
+ * The two-factor plugin's endpoints the admin uses: enrol, confirm and pass the step with the
+ * authenticator or a backup code. They need a session of an allow-listed admin; every other
+ * two-factor endpoint (disable, new backup codes, emailed codes) is closed, so a stolen inbox
+ * cannot turn the second step off or reissue it.
+ */
+const ADMIN_TWO_FACTOR_PATHS = new Set([
+  "/two-factor/enable",
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+]);
+const TWO_FACTOR_VERIFY_PATHS = new Set([
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+]);
 
 /** A code is requested here, so the CAPTCHA runs before one is sent. Social starts at initiation. */
 const CAPTCHA_PATHS = new Set([SEND_CODE_PATH, "/sign-in/social"]);
@@ -102,7 +136,9 @@ function requestDetails(request: Request | undefined) {
 export function createAuth(options: AuthOptions) {
   const secret = assertStrongSecret(options.secret);
   const origin = new URL(options.baseUrl);
+  const site = new URL(options.siteUrl);
   const secure = origin.protocol === "https:";
+  const admins = options.adminEmails;
 
   const notify = (email: AuthEmail) => options.runInBackground(options.queueEmail(email));
 
@@ -115,14 +151,29 @@ export function createAuth(options: AuthOptions) {
     }
   }
 
-  function assertMayRegister(email: string) {
-    if (!options.registrationOpen) {
+  /**
+   * The closed beta's gate, in one place: a new account needs open registration or a live invite
+   * for its verified address (an address in ADMIN_EMAILS needs none: the owner must get in).
+   * Email codes always verify the address; a provider must say so.
+   */
+  async function assertMayRegister(email: string, emailVerified: boolean) {
+    assertNotDisposable(email);
+    if (options.registrationOpen || isAdminEmail(email, emailVerified, admins)) return;
+    if (!emailVerified || !(await options.hasLiveInvite(email.trim().toLowerCase()))) {
       throw new APIError("FORBIDDEN", {
         code: "REGISTRATION_CLOSED",
-        message: "Registration is currently closed.",
+        message: "Registration is by invite only.",
       });
     }
-    assertNotDisposable(email);
+  }
+
+  async function readUser(userId: string) {
+    const [row] = await options.db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, userId))
+      .limit(1);
+    return row;
   }
 
   return betterAuth({
@@ -131,6 +182,7 @@ export function createAuth(options: AuthOptions) {
     database: drizzleAdapter(options.db, { provider: "pg", schema }),
     trustedOrigins: [
       origin.origin,
+      site.origin,
       `${options.appScheme}://`,
       ...(options.isProduction ? [] : ["exp://", `http://localhost:${options.nativePort}`]),
     ],
@@ -172,7 +224,11 @@ export function createAuth(options: AuthOptions) {
     },
     plugins: [
       expo(),
-      lastLoginMethod(),
+      // Stored, so the admin's account view can say how someone last signed in.
+      lastLoginMethod({ storeInDatabase: true }),
+      // Authenticator codes for admins only (ADR 0046). There are no passwords, so enrolling
+      // needs none; the before hook limits every endpoint to allow-listed admins.
+      twoFactor({ issuer: options.appName, allowPasswordless: true }),
       // Email codes are the only way in besides social providers (ADR 0029). Every new address
       // gets a code and every code is redeemed through sign-in, so the answer is the same
       // whether or not the account exists, and the account is created verified on first redeem.
@@ -249,9 +305,29 @@ export function createAuth(options: AuthOptions) {
     databaseHooks: {
       user: {
         create: {
+          // Every way of creating an account (email code, Google, GitHub) passes here.
           before: async (user) => {
-            // Backstop for provider sign-ups, which skip the sign-up endpoint.
-            assertMayRegister(user.email);
+            await assertMayRegister(user.email, user.emailVerified === true);
+          },
+          after: async (user) => {
+            await options.afterUserCreated({ id: user.id, email: user.email });
+          },
+        },
+      },
+      session: {
+        create: {
+          // Every sign-in passes here: a banned account gets no session, and the admin role is
+          // reconciled with ADMIN_EMAILS.
+          before: async (session) => {
+            const account = await readUser(session.userId);
+            if (!account) return;
+            if (account.banned && (!account.banExpires || account.banExpires > new Date())) {
+              throw new APIError("FORBIDDEN", {
+                code: "BANNED_USER",
+                message: "This account is suspended.",
+              });
+            }
+            await syncAdminRole(options.db, account, admins);
           },
         },
       },
@@ -277,6 +353,16 @@ export function createAuth(options: AuthOptions) {
             });
           }
         }
+        // Passing the authenticator step marks this session; only such a session reaches the admin.
+        if (TWO_FACTOR_VERIFY_PATHS.has(ctx.path) && !(ctx.context.returned instanceof APIError)) {
+          const verified = ctx.context.newSession ?? (await getSessionFromCtx(ctx));
+          if (verified) {
+            await options.db
+              .update(schema.session)
+              .set({ twoFactorVerifiedAt: new Date() })
+              .where(eq(schema.session.id, verified.session.id));
+          }
+        }
         // The old address learns the change happened; the session still describes it. The plugin
         // has replaced the address by now, so the job is told where to send it.
         const previous = ctx.context.session?.user;
@@ -299,7 +385,7 @@ export function createAuth(options: AuthOptions) {
             ctx.headers?.get(TURNSTILE_TOKEN_HEADER) ?? ctx.body?.turnstileToken,
             {
               secret: options.turnstileSecret,
-              hostname: origin.hostname,
+              hostnames: [origin.hostname, site.hostname],
               isProduction: options.isProduction,
               ...(options.fetch ? { fetch: options.fetch } : {}),
             },
@@ -313,6 +399,21 @@ export function createAuth(options: AuthOptions) {
           throw new APIError("NOT_FOUND", { message: "Not found" });
         }
 
+        if (ctx.path.startsWith("/two-factor/")) {
+          // Not found unless an allow-listed admin with a session asks for an endpoint we use.
+          const current = ADMIN_TWO_FACTOR_PATHS.has(ctx.path)
+            ? await getSessionFromCtx(ctx)
+            : null;
+          const account = current ? await readUser(current.user.id) : undefined;
+          if (
+            !account ||
+            account.role !== "admin" ||
+            !isAdminEmail(account.email, account.emailVerified, admins)
+          ) {
+            throw new APIError("NOT_FOUND", { message: "Not found" });
+          }
+        }
+
         const email = z.string().safeParse(ctx.body?.email);
         const newEmail = z.string().safeParse(ctx.body?.newEmail);
 
@@ -323,13 +424,13 @@ export function createAuth(options: AuthOptions) {
           }
           // Same answer for every address ...
           assertNotDisposable(email.data);
-          // ... except while registration is closed, when an unknown address is refused up front
-          // instead of being sent a code that could never be redeemed.
+          // ... except while registration is invite-only, when an unknown address without a live
+          // invite is refused up front instead of being sent a code that could never be redeemed.
           if (!options.registrationOpen) {
             const existing = await ctx.context.internalAdapter.findUserByEmail(
               email.data.trim().toLowerCase(),
             );
-            if (!existing) assertMayRegister(email.data);
+            if (!existing) await assertMayRegister(email.data, true);
           }
         }
         if (ctx.path === REQUEST_EMAIL_CHANGE_PATH && newEmail.success) {

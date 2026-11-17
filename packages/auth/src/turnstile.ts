@@ -13,8 +13,8 @@ export { TURNSTILE_ACTION };
 export type TurnstileOptions = {
   /** Secret key; when unset the check is skipped (CAPTCHA is opt-in per deployment). */
   secret: string | undefined;
-  /** Hostname the widget ran on; the response must report the same one. */
-  hostname: string;
+  /** Hostnames the widget may run on (the API's and the site's); the response must report one. */
+  hostnames: readonly string[];
   isProduction: boolean;
   fetch?: typeof fetch;
 };
@@ -37,13 +37,14 @@ const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
  */
 export async function verifyTurnstile(
   token: CaptchaToken,
-  { secret, hostname, isProduction, fetch: doFetch = fetch }: TurnstileOptions,
+  { secret, hostnames, isProduction, fetch: doFetch = fetch }: TurnstileOptions,
 ): Promise<TurnstileResult> {
   if (!secret) return { ok: true };
   const failure = { ok: false, reason: "Captcha verification failed." } as const;
   const parsedToken = tokenSchema.safeParse(token);
   if (!parsedToken.success) return failure;
-  if (isProduction && LOCAL_HOSTS.includes(hostname)) return failure;
+  const allowed = hostnames.filter((host) => !(isProduction && LOCAL_HOSTS.includes(host)));
+  if (allowed.length === 0) return failure;
   try {
     const response = await doFetch(VERIFY_URL, {
       method: "POST",
@@ -53,7 +54,7 @@ export async function verifyTurnstile(
     });
     if (!response.ok) return failure;
     const verdict = verdictSchema.safeParse(await response.json());
-    if (verdict.success && verdict.data.hostname === hostname) return { ok: true };
+    if (verdict.success && allowed.includes(verdict.data.hostname)) return { ok: true };
   } catch {
     // Fail closed without retaining the token, the secret or an upstream body.
   }

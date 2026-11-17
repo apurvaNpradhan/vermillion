@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
 import { bundledCatalogText } from "./operations/bundled-catalog";
-import { importCatalog } from "./operations/import-catalog";
+import { seedCatalog } from "./operations/seed-catalog";
 
 const syncOptions = {
   config: {
@@ -28,7 +28,7 @@ describe("exercise upload handler", () => {
   let catalogId: string;
   beforeAll(async () => {
     app = await createTestApp(syncOptions);
-    await importCatalog(app.services.db, bundledCatalogText());
+    await seedCatalog(app.services.db, bundledCatalogText());
     const [row] = await app.rows(sql`SELECT id FROM exercise WHERE user_id IS NULL LIMIT 1`);
     catalogId = String(row?.id);
   });

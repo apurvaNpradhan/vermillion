@@ -7,6 +7,8 @@ import {
   syncUploadResultSchema,
   type SyncErrorData,
 } from "@workspace/shared";
+import { user } from "@workspace/db/schema/auth";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authed } from "../orpc/base";
@@ -50,6 +52,18 @@ const credentials = syncApi
   .handler(async ({ context, errors }) => {
     const { endpoint } = context.services.config.sync;
     if (!endpoint) throw errors.BAD_GATEWAY({ message: "Sync is not configured" });
+    // A ban ends every session, but a token must never be minted for a banned account regardless.
+    const [account] = await context.services.db
+      .select({ banned: user.banned })
+      .from(user)
+      .where(eq(user.id, context.userId))
+      .limit(1);
+    if (!account || account.banned) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "This account is suspended",
+        data: { code: "BANNED_USER" },
+      });
+    }
     const { token } = await context.services.auth.api.getToken({ headers: context.headers });
     return { endpoint, token, userId: context.userId, expiresAt: expiresAtOf(token) };
   });

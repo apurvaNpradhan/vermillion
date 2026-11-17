@@ -33,6 +33,8 @@ export type ObjectStore = {
     options: { contentType: string; contentLength: number; expiresInSeconds: number },
   ): Promise<SignedUpload>;
   signGet(key: string, options: { expiresInSeconds: number }): Promise<SignedDownload>;
+  /** Whether the object exists (a HEAD request). */
+  exists(key: string): Promise<boolean>;
   /** Deleting an object that is not there succeeds. */
   deleteObject(key: string): Promise<void>;
   /** Deletes every object whose key starts with `prefix` and returns how many it deleted. */
@@ -76,7 +78,15 @@ function encodeXml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-export function createObjectStore(config: ObjectStoreConfig): ObjectStore {
+export type ObjectStoreOptions = {
+  /** Replaces `fetch` for the HEAD check (tests fake the store there). */
+  fetch?: typeof fetch;
+};
+
+export function createObjectStore(
+  config: ObjectStoreConfig,
+  options: ObjectStoreOptions = {},
+): ObjectStore {
   const base = config.endpoint.replace(/\/+$/, "");
   const client = new AwsClient({
     accessKeyId: config.accessKeyId,
@@ -97,7 +107,7 @@ export function createObjectStore(config: ObjectStoreConfig): ObjectStore {
   };
 
   async function presign(
-    method: "PUT" | "GET",
+    method: "PUT" | "GET" | "HEAD",
     key: string,
     expiresInSeconds: number,
     headers: Record<string, string>,
@@ -135,6 +145,17 @@ export function createObjectStore(config: ObjectStoreConfig): ObjectStore {
     },
 
     signGet: (key, { expiresInSeconds }) => presign("GET", key, expiresInSeconds, {}),
+
+    async exists(key) {
+      const { url } = await presign("HEAD", key, 60, {});
+      const response = await (options.fetch ?? fetch)(url, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.status === 404) return false;
+      if (!response.ok) throw new ObjectStoreError("head", response.status);
+      return true;
+    },
 
     async deleteObject(key) {
       const response = await client.fetch(objectUrl(key), { method: "DELETE" });

@@ -28,8 +28,8 @@ const oneOf = (column: SQL | { name: string }, values: readonly string[]): SQL =
   sql`${column} IN (${literals(values)})`;
 
 /**
- * The exercise library (ADR 0034). `user_id IS NULL` is a catalog row (Reference data, imported
- * from the committed file); an owned row is a Custom exercise. Rows are retired (`retired_at`),
+ * The exercise library (ADR 0034). `user_id IS NULL` is a catalog row (Reference data: seeded from
+ * the committed file into an empty table, then maintained in the admin); an owned row is a Custom exercise. Rows are retired (`retired_at`),
  * never deleted, so a logged set always resolves. Slugs are text with CHECKs, never enums:
  * a new slug is an additive migration. Synced: `exercise_catalog` and `my_library` streams.
  */
@@ -65,6 +65,10 @@ export const exercise = pgTable(
     uniqueIndex("exercise_catalog_title_uidx")
       .on(table.title)
       .where(sql`${table.userId} IS NULL`),
+    // A title is unique among live catalog rows whatever its case (the admin's rule).
+    uniqueIndex("exercise_catalog_live_title_ci_uidx")
+      .on(sql`lower(${table.title})`)
+      .where(sql`${table.userId} IS NULL AND ${table.retiredAt} IS NULL`),
     check("exercise_primary_muscle_known", oneOf(table.primaryMuscle, MUSCLE_GROUPS)),
     check(
       "exercise_secondary_muscles_known",

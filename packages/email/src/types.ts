@@ -26,6 +26,7 @@ export type EmailInput = Base &
     | { template: "delete-account"; url: string }
     | { template: "security-notice" }
     | { template: "sign-in-notice" }
+    | { template: "invite"; inviteUrl: string; downloadUrl: string }
   );
 
 export type RenderedEmail = { to: string; subject: string; html: string; text: string };

@@ -1,4 +1,5 @@
 import { runServer, thresholdsFromMegabytes, type ApiConfig } from "@workspace/api";
+import { parseAdminEmails } from "@workspace/auth";
 import { createEmailTransport } from "@workspace/email";
 import { initLogger } from "@workspace/logger";
 import { createFsDrain } from "evlog/fs";
@@ -17,6 +18,9 @@ const config: ApiConfig = {
   appName: appConfig.displayName,
   appVersion: appConfig.version,
   appUrl: env.APP_URL,
+  // The site's origin: derived from app.config.ts, or the site's dev server.
+  siteUrl: isProduction ? appConfig.urls.site : `http://localhost:${appConfig.ports.web}`,
+  adminEmails: parseAdminEmails(env.ADMIN_EMAILS),
   appScheme: appConfig.scheme,
   nativePort: appConfig.ports.native,
   isProduction,
@@ -34,6 +38,19 @@ const config: ApiConfig = {
     accessKeyId: env.MEDIA_S3_ACCESS_KEY_ID,
     secretAccessKey: env.MEDIA_S3_SECRET_ACCESS_KEY,
   },
+  exerciseMedia: {
+    endpoint: env.EXERCISE_MEDIA_S3_ENDPOINT,
+    region: env.EXERCISE_MEDIA_S3_REGION,
+    bucket: env.EXERCISE_MEDIA_S3_BUCKET,
+    accessKeyId: env.EXERCISE_MEDIA_S3_ACCESS_KEY_ID,
+    secretAccessKey: env.EXERCISE_MEDIA_S3_SECRET_ACCESS_KEY,
+    publicUrl:
+      env.EXERCISE_MEDIA_PUBLIC_URL ??
+      (isProduction
+        ? appConfig.urls.exerciseMedia
+        : `${env.EXERCISE_MEDIA_S3_ENDPOINT.replace(/\/+$/, "")}/${env.EXERCISE_MEDIA_S3_BUCKET}`),
+  },
+  releases: appConfig.releases,
   sync: {
     endpoint:
       env.SYNC_ENDPOINT_URL ??

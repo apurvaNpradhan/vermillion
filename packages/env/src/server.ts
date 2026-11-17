@@ -34,7 +34,13 @@ export const env = createEnv({
       ),
     /** Comma-separated IPs/CIDRs of proxies allowed to set X-Forwarded-For, or "none". */
     TRUSTED_PROXIES: z.string().default("127.0.0.0/8,::1/128"),
+    /** `true`: anyone may sign up. `false`: only an address with a live invite (the closed beta). */
     REGISTRATION_OPEN: z.stringbool().default(true),
+    /**
+     * Comma-separated addresses that hold the admin role; every other account is a user. The only
+     * way to become an admin. Empty means no admin.
+     */
+    ADMIN_EMAILS: z.string().default(""),
     TURNSTILE_SECRET_KEY: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -64,6 +70,27 @@ export const env = createEnv({
         (secret) => !isProductionEnv || secret !== DEV_MEDIA_SECRET,
         "Use the R2 API token's secret as MEDIA_S3_SECRET_ACCESS_KEY in production",
       ),
+    /**
+     * S3 API of the public catalog exercise-media bucket: the MinIO of docker-compose.yml locally,
+     * an R2 bucket on `media.<domain>` in production. A token scoped to that bucket only.
+     */
+    EXERCISE_MEDIA_S3_ENDPOINT: z.url().default(mediaDefault("http://127.0.0.1:9000")),
+    EXERCISE_MEDIA_S3_REGION: z.string().min(1).default("auto"),
+    EXERCISE_MEDIA_S3_BUCKET: z.string().min(1).default(mediaDefault("vermillion-exercise-media")),
+    EXERCISE_MEDIA_S3_ACCESS_KEY_ID: z.string().min(1).default(mediaDefault("vermillion")),
+    EXERCISE_MEDIA_S3_SECRET_ACCESS_KEY: z
+      .string()
+      .min(1)
+      .default(mediaDefault(DEV_MEDIA_SECRET))
+      .refine(
+        (secret) => !isProductionEnv || secret !== DEV_MEDIA_SECRET,
+        "Use the R2 API token's secret as EXERCISE_MEDIA_S3_SECRET_ACCESS_KEY in production",
+      ),
+    /**
+     * Where the exercise-media bucket's objects are read. Production defaults to the media host of
+     * app.config.ts; development to the MinIO bucket's path.
+     */
+    EXERCISE_MEDIA_PUBLIC_URL: z.url().optional(),
   },
   createFinalSchema: (fields) =>
     z

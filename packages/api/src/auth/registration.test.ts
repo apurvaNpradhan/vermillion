@@ -35,6 +35,7 @@ describe("registration policy", () => {
     });
     await expect(app.client().auth.registrationStatus()).resolves.toEqual({
       open: false,
+      mode: "invite",
       providers: { google: false, github: false },
     });
   });

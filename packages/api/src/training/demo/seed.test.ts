@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { bundledCatalogText } from "../../exercise/operations/bundled-catalog";
-import { importCatalog } from "../../exercise/operations/import-catalog";
+import { seedCatalog } from "../../exercise/operations/seed-catalog";
 import { createTestApp } from "../../platform/testing/harness";
 import { urlForDatabase } from "../../platform/testing/postgres";
 import { runTrainingDemo } from "./seed";
@@ -23,7 +23,7 @@ describe("local demo plans", () => {
       expect(await app.rows(sql`SELECT count(*)::int AS total FROM workout`)).toEqual([
         { total: 0 },
       ]);
-      await importCatalog(app.services.db, bundledCatalogText());
+      await seedCatalog(app.services.db, bundledCatalogText());
       expect(await runTrainingDemo(url, "demo-owner")).toEqual({
         createdPrograms: 2,
         createdWorkouts: 7,

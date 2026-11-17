@@ -39,5 +39,14 @@ export const authEmailSchema = z.discriminatedUnion("kind", [
   /** `to` overrides the account address: after an email change the notice goes to the old one. */
   z.object({ ...base, kind: z.literal("security-notice"), to: z.email().optional() }),
   z.object({ ...base, kind: z.literal("sign-in-notice") }),
+  /** A closed-beta invite: no account exists yet, so it carries its address and both links. */
+  z.object({
+    kind: z.literal("invite"),
+    userId: z.string().min(1).optional(),
+    request: requestSchema,
+    to: z.email(),
+    inviteUrl: z.url(),
+    downloadUrl: z.url(),
+  }),
 ]);
 export type AuthEmail = z.infer<typeof authEmailSchema>;

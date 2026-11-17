@@ -30,7 +30,8 @@ export const catalogRowSchema = z.strictObject({
   instructions: z.string().min(1).max(EXERCISE_INSTRUCTIONS_MAX).nullable(),
   video_key: mediaKey.nullable(),
   thumbnail_key: mediaKey.nullable(),
-  retired: z.boolean(),
+  /** Absent means live; the admin's export writes it for every row. */
+  retired: z.boolean().optional(),
 });
 export type CatalogRow = z.infer<typeof catalogRowSchema>;
 
@@ -83,8 +84,9 @@ export function parseCatalog(text: string): CatalogRow[] {
     if (!hasValidSecondaryMuscles(row)) {
       throw new CatalogValidationError(`catalog row ${row.id}: bad secondary muscles`);
     }
-    if ((row.video_key === null) !== (row.thumbnail_key === null)) {
-      throw new CatalogValidationError(`catalog row ${row.id}: video and thumbnail keys differ`);
+    // A video needs a thumbnail (its poster); a thumbnail alone is fine.
+    if (row.video_key !== null && row.thumbnail_key === null) {
+      throw new CatalogValidationError(`catalog row ${row.id}: a video without a thumbnail`);
     }
   }
   return rows;

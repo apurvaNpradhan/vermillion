@@ -2,6 +2,9 @@
 import { getT } from "@workspace/i18n";
 import { render } from "@react-email/components";
 
+import { INVITE_TTL_DAYS } from "@workspace/shared";
+
+import { InviteEmail } from "./templates/invite";
 import { MessageEmail, type MessageEmailProps } from "./templates/message";
 import { OtpEmail } from "./templates/otp";
 import type { EmailInput, RenderedEmail } from "./types";
@@ -13,7 +16,8 @@ type Content = {
   /** Either a code email or a message; they share the recipient and request details. */
   kind:
     | { type: "otp"; title: string; subtitle: string; otp: string }
-    | { type: "message"; title: string; body: string; action?: MessageEmailProps["action"] };
+    | { type: "message"; title: string; body: string; action?: MessageEmailProps["action"] }
+    | { type: "invite"; inviteUrl: string; downloadUrl: string };
 };
 
 function describe(input: EmailInput, t: ReturnType<typeof getT>): Content {
@@ -64,6 +68,11 @@ function describe(input: EmailInput, t: ReturnType<typeof getT>): Content {
           body: t("emails__sign_in_body", { app }),
         },
       };
+    case "invite":
+      return {
+        subject: t("emails__invite_subject", { app }),
+        kind: { type: "invite", inviteUrl: input.inviteUrl, downloadUrl: input.downloadUrl },
+      };
     case "security-notice":
       return {
         subject: t("emails__security_subject", { app }),
@@ -88,7 +97,17 @@ export async function renderEmail(input: EmailInput): Promise<RenderedEmail> {
     request: input.request,
   };
   const element =
-    kind.type === "otp" ? (
+    kind.type === "invite" ? (
+      <InviteEmail
+        t={t}
+        locale={input.locale}
+        appName={input.appName}
+        to={input.to}
+        downloadUrl={kind.downloadUrl}
+        inviteUrl={kind.inviteUrl}
+        inviteDays={INVITE_TTL_DAYS}
+      />
+    ) : kind.type === "otp" ? (
       <OtpEmail {...common} title={kind.title} subtitle={kind.subtitle} otp={kind.otp} />
     ) : (
       <MessageEmail

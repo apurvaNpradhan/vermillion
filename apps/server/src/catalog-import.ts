@@ -1,6 +1,7 @@
-// Imports the bundled exercise catalog into the database. The server does this on every start
-// (after migrations); run this to do it by hand: `pnpm --filter server catalog:import [--force]`.
-import { runCatalogImport } from "@workspace/api";
+// Seeds the exercise catalog from the committed file when the table holds no catalog rows. The
+// server does this on every start (after migrations); run this to do it by hand:
+// `pnpm --filter server catalog:import`. Once seeded, the catalog is edited in the admin.
+import { runCatalogSeed } from "@workspace/api";
 import { env } from "@workspace/env/server";
 import { initLogger, log } from "@workspace/logger";
 
@@ -9,11 +10,11 @@ import { appConfig } from "../../../app.config";
 initLogger({ env: { service: `${appConfig.name}-catalog-import` } });
 
 try {
-  await runCatalogImport(env.DATABASE_URL, process.argv.includes("--force"));
+  await runCatalogSeed(env.DATABASE_URL);
 } catch (error) {
   log.error({
-    action: "exercise.catalog.import",
-    message: error instanceof Error ? error.message : "Catalog import failed",
+    action: "exercise.catalog.seed",
+    message: error instanceof Error ? error.message : "Catalog seed failed",
   });
   process.exit(1);
 }

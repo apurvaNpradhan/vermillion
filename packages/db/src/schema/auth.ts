@@ -16,6 +16,13 @@ export const user = pgTable("user", {
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
+  /** Set by the two-factor plugin once an authenticator is confirmed (admins only). */
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  /** `email-otp`, `google`, ...: written by the `lastLoginMethod` plugin on every sign-in. */
+  lastLoginMethod: text("last_login_method"),
+  /** The native app's `x-app-version` (`1.2.0+45`), recorded at most once a day. */
+  lastSeenAppVersion: text("last_seen_app_version"),
+  lastSeenAppAt: timestamp("last_seen_app_at", { withTimezone: true }),
 });
 
 export const session = pgTable(
@@ -31,6 +38,11 @@ export const session = pgTable(
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     impersonatedBy: text("impersonated_by"),
+    /**
+     * When this session passed the authenticator step. Only the admin asks for it; a session
+     * without it never reaches an admin procedure.
+     */
+    twoFactorVerifiedAt: timestamp("two_factor_verified_at", { withTimezone: true }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -89,7 +101,10 @@ export const jwks = pgTable("jwks", {
   crv: text("crv"),
 });
 
-/** WebAuthn credentials of the `passkey()` plugin. Fields from the installed plugin's schema. */
+/**
+ * WebAuthn credentials of the removed `passkey()` plugin. Kept (migrations are additive-only) until
+ * passkeys return on the final domain; nothing reads or writes it.
+ */
 export const passkey = pgTable(
   "passkey",
   {
@@ -110,6 +125,26 @@ export const passkey = pgTable(
   (table) => [
     index("passkey_userId_idx").on(table.userId),
     index("passkey_credentialID_idx").on(table.credentialID),
+  ],
+);
+
+/** Authenticator secrets and backup codes of the `twoFactor()` plugin, both encrypted by it. */
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean("verified").default(true),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: timestamp("locked_until"),
+  },
+  (table) => [
+    index("two_factor_secret_idx").on(table.secret),
+    index("two_factor_userId_idx").on(table.userId),
   ],
 );
 

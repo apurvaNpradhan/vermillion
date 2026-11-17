@@ -83,6 +83,15 @@ export const sendEmailQueue = defineQueue({
       case "delete-account":
         email = { ...common, to: account, template: "delete-account", url: job.url };
         break;
+      case "invite":
+        email = {
+          ...common,
+          to: job.to,
+          template: "invite",
+          inviteUrl: job.inviteUrl,
+          downloadUrl: job.downloadUrl,
+        };
+        break;
     }
     try {
       await sendEmail(services.emailTransport, email);

@@ -16,6 +16,8 @@ const baseConfig: ApiConfig = {
   appVersion: "1.0.0",
   appUrl: "http://localhost:3000",
   appScheme: "cinnabar",
+  siteUrl: "http://localhost:3001",
+  adminEmails: [],
   nativePort: 8081,
   isProduction: false,
   authSecret: "test-secret-0123456789abcdefghijklmnopqrstuvwxyz",
@@ -30,6 +32,16 @@ const baseConfig: ApiConfig = {
     accessKeyId: "vermillion",
     secretAccessKey: "vermillion-local-secret",
   },
+  // Tests fake this bucket at the network boundary (`fetch`); the running MinIO is not touched.
+  exerciseMedia: {
+    endpoint: "http://127.0.0.1:9000",
+    region: "auto",
+    bucket: "vermillion-exercise-media",
+    accessKeyId: "vermillion",
+    secretAccessKey: "vermillion-local-secret",
+    publicUrl: "http://127.0.0.1:9000/vermillion-exercise-media",
+  },
+  releases: { owner: "example", repo: "cinnabar" },
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };
 

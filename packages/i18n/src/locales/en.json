@@ -23,7 +23,6 @@
   "common__loading": "Loading…",
   "common__save": "Save",
   "common__cancel": "Cancel",
-  "common__delete": "Delete",
   "errors__bad_request": "That request was not valid.",
   "errors__unauthorized": "Please sign in again.",
   "errors__forbidden": "You are not allowed to do that.",
@@ -113,7 +112,6 @@
   "sync__state_paused": "You are offline. Changes are saved on this device and sync when you reconnect.",
   "sync__rejected_title": "Changes the server could not accept",
   "sync__rejected_discard": "Discard",
-  "sync__rejected_send": "Retry",
   "sync__rejected_discard_title": "Discard this change?",
   "sync__rejected_discard_body": "The change will be removed from this device and cannot be recovered.",
   "sync__rejected_discard_confirm": "Discard change",
@@ -1317,5 +1315,14 @@
   "lighter__start": "Start lighter week",
   "lighter__dismiss": "Dismiss",
   "lighter__until": "Lighter week until {{date}}",
-  "lighter__end": "End now"
+  "lighter__end": "End now",
+  "emails__invite_subject": "You're invited to {{app}}",
+  "emails__invite_title": "You're invited to {{app}}",
+  "emails__invite_body": "{{email}} can now create a {{app}} account. Install the app, then sign up with this address using an emailed code or Google. There is no code to type in.",
+  "emails__invite_download": "Download the app",
+  "emails__invite_expiry_one": "The invite works for {{count}} day.",
+  "emails__invite_expiry_other": "The invite works for {{count}} days.",
+  "emails__invite_details": "See your invite on the site:",
+  "emails__invite_ignore": "Not expecting this? You can ignore it: no account is created unless you sign up.",
+  "emails__invite_footer_reason": "Sent to {{email}} because this address was invited to {{app}}."
 }

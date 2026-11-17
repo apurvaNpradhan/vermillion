@@ -1,8 +1,10 @@
-import { createAuth, type Auth } from "@workspace/auth";
+import { createAuth, reconcileAdminRoles, type Auth } from "@workspace/auth";
 import type { Database } from "@workspace/db";
 import type { EmailTransport } from "@workspace/email";
 
+import { hasLiveInvite, redeemInvite } from "../access/index";
 import { deleteAccountData } from "../account/index";
+import { createReleaseLookup, type ReleaseLookup } from "../release/index";
 import { createObjectStore, type ObjectStore } from "../media/index";
 import { hasPendingEmails, queueEmail, resumeEmailOutbox, sendEmailQueue } from "../auth/index";
 import { createBackgroundTasks, type BackgroundTasks } from "./background-tasks";
@@ -20,6 +22,12 @@ export type Services = {
   emailTransport: EmailTransport;
   /** The private bucket of user media; signs URLs and deletes objects, never carries bytes. */
   objectStore: ObjectStore;
+  /** The public bucket of catalog exercise media: signs admin uploads, checks they arrived. */
+  exerciseMediaStore: ObjectStore;
+  /** The latest GitHub release, cached in memory. */
+  releases: ReleaseLookup;
+  /** Replaces `fetch` for outbound calls (CAPTCHA, GitHub, the media HEAD check) in tests. */
+  fetch?: typeof fetch | undefined;
   background: BackgroundTasks;
   rateLimiter: RateLimiter;
   /** Runs the work that needs a migrated database: job workers. */
@@ -34,7 +42,7 @@ export type CreateServicesOptions = {
   emailTransport: EmailTransport;
   /** pg-boss connection and queue tuning. */
   jobs: Pick<JobsOptions, "boss" | "defaults">;
-  /** Replaces `fetch` for the CAPTCHA provider (tests). */
+  /** Replaces `fetch` for outbound calls: the CAPTCHA provider, GitHub, the media bucket (tests). */
   fetch?: typeof fetch;
 };
 
@@ -49,12 +57,17 @@ export function createServices(options: CreateServicesOptions): Services {
   const auth = createAuth({
     db,
     baseUrl: config.appUrl,
+    siteUrl: config.siteUrl,
+    adminEmails: config.adminEmails,
+    appName: config.appName,
     secret: config.authSecret,
     isProduction: config.isProduction,
     openApi: config.openApiReference,
     appScheme: config.appScheme,
     nativePort: config.nativePort,
     registrationOpen: config.registrationOpen,
+    hasLiveInvite: (email) => hasLiveInvite(db, email),
+    afterUserCreated: (user) => redeemInvite(db, user),
     turnstileSecret: config.turnstileSecret,
     google: config.google,
     github: config.github,
@@ -71,9 +84,21 @@ export function createServices(options: CreateServicesOptions): Services {
     jobs,
     emailTransport: options.emailTransport,
     objectStore: createObjectStore(config.media),
+    exerciseMediaStore: createObjectStore(
+      config.exerciseMedia,
+      options.fetch ? { fetch: options.fetch } : {},
+    ),
+    releases: createReleaseLookup({
+      ...config.releases,
+      userAgent: `${config.appName}-server`,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    }),
+    fetch: options.fetch,
     background,
     rateLimiter: createRateLimiter(),
     async start() {
+      // The role column follows ADMIN_EMAILS: a removed address loses admin at once.
+      await reconcileAdminRoles(db, config.adminEmails);
       await jobs.start(services);
       await resumeEmailOutbox(services);
     },
