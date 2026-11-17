@@ -12,14 +12,17 @@ export const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"];
 /** Keys are `feature__identifier`, optionally followed by a plural category. */
 export const KEY_PATTERN = /^[a-z]+__[a-z_]+$/u;
 
-export async function loadLocales() {
-  const entries = await fs.readdir(localesDir);
+/** Namespaces besides the main one: each is a folder of locale files (`locales/web/en.json`). */
+export const namespaceDirs = [path.join(localesDir, "web")];
+
+export async function loadLocales(dir = localesDir) {
+  const entries = await fs.readdir(dir);
   const locales = await Promise.all(
     entries
       .filter((name) => /^[a-z]{2,3}(-[A-Z][A-Za-z]+)?\.json$/u.test(name))
       .toSorted()
       .map(async (name) => {
-        const file = path.join(localesDir, name);
+        const file = path.join(dir, name);
         return {
           locale: name.replace(/\.json$/u, ""),
           path: file,
