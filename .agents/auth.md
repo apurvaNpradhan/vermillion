@@ -4,22 +4,25 @@ Better Auth, configured in `packages/api/src/auth` with helpers in `packages/aut
 
 ## What is on
 
-Email one-time codes only, no passwords ([ADR 0029](../docs/adr/0029-email-otp-auth-and-account-first-onboarding.md)); Google and GitHub only when both credentials are set; the Expo plugin for native; passkeys (`@better-auth/passkey`, same version as `better-auth`; [ADR 0032](../docs/adr/0032-passkeys-with-a-dev-tunnel-rp-id.md)); delete-user with email confirmation; `lastLoginMethod`; the `jwt` plugin (5-minute PowerSync tokens only, JWKS at `/api/auth/jwks`; [ADR 0017](../docs/adr/0017-sync-credentials-and-transport.md)); the `openAPI` plugin (schema only, never in production, shown in `/api/reference`).
+Email one-time codes only, no passwords ([ADR 0029](../docs/adr/0029-email-otp-auth-and-account-first-onboarding.md)); Google and GitHub only when both credentials are set (production configures Google only); the Expo plugin for native; delete-user with email confirmation; `lastLoginMethod` (stored on the user, for the admin's account view); two-factor (TOTP and backup codes) for admins only; the `jwt` plugin (5-minute PowerSync tokens only, JWKS at `/api/auth/jwks`; [ADR 0017](../docs/adr/0017-sync-credentials-and-transport.md)); the `openAPI` plugin (schema only, never in production, shown in `/api/reference`).
 
 ## Invariants (do not weaken)
 
 - Account linking requires a verified local email.
 - No session cookie cache: bans and deletions apply on the next request.
 - Auth emails are queued as jobs, not sent on the request path.
-- Requesting a sign-in code answers the same for an existing and a new address; the account is created, verified, when the first code is redeemed. (With `REGISTRATION_OPEN=false` an unknown address is refused up front.)
+- Requesting a sign-in code answers the same for an existing and a new address; the account is created, verified, when the first code is redeemed. (With `REGISTRATION_OPEN=false` an unknown address without a live invite is refused up front with `REGISTRATION_CLOSED`; clients show the invite-only message from `auth.registrationStatus`, whose `mode` is `open` or `invite`.)
 - Codes are 6 digits, expire in 5 minutes, are stored hashed, burn after 3 wrong guesses, and a resend rotates the code. Constants live in `@workspace/shared` (`OTP_*`); the email copy and the clients read them.
 - Only the `sign-in` code type can be requested; the plugin's verify-email, check and password-reset endpoints answer 404.
 - Email-sending and auth endpoints have their own stricter rate limits.
-- Turnstile (when `TURNSTILE_SECRET_KEY` is set) guards sending a code and social sign-in; the verifier fails closed and checks action and hostname. No client is exempt, native included.
+- Turnstile (when `TURNSTILE_SECRET_KEY` is set) guards sending a code, social sign-in and access requests; the verifier fails closed and checks the action and that the hostname is the API's or the site's. No client is exempt, native included.
 - Disposable domains are rejected when a code is requested and at email change.
-- `REGISTRATION_OPEN=false` refuses every unknown address; existing accounts still sign in. There is no admin role or admin plugin ([ADR 0033](../docs/adr/0033-mobile-first-api-host.md)); the `role` and ban columns remain in the schema unused.
+- **Closed beta.** With `REGISTRATION_OPEN=false` a new account needs a live invite for its verified address (or the address in `ADMIN_EMAILS`). One check, in the `user.create.before` hook, covers email codes and Google; `after` redeems the invite. Existing accounts are unaffected.
+- **Admins** are `ADMIN_EMAILS` only: the `role` column is reconciled on start and every sign-in (`session.create.before`). There is no Better Auth admin plugin. Admin procedures use the `admin` builder in `packages/api/src/admin` (role re-read from the database, allowlist, two-factor enrolled and passed on this session).
+- **Two-factor.** Only allow-listed admins with a session reach `/two-factor/enable`, `/verify-totp` and `/verify-backup-code`; every other two-factor endpoint answers 404 (so a stolen inbox cannot disable or reissue it). Passing the step sets `session.two_factor_verified_at`. Email-code sign-in is never gated, so the owner's app is unaffected.
+- **Bans** (`user.banned`, set by the admin) end every session; `session.create.before` refuses a new one (`BANNED_USER`) and `sync.credentials` mints no token.
 - The server refuses to start without a strong `BETTER_AUTH_SECRET`.
-- Cookies are host-only, `SameSite=Lax`; the trusted-origin middleware rejects foreign-origin browser requests.
+- Cookies are host-only, `SameSite=Lax`; the trusted-origin middleware rejects foreign-origin browser requests. The site's origin is trusted: its Worker forwards `/api/auth` with the browser's cookies.
 
 ## Account deletion
 
@@ -27,7 +30,7 @@ Goes through Better Auth's delete-user flow. Native email links open `confirm-de
 
 ## Email kinds and codes
 
-`sign-in-code`, `change-email-code`, `delete-account`, `security-notice`, `sign-in-notice` (`packages/auth/src/email-jobs.ts`). Codes follow the same outbox rules as links: sensitive content in `auth_email_outbox` until delivered, pg-boss gets only the ID, and nothing logs a code or a subject (the subject starts with the code). Change email sends the code to the new address and a `security-notice` to the old one.
+`sign-in-code`, `change-email-code`, `delete-account`, `security-notice`, `sign-in-notice`, `invite` (`packages/auth/src/email-jobs.ts`). Codes follow the same outbox rules as links: sensitive content in `auth_email_outbox` until delivered, pg-boss gets only the ID, and nothing logs a code or a subject (the subject starts with the code). Change email sends the code to the new address and a `security-notice` to the old one.
 
 ## Onboarding
 
@@ -39,7 +42,7 @@ Account first, derived from the profile: `pendingOnboardingSteps` in `@workspace
 
 ## Passkeys
 
-Sign-in only for existing accounts; registration needs a fresh session. RP ID = `AUTH_RP_ID`, default the hostname of `APP_URL` (`api.<domain>`; permanent: never change it once passkeys exist); the accepted origins are exactly `AUTH_PASSKEY_ORIGINS` plus the `android:apk-key-hash:` origin of every `ANDROID_CERT_SHA256` fingerprint, resolved in `apps/server/src/index.ts`. HTTPS origins from that list are also trusted origins. `/.well-known/assetlinks.json` and `apple-app-site-association` are served by the API (`platform/well-known.ts`) from `ANDROID_CERT_SHA256` / `APPLE_TEAM_ID`, 404 while unset. Phone testing needs the dev tunnel: see `docs/guides/native-dev.md`. Endpoints (under `/api/auth`): `GET /passkey/generate-register-options`, `POST /passkey/verify-registration`, `GET /passkey/generate-authenticate-options`, `POST /passkey/verify-authentication`, `GET /passkey/list-user-passkeys`, `POST /passkey/delete-passkey`, `POST /passkey/update-passkey`. The challenge travels in a signed cookie, so a native client must send back the cookies of the options response.
+Withdrawn until the final domain ([ADR 0046](../docs/adr/0046-site-admin-closed-beta-and-rename.md)); the code is at tag `pre-passkey-removal`. The `passkey` table stays in the schema.
 
 Sign-in sessions explicitly expire after 30 days and refresh after one day of use. Sensitive
 operations retain a one-day freshness window; longer sign-in persistence does not extend it.

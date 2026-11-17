@@ -1,13 +1,13 @@
 # AGENTS.md
 
-Vermillion: a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `api.<domain>`). There is no web app; a marketing site and a companion app come later as separate apps ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)). pnpm + Turborepo, TypeScript 7.
+Cinnabar (repository: vermillion): a mobile-first monorepo for an app with personal accounts. Native (Expo), an API (Hono + oRPC on Dokploy, at `cinnabar-api.<domain>`) and the site with the owner's admin (TanStack Start on a Cloudflare Worker, at `cinnabar.<domain>`; [ADR 0046](docs/adr/0046-site-admin-closed-beta-and-rename.md)). pnpm + Turborepo, TypeScript 7.
 
 Read the guide for the area you touch before editing. Terms are defined in [CONTEXT.md](CONTEXT.md); reasons for decisions are in [docs/adr/](docs/adr/).
 
 ## Layout
 
 - `app.config.ts`: the only place the app's name, URLs, ports, bundle ids, scheme and versions live.
-- `apps/native`, `apps/server`: thin apps. Domain code lives in verticals under `src/<vertical>/`.
+- `apps/native`, `apps/server`, `apps/web`: thin apps. Domain code lives in verticals under `src/<vertical>/`.
 - `packages/{api,auth,db,ui,env,shared,logger,i18n,email,client,sync,config}`: `@workspace/*` (`ui` holds the brand tokens only). A package exists only if more than one app or package uses it.
 - `scripts/`, `tools/`: repo tooling (i18n checks, lint plugins, secret scan, ops).
 
@@ -25,7 +25,7 @@ Read the guide for the area you touch before editing. Terms are defined in [CONT
 | i18n consistency / key usage                       | `pnpm i18n:check`, `pnpm i18n:report`         |
 | Generate a migration                               | `pnpm db:generate`                            |
 
-Run lint, typecheck, knip, test and i18n:check before saying a change is done.
+Run lint, typecheck, knip, test and i18n:check before saying a change is done (and `pnpm --filter web build` when the site changes).
 
 ## Rules
 
@@ -57,6 +57,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [ui](.agents/ui.md)                     | HeroUI Native, tokens                                         |
 | [sync](.agents/sync.md)                 | Local-first sync: tables, streams, uploads, tests, ops        |
 | [media](.agents/media.md)               | User images: private bucket, presigned URLs, attachment queue |
+| [web](.agents/web.md)                   | The site: Worker, prerendered pages, admin, coss ui           |
 | [deploy](.agents/deploy.md)             | Where things run; pointers to docs                            |
 
 Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo and Turborepo work.

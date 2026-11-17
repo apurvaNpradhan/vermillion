@@ -1,6 +1,6 @@
 # 0033. Mobile first: no web app, the API on its own host
 
-Status: accepted (2026-11-09). Supersedes [0005](0005-same-origin-cloudflare-path-routes.md), [0012](0012-web-rendering-model.md), [0014](0014-template-init-script.md) and [0020](0020-offline-web-shell.md); amends [0001](0001-template-base.md), [0013](0013-shared-brand-tokens.md) and [0032](0032-passkeys-with-a-dev-tunnel-rp-id.md).
+Status: accepted (2026-11-09); amended by [0046](0046-site-admin-closed-beta-and-rename.md), which brings back a site and an admin. Supersedes [0005](0005-same-origin-cloudflare-path-routes.md), [0012](0012-web-rendering-model.md), [0014](0014-template-init-script.md) and [0020](0020-offline-web-shell.md); amends [0001](0001-template-base.md), [0013](0013-shared-brand-tokens.md) and [0032](0032-passkeys-with-a-dev-tunnel-rp-id.md).
 
 ## Context
 

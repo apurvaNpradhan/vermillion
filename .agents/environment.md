@@ -7,6 +7,7 @@
 | Server         | `@workspace/env/server`                                             | Secrets and server config. Importing it validates `process.env`.                                                                          |
 | Sync bootstrap | `@workspace/env/sync-bootstrap`                                     | Admin URL and PowerSync passwords for `pnpm sync:bootstrap` / `sync-bootstrap.mjs`. Separate from Server so the job needs no auth secret. |
 | Native         | `createNativeEnv({ EXPO_PUBLIC_...: process.env.EXPO_PUBLIC_... })` | Public `EXPO_PUBLIC_*` values only.                                                                                                       |
+| Web            | `createWebEnv(import.meta.env)`, `workerVarsSchema`                 | The site's public `VITE_*` values, and the Worker's vars (`API_ORIGIN`).                                                                  |
 
 ## Rules
 
@@ -15,5 +16,6 @@
 - Adding a variable: add it to the schema, the matching `.env.example`, `turbo.json` `globalEnv` (so cache keys change), the CI `env` block if checks need it, and `docs/deployment.md`.
 - Server-side entries share `packages/env/src/shared.ts` (placeholder-secret check, exit-on-invalid). Tests may read `process.env` for test-only overrides (for example `SYNC_INFRA_TEST_ADMIN_URL`); app code may not.
 - Optional features switch on when their variable is set (Turnstile, OAuth providers, Resend); do not add a separate boolean.
+- `ADMIN_EMAILS` (comma-separated) is the only source of the admin role. The exercise-media bucket has its own `EXERCISE_MEDIA_S3_*` set, separate from the user-media bucket.
 - Names, ports and URLs of the app itself come from `app.config.ts`, not env.
 - Local files: copy each `.env.example` to `.env`. Git ignores `.env`.

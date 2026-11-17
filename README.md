@@ -1,8 +1,8 @@
-# Vermillion
+# Cinnabar
 
 **An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
-Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync.
+Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync. A TanStack Start site on Cloudflare Workers carries the public pages and the owner's admin. (The repository keeps its old name, vermillion.)
 
 <p align="center">
   <img src="docs/screenshots/01-home.png" width="24%" alt="Home dashboard" />
@@ -18,7 +18,8 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Progress:** weekly sessions, sets and volume, an 8-week volume chart, muscles-trained heat map, personal records and progressive-overload suggestions.
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
-- **Accounts:** passwordless email-code sign-in and passkeys, Google/GitHub OAuth, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
+- **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
+- **Admin site:** catalog editing with media uploads, accounts, invites, the minimum supported app version and an audit record, behind an authenticator step.
 - **Appearance:** one neutral base in light, dark and true black, with five accents.
 
 ## Screenshots

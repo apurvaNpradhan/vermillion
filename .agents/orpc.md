@@ -4,7 +4,7 @@ oRPC 2 beta, versions pinned exactly (catalog in `pnpm-workspace.yaml`); Renovat
 
 ## Builders
 
-`platform/orpc/base.ts` defines typed error codes and two builders: `public` and `authed`. Always start from one of them. `authed` supplies `context.userId` and `context.services`.
+`platform/orpc/base.ts` defines typed error codes and two builders: `public` and `authed`. Always start from one of them. `authed` supplies `context.userId` and `context.services` (and records the native `x-app-version` header at most once a day). Admin procedures start from `admin` (`admin/index.ts`), which adds `context.audited(work, entry)`: every admin write goes through it so the change and its `admin_audit` row commit together; the authorization test enumerates `appRouter.admin` and checks both.
 
 Better Auth failures are mapped to our codes. A 401 from Better Auth after an authenticated check is reported as `FORBIDDEN` so the client does not sign the user out.
 
@@ -36,7 +36,7 @@ Every procedure also has a REST route, served (with the reference UI at `/api/re
 
 ## HTTP app
 
-`platform/create-app.ts` composes, in order: client IP (trusted proxies), request logging, one error handler mapping codes to statuses, compression, health, trusted-origin check, auth routes, the `/.well-known` files, the RPC handler, and the OpenAPI reference (not in production; see below).
+`platform/create-app.ts` composes, in order: client IP (trusted proxies), request logging, one error handler mapping codes to statuses, compression, health, trusted-origin check (the API's and the site's origins), auth routes, the RPC handler, and the OpenAPI reference (not in production; see below).
 
 ## Jobs
 

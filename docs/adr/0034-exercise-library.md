@@ -1,6 +1,6 @@
 # 0034. Exercise library: catalog, custom exercises, body map
 
-Status: accepted (2026-11-09). Builds on [0019](0019-synced-table-conventions.md), [0021](0021-device-owner-and-account-lifecycle.md), [0023](0023-replication-setup.md) and [0028](0028-native-navigation-shell.md). Specs: [docs/specs/exercise-library/](../specs/exercise-library/).
+Status: accepted (2026-11-09); amended by [0046](0046-site-admin-closed-beta-and-rename.md): the database, not the file, is the catalog's source of truth. Builds on [0019](0019-synced-table-conventions.md), [0021](0021-device-owner-and-account-lifecycle.md), [0023](0023-replication-setup.md) and [0028](0028-native-navigation-shell.md). Specs: [docs/specs/exercise-library/](../specs/exercise-library/).
 
 ## Context
 

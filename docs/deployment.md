@@ -1,20 +1,22 @@
 # Deployment
 
-The API has its own host, `api.<domain>`, on Dokploy behind Cloudflare. There is no web app, no Worker and no path routing ([ADR 0033](adr/0033-mobile-first-api-host.md)). The apex domain stays free for a future marketing site.
+Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the site and admin at `cinnabar.<domain>` (a Cloudflare Worker), the API at `cinnabar-api.<domain>` (Dokploy behind Cloudflare), sync at `cinnabar-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
 
 ```text
-native app ──► Cloudflare (proxied api.<domain>)  ──► Dokploy: Traefik ──► server container ──► Postgres service
-           ──► Cloudflare (proxied sync.<domain>) ──► Dokploy: Traefik ──► PowerSync ─────────► Postgres service
-           ──► R2 (presigned URLs, user media)
+native app ──► Cloudflare (proxied cinnabar-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
+           ──► Cloudflare (proxied cinnabar-sync.<domain>) ──► Dokploy: Traefik ──► PowerSync ──► Postgres
+           ──► R2 (presigned URLs, user media) and media.<domain> (catalog media)
+browser    ──► Worker on cinnabar.<domain>: static pages; /rpc and /api forwarded to cinnabar-api.<domain>
 
 push to main ──► GitHub Actions: CI ──► image to GHCR ──► Dokploy API: run that image
+             ──► GitHub Actions: CI ──► site build ──► wrangler deploy
 ```
 
 Dokploy never builds: CI builds the server image once and Dokploy runs it ([ADR 0045](adr/0045-build-in-ci-deploy-by-api.md)). New here? Start at [What the owner must do once](#what-the-owner-must-do-once).
 
-The app reaches it through `EXPO_PUBLIC_SERVER_URL`. The server also answers `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association`, which the passkeys need.
+The app reaches it through `EXPO_PUBLIC_SERVER_URL`. Passkeys and verified app links are withdrawn until the final domain, so the server publishes no `/.well-known` files.
 
-Before the first deploy, edit the files that cannot import `app.config.ts` by hand ([README](../README.md#configuring-the-app)): compose names, the server Dockerfile port and the EAS server URLs.
+Before the first deploy, edit the files that cannot import `app.config.ts` by hand ([README](../README.md#configuring-the-app)): compose names, the server Dockerfile port, the EAS server URLs and `apps/web/wrangler.jsonc` (`API_ORIGIN`, the custom domain).
 
 ## API server on Dokploy
 
@@ -40,7 +42,7 @@ Four Dokploy pieces in one project: a PostgreSQL database service with a backup 
 1. Create an **Application**. Source: **Docker**. Image `ghcr.io/<owner>/<repo>-server:latest`, registry URL `ghcr.io`, username and password a GitHub user and a token with `read:packages` (the package is private). The deploy workflow rewrites the image to the commit's tag, with the same credentials, on every deploy.
 2. Autodeploy **off**. Only the workflow deploys ([Continuous delivery](#continuous-delivery)).
 3. Environment: see [Environment](#environment).
-4. Domain: `api.<domain>`, port `3000`, HTTPS (Let's Encrypt), no path prefix. Cloudflare SSL/TLS mode must be **Full (strict)**.
+4. Domain: `cinnabar-api.<domain>`, port `3000`, HTTPS (Let's Encrypt), no path prefix. Cloudflare SSL/TLS mode must be **Full (strict)**.
 5. Health check: the image declares one against `/api/health` (every 2 seconds while starting, then every 30). Dokploy shows the container unhealthy if it fails. Optional, for a deploy that rolls itself back: Advanced → Cluster Settings → Swarm Settings, Update Config `{"Parallelism":1,"Delay":10000000000,"FailureAction":"rollback","Order":"start-first"}` (Dokploy's "going to production" guide).
 
 The image is built from `apps/server/Dockerfile` with the repository root as context ([ADR 0009](adr/0009-dokploy-dockerfile.md)). It holds the bundled server, the replication bootstrap job (`sync-bootstrap.mjs`) and the migrations, has no `node_modules`, and runs as the `node` user.
@@ -53,20 +55,17 @@ Migrations are additive-only: a release adds columns and tables, a later release
 
 Validated at startup by `packages/env`; the server exits with the failing variable named. `apps/server/.env.example` lists them all.
 
-| Variable                                                   | Required          | Notes                                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                             | yes               | The Postgres service's internal host with the unprivileged `vermillion` role ([Postgres](#postgres)), not the superuser.                                                                                                                                                                             |
-| `APP_URL`                                                  | yes               | Public origin of the API, `https://api.example.com`. Auth links, the trusted-origin check and the default passkey RP id use it.                                                                                                                                                                      |
-| `BETTER_AUTH_SECRET`                                       | yes               | 32+ chars, `openssl rand -hex 32`. Placeholders are refused in production.                                                                                                                                                                                                                           |
-| `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                                                                                                                                                                                                   |
-| `REGISTRATION_OPEN`                                        | no                | `false` refuses every unknown address; existing accounts still sign in. Default `true`.                                                                                                                                                                                                              |
-| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent and on social sign-in. Pair with the site key on native.                                                                                                                                                                                           |
-| `AUTH_RP_ID`                                               | no                | Passkey relying-party id (bare hostname). Defaults to the hostname of `APP_URL`. Never change it once users have passkeys.                                                                                                                                                                           |
-| `AUTH_PASSKEY_ORIGINS`                                     | no                | Comma-separated origins a passkey ceremony may come from. Defaults to the `APP_URL` origin. Also trusted origins.                                                                                                                                                                                    |
-| `ANDROID_CERT_SHA256`                                      | for Android       | Comma-separated SHA-256 fingerprints of the Android signing certificates (the release keystore of the Android release workflow, which prints it in its job summary; EAS keystore; Play app signing key). Adds the `android:apk-key-hash` origins and is published at `/.well-known/assetlinks.json`. |
-| `APPLE_TEAM_ID`                                            | for iOS           | Apple Developer team id (10 characters), published at `/.well-known/apple-app-site-association`.                                                                                                                                                                                                     |
-| `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set.                                                                                                                                                                                                                                          |
-| `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only).                                                                                                                                                                                 |
+| Variable                                                   | Required          | Notes                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                             | yes               | The Postgres service's internal host with the unprivileged `vermillion` role ([Postgres](#postgres)), not the superuser.                                                                                                               |
+| `APP_URL`                                                  | yes               | Public origin of the API, `https://cinnabar-api.<domain>`. Auth links and the trusted-origin check use it. The site's origin comes from `app.config.ts`.                                                                               |
+| `BETTER_AUTH_SECRET`                                       | yes               | 32+ chars, `openssl rand -hex 32`. Placeholders are refused in production.                                                                                                                                                             |
+| `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                                                                                                                                     |
+| `REGISTRATION_OPEN`                                        | no                | `false` (production, the closed beta): only an address with a live invite, or in `ADMIN_EMAILS`, may create an account; existing accounts still sign in. Default `true`.                                                               |
+| `ADMIN_EMAILS`                                             | for the admin     | Comma-separated addresses that hold the admin role, reconciled on start and every sign-in. The only way to become an admin. Empty: no admin.                                                                                           |
+| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent, on social sign-in and on access requests. Pair with the site key on native and on the site. The widget must allow both hostnames (`cinnabar.<domain>` and `cinnabar-api.<domain>`). |
+| `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set. Production configures Google only ([Google sign-in](#google-sign-in)).                                                                                                     |
+| `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only).                                                                                                                   |
 
 Sync infrastructure (PowerSync):
 
@@ -85,6 +84,16 @@ User media (the private bucket, [ADR 0040](adr/0040-user-media.md)):
 | `MEDIA_S3_BUCKET`                                      | production | The private R2 bucket (`vermillion-user-media` in development). No public access, no custom domain, no CORS rules: the app only uses presigned URLs.        |
 | `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY` | production | An R2 API token scoped to this one bucket with Object Read & Write. The development MinIO secret is refused in production.                                  |
 | `MEDIA_S3_REGION`                                      | no         | Default `auto` (what R2 expects).                                                                                                                           |
+
+Catalog exercise media (the public bucket the admin uploads to):
+
+| Variable                                                                 | Required   | Notes                                                                                                |
+| ------------------------------------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------- |
+| `EXERCISE_MEDIA_S3_ENDPOINT`, `EXERCISE_MEDIA_S3_BUCKET`                 | production | The R2 bucket served on `media.<domain>`. Development: the `vermillion-exercise-media` MinIO bucket. |
+| `EXERCISE_MEDIA_S3_ACCESS_KEY_ID`, `EXERCISE_MEDIA_S3_SECRET_ACCESS_KEY` | production | An R2 API token scoped to this bucket only, Object Read & Write.                                     |
+| `EXERCISE_MEDIA_S3_REGION`, `EXERCISE_MEDIA_PUBLIC_URL`                  | no         | `auto`; the public URL defaults to `https://media.<domain>` in production.                           |
+
+The exercise-media bucket needs a CORS rule so the admin's browser can upload with presigned URLs: allowed origin `https://cinnabar.<domain>`, methods `PUT`, headers `Content-Type` and `Content-Length`, max age 3600. Keep its custom domain `media.<domain>` (public read). Keys the admin uploads are under `exercises/admin/`.
 
 R2 setup: create the bucket (no public access), create an API token limited to it, put the four values on the server service. Objects live under `users/<userId>/`; account deletion and the hourly `media.purge-objects` job delete them. The bucket is a processor of health-adjacent data: keep it on the [privacy readiness](privacy-readiness.md) checklist.
 
@@ -110,7 +119,7 @@ R2 setup: create the bucket (no public access), create an API token limited to i
 
 PowerSync is a long-lived streaming connection with bearer tokens, so it gets its own subdomain instead of sharing the API host ([ADR 0017](adr/0017-sync-credentials-and-transport.md)).
 
-1. DNS: a proxied record `sync.example.com` pointing at the Dokploy server; Traefik routes it to the PowerSync container port. Set `SYNC_ENDPOINT_URL=https://sync.example.com` on the server; clients get it from `sync.credentials`, never from a build constant.
+1. DNS: a proxied record `cinnabar-sync.<domain>` pointing at the Dokploy server; Traefik routes it to the PowerSync container port. Set `SYNC_ENDPOINT_URL=https://cinnabar-sync.<domain>` on the server; clients get it from `sync.credentials`, never from a build constant.
 2. The firewall rules above apply unchanged (only Cloudflare reaches the origin).
 3. Before rollout verify on this hostname: a stream stays open past Cloudflare's idle timeout and reconnects, and the proxy does not buffer the stream. These are unverified in this repo.
 
@@ -153,7 +162,7 @@ Without this, anyone can call the origin directly with a forged `Cf-Connecting-I
 
 1. Add the domain's zone to Cloudflare and create a **proxied** (orange cloud) DNS record `api` that points at the Dokploy server's IP.
 2. SSL/TLS mode **Full (strict)**.
-3. Check it with `curl https://api.example.com/api/health` (`{"status":"ok"}`) and `curl https://api.example.com/.well-known/assetlinks.json` (404 until `ANDROID_CERT_SHA256` is set).
+3. Check it with `curl https://cinnabar-api.<domain>/api/health` (`{"status":"ok"}`).
 4. Optional: a WAF rate limit rule for `/api/auth/*` as a second layer behind the in-process limits.
 
 ## Continuous delivery
@@ -197,7 +206,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 **Cloudflare and the server**
 
-1. Add the domain's zone. Create proxied records `api`, `sync` and `dokploy` pointing at the server. SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
+1. Add the domain's zone. Create proxied records `cinnabar-api`, `cinnabar-sync` and `dokploy` pointing at the server (the site's `cinnabar` record is created by the Worker's custom domain, step 24). SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
 2. Install Dokploy on the server. Settings → Server domain: `dokploy.<domain>` with HTTPS.
 3. Firewall: inbound 80/443 only from Cloudflare's ranges, SSH from your address. ([Firewall](#firewall-only-cloudflare-reaches-the-origin))
 
@@ -220,24 +229,49 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 **Server (Dokploy)**
 
-12. Create the server application: Docker source, `ghcr.io/<owner>/<repo>-server:latest`, registry `ghcr.io` with the user and token of step 8, autodeploy off, domain `api.<domain>` port 3000. Copy its id.
+12. Create the server application: Docker source, `ghcr.io/<owner>/<repo>-server:latest`, registry `ghcr.io` with the user and token of step 8, autodeploy off, domain `cinnabar-api.<domain>` port 3000. Copy its id.
 13. Profile → API/CLI keys: create the API key.
 14. Generate the secrets: `BETTER_AUTH_SECRET` (`openssl rand -hex 32`), `POWERSYNC_REPLICATION_PASSWORD` and `POWERSYNC_STORAGE_PASSWORD` (`openssl rand -hex 24`), `PS_ADMIN_TOKEN` (`openssl rand -hex 32`).
-15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://sync.<domain>`, the four `MEDIA_S3_*` values, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
+15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://cinnabar-api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://cinnabar-sync.<domain>`, `REGISTRATION_OPEN=false`, `ADMIN_EMAILS=<your address>`, the four `MEDIA_S3_*` and the `EXERCISE_MEDIA_S3_*` values, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`/`_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
 16. Run the bootstrap job on the host. ([Sync infrastructure](#sync-infrastructure), step 2)
-17. Approve the waiting deploy job (or run the workflow again). Check `curl https://api.<domain>/api/health` and `/api/ready`.
+17. Approve the waiting deploy job (or run the workflow again). Check `curl https://cinnabar-api.<domain>/api/health` and `/api/ready`.
 18. Traefik: keep Cloudflare's `X-Forwarded-For`, then verify the client IP. ([Trusted proxies](#trusted-proxies-and-the-client-ip))
 
 **PowerSync (Dokploy)**
 
-19. Create the Compose application from `powersync/compose.dokploy.yml`, set its environment, give the `powersync` service the domain `sync.<domain>` port 8080, deploy. Check `curl https://sync.<domain>/probes/readiness`.
+19. Create the Compose application from `powersync/compose.dokploy.yml`, set its environment, give the `powersync` service the domain `cinnabar-sync.<domain>` port 8080, deploy. Check `curl https://cinnabar-sync.<domain>/probes/readiness`.
 20. Point an external monitor at `/api/ready`. ([Sync infrastructure](#sync-infrastructure), step 4)
 
 **Android app**
 
-21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://api.<domain>` (repository level). ([Android release](guides/android-release.md))
-22. Set `ANDROID_CERT_SHA256` on the server application to the keystore's SHA-256 fingerprint and deploy. Check `curl https://api.<domain>/.well-known/assetlinks.json`.
-23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release.
+21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://cinnabar-api.<domain>` (repository level). ([Android release](guides/android-release.md))
+22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
+23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release; the site's `/download` serves its APK.
+
+**Site and admin (Cloudflare)**
+
+24. Workers: the Worker `cinnabar-site` is created by the first deploy, with the custom domain `cinnabar.<domain>` from `apps/web/wrangler.jsonc` (Cloudflare creates its DNS record and certificate).
+25. Create an API token from the "Edit Cloudflare Workers" template, scoped to this account and zone. In the `production` environment add the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+26. Turnstile: add a widget (managed) with the hostnames `cinnabar.<domain>` and `cinnabar-api.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server; the site key in the `production` variable `VITE_TURNSTILE_SITE_KEY` and in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
+27. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
+28. Actions → Deploy site → Run workflow on `main`. Open `https://cinnabar.<domain>/admin`, sign in with your `ADMIN_EMAILS` address, scan the QR code with an authenticator and store the backup codes.
+
+**Google sign-in**
+
+29. Google Cloud console → OAuth client (Web application). Authorised redirect URI `https://cinnabar-api.<domain>/api/auth/callback/google`, JavaScript origin `https://cinnabar-api.<domain>`. Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. GitHub sign-in stays unconfigured in production.
+
+## Moving to the final domain
+
+No data migration; the hosts change and the app is rebuilt.
+
+1. `app.config.ts`: change `domain` (and `releases` if the repository moves).
+2. DNS: the proxied `cinnabar-api`, `cinnabar-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
+3. `apps/web/wrangler.jsonc`: `API_ORIGIN` and the custom domain; deploy the site.
+4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`; Turnstile widget hostnames.
+5. Google OAuth client: redirect URI and origin on the new API host.
+6. R2: the media bucket's custom domain and its CORS origin.
+7. `apps/native/eas.json` profile URLs, the `EXPO_PUBLIC_SERVER_URL` repository variable and EAS environment values; build and release a new app version, then raise the minimum supported version in the admin once it is out.
+8. Decide passkeys and verified app links again (ADR 0032 is withdrawn, not rejected).
 
 ## Native
 
@@ -251,4 +285,4 @@ eas update --channel production --environment production --message "…"  # expl
 eas build --profile production --platform all  # store build; submission stays manual
 ```
 
-Set `EXPO_PUBLIC_SERVER_URL` in each build profile of `eas.json` by hand: `https://api.<domain>` for `production` and your staging API for `preview`. OTA publication does not read build-profile `env`: create `EXPO_PUBLIC_SERVER_URL` (and the optional `EXPO_PUBLIC_TURNSTILE_SITE_KEY`) in the EAS **production** environment with the same public values, and always pass `--environment production`. Check `eas env:list --environment production` before publishing; the API origin must be the production API host, never localhost. If the host changes, update those EAS values too. Over-the-air updates only carry JS and assets: a change that needs new native code needs a new build.
+Set `EXPO_PUBLIC_SERVER_URL` in each build profile of `eas.json` by hand: `https://cinnabar-api.<domain>` for `production` and your staging API for `preview`. OTA publication does not read build-profile `env`: create `EXPO_PUBLIC_SERVER_URL` (and the optional `EXPO_PUBLIC_TURNSTILE_SITE_KEY`) in the EAS **production** environment with the same public values, and always pass `--environment production`. Check `eas env:list --environment production` before publishing; the API origin must be the production API host, never localhost. If the host changes, update those EAS values too. Over-the-air updates only carry JS and assets: a change that needs new native code needs a new build.

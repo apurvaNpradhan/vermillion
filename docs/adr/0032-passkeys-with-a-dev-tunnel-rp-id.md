@@ -1,6 +1,6 @@
 # 0032. Passkeys via Better Auth with a dev tunnel for the RP ID
 
-Status: accepted (2026-11-08).
+Status: withdrawn until the final domain (2026-11-17, [0046](0046-site-admin-closed-beta-and-rename.md)). The code is at tag `pre-passkey-removal`. Previously accepted (2026-11-08).
 
 ## Context
 

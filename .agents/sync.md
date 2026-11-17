@@ -48,4 +48,4 @@ Seam 3 suites (`tests/sync/src`): `exercise` (catalog and library streams, then 
 - Replay, limits, error codes: ADR 0018. Table conventions and conflicts: 0019. Credentials and JWT: 0017. Bootstrap: 0023. Tests: 0024. Alerts: 0025.
 - Operating it: [runbook](../docs/runbooks/sync.md), [restore checklist](../docs/sync-restore-checklist.md), [deployment](../docs/deployment.md#sync-infrastructure).
 - `media` ([guide](media.md)) is a synced table whose rows describe files outside Postgres; its bytes never ride the upload.
-- `exercise` (`packages/api/src/exercise/`) is the reference synced table: a Reference-data catalog plus per-user Custom exercises, retire-never-delete, catalog import at startup (`pnpm --filter server catalog:import`), `pnpm catalog:convert <source>` to regenerate the data file.
+- `exercise` (`packages/api/src/exercise/`) is the reference synced table: a Reference-data catalog plus per-user Custom exercises, retire-never-delete, the catalog seeded into an empty table at startup (`pnpm --filter server catalog:import`) and maintained in the admin afterwards (ADR 0046); the admin export regenerates the seed file.

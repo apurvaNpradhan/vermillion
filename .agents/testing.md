@@ -22,7 +22,7 @@ The Postgres test template gets the `powersync` publication and the `powersync_r
 
 Pure-function unit tests: client-IP resolver, disposable-domain matcher, Turnstile verifier (stub `fetch`), preferences `ui` defaults, return-location sanitiser, boundaries lint rule.
 
-There is no browser or end-to-end suite: the web app and its Playwright tests were removed ([ADR 0033](../docs/adr/0033-mobile-first-api-host.md)). Add native e2e (for example Maestro) as its own decision when the app needs it.
+There is no browser or end-to-end suite ([ADR 0026](../docs/adr/0026-no-e2e-and-privacy-readiness.md)). The site (`apps/web`) has unit tests for the Worker's forwarding decision and the admin gate, and CI builds it so a broken prerender fails. Admin tests fake only the network boundary (Turnstile, GitHub Releases, the exercise-media bucket's HEAD) with `fakeNetwork` from `platform/testing/admin.ts`; `createFullAdmin` signs in, enrols and passes the authenticator. Add native e2e (for example Maestro) as its own decision when the app needs it.
 
 Native has no automated UI test seam in v1. Shared pure helpers and session-cache behavior are tested in `packages/client`.
 

@@ -13,7 +13,10 @@ packages/api/src/
     sync.test.ts
   legacy/              definitions of tables whose vertical was removed (see below)
 apps/native/src/exercise/ index.ts, hooks (use-exercise-library.ts), components/
+apps/web/src/catalog/   index.ts, hooks (use-catalog.ts), components/
 ```
+
+Admin procedures live in the vertical they act on (`exercise/catalog-admin`, `access`, `release`) and are built from `admin` in `admin/index.ts`; `platform/orpc/router.ts` assembles them under `admin`. The `admin` vertical itself must not import the verticals that use its builder (counts read tables by name, the release lookup comes from `services`), so there is no import cycle.
 
 ## Inside a vertical
 
