@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { z } from "zod";
 
+import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { FormError } from "@/platform/ui/form-error";
@@ -70,7 +71,19 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
             loading: isSubmitting,
           }}
         >
-          {status && !status.open ? <Notice status="accent" message={t("auth__closed")} /> : null}
+          {status && !status.open ? (
+            <Notice
+              status="accent"
+              message={
+                status.mode === "invite"
+                  ? t("auth__invite_only", {
+                      app: appConfig.displayName,
+                      site: appConfig.urls.site,
+                    })
+                  : t("auth__closed")
+              }
+            />
+          ) : null}
           <FormError message={failure} />
           <form.Field name="email">
             {(field) => (

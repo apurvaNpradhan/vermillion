@@ -23,6 +23,7 @@ const DETAIL_KEYS = new Map<string, TranslationKey>([
   ["REGISTRATION_CLOSED", "errors__registration_closed"],
   ["DISPOSABLE_EMAIL_NOT_ALLOWED", "errors__disposable_email"],
   ["CAPTCHA_FAILED", "errors__captcha_failed"],
+  ["BANNED_USER", "errors__banned"],
 ]);
 
 /** What a failed query, mutation or call can throw. */

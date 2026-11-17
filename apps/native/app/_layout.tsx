@@ -32,6 +32,7 @@ import { useNotificationNavigation } from "@/platform/navigation/use-notificatio
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 import { AppProviders } from "@/platform/providers";
+import { UpdateHost } from "@/release";
 import { useDeviceOwner } from "@/sync";
 import { applyStoredTheme, useThemeMode } from "@/platform/theme";
 
@@ -85,7 +86,7 @@ function RootStack() {
 
   if (isPending) return null;
   return (
-    <>
+    <UpdateHost>
       {guards.app && (
         <>
           <RestNotificationHost />
@@ -132,7 +133,7 @@ function RootStack() {
         <Stack.Screen name="account-deleted" />
         <Stack.Screen name="confirm-deletion" />
       </Stack>
-    </>
+    </UpdateHost>
   );
 }
 

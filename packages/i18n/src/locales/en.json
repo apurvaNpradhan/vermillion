@@ -32,7 +32,7 @@
   "errors__bad_gateway": "A service we depend on is not responding.",
   "errors__offline": "This needs a connection. Try again when you are back online.",
   "errors__unknown": "Something went wrong. Try again.",
-  "errors__registration_closed": "Registration is currently closed.",
+  "errors__registration_closed": "Sign-up is by invite only, and this address has no invite.",
   "errors__disposable_email": "Email addresses from disposable providers are not allowed.",
   "errors__captcha_failed": "The security check failed. Please try again.",
   "errors__page_not_found": "Page not found",
@@ -1324,5 +1324,13 @@
   "emails__invite_expiry_other": "The invite works for {{count}} days.",
   "emails__invite_details": "See your invite on the site:",
   "emails__invite_ignore": "Not expecting this? You can ignore it: no account is created unless you sign up.",
-  "emails__invite_footer_reason": "Sent to {{email}} because this address was invited to {{app}}."
+  "emails__invite_footer_reason": "Sent to {{email}} because this address was invited to {{app}}.",
+  "auth__invite_only": "{{app}} is invite-only for now: only an invited address can create an account. Ask for an invite at {{site}}.",
+  "release__required_title": "Update required",
+  "release__required_body": "This version of the app no longer works with the server. Install version {{version}} or newer to carry on; your data is safe.",
+  "release__download": "Download the update",
+  "release__available_title": "Version {{version}} is available",
+  "release__available_body": "Tap to download the new build.",
+  "release__dismiss": "Dismiss",
+  "errors__banned": "This account is suspended."
 }
