@@ -119,8 +119,10 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  # One shot: creates the dev bucket. No bucket policy and no CORS rules are set, so nothing is
-  # publicly readable and browsers cannot call it; the app only uses presigned URLs. Rerunning is safe.
+  # One shot: creates the dev buckets. The user-media bucket gets no bucket policy, so nothing in it
+  # is publicly readable; the app only uses presigned URLs. The exercise-media bucket stands in for
+  # the public catalog bucket on media.<domain>: anonymous download only, uploads stay presigned.
+  # MinIO answers CORS for any origin, so the site's dev server can upload to it. Rerunning is safe.
   minio-init:
     image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
     depends_on:
@@ -133,7 +135,9 @@ services:
         n=0; until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
           n=$$((n + 1)); [ "$$n" -ge 30 ] && exit 1; sleep 1;
         done &&
-        mc mb --ignore-existing local/${MEDIA_S3_BUCKET:-vermillion-user-media}
+        mc mb --ignore-existing local/${MEDIA_S3_BUCKET:-vermillion-user-media} &&
+        mc mb --ignore-existing local/${EXERCISE_MEDIA_S3_BUCKET:-vermillion-exercise-media} &&
+        mc anonymous set download local/${EXERCISE_MEDIA_S3_BUCKET:-vermillion-exercise-media}
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vermillion}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vermillion-local-secret}
