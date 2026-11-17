@@ -45,6 +45,9 @@ jobs:
         run: pnpm i18n:report
       - name: Typecheck
         run: pnpm typecheck
+      # The site prerenders its public pages at build time: a broken page fails here.
+      - name: Build the site
+        run: pnpm --filter web build
 
   # Tests clone a migrated template database on a real Postgres (ADR 0024). The repo's
   # compose file starts it with the logical-WAL flags the sync infrastructure tests need.
