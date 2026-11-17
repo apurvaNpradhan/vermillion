@@ -1,0 +1,166 @@
+@import "tailwindcss";
+@import "@workspace/ui/web-tokens.css";
+@import "@fontsource-variable/inter";
+@source "../";
+
+/*
+ * The coss ui components (platform/ui) speak shadcn's names; each one maps to a brand role from
+ * @workspace/ui (web-tokens.css), so the site carries no colour of its own. Light and dark follow
+ * the system through the roles.
+ */
+:root {
+  --radius: 0.75rem;
+  --background: var(--canvas);
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-floating);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--action);
+  --primary-foreground: var(--on-action);
+  --primary-hover: var(--action-hover);
+  --primary-active: var(--action-pressed);
+  --secondary: var(--surface-control);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-control);
+  --muted-foreground: var(--text-muted);
+  --subtle: var(--text-secondary);
+  --accent: var(--surface-control);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger);
+  --success-foreground: var(--success-text);
+  --warning-foreground: var(--warning-text);
+  --info: var(--surface-control);
+  --info-foreground: var(--text-secondary);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: var(--focus-ring);
+  --button-primary-shadow: inset 0 1px 0.4px rgb(255 255 255 / 0.16), 0 1px 2px rgb(0 0 0 / 0.12);
+  --button-secondary-fill: linear-gradient(transparent, transparent);
+  --button-secondary-shadow: 0 0 0 1px var(--hairline-strong);
+  --button-secondary-shadow-hover: 0 0 0 1px var(--text-muted);
+  --button-secondary-shadow-pressed: 0 0 0 1px var(--hairline);
+  --button-danger-shadow: 0 0 0 1px var(--danger);
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-xs: calc(var(--radius) - 8px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 4px);
+  --animate-skeleton: skeleton 2s -1s infinite linear;
+  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  @keyframes skeleton {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes toast-success-odd {
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+  @keyframes toast-error-odd {
+    0% {
+      translate: 0 0;
+    }
+    25% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
+    75% {
+      translate: -3px 0;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+  @keyframes toast-success-even {
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+  @keyframes toast-error-even {
+    0% {
+      translate: 0 0;
+    }
+    25% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
+    75% {
+      translate: -3px 0;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+}
+
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply font-sans bg-background text-foreground antialiased;
+  }
+}

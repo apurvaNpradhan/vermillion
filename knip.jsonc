@@ -30,6 +30,11 @@
       // ImageMagick, used by the body-map asset generator.
       "ignoreBinaries": ["magick"],
     },
+    "apps/web": {
+      // Copied from the coss ui registry; kept whole so upstream updates re-apply cleanly.
+      "ignore": ["src/platform/ui/**"],
+      "ignoreDependencies": ["@workspace/config"],
+    },
     "packages/api": {
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).
       "ignoreDependencies": ["@orpc/shared"],

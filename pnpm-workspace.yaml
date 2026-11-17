@@ -3,6 +3,7 @@ packages:
   - packages/*
   - tests/*
 allowBuilds:
+  workerd: true
   esbuild: true
   sharp: true
   lefthook: true

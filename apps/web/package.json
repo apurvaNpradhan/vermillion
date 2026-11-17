@@ -1,0 +1,52 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "tsc -b --force ../../packages/i18n && vite build",
+    "preview": "wrangler dev",
+    "typecheck": "tsc -b --force ../../packages/i18n && tsc -b ../../packages/api ../../packages/client ../../packages/env ../../packages/shared && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "@fontsource-variable/inter": "5.3.0",
+    "@marsidev/react-turnstile": "1.6.3",
+    "@orpc/client": "catalog:",
+    "@phosphor-icons/react": "2.1.10",
+    "@tanstack/react-form": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "1.170.46",
+    "@tanstack/react-start": "1.169.4",
+    "@tanstack/react-table": "9.3.1",
+    "@workspace/api": "workspace:*",
+    "@workspace/client": "workspace:*",
+    "@workspace/env": "workspace:*",
+    "@workspace/i18n": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "better-auth": "catalog:",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "qrcode.react": "4.2.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwind-merge": "3.6.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "@workspace/config": "workspace:*",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "8.3.4",
+    "vitest": "^5.1.0",
+    "wrangler": "4.156.1"
+  }
+}

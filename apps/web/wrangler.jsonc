@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The site (`cinnabar.<domain>`): static assets from `vite build`, and a small Worker that
+  // forwards /rpc and /api to the API, redirects /download and serves the admin's shell.
+  // Hostnames are derived from app.config.ts's domain by hand (docs/deployment.md).
+  "name": "cinnabar-site",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/rpc/*", "/api/*", "/download", "/admin", "/admin/*", "/invite"],
+  },
+  "vars": { "API_ORIGIN": "https://cinnabar-api.lostsignal.cloud" },
+  "routes": [{ "pattern": "cinnabar.lostsignal.cloud", "custom_domain": true }],
+}
