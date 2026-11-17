@@ -9,3 +9,9 @@ export const TURNSTILE_TOKEN_HEADER = "x-turnstile-token";
 
 /** The widget action the clients render; the server's CAPTCHA verifier insists on it. */
 export const TURNSTILE_ACTION = "auth";
+
+/**
+ * Header the native app sends on API calls: its version and build number (`1.2.0+45`). The server
+ * records it on the account at most once a day; nothing else depends on it.
+ */
+export const APP_VERSION_HEADER = "x-app-version";

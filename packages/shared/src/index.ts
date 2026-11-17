@@ -6,6 +6,8 @@ export * from "./sync";
 export * from "./otp";
 export * from "./onboarding";
 export * from "./csv";
+export * from "./release";
+export * from "./admin/index";
 export * from "./exercise/index";
 export * from "./training/index";
 
