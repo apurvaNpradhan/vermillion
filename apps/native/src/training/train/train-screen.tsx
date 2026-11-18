@@ -3,7 +3,7 @@ import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native";
 import { useSubtleColor } from "@/platform/theme";
-import { Barbell, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
+import { Barbell, CaretRight, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -31,12 +31,14 @@ import { WorkoutRow } from "./workout-row";
 
 type Row = TrainRow<WorkoutSummary>;
 const NO_ROWS: Row[] = [];
-const rowKey = (row: Row) => (row.kind === "heading" ? `heading-${row.id}` : row.workout.id);
+const rowKey = (row: Row) =>
+  row.kind === "workout" ? row.key : row.kind === "program" ? `program-${row.id}` : "other";
 
 /**
- * One list of workouts, each with when it was last done: the active program's first, then the
- * rest (or all of them when no program is active). Program management sits behind the header's
- * Programs button; creating a workout or an empty session behind Create.
+ * Workouts grouped under their program, each with when it was last done: the active program
+ * first, then the other programs, then workouts no program owns. A program heading opens the
+ * program. Program management sits behind the header's Programs button; creating a workout or
+ * an empty session behind Create.
  */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t, i18n } = useTranslation();
@@ -50,14 +52,14 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     () =>
       trainRows({
         workouts,
-        activeWorkoutIds: active.program
-          ? active.program.slots.map((slot) => slot.workoutId)
-          : null,
-        ownedIds: new Set(
-          programs.flatMap((program) => program.slots.map((slot) => slot.workoutId ?? "")),
-        ),
+        programs: programs.map((program) => ({
+          id: program.id,
+          title: program.title,
+          workoutIds: program.slots.map((slot) => slot.workoutId),
+        })),
+        activeProgramId: active.program?.id ?? null,
       }),
-    [workouts, active.program, programs],
+    [workouts, active.program?.id, programs],
   );
   // One ready state: the active program, programs and workouts all come from the local database,
   // and nothing is drawn until every one of them has answered, so the screen appears at once.
@@ -92,6 +94,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     (id: string) => router.push({ pathname: "/train/workout/[id]", params: { id } }),
     [router],
   );
+  const openProgram = programList.open;
   const duplicate = useCallback(
     async (workout: { id: string; title: string | null }) => {
       const copy = await actions.duplicate(workout.id, workout.title);
@@ -111,15 +114,42 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   );
   const renderRow = useCallback(
     ({ item }: { item: Row }) => {
-      if (item.kind === "heading") {
+      if (item.kind === "other") {
         return (
           <Text
             accessibilityRole="header"
             numberOfLines={1}
-            className="px-4 pb-1 pt-6 text-overline font-semibold uppercase text-muted"
+            className="px-4 pb-1 pt-7 text-overline font-semibold uppercase text-muted"
           >
-            {item.id === "program" ? (active.program?.title ?? "") : t("training__other_workouts")}
+            {t("training__other_workouts")}
           </Text>
+        );
+      }
+      if (item.kind === "program") {
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.title}
+            onPress={() => openProgram(item.id)}
+            className="flex-row items-center gap-2 px-4 pb-1 pt-7 active:opacity-70"
+          >
+            <Text
+              accessibilityRole="header"
+              numberOfLines={1}
+              className="shrink font-semibold text-title-md text-foreground"
+            >
+              {item.title}
+            </Text>
+            {item.active ? (
+              <View className="rounded-full bg-identity-soft px-2 py-0.5">
+                <Text className="font-medium text-caption text-identity">
+                  {t("training__program_active")}
+                </Text>
+              </View>
+            ) : null}
+            <View className="flex-1" />
+            <CaretRight size={16} color={subtle} />
+          </Pressable>
         );
       }
       const at = lastDone.get(item.workout.id);
@@ -148,7 +178,8 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
       duplicate,
       remove,
       lastDone,
-      active.program?.title,
+      openProgram,
+      subtle,
       t,
       i18n.language,
       timezone,
