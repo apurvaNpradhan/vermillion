@@ -45,6 +45,7 @@ const exercise = (
   note: null,
   supersetGroup: null,
   logEffort: false,
+  progressionPerSet: false,
   exercise: null,
   sets,
   ...init,

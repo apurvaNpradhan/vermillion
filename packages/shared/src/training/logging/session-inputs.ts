@@ -203,5 +203,6 @@ export const exerciseSettingInput = z.strictObject({
   exercise_id: z.uuid(),
   bar_id: z.uuid().nullable(),
   log_effort: z.boolean(),
+  progression_per_set: z.boolean().default(false),
 });
 export type ExerciseSettingInput = z.infer<typeof exerciseSettingInput>;

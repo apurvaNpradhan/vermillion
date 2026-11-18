@@ -543,10 +543,15 @@ const putSetting = z.strictObject({
   exercise_id: exerciseSettingInput.shape.exercise_id,
   bar_id: exerciseSettingInput.shape.bar_id.default(null),
   log_effort: wireBoolean.default(false),
+  progression_per_set: wireBoolean.optional(),
 });
 // A setting belongs to one exercise for good.
 const patchSetting = z
-  .strictObject({ bar_id: exerciseSettingInput.shape.bar_id, log_effort: wireBoolean })
+  .strictObject({
+    bar_id: exerciseSettingInput.shape.bar_id,
+    log_effort: wireBoolean,
+    progression_per_set: wireBoolean,
+  })
   .partial();
 
 /** The remembered bar must be one of the writer's own bars. */
@@ -583,7 +588,14 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       if (found.kind === "own" && found.row.exerciseId !== values.exercise_id) return invalid();
       await exerciseVisible(db, userId, values.exercise_id);
       await assertOwnBar(db, userId, values.bar_id);
-      const fields = { barId: values.bar_id, logEffort: values.log_effort, updatedAt: now() };
+      const fields = {
+        barId: values.bar_id,
+        logEffort: values.log_effort,
+        ...(data.progression_per_set !== undefined
+          ? { progressionPerSet: values.progression_per_set }
+          : {}),
+        updatedAt: now(),
+      };
       // One live setting per exercise: two devices that each created one offline converge on the
       // first to arrive, the later values winning, instead of failing the unique index.
       const existing = await liveSettingFor(db, userId, values.exercise_id);
@@ -613,6 +625,9 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       .set({
         ...(patch.bar_id !== undefined ? { barId: patch.bar_id } : {}),
         ...(patch.log_effort !== undefined ? { logEffort: patch.log_effort } : {}),
+        ...(patch.progression_per_set !== undefined
+          ? { progressionPerSet: patch.progression_per_set }
+          : {}),
         updatedAt: now(),
       })
       .where(eq(exerciseSetting.id, row.id));

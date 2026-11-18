@@ -3,6 +3,7 @@ import {
   archiveExercise,
   createCustomExercise,
   restoreExercise,
+  setExerciseSetting,
   updateCustomExercise,
   type ExerciseDatabase,
   type ExercisePatch,
@@ -84,5 +85,11 @@ export function useExerciseActions() {
     [write, writeScope, t, toast],
   );
 
-  return { create, update, archive, restore };
+  const setProgressionPerSet = useCallback(
+    (id: string, perSet: boolean) =>
+      write((db) => setExerciseSetting(db, id, { progression_per_set: perSet }, writeScope)),
+    [write, writeScope],
+  );
+
+  return { create, update, archive, restore, setProgressionPerSet };
 }

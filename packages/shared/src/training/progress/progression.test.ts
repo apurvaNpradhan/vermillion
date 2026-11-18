@@ -27,13 +27,14 @@ const suggest = (
   older: LoggedSet[] = [],
   targets = plan,
   context: Parameters<typeof suggestNext>[5] = { now: NOW },
+  progressionPerSet = false,
 ) =>
   suggestNext(
     targets,
     [session(last), ...(older.length ? [session(older, "2026-11-10T10:00:00Z")] : [])],
     "weight_reps",
     "barbell",
-    settings,
+    { ...settings, progressionPerSet },
     context,
   );
 
@@ -73,8 +74,23 @@ describe("double progression", () => {
     });
   });
 
-  it("progresses every set on its own: one set adds load while another adds a rep", () => {
-    const next = suggest([logged(12), logged(10, 70)]);
+  it("holds working-set load until every working set reaches the ceiling", () => {
+    expect(suggest([logged(12), logged(10, 70)])).toMatchObject({
+      reason: "add_rep",
+      sets: [
+        { weightKg: 80, reps: 12 },
+        { weightKg: 70, reps: 11 },
+      ],
+    });
+    expect(suggest([logged(12)])?.sets).toEqual([
+      { weightKg: 80, reps: 12 },
+      { weightKg: 80, reps: 12 },
+    ]);
+    expect(suggest([logged(12, 80, { rpe: 9.5 }), logged(12)])?.reason).toBe("hold_effort");
+  });
+
+  it("can progress sets independently when per-set progression is enabled", () => {
+    const next = suggest([logged(12), logged(10, 70)], [], plan, { now: NOW }, true);
     expect(next?.reason).toBe("add_weight");
     expect(next?.sets).toEqual([
       { weightKg: 82.5, reps: 8 },
@@ -84,8 +100,8 @@ describe("double progression", () => {
 
   it("copies the nearest previous working set for a set it had no counterpart for", () => {
     expect(suggest([logged(12)])?.sets).toEqual([
-      { weightKg: 82.5, reps: 8 },
-      { weightKg: 82.5, reps: 8 },
+      { weightKg: 80, reps: 12 },
+      { weightKg: 80, reps: 12 },
     ]);
     expect(suggest([logged(10)])?.sets).toEqual([
       { weightKg: 80, reps: 11 },
@@ -125,8 +141,8 @@ describe("double progression", () => {
         { weightKg: 80, reps: 12 },
       ],
     });
-    // Only one session missed: the normal per-set rules apply (the topped set adds load).
-    expect(suggest([logged(7), logged(12)], [logged(10), logged(10)])?.reason).toBe("add_weight");
+    // Only one session missed: sets can still add reps.
+    expect(suggest([logged(7), logged(12)], [logged(10), logged(10)])?.reason).toBe("add_rep");
     expect(suggest([logged(7), logged(11)], [logged(10), logged(10)])?.reason).toBe("add_rep");
   });
 
@@ -339,7 +355,7 @@ describe("back from a break", () => {
     );
 
   it("under 14 days follows the normal rules", () => {
-    expect(after(13)?.reason).toBe("add_weight");
+    expect(after(13)?.reason).toBe("add_rep");
   });
 
   it("14 to 27 days starts at 90% with last reps at the bottom of the range", () => {

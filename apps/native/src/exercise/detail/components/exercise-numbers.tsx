@@ -46,6 +46,7 @@ export function ExerciseNumbers({
   timezone,
   equipment,
   weightIncrementKg,
+  progressionPerSet,
 }: {
   sessions: FinishedSession[];
   exerciseId: string;
@@ -56,6 +57,7 @@ export function ExerciseNumbers({
   timezone: string | null;
   equipment: Equipment;
   weightIncrementKg: number | null;
+  progressionPerSet: boolean;
 }) {
   const weight = useWeight();
   const sessions = weight.withBodyweight(rawSessions);
@@ -119,7 +121,7 @@ export function ExerciseNumbers({
           exerciseId={exerciseId}
           type={type}
           equipment={equipment}
-          settings={{ weightUnit: unit, weightIncrementKg }}
+          settings={{ weightUnit: unit, weightIncrementKg, progressionPerSet }}
           timezone={timezone}
           weekStart={weekStart}
           bodyweightKg={bodyweightKg}
@@ -160,7 +162,7 @@ export function ExerciseNumbers({
               exerciseId={exerciseId}
               type={type}
               equipment={equipment}
-              settings={{ weightUnit: unit, weightIncrementKg }}
+              settings={{ weightUnit: unit, weightIncrementKg, progressionPerSet }}
             />
           ) : null}
         </>

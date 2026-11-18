@@ -124,7 +124,13 @@ export const trainingUploadColumns = {
     "restore",
   ]),
   gym_equipment: new Set(["kind", "weight_kg", "unit", "label", "count", "enabled", "restore"]),
-  exercise_setting: new Set(["exercise_id", "bar_id", "log_effort", "restore"]),
+  exercise_setting: new Set([
+    "exercise_id",
+    "bar_id",
+    "log_effort",
+    "progression_per_set",
+    "restore",
+  ]),
 } as const satisfies Record<string, ReadonlySet<string>>;
 
 /** User-set values a new exercise is created with. */

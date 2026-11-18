@@ -82,6 +82,7 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseBar,
+  watchExerciseProgressionMode,
   watchExerciseHistory,
   watchExerciseHistories,
   watchProgram,

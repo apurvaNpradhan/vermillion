@@ -28,7 +28,7 @@ export function exerciseSuggestion(
         history,
         exercise.type,
         exercise.exercise?.equipment ?? "other",
-        settings,
+        { ...settings, progressionPerSet: exercise.progressionPerSet },
         { now: new Date(), lighterWeeks: settings.lighterWeeks, deload: settings.deload },
       );
 }

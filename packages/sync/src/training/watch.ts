@@ -656,7 +656,7 @@ export function watchSession(
     database,
     SESSION_DETAIL_SQL,
     [id],
-    [...SESSION_TABLES, "exercise"],
+    [...SESSION_TABLES, "exercise", "exercise_setting"],
     parsing(parseSessionDetail, { onResult: handlers.onSession, onError: handlers.onError }),
     handlers.onError,
   );
@@ -766,6 +766,26 @@ export function watchExerciseBar(
     [exerciseId],
     ["exercise_setting"],
     parsing(parseExerciseBar, { onResult: handlers.onBar, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the progression mode, defaulting to straight-set progression. */
+export function watchExerciseProgressionMode(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onMode: (perSet: boolean) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ progression_per_set: z.number().nullable() }));
+  return watch(
+    database,
+    "SELECT progression_per_set FROM exercise_setting WHERE exercise_id = ? LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => schema.parse(rows)[0]?.progression_per_set === 1, {
+      onResult: handlers.onMode,
+      onError: handlers.onError,
+    }),
     handlers.onError,
   );
 }

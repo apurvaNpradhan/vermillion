@@ -409,6 +409,7 @@ export const exerciseSetting = pgTable(
       .references(() => exercise.id),
     barId: uuid("bar_id"),
     logEffort: boolean("log_effort").notNull().default(false),
+    progressionPerSet: boolean("progression_per_set").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

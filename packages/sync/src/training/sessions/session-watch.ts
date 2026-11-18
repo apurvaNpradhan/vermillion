@@ -141,6 +141,7 @@ export type SessionExerciseDetail = {
   note: string | null;
   supersetGroup: string | null;
   logEffort: boolean;
+  progressionPerSet: boolean;
   /** The library's current data (muscles, media); null while it has not arrived on this device. */
   exercise: {
     primaryMuscle: MuscleGroup;
@@ -180,6 +181,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort,
+    es.progression_per_set AS progression_per_set,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -189,6 +191,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
   FROM training_session s
   LEFT JOIN session_exercise se ON se.session_id = s.id
   LEFT JOIN exercise e ON e.id = se.exercise_id
+  LEFT JOIN exercise_setting es ON es.exercise_id = se.exercise_id
   LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
   WHERE s.id = ?
   ORDER BY se.position, se.id, ss.position, ss.id
@@ -221,6 +224,7 @@ const detailRowSchema = z.object({
   exercise_note: z.string().nullable(),
   superset_group: z.string().nullable(),
   log_effort: flag.nullable(),
+  progression_per_set: flag.nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   secondary_muscles: secondaryText,
   equipment: z.enum(EQUIPMENT).nullable(),
@@ -270,6 +274,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         note: row.exercise_note,
         supersetGroup: row.superset_group,
         logEffort: row.log_effort ?? false,
+        progressionPerSet: row.progression_per_set ?? false,
         exercise:
           row.primary_muscle !== null && row.equipment !== null
             ? {

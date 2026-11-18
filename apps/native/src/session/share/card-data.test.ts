@@ -53,6 +53,7 @@ const exercise = (n: number): SessionDetail["exercises"][number] => ({
   note: null,
   supersetGroup: null,
   logEffort: false,
+  progressionPerSet: false,
   exercise: {
     primaryMuscle: "chest",
     secondaryMuscles: [],

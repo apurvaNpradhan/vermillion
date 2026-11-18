@@ -186,6 +186,9 @@ export const exerciseSetting = sqliteTable(
     exercise_id: text("exercise_id").notNull(),
     bar_id: text("bar_id"),
     log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    progression_per_set: integer("progression_per_set", { mode: "boolean" })
+      .notNull()
+      .default(false),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
