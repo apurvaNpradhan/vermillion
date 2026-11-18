@@ -63,6 +63,27 @@ describe("stalledSessions", () => {
     ).toBe(3);
   });
 
+  describe("sets of more than 12 reps (no estimated 1RM)", () => {
+    it("compares volume when every Session is a high-rep Session", () => {
+      const improving = history([set(60, 20), set(60, 15), set(60, 15), set(60, 15)]);
+      expect(stalledSessions(improving, "weight_reps")).toBe(0);
+      const flat = history([set(60, 15), set(60, 15), set(60, 15), set(60, 15)]);
+      expect(stalledSessions(flat, "weight_reps")).toBe(3);
+    });
+
+    it("compares every Session by volume when ranges are mixed", () => {
+      // Newest first. 60 x 15 is more volume than 100 x 5 although its 1RM is not scored.
+      const improving = history([set(60, 15), set(100, 5), set(100, 5), set(100, 5)]);
+      expect(stalledSessions(improving, "weight_reps")).toBe(0);
+      // The reverse: a lighter high-rep Session does not beat three heavy ones.
+      const mixed = history([set(60, 15), set(100, 12), set(100, 12), set(100, 12)]);
+      expect(stalledSessions(mixed, "weight_reps")).toBe(3);
+      // An older high-rep Session pulls the comparison to volume as well (600 < 900).
+      const older = history([set(100, 6), set(100, 6), set(100, 6), set(60, 15)]);
+      expect(stalledSessions(older, "weight_reps")).toBe(3);
+    });
+  });
+
   it("is not stalled once any of the last three improves by 1% or more", () => {
     expect(
       stalledSessions(

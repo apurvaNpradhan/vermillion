@@ -2,6 +2,7 @@ import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
   SESSION_LIMITS,
+  SYNC_LIMITS,
   SYNC_SCHEMA_VERSION,
   type SyncFailureCode,
   type SyncOp,
@@ -417,6 +418,51 @@ describe("session upload handlers", () => {
     expect(await deletedAt("exercise_setting", settingId)).not.toBeNull();
     // Deleting twice is a no-op.
     expect(await me.send([op("DELETE", "session_set", t.set2)])).toEqual(applied);
+  });
+
+  it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {
+    const me = await writer("session-new-columns@example.com");
+    const legacySession = uuidv7();
+    const legacySetting = uuidv7();
+    // A legacy client omits both columns.
+    expect(
+      await me.send([putSession(legacySession), putSetting(legacySetting, weightReps)]),
+    ).toEqual(applied);
+    expect(await stored("training_session", legacySession)).toMatchObject({
+      workout_structure: null,
+    });
+    expect(await stored("exercise_setting", legacySetting)).toMatchObject({
+      progression_per_set: false,
+    });
+
+    const sessionId = uuidv7();
+    const settingId = uuidv7();
+    const structure = JSON.stringify([["w1", weightReps, ["working", "working"]]]);
+    expect(
+      await me.send([
+        putSession(sessionId, { workout_structure: structure }),
+        putSetting(settingId, bodyweight, { progression_per_set: 1 }),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("training_session", sessionId)).toMatchObject({
+      workout_structure: structure,
+    });
+    expect(await stored("exercise_setting", settingId)).toMatchObject({
+      progression_per_set: true,
+    });
+    // The structure is a snapshot: a later PATCH from an old client leaves it alone.
+    expect(
+      await me.send([op("PATCH", "training_session", sessionId, { title: "Renamed" })]),
+    ).toEqual(applied);
+    expect(await stored("training_session", sessionId)).toMatchObject({
+      title: "Renamed",
+      workout_structure: structure,
+    });
+    expect(
+      await me.send([
+        putSession(uuidv7(), { workout_structure: "x".repeat(SYNC_LIMITS.maxValueBytes + 1) }),
+      ]),
+    ).toMatchObject(rejected("SYNC_LIMIT_EXCEEDED"));
   });
 
   it("refuses columns the server owns, malformed data and bad ids", async () => {
