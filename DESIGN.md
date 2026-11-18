@@ -302,8 +302,8 @@ On React Native these run through Reanimated, which HeroUI Native already uses; 
 - The rest timer's final 3 seconds pulse the timer text once per second, not the whole screen.
 - Motion is feedback, never decoration. It belongs in these places only: the set-complete check
   (a scale pop plus `haptic-success`), set rows entering and leaving (layout transitions), goal
-  rings and calendar days filling when they change, stat numbers rolling, the week strip's
-  selection sliding, and sheets and dialogs on `SHEET_SPRING`.
+  rings and calendar days filling when they change, stat numbers rolling, and sheets and dialogs on
+  `SHEET_SPRING`.
 - Data read from the local database never shows a skeleton: content fades in over about 150ms.
   Static block skeletons (no shimmer) are only for real network waits.
 

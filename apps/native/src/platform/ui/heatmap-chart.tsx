@@ -6,16 +6,25 @@
  * finger without stealing a scroll. Changes: one component instead of a compound, UTC calendar-day
  * columns from `heatmap-chart-math.ts`, empty cells in `surface-control` (HeroUI's `muted` is a
  * text colour), a `chart-*` tone, a two-level mode for done / not done, and every string (month,
- * tooltip, summary) from the caller. No reveal animation: the screen fades in as a whole.
+ * tooltip, summary) from the caller. Cells whose value changes fade to it; nothing animates on mount.
  */
-import { useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Text, View, type LayoutChangeEvent } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, { Rect } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable } from "uniwind";
 
 import { isColorString } from "@/platform/theme";
+
+import { useReduceMotion } from "./use-reduce-motion";
 
 import {
   HEATMAP_ROWS,
@@ -30,7 +39,10 @@ import {
 
 export type { HeatmapBin, HeatmapColumn };
 
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const GAP = 3;
+const CHANGE_MS = 200;
+const REDUCED_MS = 120;
 const HOLD_MS = 180;
 const MONTH_ROW = 16;
 const TOOLTIP_HEIGHT = 28;
@@ -118,16 +130,13 @@ export function HeatmapChart({
                       active !== null &&
                       !(active.column === column.column && active.row === item.row);
                     return (
-                      <Rect
+                      <Cell
                         key={`${column.column}-${item.row}`}
                         x={column.column * step}
                         y={item.row * step}
-                        width={size}
-                        height={size}
-                        rx={2}
-                        ry={2}
-                        fill={level === 0 ? empty : fill}
-                        fillOpacity={
+                        size={size}
+                        color={level === 0 ? empty : fill}
+                        opacity={
                           (level === 0 ? 1 : levelOpacity(level, thresholds.length)) *
                           (dimmed ? 0.5 : 1)
                         }
@@ -173,3 +182,47 @@ export function HeatmapChart({
     </View>
   );
 }
+
+/**
+ * One square. Its opacity eases to a new value only when that value changes, so a grid that
+ * re-renders with the same data stays still, and only the cells whose counts moved animate
+ * (a 120ms fade under Reduce Motion). It starts at its first value.
+ */
+const Cell = memo(function Cell({
+  x,
+  y,
+  size,
+  color,
+  opacity,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  opacity: number;
+}) {
+  const reduced = useReduceMotion();
+  const value = useSharedValue(opacity);
+  useEffect(() => {
+    value.set(
+      withTiming(opacity, {
+        duration: reduced ? REDUCED_MS : CHANGE_MS,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.Never,
+      }),
+    );
+  }, [opacity, reduced, value]);
+  const animatedProps = useAnimatedProps(() => ({ fillOpacity: value.get() }));
+  return (
+    <AnimatedRect
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      rx={2}
+      ry={2}
+      fill={color}
+      animatedProps={animatedProps}
+    />
+  );
+});
