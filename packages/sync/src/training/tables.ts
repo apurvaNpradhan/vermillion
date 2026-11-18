@@ -190,6 +190,7 @@ export const exerciseSetting = sqliteTable(
     progression_per_set: integer("progression_per_set", { mode: "boolean" })
       .notNull()
       .default(false),
+    auto_warmups: integer("auto_warmups", { mode: "boolean" }).notNull().default(false),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

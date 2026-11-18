@@ -551,6 +551,7 @@ const putSetting = z.strictObject({
   bar_id: exerciseSettingInput.shape.bar_id.default(null),
   log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
+  auto_warmups: wireBoolean.optional(),
 });
 // A setting belongs to one exercise for good.
 const patchSetting = z
@@ -558,6 +559,7 @@ const patchSetting = z
     bar_id: exerciseSettingInput.shape.bar_id,
     log_effort: wireBoolean,
     progression_per_set: wireBoolean,
+    auto_warmups: wireBoolean,
   })
   .partial();
 
@@ -601,6 +603,7 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
         ...(data.progression_per_set !== undefined
           ? { progressionPerSet: values.progression_per_set }
           : {}),
+        ...(data.auto_warmups !== undefined ? { autoWarmups: values.auto_warmups } : {}),
         updatedAt: now(),
       };
       // One live setting per exercise: two devices that each created one offline converge on the
@@ -635,6 +638,7 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
         ...(patch.progression_per_set !== undefined
           ? { progressionPerSet: patch.progression_per_set }
           : {}),
+        ...(patch.auto_warmups !== undefined ? { autoWarmups: patch.auto_warmups } : {}),
         updatedAt: now(),
       })
       .where(eq(exerciseSetting.id, row.id));

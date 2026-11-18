@@ -130,3 +130,29 @@ function largerFirst(a: Node, b: Node): boolean {
   }
   return false;
 }
+
+/**
+ * The load a bar can actually hold nearest to `targetKg`: the nearer of the two neighbours that
+ * {@link loadBar} finds, the lower one on a tie. A target under the bar rounds up to the bare bar.
+ * This is the rule the calculator preselects; the warm-up ramp rounds with it too.
+ */
+export function nearestBarLoadKg(
+  targetKg: number,
+  bar: { weightKg: number },
+  plates: readonly LoadPlate[],
+): number {
+  const result = loadBar(targetKg, bar, plates);
+  if (result.exact) return result.totalKg;
+  const { below, above } = result;
+  if (!below) return above?.totalKg ?? result.totalKg;
+  if (!above) return below.totalKg;
+  return targetKg - below.totalKg <= above.totalKg - targetKg + EPSILON
+    ? below.totalKg
+    : above.totalKg;
+}
+
+/** The smallest change one step of plates makes to a loaded bar: a pair of the lightest plate. */
+export function smallestBarStepKg(plates: readonly LoadPlate[]): number | null {
+  const usable = plates.filter((p) => p.weightKg > 0 && (p.count === null || p.count > 0));
+  return usable.length === 0 ? null : 2 * Math.min(...usable.map((p) => p.weightKg));
+}

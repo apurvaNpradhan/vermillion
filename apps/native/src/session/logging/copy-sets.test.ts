@@ -33,6 +33,8 @@ const exercise = (
   supersetGroup: null,
   logEffort: true,
   progressionPerSet: false,
+  autoWarmups: false,
+  barId: null,
   exercise: null,
   sets,
   ...values,

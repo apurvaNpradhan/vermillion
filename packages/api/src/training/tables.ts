@@ -411,6 +411,7 @@ export const exerciseSetting = pgTable(
     barId: uuid("bar_id"),
     logEffort: boolean("log_effort").notNull().default(false),
     progressionPerSet: boolean("progression_per_set").notNull().default(false),
+    autoWarmups: boolean("auto_warmups").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

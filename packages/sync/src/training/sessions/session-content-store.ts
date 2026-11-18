@@ -10,6 +10,7 @@ import {
   defaultRestSeconds,
   planSupersetAfterMove,
   planSupersetAfterRemoval,
+  SESSION_LIMITS,
   SET_FIELDS,
   sessionSetInput,
   sessionSetSchema,
@@ -24,7 +25,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { keyAfterLast, keyForMove, keysAfterLast } from "../position";
+import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
   applySessionSupersetChanges,
   assertSessionRoom,
@@ -400,6 +401,109 @@ export async function addSet(
     checkedSet(row, parent.exercise_type);
     await tx.insert(sessionSet).values(row);
     return row.id;
+  });
+}
+
+/** A warm-up nobody has touched: unticked, no value typed, no timer. Generated ramps replace these. */
+function isUntouchedWarmup(row: SessionSetRow): boolean {
+  return (
+    row.kind === "warmup" &&
+    row.completed_at === null &&
+    row.timer_started_at === null &&
+    [row.weight_kg, row.reps, row.duration_s, row.distance_m, row.floors, row.steps, row.rpe].every(
+      (value) => value === null,
+    )
+  );
+}
+
+const sameTarget = (a: PlannedSet | null, b: PlannedSet) =>
+  a !== null &&
+  a.kind === b.kind &&
+  a.weight_kg === b.weight_kg &&
+  a.reps_min === b.reps_min &&
+  a.reps_max === b.reps_max;
+
+/**
+ * Puts a generated warm-up ramp at the start of an exercise's sets. The untouched warm-ups (not
+ * ticked, nothing typed into them) are replaced by `ramp`; a warm-up that was ticked or edited
+ * stays where it is, and the ramp only adds the steps after the ones kept, so nothing the user did
+ * is overwritten. New rows sit after the kept warm-ups and before the first other set, as normal
+ * warm-up rows with the ramp as their target (Ghost values) and no actual values. Writes nothing
+ * when the rows already match, and never adds past the 20 sets an exercise may hold. Returns
+ * whether it wrote.
+ */
+export function replaceWarmups(
+  database: TrainingDatabase,
+  sessionExerciseId: string,
+  ramp: readonly PlannedSet[],
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const userId = await ownerOf(tx);
+    const parent = await requireSessionExercise(tx, sessionExerciseId);
+    const rows = (
+      await tx
+        .select()
+        .from(sessionSet)
+        .where(eq(sessionSet.session_exercise_id, sessionExerciseId))
+    ).sort(byPosition);
+    const untouched = rows.filter(isUntouchedWarmup);
+    const kept = rows.filter((row) => !isUntouchedWarmup(row));
+    const keptWarmups = kept.filter((row) => row.kind === "warmup").length;
+    const wanted = ramp
+      .slice(keptWarmups)
+      .slice(0, Math.max(0, SESSION_LIMITS.setsPerExercise - kept.length));
+    if (
+      untouched.length === wanted.length &&
+      untouched.every((row, index) => {
+        const target = wanted[index];
+        return target !== undefined && sameTarget(row.target, target);
+      })
+    ) {
+      return false;
+    }
+    for (const row of untouched) await tx.delete(sessionSet).where(eq(sessionSet.id, row.id));
+    if (wanted.length === 0) return true;
+    const positions = new Map(
+      (await rebalanceSessionSets(tx, kept)).map((item) => [item.id, item.position]),
+    );
+    const rebalanced = kept.map((row) => ({
+      ...row,
+      position: positions.get(row.id) ?? row.position,
+    }));
+    const firstOther = rebalanced.find((row) => row.kind !== "warmup");
+    const lastWarmup = rebalanced
+      .filter((row) => row.kind === "warmup" && (!firstOther || byPosition(row, firstOther) < 0))
+      .at(-1);
+    const keys = keysBetween(
+      lastWarmup?.position ?? null,
+      firstOther?.position ?? null,
+      wanted.length,
+    );
+    for (const [index, target] of wanted.entries()) {
+      const row = {
+        id: uuidv7(),
+        user_id: userId,
+        session_exercise_id: sessionExerciseId,
+        position: keys[index] ?? keyAfterLast(rebalanced),
+        kind: "warmup" as const,
+        weight_kg: null,
+        reps: null,
+        duration_s: null,
+        distance_m: null,
+        floors: null,
+        steps: null,
+        rpe: null,
+        completed_at: null,
+        timer_started_at: null,
+        target,
+        created_at: nowIso(),
+        restore: null,
+      };
+      checkedSet(row, parent.exercise_type);
+      await tx.insert(sessionSet).values(row);
+    }
+    return true;
   });
 }
 

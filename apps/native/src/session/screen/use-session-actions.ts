@@ -12,6 +12,7 @@ import {
   readExerciseType,
   removeSessionExercise,
   removeSet,
+  replaceWarmups,
   restoreSet,
   restoreSessionExercise,
   replaceSessionExercise,
@@ -94,6 +95,13 @@ export function useSessionActions() {
         await addSet(db, exerciseId, { target }, writeScope);
         return true;
       }, false),
+    [write, writeScope],
+  );
+
+  /** Puts a generated warm-up ramp ahead of the working sets, replacing the untouched warm-ups. */
+  const putWarmups = useCallback(
+    (exerciseId: string, ramp: readonly PlannedSet[]) =>
+      write((db) => replaceWarmups(db, exerciseId, ramp, writeScope), false),
     [write, writeScope],
   );
 
@@ -232,6 +240,7 @@ export function useSessionActions() {
     untick,
     updateValues,
     addExtraSet,
+    replaceWarmups: putWarmups,
     removeOneSet,
     addExercises,
     replaceExercise,

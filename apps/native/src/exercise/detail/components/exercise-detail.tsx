@@ -2,11 +2,12 @@ import { MediaImage } from "@/media";
 import {
   EQUIPMENT_KEYS,
   EXERCISE_TYPE_KEYS,
+  hasWarmupRamp,
   MUSCLE_GROUP_KEYS,
   type MuscleGroup,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
-import { useThemeColor } from "heroui-native";
+import { Switch, useThemeColor } from "heroui-native";
 import {
   Archive,
   ArrowCounterClockwise,
@@ -14,6 +15,7 @@ import {
   DotsThreeVertical,
   Info,
   PencilSimple,
+  FireSimple,
   Plus,
   SlidersHorizontal,
 } from "phosphor-react-native";
@@ -31,6 +33,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
+import { ListRow, ListSection } from "@/platform/ui/list";
 import { Notice } from "@/platform/ui/notice";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
@@ -39,7 +42,7 @@ import { thumbnailUrl, videoUrl } from "../../media-url";
 import { instructionSteps } from "../instruction-steps";
 import { useExercise, useSwapCandidates } from "../use-exercise";
 import { useExerciseActions } from "../../use-exercise-actions";
-import { useExerciseProgressionMode } from "../use-exercise-progression";
+import { useExerciseAutoWarmups, useExerciseProgressionMode } from "../use-exercise-progression";
 import { useExerciseHistory } from "../use-exercise-history";
 import { SwapRow } from "./swap-row";
 import { VideoHero } from "./video-hero";
@@ -113,7 +116,10 @@ function LoadedDetail({
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
-  const { setProgressionPerSet } = useExerciseActions();
+  const { setProgressionPerSet, setAutoWarmups } = useExerciseActions();
+  const autoWarmups = useExerciseAutoWarmups(exercise.id);
+  const canSetWarmups = !exercise.isArchived && hasWarmupRamp(exercise.exerciseType);
+  const warmupsOn = autoWarmups.value ?? false;
   const canSetProgression =
     !exercise.isArchived &&
     (exercise.exerciseType === "weight_reps" ||
@@ -263,6 +269,31 @@ function LoadedDetail({
                   <Plus size={20} color={foreground} />
                   <Button.Label>{t("training__add_to_workout")}</Button.Label>
                 </Button>
+              </View>
+            ) : null}
+            {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
+              <View className="px-4">
+                <ListSection title={t("exercise__settings")}>
+                  <ListRow
+                    icon={FireSimple}
+                    title={t("exercise__auto_warmups")}
+                    description={t("exercise__auto_warmups_hint")}
+                    accessory="none"
+                    checked={warmupsOn}
+                    onPress={() =>
+                      void setAutoWarmups(exercise.id, !warmupsOn).catch(() => undefined)
+                    }
+                    trailing={
+                      <Switch
+                        accessibilityLabel={t("exercise__auto_warmups")}
+                        isSelected={warmupsOn}
+                        onSelectedChange={(on) =>
+                          void setAutoWarmups(exercise.id, on).catch(() => undefined)
+                        }
+                      />
+                    }
+                  />
+                </ListSection>
               </View>
             ) : null}
             {hasHistory ? (

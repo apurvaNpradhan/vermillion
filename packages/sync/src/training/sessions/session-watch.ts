@@ -142,6 +142,10 @@ export type SessionExerciseDetail = {
   supersetGroup: string | null;
   logEffort: boolean;
   progressionPerSet: boolean;
+  /** The exercise's setting: generate a warm-up ramp from the first working weight. */
+  autoWarmups: boolean;
+  /** The bar the exercise remembers, if any. */
+  barId: string | null;
   /** The library's current data (muscles, media); null while it has not arrived on this device. */
   exercise: {
     primaryMuscle: MuscleGroup;
@@ -185,6 +189,10 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.superset_group AS superset_group, se.log_effort AS log_effort,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT bar_id FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS bar_id,
+    (SELECT auto_warmups FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -228,6 +236,8 @@ const detailRowSchema = z.object({
   superset_group: z.string().nullable(),
   log_effort: flag.nullable(),
   progression_per_set: flag.nullable(),
+  auto_warmups: flag.nullable(),
+  bar_id: z.string().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   secondary_muscles: secondaryText,
   equipment: z.enum(EQUIPMENT).nullable(),
@@ -278,6 +288,8 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         supersetGroup: row.superset_group,
         logEffort: row.log_effort ?? false,
         progressionPerSet: row.progression_per_set ?? false,
+        autoWarmups: row.auto_warmups ?? false,
+        barId: row.bar_id,
         exercise:
           row.primary_muscle !== null && row.equipment !== null
             ? {

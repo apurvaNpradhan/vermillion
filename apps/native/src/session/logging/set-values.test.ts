@@ -81,6 +81,18 @@ describe("Ghost values", () => {
     expect(ghostsOf("weight_reps", null, null, false)).toEqual({ weight: null, reps: null });
   });
 
+  it("keeps a warm-up's planned weight over the Previous warm-up of the same place", () => {
+    const warmup = { kind: "warmup", weight_kg: 60, reps_min: 5, reps_max: 5 } as const;
+    expect(ghostsOf("weight_reps", { weight_kg: 40, reps: 10 }, warmup, false)).toEqual({
+      weight: 60,
+      reps: 5,
+    });
+    // With no planned weight the Previous warm-up still guides it.
+    expect(ghostsOf("weight_reps", { weight_kg: 40, reps: 10 }, { kind: "warmup" }, false)).toEqual(
+      { weight: 40, reps: 10 },
+    );
+  });
+
   it("adds an effort Ghost only while the exercise logs effort", () => {
     expect(ghostsOf("weight_reps", null, target, true)).toEqual({ weight: 100, reps: 5, rpe: 8 });
     expect(ghostsOf("duration", null, { kind: "working", duration_s: 30 }, false)).toEqual({

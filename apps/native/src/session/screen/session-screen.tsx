@@ -13,6 +13,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
+  FireSimple,
   Gauge,
   GearSix,
   Info,
@@ -33,6 +34,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
@@ -55,6 +57,7 @@ import { allTicked, doneSummary, formatVolume, progressText } from "@/session/fi
 import { restBelongsTo } from "@/session/rest/rest-rules";
 import { useRestRunning } from "@/session/rest/use-rest-running";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
+import { canAddWarmups } from "@/session/warmups/warmup-plan";
 import { useWarmCount } from "./use-warm-count";
 import { useFinishFlow } from "@/session/finish/use-finish-flow";
 import { useSessionLogging } from "@/session/logging/use-session-logging";
@@ -158,9 +161,11 @@ function LoadedSession({
     historyFailed,
     retryHistory,
     logging,
+    addWarmups,
     askOpen,
     setAskOpen,
   } = useSessionLogging(stored);
+  const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const reorderScroll = useReorderScroll();
   const reveal = useRowReveal(reorderScroll.ref);
@@ -350,6 +355,19 @@ function LoadedSession({
           onPress: () =>
             void actions.updateExercise(menuExercise.id, { log_effort: !menuExercise.logEffort }),
         },
+        ...(!readOnly && canAddWarmups(menuExercise)
+          ? [
+              {
+                key: "warmups",
+                label: t("session__add_warmups"),
+                icon: FireSimple,
+                onPress: () =>
+                  void addWarmups(menuExercise).then((result) => {
+                    if (result === "none") toast.show({ label: t("session__warmups_none") });
+                  }),
+              },
+            ]
+          : []),
         {
           key: "remove",
           label: t("training__remove"),

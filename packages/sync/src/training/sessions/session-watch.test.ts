@@ -336,3 +336,13 @@ it("pages beyond 500 Sessions and includes the oldest exercise best in Record co
     s.sqlite.close();
   }
 });
+
+it("reads auto warm-ups and the remembered bar for a session exercise, off by default", async () => {
+  const s = await setupSessions();
+  const plan = await pushWorkout(s);
+  const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+  const detail = () => parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+  expect(detail()?.exercises[0]).toMatchObject({ autoWarmups: false, barId: null });
+  await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+  expect(detail()?.exercises[0]?.autoWarmups).toBe(true);
+});

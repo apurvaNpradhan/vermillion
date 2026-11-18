@@ -13,6 +13,7 @@ import { useLoggingState } from "./use-logging-state";
 import { useOptimisticSession } from "./use-optimistic-session";
 import { usePreviousSets } from "./use-previous-sets";
 import { useSessionActions } from "@/session/screen/use-session-actions";
+import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
 
 /**
  * Everything a screen that logs a live Session needs before it draws: the Session with ticks and
@@ -68,9 +69,25 @@ export function useSessionLogging(stored: SessionDetail) {
     onRestStarted,
   });
 
+  const { ghostsFor } = logging;
+  const ghostWeightOf = useCallback(
+    (setId: string) => ghostsFor(setId).weight ?? null,
+    [ghostsFor],
+  );
+  const { addWarmups } = useAutoWarmups({
+    session,
+    ghostWeightOf,
+    historyReady,
+    unit,
+    weightIncrementKg: preferences.ui.weightIncrementKg,
+    readOnly,
+    actions,
+  });
+
   return {
     session,
     actions,
+    addWarmups,
     preferences,
     setUi,
     preferencesLoading,

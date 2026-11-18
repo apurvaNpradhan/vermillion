@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8cd549a3-15fd-4a14-9fd8-5470327564b4",
+  "prevIds": ["9091dbec-8d9a-4745-a3de-f69b81c46366"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise_setting", "auto_warmups"],
+      "writes": [
+        "s|col|public.exercise_setting.auto_warmups",
+        "n|col|public.exercise_setting.auto_warmups",
+        "e|col|public.exercise_setting.auto_warmups"
+      ],
+      "reads": ["n|tbl|public.exercise_setting", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "auto_warmups",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

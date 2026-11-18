@@ -45,6 +45,8 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     supersetGroup: null,
     logEffort: false,
     progressionPerSet: false,
+    autoWarmups: false,
+    barId: null,
     sets,
     exercise: null,
   };
