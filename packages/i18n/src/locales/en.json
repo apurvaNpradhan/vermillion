@@ -644,6 +644,7 @@
   "exercise__metric_one_rm": "Est. 1RM",
   "exercise__metric_set_volume": "Best set volume",
   "exercise__metric_session_volume": "Session volume",
+  "exercise__metric_most_reps": "Most reps",
   "exercise__metric_reps": "Total reps",
   "exercise__metric_duration": "Duration",
   "exercise__metric_distance": "Distance",

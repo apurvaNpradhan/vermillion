@@ -49,6 +49,16 @@ describe("exerciseRecords", () => {
     expect(exerciseRecords([session], 80).get("pullup")?.get("set_volume")).toBe(640);
   });
 
+  it.each(["reps_only", "bodyweight_reps"] as const)("records most reps for %s", (type) => {
+    const sets = [
+      setOf(type, "working", { reps: 18 }),
+      setOf(type, "working", { reps: 12 }),
+      setOf(type, "warmup", { reps: 20 }),
+    ];
+    const records = exerciseRecords([sessionOf("a", "2026-01-01", sets)]);
+    expect([...records.values()][0]?.get("most_reps")).toBe(18);
+  });
+
   it("ranks weighted bodyweight sets by added load, with volume on the effective weight", () => {
     const sets = [
       setOf("bodyweight_weighted_reps", "working", {

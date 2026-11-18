@@ -19,6 +19,7 @@ import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
 import { datedRecords, metricSeries, metricsFor, type Metric } from "../numbers";
 
 const LABELS = {
+  most_reps: "exercise__metric_most_reps",
   heaviest_weight: "exercise__metric_heaviest",
   estimated_one_rep_max: "exercise__metric_one_rm",
   set_volume: "exercise__metric_set_volume",
@@ -80,7 +81,8 @@ export function ExerciseNumbers({
     if (key === "longest_duration") return t("exercise__value_seconds", { value: number(value) });
     if (key === "longest_distance") return t("exercise__value_metres", { value: number(value) });
     if (key === "best_pace") return t("exercise__value_pace", { value: number(value) });
-    if (key === "total_reps" || key === "floors" || key === "steps") return number(value);
+    if (key === "most_reps" || key === "total_reps" || key === "floors" || key === "steps")
+      return number(value);
     const added = addsLoad(type) && (key === "heaviest_weight" || key.startsWith("reps_"));
     return t(
       key === "set_volume" || key === "session_volume"

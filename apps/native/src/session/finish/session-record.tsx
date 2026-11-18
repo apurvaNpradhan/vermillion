@@ -5,6 +5,7 @@ import { useSubtleColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
 // Safety: fixed translation keys retain their literal types.
 const KEYS = {
+  most_reps: "exercise__metric_most_reps",
   heaviest_weight: "exercise__metric_heaviest",
   estimated_one_rep_max: "exercise__metric_one_rm",
   set_volume: "exercise__metric_set_volume",
