@@ -16,13 +16,18 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native uses a neutral palette in light, dark and true black. `packages/ui/src/tokens/brand.ts`
-exports `nativeColors` for the app and `brandTokens.colors` for the site and email. Both derive
-their roles from seeds in `tokens/themes/palettes.ts`. Regenerate CSS after editing. Layout
-never branches on appearance. Use `useThemeMode()` for native chrome. See the
+Native ships the Nord theme in light and dark at standard or increased contrast.
+`packages/ui/src/tokens/brand.ts` exports `nativeColors` (every variant) for the app and
+`brandTokens.colors` (Cinnabar) for the site and email; both come from the theme engine in
+`tokens/themes/` (ADR 0048). Regenerate CSS after editing. Layout never branches on appearance.
+Use `useThemeMode()` for native chrome. See the
 [native themes guide](../docs/guides/native-themes.md).
 
-Rules: color only for the accent, data and status; one filled primary action per screen; selected states use the surface step and `foreground`; numbers use tabular figures.
+Rules: the accent (`identity`, `action`) means "you / now" (active tab, current set, today, the
+primary button, the active program, selected chips, goal progress); data and status take the
+theme's family (`set-*`, `success`, `chart-1` … `chart-5`); one filled primary action per screen;
+numbers use tabular figures. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text
+glyphs. Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 
 Native groups use spacing, rounded corners and canvas/surface/default fills, with no row dividers or card outlines. Keep outlines only for fields and selected chips, swatches or option tiles; preserve diagram strokes and progress tracks. When removing a line, review row padding and group gaps, and keep a visible pressed state.
 

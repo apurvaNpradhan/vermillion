@@ -1,12 +1,13 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withUniwindConfig } = require("uniwind/metro");
 const { wrapWithReanimatedMetroConfig } = require("react-native-reanimated/metro-config");
+const themeVariants = require("./theme-variants");
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
 module.exports = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
-  extraThemes: ["black"],
+  extraThemes: themeVariants,
   cssEntryFile: "./global.css",
   dtsFile: "./uniwind-types.d.ts",
 });

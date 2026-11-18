@@ -1,18 +1,34 @@
 import type { RoleName, RoleTokens } from "./roles";
-import { brandSeeds, buildPalette, nativeSeeds } from "./themes/palettes";
+import {
+  buildTheme,
+  cinnabar,
+  DEFAULT_THEME_ID,
+  themeVariantNames,
+  themeVariants,
+  variantName,
+  type ThemeVariant,
+} from "./theme-variants";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
-// SAFETY: the literal list defines the complete mode union.
-export const themeModes = ["light", "dark", "black"] as const;
-/** Light, dark, or dark on a true-black canvas. */
-export type ThemeMode = (typeof themeModes)[number];
+/**
+ * A native Uniwind theme: an app theme variant, or Uniwind's built-in `light` / `dark`, which
+ * carry the default theme at standard contrast (what renders before the stored choice applies).
+ */
+export type NativeVariant = "light" | "dark" | ThemeVariant;
 
-export const nativeColors: Record<ThemeMode, RoleTokens> = buildPalette(nativeSeeds);
-const { light, dark } = buildPalette(brandSeeds);
+export const nativeVariantNames: readonly NativeVariant[] = ["light", "dark", ...themeVariantNames];
+
+export const nativeColors: Record<NativeVariant, RoleTokens> = {
+  light: themeVariants[variantName(DEFAULT_THEME_ID, "light")],
+  dark: themeVariants[variantName(DEFAULT_THEME_ID, "dark")],
+  ...themeVariants,
+};
+
+const { light, dark } = buildTheme(cinnabar);
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
- * `themes/palettes.ts`. After changing them run
+ * the theme engine in `themes/`. After changing them run
  * `pnpm --filter @workspace/ui tokens`.
  *
  * Colors are Vermillion roles (`canvas`, `surface`, `text-muted`, `action`, ...), each with a
@@ -29,6 +45,11 @@ const { light, dark } = buildPalette(brandSeeds);
  */
 export const sharedTokenSources = {
   chart: "chart",
+  "chart-1": "chart-1",
+  "chart-2": "chart-2",
+  "chart-3": "chart-3",
+  "chart-4": "chart-4",
+  "chart-5": "chart-5",
   "set-warmup": "set-warmup",
   "set-drop": "set-drop",
   "set-failure": "set-failure",

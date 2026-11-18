@@ -20,7 +20,7 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
 - **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
 - **Admin site:** catalog editing with media uploads, accounts, invites, the minimum supported app version and an audit record, behind an authenticator step.
-- **Appearance:** one neutral base in light, dark and true black, with five accents.
+- **Appearance:** a Nord theme in light and dark, with an Increase contrast setting.
 
 ## Screenshots
 

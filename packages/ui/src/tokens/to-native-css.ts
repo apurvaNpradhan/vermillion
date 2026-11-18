@@ -1,11 +1,11 @@
 import {
   nativeColors,
-  themeModes,
+  nativeVariantNames,
   brandTokens,
   sharedTokenSources,
+  type NativeVariant,
   type RoleName,
   type RoleTokens,
-  type ThemeMode,
 } from "./brand";
 
 /**
@@ -61,10 +61,13 @@ const shadows = {
   },
 } as const;
 
-function block(name: string, mode: ThemeMode, colors: RoleTokens) {
-  const depth = shadows[mode === "light" ? "light" : "dark"];
+const isLightVariant = (variant: NativeVariant) =>
+  variant === "light" || variant.endsWith("-light") || variant.endsWith("-light-contrast");
+
+function block(variant: NativeVariant, colors: RoleTokens) {
+  const depth = shadows[isLightVariant(variant) ? "light" : "dark"];
   return [
-    `    @variant ${name} {`,
+    `    @variant ${variant} {`,
     ...Object.entries(nativeTokenSources).map(
       ([variable, role]) => `      --${variable}: ${colors[role]};`,
     ),
@@ -79,7 +82,7 @@ function block(name: string, mode: ThemeMode, colors: RoleTokens) {
 const px = (value: number) => `${value / 16}rem`;
 
 /**
- * Build-time CSS: one variant per native mode.
+ * Build-time CSS: one variant per native theme variant.
  * Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
@@ -91,7 +94,7 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       `    --radius: ${tokens.nativeRadius};`,
       "    --field-radius: calc(var(--radius) * 1.5);",
       "    --field-border-width: 1px;",
-      ...themeModes.map((mode) => block(mode, mode, nativeColors[mode])),
+      ...nativeVariantNames.map((variant) => block(variant, nativeColors[variant])),
       "  }",
       "}",
     ].join("\n"),

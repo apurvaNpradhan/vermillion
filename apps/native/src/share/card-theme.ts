@@ -5,10 +5,10 @@ import {
 } from "@workspace/ui/tokens/share-card";
 import { useMemo } from "react";
 
-import { useAppliedThemeMode } from "@/platform/theme";
+import { useAppliedVariant } from "@/platform/theme";
 
 /** A palette function for several backgrounds at once (the swatch row). */
 export function useCardPalettes(): (kind: CardPaletteKind) => CardPalette {
-  const mode = useAppliedThemeMode();
+  const mode = useAppliedVariant();
   return useMemo(() => (kind) => cardPalette(mode, kind), [mode]);
 }

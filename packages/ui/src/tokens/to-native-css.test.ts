@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { nativeColors, themeModes } from "./brand";
+import { nativeColors, nativeVariantNames } from "./brand";
 import { nativeTokenSources, toNativeCss } from "./to-native-css";
 
 describe("native brand tokens", () => {
@@ -20,7 +20,7 @@ describe("native brand tokens", () => {
   it("fills every mode variant with complete matching variable sets", () => {
     const css = toNativeCss();
     const names = [...css.matchAll(/@variant ([\w-]+) \{/g)].map((match) => match[1]);
-    expect(names).toEqual(themeModes);
+    expect(names).toEqual(nativeVariantNames);
     const blocks = [...css.matchAll(/@variant [\w-]+ \{([^}]+)\}/g)];
     const variables = blocks.map((block) =>
       [...(block[1] ?? "").matchAll(/--([\w-]+):/g)].map((match) => match[1]),

@@ -1,11 +1,11 @@
-import { nativeColors, type ThemeMode } from "@workspace/ui/tokens/brand";
+import { nativeColors, nativeVariantNames, type NativeVariant } from "@workspace/ui/tokens/brand";
 import * as SystemUI from "expo-system-ui";
 import { useSyncExternalStore } from "react";
 import { AppState, Appearance, type ColorValue } from "react-native";
 import { Uniwind, useCSSVariable, useUniwind } from "uniwind";
 
 import { deviceStorage } from "../storage";
-import { createThemeStore, resolvedMode, resolvedScheme, type ThemeChoice } from "./theme-state";
+import { createThemeStore, resolvedScheme, resolvedVariant, type ThemeChoice } from "./theme-state";
 
 let systemScheme = Appearance.getColorScheme();
 let applying = false;
@@ -40,13 +40,13 @@ function applyTheme(choice: ThemeChoice) {
     refreshFrame = undefined;
   }
   const scheme = resolvedScheme(choice, systemScheme);
-  const mode = resolvedMode(choice, systemScheme);
+  const variant = resolvedVariant(choice, systemScheme);
   applying = true;
-  Uniwind.setTheme(mode);
+  Uniwind.setTheme(variant);
   // Custom Uniwind themes reset Appearance; force native chrome AFTER setting the theme.
   Appearance.setColorScheme(scheme);
   applying = false;
-  void SystemUI.setBackgroundColorAsync(nativeColors[mode].canvas);
+  void SystemUI.setBackgroundColorAsync(nativeColors[variant].canvas);
 }
 
 const THEME_KEY = "device.theme";
@@ -81,15 +81,21 @@ export function useThemeChoice() {
   return { choice, setChoice: (next: ThemeChoice) => store.set(next) };
 }
 
-/** Native chrome treats true black as dark. */
+const isNativeVariant = (name: string): name is NativeVariant =>
+  nativeVariantNames.some((variant) => variant === name);
+
+/** Light or dark, for native chrome. */
 export function useThemeMode(): "light" | "dark" {
-  return useAppliedThemeMode() === "light" ? "light" : "dark";
+  const variant = useAppliedVariant();
+  return variant === "dark" || variant.endsWith("-dark") || variant.endsWith("-dark-contrast")
+    ? "dark"
+    : "light";
 }
 
-/** The applied mode, including true black. */
-export function useAppliedThemeMode(): ThemeMode {
+/** The applied Uniwind theme variant (theme, scheme and contrast). */
+export function useAppliedVariant(): NativeVariant {
   const { theme } = useUniwind();
-  return theme === "dark" || theme === "black" ? theme : "light";
+  return isNativeVariant(theme) ? theme : "light";
 }
 
 /** Supporting text for icons whose props require a color string. */

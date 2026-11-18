@@ -1,4 +1,4 @@
-import { nativeColors, type RoleTokens, type ThemeMode } from "./brand";
+import { nativeColors, type NativeVariant, type RoleTokens } from "./brand";
 import { mixHex } from "./mix";
 
 export { mixHex };
@@ -55,10 +55,10 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
 }
 
 /**
- * The colours of one background. `appearance` is the app's resolved mode, which only
- * the Theme background follows; Light, Dark, Photo and the Sticker use that fixed palette.
+ * The colours of one background. `appearance` is the app's applied theme variant, which only
+ * the Theme and Accent backgrounds follow; Light, Dark, Photo and the Sticker use that fixed palette.
  */
-export function cardPalette(appearance: ThemeMode, kind: CardPaletteKind): CardPalette {
+export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): CardPalette {
   switch (kind) {
     case "theme": {
       const roles = nativeColors[appearance];

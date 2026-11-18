@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { nativeColors, roleNames, themeModes, type RoleName } from "./brand";
+import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
+import { hueDistance, toOklch } from "./mix";
+import { themeVariants } from "./theme-variants";
 
 const linear = (hex: string) =>
   [1, 3, 5].map((at) => {
@@ -27,19 +29,23 @@ function oklabL(hex: string) {
 }
 
 /**
- * Rules every native mode must satisfy. Layers: in dark and black, canvas < surface < control
- * with the floating sheet between canvas and control; in light, surface is the lightest layer,
- * canvas sits one step below it and control one step below canvas.
+ * Rules every native variant must satisfy. Layers: in dark, canvas < surface < control with the
+ * floating sheet between surface and control; in light, surface is the lightest layer, canvas
+ * sits one step below it and control one step below canvas.
  */
-const themes = themeModes.map((mode) => ({ mode, colors: nativeColors[mode] }));
+const themes = nativeVariantNames.map((mode) => ({
+  mode,
+  colors: nativeColors[mode],
+  isLight: mode === "light" || mode.includes("-light"),
+}));
 
 const L = (hex: string) => oklabL(hex);
 const MIN_STEP = 0.015;
 const MAX_STEP = 0.08;
-// Pure black sits further below its first surface than any grey canvas does.
-const MAX_BLACK_STEP = 0.2;
+/** The accent and the done colour must read as different hues (ADR 0048's clash rule). */
+const MIN_ACCENT_SUCCESS_HUE = 60;
 
-describe.each(themes)("theme rules: $mode", ({ mode, colors }) => {
+describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   const c = colors;
   const ratio = (a: RoleName, b: RoleName) => contrastRatio(c[a], c[b]);
 
@@ -116,17 +122,64 @@ describe.each(themes)("theme rules: $mode", ({ mode, colors }) => {
       expect(step).toBeGreaterThanOrEqual(MIN_STEP);
       expect(step).toBeLessThanOrEqual(MAX_STEP);
     };
-    if (mode === "light") {
+    if (isLight) {
       within(surface - canvas);
       within(canvas - control);
       expect(floating).toBe(surface);
     } else {
-      if (mode === "black") expect(surface - canvas).toBeLessThanOrEqual(MAX_BLACK_STEP);
-      else within(surface - canvas);
+      within(surface - canvas);
       within(control - surface);
       expect(floating).toBeGreaterThan(surface);
       expect(floating).toBeLessThan(control);
     }
+  });
+});
+
+describe.each(themes)("theme identity: $mode", ({ colors: c }) => {
+  it("keeps the accent's hue apart from the done colour", () => {
+    const accent = toOklch(c.identity).h;
+    const done = toOklch(c["set-done"]).h;
+    expect(hueDistance(accent, done)).toBeGreaterThanOrEqual(MIN_ACCENT_SUCCESS_HUE);
+  });
+
+  it("keeps every chart series visible on the page", () => {
+    for (const role of ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const) {
+      for (const bg of ["canvas", "surface"] as const) {
+        expect(contrastRatio(c[role], c[bg]), `${role} on ${bg}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("tints the surfaces with the theme's hue", () => {
+    // A tinted neutral: some chroma, never a saturated colour.
+    const { c: chroma } = toOklch(c.canvas);
+    expect(chroma).toBeGreaterThan(0.005);
+    expect(chroma).toBeLessThan(0.05);
+  });
+});
+
+describe("increased contrast", () => {
+  it.each(["light", "dark"] as const)("raises text contrast in %s", (scheme) => {
+    const standard = themeVariants[`nord-${scheme}`];
+    const increased = themeVariants[`nord-${scheme}-contrast`];
+    for (const role of ["text-primary", "text-secondary", "text-muted"] as const) {
+      expect(contrastRatio(increased[role], increased.surface)).toBeGreaterThan(
+        contrastRatio(standard[role], standard.surface),
+      );
+    }
+    expect(contrastRatio(increased["text-muted"], increased.surface)).toBeGreaterThanOrEqual(7);
+  });
+});
+
+describe("nord", () => {
+  it("keeps the Nord colours it pins", () => {
+    const dark = themeVariants["nord-dark"];
+    expect(dark.canvas).toBe("#1F232B");
+    expect(dark.surface).toBe("#2E3440");
+    expect(dark["surface-control"]).toBe("#3B4252");
+    expect(dark["text-primary"]).toBe("#ECEFF4");
+    expect(dark.identity).toBe("#88C0D0");
+    expect(themeVariants["nord-light"].canvas).toBe("#ECEFF4");
   });
 });
 

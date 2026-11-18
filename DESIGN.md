@@ -6,29 +6,32 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native uses neutral colours in light, dark and true black while replacement palettes are evaluated.
-Appearance (Match device, Light, Dark) and the true-black switch are device settings available in
-Preferences and on the signed-out welcome screen.
+Native ships one theme, **Nord**, in Light and Dark at standard or increased contrast
+([ADR 0048](docs/adr/0048-theme-engine-and-nord.md)). Appearance (Match device, Light, Dark), the
+theme and Increase contrast are device settings, available in Preferences and on the signed-out
+welcome screen.
 
-- `nativeColors` in `packages/ui/src/tokens/brand.ts` holds the roles per mode. Its colours come
-  from `nativeSeeds` in `themes/palettes.ts`. Email and the site use their own brand seeds.
-- Completed sets use the `set-done` roles. The muscle map stays red.
-- `device.theme` stores `{ appearance, black }` locally. Native chrome, status bars, blur and
-  CAPTCHA use `useThemeMode()`.
+- A theme is a base, an accent and a family of data colours per scheme
+  (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
+  `brand.ts` holds every variant. Email and the site use Cinnabar, built by the same engine.
+- The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
+  theme's family; completed sets use its success colour. The muscle map uses an accent ramp.
+- `device.theme` stores `{ theme, appearance, contrast }` locally. Native chrome, status bars,
+  blur and CAPTCHA use `useThemeMode()`.
 
 See the [native themes guide](docs/guides/native-themes.md).
 
 ## Overview
 
-Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the native interface. It is built on near-black surface steps, spaced groups, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
+Vermillion is a precise, quiet tool for training and nutrition. It is built on tinted surface steps, spaced groups, tight corners, Inter with OpenType features, one accent that means "you / now" and one primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
 Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
 ### Principles
 
 1. **Numbers are the headline.** Weight, reps, calories and macros get the biggest type on screen, set in tabular figures.
-2. **Color is meaning, never decoration.** Neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
-3. **One loud thing per screen.** At most one filled primary button (white in dark mode) in any view.
+2. **Color is meaning, never decoration.** Tinted neutrals carry the interface; the accent marks what is yours or current and fills the primary action. Status, set kinds, macros and chart series come from the theme's family. Everything else is neutral.
+3. **One loud thing per screen.** At most one filled primary button (the accent) in any view.
 4. **Quiet surfaces, clear groups.** Depth comes from surface steps, rounded corners and spacing. Only floating layers add shadows.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
 6. **Celebrate once, then get out of the way.** PRs and streaks get one expressive moment; nothing loops or blocks.
@@ -297,6 +300,12 @@ On React Native these run through Reanimated, which HeroUI Native already uses; 
 - With the system's Reduce Motion setting on, every animation becomes a 120ms fade; haptics stay.
 - Numbers that change count up over `motion-slow` only on summary screens, never while logging.
 - The rest timer's final 3 seconds pulse the timer text once per second, not the whole screen.
+- Motion is feedback, never decoration. It belongs in these places only: the set-complete check
+  (a scale pop plus `haptic-success`), set rows entering and leaving (layout transitions), goal
+  rings and calendar days filling when they change, stat numbers rolling, the week strip's
+  selection sliding, and sheets and dialogs on `SHEET_SPRING`.
+- Data read from the local database never shows a skeleton: content fades in over about 150ms.
+  Static block skeletons (no shimmer) are only for real network waits.
 
 ## Iconography
 
@@ -304,10 +313,14 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 
 | Context                      | Weight  | Size            |
 | ---------------------------- | ------- | --------------- |
-| Standard UI                  | Regular | 20pt            |
-| Active mode                  | Bold    | 24–28pt         |
+| Inline and standard UI       | Regular | 20pt            |
+| Navigation, headers, tabs    | Regular | 24pt            |
 | Selected tab, selected state | Fill    | same as context |
-| Inline with `caption` text   | Regular | 16pt            |
+
+- Two sizes only: 20 and 24. Larger glyphs belong to empty states and illustrations.
+- Only Regular and Fill. No Bold, Thin, Light or Duotone.
+- No emoji or text glyphs (`›`, `×`, `+`, `↑`, `→`, `·` used as an icon) in place of an icon.
+- Every icon-only button has an accessible label.
 
 ### Icon color
 

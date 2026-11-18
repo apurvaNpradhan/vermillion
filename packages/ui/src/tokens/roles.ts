@@ -13,8 +13,15 @@ export const roleNames = [
   "text-secondary",
   "text-muted",
   "text-disabled",
-  // Identity (selection and marks) takes the accent; Mono keeps it neutral.
+  // Charts: `chart` is the single-series mark (the accent); chart-1..5 are the theme's series
+  // colours, chart-1 being the accent.
   "chart",
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  // Identity (selection and marks) takes the accent.
   "identity",
   "identity-soft",
   /** Icon and label color on an `identity` fill. */
