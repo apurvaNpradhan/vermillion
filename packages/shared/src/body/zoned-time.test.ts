@@ -44,3 +44,39 @@ describe("zoned time", () => {
     });
   });
 });
+
+describe("zoned time across DST transitions", () => {
+  const zone = "America/New_York";
+  const at = (day: number, hour: number, minute: number, month = 3) =>
+    fromZonedParts({ year: 2026, month, day, hour, minute }, zone);
+
+  it("steps hours and minutes by elapsed time over the spring-forward gap", () => {
+    // 2026-03-08: 02:00 -> 03:00. 01:30 EST + 1 h is 03:30 EDT.
+    const start = at(8, 1, 30);
+    const later = stepZoned(start, zone, "hour", 1);
+    expect(Date.parse(later) - Date.parse(start)).toBe(3600_000);
+    expect(zonedParts(later, zone)).toMatchObject({ hour: 3, minute: 30 });
+    expect(stepZoned(later, zone, "hour", -1)).toBe(start);
+    const minute = stepZoned(at(8, 1, 59), zone, "minute", 1);
+    expect(zonedParts(minute, zone)).toMatchObject({ hour: 3, minute: 0 });
+  });
+
+  it("steps by elapsed time over the fall-back repeat", () => {
+    // 2026-11-01: 02:00 EDT -> 01:00 EST. 01:30 EDT + 1 h is 01:30 EST.
+    const first = at(1, 1, 30, 11);
+    const second = stepZoned(first, zone, "hour", 1);
+    expect(Date.parse(second) - Date.parse(first)).toBe(3600_000);
+    expect(zonedParts(second, zone)).toMatchObject({ hour: 1, minute: 30 });
+    expect(stepZoned(second, zone, "hour", 1)).not.toBe(second);
+  });
+
+  it("resolves a nonexistent wall time forward past the gap", () => {
+    const resolved = at(8, 2, 30);
+    expect(zonedParts(resolved, zone)).toMatchObject({ hour: 3, minute: 30 });
+  });
+
+  it("resolves a repeated wall time to its first occurrence", () => {
+    const resolved = at(1, 1, 30, 11);
+    expect(resolved).toBe("2026-11-01T05:30:00.000Z"); // 01:30 EDT, before the clocks go back
+  });
+});
