@@ -15,15 +15,19 @@ import Svg, { Rect } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable } from "uniwind";
 
-import { isColorString } from "@/platform/theme";
+import { nativeColors } from "@workspace/ui/tokens/brand";
+
+import { isColorString, useAppliedVariant } from "@/platform/theme";
 
 import {
   HEATMAP_ROWS,
-  cellAtPoint,
+  dayCellAtPoint,
   deriveLevels,
   heatmapLevel,
   levelOpacity,
   monthStarts,
+  readableDays,
+  stepReadout,
   type HeatmapBin,
   type HeatmapColumn,
 } from "./heatmap-chart-math";
@@ -60,8 +64,10 @@ export function HeatmapChart({
   const two = useCSSVariable("--color-chart-2");
   const track = useCSSVariable("--color-default");
   const base = tone === "chart-1" ? one : two;
-  const fill = isColorString(base) ? base : "#888888";
-  const empty = isColorString(track) ? track : "#88888833";
+  // The role tokens stand in until the CSS variables resolve, never a raw grey.
+  const roles = nativeColors[useAppliedVariant()];
+  const fill = isColorString(base) ? base : roles[tone];
+  const empty = isColorString(track) ? track : roles["surface-control"];
 
   const count = columns.length;
   const size = count === 0 ? 0 : Math.max(Math.floor((width - (count - 1) * GAP) / count), 4);
@@ -70,11 +76,24 @@ export function HeatmapChart({
   const months = useMemo(() => monthStarts(columns), [columns]);
   const gridHeight = HEATMAP_ROWS * step - GAP;
 
+  const days = useMemo(() => readableDays(columns), [columns]);
+  const [readout, setReadout] = useState<number | null>(null);
+  const reading = readout === null ? undefined : days[readout];
   const pick = (x: number, y: number) => {
-    const cell = cellAtPoint(x, y, size, GAP, count);
+    // A gap, a point outside the grid and a day yet to come keep the day last read.
+    const cell = dayCellAtPoint(columns, x, y, size, GAP);
+    if (cell === null) return;
     setActive((current) =>
-      current?.column === cell?.column && current?.row === cell?.row ? current : cell,
+      current?.column === cell.column && current?.row === cell.row ? current : cell,
     );
+  };
+  // Screen readers step through the days that have happened, newest first to start with.
+  const adjust = (step: 1 | -1) => {
+    const next = stepReadout(days.length, readout, step);
+    const day = days[next];
+    if (!day) return;
+    setReadout(next);
+    setActive({ column: day.column, row: day.row });
   };
   const clear = () => setActive(null);
   const pan = usePanGesture({
@@ -100,8 +119,14 @@ export function HeatmapChart({
   return (
     <View
       accessible
-      accessibilityRole="image"
+      accessibilityRole="adjustable"
       accessibilityLabel={labels.summary}
+      accessibilityValue={reading ? { text: labels.cell(reading) } : undefined}
+      accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "increment") adjust(1);
+        if (event.nativeEvent.actionName === "decrement") adjust(-1);
+      }}
       onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)}
       className="gap-1"
     >

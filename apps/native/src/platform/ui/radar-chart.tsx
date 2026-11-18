@@ -1,8 +1,9 @@
 /**
  * Source: PanelUI RadarChart (panelui-native 1.4.0, MIT, https://panelui.dev).
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
- * Keeps the polygonal rings and spokes, the labels anchored by side, the reveal that grows the
- * shape out of the centre and the per-vertex morph when the data changes. Changes: one component
+ * Keeps the polygonal rings and spokes, the labels anchored by side and the per-vertex morph when
+ * the data changes. Changes: no reveal on mount (one fill, on a change of value, and a 120 ms fade
+ * under Reduce Motion; nothing replays when a parent re-renders with the same values), one component
  * instead of a compound, one profile plus an optional target outline (dashed, never filled),
  * `chart-1` and role tokens, labels and the summary from the caller, no legend, no dots and no
  * `tailwind-variants`. The geometry lives in `radar-chart-math.ts`.
@@ -11,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   Easing,
+  ReduceMotion,
   useAnimatedProps,
   useReducedMotion,
   useSharedValue,
@@ -19,7 +21,9 @@ import Animated, {
 import Svg, { G, Line, Path, Polygon, Text as SvgText } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
-import { isColorString, useSubtleColor } from "@/platform/theme";
+import { nativeColors } from "@workspace/ui/tokens/brand";
+
+import { isColorString, useAppliedVariant, useSubtleColor } from "@/platform/theme";
 
 import {
   labelAnchor,
@@ -35,8 +39,10 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 /** Room around the rings for the horizontal axis labels: wider than it is tall. */
 const LABEL_ROOM = { x: 54, y: 24 };
 const BARE_ROOM = { x: 6, y: 6 };
-const REVEAL_MS = 420;
+/** motion-slow: the shape fills to its new values. */
 const MORPH_MS = 320;
+/** motion-fast: the fade that replaces the fill under Reduce Motion. */
+const FADE_MS = 120;
 const RINGS = 3;
 
 export type RadarAxis = {
@@ -81,9 +87,11 @@ export function RadarChart({
   const accent = useCSSVariable("--color-chart-1");
   const grid = useCSSVariable("--color-border");
   const subtle = useSubtleColor();
-  const stroke = isColorString(accent) ? accent : "#888888";
-  const lines = isColorString(grid) ? grid : "#88888833";
-  const labelColor = subtle ?? "#888888";
+  // The role tokens stand in until the CSS variables resolve, never a raw grey.
+  const roles = nativeColors[useAppliedVariant()];
+  const stroke = isColorString(accent) ? accent : roles["chart-1"];
+  const lines = isColorString(grid) ? grid : roles.hairline;
+  const labelColor = subtle ?? roles["text-secondary"];
 
   const values = useMemo(() => axes.map((axis) => axis.value), [axes]);
   const targets = useMemo(() => axes.map((axis) => axis.target ?? null), [axes]);
@@ -93,23 +101,29 @@ export function RadarChart({
   const targetFractions = useMemo(() => toFractions(targets, domain), [targets, domain]);
 
   const reduced = useReducedMotion();
-  const reveal = useSharedValue(reduced ? 1 : 0);
   const from = useSharedValue<(number | null)[]>(fractions);
   const to = useSharedValue<(number | null)[]>(fractions);
   const morph = useSharedValue(1);
+  const fade = useSharedValue(1);
   const settled = useRef(false);
+  // The effect runs when the drawn values change, not when a parent re-renders with equal ones.
+  const drawn = fractions.join(",");
 
   useEffect(() => {
-    if (reduced) reveal.set(1);
-    else reveal.set(withTiming(1, { duration: REVEAL_MS, easing: Easing.out(Easing.cubic) }));
-  }, [reduced, reveal]);
-
-  useEffect(() => {
-    if (!settled.current || reduced) {
+    if (!settled.current) {
+      // The first values are drawn as they are: the screen already fades in as a whole.
       settled.current = true;
       from.set(fractions);
       to.set(fractions);
       morph.set(1);
+      return;
+    }
+    if (reduced) {
+      from.set(fractions);
+      to.set(fractions);
+      morph.set(1);
+      fade.set(0);
+      fade.set(withTiming(1, { duration: FADE_MS, reduceMotion: ReduceMotion.Never }));
       return;
     }
     // Leave from wherever the last tween had got to.
@@ -123,8 +137,8 @@ export function RadarChart({
     );
     to.set(fractions);
     morph.set(0);
-    morph.set(withTiming(1, { duration: MORPH_MS }));
-  }, [fractions, reduced, from, to, morph]);
+    morph.set(withTiming(1, { duration: MORPH_MS, easing: Easing.out(Easing.cubic) }));
+  }, [drawn, reduced]);
 
   const animatedProps = useAnimatedProps(() => {
     const target = to.get();
@@ -132,9 +146,13 @@ export function RadarChart({
     const scaled = target.map((value, index) => {
       const a = start[index] ?? value;
       if (value === null || a === null) return null;
-      return (a + (value - a) * morph.get()) * reveal.get();
+      return a + (value - a) * morph.get();
     });
-    return { d: radarPath(scaled, cx, cy, radius) };
+    return {
+      d: radarPath(scaled, cx, cy, radius),
+      fillOpacity: 0.2 * fade.get(),
+      strokeOpacity: fade.get(),
+    };
   });
 
   const count = axes.length;
@@ -187,7 +205,6 @@ export function RadarChart({
           <AnimatedPath
             animatedProps={animatedProps}
             fill={stroke}
-            fillOpacity={0.2}
             stroke={stroke}
             strokeWidth={2}
             strokeLinejoin="round"

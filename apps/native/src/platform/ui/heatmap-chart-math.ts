@@ -72,7 +72,7 @@ export function levelOpacity(level: number, levels: number): number {
   return 0.3 + (0.7 * (level - 1)) / (levels - 1);
 }
 
-/** The column and row under a point of the grid, or null in a gap or outside it. */
+/** The column and row under a point of the grid, or null in a gap between cells or outside it. */
 export function cellAtPoint(
   x: number,
   y: number,
@@ -86,7 +86,44 @@ export function cellAtPoint(
   const column = Math.floor(x / step);
   const row = Math.floor(y / step);
   if (column >= columns || row >= rows) return null;
+  // The last `gap` points of each step belong to no cell.
+  if (x - column * step >= size || y - row * step >= size) return null;
   return { column, row };
+}
+
+/**
+ * The cell under a point that holds a day that has happened: a gap, a point outside the grid and a
+ * day after the last one all give null, so a drag across them keeps the last day it read.
+ */
+export function dayCellAtPoint(
+  columns: readonly HeatmapColumn[],
+  x: number,
+  y: number,
+  size: number,
+  gap: number,
+): { column: number; row: number } | null {
+  const cell = cellAtPoint(x, y, size, gap, columns.length);
+  if (cell === null) return null;
+  return columns[cell.column]?.bins[cell.row]?.inRange ? cell : null;
+}
+
+/** The days that have happened, oldest first: what a screen reader steps through. */
+export function readableDays(
+  columns: readonly HeatmapColumn[],
+): (HeatmapBin & { column: number })[] {
+  return columns.flatMap((column) =>
+    column.bins.filter((bin) => bin.inRange).map((bin) => ({ ...bin, column: column.column })),
+  );
+}
+
+/**
+ * Where an adjustable readout goes after an increment (`1`) or decrement (`-1`) from `index`
+ * (null before the first one, which reads the latest day), kept inside the `count` days.
+ */
+export function stepReadout(count: number, index: number | null, step: 1 | -1): number {
+  if (count <= 0) return 0;
+  if (index === null) return count - 1;
+  return Math.min(count - 1, Math.max(0, index + step));
 }
 
 /** The columns whose first day starts a new month, to label under the grid. */
