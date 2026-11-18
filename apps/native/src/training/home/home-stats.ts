@@ -28,13 +28,29 @@ export function sessionsInWeek<T extends { started_at: string }>(
   timezone: string,
   weekStart: WeekStart,
   weeksAgo = 0,
+  days = 7,
 ): T[] {
   const { start } = weekRange(now, timezone, weekStart);
   const from = start - weeksAgo * 7 * DAY_MS;
   return sessions.filter((session) => {
     const day = calendarDay(session.started_at, timezone);
-    return day >= from && day < from + 7 * DAY_MS;
+    return day >= from && day < from + days * DAY_MS;
   });
+}
+
+/** Both weeks through today's local weekday, inclusive. */
+export function comparableWeekSessions<T extends { started_at: string }>(
+  sessions: readonly T[],
+  now: Date,
+  timezone: string,
+  weekStart: WeekStart,
+) {
+  const { start } = weekRange(now, timezone, weekStart);
+  const days = (calendarDay(now, timezone) - start) / DAY_MS + 1;
+  return {
+    current: sessionsInWeek(sessions, now, timezone, weekStart, 0, days),
+    previous: sessionsInWeek(sessions, now, timezone, weekStart, 1, days),
+  };
 }
 
 /** How many of the days (`YYYY-MM-DD`) a weigh-in was logged on fall in the current week. */
