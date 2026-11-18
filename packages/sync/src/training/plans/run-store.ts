@@ -127,7 +127,8 @@ export function watchRunState(
 ) {
   const controller = new AbortController();
   database.watchWithCallback(
-    `SELECT r.id, training_session.id, ${hasCountedSetSql}
+    `SELECT r.id, r.finished_at, r.started_at, training_session.id,
+            training_session.finished_at, training_session.started_at, ${hasCountedSetSql}
      FROM program_run r LEFT JOIN training_session ON training_session.run_id = r.id LIMIT 10000`,
     [],
     {
