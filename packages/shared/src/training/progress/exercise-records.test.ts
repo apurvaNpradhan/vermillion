@@ -49,7 +49,8 @@ describe("exerciseRecords", () => {
     expect(exerciseRecords([session], 80).get("pullup")?.get("set_volume")).toBe(640);
   });
 
-  it.each(["reps_only", "bodyweight_reps"] as const)("records most reps for %s", (type) => {
+  const unweightedTypes: ("reps_only" | "bodyweight_reps")[] = ["reps_only", "bodyweight_reps"];
+  it.each(unweightedTypes)("records most reps for %s", (type) => {
     const sets = [
       setOf(type, "working", { reps: 18 }),
       setOf(type, "working", { reps: 12 }),
