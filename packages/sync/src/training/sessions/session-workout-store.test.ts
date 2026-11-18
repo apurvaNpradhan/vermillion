@@ -1,3 +1,4 @@
+import { diffSessionAgainstWorkout } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 import { pushWorkout, setupSessions } from "./session-fixtures";
 import { updateWorkoutExercise } from "../plans/exercise-store";
@@ -124,6 +125,73 @@ describe("applying Session changes", () => {
     expect((await readWorkoutDetail(s.training, plan.workoutId))?.exercises[0]?.sets).toEqual([
       { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
     ]);
+  });
+
+  async function twoSetPlan() {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    await updateWorkoutExercise(s.training, plan.squat, {
+      sets: [
+        { kind: "working", reps_min: 3, reps_max: 3, weight_kg: 120 },
+        { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
+      ],
+    });
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const [first, second] = s.sets(String(s.exercises(id)[0]?.["id"]));
+    return { s, plan, id, first, second };
+  }
+  const planWeights = async (s: Awaited<ReturnType<typeof setupSessions>>, id: string) =>
+    (await readWorkoutDetail(s.training, id))?.exercises[0]?.sets.map((set) => set.weight_kg);
+
+  it("targets-only update writes to the planned set that was logged, not the first", async () => {
+    const { s, plan, id, second } = await twoSetPlan();
+    await tickSet(s.training, String(second?.["id"]), { weight: 110, reps: 8 });
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, { structure: false, targets: true, saveNew: false });
+    expect(await planWeights(s, plan.workoutId)).toEqual([120, 110]);
+  });
+
+  it("previews the same change after an explicit removal that it saves", async () => {
+    const { s, plan, id, first, second } = await twoSetPlan();
+    await removeSet(s.training, String(first?.["id"]));
+    await tickSet(s.training, String(second?.["id"]), { weight: 120, reps: 8 });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    const detail = await readWorkoutDetail(s.training, plan.workoutId);
+    const exercises = (detail?.exercises ?? []).map((entry) => ({
+      id: entry.id,
+      exerciseId: entry.exerciseId,
+      sets: entry.sets,
+    }));
+    expect(diffSessionAgainstWorkout(session, { exercises }, true).targets[0]).toMatchObject({
+      before: [120, 100],
+      after: [120, 120],
+    });
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: true,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect(await planWeights(s, plan.workoutId)).toEqual([120]);
+  });
+
+  it("applies structure and targets together after a skipped first set", async () => {
+    const { s, plan, id, second } = await twoSetPlan();
+    await tickSet(s.training, String(second?.["id"]), { weight: 110, reps: 8 });
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, { structure: true, targets: true, saveNew: false });
+    expect(await planWeights(s, plan.workoutId)).toEqual([120, 110]);
+  });
+
+  it("leaves targets alone on a legacy session when the matching is ambiguous", async () => {
+    const { s, plan, id, second } = await twoSetPlan();
+    await tickSet(s.training, String(second?.["id"]), { weight: 110, reps: 8 });
+    await finishSession(s.training, id);
+    s.sqlite.prepare("UPDATE training_session SET workout_structure = NULL WHERE id = ?").run(id);
+    await applySessionWorkout(s.training, id, { structure: false, targets: true, saveNew: false });
+    expect(await planWeights(s, plan.workoutId)).toEqual([120, 100]);
   });
 
   it("preserves sets added to the workout after the session started", async () => {
