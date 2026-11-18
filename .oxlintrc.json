@@ -31,6 +31,23 @@
   },
   "overrides": [
     {
+      "files": ["apps/native/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react-native",
+                "importNames": ["Alert"],
+                "message": "Use ConfirmationDialog from @/platform/ui/confirmation-dialog."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       // Copied from the coss ui registry into the site (its only web consumer); kept close to
       // upstream so updates can be re-applied.
       "files": ["apps/web/src/platform/ui/**"],

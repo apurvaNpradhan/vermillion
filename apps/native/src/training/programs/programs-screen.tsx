@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { ProgramSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
@@ -46,6 +47,7 @@ export function ProgramsScreen() {
   );
   return (
     <SwipeGroup>
+      <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={t("training__programs")}
         back

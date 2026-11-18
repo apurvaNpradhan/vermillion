@@ -1,6 +1,8 @@
 import { useRouter } from "expo-router";
 import { Alert as HeroAlert } from "heroui-native";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
+import { useState } from "react";
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 
 import { useSignOut } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
@@ -17,18 +19,12 @@ export function SyncBanner() {
   const router = useRouter();
   const signOut = useSignOut();
   const { snapshot, countUnsent, discardAndSwitch } = useSyncStatus();
+  const [discardCount, setDiscardCount] = useState<number | null>(null);
   if (!snapshot) return null;
 
   async function confirmDiscard() {
     const count = await countUnsent();
-    Alert.alert(t("sync__discard_title"), t("sync__discard_body", { count }), [
-      { text: t("common__cancel"), style: "cancel" },
-      {
-        text: t("sync__discard_confirm"),
-        style: "destructive",
-        onPress: () => void discardAndSwitch(),
-      },
-    ]);
+    setDiscardCount(count);
   }
 
   if (snapshot.indicator === "update-required") {
@@ -65,20 +61,34 @@ export function SyncBanner() {
 
   if (snapshot.lockReason === "other-account") {
     return (
-      <HeroAlert status="danger">
-        <HeroAlert.Indicator />
-        <HeroAlert.Content>
-          <HeroAlert.Description>{t("sync__other_account")}</HeroAlert.Description>
-          <View className="mt-2 flex-row gap-2">
-            <Button size="sm" onPress={() => signOut.mutate()}>
-              <Button.Label>{t("sync__switch_back")}</Button.Label>
-            </Button>
-            <Button size="sm" variant="danger-soft" onPress={() => void confirmDiscard()}>
-              <Button.Label>{t("sync__discard")}</Button.Label>
-            </Button>
-          </View>
-        </HeroAlert.Content>
-      </HeroAlert>
+      <>
+        <ConfirmationDialog
+          isOpen={discardCount !== null}
+          onOpenChange={(open) => {
+            if (!open) setDiscardCount(null);
+          }}
+          title={t("sync__discard_title")}
+          description={t("sync__discard_body", { count: discardCount ?? 0 })}
+          cancelLabel={t("common__cancel")}
+          confirmLabel={t("sync__discard_confirm")}
+          destructive
+          onConfirm={() => void discardAndSwitch()}
+        />
+        <HeroAlert status="danger">
+          <HeroAlert.Indicator />
+          <HeroAlert.Content>
+            <HeroAlert.Description>{t("sync__other_account")}</HeroAlert.Description>
+            <View className="mt-2 flex-row gap-2">
+              <Button size="sm" onPress={() => signOut.mutate()}>
+                <Button.Label>{t("sync__switch_back")}</Button.Label>
+              </Button>
+              <Button size="sm" variant="danger-soft" onPress={() => void confirmDiscard()}>
+                <Button.Label>{t("sync__discard")}</Button.Label>
+              </Button>
+            </View>
+          </HeroAlert.Content>
+        </HeroAlert>
+      </>
     );
   }
 
