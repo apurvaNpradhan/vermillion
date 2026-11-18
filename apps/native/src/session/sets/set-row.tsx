@@ -1,4 +1,3 @@
-import { Skeleton } from "@/platform/ui/skeleton";
 import {
   SET_FIELDS,
   addsLoad,
@@ -242,7 +241,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         className="h-10 min-w-0 flex-[1.3] items-center justify-center rounded-lg px-1 active:bg-default"
       >
         {!props.historyReady ? (
-          <Skeleton label={t("common__loading")} className="h-3 w-10" />
+          <View className="h-3 w-10" />
         ) : (
           <Text
             numberOfLines={1}

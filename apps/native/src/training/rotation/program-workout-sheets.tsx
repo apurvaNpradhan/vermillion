@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { displayTitle } from "@/training/workouts/derived-title";
 import { useWorkouts } from "@/training/train/use-workouts";
@@ -91,9 +90,6 @@ export function AddWorkoutSheet({
           }}
         />
       </ListSection>
-      {status === "loading" ? (
-        <Skeleton label={t("common__loading")} className="h-12 w-full" />
-      ) : null}
       {status === "list" ? (
         <ListSection title={t("training__add_workout_yours")}>
           {workouts.map((workout) => (

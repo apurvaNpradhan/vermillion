@@ -407,6 +407,7 @@ const expectation: Expectation = {
       "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
       "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
       "progress_photo(id, user_id, media_id, pose, taken_at, local_date, created_at, updated_at, deleted_at)",
+      "user_preferences(id, user_id, locale, timezone, ui, created_at, updated_at)",
     ],
   },
 };
@@ -444,6 +445,7 @@ describe("server schema parity", () => {
       "my_body",
       "my_library",
       "my_media",
+      "my_preferences",
       "my_training",
     ]);
     // my_training is one subscription over the plan tables and the session tables.

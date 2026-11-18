@@ -114,9 +114,7 @@ export function WeightScreen() {
             className="text-numeric-xl text-foreground"
             style={{ fontVariant: ["tabular-nums"] }}
           >
-            {state.trend === null
-              ? t(state.loading ? "common__loading" : "body__empty")
-              : format(state.trend)}
+            {state.trend === null ? (state.loading ? null : t("body__empty")) : format(state.trend)}
           </Text>
           <Text className="text-body text-muted">
             {t("body__headline_change", {

@@ -14,6 +14,7 @@ import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
 import { deviceStorage } from "@/platform/storage";
+import { LibrarySetup } from "@/platform/ui/library-setup";
 import { Page } from "@/platform/ui/page";
 import { SearchBar } from "@/platform/ui/search-bar";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
@@ -30,8 +31,6 @@ import { FilterSheet } from "./filter-sheet";
 import { RejectedExercises } from "./rejected-exercises";
 import {
   ArchivedEmptyState,
-  ExerciseSkeletonRows,
-  FirstSyncState,
   LoadFailedState,
   NoMatchesState,
   OfflineState,
@@ -211,10 +210,8 @@ export function ExerciseLibrary({
   const status = library.status;
   const stateView: ReactNode = (() => {
     if (status === "error") return <LoadFailedState onRetry={library.retry} />;
-    if (library.isLoading) {
-      return <ExerciseSkeletonRows label={t("common__loading")} />;
-    }
-    if (status === "first-sync") return <FirstSyncState />;
+    if (library.isLoading) return null;
+    if (status === "first-sync") return <LibrarySetup />;
     if (status === "offline-unsynced") return <OfflineState onCreate={onCreate} />;
     if (library.rows.length > 0) return null;
     if (filters.show === "archived" && !searching && filters.muscles.length === 0) {

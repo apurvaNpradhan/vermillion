@@ -1,57 +1,7 @@
-/**
- * Source: PanelUI (panelui-native 1.2.0), `Skeleton`. MIT licence, https://github.com/panel-ui/PanelUI.
- * Changed: `bg-default` fill with soft corners; it stays invisible for `APPEAR_DELAY_MS` (local
- * data usually lands first, so most loads never show it), then fades in and breathes slowly
- * between two low opacities. It holds still under Reduce Motion.
- */
 import { cn } from "heroui-native";
-import { memo, useEffect } from "react";
+import { memo } from "react";
 import type { ViewProps } from "react-native";
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-  type SharedValue,
-} from "react-native-reanimated";
-
-/** A load shorter than this shows no placeholder at all. */
-const APPEAR_DELAY_MS = 350;
-const FADE_IN_MS = 220;
-/** One breath, each way: slow enough to read as calm rather than flicker. */
-const BREATH_MS = 900;
-const BREATH_HIGH = 0.7;
-const BREATH_LOW = 0.4;
-const RESTING_OPACITY = 0.55;
-
-/** The delayed fade-in and breathing every placeholder shares. */
-function useAppearing(): SharedValue<number> {
-  const reduced = useReducedMotion();
-  const opacity = useSharedValue(0);
-  useEffect(() => {
-    const fadeIn = { duration: FADE_IN_MS, easing: Easing.out(Easing.cubic) };
-    opacity.value = withDelay(
-      APPEAR_DELAY_MS,
-      reduced
-        ? withTiming(RESTING_OPACITY, fadeIn)
-        : withSequence(
-            withTiming(BREATH_HIGH, fadeIn),
-            withRepeat(
-              withTiming(BREATH_LOW, { duration: BREATH_MS, easing: Easing.inOut(Easing.sin) }),
-              -1,
-              true,
-            ),
-          ),
-    );
-    return () => cancelAnimation(opacity);
-  }, [opacity, reduced]);
-  return opacity;
-}
+import { View } from "react-native";
 
 export type SkeletonProps = {
   className?: string;
@@ -60,20 +10,21 @@ export type SkeletonProps = {
   label?: string;
 };
 
-/** A soft `bg-default` placeholder that appears only for slow loads, then breathes. */
+/**
+ * A static `bg-default` placeholder for a wait on the network (a remote image, a server answer).
+ * Never for data on the device: that arrives in milliseconds and fades in instead (`FadeIn`). It
+ * does not animate, so it never competes with the content that replaces it.
+ */
 export const Skeleton = memo(function Skeleton({ className, style, label }: SkeletonProps) {
-  const opacity = useAppearing();
-  const animated = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const announced = label !== undefined;
-
   return (
-    <Animated.View
+    <View
       accessibilityRole={announced ? "progressbar" : undefined}
       accessibilityLabel={label}
       accessibilityState={{ busy: announced }}
       accessibilityElementsHidden={!announced}
       importantForAccessibility={announced ? "auto" : "no-hide-descendants"}
-      style={[style, animated]}
+      style={style}
       className={cn("rounded-2xl bg-default", className)}
     />
   );

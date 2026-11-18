@@ -40,12 +40,11 @@ import { UpdateRoutineSheet, type RoutineUpdate } from "./update-routine-sheet";
 export function SessionSummaryScreen({ id, onDone }: { id: string; onDone: () => void }) {
   const state = useSession(id);
   const { t } = useTranslation();
+  if (state.status === "loading") return <View className="flex-1 bg-background" />;
   if (state.status !== "ready")
     return (
       <View className="flex-1 justify-center bg-background p-4">
-        <Text className="text-body text-foreground">
-          {t(state.status === "loading" ? "common__loading" : "session__load_failed")}
-        </Text>
+        <Text className="text-body text-foreground">{t("session__load_failed")}</Text>
         <Button onPress={state.status === "error" ? state.retry : onDone}>
           <Button.Label>{t("session__done")}</Button.Label>
         </Button>

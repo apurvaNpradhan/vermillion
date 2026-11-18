@@ -1,16 +1,18 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { SESSION_QUERY_KEY, clearSession } from "@workspace/client/session";
+import { SESSION_QUERY_KEY } from "@workspace/client/session";
 import { errorMessage } from "@workspace/client/error-message";
 import { isUnauthorized } from "@workspace/client/orpc-error";
 import { createQueryClient } from "@workspace/client/query-client";
 import { HeroUINativeProvider } from "heroui-native";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
+import { clearAccountSession } from "@/auth";
 import { SyncProvider } from "@/sync";
 
 import { I18nextProvider, i18n } from "./i18n";
+import { watchConnection } from "./network";
 import { TAB_BAR_GAP, TAB_BAR_HEIGHT } from "./navigation/tab-bar-metrics";
 import { NavigationTheme } from "./theme/navigation-theme";
 import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
@@ -33,7 +35,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
         if (isUnauthorized(error)) {
           // The session is gone: drop it and all cached user data. A device with an owner keeps its
           // local data (sign-in banner); any other shows sign-in. Further 401s change nothing.
-          if (client.getQueryData(SESSION_QUERY_KEY) !== null) void clearSession(client);
+          if (client.getQueryData(SESSION_QUERY_KEY) !== null) void clearAccountSession(client);
           return;
         }
         toastRef.current.show({ variant: "danger", label: errorMessage(i18n.t, error) });
@@ -41,6 +43,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
     });
     return client;
   });
+  useEffect(() => watchConnection(queryClient), [queryClient]);
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 

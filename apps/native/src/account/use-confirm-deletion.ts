@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { clearSession } from "@workspace/client/session";
+import { clearAccountSession } from "@/auth";
 
 import { authClient } from "@/platform/auth-client";
 import { confirmAccountDeleted } from "@/sync";
@@ -16,7 +16,7 @@ export function useConfirmDeletion() {
         try {
           await authClient.signOut();
         } finally {
-          await clearSession(queryClient);
+          await clearAccountSession(queryClient);
         }
       },
     }),

@@ -7,9 +7,9 @@ import { Pressable, Text, View } from "react-native";
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { FadeIn } from "@/platform/ui/fade-in";
 import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { bodyIntensity } from "./muscle-bars";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
@@ -81,10 +81,8 @@ export function MusclesScreen() {
         <Button variant="secondary" onPress={volume.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
-      ) : volume.loading ? (
-        <Skeleton label={t("common__loading")} className="h-96 w-full rounded-2xl" />
-      ) : (
-        <>
+      ) : volume.loading ? null : (
+        <FadeIn className="gap-6">
           <View className="gap-2 rounded-2xl bg-surface p-4">
             <BodyMapPair intensity={intensity} />
             <Text className="text-center text-caption text-muted">{t("muscles__map_caption")}</Text>
@@ -97,7 +95,7 @@ export function MusclesScreen() {
               <MuscleRow key={row.muscle} row={row} onPress={() => setChosen(row.muscle)} />
             ))}
           </View>
-        </>
+        </FadeIn>
       )}
       {chosen !== null && isTargetMuscle(chosen) ? (
         <MuscleGoalSheet

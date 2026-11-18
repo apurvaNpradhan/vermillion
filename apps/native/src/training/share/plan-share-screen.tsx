@@ -13,16 +13,13 @@ import { displayTitle } from "@/training/workouts/derived-title";
 
 function ShareStatus({ loading, onClose }: { loading: boolean; onClose: () => void }) {
   const { t } = useTranslation();
+  if (loading) return <View className="flex-1 bg-background" />;
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
-      <Text className="text-center text-body text-muted">
-        {t(loading ? "common__loading" : "training__load_failed")}
-      </Text>
-      {!loading ? (
-        <Button variant="secondary" onPress={onClose}>
-          <Button.Label>{t("share__close")}</Button.Label>
-        </Button>
-      ) : null}
+      <Text className="text-center text-body text-muted">{t("training__load_failed")}</Text>
+      <Button variant="secondary" onPress={onClose}>
+        <Button.Label>{t("share__close")}</Button.Label>
+      </Button>
     </View>
   );
 }

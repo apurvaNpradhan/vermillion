@@ -301,3 +301,12 @@ export {
 } from "./training";
 export { setExerciseImage } from "./exercise";
 export { watchSessionPhotos, type SessionPhoto } from "./training";
+export {
+  PREFERENCES_SQL,
+  preferencesUploadColumns,
+  readPreferencesRow,
+  savePreferences,
+  userPreferences,
+  watchPreferences,
+  type PreferencesDatabase,
+} from "./preferences";

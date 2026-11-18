@@ -9,7 +9,6 @@ import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Field } from "@/platform/ui/field";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
 import { useProgram } from "./use-program";
@@ -48,14 +47,7 @@ export function ProgramDetailsScreen({ id, onClose }: { id: string; onClose: () 
   }
   return (
     <SheetFrame title={t("training__program_details_title")} onClose={onClose}>
-      {state.status === "error" ? (
-        <EmptyState icon={X} title={t("training__load_failed")} />
-      ) : (
-        <>
-          <Skeleton label={t("common__loading")} className="h-12 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </>
-      )}
+      {state.status === "error" ? <EmptyState icon={X} title={t("training__load_failed")} /> : null}
     </SheetFrame>
   );
 }

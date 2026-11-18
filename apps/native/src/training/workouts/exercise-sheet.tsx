@@ -17,7 +17,6 @@ import { useTranslation } from "@/platform/i18n";
 import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { useSubtleColor } from "@/platform/theme";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
 import { useWorkout } from "./use-workout";
@@ -80,14 +79,7 @@ export function ExerciseSheetScreen({
   }
   return (
     <SheetFrame title={t("training__exercise_sheet_title")} onClose={onClose}>
-      {state.status === "error" ? (
-        <EmptyState icon={X} title={t("training__load_failed")} />
-      ) : (
-        <>
-          <Skeleton label={t("common__loading")} className="h-12 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </>
-      )}
+      {state.status === "error" ? <EmptyState icon={X} title={t("training__load_failed")} /> : null}
     </SheetFrame>
   );
 }

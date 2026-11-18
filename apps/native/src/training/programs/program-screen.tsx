@@ -27,7 +27,6 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { MarkdownText } from "@/platform/ui/markdown-text";
 import { Page, ScrollPage } from "@/platform/ui/page";
-import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { repeatCounts, rotationSummary } from "@/training/rotation/rotation";
@@ -75,9 +74,7 @@ export function ProgramScreen(props: ProgramScreenProps) {
   if (state.status === "loading") {
     return (
       <ScrollPage title={t("training__program")} back>
-        <Skeleton label={t("common__loading")} className="h-11 w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
+        {null}
       </ScrollPage>
     );
   }

@@ -1,46 +1,6 @@
 import { MagnifyingGlass, WarningCircle, WifiSlash } from "phosphor-react-native";
-import { Text, View } from "react-native";
-
 import { useTranslation } from "@/platform/i18n";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { Skeleton } from "@/platform/ui/skeleton";
-
-import { THUMBNAIL_SIZE } from "./exercise-thumbnail";
-
-/** Placeholder rows shaped like exercise rows; the first load only. */
-export function ExerciseSkeletonRows({ count = 6, label }: { count?: number; label: string }) {
-  return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      accessibilityState={{ busy: true }}
-    >
-      {Array.from({ length: count }, (_, index) => (
-        <View key={index} className="min-h-[72px] flex-row items-center gap-3 px-4 py-3">
-          <Skeleton style={{ width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE }} />
-          <View className="flex-1 gap-2">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-3 w-1/3" />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-/** The catalog is still downloading: skeleton rows and one line saying so. */
-export function FirstSyncState() {
-  const { t } = useTranslation();
-  return (
-    <View className="gap-3 pt-2">
-      <ExerciseSkeletonRows label={t("common__loading")} />
-      <Text accessibilityLiveRegion="polite" className="text-center text-caption text-muted">
-        {t("exercise__first_sync")}
-      </Text>
-    </View>
-  );
-}
 
 /** Nothing has downloaded and there is no connection: say so, and offer to create an exercise. */
 export function OfflineState({ onCreate }: { onCreate?: (title: string) => void }) {

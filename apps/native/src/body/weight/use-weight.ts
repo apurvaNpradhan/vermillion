@@ -20,7 +20,7 @@ const subscribe = (
 export function useWeight() {
   const state = useLocalWatch(subscribe);
   const [entryLimit, setEntryLimit] = useState(50);
-  const { preferences, isLoading, hasPreferences, refresh } = usePreferences();
+  const { preferences, isLoading, hasPreferences } = usePreferences();
   const entries = state.value ?? [];
   const series = trendSeries(dailyWeights(entries));
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -57,10 +57,7 @@ export function useWeight() {
     ...state,
     loading: state.loading || isLoading,
     failed: state.failed || (!isLoading && !hasPreferences),
-    retry: () => {
-      state.retry();
-      void refresh().catch(() => undefined);
-    },
+    retry: state.retry,
     withBodyweight,
     entries,
     series,

@@ -96,9 +96,9 @@ export function SessionDetailScreen({ id }: { id: string }) {
             </Button>
           ) : null}
           {!session ? (
-            <Text className="text-body text-muted">
-              {t(state.status === "loading" ? "common__loading" : "session__load_failed")}
-            </Text>
+            state.status === "loading" ? null : (
+              <Text className="text-body text-muted">{t("session__load_failed")}</Text>
+            )
           ) : (
             <>
               <View className="gap-4">

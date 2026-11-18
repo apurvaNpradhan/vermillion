@@ -23,7 +23,6 @@ import { Button } from "@/platform/ui/button";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Field } from "@/platform/ui/field";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { ChoiceCell, ChoiceGrid, EquipmentIcon } from "../../components/choice-grid";
 import { useExercise } from "../../detail/use-exercise";
@@ -82,8 +81,7 @@ function EditExercise({ id, onClose }: { id: string; onClose: () => void }) {
   if (state.status === "loading") {
     return (
       <FormFrame title={t("exercise__edit_title")} onClose={onClose}>
-        <Skeleton label={t("common__loading")} className="h-11 w-full" />
-        <Skeleton className="h-40 w-full" />
+        {null}
       </FormFrame>
     );
   }

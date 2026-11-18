@@ -22,7 +22,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { Skeleton } from "@/platform/ui/skeleton";
+import { FadeIn } from "@/platform/ui/fade-in";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { SET_TONES, chipTexts } from "@/training";
 
@@ -82,7 +82,7 @@ export function TimerScreen(props: TimerScreenProps) {
   useEffect(() => {
     if (state.status === "missing") props.onGone();
   }, [state.status, props]);
-  if (state.status === "loading" || state.status === "missing") return <TimerSkeleton />;
+  if (state.status === "loading" || state.status === "missing") return <TimerBlank />;
   if (state.status === "error") {
     return (
       <View className="flex-1 justify-center gap-4 bg-background p-4">
@@ -97,22 +97,9 @@ export function TimerScreen(props: TimerScreenProps) {
 }
 
 /** The squares (or thin segments) of sets done. */
-/** Shown until the Session and its Previous values load: the frame the screen settles into. */
-function TimerSkeleton() {
-  const { t } = useTranslation();
-  const { top, bottom } = useSafeAreaInsets();
-  return (
-    <View
-      className="flex-1 bg-background px-4"
-      style={{ paddingTop: top + 12, paddingBottom: bottom + 12 }}
-    >
-      <Skeleton label={t("common__loading")} className="h-11 w-full" />
-      <View className="flex-1 items-center justify-center">
-        <Skeleton className="h-28 w-64" />
-      </View>
-      <Skeleton className="h-16 w-full" />
-    </View>
-  );
+/** The screen's own background while the Session reads from the device (milliseconds). */
+function TimerBlank() {
+  return <View className="flex-1 bg-background" />;
 }
 
 function SetProgress({ done, total }: { done: number; total: number }) {
@@ -368,7 +355,7 @@ function LoadedTimer({
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
 
   // One ready state, as in the sets view: wait for Previous values so Ghosts are right.
-  if (installId === null || !(historyReady || historyFailed)) return <TimerSkeleton />;
+  if (installId === null || !(historyReady || historyFailed)) return <TimerBlank />;
 
   const resting = action.phase === "rest" && session.rest !== null;
   const editable = !readOnly && session.finishedAt === null;
@@ -459,7 +446,7 @@ function LoadedTimer({
 
   return (
     <GestureDetector gesture={swipeDown}>
-      <View className="flex-1 bg-background">
+      <FadeIn className="flex-1 bg-background">
         <View className="flex-row items-center gap-2 px-3" style={{ paddingTop: top + 8 }}>
           <Pressable
             accessibilityRole="button"
@@ -684,7 +671,7 @@ function LoadedTimer({
             setAskOpen(false);
           }}
         />
-      </View>
+      </FadeIn>
     </GestureDetector>
   );
 }

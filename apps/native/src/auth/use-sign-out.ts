@@ -1,10 +1,9 @@
-import { clearPreferencesCache } from "@/platform/preferences-cache";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { clearSession } from "@workspace/client/session";
 
 import { authClient } from "@/platform/auth-client";
 
 import { setSignedOut } from "./signed-out";
+import { clearAccountSession } from "./session";
 
 /**
  * Signs out and drops everything cached for the user; the route guard shows the welcome screen.
@@ -19,9 +18,8 @@ export function useSignOut() {
     },
     onSuccess: () => {
       // Before the session clears, so the guard goes to the welcome screen in one step.
-      clearPreferencesCache();
       setSignedOut(true);
-      return clearSession(queryClient);
+      return clearAccountSession(queryClient);
     },
   });
 }

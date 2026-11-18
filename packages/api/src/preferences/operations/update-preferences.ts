@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { SyncRejection } from "../../platform/sync/handler";
 import { media, assertMediaReference } from "../../media/index";
-import type { Database } from "@workspace/db";
+import type { DbExecutor } from "@workspace/db";
 import type { Preferences, UpdatePreferences } from "@workspace/shared";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ import { getPreferences } from "./get-preferences";
  * both survive. `null` clears locale or timezone; omitted fields are untouched.
  */
 export async function updatePreferences(
-  db: Database,
+  db: DbExecutor,
   userId: string,
   input: UpdatePreferences,
 ): Promise<Preferences> {

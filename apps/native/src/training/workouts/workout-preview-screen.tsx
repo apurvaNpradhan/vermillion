@@ -107,9 +107,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         {state.status === "error" ? (
           <Button onPress={state.retry}>{t("training__retry")}</Button>
         ) : !ready ? (
-          <Text className="text-body text-muted">
-            {t(state.status === "loading" ? "common__loading" : "session__load_failed")}
-          </Text>
+          state.status === "loading" ? null : (
+            <Text className="text-body text-muted">{t("session__load_failed")}</Text>
+          )
         ) : (
           <View className="gap-8">
             <View className="gap-4">
@@ -120,7 +120,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               ) : (
                 <Text className="text-body text-muted">
                   {history.loading
-                    ? t("common__loading")
+                    ? null
                     : t("workout__subtitle", {
                         exercises: t("workout__exercise_count", { count: ready.exercises.length }),
                         last: lastText,

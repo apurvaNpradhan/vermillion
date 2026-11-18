@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { clearSession } from "@workspace/client/session";
+import { clearAccountSession } from "@/auth";
 import { useEffect } from "react";
 
 import { authClient } from "@/platform/auth-client";
@@ -13,6 +13,6 @@ export function useDeletedAccountCleanup() {
       .catch(() => undefined)
       .then(() => authClient.signOut())
       .catch(() => undefined)
-      .finally(() => clearSession(queryClient));
+      .finally(() => clearAccountSession(queryClient));
   }, [queryClient]);
 }

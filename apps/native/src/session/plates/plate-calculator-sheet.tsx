@@ -197,7 +197,6 @@ function CalculatorBody({
     if (next === "build" && mode === "calculate") setStack([...solvedPlates]);
     setMode(next);
   };
-  const syncing = state.rows.length === 0 && !state.hasSynced;
   const unitPlates = state.rows.flatMap((p) =>
     p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
   );
@@ -213,9 +212,7 @@ function CalculatorBody({
           <Button variant="secondary" onPress={state.retry}>
             {t("plates__retry")}
           </Button>
-        ) : state.loading ? (
-          <Text className="text-body text-muted">{t("plates__loading")}</Text>
-        ) : (
+        ) : state.loading ? null : (
           <>
             {state.bars.length > 0 ? (
               <View className="flex-row flex-wrap gap-2">
@@ -233,9 +230,7 @@ function CalculatorBody({
               </View>
             ) : null}
             {!state.bar ? (
-              <Text className="text-body text-muted">
-                {syncing ? t("plates__syncing") : t("plates__no_bar")}
-              </Text>
+              <Text className="text-body text-muted">{t("plates__no_bar")}</Text>
             ) : (
               <>
                 <SegmentedControl
