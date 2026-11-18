@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   dailyWeights,
+  bodyweightForDate,
   trendSeries,
   trendAt,
   changeOver,
@@ -36,6 +37,25 @@ describe("weight log", () => {
       ]),
     ).toEqual(daily);
   });
+  it("uses the latest measured day through the session date, or the first day for older sessions", () => {
+    expect(bodyweightForDate(daily, "2025-12-31", 75)).toBe(80);
+    expect(bodyweightForDate(daily, "2026-01-02", 75)).toBe(80);
+    expect(bodyweightForDate(daily, "2026-01-03", 75)).toBe(82);
+    expect(bodyweightForDate([], "2026-01-03", 75)).toBe(75);
+  });
+
+  it("requires four measured days spanning ten days and suppresses stale rates", () => {
+    const measurements = [
+      { date: "2026-01-01", scale: 80 },
+      { date: "2026-01-03", scale: 82 },
+      { date: "2026-01-07", scale: 86 },
+      { date: "2026-01-11", scale: 90 },
+    ];
+    expect(ratePerWeek(trendSeries(measurements.slice(1)))).toBeNull();
+    expect(ratePerWeek(trendSeries(measurements), "2026-01-21")).toBeCloseTo(7);
+    expect(ratePerWeek(trendSeries(measurements), "2026-01-22")).toBeNull();
+  });
+
   it("seeds a single entry and interpolates only between logged days", () => {
     expect(trendSeries([])).toEqual([]);
     expect(trendSeries(daily.slice(0, 1))).toEqual([
