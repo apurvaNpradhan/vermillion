@@ -19,6 +19,8 @@ export type BodyMapProps = {
   secondary?: readonly MuscleGroup[];
   /** 0..1 per group (clamped), replacing the primary and secondary opacities: a heat map. */
   intensity?: Partial<Record<BodyGroup, number>>;
+  /** A flat colour per group, instead of the drawn one: an accent ramp for a heat map. */
+  tints?: Partial<Record<BodyGroup, string>>;
   /** Groups drawn in full as chosen (the filter's selection, the group just tapped). */
   selected?: readonly MuscleGroup[];
   /** Called with the group under a tap, or from an accessibility action; never a coordinate. */
@@ -40,6 +42,7 @@ export function BodyMap({
   primary,
   secondary,
   intensity,
+  tints,
   selected,
   onPressGroup,
   style,
@@ -103,12 +106,13 @@ export function BodyMap({
         {BODY_GROUPS.flatMap((group) => {
           const alpha = alphas.get(group);
           if (alpha === undefined) return [];
+          const tint = tints?.[group];
           return GROUP_LAYERS[group][view].map((layer) => (
             <Image
               key={layer}
               source={LAYER_SOURCES[layer]}
               resizeMode="stretch"
-              style={[FILL, { opacity: alpha }]}
+              style={[FILL, tint === undefined ? { opacity: alpha } : { tintColor: tint }]}
             />
           ));
         })}
