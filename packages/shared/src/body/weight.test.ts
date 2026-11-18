@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   dailyWeights,
   bodyweightForDate,
+  bodyweightLookup,
   trendSeries,
   trendAt,
   changeOver,
@@ -42,6 +43,13 @@ describe("weight log", () => {
     expect(bodyweightForDate(daily, "2026-01-02", 75)).toBe(80);
     expect(bodyweightForDate(daily, "2026-01-03", 75)).toBe(82);
     expect(bodyweightForDate([], "2026-01-03", 75)).toBe(75);
+  });
+  it("looks days up without copying and agrees with bodyweightForDate", () => {
+    const lookup = bodyweightLookup(daily, 75);
+    for (const date of ["2025-12-31", "2026-01-01", "2026-01-02", "2026-01-03", "2026-06-01"]) {
+      expect(lookup(date)).toBe(bodyweightForDate(daily, date, 75));
+    }
+    expect(bodyweightLookup([], null)("2026-01-03")).toBeNull();
   });
 
   it("requires four measured days spanning ten days and suppresses stale rates", () => {
