@@ -10,6 +10,8 @@ export type DiffSessionSet = {
   weightKg: number | null;
   completedAt: string | null;
   target: PlannedSet | null;
+  /** An untouched auto ramp row: not the user's structure, so never compared or saved. */
+  generatedWarmup?: boolean;
 };
 export type DiffSessionExercise = {
   exerciseId: string;
@@ -17,6 +19,39 @@ export type DiffSessionExercise = {
   sets: readonly DiffSessionSet[];
 };
 export type DiffWorkoutExercise = { id: string; exerciseId: string; sets: readonly PlannedSet[] };
+
+/**
+ * Drop untouched generated warm-ups. The ramp replaces the planned warm-ups, so those are
+ * stood in for (one per planned warm-up the user has not replaced by touching a warm-up row)
+ * and a plain ramp never looks like a removed or added warm-up. A generated warm-up the user
+ * ticked or typed into has lost the marker and counts as a real set.
+ */
+export function withoutGeneratedWarmups<T extends DiffSessionSet>(
+  sets: readonly T[],
+  planned: readonly PlannedSet[],
+): T[] {
+  const template = sets.find((set) => set.generatedWarmup === true);
+  if (!template) return [...sets];
+  const kept = sets.filter((set) => set.generatedWarmup !== true);
+  const touched = kept.filter((set) => set.kind === "warmup").length;
+  const positions = generateNKeysBetween(null, null, planned.length);
+  const standIns = planned.flatMap((plan, index) =>
+    plan.kind === "warmup"
+      ? [
+          {
+            ...template,
+            position: positions[index],
+            kind: plan.kind,
+            weightKg: null,
+            completedAt: null,
+            target: plan,
+            generatedWarmup: false,
+          },
+        ]
+      : [],
+  );
+  return [...standIns.slice(touched), ...kept];
+}
 
 /** The exercise and set order a Session copied when it started. */
 export function workoutStructureKey(exercises: readonly DiffWorkoutExercise[]): string {
@@ -120,7 +155,16 @@ export function diffSessionAgainstWorkout(
   workout: { exercises: readonly DiffWorkoutExercise[] },
   completeStructure = false,
 ) {
-  const logged = workoutUpdateEntries(session.exercises, completeStructure);
+  const logged = workoutUpdateEntries(
+    session.exercises.map((entry) => ({
+      ...entry,
+      sets: withoutGeneratedWarmups(
+        entry.sets,
+        workout.exercises.find((item) => item.id === entry.sourceWorkoutExerciseId)?.sets ?? [],
+      ),
+    })),
+    completeStructure,
+  );
   const snapshotTrusted =
     session.workoutStructure != null &&
     session.workoutStructure === workoutStructureKey(workout.exercises);

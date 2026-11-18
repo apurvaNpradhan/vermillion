@@ -8,6 +8,7 @@ import {
   workoutStructureKey,
   workoutSetKinds,
   workoutUpdateEntries,
+  withoutGeneratedWarmups,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -162,6 +163,7 @@ export function applySessionWorkout(
           weightKg: set.weight_kg,
           completedAt: set.completed_at,
           target: set.target,
+          generatedWarmup: set.generated_warmup,
         })),
       });
     }
@@ -172,13 +174,21 @@ export function applySessionWorkout(
           sets: entry.sets.map((set) => savedSets.get(set.id) ?? { ...set, completedAt: null }),
         }))
       : stored;
+    // Untouched generated warm-ups are not the user's structure: neither compared nor written.
+    const realEntries = sessionEntries.map((entry) => ({
+      ...entry,
+      sets: withoutGeneratedWarmups(
+        entry.sets,
+        planned.find((item) => item.id === entry.sourceWorkoutExerciseId)?.sets ?? [],
+      ),
+    }));
     const diff = diffSessionAgainstWorkout(
-      { exercises: sessionEntries, workoutStructure: current.workout_structure },
+      { exercises: realEntries, workoutStructure: current.workout_structure },
       { exercises: plan },
       completeStructure,
     );
     if (options.structure || !source) {
-      const logged = workoutUpdateEntries(sessionEntries, completeStructure);
+      const logged = workoutUpdateEntries(realEntries, completeStructure);
       const retained = planned.filter(
         (old) =>
           !completeStructure && !logged.some((entry) => entry.sourceWorkoutExerciseId === old.id),

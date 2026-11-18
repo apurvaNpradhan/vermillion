@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { pushWorkout, setupSessions } from "./session-fixtures";
 import { updateWorkoutExercise } from "../plans/exercise-store";
 import { startSession, finishSession, logPastSession } from "./session-store";
-import { removeSet, tickSet, updateSet } from "./session-content-store";
+import { removeSet, replaceWarmups, tickSet, updateSet } from "./session-content-store";
 import { readWorkoutDetail } from "../watch";
 import { parseSessionDetail, SESSION_DETAIL_SQL } from "./session-watch";
 import { applySessionWorkout, editFinishedSession } from "./session-workout-store";
@@ -280,5 +280,66 @@ describe("applying Session changes", () => {
     expect(s.one("session_set", set)?.["completed_at"]).toBeNull();
     await updateSet(s.training, set, { reps: 8 });
     expect(s.one("session_set", set)?.["completed_at"]).not.toBeNull();
+  });
+});
+
+describe("generated warm-ups and the source Workout", () => {
+  const ramp = [
+    { kind: "warmup", weight_kg: 20, reps_min: 10, reps_max: 10 },
+    { kind: "warmup", weight_kg: 50, reps_min: 5, reps_max: 5 },
+  ] as const;
+  /** The Finish flow's view: the draft is read before the save drops the unticked rows. */
+  async function rampFixture(touch: boolean) {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s, "Legs");
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const entry = String(s.exercises(id)[0]?.["id"]);
+    await replaceWarmups(s.training, entry, ramp);
+    const rows = s.sets(entry);
+    if (touch)
+      for (const row of rows.slice(0, 2))
+        await tickSet(s.training, String(row["id"]), { weight: 20, reps: 10 });
+    const work = rows.find((row) => row["kind"] === "working");
+    await tickSet(s.training, String(work?.["id"]), { weight: 100, reps: 6 });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    const detail = await readWorkoutDetail(s.training, plan.workoutId);
+    const exercises = (detail?.exercises ?? []).map((item) => ({
+      id: item.id,
+      exerciseId: item.exerciseId,
+      sets: item.sets,
+    }));
+    await finishSession(s.training, id);
+    return { s, plan, id, session, exercises };
+  }
+  const warmups = (s: Awaited<ReturnType<typeof setupSessions>>, id: string) =>
+    JSON.parse(String(s.one("workout_exercise", id)?.["sets"])).filter(
+      (set: { kind: string }) => set.kind === "warmup",
+    );
+  it("an untouched ramp neither triggers the prompt nor reaches the plan", async () => {
+    const { s, plan, id, session, exercises } = await rampFixture(false);
+    expect(diffSessionAgainstWorkout(session, { exercises }, true)).toEqual({
+      structure: [],
+      targets: [],
+    });
+    const before = s.one("workout_exercise", plan.squat)?.["sets"];
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: true,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect(s.one("workout_exercise", plan.squat)?.["sets"]).toEqual(before);
+  });
+  it("ticked generated warm-ups count as real sets and are saved", async () => {
+    const { s, plan, id, session, exercises } = await rampFixture(true);
+    expect(diffSessionAgainstWorkout(session, { exercises }, true).structure[0]?.kind).toBe("sets");
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: false,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect(warmups(s, plan.squat)).toHaveLength(2);
   });
 });
