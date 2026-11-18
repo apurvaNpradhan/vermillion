@@ -1,7 +1,7 @@
 import { MUSCLE_GROUPS, type MuscleRow } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
-import { RADAR_AXES, muscleRadarAxes, radarAxisOf } from "./muscle-axes";
+import { RADAR_AXES, muscleRadarAxes, radarAxisOf, radarValue } from "./muscle-axes";
 
 describe("radarAxisOf", () => {
   it("maps the targeted muscles onto the six axes", () => {
@@ -63,8 +63,28 @@ describe("muscleRadarAxes", () => {
     expect(axes.find((axis) => axis.key === "push")?.target).toBe(10);
     expect(axes.find((axis) => axis.key === "legs")?.target).toBeNull();
   });
+  it("compares only the targeted muscles' sets with the target", () => {
+    // Biceps has a minimum of 6; triceps has none. Forearms add weighted volume with no target.
+    const axes = muscleRadarAxes(
+      [
+        { muscle: "biceps", sets: 4 },
+        { muscle: "triceps", sets: 10 },
+        { muscle: "forearms", sets: 2 },
+      ],
+      [row("biceps", 6), row("triceps", null)],
+    );
+    const arms = axes.find((axis) => axis.key === "arms");
+    expect(arms).toMatchObject({ sets: 16, targetedSets: 4, target: 6 });
+    expect(arms && radarValue(arms)).toBe(4);
+  });
+  it("draws the whole weighted volume on an axis with no target", () => {
+    const axes = muscleRadarAxes([{ muscle: "chest", sets: 7.5 }], [row("chest", null)]);
+    const push = axes.find((axis) => axis.key === "push");
+    expect(push && radarValue(push)).toBe(7.5);
+    expect(push?.target).toBeNull();
+  });
   it("turns a total over several weeks into a weekly average", () => {
-    const axes = muscleRadarAxes([{ muscle: "chest", sets: 24 }], [], 4);
-    expect(axes.find((axis) => axis.key === "push")?.sets).toBe(6);
+    const axes = muscleRadarAxes([{ muscle: "chest", sets: 24 }], [row("chest", 6)], 4);
+    expect(axes.find((axis) => axis.key === "push")).toMatchObject({ sets: 6, targetedSets: 6 });
   });
 });

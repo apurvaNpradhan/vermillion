@@ -1,19 +1,20 @@
 import { useRouter } from "expo-router";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { NumberFlow } from "@/platform/ui/number-flow";
 import { ProgressRing } from "@/platform/ui/progress-ring";
 import { RadarChart } from "@/platform/ui/radar-chart";
-import type { MuscleRadarAxis } from "@/training/muscles/muscle-axes";
+import { radarValue, type MuscleRadarAxis } from "@/training/muscles/muscle-axes";
 
 import { goalFraction, type WeekSummary } from "./home-stats";
 
 /**
- * Home's This week: the goal ring (sessions of the goal), sets and volume with their change on the
- * same days of last week, and a small radar of this week's muscle groups against their targets
- * that opens Muscles.
+ * Home's This week: the goal ring (sessions of the goal; with no goal just the session count, as
+ * text, since there is nothing to progress towards), sets and volume with their change on the same
+ * days of last week, and a small radar of this week's weighted muscle volume against targets that
+ * opens Muscles.
  */
 export function WeekCard({
   summary,
@@ -41,10 +42,17 @@ export function WeekCard({
             signDisplay: "exceptZero",
           }).format(ratio),
         });
-  const ringLabel =
-    goal === null
-      ? t("stats__sessions", { count: summary.sessions })
-      : t("session__goal_accessible", { count: summary.sessions, goal });
+  const sessionsLabel = t("stats__sessions", { count: summary.sessions });
+  const radarAxes = useMemo(
+    () =>
+      axes.map((axis) => ({
+        key: axis.key,
+        label: axis.key,
+        value: radarValue(axis),
+        target: axis.target,
+      })),
+    [axes],
+  );
   const stat = (label: string, value: ReactNode, change: number | null) => (
     <View className="gap-0.5">
       <Text className="text-caption text-muted">{label}</Text>
@@ -60,13 +68,25 @@ export function WeekCard({
         {t("home__week")}
       </Text>
       <View className="flex-row items-center gap-4">
-        <ProgressRing fraction={goalFraction(summary.sessions, goal)} size={72} label={ringLabel}>
-          <Text className="text-numeric-md tabular-nums text-foreground">
-            {goal === null
-              ? summary.sessions
-              : t("session__goal_ratio", { done: summary.sessions, goal })}
+        {goal === null ? (
+          <Text
+            accessibilityLabel={sessionsLabel}
+            numberOfLines={2}
+            className="w-[72px] text-center text-body font-medium tabular-nums text-foreground"
+          >
+            {sessionsLabel}
           </Text>
-        </ProgressRing>
+        ) : (
+          <ProgressRing
+            fraction={goalFraction(summary.sessions, goal)}
+            size={72}
+            label={t("session__goal_accessible", { count: summary.sessions, goal })}
+          >
+            <Text className="text-numeric-md tabular-nums text-foreground">
+              {t("session__goal_ratio", { done: summary.sessions, goal })}
+            </Text>
+          </ProgressRing>
+        )}
         <View className="flex-1 gap-3">
           {stat(
             t("stats__sets"),
@@ -90,17 +110,7 @@ export function WeekCard({
           onPress={() => router.push("/muscles")}
           className="rounded-xl active:bg-default"
         >
-          <RadarChart
-            compact
-            size={84}
-            axes={axes.map((axis) => ({
-              key: axis.key,
-              label: axis.key,
-              value: axis.sets,
-              target: axis.target,
-            }))}
-            accessibilityLabel={radarLabel}
-          />
+          <RadarChart compact size={84} axes={radarAxes} accessibilityLabel={radarLabel} />
         </Pressable>
       </View>
     </View>

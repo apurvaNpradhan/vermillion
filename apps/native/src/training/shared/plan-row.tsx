@@ -31,7 +31,7 @@ export function PlanRow({
   onOpen: () => void;
   /** Revealed by a swipe. */
   actions: SwipeAction[];
-  /** Listed by the menu button and a long press; the swipe actions when not given. */
+  /** Listed by the menu button and a long press, and run by screen readers; the swipe actions when not given. */
   menuActions?: SwipeAction[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -42,7 +42,7 @@ export function PlanRow({
       <View className="bg-background">
         <View className="flex-row items-center">
           <View className="flex-1">
-            <SwipeRow actions={actions}>
+            <SwipeRow actions={actions} screenReaderActions={menuActions ?? actions}>
               {(a11y) => (
                 <Pressable
                   {...a11y}

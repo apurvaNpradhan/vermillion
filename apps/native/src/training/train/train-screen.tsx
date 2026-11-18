@@ -40,8 +40,9 @@ const rowKey = (row: Row) =>
 /**
  * Train: the active program as a card with its rotation and Start, its workouts as rows (swipe for
  * Start and Edit) with when each was last done, everything else folded behind "Other workouts",
- * and the last 26 weeks as a heatmap. Programs sit behind the header button; Create and Start
- * empty are two quiet buttons under the card.
+ * and the last 26 weeks as a heatmap, shown whenever there is training in them, even with no
+ * plans. Programs sit behind the header button; Create and Start empty are two quiet buttons
+ * under the card, and the empty state offers Start empty too.
  */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t, i18n } = useTranslation();
@@ -252,7 +253,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               </View>
             }
             ListFooterComponent={
-              status === "list" && !heatmap.loading && !heatmap.failed ? (
+              !heatmap.loading && !heatmap.failed && heatmap.totals.days > 0 ? (
                 <View className="px-4 pt-8">
                   <FadeIn>
                     <TrainingHeatmap data={heatmap} />
@@ -271,6 +272,9 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                       </Button>
                       <Button variant="secondary" onPress={newProgram}>
                         <Button.Label>{t("training__new_program")}</Button.Label>
+                      </Button>
+                      <Button variant="secondary" onPress={onStartEmpty}>
+                        <Button.Label>{t("home__start_empty")}</Button.Label>
                       </Button>
                     </View>
                   </View>

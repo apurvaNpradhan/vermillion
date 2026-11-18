@@ -24,6 +24,8 @@ import {
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_SET_COUNTS_SQL,
+  parseSessionSetCounts,
   parseActiveSessions,
   parseEquipment,
   parseFinishedSessions,
@@ -33,6 +35,7 @@ import {
   type FinishedSession,
   type HistoryRange,
   type SessionDetail,
+  type SessionSetCount,
 } from "./sessions/session-watch";
 import type { TrainingDatabase } from "./store";
 
@@ -737,6 +740,28 @@ export function watchSessionsBetween(
     range.workoutId ? [range.workoutId, range.from, range.to] : [range.from, range.to],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/**
+ * Watches the Counted-set count of each finished Session that started in `[from, to)` (ISO
+ * times), newest first. Sessions with no Counted set are left out.
+ */
+export function watchSessionSetCounts(
+  database: TrainingDatabase,
+  range: { from: string; to: string },
+  handlers: {
+    onCounts: (counts: SessionSetCount[]) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    SESSION_SET_COUNTS_SQL,
+    [range.from, range.to],
+    SESSION_TABLES,
+    parsing(parseSessionSetCounts, { onResult: handlers.onCounts, onError: handlers.onError }),
     handlers.onError,
   );
 }

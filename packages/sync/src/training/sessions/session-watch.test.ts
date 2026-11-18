@@ -17,6 +17,8 @@ import {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_SET_COUNTS_SQL,
+  parseSessionSetCounts,
   exerciseHistoriesSql,
   exerciseRecordsSql,
   sessionsPageSql,
@@ -337,6 +339,52 @@ describe("the History reader", () => {
     const { read } = readerOf(s);
     const reader = createFinishedHistoryReader({ from: daysAgo(20), to: daysAgo(0) });
     expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([recent]);
+  });
+});
+
+describe("per-Session set counts", () => {
+  it("counts ticked non-warm-up sets of each finished Session in the window, without the 500 cap", async () => {
+    const s = await setupSessions();
+    try {
+      // Each squat Session holds one warm-up (not counted) and one working set per weight.
+      await finishedSquat(s, daysAgo(10), [100, 110, 120]);
+      const recent = await finishedSquat(s, daysAgo(2), [100]);
+      const empty = await startSession(s.training, { workoutId: null, derivedTitle: "Empty" });
+      await finishSession(s.training, empty, { startedAt: daysAgo(3) });
+      await startSession(s.training, { workoutId: null, derivedTitle: "Still training" });
+      const counts = parseSessionSetCounts(
+        s.sqlite.prepare(SESSION_SET_COUNTS_SQL).all(daysAgo(30), daysAgo(0)),
+      );
+      expect(counts.map((row) => row.sets)).toEqual([1, 3]);
+      expect(
+        parseSessionSetCounts(
+          s.sqlite.prepare(SESSION_SET_COUNTS_SQL).all(daysAgo(30), daysAgo(5)),
+        ),
+      ).toHaveLength(1);
+
+      const entry = String(s.exercises(recent)[0]?.["id"]);
+      const set = String(s.sets(entry)[1]?.["id"]);
+      for (let i = 0; i < 520; i++) {
+        s.sqlite
+          .prepare(`INSERT INTO training_session (id, user_id, title, started_at, finished_at, device_id, created_at)
+          SELECT ?, user_id, title, started_at, finished_at, device_id, created_at FROM training_session WHERE id = ?`)
+          .run(`filler-${i}`, recent);
+        s.sqlite
+          .prepare(`INSERT INTO session_exercise (id, user_id, session_id, exercise_id, exercise_title, exercise_type, position, created_at)
+          SELECT ?, user_id, ?, exercise_id, exercise_title, exercise_type, position, created_at FROM session_exercise WHERE id = ?`)
+          .run(`entry-${i}`, `filler-${i}`, entry);
+        s.sqlite
+          .prepare(`INSERT INTO session_set (id, user_id, session_exercise_id, position, kind, weight_kg, reps, completed_at, created_at)
+          SELECT ?, user_id, ?, position, kind, weight_kg, reps, completed_at, created_at FROM session_set WHERE id = ?`)
+          .run(`set-${i}`, `entry-${i}`, set);
+      }
+      const many = parseSessionSetCounts(
+        s.sqlite.prepare(SESSION_SET_COUNTS_SQL).all(daysAgo(30), daysAgo(0)),
+      );
+      expect(many).toHaveLength(522);
+    } finally {
+      s.sqlite.close();
+    }
   });
 });
 

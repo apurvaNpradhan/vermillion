@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   cellAtPoint,
+  dayCellAtPoint,
   deriveLevels,
   heatmapColumns,
   heatmapLevel,
   levelOpacity,
   monthStarts,
+  readableDays,
+  stepReadout,
 } from "./heatmap-chart-math";
 
 const DAY = 86_400_000;
@@ -107,6 +110,42 @@ describe("cellAtPoint", () => {
     expect(cellAtPoint(-1, 0, 10, 2, 26)).toBeNull();
     expect(cellAtPoint(26 * 12, 0, 10, 2, 26)).toBeNull();
     expect(cellAtPoint(0, 7 * 12, 10, 2, 26)).toBeNull();
+  });
+  it("is null in the gap between cells", () => {
+    expect(cellAtPoint(11, 0, 10, 2, 26)).toBeNull();
+    expect(cellAtPoint(5, 10.5, 10, 2, 26)).toBeNull();
+    expect(cellAtPoint(12, 0, 10, 2, 26)).toEqual({ column: 1, row: 0 });
+  });
+});
+
+describe("dayCellAtPoint", () => {
+  const columns = heatmapColumns({ counts: new Map(), end: today, weeks: 2, weekStart: "monday" });
+  it("finds a day that has happened", () => {
+    // Monday the 16th: second column, first row.
+    expect(dayCellAtPoint(columns, 12, 0, 10, 2)).toEqual({ column: 1, row: 0 });
+  });
+  it("ignores a day after today and a gap", () => {
+    // The second column's Thursday (row 3) is after Wednesday the 18th.
+    expect(dayCellAtPoint(columns, 12, 3 * 12, 10, 2)).toBeNull();
+    expect(dayCellAtPoint(columns, 11, 0, 10, 2)).toBeNull();
+  });
+});
+
+describe("readableDays and stepReadout", () => {
+  const columns = heatmapColumns({ counts: new Map(), end: today, weeks: 2, weekStart: "monday" });
+  it("lists only the days that have happened, oldest first", () => {
+    const days = readableDays(columns);
+    expect(days).toHaveLength(7 + 3);
+    expect(days.at(-1)?.day).toBe(today);
+    expect(days[0]?.day).toBe(monday - 7 * DAY);
+  });
+  it("starts on the latest day and stays inside the list", () => {
+    expect(stepReadout(10, null, -1)).toBe(9);
+    expect(stepReadout(10, null, 1)).toBe(9);
+    expect(stepReadout(10, 9, 1)).toBe(9);
+    expect(stepReadout(10, 0, -1)).toBe(0);
+    expect(stepReadout(10, 4, 1)).toBe(5);
+    expect(stepReadout(0, null, 1)).toBe(0);
   });
 });
 

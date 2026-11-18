@@ -434,6 +434,35 @@ export const SESSIONS_BETWEEN_SQL = `SELECT ${SET_COLUMNS}
 /** A half-open `[from, to)` range of Session start times (ISO). */
 export type HistoryRange = { from: string; to: string };
 
+/** The most Sessions a count read returns; far above what one window of weeks can hold. */
+const SESSION_COUNT_LIMIT = 5000;
+
+/**
+ * One row per finished Session that started in `[from, to)`: when it started and how many Counted
+ * sets (ticked, not warm-up) it has. A calendar-heat read needs no set rows, so this is the
+ * bounded alternative to {@link SESSIONS_BETWEEN_SQL}: it is not capped at
+ * {@link SESSION_READ_LIMIT} Sessions. The caller buckets `started_at` by the account's time zone,
+ * which SQLite cannot do.
+ */
+export const SESSION_SET_COUNTS_SQL = `SELECT s.started_at AS started_at, COUNT(ss.id) AS sets
+  FROM training_session s
+  JOIN session_exercise se ON se.session_id = s.id
+  JOIN session_set ss ON ss.session_exercise_id = se.id
+    AND ss.completed_at IS NOT NULL AND ss.kind <> 'warmup'
+  WHERE s.finished_at IS NOT NULL AND s.started_at >= ? AND s.started_at < ?
+  GROUP BY s.id
+  ORDER BY s.started_at DESC, s.id DESC LIMIT ${SESSION_COUNT_LIMIT}`;
+
+/** A finished Session's start and its Counted sets. */
+export type SessionSetCount = { started_at: string; sets: number };
+
+export function parseSessionSetCounts(rows: readonly object[]): SessionSetCount[] {
+  return z
+    .array(z.object({ started_at: z.string(), sets: z.number() }))
+    .parse(rows)
+    .filter((row) => row.sets > 0);
+}
+
 /** Cursor pages use the same stable start/id ordering as the History list. */
 export function sessionsPageSql(bounded = false): string {
   return SESSIONS_BETWEEN_SQL.replace(

@@ -50,6 +50,8 @@ export function WeekStrip({
     weekday: (day: number) => string;
     day: (day: number) => string;
     date: (day: number) => string;
+    /** Spoken before today's date, e.g. "Today". */
+    today: string;
   };
   onSelect?: (day: number) => void;
 }) {
@@ -65,7 +67,13 @@ export function WeekStrip({
           <Pressable
             key={day}
             accessibilityRole="button"
-            accessibilityLabel={[labels.date(day), mark?.label].filter(Boolean).join(", ")}
+            accessibilityLabel={[
+              day === today ? labels.today : undefined,
+              labels.date(day),
+              mark?.label,
+            ]
+              .filter(Boolean)
+              .join(", ")}
             accessibilityState={{ disabled: inert }}
             disabled={inert}
             onPress={() => onSelect?.(day)}

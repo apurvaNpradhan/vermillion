@@ -1,10 +1,12 @@
 import { useWeight, WeightTrendCard } from "@/body";
 import { useTranslation } from "@/platform/i18n";
+import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { useActiveSessions, useStartSession } from "@/session";
 import { KG_PER_LB, sessionGoal } from "@workspace/shared";
 import { useRouter } from "expo-router";
+import { useMemo } from "react";
 import { comparableWeekSessions, homeWeek, weekSummary } from "./home-stats";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
@@ -13,7 +15,8 @@ import { estimateMinutes } from "@/training/workouts/estimate";
 import { useWorkoutRecency } from "@/training/train/use-workout-recency";
 import { slotTitle } from "@/training/rotation/rotation-row";
 import { muscleRadarAxes } from "@/training/muscles/muscle-axes";
-import { useMuscleVolume } from "@/training/muscles/use-muscle-volume";
+import { muscleWindow } from "@/training/muscles/muscle-window";
+import { useMuscleLoads } from "@/training/muscles/use-muscle-volume";
 import { HomeWeekStrip } from "./home-week-strip";
 import { LighterWeekCard } from "./lighter-week-card";
 import { NextWorkoutCard } from "./next-workout-card";
@@ -32,7 +35,21 @@ export function TrainingHome() {
   const active = useActiveSessions();
   const programState = useActiveProgram();
   const recency = useWorkoutRecency();
-  const muscles = useMuscleVolume(0, programState.program);
+  const { now } = useToday(state.timezone);
+  // This week's muscle volume reads the Sessions Home already watches, not a second watch of them.
+  const muscleWeek = useMemo(
+    () => muscleWindow(now, state.timezone, state.weekStart, 0, 1),
+    [now, state.timezone, state.weekStart],
+  );
+  const muscles = useMuscleLoads({
+    sessions: state.finished,
+    week: muscleWeek,
+    program: programState.program,
+  });
+  const radarAxes = useMemo(
+    () => muscleRadarAxes(muscles.loads, muscles.rows),
+    [muscles.loads, muscles.rows],
+  );
   const next = programState.program?.slots.find(
     (slot) => slot.id === programState.progress.next?.id,
   );
@@ -66,7 +83,6 @@ export function TrainingHome() {
   if (loading) return null;
 
   const resume = active.sessions[0];
-  const now = new Date();
 
   // ---- Next workout ----
   const slots = programState.program?.slots ?? [];
@@ -131,7 +147,7 @@ export function TrainingHome() {
         summary={summary}
         goal={sessionGoal(programState.program, state.sessionsPerWeek)}
         volume={volume}
-        axes={muscleRadarAxes(muscles.loads, muscles.rows)}
+        axes={radarAxes}
         radarLabel={radarLabel}
       />
       <WeightTrendCard weight={weight} />
