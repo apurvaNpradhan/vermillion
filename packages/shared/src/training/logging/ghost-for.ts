@@ -20,7 +20,7 @@ export function ghostFor(
   target: PlannedSet | null,
   suggestion?: SuggestedSet | null,
 ): number | null {
-  if (target?.kind === "working" && suggestion) {
+  if (suggestion) {
     if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
     if (field === "reps" && suggestion.reps !== null) return suggestion.reps;
   }

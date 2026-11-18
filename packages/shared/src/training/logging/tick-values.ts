@@ -1,12 +1,7 @@
 import type { SetField } from "../../exercise/vocabulary";
 import type { GhostField } from "./ghost-for";
 import type { SetValues } from "./logged-set";
-import {
-  actualValuesSchema,
-  fieldHasValue,
-  SET_VALUE_KEYS,
-  type ActualValues,
-} from "./session-inputs";
+import { fieldHasValue, SET_VALUE_KEYS, type ActualValues } from "./session-inputs";
 
 /** The Ghost value of each cell, by field; `null` or absent means there is none. */
 export type Ghosts = Partial<Record<GhostField, number | null>>;
@@ -38,15 +33,5 @@ export function tickValues(
     }
   }
   if (missing.length > 0) return { ok: false, missing };
-  // Effort is never required; its Ghost is adopted only on reps types and only into an empty cell.
-  const effort = actualValuesSchema.shape.rpe.safeParse(ghosts.rpe ?? null);
-  if (
-    fields.includes("reps") &&
-    (set.rpe ?? null) === null &&
-    effort.success &&
-    effort.data !== null
-  ) {
-    values.rpe = effort.data;
-  }
   return { ok: true, values };
 }
