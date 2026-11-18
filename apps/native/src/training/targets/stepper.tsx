@@ -10,7 +10,8 @@ const HOLD_DELAY_MS = 450;
 const REPEAT_MS = 110;
 
 /**
- * A number with a minus and a plus button. A press steps once; holding repeats. The parent owns
+ * A number with a minus and a plus button. A press steps once (`onPress`, so a screen reader's
+ * activation works too); holding past a short delay repeats. The parent owns
  * the value and the rules (`onStep` gets the direction; `canStep` greys a button out at an end).
  */
 export function Stepper({
@@ -52,14 +53,30 @@ export function Stepper({
     hold.current = { delay: null, every: null };
   };
   useEffect(() => stop, []);
+  // A button that greys out mid-hold may never report its release; stop repeating.
+  useEffect(stop, [canDecrement, canIncrement, disabled]);
 
-  const start = (direction: 1 | -1) => {
+  /** Set once a hold has repeated, so the release's `onPress` does not add another step. */
+  const repeated = useRef(false);
+
+  const beginHold = (direction: 1 | -1) => {
     stop();
-    haptic.tick();
-    stepRef.current(direction);
+    repeated.current = false;
     hold.current.delay = setTimeout(() => {
+      repeated.current = true;
+      haptic.tick();
+      stepRef.current(direction);
       hold.current.every = setInterval(() => stepRef.current(direction), REPEAT_MS);
     }, HOLD_DELAY_MS);
+  };
+
+  const press = (direction: 1 | -1) => {
+    if (repeated.current) {
+      repeated.current = false;
+      return;
+    }
+    haptic.tick();
+    stepRef.current(direction);
   };
 
   const button = (direction: 1 | -1, enabled: boolean, name: string) => (
@@ -68,7 +85,8 @@ export function Stepper({
       accessibilityLabel={name}
       accessibilityState={{ disabled: disabled || !enabled }}
       disabled={disabled || !enabled}
-      onPressIn={() => start(direction)}
+      onPress={() => press(direction)}
+      onPressIn={() => beginHold(direction)}
       onPressOut={stop}
       hitSlop={4}
       className={`h-11 w-11 items-center justify-center rounded-xl bg-default active:bg-surface ${
