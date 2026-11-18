@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { loggedSet, sessionOf, untickedSet } from "../logging/session-fixtures";
 import { weekRange } from "../plans/week";
+import type { SetKind } from "../vocabulary/vocabulary";
 import {
   muscleContributions,
   muscleRows,
@@ -95,11 +96,12 @@ describe("weeklyMuscleVolume", () => {
 });
 
 it("counts repeated workouts and half-credit secondary muscles in the weekly plan", () => {
+  const sets: { kind: SetKind }[] = [{ kind: "warmup" }, { kind: "working" }, { kind: "drop" }];
   const exercise = {
     primaryMuscle: exercises[0].primary_muscle,
     secondaryMuscles: exercises[0].secondary_muscles,
-    sets: [{ kind: "warmup" }, { kind: "working" }, { kind: "drop" }],
-  } as const;
+    sets,
+  };
   const workout = { exercises: [exercise] };
   const slots = [{ workout }, { workout: null }, { workout }];
   expect(plannedMuscleVolume({ slots, sessionsPerWeek: null })).toEqual([
