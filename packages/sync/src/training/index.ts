@@ -90,6 +90,7 @@ export {
   watchSession,
   watchSessionsBetween,
   watchSessionPage,
+  watchFinishedHistory,
   watchRecordHistory,
   watchWorkout,
   watchLatestExercisePlan,

@@ -187,6 +187,7 @@ export {
   watchSession,
   watchSessionsBetween,
   watchSessionPage,
+  watchFinishedHistory,
   watchRecordHistory,
   parseActiveSessions,
   parseEquipment,
