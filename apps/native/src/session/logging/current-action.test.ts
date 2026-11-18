@@ -62,6 +62,7 @@ const session = (
   cycle: null,
   title: "Push",
   titleDerived: false,
+  workoutStructure: null,
   note: null,
   startedAt: at(0),
   finishedAt: null,

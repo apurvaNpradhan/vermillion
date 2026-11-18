@@ -8,6 +8,7 @@ import {
   gymEquipmentInput,
   plannedSetSchema,
   SESSION_LIMITS,
+  SYNC_LIMITS,
   sessionExerciseInput,
   sessionInput,
   sessionSetInput,
@@ -91,6 +92,7 @@ async function exerciseVisible(db: DbExecutor, userId: string, exerciseId: strin
 const putSession = z.strictObject({
   restore: restoreMarker,
   workout_id: sessionInput.shape.workout_id.default(null),
+  workout_structure: z.string().max(SYNC_LIMITS.maxValueBytes).nullable().optional(),
   program_id: sessionInput.shape.program_id.default(null),
   run_id: sessionInput.shape.run_id.default(null),
   slot_id: sessionInput.shape.slot_id.default(null),
@@ -182,14 +184,19 @@ const sessionSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, ...data } = accept(putSession.safeParse(op.opData ?? {}));
+      const { restore, workout_structure, ...data } = accept(putSession.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionInput.safeParse(data));
       await checkSessionRun(db, userId, values);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         checkSessionTimes(values, null);
-        await db.insert(session).values({ id, userId, ...sessionColumns(values) });
+        await db.insert(session).values({
+          id,
+          userId,
+          workoutStructure: workout_structure ?? null,
+          ...sessionColumns(values),
+        });
         return;
       }
       checkSessionTimes(values, found.row.startedAt.toISOString());

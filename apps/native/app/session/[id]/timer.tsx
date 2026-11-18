@@ -3,12 +3,12 @@ import { z } from "zod";
 
 import { TimerScreen } from "@/session";
 
-const paramsSchema = z.object({ id: z.string() });
+const paramsSchema = z.object({ id: z.string(), backfill: z.literal("true").optional() });
 
 /** The full-screen Timer of one Session; closing it returns to the sets view. */
 export default function SessionTimerRoute() {
   const router = useRouter();
-  const { id } = paramsSchema.parse(useLocalSearchParams());
+  const { id, backfill } = paramsSchema.parse(useLocalSearchParams());
   return (
     <TimerScreen
       id={id}
@@ -18,7 +18,10 @@ export default function SessionTimerRoute() {
       // summary, as Finish does there (the summary's Done then closes the whole modal).
       onFinished={(finished) => {
         router.back();
-        router.replace({ pathname: "/session/[id]/summary", params: { id: finished } });
+        router.replace({
+          pathname: "/session/[id]/summary",
+          params: { id: finished, ...(backfill ? { backfill } : {}) },
+        });
       }}
     />
   );

@@ -57,6 +57,7 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     cycle: null,
     title: "Legs",
     titleDerived: false,
+    workoutStructure: null,
     note: null,
     startedAt: NOW,
     finishedAt: null,

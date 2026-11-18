@@ -22,7 +22,11 @@ const diff = (entries: DiffSessionExercise[], plan: DiffWorkoutExercise[] = [pla
 describe("Session against Workout", () => {
   it("adds and removes exercises", () => {
     expect(
-      diff([{ ...logged, sourceWorkoutExerciseId: null }]).structure.map((item) => item.kind),
+      diffSessionAgainstWorkout(
+        { exercises: [{ ...logged, sourceWorkoutExerciseId: null }] },
+        { exercises: [planned] },
+        true,
+      ).structure.map((item) => item.kind),
     ).toEqual(["added", "removed"]);
   });
   it("detects replacements without applying old targets", () => {
@@ -31,9 +35,13 @@ describe("Session against Workout", () => {
     expect(result.targets).toEqual([]);
   });
   it("detects order", () => {
-    expect(diff([logged], [{ ...planned, id: "other" }, planned]).structure[0]?.kind).toBe(
-      "reordered",
-    );
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [logged] },
+        { exercises: [{ ...planned, id: "other" }, planned] },
+        true,
+      ).structure[0]?.kind,
+    ).toBe("reordered");
   });
   it("detects set counts and kinds", () => {
     expect(diff([{ ...logged, sets: [...logged.sets, ...logged.sets] }]).structure[0]?.kind).toBe(
@@ -43,6 +51,31 @@ describe("Session against Workout", () => {
       diff([{ ...logged, sets: [{ ...logged.sets[0]!, kind: "drop" }] }]).structure[0]?.kind,
     ).toBe("sets");
   });
+  it("keeps skipped planned sets and matches the next completed set to its ordinal", () => {
+    const work = logged.sets[0]!;
+    const plan = {
+      ...planned,
+      sets: [...planned.sets, { kind: "working" as const, weight_kg: 55 }],
+    };
+    const entry = { ...logged, sets: [{ ...work, completedAt: null }, work] };
+    const result = diff([entry], [plan]);
+    expect(result.structure).toEqual([]);
+    expect(result.targets[0]).toMatchObject({ before: [50, 55], after: [50, 60] });
+  });
+
+  it("keeps omitted set and exercise plans without evidence of explicit edits", () => {
+    const plan = { ...planned, sets: [...planned.sets, { kind: "drop" as const }] };
+    const other = { ...planned, id: "skipped" };
+    expect(diff([logged], [plan, other]).structure).toEqual([]);
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [logged] },
+        { exercises: [plan, other] },
+        true,
+      ).structure.map(({ kind }) => kind),
+    ).toEqual(["sets", "removed"]);
+  });
+
   it("uses the matching worked set weight and leaves input ranges intact", () => {
     const original = structuredClone(planned);
     expect(diff([logged]).targets[0]).toMatchObject({ before: [50], after: [60] });

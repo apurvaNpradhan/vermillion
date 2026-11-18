@@ -6,6 +6,7 @@ import {
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
+  workoutStructureKey,
   type PlannedSet,
 } from "@workspace/shared";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -120,9 +121,21 @@ async function createSessionIn(
     rest_started_at: null,
     rest_ends_at: null,
   });
-  await tx
-    .insert(session)
-    .values({ id: fields.id, user_id: userId, created_at: nowIso(), ...parsed });
+  await tx.insert(session).values({
+    id: fields.id,
+    user_id: userId,
+    workout_structure: plan
+      ? workoutStructureKey(
+          planned.map((entry) => ({
+            id: entry.id,
+            exerciseId: entry.exercise_id,
+            sets: entry.sets,
+          })),
+        )
+      : null,
+    created_at: nowIso(),
+    ...parsed,
+  });
 
   for (const entry of planned) {
     const info = await exerciseInfoOf(tx, entry.exercise_id);

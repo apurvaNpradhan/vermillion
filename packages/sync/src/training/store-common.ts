@@ -78,6 +78,7 @@ export const trainingUploadColumns = {
   program_slot: new Set(["program_id", "workout_id", "position", "restore"]),
   training_session: new Set([
     "workout_id",
+    "workout_structure",
     "program_id",
     "run_id",
     "slot_id",

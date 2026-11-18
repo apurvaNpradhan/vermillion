@@ -92,6 +92,7 @@ export const session = sqliteTable(
     id: text("id").primaryKey().notNull(),
     user_id: text("user_id").notNull(),
     workout_id: text("workout_id"),
+    workout_structure: text("workout_structure"),
     program_id: text("program_id"),
     run_id: text("run_id"),
     slot_id: text("slot_id"),

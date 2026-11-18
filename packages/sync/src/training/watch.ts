@@ -779,7 +779,7 @@ export function watchExerciseProgressionMode(
   const schema = z.array(z.object({ progression_per_set: z.number().nullable() }));
   return watch(
     database,
-    "SELECT progression_per_set FROM exercise_setting WHERE exercise_id = ? LIMIT 1",
+    "SELECT progression_per_set FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
     [exerciseId],
     ["exercise_setting"],
     parsing((rows) => schema.parse(rows)[0]?.progression_per_set === 1, {

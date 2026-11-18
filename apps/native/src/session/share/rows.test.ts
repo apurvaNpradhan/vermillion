@@ -52,6 +52,7 @@ const session = (exercises: Entry[]): SessionDetail => ({
   cycle: null,
   title: "Push",
   titleDerived: false,
+  workoutStructure: null,
   note: null,
   startedAt: "2026-11-16T10:00:00Z",
   finishedAt: "2026-11-16T11:00:00Z",

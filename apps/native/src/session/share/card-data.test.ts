@@ -71,6 +71,7 @@ const session = (count: number): SessionDetail => ({
   cycle: null,
   title: "Push",
   titleDerived: false,
+  workoutStructure: null,
   note: null,
   startedAt: "2026-11-16T17:00:00Z",
   finishedAt: "2026-11-16T17:52:10Z",

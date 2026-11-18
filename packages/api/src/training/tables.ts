@@ -212,6 +212,7 @@ export const session = pgTable(
     id: id(),
     userId: owner(),
     workoutId: uuid("workout_id"),
+    workoutStructure: text("workout_structure"),
     programId: uuid("program_id"),
     runId: uuid("run_id"),
     slotId: uuid("slot_id"),

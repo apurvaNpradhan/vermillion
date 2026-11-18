@@ -156,6 +156,7 @@ export type SessionExerciseDetail = {
 export type SessionDetail = {
   id: string;
   workoutId: string | null;
+  workoutStructure: string | null;
   programId: string | null;
   runId: string | null;
   slotId: string | null;
@@ -173,6 +174,7 @@ export type SessionDetail = {
 };
 
 export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
+    s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.cycle AS cycle, s.title AS title,
     s.title_derived AS title_derived, s.note AS note, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.device_id AS device_id,
@@ -181,7 +183,8 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort,
-    es.progression_per_set AS progression_per_set,
+    (SELECT progression_per_set FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -191,7 +194,6 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
   FROM training_session s
   LEFT JOIN session_exercise se ON se.session_id = s.id
   LEFT JOIN exercise e ON e.id = se.exercise_id
-  LEFT JOIN exercise_setting es ON es.exercise_id = se.exercise_id
   LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
   WHERE s.id = ?
   ORDER BY se.position, se.id, ss.position, ss.id
@@ -200,6 +202,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
 const detailRowSchema = z.object({
   id: z.string(),
   workout_id: z.string().nullable(),
+  workout_structure: z.string().nullable(),
   program_id: z.string().nullable(),
   run_id: z.string().nullable(),
   slot_id: z.string().nullable(),
@@ -310,6 +313,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
   return {
     id: first.id,
     workoutId: first.workout_id,
+    workoutStructure: first.workout_structure,
     programId: first.program_id,
     runId: first.run_id,
     slotId: first.slot_id,
