@@ -4,7 +4,7 @@ import type { FinishedSession } from "@workspace/sync";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Barbell, CalendarPlus, ClockCounterClockwise } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, {
   FadeIn,
   ReduceMotion,
@@ -26,7 +26,8 @@ import { HistoryCalendar } from "./history-calendar-view";
 import { historyFormat } from "./history-format";
 import { HistoryAll, HistoryWeek, HistoryYear } from "./history-period-details";
 import { HistoryRow, WeekHeading } from "./history-rows";
-import { PeriodCard } from "./period-card";
+import { NumberFlow } from "@/platform/ui/number-flow";
+import { PeriodCard } from "@/platform/ui/period-card";
 import { useSessionHistory } from "./use-session-history";
 
 type HistoryItem =
@@ -192,9 +193,24 @@ export function HistoryScreen() {
                 >
                   <PeriodCard
                     title={periodTitle}
-                    count={count}
-                    format={format}
-                    start={start}
+                    headline={
+                      <View
+                        accessible
+                        accessibilityLabel={t("session__workout_count", {
+                          count,
+                          value: format.integer(count),
+                        })}
+                        className="flex-row flex-wrap items-baseline gap-1"
+                      >
+                        <NumberFlow value={count} locale={format.locale} />
+                        <Text className="text-body text-muted">
+                          {t("session__workout_unit", { count })}
+                        </Text>
+                      </View>
+                    }
+                    period={start}
+                    previousLabel={t("session__period_previous")}
+                    nextLabel={t("session__period_next")}
                     direction={direction}
                     canPrevious={canPrevious}
                     canNext={canNext}
