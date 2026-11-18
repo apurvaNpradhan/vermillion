@@ -239,11 +239,17 @@ describe("top and back-off sets", () => {
     ]);
   });
 
-  it("copy the nearest working set when last time had none of their kind", () => {
-    expect(
-      suggest([logged(4, 90), logged(4, 90)], [], [{ kind: "backoff", reps_min: 3, reps_max: 5 }])
-        ?.sets,
-    ).toEqual([{ weightKg: 90, reps: 5 }]);
+  it("honour the prescription when last time had none of their kind", () => {
+    // A heavy working set is not a base for a newly prescribed back-off set.
+    const backoff: PlannedSet[] = [{ kind: "backoff", reps_min: 3, reps_max: 5, weight_kg: 60 }];
+    const next = suggest([logged(12, 100), logged(12, 100)], [], backoff);
+    expect(next?.sets).toEqual([null]);
+    const mixed = suggest(
+      [logged(12, 100), logged(5, 80, { kind: "backoff" })],
+      [],
+      [{ kind: "working", reps_min: 8, reps_max: 12 }, ...backoff],
+    );
+    expect(mixed?.sets[1]).toEqual({ weightKg: 82.5, reps: 3 });
   });
 });
 
@@ -282,6 +288,32 @@ describe("effort-aware progression", () => {
   it("does not hold when the missed sessions were not hard", () => {
     const easy = (reps: number) => logged(reps, 80, { rpe: 8 });
     expect(suggest([easy(7), easy(9)], [easy(6), easy(9)])?.reason).toBe("add_rep");
+  });
+});
+
+describe("straight sets", () => {
+  it("add one increment, chosen by the hardest set, to every set at the same load", () => {
+    const next = suggest([logged(12, 80, { rpe: 7 }), logged(12, 80, { rpe: 8 })]);
+    expect(next?.sets).toEqual([
+      { weightKg: 82.5, reps: 8 },
+      { weightKg: 82.5, reps: 8 },
+    ]);
+  });
+
+  it("double the increment only when every set at that load was easy", () => {
+    const next = suggest([logged(12, 80, { rpe: 7 }), logged(12, 80, { rpe: 6.5 })]);
+    expect(next?.sets.map((set) => set?.weightKg)).toEqual([85, 85]);
+  });
+
+  it("keep independent increases under the per-set option", () => {
+    const next = suggest(
+      [logged(12, 80, { rpe: 7 }), logged(12, 80, { rpe: 8 })],
+      [],
+      plan,
+      { now: NOW },
+      true,
+    );
+    expect(next?.sets.map((set) => set?.weightKg)).toEqual([85, 82.5]);
   });
 });
 
@@ -413,6 +445,23 @@ describe("back from a break", () => {
 });
 
 describe("deload and Lighter weeks", () => {
+  it("never raises reps after a grind when the load cannot be lowered", () => {
+    const pushups: PlannedSet[] = [{ kind: "working", reps_min: 8, reps_max: 12 }];
+    const next = suggestNext(
+      pushups,
+      [
+        session([
+          { ...logged(5, 0, { rpe: 10 }), exercise_type: "bodyweight_reps", weight_kg: null },
+        ]),
+      ],
+      "bodyweight_reps",
+      "none",
+      settings,
+      { now: NOW, deload: true },
+    );
+    expect(next).toMatchObject({ reason: "deload", sets: [{ weightKg: null, reps: 5 }] });
+  });
+
   const history = [session([logged(12, 100), logged(12, 100)])];
   it("suggests 90% at the bottom of the range for the stalled-lift deload", () => {
     const next = suggestNext(plan, history, "weight_reps", "barbell", settings, {
