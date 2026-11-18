@@ -40,7 +40,6 @@ export const GOAL_RANGES = {
   focus: { min: 16, max: 24 },
 } as const satisfies Record<Exclude<GoalLevel, "custom">, SetRange>;
 
-export const DEFAULT_GOAL_LEVEL = "grow" as const satisfies GoalLevel;
 /** The most sets a week a Custom goal may ask for. */
 export const CUSTOM_GOAL_MAX = 60;
 
@@ -56,13 +55,17 @@ export const muscleGoalSchema = z.discriminatedUnion("level", [
 ]);
 export type MuscleGoal = z.infer<typeof muscleGoalSchema>;
 
-/** The saved goals: only muscles the user changed are stored, the rest are Grow. */
+/** The saved goals: only explicit overrides of the program target are stored. */
 export const muscleGoalsSchema = z.partialRecord(z.enum(TARGET_MUSCLES), muscleGoalSchema);
 export type MuscleGoals = z.infer<typeof muscleGoalsSchema>;
 
-/** The weekly range a goal asks for; no goal means the default level. */
-export function goalRange(goal: MuscleGoal | undefined): SetRange {
-  if (goal === undefined) return GOAL_RANGES[DEFAULT_GOAL_LEVEL];
+/** The explicit goal or planned weekly count, with no target outside an active program. */
+export function goalRange(
+  goal: MuscleGoal | undefined,
+  planned: number | null = null,
+): SetRange | null {
+  if (planned === null) return null;
+  if (goal === undefined) return planned > 0 ? { min: planned, max: planned } : null;
   return goal.level === "custom" ? { min: goal.min, max: goal.max } : GOAL_RANGES[goal.level];
 }
 

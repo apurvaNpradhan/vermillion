@@ -20,15 +20,25 @@ export function muscleDistribution(
   exercises: readonly DistributionExercise[],
 ): MuscleLoad[] {
   const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+  return distributeSets(
+    sets.flatMap((set) => {
+      const exercise = byId.get(set.exercise_id);
+      return exercise && isCounted(set) ? [{ ...exercise, count: 1 }] : [];
+    }),
+  );
+}
+
+export function distributeSets(
+  exercises: readonly (Omit<DistributionExercise, "id"> & { count: number })[],
+): MuscleLoad[] {
   const totals = new Map<MuscleGroup, number>();
   const add = (muscle: MuscleGroup, amount: number) =>
     totals.set(muscle, (totals.get(muscle) ?? 0) + amount);
-  for (const set of sets) {
-    const exercise = byId.get(set.exercise_id);
-    if (!exercise || !isCounted(set)) continue;
-    add(exercise.primary_muscle, 1);
+  for (const exercise of exercises) {
+    if (exercise.count <= 0) continue;
+    add(exercise.primary_muscle, exercise.count);
     for (const muscle of new Set(exercise.secondary_muscles)) {
-      if (muscle !== exercise.primary_muscle) add(muscle, 0.5);
+      if (muscle !== exercise.primary_muscle) add(muscle, exercise.count * 0.5);
     }
   }
   return [...totals]

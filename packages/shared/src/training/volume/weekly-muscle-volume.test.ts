@@ -6,6 +6,7 @@ import {
   muscleContributions,
   muscleRows,
   onTargetCount,
+  plannedMuscleVolume,
   shiftWeek,
   weeklyMuscleVolume,
 } from "./weekly-muscle-volume";
@@ -93,7 +94,31 @@ describe("weeklyMuscleVolume", () => {
   });
 });
 
+it("counts repeated workouts and half-credit secondary muscles in the weekly plan", () => {
+  const exercise = {
+    primaryMuscle: exercises[0].primary_muscle,
+    secondaryMuscles: exercises[0].secondary_muscles,
+    sets: [{ kind: "warmup" }, { kind: "working" }, { kind: "drop" }],
+  } as const;
+  const workout = { exercises: [exercise] };
+  const slots = [{ workout }, { workout: null }, { workout }];
+  expect(plannedMuscleVolume({ slots, sessionsPerWeek: null })).toEqual([
+    { muscle: "chest", sets: 4 },
+    { muscle: "triceps", sets: 2 },
+  ]);
+  expect(plannedMuscleVolume({ slots, sessionsPerWeek: 1 })).toEqual([
+    { muscle: "chest", sets: 2 },
+    { muscle: "triceps", sets: 1 },
+  ]);
+});
+
 describe("muscleRows", () => {
+  it("shows volume without targets when there is no active program", () => {
+    const rows = muscleRows([{ muscle: "chest", sets: 10 }], { chest: { level: "grow" } });
+    expect(rows[0]).toEqual({ muscle: "chest", sets: 10, range: null, status: null });
+    expect(onTargetCount(rows)).toBe(0);
+  });
+
   it("lists every targeted muscle with below target first, the furthest below first", () => {
     const rows = muscleRows(
       [
@@ -103,10 +128,16 @@ describe("muscleRows", () => {
         { muscle: "shoulders", sets: 2 },
       ],
       { biceps: { level: "maintain" } },
+      [
+        { muscle: "chest", sets: 12 },
+        { muscle: "lats", sets: 20 },
+        { muscle: "biceps", sets: 5 },
+        { muscle: "shoulders", sets: 10 },
+      ],
     );
     expect(rows).toHaveLength(12);
     expect(rows[0]?.status).toBe("below");
-    expect(rows.at(-1)).toMatchObject({ muscle: "lats", status: "above" });
+    expect(rows.find((row) => row.muscle === "lats")).toMatchObject({ status: "above" });
     const biceps = rows.find((row) => row.muscle === "biceps");
     expect(biceps).toMatchObject({ status: "on_target", range: { min: 6, max: 10 } });
     expect(rows.find((row) => row.muscle === "chest")?.status).toBe("on_target");

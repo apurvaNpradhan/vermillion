@@ -1,7 +1,10 @@
 import type { MuscleGroup } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
+import { GOAL_ROTATION_MAX } from "../plans/session-goal";
+import type { SetKind } from "../vocabulary/vocabulary";
 import { calendarDay, type WeekRange } from "../plans/week";
 import {
+  distributeSets,
   muscleDistribution,
   type DistributionExercise,
   type MuscleLoad,
@@ -51,12 +54,46 @@ export function weeklyMuscleVolume(
   );
 }
 
+type PlannedExercise = {
+  primaryMuscle: MuscleGroup | null;
+  secondaryMuscles: readonly MuscleGroup[];
+  sets: readonly { kind: SetKind }[];
+};
+
+/** Count the rotation once per week, or scale it to the Program's training frequency. */
+export function plannedMuscleVolume(program: {
+  sessionsPerWeek: number | null;
+  slots: readonly { workout: { exercises: readonly PlannedExercise[] } | null }[];
+}): MuscleLoad[] {
+  const workouts = program.slots.flatMap((slot) => (slot.workout ? [slot.workout] : []));
+  if (workouts.length === 0) return [];
+  const cyclesPerWeek =
+    program.sessionsPerWeek !== null
+      ? program.sessionsPerWeek / workouts.length
+      : Math.min(1, GOAL_ROTATION_MAX / program.slots.length);
+  return distributeSets(
+    workouts.flatMap(({ exercises }) =>
+      exercises.flatMap(({ primaryMuscle, secondaryMuscles, sets }) =>
+        primaryMuscle === null
+          ? []
+          : [
+              {
+                primary_muscle: primaryMuscle,
+                secondary_muscles: secondaryMuscles,
+                count: sets.filter((set) => set.kind !== "warmup").length,
+              },
+            ],
+      ),
+    ),
+  ).map(({ muscle, sets }) => ({ muscle, sets: Math.round(sets * cyclesPerWeek * 2) / 2 }));
+}
+
 /** One targeted muscle's week: its sets, its range and where it stands. */
 export type MuscleRow = {
   muscle: TargetMuscle;
   sets: number;
-  range: SetRange;
-  status: MuscleStatus;
+  range: SetRange | null;
+  status: MuscleStatus | null;
 };
 
 const STATUS_ORDER = { below: 0, on_target: 1, above: 2 } as const satisfies Record<
@@ -68,19 +105,27 @@ const STATUS_ORDER = { below: 0, on_target: 1, above: 2 } as const satisfies Rec
  * Every targeted muscle with its status, those below target first (the furthest below first),
  * then on target, then above (the furthest above first). Ties keep the order of `TARGET_MUSCLES`.
  */
-export function muscleRows(loads: readonly MuscleLoad[], goals: MuscleGoals): MuscleRow[] {
+export function muscleRows(
+  loads: readonly MuscleLoad[],
+  goals: MuscleGoals,
+  planned: readonly MuscleLoad[] | null = null,
+): MuscleRow[] {
   const sets = new Map(loads.map((load) => [load.muscle, load.sets]));
+  const targets = new Map(planned?.map((load) => [load.muscle, load.sets]));
   const rows = TARGET_MUSCLES.map((muscle): MuscleRow => {
-    const range = goalRange(goals[muscle]);
+    const range = goalRange(goals[muscle], planned === null ? null : (targets.get(muscle) ?? 0));
     const count = sets.get(muscle) ?? 0;
-    return { muscle, sets: count, range, status: muscleStatus(count, range) };
+    return { muscle, sets: count, range, status: range ? muscleStatus(count, range) : null };
   });
   // How far through the range a muscle is: below sorts low first, above high first.
-  const progress = (row: MuscleRow) =>
-    row.status === "above" ? -(row.sets - row.range.max) : row.sets / Math.max(row.range.min, 1);
-  return rows.sort(
-    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || progress(a) - progress(b),
-  );
+  const rank = (row: MuscleRow) => (row.status === null ? 3 : STATUS_ORDER[row.status]);
+  const progress = (row: MuscleRow) => {
+    if (row.range === null) return -row.sets;
+    return row.status === "above"
+      ? -(row.sets - row.range.max)
+      : row.sets / Math.max(row.range.min, 1);
+  };
+  return rows.sort((a, b) => rank(a) - rank(b) || progress(a) - progress(b));
 }
 
 /** How many targeted muscles are on target. */

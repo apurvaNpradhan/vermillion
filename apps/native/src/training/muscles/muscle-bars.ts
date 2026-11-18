@@ -1,5 +1,4 @@
 import {
-  GOAL_RANGES,
   type MuscleGroup,
   type MuscleLoad,
   type MuscleRow,
@@ -14,27 +13,33 @@ const HEADROOM = 1.25;
  * band of its range. The track is as long as the biggest of the range's top plus headroom and
  * the sets, so a muscle far above its range still fits.
  */
-export function barLayout(sets: number, range: SetRange) {
-  const scale = Math.max(range.max * HEADROOM, sets, 1);
-  return { fill: sets / scale, bandStart: range.min / scale, bandEnd: range.max / scale };
+export function barLayout(sets: number, range: SetRange | null, peak = sets) {
+  const scale = Math.max((range?.max ?? peak) * HEADROOM, sets, 1);
+  return {
+    fill: sets / scale,
+    bandStart: (range?.min ?? 0) / scale,
+    bandEnd: (range?.max ?? 0) / scale,
+  };
 }
 
 /** The faintest tint the body map shows for a muscle that has any sets. */
 const MIN_TINT = 0.2;
 
 /**
- * How strongly the body map shades each muscle: its sets against the top of its range (a muscle
- * with no target counts against the Grow range), so a full tint means at the top of the range.
+ * Shade by progress toward the target, or by relative volume for muscles without a target.
  */
 export function bodyIntensity(
   loads: readonly MuscleLoad[],
   rows: readonly MuscleRow[],
 ): Map<MuscleGroup, number> {
-  const tops = new Map<MuscleGroup, number>(rows.map((row) => [row.muscle, row.range.max]));
+  const tops = new Map<MuscleGroup, number | undefined>(
+    rows.map((row) => [row.muscle, row.range?.max]),
+  );
+  const peak = Math.max(1, ...loads.map((load) => load.sets));
   const intensity = new Map<MuscleGroup, number>();
   for (const load of loads) {
     if (load.sets <= 0) continue;
-    const top = tops.get(load.muscle) ?? GOAL_RANGES.grow.max;
+    const top = tops.get(load.muscle) ?? peak;
     intensity.set(load.muscle, Math.min(1, Math.max(MIN_TINT, load.sets / top)));
   }
   return intensity;

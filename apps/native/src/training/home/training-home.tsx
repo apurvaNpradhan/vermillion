@@ -225,7 +225,7 @@ export function TrainingHome() {
 
       <LighterWeekCard state={state} />
 
-      <MusclesTile />
+      <MusclesTile program={programState.program} />
 
       <View className="flex-row gap-3">
         <Pressable

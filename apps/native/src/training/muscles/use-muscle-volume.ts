@@ -2,6 +2,7 @@ import {
   muscleContributions,
   muscleRows,
   onTargetCount,
+  plannedMuscleVolume,
   shiftWeek,
   sessionsInRange,
   weekRange,
@@ -15,6 +16,7 @@ import {
   watchSessionsBetween,
   type ExerciseMuscles,
   type FinishedSession,
+  type ProgramDetail,
   type TrainingDatabase,
 } from "@workspace/sync";
 import { useCallback, useState } from "react";
@@ -29,7 +31,7 @@ const DAY_MS = 86_400_000;
  * weekly range, plus the goal writer. Reads that week's Sessions and the muscles of their
  * exercises from the local database.
  */
-export function useMuscleVolume(weeksAgo = 0) {
+export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null) {
   const { preferences, setUi } = usePreferences();
   const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { weekStart, muscleGoals } = preferences.ui;
@@ -63,7 +65,8 @@ export function useMuscleVolume(weeksAgo = 0) {
   );
   const exercises = muscles.value ?? [];
   const loads = weeklyMuscleVolume(sessions, exercises, week, timezone);
-  const rows = muscleRows(loads, muscleGoals);
+  const planned = program === null ? null : plannedMuscleVolume(program);
+  const rows = muscleRows(loads, muscleGoals, planned);
   return {
     loading: history.loading || muscles.loading,
     failed: history.failed || muscles.failed,
@@ -74,13 +77,16 @@ export function useMuscleVolume(weeksAgo = 0) {
     week,
     timezone,
     goals: muscleGoals,
+    planned,
     loads,
     rows,
     onTarget: onTargetCount(rows),
     contributions: (muscle: TargetMuscle) =>
       muscleContributions(sessions, exercises, muscle, week, timezone),
-    setGoal: (muscle: TargetMuscle, goal: MuscleGoal) => {
-      const next: MuscleGoals = { ...muscleGoals, [muscle]: goal };
+    setGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) => {
+      const next: MuscleGoals = { ...muscleGoals };
+      if (goal === null) delete next[muscle];
+      else next[muscle] = goal;
       setUi({ muscleGoals: next });
     },
   };
