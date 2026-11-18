@@ -41,7 +41,7 @@ export function WeekCard({
         });
   const ringLabel =
     goal === null
-      ? t("stats__sessions_other", { count: summary.sessions })
+      ? t("stats__sessions", { count: summary.sessions })
       : t("session__goal_accessible", { count: summary.sessions, goal });
   const stat = (label: string, value: string, change: number | null) => (
     <View className="gap-0.5">

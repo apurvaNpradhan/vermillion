@@ -1,23 +1,23 @@
 import type { WorkoutSummary } from "@workspace/sync";
-import { Copy, ShareNetwork, Trash } from "phosphor-react-native";
+import { Copy, PencilSimple, Play, ShareNetwork, Trash } from "phosphor-react-native";
 import { memo, useMemo } from "react";
 
 import { useTranslation } from "@/platform/i18n";
-import { Button } from "@/platform/ui/button";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { displayTitle } from "@/training/workouts/derived-title";
 import { PlanRow } from "@/training/shared/plan-row";
 
 /**
- * A flat workout row: its title, the exercises on one muted line, when it was last done and a
- * compact Start button on the right.
+ * A flat workout row: its title, the exercises on one muted line and when it was last done. A
+ * swipe reveals Start and Edit; a long press lists those and Share, Duplicate and Delete.
  */
 export const WorkoutRow = memo(function WorkoutRow({
   workout,
   lastDone,
   onOpen,
   onStart,
+  onEdit,
   onShare,
   onDuplicate,
   onDelete,
@@ -27,6 +27,7 @@ export const WorkoutRow = memo(function WorkoutRow({
   lastDone: string | null;
   onOpen: (id: string) => void;
   onStart: (id: string) => void;
+  onEdit: (id: string) => void;
   onShare: (id: string) => void;
   /** Absent for a Workout a Program owns: copying and deleting it happen in the Program. */
   onDuplicate?: (workout: WorkoutSummary, title: string) => void;
@@ -44,6 +45,24 @@ export const WorkoutRow = memo(function WorkoutRow({
 
   const swipe = useMemo<SwipeAction[]>(
     () => [
+      {
+        key: "start",
+        label: t("training__start"),
+        icon: Play,
+        onPress: () => onStart(workout.id),
+      },
+      {
+        key: "edit",
+        label: t("training__edit"),
+        icon: PencilSimple,
+        onPress: () => onEdit(workout.id),
+      },
+    ],
+    [t, onStart, onEdit, workout.id],
+  );
+  const menu = useMemo<SwipeAction[]>(
+    () => [
+      ...swipe,
       {
         key: "share",
         label: t("share__share"),
@@ -72,26 +91,16 @@ export const WorkoutRow = memo(function WorkoutRow({
           ]
         : []),
     ],
-    [t, onShare, onDuplicate, onDelete, workout, title],
+    [swipe, t, onShare, onDuplicate, onDelete, workout, title],
   );
 
   return (
     <PlanRow
       title={title}
       lines={[exercises, lastDone]}
-      trailing={
-        <Button
-          size="sm"
-          variant="secondary"
-          className="rounded-full px-4"
-          accessibilityLabel={t("training__start_workout_named", { title })}
-          onPress={() => onStart(workout.id)}
-        >
-          <Button.Label>{t("training__start")}</Button.Label>
-        </Button>
-      }
       onOpen={() => onOpen(workout.id)}
       actions={swipe}
+      menuActions={menu}
     />
   );
 });
