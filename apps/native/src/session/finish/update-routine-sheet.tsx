@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useIdentityColor, useOnIdentityColor } from "@/platform/theme";
+import { useIdentityColor, useOnIdentityColor, useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
@@ -38,6 +38,7 @@ export function UpdateRoutineSheet({
   onKeep: () => void;
 }) {
   const { t } = useTranslation();
+  const subtle = useSubtleColor();
   const [structure, setStructure] = useState(true);
   const [targets, setTargets] = useState(true);
   const [choosing, setChoosing] = useState(false);
@@ -113,7 +114,11 @@ export function UpdateRoutineSheet({
                 onPress={() => setChoosing(!choosing)}
               >
                 <Text className="text-body text-muted">{t("session__choose_update")}</Text>
-                {choosing ? <CaretUp size={14} /> : <CaretDown size={14} />}
+                {choosing ? (
+                  <CaretUp size={20} color={subtle} />
+                ) : (
+                  <CaretDown size={20} color={subtle} />
+                )}
               </Pressable>
               {choosing ? (
                 <View className="gap-1">

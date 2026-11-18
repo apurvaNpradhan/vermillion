@@ -89,7 +89,7 @@ export function Field({
           accessibilityLiveRegion="polite"
           className="flex-row items-center gap-1.5"
         >
-          <Warning size={14} color={danger} weight="fill" />
+          <Warning size={20} color={danger} weight="fill" />
           <Text className="flex-1 text-caption text-foreground">{error}</Text>
         </View>
       ) : description ? (

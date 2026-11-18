@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Button } from "@/platform/ui/button";
 import { Field } from "@/platform/ui/field";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
@@ -69,6 +70,7 @@ export function MuscleGoalSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
           contentContainerClassName="gap-4 px-4 pb-4"
         >

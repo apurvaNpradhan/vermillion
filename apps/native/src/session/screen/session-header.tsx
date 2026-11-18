@@ -86,7 +86,7 @@ export function SessionHeader({
         onPress={onMinimise}
         className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
       >
-        <CaretDown size={22} weight="bold" color={foreground} />
+        <CaretDown size={24} color={foreground} />
       </Pressable>
       <View className="min-w-0 flex-1 gap-0.5">
         <Text
@@ -116,7 +116,7 @@ export function SessionHeader({
         </View>
       </View>
       <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
-        <DotsThreeVertical size={22} color={foreground} />
+        <DotsThreeVertical size={24} color={foreground} />
       </Button>
       {readOnly ? null : (
         <Button variant="primary" className="rounded-full" onPress={onFinish}>

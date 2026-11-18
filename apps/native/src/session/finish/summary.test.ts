@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { allTicked, doneSummary, formatVolume, progressText, type SummarySet } from "./summary";
+import {
+  allTicked,
+  doneSummary,
+  formatVolume,
+  progressText,
+  volumeInUnit,
+  type SummarySet,
+} from "./summary";
 
 const done = "2026-01-01T10:00:00.000Z";
 const set = (overrides: Partial<SummarySet>): SummarySet => ({
@@ -57,5 +64,12 @@ describe("formatVolume", () => {
     expect(formatVolume(4250, "kg", "en")).toBe("4,250");
     expect(formatVolume(1000, "lb", "en")).toBe("2,205");
     expect(formatVolume(0, "kg", "en")).toBe("0");
+  });
+});
+
+describe("volumeInUnit", () => {
+  it("rounds to whole units and converts pounds", () => {
+    expect(volumeInUnit(1000.4, "kg")).toBe(1000);
+    expect(volumeInUnit(1000, "lb")).toBe(2205);
   });
 });

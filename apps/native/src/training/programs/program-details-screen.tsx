@@ -185,7 +185,7 @@ function LoadedDetails({
           </View>
           <View className="flex-1 gap-2">
             <Button variant="secondary" isDisabled={cover.busy} onPress={() => void cover.pick()}>
-              <ImageSquare size={16} color={foreground} />
+              <ImageSquare size={20} color={foreground} />
               <Button.Label>
                 {t(
                   program.coverMediaId === null ? "training__cover_add" : "training__cover_replace",
@@ -198,7 +198,7 @@ function LoadedDetails({
                 isDisabled={cover.busy}
                 onPress={() => void cover.remove()}
               >
-                <Trash size={16} color={danger} />
+                <Trash size={20} color={danger} />
                 <Button.Label>{t("training__cover_remove")}</Button.Label>
               </Button>
             ) : null}

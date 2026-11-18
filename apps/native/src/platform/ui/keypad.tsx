@@ -115,7 +115,7 @@ export function Keypad({
         {digit("3")}
         <Cap label={labels.decrease} onPress={() => onStep(-1)}>
           <View className="flex-row items-center gap-0.5">
-            <Minus size={16} color={foreground} weight="bold" />
+            <Minus size={20} color={foreground} />
             <Text className="text-label text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
               {stepText}
             </Text>
@@ -128,7 +128,7 @@ export function Keypad({
         {digit("6")}
         <Cap label={labels.increase} onPress={() => onStep(1)}>
           <View className="flex-row items-center gap-0.5">
-            <Plus size={16} color={foreground} weight="bold" />
+            <Plus size={20} color={foreground} />
             <Text className="text-label text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
               {stepText}
             </Text>
@@ -140,7 +140,7 @@ export function Keypad({
         {digit("8")}
         {digit("9")}
         <Cap label={labels.next} onPress={onNext} disabled={!hasNext}>
-          <ArrowRight size={20} color={foreground} weight="bold" />
+          <ArrowRight size={20} color={foreground} />
         </Cap>
       </View>
       <View className="flex-row gap-2">
@@ -152,7 +152,7 @@ export function Keypad({
           <Backspace size={20} color={foreground} />
         </Cap>
         <Cap label={labels.done} onPress={onDone}>
-          <Check size={22} color={foreground} weight="bold" />
+          <Check size={24} color={foreground} />
         </Cap>
       </View>
     </View>

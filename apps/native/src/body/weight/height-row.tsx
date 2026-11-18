@@ -5,6 +5,7 @@ import { Text } from "react-native";
 import { changedCanonical, cmToIn, formatBodyValue, inToCm } from "@workspace/shared";
 import { usePreferences } from "@/preferences";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { ListRow } from "@/platform/ui/list";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
@@ -56,7 +57,11 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
     >
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content backgroundClassName="bg-overlay" contentContainerClassName="gap-4 p-4">
+        <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
+          backgroundClassName="bg-overlay"
+          contentContainerClassName="gap-4 p-4"
+        >
           {sheet.probe}
           <BottomSheet.Title>{t("body__height")}</BottomSheet.Title>
           <Text className="text-numeric-xl tabular-nums text-foreground">

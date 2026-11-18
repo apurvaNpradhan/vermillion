@@ -242,7 +242,7 @@ export function ShareComposer<Id extends string>({
                     label={t(`share__background_${option}`)}
                     fill={palettes(option).fill}
                     dot={option === "theme" ? palettes(option).accent : null}
-                    icon={option === "photo" ? <ImageIcon size={18} color={muted} /> : null}
+                    icon={option === "photo" ? <ImageIcon size={20} color={muted} /> : null}
                     onPress={() => {
                       haptic.tick();
                       update({ background: option });
@@ -270,7 +270,7 @@ export function ShareComposer<Id extends string>({
                         on ? "border-foreground bg-default" : "border-transparent bg-default"
                       }`}
                     >
-                      {on ? <Check size={14} color={ink} weight="bold" /> : null}
+                      {on ? <Check size={20} color={ink} /> : null}
                       <Text
                         className={`text-label ${on ? "font-medium text-foreground" : "text-muted"}`}
                       >

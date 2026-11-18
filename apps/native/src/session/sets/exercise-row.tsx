@@ -138,7 +138,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             hitSlop={4}
             className="h-9 flex-row items-center gap-1 rounded-full bg-default px-3 active:bg-field"
           >
-            <Plus size={14} weight="bold" color={subtle} />
+            <Plus size={20} color={subtle} />
             <Text className="font-medium text-caption text-foreground">
               {t("session__add_set")}
             </Text>
@@ -152,7 +152,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             hitSlop={4}
             className="h-12 w-12 items-center justify-center"
           >
-            <DotsThreeVertical size={20} color={subtle} weight="bold" />
+            <DotsThreeVertical size={20} color={subtle} />
           </Pressable>
         )}
       </ReorderHeader>

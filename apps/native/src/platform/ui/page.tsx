@@ -251,7 +251,7 @@ function PinnedLayer({
 
 function BackIcon() {
   const foreground = useThemeColor("foreground");
-  return <CaretLeft size={20} color={foreground} weight="bold" />;
+  return <CaretLeft size={20} color={foreground} />;
 }
 
 function PageTitle({

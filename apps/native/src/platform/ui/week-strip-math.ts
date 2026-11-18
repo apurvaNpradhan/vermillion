@@ -18,3 +18,19 @@ export function plannedDay(days: readonly number[], trained: ReadonlySet<number>
   const from = trained.has(today) ? today + DAY_MS : today;
   return days.find((day) => day >= from) ?? null;
 }
+
+/**
+ * The left offset of column `index` in a strip of `count` equal columns separated by `gap`, in a
+ * row `width` wide; the highlight slides to it. Zero until the row has a width.
+ */
+export function columnOffset(index: number, count: number, width: number, gap: number): number {
+  if (count <= 0 || width <= 0 || index < 0) return 0;
+  const column = (width - gap * (count - 1)) / count;
+  return index * (column + gap);
+}
+
+/** The width of one column, as above. */
+export function columnWidth(count: number, width: number, gap: number): number {
+  if (count <= 0 || width <= 0) return 0;
+  return (width - gap * (count - 1)) / count;
+}

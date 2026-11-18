@@ -13,10 +13,12 @@ import type { SessionSetDetail } from "@workspace/sync";
 import { Check, Copy, Rows, Play, Stop, Trash } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
+import { usePop } from "@/platform/ui/use-pop";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
 
@@ -125,6 +127,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
+  const tickPop = usePop(ticked);
   const showsEffort = logEffort && fields.includes("reps") && set.kind !== "warmup";
   const previousText = previous ? previousLabel(previous, type, unit) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -191,9 +194,9 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
             className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
           >
             {running ? (
-              <Stop size={16} weight="fill" color={onIdentity} />
+              <Stop size={20} weight="fill" color={onIdentity} />
             ) : (
-              <Play size={16} weight="fill" color={subtle} />
+              <Play size={20} weight="fill" color={subtle} />
             )}
           </Pressable>
         ) : null}
@@ -285,7 +288,9 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           hitSlop={4}
           className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
         >
-          <Check size={18} weight="bold" color={ticked ? onSuccess : subtle} />
+          <Animated.View style={tickPop}>
+            <Check size={20} color={ticked ? onSuccess : subtle} />
+          </Animated.View>
         </Pressable>
       )}
     </View>

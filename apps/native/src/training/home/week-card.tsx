@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
+import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { NumberFlow } from "@/platform/ui/number-flow";
 import { ProgressRing } from "@/platform/ui/progress-ring";
 import { RadarChart } from "@/platform/ui/radar-chart";
 import type { MuscleRadarAxis } from "@/training/muscles/muscle-axes";
@@ -22,8 +24,8 @@ export function WeekCard({
 }: {
   summary: WeekSummary;
   goal: number | null;
-  /** Volume with its unit, already formatted. */
-  volume: string;
+  /** Volume in the shown unit, with that unit's label. */
+  volume: { value: number; unit: string };
   axes: readonly MuscleRadarAxis[];
   radarLabel: string;
 }) {
@@ -43,10 +45,10 @@ export function WeekCard({
     goal === null
       ? t("stats__sessions", { count: summary.sessions })
       : t("session__goal_accessible", { count: summary.sessions, goal });
-  const stat = (label: string, value: string, change: number | null) => (
+  const stat = (label: string, value: ReactNode, change: number | null) => (
     <View className="gap-0.5">
       <Text className="text-caption text-muted">{label}</Text>
-      <Text className="text-numeric-md tabular-nums text-foreground">{value}</Text>
+      {value}
       {change === null ? null : (
         <Text className="text-caption tabular-nums text-muted">{percent(change)}</Text>
       )}
@@ -66,8 +68,21 @@ export function WeekCard({
           </Text>
         </ProgressRing>
         <View className="flex-1 gap-3">
-          {stat(t("stats__sets"), `${summary.sets}`, summary.setsChange)}
-          {stat(t("stats__volume"), volume, summary.volumeChange)}
+          {stat(
+            t("stats__sets"),
+            <NumberFlow value={summary.sets} locale={i18n.language} size="md" />,
+            summary.setsChange,
+          )}
+          {stat(
+            t("stats__volume"),
+            <NumberFlow
+              value={volume.value}
+              locale={i18n.language}
+              size="md"
+              suffix={volume.unit}
+            />,
+            summary.volumeChange,
+          )}
         </View>
         <Pressable
           accessibilityRole="button"

@@ -57,7 +57,7 @@ export function AccountSummary({ variant = "row" }: { variant?: "row" | "card" }
           {user?.email ?? " "}
         </Text>
       </View>
-      <CaretRight size={16} color={muted} />
+      <CaretRight size={20} color={muted} />
     </Pressable>
   );
 }

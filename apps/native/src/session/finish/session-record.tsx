@@ -29,7 +29,7 @@ export function SessionRecord({
   const subtle = useSubtleColor();
   return (
     <View className="flex-row items-start gap-3 py-2">
-      <Medal size={18} color={subtle} weight="fill" />
+      <Medal size={20} color={subtle} weight="fill" />
       <View className="flex-1 gap-0.5">
         <Text className="text-body text-foreground">{exercise}</Text>
         <Text className="text-caption text-muted">

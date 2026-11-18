@@ -49,7 +49,7 @@ export function StalledNote({
           onPress={() => changeStall(exerciseId, latestSessionId, { dismissed: true })}
           className="h-11 w-11 items-center justify-center"
         >
-          <X size={14} color={muted} />
+          <X size={20} color={muted} />
         </Pressable>
       )}
     </View>

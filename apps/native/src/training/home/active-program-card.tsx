@@ -76,15 +76,25 @@ export function ActiveProgramCard({
                       : "h-10 w-10 items-center justify-center rounded-full bg-default"
               }
             >
-              <Text
-                className={
-                  trained
-                    ? "text-label font-semibold text-background"
-                    : "text-label text-foreground"
-                }
-              >
-                {rest ? "·" : slotTitle(slot, t).slice(0, 1).toLocaleUpperCase()}
-              </Text>
+              {rest ? (
+                <View
+                  className={
+                    trained
+                      ? "size-1.5 rounded-full bg-background"
+                      : "size-1.5 rounded-full bg-muted"
+                  }
+                />
+              ) : (
+                <Text
+                  className={
+                    trained
+                      ? "text-label font-semibold text-background"
+                      : "text-label text-foreground"
+                  }
+                >
+                  {slotTitle(slot, t).slice(0, 1).toLocaleUpperCase()}
+                </Text>
+              )}
             </View>
           );
         })}

@@ -75,11 +75,7 @@ export function Stepper({
         disabled || !enabled ? "opacity-40" : ""
       }`}
     >
-      {direction === 1 ? (
-        <Plus size={18} color={subtle} weight="bold" />
-      ) : (
-        <Minus size={18} color={subtle} weight="bold" />
-      )}
+      {direction === 1 ? <Plus size={20} color={subtle} /> : <Minus size={20} color={subtle} />}
     </Pressable>
   );
 

@@ -16,6 +16,7 @@ export function HidePhotosRow() {
       title={t("body__photos_hide")}
       description={t("body__photos_hide_hint")}
       accessory="none"
+      checked={hide.hidden}
       onPress={() => hide.set(!hide.hidden)}
       trailing={
         <Switch

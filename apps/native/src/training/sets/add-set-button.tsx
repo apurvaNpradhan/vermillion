@@ -61,7 +61,7 @@ export function AddSetButton({
           }}
           className="flex-1 flex-row items-center justify-center gap-2 active:bg-surface"
         >
-          <Plus size={16} color={subtle} weight="bold" />
+          <Plus size={20} color={subtle} />
           <Text className={`text-body font-medium ${tone.text}`}>{t(LABELS[active])}</Text>
         </Pressable>
         <Pressable
@@ -74,7 +74,7 @@ export function AddSetButton({
           }}
           className="w-11 items-center justify-center bg-surface active:bg-field"
         >
-          <CaretDown size={16} color={subtle} weight="bold" />
+          <CaretDown size={20} color={subtle} />
         </Pressable>
       </View>
       <SetTypeSheet

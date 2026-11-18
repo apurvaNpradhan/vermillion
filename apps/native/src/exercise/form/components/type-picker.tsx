@@ -63,14 +63,14 @@ export function TypePicker({
               >
                 {choice.label}
               </Text>
-              {choice.key === "more" ? <CaretDown size={16} color={subtle} /> : null}
+              {choice.key === "more" ? <CaretDown size={20} color={subtle} /> : null}
             </Pressable>
           );
         })}
       </View>
       {locked ? (
         <View className="flex-row items-start gap-2" accessibilityRole="alert">
-          <Lock size={14} color={subtle} weight="fill" />
+          <Lock size={20} color={subtle} weight="fill" />
           <Text className="flex-1 text-caption text-muted">{t("exercise__type_locked")}</Text>
         </View>
       ) : null}

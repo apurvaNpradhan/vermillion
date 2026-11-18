@@ -120,7 +120,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           ) : null}
         </View>
       ) : onPress ? (
-        <CaretRight size={18} color={subtle} />
+        <CaretRight size={20} color={subtle} />
       ) : null}
     </Pressable>
   );

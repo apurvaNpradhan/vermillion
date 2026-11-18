@@ -37,7 +37,7 @@ export function OfflinePill() {
         onPress={() => setOpen(true)}
         className="h-7 flex-row items-center gap-1 rounded-full bg-default px-2.5"
       >
-        <CloudSlash size={14} color={muted} weight="bold" />
+        <CloudSlash size={20} color={muted} />
         <Text className="font-semibold text-label text-muted">{t("offline__pill")}</Text>
       </Pressable>
       <BottomSheet isOpen={open} onOpenChange={setOpen}>

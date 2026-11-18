@@ -11,6 +11,7 @@ import {
 } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Keypad } from "@/platform/ui/keypad";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
@@ -148,6 +149,7 @@ function CheckInForm({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
+            animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-3 px-4 pb-4"
           >
@@ -324,6 +326,7 @@ export function CheckInSheet(props: {
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
+            animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 p-4"
           >

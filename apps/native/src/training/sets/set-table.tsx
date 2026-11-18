@@ -12,9 +12,11 @@ import {
 } from "@workspace/shared";
 import { Trash } from "phosphor-react-native";
 import { Keyboard, Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { useRowMotion } from "@/platform/ui/row-motion";
 import { SwipeGroup, SwipeRow, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 
 import { formatEffortRange } from "@/training/targets/effort";
@@ -71,6 +73,7 @@ export function SetTable({
   onEffort: (index: number) => void;
 }) {
   const { t } = useTranslation();
+  const rowMotion = useRowMotion({ exit: false });
   const columns = setColumns(type);
   const unitName = t(weightUnit === "kg" ? "training__unit_kg" : "training__unit_lb");
 
@@ -246,24 +249,27 @@ export function SetTable({
               {columns.map((column) => cell(column))}
             </View>
           );
-          return onRemove && sets.length > 1 ? (
-            <SwipeRow
-              key={index}
-              actions={[
-                {
-                  key: "remove",
-                  label: t("training__remove"),
-                  icon: Trash,
-                  tone: "danger",
-                  iconOnly: true,
-                  onPress: () => onRemove(index),
-                },
-              ]}
-            >
-              {(a11y) => row(a11y)}
-            </SwipeRow>
-          ) : (
-            <View key={index}>{row()}</View>
+          return (
+            <Animated.View key={index} {...rowMotion}>
+              {onRemove && sets.length > 1 ? (
+                <SwipeRow
+                  actions={[
+                    {
+                      key: "remove",
+                      label: t("training__remove"),
+                      icon: Trash,
+                      tone: "danger",
+                      iconOnly: true,
+                      onPress: () => onRemove(index),
+                    },
+                  ]}
+                >
+                  {(a11y) => row(a11y)}
+                </SwipeRow>
+              ) : (
+                <View>{row()}</View>
+              )}
+            </Animated.View>
           );
         })}
       </View>

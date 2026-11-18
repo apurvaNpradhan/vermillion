@@ -81,7 +81,7 @@ export function SocialButtons({
               }
             }}
           >
-            <Icon size={18} color={pill ? onAccent : foreground} weight="bold" />
+            <Icon size={20} color={pill ? onAccent : foreground} />
             <Button.Label className={pill ? "text-body-lg font-semibold" : undefined}>
               {t(provider === "google" ? "auth__provider_google" : "auth__provider_github")}
             </Button.Label>

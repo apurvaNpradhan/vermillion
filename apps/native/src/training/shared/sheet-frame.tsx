@@ -39,7 +39,7 @@ export function SheetFrame({
             hitSlop={8}
             className="h-11 w-11 items-center justify-center rounded-full bg-default"
           >
-            <X size={18} color={foreground} weight="bold" />
+            <X size={20} color={foreground} />
           </Pressable>
           <Text
             accessibilityRole="header"

@@ -84,6 +84,7 @@ export function useSessionSettings(): SessionSettings {
       title={t("session__setting_sounds")}
       description={t("session__setting_sounds_hint")}
       accessory="none"
+      checked={sounds}
       onPress={() => setUi({ sounds: !sounds })}
       trailing={
         <Switch
@@ -101,6 +102,7 @@ export function useSessionSettings(): SessionSettings {
             title={group.title}
             description={group.hint}
             accessory="none"
+            checked={group.on}
             onPress={() => setUi(group.patch(!group.on))}
             trailing={
               <Switch
@@ -142,6 +144,7 @@ export function useSessionSettings(): SessionSettings {
       title={t("session__setting_keep_awake")}
       description={t("session__setting_keep_awake_hint")}
       accessory="none"
+      checked={keepAwake}
       onPress={() => setUi({ keepAwake: !keepAwake })}
       trailing={
         <Switch

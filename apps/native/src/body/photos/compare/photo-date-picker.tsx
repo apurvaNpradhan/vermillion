@@ -3,6 +3,7 @@ import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Button } from "@/platform/ui/button";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
@@ -45,7 +46,11 @@ export function PhotoDatePicker({
     >
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content backgroundClassName="bg-overlay" contentContainerClassName="gap-3 p-4">
+        <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
+          backgroundClassName="bg-overlay"
+          contentContainerClassName="gap-3 p-4"
+        >
           {sheet.probe}
           <BottomSheet.Title>{title}</BottomSheet.Title>
           <View className="flex-row items-center justify-between gap-2">

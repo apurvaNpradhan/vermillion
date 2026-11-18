@@ -1,3 +1,4 @@
+import { ChangeLine, changeDirection } from "@/body/change-line";
 import { BodyState } from "@/body/body-state";
 import { PhotoDatePicker } from "./photo-date-picker";
 import { useState } from "react";
@@ -86,7 +87,6 @@ export function CompareScreen() {
   const afterPhoto = after ? photoOnDate(photos.photos, pose, after) : null;
   const ready = before !== null && after !== null && beforePhoto && afterPhoto;
 
-  const arrow = (value: number) => (value > 0 ? "↑" : value < 0 ? "↓" : "→");
   const weightText = (kg: number) =>
     t("body__value", {
       value: formatBodyWeight(kg, weight.unit, i18n.language),
@@ -106,14 +106,14 @@ export function CompareScreen() {
           {side?.weightKg == null ? t("body__no_data") : weightText(side.weightKg)}
         </Text>
         {delta?.weightKg != null && since ? (
-          <Text className="text-caption text-muted">
-            {t("body__compare_change", {
-              arrow: arrow(delta.weightKg),
+          <ChangeLine
+            direction={changeDirection(delta.weightKg)}
+            text={t("body__compare_change", {
               value: formatBodyWeight(Math.abs(delta.weightKg), weight.unit, i18n.language),
               unit: weight.unit,
               date: date(since),
             })}
-          </Text>
+          />
         ) : null}
       </View>
       <View className="gap-1">
@@ -122,9 +122,9 @@ export function CompareScreen() {
           {side?.waistCm == null ? t("body__no_data") : waistText(side.waistCm)}
         </Text>
         {delta?.waistCm != null && since ? (
-          <Text className="text-caption text-muted">
-            {t("body__compare_change", {
-              arrow: arrow(delta.waistCm),
+          <ChangeLine
+            direction={changeDirection(delta.waistCm)}
+            text={t("body__compare_change", {
               value: formatBodyValue(
                 Math.abs(measurements.display("waist", delta.waistCm)),
                 i18n.language,
@@ -132,7 +132,7 @@ export function CompareScreen() {
               unit: measurements.unit("waist"),
               date: date(since),
             })}
-          </Text>
+          />
         ) : null}
       </View>
     </View>

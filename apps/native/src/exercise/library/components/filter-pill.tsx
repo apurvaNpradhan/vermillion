@@ -31,7 +31,7 @@ export function FilterPill({
       >
         {label}
       </Text>
-      <CaretDown size={12} weight="bold" color={subtle} />
+      <CaretDown size={20} color={subtle} />
     </Pressable>
   );
 }

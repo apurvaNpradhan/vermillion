@@ -136,9 +136,9 @@ export function ListRow({
       ) : accessory === "none" ? null : (
         <ListGroup.ItemSuffix>
           {accessory === "check" ? (
-            <Check size={18} color={foreground} weight="bold" />
+            <Check size={20} color={foreground} />
           ) : (
-            <CaretRight size={16} color={muted} />
+            <CaretRight size={20} color={muted} />
           )}
         </ListGroup.ItemSuffix>
       )}

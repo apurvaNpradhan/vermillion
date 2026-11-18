@@ -260,7 +260,7 @@ function LoadedDetail({
             {onAddToWorkout && !exercise.isArchived ? (
               <View className="px-4">
                 <Button variant="secondary" onPress={() => onAddToWorkout(exercise.id)}>
-                  <Plus size={16} color={foreground} weight="bold" />
+                  <Plus size={20} color={foreground} />
                   <Button.Label>{t("training__add_to_workout")}</Button.Label>
                 </Button>
               </View>
@@ -329,7 +329,7 @@ function MenuButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       className="h-11 w-11 items-center justify-center"
     >
-      <DotsThreeVertical size={22} weight="bold" color={foreground} />
+      <DotsThreeVertical size={24} color={foreground} />
     </Pressable>
   );
 }
@@ -458,7 +458,7 @@ function CollapsibleSection({
           {title}
         </Text>
         <CaretDown
-          size={18}
+          size={20}
           color={subtle}
           style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
         />

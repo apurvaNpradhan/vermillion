@@ -18,17 +18,18 @@ import {
   SET_KIND_KEYS,
 } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useThemeColor } from "heroui-native";
 import { BackHandler, Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
+import { NumberFlow } from "@/platform/ui/number-flow";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
 import { useWorkout } from "@/training";
 import { formatElapsed } from "@/session/timer/clock";
 import { formatCell, loggedSetsOf } from "@/session/logging/set-values";
-import { formatVolume } from "./summary";
+import { volumeInUnit } from "./summary";
 import { useSession } from "@/session/screen/use-session";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "./use-finish-session";
@@ -357,13 +358,21 @@ function FinishFlow({
                   {formatElapsed(Number(duration))}
                 </Text>
               </Pressable>
-              <Stat
-                label={t("session__stat_volume")}
-                value={`${formatVolume(totals.volume, unit, i18n.language)} ${unitLabel}`}
-              />
-              <Stat label={t("session__stat_sets")} value={String(totals.sets)} />
+              <Stat label={t("session__stat_volume")}>
+                <NumberFlow
+                  value={volumeInUnit(totals.volume, unit)}
+                  locale={i18n.language}
+                  size="title"
+                  suffix={unitLabel}
+                />
+              </Stat>
+              <Stat label={t("session__stat_sets")}>
+                <NumberFlow value={totals.sets} locale={i18n.language} size="title" />
+              </Stat>
               {recordCount > 0 ? (
-                <Stat label={t("session__stat_records")} value={String(recordCount)} />
+                <Stat label={t("session__stat_records")}>
+                  <NumberFlow value={recordCount} locale={i18n.language} size="title" />
+                </Stat>
               ) : null}
             </View>
           )}
@@ -377,7 +386,7 @@ function FinishFlow({
               void form.handleSubmit();
             }}
           >
-            <ShareNetwork size={18} color={foreground} />
+            <ShareNetwork size={20} color={foreground} />
             <Button.Label>{t("session__save_and_share")}</Button.Label>
           </Button>
         </View>
@@ -517,16 +526,11 @@ function FinishFlow({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View className="gap-0.5">
       <Text className="text-caption text-muted">{label}</Text>
-      <Text
-        className="font-semibold text-title-md text-foreground"
-        style={{ fontVariant: ["tabular-nums"] }}
-      >
-        {value}
-      </Text>
+      {children}
     </View>
   );
 }

@@ -234,7 +234,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                               accessibilityLabel={t("session__record_badge")}
                               className="pl-2"
                             >
-                              <Medal color={ink} size={18} weight="fill" />
+                              <Medal color={ink} size={20} weight="fill" />
                             </View>
                           ) : null
                         }
