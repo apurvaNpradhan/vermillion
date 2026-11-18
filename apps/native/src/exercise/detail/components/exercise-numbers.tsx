@@ -13,6 +13,7 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
 import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
@@ -201,6 +202,7 @@ export function ExerciseNumbers({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
+            animationConfigs={SHEET_SPRING}
             snapPoints={["80%"]}
             backgroundClassName="bg-overlay"
             contentContainerClassName="px-4 pb-8 gap-4"

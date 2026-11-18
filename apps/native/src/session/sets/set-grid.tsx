@@ -12,10 +12,12 @@ import type { SessionExerciseDetail } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
 import { memo } from "react";
 import { Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
+import { useRowMotion } from "@/platform/ui/row-motion";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { chipTexts } from "@/training";
 
@@ -77,6 +79,7 @@ export const SetGrid = memo(function SetGrid({
   registerRow: (setId: string) => (node: View | null) => void;
 }) {
   const { t } = useTranslation();
+  const rowMotion = useRowMotion();
   const subtle = useSubtleColor();
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
   const optional = lighter
@@ -143,45 +146,46 @@ export const SetGrid = memo(function SetGrid({
           <View className="w-11" />
         </View>
         {exercise.sets.map((set, index) => (
-          <View
-            key={set.id}
-            ref={registerRow(set.id)}
-            collapsable={false}
-            style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
-          >
-            <SetRow
-              editingFinished={editingFinished}
-              set={set}
-              type={exercise.type}
-              badge={badges[index] ?? String(index + 1)}
-              number={index + 1}
-              logEffort={exercise.logEffort}
-              historyReady={historyReady}
-              previous={previousOf(set.id)}
-              ghosts={ghostsFor(set.id)}
-              unit={unit}
-              effortScale={effortScale}
-              entry={entry?.cell.setId === set.id ? entry : null}
-              refusal={refusal?.setId === set.id ? refusal : null}
-              readOnly={readOnly}
-              canRemove={exercise.sets.length > 1}
-              canCopyPrevious={
-                copySetUpdates(exercise, set.id, "previous", previousOf(set.id)).length > 0
-              }
-              canFillRemaining={copySetUpdates(exercise, set.id, "remaining", null).length > 0}
-              onCell={onCell}
-              onTick={onTick}
-              onKind={onKind}
-              onEffort={onEffort}
-              onPrevious={onPrevious}
-              onCopySets={onCopySets}
-              onRemove={onRemoveSet}
-              onTimer={onTimer}
-            />
-            {optional.has(index) && set.completedAt === null ? (
-              <Text className="px-3 pb-1 text-caption text-muted">{t("lighter__optional")}</Text>
-            ) : null}
-          </View>
+          <Animated.View key={set.id} {...rowMotion}>
+            <View
+              ref={registerRow(set.id)}
+              collapsable={false}
+              style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
+            >
+              <SetRow
+                editingFinished={editingFinished}
+                set={set}
+                type={exercise.type}
+                badge={badges[index] ?? String(index + 1)}
+                number={index + 1}
+                logEffort={exercise.logEffort}
+                historyReady={historyReady}
+                previous={previousOf(set.id)}
+                ghosts={ghostsFor(set.id)}
+                unit={unit}
+                effortScale={effortScale}
+                entry={entry?.cell.setId === set.id ? entry : null}
+                refusal={refusal?.setId === set.id ? refusal : null}
+                readOnly={readOnly}
+                canRemove={exercise.sets.length > 1}
+                canCopyPrevious={
+                  copySetUpdates(exercise, set.id, "previous", previousOf(set.id)).length > 0
+                }
+                canFillRemaining={copySetUpdates(exercise, set.id, "remaining", null).length > 0}
+                onCell={onCell}
+                onTick={onTick}
+                onKind={onKind}
+                onEffort={onEffort}
+                onPrevious={onPrevious}
+                onCopySets={onCopySets}
+                onRemove={onRemoveSet}
+                onTimer={onTimer}
+              />
+              {optional.has(index) && set.completedAt === null ? (
+                <Text className="px-3 pb-1 text-caption text-muted">{t("lighter__optional")}</Text>
+              ) : null}
+            </View>
+          </Animated.View>
         ))}
       </View>
       {readOnly ? null : (

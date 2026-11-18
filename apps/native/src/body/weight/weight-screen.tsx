@@ -7,6 +7,7 @@ import { useThemeColor, BottomSheet } from "heroui-native";
 import { formatBodyWeight, weeklyPoints, changeOver, type TrendPoint } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
@@ -264,6 +265,7 @@ export function WeightScreen() {
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
+            animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 p-5"
           >

@@ -24,7 +24,7 @@ import { WeekCard } from "./week-card";
  * card joins them only when a deload is suggested.
  */
 export function TrainingHome() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const { start, sheet } = useStartSession();
   const state = useHomeTraining();
@@ -67,8 +67,6 @@ export function TrainingHome() {
 
   const resume = active.sessions[0];
   const now = new Date();
-  const number = (value: number) =>
-    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(value);
 
   // ---- Next workout ----
   const slots = programState.program?.slots ?? [];
@@ -99,10 +97,10 @@ export function TrainingHome() {
     state.weekStart,
   );
   const summary = weekSummary(current, previous, state.bodyweightKg);
-  const volume = t("home__volume_value", {
-    value: number(state.weightUnit === "lb" ? summary.volume / KG_PER_LB : summary.volume),
+  const volume = {
+    value: Math.round(state.weightUnit === "lb" ? summary.volume / KG_PER_LB : summary.volume),
     unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
-  });
+  };
   const onTarget = muscles.rows.filter((row) => row.status !== null);
   const radarLabel = onTarget.length
     ? t("muscles__tile_label", { done: muscles.onTarget, total: onTarget.length })

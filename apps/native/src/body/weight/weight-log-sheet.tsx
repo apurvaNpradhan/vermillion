@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import { kgToLb } from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Keypad } from "@/platform/ui/keypad";
 import { MeasurementDate } from "@/body/measurements/measurement-date";
 import { Button } from "@/platform/ui/button";
@@ -55,6 +56,7 @@ export function WeightLogSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
           backgroundClassName="bg-overlay"
           contentContainerClassName="gap-4 px-4 pb-4"
         >

@@ -5,6 +5,7 @@ import { Bell, Minus, Plus } from "phosphor-react-native";
 import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { Button } from "@/platform/ui/button";
 import { ListRow } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
@@ -80,6 +81,7 @@ function ReminderEditor({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
+            animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 px-4 pb-8"
           >

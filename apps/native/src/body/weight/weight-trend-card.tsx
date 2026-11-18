@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { NumberFlow } from "@/platform/ui/number-flow";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 
 import type { useWeight } from "./use-weight";
@@ -61,7 +62,17 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
       >
         <Text className="text-title-md font-semibold text-foreground">{t("body__title")}</Text>
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="text-numeric-md tabular-nums text-foreground">{trend}</Text>
+          {weight.trend === null ? (
+            <Text className="text-numeric-md tabular-nums text-foreground">{trend}</Text>
+          ) : (
+            <NumberFlow
+              value={shownWeight(weight.trend, weight.unit)}
+              locale={i18n.language}
+              size="md"
+              decimals={1}
+              suffix={unit}
+            />
+          )}
           {spark.length > 1 ? <Sparkline values={spark} /> : null}
         </View>
         {line ? <Text className="text-caption tabular-nums text-muted">{line}</Text> : null}

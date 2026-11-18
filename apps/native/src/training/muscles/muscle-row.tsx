@@ -1,7 +1,9 @@
 import { MUSCLE_GROUP_KEYS, type MuscleRow as Row } from "@workspace/shared";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
+import { useFillStyle } from "@/platform/ui/use-fill";
 
 import { barLayout, formatSets } from "./muscle-bars";
 
@@ -15,6 +17,7 @@ const STATUS_KEYS = {
 export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPress: () => void }) {
   const { t, i18n } = useTranslation();
   const { fill, bandStart } = barLayout(row.sets, row.range, peak);
+  const fillStyle = useFillStyle(fill);
   const name = t(MUSCLE_GROUP_KEYS[row.muscle]);
   const sets = formatSets(row.sets, i18n.language);
   const min = row.range ? formatSets(row.range.min, i18n.language) : "";
@@ -54,7 +57,7 @@ export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPr
         </Text>
       </View>
       <View className="h-2 rounded-full bg-default">
-        <View className="h-2 rounded-full bg-identity" style={{ width: `${fill * 100}%` }} />
+        <Animated.View className="h-2 rounded-full bg-identity" style={fillStyle} />
         {row.range === null ? null : (
           <View
             accessibilityElementsHidden

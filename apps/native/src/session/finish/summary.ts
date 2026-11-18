@@ -81,7 +81,13 @@ export function doneSummary(
 /**
  * The thousands-separated volume in the user's unit: "4,250". `locale` is the app's language.
  */
-export function formatVolume(volumeKg: number, unit: WeightUnit, locale: string): string {
+export function volumeInUnit(volumeKg: number, unit: WeightUnit): number {
   const shown = unit === "kg" ? volumeKg : volumeKg / 0.45359237;
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(shown));
+  return Math.round(shown);
+}
+
+export function formatVolume(volumeKg: number, unit: WeightUnit, locale: string): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+    volumeInUnit(volumeKg, unit),
+  );
 }
