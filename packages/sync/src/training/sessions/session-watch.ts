@@ -419,6 +419,30 @@ export function sessionsPageSql(): string {
 }
 
 /**
+ * Read the full history in bounded cursor pages. Call inside one SQLite read transaction so a
+ * backdated insert or edit cannot move a Session across a cursor between pages.
+ */
+export async function readFinishedHistoryPages(
+  read: (sql: string, parameters: string[]) => Promise<readonly object[]>,
+) {
+  const pageSize = 200;
+  const sessions: FinishedSession[] = [];
+  const sql = sessionsPageSql();
+  let startedAt = "9999-01-01T00:00:00.000Z";
+  let id = "~";
+  while (true) {
+    const page = parseFinishedSessions(
+      await read(sql, [startedAt, startedAt, id, String(pageSize)]),
+    );
+    sessions.push(...page);
+    const last = page.at(-1);
+    if (page.length < pageSize || !last) return sessions;
+    startedAt = last.started_at;
+    id = last.id;
+  }
+}
+
+/**
  * Records must include the oldest best, and historical flags need chronological sets, not
  * just today's maxima. Scope to the displayed exercises but deliberately omit a session cap.
  * The ordinary Previous/chart read remains bounded.

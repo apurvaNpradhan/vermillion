@@ -1,116 +1,149 @@
-import { CaretLeft, CaretRight } from "phosphor-react-native";
+import type { WeekStart } from "@workspace/shared";
+import { Check, Target } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
+import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useOnIdentityColor, useSubtleColor } from "@/platform/theme";
 
-import { weekDays, type WeekStart } from "@workspace/shared";
+import { DAY_MS, goalHit, monthRows, type History } from "./history-calendar";
+import type { HistoryFormat } from "./history-format";
 
-import { monthCells, shiftMonth, type Month } from "./history-calendar";
-
-const SUNDAY = Date.UTC(2026, 0, 4); // a Sunday, the base of the weekday letters
-
-/**
- * A compact month: one square per day in the Habit grid's style, the days with a Session filled
- * with the accent. Arrows move between months (never past `latest`); tapping a trained day
- * selects it, tapping it again clears it. `counts` maps a date to its Session count.
- */
 export function HistoryCalendar({
   month,
-  latest,
-  counts,
-  total,
+  today,
   selected,
+  history,
+  goal,
   weekStart,
-  onMonthChange,
+  format,
   onSelect,
 }: {
-  month: Month;
-  latest: Month;
-  counts: ReadonlyMap<string, number>;
-  total: number;
-  selected: string | null;
+  month: number;
+  today: number;
+  selected: number | null;
+  history: History;
+  goal: number | null;
   weekStart: WeekStart;
-  onMonthChange: (month: Month) => void;
-  onSelect: (date: string | null) => void;
+  format: HistoryFormat;
+  onSelect: (day: number | null) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const cells = monthCells(month, counts, weekStart);
-  const rows = Array.from({ length: Math.ceil(cells.length / 7) }, (_, row) =>
-    cells.slice(row * 7, row * 7 + 7),
-  );
-  const format = (options: Intl.DateTimeFormatOptions, at: number) =>
-    new Intl.DateTimeFormat(i18n.language, { timeZone: "UTC", ...options }).format(at);
-  const atLatest = month.year * 12 + month.month >= latest.year * 12 + latest.month;
+  const rows = monthRows(month, weekStart);
+  const firstWeek = rows[0]?.week ?? month;
   return (
-    <View className="gap-3 rounded-2xl bg-surface p-4">
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="min-w-0 flex-1">
-          <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
-            {format({ month: "long", year: "numeric" }, Date.UTC(month.year, month.month, 1))}
-          </Text>
-          <Text className="text-caption tabular-nums text-muted">
-            {t("stats__sessions", { count: total })}
-          </Text>
-        </View>
-        <View className="flex-row gap-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("session__month_previous")}
-            hitSlop={6}
-            onPress={() => onMonthChange(shiftMonth(month, -1))}
-            className="h-9 w-9 items-center justify-center rounded-full bg-default active:opacity-60"
+    <View className="gap-1">
+      <View className="flex-row items-center gap-1 pb-1">
+        {Array.from({ length: 7 }, (_, index) => {
+          const day = firstWeek + index * DAY_MS;
+          return (
+            <Text key={day} className="flex-1 text-center text-caption text-muted">
+              {format.weekdayLetter(day)}
+            </Text>
+          );
+        })}
+        {goal !== null && (
+          <View
+            accessible
+            accessibilityLabel={t("session__weekly_goal")}
+            className="w-10 items-center"
           >
-            <CaretLeft size={16} color={subtle} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("session__month_next")}
-            accessibilityState={{ disabled: atLatest }}
-            disabled={atLatest}
-            hitSlop={6}
-            onPress={() => onMonthChange(shiftMonth(month, 1))}
-            className={`h-9 w-9 items-center justify-center rounded-full bg-default active:opacity-60 ${atLatest ? "opacity-40" : ""}`}
-          >
-            <CaretRight size={16} color={subtle} />
-          </Pressable>
-        </View>
-      </View>
-      <View className="flex-row gap-1">
-        {weekDays(weekStart).map((weekday) => (
-          <Text key={weekday} className="flex-1 text-center text-caption text-muted">
-            {format({ weekday: "narrow" }, SUNDAY + weekday * 86_400_000)}
-          </Text>
-        ))}
-      </View>
-      <View className="gap-1">
-        {rows.map((row, rowIndex) => (
-          <View key={rowIndex} className="flex-row gap-1">
-            {Array.from({ length: 7 }, (_, column) => {
-              const cell = row[column];
-              if (!cell || cell.kind === "blank")
-                return <View key={column} className="h-7 flex-1" />;
-              if (cell.sessions === 0)
-                return <View key={column} className="h-7 flex-1 rounded-sm bg-default" />;
-              const isSelected = selected === cell.date;
-              return (
-                <Pressable
-                  key={column}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("session__calendar_day", {
-                    date: format({ dateStyle: "full" }, Date.parse(`${cell.date}T12:00:00Z`)),
-                    count: cell.sessions,
-                  })}
-                  accessibilityState={{ selected: isSelected }}
-                  onPress={() => onSelect(isSelected ? null : cell.date)}
-                  className={`h-7 flex-1 rounded-sm bg-identity active:opacity-70 ${isSelected ? "border-2 border-foreground" : ""}`}
-                />
-              );
-            })}
+            <Target size={20} weight="regular" color={subtle} />
           </View>
-        ))}
+        )}
       </View>
+      {rows.map(({ week, days }) => (
+        <View key={week} className="flex-row items-center gap-1">
+          {days.map((day, column) => {
+            if (day === null) return <View key={column} className="min-h-11 flex-1" />;
+            const count = history.byDay.get(day)?.length ?? 0;
+            const active = selected === day;
+            const disabled = day > today;
+            return (
+              <Pressable
+                key={column}
+                accessibilityRole="button"
+                accessibilityLabel={t("session__calendar_day", { date: format.full(day), count })}
+                accessibilityState={{ selected: active, disabled }}
+                disabled={disabled}
+                onPress={() => onSelect(active ? null : day)}
+                className={`min-h-11 flex-1 items-center justify-center overflow-hidden rounded-lg bg-default active:opacity-70 ${disabled ? "opacity-45" : ""}`}
+              >
+                <DayFill trained={count > 0} />
+                {day === today && (
+                  <View
+                    pointerEvents="none"
+                    className={`absolute inset-1 rounded-md border ${count > 0 ? "border-on-identity" : "border-identity"}`}
+                  />
+                )}
+                {active && (
+                  <View
+                    pointerEvents="none"
+                    className="absolute inset-0 rounded-lg border-2 border-foreground"
+                  />
+                )}
+                <Text
+                  className={`text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
+                >
+                  {format.day(day)}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {goal !== null && (
+            <MonthGoal
+              count={history.weekCounts.get(week) ?? 0}
+              goal={goal}
+              future={week > today}
+              format={format}
+            />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function DayFill({ trained }: { trained: boolean }) {
+  const fill = useAnimatedStyle(() => ({
+    opacity: withTiming(trained ? 1 : 0, { duration: 120, reduceMotion: ReduceMotion.Never }),
+  }));
+  return (
+    <Animated.View pointerEvents="none" className="absolute inset-0 bg-identity" style={fill} />
+  );
+}
+
+function MonthGoal({
+  count,
+  goal,
+  future,
+  format,
+}: {
+  count: number;
+  goal: number;
+  future: boolean;
+  format: HistoryFormat;
+}) {
+  const { t } = useTranslation();
+  const onIdentity = useOnIdentityColor();
+  const ratio = t("session__goal_ratio", {
+    done: format.integer(count),
+    goal: format.integer(goal),
+  });
+  return (
+    <View
+      accessible
+      accessibilityLabel={t("session__goal_accessible", { count, goal })}
+      className={`w-10 items-center justify-center ${future ? "opacity-45" : ""}`}
+    >
+      {goalHit(count, goal) ? (
+        <View className="size-7 items-center justify-center rounded-full bg-identity">
+          <Check size={20} weight="regular" color={onIdentity} />
+        </View>
+      ) : (
+        <Text className="text-caption tabular-nums text-muted">{ratio}</Text>
+      )}
     </View>
   );
 }

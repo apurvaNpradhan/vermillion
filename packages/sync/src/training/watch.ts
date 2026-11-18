@@ -20,6 +20,7 @@ import {
   exerciseHistoriesSql,
   exerciseRecordsSql,
   sessionsPageSql,
+  readFinishedHistoryPages,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -737,6 +738,53 @@ export function watchSessionsBetween(
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,
   );
+}
+
+/** Watches the complete local History, including Sessions without a counted set. */
+export function watchFinishedHistory(
+  database: TrainingDatabase,
+  handlers: {
+    onSessions: (sessions: FinishedSession[]) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  const controller = new AbortController();
+  let pending = false;
+  let reading = false;
+  let last: string | null = null;
+  const read = async () => {
+    if (reading) {
+      pending = true;
+      return;
+    }
+    reading = true;
+    try {
+      do {
+        pending = false;
+        const sessions = await database.readTransaction((tx) =>
+          readFinishedHistoryPages((sql, parameters) => tx.getAll(sql, parameters)),
+        );
+        if (controller.signal.aborted) return;
+        const key = JSON.stringify(sessions);
+        if (key !== last) {
+          last = key;
+          handlers.onSessions(sessions);
+        }
+      } while (pending && !controller.signal.aborted);
+    } catch {
+      last = null;
+      if (!controller.signal.aborted)
+        handlers.onError(new Error("The local workouts could not be read"));
+    } finally {
+      reading = false;
+    }
+  };
+  database.onChangeWithCallback(
+    { onChange: () => void read() },
+    { signal: controller.signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+  );
+  void read();
+  return () => controller.abort();
 }
 
 /** Watches the user's bars and plates: bars first, heavier first. */

@@ -32,3 +32,5 @@ export { SetTextTable } from "./sets/set-text-table";
 export { WorkoutShareScreen, ProgramShareScreen } from "./share/plan-share-screen";
 /** @public Share card views for consumers of the training vertical. */
 export { WorkoutCard, ProgramOverview } from "./share/cards";
+
+export { useActiveProgram } from "./programs/use-active-program";

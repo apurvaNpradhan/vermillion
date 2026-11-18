@@ -20,6 +20,7 @@ import {
   exerciseHistoriesSql,
   exerciseRecordsSql,
   sessionsPageSql,
+  readFinishedHistoryPages,
   parseActiveSessions,
   parseEquipment,
   parseExerciseHistories,
@@ -241,6 +242,12 @@ describe("exercise history and ranges", () => {
       s.sqlite.prepare(SESSIONS_BETWEEN_SQL).all(daysAgo(11), daysAgo(2)),
     );
     expect(between.map((row) => row.id)).toEqual([b, empty, a]);
+    await startSession(s.training, { workoutId: null, derivedTitle: "Still training" });
+    const all = await readFinishedHistoryPages(async (sql, params) =>
+      s.sqlite.prepare(sql).all(...params),
+    );
+    expect(all.slice(1).map((row) => row.id)).toEqual([b, empty, a]);
+    expect(all).toHaveLength(4);
     expect(between[1]?.sets).toEqual([]);
     expect(between[0]?.sets).toHaveLength(2);
     // Repeated set rows carry the exercise title once, without a per-card detail query.
@@ -310,6 +317,10 @@ it("pages beyond 500 Sessions and includes the oldest exercise best in Record co
     }
     expect(ids).toHaveLength(503);
     expect(new Set(ids).size).toBe(503);
+    const all = await readFinishedHistoryPages(async (sql, params) =>
+      s.sqlite.prepare(sql).all(...params),
+    );
+    expect(all.map((session) => session.id)).toEqual(ids);
   } finally {
     s.sqlite.close();
   }
