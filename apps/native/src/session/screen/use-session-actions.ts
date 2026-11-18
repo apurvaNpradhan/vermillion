@@ -100,8 +100,11 @@ export function useSessionActions() {
 
   /** Puts a generated warm-up ramp ahead of the working sets, replacing the untouched warm-ups. */
   const putWarmups = useCallback(
-    (exerciseId: string, ramp: readonly PlannedSet[]) =>
-      write((db) => replaceWarmups(db, exerciseId, ramp, writeScope), false),
+    (
+      exerciseId: string,
+      ramp: readonly PlannedSet[],
+      options?: { key?: string | null; auto?: boolean },
+    ) => write((db) => replaceWarmups(db, exerciseId, ramp, writeScope, options), false),
     [write, writeScope],
   );
 

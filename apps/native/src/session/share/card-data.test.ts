@@ -39,6 +39,7 @@ const set = (
   rpe: null,
   completedAt: "2026-11-16T10:00:00Z",
   timerStartedAt: null,
+  generatedWarmup: false,
   target: null,
   ...values,
 });
@@ -55,6 +56,7 @@ const exercise = (n: number): SessionDetail["exercises"][number] => ({
   logEffort: false,
   progressionPerSet: false,
   autoWarmups: false,
+  warmupKey: null,
   barId: null,
   exercise: {
     primaryMuscle: "chest",

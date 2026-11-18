@@ -648,5 +648,7 @@ export function useLoggingState({
     addSet,
     found,
     flush,
+    /** Whether typed values still wait to be written (the keypad coalesces them). */
+    editsPending: writer.busy,
   };
 }

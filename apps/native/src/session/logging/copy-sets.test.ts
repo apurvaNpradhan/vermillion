@@ -15,6 +15,7 @@ const set = (id: string, values: Partial<SessionSetDetail> = {}): SessionSetDeta
   rpe: null,
   completedAt: null,
   timerStartedAt: null,
+  generatedWarmup: false,
   target: null,
   ...values,
 });
@@ -34,6 +35,7 @@ const exercise = (
   logEffort: true,
   progressionPerSet: false,
   autoWarmups: false,
+  warmupKey: null,
   barId: null,
   exercise: null,
   sets,

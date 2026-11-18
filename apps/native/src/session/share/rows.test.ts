@@ -24,6 +24,7 @@ const set = (id: string, values: Partial<SetDetail> = {}): SetDetail => ({
   rpe: null,
   completedAt: "2026-11-16T10:00:00Z",
   timerStartedAt: null,
+  generatedWarmup: false,
   target: null,
   ...values,
 });
@@ -40,6 +41,7 @@ const entry = (id: string, sets: SetDetail[], extra: Partial<Entry> = {}): Entry
   logEffort: false,
   progressionPerSet: false,
   autoWarmups: false,
+  warmupKey: null,
   barId: null,
   exercise: null,
   sets,

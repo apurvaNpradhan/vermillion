@@ -107,4 +107,22 @@ describe("rampKey", () => {
     expect(rampKey(100, squat(), rows, "lb", null)).not.toBe(key);
     expect(warmupLoading(squat(), rows, "kg", null).loading.bar?.weightKg).toBe(20);
   });
+
+  it("changes when library metadata arrives and the equipment class resolves", () => {
+    const rows = kit("kg");
+    const provisional = { ...squat(), exercise: null };
+    expect(rampKey(100, provisional, rows, "kg", null)).not.toBe(
+      rampKey(100, squat(), rows, "kg", null),
+    );
+    expect(rampTargets(provisional, 100, rows, "kg", null)[0]?.weight_kg).toBe(40);
+  });
+
+  it("ignores the bar and plates for equipment that does not load on a bar", () => {
+    const dumbbell = { ...squat(), exercise: { equipment: "dumbbell" as const } as never };
+    const rows = kit("kg");
+    expect(rampKey(40, dumbbell, rows, "kg", 2.5)).toBe(
+      rampKey(40, dumbbell, rows.slice(0, 2), "kg", 2.5),
+    );
+    expect(rampKey(40, dumbbell, rows, "kg", 2.5)).not.toBe(rampKey(40, dumbbell, rows, "kg", 5));
+  });
 });
