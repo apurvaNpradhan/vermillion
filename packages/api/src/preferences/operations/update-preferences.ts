@@ -26,7 +26,9 @@ export async function updatePreferences(
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`avatar:${userId}`}, 0))`);
     const previous = await getPreferences(tx, userId);
-    if (ui.avatarMediaId) {
+    // Only a changed avatar is checked: a device that merely re-sends the current one, or an old
+    // one it never changed, must not lose its other edits to a media check.
+    if (ui.avatarMediaId && ui.avatarMediaId !== previous.ui.avatarMediaId) {
       try {
         await assertMediaReference(tx, userId, ui.avatarMediaId, "avatar");
       } catch (error) {

@@ -17,7 +17,7 @@ import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { useIsOnline } from "@/platform/network";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
 
 import { ChangeEmailSection } from "./change-email-section";
 
@@ -39,6 +39,7 @@ export function ProfileSection() {
     defaultValues: { name: user?.name ?? "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
+      if (!isOnlineNow()) return;
       setFailure(null);
       try {
         await updateProfile({ name: value.name });

@@ -12,5 +12,5 @@ export {
 export { useAuthReturn } from "./use-auth-return";
 export { clearAccountSession, refreshSession, useSession } from "./session";
 export { routeGuards, toSessionState } from "./session-state";
-export { setSignedOut, useSignedOut } from "./signed-out";
+export { useSignedOut } from "./signed-out";
 export { useSignOut } from "./use-sign-out";

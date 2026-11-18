@@ -12,6 +12,7 @@ import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 import { useProgramActions } from "@/training/programs/use-program-actions";
 import { usePrograms } from "@/training/programs/use-programs";
+import { isFirstSync } from "@/training/train/train-status";
 
 /**
  * "Add to program…" from a standalone Workout: your Programs, each a tap away. The Workout is
@@ -68,7 +69,7 @@ export function AddToProgramSheet({
                 ))}
               </ListSection>
             ) : null}
-            {status === "empty" || status === "first-sync" ? (
+            {status === "empty" || isFirstSync(status) ? (
               <EmptyState
                 icon={Plus}
                 title={t("training__no_programs")}

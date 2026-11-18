@@ -36,10 +36,15 @@ that still waited for the server.
 
 ## Consequences
 
-- A device sends the whole sparse `ui` of its row on a change, not one key. Two devices that edit
-  different keys offline merge on the server, but a key one device never changed and the other
-  did can be overwritten by a stale value if both write the same key from old state. Preferences
-  are one person's settings, so last write wins per key is accepted.
+- A device uploads only the keys a write changed. The row has a local-only `patch` column (JSON:
+  the changed `locale`, `timezone`, `ui` keys, an explicit `null` kept, plus a `writtenAt` stamp) and
+  `patch` is the only column `sync.upload` carries; the merged columns are the local view. The
+  server applies the patch key by key, so a stale value never overwrites another device's newer
+  edit, and a cleared time zone survives the first insert, where PowerSync drops NULL columns. The
+  avatar is checked only when a patch changes it. Same-key conflicts: last write wins.
+- Reads and writes need the session user to be the Device owner (when there is a session): another
+  account's session on the device reads nothing and cannot write, and the write transaction checks
+  the owner and the install id again.
 - Preferences uploaded after the media row of an avatar rely on the queue's order: both go in the
   order they were written.
 - The server stays the owner of `updated_at`; the stream omits it.

@@ -3,7 +3,7 @@ import { useTranslation } from "@/platform/i18n";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { LibrarySetup } from "@/platform/ui/library-setup";
 
-import type { TrainStatus } from "./train-status";
+import { isFirstSync, type TrainStatus } from "./train-status";
 
 /** List loading and recovery, without presenting a temporary empty result as an empty library. */
 export function TrainingListState({
@@ -24,6 +24,6 @@ export function TrainingListState({
     );
   }
   // A plan that is still reading from the device draws nothing; a fresh install says so once.
-  if (status === "first-sync") return <LibrarySetup />;
+  if (isFirstSync(status)) return <LibrarySetup offline={status === "first-sync-offline"} />;
   return null;
 }

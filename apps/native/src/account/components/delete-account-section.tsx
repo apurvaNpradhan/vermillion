@@ -9,7 +9,7 @@ import { useRequestDeletion } from "../use-account-actions";
 import { FormError } from "@/platform/ui/form-error";
 import { Notice } from "@/platform/ui/notice";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { useIsOnline } from "@/platform/network";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
 
 import { useCurrentUser } from "../use-current-user";
 import { Button } from "@/platform/ui/button";
@@ -49,6 +49,7 @@ export function DeleteAccountSection() {
               variant="danger-soft"
               isDisabled={isPending || !online || !isDeleteConfirmationValid(typed, user?.email)}
               onPress={() => {
+                if (!isOnlineNow()) return;
                 if (user) rememberDeletionRequest(user.id);
                 requestDeletion({ callbackURL: `${appConfig.scheme}://confirm-deletion` });
               }}

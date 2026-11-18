@@ -15,11 +15,21 @@ const wireJson = z.string().transform((text, ctx) => {
   }
 });
 
+/**
+ * What one local write changed (ADR 0049): only the keys the user touched, so an `omitted` key and
+ * an explicit `null` stay apart (a PUT drops NULL columns, JSON keeps them). `writtenAt` only
+ * makes two writes of the same keys differ, so neither is skipped as "no change".
+ */
+const dirtyPatch = updatePreferencesSchema
+  .extend({ writtenAt: z.string().max(40).optional() })
+  .strict();
+
 const wire = z
   .strictObject({
     locale: updatePreferencesSchema.shape.locale,
     timezone: updatePreferencesSchema.shape.timezone,
     ui: wireJson.pipe(updatePreferencesSchema.shape.ui.unwrap()).optional(),
+    patch: wireJson.pipe(dirtyPatch).optional(),
   })
   .partial();
 
@@ -35,7 +45,12 @@ export const preferencesSyncHandler: SyncTableHandler = {
     const parsed = wire.safeParse(op.opData ?? {});
     if (!parsed.success) throw new SyncRejection("SYNC_INVALID_OP");
     try {
-      await updatePreferences(db, userId, parsed.data);
+      // A patch is the whole truth of its write; the plain columns beside it are the local view.
+      const { patch, ...columns } = parsed.data;
+      if (patch) {
+        const { writtenAt: _writtenAt, ...changes } = patch;
+        await updatePreferences(db, userId, changes);
+      } else await updatePreferences(db, userId, columns);
     } catch (error) {
       // A foreign or unusable avatar image is a permanent refusal, not a retry.
       if (error instanceof ORPCError) throw new SyncRejection("MEDIA_REFERENCE_INVALID");

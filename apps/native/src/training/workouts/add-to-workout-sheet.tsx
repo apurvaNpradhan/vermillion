@@ -13,6 +13,7 @@ import { displayTitle } from "./derived-title";
 import { useStartWorkout } from "@/training/train/use-start-workout";
 import { useWorkoutActions } from "./use-workout-actions";
 import { useWorkouts } from "@/training/train/use-workouts";
+import { isFirstSync } from "@/training/train/train-status";
 
 /**
  * "Add to workout" from an exercise's detail screen: the standalone Workouts, each one a tap
@@ -98,7 +99,7 @@ export function AddToWorkoutSheet({
                 })}
               </ListSection>
             ) : null}
-            {status === "empty" || status === "first-sync" ? (
+            {status === "empty" || isFirstSync(status) ? (
               <Text className="px-1 text-center text-caption text-muted">
                 {t("training__add_to_empty")}
               </Text>

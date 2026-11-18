@@ -7,6 +7,7 @@ import {
   type SyncFailureCode,
   type SyncOp,
   type SyncUploadResult,
+  type UpdatePreferences,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -69,6 +70,29 @@ describe("user media", () => {
     await expect(
       me.client.preferences.update({ ui: { avatarMediaId: avatar } }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("checks an avatar only when the upload changes it, so a stale device cannot lose its edit", async () => {
+    const me = await writer("avatar-patch@example.com");
+    const first = uuidv7(),
+      second = uuidv7();
+    expect(
+      await me.send([putMedia(first, { kind: "avatar" }), putMedia(second, { kind: "avatar" })]),
+    ).toEqual(applied);
+    await me.client.preferences.update({ ui: { avatarMediaId: first } });
+    await me.client.preferences.update({ ui: { avatarMediaId: second } });
+    const patch = (value: UpdatePreferences) =>
+      op("PUT", "user_preferences", uuidv7(), { patch: JSON.stringify(value) });
+    // The first avatar is retired now. A device that still knows it sends only what it changed.
+    expect(await me.send([patch({ ui: { weightUnit: "lb" } })])).toEqual(applied);
+    expect(await me.send([patch({ ui: { avatarMediaId: second } })])).toEqual(applied);
+    expect(await me.send([patch({ ui: { avatarMediaId: first } })])).toMatchObject(
+      rejected("MEDIA_REFERENCE_INVALID"),
+    );
+    expect((await me.client.preferences.get()).ui).toMatchObject({
+      weightUnit: "lb",
+      avatarMediaId: second,
+    });
   });
 
   it("accepts Custom exercise images and refuses foreign, missing and wrong-kind references", async () => {

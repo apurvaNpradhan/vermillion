@@ -13,6 +13,8 @@ import {
 import { TextField } from "@/platform/forms/text-field";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { FormError } from "@/platform/ui/form-error";
 
 import { beginSetup, finishSetup } from "../setup-state";
@@ -25,6 +27,7 @@ import { UnitsStep } from "./units-step";
 function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) {
   const { t } = useTranslation();
   const { saveName } = useSaveName();
+  const online = useIsOnline();
   const [failure, setFailure] = useState<string | null>(null);
 
   const schema = useMemo(
@@ -35,6 +38,8 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
     defaultValues: { name: "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
+      // Offline the caption says so; the save never starts as a paused request with a spinner.
+      if (!isOnlineNow()) return;
       setFailure(null);
       try {
         // Marked before the save: the refreshed session must not open the app in between.
@@ -60,11 +65,12 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
           action={{
             label: t("onboarding__continue"),
             onPress: () => void form.handleSubmit(),
-            disabled: name.trim() === "",
+            disabled: name.trim() === "" || !online,
             loading: isSubmitting,
           }}
         >
           <FormError message={failure} />
+          <NeedsConnection />
           <form.Field name="name">
             {(field) => (
               <TextField

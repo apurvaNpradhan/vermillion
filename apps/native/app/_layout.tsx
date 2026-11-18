@@ -19,14 +19,7 @@ import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useEffect } from "react";
 
-import {
-  routeGuards,
-  setSignedOut,
-  toSessionState,
-  useAuthReturn,
-  useSession,
-  useSignedOut,
-} from "@/auth";
+import { routeGuards, toSessionState, useAuthReturn, useSession, useSignedOut } from "@/auth";
 import { BodyReminderHost } from "@/body";
 import { useNotificationNavigation } from "@/platform/navigation/use-notification-navigation";
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
@@ -55,10 +48,7 @@ function RootStack() {
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).
   const setupPending = useSetupPending(session?.user.id ?? "");
-  // Any session (a sign-in, or one restored on start) ends an explicit sign-out.
-  useEffect(() => {
-    if (session) setSignedOut(false);
-  }, [session]);
+  // A sign-in the server confirmed ends an explicit sign-out (stored-session.ts), nothing else.
 
   // A device that holds a user's data opens without waiting for the session (ADR 0021).
   const guards = routeGuards(

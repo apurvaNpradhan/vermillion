@@ -197,6 +197,8 @@ function CalculatorBody({
     if (next === "build" && mode === "calculate") setStack([...solvedPlates]);
     setMode(next);
   };
+  // Before the first sync the account's own kit may still arrive: say that, not "enable a bar".
+  const syncing = state.rows.length === 0 && !state.hasSynced;
   const unitPlates = state.rows.flatMap((p) =>
     p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
   );
@@ -230,7 +232,9 @@ function CalculatorBody({
               </View>
             ) : null}
             {!state.bar ? (
-              <Text className="text-body text-muted">{t("plates__no_bar")}</Text>
+              <Text className="text-body text-muted">
+                {syncing ? t("plates__syncing") : t("plates__no_bar")}
+              </Text>
             ) : (
               <>
                 <SegmentedControl

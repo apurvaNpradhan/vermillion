@@ -27,6 +27,8 @@ export function refreshSession(queryClient: QueryClient) {
 
 /** Forgets the session, the stored copy included, and every cached query of the user. */
 export function clearAccountSession(queryClient: QueryClient) {
+  // The fence goes up first: a lookup still running must not store a session after this.
+  const cleared = clearSession(queryClient);
   storedSession.write(null);
-  return clearSession(queryClient);
+  return cleared;
 }
