@@ -20,12 +20,15 @@ export type StallSession = { started_at: string; sets: readonly LoggedSet[] };
  * (a weighted bodyweight lift with its effective weight), best reps for reps-only ones. Null when
  * the Session has no scorable set, and always for types a stall is not defined for.
  */
-export function sessionScore(
+type SessionScores = { strength: number | null; volume: number | null };
+
+function sessionScores(
   sets: readonly LoggedSet[],
   type: ExerciseType,
   bodyweightKg: number | null = null,
-): number | null {
+): SessionScores {
   let best: number | null = null;
+  let volume: number | null = null;
   for (const set of sets) {
     if (!isCounted(set) || set.reps == null) continue;
     let score: number | null = null;
@@ -36,11 +39,23 @@ export function sessionScore(
         set.weight_kg,
         set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
       );
-      score = weight === null ? null : estimatedOneRepMax(weight, set.reps);
+      if (weight !== null && weight > 0) {
+        score = estimatedOneRepMax(weight, set.reps);
+        volume = Math.max(volume ?? 0, weight * set.reps);
+      }
     }
     if (score !== null && (best === null || score > best)) best = score;
   }
-  return best;
+  return { strength: best, volume };
+}
+
+export function sessionScore(
+  sets: readonly LoggedSet[],
+  type: ExerciseType,
+  bodyweightKg: number | null = null,
+): number | null {
+  const scores = sessionScores(sets, type, bodyweightKg);
+  return scores.strength ?? scores.volume;
 }
 
 /**
@@ -57,8 +72,10 @@ export function stalledSessions(
   options: { bodyweightKg?: number | null; lighterWeeks?: readonly LighterPeriod[] } = {},
 ): number {
   const sessions = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
-    const score = sessionScore(session.sets, type, options.bodyweightKg ?? null);
-    return score === null ? [] : [{ at: Date.parse(session.started_at), score }];
+    const scores = sessionScores(session.sets, type, options.bodyweightKg ?? null);
+    return scores.strength === null && scores.volume === null
+      ? []
+      : [{ at: Date.parse(session.started_at), ...scores }];
   });
   let stalled = 0;
   for (let recent = STALL_SESSIONS; recent < sessions.length; recent += 1) {
@@ -69,8 +86,13 @@ export function stalledSessions(
       const previous = sessions[index + 1];
       return previous !== undefined && session.at - previous.at >= BREAK_DAYS * DAY_MS;
     });
-    const best = Math.max(...window.map((session) => session.score));
-    if (gap || best >= before.score * MIN_GAIN) break;
+    // Every score in the comparison uses the same metric.
+    const metric =
+      before.strength === null || window.some((session) => session.strength === null)
+        ? "volume"
+        : "strength";
+    const best = Math.max(...window.map((session) => session[metric] ?? 0));
+    if (gap || best >= (before[metric] ?? 0) * MIN_GAIN) break;
     stalled = recent;
   }
   return stalled;
