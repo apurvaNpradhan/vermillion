@@ -11,5 +11,12 @@ export const userPreferences = sqliteTable("user_preferences", {
   locale: text("locale").$type<Locale>(),
   timezone: text("timezone"),
   ui: text("ui").notNull().default("{}"),
+  /**
+   * Local only: the keys the latest write changed, as JSON (`PreferencesPatch`). It is the only
+   * column an upload carries, so the server applies what the user changed, never the merged view,
+   * and an explicit `null` survives the first insert, where PowerSync drops NULL columns. The
+   * stream does not list it, so a sync overwrites it with nothing once the upload is through.
+   */
+  patch: text("patch"),
   created_at: text("created_at").notNull(),
 });

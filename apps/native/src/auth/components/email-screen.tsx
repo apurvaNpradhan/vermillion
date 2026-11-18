@@ -9,7 +9,7 @@ import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { FormError } from "@/platform/ui/form-error";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { useIsOnline } from "@/platform/network";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
 import { Notice } from "@/platform/ui/notice";
 
 import { stepPosition, type FlowKind } from "../flow";
@@ -48,6 +48,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
     defaultValues: { email: "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
+      if (!isOnlineNow()) return;
       setFailure(null);
       const email = value.email.trim();
       const error = await sendCode(email, turnstile.headers);

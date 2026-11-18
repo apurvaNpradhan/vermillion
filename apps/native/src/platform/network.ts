@@ -23,6 +23,8 @@ export function isReachable(state: {
 export function watchConnection(queryClient: QueryClient) {
   try {
     NetInfo.configure({
+      // Our own probe decides: the OS answer is "connected" on a captive or dead network.
+      useNativeReachability: false,
       reachabilityUrl: new URL("/api/health", env.EXPO_PUBLIC_SERVER_URL).toString(),
       reachabilityTest: async (response) => response.status === 200,
       reachabilityShortTimeout: 5000,
@@ -39,6 +41,15 @@ export function watchConnection(queryClient: QueryClient) {
   return onlineManager.subscribe((online) => {
     if (online) void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
   });
+}
+
+/**
+ * The same answer as `useIsOnline`, read when an action runs, not when it was rendered: handlers
+ * that need the server (auto-submit on the last code digit, the keyboard's submit key) check it
+ * so they never start a request that would only sit paused behind a spinner.
+ */
+export function isOnlineNow() {
+  return onlineManager.isOnline();
 }
 
 /** Whether the device can reach the server right now (true until proven otherwise). */

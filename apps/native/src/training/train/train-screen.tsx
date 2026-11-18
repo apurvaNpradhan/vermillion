@@ -17,7 +17,7 @@ import { useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
 
 import { lastDoneLabel } from "@/training/home/last-done";
-import { combineStatus } from "./train-status";
+import { combineStatus, isFirstSync } from "./train-status";
 import { useLastDone } from "@/training/home/use-last-done";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useProgramLibrary } from "@/training/programs/use-program-library";
@@ -241,7 +241,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                     </View>
                   </View>
                 ) : status === "list" ? (
-                  workoutList.status === "first-sync" ? (
+                  isFirstSync(workoutList.status) ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
                   ) : (
                     <EmptyState icon={Barbell} title={t("training__no_workouts")} />

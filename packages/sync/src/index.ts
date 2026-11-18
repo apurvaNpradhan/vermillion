@@ -306,9 +306,11 @@ export { watchSessionPhotos, type SessionPhoto } from "./training";
 export {
   PREFERENCES_SQL,
   preferencesUploadColumns,
+  readPreferences,
   readPreferencesRow,
   savePreferences,
   userPreferences,
   watchPreferences,
   type PreferencesDatabase,
+  type PreferencesScope,
 } from "./preferences";

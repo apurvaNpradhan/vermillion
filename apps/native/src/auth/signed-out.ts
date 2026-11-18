@@ -18,6 +18,10 @@ export function setSignedOut(value: boolean) {
   for (const listener of listeners) listener();
 }
 
+export function isSignedOut() {
+  return signedOut;
+}
+
 export function useSignedOut(): boolean {
   return useSyncExternalStore(
     (listener) => {

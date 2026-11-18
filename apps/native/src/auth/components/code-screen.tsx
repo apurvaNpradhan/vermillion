@@ -16,7 +16,7 @@ import { refreshSession } from "../session";
 import { useCountdown } from "../use-countdown";
 import { useEmailCode } from "../use-email-code";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { useIsOnline } from "@/platform/network";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
 import { FlowStep } from "./flow-step";
 import { useTurnstile } from "./use-turnstile";
 
@@ -37,7 +37,8 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
   const [resending, setResending] = useState(false);
 
   async function submit(code: string) {
-    if (checking) return;
+    // Offline the "Needs a connection" caption is showing; nothing is sent or left spinning.
+    if (checking || !isOnlineNow()) return;
     setChecking(true);
     setFailure(null);
     setNotice(null);

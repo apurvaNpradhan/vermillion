@@ -1,4 +1,9 @@
-import { savePreferences, type PreferencesDatabase } from "@workspace/sync";
+import {
+  phaseOwner,
+  readPreferences,
+  savePreferences,
+  type PreferencesDatabase,
+} from "@workspace/sync";
 import {
   DEFAULT_UI_PREFERENCES,
   type Locale,
@@ -9,26 +14,46 @@ import {
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";
+import { useSession } from "@/auth";
 import { useLocalData, useSyncValue } from "@/sync";
 
-import { preferencesSnapshot, subscribePreferences } from "./preferences-store";
+import { preferencesAccess, type PreferencesAccess } from "./preferences-access";
+import { preferencesSnapshot, publishPreferences, subscribePreferences } from "./preferences-store";
 
 const EMPTY: Preferences = { locale: null, timezone: null, ui: DEFAULT_UI_PREFERENCES };
 const NO_DATABASE = { value: undefined, failed: false } as const;
+/** Reads the row just written and publishes it, so no reader sees the snapshot from before. */
+async function showSaved(database: PreferencesDatabase, access: PreferencesAccess) {
+  publishPreferences(database, access, await readPreferences(database, access.owner));
+}
+
 const never = () => () => undefined;
 
-/** The preferences read from the device's database, or `undefined` before it has answered. */
+/**
+ * The preferences read from the device's database, or `undefined` before it has answered. Only
+ * for the Device owner (`preferencesAccess`): another account's session reads nothing.
+ */
 function useLocalPreferences() {
   const local = useLocalData();
+  const { session } = useSession();
+  const owner = useSyncValue((snapshot) => (snapshot ? phaseOwner(snapshot.phase) : null));
+  const installId = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
+  const sessionUser = session?.user.id ?? null;
+  const access = preferencesAccess({ sessionUser, owner, installId });
   const database: PreferencesDatabase | null = local?.status === "ready" ? local.database : null;
+  const gated = database && access ? { database, access } : null;
   const state = useSyncExternalStore(
     useCallback(
-      (listener: () => void) => (database ? subscribePreferences(database, listener) : never()),
-      [database],
+      (listener: () => void) =>
+        gated ? subscribePreferences(gated.database, gated.access, listener) : never(),
+      // The cache entry, not the object, is what must stay stable.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [gated?.database, gated?.access.key],
     ),
-    () => (database ? preferencesSnapshot(database) : NO_DATABASE),
+    () => (gated ? preferencesSnapshot(gated.database, gated.access) : NO_DATABASE),
   );
-  return { database, state, unavailable: local?.status === "unavailable" };
+  const blocked = sessionUser !== null && owner !== null && sessionUser !== owner;
+  return { database, access, state, unavailable: local?.status === "unavailable" || blocked };
 }
 
 /**
@@ -37,22 +62,29 @@ function useLocalPreferences() {
  * connection, and a change is shown at once, queued, and uploaded when the device is online.
  */
 export function usePreferences() {
-  const { database, state, unavailable } = useLocalPreferences();
-  const scope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
+  const { database, access, state, unavailable } = useLocalPreferences();
+  const { session } = useSession();
   const [saving, setSaving] = useState(0);
   const { setDeviceLocale } = useLocale();
 
   const save = useCallback(
     async (patch: UpdatePreferences) => {
-      if (!database) throw new Error("Storage unavailable");
+      if (!database || !access) throw new Error("Storage unavailable");
       setSaving((count) => count + 1);
       try {
-        await savePreferences(database, patch, scope);
+        // The screen's own user (or the owner while signed out) must still own the device when
+        // the write transaction runs.
+        await savePreferences(database, patch, {
+          installId: access.installId,
+          owner: session?.user.id ?? access.owner,
+        });
+        // Shown at once: the next step reads this, not a watch that has not answered yet.
+        await showSaved(database, access);
       } finally {
         setSaving((count) => count - 1);
       }
     },
-    [database, scope],
+    [database, access, session],
   );
   const quietly = (patch: UpdatePreferences) => void save(patch).catch(() => undefined);
 

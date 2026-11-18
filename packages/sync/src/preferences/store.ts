@@ -18,11 +18,19 @@ import { userPreferences } from "./tables";
 
 export type PreferencesDatabase = AbstractPowerSyncDatabase;
 
-/** Columns of `user_preferences` the server accepts in an upload; the rest are local only. */
-export const preferencesUploadColumns: ReadonlySet<string> = new Set(["locale", "timezone", "ui"]);
+/**
+ * Columns of `user_preferences` an upload carries: the dirty-key `patch` only. The merged
+ * `locale`, `timezone` and `ui` are the local view, and sending them would let a stale value
+ * overwrite another device's newer edit.
+ */
+export const preferencesUploadColumns: ReadonlySet<string> = new Set(["patch"]);
 
-/** The newest row wins: a row made offline before the first sync outranks the server's older one. */
-export const PREFERENCES_SQL = "SELECT * FROM user_preferences ORDER BY id DESC LIMIT 1";
+/**
+ * The owner's newest row wins: a row made offline before the first sync outranks the server's
+ * older one. Another user's row is never read (ADR 0021).
+ */
+export const PREFERENCES_SQL =
+  "SELECT locale, timezone, ui FROM user_preferences WHERE user_id = ? ORDER BY id DESC LIMIT 1";
 
 /** What the user changed, as stored; keys this build does not know (a newer app's) are kept. */
 const storedUiSchema = uiPreferencesPatchSchema.loose();
@@ -50,23 +58,39 @@ export function readPreferencesRow(
     : preferencesSchema.parse({ locale: null, timezone: null, ui: {} });
 }
 
+type PreferenceRow = { locale: string | null; timezone: string | null; ui: string };
+
+/** Reads the owner's preferences on the device (the defaults while no row exists). */
+export async function readPreferences(
+  database: PreferencesDatabase,
+  owner: string,
+): Promise<Preferences> {
+  const row = await database.getOptional<PreferenceRow>(PREFERENCES_SQL, [owner]);
+  return readPreferencesRow(row ?? undefined);
+}
+
+/** Who a write is for: the install id the screen captured and the user it believes owns the data. */
+export type PreferencesScope = { installId: string | undefined; owner: string | undefined };
+
 /**
  * Saves any subset of the preferences on the device and queues the upload. The row is made on the
- * first write; `ui` merges key by key. Runs in the write transaction after the write-scope check
- * (ADR 0021), so a write cannot land in another account's database.
+ * first write; `ui` merges key by key into the local view, while the upload carries only this
+ * write's keys (`patch`, with `null` kept as `null`). Runs in the write transaction after the
+ * scope check (ADR 0021): a write cannot land in another account's database, nor under another
+ * user than the one the screen belongs to.
  */
 export async function savePreferences(
   database: PreferencesDatabase,
   input: UpdatePreferences,
-  expectedInstallId: string | undefined,
+  scope: PreferencesScope,
 ) {
   const patch = updatePreferencesSchema.parse(input);
   return wrapPowerSyncWithDrizzle(database, { schema: drizzleSchema }).transaction(async (tx) => {
-    if (expectedInstallId !== undefined) {
+    if (scope.installId !== undefined) {
       const [install] = await tx
         .select({ id: installMeta.id })
         .from(installMeta)
-        .where(eq(installMeta.install_id, expectedInstallId))
+        .where(eq(installMeta.install_id, scope.installId))
         .limit(1);
       if (!install) throw new Error("The device account changed; reopen the screen");
     }
@@ -76,9 +100,12 @@ export async function savePreferences(
       .where(eq(deviceOwner.id, DEVICE_OWNER_ID))
       .limit(1);
     if (!owner) throw new Error("Device owner changed");
+    if (scope.owner !== undefined && scope.owner !== owner.user_id)
+      throw new Error("The device belongs to another account");
     const [row] = await tx
       .select()
       .from(userPreferences)
+      .where(eq(userPreferences.user_id, owner.user_id))
       .orderBy(desc(userPreferences.id))
       .limit(1);
     const ui = JSON.stringify({ ...sparseUi(row?.ui), ...patch.ui });
@@ -87,9 +114,14 @@ export async function savePreferences(
       ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
       ...(patch.ui ? { ui } : {}),
     };
+    // Only what this write changed goes up; `writtenAt` keeps two equal writes from collapsing.
+    const dirty = JSON.stringify({ ...patch, writtenAt: new Date().toISOString() });
     if (row) {
       if (Object.keys(values).length > 0)
-        await tx.update(userPreferences).set(values).where(eq(userPreferences.id, row.id));
+        await tx
+          .update(userPreferences)
+          .set({ ...values, patch: dirty })
+          .where(eq(userPreferences.id, row.id));
       return;
     }
     await tx.insert(userPreferences).values({
@@ -99,6 +131,7 @@ export async function savePreferences(
       timezone: null,
       ui,
       ...values,
+      patch: dirty,
       created_at: new Date().toISOString(),
     });
   });

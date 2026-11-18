@@ -66,7 +66,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
         height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
       CREATE TABLE user_preferences (id TEXT PRIMARY KEY, user_id TEXT, locale TEXT, timezone TEXT,
-        ui TEXT, created_at TEXT);
+        ui TEXT, created_at TEXT, patch TEXT);
       CREATE TABLE progress_photo (id TEXT PRIMARY KEY, user_id TEXT, media_id TEXT, pose TEXT,
         taken_at TEXT, local_date TEXT, created_at TEXT);
       CREATE TABLE body_measurement (id TEXT PRIMARY KEY, user_id TEXT, metric TEXT, value REAL,

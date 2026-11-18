@@ -8,7 +8,7 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { useIsOnline } from "@/platform/network";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
 import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
@@ -34,6 +34,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   const valid = z.email().safeParse(email.trim()).success;
 
   async function send() {
+    if (!isOnlineNow()) return;
     const target = email.trim();
     if (!z.email().safeParse(target).success) {
       setFailure(t("auth__error_email_invalid"));
@@ -51,7 +52,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   }
 
   async function confirm(otp: string) {
-    if (sent === null || busy) return;
+    if (sent === null || busy || !isOnlineNow()) return;
     setBusy(true);
     setFailure(null);
     const error = await confirmChange(sent, otp);

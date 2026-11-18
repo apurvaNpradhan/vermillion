@@ -5,6 +5,8 @@ import { errorMessage } from "@workspace/client/error-message";
 
 import { useSession } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
+import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { FormError } from "@/platform/ui/form-error";
 import { Screen } from "@/platform/ui/screen";
 
@@ -17,6 +19,7 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
   const { t } = useTranslation();
   const { session } = useSession();
   const { confirmDeletion, isPending, isSuccess, error } = useConfirmDeletion();
+  const online = useIsOnline();
   if (isSuccess) return <AccountDeletedScreen />;
   return (
     <Screen withTopInset>
@@ -29,16 +32,19 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
           message={error ? errorMessage(t, error) : !token ? t("auth__error_invalid_token") : null}
         />
         {session ? (
-          <Button
-            variant="danger-soft"
-            isDisabled={!token || isPending}
-            onPress={() => {
-              if (token) confirmDeletion({ token });
-            }}
-          >
-            {isPending ? <Spinner size="sm" /> : null}
-            <Button.Label>{t("settings__delete_action")}</Button.Label>
-          </Button>
+          <>
+            <Button
+              variant="danger-soft"
+              isDisabled={!token || isPending || !online}
+              onPress={() => {
+                if (token && isOnlineNow()) confirmDeletion({ token });
+              }}
+            >
+              {isPending ? <Spinner size="sm" /> : null}
+              <Button.Label>{t("settings__delete_action")}</Button.Label>
+            </Button>
+            <NeedsConnection />
+          </>
         ) : (
           <Link href="/" asChild>
             <Button>

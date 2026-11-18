@@ -1,8 +1,15 @@
 import { uuidv7 } from "@workspace/db/columns";
-import { computeOpsDigest, SYNC_SCHEMA_VERSION, type SyncOp } from "@workspace/shared";
+import {
+  computeOpsDigest,
+  SYNC_SCHEMA_VERSION,
+  type SyncOp,
+  type UpdatePreferences,
+} from "@workspace/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
+
+type PatchBody = UpdatePreferences & { writtenAt?: string };
 
 describe("preferences uploads", () => {
   let app: TestApp;
@@ -74,6 +81,53 @@ describe("preferences uploads", () => {
       weightUnit: "lb",
       sounds: false,
     });
+  });
+
+  it("reads a dirty-key patch: only the keys it names change, and an explicit null clears", async () => {
+    const a = await writer();
+    await a.client.preferences.update({
+      timezone: "Europe/Berlin",
+      locale: "en",
+      ui: { weightUnit: "lb", sounds: false },
+    });
+    const patch = (value: PatchBody) => ({ patch: JSON.stringify(value) });
+    // The first insert of a new row: PowerSync omits NULL columns, the patch carries the null.
+    expect(
+      await a.send([
+        {
+          op: "PUT",
+          table,
+          id: uuidv7(),
+          opData: patch({ timezone: null, ui: { keepAwake: false }, writtenAt: "2026-11-18" }),
+        },
+      ]),
+    ).toMatchObject({ status: "applied" });
+    expect(await a.client.preferences.get()).toMatchObject({
+      timezone: null,
+      locale: "en",
+      ui: { weightUnit: "lb", sounds: false, keepAwake: false },
+    });
+    // Other columns beside a patch are ignored: the patch is the whole truth of that write.
+    await a.send([
+      {
+        op: "PATCH",
+        table,
+        id: uuidv7(),
+        opData: { ...patch({ ui: { sounds: true } }), ui: '{"weightUnit":"kg"}' },
+      },
+    ]);
+    expect((await a.client.preferences.get()).ui).toMatchObject({
+      weightUnit: "lb",
+      sounds: true,
+    });
+    expect(
+      await a.send([{ op: "PUT", table, id: uuidv7(), opData: { patch: "nope" } }]),
+    ).toMatchObject({ code: "SYNC_INVALID_OP" });
+    expect(
+      await a.send([
+        { op: "PUT", table, id: uuidv7(), opData: patch({ ui: { defaultRestSeconds: -1 } }) },
+      ]),
+    ).toMatchObject({ code: "SYNC_INVALID_OP" });
   });
 
   it("refuses deletes, values the old procedure refuses, and a foreign avatar", async () => {
