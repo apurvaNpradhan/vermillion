@@ -1,4 +1,3 @@
-import { clearPreferencesCache } from "@/platform/preferences-cache";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearSession } from "@workspace/client/session";
 
@@ -19,7 +18,6 @@ export function useSignOut() {
     },
     onSuccess: () => {
       // Before the session clears, so the guard goes to the welcome screen in one step.
-      clearPreferencesCache();
       setSignedOut(true);
       return clearSession(queryClient);
     },

@@ -58,3 +58,11 @@ streams:
     auto_subscribe: true
     priority: 1
     query: SELECT id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at FROM media WHERE user_id = auth.user_id() AND deleted_at IS NULL
+
+  # A user's preferences (ADR 0048): the one row per user, so units, language and the other
+  # settings are readable on the device before anything else. Never deleted. `updated_at` stays on
+  # the server.
+  my_preferences:
+    auto_subscribe: true
+    priority: 1
+    query: SELECT id, user_id, locale, timezone, ui, created_at FROM user_preferences WHERE user_id = auth.user_id()

@@ -4,6 +4,7 @@ import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 import { bodyMeasurement, progressPhoto } from "../body/tables";
 import { exercise } from "../exercise/tables";
 import { attachments, media } from "../media/tables";
+import { userPreferences } from "../preferences/tables";
 import {
   exerciseSetting,
   gymEquipment,
@@ -35,6 +36,7 @@ export const drizzleSchema = {
   gymEquipment,
   exerciseSetting,
   media,
+  userPreferences,
   attachments,
   programRun,
   deviceOwner,
@@ -62,6 +64,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
   gym_equipment: { tableDefinition: gymEquipment },
   exercise_setting: { tableDefinition: exerciseSetting },
   media: { tableDefinition: media },
+  user_preferences: { tableDefinition: userPreferences },
   attachments: { tableDefinition: attachments, options: { localOnly: true } },
   deviceOwner: { tableDefinition: deviceOwner, options: { localOnly: true } },
   installMeta: { tableDefinition: installMeta, options: { localOnly: true } },
@@ -85,4 +88,5 @@ export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(gymEquipment),
   getTableName(exerciseSetting),
   getTableName(media),
+  getTableName(userPreferences),
 ];

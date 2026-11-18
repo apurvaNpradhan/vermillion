@@ -26,9 +26,11 @@ export function BodyState({
           <Text accessibilityRole="alert" className="text-center text-body text-muted">
             {t("body__load_error")}
           </Text>
-          <Button variant="secondary" onPress={retry}>
-            <Button.Label>{t("training__retry")}</Button.Label>
-          </Button>
+          {retry ? (
+            <Button variant="secondary" onPress={retry}>
+              <Button.Label>{t("training__retry")}</Button.Label>
+            </Button>
+          ) : null}
         </>
       ) : loading ? (
         <Skeleton label={t("common__loading")} className="h-52 w-full rounded-2xl" />

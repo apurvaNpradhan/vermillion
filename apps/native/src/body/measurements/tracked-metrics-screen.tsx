@@ -9,18 +9,12 @@ import { ListSection, ListRow } from "@/platform/ui/list";
 import { groupLabels, metricLabels } from "./metric-labels";
 import { HeightRow } from "@/body/weight/height-row";
 export function TrackedMetricsScreen() {
-  const { preferences, setUi, isSaving, isLoading, hasPreferences, refresh } = usePreferences();
+  const { preferences, setUi, isSaving, isLoading, hasPreferences } = usePreferences();
   const { t } = useTranslation();
   if (isLoading || !hasPreferences)
     return (
       <ScrollPage back title={t("body__tracked_metrics")}>
-        <BodyState
-          loading={isLoading}
-          failed={!isLoading && !hasPreferences}
-          retry={() => {
-            void refresh().catch(() => undefined);
-          }}
-        />
+        <BodyState loading={isLoading} failed={!isLoading && !hasPreferences} />
       </ScrollPage>
     );
   return (

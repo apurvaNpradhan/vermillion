@@ -11,7 +11,7 @@ export function useAvatar() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const [removing, setRemoving] = useState(false);
-  const { preferences, setUiAsync, refresh } = usePreferences();
+  const { preferences, setUiAsync } = usePreferences();
   const local = useLocalData();
   const scope = useSyncValue((s) => s?.writeScope ?? "");
   const connected = useSyncValue(
@@ -20,7 +20,7 @@ export function useAvatar() {
   const picker = usePickedMedia(async (db, image, writeScope) => {
     const id = await createMedia(db, { ...image, kind: "avatar" }, writeScope);
     try {
-      // Preferences are online. Wait for the media metadata before sending its reference.
+      // The server checks the image row exists before it takes the reference: wait for it to upload.
       const deadline = Date.now() + 15_000;
       while ((await db.getUploadQueueStats()).count > 0) {
         if (Date.now() >= deadline) throw new Error("Media upload timed out");
@@ -35,7 +35,7 @@ export function useAvatar() {
       async () => {
         await setUiAsync({ avatarMediaId: id });
       },
-      async () => (await refresh()).ui.avatarMediaId,
+      async () => preferences.ui.avatarMediaId,
       async () => {
         await deleteMedia(db, id, writeScope);
       },

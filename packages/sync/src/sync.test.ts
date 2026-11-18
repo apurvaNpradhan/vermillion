@@ -95,6 +95,7 @@ describe("powerSyncSchema", () => {
       "session_photo",
       "session_set",
       "training_session",
+      "user_preferences",
       "workout",
       "workout_exercise",
     ]);
@@ -112,6 +113,7 @@ describe("powerSyncSchema", () => {
       "session_photo",
       "session_set",
       "training_session",
+      "user_preferences",
       "workout",
       "workout_exercise",
     ];
