@@ -29,7 +29,11 @@ export function restAfterTick(
   if (!member || !set) return null;
   let own = member.restSeconds;
   if (block.superset) {
-    const inRound = block.members.filter((candidate) => candidate.sets[index] !== undefined);
+    const warmup = set.kind === "warmup";
+    const roundSets = (candidate: RestExercise) =>
+      candidate.sets.filter((row) => (row.kind === "warmup") === warmup);
+    const round = roundSets(member).findIndex((row) => row.id === setId);
+    const inRound = block.members.filter((candidate) => roundSets(candidate)[round] !== undefined);
     if (inRound.at(-1)?.id !== exerciseId) return null;
     own = block.members.at(-1)?.restSeconds ?? member.restSeconds;
   }
