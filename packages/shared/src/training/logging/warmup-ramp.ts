@@ -21,12 +21,14 @@ const SAME = 0.0005;
 
 /**
  * The ramp: the opener (the bar, or 40% when there is no bar) for 10, then 50% for 5, 70% for 3
- * and 85% for 1 of the working weight.
+ * and 85% for 1 of the working weight. `cap` is the most a step may be of the working weight after
+ * rounding; a coarse kit whose nearest load is above it skips the step, so a set of five is never
+ * near the working weight.
  */
 const PERCENT_STEPS = [
-  { fraction: 0.5, reps: 5 },
-  { fraction: 0.7, reps: 3 },
-  { fraction: 0.85, reps: 1 },
+  { fraction: 0.5, reps: 5, cap: 0.6 },
+  { fraction: 0.7, reps: 3, cap: 0.8 },
+  { fraction: 0.85, reps: 1, cap: 0.92 },
 ] as const;
 const OPENER = { barless: { fraction: 0.4, reps: 10 }, bar: { reps: 10 } } as const;
 
@@ -83,10 +85,15 @@ export function warmupRamp(input: {
   const ramp: WarmupSet[] = [];
   for (const candidate of [
     opener,
-    ...PERCENT_STEPS.map((s) => ({ weightKg: round(workingKg * s.fraction), reps: s.reps })),
+    ...PERCENT_STEPS.map((s) => ({
+      weightKg: round(workingKg * s.fraction),
+      reps: s.reps,
+      cap: s.cap,
+    })),
   ]) {
     const last = ramp.at(-1);
     if (candidate.weightKg <= SAME || candidate.weightKg >= workingKg - SAME) continue;
+    if ("cap" in candidate && candidate.weightKg > workingKg * candidate.cap + SAME) continue;
     if (last && candidate.weightKg <= last.weightKg + SAME) continue;
     ramp.push(candidate);
   }

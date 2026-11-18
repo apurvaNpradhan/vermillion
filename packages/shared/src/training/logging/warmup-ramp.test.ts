@@ -210,6 +210,26 @@ describe("warmupRamp for types without a load to ramp", () => {
     }
   });
 
+  it("skips a step whose nearest loadable load is far above its share (sparse kit)", () => {
+    // A 20 kg bar with one pair each of 0.5 kg and 20 kg: only 20, 21, 60 and 61 can be made.
+    const sparse = {
+      weightKg: 20,
+      plates: [
+        { id: "a", weightKg: 0.5, count: 1 },
+        { id: "b", weightKg: 20, count: 1 },
+      ],
+    };
+    const steps = barbell(65, { bar: sparse });
+    expect(asKg(steps)).toEqual([
+      [20, 10],
+      [21, 5],
+    ]);
+    for (const step of steps) {
+      const share = step.reps === 5 ? 0.6 : step.reps === 3 ? 0.8 : 1;
+      expect(step.weightKg).toBeLessThanOrEqual(65 * share + 1e-9);
+    }
+  });
+
   it("gives none for a non-finite or negative weight", () => {
     expect(barbell(Number.NaN, { bar: kit("kg") })).toEqual([]);
     expect(barbell(-10, { bar: kit("kg") })).toEqual([]);
