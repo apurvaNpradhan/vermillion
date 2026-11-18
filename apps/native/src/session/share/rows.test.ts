@@ -39,6 +39,8 @@ const entry = (id: string, sets: SetDetail[], extra: Partial<Entry> = {}): Entry
   supersetGroup: null,
   logEffort: false,
   progressionPerSet: false,
+  autoWarmups: false,
+  barId: null,
   exercise: null,
   sets,
   ...extra,

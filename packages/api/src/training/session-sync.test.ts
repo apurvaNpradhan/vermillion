@@ -390,7 +390,11 @@ describe("session upload handlers", () => {
     expect(
       await me.send([
         op("PATCH", "gym_equipment", barId, { enabled: 0, count: 2 }),
-        op("PATCH", "exercise_setting", settingId, { log_effort: 1, progression_per_set: 1 }),
+        op("PATCH", "exercise_setting", settingId, {
+          log_effort: 1,
+          progression_per_set: 1,
+          auto_warmups: 1,
+        }),
       ]),
     ).toEqual(applied);
     expect(await stored("gym_equipment", barId)).toMatchObject({
@@ -401,6 +405,7 @@ describe("session upload handlers", () => {
     expect(await stored("exercise_setting", settingId)).toMatchObject({
       log_effort: true,
       progression_per_set: true,
+      auto_warmups: true,
       bar_id: barId,
       exercise_id: weightReps,
     });

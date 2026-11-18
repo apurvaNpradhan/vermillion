@@ -1,0 +1,1 @@
+ALTER TABLE "exercise_setting" ADD COLUMN "auto_warmups" boolean DEFAULT false NOT NULL;

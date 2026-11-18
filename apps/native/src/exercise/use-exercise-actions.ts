@@ -91,5 +91,11 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
-  return { create, update, archive, restore, setProgressionPerSet };
+  const setAutoWarmups = useCallback(
+    (id: string, on: boolean) =>
+      write((db) => setExerciseSetting(db, id, { auto_warmups: on }, writeScope)),
+    [write, writeScope],
+  );
+
+  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups };
 }

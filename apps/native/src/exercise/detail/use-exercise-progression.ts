@@ -7,7 +7,11 @@ import {
   type SessionHistory,
   type IncrementSettings,
 } from "@workspace/shared";
-import { watchExerciseProgressionMode, watchLatestExercisePlan } from "@workspace/sync";
+import {
+  watchExerciseAutoWarmups,
+  watchExerciseProgressionMode,
+  watchLatestExercisePlan,
+} from "@workspace/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
 
@@ -18,6 +22,18 @@ export function useExerciseProgressionMode(exerciseId: string) {
       onValue: (perSet: boolean) => void,
       onError: () => void,
     ) => watchExerciseProgressionMode(database, exerciseId, { onMode: onValue, onError }),
+    [exerciseId],
+  );
+  return useLocalWatch(subscribe);
+}
+
+export function useExerciseAutoWarmups(exerciseId: string) {
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchExerciseAutoWarmups>[0],
+      onValue: (on: boolean) => void,
+      onError: () => void,
+    ) => watchExerciseAutoWarmups(database, exerciseId, { onValue, onError }),
     [exerciseId],
   );
   return useLocalWatch(subscribe);

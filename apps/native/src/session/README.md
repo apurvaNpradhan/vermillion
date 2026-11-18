@@ -9,6 +9,7 @@ Public surface: `index.ts`. Each folder is one feature; hooks, components, pure 
 - `rest/`: rest rules, schedule, nudges and the rest bar. Start at `rest-rules.ts`.
 - `timer/`: the timer screen, clock and duration timer. Start at `timer-screen.tsx`.
 - `notifications/`: rest notifications and the workout live notification (the permission and the reconciler live in `platform/notifications`). Start at `workout-live-state.ts`.
+- `warmups/`: automatic warm-up ramps and "Add warm-ups". Start at `use-auto-warmups.ts`; the ramp itself is `warmupRamp` in `packages/shared`.
 - `plates/`: the plate calculator and equipment management. Start at `plate-calculator-sheet.tsx`.
 - `finish/`: finish flow, summary screen, records and the routine update sheet. Start at `use-finish-flow.tsx`.
 - `history/`: history list, calendar, detail and logging a past session. Start at `history-screen.tsx`.

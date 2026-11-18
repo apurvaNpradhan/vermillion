@@ -27,6 +27,11 @@ export function keyAfterLast(items: readonly Positioned[]): string {
   return keyBetween(sortByPosition(items).at(-1)?.position ?? null, null);
 }
 
+/** `count` keys in order between two neighbours; `null` is the start or the end of the list. */
+export function keysBetween(before: string | null, after: string | null, count: number): string[] {
+  return generateNKeysBetween(before, after, count);
+}
+
 /** `count` keys in order, appended after the list. */
 export function keysAfterLast(items: readonly Positioned[], count: number): string[] {
   return generateNKeysBetween(sortByPosition(items).at(-1)?.position ?? null, null, count);

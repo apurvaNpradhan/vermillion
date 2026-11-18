@@ -39,7 +39,7 @@ streams:
       - SELECT id, user_id, session_id, media_id, position, created_at FROM session_photo WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at FROM session_set WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, kind, weight_kg, unit, label, count, enabled, created_at FROM gym_equipment WHERE user_id = auth.user_id() AND deleted_at IS NULL
-      - SELECT id, user_id, exercise_id, bar_id, log_effort, progression_per_set, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, exercise_id, bar_id, log_effort, progression_per_set, auto_warmups, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
 
   my_body:
     auto_subscribe: true

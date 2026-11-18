@@ -83,6 +83,7 @@ export {
   watchEquipment,
   watchExerciseBar,
   watchExerciseProgressionMode,
+  watchExerciseAutoWarmups,
   watchExerciseHistory,
   watchExerciseHistories,
   watchProgram,
@@ -149,6 +150,7 @@ export {
 export {
   addSessionExercises,
   addSet,
+  replaceWarmups,
   leaveSessionSuperset,
   moveSessionExercise,
   removeSessionExercise,

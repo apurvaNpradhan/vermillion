@@ -838,6 +838,26 @@ export function watchExerciseProgressionMode(
   );
 }
 
+/** Watches whether the exercise generates its warm-up ramp itself; off until switched on. */
+export function watchExerciseAutoWarmups(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onValue: (on: boolean) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ auto_warmups: z.number().nullable() }));
+  return watch(
+    database,
+    "SELECT auto_warmups FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => schema.parse(rows)[0]?.auto_warmups === 1, {
+      onResult: handlers.onValue,
+      onError: handlers.onError,
+    }),
+    handlers.onError,
+  );
+}
+
 /** Watches a cursor page, including one extra Session so the caller can detect the next page. */
 export function watchSessionPage(
   database: TrainingDatabase,
