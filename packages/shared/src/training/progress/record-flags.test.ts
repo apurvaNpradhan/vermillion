@@ -148,7 +148,7 @@ describe("recordFlags", () => {
       reps: 12,
     });
     const history = [sessionOf("a", day(1), [before]), sessionOf("b", day(2), [after])];
-    expect(recordFlags(history).size).toBe(0);
+    expect(recordFlags(history).get(after.id)).toEqual(["most_reps"]);
     expect(recordFlags(history, 80).get(after.id)).toContain("set_volume");
   });
 });
