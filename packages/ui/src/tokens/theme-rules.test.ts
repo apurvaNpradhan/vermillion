@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
 import { hueDistance, toOklch } from "./mix";
-import { themeVariants } from "./theme-variants";
+import { themeIds, themeVariants } from "./theme-variants";
 
 const linear = (hex: string) =>
   [1, 3, 5].map((at) => {
@@ -78,6 +78,25 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     expect(ratio("on-action", "action"), "on-action").toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps text readable on controls, fields and floating sheets", () => {
+    for (const bg of ["surface-control", "surface-floating"] as const) {
+      for (const role of ["text-primary", "text-secondary", "text-muted"] as const) {
+        expect(ratio(role, bg), `${role} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps the warning label readable on HeroUI's warning fill", () => {
+    expect(ratio("on-warning", "warning-text")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("ranks primary text above secondary and secondary above muted", () => {
+    expect(ratio("text-primary", "surface")).toBeGreaterThan(ratio("text-secondary", "surface"));
+    expect(ratio("text-secondary", "surface")).toBeGreaterThanOrEqual(
+      ratio("text-muted", "surface"),
+    );
+  });
+
   it("keeps completed-set text, badges and checks readable", () => {
     for (const role of [
       "set-done-soft-foreground",
@@ -101,7 +120,8 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
       expect(ratio("chart", bg), `chart on ${bg}`).toBeGreaterThanOrEqual(3);
     }
     expect(ratio("focus-ring", "canvas")).toBeGreaterThanOrEqual(3);
-    expect(ratio("identity", "identity-soft")).toBeGreaterThanOrEqual(3);
+    // The active-program badge and selected chips put accent text on the soft fill.
+    expect(ratio("identity", "identity-soft")).toBeGreaterThanOrEqual(4.5);
     expect(ratio("text-primary", "identity-soft")).toBeGreaterThanOrEqual(7);
   });
 
@@ -137,9 +157,12 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
 
 describe.each(themes)("theme identity: $mode", ({ colors: c }) => {
   it("keeps the accent's hue apart from the done colour", () => {
-    const accent = toOklch(c.identity).h;
-    const done = toOklch(c["set-done"]).h;
-    expect(hueDistance(accent, done)).toBeGreaterThanOrEqual(MIN_ACCENT_SUCCESS_HUE);
+    const accent = toOklch(c.identity);
+    const done = toOklch(c["set-done"]);
+    // Hue only means something on a coloured value.
+    expect(accent.c).toBeGreaterThan(0.04);
+    expect(done.c).toBeGreaterThan(0.04);
+    expect(hueDistance(accent.h, done.h)).toBeGreaterThanOrEqual(MIN_ACCENT_SUCCESS_HUE);
   });
 
   it("keeps every chart series visible on the page", () => {
@@ -151,23 +174,46 @@ describe.each(themes)("theme identity: $mode", ({ colors: c }) => {
   });
 
   it("tints the surfaces with the theme's hue", () => {
-    // A tinted neutral: some chroma, never a saturated colour.
-    const { c: chroma } = toOklch(c.canvas);
-    expect(chroma).toBeGreaterThan(0.005);
-    expect(chroma).toBeLessThan(0.05);
+    // A tinted neutral: some chroma, never a saturated colour. A light card may sit close to
+    // white, so it only needs a trace of the hue.
+    const floors = { canvas: 0.005, surface: 0.002, "surface-control": 0.005 } as const;
+    // SAFETY: `floors` is a literal object, so its entries are exactly its keys and numbers.
+    for (const [role, floor] of Object.entries(floors) as [keyof typeof floors, number][]) {
+      const { c: chroma } = toOklch(c[role]);
+      expect(chroma, role).toBeGreaterThan(floor);
+      expect(chroma, role).toBeLessThan(0.05);
+    }
   });
 });
 
-describe("increased contrast", () => {
-  it.each(["light", "dark"] as const)("raises text contrast in %s", (scheme) => {
-    const standard = themeVariants[`nord-${scheme}`];
-    const increased = themeVariants[`nord-${scheme}-contrast`];
+const contrastPairs = themeIds.flatMap((theme) =>
+  (["light", "dark"] as const).map((scheme) => ({
+    name: `${theme}-${scheme}`,
+    standard: themeVariants[`${theme}-${scheme}`],
+    increased: themeVariants[`${theme}-${scheme}-contrast`],
+  })),
+);
+
+describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased }) => {
+  it("raises text contrast and holds secondary text to 7:1", () => {
     for (const role of ["text-primary", "text-secondary", "text-muted"] as const) {
       expect(contrastRatio(increased[role], increased.surface)).toBeGreaterThan(
         contrastRatio(standard[role], standard.surface),
       );
     }
-    expect(contrastRatio(increased["text-muted"], increased.surface)).toBeGreaterThanOrEqual(7);
+    for (const bg of ["canvas", "surface"] as const) {
+      for (const role of ["text-secondary", "text-muted"] as const) {
+        expect(contrastRatio(increased[role], increased[bg])).toBeGreaterThanOrEqual(7);
+      }
+    }
+  });
+
+  it("strengthens both line roles", () => {
+    for (const role of ["hairline", "hairline-strong"] as const) {
+      expect(contrastRatio(increased[role], increased.surface)).toBeGreaterThan(
+        contrastRatio(standard[role], standard.surface),
+      );
+    }
   });
 });
 

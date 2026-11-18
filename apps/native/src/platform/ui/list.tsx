@@ -68,6 +68,7 @@ export function ListRow({
   onPress,
   accessibilityHint,
   trailing,
+  checked,
 }: {
   icon?: ComponentType<IconProps>;
   title: string;
@@ -80,7 +81,13 @@ export function ListRow({
   accessibilityHint?: string;
   /** Replaces the accessory: a switch that toggles what the row names. */
   trailing?: ReactNode;
+  /**
+   * The switch state when `trailing` is a switch: the row then reads as one switch with its
+   * state and description, and the inner switch is hidden from screen readers.
+   */
+  checked?: boolean;
 }) {
+  const isSwitch = checked !== undefined;
   const [muted, danger, foreground] = useThemeColor(["muted", "danger", "foreground"]);
   const subtle = useSubtleColor();
   const plain = useContext(PlainContext);
@@ -89,10 +96,14 @@ export function ListRow({
     <ListGroup.Item
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
+      accessibilityRole={isSwitch ? "switch" : "button"}
       accessibilityLabel={value ? `${title}, ${value}` : title}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{ selected: accessory === "check" ? true : undefined, disabled }}
+      accessibilityHint={accessibilityHint ?? (isSwitch ? description : undefined)}
+      accessibilityState={{
+        selected: accessory === "check" ? true : undefined,
+        checked: isSwitch ? checked : undefined,
+        disabled,
+      }}
       className={cn(
         "min-h-12 gap-3 py-3 active:bg-default",
         plain && "rounded-xl px-0 py-4",
@@ -116,7 +127,12 @@ export function ListRow({
         </Text>
       ) : null}
       {trailing ? (
-        <ListGroup.ItemSuffix>{trailing}</ListGroup.ItemSuffix>
+        <ListGroup.ItemSuffix
+          accessibilityElementsHidden={isSwitch}
+          importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
+        >
+          {trailing}
+        </ListGroup.ItemSuffix>
       ) : accessory === "none" ? null : (
         <ListGroup.ItemSuffix>
           {accessory === "check" ? (

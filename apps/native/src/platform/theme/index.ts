@@ -43,8 +43,9 @@ function applyTheme(choice: ThemeChoice) {
   const variant = resolvedVariant(choice, systemScheme);
   applying = true;
   Uniwind.setTheme(variant);
-  // Custom Uniwind themes reset Appearance; force native chrome AFTER setting the theme.
-  Appearance.setColorScheme(scheme);
+  // Custom Uniwind themes reset Appearance, so set it AFTER the theme: forced for an explicit
+  // Light or Dark, released for Match device so the OS keeps reporting its own changes live.
+  Appearance.setColorScheme(choice.appearance === "system" ? "auto" : scheme);
   applying = false;
   void SystemUI.setBackgroundColorAsync(nativeColors[variant].canvas);
 }

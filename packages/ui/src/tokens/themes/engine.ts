@@ -137,11 +137,14 @@ export function deriveScheme(
   const floating = isLight ? surface : mixHex(surface, control, 0.5);
   const doneSoft = mixHex(surface, family.success, isLight ? 0.18 : 0.12);
   const grounds = [canvas, surface];
-  const textGrounds = [...grounds, doneSoft];
+  // Text also sits on completed-set rows, fields and controls, and floating sheets.
+  const textGrounds = [...grounds, doneSoft, control, floating];
   // Tones darken on light pages and lighten on dark ones, keeping their hue.
   const toward = isLight ? -1 : 1;
   const text = (color: string, ratio: number = TEXT) =>
     readableByLightness(color, textGrounds, ratio, toward);
+  // The selected-chip fill, tinted by the raw accent so the readable accent can be held to it.
+  const identitySoft = mixHex(surface, input.accent, isLight ? 0.12 : 0.14);
   const onAccent = input.onAccent ?? inkOn(input.accent, ink, canvas);
   // Hover and press move the fill away from its own ink, so the label only gains contrast.
   const shade = inkOn(onAccent, ink, canvas);
@@ -149,9 +152,10 @@ export function deriveScheme(
   // The fill keeps its label readable (darker under a light label, lighter under a dark one);
   // marks and text in the accent stay readable on the page.
   const action = readableByLightness(input.accent, [onAccent], TEXT, lightLabel ? -1 : 1);
-  const identity = readableByLightness(input.accent, grounds, TEXT, toward);
+  const identity = readableByLightness(input.accent, [...grounds, identitySoft], TEXT, toward);
   const onIdentity = inkOn(identity, surface, isLight ? ink : canvas);
   const danger = readableByLightness(family.danger, grounds, TEXT, toward);
+  const warningText = text(family.warning);
   const series = (color: string) => readableByLightness(color, grounds, MARK, toward);
   const [chart2, chart3, chart4, chart5] = family.chart;
   return {
@@ -173,7 +177,7 @@ export function deriveScheme(
     "chart-4": series(chart4),
     "chart-5": series(chart5),
     identity,
-    "identity-soft": mixHex(surface, identity, 0.14),
+    "identity-soft": identitySoft,
     "on-identity": onIdentity,
     "brand-detail": identity,
     "focus-ring": identity,
@@ -187,8 +191,9 @@ export function deriveScheme(
     "success-text": text(family.success),
     "on-success": inkOn(family.success, "#FFFFFF", "#111214"),
     warning: family.warning,
-    "warning-text": text(family.warning),
-    "on-warning": inkOn(family.warning, "#FFFFFF", "#111214"),
+    "warning-text": warningText,
+    // HeroUI's `warning` fill is the readable tone, so its label is chosen against that.
+    "on-warning": inkOn(warningText, "#FFFFFF", "#111214"),
     "set-done": family.success,
     "on-set-done": inkOn(family.success, "#FFFFFF", "#111214"),
     "set-done-soft": doneSoft,

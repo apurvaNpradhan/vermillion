@@ -86,14 +86,18 @@ export function AppearanceSheet({
             <Text className="px-1 font-semibold text-overline uppercase text-muted">
               {t("theme__themes")}
             </Text>
-            <View className="flex-row flex-wrap gap-3">
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel={t("theme__themes")}
+              className="flex-row flex-wrap gap-3"
+            >
               {themeIds.map((theme) => {
                 const selected = choice.theme === theme;
                 return (
                   <Pressable
                     key={theme}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected }}
+                    accessibilityState={{ checked: selected }}
                     accessibilityLabel={t(THEME_LABELS[theme])}
                     onPress={() => setChoice({ ...choice, theme })}
                     className="gap-2"
@@ -126,6 +130,7 @@ export function AppearanceSheet({
               title={t("theme__contrast")}
               description={t("theme__contrast_hint")}
               accessory="none"
+              checked={choice.contrast}
               onPress={() => setChoice({ ...choice, contrast: !choice.contrast })}
               trailing={
                 <Switch

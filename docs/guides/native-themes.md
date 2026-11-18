@@ -20,7 +20,9 @@ hue distance (60°) and that increased contrast really increases it.
 
 ## Adding a theme
 
-1. Add `themes/<id>.ts` and list the id in `themeIds` in `theme-variants.ts`.
+1. Add `themes/<id>.ts`, list the id in `themeIds` and register the definition in
+   `definitions`, both in `theme-variants.ts`. A seed that cannot reach a contrast rule makes
+   the build throw.
 2. Add its four variant names to `apps/native/theme-variants.js` (a test compares the lists) and
    restart Metro with `--clear`.
 3. Add `theme__<id>` to the locale and the label to `THEME_LABELS` in `theme-picker.tsx`.
@@ -33,3 +35,7 @@ Earlier formats keep their appearance; true black and retired palette fields are
 On a device, change the OS appearance with Match device selected, with the app open and after
 backgrounding it. Switch Light, Dark and Increase contrast and restart to check that the choice
 persists. Check status and navigation bars follow the canvas.
+
+HeroUI Native's blur and glass defaults guess dark mode with `endsWith("dark")`, which reads
+`nord-dark-contrast` as light. Pass an explicit tint from `useThemeMode()` wherever those
+defaults are used.

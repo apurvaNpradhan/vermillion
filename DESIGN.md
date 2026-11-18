@@ -39,17 +39,17 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 
 ### Foundations at a glance
 
-| Area     | Rule                                                         |
-| -------- | ------------------------------------------------------------ |
-| Modes    | Dark default + light mode via role tokens                    |
-| Action   | White primary button in dark, near-black in light            |
-| Color    | Neutral accent; color for data and status                    |
-| Surfaces | Four steps, spaced for phone screens                         |
-| Depth    | No shadows except floating layers and the button keycap edge |
-| Controls | 44pt Standard, 56–64pt Active                                |
-| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt     |
-| Radius   | 4/8/12/16/28                                                 |
-| Motion   | Full motion and haptic token sets                            |
+| Area     | Rule                                                                                             |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| Modes    | Light and dark (Match device), standard or increased contrast                                    |
+| Action   | The accent fills the one primary button                                                          |
+| Color    | Accent = you / now; `chart-1` is the accent, `chart-2`…`5` and status come from the theme family |
+| Surfaces | Four steps, spaced for phone screens                                                             |
+| Depth    | No shadows except floating layers and the button keycap edge                                     |
+| Controls | 44pt Standard, 56–64pt Active                                                                    |
+| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt                                         |
+| Radius   | 4/8/12/16/28                                                                                     |
+| Motion   | Full motion and haptic token sets                                                                |
 
 ## Decision log
 

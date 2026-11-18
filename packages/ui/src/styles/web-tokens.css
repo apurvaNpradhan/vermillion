@@ -11,7 +11,7 @@
     --backdrop: rgb(0 0 0 / 30%);
     --text-primary: #1b1717;
     --text-secondary: #484544;
-    --text-muted: #6b6968;
+    --text-muted: #666362;
     --text-disabled: #a7a5a4;
     --chart: #ee5242;
     --chart-1: #ee5242;
@@ -19,11 +19,11 @@
     --chart-3: #6f5a9e;
     --chart-4: #3f79a6;
     --chart-5: #b18000;
-    --identity: #ce3125;
-    --identity-soft: #f6e0dc;
+    --identity: #ca2d21;
+    --identity-soft: #fde9e5;
     --on-identity: #fdfcfa;
-    --brand-detail: #ce3125;
-    --focus-ring: #ce3125;
+    --brand-detail: #ca2d21;
+    --focus-ring: #ca2d21;
     --action: #d83c2f;
     --action-hover: #c9392d;
     --action-pressed: #ba362b;
@@ -31,21 +31,21 @@
     --danger: #c2364e;
     --on-danger: #ffffff;
     --success: #4fa77a;
-    --success-text: #12764c;
+    --success-text: #0c7349;
     --on-success: #111214;
     --warning: #d6a234;
-    --warning-text: #886200;
-    --on-warning: #111214;
+    --warning-text: #855f00;
+    --on-warning: #ffffff;
     --set-done: #4fa77a;
     --on-set-done: #111214;
     --set-done-soft: #deede3;
     --set-done-soft-foreground: #1b1717;
-    --set-warmup: #336d99;
-    --set-drop: #866417;
-    --set-failure: #94507c;
+    --set-warmup: #306a96;
+    --set-drop: #805e0d;
+    --set-failure: #914d79;
     --set-top: #6f5a9e;
-    --set-backoff: #2f7364;
-    --set-myo: #99572f;
+    --set-backoff: #2b7061;
+    --set-myo: #96542c;
     --plate-red: #c62828;
     --plate-blue: #1556b8;
     --plate-yellow: #f2c230;
@@ -55,11 +55,11 @@
     --on-plate-dark: #ffffff;
     --on-plate-light: #111214;
     --protein: #4b86b8;
-    --protein-text: #306b9b;
+    --protein-text: #2d6898;
     --carbs: #be9233;
-    --carbs-text: #886300;
+    --carbs-text: #815e00;
     --fat: #a9618f;
-    --fat-text: #96507d;
+    --fat-text: #934d7a;
   }
   @media (prefers-color-scheme: dark) {
     :root {

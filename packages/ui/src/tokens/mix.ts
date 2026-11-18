@@ -92,6 +92,8 @@ const inGamut = (channels: number[]) => channels.every((v) => v >= -1e-4 && v <=
 
 /** OKLCH to "#rrggbb", lowering chroma (never lightness or hue) until the colour fits sRGB. */
 export function fromOklch(color: Oklch): string {
+  if (color.l <= 0) return "#000000";
+  if (color.l >= 1) return "#FFFFFF";
   let channels = oklchToLinear(color);
   if (!inGamut(channels)) {
     let [lo, hi] = [0, color.c];
@@ -127,7 +129,8 @@ export function hueDistance(a: number, b: number): number {
 /**
  * `color` with its OKLCH lightness moved in `direction` (-1 darker, 1 lighter) in small steps
  * until it reaches `ratio` against every ground. Hue and chroma are kept, so a tone stays itself
- * instead of greying out the way mixing toward the ink would.
+ * instead of greying out the way mixing toward the ink would. Throws when no shade can reach
+ * the ratio, so a theme with incompatible seeds fails to build instead of shipping unreadable.
  */
 export function readableByLightness(
   color: string,
@@ -139,5 +142,7 @@ export function readableByLightness(
     const candidate = shiftLightness(color, direction * step);
     if (grounds.every((ground) => contrastRatio(candidate, ground) >= ratio)) return candidate;
   }
-  return direction < 0 ? "#000000" : "#FFFFFF";
+  throw new Error(
+    `No ${direction < 0 ? "darker" : "lighter"} shade of ${color} reaches ${ratio}:1 on ${grounds.join(", ")}`,
+  );
 }
