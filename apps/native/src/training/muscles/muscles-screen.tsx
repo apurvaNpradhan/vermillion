@@ -1,5 +1,5 @@
 import { isTargetMuscle, type TargetMuscle } from "@workspace/shared";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import { BodyMapPair, intensityTints, isBodyGroup, type BodyGroup } from "@/body-map";
@@ -17,7 +17,7 @@ import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-
 import { bodyIntensity } from "./muscle-bars";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
 import { MuscleRow } from "./muscle-row";
-import { muscleRadarAxes } from "./muscle-axes";
+import { muscleRadarAxes, radarValue } from "./muscle-axes";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useMuscleVolume } from "./use-muscle-volume";
 
@@ -29,10 +29,11 @@ type Span = "week" | "four";
 const WEEKS: Record<Span, number> = { week: 1, four: 4 };
 
 /**
- * Muscles: a period card (Week, or the average a week over four) with a radar of six muscle
- * groups against their targets, the body map tinted from quiet to the accent, and every muscle
- * under it, below target first. A row opens that muscle's goal; the arrows and a swipe step back
- * a week at a time.
+ * Muscles: a period card (Week, or the average a week over the four whole weeks before it) with a
+ * radar of weighted muscle volume in six groups against their targets, the body map tinted from
+ * quiet to the accent, and every muscle under it, below target first. A row opens that muscle's
+ * goal; the arrows and a swipe step back a week at a time. The card and its controls stay
+ * mounted while the next period loads, showing the previous one until it lands.
  */
 export function MusclesScreen() {
   const { t, i18n } = useTranslation();
@@ -68,22 +69,38 @@ export function MusclesScreen() {
           ? t("muscles__last_week")
           : range;
   const targets = volume.rows.filter((row) => row.status !== null);
-  const sets = volume.loads.reduce((sum, load) => sum + load.sets, 0);
-  const rounded = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(sets);
+  const rounded = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(
+    volume.completedSets,
+  );
+  // With no target the headline is the sets actually done, not the weighted volume the radar draws.
   const headlineText =
     targets.length > 0
       ? t("muscles__tile_value", { done: volume.onTarget, total: targets.length })
       : span === "four"
         ? t("muscles__avg_per_week", { sets: rounded })
-        : t("stats__sets", { count: Math.round(sets) });
-  const axes = muscleRadarAxes(volume.loads, volume.rows);
+        : t("stats__sets", { count: Math.round(volume.completedSets) });
+  const axes = useMemo(
+    () => muscleRadarAxes(volume.loads, volume.rows),
+    [volume.loads, volume.rows],
+  );
   const hasTarget = axes.some((axis) => axis.target !== null);
   const axisName = (key: (typeof axes)[number]["key"]) => t(`muscles__axis_${key}`);
+  const radarAxes = useMemo(
+    () =>
+      axes.map((axis) => ({
+        key: axis.key,
+        label: t(`muscles__axis_${axis.key}`),
+        value: radarValue(axis),
+        target: axis.target,
+      })),
+    [axes, t],
+  );
   const peak = Math.max(1, ...volume.loads.map((load) => load.sets));
   const intensity: Partial<Record<BodyGroup, number>> = {};
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
-  const tints = intensityTints(intensity, colors["surface-control"], colors.identity);
+  const silhouette = colors["surface-control"];
+  const tints = intensityTints(intensity, silhouette, colors.identity);
   const canPrevious = weeksAgo < MAX_WEEKS_AGO;
   const canNext = weeksAgo > 0;
   const step = (by: -1 | 1) => {
@@ -126,22 +143,24 @@ export function MusclesScreen() {
           >
             <View className="gap-2">
               <RadarChart
-                axes={axes.map((axis) => ({
-                  key: axis.key,
-                  label: axisName(axis.key),
-                  value: axis.sets,
-                  target: axis.target,
-                }))}
+                axes={radarAxes}
                 accessibilityLabel={t("muscles__radar_label", {
                   values: axes
-                    .map((axis) =>
-                      t("muscles__radar_value", {
-                        axis: axisName(axis.key),
-                        sets: new Intl.NumberFormat(i18n.language, {
-                          maximumFractionDigits: 1,
-                        }).format(axis.sets),
-                      }),
-                    )
+                    .map((axis) => {
+                      const format = new Intl.NumberFormat(i18n.language, {
+                        maximumFractionDigits: 1,
+                      });
+                      return axis.target === null
+                        ? t("muscles__radar_value", {
+                            axis: axisName(axis.key),
+                            sets: format.format(radarValue(axis)),
+                          })
+                        : t("muscles__radar_value_target", {
+                            axis: axisName(axis.key),
+                            sets: format.format(radarValue(axis)),
+                            target: format.format(axis.target),
+                          });
+                    })
                     .join(", "),
                 })}
               />
@@ -151,7 +170,7 @@ export function MusclesScreen() {
             </View>
           </PeriodCard>
           <View className="gap-2 rounded-2xl bg-surface p-4">
-            <BodyMapPair intensity={intensity} tints={tints} />
+            <BodyMapPair intensity={intensity} tints={tints} silhouette={silhouette} />
             <Text className="text-center text-caption text-muted">
               {t(volume.planned === null ? "muscles__map_volume_caption" : "muscles__map_caption")}
             </Text>
