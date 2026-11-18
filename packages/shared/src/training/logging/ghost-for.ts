@@ -1,4 +1,4 @@
-import type { SuggestedSet } from "../progress/progression";
+import { progresses, type SuggestedSet } from "../progress/progression";
 import type { SetField } from "../../exercise/vocabulary";
 import type { SetValues } from "./logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
@@ -20,7 +20,7 @@ export function ghostFor(
   target: PlannedSet | null,
   suggestion?: SuggestedSet | null,
 ): number | null {
-  if (suggestion) {
+  if (suggestion && (!target || progresses(target.kind))) {
     if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
     if (field === "reps" && suggestion.reps !== null) return suggestion.reps;
   }

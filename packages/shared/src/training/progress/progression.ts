@@ -64,7 +64,7 @@ const EASY_RPE = 7;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
 const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
-const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
+export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
 const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
 
