@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import Animated, { useAnimatedProps, useReducedMotion, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedProps, withTiming } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
 import { isColorString, useIdentityColor } from "@/platform/theme";
+import { useReduceMotion } from "./use-reduce-motion";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const FILL_MS = 320;
@@ -29,7 +30,7 @@ export function ProgressRing({
 }) {
   const track = useCSSVariable("--color-default");
   const fill = useIdentityColor();
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const radius = (size - stroke) / 2;
   const circumference = Math.PI * 2 * radius;
   const clamped = Math.min(1, Math.max(0, fraction));

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useReducedMotion, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 
 import { indicatorOffset, indexOfValue, segmentWidth } from "./segmented-index";
+import { useReduceMotion } from "./use-reduce-motion";
 
 export type SegmentedOption<T extends string> = { value: T; label: string };
 
@@ -27,7 +28,7 @@ export function SegmentedControl<T extends string>({
   accessibilityLabel: string;
 }) {
   const [width, setWidth] = useState(0);
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const inner = Math.max(width - PAD * 2, 0);
   const index = value === null ? -1 : indexOfValue(options, value);
   // Plain numbers, worked out on the JS thread: the helpers are not worklets.

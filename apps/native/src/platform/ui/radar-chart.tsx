@@ -12,7 +12,6 @@ import { View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   Easing,
   useAnimatedProps,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -29,6 +28,7 @@ import {
   ringPoints,
   toFractions,
 } from "./radar-chart-math";
+import { useReduceMotion } from "./use-reduce-motion";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -92,7 +92,7 @@ export function RadarChart({
   const fractions = useMemo(() => toFractions(values, domain), [values, domain]);
   const targetFractions = useMemo(() => toFractions(targets, domain), [targets, domain]);
 
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const reveal = useSharedValue(reduced ? 1 : 0);
   const from = useSharedValue<(number | null)[]>(fractions);
   const to = useSharedValue<(number | null)[]>(fractions);

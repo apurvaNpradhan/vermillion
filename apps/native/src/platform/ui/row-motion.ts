@@ -1,10 +1,5 @@
-import {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  ReduceMotion,
-  useReducedMotion,
-} from "react-native-reanimated";
+import { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
+import { useReduceMotion } from "./use-reduce-motion";
 
 const ENTER_MS = 200;
 const EXIT_MS = 150;
@@ -25,7 +20,7 @@ const reducedExiting = FadeOut.duration(REDUCED_MS).reduceMotion(ReduceMotion.Ne
  * the row that leaves is not the row that fades.
  */
 export function useRowMotion({ exit = true }: { exit?: boolean } = {}) {
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   return {
     entering: reduced ? reducedEntering : entering,
     exiting: exit ? (reduced ? reducedExiting : exiting) : undefined,
