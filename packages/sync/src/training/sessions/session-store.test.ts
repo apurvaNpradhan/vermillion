@@ -733,6 +733,39 @@ describe("equipment and settings", () => {
     expect(s.all("exercise_setting")).toHaveLength(2);
     await expect(setExerciseSetting(s.training, SQUAT, { bar_id: "nope" })).rejects.toThrow();
   });
+
+  it("updates the bar, effort, progression and warm-up settings independently", async () => {
+    const s = await setupSessions();
+    const [barId] = await upsertEquipment(s.training, [bar]);
+    const id = await setExerciseSetting(s.training, SQUAT, {
+      progression_per_set: true,
+      auto_warmups: true,
+    });
+    const stored = () => s.one("exercise_setting", id);
+    // Changing the bar must not clear what the other switches say.
+    await setExerciseSetting(s.training, SQUAT, { bar_id: barId });
+    expect(stored()).toMatchObject({
+      bar_id: barId,
+      log_effort: 0,
+      progression_per_set: 1,
+      auto_warmups: 1,
+    });
+    await setExerciseSetting(s.training, SQUAT, { log_effort: true });
+    expect(stored()).toMatchObject({ bar_id: barId, log_effort: 1, auto_warmups: 1 });
+    // Turning Auto warm-ups on or off leaves per-set progression alone, and the reverse.
+    await setExerciseSetting(s.training, SQUAT, { auto_warmups: false });
+    expect(stored()).toMatchObject({ progression_per_set: 1, auto_warmups: 0 });
+    await setExerciseSetting(s.training, SQUAT, { progression_per_set: false });
+    await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+    expect(stored()).toMatchObject({
+      bar_id: barId,
+      log_effort: 1,
+      progression_per_set: 0,
+      auto_warmups: 1,
+    });
+    await setExerciseSetting(s.training, SQUAT, { bar_id: null });
+    expect(stored()).toMatchObject({ bar_id: null, auto_warmups: 1, log_effort: 1 });
+  });
 });
 
 it("restores deleted sets and exercises with original values, order and completion", async () => {

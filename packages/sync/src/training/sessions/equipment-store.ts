@@ -60,7 +60,14 @@ export async function upsertEquipment(
   });
 }
 
-const settingPatch = exerciseSettingInput.omit({ exercise_id: true }).partial();
+// Plain optionals, not the create schema's `.default(false)` fields: an omitted field must stay
+// omitted, or changing the bar would silently switch the other settings off.
+const settingPatch = z.strictObject({
+  bar_id: exerciseSettingInput.shape.bar_id.optional(),
+  log_effort: z.boolean().optional(),
+  progression_per_set: z.boolean().optional(),
+  auto_warmups: z.boolean().optional(),
+});
 /** What an exercise remembers: the bar and whether the effort column is on. */
 export type ExerciseSettingPatch = z.infer<typeof settingPatch>;
 
