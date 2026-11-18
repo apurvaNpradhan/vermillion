@@ -9,7 +9,7 @@ import {
   workoutStructureKey,
   type PlannedSet,
 } from "@workspace/shared";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { programRun, programSlot } from "../tables";
 import { hasCountedSetSql } from "../plans/run-store";
@@ -53,8 +53,15 @@ export type SessionSource = {
 async function createSessionIn(
   tx: Tx,
   source: SessionSource,
-  fields: { id: string; startedAt: string; finishedAt: string | null; durationS: number | null },
-  run: typeof programRun.$inferSelect | null,
+  fields: {
+    id: string;
+    startedAt: string;
+    finishedAt: string | null;
+    durationS: number | null;
+    /** A past workout: it joins the run only if it does not predate the run's own history. */
+    backfill?: boolean;
+  },
+  activeRun: typeof programRun.$inferSelect | null,
 ) {
   const userId = await ownerOf(tx);
   const deviceId = await installIdOf(tx);
@@ -72,15 +79,8 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
-  const active = run && plan?.program_id === run.program_id ? run : null;
-  const slots = active
-    ? await tx
-        .select()
-        .from(programSlot)
-        .where(eq(programSlot.program_id, active.program_id))
-        .orderBy(asc(programSlot.position), asc(programSlot.id))
-    : [];
-  const history = active
+  const matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  const runSessions = matching
     ? await tx
         .select({
           id: session.id,
@@ -91,14 +91,34 @@ async function createSessionIn(
           hasCountedSet: sql.raw(hasCountedSetSql).mapWith(Boolean),
         })
         .from(session)
-        .where(eq(session.run_id, active.id))
+        .where(eq(session.run_id, matching.id))
     : [];
+  // A backfill joins the run unless it starts before the run's first Session (or, with none
+  // yet, more than a day before the run was activated): that workout belongs to an earlier
+  // period. Sessions outside the run never matter.
+  const firstStart = runSessions.map((item) => item.startedAt).sort()[0];
+  const runStart =
+    firstStart ??
+    (matching ? new Date(Date.parse(matching.activated_at) - 86_400_000).toISOString() : null);
+  const active =
+    matching && !(fields.backfill && runStart !== null && fields.startedAt < runStart)
+      ? matching
+      : null;
+  const slots = active
+    ? await tx
+        .select()
+        .from(programSlot)
+        .where(eq(programSlot.program_id, active.program_id))
+        .orderBy(asc(programSlot.position), asc(programSlot.id))
+    : [];
+  // Out of order is fine: the cycle and slot come from the run's Sessions up to this start.
+  const history = active ? runSessions.filter((item) => item.startedAt <= fields.startedAt) : [];
   const progress = cycleState(
     slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
     history,
   );
   const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
-  if (active && !active.started_at)
+  if (active && (!active.started_at || fields.startedAt < active.started_at))
     await tx
       .update(programRun)
       .set({ started_at: fields.startedAt })
@@ -223,25 +243,11 @@ export function logPastSession(
     const id = uuidv7();
     const startedAt = new Date(when.startedAt).toISOString();
     const end = new Date(Date.parse(startedAt) + (durationS ?? 0) * 1000).toISOString();
-    const [latest] =
-      active && source.workoutId
-        ? await tx
-            .select({ startedAt: session.started_at })
-            .from(session)
-            .orderBy(desc(session.started_at), desc(session.id))
-            .limit(1)
-        : [];
-    const run = latest && Date.parse(latest.startedAt) > Date.parse(startedAt) ? null : active;
     await createSessionIn(
       tx,
       source,
-      {
-        id,
-        startedAt,
-        finishedAt: end,
-        durationS,
-      },
-      run,
+      { id, startedAt, finishedAt: end, durationS, backfill: true },
+      active,
     );
     return id;
   });
