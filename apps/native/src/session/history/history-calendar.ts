@@ -44,6 +44,21 @@ export function shiftPeriod(period: Period, start: number, delta: number): numbe
   }
 }
 
+/**
+ * The local days (UTC-midnight stamps, `[from, to)`) a visible period reads: its whole year plus
+ * a week either side, so week counts at the edges and the previous week are complete. Moving
+ * between weeks, months and years of one year therefore needs no new read. `null` for All, which
+ * reads everything.
+ */
+export function historyWindow(period: Period, start: number, weekStart: WeekStart) {
+  if (period === "all") return null;
+  const year = new Date(start).getUTCFullYear();
+  return {
+    from: weekStartDay(Date.UTC(year, 0, 1), weekStart) - WEEK_MS,
+    to: weekStartDay(Date.UTC(year, 11, 31), weekStart) + 2 * WEEK_MS,
+  };
+}
+
 /** Week-aligned rows with padding outside the month. All dates are UTC calendar days. */
 export function monthRows(start: number, weekStart: WeekStart) {
   const lead = weekColumn(new Date(start).getUTCDay(), weekStart);

@@ -2,39 +2,101 @@ import { useWeight } from "@/body";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
 import { useActiveProgram } from "@/training";
-import { dailyWeights, sessionGoal, trendAt, trendSeries } from "@workspace/shared";
+import {
+  bodyweightLookup,
+  dailyWeights,
+  fromZonedParts,
+  sessionGoal,
+  type WeekStart,
+} from "@workspace/shared";
 import { watchFinishedHistory, watchRecordHistory, type FinishedSession } from "@workspace/sync";
 import { useCallback, useMemo } from "react";
 
 import { buildHistory } from "./history-calendar";
 
-const subscribe = (
+const subscribeAll = (
   database: Parameters<typeof watchFinishedHistory>[0],
   onValue: (sessions: FinishedSession[]) => void,
   onError: () => void,
 ) => watchFinishedHistory(database, { onSessions: onValue, onError });
 
-export function useSessionHistory() {
-  const state = useLocalWatch(subscribe);
+const idle = () => () => undefined;
+
+/** What the History screen needs from preferences and the active program. */
+export function useHistorySettings() {
+  const { preferences } = usePreferences();
+  const program = useActiveProgram();
+  const { sessionsPerWeek, weekStart, weightUnit } = preferences.ui;
+  return {
+    timezone: preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    weekStart,
+    weightUnit,
+    goal: sessionGoal(program.program, sessionsPerWeek),
+  };
+}
+
+/**
+ * The History for a visible period. A `window` (local days, see `historyWindow`) reads only the
+ * Sessions of that range, so Week, Month and Year never wait for the whole log; `null` reads all
+ * of it (the All period).
+ */
+export function useSessionHistory(
+  window: { from: number; to: number } | null,
+  timezone: string,
+  weekStart: WeekStart,
+) {
   const { preferences } = usePreferences();
   const weight = useWeight();
-  const program = useActiveProgram();
-  const { bodyweightKg, sessionsPerWeek, weekStart, weightUnit } = preferences.ui;
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { bodyweightKg } = preferences.ui;
+  const from = window?.from;
+  const to = window?.to;
+  const subscribeRange = useCallback(
+    (
+      database: Parameters<typeof watchFinishedHistory>[0],
+      onValue: (sessions: FinishedSession[]) => void,
+      onError: () => void,
+    ) => {
+      if (from === undefined || to === undefined) return idle();
+      const day = (stamp: number) => {
+        const date = new Date(stamp);
+        return fromZonedParts(
+          {
+            year: date.getUTCFullYear(),
+            month: date.getUTCMonth() + 1,
+            day: date.getUTCDate(),
+            hour: 0,
+            minute: 0,
+          },
+          timezone,
+        );
+      };
+      return watchFinishedHistory(
+        database,
+        { onSessions: onValue, onError },
+        { from: day(from), to: day(to) },
+      );
+    },
+    [from, to, timezone],
+  );
+  const ranged = useLocalWatch(subscribeRange);
+  const all = useLocalWatch(window === null ? subscribeAll : idle);
+  const state = window === null ? all : ranged;
   const { entries } = weight;
   const history = useMemo(() => {
-    const series = trendSeries(dailyWeights(entries));
-    return buildHistory(state.value ?? [], timezone, weekStart, (day) =>
-      entries.length ? trendAt(series, new Date(day).toISOString().slice(0, 10)) : bodyweightKg,
-    );
+    // The same rule as session detail (`bodyweightOn`): measured weight through the day, resolved
+    // once per account-local day.
+    const lookup = bodyweightLookup(dailyWeights(entries), bodyweightKg);
+    const byDay = new Map<number, number | null>();
+    return buildHistory(state.value ?? [], timezone, weekStart, (day) => {
+      if (byDay.has(day)) return byDay.get(day) ?? null;
+      const kg = lookup(new Date(day).toISOString().slice(0, 10));
+      byDay.set(day, kg);
+      return kg;
+    });
   }, [state.value, entries, timezone, weekStart, bodyweightKg]);
 
   return {
     history,
-    timezone,
-    weekStart,
-    weightUnit,
-    goal: sessionGoal(program.program, sessionsPerWeek),
     // SQLite controls History availability. Preferences and weigh-ins can arrive separately.
     loading: state.loading,
     failed: state.failed,

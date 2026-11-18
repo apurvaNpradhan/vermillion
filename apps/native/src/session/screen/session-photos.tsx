@@ -13,9 +13,12 @@ import { useSessionPhotos } from "./use-session-photos";
 export function SessionPhotos({
   sessionId,
   readOnly = false,
+  localOnly = false,
 }: {
   sessionId: string;
   readOnly?: boolean;
+  /** Thumbnails and the viewer use only files already on this device (the History list). */
+  localOnly?: boolean;
 }) {
   const state = useSessionPhotos(sessionId);
   const { t } = useTranslation();
@@ -57,7 +60,7 @@ export function SessionPhotos({
                 setSelected({ id: photo.id, index });
             }}
           >
-            <MediaImage mediaId={photo.media_id} size={readOnly ? 44 : 112} />
+            <MediaImage mediaId={photo.media_id} size={readOnly ? 44 : 112} localOnly={localOnly} />
           </Pressable>
         ))}
         {!readOnly && state.photos.length < 4 ? (
@@ -129,6 +132,7 @@ export function SessionPhotos({
       {viewing !== null && state.photos.length ? (
         <MediaViewer
           mediaIds={state.photos.map((photo) => photo.media_id)}
+          localOnly={localOnly}
           index={Math.min(viewing, state.photos.length - 1)}
           onIndexChange={setViewing}
           onClose={() => setViewing(null)}

@@ -90,7 +90,7 @@ export function HistoryRow({
       )}
       <View className="min-w-0 flex-1 gap-1">
         <Text className="text-title-md text-foreground">{session.title}</Text>
-        {!compact && <SessionPhotos sessionId={session.id} readOnly />}
+        {!compact && <SessionPhotos sessionId={session.id} readOnly localOnly />}
         <Text className="text-caption tabular-nums text-muted">
           {compact
             ? t("session__compact_history_row", {

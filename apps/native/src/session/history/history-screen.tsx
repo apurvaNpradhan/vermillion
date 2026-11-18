@@ -21,14 +21,20 @@ import { Page } from "@/platform/ui/page";
 import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-control";
 
 import { groupSessionWeeks } from "./history";
-import { emptyTotals, periodStart, shiftPeriod, type Period } from "./history-calendar";
+import {
+  emptyTotals,
+  historyWindow,
+  periodStart,
+  shiftPeriod,
+  type Period,
+} from "./history-calendar";
 import { HistoryCalendar } from "./history-calendar-view";
 import { historyFormat } from "./history-format";
 import { HistoryAll, HistoryWeek, HistoryYear } from "./history-period-details";
 import { HistoryRow, WeekHeading } from "./history-rows";
 import { NumberFlow } from "@/platform/ui/number-flow";
 import { PeriodCard } from "@/platform/ui/period-card";
-import { useSessionHistory } from "./use-session-history";
+import { useHistorySettings, useSessionHistory } from "./use-session-history";
 
 type HistoryItem =
   | { kind: "week"; id: string; sessions: readonly FinishedSession[] }
@@ -61,8 +67,7 @@ export function HistoryScreen() {
   const router = useRouter();
   const subtle = useSubtleColor();
   const reduced = useReducedMotion();
-  const { history, timezone, weekStart, weightUnit, goal, loading, failed, retry } =
-    useSessionHistory();
+  const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
   const [selection, setSelection] = useState<Selection>({
     period: "month",
@@ -73,6 +78,8 @@ export function HistoryScreen() {
   const { period, anchor, direction } = selection;
   const latest = periodStart(period, today, weekStart);
   const start = Math.min(latest, periodStart(period, anchor ?? today, weekStart));
+  const readWindow = historyWindow(period, start, weekStart);
+  const { history, loading, failed, retry } = useSessionHistory(readWindow, timezone, weekStart);
   const currentWeek = periodStart("week", today, weekStart);
   const format = useMemo(
     () => historyFormat(i18n.language, weightUnit),
@@ -279,7 +286,7 @@ export function HistoryScreen() {
                     : t("session__history_empty_period")
                 }
                 action={
-                  history.totals.workouts === 0
+                  activeDay === null
                     ? { label: t("session__log_past"), onPress: openLog }
                     : undefined
                 }
