@@ -6,22 +6,7 @@ const { wrapWithReanimatedMetroConfig } = require("react-native-reanimated/metro
 const config = getDefaultConfig(__dirname);
 
 module.exports = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
-  // One variant per accent and mode (packages/ui variantName); mono owns light and dark.
-  extraThemes: [
-    "black",
-    "vermilion-light",
-    "vermilion-dark",
-    "vermilion-black",
-    "indigo-light",
-    "indigo-dark",
-    "indigo-black",
-    "orchid-light",
-    "orchid-dark",
-    "orchid-black",
-    "sky-light",
-    "sky-dark",
-    "sky-black",
-  ],
+  extraThemes: ["black"],
   cssEntryFile: "./global.css",
   dtsFile: "./uniwind-types.d.ts",
 });

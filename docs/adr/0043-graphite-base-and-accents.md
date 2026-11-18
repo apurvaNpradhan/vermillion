@@ -1,6 +1,6 @@
 # 0043. One neutral base with a separate accent
 
-Status: accepted, 2026-11-16. Supersedes the palette collection in
+Status: superseded by [0047](0047-seeded-palettes.md) (2026-11-17). Was accepted 2026-11-16. Supersedes the palette collection in
 [0039](0039-hand-tuned-native-themes.md). Its colour-only layout rule, device-local storage and
 contrast requirements remain.
 

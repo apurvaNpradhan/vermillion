@@ -1,0 +1,1726 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cinnabar palette gallery</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--foreground, CanvasText);
+        font: 15px/1.45 var(--font-sans, system-ui, sans-serif);
+      }
+      main {
+        display: grid;
+        gap: 18px;
+        max-width: 1080px;
+        margin-inline: auto;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(26px, 5vw, 38px);
+        line-height: 1.1;
+        letter-spacing: -0.055em;
+      }
+      header p {
+        margin-top: 7px;
+      }
+      button,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--ring, Highlight);
+        outline-offset: 3px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+      }
+      .segments {
+        display: inline-flex;
+        flex-wrap: wrap;
+        padding: 3px;
+        gap: 2px;
+        border: 1px solid var(--border, GrayText);
+        border-radius: 12px;
+      }
+      .segments button {
+        border: 0;
+        padding: 7px 11px;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font-weight: 550;
+        font-size: 13px;
+      }
+      .segments button[aria-pressed="true"] {
+        background: var(--secondary, ButtonFace);
+        color: var(--secondary-foreground, ButtonText);
+      }
+      .comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        align-items: start;
+      }
+      .column {
+        min-width: 0;
+      }
+      .picker {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 7px;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      select {
+        width: 100%;
+        min-width: 0;
+        color: inherit;
+        background: var(--card, Canvas);
+        border: 1px solid var(--border, GrayText);
+        border-radius: 9px;
+        padding: 8px;
+      }
+      .screen {
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+        padding: clamp(10px, 2.7vw, 22px);
+        min-height: 378px;
+        border-radius: 18px;
+        background: var(--canvas);
+        color: var(--text-primary);
+        border: 1px solid var(--hairline);
+        font-variant-numeric: tabular-nums;
+      }
+      .screen h2 {
+        font-size: clamp(20px, 3.8vw, 30px);
+        line-height: 1.1;
+        letter-spacing: -0.045em;
+        margin-top: 3px;
+      }
+      .screen h3 {
+        font-size: 15px;
+        line-height: 1.25;
+      }
+      .screen small {
+        color: var(--text-muted);
+        font-size: 11px;
+      }
+      .screen .lead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 5px;
+      }
+      .timer {
+        padding: 5px 8px;
+        border-radius: 9px;
+        background: var(--identity-soft);
+        color: var(--text-primary);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .timer small {
+        display: block;
+        color: inherit;
+      }
+      .block {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .exercise {
+        display: grid;
+        gap: 5px;
+      }
+      .set {
+        display: grid;
+        grid-template-columns: 1fr 1fr 0.75fr 26px;
+        gap: 4px;
+        align-items: center;
+        text-align: center;
+        padding: 4px;
+        min-height: 31px;
+        border-radius: 7px;
+      }
+      .set:first-child {
+        padding-top: 0;
+      }
+      .set > :first-child {
+        text-align: left;
+        padding-left: 4px;
+      }
+      .set.done {
+        background: var(--set-done-soft);
+      }
+      .set.current {
+        background: var(--surface-control);
+        outline: 1px solid var(--identity);
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        justify-self: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        color: var(--text-muted);
+        font-size: 11px;
+        line-height: 1;
+      }
+      .done .mark {
+        background: var(--set-done);
+        color: var(--on-set-done);
+      }
+      .primary {
+        width: 100%;
+        margin-top: auto;
+        border: 0;
+        border-radius: 11px;
+        background: var(--action);
+        color: var(--on-action);
+        min-height: 39px;
+        padding: 7px 5px;
+        font-weight: 700;
+      }
+      .primary:hover {
+        background: var(--action-hover);
+      }
+      .primary:active {
+        background: var(--action-pressed);
+      }
+      .primary:focus-visible {
+        outline-color: var(--focus-ring);
+      }
+      .primary:disabled {
+        opacity: 1;
+        cursor: default;
+      }
+      .note {
+        color: var(--danger);
+        font-size: 11px;
+      }
+      .big {
+        display: block;
+        font-size: 36px;
+        letter-spacing: -0.07em;
+        line-height: 1.1;
+      }
+      .chart {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        align-items: end;
+        height: 107px;
+        gap: 7px;
+        margin-top: 8px;
+      }
+      .bar {
+        display: grid;
+        align-content: end;
+        justify-items: center;
+        height: 100%;
+        gap: 3px;
+      }
+      .bar i {
+        display: block;
+        height: var(--bar-height);
+        width: 76%;
+        border-radius: 4px 4px 0 0;
+        background: var(--chart);
+      }
+      .bar small {
+        text-align: center;
+      }
+      .change {
+        color: var(--success-text);
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .info {
+        display: grid;
+        gap: 6px;
+        align-content: start;
+        margin-top: 7px;
+        font-size: 12px;
+      }
+      .strip {
+        display: flex;
+        height: 10px;
+        border: 1px solid var(--border, GrayText);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .strip i {
+        flex: 1;
+      }
+      details summary {
+        cursor: pointer;
+      }
+      dl {
+        margin: 6px 0 0;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 3px 8px;
+      }
+      dd {
+        margin: 0;
+        font-family: var(--font-mono, monospace);
+      }
+      .palette-bank h2 {
+        font-size: 18px;
+      }
+      .palette-bank p {
+        font-size: 13px;
+        margin: 3px 0 8px;
+      }
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(106px, 1fr));
+        gap: 6px;
+      }
+      .choices button {
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        border: 1px solid var(--border, GrayText);
+        border-radius: 9px;
+        padding: 6px;
+        font-size: 12px;
+      }
+      .choices button[aria-pressed="true"] {
+        border-color: var(--foreground, CanvasText);
+        font-weight: 700;
+      }
+      .choices .strip {
+        margin-bottom: 4px;
+        height: 9px;
+      }
+      @media (max-width: 430px) {
+        .comparison {
+          gap: 6px;
+        }
+        .screen {
+          padding: 8px;
+          gap: 8px;
+          min-height: 353px;
+        }
+        .block {
+          padding: 7px;
+        }
+        .timer {
+          font-size: 12px;
+        }
+        .set {
+          font-size: 13px;
+        }
+        .chart {
+          gap: 2px;
+        }
+        .bar small {
+          font-size: 9px;
+        }
+      }
+      @media (max-width: 320px) {
+        .comparison {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Cinnabar palette gallery</h1>
+        <p>16 candidates on the same workout screens. Pick two to compare.</p>
+      </header>
+      <div class="toolbar">
+        <div class="segments" aria-label="Appearance" role="group">
+          <button type="button" data-mode="light" aria-pressed="false">Light</button>
+          <button type="button" data-mode="dark" aria-pressed="true">Dark</button>
+          <button type="button" data-mode="black" aria-pressed="false">True black</button>
+        </div>
+        <div class="segments" aria-label="Screen" role="group">
+          <button type="button" data-scene="training" aria-pressed="true">Training</button>
+          <button type="button" data-scene="progress" aria-pressed="false">Progress</button>
+        </div>
+      </div>
+      <div class="comparison">
+        <section class="column" aria-label="Palette A">
+          <label class="picker"
+            >A
+            <select id="palette-a" aria-label="Palette A"></select
+          ></label>
+          <div class="screen" id="screen-a"></div>
+          <div class="info" id="info-a"></div>
+        </section>
+        <section class="column" aria-label="Palette B">
+          <label class="picker"
+            >B
+            <select id="palette-b" aria-label="Palette B"></select
+          ></label>
+          <div class="screen" id="screen-b"></div>
+          <div class="info" id="info-b"></div>
+        </section>
+      </div>
+      <section class="palette-bank" aria-labelledby="bank-title">
+        <h2 id="bank-title">All palettes</h2>
+        <p>Select a swatch to load it into B.</p>
+        <div class="choices" id="choices"></div>
+      </section>
+    </main>
+    <script type="application/json" id="palettes">
+      [
+        {
+          "name": "Ink",
+          "description": "Neutral greys and a monochrome action.",
+          "modes": {
+            "light": {
+              "canvas": "#F2F2F2",
+              "surface": "#FFFFFF",
+              "surface-control": "#E7E7E7",
+              "text-primary": "#181818",
+              "text-muted": "#6D6D6D",
+              "hairline": "#DFDFDF",
+              "identity": "#292929",
+              "identity-soft": "#E1E1E1",
+              "action": "#292929",
+              "on-action": "#FFFFFF",
+              "action-hover": "#282828",
+              "action-pressed": "#262626",
+              "chart": "#292929",
+              "focus-ring": "#292929",
+              "set-done-soft": "#E6F3EC",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3D795B"
+            },
+            "dark": {
+              "canvas": "#171717",
+              "surface": "#232323",
+              "surface-control": "#2B2B2B",
+              "text-primary": "#F4F4F4",
+              "text-muted": "#ACACAC",
+              "hairline": "#333333",
+              "identity": "#DADADA",
+              "identity-soft": "#3D3D3D",
+              "action": "#DADADA",
+              "on-action": "#171717",
+              "action-hover": "#DCDCDC",
+              "action-pressed": "#DEDEDE",
+              "chart": "#DADADA",
+              "focus-ring": "#DADADA",
+              "set-done-soft": "#33443B",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#131313",
+              "surface-control": "#1A1A1A",
+              "text-primary": "#F4F4F4",
+              "text-muted": "#9C9C9C",
+              "hairline": "#232323",
+              "identity": "#DADADA",
+              "identity-soft": "#2F2F2F",
+              "action": "#DADADA",
+              "on-action": "#171717",
+              "action-hover": "#DCDCDC",
+              "action-pressed": "#DEDEDE",
+              "chart": "#DADADA",
+              "focus-ring": "#DADADA",
+              "set-done-soft": "#26372E",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "17.76", "button": "14.55", "chart": "14.55" },
+            "dark": { "text": "14.29", "button": "12.82", "chart": "11.24" },
+            "black": { "text": "16.89", "button": "12.82", "chart": "13.29" }
+          }
+        },
+        {
+          "name": "Juniper",
+          "description": "Blue-green surfaces with a clear mint action.",
+          "modes": {
+            "light": {
+              "canvas": "#EAF2EE",
+              "surface": "#F9FCFA",
+              "surface-control": "#DFE8E4",
+              "text-primary": "#142721",
+              "text-muted": "#616E6A",
+              "hairline": "#D7E0DC",
+              "identity": "#20604E",
+              "identity-soft": "#DBE6E2",
+              "action": "#20604E",
+              "on-action": "#FFFFFF",
+              "action-hover": "#1F5B4A",
+              "action-pressed": "#1E5747",
+              "chart": "#20604E",
+              "focus-ring": "#20604E",
+              "set-done-soft": "#E1F0E8",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#397658"
+            },
+            "dark": {
+              "canvas": "#101E1A",
+              "surface": "#172B24",
+              "surface-control": "#1F332C",
+              "text-primary": "#E6F4EC",
+              "text-muted": "#A4B4AC",
+              "hairline": "#273B34",
+              "identity": "#80D7B0",
+              "identity-soft": "#264338",
+              "action": "#80D7B0",
+              "on-action": "#10231B",
+              "action-hover": "#88D9B5",
+              "action-pressed": "#90DCBA",
+              "chart": "#80D7B0",
+              "focus-ring": "#80D7B0",
+              "set-done-soft": "#2A4A3C",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#0D1814",
+              "surface-control": "#16211D",
+              "text-primary": "#E6F4EC",
+              "text-muted": "#94A19A",
+              "hairline": "#1E2925",
+              "identity": "#80D7B0",
+              "identity-soft": "#1D332A",
+              "action": "#80D7B0",
+              "on-action": "#10231B",
+              "action-hover": "#88D9B5",
+              "action-pressed": "#90DCBA",
+              "chart": "#80D7B0",
+              "focus-ring": "#80D7B0",
+              "set-done-soft": "#223B2F",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "15.15", "button": "7.38", "chart": "7.15" },
+            "dark": { "text": "13.16", "button": "9.59", "chart": "8.71" },
+            "black": { "text": "15.99", "button": "9.59", "chart": "10.59" }
+          }
+        },
+        {
+          "name": "Porcelain",
+          "description": "Cool white and charcoal with a cobalt action.",
+          "modes": {
+            "light": {
+              "canvas": "#EFF2F6",
+              "surface": "#FDFEFF",
+              "surface-control": "#E4E7EC",
+              "text-primary": "#171F2B",
+              "text-muted": "#676C74",
+              "hairline": "#DCDFE4",
+              "identity": "#264FC6",
+              "identity-soft": "#DFE6F7",
+              "action": "#264FC6",
+              "on-action": "#FFFFFF",
+              "action-hover": "#254BBA",
+              "action-pressed": "#2447AD",
+              "chart": "#264FC6",
+              "focus-ring": "#264FC6",
+              "set-done-soft": "#E5F2EC",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3B765E"
+            },
+            "dark": {
+              "canvas": "#141921",
+              "surface": "#1F2733",
+              "surface-control": "#272F3B",
+              "text-primary": "#F1F5FD",
+              "text-muted": "#ABAFB9",
+              "hairline": "#2F3743",
+              "identity": "#9DB7FF",
+              "identity-soft": "#313B50",
+              "action": "#9DB7FF",
+              "on-action": "#141D34",
+              "action-hover": "#A4BCFF",
+              "action-pressed": "#AAC1FF",
+              "chart": "#9DB7FF",
+              "focus-ring": "#9DB7FF",
+              "set-done-soft": "#304748",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#11151C",
+              "surface-control": "#181C23",
+              "text-primary": "#F1F5FD",
+              "text-muted": "#9B9FA7",
+              "hairline": "#21252C",
+              "identity": "#9DB7FF",
+              "identity-soft": "#252C3C",
+              "action": "#9DB7FF",
+              "on-action": "#141D34",
+              "action-hover": "#A4BCFF",
+              "action-pressed": "#AAC1FF",
+              "chart": "#9DB7FF",
+              "focus-ring": "#9DB7FF",
+              "set-done-soft": "#253936",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "16.41", "button": "6.96", "chart": "6.90" },
+            "dark": { "text": "13.76", "button": "8.49", "chart": "7.63" },
+            "black": { "text": "16.74", "button": "8.49", "chart": "9.28" }
+          }
+        },
+        {
+          "name": "Pumice",
+          "description": "Grey-beige surfaces with a quiet bronze action.",
+          "modes": {
+            "light": {
+              "canvas": "#EFEBE4",
+              "surface": "#FCFAF7",
+              "surface-control": "#E5E1DA",
+              "text-primary": "#2A231C",
+              "text-muted": "#6F6964",
+              "hairline": "#DED9D2",
+              "identity": "#76502B",
+              "identity-soft": "#E9E2DA",
+              "action": "#76502B",
+              "on-action": "#FFFFFF",
+              "action-hover": "#704C2A",
+              "action-pressed": "#6A4929",
+              "chart": "#76502B",
+              "focus-ring": "#76502B",
+              "set-done-soft": "#E4EEE6",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#BF364D",
+              "success-text": "#417556"
+            },
+            "dark": {
+              "canvas": "#1E1A16",
+              "surface": "#2B251E",
+              "surface-control": "#332D26",
+              "text-primary": "#F5EDE1",
+              "text-muted": "#B4ADA3",
+              "hairline": "#3B352D",
+              "identity": "#D9AE78",
+              "identity-soft": "#43382B",
+              "action": "#D9AE78",
+              "on-action": "#271C0F",
+              "action-hover": "#DBB380",
+              "action-pressed": "#DDB889",
+              "chart": "#D9AE78",
+              "focus-ring": "#D9AE78",
+              "set-done-soft": "#3A4537",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#181411",
+              "surface-control": "#1F1B17",
+              "text-primary": "#F5EDE1",
+              "text-muted": "#A39D94",
+              "hairline": "#28231F",
+              "identity": "#D9AE78",
+              "identity-soft": "#332A1F",
+              "action": "#D9AE78",
+              "on-action": "#271C0F",
+              "action-hover": "#DBB380",
+              "action-pressed": "#DDB889",
+              "chart": "#D9AE78",
+              "focus-ring": "#D9AE78",
+              "set-done-soft": "#2A382D",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "14.87", "button": "7.11", "chart": "6.83" },
+            "dark": { "text": "13.05", "button": "8.16", "chart": "7.41" },
+            "black": { "text": "15.77", "button": "8.16", "chart": "8.96" }
+          }
+        },
+        {
+          "name": "Oxblood",
+          "description": "Pink-grey surfaces with a deep red action.",
+          "modes": {
+            "light": {
+              "canvas": "#F4EEEF",
+              "surface": "#FFFCFD",
+              "surface-control": "#EAE3E5",
+              "text-primary": "#2E1820",
+              "text-muted": "#76676C",
+              "hairline": "#E2DBDD",
+              "identity": "#87273E",
+              "identity-soft": "#EEDEE2",
+              "action": "#87273E",
+              "on-action": "#FFFFFF",
+              "action-hover": "#80263C",
+              "action-pressed": "#792539",
+              "chart": "#87273E",
+              "focus-ring": "#87273E",
+              "set-done-soft": "#E6F0EB",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#44765B"
+            },
+            "dark": {
+              "canvas": "#21141A",
+              "surface": "#301C25",
+              "surface-control": "#38242D",
+              "text-primary": "#F9ECF0",
+              "text-muted": "#B4A5AA",
+              "hairline": "#402C35",
+              "identity": "#F39AB0",
+              "identity-soft": "#4B2E38",
+              "action": "#F39AB0",
+              "on-action": "#361221",
+              "action-hover": "#F3A1B5",
+              "action-pressed": "#F4A7BA",
+              "chart": "#F39AB0",
+              "focus-ring": "#F39AB0",
+              "set-done-soft": "#3E3E3D",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#1A0F14",
+              "surface-control": "#21161B",
+              "text-primary": "#F9ECF0",
+              "text-muted": "#A3969B",
+              "hairline": "#2A1F24",
+              "identity": "#F39AB0",
+              "identity-soft": "#38222A",
+              "action": "#F39AB0",
+              "on-action": "#361221",
+              "action-hover": "#F3A1B5",
+              "action-pressed": "#F4A7BA",
+              "chart": "#F39AB0",
+              "focus-ring": "#F39AB0",
+              "set-done-soft": "#2C342F",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "16.25", "button": "8.79", "chart": "8.62" },
+            "dark": { "text": "13.87", "button": "7.95", "chart": "7.63" },
+            "black": { "text": "16.29", "button": "7.95", "chart": "8.96" }
+          }
+        },
+        {
+          "name": "Lapis",
+          "description": "Blue-tinted neutrals with an electric blue action.",
+          "modes": {
+            "light": {
+              "canvas": "#E8F0FA",
+              "surface": "#F8FBFF",
+              "surface-control": "#DBE4EF",
+              "text-primary": "#172A46",
+              "text-muted": "#5D6B80",
+              "hairline": "#D3DDE8",
+              "identity": "#164E9E",
+              "identity-soft": "#D8E3F1",
+              "action": "#164E9E",
+              "on-action": "#FFFFFF",
+              "action-hover": "#164B97",
+              "action-pressed": "#164890",
+              "chart": "#164E9E",
+              "focus-ring": "#164E9E",
+              "set-done-soft": "#E0EFEC",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#397565"
+            },
+            "dark": {
+              "canvas": "#101A2C",
+              "surface": "#192840",
+              "surface-control": "#213048",
+              "text-primary": "#E9F2FF",
+              "text-muted": "#A7B1C2",
+              "hairline": "#29384F",
+              "identity": "#72B5FF",
+              "identity-soft": "#253C5B",
+              "action": "#72B5FF",
+              "on-action": "#0C2341",
+              "action-hover": "#7CBAFF",
+              "action-pressed": "#85BFFF",
+              "chart": "#72B5FF",
+              "focus-ring": "#72B5FF",
+              "set-done-soft": "#2B4852",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#0E1623",
+              "surface-control": "#151D2A",
+              "text-primary": "#E9F2FF",
+              "text-muted": "#969FAC",
+              "hairline": "#1D2633",
+              "identity": "#72B5FF",
+              "identity-soft": "#1C2C42",
+              "action": "#72B5FF",
+              "on-action": "#0C2341",
+              "action-hover": "#7CBAFF",
+              "action-pressed": "#85BFFF",
+              "chart": "#72B5FF",
+              "focus-ring": "#72B5FF",
+              "set-done-soft": "#22393B",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "13.90", "button": "8.02", "chart": "7.73" },
+            "dark": { "text": "13.12", "button": "7.33", "chart": "6.89" },
+            "black": { "text": "16.07", "button": "7.33", "chart": "8.44" }
+          }
+        },
+        {
+          "name": "Wisteria",
+          "description": "Lilac surfaces with violet as the single accent.",
+          "modes": {
+            "light": {
+              "canvas": "#F1EEF8",
+              "surface": "#FCFAFF",
+              "surface-control": "#E7E4EE",
+              "text-primary": "#271E38",
+              "text-muted": "#6E687B",
+              "hairline": "#DFDCE7",
+              "identity": "#6743A5",
+              "identity-soft": "#E7E0F2",
+              "action": "#6743A5",
+              "on-action": "#FFFFFF",
+              "action-hover": "#62409C",
+              "action-pressed": "#5D3D94",
+              "chart": "#6743A5",
+              "focus-ring": "#6743A5",
+              "set-done-soft": "#E4EEEC",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#407361"
+            },
+            "dark": {
+              "canvas": "#1B1726",
+              "surface": "#282137",
+              "surface-control": "#30293F",
+              "text-primary": "#F5EDFF",
+              "text-muted": "#B2AABD",
+              "hairline": "#383147",
+              "identity": "#C5A6FF",
+              "identity-soft": "#3E3453",
+              "action": "#C5A6FF",
+              "on-action": "#241439",
+              "action-hover": "#C9ACFF",
+              "action-pressed": "#CDB1FF",
+              "chart": "#C5A6FF",
+              "focus-ring": "#C5A6FF",
+              "set-done-soft": "#37424B",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#16121E",
+              "surface-control": "#1D1925",
+              "text-primary": "#F5EDFF",
+              "text-muted": "#A09AAA",
+              "hairline": "#26212E",
+              "identity": "#C5A6FF",
+              "identity-soft": "#2F273E",
+              "action": "#C5A6FF",
+              "on-action": "#241439",
+              "action-hover": "#C9ACFF",
+              "action-pressed": "#CDB1FF",
+              "chart": "#C5A6FF",
+              "focus-ring": "#C5A6FF",
+              "set-done-soft": "#293637",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "15.24", "button": "7.18", "chart": "6.93" },
+            "dark": { "text": "13.53", "button": "8.32", "chart": "7.54" },
+            "black": { "text": "16.18", "button": "8.32", "chart": "9.02" }
+          }
+        },
+        {
+          "name": "Olive",
+          "description": "Khaki grey with yellow-green contrast.",
+          "modes": {
+            "light": {
+              "canvas": "#EFEEE0",
+              "surface": "#FAFAF2",
+              "surface-control": "#E5E4D6",
+              "text-primary": "#292C1B",
+              "text-muted": "#686B5C",
+              "hairline": "#DDDDCF",
+              "identity": "#536420",
+              "identity-soft": "#E3E5D5",
+              "action": "#536420",
+              "on-action": "#FFFFFF",
+              "action-hover": "#506020",
+              "action-pressed": "#4C5B1F",
+              "chart": "#536420",
+              "focus-ring": "#536420",
+              "set-done-soft": "#E2EEE1",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3F7352"
+            },
+            "dark": {
+              "canvas": "#191C12",
+              "surface": "#252A19",
+              "surface-control": "#2D3221",
+              "text-primary": "#F4F3DE",
+              "text-muted": "#B2B39F",
+              "hairline": "#353A29",
+              "identity": "#C5DF6C",
+              "identity-soft": "#3B4325",
+              "action": "#C5DF6C",
+              "on-action": "#202809",
+              "action-hover": "#C9E175",
+              "action-pressed": "#CDE27E",
+              "chart": "#C5DF6C",
+              "focus-ring": "#C5DF6C",
+              "set-done-soft": "#354933",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#14170E",
+              "surface-control": "#1B1E14",
+              "text-primary": "#F4F3DE",
+              "text-muted": "#9FA090",
+              "hairline": "#24271C",
+              "identity": "#C5DF6C",
+              "identity-soft": "#2D331B",
+              "action": "#C5DF6C",
+              "on-action": "#202809",
+              "action-hover": "#C9E175",
+              "action-pressed": "#CDE27E",
+              "chart": "#C5DF6C",
+              "focus-ring": "#C5DF6C",
+              "set-done-soft": "#273A2A",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "13.62", "button": "6.54", "chart": "6.23" },
+            "dark": { "text": "13.15", "button": "10.33", "chart": "9.93" },
+            "black": { "text": "16.16", "button": "10.33", "chart": "12.21" }
+          }
+        },
+        {
+          "name": "Ultramarine",
+          "description": "Colourless surfaces with a saturated indigo action.",
+          "modes": {
+            "light": {
+              "canvas": "#F0F0F0",
+              "surface": "#FFFFFF",
+              "surface-control": "#E6E6E6",
+              "text-primary": "#1F2022",
+              "text-muted": "#6C6D6E",
+              "hairline": "#DEDEDE",
+              "identity": "#3B36BE",
+              "identity-soft": "#E4E3F6",
+              "action": "#3B36BE",
+              "on-action": "#FFFFFF",
+              "action-hover": "#3934B2",
+              "action-pressed": "#3732A5",
+              "chart": "#3B36BE",
+              "focus-ring": "#3B36BE",
+              "set-done-soft": "#E6F3EC",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3E765A"
+            },
+            "dark": {
+              "canvas": "#141414",
+              "surface": "#212121",
+              "surface-control": "#292929",
+              "text-primary": "#F3F3F3",
+              "text-muted": "#A9A9A9",
+              "hairline": "#313131",
+              "identity": "#A39BFF",
+              "identity-soft": "#333240",
+              "action": "#A39BFF",
+              "on-action": "#20164A",
+              "action-hover": "#A9A2FE",
+              "action-pressed": "#B0A9FD",
+              "chart": "#A39BFF",
+              "focus-ring": "#A39BFF",
+              "set-done-soft": "#32423A",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#121212",
+              "surface-control": "#191919",
+              "text-primary": "#F3F3F3",
+              "text-muted": "#9B9B9B",
+              "hairline": "#222222",
+              "identity": "#A39BFF",
+              "identity-soft": "#262533",
+              "action": "#A39BFF",
+              "on-action": "#20164A",
+              "action-hover": "#A9A2FE",
+              "action-pressed": "#B0A9FD",
+              "chart": "#A39BFF",
+              "focus-ring": "#A39BFF",
+              "set-done-soft": "#26362E",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "16.30", "button": "8.55", "chart": "8.55" },
+            "dark": { "text": "14.51", "button": "6.82", "chart": "6.66" },
+            "black": { "text": "16.88", "button": "6.82", "chart": "7.75" }
+          }
+        },
+        {
+          "name": "Sienna",
+          "description": "Clay-tinted neutrals with a burnt-orange action.",
+          "modes": {
+            "light": {
+              "canvas": "#F6EDE5",
+              "surface": "#FFFBF7",
+              "surface-control": "#EBE1D9",
+              "text-primary": "#39251D",
+              "text-muted": "#766861",
+              "hairline": "#E4D9D1",
+              "identity": "#9A421E",
+              "identity-soft": "#F1E1D9",
+              "action": "#9A421E",
+              "on-action": "#FFFFFF",
+              "action-hover": "#92401E",
+              "action-pressed": "#8A3D1E",
+              "chart": "#9A421E",
+              "focus-ring": "#9A421E",
+              "set-done-soft": "#E6EFE6",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#467355"
+            },
+            "dark": {
+              "canvas": "#231811",
+              "surface": "#31231A",
+              "surface-control": "#392B22",
+              "text-primary": "#F8ECE1",
+              "text-muted": "#B8ACA1",
+              "hairline": "#41332A",
+              "identity": "#F6AB79",
+              "identity-soft": "#4D3627",
+              "action": "#F6AB79",
+              "on-action": "#381904",
+              "action-hover": "#F6B081",
+              "action-pressed": "#F6B58A",
+              "chart": "#F6AB79",
+              "focus-ring": "#F6AB79",
+              "set-done-soft": "#3E4434",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#1B130E",
+              "surface-control": "#221A14",
+              "text-primary": "#F8ECE1",
+              "text-muted": "#A69C93",
+              "hairline": "#2B221C",
+              "identity": "#F6AB79",
+              "identity-soft": "#3A281D",
+              "action": "#F6AB79",
+              "on-action": "#381904",
+              "action-hover": "#F6B081",
+              "action-pressed": "#F6B58A",
+              "chart": "#F6AB79",
+              "focus-ring": "#F6AB79",
+              "set-done-soft": "#2D372A",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "14.00", "button": "6.62", "chart": "6.43" },
+            "dark": { "text": "13.04", "button": "8.42", "chart": "7.95" },
+            "black": { "text": "15.77", "button": "8.42", "chart": "9.62" }
+          }
+        },
+        {
+          "name": "Lagoon",
+          "description": "Pale aqua and deep petrol with a teal action.",
+          "modes": {
+            "light": {
+              "canvas": "#E7F2F2",
+              "surface": "#F6FCFC",
+              "surface-control": "#DDE8E8",
+              "text-primary": "#172D31",
+              "text-muted": "#5D6D70",
+              "hairline": "#D5E1E1",
+              "identity": "#12636B",
+              "identity-soft": "#D6E7E8",
+              "action": "#12636B",
+              "on-action": "#FFFFFF",
+              "action-hover": "#125F66",
+              "action-pressed": "#135A62",
+              "chart": "#12636B",
+              "focus-ring": "#12636B",
+              "set-done-soft": "#DFF0EA",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#39765D"
+            },
+            "dark": {
+              "canvas": "#101D22",
+              "surface": "#172B33",
+              "surface-control": "#1F333B",
+              "text-primary": "#E1F5F6",
+              "text-muted": "#A2B6B9",
+              "hairline": "#273B42",
+              "identity": "#73DEE3",
+              "identity-soft": "#24444C",
+              "action": "#73DEE3",
+              "on-action": "#103035",
+              "action-hover": "#7CE0E5",
+              "action-pressed": "#85E2E6",
+              "chart": "#73DEE3",
+              "focus-ring": "#73DEE3",
+              "set-done-soft": "#2A4A48",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#0D181C",
+              "surface-control": "#152125",
+              "text-primary": "#E1F5F6",
+              "text-muted": "#93A3A5",
+              "hairline": "#1D292D",
+              "identity": "#73DEE3",
+              "identity-soft": "#1B3438",
+              "action": "#73DEE3",
+              "on-action": "#103035",
+              "action-hover": "#7CE0E5",
+              "action-pressed": "#85E2E6",
+              "chart": "#73DEE3",
+              "focus-ring": "#73DEE3",
+              "set-done-soft": "#223B36",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "13.91", "button": "6.95", "chart": "6.70" },
+            "dark": { "text": "13.00", "button": "8.88", "chart": "9.29" },
+            "black": { "text": "15.97", "button": "8.88", "chart": "11.41" }
+          }
+        },
+        {
+          "name": "Mulberry",
+          "description": "Plum-tinted surfaces and a raspberry action.",
+          "modes": {
+            "light": {
+              "canvas": "#F3EAF0",
+              "surface": "#FFF9FD",
+              "surface-control": "#E9E0E6",
+              "text-primary": "#321D2D",
+              "text-muted": "#756571",
+              "hairline": "#E2D8DF",
+              "identity": "#8D286C",
+              "identity-soft": "#EFDCE9",
+              "action": "#8D286C",
+              "on-action": "#FFFFFF",
+              "action-hover": "#862767",
+              "action-pressed": "#7E2662",
+              "chart": "#8D286C",
+              "focus-ring": "#8D286C",
+              "set-done-soft": "#E6EEEB",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#44735D"
+            },
+            "dark": {
+              "canvas": "#211420",
+              "surface": "#301D2C",
+              "surface-control": "#382534",
+              "text-primary": "#F8E9F3",
+              "text-muted": "#B6A6B1",
+              "hairline": "#402D3C",
+              "identity": "#EA94D4",
+              "identity-soft": "#4A2E44",
+              "action": "#EA94D4",
+              "on-action": "#35112C",
+              "action-hover": "#EB9BD6",
+              "action-pressed": "#ECA2D9",
+              "chart": "#EA94D4",
+              "focus-ring": "#EA94D4",
+              "set-done-soft": "#3E3F42",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#1A1018",
+              "surface-control": "#21171F",
+              "text-primary": "#F8E9F3",
+              "text-muted": "#A497A0",
+              "hairline": "#2A1F27",
+              "identity": "#EA94D4",
+              "identity-soft": "#372232",
+              "action": "#EA94D4",
+              "on-action": "#35112C",
+              "action-hover": "#EB9BD6",
+              "action-pressed": "#ECA2D9",
+              "chart": "#EA94D4",
+              "focus-ring": "#EA94D4",
+              "set-done-soft": "#2C3532",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "14.99", "button": "7.92", "chart": "7.62" },
+            "dark": { "text": "13.41", "button": "7.64", "chart": "7.24" },
+            "black": { "text": "15.86", "button": "7.64", "chart": "8.56" }
+          }
+        },
+        {
+          "name": "Flint",
+          "description": "Cold stone surfaces with a yellow action after dark.",
+          "modes": {
+            "light": {
+              "canvas": "#EEF1F4",
+              "surface": "#FCFCFD",
+              "surface-control": "#E4E7EA",
+              "text-primary": "#20272C",
+              "text-muted": "#686C71",
+              "hairline": "#DCDFE2",
+              "identity": "#6A5005",
+              "identity-soft": "#E8E4DA",
+              "action": "#6A5005",
+              "on-action": "#FFFFFF",
+              "action-hover": "#644D08",
+              "action-pressed": "#5E490B",
+              "chart": "#6A5005",
+              "focus-ring": "#6A5005",
+              "set-done-soft": "#E4F0EB",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3D765C"
+            },
+            "dark": {
+              "canvas": "#15191D",
+              "surface": "#21272D",
+              "surface-control": "#292F35",
+              "text-primary": "#EDF2F6",
+              "text-muted": "#AAB0B4",
+              "hairline": "#31373D",
+              "identity": "#F0CB61",
+              "identity-soft": "#3E3E34",
+              "action": "#F0CB61",
+              "on-action": "#2E2205",
+              "action-hover": "#F0CE6D",
+              "action-pressed": "#F0D179",
+              "chart": "#F0CB61",
+              "focus-ring": "#F0CB61",
+              "set-done-soft": "#324743",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#121519",
+              "surface-control": "#191C20",
+              "text-primary": "#EDF2F6",
+              "text-muted": "#9A9EA2",
+              "hairline": "#212529",
+              "identity": "#F0CB61",
+              "identity-soft": "#312E23",
+              "action": "#F0CB61",
+              "on-action": "#2E2205",
+              "action-hover": "#F0CE6D",
+              "action-pressed": "#F0D179",
+              "chart": "#F0CB61",
+              "focus-ring": "#F0CB61",
+              "set-done-soft": "#263933",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "14.76", "button": "7.60", "chart": "7.41" },
+            "dark": { "text": "13.38", "button": "9.96", "chart": "9.64" },
+            "black": { "text": "16.24", "button": "9.96", "chart": "11.70" }
+          }
+        },
+        {
+          "name": "Spruce",
+          "description": "Soft green with a darker, more muted forest action.",
+          "modes": {
+            "light": {
+              "canvas": "#EBF2E8",
+              "surface": "#F9FCF7",
+              "surface-control": "#E1E8DE",
+              "text-primary": "#1C2E21",
+              "text-muted": "#616E64",
+              "hairline": "#D9E1D6",
+              "identity": "#366342",
+              "identity-soft": "#DEE7DE",
+              "action": "#366342",
+              "on-action": "#FFFFFF",
+              "action-hover": "#345F3F",
+              "action-pressed": "#325B3D",
+              "chart": "#366342",
+              "focus-ring": "#366342",
+              "set-done-soft": "#E1F0E6",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3A7455"
+            },
+            "dark": {
+              "canvas": "#151D17",
+              "surface": "#202D23",
+              "surface-control": "#28352B",
+              "text-primary": "#EDF5EA",
+              "text-muted": "#ADB7AC",
+              "hairline": "#303D33",
+              "identity": "#AAD0A3",
+              "identity-soft": "#334435",
+              "action": "#AAD0A3",
+              "on-action": "#172818",
+              "action-hover": "#AFD3A9",
+              "action-pressed": "#B5D6AE",
+              "chart": "#AAD0A3",
+              "focus-ring": "#AAD0A3",
+              "set-done-soft": "#314C3B",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#121913",
+              "surface-control": "#1B221C",
+              "text-primary": "#EDF5EA",
+              "text-muted": "#9AA299",
+              "hairline": "#232A24",
+              "identity": "#AAD0A3",
+              "identity-soft": "#273327",
+              "action": "#AAD0A3",
+              "on-action": "#172818",
+              "action-hover": "#AFD3A9",
+              "action-pressed": "#B5D6AE",
+              "chart": "#AAD0A3",
+              "focus-ring": "#AAD0A3",
+              "set-done-soft": "#263C2E",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "13.88", "button": "6.95", "chart": "6.72" },
+            "dark": { "text": "12.90", "button": "9.06", "chart": "8.39" },
+            "black": { "text": "16.05", "button": "9.06", "chart": "10.44" }
+          }
+        },
+        {
+          "name": "Ember",
+          "description": "Warm grey with a brick-red action.",
+          "modes": {
+            "light": {
+              "canvas": "#F0EAE3",
+              "surface": "#FDF9F4",
+              "surface-control": "#E6E0D9",
+              "text-primary": "#2A2421",
+              "text-muted": "#6F6966",
+              "hairline": "#DED8D2",
+              "identity": "#A13325",
+              "identity-soft": "#F0DDD7",
+              "action": "#A13325",
+              "on-action": "#FFFFFF",
+              "action-hover": "#973225",
+              "action-pressed": "#8E3124",
+              "chart": "#A13325",
+              "focus-ring": "#A13325",
+              "set-done-soft": "#E5EEE3",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#BF364D",
+              "success-text": "#407356"
+            },
+            "dark": {
+              "canvas": "#1C1715",
+              "surface": "#2A221E",
+              "surface-control": "#322A26",
+              "text-primary": "#F7EDE7",
+              "text-muted": "#B4ABA5",
+              "hairline": "#3A322E",
+              "identity": "#FF9A83",
+              "identity-soft": "#48332C",
+              "action": "#FF9A83",
+              "on-action": "#361710",
+              "action-hover": "#FEA18B",
+              "action-pressed": "#FEA793",
+              "chart": "#FF9A83",
+              "focus-ring": "#FF9A83",
+              "set-done-soft": "#394337",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#171311",
+              "surface-control": "#1E1A17",
+              "text-primary": "#F7EDE7",
+              "text-muted": "#A29A96",
+              "hairline": "#27221F",
+              "identity": "#FF9A83",
+              "identity-soft": "#372621",
+              "action": "#FF9A83",
+              "on-action": "#361710",
+              "action-hover": "#FEA18B",
+              "action-pressed": "#FEA793",
+              "chart": "#FF9A83",
+              "focus-ring": "#FF9A83",
+              "set-done-soft": "#2A372D",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "14.59", "button": "6.96", "chart": "6.64" },
+            "dark": { "text": "13.54", "button": "7.93", "chart": "7.58" },
+            "black": { "text": "16.02", "button": "7.93", "chart": "8.97" }
+          }
+        },
+        {
+          "name": "Acid",
+          "description": "Grey-green neutrals with a high-energy lime action after dark.",
+          "modes": {
+            "light": {
+              "canvas": "#EEF1E6",
+              "surface": "#FAFCF6",
+              "surface-control": "#E4E7DC",
+              "text-primary": "#20261A",
+              "text-muted": "#686C62",
+              "hairline": "#DCDFD4",
+              "identity": "#455E0B",
+              "identity-soft": "#E1E6D5",
+              "action": "#455E0B",
+              "on-action": "#FFFFFF",
+              "action-hover": "#425A0C",
+              "action-pressed": "#3F550D",
+              "chart": "#455E0B",
+              "focus-ring": "#455E0B",
+              "set-done-soft": "#E2F0E5",
+              "set-done": "#4FA77A",
+              "on-set-done": "#111214",
+              "danger": "#C2364E",
+              "success-text": "#3D7656"
+            },
+            "dark": {
+              "canvas": "#171A16",
+              "surface": "#232821",
+              "surface-control": "#2B3029",
+              "text-primary": "#F4F6EC",
+              "text-muted": "#AFB2AA",
+              "hairline": "#333831",
+              "identity": "#D2F85F",
+              "identity-soft": "#3C452A",
+              "action": "#D2F85F",
+              "on-action": "#212900",
+              "action-hover": "#D5F86A",
+              "action-pressed": "#D7F876",
+              "chart": "#D2F85F",
+              "focus-ring": "#D2F85F",
+              "set-done-soft": "#33483A",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            },
+            "black": {
+              "canvas": "#000000",
+              "surface": "#131612",
+              "surface-control": "#1A1D19",
+              "text-primary": "#F4F6EC",
+              "text-muted": "#9C9E96",
+              "hairline": "#232621",
+              "identity": "#D2F85F",
+              "identity-soft": "#2E361D",
+              "action": "#D2F85F",
+              "on-action": "#212900",
+              "action-hover": "#D5F86A",
+              "action-pressed": "#D7F876",
+              "chart": "#D2F85F",
+              "focus-ring": "#D2F85F",
+              "set-done-soft": "#26392E",
+              "set-done": "#74C79C",
+              "on-set-done": "#111214",
+              "danger": "#EE7C8E",
+              "success-text": "#74C79C"
+            }
+          },
+          "ratios": {
+            "light": { "text": "15.01", "button": "7.35", "chart": "7.11" },
+            "dark": { "text": "13.77", "button": "12.54", "chart": "12.41" },
+            "black": { "text": "16.71", "button": "12.54", "chart": "15.06" }
+          }
+        }
+      ]
+    </script>
+    <script>
+      const palettes = JSON.parse(document.querySelector("#palettes").textContent);
+      const picks = { a: "Ink", b: "Juniper" };
+      const logged = { a: false, b: false };
+      let mode = "dark";
+      let scene = "training";
+      const choices = document.querySelector("#choices");
+
+      const coreRoles = [
+        ["canvas", "Canvas"],
+        ["surface", "Surface"],
+        ["surface-control", "Control"],
+        ["text-primary", "Ink"],
+        ["action", "Action"],
+        ["on-action", "Action label"],
+      ];
+
+      function strip(roles) {
+        return (
+          '<div class="strip" aria-hidden="true">' +
+          coreRoles.map(([role]) => '<i style="background:' + roles[role] + '"></i>').join("") +
+          "</div>"
+        );
+      }
+
+      function training(done) {
+        return `
+      <div class="lead">
+        <div><small>Training · Upper body</small><h2>Upper A</h2></div>
+        <div class="timer"><small>Rest</small>1:24</div>
+      </div>
+      <div class="block exercise">
+        <h3>Barbell bench press</h3>
+        <small>3 working sets · 6–8 reps</small>
+        <div class="set"><small>Set</small><small>kg</small><small>Reps</small><small>Log</small></div>
+        <div class="set done"><span>1</span><strong>70</strong><strong>8</strong><span class="mark" aria-label="Completed">✓</span></div>
+        <div class="set done"><span>2</span><strong>72.5</strong><strong>8</strong><span class="mark" aria-label="Completed">✓</span></div>
+        <div class="set ${done ? "done" : "current"}"><span>3</span><strong>75</strong><strong>6</strong><span class="mark" aria-label="${done ? "Completed" : "Current set"}">${done ? "✓" : "●"}</span></div>
+      </div>
+      <div class="block"><h3>Chest-supported row</h3><small>Up next · 3 sets</small></div>
+      <button type="button" class="primary" ${done ? "disabled" : ""}>${done ? "✓ Set logged" : "Log set"}</button>`;
+      }
+
+      function progress() {
+        const marks = [68, 74, 81, 78, 86, 92];
+        return `
+      <div><small>Past six weeks</small><h2>Progress</h2></div>
+      <div class="block">
+        <h3>Bench press · est. 1RM</h3>
+        <strong class="big">92 <small>kg</small></strong>
+        <span class="change">↑ 24 kg in six weeks</span>
+        <div class="chart" role="img" aria-label="Estimated one rep max by week, 68, 74, 81, 78, 86 and 92 kilograms">
+          ${marks.map((value, i) => `<div class="bar" style="--bar-height:${value * 0.77}px"><i></i><small>W${i + 1}</small></div>`).join("")}
+        </div>
+      </div>
+      <div class="block"><h3>Training volume</h3><small>12,420 kg lifted this week</small></div>
+      <span class="note">One workout is missing a load.</span>`;
+      }
+
+      function renderPanel(slot) {
+        const palette = palettes.find(({ name }) => name === picks[slot]);
+        const roles = palette.modes[mode];
+        const panel = document.querySelector("#screen-" + slot);
+        panel.style.cssText = Object.entries(roles)
+          .map(([role, color]) => "--" + role + ":" + color)
+          .join(";");
+        panel.style.colorScheme = mode === "light" ? "light" : "dark";
+        panel.innerHTML = scene === "training" ? training(logged[slot]) : progress();
+        panel.querySelector(".primary")?.addEventListener("click", () => {
+          logged[slot] = true;
+          renderPanel(slot);
+        });
+        const info = document.querySelector("#info-" + slot);
+        const wasOpen = info.querySelector("details")?.open;
+        info.innerHTML =
+          strip(roles) +
+          "<span>" +
+          palette.description +
+          "</span>" +
+          "<details><summary>Hex values and contrast</summary><dl>" +
+          coreRoles
+            .map(([role, label]) => "<dt>" + label + "</dt><dd>" + roles[role] + "</dd>")
+            .join("") +
+          "<dt>Primary ink on surface</dt><dd>" +
+          palette.ratios[mode].text +
+          ":1</dd>" +
+          "<dt>Button label on fill</dt><dd>" +
+          palette.ratios[mode].button +
+          ":1</dd>" +
+          "<dt>Chart on surface</dt><dd>" +
+          palette.ratios[mode].chart +
+          ":1</dd></dl></details>";
+        info.querySelector("details").open = Boolean(wasOpen);
+      }
+
+      function render() {
+        for (const slot of ["a", "b"]) {
+          document.querySelector("#palette-" + slot).value = picks[slot];
+          renderPanel(slot);
+        }
+        for (const button of choices.children) {
+          const palette = palettes.find(({ name }) => name === button.value);
+          button.innerHTML = strip(palette.modes[mode]) + palette.name;
+          button.setAttribute("aria-pressed", String(button.value === picks.b));
+        }
+        document.querySelectorAll("[data-mode], [data-scene]").forEach((button) => {
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.mode === mode || button.dataset.scene === scene),
+          );
+        });
+      }
+
+      for (const palette of palettes) {
+        for (const slot of ["a", "b"]) {
+          document.querySelector("#palette-" + slot).add(new Option(palette.name, palette.name));
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.value = palette.name;
+        button.addEventListener("click", () => {
+          picks.b = palette.name;
+          logged.b = false;
+          render();
+        });
+        choices.append(button);
+      }
+      for (const slot of ["a", "b"]) {
+        document.querySelector("#palette-" + slot).addEventListener("change", (event) => {
+          picks[slot] = event.target.value;
+          logged[slot] = false;
+          render();
+        });
+      }
+      document.querySelectorAll("[data-mode]").forEach((button) =>
+        button.addEventListener("click", () => {
+          mode = button.dataset.mode;
+          render();
+        }),
+      );
+      document.querySelectorAll("[data-scene]").forEach((button) =>
+        button.addEventListener("click", () => {
+          scene = button.dataset.scene;
+          render();
+        }),
+      );
+      render();
+    </script>
+  </body>
+</html>

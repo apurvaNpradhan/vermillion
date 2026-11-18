@@ -16,13 +16,11 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native appearance ([ADR 0043](../docs/adr/0043-graphite-base-and-accents.md), [guide](../docs/guides/native-themes.md)):
-one Graphite base in light, dark and true black, plus an accent (Mono, Vermilion, Indigo, Orchid,
-Sky). `tokens/themes/graphite.ts` holds the base, `accents.ts` the accents; `brandThemes`
-combines them and `brandTokens.colors` is Mono for email. Regenerate CSS after editing either and
-restart Metro with `--clear` after registration changes. Layout never branches on appearance or
-accent; use `useThemeMode()` for native chrome. Identity roles drive selection, `action` drives
-primary buttons, and `chart` drives chart marks; all three take the accent.
+Native uses a neutral palette in light, dark and true black. `packages/ui/src/tokens/brand.ts`
+exports `nativeColors` for the app and `brandTokens.colors` for the site and email. Both derive
+their roles from seeds in `tokens/themes/palettes.ts`. Regenerate CSS after editing. Layout
+never branches on appearance. Use `useThemeMode()` for native chrome. See the
+[native themes guide](../docs/guides/native-themes.md).
 
 Rules: color only for the accent, data and status; one filled primary action per screen; selected states use the surface step and `foreground`; numbers use tabular figures.
 

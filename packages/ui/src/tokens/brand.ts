@@ -1,47 +1,18 @@
 import type { RoleName, RoleTokens } from "./roles";
-import { accentRoles, accents, type AccentName } from "./themes/accents";
-import * as graphite from "./themes/graphite";
+import { brandSeeds, buildPalette, nativeSeeds } from "./themes/palettes";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
-export { accentNames, type AccentName } from "./themes/accents";
 
 // SAFETY: the literal list defines the complete mode union.
 export const themeModes = ["light", "dark", "black"] as const;
 /** Light, dark, or dark on a true-black canvas. */
 export type ThemeMode = (typeof themeModes)[number];
 
-function palette(accent: AccentName): Record<ThemeMode, RoleTokens> {
-  const { light, dark } = accents[accent];
-  return {
-    light: {
-      ...graphite.light,
-      ...accentRoles(light, graphite.light, graphite.light["text-primary"]),
-    },
-    dark: { ...graphite.dark, ...accentRoles(dark, graphite.dark, graphite.dark.canvas) },
-    black: { ...graphite.black, ...accentRoles(dark, graphite.black, graphite.black.canvas) },
-  };
-}
-
-/** Every complete role set: the Graphite base in each mode, with each accent applied. */
-export const brandThemes: Record<AccentName, Record<ThemeMode, RoleTokens>> = {
-  mono: palette("mono"),
-  vermilion: palette("vermilion"),
-  indigo: palette("indigo"),
-  orchid: palette("orchid"),
-  sky: palette("sky"),
-};
-
-export type ThemeVariant = ThemeMode | `${Exclude<AccentName, "mono">}-${ThemeMode}`;
-
-/** The CSS variant of one accent and mode. Mono owns the plain `light` and `dark` names. */
-export function variantName(accent: AccentName, mode: ThemeMode): ThemeVariant {
-  return accent === "mono" ? mode : `${accent}-${mode}`;
-}
-
-const { light, dark } = brandThemes.mono;
+export const nativeColors: Record<ThemeMode, RoleTokens> = buildPalette(nativeSeeds);
+const { light, dark } = buildPalette(brandSeeds);
 
 /**
- * Brand tokens: the one place colors, radius, type and fonts are defined. The values are the
- * Vermillion design system (DESIGN.md). Rebranding a fork means editing this file and running
+ * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
+ * `themes/palettes.ts`. After changing them run
  * `pnpm --filter @workspace/ui tokens`.
  *
  * Colors are Vermillion roles (`canvas`, `surface`, `text-muted`, `action`, ...), each with a

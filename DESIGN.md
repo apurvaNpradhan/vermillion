@@ -6,38 +6,28 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native has one neutral base, Graphite, in three modes (light, dark and true black) and a
-separate accent: Mono, Vermilion, Indigo, Orchid or Sky. Appearance (System, Light, Dark), the
-true-black switch and the accent are device settings in one sheet. They change colour only; every
-combination shares one layout. See [ADR 0043](docs/adr/0043-graphite-base-and-accents.md) and the
-[guide](docs/guides/native-themes.md).
+Native uses neutral colours in light, dark and true black while replacement palettes are evaluated.
+Appearance (Match device, Light, Dark) and the true-black switch are device settings available in
+Preferences and on the signed-out welcome screen.
 
-- `packages/ui/src/tokens/themes/graphite.ts` holds the base roles and `accents.ts` one fill and
-  ink per accent for light and dark. `brandThemes[accent][mode]` is the complete role set; the
-  soft, hover and pressed accent tones are derived, never hand-picked.
-- Mono owns the email palette and Uniwind's built-in `light` / `dark`; other variants use flat
-  names such as `indigo-black` (`variantName`).
-- Contrast and layer tests run across every accent and mode with no exemptions.
-- The accent drives `action`, `identity`, active tabs, current sets, progress, selected filters,
-  the active program and `chart`. Mono uses the brightest neutral for all of them.
-- Completed sets use `set-done` roles. The muscle map stays red with every accent.
-- `device.theme` stores `{ accent, appearance, black }`, defaulting to Mono × System. It never
-  syncs to an account. Preferences and the signed-out welcome screen open the same sheet.
-- The app resolves System, applies the flat Uniwind name, then forces native Appearance to the
-  resolved scheme. Native chrome, status bars, blur and CAPTCHA use `useThemeMode()`.
+- `nativeColors` in `packages/ui/src/tokens/brand.ts` holds the roles per mode. Its colours come
+  from `nativeSeeds` in `themes/palettes.ts`. Email and the site use their own brand seeds.
+- Completed sets use the `set-done` roles. The muscle map stays red.
+- `device.theme` stores `{ appearance, black }` locally. Native chrome, status bars, blur and
+  CAPTCHA use `useThemeMode()`.
 
-The sections below describe the Mono accent's contract and the shared layout.
+See the [native themes guide](docs/guides/native-themes.md).
 
 ## Overview
 
-Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the Mono interface. It is built on near-black surface steps, spaced groups, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
+Vermillion is a precise, quiet, dark-first tool for training and nutrition, with no brand accent in the native interface. It is built on near-black surface steps, spaced groups, tight corners, Inter with OpenType features and one white primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
 Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
 ### Principles
 
 1. **Numbers are the headline.** Weight, reps, calories and macros get the biggest type on screen, set in tabular figures.
-2. **Color is meaning, never decoration.** In Mono, neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
+2. **Color is meaning, never decoration.** Neutrals carry the interface; the primary action is the brightest neutral. Blue, amber, orchid = protein, carbs, fat. Green = goal hit. Rose = error. Everything else is neutral.
 3. **One loud thing per screen.** At most one filled primary button (white in dark mode) in any view.
 4. **Quiet surfaces, clear groups.** Depth comes from surface steps, rounded corners and spacing. Only floating layers add shadows.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
@@ -46,17 +36,17 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 
 ### Foundations at a glance
 
-| Area     | Rule                                                            |
-| -------- | --------------------------------------------------------------- |
-| Modes    | Dark default + light mode via role tokens                       |
-| Action   | White primary button in dark, near-black in light               |
-| Color    | Mono has no accent hue; color only for data (macros) and status |
-| Surfaces | Four steps, spaced for phone screens                            |
-| Depth    | No shadows except floating layers and the button keycap edge    |
-| Controls | 44pt Standard, 56–64pt Active                                   |
-| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt        |
-| Radius   | 4/8/12/16/28                                                    |
-| Motion   | Full motion and haptic token sets                               |
+| Area     | Rule                                                         |
+| -------- | ------------------------------------------------------------ |
+| Modes    | Dark default + light mode via role tokens                    |
+| Action   | White primary button in dark, near-black in light            |
+| Color    | Neutral accent; color for data and status                    |
+| Surfaces | Four steps, spaced for phone screens                         |
+| Depth    | No shadows except floating layers and the button keycap edge |
+| Controls | 44pt Standard, 56–64pt Active                                |
+| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt     |
+| Radius   | 4/8/12/16/28                                                 |
+| Motion   | Full motion and haptic token sets                            |
 
 ## Decision log
 
@@ -83,7 +73,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 
 Every color is a role with a dark and a light value; components never reference a hex. All text pairs below were checked against WCAG 2.1: 4.5:1 for text, 3:1 for icons and graphics.
 
-The Mono interface has no accent hue: the primary button is the brightest neutral (`#FFFFFF` on dark, `#111214` on light), so the only saturated colors on screen are data (macros) and status.
+The primary button uses a contrasting neutral. Saturated colors indicate data and status.
 
 ### Surfaces and lines
 
@@ -322,7 +312,7 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 ### Icon color
 
 - Default `text-secondary`; inactive tabs `text-muted`; selected tab `text-primary` + Fill weight.
-- Mono has no accent hue on icons; the primary button's icon takes `on-action`.
+- The primary button's icon takes `on-action`.
 - Macro icons may take their macro color, only next to that macro's value.
 
 ### Core icon map

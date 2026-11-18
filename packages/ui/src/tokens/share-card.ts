@@ -1,4 +1,4 @@
-import { brandThemes, type AccentName, type RoleTokens, type ThemeMode } from "./brand";
+import { nativeColors, type RoleTokens, type ThemeMode } from "./brand";
 import { mixHex } from "./mix";
 
 export { mixHex };
@@ -55,18 +55,13 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
 }
 
 /**
- * The colours of one background. `appearance` is the app's resolved light or dark mode, which only
+ * The colours of one background. `appearance` is the app's resolved mode, which only
  * the Theme background follows; Light, Dark, Photo and the Sticker use that fixed palette.
  */
-export function cardPalette(
-  theme: AccentName,
-  appearance: ThemeMode,
-  kind: CardPaletteKind,
-): CardPalette {
-  const palette = brandThemes[theme];
+export function cardPalette(appearance: ThemeMode, kind: CardPaletteKind): CardPalette {
   switch (kind) {
     case "theme": {
-      const roles = palette[appearance];
+      const roles = nativeColors[appearance];
       return {
         ...neutral(roles, roles.surface),
         glow: roles.identity,
@@ -75,11 +70,11 @@ export function cardPalette(
       };
     }
     case "light":
-      return neutral(palette.light, palette.light.canvas);
+      return neutral(nativeColors.light, nativeColors.light.canvas);
     case "dark":
-      return neutral(palette.dark, palette.dark.canvas);
+      return neutral(nativeColors.dark, nativeColors.dark.canvas);
     case "accent": {
-      const roles = palette[appearance];
+      const roles = nativeColors[appearance];
       const fill = roles.identity;
       const ink = roles["on-identity"];
       return {
@@ -88,7 +83,7 @@ export function cardPalette(
         scrim: null,
         ground: fill,
         text: ink,
-        // One ink: some themes' on-identity pair has little contrast to spare, so rank by size.
+        // Use size to distinguish text roles on the accent fill.
         textSecondary: ink,
         textMuted: ink,
         accent: ink,
@@ -97,7 +92,7 @@ export function cardPalette(
       };
     }
     case "photo": {
-      const roles = palette.dark;
+      const roles = nativeColors.dark;
       return {
         ...neutral(roles, roles.canvas),
         fill: null,
@@ -107,7 +102,7 @@ export function cardPalette(
       };
     }
     case "sticker": {
-      const roles = palette.dark;
+      const roles = nativeColors.dark;
       return { ...neutral(roles, roles.surface), fill: null, plate: roles["surface-control"] };
     }
   }

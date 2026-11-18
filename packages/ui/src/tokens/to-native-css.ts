@@ -1,8 +1,6 @@
 import {
-  accentNames,
-  brandThemes,
+  nativeColors,
   themeModes,
-  variantName,
   brandTokens,
   sharedTokenSources,
   type RoleName,
@@ -11,7 +9,7 @@ import {
 } from "./brand";
 
 /**
- * HeroUI Native variable -> application role. Every custom variant defines the same set, per
+ * HeroUI Native variable -> application role. Every mode defines the same set, per
  * https://heroui.com/en/docs/native/getting-started/theming.
  * HeroUI's accent is an action fill; its *-foreground is the text ON that fill.
  */
@@ -81,7 +79,7 @@ function block(name: string, mode: ThemeMode, colors: RoleTokens) {
 const px = (value: number) => `${value / 16}rem`;
 
 /**
- * Build-time CSS: one variant per accent and mode. Mono keeps the plain light/dark names.
+ * Build-time CSS: one variant per native mode.
  * Imported after heroui-native/styles.
  */
 export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
@@ -93,9 +91,7 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       `    --radius: ${tokens.nativeRadius};`,
       "    --field-radius: calc(var(--radius) * 1.5);",
       "    --field-border-width: 1px;",
-      ...accentNames.flatMap((accent) =>
-        themeModes.map((mode) => block(variantName(accent, mode), mode, brandThemes[accent][mode])),
-      ),
+      ...themeModes.map((mode) => block(mode, mode, nativeColors[mode])),
       "  }",
       "}",
     ].join("\n"),

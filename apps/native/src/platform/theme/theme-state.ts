@@ -1,9 +1,4 @@
-import {
-  accentNames,
-  variantName,
-  type ThemeMode,
-  type ThemeVariant,
-} from "@workspace/ui/tokens/brand";
+import type { ThemeMode } from "@workspace/ui/tokens/brand";
 import { z } from "zod";
 
 // SAFETY: literal values define the appearance union used at the storage boundary.
@@ -11,18 +6,18 @@ export const APPEARANCES = ["system", "light", "dark"] as const;
 export type AppearanceChoice = (typeof APPEARANCES)[number];
 const appearanceSchema = z.enum(APPEARANCES);
 const selectionSchema = z.object({
-  accent: z.enum(accentNames),
   appearance: appearanceSchema,
   /** Dark uses a pure black canvas. Light is unaffected. */
-  black: z.boolean(),
+  black: z.boolean().default(false),
 });
-/** The retired `{ theme, appearance }` shape: only its appearance carries over. */
-const retiredSchema = z.object({ appearance: appearanceSchema });
 export type ThemeChoice = z.infer<typeof selectionSchema>;
-export const DEFAULT_THEME: ThemeChoice = { accent: "mono", appearance: "system", black: false };
+export const DEFAULT_THEME: ThemeChoice = {
+  appearance: "system",
+  black: false,
+};
 export type SystemScheme = "light" | "dark" | null | undefined;
 
-/** Earlier formats keep their appearance and start on the default accent. Invalid storage resets. */
+/** Earlier formats keep appearance and true black. Zod strips retired palette fields. */
 export function parseTheme(stored: string | null): ThemeChoice {
   if (!stored) return DEFAULT_THEME;
   const appearance = appearanceSchema.safeParse(stored);
@@ -30,11 +25,7 @@ export function parseTheme(stored: string | null): ThemeChoice {
   try {
     const json: unknown = JSON.parse(stored);
     const selection = selectionSchema.safeParse(json);
-    if (selection.success) return selection.data;
-    const retired = retiredSchema.safeParse(json);
-    return retired.success
-      ? { ...DEFAULT_THEME, appearance: retired.data.appearance }
-      : DEFAULT_THEME;
+    return selection.success ? selection.data : DEFAULT_THEME;
   } catch {
     return DEFAULT_THEME;
   }
@@ -49,20 +40,10 @@ export function resolvedScheme(choice: ThemeChoice, systemScheme: SystemScheme):
     : choice.appearance;
 }
 
-/** The palette mode: the scheme, with true black replacing dark when chosen. */
+/** The scheme, with true black replacing dark when chosen. */
 export function resolvedMode(choice: ThemeChoice, systemScheme: SystemScheme): ThemeMode {
   const scheme = resolvedScheme(choice, systemScheme);
   return scheme === "dark" && choice.black ? "black" : scheme;
-}
-
-export function resolveTheme(choice: ThemeChoice, systemScheme: SystemScheme): ThemeVariant {
-  return variantName(choice.accent, resolvedMode(choice, systemScheme));
-}
-
-/** The palette mode of an applied variant name. */
-export function modeOfVariant(variant: string): ThemeMode {
-  if (variant === "black" || variant.endsWith("-black")) return "black";
-  return variant === "dark" || variant.endsWith("-dark") ? "dark" : "light";
 }
 
 /** One device-local selection; apply, persist and notify atomically. */
@@ -89,12 +70,7 @@ export function createThemeStore({
       apply(current);
     },
     set(next: ThemeChoice) {
-      if (
-        next.accent === current.accent &&
-        next.appearance === current.appearance &&
-        next.black === current.black
-      )
-        return;
+      if (next.appearance === current.appearance && next.black === current.black) return;
       current = next;
       apply(next);
       write(JSON.stringify(next));

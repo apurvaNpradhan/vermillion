@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { accentNames as themeNames, brandThemes, themeModes } from "./brand";
+import { nativeColors, themeModes } from "./brand";
 import {
   CARD_BACKGROUNDS,
   GLOW_ALPHA,
@@ -26,15 +26,13 @@ function contrast(a: string, b: string) {
 }
 
 const kinds: CardPaletteKind[] = [...CARD_BACKGROUNDS, "sticker"];
-const cases = themeNames.flatMap((theme) =>
-  themeModes.flatMap((appearance) =>
-    kinds.map((kind) => ({ theme, appearance, kind, name: `${theme} ${appearance} ${kind}` })),
-  ),
+const cases = themeModes.flatMap((appearance) =>
+  kinds.map((kind) => ({ appearance, kind, name: `${appearance} ${kind}` })),
 );
 
 describe("share card palettes", () => {
-  it.each(cases)("keeps all card text AA on $name", ({ theme, appearance, kind }) => {
-    const c = cardPalette(theme, appearance, kind);
+  it.each(cases)("keeps all card text AA on $name", ({ appearance, kind }) => {
+    const c = cardPalette(appearance, kind);
     for (const role of ["text", "textSecondary", "textMuted"] as const) {
       expect(contrast(c[role], c.ground), `${role} on ground`).toBeGreaterThanOrEqual(4.5);
     }
@@ -44,8 +42,8 @@ describe("share card palettes", () => {
 
   it.each(cases.filter((entry) => entry.kind === "theme"))(
     "keeps text AA under the accent glow on $name",
-    ({ theme, appearance }) => {
-      const c = cardPalette(theme, appearance, "theme");
+    ({ appearance }) => {
+      const c = cardPalette(appearance, "theme");
       const lit = mixHex(c.ground, c.glow ?? c.ground, GLOW_ALPHA);
       for (const role of ["text", "textSecondary", "textMuted"] as const) {
         expect(contrast(c[role], lit), `${role} on the glow`).toBeGreaterThanOrEqual(4.5);
@@ -54,35 +52,28 @@ describe("share card palettes", () => {
   );
 
   it("keeps the thumbnail plate readable behind its letter", () => {
-    for (const { theme, appearance, kind } of cases) {
-      const c = cardPalette(theme, appearance, kind);
-      expect(
-        contrast(c.textSecondary, c.plate),
-        `${theme} ${appearance} ${kind}`,
-      ).toBeGreaterThanOrEqual(3);
+    for (const { appearance, kind } of cases) {
+      const c = cardPalette(appearance, kind);
+      expect(contrast(c.textSecondary, c.plate), `${appearance} ${kind}`).toBeGreaterThanOrEqual(3);
     }
   });
 
   it("uses the fixed palette whatever the appearance for Light, Dark, Photo and Sticker", () => {
-    for (const theme of themeNames) {
-      for (const kind of ["light", "dark", "photo", "sticker"] as const) {
-        expect(cardPalette(theme, "light", kind)).toEqual(cardPalette(theme, "dark", kind));
-        expect(cardPalette(theme, "black", kind)).toEqual(cardPalette(theme, "dark", kind));
-      }
-      expect(cardPalette(theme, "dark", "light").fill).toBe(brandThemes[theme].light.canvas);
-      expect(cardPalette(theme, "light", "dark").fill).toBe(brandThemes[theme].dark.canvas);
+    for (const kind of ["light", "dark", "photo", "sticker"] as const) {
+      expect(cardPalette("light", kind)).toEqual(cardPalette("dark", kind));
+      expect(cardPalette("black", kind)).toEqual(cardPalette("dark", kind));
     }
+    expect(cardPalette("dark", "light").fill).toBe(nativeColors.light.canvas);
+    expect(cardPalette("light", "dark").fill).toBe(nativeColors.dark.canvas);
   });
 
   it("protects top headings, exercise rows, stats and footer over a white photo", () => {
     // CardCanvas applies this same opacity at every y, including Summary/Muscles headings.
-    for (const theme of themeNames) {
-      const c = cardPalette(theme, "dark", "photo");
-      for (const y of [168, 461, 998, 1752, 1836]) {
-        const ground = mixHex("#ffffff", c.scrim ?? c.ground, PHOTO_SCRIM_ALPHA);
-        for (const ink of [c.text, c.textSecondary, c.textMuted]) {
-          expect(contrast(ink, ground), `${theme} text at y=${y}`).toBeGreaterThanOrEqual(4.5);
-        }
+    const c = cardPalette("dark", "photo");
+    for (const y of [168, 461, 998, 1752, 1836]) {
+      const ground = mixHex("#ffffff", c.scrim ?? c.ground, PHOTO_SCRIM_ALPHA);
+      for (const ink of [c.text, c.textSecondary, c.textMuted]) {
+        expect(contrast(ink, ground), `text at y=${y}`).toBeGreaterThanOrEqual(4.5);
       }
     }
   });

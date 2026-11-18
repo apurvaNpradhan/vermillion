@@ -1,40 +1,29 @@
-import { accentNames, brandThemes, type AccentName } from "@workspace/ui/tokens/brand";
 import type { TranslationKey } from "@workspace/i18n";
 import { BottomSheet, Switch } from "heroui-native";
-import { Check } from "phosphor-react-native";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
-import { usePaletteMode, useThemeChoice } from "./index";
+import { useThemeChoice } from "./index";
 import { APPEARANCES, type AppearanceChoice, type ThemeChoice } from "./theme-state";
 
-const ACCENT_LABELS = {
-  mono: "theme__accent_mono",
-  vermilion: "theme__accent_vermilion",
-  indigo: "theme__accent_indigo",
-  orchid: "theme__accent_orchid",
-  sky: "theme__accent_sky",
-} satisfies Record<AccentName, TranslationKey>;
 const APPEARANCE_LABELS = {
   system: "theme__system",
   light: "theme__light",
   dark: "theme__dark",
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
-/** "Dark · Indigo": the current choice as one settings value. */
 export function useAppearanceSummary(choice: ThemeChoice): string {
   const { t } = useTranslation();
-  return `${t(APPEARANCE_LABELS[choice.appearance])} · ${t(ACCENT_LABELS[choice.accent])}`;
+  return t(APPEARANCE_LABELS[choice.appearance]);
 }
 
-/** Appearance, true black and accent in one sheet. Every change applies at once. */
+/** Appearance and true black apply as soon as they change. */
 export function AppearanceSheet({
   isOpen,
   onOpenChange,
@@ -45,7 +34,6 @@ export function AppearanceSheet({
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const { choice, setChoice } = useThemeChoice();
-  const mode = usePaletteMode();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
@@ -80,45 +68,6 @@ export function AppearanceSheet({
               }
             />
           </ListSection>
-          <View className="gap-3">
-            <Text className="px-1 font-medium text-label text-muted">{t("theme__accent")}</Text>
-            <View accessibilityRole="radiogroup" className="flex-row justify-between px-1">
-              {accentNames.map((name) => {
-                // Literal palette values: every swatch shows its own colour, not the active one.
-                const colors = brandThemes[name][mode];
-                const selected = choice.accent === name;
-                return (
-                  <Pressable
-                    key={name}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    accessibilityLabel={t(ACCENT_LABELS[name])}
-                    className="items-center gap-2 active:opacity-70"
-                    onPress={() => {
-                      haptic.tick();
-                      setChoice({ ...choice, accent: name });
-                    }}
-                  >
-                    <View
-                      className={`rounded-full border-2 p-1 ${selected ? "border-foreground" : "border-transparent"}`}
-                    >
-                      <View
-                        className="size-11 items-center justify-center rounded-full"
-                        style={{ backgroundColor: colors.identity }}
-                      >
-                        {selected ? (
-                          <Check size={20} weight="bold" color={colors["on-identity"]} />
-                        ) : null}
-                      </View>
-                    </View>
-                    <Text className={`text-caption ${selected ? "text-foreground" : "text-muted"}`}>
-                      {t(ACCENT_LABELS[name])}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>

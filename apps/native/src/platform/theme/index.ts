@@ -1,18 +1,11 @@
-import { brandThemes, type ThemeMode } from "@workspace/ui/tokens/brand";
+import { nativeColors, type ThemeMode } from "@workspace/ui/tokens/brand";
 import * as SystemUI from "expo-system-ui";
 import { useSyncExternalStore } from "react";
 import { AppState, Appearance, type ColorValue } from "react-native";
 import { Uniwind, useCSSVariable, useUniwind } from "uniwind";
 
 import { deviceStorage } from "../storage";
-import {
-  createThemeStore,
-  modeOfVariant,
-  resolvedMode,
-  resolvedScheme,
-  resolveTheme,
-  type ThemeChoice,
-} from "./theme-state";
+import { createThemeStore, resolvedMode, resolvedScheme, type ThemeChoice } from "./theme-state";
 
 let systemScheme = Appearance.getColorScheme();
 let applying = false;
@@ -47,14 +40,13 @@ function applyTheme(choice: ThemeChoice) {
     refreshFrame = undefined;
   }
   const scheme = resolvedScheme(choice, systemScheme);
+  const mode = resolvedMode(choice, systemScheme);
   applying = true;
-  Uniwind.setTheme(resolveTheme(choice, systemScheme));
+  Uniwind.setTheme(mode);
   // Custom Uniwind themes reset Appearance; force native chrome AFTER setting the theme.
   Appearance.setColorScheme(scheme);
   applying = false;
-  void SystemUI.setBackgroundColorAsync(
-    brandThemes[choice.accent][resolvedMode(choice, systemScheme)].canvas,
-  );
+  void SystemUI.setBackgroundColorAsync(nativeColors[mode].canvas);
 }
 
 const THEME_KEY = "device.theme";
@@ -83,21 +75,21 @@ export function applyStoredTheme() {
   });
 }
 
-/** Device-local appearance and accent, and their setter. Colour only; layout is shared. */
+/** Device-local appearance and its setter. */
 export function useThemeChoice() {
   const choice = useSyncExternalStore(store.subscribe, store.getSnapshot);
   return { choice, setChoice: (next: ThemeChoice) => store.set(next) };
 }
 
-/** Native chrome reads light or dark, not the accent; true black counts as dark. */
+/** Native chrome treats true black as dark. */
 export function useThemeMode(): "light" | "dark" {
-  return usePaletteMode() === "light" ? "light" : "dark";
+  return useAppliedThemeMode() === "light" ? "light" : "dark";
 }
 
-/** The applied palette mode, including true black. */
-export function usePaletteMode(): ThemeMode {
+/** The applied mode, including true black. */
+export function useAppliedThemeMode(): ThemeMode {
   const { theme } = useUniwind();
-  return modeOfVariant(theme);
+  return theme === "dark" || theme === "black" ? theme : "light";
 }
 
 /** Supporting text for icons whose props require a color string. */
@@ -112,7 +104,7 @@ export function useOnSetDoneColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
-/** The chosen accent, for marks whose props require a color string. */
+/** The palette's accent, for marks whose props require a color string. */
 export function useIdentityColor(): string | undefined {
   const value = useCSSVariable("--color-identity");
   return isColorString(value) ? value : undefined;
