@@ -34,7 +34,6 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page, ScrollPage } from "@/platform/ui/page";
-import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { displayTitle } from "./derived-title";
@@ -74,9 +73,7 @@ export function WorkoutEditorScreen(props: WorkoutEditorProps) {
   if (state.status === "loading") {
     return (
       <ScrollPage title={t("training__workout")} back>
-        <Skeleton label={t("common__loading")} className="h-11 w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
+        {null}
       </ScrollPage>
     );
   }

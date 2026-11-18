@@ -32,7 +32,6 @@ import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Notice } from "@/platform/ui/notice";
 import { Page, ScrollPage } from "@/platform/ui/page";
-import { Skeleton } from "@/platform/ui/skeleton";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { thumbnailUrl, videoUrl } from "../../media-url";
@@ -73,9 +72,7 @@ export function ExerciseDetailScreen(props: ExerciseDetailProps) {
   if (state.status === "loading") {
     return (
       <ScrollPage title={t("exercise__title")} back>
-        <Skeleton label={t("common__loading")} className="h-56 w-full" />
-        <Skeleton className="h-8 w-2/3" />
-        <Skeleton className="h-24 w-full" />
+        {null}
       </ScrollPage>
     );
   }
@@ -265,14 +262,10 @@ function LoadedDetail({
                   />
                 </View>
               </>
-            ) : (
+            ) : history.status === "loading" ? null : (
               <Text className="px-4 text-body text-muted">
                 {t(
-                  history.status === "loading"
-                    ? "exercise__history_loading"
-                    : history.status === "error"
-                      ? "exercise__load_failed"
-                      : "exercise__numbers_empty",
+                  history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
                 )}
               </Text>
             )}

@@ -1,10 +1,11 @@
 import { type MediaVariant } from "@workspace/shared";
 import { Image } from "expo-image";
 import { CloudArrowUp, WarningCircle } from "phosphor-react-native";
-import { Spinner, useThemeColor } from "heroui-native";
+import { useThemeColor } from "heroui-native";
 import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 
+import { Skeleton } from "@/platform/ui/skeleton";
 import { useTranslation } from "@/platform/i18n";
 
 import { useMediaImage } from "./use-media-image";
@@ -85,13 +86,9 @@ export function MediaImage({
         fallback
       )}
       {file.state === "downloading" && !drawable ? (
-        <View
-          accessible
-          accessibilityLabel={t("media__downloading")}
-          className="absolute inset-0 items-center justify-center"
-          pointerEvents="none"
-        >
-          <Spinner size="sm" />
+        <View className="absolute inset-0" pointerEvents="none">
+          {/* A wait on the network: the one place a placeholder is right. */}
+          <Skeleton label={t("media__downloading")} className="h-full w-full rounded-none" />
         </View>
       ) : null}
       {file.state === "uploading" ? (

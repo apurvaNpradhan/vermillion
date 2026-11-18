@@ -48,11 +48,7 @@ export function ManageEquipmentScreen() {
   return (
     <>
       <ScrollPage title={t("plates__manage")} back backFallback="/">
-        {state.failed ? (
-          <Button onPress={state.retry}>{t("plates__retry")}</Button>
-        ) : state.loading ? (
-          <Text className="text-body text-muted">{t("plates__loading")}</Text>
-        ) : null}
+        {state.failed ? <Button onPress={state.retry}>{t("plates__retry")}</Button> : null}
         {!state.loading && !state.failed && state.rows.length === 0 ? (
           <EmptyState
             icon={Barbell}

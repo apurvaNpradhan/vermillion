@@ -104,9 +104,7 @@ export function HistoryScreen() {
               <Button onPress={history.retry}>
                 <Button.Label>{t("training__retry")}</Button.Label>
               </Button>
-            ) : history.loading ? (
-              <Text className="text-body text-muted">{t("common__loading")}</Text>
-            ) : (
+            ) : history.loading ? null : (
               <EmptyState
                 icon={ClockCounterClockwise}
                 title={t("session__history_empty")}

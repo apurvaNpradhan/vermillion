@@ -4,7 +4,7 @@ import { Button } from "@/platform/ui/button";
 import { HabitGrid } from "@/platform/ui/habit-grid";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SectionHeader } from "@/platform/ui/section-header";
-import { Skeleton } from "@/platform/ui/skeleton";
+import { FadeIn } from "@/platform/ui/fade-in";
 import { formatElapsed, useActiveSessions, useStartSession } from "@/session";
 import { KG_PER_LB, sessionGoal, sessionTotals, type SessionHistory } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -58,7 +58,8 @@ export function TrainingHome() {
       </Button>
     );
   }
-  if (loading) return <HomeSkeleton label={t("common__loading")} />;
+  // Everything here is on the device, so it lands in milliseconds: nothing is drawn until then.
+  if (loading) return null;
 
   const resume = active.sessions[0];
   const now = new Date();
@@ -128,7 +129,7 @@ export function TrainingHome() {
   const lastTotals = last ? totalsOf([last]) : null;
 
   return (
-    <View className="gap-6">
+    <FadeIn className="gap-6">
       <View className="gap-3 rounded-2xl bg-surface p-4">
         <Text className="text-caption font-medium text-identity">
           {next && !resume
@@ -295,22 +296,6 @@ export function TrainingHome() {
         </View>
       ) : null}
       {sheet}
-    </View>
-  );
-}
-
-/** The loading layout: the same blocks as the finished screen, so nothing jumps when it lands. */
-function HomeSkeleton({ label }: { label: string }) {
-  return (
-    <View className="gap-6">
-      <Skeleton label={label} className="h-36 w-full rounded-2xl" />
-      <Skeleton className="h-44 w-full rounded-2xl" />
-      <View className="flex-row gap-3">
-        <Skeleton className="h-40 flex-1 rounded-2xl" />
-        <Skeleton className="h-40 flex-1 rounded-2xl" />
-      </View>
-      <Skeleton className="h-24 w-full rounded-2xl" />
-      <Skeleton className="h-16 w-full rounded-2xl" />
-    </View>
+    </FadeIn>
   );
 }

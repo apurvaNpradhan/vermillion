@@ -30,7 +30,7 @@ export function SessionPhotos({
         <Button.Label>{t("training__retry")}</Button.Label>
       </Button>
     );
-  if (state.loading) return <Text className="text-caption text-muted">{t("common__loading")}</Text>;
+  if (state.loading) return null;
   return (
     <View className="gap-2">
       {state.photos.length ? (

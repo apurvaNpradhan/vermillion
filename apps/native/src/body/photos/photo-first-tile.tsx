@@ -27,7 +27,7 @@ export function PhotoFirstTile() {
       <View className="w-1/2 gap-2 py-6">
         <Text className="text-body text-muted">{t("body__photo_slot")}</Text>
         <Text className="text-caption text-muted">
-          {latest.loading ? t("common__loading") : t("body__photo_later")}
+          {latest.loading ? null : t("body__photo_later")}
         </Text>
       </View>
     );

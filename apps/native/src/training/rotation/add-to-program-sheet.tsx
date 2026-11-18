@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
-import { Skeleton } from "@/platform/ui/skeleton";
 
 import { useProgramActions } from "@/training/programs/use-program-actions";
 import { usePrograms } from "@/training/programs/use-programs";
@@ -54,9 +53,6 @@ export function AddToProgramSheet({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ gap: 16, paddingHorizontal: 20, paddingBottom: bottom + 16 }}
           >
-            {status === "loading" ? (
-              <Skeleton label={t("common__loading")} className="h-12 w-full" />
-            ) : null}
             {status === "list" ? (
               <ListSection>
                 {programs.map((program) => (

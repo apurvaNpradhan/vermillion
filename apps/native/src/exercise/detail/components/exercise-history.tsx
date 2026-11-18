@@ -37,15 +37,13 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
           )}
           ListHeaderComponent={<View className="px-4 pb-4">{header}</View>}
           ListEmptyComponent={
-            <Text className="px-4 text-body text-muted">
-              {t(
-                history.status === "loading"
-                  ? "exercise__history_loading"
-                  : history.status === "error"
-                    ? "exercise__load_failed"
-                    : "exercise__numbers_empty",
-              )}
-            </Text>
+            history.status === "loading" ? null : (
+              <Text className="px-4 text-body text-muted">
+                {t(
+                  history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
+                )}
+              </Text>
+            )
           }
           ListFooterComponent={
             exercise.status === "ready" ? (
