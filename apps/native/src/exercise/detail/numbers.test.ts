@@ -48,7 +48,7 @@ describe("exercise numbers", () => {
       "longest_distance",
       "best_pace",
     ]);
-    expect(metricsFor("reps_only")).toEqual(["most_reps", "total_reps"]);
+    expect(metricsFor("reps_only")).toEqual(["total_reps", "most_reps"]);
     expect(metricsFor("floors_duration")).toEqual(["longest_duration", "floors"]);
     expect(metricsFor("steps_duration")).toEqual(["longest_duration", "steps"]);
     expect(metricsFor("short_distance_weight")).toEqual(["heaviest_weight", "longest_distance"]);

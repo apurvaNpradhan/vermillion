@@ -16,8 +16,8 @@ export function metricsFor(type: ExerciseType): Metric[] {
   if (fields.includes("weight") && fields.includes("reps"))
     metrics.push("heaviest_weight", "estimated_one_rep_max", "set_volume", "session_volume");
   if (type === "bodyweight_reps") metrics.push("set_volume", "session_volume");
-  if (type === "bodyweight_reps" || type === "reps_only") metrics.push("most_reps");
   if (fields.includes("reps")) metrics.push("total_reps");
+  if (type === "bodyweight_reps" || type === "reps_only") metrics.push("most_reps");
   if (fields.includes("duration")) metrics.push("longest_duration");
   if (fields.includes("distance")) metrics.push("longest_distance");
   if (fields.includes("duration") && fields.includes("distance")) metrics.push("best_pace");
