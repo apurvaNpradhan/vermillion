@@ -9,7 +9,7 @@ import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { FormError } from "@/platform/ui/form-error";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 import { Notice } from "@/platform/ui/notice";
 
 import { stepPosition, type FlowKind } from "../flow";
@@ -39,7 +39,6 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
   const status = useRegistrationStatus();
   const { sendCode } = useEmailCode();
   const [failure, setFailure] = useState<string | null>(null);
-  const online = useIsOnline();
   const creating = flow === "get-started";
   const hasSocial = Object.values(status?.providers ?? {}).some(Boolean);
 
@@ -48,7 +47,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
     defaultValues: { email: "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
-      if (!isOnlineNow()) return;
+      if (!(await confirmOnline())) return;
       setFailure(null);
       const email = value.email.trim();
       const error = await sendCode(email, turnstile.headers);
@@ -71,7 +70,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
           action={{
             label: t("auth__continue"),
             onPress: () => void form.handleSubmit(),
-            disabled: email.trim() === "" || turnstile.pending || !online,
+            disabled: email.trim() === "" || turnstile.pending,
             loading: isSubmitting,
           }}
         >
@@ -115,7 +114,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
               <OrDivider label={t("auth__or")} />
               <SocialButtons
                 headers={turnstile.headers}
-                blocked={isSubmitting || turnstile.pending || !online}
+                blocked={isSubmitting || turnstile.pending}
                 onDone={turnstile.reset}
               />
             </View>

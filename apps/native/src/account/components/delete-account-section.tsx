@@ -9,7 +9,7 @@ import { useRequestDeletion } from "../use-account-actions";
 import { FormError } from "@/platform/ui/form-error";
 import { Notice } from "@/platform/ui/notice";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 
 import { useCurrentUser } from "../use-current-user";
 import { Button } from "@/platform/ui/button";
@@ -24,7 +24,6 @@ import { Card } from "@/platform/ui/card";
 export function DeleteAccountSection() {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
-  const online = useIsOnline();
   const [typed, setTyped] = useState("");
   const { requestDeletion, isPending, isSuccess, isOffline } = useRequestDeletion();
 
@@ -47,11 +46,13 @@ export function DeleteAccountSection() {
             <FormError message={isOffline ? t("errors__offline") : null} />
             <Button
               variant="danger-soft"
-              isDisabled={isPending || !online || !isDeleteConfirmationValid(typed, user?.email)}
+              isDisabled={isPending || !isDeleteConfirmationValid(typed, user?.email)}
               onPress={() => {
-                if (!isOnlineNow()) return;
-                if (user) rememberDeletionRequest(user.id);
-                requestDeletion({ callbackURL: `${appConfig.scheme}://confirm-deletion` });
+                void confirmOnline().then((online) => {
+                  if (!online) return;
+                  if (user) rememberDeletionRequest(user.id);
+                  requestDeletion({ callbackURL: `${appConfig.scheme}://confirm-deletion` });
+                });
               }}
             >
               {isPending ? <Spinner size="sm" /> : null}

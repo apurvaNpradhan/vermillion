@@ -4,6 +4,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { useSyncExternalStore } from "react";
 
 import { env } from "./env";
+import { probeReachable } from "./reachability";
 
 /** Whether a NetInfo state means requests can go out: unknown counts as online. */
 export function isReachable(state: {
@@ -44,12 +45,18 @@ export function watchConnection(queryClient: QueryClient) {
 }
 
 /**
- * The same answer as `useIsOnline`, read when an action runs, not when it was rendered: handlers
- * that need the server (auto-submit on the last code digit, the keyboard's submit key) check it
- * so they never start a request that would only sit paused behind a spinner.
+ * For an explicit tap: the cached answer when it says online, otherwise one fresh bounded probe
+ * before refusing, so a stale "offline" from the last poll never blocks a working connection. A
+ * successful probe tells the manager, so the cue clears and paused queries resume.
  */
-export function isOnlineNow() {
-  return onlineManager.isOnline();
+export async function confirmOnline(): Promise<boolean> {
+  if (onlineManager.isOnline()) return true;
+  const reachable = await probeReachable(
+    new URL("/api/health", env.EXPO_PUBLIC_SERVER_URL).toString(),
+    (url, init) => fetch(url, init),
+  );
+  if (reachable) onlineManager.setOnline(true);
+  return reachable;
 }
 
 /** Whether the device can reach the server right now (true until proven otherwise). */

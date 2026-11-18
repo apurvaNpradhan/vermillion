@@ -13,7 +13,11 @@ import {
   WEIGHT_UNITS,
 } from "./training/vocabulary/vocabulary";
 import { lighterPeriodSchema, LIGHTER_WEEKS_KEPT } from "./training/progress/lighter-week";
-import { muscleGoalsSchema } from "./training/volume/muscle-targets";
+import {
+  muscleGoalSchema,
+  muscleGoalsSchema,
+  TARGET_MUSCLES,
+} from "./training/volume/muscle-targets";
 
 /** An IANA time zone name such as `Europe/Berlin`. */
 export function isTimeZone(value: string) {
@@ -138,5 +142,14 @@ export const updatePreferencesSchema = z.object({
   locale: localeSchema.nullable().optional(),
   timezone: timezoneSchema.nullable().optional(),
   ui: uiPreferencesPatchSchema.optional(),
+  /**
+   * Per-muscle goal edits, merged into `ui.muscleGoals` one muscle at a time: a goal sets that
+   * muscle, `null` resets it to the default. Unlike `ui.muscleGoals` (the whole map, which
+   * overwrites), it never touches a muscle another device edited. Applied after `ui` when both
+   * are sent.
+   */
+  muscleGoalChanges: z
+    .partialRecord(z.enum(TARGET_MUSCLES), muscleGoalSchema.nullable())
+    .optional(),
 });
 export type UpdatePreferences = z.infer<typeof updatePreferencesSchema>;

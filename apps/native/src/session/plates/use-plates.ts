@@ -138,6 +138,7 @@ export function useEquipment(enabled = true) {
     rows: state.value ?? [],
     unit,
     hasSynced,
+    indicator: snapshot?.indicator ?? null,
     save,
     edit,
     toggle,

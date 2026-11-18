@@ -4,6 +4,7 @@ import {
   ensureInstallId,
   purgeOrphanRejectedWrites,
   powerSyncSchema,
+  legacyUploadColumns,
   uploadColumns,
   type StorageUnavailableReason,
   type SyncLifecycle,
@@ -62,6 +63,7 @@ export function openLocalData(): Promise<LocalData> {
         database,
         transport,
         uploadColumns,
+        legacyUploadColumns,
         // Media files are outside the database: they go with the account.
         onWiped: () => media.clear(),
         // The queue stops, and its in-flight transfer is cancelled, before the database is

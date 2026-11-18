@@ -1,6 +1,6 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 
-import { createConnector, type ConnectorSignal } from "./connector";
+import { createConnector, type ConnectorSignal, type LegacyUploadProjection } from "./connector";
 import type { SyncTransport } from "./transport";
 import { claimDeviceOwner, readDeviceOwner } from "./device-owner";
 import { ensureInstallId } from "./install-meta";
@@ -37,6 +37,7 @@ export type LifecyclePorts = {
   database: LifecycleDatabase;
   transport: SyncTransport;
   uploadColumns: ReadonlyMap<string, ReadonlySet<string>>;
+  legacyUploadColumns?: ReadonlyMap<string, LegacyUploadProjection>;
   now?: () => number;
   /**
    * Runs after the local database was wiped, for what lives outside it (the Program cover files).
@@ -76,7 +77,7 @@ const DONE: Step = { follow: [], abort: false };
  * connector signal from a connection that has since been torn down is ignored (generation fence).
  */
 export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
-  const { database, transport, uploadColumns } = ports;
+  const { database, transport, uploadColumns, legacyUploadColumns } = ports;
   const now = ports.now ?? Date.now;
 
   let phase: Phase = { kind: "starting" };
@@ -145,6 +146,7 @@ export function createSyncLifecycle(ports: LifecyclePorts): SyncLifecycle {
           database,
           transport,
           uploadColumns,
+          ...(legacyUploadColumns ? { legacyUploadColumns } : {}),
           onSignal: signalHandler(generation),
         });
         await database.connect(connector);

@@ -80,6 +80,23 @@ describe("preferences store", () => {
     expect((await readPreferences(s.database, "intruder")).ui.weightUnit).toBe("kg");
   });
 
+  it("refuses a captured save once the account is no longer authorized", async () => {
+    const s = await setup();
+    let authorized = true;
+    const save = () =>
+      savePreferences(
+        s.database,
+        { ui: { weightUnit: "lb" } },
+        { ...s.scope, isAuthorized: () => authorized },
+      );
+    authorized = false;
+    await expect(save()).rejects.toThrow("another account");
+    expect(s.rows()).toEqual([]);
+    authorized = true;
+    await save();
+    expect(s.rows()).toHaveLength(1);
+  });
+
   describe("upload patch", () => {
     it("queues only the keys of the latest write, not the merged view", async () => {
       const s = await setup();
@@ -110,6 +127,26 @@ describe("preferences store", () => {
       expect(s.patchOf()).toMatchObject({ timezone: null });
       expect("locale" in s.patchOf()).toBe(false);
       expect((s.rows()[0] as { timezone: string | null }).timezone).toBeNull();
+    });
+
+    it("queues a per-muscle goal edit alone and applies it to the local map", async () => {
+      const s = await setup();
+      const grow = { level: "grow" } as const;
+      await savePreferences(s.database, { ui: { muscleGoals: { quadriceps: grow } } }, s.scope);
+      await savePreferences(
+        s.database,
+        { muscleGoalChanges: { chest: { level: "custom", min: 12, max: 18 } } },
+        s.scope,
+      );
+      const { writtenAt: _at, ...patch } = s.patchOf();
+      expect(patch).toEqual({
+        muscleGoalChanges: { chest: { level: "custom", min: 12, max: 18 } },
+      });
+      const read = () => readPreferencesRow(s.rows()[0] as never).ui.muscleGoals;
+      expect(read()).toEqual({ quadriceps: grow, chest: { level: "custom", min: 12, max: 18 } });
+      await savePreferences(s.database, { muscleGoalChanges: { quadriceps: null } }, s.scope);
+      expect(s.patchOf().muscleGoalChanges).toEqual({ quadriceps: null });
+      expect(read()).toEqual({ chest: { level: "custom", min: 12, max: 18 } });
     });
 
     it("uploads the patch column and nothing else", () => {

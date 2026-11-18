@@ -17,7 +17,7 @@ import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 
 import { ChangeEmailSection } from "./change-email-section";
 
@@ -25,7 +25,6 @@ export function ProfileSection() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const { user } = useCurrentUser();
-  const online = useIsOnline();
 
   const { updateProfile } = useUpdateProfile();
   const [changingEmail, setChangingEmail] = useState(false);
@@ -39,7 +38,7 @@ export function ProfileSection() {
     defaultValues: { name: user?.name ?? "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
-      if (!isOnlineNow()) return;
+      if (!(await confirmOnline())) return;
       setFailure(null);
       try {
         await updateProfile({ name: value.name });
@@ -87,10 +86,7 @@ export function ProfileSection() {
             >
               {({ isSubmitting, dirty }) =>
                 dirty ? (
-                  <Button
-                    onPress={() => void form.handleSubmit()}
-                    isDisabled={isSubmitting || !online}
-                  >
+                  <Button onPress={() => void form.handleSubmit()} isDisabled={isSubmitting}>
                     {isSubmitting ? <Spinner size="sm" /> : null}
                     <Button.Label>{t("common__save")}</Button.Label>
                   </Button>
@@ -111,8 +107,6 @@ export function ProfileSection() {
                   <Pressable
                     accessibilityRole="button"
                     hitSlop={8}
-                    accessibilityState={{ disabled: !online }}
-                    disabled={!online}
                     onPress={() => setChangingEmail(true)}
                   >
                     <Text className="text-label font-semibold text-foreground">

@@ -74,7 +74,7 @@ export {
   installMeta,
   rejectedWrites,
 } from "./platform/tables";
-export { uploadColumns } from "./platform/upload-columns";
+export { legacyUploadColumns, uploadColumns } from "./platform/upload-columns";
 export type {
   DatabaseFactory,
   OpenDatabaseResult,

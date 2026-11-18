@@ -12,5 +12,8 @@ export const authClient = createAppAuthClient(
     scheme: appConfig.scheme,
     storagePrefix: appConfig.scheme,
     storage: SecureStore,
+    // The plugin would keep the whole /get-session answer (token included) in `<scheme>_session_data`.
+    // The app remembers identity and expiry itself (`auth/stored-session.ts`).
+    disableCache: true,
   }),
 );

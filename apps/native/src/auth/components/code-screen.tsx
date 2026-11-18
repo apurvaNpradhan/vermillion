@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Spinner, cn } from "heroui-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { OTP_LENGTH, OTP_RESEND_SECONDS } from "@workspace/shared";
@@ -16,7 +16,7 @@ import { refreshSession } from "../session";
 import { useCountdown } from "../use-countdown";
 import { useEmailCode } from "../use-email-code";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 import { FlowStep } from "./flow-step";
 import { useTurnstile } from "./use-turnstile";
 
@@ -35,28 +35,48 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
+  // The code is single use: once accepted, a retry only asks for the session again.
+  const redeemed = useRef(false);
 
   async function submit(code: string) {
     // Offline the "Needs a connection" caption is showing; nothing is sent or left spinning.
-    if (checking || !isOnlineNow()) return;
+    if (checking) return;
     setChecking(true);
-    setFailure(null);
-    setNotice(null);
-    const result = await redeemCode(email, code);
-    if (result.error) {
+    // A stale "offline" must not refuse a working connection: one fresh bounded probe first.
+    if (!(await confirmOnline())) {
       setChecking(false);
-      setValue("");
-      setFailure(t(result.error));
       return;
     }
-    haptic.confirm();
-    rememberLoginMethod("email");
-    await refreshSession(queryClient);
+    setFailure(null);
+    setNotice(null);
+    if (!redeemed.current) {
+      const result = await redeemCode(email, code);
+      if (result.error) {
+        setChecking(false);
+        setValue("");
+        setFailure(t(result.error));
+        return;
+      }
+      redeemed.current = true;
+      haptic.confirm();
+      rememberLoginMethod("email");
+    }
+    // The code was accepted, so a session exists. If asking for it fails or says "nobody", the
+    // route guard would never move on: stay here with a way to try again.
+    const session = await refreshSession(queryClient).catch(() => null);
+    if (!session) {
+      setChecking(false);
+      setFailure(t("auth__session_retry"));
+    }
   }
 
   async function resend() {
     setResending(true);
     setFailure(null);
+    if (!(await confirmOnline())) {
+      setResending(false);
+      return;
+    }
     const error = await sendCode(email, turnstile.headers);
     turnstile.reset();
     setResending(false);
@@ -73,9 +93,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
     countdown.remaining > 0
       ? t("auth__code_resend_wait", { seconds: countdown.remaining })
       : t("auth__code_resend_short");
-  const online = useIsOnline();
-  const resendDisabled =
-    countdown.remaining > 0 || turnstile.pending || checking || resending || !online;
+  const resendDisabled = countdown.remaining > 0 || turnstile.pending || checking || resending;
 
   return (
     <FlowStep
@@ -85,7 +103,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
       action={{
         label: t("auth__continue"),
         onPress: () => void submit(value),
-        disabled: value.length < OTP_LENGTH || !online,
+        disabled: value.length < OTP_LENGTH,
         loading: checking,
       }}
     >

@@ -130,6 +130,64 @@ describe("preferences uploads", () => {
     ).toMatchObject({ code: "SYNC_INVALID_OP" });
   });
 
+  it("merges per-muscle goal edits so another device's muscle survives, and null resets one", async () => {
+    const a = await writer();
+    const patch = (value: PatchBody) => ({ patch: JSON.stringify(value) });
+    const grow = { level: "grow" } as const;
+    const push = { level: "custom", min: 12, max: 18 } as const;
+    // Device 1 and device 2 each edit another muscle from the same stale view.
+    await a.send([
+      {
+        op: "PUT",
+        table,
+        id: uuidv7(),
+        opData: patch({ muscleGoalChanges: { chest: push }, writtenAt: "1" }),
+      },
+    ]);
+    await a.send([
+      {
+        op: "PUT",
+        table,
+        id: uuidv7(),
+        opData: patch({ muscleGoalChanges: { quadriceps: grow }, writtenAt: "2" }),
+      },
+    ]);
+    expect((await a.client.preferences.get()).ui.muscleGoals).toEqual({
+      chest: push,
+      quadriceps: grow,
+    });
+    // An explicit null resets only that muscle.
+    await a.send([
+      {
+        op: "PATCH",
+        table,
+        id: uuidv7(),
+        opData: patch({ muscleGoalChanges: { chest: null }, writtenAt: "3" }),
+      },
+    ]);
+    expect((await a.client.preferences.get()).ui.muscleGoals).toEqual({ quadriceps: grow });
+    // The legacy whole-map upload keeps its overwrite behaviour.
+    await a.send([
+      {
+        op: "PATCH",
+        table,
+        id: uuidv7(),
+        opData: { ui: JSON.stringify({ muscleGoals: { calves: grow } }) },
+      },
+    ]);
+    expect((await a.client.preferences.get()).ui.muscleGoals).toEqual({ calves: grow });
+    expect(
+      await a.send([
+        {
+          op: "PUT",
+          table,
+          id: uuidv7(),
+          opData: patch({ muscleGoalChanges: { chest: { level: "bogus" } } } as never),
+        },
+      ]),
+    ).toMatchObject({ code: "SYNC_INVALID_OP" });
+  });
+
   it("refuses deletes, values the old procedure refuses, and a foreign avatar", async () => {
     const a = await writer();
     const id = uuidv7();

@@ -25,6 +25,8 @@ export function trainStatus(input: {
   loading: boolean;
   count: number;
   snapshot: Pick<SyncSnapshot, "hasSynced" | "indicator" | "phase"> | null;
+  /** Reachability of our server (the health probe), not whether PowerSync is connected yet. */
+  online: boolean;
 }): TrainStatus {
   if (input.failed) return "error";
   if (input.loading) return "loading";
@@ -35,8 +37,9 @@ export function trainStatus(input: {
     input.snapshot.indicator !== "locked" &&
     input.snapshot.indicator !== "update-required";
   if (!waiting) return "empty";
-  // The connection has not been made (offline, or not yet): the download cannot be under way.
-  return input.snapshot?.indicator === "paused" && input.snapshot.phase.kind === "active"
+  // Only an unreachable server means the download cannot happen: a client that is active but not
+  // connected yet is in its normal handshake, not offline.
+  return !input.online && input.snapshot?.phase.kind === "active"
     ? "first-sync-offline"
     : "first-sync";
 }

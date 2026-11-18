@@ -308,6 +308,22 @@ export function canSeedEquipment(input: {
   );
 }
 
+/**
+ * What to say when there is no bar. Before the first sync the kit may be on its way ("syncing") -
+ * unless sync cannot run: an account lock or a required update will not deliver it, and saying
+ * "waiting" would be false.
+ */
+export function noBarCopy(input: {
+  rowCount: number;
+  hasSynced: boolean;
+  indicator: "connected" | "uploading" | "paused" | "locked" | "update-required" | null;
+}): "plates__syncing" | "plates__locked" | "plates__update" | "plates__no_bar" {
+  if (input.rowCount > 0 || input.hasSynced) return "plates__no_bar";
+  if (input.indicator === "locked") return "plates__locked";
+  if (input.indicator === "update-required") return "plates__update";
+  return "plates__syncing";
+}
+
 const sameItem = (row: EquipmentRow, item: GymEquipmentInput) =>
   row.kind === item.kind &&
   row.unit === item.unit &&

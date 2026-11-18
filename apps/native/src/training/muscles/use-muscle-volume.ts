@@ -7,8 +7,6 @@ import {
   sessionsInRange,
   weekRange,
   weeklyMuscleVolume,
-  type MuscleGoal,
-  type MuscleGoals,
   type TargetMuscle,
 } from "@workspace/shared";
 import {
@@ -33,7 +31,7 @@ const DAY_MS = 86_400_000;
  * ending with the week `weeksAgo` back, and every figure is the average per week.
  */
 export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null, weeks = 1) {
-  const { preferences, setUi } = usePreferences();
+  const { preferences, setMuscleGoal } = usePreferences();
   const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { weekStart, muscleGoals } = preferences.ui;
   // The clock is read once per mount; a screen left open across midnight shows the old week.
@@ -91,11 +89,7 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null,
         ...entry,
         sets: entry.sets / weeks,
       })),
-    setGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) => {
-      const next: MuscleGoals = { ...muscleGoals };
-      if (goal === null) delete next[muscle];
-      else next[muscle] = goal;
-      setUi({ muscleGoals: next });
-    },
+    // One muscle at a time: sending the whole map would erase another device's edit.
+    setGoal: setMuscleGoal,
   };
 }

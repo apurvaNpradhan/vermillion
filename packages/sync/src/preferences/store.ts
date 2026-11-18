@@ -2,6 +2,8 @@ import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import {
   isLocale,
+  TARGET_MUSCLES,
+  type MuscleGoals,
   preferencesSchema,
   uiPreferencesPatchSchema,
   updatePreferencesSchema,
@@ -24,6 +26,13 @@ export type PreferencesDatabase = AbstractPowerSyncDatabase;
  * overwrite another device's newer edit.
  */
 export const preferencesUploadColumns: ReadonlySet<string> = new Set(["patch"]);
+
+/** What builds before the `patch` column uploaded; a queued entry without `patch` keeps it. */
+export const legacyPreferencesUploadColumns: ReadonlySet<string> = new Set([
+  "locale",
+  "timezone",
+  "ui",
+]);
 
 /**
  * The owner's newest row wins: a row made offline before the first sync outranks the server's
@@ -70,7 +79,12 @@ export async function readPreferences(
 }
 
 /** Who a write is for: the install id the screen captured and the user it believes owns the data. */
-export type PreferencesScope = { installId: string | undefined; owner: string | undefined };
+export type PreferencesScope = {
+  installId: string | undefined;
+  owner: string | undefined;
+  /** Asked inside the write transaction: false when the account was locked or switched since. */
+  isAuthorized?: () => boolean;
+};
 
 /**
  * Saves any subset of the preferences on the device and queues the upload. The row is made on the
@@ -100,6 +114,8 @@ export async function savePreferences(
       .where(eq(deviceOwner.id, DEVICE_OWNER_ID))
       .limit(1);
     if (!owner) throw new Error("Device owner changed");
+    if (scope.isAuthorized && !scope.isAuthorized())
+      throw new Error("The device belongs to another account");
     if (scope.owner !== undefined && scope.owner !== owner.user_id)
       throw new Error("The device belongs to another account");
     const [row] = await tx
@@ -108,11 +124,24 @@ export async function savePreferences(
       .where(eq(userPreferences.user_id, owner.user_id))
       .orderBy(desc(userPreferences.id))
       .limit(1);
-    const ui = JSON.stringify({ ...sparseUi(row?.ui), ...patch.ui });
+    const merged = { ...sparseUi(row?.ui), ...patch.ui };
+    const changes = patch.muscleGoalChanges;
+    if (changes) {
+      // The local view of the per-muscle edits; the upload carries only the edits themselves.
+      const goals: MuscleGoals = { ...merged.muscleGoals };
+      for (const muscle of TARGET_MUSCLES) {
+        const goal = changes[muscle];
+        if (goal === undefined) continue;
+        if (goal === null) delete goals[muscle];
+        else goals[muscle] = goal;
+      }
+      merged.muscleGoals = goals;
+    }
+    const ui = JSON.stringify(merged);
     const values = {
       ...(patch.locale !== undefined ? { locale: patch.locale } : {}),
       ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
-      ...(patch.ui ? { ui } : {}),
+      ...(patch.ui || patch.muscleGoalChanges ? { ui } : {}),
     };
     // Only what this write changed goes up; `writtenAt` keeps two equal writes from collapsing.
     const dirty = JSON.stringify({ ...patch, writtenAt: new Date().toISOString() });

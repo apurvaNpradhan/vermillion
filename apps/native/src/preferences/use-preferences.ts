@@ -7,11 +7,13 @@ import {
 import {
   DEFAULT_UI_PREFERENCES,
   type Locale,
+  type MuscleGoal,
   type Preferences,
+  type TargetMuscle,
   type UiPreferencesPatch,
   type UpdatePreferences,
 } from "@workspace/shared";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";
 import { useSession } from "@/auth";
@@ -39,7 +41,8 @@ function useLocalPreferences() {
   const owner = useSyncValue((snapshot) => (snapshot ? phaseOwner(snapshot.phase) : null));
   const installId = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   const sessionUser = session?.user.id ?? null;
-  const access = preferencesAccess({ sessionUser, owner, installId });
+  const blockedPhase = useSyncValue((snapshot) => snapshot?.phase.kind === "blocked");
+  const access = preferencesAccess({ sessionUser, owner, installId, blocked: blockedPhase });
   const database: PreferencesDatabase | null = local?.status === "ready" ? local.database : null;
   const gated = database && access ? { database, access } : null;
   const state = useSyncExternalStore(
@@ -52,8 +55,14 @@ function useLocalPreferences() {
     ),
     () => (gated ? preferencesSnapshot(gated.database, gated.access) : NO_DATABASE),
   );
-  const blocked = sessionUser !== null && owner !== null && sessionUser !== owner;
-  return { database, access, state, unavailable: local?.status === "unavailable" || blocked };
+  const blocked = blockedPhase || (sessionUser !== null && owner !== null && sessionUser !== owner);
+  return {
+    database,
+    access,
+    state,
+    lifecycle: local?.status === "ready" ? local.lifecycle : null,
+    unavailable: local?.status === "unavailable" || blocked,
+  };
 }
 
 /**
@@ -62,8 +71,11 @@ function useLocalPreferences() {
  * connection, and a change is shown at once, queued, and uploaded when the device is online.
  */
 export function usePreferences() {
-  const { database, access, state, unavailable } = useLocalPreferences();
+  const { database, access, state, lifecycle, unavailable } = useLocalPreferences();
   const { session } = useSession();
+  // The newest session user, read when the write transaction runs, not when the save started.
+  const sessionUserRef = useRef<string | null>(null);
+  sessionUserRef.current = session?.user.id ?? null;
   const [saving, setSaving] = useState(0);
   const { setDeviceLocale } = useLocale();
 
@@ -77,6 +89,14 @@ export function usePreferences() {
         await savePreferences(database, patch, {
           installId: access.installId,
           owner: session?.user.id ?? access.owner,
+          // Rechecked inside the write transaction: a lock or another account that arrived after
+          // the save was captured must not let it through.
+          isAuthorized: () => {
+            const phase = lifecycle?.getSnapshot().phase;
+            if (!phase || phase.kind === "blocked") return false;
+            const user = sessionUserRef.current;
+            return user === null || user === access.owner;
+          },
         });
         // Shown at once: the next step reads this, not a watch that has not answered yet.
         await showSaved(database, access);
@@ -84,7 +104,7 @@ export function usePreferences() {
         setSaving((count) => count - 1);
       }
     },
-    [database, access, session],
+    [database, access, session, lifecycle],
   );
   const quietly = (patch: UpdatePreferences) => void save(patch).catch(() => undefined);
 
@@ -103,6 +123,9 @@ export function usePreferences() {
     /** Saves some of the `ui` preferences (weight unit, effort scale, default rest). */
     setUiAsync: (ui: UiPreferencesPatch) => save({ ui }),
     setUi: (ui: UiPreferencesPatch) => quietly({ ui }),
+    /** Changes one muscle's goal (`null` resets it) without touching the others. */
+    setMuscleGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) =>
+      quietly({ muscleGoalChanges: { [muscle]: goal } }),
   };
 }
 
