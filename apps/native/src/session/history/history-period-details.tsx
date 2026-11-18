@@ -1,6 +1,12 @@
 import type { WeekStart } from "@workspace/shared";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import Animated, { useAnimatedProps, withTiming } from "react-native-reanimated";
+import { useEffect } from "react";
+import Animated, {
+  ReduceMotion,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, { Circle, Rect } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
@@ -22,6 +28,7 @@ import {
 } from "./history-calendar";
 import { DayFill } from "./history-calendar-view";
 import type { HistoryFormat } from "./history-format";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const SIZE = 60;
@@ -136,8 +143,22 @@ function GoalRing({ count, goal, format }: { count: number; goal: number; format
   const track = useCSSVariable("--color-default");
   const fill = useIdentityColor();
   const fraction = Math.min(1, count / goal);
+  const reduced = useReduceMotion();
+  // Reduce Motion: the final arc fades in over 120 ms (as the period card does) instead of filling.
+  const opacity = useSharedValue(reduced ? 0 : 1);
+  useEffect(() => {
+    if (reduced) {
+      opacity.set(0);
+      opacity.set(withTiming(1, { duration: 120, reduceMotion: ReduceMotion.Never }));
+    } else {
+      opacity.set(1);
+    }
+  }, [reduced, opacity]);
   const animated = useAnimatedProps(() => ({
-    strokeDashoffset: withTiming(CIRCUMFERENCE * (1 - fraction), { duration: 320 }),
+    strokeDashoffset: reduced
+      ? CIRCUMFERENCE * (1 - fraction)
+      : withTiming(CIRCUMFERENCE * (1 - fraction), { duration: 320 }),
+    opacity: opacity.get(),
   }));
   return (
     <View
@@ -279,7 +300,7 @@ export function HistoryAll({
   const { t } = useTranslation();
   const color = useCSSVariable("--color-chart-1");
   if (history.firstDay === null) return null;
-  const { volume, seconds } = history.totals;
+  const { sets, volume, seconds } = history.totals;
   const streak = goalStreaks(history.weekCounts, goal, currentWeek);
   const months = monthlyWorkouts(history, today, weekStart);
   const years = new Map<number, typeof months>();
@@ -292,6 +313,7 @@ export function HistoryAll({
     max = Math.max(max, point.count);
   }
   const items = [
+    { label: t("stats__sets"), value: format.integer(sets) },
     {
       label: t("stats__volume"),
       value: t("home__volume_value", {
@@ -333,9 +355,18 @@ export function HistoryAll({
               <Pressable
                 key={year}
                 accessibilityRole="button"
-                accessibilityLabel={t("session__history_period_summary", {
+                accessibilityLabel={t("session__history_year_summary", {
                   period: format.year(yearStart),
                   workouts: t("session__workout_count", { count, value: format.integer(count) }),
+                  months: format.list(
+                    points.map((point) =>
+                      t("session__month_workout_count", {
+                        month: format.longMonth(point.month),
+                        count: point.count,
+                        value: format.integer(point.count),
+                      }),
+                    ),
+                  ),
                 })}
                 accessibilityHint={t("session__open_history_year")}
                 onPress={() => onYear(yearStart)}

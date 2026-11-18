@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { calendarDay, sessionStartAllowed, stepZoned, zonedParts } from "@workspace/shared";
+import { calendarDay, stepZoned, zonedParts } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { Calendar } from "@/platform/ui/calendar";
@@ -13,7 +13,7 @@ import { usePreferences } from "@/preferences";
 import { Stepper, useWorkouts } from "@/training";
 import { useFinishSession } from "@/session/finish/use-finish-session";
 
-import { logPastBounds, logPastOnDay } from "./log-past-date";
+import { logPastBounds, logPastForSave, logPastOnDay } from "./log-past-date";
 
 export function LogPastScreen() {
   const { t, i18n } = useTranslation();
@@ -33,14 +33,15 @@ export function LogPastScreen() {
   const form = useForm({
     defaultValues: { startedAt: new Date().toISOString() },
     onSubmit: async ({ value }) => {
-      const parsed = Date.parse(value.startedAt);
-      if (!Number.isFinite(parsed) || !sessionStartAllowed(new Date(parsed).toISOString())) {
+      // Bounds move with the clock, so check against a fresh one rather than the render's.
+      const startedAt = logPastForSave(value.startedAt, new Date(), timezone);
+      if (startedAt === null) {
         setInvalid(true);
         return;
       }
       setBusy(true);
       try {
-        const id = await actions.logPast(selected, new Date(parsed).toISOString());
+        const id = await actions.logPast(selected, startedAt);
         if (id) router.replace({ pathname: "/session/[id]", params: { id, backfill: "true" } });
       } finally {
         setBusy(false);

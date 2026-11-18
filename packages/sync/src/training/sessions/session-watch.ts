@@ -431,29 +431,36 @@ export const SESSIONS_BETWEEN_SQL = `SELECT ${SET_COLUMNS}
     ORDER BY s2.started_at DESC, s2.id DESC LIMIT ${SESSION_READ_LIMIT})
   ${SET_ORDER}`;
 
+/** A half-open `[from, to)` range of Session start times (ISO). */
+export type HistoryRange = { from: string; to: string };
+
 /** Cursor pages use the same stable start/id ordering as the History list. */
-export function sessionsPageSql(): string {
+export function sessionsPageSql(bounded = false): string {
   return SESSIONS_BETWEEN_SQL.replace(
     "s2.started_at >= ? AND s2.started_at < ?",
-    "(s2.started_at < ? OR (s2.started_at = ? AND s2.id < ?))",
+    `(s2.started_at < ? OR (s2.started_at = ? AND s2.id < ?))${
+      bounded ? " AND s2.started_at >= ?" : ""
+    }`,
   ).replace(`LIMIT ${SESSION_READ_LIMIT}`, "LIMIT ?");
 }
 
 /**
- * Read the full history in bounded cursor pages. Call inside one SQLite read transaction so a
- * backdated insert or edit cannot move a Session across a cursor between pages.
+ * Read the History in bounded cursor pages: all of it, or only the Sessions that started in
+ * `range`. Call inside one SQLite read transaction so a backdated insert or edit cannot move a
+ * Session across a cursor between pages.
  */
 export async function readFinishedHistoryPages(
   read: (sql: string, parameters: string[]) => Promise<readonly object[]>,
+  range?: HistoryRange,
 ) {
   const pageSize = 200;
   const sessions: FinishedSession[] = [];
-  const sql = sessionsPageSql();
-  let startedAt = "9999-01-01T00:00:00.000Z";
+  const sql = sessionsPageSql(range !== undefined);
+  let startedAt = range?.to ?? "9999-01-01T00:00:00.000Z";
   let id = "~";
   while (true) {
     const page = parseFinishedSessions(
-      await read(sql, [startedAt, startedAt, id, String(pageSize)]),
+      await read(sql, [startedAt, startedAt, id, ...(range ? [range.from] : []), String(pageSize)]),
     );
     sessions.push(...page);
     const last = page.at(-1);
@@ -461,6 +468,103 @@ export async function readFinishedHistoryPages(
     startedAt = last.started_at;
     id = last.id;
   }
+}
+
+/**
+ * One cheap row per finished Session (no set rows are transferred or parsed): its own columns and
+ * sums over its ticked sets. Any edit a History row or total shows changes one of these values,
+ * and a tick in an unfinished Session changes none, so the full read can be skipped.
+ */
+export function finishedFingerprintSql(bounded = false): string {
+  return `SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
+      s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
+      COUNT(DISTINCT se.id) AS exercises, COUNT(ss.id) AS sets,
+      TOTAL(ss.weight_kg) AS weight, TOTAL(ss.reps) AS reps,
+      TOTAL(ss.weight_kg * ss.reps) AS volume, TOTAL(ss.duration_s) AS seconds,
+      TOTAL(ss.distance_m) AS distance, TOTAL(ss.floors) AS floors, TOTAL(ss.steps) AS steps,
+      TOTAL(ss.rpe) AS rpe, MAX(ss.completed_at) AS last_completed,
+      ${SET_KINDS.map((kind) => `TOTAL(ss.kind = '${kind}') AS k_${kind}`).join(", ")}
+    FROM training_session s
+    LEFT JOIN session_exercise se ON se.session_id = s.id
+    LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
+    GROUP BY s.id`;
+}
+
+/** The finished Sessions with these ids (at most {@link IDS_PER_READ}), with their ticked sets. */
+export function finishedByIdsSql(count: number): string {
+  const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
+  return `SELECT ${SET_COLUMNS}
+    FROM training_session s
+    LEFT JOIN session_exercise se ON se.session_id = s.id
+    LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+    WHERE s.finished_at IS NOT NULL AND s.id IN (${ids})
+    ${SET_ORDER}`;
+}
+
+const IDS_PER_READ = 100;
+const fingerprintRowSchema = z.object({ id: z.string() }).loose();
+
+type Reader = (sql: string, parameters: string[]) => Promise<readonly object[]>;
+
+/**
+ * Keeps the finished Sessions of a range (or all of them) between reads. `refresh` reads the
+ * fingerprints, then loads only the Sessions whose fingerprint changed (the first call pages in
+ * everything), so a tick in an unfinished Session costs one aggregate query and no set parsing.
+ * It returns the Sessions newest first, or `null` when nothing visible changed.
+ */
+export function createFinishedHistoryReader(range?: HistoryRange) {
+  let fingerprints: Map<string, string> | null = null;
+  const sessions = new Map<string, FinishedSession>();
+  return {
+    /** Forget what was read, so the next `refresh` loads everything again. */
+    reset() {
+      fingerprints = null;
+      sessions.clear();
+    },
+    async refresh(read: Reader): Promise<FinishedSession[] | null> {
+      const rows = await read(
+        finishedFingerprintSql(range !== undefined),
+        range ? [range.from, range.to] : [],
+      );
+      const next = new Map(
+        z
+          .array(fingerprintRowSchema)
+          .parse(rows)
+          .map((row) => [row.id, JSON.stringify(row)] as const),
+      );
+      if (fingerprints === null) {
+        for (const session of await readFinishedHistoryPages(read, range)) {
+          sessions.set(session.id, session);
+        }
+      } else {
+        const previous = fingerprints;
+        const changed = next
+          .entries()
+          .filter(([id, key]) => previous.get(id) !== key)
+          .map(([id]) => id)
+          .toArray();
+        const removed = previous
+          .keys()
+          .filter((id) => !next.has(id))
+          .toArray();
+        if (changed.length === 0 && removed.length === 0) return null;
+        for (const id of removed) sessions.delete(id);
+        for (let at = 0; at < changed.length; at += IDS_PER_READ) {
+          const ids = changed.slice(at, at + IDS_PER_READ);
+          for (const session of parseFinishedSessions(
+            await read(finishedByIdsSql(ids.length), ids),
+          )) {
+            sessions.set(session.id, session);
+          }
+        }
+      }
+      fingerprints = next;
+      return [...sessions.values()].sort(
+        (a, b) => b.started_at.localeCompare(a.started_at) || b.id.localeCompare(a.id),
+      );
+    },
+  };
 }
 
 /**

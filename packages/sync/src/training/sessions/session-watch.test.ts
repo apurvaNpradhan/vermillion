@@ -21,6 +21,7 @@ import {
   exerciseRecordsSql,
   sessionsPageSql,
   readFinishedHistoryPages,
+  createFinishedHistoryReader,
   parseActiveSessions,
   parseEquipment,
   parseExerciseHistories,
@@ -266,6 +267,76 @@ describe("exercise history and ranges", () => {
     expect(
       parseFinishedSessions(s.sqlite.prepare(SESSIONS_BETWEEN_SQL).all(daysAgo(100), daysAgo(50))),
     ).toEqual([]);
+  });
+});
+
+describe("the History reader", () => {
+  const readerOf = (s: Sessions) => {
+    const queries: string[] = [];
+    const read = async (sql: string, params: string[]) => {
+      queries.push(sql);
+      return s.sqlite.prepare(sql).all(...params);
+    };
+    return {
+      read,
+      queries,
+      setRows: () => queries.filter((sql) => sql.includes("ss.kind AS kind")),
+    };
+  };
+
+  it("scopes cursor pages to a range", async () => {
+    const s = await setupSessions();
+    const old = await finishedSquat(s, daysAgo(100), [100]);
+    const mid = await finishedSquat(s, daysAgo(10), [105]);
+    const recent = await finishedSquat(s, daysAgo(1), [110]);
+    const { read } = readerOf(s);
+    const range = { from: daysAgo(20), to: daysAgo(0.5) };
+    expect((await readFinishedHistoryPages(read, range)).map((row) => row.id)).toEqual([
+      recent,
+      mid,
+    ]);
+    expect((await readFinishedHistoryPages(read)).map((row) => row.id)).toEqual([recent, mid, old]);
+  });
+
+  it("ignores ticks in an unfinished Session and reloads only a changed finished one", async () => {
+    const s = await setupSessions();
+    const a = await finishedSquat(s, daysAgo(10), [100]);
+    const b = await finishedSquat(s, daysAgo(5), [105]);
+    const { read, queries, setRows } = readerOf(s);
+    const reader = createFinishedHistoryReader();
+    expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([b, a]);
+
+    // A live set in an unfinished Session: no set rows are read, nothing is emitted.
+    const live = await startSession(s.training, { workoutId: null, derivedTitle: "Live" });
+    const [exercise] = await addSessionExercises(s.training, live, [SQUAT]);
+    queries.length = 0;
+    await tickSet(s.training, await addSet(s.training, exercise ?? ""), { weight: 60, reps: 8 });
+    expect(await reader.refresh(read)).toBeNull();
+    expect(queries).toHaveLength(1);
+
+    // Editing a set of a finished Session loads that Session alone.
+    const entry = String(s.exercises(a)[0]?.["id"]);
+    const edited = String(s.sets(entry)[1]?.["id"]);
+    await updateSet(s.training, edited, { weight_kg: 150 });
+    queries.length = 0;
+    const next = await reader.refresh(read);
+    expect(setRows()).toHaveLength(1);
+    expect(next?.find((row) => row.id === a)?.sets.some((set) => set.weight_kg === 150)).toBe(true);
+    expect(next?.map((row) => row.id)).toEqual([b, a]);
+    expect(await reader.refresh(read)).toBeNull();
+
+    // Finishing the live Session adds it.
+    await finishSession(s.training, live, { startedAt: daysAgo(1) });
+    expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([live, b, a]);
+  });
+
+  it("keeps a range reader to its range", async () => {
+    const s = await setupSessions();
+    await finishedSquat(s, daysAgo(100), [100]);
+    const recent = await finishedSquat(s, daysAgo(2), [110]);
+    const { read } = readerOf(s);
+    const reader = createFinishedHistoryReader({ from: daysAgo(20), to: daysAgo(0) });
+    expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([recent]);
   });
 });
 

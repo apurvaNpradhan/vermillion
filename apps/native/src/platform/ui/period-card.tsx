@@ -6,7 +6,6 @@ import Animated, {
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -15,6 +14,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { useSubtleColor } from "@/platform/theme";
 
 import { Button } from "./button";
+import { useReduceMotion } from "./use-reduce-motion";
 
 /**
  * A card for one period of time, in the shape of History's: an overline title, a headline, previous
@@ -47,7 +47,7 @@ export function PeriodCard({
   children: ReactNode;
 }) {
   const subtle = useSubtleColor();
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const offset = useSharedValue(0);
   const opacity = useSharedValue(1);
   useLayoutEffect(() => {

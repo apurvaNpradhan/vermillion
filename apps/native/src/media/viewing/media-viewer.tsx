@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { Spinner, useThemeColor } from "heroui-native";
 import { WarningCircle } from "phosphor-react-native";
 import { useMemo } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { ImageViewer, type ViewerImageBox, type ViewerItem } from "@/platform/ui/image-viewer";
@@ -11,10 +11,18 @@ import { useMediaImage } from "./use-media-image";
 import { useMediaSizes } from "./use-media-sizes";
 
 /** One picture of the viewer: the full image, with the thumbnail standing in while it downloads. */
-function FullMediaImage({ mediaId, box }: { mediaId: string; box: ViewerImageBox }) {
+function FullMediaImage({
+  mediaId,
+  box,
+  localOnly,
+}: {
+  mediaId: string;
+  box: ViewerImageBox;
+  localOnly: boolean;
+}) {
   const { t } = useTranslation();
-  const full = useMediaImage(mediaId, "full");
-  const thumb = useMediaImage(mediaId, "thumb");
+  const full = useMediaImage(mediaId, "full", localOnly);
+  const thumb = useMediaImage(mediaId, "thumb", localOnly);
   const danger = useThemeColor("danger");
   const uri = full.uri ?? thumb.uri;
   return (
@@ -27,6 +35,16 @@ function FullMediaImage({ mediaId, box }: { mediaId: string; box: ViewerImageBox
           transition={120}
           style={{ width: box.width, height: box.height }}
         />
+      ) : null}
+      {localOnly && uri === null && full.state === "missing" && thumb.state === "missing" ? (
+        // Nothing is fetched here: a calm note instead of a spinner that would never finish.
+        <View
+          accessible
+          accessibilityLabel={t("media__not_on_device")}
+          className="absolute inset-0 items-center justify-center px-6"
+        >
+          <Text className="text-center text-body text-muted">{t("media__not_on_device")}</Text>
+        </View>
       ) : null}
       {full.uri === null && full.state === "downloading" ? (
         <View
@@ -65,7 +83,10 @@ export function MediaViewer({
   index,
   onIndexChange,
   onClose,
+  localOnly = false,
 }: {
+  /** Show only files already on this device; never request a download or a retry. */
+  localOnly?: boolean;
   mediaIds: readonly string[];
   captions?: readonly string[];
   index: number;
@@ -92,7 +113,9 @@ export function MediaViewer({
       onClose={onClose}
       closeLabel={t("common__close")}
       pageLabel={(page, count) => t("media__page", { page: page + 1, count })}
-      renderImage={(item, box) => <FullMediaImage mediaId={item.key} box={box} />}
+      renderImage={(item, box) => (
+        <FullMediaImage mediaId={item.key} box={box} localOnly={localOnly} />
+      )}
     />
   );
 }

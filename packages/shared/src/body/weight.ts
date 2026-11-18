@@ -23,15 +23,41 @@ export function dailyWeights(entries: readonly WeightEntry[]): DailyWeight[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, day]) => ({ date, scale: day.total / day.count }));
 }
+/**
+ * The bodyweight rule for a day: the latest measured day through that date, the first measured
+ * day for older dates, then the profile weight. `daily` is in the order produced by dailyWeights.
+ * Build it once and call it per date; it binary-searches without copying the series.
+ */
+export function bodyweightLookup(
+  daily: readonly DailyWeight[],
+  profileKg: number | null,
+): (date: string) => number | null {
+  return (date) => {
+    let low = 0;
+    let high = daily.length - 1;
+    let found: DailyWeight | undefined;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      const entry = daily[middle];
+      if (entry === undefined) break;
+      if (entry.date <= date) {
+        found = entry;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return found?.scale ?? daily[0]?.scale ?? profileKg;
+  };
+}
+
 /** Uses measured daily weights in the order produced by dailyWeights. */
 export function bodyweightForDate(
   daily: readonly DailyWeight[],
   date: string,
   profileKg: number | null,
 ): number | null {
-  return (
-    [...daily].reverse().find((entry) => entry.date <= date)?.scale ?? daily[0]?.scale ?? profileKg
-  );
+  return bodyweightLookup(daily, profileKg)(date);
 }
 
 export function trendSeries(daily: readonly DailyWeight[], alpha = 0.1): TrendPoint[] {

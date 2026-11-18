@@ -7,6 +7,8 @@ export function historyFormat(locale: string, unit: WeightUnit) {
   const medium = date({ dateStyle: "medium" });
   const monthYear = date({ month: "long", year: "numeric" });
   const shortMonth = date({ month: "short" });
+  const longMonth = date({ month: "long" });
+  const list = new Intl.ListFormat(locale, { style: "long", type: "conjunction" });
   const year = date({ year: "numeric" });
   const day = date({ day: "numeric" });
   const weekday = date({ weekday: "short" });
@@ -27,6 +29,8 @@ export function historyFormat(locale: string, unit: WeightUnit) {
     full: full.format,
     medium: medium.format,
     shortMonth: shortMonth.format,
+    longMonth: longMonth.format,
+    list: (items: string[]) => list.format(items),
     monthYear: monthYear.format,
     year: year.format,
     day: day.format,
