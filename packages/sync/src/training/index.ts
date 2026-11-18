@@ -119,6 +119,7 @@ export {
   type ActiveSession,
   type EquipmentRow,
   type FinishedSession,
+  type HistoryRange,
   type SessionDetail,
   type SessionExerciseDetail,
   type SessionSetDetail,

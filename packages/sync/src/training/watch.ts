@@ -20,7 +20,7 @@ import {
   exerciseHistoriesSql,
   exerciseRecordsSql,
   sessionsPageSql,
-  readFinishedHistoryPages,
+  createFinishedHistoryReader,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -31,6 +31,7 @@ import {
   type ActiveSession,
   type EquipmentRow,
   type FinishedSession,
+  type HistoryRange,
   type SessionDetail,
 } from "./sessions/session-watch";
 import type { TrainingDatabase } from "./store";
@@ -740,18 +741,24 @@ export function watchSessionsBetween(
   );
 }
 
-/** Watches the complete local History, including Sessions without a counted set. */
+/**
+ * Watches the local History, including Sessions without a counted set: all of it, or only the
+ * Sessions that started in `range`. The first read pages everything in; after that a change
+ * reads one aggregate row per finished Session and loads only the Sessions that differ, so
+ * ticking a set in an unfinished Session never re-reads or re-parses the History.
+ */
 export function watchFinishedHistory(
   database: TrainingDatabase,
   handlers: {
     onSessions: (sessions: FinishedSession[]) => void;
     onError: (error: Error) => void;
   },
+  range?: HistoryRange,
 ): () => void {
   const controller = new AbortController();
+  const reader = createFinishedHistoryReader(range);
   let pending = false;
   let reading = false;
-  let last: string | null = null;
   const read = async () => {
     if (reading) {
       pending = true;
@@ -762,17 +769,13 @@ export function watchFinishedHistory(
       do {
         pending = false;
         const sessions = await database.readTransaction((tx) =>
-          readFinishedHistoryPages((sql, parameters) => tx.getAll(sql, parameters)),
+          reader.refresh((sql, parameters) => tx.getAll(sql, parameters)),
         );
         if (controller.signal.aborted) return;
-        const key = JSON.stringify(sessions);
-        if (key !== last) {
-          last = key;
-          handlers.onSessions(sessions);
-        }
+        if (sessions) handlers.onSessions(sessions);
       } while (pending && !controller.signal.aborted);
     } catch {
-      last = null;
+      reader.reset();
       if (!controller.signal.aborted)
         handlers.onError(new Error("The local workouts could not be read"));
     } finally {

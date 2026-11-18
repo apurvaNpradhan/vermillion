@@ -210,6 +210,7 @@ export type {
   ExerciseSettingPatch,
   FinishedSession,
   FinishInput,
+  HistoryRange,
   FinishResult,
   RemovedSessionExercise,
   RestTimes,
