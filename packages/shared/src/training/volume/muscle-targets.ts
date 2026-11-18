@@ -59,14 +59,18 @@ export type MuscleGoal = z.infer<typeof muscleGoalSchema>;
 export const muscleGoalsSchema = z.partialRecord(z.enum(TARGET_MUSCLES), muscleGoalSchema);
 export type MuscleGoals = z.infer<typeof muscleGoalsSchema>;
 
-/** The explicit goal or planned weekly count, with no target outside an active program. */
+/**
+ * The saved goal, else the active program's planned weekly count as the default; with neither
+ * there is no target. A saved goal never depends on a program being active.
+ */
 export function goalRange(
   goal: MuscleGoal | undefined,
   planned: number | null = null,
 ): SetRange | null {
+  if (goal !== undefined)
+    return goal.level === "custom" ? { min: goal.min, max: goal.max } : GOAL_RANGES[goal.level];
   if (planned === null) return null;
-  if (goal === undefined) return planned > 0 ? { min: planned, max: planned } : null;
-  return goal.level === "custom" ? { min: goal.min, max: goal.max } : GOAL_RANGES[goal.level];
+  return planned > 0 ? { min: planned, max: planned } : null;
 }
 
 /** Where a muscle's sets stand against its range. */

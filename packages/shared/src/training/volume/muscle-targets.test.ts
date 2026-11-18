@@ -25,6 +25,11 @@ describe("goalRange", () => {
     expect(GOAL_RANGES[level]).toEqual(range);
   });
 
+  it("keeps a saved goal with no active program; the planned count is only the default", () => {
+    expect(goalRange({ level: "custom", min: 4, max: 12 }, null)).toEqual({ min: 4, max: 12 });
+    expect(goalRange({ level: "grow" })).toEqual({ min: 10, max: 20 });
+  });
+
   it("uses the typed range of a Custom goal", () => {
     expect(goalRange({ level: "custom", min: 4, max: 12 }, 4)).toEqual({ min: 4, max: 12 });
   });
