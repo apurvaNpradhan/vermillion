@@ -28,6 +28,7 @@ const set = (overrides: Partial<SessionSetDetail> = {}): SessionSetDetail => ({
   rpe: null,
   completedAt: null,
   timerStartedAt: null,
+  generatedWarmup: false,
   target: null,
   ...overrides,
 });
@@ -46,6 +47,7 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     logEffort: false,
     progressionPerSet: false,
     autoWarmups: false,
+    warmupKey: null,
     barId: null,
     sets,
     exercise: null,

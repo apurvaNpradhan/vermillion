@@ -370,6 +370,21 @@ describe("back from a break", () => {
     expect(after(27)?.reason).toBe("after_break");
   });
 
+  it("counts the break from the latest Session with a completed working set", () => {
+    const warmupOnly = session(
+      [logged(5, 40, { kind: "warmup" })],
+      new Date(NOW.getTime() - 2 * 86_400_000).toISOString(),
+    );
+    const trained = session(
+      [logged(10, 100), logged(10, 100)],
+      new Date(NOW.getTime() - 20 * 86_400_000).toISOString(),
+    );
+    const next = suggestNext(plan, [warmupOnly, trained], "weight_reps", "barbell", settings, {
+      now: NOW,
+    });
+    expect(next).toMatchObject({ reason: "after_break", breakDays: 20 });
+  });
+
   it("28 days and more starts at 80%", () => {
     expect(after(28)?.sets[0]).toEqual({ weightKg: 80, reps: 8 });
     expect(after(60)?.breakDays).toBe(60);

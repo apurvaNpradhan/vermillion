@@ -276,6 +276,8 @@ export const sessionExercise = pgTable(
     note: text("note"),
     supersetGroup: uuid("superset_group"),
     logEffort: boolean("log_effort").notNull().default(false),
+    /** The inputs the generated warm-up ramp was last built from; null before the first ramp. */
+    warmupKey: text("warmup_key"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -338,6 +340,8 @@ export const sessionSet = pgTable(
     completedAt: timestamptz("completed_at"),
     timerStartedAt: timestamptz("timer_started_at"),
     target: jsonb("target").$type<PlannedSet | null>(),
+    /** A warm-up written by the ramp generator, until the user types, ticks or edits it. */
+    generatedWarmup: boolean("generated_warmup").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

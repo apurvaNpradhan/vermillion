@@ -53,12 +53,12 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE session_exercise (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT,
         exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,
         source_workout_exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT,
-        superset_group TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
+        superset_group TEXT, log_effort INTEGER, warmup_key TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE session_photo (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT, media_id TEXT, position REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,
         position TEXT, kind TEXT, weight_kg REAL, reps INTEGER, duration_s INTEGER,
         distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,
-        timer_started_at TEXT, target TEXT, created_at TEXT, restore INTEGER);
+        timer_started_at TEXT, target TEXT, generated_warmup INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,

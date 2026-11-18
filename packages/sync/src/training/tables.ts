@@ -132,6 +132,8 @@ export const sessionExercise = sqliteTable(
     note: text("note"),
     superset_group: text("superset_group"),
     log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    /** The inputs the generated warm-up ramp was last built from (see `replaceWarmups`). */
+    warmup_key: text("warmup_key"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -159,6 +161,8 @@ export const sessionSet = sqliteTable(
     completed_at: text("completed_at"),
     timer_started_at: text("timer_started_at"),
     target: text("target", { mode: "json" }).$type<PlannedSet | null>(),
+    /** A warm-up the ramp generator wrote, until the user types, ticks or edits it. */
+    generated_warmup: integer("generated_warmup", { mode: "boolean" }).notNull().default(false),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

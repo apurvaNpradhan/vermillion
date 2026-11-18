@@ -146,7 +146,10 @@ export function suggestNext(
   });
   const last = baselines[0];
   if (!last) return null;
-  const lastTrained = history[0] ?? last;
+  // The break clock runs from the latest Session with a completed working set; a Session of only
+  // warm-ups or unticked sets is not training.
+  const lastTrained =
+    history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
   const breakDays = Math.floor(
     (context.now.getTime() - Date.parse(lastTrained.started_at)) / DAY_MS,
   );

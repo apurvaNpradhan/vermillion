@@ -27,6 +27,7 @@ const set = (id: string, init: SetInit = {}): SessionSetDetail => ({
   rpe: null,
   completedAt: null,
   timerStartedAt: null,
+  generatedWarmup: false,
   target: null,
   ...init,
 });
@@ -47,6 +48,7 @@ const exercise = (
   logEffort: false,
   progressionPerSet: false,
   autoWarmups: false,
+  warmupKey: null,
   barId: null,
   exercise: null,
   sets,

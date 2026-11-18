@@ -106,6 +106,7 @@ export const trainingUploadColumns = {
     "note",
     "superset_group",
     "log_effort",
+    "warmup_key",
     "restore",
   ]),
   session_set: new Set([
@@ -122,6 +123,7 @@ export const trainingUploadColumns = {
     "completed_at",
     "timer_started_at",
     "target",
+    "generated_warmup",
     "restore",
   ]),
   gym_equipment: new Set(["kind", "weight_kg", "unit", "label", "count", "enabled", "restore"]),

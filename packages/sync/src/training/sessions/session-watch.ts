@@ -127,6 +127,8 @@ export type SessionSetDetail = {
   timerStartedAt: string | null;
   /** The Planned set it was copied from; null for a set added in the Session. */
   target: PlannedSet | null;
+  /** Written by the warm-up ramp generator and not touched since: not something the user chose. */
+  generatedWarmup: boolean;
 };
 
 export type SessionExerciseDetail = {
@@ -144,6 +146,8 @@ export type SessionExerciseDetail = {
   progressionPerSet: boolean;
   /** The exercise's setting: generate a warm-up ramp from the first working weight. */
   autoWarmups: boolean;
+  /** The inputs the generated ramp was last built from; null before the first one. */
+  warmupKey: string | null;
   /** The bar the exercise remembers, if any. */
   barId: string | null;
   /** The library's current data (muscles, media); null while it has not arrived on this device. */
@@ -186,7 +190,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
-    se.superset_group AS superset_group, se.log_effort AS log_effort,
+    se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
     (SELECT bar_id FROM exercise_setting
@@ -198,7 +202,8 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
     ss.reps AS reps, ss.duration_s AS set_duration_s, ss.distance_m AS distance_m,
     ss.floors AS floors, ss.steps AS steps, ss.rpe AS rpe, ss.completed_at AS completed_at,
-    ss.timer_started_at AS timer_started_at, ss.target AS target
+    ss.timer_started_at AS timer_started_at, ss.target AS target,
+    ss.generated_warmup AS generated_warmup
   FROM training_session s
   LEFT JOIN session_exercise se ON se.session_id = s.id
   LEFT JOIN exercise e ON e.id = se.exercise_id
@@ -237,6 +242,7 @@ const detailRowSchema = z.object({
   log_effort: flag.nullable(),
   progression_per_set: flag.nullable(),
   auto_warmups: flag.nullable(),
+  warmup_key: z.string().nullable(),
   bar_id: z.string().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   secondary_muscles: secondaryText,
@@ -256,6 +262,7 @@ const detailRowSchema = z.object({
   completed_at: z.string().nullable(),
   timer_started_at: z.string().nullable(),
   target: targetText,
+  generated_warmup: flag.nullable(),
 });
 
 /** Builds one Session from the joined rows of {@link SESSION_DETAIL_SQL}; null if there is none. */
@@ -289,6 +296,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         logEffort: row.log_effort ?? false,
         progressionPerSet: row.progression_per_set ?? false,
         autoWarmups: row.auto_warmups ?? false,
+        warmupKey: row.warmup_key,
         barId: row.bar_id,
         exercise:
           row.primary_muscle !== null && row.equipment !== null
@@ -319,6 +327,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         completedAt: row.completed_at,
         timerStartedAt: row.timer_started_at,
         target: row.target,
+        generatedWarmup: row.generated_warmup ?? false,
       });
     }
   }

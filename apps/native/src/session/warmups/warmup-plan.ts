@@ -1,5 +1,6 @@
 import {
   hasWarmupRamp,
+  type Equipment,
   warmupRamp,
   type PlannedSet,
   type WarmupLoading,
@@ -28,21 +29,32 @@ export function firstWorkingWeightKg(
   return set.weightKg ?? ghostWeightOf(set.id);
 }
 
-/** What can be loaded, with a key that changes only when the kit does. */
+/** What can be loaded, with a key that changes only when what the ramp uses does. */
 type WarmupLoadingKey = { loading: WarmupLoading; key: string };
 
-/** What the user can load for this exercise: its remembered bar and the plates of that bar's unit. */
+/** The library's equipment, or "other" while its metadata has not arrived on this device. */
+const equipmentOf = (exercise: Pick<SessionExerciseDetail, "exercise">): Equipment =>
+  exercise.exercise?.equipment ?? "other";
+
+/**
+ * What the user can load for this exercise: its remembered bar and the plates of that bar's unit.
+ * The key holds what the ramp reads: the equipment class, the bar and plates only for a barbell
+ * (anything else rounds to the step), and the step; so a ramp made before the library's metadata
+ * arrived is rebuilt when it does.
+ */
 export function warmupLoading(
-  exercise: Pick<SessionExerciseDetail, "barId">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "exercise">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
 ): WarmupLoadingKey {
+  const equipment = equipmentOf(exercise);
   const bar = defaultBar(enabledBars(rows), exercise.barId, unit);
   const plates = bar ? platesForBar(rows, bar) : [];
+  const barKey = equipment === "barbell" ? loadInputKey(bar, plates) : "-";
   return {
     loading: { bar: bar ? { weightKg: bar.weightKg, plates } : null, stepKg: weightIncrementKg },
-    key: `${loadInputKey(bar, plates)}|${weightIncrementKg ?? "-"}`,
+    key: `${equipment}|${barKey}|${weightIncrementKg ?? "-"}`,
   };
 }
 
@@ -57,7 +69,7 @@ export function rampTargets(
   return warmupRamp({
     workingKg,
     exerciseType: exercise.type,
-    equipment: exercise.exercise?.equipment ?? "other",
+    equipment: equipmentOf(exercise),
     unit,
     loading: warmupLoading(exercise, rows, unit, weightIncrementKg).loading,
   }).map((step) => ({
@@ -89,16 +101,17 @@ export function shouldAutoWarmup(
 }
 
 /**
- * A key that changes only when the ramp's inputs do (the working weight, the loadable kit, the
- * unit): the auto ramp is regenerated on a change of it, not on every render, so a warm-up row the
- * user deleted does not come back until the working weight changes.
+ * A key that changes only when the ramp's inputs do (the working weight, the exercise type, the
+ * equipment class and the loading it uses, the unit): the automatic ramp is rebuilt on a change
+ * of it, not on every render, so a warm-up the user deleted does not come back until an input
+ * changes. It is stored with the exercise, so reopening the Session does not rebuild it either.
  */
 export function rampKey(
   workingKg: number,
-  exercise: Pick<SessionExerciseDetail, "barId">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "type" | "exercise">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
 ): string {
-  return `${workingKg}|${unit}|${warmupLoading(exercise, rows, unit, weightIncrementKg).key}`;
+  return `${workingKg}|${exercise.type}|${unit}|${warmupLoading(exercise, rows, unit, weightIncrementKg).key}`;
 }

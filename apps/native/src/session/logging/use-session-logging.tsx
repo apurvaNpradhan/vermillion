@@ -82,6 +82,8 @@ export function useSessionLogging(stored: SessionDetail) {
     weightIncrementKg: preferences.ui.weightIncrementKg,
     readOnly,
     actions,
+    editsPending: logging.editsPending,
+    flushEdits: logging.flush,
   });
 
   return {
