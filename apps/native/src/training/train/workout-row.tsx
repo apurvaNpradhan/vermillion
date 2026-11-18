@@ -10,7 +10,9 @@ import { PlanRow } from "@/training/shared/plan-row";
 
 /**
  * A flat workout row: its title, the exercises on one muted line and when it was last done. A
- * swipe reveals Start and Edit; a long press lists those and Share, Duplicate and Delete.
+ * swipe reveals Start and Edit; the options button and a long press list those and Share,
+ * Duplicate and Delete, and screen readers get every one of them as an action on the row.
+ * A Workout a Program owns has no Duplicate or Delete: those happen in the Program.
  */
 export const WorkoutRow = memo(function WorkoutRow({
   workout,
@@ -98,6 +100,7 @@ export const WorkoutRow = memo(function WorkoutRow({
     <PlanRow
       title={title}
       lines={[exercises, lastDone]}
+      menuLabel={t("training__workout_menu")}
       onOpen={() => onOpen(workout.id)}
       actions={swipe}
       menuActions={menu}

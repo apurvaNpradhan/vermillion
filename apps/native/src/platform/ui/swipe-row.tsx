@@ -133,9 +133,12 @@ function SwipeDismissSurface({ children }: { children: ReactNode }) {
  */
 export function SwipeRow({
   actions,
+  screenReaderActions = actions,
   children,
 }: {
   actions: SwipeAction[];
+  /** What screen readers can run: more than the swipe shows, when the row has a menu. */
+  screenReaderActions?: SwipeAction[];
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
@@ -202,9 +205,14 @@ export function SwipeRow({
   }));
 
   const a11y: SwipeA11yProps = {
-    accessibilityActions: actions.map((action) => ({ name: action.key, label: action.label })),
+    accessibilityActions: screenReaderActions.map((action) => ({
+      name: action.key,
+      label: action.label,
+    })),
     onAccessibilityAction: (event) => {
-      const action = actions.find((candidate) => candidate.key === event.nativeEvent.actionName);
+      const action = screenReaderActions.find(
+        (candidate) => candidate.key === event.nativeEvent.actionName,
+      );
       if (action) run(action);
     },
   };
