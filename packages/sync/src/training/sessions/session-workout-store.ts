@@ -3,6 +3,9 @@ import {
   diffSessionAgainstWorkout,
   loggedTargetWeight,
   plannedSetsSchema,
+  workoutStructureKey,
+  workoutSetKinds,
+  workoutUpdateEntries,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -21,6 +24,7 @@ import {
   type TrainingDatabase,
 } from "../store-common";
 import { session, sessionExercise, sessionSet, workout, workoutExercise } from "../tables";
+import type { SessionDetail } from "./session-watch";
 import type { FinishInput } from "./session-store";
 
 /** Finished-session metadata edits keep the end derived from the chosen duration. */
@@ -78,11 +82,21 @@ export function editFinishedSession(
   });
 }
 
+type WorkoutUpdateOptions = {
+  structure: boolean;
+  targets: boolean;
+  saveNew: boolean;
+  draft?: {
+    session: Pick<SessionDetail, "id" | "exercises">;
+    completeStructure: boolean;
+  };
+};
+
 /** Re-read the source inside the scoped transaction; all selected plan changes commit together. */
 export function applySessionWorkout(
   database: TrainingDatabase,
   id: string,
-  options: { structure: boolean; targets: boolean; saveNew: boolean },
+  options: WorkoutUpdateOptions,
   scope?: string,
 ) {
   return write(database, scope, async (tx) => {
@@ -110,73 +124,119 @@ export function applySessionWorkout(
           .select()
           .from(workoutExercise)
           .where(eq(workoutExercise.workout_id, workoutId))
-          .orderBy(asc(workoutExercise.position))
+          .orderBy(asc(workoutExercise.position), asc(workoutExercise.id))
       : [];
+    const plan = planned.map((entry) => ({
+      id: entry.id,
+      exerciseId: entry.exercise_id,
+      sets: entry.sets,
+    }));
+    const draft = source && options.draft?.session.id === id ? options.draft : undefined;
+    const completeStructure =
+      draft?.completeStructure === true && current.workout_structure === workoutStructureKey(plan);
     const entries = await tx
       .select()
       .from(sessionExercise)
       .where(eq(sessionExercise.session_id, id))
-      .orderBy(asc(sessionExercise.position));
-    const logged = [];
+      .orderBy(asc(sessionExercise.position), asc(sessionExercise.id));
+    const stored = [];
     for (const entry of entries) {
       const sets = await tx
         .select()
         .from(sessionSet)
         .where(eq(sessionSet.session_exercise_id, entry.id))
-        .orderBy(asc(sessionSet.position));
-      const done = sets.filter((set) => set.completed_at !== null);
-      if (done.length) logged.push({ entry, sets: done });
+        .orderBy(asc(sessionSet.position), asc(sessionSet.id));
+      stored.push({
+        exerciseId: entry.exercise_id,
+        sourceWorkoutExerciseId: entry.source_workout_exercise_id,
+        restSeconds: entry.rest_seconds,
+        note: entry.note,
+        supersetGroup: entry.superset_group,
+        type: entry.exercise_type,
+        sets: sets.map((set) => ({
+          id: set.id,
+          position: set.position,
+          kind: set.kind,
+          weightKg: set.weight_kg,
+          completedAt: set.completed_at,
+          target: set.target,
+        })),
+      });
     }
+    const savedSets = new Map(stored.flatMap((entry) => entry.sets.map((set) => [set.id, set])));
+    const sessionEntries = draft
+      ? draft.session.exercises.map((entry) => ({
+          ...entry,
+          sets: entry.sets.map((set) => savedSets.get(set.id) ?? { ...set, completedAt: null }),
+        }))
+      : stored;
     const diff = diffSessionAgainstWorkout(
-      {
-        exercises: logged.map(({ entry, sets }) => ({
-          exerciseId: entry.exercise_id,
-          sourceWorkoutExerciseId: entry.source_workout_exercise_id,
-          sets: sets.map((set) => ({
-            kind: set.kind,
-            weightKg: set.weight_kg,
-            completedAt: set.completed_at,
-            target: set.target,
-          })),
-        })),
-      },
-      {
-        exercises: planned.map((entry) => ({
-          id: entry.id,
-          exerciseId: entry.exercise_id,
-          sets: entry.sets,
-        })),
-      },
+      { exercises: sessionEntries },
+      { exercises: plan },
+      completeStructure,
     );
     if (options.structure || !source) {
-      assertRoom(0, logged.length, "exercisesPerWorkout");
-      const keys = keysAfterLast([], logged.length);
+      const logged = workoutUpdateEntries(sessionEntries, completeStructure);
+      const retained = planned.filter(
+        (old) =>
+          !completeStructure && !logged.some((entry) => entry.sourceWorkoutExerciseId === old.id),
+      );
+      assertRoom(0, logged.length + retained.length, "exercisesPerWorkout");
+      const ordered: (
+        | { entry: (typeof logged)[number] }
+        | { retained: (typeof planned)[number] }
+      )[] = logged.map((entry) => ({ entry }));
+      for (const old of retained) ordered.splice(planned.indexOf(old), 0, { retained: old });
+      const keys = keysAfterLast([], ordered.length);
       const keep = new Set<string>();
-      for (const [index, { entry, sets }] of logged.entries()) {
-        const old = planned.find(
-          (item) =>
-            item.id === entry.source_workout_exercise_id && item.exercise_id === entry.exercise_id,
-        );
-        const loggedWeights = sets.map((set) => ({ kind: set.kind, weightKg: set.weight_kg }));
-        const targets: PlannedSet[] = sets.map((set, i) => {
-          const targetWeight = loggedTargetWeight(loggedWeights, set.kind);
+      for (const [index, item] of ordered.entries()) {
+        const position = keys[index] ?? "a0";
+        if ("retained" in item) {
+          keep.add(item.retained.id);
+          if (item.retained.position !== position)
+            await tx
+              .update(workoutExercise)
+              .set({ position })
+              .where(eq(workoutExercise.id, item.retained.id));
+          continue;
+        }
+        const { entry } = item;
+        const old = planned.find((candidate) => candidate.id === entry.sourceWorkoutExerciseId);
+        const same = old?.exercise_id === entry.exerciseId ? old : undefined;
+        const sets = same ? entry.sets : entry.sets.filter((set) => set.completedAt !== null);
+        const kinds = workoutSetKinds(same?.sets ?? [], sets, completeStructure || !same);
+        const weights = sets.map((set) => ({
+          kind: set.kind,
+          weightKg: set.completedAt === null ? null : set.weightKg,
+        }));
+        const originalPositions = keysAfterLast([], same?.sets.length ?? 0);
+        const targets: PlannedSet[] = kinds.map((kind, i) => {
+          const ordinal = kinds.slice(0, i).filter((prior) => prior === kind).length;
+          const targetWeight = loggedTargetWeight(weights, kind, ordinal);
+          const loggedSet = sets.filter((set) => set.kind === kind)[ordinal];
+          const original =
+            completeStructure && loggedSet?.target
+              ? same?.sets[originalPositions.indexOf(loggedSet.position)]
+              : undefined;
+          const base =
+            original && original.kind === loggedSet?.target?.kind
+              ? original
+              : (same?.sets.filter((target) => target.kind === kind)[ordinal] ?? loggedSet?.target);
           return {
-            ...(old?.sets.filter((target) => target.kind === set.kind)[
-              sets.slice(0, i).filter((prior) => prior.kind === set.kind).length
-            ] ?? set.target),
-            kind: set.kind,
+            ...base,
+            kind,
             ...((options.targets || !source) && targetWeight !== null
               ? { weight_kg: targetWeight }
               : {}),
           };
         });
         const values = {
-          exercise_id: entry.exercise_id,
-          position: keys[index] ?? "a0",
-          rest_seconds: old ? old.rest_seconds : entry.rest_seconds,
-          note: old ? old.note : entry.note,
-          superset_group: entry.superset_group,
-          sets: plannedSetsSchema(entry.exercise_type).parse(targets),
+          exercise_id: entry.exerciseId,
+          position,
+          rest_seconds: same ? same.rest_seconds : entry.restSeconds,
+          note: same ? same.note : entry.note,
+          superset_group: entry.supersetGroup,
+          sets: plannedSetsSchema(entry.type).parse(targets),
         };
         const entryId = old?.id ?? uuidv7();
         keep.add(entryId);

@@ -12,21 +12,31 @@ const STATUS_KEYS = {
 } as const;
 
 /** One muscle: its name, "9 of 10–20", and a bar with the range as a quiet band behind it. */
-export function MuscleRow({ row, onPress }: { row: Row; onPress: () => void }) {
+export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPress: () => void }) {
   const { t, i18n } = useTranslation();
-  const { fill, bandStart, bandEnd } = barLayout(row.sets, row.range);
+  const { fill, bandStart, bandEnd } = barLayout(row.sets, row.range, peak);
   const name = t(MUSCLE_GROUP_KEYS[row.muscle]);
   const sets = formatSets(row.sets, i18n.language);
+  const min = row.range ? formatSets(row.range.min, i18n.language) : "";
+  const max = row.range ? formatSets(row.range.max, i18n.language) : "";
+  const value =
+    row.range === null
+      ? t("muscles__row_volume", { sets })
+      : min === max
+        ? t("muscles__row_count_target", { sets, target: min })
+        : t("muscles__row_value", { sets, min, max });
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("muscles__row_label", {
-        muscle: name,
-        sets,
-        min: row.range.min,
-        max: row.range.max,
-        status: t(STATUS_KEYS[row.status]),
-      })}
+      accessibilityLabel={
+        row.status === null
+          ? t("muscles__row_volume_label", { muscle: name, sets })
+          : t("muscles__row_progress_label", {
+              muscle: name,
+              value,
+              status: t(STATUS_KEYS[row.status]),
+            })
+      }
       accessibilityHint={t("muscles__goal_hint")}
       onPress={onPress}
       className="min-h-11 gap-2 rounded-xl px-3 py-2 active:bg-default"
@@ -40,7 +50,7 @@ export function MuscleRow({ row, onPress }: { row: Row; onPress: () => void }) {
             row.status === "above" ? "text-warning" : "text-muted"
           }`}
         >
-          {t("muscles__row_value", { sets, min: row.range.min, max: row.range.max })}
+          {value}
         </Text>
       </View>
       <View className="h-2 rounded-full bg-default">

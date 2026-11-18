@@ -45,7 +45,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, created_at TEXT);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
-      CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
+      CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT,
         program_id TEXT, run_id TEXT, slot_id TEXT, cycle INTEGER, title TEXT,
         title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
         device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT,
@@ -62,7 +62,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
-        bar_id TEXT, log_effort INTEGER, created_at TEXT, restore INTEGER);
+        bar_id TEXT, log_effort INTEGER, progression_per_set INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
         height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
       CREATE TABLE user_preferences (id TEXT PRIMARY KEY, user_id TEXT, locale TEXT, timezone TEXT,

@@ -10,6 +10,7 @@ import { useForm } from "@tanstack/react-form";
 import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
+  workoutStructureKey,
   recordFlags,
   sessionTotals,
   SESSION_LIMITS,
@@ -37,7 +38,15 @@ import { joinDuration, notAfter, splitDuration } from "@/session/lifecycle/save-
 import { DateSheet, DurationSheet } from "@/session/lifecycle/save-time-sheets";
 import { UpdateRoutineSheet, type RoutineUpdate } from "./update-routine-sheet";
 
-export function SessionSummaryScreen({ id, onDone }: { id: string; onDone: () => void }) {
+export function SessionSummaryScreen({
+  id,
+  backfill,
+  onDone,
+}: {
+  id: string;
+  backfill: boolean;
+  onDone: () => void;
+}) {
   const state = useSession(id);
   const { t } = useTranslation();
   if (state.status === "loading") return <View className="flex-1 bg-background" />;
@@ -50,10 +59,18 @@ export function SessionSummaryScreen({ id, onDone }: { id: string; onDone: () =>
         </Button>
       </View>
     );
-  return <FinishFlow session={state.session} onDone={onDone} />;
+  return <FinishFlow session={state.session} backfill={backfill} onDone={onDone} />;
 }
 
-function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () => void }) {
+function FinishFlow({
+  session,
+  backfill,
+  onDone,
+}: {
+  session: SessionDetail;
+  backfill: boolean;
+  onDone: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const { top, bottom } = useSafeAreaInsets();
   const { preferences } = usePreferences();
@@ -74,8 +91,11 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   // "Save and share": the card is made from the saved Session, so sharing follows the save.
   const shareAfter = useRef(false);
   const backToWorkout = useCallback(() => {
-    router.replace({ pathname: "/session/[id]", params: { id: session.id } });
-  }, [router, session.id]);
+    router.replace({
+      pathname: "/session/[id]",
+      params: { id: session.id, ...(backfill ? { backfill: "true" } : {}) },
+    });
+  }, [router, session.id, backfill]);
   /** The save is done: a haptic, the finished cue and a toast, then leave the screen. */
   const complete = useCallback(() => {
     if (closed.current) return;
@@ -93,10 +113,21 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   }, [play, toast, t, onDone, router, session.id]);
   const [busy, setBusy] = useState(false);
   const [invalid, setInvalid] = useState(false);
-  const diff =
+  const currentDraft =
     source.status === "ready"
-      ? diffSessionAgainstWorkout(session, source.workout)
-      : { structure: [], targets: [] };
+      ? {
+          session,
+          source: source.workout.exercises,
+          completeStructure:
+            session.workoutStructure === workoutStructureKey(source.workout.exercises) &&
+            (session.finishedAt === null || backfill),
+        }
+      : undefined;
+  const [workoutDraft, setWorkoutDraft] = useState<typeof currentDraft>();
+  const draft = workoutDraft ?? currentDraft;
+  const diff = draft
+    ? diffSessionAgainstWorkout(draft.session, { exercises: draft.source }, draft.completeStructure)
+    : { structure: [], targets: [] };
   const needsWorkout =
     session.workoutId !== null &&
     (source.status === "missing" || diff.structure.length > 0 || diff.targets.length > 0);
@@ -189,8 +220,10 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
         shareAfter.current = false;
         return;
       }
-      if (needsWorkout) setUpdateOpen(true);
-      else complete();
+      if (needsWorkout) {
+        setWorkoutDraft(currentDraft);
+        setUpdateOpen(true);
+      } else complete();
     },
   });
   const names = (id: string) =>
@@ -220,7 +253,7 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
     setBusy(true);
     const ok =
       (!update.structure && !update.targets && !update.saveNew) ||
-      (await finish.applyWorkout(session.id, update));
+      (await finish.applyWorkout(session.id, { ...update, draft: workoutDraft }));
     setBusy(false);
     if (ok) {
       setUpdateOpen(false);

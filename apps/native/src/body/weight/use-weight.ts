@@ -2,7 +2,7 @@ import type { SessionHistory } from "@workspace/shared";
 import {
   dailyWeights,
   trendSeries,
-  trendAt,
+  bodyweightForDate,
   changeOver,
   ratePerWeek,
   weightChanges,
@@ -22,7 +22,8 @@ export function useWeight() {
   const [entryLimit, setEntryLimit] = useState(50);
   const { preferences, isLoading, hasPreferences } = usePreferences();
   const entries = state.value ?? [];
-  const series = trendSeries(dailyWeights(entries));
+  const daily = dailyWeights(entries);
+  const series = trendSeries(daily);
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const localDate = useCallback(
     (date: string) => {
@@ -47,7 +48,7 @@ export function useWeight() {
     months.set(month, rows);
   }
   const bodyweightOn = (date: string) =>
-    entries.length ? trendAt(series, localDate(date)) : preferences.ui.bodyweightKg;
+    bodyweightForDate(daily, localDate(date), preferences.ui.bodyweightKg);
   const withBodyweight = <T extends SessionHistory>(sessions: readonly T[]): T[] =>
     sessions.map((s) => ({
       ...s,
@@ -69,11 +70,11 @@ export function useWeight() {
     zone,
     trend: series.at(-1)?.trend ?? null,
     change: changeOver(series, 30),
-    rate: ratePerWeek(series),
+    rate: ratePerWeek(series, today),
+    lastMeasurementDate: daily.at(-1)?.date ?? null,
     changes: weightChanges(series),
     days: weighInDays(entries, today),
-    bodyweightOn: (date: string) =>
-      entries.length ? trendAt(series, localDate(date)) : preferences.ui.bodyweightKg,
+    bodyweightOn,
     unit: preferences.ui.weightUnit,
     goal: preferences.ui.weightGoalKg,
   };

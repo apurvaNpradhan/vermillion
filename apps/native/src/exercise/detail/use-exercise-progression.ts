@@ -7,9 +7,21 @@ import {
   type SessionHistory,
   type IncrementSettings,
 } from "@workspace/shared";
-import { watchLatestExercisePlan } from "@workspace/sync";
+import { watchExerciseProgressionMode, watchLatestExercisePlan } from "@workspace/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
+
+export function useExerciseProgressionMode(exerciseId: string) {
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchExerciseProgressionMode>[0],
+      onValue: (perSet: boolean) => void,
+      onError: () => void,
+    ) => watchExerciseProgressionMode(database, exerciseId, { onMode: onValue, onError }),
+    [exerciseId],
+  );
+  return useLocalWatch(subscribe);
+}
 
 export function useExerciseProgression(
   exerciseId: string,

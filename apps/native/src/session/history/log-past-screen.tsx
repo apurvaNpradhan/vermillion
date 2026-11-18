@@ -30,7 +30,7 @@ export function LogPastScreen() {
       setBusy(true);
       const id = await actions.logPast(selected, new Date(parsed).toISOString());
       setBusy(false);
-      if (id) router.replace({ pathname: "/session/[id]", params: { id } });
+      if (id) router.replace({ pathname: "/session/[id]", params: { id, backfill: "true" } });
     },
   });
   return (

@@ -13,6 +13,7 @@ import { effectiveWeight, estimatedOneRepMax, setVolume } from "../volume/volume
  * (`reps_8`); pace is metres per second, so larger is better for every key.
  */
 export type RecordKey =
+  | "most_reps"
   | "heaviest_weight"
   | "estimated_one_rep_max"
   | "set_volume"
@@ -44,6 +45,8 @@ function setMetrics(set: LoggedSet, bodyweightKg: number | null): [RecordKey, nu
     if (oneRepMax !== null) metrics.push(["estimated_one_rep_max", oneRepMax]);
     if (ranked > 0 && reps >= 1 && reps <= 12) metrics.push([`reps_${reps}`, ranked]);
   }
+  if ((set.exercise_type === "bodyweight_reps" || set.exercise_type === "reps_only") && set.reps)
+    metrics.push(["most_reps", set.reps]);
   const volume = setVolume(set, bodyweightKg);
   if (volume > 0) metrics.push(["set_volume", volume]);
   const duration = set.duration_s ?? 0;

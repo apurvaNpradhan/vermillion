@@ -22,7 +22,11 @@ const diff = (entries: DiffSessionExercise[], plan: DiffWorkoutExercise[] = [pla
 describe("Session against Workout", () => {
   it("adds and removes exercises", () => {
     expect(
-      diff([{ ...logged, sourceWorkoutExerciseId: null }]).structure.map((item) => item.kind),
+      diffSessionAgainstWorkout(
+        { exercises: [{ ...logged, sourceWorkoutExerciseId: null }] },
+        { exercises: [planned] },
+        true,
+      ).structure.map((item) => item.kind),
     ).toEqual(["added", "removed"]);
   });
   it("detects replacements without applying old targets", () => {
@@ -31,9 +35,13 @@ describe("Session against Workout", () => {
     expect(result.targets).toEqual([]);
   });
   it("detects order", () => {
-    expect(diff([logged], [{ ...planned, id: "other" }, planned]).structure[0]?.kind).toBe(
-      "reordered",
-    );
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [logged] },
+        { exercises: [{ ...planned, id: "other" }, planned] },
+        true,
+      ).structure[0]?.kind,
+    ).toBe("reordered");
   });
   it("detects set counts and kinds", () => {
     expect(diff([{ ...logged, sets: [...logged.sets, ...logged.sets] }]).structure[0]?.kind).toBe(
@@ -43,7 +51,32 @@ describe("Session against Workout", () => {
       diff([{ ...logged, sets: [{ ...logged.sets[0]!, kind: "drop" }] }]).structure[0]?.kind,
     ).toBe("sets");
   });
-  it("uses the last working weight and leaves input ranges intact", () => {
+  it("keeps skipped planned sets and matches the next completed set to its ordinal", () => {
+    const work = logged.sets[0]!;
+    const plan: DiffWorkoutExercise = {
+      ...planned,
+      sets: [...planned.sets, { kind: "working", weight_kg: 55 }],
+    };
+    const entry = { ...logged, sets: [{ ...work, completedAt: null }, work] };
+    const result = diff([entry], [plan]);
+    expect(result.structure).toEqual([]);
+    expect(result.targets[0]).toMatchObject({ before: [50, 55], after: [50, 60] });
+  });
+
+  it("keeps omitted set and exercise plans without evidence of explicit edits", () => {
+    const plan: DiffWorkoutExercise = { ...planned, sets: [...planned.sets, { kind: "drop" }] };
+    const other = { ...planned, id: "skipped" };
+    expect(diff([logged], [plan, other]).structure).toEqual([]);
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [logged] },
+        { exercises: [plan, other] },
+        true,
+      ).structure.map(({ kind }) => kind),
+    ).toEqual(["sets", "removed"]);
+  });
+
+  it("uses the matching worked set weight and leaves input ranges intact", () => {
     const original = structuredClone(planned);
     expect(diff([logged]).targets[0]).toMatchObject({ before: [50], after: [60] });
     expect(planned).toEqual(original);
@@ -75,19 +108,22 @@ describe("Session against Workout", () => {
       target: null,
     });
     const result = diff(
-      [{ ...logged, sets: [done("top", 105), done("backoff", 85), done("backoff", 85)] }],
+      [{ ...logged, sets: [done("top", 105), done("backoff", 85), done("backoff", 82)] }],
       [plan],
     );
     expect(result.structure).toEqual([]);
-    expect(result.targets[0]).toMatchObject({ before: [100, 80, 80], after: [105, 85, 85] });
+    expect(result.targets[0]).toMatchObject({ before: [100, 80, 80], after: [105, 85, 82] });
   });
-  it("takes a kind's own weight, or the working weight, never one for warm-ups", () => {
-    const sets = [
-      { kind: "working" as const, weightKg: 60 },
-      { kind: "top" as const, weightKg: 100 },
+  it("matches drop and failure weights to their own kind", () => {
+    const sets: Parameters<typeof loggedTargetWeight>[0] = [
+      { kind: "working", weightKg: 60 },
+      { kind: "top", weightKg: 100 },
+      { kind: "drop", weightKg: 40 },
+      { kind: "failure", weightKg: 50 },
     ];
     expect(loggedTargetWeight(sets, "top")).toBe(100);
-    expect(loggedTargetWeight(sets, "drop")).toBe(60);
+    expect(loggedTargetWeight(sets, "drop")).toBe(40);
+    expect(loggedTargetWeight(sets, "failure")).toBe(50);
     expect(loggedTargetWeight(sets, "myo")).toBeNull();
     expect(loggedTargetWeight(sets, "warmup")).toBeNull();
   });

@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "a680e1e5-c73e-4b4b-90f4-becc5b3593bf",
+  "prevIds": ["fa9ee62c-0377-42a8-8bb4-3961a06f24a6"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise_setting", "progression_per_set"],
+      "writes": [
+        "s|col|public.exercise_setting.progression_per_set",
+        "n|col|public.exercise_setting.progression_per_set",
+        "e|col|public.exercise_setting.progression_per_set"
+      ],
+      "reads": ["n|tbl|public.exercise_setting", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "progression_per_set",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

@@ -57,6 +57,14 @@ describe("ghostFor", () => {
     expect(ghostFor("steps", { steps: 1000 }, planned)).toBe(1000);
   });
 
+  const progressingKinds: ("top" | "backoff")[] = ["top", "backoff"];
+  it.each(progressingKinds)("uses the suggestion for %s sets", (kind) => {
+    const planned = { ...target, kind };
+    const suggestion = { weightKg: 65, reps: 9 };
+    expect(ghostFor("weight", { weight_kg: 60 }, planned, suggestion)).toBe(65);
+    expect(ghostFor("reps", { reps: 8 }, planned, suggestion)).toBe(9);
+  });
+
   it("takes the planned effort, not Previous", () => {
     const planned = {
       kind: "working",

@@ -12,6 +12,7 @@ import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
 
 import { bodyIntensity } from "./muscle-bars";
+import { useActiveProgram } from "@/training/programs/use-active-program";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
 import { MuscleRow } from "./muscle-row";
 import { useMuscleVolume } from "./use-muscle-volume";
@@ -26,7 +27,8 @@ const MAX_WEEKS_AGO = 12;
 export function MusclesScreen() {
   const { t, i18n } = useTranslation();
   const [weeksAgo, setWeeksAgo] = useState(0);
-  const volume = useMuscleVolume(weeksAgo);
+  const program = useActiveProgram();
+  const volume = useMuscleVolume(weeksAgo, program.program);
   const [chosen, setChosen] = useState<TargetMuscle | null>(null);
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
@@ -45,6 +47,7 @@ export function MusclesScreen() {
             start: date(volume.week.start),
             end: date(volume.week.end - 86_400_000),
           });
+  const peak = Math.max(1, ...volume.loads.map((load) => load.sets));
   const intensity: Partial<Record<BodyGroup, number>> = {};
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
@@ -81,18 +84,25 @@ export function MusclesScreen() {
         <Button variant="secondary" onPress={volume.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
-      ) : volume.loading ? null : (
+      ) : volume.loading || !program.ready ? null : (
         <FadeIn className="gap-6">
           <View className="gap-2 rounded-2xl bg-surface p-4">
             <BodyMapPair intensity={intensity} />
-            <Text className="text-center text-caption text-muted">{t("muscles__map_caption")}</Text>
+            <Text className="text-center text-caption text-muted">
+              {t(volume.planned === null ? "muscles__map_volume_caption" : "muscles__map_caption")}
+            </Text>
           </View>
           {volume.loads.length === 0 ? (
             <Text className="text-center text-body text-muted">{t("muscles__empty")}</Text>
           ) : null}
           <View className="gap-1 rounded-2xl bg-surface py-2">
             {volume.rows.map((row) => (
-              <MuscleRow key={row.muscle} row={row} onPress={() => setChosen(row.muscle)} />
+              <MuscleRow
+                key={row.muscle}
+                row={row}
+                peak={peak}
+                onPress={() => setChosen(row.muscle)}
+              />
             ))}
           </View>
         </FadeIn>
@@ -101,6 +111,11 @@ export function MusclesScreen() {
         <MuscleGoalSheet
           muscle={chosen}
           goal={volume.goals[chosen]}
+          planned={
+            volume.planned === null
+              ? null
+              : (volume.planned.find((row) => row.muscle === chosen)?.sets ?? 0)
+          }
           contributions={volume.contributions(chosen)}
           onChange={(goal) => volume.setGoal(chosen, goal)}
           onClose={() => setChosen(null)}

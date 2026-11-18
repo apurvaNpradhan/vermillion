@@ -7,6 +7,7 @@ export function cycleState(
     cycle: number | null;
     startedAt: string;
     finishedAt: string | null;
+    hasCountedSet: boolean;
   }[],
 ) {
   const trained = new Set<string>();
@@ -15,7 +16,7 @@ export function cycleState(
     (a, b) => a.startedAt.localeCompare(b.startedAt) || a.id.localeCompare(b.id),
   );
   for (const session of ordered) {
-    if (!session.finishedAt || session.workoutId === null) continue;
+    if (!session.finishedAt || !session.hasCountedSet || session.workoutId === null) continue;
     if ((session.cycle ?? cycle) > cycle) {
       cycle = session.cycle ?? cycle;
       trained.clear();

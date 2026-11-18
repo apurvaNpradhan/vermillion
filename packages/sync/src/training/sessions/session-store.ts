@@ -6,11 +6,13 @@ import {
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
+  workoutStructureKey,
   type PlannedSet,
 } from "@workspace/shared";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { programRun, programSlot } from "../tables";
+import { hasCountedSetSql } from "../plans/run-store";
 import { keysAfterLast } from "../position";
 import {
   assertSessionRoom,
@@ -79,17 +81,21 @@ async function createSessionIn(
         .orderBy(asc(programSlot.position), asc(programSlot.id))
     : [];
   const history = active
-    ? await tx.select().from(session).where(eq(session.run_id, active.id))
+    ? await tx
+        .select({
+          id: session.id,
+          workoutId: session.workout_id,
+          cycle: session.cycle,
+          startedAt: session.started_at,
+          finishedAt: session.finished_at,
+          hasCountedSet: sql.raw(hasCountedSetSql).mapWith(Boolean),
+        })
+        .from(session)
+        .where(eq(session.run_id, active.id))
     : [];
   const progress = cycleState(
     slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
-    history.map((s) => ({
-      id: s.id,
-      workoutId: s.workout_id,
-      cycle: s.cycle,
-      startedAt: s.started_at,
-      finishedAt: s.finished_at,
-    })),
+    history,
   );
   const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
   if (active && !active.started_at)
@@ -115,9 +121,21 @@ async function createSessionIn(
     rest_started_at: null,
     rest_ends_at: null,
   });
-  await tx
-    .insert(session)
-    .values({ id: fields.id, user_id: userId, created_at: nowIso(), ...parsed });
+  await tx.insert(session).values({
+    id: fields.id,
+    user_id: userId,
+    workout_structure: plan
+      ? workoutStructureKey(
+          planned.map((entry) => ({
+            id: entry.id,
+            exerciseId: entry.exercise_id,
+            sets: entry.sets,
+          })),
+        )
+      : null,
+    created_at: nowIso(),
+    ...parsed,
+  });
 
   for (const entry of planned) {
     const info = await exerciseInfoOf(tx, entry.exercise_id);
@@ -198,22 +216,32 @@ export function logPastSession(
   expectedInstallId?: string,
 ): Promise<string> {
   const durationS = when.durationSeconds ?? null;
-  return write(database, expectedInstallId, async (tx) => {
+  return write(database, expectedInstallId, async (tx, active) => {
     if (!sessionStartAllowed(when.startedAt)) {
       throw new Error("A past workout starts within the last 10 years and not in the future");
     }
     const id = uuidv7();
-    const end = new Date(Date.parse(when.startedAt) + (durationS ?? 0) * 1000).toISOString();
+    const startedAt = new Date(when.startedAt).toISOString();
+    const end = new Date(Date.parse(startedAt) + (durationS ?? 0) * 1000).toISOString();
+    const [latest] =
+      active && source.workoutId
+        ? await tx
+            .select({ startedAt: session.started_at })
+            .from(session)
+            .orderBy(desc(session.started_at), desc(session.id))
+            .limit(1)
+        : [];
+    const run = latest && Date.parse(latest.startedAt) > Date.parse(startedAt) ? null : active;
     await createSessionIn(
       tx,
       source,
       {
         id,
-        startedAt: new Date(when.startedAt).toISOString(),
+        startedAt,
         finishedAt: end,
         durationS,
       },
-      null,
+      run,
     );
     return id;
   });

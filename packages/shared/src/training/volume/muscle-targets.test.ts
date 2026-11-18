@@ -11,8 +11,9 @@ import {
 } from "./muscle-targets";
 
 describe("goalRange", () => {
-  it("defaults to Grow", () => {
-    expect(goalRange(undefined)).toEqual({ min: 10, max: 20 });
+  it("defaults to the planned count when a program is active", () => {
+    expect(goalRange(undefined, 4.5)).toEqual({ min: 4.5, max: 4.5 });
+    expect(goalRange(undefined)).toBeNull();
   });
 
   it.each([
@@ -20,12 +21,12 @@ describe("goalRange", () => {
     ["grow", { min: 10, max: 20 }],
     ["focus", { min: 16, max: 24 }],
   ] as const)("%s uses its preset range", (level, range) => {
-    expect(goalRange({ level })).toEqual(range);
+    expect(goalRange({ level }, 4)).toEqual(range);
     expect(GOAL_RANGES[level]).toEqual(range);
   });
 
   it("uses the typed range of a Custom goal", () => {
-    expect(goalRange({ level: "custom", min: 4, max: 12 })).toEqual({ min: 4, max: 12 });
+    expect(goalRange({ level: "custom", min: 4, max: 12 }, 4)).toEqual({ min: 4, max: 12 });
   });
 });
 

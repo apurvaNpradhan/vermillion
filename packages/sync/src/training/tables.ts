@@ -92,6 +92,7 @@ export const session = sqliteTable(
     id: text("id").primaryKey().notNull(),
     user_id: text("user_id").notNull(),
     workout_id: text("workout_id"),
+    workout_structure: text("workout_structure"),
     program_id: text("program_id"),
     run_id: text("run_id"),
     slot_id: text("slot_id"),
@@ -186,6 +187,9 @@ export const exerciseSetting = sqliteTable(
     exercise_id: text("exercise_id").notNull(),
     bar_id: text("bar_id"),
     log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    progression_per_set: integer("progression_per_set", { mode: "boolean" })
+      .notNull()
+      .default(false),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

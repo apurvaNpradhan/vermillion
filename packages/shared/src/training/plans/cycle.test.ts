@@ -12,6 +12,7 @@ const done = (id: string, workoutId: string, cycle = 1) => ({
   cycle,
   startedAt: id,
   finishedAt: id,
+  hasCountedSet: true,
 });
 describe("cycle state", () => {
   it("trains out of order and repeated workouts fill their first untrained slot", () => {
@@ -36,6 +37,12 @@ describe("cycle state", () => {
     expect(state.next?.id).toBe("new");
     expect([...state.trained]).toEqual(["a"]);
   });
+  it("ignores a finished session with only warm-ups", () => {
+    const state = cycleState(slots, [{ ...done("1", "upper"), hasCountedSet: false }]);
+    expect(state.trained.size).toBe(0);
+    expect(state.next?.id).toBe("a");
+  });
+
   it("does not count unfinished sessions or an empty rotation as complete", () => {
     expect(cycleState(slots, [{ ...done("1", "upper"), finishedAt: null }]).trained.size).toBe(0);
     expect(cycleState([], []).complete).toBe(false);

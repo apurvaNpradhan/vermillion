@@ -69,6 +69,16 @@ describe("rest after a tick", () => {
     expect(after(list, "b", "b-1")).toBe(90);
   });
 
+  it("aligns working rounds even when only one exercise has warm-ups", () => {
+    const list = [
+      exercise("a", "g", 90, ["warmup", "working"]),
+      exercise("b", "g", 120, ["working"]),
+    ];
+    expect(after(list, "a", "a-1")).toBe(60);
+    expect(after(list, "a", "a-2")).toBeNull();
+    expect(after(list, "b", "b-1")).toBe(120);
+  });
+
   it("in a superset with the group's rest off starts nothing", () => {
     const list = [exercise("a", "g", null), exercise("b", "g", null)];
     expect(after(list, "b", "b-1")).toBeNull();

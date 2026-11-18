@@ -15,6 +15,7 @@ import {
   Info,
   PencilSimple,
   Plus,
+  SlidersHorizontal,
 } from "phosphor-react-native";
 import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
@@ -37,6 +38,8 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { thumbnailUrl, videoUrl } from "../../media-url";
 import { instructionSteps } from "../instruction-steps";
 import { useExercise, useSwapCandidates } from "../use-exercise";
+import { useExerciseActions } from "../../use-exercise-actions";
+import { useExerciseProgressionMode } from "../use-exercise-progression";
 import { useExerciseHistory } from "../use-exercise-history";
 import { SwapRow } from "./swap-row";
 import { VideoHero } from "./video-hero";
@@ -109,6 +112,13 @@ function LoadedDetail({
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
+  const mode = useExerciseProgressionMode(exercise.id);
+  const { setProgressionPerSet } = useExerciseActions();
+  const canSetProgression =
+    !exercise.isArchived &&
+    (exercise.exerciseType === "weight_reps" ||
+      exercise.exerciseType === "bodyweight_weighted_reps");
+  const perSet = mode.value ?? false;
   const { preferences } = usePreferences();
   const hasHistory = history.status === "ready" && history.sessions.length > 0;
   const swaps = useSwapCandidates(exercise);
@@ -123,8 +133,18 @@ function LoadedDetail({
   );
 
   const menu = useMemo<SwipeAction[]>(() => {
-    if (!exercise.isCustom) return [];
     const items: SwipeAction[] = [];
+    if (canSetProgression && !mode.loading && !mode.failed) {
+      items.push({
+        key: "progression",
+        label: t(
+          perSet ? "exercise__progression_use_straight" : "exercise__progression_use_per_set",
+        ),
+        icon: SlidersHorizontal,
+        onPress: () => void setProgressionPerSet(exercise.id, !perSet).catch(() => undefined),
+      });
+    }
+    if (!exercise.isCustom) return items;
     if (onEdit) {
       items.push({
         key: "edit",
@@ -156,6 +176,11 @@ function LoadedDetail({
     exercise.title,
     exercise.isCustom,
     exercise.isArchived,
+    canSetProgression,
+    mode.loading,
+    mode.failed,
+    perSet,
+    setProgressionPerSet,
     onEdit,
     onArchive,
     onRestore,
@@ -248,6 +273,7 @@ function LoadedDetail({
                   type={exercise.exerciseType}
                   equipment={exercise.equipment}
                   weightIncrementKg={preferences.ui.weightIncrementKg}
+                  progressionPerSet={perSet}
                   bodyweightKg={preferences.ui.bodyweightKg}
                   weekStart={preferences.ui.weekStart}
                   unit={preferences.ui.weightUnit}

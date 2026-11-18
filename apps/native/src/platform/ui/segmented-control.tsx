@@ -22,14 +22,14 @@ export function SegmentedControl<T extends string>({
   accessibilityLabel,
 }: {
   options: readonly SegmentedOption<T>[];
-  value: T;
+  value: T | null;
   onChange: (value: T) => void;
   accessibilityLabel: string;
 }) {
   const [width, setWidth] = useState(0);
   const reduced = useReducedMotion();
   const inner = Math.max(width - PAD * 2, 0);
-  const index = indexOfValue(options, value);
+  const index = value === null ? -1 : indexOfValue(options, value);
   // Plain numbers, worked out on the JS thread: the helpers are not worklets.
   const offset = indicatorOffset(index, inner, options.length);
   const pillWidth = segmentWidth(inner, options.length);
@@ -46,11 +46,13 @@ export function SegmentedControl<T extends string>({
       className="h-11 flex-row rounded-xl bg-default"
       style={{ padding: PAD }}
     >
-      <Animated.View
-        pointerEvents="none"
-        className="absolute rounded-[10px] bg-surface"
-        style={[{ top: PAD, bottom: PAD, left: PAD }, pill]}
-      />
+      {index >= 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          className="absolute rounded-[10px] bg-surface"
+          style={[{ top: PAD, bottom: PAD, left: PAD }, pill]}
+        />
+      ) : null}
       {options.map((option) => (
         <Pressable
           key={option.value}

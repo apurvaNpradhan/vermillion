@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { ratioChange, sessionsInWeek, trailingDays, weekCells, weighInsInWeek } from "./home-stats";
+import {
+  comparableWeekSessions,
+  ratioChange,
+  sessionsInWeek,
+  trailingDays,
+  weekCells,
+  weighInsInWeek,
+} from "./home-stats";
 
 const NOW = new Date("2026-11-18T12:00:00Z"); // a Wednesday
+
+it("compares through the same local weekday in both weeks", () => {
+  const sessions = [
+    { started_at: "2026-11-11T04:00:00Z" },
+    { started_at: "2026-11-11T23:00:00Z" }, // Thursday in Kolkata
+    { started_at: "2026-11-18T04:00:00Z" },
+  ];
+  expect(comparableWeekSessions(sessions, NOW, "Asia/Kolkata", "monday")).toEqual({
+    current: [sessions[2]],
+    previous: [sessions[0]],
+  });
+});
 
 describe("weekCells", () => {
   it("runs Monday to Sunday and marks trained days and today", () => {

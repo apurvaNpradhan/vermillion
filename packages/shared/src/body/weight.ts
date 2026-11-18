@@ -23,6 +23,17 @@ export function dailyWeights(entries: readonly WeightEntry[]): DailyWeight[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, day]) => ({ date, scale: day.total / day.count }));
 }
+/** Uses measured daily weights in the order produced by dailyWeights. */
+export function bodyweightForDate(
+  daily: readonly DailyWeight[],
+  date: string,
+  profileKg: number | null,
+): number | null {
+  return (
+    [...daily].reverse().find((entry) => entry.date <= date)?.scale ?? daily[0]?.scale ?? profileKg
+  );
+}
+
 export function trendSeries(daily: readonly DailyWeight[], alpha = 0.1): TrendPoint[] {
   if (!(alpha > 0 && alpha <= 1)) throw new RangeError("Invalid alpha");
   const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date));
@@ -59,17 +70,23 @@ export function changeOver(series: readonly TrendPoint[], days: number): number 
   const before = trendAt(series, date);
   return before === null ? null : last.trend - before;
 }
-export function ratePerWeek(series: readonly TrendPoint[]): number | null {
-  const points = series.slice(-14);
-  if (points.length < 2) return null;
-  const meanX = (points.length - 1) / 2;
-  const meanY = points.reduce((sum, p) => sum + p.trend, 0) / points.length;
+export function ratePerWeek(series: readonly TrendPoint[], today?: string): number | null {
+  const last = [...series].reverse().find((point) => point.scale !== null);
+  if (!last || (today !== undefined && stamp(today) - stamp(last.date) > 10 * DAY)) return null;
+  const lastDay = stamp(last.date);
+  const points = series.flatMap((point) => {
+    const offset = (stamp(point.date) - lastDay) / DAY;
+    return offset > -14 && point.scale !== null ? [{ offset, scale: point.scale }] : [];
+  });
+  if (points.length < 4 || (points[0]?.offset ?? 0) > -10) return null;
+  const meanX = points.reduce((sum, point) => sum + point.offset, 0) / points.length;
+  const meanY = points.reduce((sum, point) => sum + point.scale, 0) / points.length;
   let numerator = 0;
   let denominator = 0;
-  points.forEach((p, i) => {
-    numerator += (i - meanX) * (p.trend - meanY);
-    denominator += (i - meanX) ** 2;
-  });
+  for (const { offset, scale } of points) {
+    numerator += (offset - meanX) * (scale - meanY);
+    denominator += (offset - meanX) ** 2;
+  }
   return (numerator / denominator) * 7;
 }
 export type WeightDirection = "increase" | "decrease" | "stable";

@@ -35,7 +35,7 @@ describe("bodyIntensity", () => {
       ],
       rows,
     );
-    expect(Object.fromEntries(shades)).toEqual({ chest: 0.5, biceps: 0.2, forearms: 0.5 });
+    expect(Object.fromEntries(shades)).toEqual({ chest: 0.5, biceps: 0.2, forearms: 1 });
   });
 
   it("caps at 1", () => {

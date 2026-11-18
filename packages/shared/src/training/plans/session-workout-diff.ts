@@ -13,32 +13,63 @@ export type DiffSessionExercise = {
 };
 export type DiffWorkoutExercise = { id: string; exerciseId: string; sets: readonly PlannedSet[] };
 
-/** Kinds that keep their own target weight; the rest (but warm-ups) follow the working weight. */
-const OWN_WEIGHT_KINDS: ReadonlySet<SetKind> = new Set(["top", "backoff", "myo"]);
+/** The exercise and set order a Session copied when it started. */
+export function workoutStructureKey(exercises: readonly DiffWorkoutExercise[]): string {
+  return JSON.stringify(
+    exercises.map(({ id, exerciseId, sets }) => [id, exerciseId, sets.map((set) => set.kind)]),
+  );
+}
 
-/**
- * The weight a planned set of `kind` should take from what was logged: the last logged weight of
- * the same kind for top, back-off and myo sets, the last working weight for working, drop and
- * failure sets, and nothing for warm-ups (their weights are never planned from a session).
- */
+/** The completed set's weight at the corresponding ordinal of this kind. */
 export function loggedTargetWeight(
   sets: readonly { kind: SetKind; weightKg: number | null }[],
   kind: SetKind,
+  ordinal = 0,
 ): number | null {
   if (kind === "warmup") return null;
-  const source = OWN_WEIGHT_KINDS.has(kind) ? kind : "working";
-  return [...sets].reverse().find((set) => set.kind === source)?.weightKg ?? null;
+  return sets.filter((set) => set.kind === kind)[ordinal]?.weightKg ?? null;
 }
 
-/** Structure uses logged sets only. Targets change weight only, never reps or effort. */
+/** Preserve omitted plan sets when only the completed log is available. */
+export function workoutSetKinds(
+  planned: readonly PlannedSet[],
+  session: readonly { kind: SetKind }[],
+  completeStructure: boolean,
+): SetKind[] {
+  if (completeStructure) return session.map((set) => set.kind);
+  const kinds = planned.map((set) => set.kind);
+  for (const [index, { kind }] of session.entries()) {
+    const ordinal = session.slice(0, index).filter((set) => set.kind === kind).length;
+    if (ordinal >= kinds.filter((value) => value === kind).length) kinds.push(kind);
+  }
+  return kinds;
+}
+
+/** A complete structure is captured before the save discards unticked rows. */
+export function workoutUpdateEntries<T extends DiffSessionExercise>(
+  entries: readonly T[],
+  completeStructure: boolean,
+): T[] {
+  return entries.filter(
+    (entry) =>
+      (completeStructure && entry.sourceWorkoutExerciseId !== null) ||
+      entry.sets.some((set) => set.completedAt !== null),
+  );
+}
+
+/** Targets change weight only, never reps or effort. */
 export function diffSessionAgainstWorkout(
   session: { exercises: readonly DiffSessionExercise[] },
   workout: { exercises: readonly DiffWorkoutExercise[] },
+  completeStructure = false,
 ) {
-  const logged = session.exercises.flatMap((entry) => {
-    const sets = entry.sets.filter((set) => set.completedAt !== null);
-    return sets.length ? [{ ...entry, sets }] : [];
-  });
+  const logged = workoutUpdateEntries(session.exercises, completeStructure);
+  const observed = completeStructure
+    ? workout.exercises
+    : workout.exercises.filter((item) =>
+        logged.some((entry) => entry.sourceWorkoutExerciseId === item.id),
+      );
+  const ordered = logged.filter((entry) => entry.sourceWorkoutExerciseId !== null);
   const structure: {
     kind: "added" | "removed" | "replaced" | "reordered" | "sets";
     exerciseId: string;
@@ -58,23 +89,27 @@ export function diffSessionAgainstWorkout(
     else if (source.exerciseId !== entry.exerciseId)
       structure.push({ kind: "replaced", exerciseId: entry.exerciseId });
     else {
-      if (workout.exercises[index]?.id !== source.id)
+      const expectedIndex = completeStructure ? index : ordered.indexOf(entry);
+      if (observed[expectedIndex]?.id !== source.id)
         structure.push({ kind: "reordered", exerciseId: entry.exerciseId });
-      if (
-        source.sets.length !== entry.sets.length ||
-        source.sets.some((set, i) => set.kind !== entry.sets[i]?.kind)
-      )
+      const next = workoutSetKinds(source.sets, entry.sets, completeStructure);
+      if (source.sets.length !== next.length || source.sets.some((set, i) => set.kind !== next[i]))
         structure.push({
           kind: "sets",
           exerciseId: entry.exerciseId,
           beforeSets: source.sets.map((set) => set.kind),
-          afterSets: entry.sets.map((set) => set.kind),
+          afterSets: next,
         });
       const planned = source.sets.filter((set) => set.kind !== "warmup");
       const before = planned.map((set) => set.weight_kg ?? null);
-      const after = planned.map(
-        (set) => loggedTargetWeight(entry.sets, set.kind) ?? set.weight_kg ?? null,
-      );
+      const weights = entry.sets.map((set) => ({
+        kind: set.kind,
+        weightKg: set.completedAt === null ? null : set.weightKg,
+      }));
+      const after = planned.map((set, index) => {
+        const ordinal = planned.slice(0, index).filter((prior) => prior.kind === set.kind).length;
+        return loggedTargetWeight(weights, set.kind, ordinal) ?? set.weight_kg ?? null;
+      });
       if (after.some((weight, i) => weight !== before[i]))
         targets.push({
           exerciseId: entry.exerciseId,
@@ -84,8 +119,10 @@ export function diffSessionAgainstWorkout(
         });
     }
   }
-  for (const entry of workout.exercises)
-    if (!logged.some((item) => item.sourceWorkoutExerciseId === entry.id))
-      structure.push({ kind: "removed", exerciseId: entry.exerciseId });
+  if (completeStructure) {
+    for (const entry of workout.exercises)
+      if (!logged.some((item) => item.sourceWorkoutExerciseId === entry.id))
+        structure.push({ kind: "removed", exerciseId: entry.exerciseId });
+  }
   return { structure, targets };
 }

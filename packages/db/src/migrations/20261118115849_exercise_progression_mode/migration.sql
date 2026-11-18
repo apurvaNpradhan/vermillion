@@ -1,0 +1,1 @@
+ALTER TABLE "exercise_setting" ADD COLUMN "progression_per_set" boolean DEFAULT false NOT NULL;

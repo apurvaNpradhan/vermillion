@@ -39,25 +39,26 @@ const LEVEL_KEYS = {
 export function MuscleGoalSheet({
   muscle,
   goal,
+  planned,
   contributions,
   onChange,
   onClose,
 }: {
   muscle: TargetMuscle;
   goal: MuscleGoal | undefined;
+  planned: number | null;
   contributions: readonly MuscleContribution[];
-  onChange: (goal: MuscleGoal) => void;
+  onChange: (goal: MuscleGoal | null) => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const sheet = useSheetPresent();
-  const level: GoalLevel = goal?.level ?? "grow";
-  const [picked, setPicked] = useState<GoalLevel>(level);
-  const range = goalRange(goal);
+  const [picked, setPicked] = useState<GoalLevel | null>(goal?.level ?? null);
+  const range = goalRange(goal, planned === null ? null : 0) ?? GOAL_RANGES.maintain;
   const [min, setMin] = useState(String(range.min));
   const [max, setMax] = useState(String(range.max));
   const parsed = customGoal(min, max);
-  const preset = picked === "custom" ? null : GOAL_RANGES[picked];
+  const preset = picked === null || picked === "custom" ? null : GOAL_RANGES[picked];
   return (
     <BottomSheet
       isOpen={sheet.isOpen}
@@ -75,20 +76,38 @@ export function MuscleGoalSheet({
           <BottomSheet.Title className="font-semibold text-title-lg">
             {t("muscles__goal_title", { muscle: t(MUSCLE_GROUP_KEYS[muscle]) })}
           </BottomSheet.Title>
-          <SegmentedControl
-            accessibilityLabel={t("muscles__goal_label")}
-            value={picked}
-            options={GOAL_LEVELS.map((value) => ({ value, label: t(LEVEL_KEYS[value]) }))}
-            onChange={(next) => {
-              setPicked(next);
-              if (next !== "custom") onChange({ level: next });
-            }}
-          />
-          {preset ? (
+          {planned === null ? null : (
+            <SegmentedControl
+              accessibilityLabel={t("muscles__goal_label")}
+              value={picked}
+              options={GOAL_LEVELS.map((value) => ({ value, label: t(LEVEL_KEYS[value]) }))}
+              onChange={(next) => {
+                setPicked(next);
+                if (next !== "custom") onChange({ level: next });
+              }}
+            />
+          )}
+          {planned !== null && picked === null && planned > 0 ? (
+            <Text className="text-caption tabular-nums text-muted">
+              {t("muscles__program_count", { sets: formatSets(planned, i18n.language) })}
+            </Text>
+          ) : null}
+          {planned !== null && picked !== null ? (
+            <Button
+              variant="tertiary"
+              onPress={() => {
+                setPicked(null);
+                onChange(null);
+              }}
+            >
+              <Button.Label>{t("muscles__use_program_goal")}</Button.Label>
+            </Button>
+          ) : null}
+          {planned !== null && preset ? (
             <Text className="text-caption tabular-nums text-muted">
               {t("muscles__level_range", preset)}
             </Text>
-          ) : (
+          ) : planned !== null && picked === "custom" ? (
             <View className="gap-3">
               <View className="flex-row gap-3">
                 <Field
@@ -118,7 +137,7 @@ export function MuscleGoalSheet({
                 <Button.Label>{t("common__save")}</Button.Label>
               </Button>
             </View>
-          )}
+          ) : null}
           <View className="gap-2 rounded-2xl bg-surface p-4">
             <Text className="text-caption font-medium text-muted">{t("muscles__sets_from")}</Text>
             {contributions.length === 0 ? (

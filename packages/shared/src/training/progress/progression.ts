@@ -12,7 +12,11 @@ import { incrementFor, lightenLoad, loadable } from "./progression-steps";
 
 export { incrementFor } from "./progression-steps";
 
-export type IncrementSettings = { weightUnit: WeightUnit; weightIncrementKg: number | null };
+export type IncrementSettings = {
+  weightUnit: WeightUnit;
+  weightIncrementKg: number | null;
+  progressionPerSet?: boolean;
+};
 export type SuggestedSet = { weightKg: number | null; reps: number | null };
 
 /** Why a suggestion is what it is: a small closed set, each with its own short label. */
@@ -60,7 +64,7 @@ const EASY_RPE = 7;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
 const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
-const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
+export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
 const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
 
@@ -115,9 +119,10 @@ const REASON_OF = {
 } as const satisfies Record<Outcome, ProgressionReason>;
 
 /**
- * Progression for the planned sets, set by set (ADR 0038). `history` is newest first. Each
- * progressing set (working, top, back-off) is matched to the same set last time: at the top of
- * its rep range it adds load and returns to the bottom of the range, otherwise it adds a rep.
+ * Progression for planned sets (ADR 0038). `history` is newest first. Matched sets grow reps
+ * to the top of their range, then add load and reset the reps. By default working sets wait
+ * for every working set to reach the ceiling before adding load. Top and back-off sets progress
+ * independently.
  * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
  * minimum on two Sessions running holds, a break lowers the load and a Lighter week or the
  * stalled-lift deload suggests 90%. Warm-ups and Lighter-week Sessions are never a baseline.
@@ -196,6 +201,19 @@ export function suggestNext(
       before.reps >= (target.reps_max ?? target.reps_min)
     );
   });
+  const lastWorking = last.sets.filter((set) => set.kind === "working");
+  const workingReady = slots.every(({ target, ordinal }) => {
+    if (target.kind !== "working") return true;
+    const before = lastWorking[ordinal];
+    const ceiling = target.reps_max ?? target.reps_min;
+    return (
+      ceiling !== undefined &&
+      before?.reps != null &&
+      before.reps >= ceiling &&
+      before.weight_kg != null &&
+      (before.rpe == null || before.rpe < GRIND_RPE)
+    );
+  });
   const outcomes: Outcome[] = [];
   let incrementKg: number | null = null;
   for (const { index, target, ordinal } of slots) {
@@ -205,12 +223,12 @@ export function suggestNext(
     let outcome: Outcome = "same";
     let next = same;
     if (held) outcome = "hold";
+    else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
       if (before.reps >= max) {
-        if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
-        else if (canLoad) {
+        if (canLoad && (target.kind !== "working" || settings.progressionPerSet || workingReady)) {
           const easy = before.rpe != null && before.rpe <= EASY_RPE;
           const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
           incrementKg ??= added;
@@ -219,9 +237,11 @@ export function suggestNext(
             weightKg: loadable((before.weight_kg ?? 0) + added, unit),
             reps: target.reps_min,
           };
-        } else {
+        } else if (!canLoad) {
           outcome = "add_rep";
           next = { ...same, reps: allTopped ? before.reps + 1 : before.reps };
+        } else {
+          outcome = "hold";
         }
       } else {
         outcome = "add_rep";

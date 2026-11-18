@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createProgram, createWorkout, addSlot } from "../store";
+import { createProgram, createWorkout, addSlot, addExercises } from "../store";
 import {
   activateProgram,
   finishRun,
@@ -8,8 +8,8 @@ import {
   runAgain,
   stopProgram,
 } from "./run-store";
-import { setupSessions } from "../sessions/session-fixtures";
-import { startSession } from "../sessions/session-store";
+import { setupSessions, SQUAT } from "../sessions/session-fixtures";
+import { startSession, logPastSession } from "../sessions/session-store";
 import { activeRun } from "@workspace/shared";
 
 it("activates, starts, continues and reruns without losing earlier dates", async () => {
@@ -52,6 +52,41 @@ it("activates, starts, continues and reruns without losing earlier dates", async
     s.sqlite.close();
   }
 });
+it("assigns a recent backfill to the active workout's run and leaves older backfills out", async () => {
+  const s = await setupSessions();
+  try {
+    const programId = await createProgram(s.training, {
+      title: "Plan",
+      description: null,
+      planned_weeks: null,
+      sessions_per_week: null,
+    });
+    const workoutId = await createWorkout(s.training, { title: "Day", program_id: programId });
+    await addExercises(s.training, workoutId, [SQUAT]);
+    const slotId = await addSlot(s.training, programId, workoutId);
+    const runId = await activateProgram(s.training, programId);
+    const source = { workoutId, derivedTitle: "Day" };
+    const recent = await logPastSession(s.training, source, {
+      startedAt: new Date(Date.now() - 86400000).toISOString(),
+    });
+    expect(s.one("training_session", recent)).toMatchObject({
+      run_id: runId,
+      slot_id: slotId,
+      cycle: 1,
+    });
+    const older = await logPastSession(s.training, source, {
+      startedAt: new Date(Date.now() - 172800000).toISOString(),
+    });
+    expect(s.one("training_session", older)).toMatchObject({
+      run_id: null,
+      slot_id: null,
+      cycle: null,
+    });
+  } finally {
+    s.sqlite.close();
+  }
+});
+
 it("switching stops the prior Run and rejects a stale account scope", async () => {
   const s = await setupSessions();
   try {

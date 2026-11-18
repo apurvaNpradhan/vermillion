@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { pushWorkout, setupSessions } from "./session-fixtures";
 import { updateWorkoutExercise } from "../plans/exercise-store";
 import { startSession, finishSession, logPastSession } from "./session-store";
-import { tickSet, updateSet } from "./session-content-store";
+import { removeSet, tickSet, updateSet } from "./session-content-store";
+import { readWorkoutDetail } from "../watch";
+import { parseSessionDetail, SESSION_DETAIL_SQL } from "./session-watch";
 import { applySessionWorkout, editFinishedSession } from "./session-workout-store";
 
 async function fixture() {
@@ -65,14 +67,91 @@ describe("applying Session changes", () => {
       { kind: "backoff", weight_kg: 115 },
     ]);
   });
-  it("changes structure alone while preserving planned weight", async () => {
+  it("preserves skipped sets and other exercises when applying structure to an already saved session", async () => {
     const { s, plan, id } = await fixture();
+    const before = s.one("workout_exercise", plan.squat)?.["sets"];
     await applySessionWorkout(s.training, id, { structure: true, targets: false, saveNew: false });
-    expect(JSON.parse(String(s.one("workout_exercise", plan.squat)?.["sets"]))).toEqual([
-      { kind: "working", reps_min: 5, reps_max: 8, weight_kg: 100, effort_min: 8, effort_max: 8 },
-    ]);
-    expect(s.one("workout_exercise", plan.plank)).toBeUndefined();
+    expect(s.one("workout_exercise", plan.squat)?.["sets"]).toEqual(before);
+    expect(s.one("workout_exercise", plan.plank)).toBeDefined();
   });
+  it("applies explicit removals and preserves skipped rows from the pre-save grid", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const [warmup, work1, work2] = s.sets(String(s.exercises(id)[0]?.["id"]));
+    await removeSet(s.training, String(warmup?.["id"]));
+    await tickSet(s.training, String(work2?.["id"]), { weight: 120, reps: 5 });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    await finishSession(s.training, id);
+    expect(s.one("session_set", String(work1?.["id"]))).toBeUndefined();
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: true,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect((await readWorkoutDetail(s.training, plan.workoutId))?.exercises[0]?.sets).toMatchObject(
+      [
+        { kind: "working", weight_kg: 100 },
+        { kind: "working", weight_kg: 120 },
+      ],
+    );
+    expect(s.one("workout_exercise", plan.plank)).toBeDefined();
+  });
+  it("keeps the remaining set's prescription after removing a set of the same kind", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    await updateWorkoutExercise(s.training, plan.squat, {
+      sets: [
+        { kind: "working", reps_min: 3, reps_max: 3, weight_kg: 120 },
+        { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
+      ],
+    });
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const [removed, kept] = s.sets(String(s.exercises(id)[0]?.["id"]));
+    await removeSet(s.training, String(removed?.["id"]));
+    await tickSet(s.training, String(kept?.["id"]), { weight: 110, reps: 8 });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: false,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect((await readWorkoutDetail(s.training, plan.workoutId))?.exercises[0]?.sets).toEqual([
+      { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
+    ]);
+  });
+
+  it("preserves sets added to the workout after the session started", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const before = await readWorkoutDetail(s.training, plan.workoutId);
+    const sets = before?.exercises[0]?.sets ?? [];
+    await updateWorkoutExercise(s.training, plan.squat, { sets: [...sets, { kind: "drop" }] });
+    const [first] = s.exercises(id);
+    await tickSet(s.training, String(s.sets(String(first?.["id"]))[1]?.["id"]), {
+      weight: 120,
+      reps: 5,
+    });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: false,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect(
+      (await readWorkoutDetail(s.training, plan.workoutId))?.exercises[0]?.sets.at(-1)?.kind,
+    ).toBe("drop");
+  });
+
   it("applies both changes together and refuses a stale account scope", async () => {
     const { s, plan, id } = await fixture();
     const before = s.one("workout_exercise", plan.squat);
@@ -86,10 +165,12 @@ describe("applying Session changes", () => {
     ).rejects.toThrow();
     expect(s.one("workout_exercise", plan.squat)).toEqual(before);
     await applySessionWorkout(s.training, id, { structure: true, targets: true, saveNew: false });
-    expect(JSON.parse(String(s.one("workout_exercise", plan.squat)?.["sets"]))).toEqual([
-      { kind: "working", reps_min: 5, reps_max: 8, weight_kg: 120, effort_min: 8, effort_max: 8 },
+    expect(JSON.parse(String(s.one("workout_exercise", plan.squat)?.["sets"]))).toMatchObject([
+      { kind: "warmup", weight_kg: 40 },
+      { kind: "working", weight_kg: 120 },
+      { kind: "working", weight_kg: 100 },
     ]);
-    expect(s.one("workout_exercise", plan.plank)).toBeUndefined();
+    expect(s.one("workout_exercise", plan.plank)).toBeDefined();
   });
   it("saves a separate Workout even when the source still exists", async () => {
     const { s, plan, id } = await fixture();

@@ -9,7 +9,13 @@ import { formatElapsed, useActiveSessions, useStartSession } from "@/session";
 import { KG_PER_LB, sessionGoal, sessionTotals, type SessionHistory } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { ratioChange, sessionsInWeek, trailingDays, weekCells, weighInsInWeek } from "./home-stats";
+import {
+  comparableWeekSessions,
+  ratioChange,
+  trailingDays,
+  weekCells,
+  weighInsInWeek,
+} from "./home-stats";
 import { lastDoneLabel } from "./last-done";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
@@ -98,8 +104,12 @@ export function TrainingHome() {
 
   // ---- This week ----
   const { weekStart } = state;
-  const thisWeek = sessionsInWeek(state.sessions, now, zone, weekStart);
-  const lastWeek = sessionsInWeek(state.sessions, now, zone, weekStart, 1);
+  const { current: thisWeek, previous: lastWeek } = comparableWeekSessions(
+    state.sessions,
+    now,
+    zone,
+    weekStart,
+  );
   const weekTotals = totalsOf(thisWeek);
   const volumeChange = ratioChange(weekTotals.volume, totalsOf(lastWeek).volume);
   const cells = weekCells(
@@ -216,7 +226,7 @@ export function TrainingHome() {
 
       <LighterWeekCard state={state} />
 
-      <MusclesTile />
+      <MusclesTile program={programState.program} />
 
       <View className="flex-row gap-3">
         <Pressable

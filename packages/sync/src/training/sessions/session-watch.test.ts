@@ -26,7 +26,7 @@ import {
   parseFinishedSessions,
   parseSessionDetail,
 } from "./session-watch";
-import { upsertEquipment } from "./equipment-store";
+import { setExerciseSetting, upsertEquipment } from "./equipment-store";
 
 const derivedTitle = "Quadriceps";
 const DAY = 86_400_000;
@@ -58,7 +58,7 @@ it.each(["top", "backoff", "myo"] as const)(
     const [exercise] = await addSessionExercises(s.training, id, [SQUAT]);
     const [first] = s.sets(exercise ?? "");
     const setId = String(first?.["id"]);
-    await updateSet(s.training, setId, { kind });
+    await updateSet(s.training, setId, { kind, rpe: 8 });
     await tickSet(s.training, setId, { weight: 100, reps: 5, rpe: 8 });
     const detail = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
     expect(detail?.exercises[0]?.sets[0]).toMatchObject({ kind, rpe: 8, weightKg: 100, reps: 5 });
@@ -100,6 +100,16 @@ describe("active Sessions", () => {
   });
 });
 
+it("reads per-set progression for a session exercise from its synced setting", async () => {
+  const s = await setupSessions();
+  const plan = await pushWorkout(s);
+  const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+  const detail = () => parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+  expect(detail()?.exercises[0]?.progressionPerSet).toBe(false);
+  await setExerciseSetting(s.training, SQUAT, { progression_per_set: true });
+  expect(detail()?.exercises[0]?.progressionPerSet).toBe(true);
+});
+
 describe("one Session", () => {
   it("reads the exercises and sets in order with the library's muscles", async () => {
     const s = await setupSessions();
@@ -107,7 +117,8 @@ describe("one Session", () => {
     const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
     const [squat] = s.exercises(id);
     const [warmup, work] = s.sets(String(squat?.["id"]));
-    await tickSet(s.training, String(work?.["id"]), { weight: 100, reps: 5, rpe: 8 });
+    await updateSet(s.training, String(work?.["id"]), { rpe: 8 });
+    await tickSet(s.training, String(work?.["id"]), { weight: 100, reps: 5 });
     const exerciseRow = String(s.exercises(id)[1]?.["id"]);
     await startRest(s.training, id, String(warmup?.["id"]), 60);
 

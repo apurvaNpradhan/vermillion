@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "9091dbec-8d9a-4745-a3de-f69b81c46366",
+  "prevIds": ["a680e1e5-c73e-4b4b-90f4-becc5b3593bf"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "workout_structure"],
+      "writes": [
+        "s|col|public.training_session.workout_structure",
+        "n|col|public.training_session.workout_structure",
+        "e|col|public.training_session.workout_structure"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "workout_structure",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

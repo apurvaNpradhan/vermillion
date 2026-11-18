@@ -55,10 +55,10 @@ describe("tickValues", () => {
     expect(tickValues({}, { reps: 0 }, ["reps"])).toEqual({ ok: false, missing: ["reps"] });
   });
 
-  it("adopts the planned effort on reps types only, into an empty cell", () => {
+  it("keeps planned effort out of actual values", () => {
     expect(tickValues({ reps: 5 }, { rpe: 8 }, ["reps"])).toEqual({
       ok: true,
-      values: { rpe: 8 },
+      values: {},
     });
     expect(tickValues({ reps: 5, rpe: 9 }, { rpe: 8 }, ["reps"])).toEqual({ ok: true, values: {} });
     expect(tickValues({ duration_s: 30 }, { rpe: 8 }, ["duration"])).toEqual({

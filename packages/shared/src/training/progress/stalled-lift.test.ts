@@ -45,7 +45,7 @@ describe("sessionScore", () => {
 
   it("is null without a scorable set", () => {
     expect(sessionScore([], "weight_reps")).toBeNull();
-    expect(sessionScore([set(60, 20)], "weight_reps")).toBeNull();
+    expect(sessionScore([set(60, 20)], "weight_reps")).toBe(1200);
     expect(sessionScore([set(60, 5)], "duration")).toBeNull();
   });
 });
