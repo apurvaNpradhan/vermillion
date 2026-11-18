@@ -70,8 +70,9 @@ const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_
 
 /**
  * The set of `sets` a planned set progresses from: the same kind at the same position, or the
- * last one of that kind when this Session had fewer; with none of that kind (a back-off set where
- * there was none), the nearest working set.
+ * last one of that kind when this Session had fewer. With none of that kind (a back-off set
+ * where there was none) there is no base: a heavy working set must not seed a lighter back-off
+ * set, so the explicit prescription stands.
  */
 function counterpart(
   sets: readonly LoggedSet[],
@@ -79,8 +80,7 @@ function counterpart(
   ordinal: number,
 ): LoggedSet | undefined {
   const same = sets.filter((set) => set.kind === kind);
-  const pool = same.length > 0 ? same : sets.filter((set) => set.kind === "working");
-  return pool[Math.min(ordinal, pool.length - 1)];
+  return same[Math.min(ordinal, same.length - 1)];
 }
 
 type Slot = { index: number; target: PlannedSet; ordinal: number };
@@ -178,10 +178,15 @@ export function suggestNext(
     for (const { index, target, ordinal } of slots) {
       const before = counterpart(last.sets, target.kind, ordinal);
       if (!before) continue;
+      const weightKg =
+        before.weight_kg == null ? null : lightenLoad(before.weight_kg, factor, equipment, unit);
+      // A reset that cannot lower the load must not raise the reps either.
+      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
+      const reset = target.reps_min ?? before.reps ?? null;
       sets[index] = {
-        weightKg:
-          before.weight_kg == null ? null : lightenLoad(before.weight_kg, factor, equipment, unit),
-        reps: target.reps_min ?? before.reps ?? null,
+        weightKg,
+        reps:
+          !lowered && reset !== null && before.reps != null ? Math.min(reset, before.reps) : reset,
       };
     }
     return {
@@ -217,6 +222,13 @@ export function suggestNext(
       (before.rpe == null || before.rpe < GRIND_RPE)
     );
   });
+  // Straight sets at one load share one increment: doubled only when every set there was easy.
+  const easyLoads = new Map<number, boolean>();
+  for (const set of lastWorking) {
+    if (set.weight_kg == null) continue;
+    const easy = set.rpe != null && set.rpe <= EASY_RPE;
+    easyLoads.set(set.weight_kg, (easyLoads.get(set.weight_kg) ?? true) && easy);
+  }
   const outcomes: Outcome[] = [];
   let incrementKg: number | null = null;
   for (const { index, target, ordinal } of slots) {
@@ -232,7 +244,10 @@ export function suggestNext(
       const canLoad = loaded && before.weight_kg != null;
       if (before.reps >= max) {
         if (canLoad && (target.kind !== "working" || settings.progressionPerSet || workingReady)) {
-          const easy = before.rpe != null && before.rpe <= EASY_RPE;
+          const easy =
+            target.kind === "working" && !settings.progressionPerSet
+              ? (easyLoads.get(before.weight_kg ?? 0) ?? false)
+              : before.rpe != null && before.rpe <= EASY_RPE;
           const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
           incrementKg ??= added;
           outcome = "add_weight";

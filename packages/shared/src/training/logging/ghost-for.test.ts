@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ghostFor } from "./ghost-for";
+import { suggestNext } from "../progress/progression";
 
 describe("ghostFor", () => {
   const target = { kind: "working", reps_min: 8, reps_max: 12, weight_kg: 60 } as const;
@@ -75,5 +76,35 @@ describe("ghostFor", () => {
     } as const;
     expect(ghostFor("rpe", { rpe: 9 }, planned)).toBe(7.5);
     expect(ghostFor("rpe", { rpe: 9 }, target)).toBeNull();
+  });
+});
+
+describe("ghostFor with a new back-off set", () => {
+  it("shows the prescribed weight, not a progression of a heavier working set", () => {
+    const backoff = { kind: "backoff", reps_min: 6, reps_max: 8, weight_kg: 60 } as const;
+    const next = suggestNext(
+      [backoff],
+      [
+        {
+          started_at: "2026-11-13T10:00:00Z",
+          sets: [
+            {
+              id: "s",
+              exercise_id: "e",
+              exercise_type: "weight_reps",
+              kind: "working",
+              completed_at: "2026-11-13",
+              reps: 12,
+              weight_kg: 100,
+            },
+          ],
+        },
+      ],
+      "weight_reps",
+      "barbell",
+      { weightUnit: "kg", weightIncrementKg: null },
+      { now: new Date("2026-11-16T12:00:00Z") },
+    );
+    expect(ghostFor("weight", null, backoff, next?.sets[0])).toBe(60);
   });
 });

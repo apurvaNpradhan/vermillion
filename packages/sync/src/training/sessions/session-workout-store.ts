@@ -2,6 +2,8 @@ import { v7 as uuidv7 } from "uuid";
 import {
   diffSessionAgainstWorkout,
   loggedTargetWeight,
+  matchPlannedSets,
+  reconciledTargetWeights,
   plannedSetsSchema,
   workoutStructureKey,
   workoutSetKinds,
@@ -132,8 +134,8 @@ export function applySessionWorkout(
       sets: entry.sets,
     }));
     const draft = source && options.draft?.session.id === id ? options.draft : undefined;
-    const completeStructure =
-      draft?.completeStructure === true && current.workout_structure === workoutStructureKey(plan);
+    const snapshotTrusted = current.workout_structure === workoutStructureKey(plan);
+    const completeStructure = draft?.completeStructure === true && snapshotTrusted;
     const entries = await tx
       .select()
       .from(sessionExercise)
@@ -171,7 +173,7 @@ export function applySessionWorkout(
         }))
       : stored;
     const diff = diffSessionAgainstWorkout(
-      { exercises: sessionEntries },
+      { exercises: sessionEntries, workoutStructure: current.workout_structure },
       { exercises: plan },
       completeStructure,
     );
@@ -210,9 +212,29 @@ export function applySessionWorkout(
           weightKg: set.completedAt === null ? null : set.weightKg,
         }));
         const originalPositions = keysAfterLast([], same?.sets.length ?? 0);
+        const reconciled = same ? reconciledTargetWeights(same.sets, sets, snapshotTrusted) : [];
+        const claimed = new Set(
+          same
+            ? matchPlannedSets(same.sets, sets, snapshotTrusted).flatMap(({ row }) =>
+                row ? [row] : [],
+              )
+            : [],
+        );
+        const extra = sets.filter((set) => set.completedAt !== null && !claimed.has(set));
         const targets: PlannedSet[] = kinds.map((kind, i) => {
           const ordinal = kinds.slice(0, i).filter((prior) => prior === kind).length;
-          const targetWeight = loggedTargetWeight(weights, kind, ordinal);
+          const targetWeight =
+            completeStructure || !same
+              ? loggedTargetWeight(weights, kind, ordinal)
+              : i < same.sets.length
+                ? kind === "warmup"
+                  ? null
+                  : (reconciled[i] ?? null)
+                : kind === "warmup"
+                  ? null
+                  : (extra.filter((set) => set.kind === kind)[
+                      kinds.slice(same.sets.length, i).filter((prior) => prior === kind).length
+                    ]?.weightKg ?? null);
           const loggedSet = sets.filter((set) => set.kind === kind)[ordinal];
           const original =
             completeStructure && loggedSet?.target

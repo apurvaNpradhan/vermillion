@@ -115,10 +115,25 @@ it("counts repeated workouts and half-credit secondary muscles in the weekly pla
 });
 
 describe("muscleRows", () => {
-  it("shows volume without targets when there is no active program", () => {
-    const rows = muscleRows([{ muscle: "chest", sets: 10 }], { chest: { level: "grow" } });
+  it("shows volume without targets when there is no active program and no saved goal", () => {
+    const rows = muscleRows([{ muscle: "chest", sets: 10 }], {});
     expect(rows[0]).toEqual({ muscle: "chest", sets: 10, range: null, status: null });
     expect(onTargetCount(rows)).toBe(0);
+  });
+
+  it("keeps saved goals when the active program ends", () => {
+    const loads = [{ muscle: "chest", sets: 10 }] as const;
+    const goals = { chest: { level: "custom", min: 8, max: 12 } } as const;
+    const withProgram = muscleRows(loads, goals, [{ muscle: "chest", sets: 4 }]);
+    const stopped = muscleRows(loads, goals);
+    expect(stopped.find((row) => row.muscle === "chest")).toEqual({
+      muscle: "chest",
+      sets: 10,
+      range: { min: 8, max: 12 },
+      status: "on_target",
+    });
+    expect(stopped).toEqual(withProgram);
+    expect(stopped.find((row) => row.muscle === "lats")?.range).toBeNull();
   });
 
   it("lists every targeted muscle with below target first, the furthest below first", () => {

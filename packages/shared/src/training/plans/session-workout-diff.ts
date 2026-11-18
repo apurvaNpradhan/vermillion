@@ -1,15 +1,20 @@
+import { generateNKeysBetween } from "fractional-indexing";
+
 import type { PlannedSet } from "./planned-sets";
 import type { SetKind } from "../vocabulary/vocabulary";
 
+export type DiffSessionSet = {
+  /** The set's position key; with the start snapshot it tells which planned set it was copied from. */
+  position?: string;
+  kind: SetKind;
+  weightKg: number | null;
+  completedAt: string | null;
+  target: PlannedSet | null;
+};
 export type DiffSessionExercise = {
   exerciseId: string;
   sourceWorkoutExerciseId: string | null;
-  sets: readonly {
-    kind: SetKind;
-    weightKg: number | null;
-    completedAt: string | null;
-    target: PlannedSet | null;
-  }[];
+  sets: readonly DiffSessionSet[];
 };
 export type DiffWorkoutExercise = { id: string; exerciseId: string; sets: readonly PlannedSet[] };
 
@@ -18,6 +23,58 @@ export function workoutStructureKey(exercises: readonly DiffWorkoutExercise[]): 
   return JSON.stringify(
     exercises.map(({ id, exerciseId, sets }) => [id, exerciseId, sets.map((set) => set.kind)]),
   );
+}
+
+/**
+ * Which Session row came from each planned set. The one reconciliation behind both the preview
+ * and the save, so they cannot disagree.
+ *
+ * With a trusted start snapshot (the Workout still has the structure the Session copied), a row
+ * is the planned set whose position key it was given at start, so skipped or removed rows never
+ * shift the others. Without one, rows can only be matched by kind and ordinal, which is safe
+ * only while every planned set of that kind still has its row; otherwise the match is ambiguous
+ * and nothing is inferred.
+ */
+export function matchPlannedSets<T extends DiffSessionSet>(
+  planned: readonly PlannedSet[],
+  sets: readonly T[],
+  snapshotTrusted: boolean,
+): { row: T | null; ambiguous: boolean }[] {
+  if (snapshotTrusted) {
+    const positions = generateNKeysBetween(null, null, planned.length);
+    return planned.map((plan, index) => ({
+      row:
+        sets.find(
+          (set) =>
+            set.position === positions[index] &&
+            set.target !== null &&
+            set.target.kind === plan.kind,
+        ) ?? null,
+      ambiguous: false,
+    }));
+  }
+  return planned.map((plan, index) => {
+    const same = planned.filter((other) => other.kind === plan.kind);
+    const rows = sets.filter((set) => set.kind === plan.kind);
+    const ordinal = planned.slice(0, index).filter((other) => other.kind === plan.kind).length;
+    return rows.length === same.length
+      ? { row: rows[ordinal] ?? null, ambiguous: false }
+      : { row: null, ambiguous: true };
+  });
+}
+
+/** Each planned set's weight after the Session: the completed row's own, else the plan's. */
+export function reconciledTargetWeights(
+  planned: readonly PlannedSet[],
+  sets: readonly DiffSessionSet[],
+  snapshotTrusted: boolean,
+): (number | null)[] {
+  return matchPlannedSets(planned, sets, snapshotTrusted).map(({ row }, index) => {
+    const plan = planned[index];
+    const done =
+      row && row.completedAt !== null && row.kind === plan?.kind && plan.kind !== "warmup";
+    return (done ? row.weightKg : null) ?? plan?.weight_kg ?? null;
+  });
 }
 
 /** The completed set's weight at the corresponding ordinal of this kind. */
@@ -59,11 +116,14 @@ export function workoutUpdateEntries<T extends DiffSessionExercise>(
 
 /** Targets change weight only, never reps or effort. */
 export function diffSessionAgainstWorkout(
-  session: { exercises: readonly DiffSessionExercise[] },
+  session: { exercises: readonly DiffSessionExercise[]; workoutStructure?: string | null },
   workout: { exercises: readonly DiffWorkoutExercise[] },
   completeStructure = false,
 ) {
   const logged = workoutUpdateEntries(session.exercises, completeStructure);
+  const snapshotTrusted =
+    session.workoutStructure != null &&
+    session.workoutStructure === workoutStructureKey(workout.exercises);
   const observed = completeStructure
     ? workout.exercises
     : workout.exercises.filter((item) =>
@@ -102,14 +162,10 @@ export function diffSessionAgainstWorkout(
         });
       const planned = source.sets.filter((set) => set.kind !== "warmup");
       const before = planned.map((set) => set.weight_kg ?? null);
-      const weights = entry.sets.map((set) => ({
-        kind: set.kind,
-        weightKg: set.completedAt === null ? null : set.weightKg,
-      }));
-      const after = planned.map((set, index) => {
-        const ordinal = planned.slice(0, index).filter((prior) => prior.kind === set.kind).length;
-        return loggedTargetWeight(weights, set.kind, ordinal) ?? set.weight_kg ?? null;
-      });
+      const reconciled = reconciledTargetWeights(source.sets, entry.sets, snapshotTrusted);
+      const after = source.sets.flatMap((set, i) =>
+        set.kind === "warmup" ? [] : [reconciled[i] ?? null],
+      );
       if (after.some((weight, i) => weight !== before[i]))
         targets.push({
           exerciseId: entry.exerciseId,
