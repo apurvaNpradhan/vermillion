@@ -1,0 +1,63 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "77c3aefc-1975-410f-baca-c5be1f406e70",
+  "prevIds": ["8cd549a3-15fd-4a14-9fd8-5470327564b4"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "session_exercise", "warmup_key"],
+      "writes": [
+        "s|col|public.session_exercise.warmup_key",
+        "n|col|public.session_exercise.warmup_key",
+        "e|col|public.session_exercise.warmup_key"
+      ],
+      "reads": ["n|tbl|public.session_exercise", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "session_set", "generated_warmup"],
+      "writes": [
+        "s|col|public.session_set.generated_warmup",
+        "n|col|public.session_set.generated_warmup",
+        "e|col|public.session_set.generated_warmup"
+      ],
+      "reads": ["n|tbl|public.session_set", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "session_exercise",
+        "name": "warmup_key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "session_set",
+        "name": "generated_warmup",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

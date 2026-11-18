@@ -83,17 +83,18 @@ export function warmupRamp(input: {
   }
 
   const ramp: WarmupSet[] = [];
-  for (const candidate of [
-    opener,
+  const candidates: { weightKg: number; reps: number; cap: number }[] = [
+    { ...opener, cap: 1 },
     ...PERCENT_STEPS.map((s) => ({
       weightKg: round(workingKg * s.fraction),
       reps: s.reps,
       cap: s.cap,
     })),
-  ]) {
+  ];
+  for (const { cap, ...candidate } of candidates) {
     const last = ramp.at(-1);
     if (candidate.weightKg <= SAME || candidate.weightKg >= workingKg - SAME) continue;
-    if ("cap" in candidate && candidate.weightKg > workingKg * candidate.cap + SAME) continue;
+    if (candidate.weightKg > workingKg * cap + SAME) continue;
     if (last && candidate.weightKg <= last.weightKg + SAME) continue;
     ramp.push(candidate);
   }

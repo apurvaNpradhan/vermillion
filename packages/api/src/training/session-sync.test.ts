@@ -243,7 +243,7 @@ describe("session upload handlers", () => {
   const stored = async (table: string, id: string) => {
     const [row] = await app.rows(
       table === "session_set"
-        ? sql`SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, deleted_at, target::text AS target FROM session_set WHERE id = ${id}`
+        ? sql`SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, generated_warmup, deleted_at, target::text AS target FROM session_set WHERE id = ${id}`
         : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
     );
     return row;
@@ -371,6 +371,24 @@ describe("session upload handlers", () => {
       position: "a2",
       exercise_title: "Bench press",
     });
+
+    // The generated-warm-up mark and the ramp key sync like their sibling columns, and a patch
+    // that omits them leaves them alone.
+    expect(
+      await me.send([
+        op("PATCH", "session_set", t.set2, { generated_warmup: 1 }),
+        op("PATCH", "session_exercise", t.exerciseId, { warmup_key: "100|weight_reps|kg" }),
+      ]),
+    ).toEqual(applied);
+    expect(await me.send([op("PATCH", "session_set", t.set2, { reps: 6 })])).toEqual(applied);
+    expect(await stored("session_set", t.set2)).toMatchObject({ generated_warmup: true, reps: 6 });
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({
+      warmup_key: "100|weight_reps|kg",
+    });
+    expect(await me.send([op("PATCH", "session_set", t.set2, { generated_warmup: 0 })])).toEqual(
+      applied,
+    );
+    expect(await stored("session_set", t.set2)).toMatchObject({ generated_warmup: false });
 
     const barId = uuidv7();
     const settingId = uuidv7();

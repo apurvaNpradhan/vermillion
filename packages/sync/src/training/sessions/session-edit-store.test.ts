@@ -1,18 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { CURL, pushWorkout, setupSessions, type Sessions } from "./session-fixtures";
+import { CURL, SQUAT, pushWorkout, setupSessions, type Sessions } from "./session-fixtures";
 import {
   addSessionExercises,
   leaveSessionSuperset,
+  removeSet,
   replaceWarmups,
+  restoreSet,
   tickSet,
   updateSet,
   supersetSessionWithNext,
   updateSessionExercise,
 } from "./session-content-store";
+import { setExerciseSetting } from "./equipment-store";
 import { newSessionId, setDerivedTitle, startSession } from "./session-store";
 
 const derivedTitle = "Workout";
+
+function present<T>(value: T | null): T {
+  if (value === null) throw new Error("expected a value");
+  return value;
+}
 
 async function started(s: Sessions, title: string | null = "Legs") {
   const plan = await pushWorkout(s, title);
@@ -208,6 +216,140 @@ describe("replaceWarmups", () => {
     }));
     await replaceWarmups(s.training, t.squat, many);
     expect(s.sets(t.squat)).toHaveLength(20);
+  });
+
+  const step = (weight_kg: number, reps = 5) =>
+    ({ kind: "warmup", weight_kg, reps_min: reps, reps_max: reps }) as const;
+  const hundred = [step(20, 10), step(50), step(70, 3), step(85, 1)];
+  const bigger = [step(20, 10), step(55), step(77, 3), step(93.5, 1)];
+  const loads = (s: Sessions, exerciseId: string) =>
+    s
+      .sets(exerciseId)
+      .filter((row) => row["kind"] === "warmup")
+      .map((row) => row["weight_kg"] ?? JSON.parse(String(row["target"])).weight_kg);
+
+  it("keeps a typed middle warm-up in its slot and the sequence ascending", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await replaceWarmups(s.training, t.squat, hundred);
+    const third = String(s.sets(t.squat)[2]?.["id"]);
+    await updateSet(s.training, third, { weight_kg: 75 });
+    await replaceWarmups(s.training, t.squat, bigger);
+    expect(loads(s, t.squat)).toEqual([20, 55, 75, 93.5]);
+    expect(s.sets(t.squat)[2]).toMatchObject({ id: third, weight_kg: 75 });
+  });
+
+  it("keeps a ticked final warm-up and generates the steps below it", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await replaceWarmups(s.training, t.squat, hundred);
+    const last = String(s.sets(t.squat)[3]?.["id"]);
+    await tickSet(s.training, last, { weight: 85, reps: 1 });
+    await replaceWarmups(s.training, t.squat, bigger);
+    expect(loads(s, t.squat)).toEqual([20, 55, 77, 85]);
+    expect(s.sets(t.squat)[3]).toMatchObject({ id: last });
+  });
+
+  it("skips a generated step that would not fit between kept loads", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await replaceWarmups(s.training, t.squat, hundred);
+    await updateSet(s.training, String(s.sets(t.squat)[0]?.["id"]), { weight_kg: 60 });
+    await replaceWarmups(s.training, t.squat, bigger);
+    const rows = loads(s, t.squat);
+    expect(rows).toEqual([60, 77, 93.5]);
+    expect(rows).toEqual([...rows].sort((a, b) => a - b));
+  });
+
+  it("reuses the rows of the untouched warm-ups it regenerates", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await replaceWarmups(s.training, t.squat, hundred);
+    const ids = s.sets(t.squat).map((row) => row["id"]);
+    await replaceWarmups(s.training, t.squat, bigger);
+    expect(s.sets(t.squat).map((row) => row["id"])).toEqual(ids);
+    expect(loads(s, t.squat)).toEqual([20, 55, 77, 93.5]);
+  });
+
+  it("marks generated rows and clears the mark when the user ticks or edits one", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await replaceWarmups(s.training, t.squat, hundred);
+    const [first, second, third] = s.sets(t.squat).map((row) => String(row["id"]));
+    const marks = () => s.sets(t.squat).map((row) => row["generated_warmup"]);
+    expect(marks()).toEqual([1, 1, 1, 1, 0, 0]);
+    await tickSet(s.training, first ?? "", { weight: 20, reps: 10 });
+    await updateSet(s.training, second ?? "", { reps: 6 });
+    expect(marks()).toEqual([0, 0, 1, 1, 0, 0]);
+    expect(await updateSet(s.training, third ?? "", { kind: "working" })).toBe(true);
+    expect(s.one("session_set", third ?? "")).toMatchObject({ generated_warmup: 0 });
+  });
+
+  describe("automatic", () => {
+    const auto = (s: Sessions, exerciseId: string, key: string, ramp = hundred) =>
+      replaceWarmups(s.training, exerciseId, ramp, s.installId, { key, auto: true });
+
+    it("writes the ramp once per key and stores the key with the exercise", async () => {
+      const s = await setupSessions();
+      const t = await started(s);
+      await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+      expect(await auto(s, t.squat, "k1")).toBe(true);
+      expect(s.one("session_exercise", t.squat)).toMatchObject({ warmup_key: "k1" });
+      // The user deletes one; the same inputs must not bring it back.
+      await removeSet(s.training, String(s.sets(t.squat)[1]?.["id"]));
+      expect(await auto(s, t.squat, "k1")).toBe(false);
+      expect(loads(s, t.squat)).toEqual([20, 70, 85]);
+      expect(await auto(s, t.squat, "k2", bigger)).toBe(true);
+    });
+
+    it("refuses when a set was ticked, the session is finished or another device has it", async () => {
+      const s = await setupSessions();
+      const t = await started(s);
+      await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+      await tickSet(s.training, String(s.sets(t.squat)[0]?.["id"]), { weight: 40, reps: 10 });
+      expect(await auto(s, t.squat, "k1")).toBe(false);
+      expect(s.one("session_exercise", t.squat)).toMatchObject({ warmup_key: null });
+
+      const u = await setupSessions();
+      const v = await started(u);
+      await setExerciseSetting(u.training, SQUAT, { auto_warmups: true });
+      u.sqlite
+        .prepare("UPDATE training_session SET device_id = 'other-device' WHERE id = ?")
+        .run(v.id);
+      expect(await auto(u, v.squat, "k1")).toBe(false);
+      u.sqlite
+        .prepare("UPDATE training_session SET device_id = ?, finished_at = ? WHERE id = ?")
+        .run(u.installId, "2026-11-18T10:00:00Z", v.id);
+      expect(await auto(u, v.squat, "k1")).toBe(false);
+    });
+
+    it("refuses when the exercise's Auto warm-ups is off", async () => {
+      const s = await setupSessions();
+      const t = await started(s);
+      expect(await auto(s, t.squat, "k1")).toBe(false);
+    });
+  });
+
+  describe("Undo of a removed generated warm-up", () => {
+    it("restores it when nothing was regenerated", async () => {
+      const s = await setupSessions();
+      const t = await started(s);
+      await replaceWarmups(s.training, t.squat, hundred);
+      const removed = await removeSet(s.training, String(s.sets(t.squat)[1]?.["id"]));
+      expect(await restoreSet(s.training, present(removed))).toBe(true);
+      expect(loads(s, t.squat)).toEqual([20, 50, 70, 85]);
+    });
+
+    it("does not restore a duplicate once regeneration filled the slot", async () => {
+      const s = await setupSessions();
+      const t = await started(s);
+      await replaceWarmups(s.training, t.squat, hundred);
+      const removed = await removeSet(s.training, String(s.sets(t.squat)[1]?.["id"]));
+      await replaceWarmups(s.training, t.squat, hundred);
+      expect(loads(s, t.squat)).toEqual([20, 50, 70, 85]);
+      expect(await restoreSet(s.training, present(removed))).toBe(false);
+      expect(loads(s, t.squat)).toEqual([20, 50, 70, 85]);
+    });
   });
 
   it("refuses a target the exercise type does not record", async () => {

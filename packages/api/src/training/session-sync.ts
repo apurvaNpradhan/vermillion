@@ -63,6 +63,7 @@ import { exerciseSetting, gymEquipment, session, sessionExercise, sessionSet } f
 const wireBoolean = z
   .union([z.boolean(), z.literal(0), z.literal(1)])
   .transform((value) => value === true || value === 1);
+const wireWarmupKey = z.string().max(500).nullable();
 const wireTarget = z
   .string()
   .transform((text, ctx) => {
@@ -238,12 +239,14 @@ const putSessionExercise = z.strictObject({
   note: sessionExerciseInput.shape.note.default(null),
   superset_group: sessionExerciseInput.shape.superset_group.default(null),
   log_effort: wireBoolean.default(false),
+  warmup_key: wireWarmupKey.optional(),
 });
 // An exercise never moves to another Session.
 const patchSessionExercise = z
   .strictObject({
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
+    warmup_key: wireWarmupKey,
   })
   .partial();
 
@@ -274,9 +277,14 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, ...data } = accept(putSessionExercise.safeParse(op.opData ?? {}));
+      const {
+        restore,
+        warmup_key: warmupKey,
+        ...data
+      } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
+      const keyed = warmupKey === undefined ? {} : { warmupKey };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
       if (!(await liveSession(db, userId, values.session_id))) parentMissing();
       await exerciseVisible(db, userId, values.exercise_id);
@@ -286,7 +294,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         assertRoom(live, 1, SESSION_LIMITS.exercisesPerSession, "SESSION_LIMIT_REACHED");
         await db
           .insert(sessionExercise)
-          .values({ id, userId, sessionId: values.session_id, ...columns(values) });
+          .values({ id, userId, sessionId: values.session_id, ...columns(values), ...keyed });
         return;
       }
       const deletedAt = found.row.deletedAt;
@@ -296,13 +304,15 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       }
       await db
         .update(sessionExercise)
-        .set({ ...columns(values), updatedAt: now() })
+        .set({ ...columns(values), ...keyed, updatedAt: now() })
         .where(eq(sessionExercise.id, id));
       return;
     }
 
     const row = liveRow(found);
-    const patch = accept(patchSessionExercise.safeParse(op.opData ?? {}));
+    const { warmup_key: warmupKey, ...patch } = accept(
+      patchSessionExercise.safeParse(op.opData ?? {}),
+    );
     const merged = accept(
       sessionExerciseInput.safeParse({
         session_id: row.sessionId,
@@ -321,7 +331,11 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
     if (patch.exercise_id !== undefined) await exerciseVisible(db, userId, patch.exercise_id);
     await db
       .update(sessionExercise)
-      .set({ ...columns(merged), updatedAt: now() })
+      .set({
+        ...columns(merged),
+        ...(warmupKey === undefined ? {} : { warmupKey }),
+        updatedAt: now(),
+      })
       .where(eq(sessionExercise.id, id));
   },
   purgeTombstones: async () => 0,
@@ -344,12 +358,14 @@ const putSessionSet = z.strictObject({
   completed_at: sessionSetInput.shape.completed_at.default(null),
   timer_started_at: sessionSetInput.shape.timer_started_at.default(null),
   target: wireTarget.default(null),
+  generated_warmup: wireBoolean.optional(),
 });
 // A set never moves to another exercise.
 const patchSessionSet = z
   .strictObject({
     ...sessionSetInput.omit({ session_exercise_id: true, target: true }).shape,
     target: wireTarget,
+    generated_warmup: wireBoolean,
   })
   .partial();
 
@@ -422,7 +438,12 @@ const sessionSetSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, ...data } = accept(putSessionSet.safeParse(op.opData ?? {}));
+      const {
+        restore,
+        generated_warmup: generated,
+        ...data
+      } = accept(putSessionSet.safeParse(op.opData ?? {}));
+      const marked = generated === undefined ? {} : { generatedWarmup: generated };
       checkPut(found, restore);
       if (found.kind === "own" && found.row.sessionExerciseId !== data.session_exercise_id) {
         return invalid();
@@ -436,7 +457,7 @@ const sessionSetSyncHandler: SyncTableHandler = {
         assertRoom(live, 1, SESSION_LIMITS.setsPerExercise, "SESSION_LIMIT_REACHED");
         await db
           .insert(sessionSet)
-          .values({ id, userId, sessionExerciseId: parent.id, ...setColumns(values) });
+          .values({ id, userId, sessionExerciseId: parent.id, ...setColumns(values), ...marked });
         return;
       }
       if (found.row.deletedAt !== null) {
@@ -444,19 +465,25 @@ const sessionSetSyncHandler: SyncTableHandler = {
       }
       await db
         .update(sessionSet)
-        .set({ ...setColumns(values), deletedAt: null, updatedAt: now() })
+        .set({ ...setColumns(values), ...marked, deletedAt: null, updatedAt: now() })
         .where(eq(sessionSet.id, id));
       return;
     }
 
     const row = liveRow(found);
-    const patch = accept(patchSessionSet.safeParse(op.opData ?? {}));
+    const { generated_warmup: generated, ...patch } = accept(
+      patchSessionSet.safeParse(op.opData ?? {}),
+    );
     const parent = await liveSessionExercise(db, userId, row.sessionExerciseId);
     if (!parent) parentMissing();
     const merged = validSet({ ...setRowAsInput(row), ...patch }, parent.exerciseType);
     await db
       .update(sessionSet)
-      .set({ ...setColumns(merged), updatedAt: now() })
+      .set({
+        ...setColumns(merged),
+        ...(generated === undefined ? {} : { generatedWarmup: generated }),
+        updatedAt: now(),
+      })
       .where(eq(sessionSet.id, id));
   },
   purgeTombstones: async () => 0,
