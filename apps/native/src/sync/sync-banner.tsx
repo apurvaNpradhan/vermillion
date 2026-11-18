@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { Alert as HeroAlert } from "heroui-native";
 import { View } from "react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 
 import { useSignOut } from "@/auth";
@@ -20,11 +20,20 @@ export function SyncBanner() {
   const signOut = useSignOut();
   const { snapshot, countUnsent, discardAndSwitch } = useSyncStatus();
   const [discardCount, setDiscardCount] = useState<number | null>(null);
+  const lockReason = snapshot?.lockReason ?? null;
+  // Each lock gets its own prompt: a count that lands after the lock changed is ignored, and a
+  // prompt left open when the lock clears does not come back with a stale count later.
+  const lockGeneration = useRef(0);
+  useEffect(() => {
+    lockGeneration.current += 1;
+    setDiscardCount(null);
+  }, [lockReason]);
   if (!snapshot) return null;
 
   async function confirmDiscard() {
+    const generation = lockGeneration.current;
     const count = await countUnsent();
-    setDiscardCount(count);
+    if (generation === lockGeneration.current) setDiscardCount(count);
   }
 
   if (snapshot.indicator === "update-required") {

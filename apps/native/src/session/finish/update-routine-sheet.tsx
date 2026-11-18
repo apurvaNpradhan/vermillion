@@ -54,6 +54,7 @@ export function UpdateRoutineSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay isCloseOnPress={!busy} />
         <ScrollableSheetContent
+          size="tall"
           // Keep the sheet open after a failed save so the user can retry.
           enablePanDownToClose={!busy}
           footer={

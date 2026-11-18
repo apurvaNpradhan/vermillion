@@ -19,7 +19,7 @@ import {
 import type { SessionDetail } from "@workspace/sync";
 import { useCallback, useRef, useState } from "react";
 import { useThemeColor } from "heroui-native";
-import { BackHandler, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { BackHandler, Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -148,6 +148,9 @@ function FinishFlow({ session, onDone }: { session: SessionDetail; onDone: () =>
   const form = useForm({
     defaultValues: baseline,
     onSubmit: async ({ value }) => {
+      // The Update workout sheet opens after saving; a keyboard left up from the title or note
+      // field would cover its actions (the sheet only tracks inputs inside itself).
+      Keyboard.dismiss();
       const duration = Number(value.duration);
       const started = Date.parse(value.startedAt);
       if (
