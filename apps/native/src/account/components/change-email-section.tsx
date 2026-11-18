@@ -7,6 +7,8 @@ import { z } from "zod";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { useIsOnline } from "@/platform/network";
 import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
@@ -27,6 +29,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const online = useIsOnline();
 
   const valid = z.email().safeParse(email.trim()).success;
 
@@ -84,7 +87,11 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
               autoFocus
               onSubmitEditing={() => void send()}
             />
-            <Button variant="secondary" isDisabled={busy || !valid} onPress={() => void send()}>
+            <Button
+              variant="secondary"
+              isDisabled={busy || !valid || !online}
+              onPress={() => void send()}
+            >
               {busy ? <Spinner size="sm" /> : null}
               <Button.Label>{t("auth__send_code")}</Button.Label>
             </Button>
@@ -108,6 +115,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
             />
           </>
         )}
+        <NeedsConnection />
         <Button variant="ghost" isDisabled={busy} onPress={onDone}>
           <Button.Label>{t("common__cancel")}</Button.Label>
         </Button>

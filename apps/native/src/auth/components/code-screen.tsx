@@ -15,6 +15,8 @@ import { rememberLoginMethod } from "../last-login-method";
 import { refreshSession } from "../session";
 import { useCountdown } from "../use-countdown";
 import { useEmailCode } from "../use-email-code";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { useIsOnline } from "@/platform/network";
 import { FlowStep } from "./flow-step";
 import { useTurnstile } from "./use-turnstile";
 
@@ -70,7 +72,9 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
     countdown.remaining > 0
       ? t("auth__code_resend_wait", { seconds: countdown.remaining })
       : t("auth__code_resend_short");
-  const resendDisabled = countdown.remaining > 0 || turnstile.pending || checking || resending;
+  const online = useIsOnline();
+  const resendDisabled =
+    countdown.remaining > 0 || turnstile.pending || checking || resending || !online;
 
   return (
     <FlowStep
@@ -80,7 +84,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
       action={{
         label: t("auth__continue"),
         onPress: () => void submit(value),
-        disabled: value.length < OTP_LENGTH,
+        disabled: value.length < OTP_LENGTH || !online,
         loading: checking,
       }}
     >
@@ -100,6 +104,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
         className="pt-2"
       />
       <FormError message={failure} />
+      <NeedsConnection />
       {notice ? (
         <Text accessibilityLiveRegion="polite" className="text-caption text-muted">
           {notice}

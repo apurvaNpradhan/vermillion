@@ -23,6 +23,7 @@
     "@op-engineering/op-sqlite": "18.2.5",
     "@powersync/common": "2.5.0",
     "@powersync/react-native": "2.4.0",
+    "@react-native-community/netinfo": "12.0.1",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@workspace/client": "workspace:*",

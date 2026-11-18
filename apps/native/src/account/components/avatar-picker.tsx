@@ -11,9 +11,12 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { useAvatar } from "../use-avatar";
 import { initials } from "./account-summary";
 import { useCurrentUser } from "../use-current-user";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { useIsOnline } from "@/platform/network";
 
 export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }) {
   const avatar = useAvatar();
+  const online = useIsOnline();
   const { user } = useCurrentUser();
   const { t } = useTranslation();
   const router = useRouter();
@@ -61,8 +64,8 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("media__profile_photo_change")}
-        accessibilityState={{ disabled: avatar.busy }}
-        disabled={avatar.busy}
+        accessibilityState={{ disabled: avatar.busy || !online }}
+        disabled={avatar.busy || !online}
         onPress={openSheet}
         className="size-24 items-center justify-center rounded-full active:opacity-80"
       >
@@ -87,6 +90,7 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
           </View>
         ) : null}
       </Pressable>
+      <NeedsConnection />
       {showIdentity ? (
         <Pressable
           accessibilityRole="button"

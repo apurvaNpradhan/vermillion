@@ -6,6 +6,7 @@ import { SignOut, Trash } from "phosphor-react-native";
 import { Text, View } from "react-native";
 
 import { useSignOut } from "@/auth";
+import { useIsOnline } from "@/platform/network";
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const signOut = useSignOut();
+  const online = useIsOnline();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
   const sessionSettings = useSessionSettings();
   const reminders = useBodyReminderRows();
@@ -61,13 +63,16 @@ export function SettingsScreen() {
             icon={SignOut}
             title={t("nav__sign_out")}
             accessory="none"
-            disabled={signOut.isPending}
+            description={online ? undefined : t("common__needs_connection")}
+            disabled={signOut.isPending || !online}
             onPress={() => void requestSignOut()}
           />
           <ListRow
             icon={Trash}
             title={t("settings__delete_title")}
             tone="danger"
+            description={online ? undefined : t("common__needs_connection")}
+            disabled={!online}
             onPress={() => router.push("/settings/delete-account")}
           />
         </ListSection>

@@ -16,6 +16,8 @@ import { Button } from "@/platform/ui/button";
 import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { useIsOnline } from "@/platform/network";
 
 import { ChangeEmailSection } from "./change-email-section";
 
@@ -23,6 +25,7 @@ export function ProfileSection() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const { user } = useCurrentUser();
+  const online = useIsOnline();
 
   const { updateProfile } = useUpdateProfile();
   const [changingEmail, setChangingEmail] = useState(false);
@@ -83,13 +86,17 @@ export function ProfileSection() {
             >
               {({ isSubmitting, dirty }) =>
                 dirty ? (
-                  <Button onPress={() => void form.handleSubmit()} isDisabled={isSubmitting}>
+                  <Button
+                    onPress={() => void form.handleSubmit()}
+                    isDisabled={isSubmitting || !online}
+                  >
                     {isSubmitting ? <Spinner size="sm" /> : null}
                     <Button.Label>{t("common__save")}</Button.Label>
                   </Button>
                 ) : null
               }
             </form.Subscribe>
+            <NeedsConnection />
           </Card.Body>
         </Card>
         <Card>
@@ -103,6 +110,8 @@ export function ProfileSection() {
                   <Pressable
                     accessibilityRole="button"
                     hitSlop={8}
+                    accessibilityState={{ disabled: !online }}
+                    disabled={!online}
                     onPress={() => setChangingEmail(true)}
                   >
                     <Text className="text-label font-semibold text-foreground">

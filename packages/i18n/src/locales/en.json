@@ -30,6 +30,7 @@
   "errors__conflict": "That conflicts with the current state.",
   "errors__too_many_requests": "Too many requests. Try again in a moment.",
   "errors__bad_gateway": "A service we depend on is not responding.",
+  "common__needs_connection": "Needs a connection",
   "errors__offline": "This needs a connection. Try again when you are back online.",
   "errors__unknown": "Something went wrong. Try again.",
   "errors__registration_closed": "Sign-up is by invite only, and this address has no invite.",

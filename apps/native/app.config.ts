@@ -24,7 +24,8 @@ import { appConfig } from "../../app.config.ts";
 // 15: photo-library permission copy covers all user image features.
 // 16: react-native-view-shot, expo-media-library (add-only) and expo-sharing for Share cards.
 // 17: react-native-passkey removed, no associated domains; new bundle id (Cinnabar).
-const NATIVE_STACK_REVISION = 17;
+// 18: @react-native-community/netinfo feeds the online state (offline-first).
+const NATIVE_STACK_REVISION = 18;
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 

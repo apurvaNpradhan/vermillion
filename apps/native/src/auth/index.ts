@@ -10,7 +10,7 @@ export {
   type OnboardingStepId,
 } from "./flow";
 export { useAuthReturn } from "./use-auth-return";
-export { refreshSession, useSession } from "./session";
+export { clearAccountSession, refreshSession, useSession } from "./session";
 export { routeGuards, toSessionState } from "./session-state";
 export { setSignedOut, useSignedOut } from "./signed-out";
 export { useSignOut } from "./use-sign-out";

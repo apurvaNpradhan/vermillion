@@ -8,6 +8,8 @@ import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { TextField } from "@/platform/forms/text-field";
 import { FormError } from "@/platform/ui/form-error";
+import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { useIsOnline } from "@/platform/network";
 import { Notice } from "@/platform/ui/notice";
 
 import { stepPosition, type FlowKind } from "../flow";
@@ -37,6 +39,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
   const status = useRegistrationStatus();
   const { sendCode } = useEmailCode();
   const [failure, setFailure] = useState<string | null>(null);
+  const online = useIsOnline();
   const creating = flow === "get-started";
   const hasSocial = Object.values(status?.providers ?? {}).some(Boolean);
 
@@ -67,7 +70,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
           action={{
             label: t("auth__continue"),
             onPress: () => void form.handleSubmit(),
-            disabled: email.trim() === "" || turnstile.pending,
+            disabled: email.trim() === "" || turnstile.pending || !online,
             loading: isSubmitting,
           }}
         >
@@ -85,6 +88,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
             />
           ) : null}
           <FormError message={failure} />
+          <NeedsConnection />
           <form.Field name="email">
             {(field) => (
               <TextField
@@ -110,7 +114,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
               <OrDivider label={t("auth__or")} />
               <SocialButtons
                 headers={turnstile.headers}
-                blocked={isSubmitting || turnstile.pending}
+                blocked={isSubmitting || turnstile.pending || !online}
                 onDone={turnstile.reset}
               />
             </View>
