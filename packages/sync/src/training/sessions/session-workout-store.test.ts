@@ -99,6 +99,33 @@ describe("applying Session changes", () => {
     );
     expect(s.one("workout_exercise", plan.plank)).toBeDefined();
   });
+  it("keeps the remaining set's prescription after removing a set of the same kind", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    await updateWorkoutExercise(s.training, plan.squat, {
+      sets: [
+        { kind: "working", reps_min: 3, reps_max: 3, weight_kg: 120 },
+        { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
+      ],
+    });
+    const id = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle: "Legs" });
+    const [removed, kept] = s.sets(String(s.exercises(id)[0]?.["id"]));
+    await removeSet(s.training, String(removed?.["id"]));
+    await tickSet(s.training, String(kept?.["id"]), { weight: 110, reps: 8 });
+    const session = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id));
+    if (!session) throw new Error("Missing session");
+    await finishSession(s.training, id);
+    await applySessionWorkout(s.training, id, {
+      structure: true,
+      targets: false,
+      saveNew: false,
+      draft: { session, completeStructure: true },
+    });
+    expect((await readWorkoutDetail(s.training, plan.workoutId))?.exercises[0]?.sets).toEqual([
+      { kind: "working", reps_min: 8, reps_max: 8, weight_kg: 100 },
+    ]);
+  });
+
   it("preserves sets added to the workout after the session started", async () => {
     const s = await setupSessions();
     const plan = await pushWorkout(s);

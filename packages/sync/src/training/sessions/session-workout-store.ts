@@ -155,6 +155,7 @@ export function applySessionWorkout(
         type: entry.exercise_type,
         sets: sets.map((set) => ({
           id: set.id,
+          position: set.position,
           kind: set.kind,
           weightKg: set.weight_kg,
           completedAt: set.completed_at,
@@ -208,12 +209,21 @@ export function applySessionWorkout(
           kind: set.kind,
           weightKg: set.completedAt === null ? null : set.weightKg,
         }));
+        const originalPositions = keysAfterLast([], same?.sets.length ?? 0);
         const targets: PlannedSet[] = kinds.map((kind, i) => {
           const ordinal = kinds.slice(0, i).filter((prior) => prior === kind).length;
           const targetWeight = loggedTargetWeight(weights, kind, ordinal);
+          const loggedSet = sets.filter((set) => set.kind === kind)[ordinal];
+          const original =
+            completeStructure && loggedSet?.target
+              ? same?.sets[originalPositions.indexOf(loggedSet.position)]
+              : undefined;
+          const base =
+            original && original.kind === loggedSet?.target?.kind
+              ? original
+              : (same?.sets.filter((target) => target.kind === kind)[ordinal] ?? loggedSet?.target);
           return {
-            ...(same?.sets.filter((target) => target.kind === kind)[ordinal] ??
-              sets.filter((set) => set.kind === kind)[ordinal]?.target),
+            ...base,
             kind,
             ...((options.targets || !source) && targetWeight !== null
               ? { weight_kg: targetWeight }

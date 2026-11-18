@@ -53,9 +53,9 @@ describe("Session against Workout", () => {
   });
   it("keeps skipped planned sets and matches the next completed set to its ordinal", () => {
     const work = logged.sets[0]!;
-    const plan = {
+    const plan: DiffWorkoutExercise = {
       ...planned,
-      sets: [...planned.sets, { kind: "working" as const, weight_kg: 55 }],
+      sets: [...planned.sets, { kind: "working", weight_kg: 55 }],
     };
     const entry = { ...logged, sets: [{ ...work, completedAt: null }, work] };
     const result = diff([entry], [plan]);
@@ -64,7 +64,7 @@ describe("Session against Workout", () => {
   });
 
   it("keeps omitted set and exercise plans without evidence of explicit edits", () => {
-    const plan = { ...planned, sets: [...planned.sets, { kind: "drop" as const }] };
+    const plan: DiffWorkoutExercise = { ...planned, sets: [...planned.sets, { kind: "drop" }] };
     const other = { ...planned, id: "skipped" };
     expect(diff([logged], [plan, other]).structure).toEqual([]);
     expect(
@@ -115,11 +115,11 @@ describe("Session against Workout", () => {
     expect(result.targets[0]).toMatchObject({ before: [100, 80, 80], after: [105, 85, 82] });
   });
   it("matches drop and failure weights to their own kind", () => {
-    const sets = [
-      { kind: "working" as const, weightKg: 60 },
-      { kind: "top" as const, weightKg: 100 },
-      { kind: "drop" as const, weightKg: 40 },
-      { kind: "failure" as const, weightKg: 50 },
+    const sets: Parameters<typeof loggedTargetWeight>[0] = [
+      { kind: "working", weightKg: 60 },
+      { kind: "top", weightKg: 100 },
+      { kind: "drop", weightKg: 40 },
+      { kind: "failure", weightKg: 50 },
     ];
     expect(loggedTargetWeight(sets, "top")).toBe(100);
     expect(loggedTargetWeight(sets, "drop")).toBe(40);
