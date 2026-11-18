@@ -8,6 +8,7 @@ import {
   Platform,
   Linking,
   Pressable,
+  ScrollView,
   Text,
   View,
   type NativeScrollEvent,
@@ -73,6 +74,7 @@ export function ShareComposer<Id extends string>({
   const offered = availableBackgrounds(photo ? photo.requires : null, choice.toggles);
   const target = captureDimensions(Platform.OS, PixelRatio.get());
   const background = current ? effectiveBackground(choice.background, current, offered) : "theme";
+  const [viewportHeight, setViewportHeight] = useState(0);
   const [box, setBox] = useState({ width: 0, height: 0 });
   const pager = useRef<FlatList<ShareTemplate<Id>>>(null);
   const nodes = useRef(new Map<string, View>());
@@ -85,7 +87,10 @@ export function ShareComposer<Id extends string>({
   }, [index, pages.length, box.width]);
 
   if (!current) return null;
-  const scale = Math.min((box.width - SIDE * 2) / CARD_WIDTH, (box.height - SIDE) / CARD_HEIGHT);
+  const scale = Math.max(
+    0,
+    Math.min((box.width - SIDE * 2) / CARD_WIDTH, (box.height - SIDE) / CARD_HEIGHT),
+  );
   const showSwatches = !current.supportsTransparent && current.fixedBackground === undefined;
   const cardTarget = (page: ShareTemplate<Id>) => ({
     view: nodes.current.get(page.id) ?? null,
@@ -104,7 +109,11 @@ export function ShareComposer<Id extends string>({
 
   return (
     <ImageGateProvider gate={gate}>
-      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      <View
+        className="flex-1 bg-background"
+        style={{ paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 12) }}
+        onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+      >
         <View className="h-14 flex-row items-center px-2">
           <Button
             variant="ghost"
@@ -122,197 +131,206 @@ export function ShareComposer<Id extends string>({
           <View className="w-11" />
         </View>
 
-        <View className="flex-1" onLayout={(event) => setBox(event.nativeEvent.layout)}>
-          {box.width > 0 ? (
-            <FlatList
-              ref={pager}
-              data={pages}
-              extraData={[choice, scale]}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(page) => page.id}
-              getItemLayout={(_, at) => ({ length: box.width, offset: box.width * at, index: at })}
-              initialScrollIndex={index}
-              // Every page stays mounted, so Save all can capture cards that are off screen.
-              initialNumToRender={pages.length}
-              maxToRenderPerBatch={pages.length}
-              windowSize={pages.length * 2 + 1}
-              onMomentumScrollEnd={onSettle}
-              renderItem={({ item }) => {
-                const own = item.supportsTransparent
-                  ? "sticker"
-                  : effectiveBackground(choice.background, item, offered);
-                return (
-                  <View
-                    accessible
-                    accessibilityLabel={t("share__preview", { template: item.label })}
-                    style={{
-                      width: box.width,
-                      height: box.height,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
+        {/* Only the body scrolls; growing controls cannot move Save/Share below the viewport. */}
+        <ScrollView className="flex-1" contentInsetAdjustmentBehavior="never">
+          <View
+            style={{ height: Math.min(420, viewportHeight * 0.5) }}
+            onLayout={(event) => setBox(event.nativeEvent.layout)}
+          >
+            {box.width > 0 ? (
+              <FlatList
+                ref={pager}
+                data={pages}
+                extraData={[choice, scale]}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(page) => page.id}
+                getItemLayout={(_, at) => ({
+                  length: box.width,
+                  offset: box.width * at,
+                  index: at,
+                })}
+                initialScrollIndex={index}
+                // Every page stays mounted, so Save all can capture cards that are off screen.
+                initialNumToRender={pages.length}
+                maxToRenderPerBatch={pages.length}
+                windowSize={pages.length * 2 + 1}
+                onMomentumScrollEnd={onSettle}
+                renderItem={({ item }) => {
+                  const own = item.supportsTransparent
+                    ? "sticker"
+                    : effectiveBackground(choice.background, item, offered);
+                  return (
                     <View
-                      className={item.supportsTransparent ? "bg-default" : "bg-surface"}
+                      accessible
+                      accessibilityLabel={t("share__preview", { template: item.label })}
                       style={{
-                        width: CARD_WIDTH * scale,
-                        height: CARD_HEIGHT * scale,
-                        borderRadius: 14,
-                        overflow: "hidden",
+                        width: box.width,
+                        height: box.height,
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       <View
+                        className={item.supportsTransparent ? "bg-default" : "bg-surface"}
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: target.layoutWidth,
-                          height: target.layoutHeight,
-                          transform: [{ scale: scale / target.designScale }],
-                          transformOrigin: "top left",
+                          width: CARD_WIDTH * scale,
+                          height: CARD_HEIGHT * scale,
+                          borderRadius: 14,
+                          overflow: "hidden",
                         }}
                       >
-                        <CardCanvas
-                          viewRef={(node) => {
-                            if (node) nodes.current.set(item.id, node);
-                            else nodes.current.delete(item.id);
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: target.layoutWidth,
+                            height: target.layoutHeight,
+                            transform: [{ scale: scale / target.designScale }],
+                            transformOrigin: "top left",
                           }}
-                          palette={palettes(own)}
-                          transparent={item.supportsTransparent}
-                          photo={own === "photo" && photo ? photo.render() : null}
                         >
-                          {item.render({ palette: palettes(own), toggles: choice.toggles })}
-                        </CardCanvas>
+                          <CardCanvas
+                            viewRef={(node) => {
+                              if (node) nodes.current.set(item.id, node);
+                              else nodes.current.delete(item.id);
+                            }}
+                            palette={palettes(own)}
+                            transparent={item.supportsTransparent}
+                            photo={own === "photo" && photo ? photo.render() : null}
+                          >
+                            {item.render({ palette: palettes(own), toggles: choice.toggles })}
+                          </CardCanvas>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                );
-              }}
-            />
-          ) : null}
-        </View>
+                  );
+                }}
+              />
+            ) : null}
+          </View>
 
-        <View className="gap-4 px-4 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
-          <View className="items-center gap-2">
-            <Text className="text-caption font-medium text-muted">{current.label}</Text>
-            {pages.length > 1 ? (
-              <View
-                className="flex-row items-center justify-center gap-2"
-                accessible
-                accessibilityLabel={t("share__page", { index: index + 1, count: pages.length })}
-              >
-                {pages.map((page, at) => (
-                  <View
-                    key={page.id}
-                    className={at === index ? "bg-foreground" : "bg-separator"}
-                    style={{ width: 7, height: 7, borderRadius: 4 }}
+          <View className="gap-4 px-4 pt-3">
+            <View className="items-center gap-2">
+              <Text className="text-caption font-medium text-muted">{current.label}</Text>
+              {pages.length > 1 ? (
+                <View
+                  className="flex-row items-center justify-center gap-2"
+                  accessible
+                  accessibilityLabel={t("share__page", { index: index + 1, count: pages.length })}
+                >
+                  {pages.map((page, at) => (
+                    <View
+                      key={page.id}
+                      className={at === index ? "bg-foreground" : "bg-separator"}
+                      style={{ width: 7, height: 7, borderRadius: 4 }}
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+
+            {showSwatches ? (
+              <View className="flex-row justify-center gap-5" accessibilityRole="radiogroup">
+                {offered.map((option) => (
+                  <Swatch
+                    key={option}
+                    option={option}
+                    selected={option === background}
+                    label={t(`share__background_${option}`)}
+                    fill={palettes(option).fill}
+                    dot={option === "theme" ? palettes(option).accent : null}
+                    icon={option === "photo" ? <ImageIcon size={18} color={muted} /> : null}
+                    onPress={() => {
+                      haptic.tick();
+                      update({ background: option });
+                    }}
                   />
                 ))}
               </View>
             ) : null}
-          </View>
 
-          {showSwatches ? (
-            <View className="flex-row justify-center gap-5" accessibilityRole="radiogroup">
-              {offered.map((option) => (
-                <Swatch
-                  key={option}
-                  option={option}
-                  selected={option === background}
-                  label={t(`share__background_${option}`)}
-                  fill={palettes(option).fill}
-                  dot={option === "theme" ? palettes(option).accent : null}
-                  icon={option === "photo" ? <ImageIcon size={18} color={muted} /> : null}
-                  onPress={() => {
-                    haptic.tick();
-                    update({ background: option });
-                  }}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {toggles.length > 0 ? (
-            <View className="flex-row flex-wrap justify-center gap-2">
-              {toggles.map((toggle) => {
-                const on = choice.toggles[toggle.id];
-                return (
-                  <Pressable
-                    key={toggle.id}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: on }}
-                    accessibilityLabel={toggle.label}
-                    onPress={() => {
-                      haptic.tick();
-                      update({ toggles: { ...choice.toggles, [toggle.id]: !on } });
-                    }}
-                    className={`h-9 flex-row items-center gap-1.5 rounded-full border px-3 ${
-                      on ? "border-foreground bg-default" : "border-transparent bg-default"
-                    }`}
-                  >
-                    {on ? <Check size={14} color={ink} weight="bold" /> : null}
-                    <Text
-                      className={`text-label ${on ? "font-medium text-foreground" : "text-muted"}`}
+            {toggles.length > 0 ? (
+              <View className="flex-row flex-wrap justify-center gap-2">
+                {toggles.map((toggle) => {
+                  const on = choice.toggles[toggle.id];
+                  return (
+                    <Pressable
+                      key={toggle.id}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={toggle.label}
+                      onPress={() => {
+                        haptic.tick();
+                        update({ toggles: { ...choice.toggles, [toggle.id]: !on } });
+                      }}
+                      className={`h-9 flex-row items-center gap-1.5 rounded-full border px-3 ${
+                        on ? "border-foreground bg-default" : "border-transparent bg-default"
+                      }`}
                     >
-                      {toggle.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
+                      {on ? <Check size={14} color={ink} weight="bold" /> : null}
+                      <Text
+                        className={`text-label ${on ? "font-medium text-foreground" : "text-muted"}`}
+                      >
+                        {toggle.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
 
-          {actions.denied ? (
-            <View className="items-center gap-2">
-              <Text className="text-center text-caption text-muted">{t("share__denied")}</Text>
-              <Button variant="secondary" size="sm" onPress={() => void Linking.openSettings()}>
-                <Button.Label>{t("share__open_settings")}</Button.Label>
-              </Button>
-            </View>
-          ) : null}
+            {actions.denied ? (
+              <View className="items-center gap-2">
+                <Text className="text-center text-caption text-muted">{t("share__denied")}</Text>
+                <Button variant="secondary" size="sm" onPress={() => void Linking.openSettings()}>
+                  <Button.Label>{t("share__open_settings")}</Button.Label>
+                </Button>
+              </View>
+            ) : null}
 
-          {whole.length > 1 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                disabled: actions.busy !== null,
-                busy: actions.busy === "save-all",
-              }}
-              disabled={actions.busy !== null}
-              onPress={() => void actions.saveAll(whole.map(cardTarget))}
-              className="min-h-11 flex-row items-center justify-center gap-2 active:opacity-60"
+            {whole.length > 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: actions.busy !== null,
+                  busy: actions.busy === "save-all",
+                }}
+                disabled={actions.busy !== null}
+                onPress={() => void actions.saveAll(whole.map(cardTarget))}
+                className="min-h-11 flex-row items-center justify-center gap-2 active:opacity-60"
+              >
+                {actions.busy === "save-all" ? <Spinner size="sm" /> : null}
+                <Text className="text-label font-medium text-muted">
+                  {t("share__every_card", { total: whole.length })}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </ScrollView>
+        <View className="flex-row gap-3 px-4 pt-3">
+          <View className="flex-1">
+            <Button
+              variant="secondary"
+              isDisabled={actions.busy !== null}
+              accessibilityState={{ busy: actions.busy === "save" }}
+              onPress={() => void actions.save(cardTarget(current))}
             >
-              {actions.busy === "save-all" ? <Spinner size="sm" /> : null}
-              <Text className="text-label font-medium text-muted">
-                {t("share__every_card", { total: whole.length })}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Button
-                variant="secondary"
-                isDisabled={actions.busy !== null}
-                accessibilityState={{ busy: actions.busy === "save" }}
-                onPress={() => void actions.save(cardTarget(current))}
-              >
-                {actions.busy === "save" ? <Spinner size="sm" /> : null}
-                <Button.Label>{t("share__save")}</Button.Label>
-              </Button>
-            </View>
-            <View className="flex-1">
-              <Button
-                isDisabled={actions.busy !== null}
-                accessibilityState={{ busy: actions.busy === "share" }}
-                onPress={() => void actions.share(cardTarget(current))}
-              >
-                {actions.busy === "share" ? <Spinner size="sm" /> : null}
-                <Button.Label>{t("share__share")}</Button.Label>
-              </Button>
-            </View>
+              {actions.busy === "save" ? <Spinner size="sm" /> : null}
+              <Button.Label>{t("share__save")}</Button.Label>
+            </Button>
+          </View>
+          <View className="flex-1">
+            <Button
+              isDisabled={actions.busy !== null}
+              accessibilityState={{ busy: actions.busy === "share" }}
+              onPress={() => void actions.share(cardTarget(current))}
+            >
+              {actions.busy === "share" ? <Spinner size="sm" /> : null}
+              <Button.Label>{t("share__share")}</Button.Label>
+            </Button>
           </View>
         </View>
       </View>
