@@ -70,6 +70,7 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
               locale={i18n.language}
               size="md"
               decimals={1}
+              reserve={4}
               suffix={unit}
             />
           )}

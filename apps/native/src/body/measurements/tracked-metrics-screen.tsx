@@ -1,7 +1,6 @@
 import { BodyState } from "@/body/body-state";
 import { Switch } from "heroui-native";
 import { BODY_GROUPS } from "@workspace/shared";
-import { Text, View } from "react-native";
 import { usePreferences } from "@/preferences";
 import { useTranslation } from "@/platform/i18n";
 import { ScrollPage } from "@/platform/ui/page";
@@ -24,23 +23,32 @@ export function TrackedMetricsScreen() {
           key={group}
           title={t(groupLabels[group === "upper" ? "upper" : group === "arms" ? "arms" : "legs"])}
         >
-          {metrics.map((metric) => (
-            <View key={metric} className="flex-row items-center justify-between gap-4 px-4 py-4">
-              <Text className="flex-1 text-body text-foreground">{t(metricLabels[metric])}</Text>
-              <Switch
-                accessibilityLabel={t(metricLabels[metric])}
-                isDisabled={isSaving || isLoading}
-                isSelected={preferences.ui.trackedMetrics.includes(metric)}
-                onSelectedChange={(selected) =>
-                  setUi({
-                    trackedMetrics: selected
-                      ? [...new Set([...preferences.ui.trackedMetrics, metric])]
-                      : preferences.ui.trackedMetrics.filter((m) => m !== metric),
-                  })
+          {metrics.map((metric) => {
+            const selected = preferences.ui.trackedMetrics.includes(metric);
+            const toggle = (next: boolean) =>
+              setUi({
+                trackedMetrics: next
+                  ? [...new Set([...preferences.ui.trackedMetrics, metric])]
+                  : preferences.ui.trackedMetrics.filter((m) => m !== metric),
+              });
+            return (
+              <ListRow
+                key={metric}
+                title={t(metricLabels[metric])}
+                accessory="none"
+                checked={selected}
+                disabled={isSaving || isLoading}
+                onPress={() => toggle(!selected)}
+                trailing={
+                  <Switch
+                    isDisabled={isSaving || isLoading}
+                    isSelected={selected}
+                    onSelectedChange={toggle}
+                  />
                 }
               />
-            </View>
-          ))}
+            );
+          })}
         </ListSection>
       ))}
       <ListSection>
