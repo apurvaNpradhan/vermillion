@@ -2,6 +2,7 @@ import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@wo
 import { describe, expect, it } from "vitest";
 
 import { blocksOf, highlightOf } from "./blocks";
+import { cellOrder } from "./keypad-entry";
 import { restAfterTick } from "../rest/rest-rules";
 import {
   currentAction,
@@ -125,6 +126,8 @@ describe("superset warm-up rounds: guided logging and rests agree", () => {
       done.push(marked?.setId ?? "");
     }
     expect(guided).toEqual(["a-wu", "a-w", "b-w"]);
+    // The keypad's Next walks the same order (one cell per set here).
+    expect(cellOrder(block, () => ["reps"]).map((cell) => cell.setId)).toEqual(guided);
     // A warm-up uses the warm-up rest; A's work set waits for B; B ends the round with its rest.
     expect(walked).toEqual([60, null, 120]);
   });

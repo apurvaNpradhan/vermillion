@@ -12,6 +12,7 @@ const MAX_DURATION_SECONDS = SESSION_LIMITS.durationMaxSeconds;
 
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { formatElapsed } from "../timer/clock";
+import { roundsOf, type Block, type BlockExercise } from "./blocks";
 
 /** A key of the keypad that edits the text of a cell. */
 export type EntryKey = KeypadKey;
@@ -209,24 +210,20 @@ export function stepValue(
 /** A cell the keypad can address. */
 export type CellRef = { setId: string; field: EntryField };
 
-/** One set's place in the order Next walks: which exercise it is in and where. */
-export type CellSet = { id: string; fields: readonly EntryField[] };
-export type CellExercise = { id: string; sets: readonly CellSet[] };
-
 /**
- * The order Next walks through a block's cells. A lone exercise: weight → reps → the next set's
- * weight. A superset goes by rounds (A1, B1, A2, B2), so Next follows the logging order.
+ * The order Next walks through a block's cells: the logging order (`roundsOf`, shared with the
+ * guide, the highlight and the rest), each set's fields in turn. A lone exercise: weight → reps →
+ * the next set's weight. A superset goes by rounds, warm-up rounds first (A1, B1, A2, B2 …).
  */
-export function cellOrder(members: readonly CellExercise[]): CellRef[] {
-  const rounds = Math.max(0, ...members.map((member) => member.sets.length));
-  const cells: CellRef[] = [];
-  for (let round = 0; round < rounds; round += 1) {
-    for (const member of members) {
-      const set = member.sets[round];
-      if (set) for (const field of set.fields) cells.push({ setId: set.id, field });
-    }
-  }
-  return cells;
+export function cellOrder<E extends BlockExercise>(
+  block: Block<E>,
+  fieldsOf: (exercise: E) => readonly EntryField[],
+): CellRef[] {
+  return roundsOf(block).flatMap((round) =>
+    round.flatMap(({ exercise, set }) =>
+      fieldsOf(exercise).map((field) => ({ setId: set.id, field })),
+    ),
+  );
 }
 
 /** The cell after `current`, or null at the end (Next then has nowhere to go). */
