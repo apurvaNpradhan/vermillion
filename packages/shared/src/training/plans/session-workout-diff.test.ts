@@ -43,7 +43,7 @@ describe("Session against Workout", () => {
       diff([{ ...logged, sets: [{ ...logged.sets[0]!, kind: "drop" }] }]).structure[0]?.kind,
     ).toBe("sets");
   });
-  it("uses the last working weight and leaves input ranges intact", () => {
+  it("uses the matching worked set weight and leaves input ranges intact", () => {
     const original = structuredClone(planned);
     expect(diff([logged]).targets[0]).toMatchObject({ before: [50], after: [60] });
     expect(planned).toEqual(original);
@@ -75,19 +75,22 @@ describe("Session against Workout", () => {
       target: null,
     });
     const result = diff(
-      [{ ...logged, sets: [done("top", 105), done("backoff", 85), done("backoff", 85)] }],
+      [{ ...logged, sets: [done("top", 105), done("backoff", 85), done("backoff", 82)] }],
       [plan],
     );
     expect(result.structure).toEqual([]);
-    expect(result.targets[0]).toMatchObject({ before: [100, 80, 80], after: [105, 85, 85] });
+    expect(result.targets[0]).toMatchObject({ before: [100, 80, 80], after: [105, 85, 82] });
   });
-  it("takes a kind's own weight, or the working weight, never one for warm-ups", () => {
+  it("matches drop and failure weights to their own kind", () => {
     const sets = [
       { kind: "working" as const, weightKg: 60 },
       { kind: "top" as const, weightKg: 100 },
+      { kind: "drop" as const, weightKg: 40 },
+      { kind: "failure" as const, weightKg: 50 },
     ];
     expect(loggedTargetWeight(sets, "top")).toBe(100);
-    expect(loggedTargetWeight(sets, "drop")).toBe(60);
+    expect(loggedTargetWeight(sets, "drop")).toBe(40);
+    expect(loggedTargetWeight(sets, "failure")).toBe(50);
     expect(loggedTargetWeight(sets, "myo")).toBeNull();
     expect(loggedTargetWeight(sets, "warmup")).toBeNull();
   });

@@ -13,21 +13,14 @@ export type DiffSessionExercise = {
 };
 export type DiffWorkoutExercise = { id: string; exerciseId: string; sets: readonly PlannedSet[] };
 
-/** Kinds that keep their own target weight; the rest (but warm-ups) follow the working weight. */
-const OWN_WEIGHT_KINDS: ReadonlySet<SetKind> = new Set(["top", "backoff", "myo"]);
-
-/**
- * The weight a planned set of `kind` should take from what was logged: the last logged weight of
- * the same kind for top, back-off and myo sets, the last working weight for working, drop and
- * failure sets, and nothing for warm-ups (their weights are never planned from a session).
- */
+/** The completed set's weight at the corresponding ordinal of this kind. */
 export function loggedTargetWeight(
   sets: readonly { kind: SetKind; weightKg: number | null }[],
   kind: SetKind,
+  ordinal = 0,
 ): number | null {
   if (kind === "warmup") return null;
-  const source = OWN_WEIGHT_KINDS.has(kind) ? kind : "working";
-  return [...sets].reverse().find((set) => set.kind === source)?.weightKg ?? null;
+  return sets.filter((set) => set.kind === kind)[ordinal]?.weightKg ?? null;
 }
 
 /** Structure uses logged sets only. Targets change weight only, never reps or effort. */
@@ -72,9 +65,10 @@ export function diffSessionAgainstWorkout(
         });
       const planned = source.sets.filter((set) => set.kind !== "warmup");
       const before = planned.map((set) => set.weight_kg ?? null);
-      const after = planned.map(
-        (set) => loggedTargetWeight(entry.sets, set.kind) ?? set.weight_kg ?? null,
-      );
+      const after = planned.map((set, index) => {
+        const ordinal = planned.slice(0, index).filter((prior) => prior.kind === set.kind).length;
+        return loggedTargetWeight(entry.sets, set.kind, ordinal) ?? set.weight_kg ?? null;
+      });
       if (after.some((weight, i) => weight !== before[i]))
         targets.push({
           exerciseId: entry.exerciseId,

@@ -159,11 +159,10 @@ export function applySessionWorkout(
         );
         const loggedWeights = sets.map((set) => ({ kind: set.kind, weightKg: set.weight_kg }));
         const targets: PlannedSet[] = sets.map((set, i) => {
-          const targetWeight = loggedTargetWeight(loggedWeights, set.kind);
+          const ordinal = sets.slice(0, i).filter((prior) => prior.kind === set.kind).length;
+          const targetWeight = loggedTargetWeight(loggedWeights, set.kind, ordinal);
           return {
-            ...(old?.sets.filter((target) => target.kind === set.kind)[
-              sets.slice(0, i).filter((prior) => prior.kind === set.kind).length
-            ] ?? set.target),
+            ...(old?.sets.filter((target) => target.kind === set.kind)[ordinal] ?? set.target),
             kind: set.kind,
             ...((options.targets || !source) && targetWeight !== null
               ? { weight_kg: targetWeight }
