@@ -4,7 +4,15 @@ import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 
-import { chipTexts, removeSetAt, replaceSet, supportsWarmups, withKind } from "./set-editing";
+import {
+  chipTexts,
+  newSetIds,
+  reconcileSetIds,
+  removeSetAt,
+  replaceSet,
+  supportsWarmups,
+  withKind,
+} from "./set-editing";
 import { useTrainingPreferences } from "@/training/shared/use-training-preferences";
 import { AddSetButton } from "./add-set-button";
 import { EffortSheet } from "@/training/targets/effort-sheet";
@@ -25,6 +33,13 @@ export function DetailedTargets({
   const preferences = useTrainingPreferences();
   const [kindFor, setKindFor] = useState<number | null>(null);
   const [effortFor, setEffortFor] = useState<number | null>(null);
+  // Draft ids follow the rows through edits, adds and removals, so row state stays with its set.
+  const [tracked, setTracked] = useState(() => ({ sets, ids: newSetIds(sets) }));
+  let ids = tracked.ids;
+  if (tracked.sets !== sets) {
+    ids = reconcileSetIds(tracked.sets, tracked.ids, sets);
+    setTracked({ sets, ids });
+  }
   const letters = {
     working: "",
     warmup: t("training__chip_warmup"),
@@ -40,6 +55,7 @@ export function DetailedTargets({
       <SetTable
         type={type}
         sets={sets}
+        ids={ids}
         chips={chipTexts(sets, letters)}
         weightUnit={preferences.weightUnit}
         effortScale={preferences.effortScale}

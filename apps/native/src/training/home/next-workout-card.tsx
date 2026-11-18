@@ -47,7 +47,7 @@ export function NextWorkoutCard({
         </View>
       )}
       <Button size="lg" className="h-14 w-full" onPress={title === null ? onStartEmpty : onStart}>
-        <Play size={20} weight="fill" color={onAction} />
+        <Play size={20} color={onAction} />
         <Button.Label>
           {t(
             title === null ? "home__start_empty" : resuming ? "session__resume" : "session__start",

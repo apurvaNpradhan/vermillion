@@ -100,3 +100,47 @@ export function withKind(set: PlannedSet, kind: SetKind): PlannedSet {
 export function withTarget(set: PlannedSet, change: Partial<Target>): PlannedSet {
   return { ...set, ...change };
 }
+
+/**
+ * Draft ids for the rows of an editable set list, so a row keeps its identity (and a focused
+ * input its text) while sets are edited, added or removed around it. They live beside the sets,
+ * never inside them, so there is nothing to strip before saving.
+ */
+export type SetIds = readonly string[];
+
+let nextId = 0;
+const freshId = () => `set-${(nextId += 1)}`;
+
+/**
+ * The ids for `next` given the previous list and its ids. A set that is the same object keeps its
+ * id (add, remove, move). The rest are edited or re-read copies: they take the ids the previous
+ * list no longer uses, in order, when there are as many of them; otherwise they get new ids.
+ */
+export function reconcileSetIds(
+  previous: readonly PlannedSet[],
+  previousIds: SetIds,
+  next: readonly PlannedSet[],
+): SetIds {
+  const used = new Set<number>();
+  const matched = next.map((set) => {
+    const at = previous.findIndex((candidate, index) => candidate === set && !used.has(index));
+    if (at === -1) return -1;
+    used.add(at);
+    return at;
+  });
+  const freed = previousIds.filter((_, index) => !used.has(index));
+  const unmatched = matched.filter((at) => at === -1).length;
+  const reuse = freed.length === unmatched;
+  let cursor = 0;
+  return matched.map((at) => {
+    if (at !== -1) return previousIds[at] ?? freshId();
+    const id = reuse ? freed[cursor] : undefined;
+    cursor += 1;
+    return id ?? freshId();
+  });
+}
+
+/** Fresh ids for a list seen for the first time. */
+export function newSetIds(sets: readonly PlannedSet[]): SetIds {
+  return sets.map(freshId);
+}
