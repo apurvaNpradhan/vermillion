@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadBar } from "./plates";
+import { loadBar, nearestBarLoadKg, smallestBarStepKg } from "./plates";
 import { defaultGymKit } from "./gym-kit";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 
@@ -119,5 +119,41 @@ describe("loadBar on typed targets", () => {
     const result = loadBar(100, { weightKg: 20 }, [plate(20, 1), plate(10, 1), plate(5, 1)]);
     expect(result.platesPerSide.map((p) => p.weightKg)).toEqual([20, 10, 5]);
     expect(result.totalKg).toBe(90);
+  });
+});
+
+describe("nearestBarLoadKg", () => {
+  const plates = [
+    { id: "a", weightKg: 5, count: null },
+    { id: "b", weightKg: 2.5, count: null },
+  ];
+  it("is the exact load when one exists", () => {
+    expect(nearestBarLoadKg(40, { weightKg: 20 }, plates)).toBe(40);
+  });
+  it("picks the nearer neighbour and the lower one on a tie", () => {
+    expect(nearestBarLoadKg(31, { weightKg: 20 }, plates)).toBe(30);
+    expect(nearestBarLoadKg(34, { weightKg: 20 }, plates)).toBe(35);
+    expect(nearestBarLoadKg(32.5, { weightKg: 20 }, plates)).toBe(30);
+  });
+  it("rounds a target under the bar up to the bare bar", () => {
+    expect(nearestBarLoadKg(10, { weightKg: 20 }, plates)).toBe(20);
+  });
+  it("stops at the heaviest loadable weight of a depleted kit", () => {
+    expect(nearestBarLoadKg(500, { weightKg: 20 }, [{ id: "a", weightKg: 5, count: 1 }])).toBe(30);
+  });
+});
+
+describe("smallestBarStepKg", () => {
+  it("is a pair of the lightest usable plate", () => {
+    expect(
+      smallestBarStepKg([
+        { id: "a", weightKg: 5, count: null },
+        { id: "b", weightKg: 1.25, count: null },
+        { id: "c", weightKg: 0.5, count: 0 },
+      ]),
+    ).toBe(2.5);
+  });
+  it("is null with no plates", () => {
+    expect(smallestBarStepKg([])).toBeNull();
   });
 });
