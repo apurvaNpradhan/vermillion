@@ -11,10 +11,10 @@ const STATUS_KEYS = {
   above: "muscles__status_above",
 } as const;
 
-/** One muscle: its name, "9 of 10–20", and a bar with the range as a quiet band behind it. */
+/** One muscle: its name, "9 of 10–20", an accent bar for its sets and a tick where its target starts. */
 export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPress: () => void }) {
   const { t, i18n } = useTranslation();
-  const { fill, bandStart, bandEnd } = barLayout(row.sets, row.range, peak);
+  const { fill, bandStart } = barLayout(row.sets, row.range, peak);
   const name = t(MUSCLE_GROUP_KEYS[row.muscle]);
   const sets = formatSets(row.sets, i18n.language);
   const min = row.range ? formatSets(row.range.min, i18n.language) : "";
@@ -54,16 +54,15 @@ export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPr
         </Text>
       </View>
       <View className="h-2 rounded-full bg-default">
-        <View
-          className="absolute inset-y-0 rounded-full bg-foreground/15"
-          style={{ left: `${bandStart * 100}%`, width: `${(bandEnd - bandStart) * 100}%` }}
-        />
-        <View
-          className={`h-2 rounded-full ${
-            row.status === "on_target" ? "bg-success" : "bg-foreground/50"
-          }`}
-          style={{ width: `${fill * 100}%` }}
-        />
+        <View className="h-2 rounded-full bg-identity" style={{ width: `${fill * 100}%` }} />
+        {row.range === null ? null : (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            className="absolute -top-0.5 h-3 w-0.5 rounded-full bg-foreground"
+            style={{ left: `${bandStart * 100}%` }}
+          />
+        )}
       </View>
     </Pressable>
   );

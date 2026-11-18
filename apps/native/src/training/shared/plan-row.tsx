@@ -19,6 +19,7 @@ export function PlanRow({
   menuLabel,
   onOpen,
   actions,
+  menuActions,
 }: {
   title: string;
   /** Muted lines under the title; empty ones are skipped. */
@@ -28,7 +29,10 @@ export function PlanRow({
   /** Shows the three-dot menu button, named for screen readers. */
   menuLabel?: string;
   onOpen: () => void;
+  /** Revealed by a swipe. */
   actions: SwipeAction[];
+  /** Listed by the menu button and a long press; the swipe actions when not given. */
+  menuActions?: SwipeAction[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const subtle = useSubtleColor();
@@ -76,7 +80,12 @@ export function PlanRow({
           ) : null}
         </View>
       </View>
-      <ActionSheet title={title} actions={actions} isOpen={menuOpen} onOpenChange={setMenuOpen} />
+      <ActionSheet
+        title={title}
+        actions={menuActions ?? actions}
+        isOpen={menuOpen}
+        onOpenChange={setMenuOpen}
+      />
     </>
   );
 }

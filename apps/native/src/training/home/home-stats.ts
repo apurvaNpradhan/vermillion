@@ -1,24 +1,48 @@
-import { calendarDay, weekRange, type WeekStart } from "@workspace/shared";
+import {
+  calendarDay,
+  sessionTotals,
+  weekRange,
+  type SessionHistory,
+  type WeekStart,
+} from "@workspace/shared";
+
+import { plannedDay, stripDays } from "../../platform/ui/week-strip-math";
 
 const DAY_MS = 86_400_000;
 
-/** One day of the week strip, in column order of the user's week. */
-export type WeekCell = { day: number; trained: boolean; today: boolean };
+/** The Home week strip: its seven days, the Session each trained day opens, and the planned day. */
+export type HomeWeek = {
+  days: number[];
+  today: number;
+  /** The latest Session that started on each trained day of the week. */
+  sessionByDay: Map<number, string>;
+  /** The day the next workout is planned for, or null when no workout is up next. */
+  planned: number | null;
+};
 
-/** The seven days of the current week; a day is trained if a Session started on it. */
-export function weekCells(
-  starts: readonly string[],
+export function homeWeek(
+  sessions: readonly { id: string; started_at: string }[],
   now: Date,
   timezone: string,
   weekStart: WeekStart,
-): WeekCell[] {
+  hasNextWorkout: boolean,
+): HomeWeek {
+  const days = stripDays(weekRange(now, timezone, weekStart).start);
   const today = calendarDay(now, timezone);
-  const { start } = weekRange(now, timezone, weekStart);
-  const trained = new Set(starts.map((instant) => calendarDay(instant, timezone)));
-  return Array.from({ length: 7 }, (_, index) => {
-    const day = start + index * DAY_MS;
-    return { day, trained: trained.has(day), today: day === today };
-  });
+  const latest = new Map<number, { id: string; started_at: string }>();
+  for (const session of sessions) {
+    const day = calendarDay(session.started_at, timezone);
+    if (!days.includes(day)) continue;
+    const known = latest.get(day);
+    if (!known || known.started_at < session.started_at) latest.set(day, session);
+  }
+  const sessionByDay = new Map([...latest].map(([day, session]) => [day, session.id]));
+  return {
+    days,
+    today,
+    sessionByDay,
+    planned: hasNextWorkout ? plannedDay(days, new Set(sessionByDay.keys()), today) : null,
+  };
 }
 
 /** The Sessions that started in the week `weeksAgo` weeks before the current one. */
@@ -53,32 +77,42 @@ export function comparableWeekSessions<T extends { started_at: string }>(
   };
 }
 
-/** How many of the days (`YYYY-MM-DD`) a weigh-in was logged on fall in the current week. */
-export function weighInsInWeek(
-  days: readonly { date: string; logged: boolean }[],
-  now: Date,
-  timezone: string,
-  weekStart: WeekStart,
-): number {
-  const first = new Date(weekRange(now, timezone, weekStart).start).toISOString().slice(0, 10);
-  return days.filter((day) => day.logged && day.date >= first).length;
-}
-
-/** `count` days ending today, oldest first; true where a Session started on that day. */
-export function trailingDays(
-  starts: readonly string[],
-  now: Date,
-  timezone: string,
-  count: number,
-): boolean[] {
-  const today = calendarDay(now, timezone);
-  const trained = new Set(starts.map((start) => calendarDay(start, timezone)));
-  return Array.from({ length: count }, (_, index) =>
-    trained.has(today - (count - 1 - index) * DAY_MS),
-  );
-}
-
 /** The change from `previous` to `current` as a ratio (0.06 = +6%); null when `previous` is zero. */
 export function ratioChange(current: number, previous: number): number | null {
   return previous > 0 ? (current - previous) / previous : null;
+}
+
+/** This week's Counted sets and volume, and each one's change on the same days of last week. */
+export type WeekSummary = {
+  sessions: number;
+  sets: number;
+  volume: number;
+  setsChange: number | null;
+  volumeChange: number | null;
+};
+
+export function weekSummary(
+  current: readonly Pick<SessionHistory, "sets">[],
+  previous: readonly Pick<SessionHistory, "sets">[],
+  bodyweightKg: number | null,
+): WeekSummary {
+  const totals = (sessions: readonly Pick<SessionHistory, "sets">[]) =>
+    sessionTotals(
+      sessions.flatMap((session) => session.sets),
+      bodyweightKg,
+    );
+  const now = totals(current);
+  const before = totals(previous);
+  return {
+    sessions: current.length,
+    sets: now.sets,
+    volume: now.volume,
+    setsChange: ratioChange(now.sets, before.sets),
+    volumeChange: ratioChange(now.volume, before.volume),
+  };
+}
+
+/** How far through the goal a week is, 0 to 1; 0 when there is no goal. */
+export function goalFraction(done: number, goal: number | null): number {
+  return goal === null || goal <= 0 ? 0 : Math.min(1, done / goal);
 }

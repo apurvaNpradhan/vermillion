@@ -1,9 +1,8 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { useThemeColor } from "heroui-native";
 import { useSubtleColor } from "@/platform/theme";
-import { Barbell, CaretRight, ListNumbers, PlayCircle, Plus } from "phosphor-react-native";
+import { Barbell, CaretDown, CaretRight, CaretUp, ListNumbers, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -11,6 +10,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
+import { FadeIn } from "@/platform/ui/fade-in";
 import { Page } from "@/platform/ui/page";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { useStartSession } from "@/session";
@@ -24,21 +24,24 @@ import { useProgramLibrary } from "@/training/programs/use-program-library";
 import { useStartWorkout } from "./use-start-workout";
 import { useWorkoutActions } from "@/training/workouts/use-workout-actions";
 import { useWorkouts } from "./use-workouts";
-import { trainRows, type TrainRow } from "./train-rows";
+import { trainList, trainRows, type TrainListItem } from "./train-rows";
 import { RunEndOffer } from "@/training/home/active-program-card";
 import { TrainingListState } from "./training-list-state";
+import { ProgramCard } from "./program-card";
+import { TrainingHeatmap } from "./training-heatmap";
+import { useTrainingHeatmap } from "./use-training-heatmap";
 import { WorkoutRow } from "./workout-row";
 
-type Row = TrainRow<WorkoutSummary>;
+type Row = TrainListItem<WorkoutSummary>;
 const NO_ROWS: Row[] = [];
 const rowKey = (row: Row) =>
-  row.kind === "workout" ? row.key : row.kind === "program" ? `program-${row.id}` : "other";
+  row.kind === "workout" ? row.key : row.kind === "program" ? `program-${row.id}` : row.kind;
 
 /**
- * Workouts grouped under their program, each with when it was last done: the active program
- * first, then the other programs, then workouts no program owns. A program heading opens the
- * program. Program management sits behind the header's Programs button; creating a workout or
- * an empty session behind Create.
+ * Train: the active program as a card with its rotation and Start, its workouts as rows (swipe for
+ * Start and Edit) with when each was last done, everything else folded behind "Other workouts",
+ * and the last 26 weeks as a heatmap. Programs sit behind the header button; Create and Start
+ * empty are two quiet buttons under the card.
  */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t, i18n } = useTranslation();
@@ -46,20 +49,25 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const workoutList = useWorkouts(true);
   const active = useActiveProgram();
   const programList = useProgramLibrary(active);
+  const [showOther, setShowOther] = useState(false);
+  const heatmap = useTrainingHeatmap();
   const { workouts } = workoutList;
   const { programs } = programList;
   const rows = useMemo(
     () =>
-      trainRows({
-        workouts,
-        programs: programs.map((program) => ({
-          id: program.id,
-          title: program.title,
-          workoutIds: program.slots.map((slot) => slot.workoutId),
-        })),
-        activeProgramId: active.program?.id ?? null,
-      }),
-    [workouts, active.program?.id, programs],
+      trainList(
+        trainRows({
+          workouts,
+          programs: programs.map((program) => ({
+            id: program.id,
+            title: program.title,
+            workoutIds: program.slots.map((slot) => slot.workoutId),
+          })),
+          activeProgramId: active.program?.id ?? null,
+        }),
+        showOther,
+      ),
+    [workouts, active.program?.id, programs, showOther],
   );
   // One ready state: the active program, programs and workouts all come from the local database,
   // and nothing is drawn until every one of them has answered, so the screen appears at once.
@@ -72,7 +80,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { fromPicker } = useStartWorkout();
   const actions = useWorkoutActions();
   const [newOpen, setNewOpen] = useState(false);
-  const onAction = useThemeColor("accent-foreground");
   const { lastDone, timezone } = useLastDone();
   const { start, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
@@ -81,14 +88,13 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const newActions = useMemo(
     () => [
       { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
-      {
-        key: "session",
-        label: t("session__empty_session"),
-        icon: PlayCircle,
-        onPress: onStartEmpty,
-      },
+      { key: "program", label: t("training__new_program"), icon: ListNumbers, onPress: newProgram },
     ],
-    [t, newWorkout, onStartEmpty],
+    [t, newWorkout, newProgram],
+  );
+  const edit = useCallback(
+    (id: string) => router.push({ pathname: "/train/workout/[id]/edit", params: { id } }),
+    [router],
   );
   const open = useCallback(
     (id: string) => router.push({ pathname: "/train/workout/[id]", params: { id } }),
@@ -114,15 +120,28 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   );
   const renderRow = useCallback(
     ({ item }: { item: Row }) => {
-      if (item.kind === "other") {
+      if (item.kind === "more") {
+        const Caret = item.expanded ? CaretUp : CaretDown;
         return (
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            className="px-4 pb-1 pt-7 text-overline font-semibold uppercase text-muted"
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: item.expanded }}
+            accessibilityLabel={t("training__other_workouts_toggle", { count: item.count })}
+            accessibilityHint={t(item.expanded ? "training__hide_other" : "training__show_other")}
+            onPress={() => setShowOther((current) => !current)}
+            className="min-h-12 flex-row items-center gap-2 px-4 pt-4 active:opacity-70"
           >
-            {t("training__other_workouts")}
-          </Text>
+            <Text
+              accessibilityRole="header"
+              numberOfLines={1}
+              className="shrink font-semibold text-title-md text-foreground"
+            >
+              {t("training__other_workouts")}
+            </Text>
+            <Text className="text-body tabular-nums text-muted">{item.count}</Text>
+            <View className="flex-1" />
+            <Caret size={20} weight="regular" color={subtle} />
+          </Pressable>
         );
       }
       if (item.kind === "program") {
@@ -140,15 +159,8 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             >
               {item.title}
             </Text>
-            {item.active ? (
-              <View className="rounded-full bg-identity-soft px-2 py-0.5">
-                <Text className="font-medium text-caption text-identity">
-                  {t("training__program_active")}
-                </Text>
-              </View>
-            ) : null}
             <View className="flex-1" />
-            <CaretRight size={16} color={subtle} />
+            <CaretRight size={20} weight="regular" color={subtle} />
           </Pressable>
         );
       }
@@ -165,6 +177,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
           }
           onOpen={open}
           onStart={startWorkout}
+          onEdit={edit}
           onShare={share}
           onDuplicate={duplicate}
           onDelete={item.owned ? undefined : remove}
@@ -174,6 +187,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     [
       open,
       startWorkout,
+      edit,
       share,
       duplicate,
       remove,
@@ -191,21 +205,14 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
       <Page
         title={t("training__title")}
         actions={
-          <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("training__programs")}
-              hitSlop={4}
-              onPress={() => router.push("/train/programs")}
-              className="h-9 w-9 items-center justify-center rounded-full active:bg-default"
-            >
-              <ListNumbers size={20} color={subtle} />
-            </Pressable>
-            <Button variant="primary" className="rounded-full" onPress={() => setNewOpen(true)}>
-              <Plus size={16} color={onAction} weight="bold" />
-              <Button.Label>{t("training__create")}</Button.Label>
-            </Button>
-          </>
+          <Button
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("training__programs")}
+            onPress={() => router.push("/train/programs")}
+          >
+            <ListNumbers size={24} weight="regular" color={subtle} />
+          </Button>
         }
       >
         {({ header, contentContainerStyle, ...scroll }) => (
@@ -220,11 +227,38 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             extraData={renderRow}
             renderItem={renderRow}
             ListHeaderComponent={
-              <View className="gap-6 px-4 pb-1">
+              <View className="gap-4 px-4 pb-1">
                 {header}
                 <SyncBanner />
                 <TrainingListState status={status} onRetry={retry} />
+                {status === "list" ? (
+                  <>
+                    <ProgramCard state={active} onOpen={openProgram} onStart={startWorkout} />
+                    <View className="flex-row gap-3">
+                      <Button
+                        variant="secondary"
+                        className="flex-1"
+                        onPress={() => setNewOpen(true)}
+                      >
+                        <Plus size={20} weight="regular" color={subtle} />
+                        <Button.Label>{t("training__create")}</Button.Label>
+                      </Button>
+                      <Button variant="secondary" className="flex-1" onPress={onStartEmpty}>
+                        <Button.Label>{t("home__start_empty")}</Button.Label>
+                      </Button>
+                    </View>
+                  </>
+                ) : null}
               </View>
+            }
+            ListFooterComponent={
+              status === "list" && !heatmap.loading && !heatmap.failed ? (
+                <View className="px-4 pt-8">
+                  <FadeIn>
+                    <TrainingHeatmap data={heatmap} />
+                  </FadeIn>
+                </View>
+              ) : null
             }
             ListEmptyComponent={
               <View className="px-4">

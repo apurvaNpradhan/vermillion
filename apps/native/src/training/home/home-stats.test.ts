@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   comparableWeekSessions,
   ratioChange,
+  goalFraction,
+  homeWeek,
   sessionsInWeek,
-  trailingDays,
-  weekCells,
-  weighInsInWeek,
+  weekSummary,
 } from "./home-stats";
 
 const NOW = new Date("2026-11-18T12:00:00Z"); // a Wednesday
@@ -23,69 +23,85 @@ it("compares through the same local weekday in both weeks", () => {
   });
 });
 
-describe("weekCells", () => {
-  it("runs Monday to Sunday and marks trained days and today", () => {
-    const cells = weekCells(["2026-11-16T07:00:00Z", "2026-11-18T09:00:00Z"], NOW, "UTC", "monday");
-    expect(cells.map((cell) => cell.trained)).toEqual([
-      true,
-      false,
-      true,
-      false,
-      false,
-      false,
-      false,
-    ]);
-    expect(cells.map((cell) => cell.today)).toEqual([
-      false,
-      false,
-      true,
-      false,
-      false,
-      false,
-      false,
-    ]);
-    expect(new Date(cells[0]?.day ?? 0).toISOString().slice(0, 10)).toBe("2026-11-16");
-  });
+describe("homeWeek", () => {
+  const sessions = [
+    { id: "a", started_at: "2026-11-16T07:00:00Z" },
+    { id: "b", started_at: "2026-11-18T09:00:00Z" },
+    { id: "c", started_at: "2026-11-18T17:00:00Z" },
+    { id: "old", started_at: "2026-11-09T09:00:00Z" },
+  ];
+  const week = homeWeek(sessions, NOW, "UTC", "monday", true);
 
+  it("runs Monday to Sunday with today", () => {
+    expect(new Date(week.days[0] ?? 0).toISOString().slice(0, 10)).toBe("2026-11-16");
+    expect(week.days).toHaveLength(7);
+    expect(new Date(week.today).toISOString().slice(0, 10)).toBe("2026-11-18");
+  });
+  it("opens the latest Session of a trained day and ignores other weeks", () => {
+    expect([...week.sessionByDay.values()].toSorted()).toEqual(["a", "c"]);
+  });
+  it("plans the next workout for tomorrow once today is trained", () => {
+    expect(new Date(week.planned ?? 0).toISOString().slice(0, 10)).toBe("2026-11-19");
+  });
+  it("plans it for today until today is trained", () => {
+    const early = homeWeek([sessions[0] ?? { id: "", started_at: "" }], NOW, "UTC", "monday", true);
+    expect(early.planned).toBe(early.today);
+  });
+  it("plans nothing without a next workout", () => {
+    expect(homeWeek(sessions, NOW, "UTC", "monday", false).planned).toBeNull();
+  });
   it("uses the user's zone for the day a Session started on", () => {
     // 23:30 UTC Sunday is already Monday in Auckland.
-    const cells = weekCells(["2026-11-15T23:30:00Z"], NOW, "Pacific/Auckland", "monday");
-    expect(cells[0]?.trained).toBe(true);
+    const auckland = homeWeek(
+      [{ id: "x", started_at: "2026-11-15T23:30:00Z" }],
+      NOW,
+      "Pacific/Auckland",
+      "monday",
+      false,
+    );
+    expect(auckland.sessionByDay.size).toBe(1);
   });
-
-  it("ignores Sessions of other weeks", () => {
-    expect(
-      weekCells(["2026-11-09T09:00:00Z"], NOW, "UTC", "monday").some((cell) => cell.trained),
-    ).toBe(false);
-  });
-});
-
-describe("trailingDays", () => {
-  it("ends today, oldest first", () => {
-    const days = trailingDays(["2026-11-18T09:00:00Z", "2026-11-16T09:00:00Z"], NOW, "UTC", 5);
-    expect(days).toEqual([false, false, true, false, true]);
+  it("follows a Sunday week start", () => {
+    const sunday = homeWeek([], NOW, "UTC", "sunday", false);
+    expect(new Date(sunday.days[0] ?? 0).toISOString().slice(0, 10)).toBe("2026-11-15");
   });
 });
 
-describe("a week that starts on another day", () => {
-  it("runs Sunday to Saturday", () => {
-    const cells = weekCells(["2026-11-15T09:00:00Z", "2026-11-21T09:00:00Z"], NOW, "UTC", "sunday");
-    expect(new Date(cells[0]?.day ?? 0).toISOString().slice(0, 10)).toBe("2026-11-15");
-    expect(cells.map((cell) => cell.trained)).toEqual([
-      true,
-      false,
-      false,
-      false,
-      false,
-      false,
-      true,
-    ]);
+describe("weekSummary", () => {
+  const set = (reps: number, completed = true) => ({
+    id: String(reps),
+    exercise_id: "e",
+    exercise_type: "weight_reps" as const,
+    kind: "working" as const,
+    completed_at: completed ? "2026-11-18T09:00:00Z" : null,
+    weight_kg: 100,
+    reps,
   });
+  it("counts completed sets and compares them with last week", () => {
+    const summary = weekSummary(
+      [{ sets: [set(5), set(5), set(5, false)] }, { sets: [set(10)] }],
+      [{ sets: [set(5)] }],
+      null,
+    );
+    expect(summary.sessions).toBe(2);
+    expect(summary.sets).toBe(3);
+    expect(summary.volume).toBe(2000);
+    expect(summary.setsChange).toBe(2);
+    expect(summary.volumeChange).toBe(3);
+  });
+  it("has no change when last week was empty", () => {
+    expect(weekSummary([{ sets: [set(5)] }], [], null).setsChange).toBeNull();
+  });
+});
 
-  it("runs Saturday to Friday and puts a Saturday in the new week", () => {
-    const cells = weekCells(["2026-11-14T09:00:00Z"], NOW, "UTC", "saturday");
-    expect(new Date(cells[0]?.day ?? 0).toISOString().slice(0, 10)).toBe("2026-11-14");
-    expect(cells[0]?.trained).toBe(true);
+describe("goalFraction", () => {
+  it("is the share of the goal, capped at one", () => {
+    expect(goalFraction(2, 4)).toBe(0.5);
+    expect(goalFraction(6, 4)).toBe(1);
+  });
+  it("is zero without a goal", () => {
+    expect(goalFraction(3, null)).toBe(0);
+    expect(goalFraction(3, 0)).toBe(0);
   });
 });
 
@@ -100,21 +116,6 @@ describe("sessionsInWeek", () => {
     expect(sessionsInWeek(sessions, NOW, "UTC", "monday", 1)).toHaveLength(2);
     // With Sunday first the Sunday Session belongs to this week.
     expect(sessionsInWeek(sessions, NOW, "UTC", "sunday")).toHaveLength(2);
-  });
-});
-
-describe("weighInsInWeek", () => {
-  const days = [
-    { date: "2026-11-14", logged: true },
-    { date: "2026-11-15", logged: true },
-    { date: "2026-11-16", logged: true },
-    { date: "2026-11-17", logged: false },
-    { date: "2026-11-18", logged: true },
-  ];
-  it("counts logged days since the week started, not the last seven", () => {
-    expect(weighInsInWeek(days, NOW, "UTC", "monday")).toBe(2);
-    expect(weighInsInWeek(days, NOW, "UTC", "sunday")).toBe(3);
-    expect(weighInsInWeek(days, NOW, "UTC", "saturday")).toBe(4);
   });
 });
 

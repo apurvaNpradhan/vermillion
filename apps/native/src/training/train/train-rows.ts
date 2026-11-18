@@ -50,3 +50,37 @@ export function trainRows<Workout extends { id: string }>(input: {
   }
   return rows;
 }
+
+/** A row of the Train screen: a plan row, or the "Other workouts" toggle between the groups. */
+export type TrainListItem<Workout extends { id: string }> =
+  | Exclude<TrainRow<Workout>, { kind: "other" }>
+  | { kind: "more"; count: number; expanded: boolean };
+
+const listed = <Workout extends { id: string }>(
+  row: TrainRow<Workout>,
+): row is Exclude<TrainRow<Workout>, { kind: "other" }> => row.kind !== "other";
+
+/**
+ * What the Train screen lists. The active Program's Workouts come first, with no heading (its card
+ * above them is the heading); everything else sits behind one "Other workouts" toggle, collapsed
+ * unless `expanded`, with the other Programs' headings kept inside it. With no active Program there
+ * is nothing to prefer, so every row is listed as it is, without the toggle.
+ */
+export function trainList<Workout extends { id: string }>(
+  rows: readonly TrainRow<Workout>[],
+  expanded: boolean,
+): TrainListItem<Workout>[] {
+  if (!rows.some((row) => row.kind === "program" && row.active)) {
+    return rows.filter(listed);
+  }
+  const inActive = rows.slice(1).findIndex((row) => row.kind !== "workout" || !row.owned);
+  const split = inActive === -1 ? rows.length : inActive + 1;
+  const first = rows.slice(1, split).filter(listed);
+  const rest = rows.slice(split).filter(listed);
+  const count = rest.filter((row) => row.kind === "workout").length;
+  return [
+    ...first,
+    ...(count === 0 ? [] : [{ kind: "more" as const, count, expanded }]),
+    ...(expanded ? rest : []),
+  ];
+}

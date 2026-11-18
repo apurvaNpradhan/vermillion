@@ -1,23 +1,28 @@
 import { changeOver, formatBodyWeight, shownWeight } from "@workspace/shared";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { Button } from "@/platform/ui/button";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
 
 import type { useWeight } from "./use-weight";
+import { WeightLogSheet } from "./weight-log-sheet";
 
 /** Days of trend the sparkline draws. */
 const SPARK_DAYS = 30;
 
 /**
- * Home's weight card: the trend now, a bare sparkline of the last month and one muted line with
- * this week's change and the goal. Parts without data are left out. Opens the Weight screen. It
- * takes the weight state from its screen so Home has one loading state.
+ * Home's Body block: the trend now, a bare sparkline of the last month, one muted line with this
+ * week's change and the goal, and a Log button that opens the weigh-in sheet in place. Parts
+ * without data are left out; the trend opens the Weight screen. It takes the weight state from its
+ * screen so Home has one loading state.
  */
 export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeight> }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const [logging, setLogging] = useState(false);
   const unit = weight.unit;
   const week = changeOver(weight.series, 7);
   const change =
@@ -47,18 +52,24 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
         });
   const spark = weight.series.slice(-SPARK_DAYS).map((point) => point.trend);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${t("body__weight_trend")}, ${trend}`}
-      onPress={() => router.push("/body/weight")}
-      className="gap-1 rounded-2xl bg-surface p-4 active:bg-default"
-    >
-      <Text className="text-caption text-muted">{t("body__weight_trend")}</Text>
-      <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-numeric-md tabular-nums text-foreground">{trend}</Text>
-        {spark.length > 1 ? <Sparkline values={spark} /> : null}
-      </View>
-      {line ? <Text className="text-caption tabular-nums text-muted">{line}</Text> : null}
-    </Pressable>
+    <View className="gap-3 rounded-2xl bg-surface p-4">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${t("body__weight_trend")}, ${trend}`}
+        onPress={() => router.push("/body/weight")}
+        className="gap-1 rounded-xl active:opacity-70"
+      >
+        <Text className="text-title-md font-semibold text-foreground">{t("body__title")}</Text>
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="text-numeric-md tabular-nums text-foreground">{trend}</Text>
+          {spark.length > 1 ? <Sparkline values={spark} /> : null}
+        </View>
+        {line ? <Text className="text-caption tabular-nums text-muted">{line}</Text> : null}
+      </Pressable>
+      <Button variant="secondary" className="w-full" onPress={() => setLogging(true)}>
+        <Button.Label>{t("body__log")}</Button.Label>
+      </Button>
+      {logging ? <WeightLogSheet onClose={() => setLogging(false)} /> : null}
+    </View>
   );
 }
