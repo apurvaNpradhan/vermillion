@@ -1,10 +1,10 @@
-import { supersetRuns } from "@workspace/shared";
+import { supersetRuns, type SetKind } from "@workspace/shared";
 
 /** What the accordion needs of a Session exercise. */
 export type BlockExercise = {
   id: string;
   supersetGroup: string | null;
-  sets: readonly { id: string; completedAt: string | null }[];
+  sets: readonly { id: string; completedAt: string | null; kind?: SetKind }[];
 };
 
 /** One accordion unit: a lone exercise, or a superset run that opens and closes as one. */
@@ -78,18 +78,51 @@ export function nextAfter<E extends BlockExercise>(
 /** The set the highlight sits on: an exercise and one of its sets. */
 export type Highlight = { exerciseId: string; setId: string };
 
+/** One set of a block in logging order, with its place among its exercise's sets (0-based). */
+export type RoundSet<E extends BlockExercise> = {
+  exercise: E;
+  set: E["sets"][number];
+  index: number;
+};
+
 /**
- * The set to log next in a block. A lone exercise: its first unticked set. A superset goes by
- * rounds (A1, B1, A2, B2 …): the first unticked set of the earliest round, in member order, so
- * ticking a member's set moves the highlight to the next member's matching set. A member with
- * fewer sets simply sits out the later rounds.
+ * The block's sets as rounds, in the order they are logged: the one ordering the guided
+ * logging, the set highlight, the Timer screen, the notification and the rest timer share.
+ * A lone exercise is top to bottom, a set per round. A superset goes by rounds (A1, B1, A2,
+ * B2 …) in member order, warm-up rounds first and then work rounds: a member's warm-ups pair
+ * with other members' warm-ups, never with their work sets (A warm-up, A work + B work). A
+ * member with fewer sets sits out the later rounds.
+ */
+export function roundsOf<E extends BlockExercise>(block: Block<E>): RoundSet<E>[][] {
+  if (!block.superset) {
+    return block.members.flatMap((exercise) =>
+      exercise.sets.map((set, index) => [{ exercise, set, index }]),
+    );
+  }
+  const rounds: RoundSet<E>[][] = [];
+  for (const warmup of [true, false]) {
+    const lists = block.members.map((exercise) =>
+      exercise.sets.flatMap((set, index) =>
+        (set.kind === "warmup") === warmup ? [{ exercise, set, index }] : [],
+      ),
+    );
+    const count = Math.max(0, ...lists.map((list) => list.length));
+    for (let round = 0; round < count; round += 1) {
+      rounds.push(lists.flatMap((list) => list[round] ?? []));
+    }
+  }
+  return rounds;
+}
+
+/**
+ * The set to log next in a block: the first unticked set in logging order (`roundsOf`). A lone
+ * exercise: its first unticked set. In a superset, ticking a member's set moves the highlight to
+ * the next member's matching set.
  */
 export function highlightOf(block: Block<BlockExercise>): Highlight | null {
-  const rounds = Math.max(0, ...block.members.map((member) => member.sets.length));
-  for (let round = 0; round < rounds; round += 1) {
-    for (const member of block.members) {
-      const set = member.sets[round];
-      if (set && set.completedAt === null) return { exerciseId: member.id, setId: set.id };
+  for (const round of roundsOf(block)) {
+    for (const { exercise, set } of round) {
+      if (set.completedAt === null) return { exerciseId: exercise.id, setId: set.id };
     }
   }
   return null;

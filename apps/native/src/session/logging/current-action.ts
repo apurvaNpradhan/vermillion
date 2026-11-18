@@ -9,7 +9,7 @@ import {
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
-import { blocksOf } from "./blocks";
+import { blocksOf, roundsOf } from "./blocks";
 import { elapsedSeconds } from "../timer/clock";
 import { timerTarget } from "../timer/duration-timer";
 import { restView, type RestView } from "../rest/rest-rules";
@@ -69,22 +69,11 @@ export type CurrentAction = {
 type Ordered = { exercise: SessionExerciseDetail; set: SessionSetDetail; index: number };
 
 /**
- * Every set in the order they are logged: block by block as the accordion has them; a lone
- * exercise top to bottom; a superset by rounds (A1, B1, A2, B2 …), a member with fewer sets
- * sitting out the later rounds (the same rule as `highlightOf`).
+ * Every set in the order they are logged: block by block as the accordion has them, each block in
+ * its `roundsOf` order (a superset's warm-up rounds, then its work rounds).
  */
 export function orderedSets(exercises: readonly SessionExerciseDetail[]): Ordered[] {
-  return blocksOf(exercises).flatMap((block) => {
-    const rounds = Math.max(0, ...block.members.map((member) => member.sets.length));
-    const list: Ordered[] = [];
-    for (let round = 0; round < rounds; round += 1) {
-      for (const exercise of block.members) {
-        const set = exercise.sets[round];
-        if (set) list.push({ exercise, set, index: round });
-      }
-    }
-    return list;
-  });
+  return blocksOf(exercises).flatMap((block) => roundsOf(block).flat());
 }
 
 /** Typed value of each field, else the Ghost value. */

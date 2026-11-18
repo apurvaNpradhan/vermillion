@@ -1,6 +1,8 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
+import { blocksOf, highlightOf } from "./blocks";
+import { restAfterTick } from "../rest/rest-rules";
 import {
   currentAction,
   orderedSets,
@@ -84,6 +86,45 @@ describe("orderedSets", () => {
       exercise("d", [set("d1")]),
     ]);
     expect(list.map((item) => item.set.id)).toEqual(["a1", "a2", "b1", "c1", "b2", "b3", "d1"]);
+  });
+});
+
+describe("superset warm-up rounds: guided logging and rests agree", () => {
+  const list = () => [
+    exercise("a", [set("a-wu", { kind: "warmup" }), set("a-w")], { supersetGroup: "g" }),
+    exercise("b", [set("b-w")], { supersetGroup: "g", restSeconds: 120 }),
+  ];
+  it("offers the warm-up, then the work round, with the rests the round implies", () => {
+    expect(orderedSets(list()).map((item) => item.set.id)).toEqual(["a-wu", "a-w", "b-w"]);
+    const block = blocksOf(list())[0];
+    if (!block) throw new Error("no block");
+    // Guided: each tick moves the highlight and the Timer's current set the same way.
+    const done: string[] = [];
+    const walked: (number | null)[] = [];
+    const guided: string[] = [];
+    for (let step = 0; step < 3; step += 1) {
+      const exercises = list().map((entry) => ({
+        ...entry,
+        sets: entry.sets.map((row) => ({
+          ...row,
+          completedAt: done.includes(row.id) ? at(1) : null,
+        })),
+      }));
+      const action = currentAction({
+        session: session(exercises),
+        ghostsFor: noGhosts,
+        now: T0 + 5000,
+      });
+      const live = blocksOf(exercises)[0];
+      const marked = live ? highlightOf(live) : null;
+      expect(action.current?.setId).toBe(marked?.setId);
+      guided.push(marked?.setId ?? "");
+      walked.push(live && marked ? restAfterTick(live, marked.exerciseId, marked.setId) : null);
+      done.push(marked?.setId ?? "");
+    }
+    expect(guided).toEqual(["a-wu", "a-w", "b-w"]);
+    // A warm-up uses the warm-up rest; A's work set waits for B; B ends the round with its rest.
+    expect(walked).toEqual([60, null, 120]);
   });
 });
 

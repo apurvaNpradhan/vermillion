@@ -1,6 +1,6 @@
 import { REST_SECONDS_MAX, WARMUP_REST_SECONDS, type SetKind } from "@workspace/shared";
 
-import type { Block, BlockExercise } from "../logging/blocks";
+import { roundsOf, type Block, type BlockExercise } from "../logging/blocks";
 import { remainingSeconds, type Countdown } from "../timer/clock";
 
 /** What the rest rules need of a Session exercise. */
@@ -14,8 +14,9 @@ export type RestExercise = Omit<BlockExercise, "sets"> & {
  * - The exercise's rest, or the fixed warm-up rest after a warm-up. Rest off (null or 0) starts
  *   nothing, after a warm-up too.
  * - In a superset only the last member's set of a round starts the rest: the last member that has
- *   a set in that round, so a member with fewer sets does not stall the later rounds. The group's
- *   rest is the last member's.
+ *   a set in that round (rounds are `roundsOf`, the order logging follows: warm-up rounds, then
+ *   work rounds), so a member with fewer sets does not stall the later rounds. The group's rest
+ *   is the last member's.
  * - The result stays within the 10 minutes a Rest may last.
  */
 export function restAfterTick(
@@ -29,12 +30,9 @@ export function restAfterTick(
   if (!member || !set) return null;
   let own = member.restSeconds;
   if (block.superset) {
-    const warmup = set.kind === "warmup";
-    const roundSets = (candidate: RestExercise) =>
-      candidate.sets.filter((row) => (row.kind === "warmup") === warmup);
-    const round = roundSets(member).findIndex((row) => row.id === setId);
-    const inRound = block.members.filter((candidate) => roundSets(candidate)[round] !== undefined);
-    if (inRound.at(-1)?.id !== exerciseId) return null;
+    // The round is the shared logging order: only its last set starts the rest.
+    const round = roundsOf(block).find((row) => row.some((item) => item.set.id === setId));
+    if (round?.at(-1)?.exercise.id !== exerciseId) return null;
     own = block.members.at(-1)?.restSeconds ?? member.restSeconds;
   }
   if (own === null || own <= 0) return null;
