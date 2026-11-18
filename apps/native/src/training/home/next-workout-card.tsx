@@ -8,7 +8,8 @@ import { Button } from "@/platform/ui/button";
 
 /**
  * Home's Next workout: its name, how many exercises and about how long, one big Start (Resume when
- * a Session is open) and Start empty beside it as the quiet alternative.
+ * a Session is open) and Start empty under it as the quiet alternative. Start empty stays while a
+ * Session is open: it asks first, through the Session conflict sheet, what to do with that one.
  */
 export function NextWorkoutCard({
   eyebrow,
@@ -54,7 +55,7 @@ export function NextWorkoutCard({
           )}
         </Button.Label>
       </Button>
-      {title !== null && !resuming ? (
+      {title !== null ? (
         <Button variant="secondary" className="w-full" onPress={onStartEmpty}>
           <Button.Label>{t("home__start_empty")}</Button.Label>
         </Button>

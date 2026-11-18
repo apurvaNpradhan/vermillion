@@ -25,8 +25,9 @@ export function HomeWeekStrip({
       weekday: (value: number) => weekday.format(value),
       day: (value: number) => day.format(value),
       date: (value: number) => date.format(value),
+      today: t("home__today"),
     };
-  }, [i18n.language]);
+  }, [i18n.language, t]);
   const marks = (day: number): WeekStripMarks | undefined => {
     if (week.sessionByDay.has(day)) return { dots: ["success"], label: t("home__day_trained") };
     if (day === week.planned) return { planned: true, label: t("home__day_planned") };

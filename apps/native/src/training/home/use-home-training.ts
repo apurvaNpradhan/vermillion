@@ -39,6 +39,8 @@ export function useHomeTraining(workoutId?: string) {
   const sessions = weight.withBodyweight(history.value ?? []);
   return {
     sessions,
+    /** The same Sessions as the watch returned them, for readers that need no bodyweight. */
+    finished: history.failed ? undefined : history.value,
     recent: weight.withBodyweight(recent.value ?? []),
     timezone: zone,
     bodyweightKg: preferences.ui.bodyweightKg,
