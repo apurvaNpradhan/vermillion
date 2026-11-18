@@ -205,12 +205,12 @@ export function suggestNext(
     let outcome: Outcome = "same";
     let next = same;
     if (held) outcome = "hold";
+    else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
       if (before.reps >= max) {
-        if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
-        else if (canLoad) {
+        if (canLoad) {
           const easy = before.rpe != null && before.rpe <= EASY_RPE;
           const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
           incrementKg ??= added;

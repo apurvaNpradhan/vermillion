@@ -66,6 +66,13 @@ describe("double progression", () => {
     });
   });
 
+  it.each([9.5, 10])("holds a set below the ceiling at RPE %s", (rpe) => {
+    expect(suggest([logged(10, 80, { rpe })], [], plan.slice(0, 1))).toMatchObject({
+      reason: "hold_effort",
+      sets: [{ weightKg: 80, reps: 10 }],
+    });
+  });
+
   it("progresses every set on its own: one set adds load while another adds a rep", () => {
     const next = suggest([logged(12), logged(10, 70)]);
     expect(next?.reason).toBe("add_weight");
