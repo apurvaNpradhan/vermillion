@@ -12,20 +12,20 @@ export function trainingSlotCount(slots: readonly GoalSlot[]): number {
 
 /**
  * The number of Sessions to aim for in a week, or null when there is no goal. In order: the active
- * Program's own `sessionsPerWeek`; its workout slots, but only for a rotation of
- * {@link GOAL_ROTATION_MAX} slots or fewer (a longer rotation is not a week); the user's
- * "Sessions per week" preference. With no active Program the preference alone applies.
+ * Program's own `sessionsPerWeek`; the user's "Sessions per week" preference; the Program's
+ * workout slots for a rotation of {@link GOAL_ROTATION_MAX} slots or fewer.
  */
 export function sessionGoal(
   program: { sessionsPerWeek: number | null; slots: readonly GoalSlot[] } | null,
   preference: number | null,
 ): number | null {
+  const explicit = program?.sessionsPerWeek ?? preference;
+  if (explicit !== null) return explicit;
   if (program) {
-    if (program.sessionsPerWeek !== null) return program.sessionsPerWeek;
     const count = trainingSlotCount(program.slots);
     if (program.slots.length <= GOAL_ROTATION_MAX && count > 0) return count;
   }
-  return preference;
+  return null;
 }
 
 /** What the Program editor's stepper shows while the Program has no value of its own. */

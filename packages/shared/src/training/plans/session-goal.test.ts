@@ -12,8 +12,15 @@ describe("sessionGoal", () => {
   it("counts workout slots of a rotation of seven or fewer", () => {
     expect(sessionGoal({ sessionsPerWeek: null, slots: slots("a", null, "b", "c") }, 3)).toBe(3);
     expect(
-      sessionGoal({ sessionsPerWeek: null, slots: slots("a", "b", "c", "d", null, null, null) }, 2),
+      sessionGoal(
+        { sessionsPerWeek: null, slots: slots("a", "b", "c", "d", null, null, null) },
+        null,
+      ),
     ).toBe(4);
+  });
+
+  it("prefers an explicit user goal to the slot count", () => {
+    expect(sessionGoal({ sessionsPerWeek: null, slots: slots("a", "b") }, 3)).toBe(3);
   });
 
   it("falls back to the preference for a longer rotation", () => {
