@@ -155,15 +155,22 @@ function Toggle({
   const field = useThemeColor("field");
   const thumb = useOnIdentityColor();
   return (
-    <View className="min-h-11 flex-row items-center justify-between gap-3 px-1">
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value }}
+      onPress={() => onChange(!value)}
+      className="min-h-11 flex-row items-center justify-between gap-3 px-1 active:opacity-70"
+    >
       <Text className="flex-1 text-body text-foreground">{label}</Text>
-      <Switch
-        trackColor={{ false: field, true: identity }}
-        thumbColor={thumb}
-        accessibilityLabel={label}
-        value={value}
-        onValueChange={onChange}
-      />
-    </View>
+      <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        <Switch
+          trackColor={{ false: field, true: identity }}
+          thumbColor={thumb}
+          value={value}
+          onValueChange={onChange}
+        />
+      </View>
+    </Pressable>
   );
 }

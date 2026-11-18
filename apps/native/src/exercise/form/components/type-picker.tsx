@@ -70,7 +70,7 @@ export function TypePicker({
       </View>
       {locked ? (
         <View className="flex-row items-start gap-2" accessibilityRole="alert">
-          <Lock size={20} color={subtle} weight="fill" />
+          <Lock size={20} color={subtle} />
           <Text className="flex-1 text-caption text-muted">{t("exercise__type_locked")}</Text>
         </View>
       ) : null}

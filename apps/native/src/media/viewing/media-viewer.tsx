@@ -46,7 +46,7 @@ function FullMediaImage({ mediaId, box }: { mediaId: string; box: ViewerImageBox
           onPress={full.retry}
           className="absolute inset-0 items-center justify-center"
         >
-          <WarningCircle size={24} color={danger} weight="fill" />
+          <WarningCircle size={24} color={danger} />
         </Pressable>
       ) : null}
     </View>

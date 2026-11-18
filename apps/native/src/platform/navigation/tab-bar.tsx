@@ -132,7 +132,7 @@ export function TabBar({
   const optionsOf = (route: TabRoute) => descriptors[route.key]?.options;
   const labelOf = (route: TabRoute) => optionsOf(route)?.title ?? route.name;
   const iconOf = (route: TabRoute, focused: boolean, color: string) =>
-    optionsOf(route)?.tabBarIcon?.({ focused, color, size: 20 });
+    optionsOf(route)?.tabBarIcon?.({ focused, color, size: 24 });
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
