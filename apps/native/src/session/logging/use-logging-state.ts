@@ -349,16 +349,7 @@ export function useLoggingState({
   );
 
   const orderOf = useCallback(
-    (block: Block<SessionExerciseDetail>) =>
-      cellOrder(
-        block.members.map((member) => ({
-          id: member.id,
-          sets: member.sets.map((set) => ({
-            id: set.id,
-            fields: SET_FIELDS[member.type],
-          })),
-        })),
-      ),
+    (block: Block<SessionExerciseDetail>) => cellOrder(block, (member) => SET_FIELDS[member.type]),
     [],
   );
 

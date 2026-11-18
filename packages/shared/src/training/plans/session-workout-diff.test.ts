@@ -128,3 +128,50 @@ describe("Session against Workout", () => {
     expect(loggedTargetWeight(sets, "warmup")).toBeNull();
   });
 });
+
+describe("generated warm-ups", () => {
+  const work = { ...logged.sets[0]!, weightKg: 50 };
+  const ramp = (extra: { generatedWarmup?: boolean; completedAt?: string } = {}) => ({
+    kind: "warmup" as const,
+    weightKg: 20,
+    completedAt: null,
+    target: null,
+    generatedWarmup: true,
+    ...extra,
+  });
+  it("an untouched auto ramp is not a structure change", () => {
+    const result = diff([{ ...logged, sets: [ramp(), ramp(), work] }]);
+    expect(result.structure).toEqual([]);
+    expect(result.targets).toEqual([]);
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [{ ...logged, sets: [ramp(), ramp(), work] }] },
+        { exercises: [planned] },
+        true,
+      ).structure,
+    ).toEqual([]);
+  });
+  it("a generated warm-up the user edited (marker cleared) counts as a real set", () => {
+    const result = diff([
+      { ...logged, sets: [ramp({ generatedWarmup: false, completedAt: "now" }), work] },
+    ]);
+    expect(result.structure[0]?.kind).toBe("sets");
+  });
+  it("planned warm-ups still compare with generated rows ignored", () => {
+    const plan: DiffWorkoutExercise = {
+      ...planned,
+      sets: [{ kind: "warmup" }, ...planned.sets],
+    };
+    const planWarm = { kind: "warmup" as const, weightKg: null, completedAt: null, target: null };
+    expect(diff([{ ...logged, sets: [planWarm, ramp(), work] }], [plan]).structure).toEqual([]);
+    // The ramp stands in for the planned warm-up; with none of either it is a real removal.
+    expect(diff([{ ...logged, sets: [ramp(), work] }], [plan]).structure).toEqual([]);
+    expect(
+      diffSessionAgainstWorkout(
+        { exercises: [{ ...logged, sets: [work] }] },
+        { exercises: [plan] },
+        true,
+      ).structure[0]?.kind,
+    ).toBe("sets");
+  });
+});
