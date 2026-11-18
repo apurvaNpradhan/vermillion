@@ -48,7 +48,7 @@ export function SearchBar({
           focused ? "border-focus-ring" : "border-transparent"
         }`}
       >
-        <MagnifyingGlass size={18} color={muted} />
+        <MagnifyingGlass size={20} color={muted} />
         <TextInput
           ref={inner}
           value={value}
@@ -77,7 +77,7 @@ export function SearchBar({
                 inner.current?.focus();
               }}
             >
-              <XCircle size={18} weight="fill" color={muted} />
+              <XCircle size={20} weight="fill" color={muted} />
             </Pressable>
           </Animated.View>
         ) : null}

@@ -82,7 +82,7 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
           }
         />
         <View className="absolute bottom-0 right-0 size-8 items-center justify-center rounded-full bg-surface">
-          <Camera size={16} color={foreground} weight="regular" />
+          <Camera size={20} color={foreground} weight="regular" />
         </View>
         {avatar.busy ? (
           <View className="absolute inset-0 items-center justify-center rounded-full bg-background/70">

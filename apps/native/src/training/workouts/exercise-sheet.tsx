@@ -173,7 +173,7 @@ function LoadedSheet({
             </Text>
           ) : null}
         </View>
-        <CaretRight size={18} color={subtle} />
+        <CaretRight size={20} color={subtle} />
       </Pressable>
 
       <InlineNote

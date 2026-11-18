@@ -108,9 +108,9 @@ export function FlowStep({
                 className="h-11 w-11 justify-center"
               >
                 {kind === "close" ? (
-                  <X size={22} color={foreground} />
+                  <X size={24} color={foreground} />
                 ) : (
-                  <CaretLeft size={22} color={foreground} />
+                  <CaretLeft size={24} color={foreground} />
                 )}
               </Pressable>
             )}

@@ -454,7 +454,7 @@ function LoadedTimer({
             onPress={close}
             className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
           >
-            <CaretDown size={22} weight="bold" color={foreground} />
+            <CaretDown size={24} color={foreground} />
           </Pressable>
           <Text
             accessibilityRole="header"
@@ -470,7 +470,7 @@ function LoadedTimer({
               onPress={() => setMenuOpen(true)}
               className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
             >
-              <DotsThreeVertical size={22} color={foreground} />
+              <DotsThreeVertical size={24} color={foreground} />
             </Pressable>
           ) : (
             <View className="h-11 w-11" />
@@ -575,7 +575,7 @@ function LoadedTimer({
               <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
                 {t("session__timer_set_of", { number: current.index + 1, total: current.total })}
               </Text>
-              {parts.length > 0 ? <Text className="text-body text-muted">·</Text> : null}
+              {parts.length > 0 ? <View className="size-1 rounded-full bg-muted" /> : null}
               {valueRow}
             </View>
             {action.next ? (

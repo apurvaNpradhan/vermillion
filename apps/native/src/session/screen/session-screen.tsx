@@ -537,7 +537,7 @@ function LoadedSession({
                   isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
                   onPress={() => void addExercises()}
                 >
-                  <Plus size={16} color={foreground} weight="bold" />
+                  <Plus size={20} color={foreground} />
                   <Button.Label>{t("training__add_exercises")}</Button.Label>
                 </Button>
               </View>

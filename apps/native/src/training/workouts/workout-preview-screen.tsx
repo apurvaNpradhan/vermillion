@@ -99,7 +99,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
               }
             >
-              <ShareNetwork size={22} color={foreground} />
+              <ShareNetwork size={24} color={foreground} />
             </Pressable>
           ) : undefined
         }
@@ -245,7 +245,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                     ) : null}
                     {entry.restSeconds !== null ? (
                       <View className="min-h-8 flex-row items-center gap-2 px-1">
-                        <Timer size={16} color={subtle} />
+                        <Timer size={20} color={subtle} />
                         <Text className="text-caption text-muted tabular-nums">
                           {t("training__rest_link", { value: formatClock(entry.restSeconds) })}
                         </Text>
@@ -253,7 +253,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                     ) : null}
                     {entry.note ? (
                       <View className="min-h-8 flex-row items-start gap-2 px-1">
-                        <Note size={16} color={subtle} />
+                        <Note size={20} color={subtle} />
                         <Text className="flex-1 text-caption text-muted">{entry.note}</Text>
                       </View>
                     ) : null}

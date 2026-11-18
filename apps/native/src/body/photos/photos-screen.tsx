@@ -94,7 +94,7 @@ export function PhotosScreen() {
           onPress={() => setMenu(true)}
           className="h-11 w-11 items-center justify-center"
         >
-          <DotsThreeVertical size={22} weight="bold" color={ink} />
+          <DotsThreeVertical size={24} color={ink} />
         </Pressable>
       }
     >

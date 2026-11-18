@@ -362,7 +362,7 @@ export function TabBar({
                     {menuActive ? (
                       <View className="flex-row items-center gap-0.5">
                         {iconOf(menuActive, true, identity)}
-                        <CaretUpDown size={12} color={identity} />
+                        <CaretUpDown size={20} color={identity} />
                       </View>
                     ) : (
                       <CaretUpDown size={20} color={muted} />
@@ -419,7 +419,7 @@ export function TabBar({
               className="items-center justify-center rounded-full bg-identity shadow-overlay active:opacity-90"
               style={{ width: TAB_BAR_HEIGHT, height: TAB_BAR_HEIGHT }}
             >
-              <action.icon size={24} color={onIdentity} weight="bold" />
+              <action.icon size={24} color={onIdentity} />
             </Pressable>
           </Animated.View>
         ) : null}

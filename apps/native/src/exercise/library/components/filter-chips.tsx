@@ -22,7 +22,7 @@ export function FilterChips({ chips }: { chips: FilterChip[] }) {
           className="h-8 flex-row items-center gap-1.5 rounded-full bg-default pl-3 pr-2"
         >
           <Text className="text-label font-medium text-foreground">{chip.label}</Text>
-          <X size={12} weight="bold" color={subtle} />
+          <X size={20} color={subtle} />
         </Pressable>
       ))}
     </View>

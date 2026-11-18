@@ -287,7 +287,7 @@ function LoadedEditor({
                 });
               }}
             >
-              <ShareNetwork size={22} color={foreground} />
+              <ShareNetwork size={24} color={foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -295,7 +295,7 @@ function LoadedEditor({
               onPress={() => setMenuOpen(true)}
               className="h-11 w-11 items-center justify-center"
             >
-              <DotsThreeVertical size={22} weight="bold" color={foreground} />
+              <DotsThreeVertical size={24} color={foreground} />
             </Pressable>
           </View>
         }
@@ -356,9 +356,9 @@ function LoadedEditor({
                 {t(showMore ? "training__show_less" : "training__show_more")}
               </Text>
               {showMore ? (
-                <CaretUp size={16} color={foreground} weight="bold" />
+                <CaretUp size={20} color={foreground} />
               ) : (
-                <CaretDown size={16} color={foreground} weight="bold" />
+                <CaretDown size={20} color={foreground} />
               )}
             </Pressable>
             {showMore ? (
@@ -430,7 +430,7 @@ function LoadedEditor({
                     isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
                     onPress={() => void addExercises()}
                   >
-                    <Plus size={16} color={foreground} weight="bold" />
+                    <Plus size={20} color={foreground} />
                     <Button.Label>{t("training__add_exercises")}</Button.Label>
                   </Button>
                 </View>

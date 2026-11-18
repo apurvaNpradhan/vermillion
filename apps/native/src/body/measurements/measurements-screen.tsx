@@ -1,3 +1,4 @@
+import { ChangeLine, changeDirection } from "@/body/change-line";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -93,13 +94,13 @@ export function MeasurementsScreen() {
                             : t("body__no_measurements")}
                         </Text>
                         {delta !== null ? (
-                          <Text className="text-caption text-muted">
-                            {t("body__metric_change", {
-                              arrow: delta > 0 ? "↑" : delta < 0 ? "↓" : "→",
+                          <ChangeLine
+                            direction={changeDirection(delta)}
+                            text={t("body__metric_change", {
                               value: number(Math.abs(state.display(metric, delta))),
                               unit: state.unit(metric),
                             })}
-                          </Text>
+                          />
                         ) : null}
                       </Pressable>
                     );
@@ -145,21 +146,18 @@ export function MeasurementsScreen() {
                         )}
                       </Text>
                       {item.history.length > 1 ? (
-                        <Text className="text-caption text-muted">
-                          {t("body__ratio_change", {
-                            arrow:
-                              (item.history.at(-1) ?? 0) > (item.history.at(-2) ?? 0)
-                                ? "↑"
-                                : (item.history.at(-1) ?? 0) < (item.history.at(-2) ?? 0)
-                                  ? "↓"
-                                  : "→",
+                        <ChangeLine
+                          direction={changeDirection(
+                            (item.history.at(-1) ?? 0) - (item.history.at(-2) ?? 0),
+                          )}
+                          text={t("body__ratio_change", {
                             value: new Intl.NumberFormat(i18n.language, {
                               maximumFractionDigits: 3,
                             }).format(
                               Math.abs((item.history.at(-1) ?? 0) - (item.history.at(-2) ?? 0)),
                             ),
                           })}
-                        </Text>
+                        />
                       ) : null}
                     </View>
                   ),

@@ -177,7 +177,7 @@ function ReminderEditor({
                             onPress={() => move(-1)}
                             className="h-12 w-12 items-center justify-center"
                           >
-                            <Minus size={18} color={foreground} weight="bold" />
+                            <Minus size={20} color={foreground} />
                           </Pressable>
                           <Text
                             accessibilityLabel={t("body__reminder_time_option", {
@@ -195,7 +195,7 @@ function ReminderEditor({
                             onPress={() => move(1)}
                             className="h-12 w-12 items-center justify-center"
                           >
-                            <Plus size={18} color={foreground} weight="bold" />
+                            <Plus size={20} color={foreground} />
                           </Pressable>
                         </View>
                       </View>

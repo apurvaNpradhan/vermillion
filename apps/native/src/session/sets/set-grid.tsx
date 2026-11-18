@@ -186,7 +186,7 @@ export const SetGrid = memo(function SetGrid({
       </View>
       {readOnly ? null : (
         <Button variant="secondary" onPress={() => onAddSet(exercise.id)}>
-          <Plus size={16} color={subtle} weight="bold" />
+          <Plus size={20} color={subtle} />
           <Button.Label>{t("session__add_set")}</Button.Label>
         </Button>
       )}

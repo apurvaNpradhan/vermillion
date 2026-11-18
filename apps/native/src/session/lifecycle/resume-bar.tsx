@@ -110,7 +110,7 @@ function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: ()
           {current ? ` · ${current.title}` : ""}
         </Text>
       </View>
-      <CaretUp size={16} color={subtle} weight="bold" />
+      <CaretUp size={20} color={subtle} />
     </Pressable>
   );
 }
@@ -131,7 +131,7 @@ function ManySessions({ count, onOpen }: { count: number; onOpen: () => void }) 
       <Text numberOfLines={1} className="min-w-0 flex-1 font-medium text-label text-foreground">
         {t("session__many_in_progress", { count })}
       </Text>
-      <CaretUp size={16} color={subtle} weight="bold" />
+      <CaretUp size={20} color={subtle} />
     </Pressable>
   );
 }

@@ -277,7 +277,7 @@ function SwipeButton({
           tone === "danger" ? "bg-danger/15" : "bg-default",
         )}
       >
-        <action.icon size={20} color={color} weight="bold" />
+        <action.icon size={20} color={color} />
         {action.iconOnly ? null : (
           <Text
             className={cn(

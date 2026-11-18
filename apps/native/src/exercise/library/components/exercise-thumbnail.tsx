@@ -38,6 +38,7 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
   const remoteUri = thumbnailUrl(appConfig.urls.exerciseMedia, thumbnailKey);
   const cached = useCachedThumbnail(remoteUri, localOnly && !mediaId);
   const uri = localOnly ? cached.uri : remoteUri;
+  const initial = title?.trim().slice(0, 1).toLocaleUpperCase() ?? "";
   const avatar = (
     <View
       accessibilityElementsHidden
@@ -49,12 +50,19 @@ export const ExerciseThumbnail = memo(function ExerciseThumbnail({
       }
       style={{ width: size, height: size, backgroundColor: plate?.background }}
     >
-      <Text
-        className={plate ? "font-medium" : "font-medium text-label text-muted"}
-        style={plate ? { color: plate.ink, fontSize: size * 0.42 } : undefined}
-      >
-        {title?.trim().slice(0, 1).toLocaleUpperCase() || "·"}
-      </Text>
+      {initial ? (
+        <Text
+          className={plate ? "font-medium" : "font-medium text-label text-muted"}
+          style={plate ? { color: plate.ink, fontSize: size * 0.42 } : undefined}
+        >
+          {initial}
+        </Text>
+      ) : (
+        <View
+          className="size-1.5 rounded-full bg-muted"
+          style={plate ? { backgroundColor: plate.ink } : undefined}
+        />
+      )}
     </View>
   );
   const showsAvatar = !mediaId && (uri === null || failedUrl === uri);

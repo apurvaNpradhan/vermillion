@@ -377,7 +377,7 @@ function FinishFlow({
               void form.handleSubmit();
             }}
           >
-            <ShareNetwork size={18} color={foreground} />
+            <ShareNetwork size={20} color={foreground} />
             <Button.Label>{t("session__save_and_share")}</Button.Label>
           </Button>
         </View>

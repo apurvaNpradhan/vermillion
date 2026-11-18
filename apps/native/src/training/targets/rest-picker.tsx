@@ -167,7 +167,7 @@ export function RestPicker({
             : "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
         }
       >
-        <Timer size={18} color={subtle} />
+        <Timer size={20} color={subtle} />
         {link ? (
           <Text className="text-label text-subtle tabular-nums">
             {t(group ? "training__rest_group_link" : "training__rest_link", {
@@ -182,7 +182,7 @@ export function RestPicker({
             <Text className="font-medium text-label text-foreground tabular-nums">
               {value === null ? t("training__rest_off") : formatClock(value)}
             </Text>
-            <CaretRight size={14} color={subtle} />
+            <CaretRight size={20} color={subtle} />
           </>
         )}
       </Pressable>

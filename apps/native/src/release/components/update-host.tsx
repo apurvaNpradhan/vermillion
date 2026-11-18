@@ -65,7 +65,7 @@ function UpdateAvailableNotice({ version, onDismiss }: { version: string; onDism
           hitSlop={12}
           onPress={onDismiss}
         >
-          <X size={18} color={muted} />
+          <X size={20} color={muted} />
         </Pressable>
       </View>
     </View>

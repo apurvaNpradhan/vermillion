@@ -115,7 +115,7 @@ export function ExercisePickScreen({
               onPress={() => onCreate("")}
               className="h-11 w-11 items-center justify-center"
             >
-              <Plus size={20} weight="bold" color={foreground} />
+              <Plus size={20} color={foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -123,7 +123,7 @@ export function ExercisePickScreen({
               onPress={close}
               className="h-11 w-11 items-center justify-center"
             >
-              <X size={20} weight="bold" color={foreground} />
+              <X size={20} color={foreground} />
             </Pressable>
           </>
         }

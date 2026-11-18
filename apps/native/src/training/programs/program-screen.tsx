@@ -235,7 +235,7 @@ function LoadedProgram({
                 });
               }}
             >
-              <ShareNetwork size={22} color={foreground} />
+              <ShareNetwork size={24} color={foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -243,7 +243,7 @@ function LoadedProgram({
               onPress={() => setMenuOpen(true)}
               className="h-11 w-11 items-center justify-center"
             >
-              <DotsThreeVertical size={22} weight="bold" color={foreground} />
+              <DotsThreeVertical size={24} color={foreground} />
             </Pressable>
           </View>
         }
@@ -283,7 +283,7 @@ function LoadedProgram({
                       : t("training__planned_summary", { count: program.plannedWeeks })}
                   </Text>
                 </View>
-                <PencilSimple size={18} color={foreground} />
+                <PencilSimple size={20} color={foreground} />
               </Pressable>
               <ListSection variant="plain">
                 <ListRow
