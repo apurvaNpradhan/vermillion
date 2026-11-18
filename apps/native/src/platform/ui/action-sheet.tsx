@@ -1,9 +1,8 @@
 import { BottomSheet } from "heroui-native";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ListRow, ListSection } from "./list";
-import { SHEET_SPRING } from "./sheet-motion";
+import { ScrollableSheetContent } from "./scrollable-sheet-content";
 import type { SwipeAction } from "./swipe-row";
 
 /** Roughly the sheet's closing animation. */
@@ -24,17 +23,11 @@ export function ActionSheet({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-4 px-4 pt-2"
-          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
-        >
+        <ScrollableSheetContent>
           <View className="px-1">
             <BottomSheet.Title numberOfLines={1} className="font-semibold text-title-lg">
               {title}
@@ -57,7 +50,7 @@ export function ActionSheet({
               />
             ))}
           </ListSection>
-        </BottomSheet.Content>
+        </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );
