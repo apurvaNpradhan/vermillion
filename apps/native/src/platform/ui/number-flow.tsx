@@ -1,12 +1,8 @@
 import { Text, View, useWindowDimensions } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { Easing, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { tokenizeNumber } from "./number-flow-format";
+import { useReduceMotion } from "./use-reduce-motion";
 
 const DIGITS = Array.from({ length: 10 }, (_, index) => index);
 /** The text styles a rolling number can take, with the line height each one needs. */
@@ -19,7 +15,10 @@ const SIZES = {
 /**
  * A number whose digits roll to the new value. Only for summary numbers, never while logging.
  * `decimals` fixes the digits after the point; `suffix` (a unit) follows, set apart by a space.
- * Under Reduce Motion it is plain text.
+ * `reserve` is the most digits the value can have: the row keeps the width of that many digits
+ * (tabular figures are equal width), so what sits beside it does not shift when the count
+ * changes. Under Reduce Motion, or when the system font scale is past 1.3 and the reels would
+ * clip, it is plain scaling text.
  */
 export function NumberFlow({
   value,
@@ -27,14 +26,16 @@ export function NumberFlow({
   size = "xl",
   decimals,
   suffix,
+  reserve,
 }: {
   value: number;
   locale: string;
   size?: keyof typeof SIZES;
   decimals?: number;
   suffix?: string;
+  reserve?: number;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const { fontScale } = useWindowDimensions();
   const { style, lineHeight } = SIZES[size];
   const height = Math.ceil(lineHeight * Math.min(fontScale, 1.3));
@@ -43,7 +44,8 @@ export function NumberFlow({
     maximumFractionDigits: decimals,
   });
   const text = suffix ? `${format.format(value)} ${suffix}` : format.format(value);
-  if (reduced) {
+  const missing = reserve === undefined ? 0 : Math.max(reserve - digitCount(value, decimals), 0);
+  if (reduced || fontScale > 1.3) {
     return (
       <Text className={style} maxFontSizeMultiplier={1.3}>
         {text}
@@ -69,8 +71,24 @@ export function NumberFlow({
           {` ${suffix}`}
         </Text>
       ) : null}
+      {missing > 0 ? (
+        <Text
+          className={`${style} opacity-0`}
+          maxFontSizeMultiplier={1.3}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          {"0".repeat(missing)}
+        </Text>
+      ) : null}
     </View>
   );
+}
+
+/** How many digits the value shows, counting the fixed decimals. */
+function digitCount(value: number, decimals?: number): number {
+  const whole = String(Math.trunc(Math.abs(value))).length;
+  return whole + (decimals ?? 0);
 }
 
 function Digit({ digit, height, style }: { digit: number; height: number; style: string }) {

@@ -342,7 +342,7 @@ function FinishFlow({
         </View>
         <form.Subscribe selector={(state) => state.values.duration}>
           {(duration) => (
-            <View className="flex-row gap-8 px-4 py-3">
+            <View className="flex-row flex-wrap gap-x-8 gap-y-3 px-4 py-3">
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${t("session__stat_duration")}, ${formatElapsed(Number(duration))}`}
@@ -363,15 +363,16 @@ function FinishFlow({
                   value={volumeInUnit(totals.volume, unit)}
                   locale={i18n.language}
                   size="title"
+                  reserve={6}
                   suffix={unitLabel}
                 />
               </Stat>
               <Stat label={t("session__stat_sets")}>
-                <NumberFlow value={totals.sets} locale={i18n.language} size="title" />
+                <NumberFlow value={totals.sets} locale={i18n.language} size="title" reserve={3} />
               </Stat>
               {recordCount > 0 ? (
                 <Stat label={t("session__stat_records")}>
-                  <NumberFlow value={recordCount} locale={i18n.language} size="title" />
+                  <NumberFlow value={recordCount} locale={i18n.language} size="title" reserve={2} />
                 </Stat>
               ) : null}
             </View>

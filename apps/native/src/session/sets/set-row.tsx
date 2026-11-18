@@ -196,7 +196,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
             {running ? (
               <Stop size={20} weight="fill" color={onIdentity} />
             ) : (
-              <Play size={20} weight="fill" color={subtle} />
+              <Play size={20} color={subtle} />
             )}
           </Pressable>
         ) : null}

@@ -1143,8 +1143,6 @@
   "body__change_date": "Change date and time: {{date}}",
   "body__earlier": "Earlier {{part}}",
   "body__later": "Later {{part}}",
-  "body__minus": "−",
-  "body__plus": "+",
   "body__more_entries": "More entries",
   "body__measurements": "Measurements",
   "body__tracked_metrics": "Tracked metrics",

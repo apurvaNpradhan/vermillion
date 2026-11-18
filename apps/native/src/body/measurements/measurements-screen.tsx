@@ -1,4 +1,4 @@
-import { ChangeLine, changeDirection } from "@/body/change-line";
+import { ChangeLine, changeDirection, useChangeSpeech } from "@/body/change-line";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -26,6 +26,7 @@ export function MeasurementsScreen() {
   const { reminder } = useLocalSearchParams<{ reminder?: string }>();
   const state = useMeasurements();
   const { t, i18n } = useTranslation();
+  const speech = useChangeSpeech();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (reminder === "1") {
@@ -71,11 +72,32 @@ export function MeasurementsScreen() {
                     const rows = state.forMetric(metric);
                     const last = lastN(rows, 1)[0];
                     const delta = changeSincePrevious(rows);
+                    const valueText = last
+                      ? t("body__value", {
+                          value: number(state.display(metric, last.value)),
+                          unit: state.unit(metric),
+                        })
+                      : t("body__no_measurements");
+                    const changeText =
+                      delta !== null
+                        ? t("body__metric_change", {
+                            value: number(Math.abs(state.display(metric, delta))),
+                            unit: state.unit(metric),
+                          })
+                        : null;
                     return (
                       <Pressable
                         key={metric}
                         accessibilityRole="button"
-                        accessibilityLabel={t(metricLabels[metric])}
+                        accessibilityLabel={[
+                          t(metricLabels[metric]),
+                          valueText,
+                          delta !== null && changeText !== null
+                            ? speech(changeDirection(delta), changeText)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
                         onPress={() =>
                           router.push({ pathname: "/body/metric/[metric]", params: { metric } })
                         }
@@ -86,20 +108,13 @@ export function MeasurementsScreen() {
                         </Text>
                         <Sparkline values={lastN(rows, 7).map((row) => row.value)} />
                         <Text className="text-numeric-md tabular-nums text-foreground">
-                          {last
-                            ? t("body__value", {
-                                value: number(state.display(metric, last.value)),
-                                unit: state.unit(metric),
-                              })
-                            : t("body__no_measurements")}
+                          {valueText}
                         </Text>
-                        {delta !== null ? (
+                        {delta !== null && changeText !== null ? (
                           <ChangeLine
+                            spoken={false}
                             direction={changeDirection(delta)}
-                            text={t("body__metric_change", {
-                              value: number(Math.abs(state.display(metric, delta))),
-                              unit: state.unit(metric),
-                            })}
+                            text={changeText}
                           />
                         ) : null}
                       </Pressable>

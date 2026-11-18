@@ -7,11 +7,11 @@ import { useThemeColor } from "heroui-native";
 import { Play } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { MuscleIcon } from "../../library/components/muscle-icon";
 
 /**
@@ -37,7 +37,7 @@ export function VideoHero({
   height: number;
 }) {
   const { t } = useTranslation();
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const focused = useIsFocused();
   const [paused, setPaused] = useState(reduced);
   const [firstFrame, setFirstFrame] = useState(false);
@@ -137,7 +137,7 @@ export function VideoHero({
           accessibilityElementsHidden
         >
           <View className="size-14 items-center justify-center rounded-full bg-overlay/80">
-            <Play size={24} weight="fill" color={foreground} />
+            <Play size={24} color={foreground} />
           </View>
         </View>
       ) : null}

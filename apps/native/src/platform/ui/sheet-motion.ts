@@ -1,5 +1,7 @@
 import { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 
+import { useReduceMotion } from "./use-reduce-motion";
+
 /**
  * `motion-sheet` from DESIGN.md for every bottom sheet and the tab pill's morph: a quick,
  * near-critically damped spring with no overshoot. With mass 0.7, stiffness 600 and damping 39
@@ -14,12 +16,12 @@ export const SHEET_SPRING = {
   reduceMotion: ReduceMotion.System,
 };
 
-/**
- * The same spring as a fade for dialogs: `Dialog.Content` takes Reanimated layout animations, not
- * bottom-sheet configs, so a dialog fades in on `motion-sheet` and out over `motion-fast`. Pass as
- * `animation={DIALOG_MOTION}`.
- */
-export const DIALOG_MOTION = {
+const REDUCED_DIALOG = {
+  entering: FadeIn.duration(120).reduceMotion(ReduceMotion.Never),
+  exiting: FadeOut.duration(120).reduceMotion(ReduceMotion.Never),
+};
+
+const DIALOG_MOTION = {
   entering: FadeIn.springify()
     .damping(SHEET_SPRING.damping)
     .stiffness(SHEET_SPRING.stiffness)
@@ -27,3 +29,12 @@ export const DIALOG_MOTION = {
     .reduceMotion(ReduceMotion.Never),
   exiting: FadeOut.duration(120).reduceMotion(ReduceMotion.Never),
 };
+
+/**
+ * The same spring as a fade for dialogs: `Dialog.Content` takes Reanimated layout animations, not
+ * bottom-sheet configs, so a dialog fades in on `motion-sheet` and out over `motion-fast`. Under
+ * Reduce Motion both are a 120ms fade. Pass the result as `animation`.
+ */
+export function useDialogMotion() {
+  return useReduceMotion() ? REDUCED_DIALOG : DIALOG_MOTION;
+}

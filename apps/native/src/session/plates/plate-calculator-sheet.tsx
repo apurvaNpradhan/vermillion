@@ -1,11 +1,13 @@
 import { useRouter } from "expo-router";
 import { BottomSheet } from "heroui-native";
+import { Minus } from "phosphor-react-native";
 import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatWeight, type LoadPlate, type WeightUnit } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
@@ -49,6 +51,7 @@ export function PlateChip({
   onRemove?: () => void;
   removeLabel?: string;
 }) {
+  const muted = useSubtleColor();
   return (
     <View
       className={
@@ -77,7 +80,7 @@ export function PlateChip({
           onPress={onRemove}
           className="min-h-11 min-w-9 items-center justify-center rounded-r-xl bg-surface active:opacity-60"
         >
-          <Text className="text-body text-muted">−</Text>
+          <Minus size={20} color={muted} />
         </Pressable>
       ) : null}
     </View>

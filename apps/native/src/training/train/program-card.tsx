@@ -96,7 +96,7 @@ export function ProgramCard({
       </View>
       {next?.workoutId && nextTitle ? (
         <Button size="lg" className="h-14 w-full" onPress={() => onStart(next.workoutId ?? "")}>
-          <Play size={20} weight="fill" color={onAction} />
+          <Play size={20} color={onAction} />
           <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>
         </Button>
       ) : null}

@@ -111,7 +111,7 @@ export function MediaImage({
           className="absolute bottom-1 right-1 items-center justify-center rounded-full bg-background/80"
           style={{ width: BADGE, height: BADGE }}
         >
-          <WarningCircle size={20} color={danger} weight="fill" />
+          <WarningCircle size={20} color={danger} />
         </Pressable>
       ) : null}
     </View>

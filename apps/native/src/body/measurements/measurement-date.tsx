@@ -1,4 +1,6 @@
 import { stepZoned } from "@workspace/shared";
+import { useThemeColor } from "heroui-native";
+import { Minus, Plus } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
@@ -24,6 +26,7 @@ export function MeasurementDate({
 }) {
   const [open, setOpen] = useState(false);
   const { t, i18n } = useTranslation();
+  const foreground = useThemeColor("foreground");
   const date = new Date(value);
   const label = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
@@ -56,7 +59,7 @@ export function MeasurementDate({
                 accessibilityLabel={t("body__earlier", { part: t(keys[part]) })}
                 onPress={() => step(part, -1)}
               >
-                <Button.Label>{t("body__minus")}</Button.Label>
+                <Minus size={20} color={foreground} />
               </Button>
               <Button
                 size="sm"
@@ -64,7 +67,7 @@ export function MeasurementDate({
                 accessibilityLabel={t("body__later", { part: t(keys[part]) })}
                 onPress={() => step(part, 1)}
               >
-                <Button.Label>{t("body__plus")}</Button.Label>
+                <Plus size={20} color={foreground} />
               </Button>
             </View>
           ))

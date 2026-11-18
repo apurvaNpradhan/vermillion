@@ -2,7 +2,7 @@ import { Dialog } from "heroui-native";
 import { View } from "react-native";
 
 import { Button } from "./button";
-import { DIALOG_MOTION } from "@/platform/ui/sheet-motion";
+import { useDialogMotion } from "@/platform/ui/sheet-motion";
 
 /** A themed, two-action confirmation. Dismissal never invokes the confirmed action. */
 export function ConfirmationDialog({
@@ -24,12 +24,13 @@ export function ConfirmationDialog({
   confirmLabel: string;
   onConfirm: () => void;
 }) {
+  const dialogMotion = useDialogMotion();
   return (
     <Dialog isOpen={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal unstable_accessibilityContainerViewIsModal>
         <Dialog.Overlay variant="default" />
         <Dialog.Content
-          animation={DIALOG_MOTION}
+          animation={dialogMotion}
           isSwipeable={false}
           className="w-full max-w-sm self-center gap-6 rounded-2xl bg-overlay p-6"
         >

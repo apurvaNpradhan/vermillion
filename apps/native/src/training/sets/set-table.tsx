@@ -53,6 +53,7 @@ export function setColumns(type: ExerciseType): readonly (SetField | "effort")[]
 export function SetTable({
   type,
   sets,
+  ids,
   chips,
   weightUnit,
   effortScale,
@@ -64,6 +65,8 @@ export function SetTable({
   onRemove?: (index: number) => void;
   type: ExerciseType;
   sets: readonly PlannedSet[];
+  /** A stable draft id per set, used as the row key so edits and removals keep row state. */
+  ids: readonly string[];
   /** The text of each set's chip (W, 1…n, D, F, T, B, M). */
   chips: readonly string[];
   weightUnit: WeightUnit;
@@ -73,7 +76,7 @@ export function SetTable({
   onEffort: (index: number) => void;
 }) {
   const { t } = useTranslation();
-  const rowMotion = useRowMotion({ exit: false });
+  const rowMotion = useRowMotion();
   const columns = setColumns(type);
   const unitName = t(weightUnit === "kg" ? "training__unit_kg" : "training__unit_lb");
 
@@ -250,7 +253,7 @@ export function SetTable({
             </View>
           );
           return (
-            <Animated.View key={index} {...rowMotion}>
+            <Animated.View key={ids[index] ?? index} {...rowMotion}>
               {onRemove && sets.length > 1 ? (
                 <SwipeRow
                   actions={[
