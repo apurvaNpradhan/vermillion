@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { crudEntry, createFakeDatabase } from "./fake-database";
 import { claimDeviceOwner } from "./device-owner";
 import { ensureInstallId } from "./install-meta";
-import { uploadColumns } from "./upload-columns";
+import { legacyUploadColumns, uploadColumns } from "./upload-columns";
 import { createConnector, SyncUploadError, type ConnectorSignal } from "./connector";
 import type { SyncTransport } from "./transport";
 
@@ -39,6 +39,7 @@ function setup(
     transport,
     onSignal: (signal) => signals.push(signal),
     uploadColumns,
+    legacyUploadColumns,
   });
   return { ...fake, connector, uploads, signals };
 }
@@ -326,5 +327,58 @@ describe("uploadData", () => {
       expect(failing.state.clears).toBe(0);
       expect(rejectedRows(failing)).toEqual([]);
     });
+  });
+});
+
+describe("queued preferences written before the patch column", () => {
+  const PREFS = "01900000-0000-7000-8000-0000000000aa";
+
+  it("uploads a legacy PATCH with its original columns and digest", async () => {
+    const fake = setup();
+    await ready(fake);
+    fake.queue(
+      [crudEntry("PATCH", PREFS, { ui: '{"weightUnit":"lb"}', locale: null }, "user_preferences")],
+      20,
+    );
+    await fake.connector.uploadData();
+    expect(fake.uploads).toHaveLength(1);
+    const [request] = fake.uploads;
+    expect(request?.ops[0]).toMatchObject({
+      op: "PATCH",
+      opData: { ui: '{"weightUnit":"lb"}', locale: null },
+    });
+    expect(request?.digest).toBe(computeOpsDigest(request?.ops ?? []));
+    expect(fake.state.completed).toEqual([20]);
+  });
+
+  it("keeps a legacy PUT's columns, and sends a new write as its patch only", async () => {
+    const fake = setup();
+    await ready(fake);
+    fake.queue(
+      [
+        crudEntry(
+          "PUT",
+          PREFS,
+          { user_id: OWNER, ui: '{"keepAwake":false}', created_at: "2026-01-01T00:00:00.000Z" },
+          "user_preferences",
+        ),
+      ],
+      21,
+    );
+    fake.queue(
+      [
+        crudEntry(
+          "PATCH",
+          PREFS,
+          { ui: '{"keepAwake":true}', patch: '{"ui":{"keepAwake":true}}' },
+          "user_preferences",
+        ),
+      ],
+      22,
+    );
+    await fake.connector.uploadData();
+    await fake.connector.uploadData();
+    expect(fake.uploads[0]?.ops[0]?.opData).toEqual({ ui: '{"keepAwake":false}' });
+    expect(fake.uploads[1]?.ops[0]?.opData).toEqual({ patch: '{"ui":{"keepAwake":true}}' });
   });
 });

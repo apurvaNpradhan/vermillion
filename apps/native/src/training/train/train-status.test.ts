@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { combineStatus, isFirstSync, trainStatus } from "./train-status";
 
 const active = { kind: "active", owner: "a" } as const;
-const base = { failed: false, loading: false, count: 0 };
+const base = { failed: false, loading: false, count: 0, online: true };
 
 describe("trainStatus", () => {
   it("tells the five states apart", () => {
@@ -24,16 +24,22 @@ describe("trainStatus", () => {
 
   it("says the first download needs a connection while the device is offline", () => {
     const offline = { hasSynced: false, indicator: "paused", phase: active } as const;
-    expect(trainStatus({ ...base, snapshot: offline })).toBe("first-sync-offline");
+    expect(trainStatus({ ...base, online: false, snapshot: offline })).toBe("first-sync-offline");
+    // PowerSync still handshaking while the server is reachable is the normal first sync.
+    expect(trainStatus({ ...base, snapshot: offline })).toBe("first-sync");
     expect(isFirstSync("first-sync-offline")).toBe(true);
     expect(isFirstSync("first-sync")).toBe(true);
     expect(isFirstSync("empty")).toBe(false);
     // Before the account is known nothing has been tried: still just setting up.
-    expect(trainStatus({ ...base, snapshot: { ...offline, phase: { kind: "starting" } } })).toBe(
-      "first-sync",
-    );
+    expect(
+      trainStatus({
+        ...base,
+        online: false,
+        snapshot: { ...offline, phase: { kind: "starting" } },
+      }),
+    ).toBe("first-sync");
     // Data that is already on the device is shown, offline or not.
-    expect(trainStatus({ ...base, count: 1, snapshot: offline })).toBe("list");
+    expect(trainStatus({ ...base, online: false, count: 1, snapshot: offline })).toBe("list");
   });
 });
 

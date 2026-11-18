@@ -8,7 +8,7 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 import { Card } from "@/platform/ui/card";
 import { Field } from "@/platform/ui/field";
 import { FormError } from "@/platform/ui/form-error";
@@ -29,12 +29,11 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const online = useIsOnline();
 
   const valid = z.email().safeParse(email.trim()).success;
 
   async function send() {
-    if (!isOnlineNow()) return;
+    if (!(await confirmOnline())) return;
     const target = email.trim();
     if (!z.email().safeParse(target).success) {
       setFailure(t("auth__error_email_invalid"));
@@ -52,7 +51,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
   }
 
   async function confirm(otp: string) {
-    if (sent === null || busy || !isOnlineNow()) return;
+    if (sent === null || busy || !(await confirmOnline())) return;
     setBusy(true);
     setFailure(null);
     const error = await confirmChange(sent, otp);
@@ -88,11 +87,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
               autoFocus
               onSubmitEditing={() => void send()}
             />
-            <Button
-              variant="secondary"
-              isDisabled={busy || !valid || !online}
-              onPress={() => void send()}
-            >
+            <Button variant="secondary" isDisabled={busy || !valid} onPress={() => void send()}>
               {busy ? <Spinner size="sm" /> : null}
               <Button.Label>{t("auth__send_code")}</Button.Label>
             </Button>

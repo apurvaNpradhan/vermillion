@@ -42,6 +42,17 @@ that still waited for the server.
   server applies the patch key by key, so a stale value never overwrites another device's newer
   edit, and a cleared time zone survives the first insert, where PowerSync drops NULL columns. The
   avatar is checked only when a patch changes it. Same-key conflicts: last write wins.
+- Writes queued by a build before the `patch` column have none: the connector keeps their original
+  projection (`locale`, `timezone`, `ui`) and so their digest, because stripping it would lose the
+  payload and re-projecting it would fail replay (`SYNC_REPLAY_MISMATCH`) after a lost ack. Only
+  entries carrying `patch` upload `patch` alone. The server still reads both shapes.
+- `muscleGoals` is a map that devices edit one muscle at a time, so the patch carries
+  `muscleGoalChanges` (muscle to goal, `null` resets that muscle) and the server merges it into
+  the stored map under the same per-user lock. `ui.muscleGoals` (the whole map) stays for older
+  builds and overwrites, like any other `ui` key.
+- A `blocked` sync phase (a different account was seen) denies preference reads and writes even
+  while the cached session still names the owner, and the write transaction asks again whether the
+  account is still authorized.
 - Reads and writes need the session user to be the Device owner (when there is a session): another
   account's session on the device reads nothing and cannot write, and the write transaction checks
   the owner and the install id again.

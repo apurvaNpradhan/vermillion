@@ -19,6 +19,12 @@ describe("preferencesAccess", () => {
     expect(preferencesAccess({ sessionUser: "b", owner: "a", installId: "i1" })).toBeNull();
   });
 
+  it("denies access while sync is blocked, whatever the cached session says", () => {
+    const blocked = { owner: "a", installId: "i1", blocked: true };
+    expect(preferencesAccess({ ...blocked, sessionUser: "a" })).toBeNull();
+    expect(preferencesAccess({ ...blocked, sessionUser: null })).toBeNull();
+  });
+
   it("waits for an owner and an install id", () => {
     expect(preferencesAccess({ sessionUser: "a", owner: null, installId: "i1" })).toBeNull();
     expect(preferencesAccess({ sessionUser: "a", owner: "a", installId: null })).toBeNull();

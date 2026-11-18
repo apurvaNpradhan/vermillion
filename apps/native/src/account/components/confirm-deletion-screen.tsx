@@ -5,7 +5,7 @@ import { errorMessage } from "@workspace/client/error-message";
 
 import { useSession } from "@/auth";
 import { useTranslation } from "@/platform/i18n";
-import { isOnlineNow, useIsOnline } from "@/platform/network";
+import { confirmOnline } from "@/platform/network";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { FormError } from "@/platform/ui/form-error";
 import { Screen } from "@/platform/ui/screen";
@@ -19,7 +19,6 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
   const { t } = useTranslation();
   const { session } = useSession();
   const { confirmDeletion, isPending, isSuccess, error } = useConfirmDeletion();
-  const online = useIsOnline();
   if (isSuccess) return <AccountDeletedScreen />;
   return (
     <Screen withTopInset>
@@ -35,9 +34,12 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
           <>
             <Button
               variant="danger-soft"
-              isDisabled={!token || isPending || !online}
+              isDisabled={!token || isPending}
               onPress={() => {
-                if (token && isOnlineNow()) confirmDeletion({ token });
+                if (!token) return;
+                void confirmOnline().then((online) => {
+                  if (online) confirmDeletion({ token });
+                });
               }}
             >
               {isPending ? <Spinner size="sm" /> : null}

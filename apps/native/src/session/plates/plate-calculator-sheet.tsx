@@ -25,6 +25,7 @@ import {
   stackSideKg,
   stackTotalKg,
   type LoadSide,
+  noBarCopy,
 } from "./plate-view";
 import { BarDiagram, PLATE_FILL } from "./bar-diagram";
 import { useEquipmentLabel } from "./use-equipment-label";
@@ -198,7 +199,11 @@ function CalculatorBody({
     setMode(next);
   };
   // Before the first sync the account's own kit may still arrive: say that, not "enable a bar".
-  const syncing = state.rows.length === 0 && !state.hasSynced;
+  const noBarKey = noBarCopy({
+    rowCount: state.rows.length,
+    hasSynced: state.hasSynced,
+    indicator: state.indicator,
+  });
   const unitPlates = state.rows.flatMap((p) =>
     p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
   );
@@ -232,9 +237,7 @@ function CalculatorBody({
               </View>
             ) : null}
             {!state.bar ? (
-              <Text className="text-body text-muted">
-                {syncing ? t("plates__syncing") : t("plates__no_bar")}
-              </Text>
+              <Text className="text-body text-muted">{t(noBarKey)}</Text>
             ) : (
               <>
                 <SegmentedControl

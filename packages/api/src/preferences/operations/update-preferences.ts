@@ -2,11 +2,20 @@ import { ORPCError } from "@orpc/server";
 import { SyncRejection } from "../../platform/sync/handler";
 import { media, assertMediaReference } from "../../media/index";
 import type { DbExecutor } from "@workspace/db";
-import type { Preferences, UpdatePreferences } from "@workspace/shared";
+import {
+  TARGET_MUSCLES,
+  type MuscleGoals,
+  type Preferences,
+  type TargetMuscle,
+  type UpdatePreferences,
+} from "@workspace/shared";
 import { and, eq, sql } from "drizzle-orm";
 
 import { userPreferences } from "../tables";
 import { getPreferences } from "./get-preferences";
+
+const targetMuscleOf = (value: string): TargetMuscle | undefined =>
+  TARGET_MUSCLES.find((muscle) => muscle === value);
 
 /**
  * Saves any subset of the preferences, creating the row on first write. `ui`
@@ -22,7 +31,7 @@ export async function updatePreferences(
     ...(input.locale !== undefined ? { locale: input.locale } : {}),
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
   };
-  const ui = input.ui ?? {};
+  const ui = { ...input.ui };
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`avatar:${userId}`}, 0))`);
     const previous = await getPreferences(tx, userId);
@@ -35,6 +44,19 @@ export async function updatePreferences(
         if (error instanceof SyncRejection) throw new ORPCError("BAD_REQUEST");
         throw error;
       }
+    }
+    if (input.muscleGoalChanges) {
+      // Merged into the goals as they stand now (the lock above serialises writers), so a muscle
+      // another device changed survives; `null` resets one muscle. The whole map is then written,
+      // which is what `ui || excluded.ui` replaces.
+      const goals: MuscleGoals = { ...(ui.muscleGoals ?? previous.ui.muscleGoals) };
+      for (const [muscle, goal] of Object.entries(input.muscleGoalChanges)) {
+        const key = targetMuscleOf(muscle);
+        if (!key) continue;
+        if (goal === null || goal === undefined) delete goals[key];
+        else goals[key] = goal;
+      }
+      ui.muscleGoals = goals;
     }
     await tx
       .insert(userPreferences)

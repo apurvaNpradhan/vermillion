@@ -1,13 +1,18 @@
-import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { AppState } from "react-native";
 import {
   clearSession,
+  expireRememberedSession,
   refreshSession as refreshSharedSession,
   sessionQueryOptions as sharedSessionQueryOptions,
 } from "@workspace/client/session";
 
 import { authClient } from "@/platform/auth-client";
 
-import { storedSession } from "./stored-session";
+import { purgeLegacySessionCaches, storedSession } from "./stored-session";
+
+purgeLegacySessionCaches();
 
 /** The signed-in session query, bound to the native auth client and the stored last session. */
 export function sessionQueryOptions() {
@@ -31,4 +36,15 @@ export function clearAccountSession(queryClient: QueryClient) {
   const cleared = clearSession(queryClient);
   storedSession.write(null);
   return cleared;
+}
+
+/** On resume, ends a remembered session that ran out while the app was away. Mount once. */
+export function useExpireSessionOnResume() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") expireRememberedSession(queryClient, storedSession);
+    });
+    return () => subscription.remove();
+  }, [queryClient]);
 }

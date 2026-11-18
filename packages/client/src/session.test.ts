@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearSession,
+  expireRememberedSession,
+  refreshSession,
   SESSION_FETCH_TIMEOUT_MS,
   SESSION_QUERY_KEY,
   sessionQueryOptions,
@@ -127,5 +129,90 @@ describe("sessionQueryOptions", () => {
     await expect(
       run(async () => ({ data: null, error: new Error("offline") }), memory()),
     ).rejects.toThrow("offline");
+  });
+
+  it("makes a new request after sign-in instead of joining a lookup from before it", async () => {
+    const store = memory();
+    const client = new QueryClient();
+    const replies: Array<(value: { data: typeof live | null; error: null }) => void> = [];
+    const getSession = vi.fn(
+      () =>
+        new Promise<{ data: typeof live | null; error: null }>((resolve) => replies.push(resolve)),
+    );
+    // SAFETY: test double standing in for the Better Auth client.
+    const authClient = { getSession } as never;
+    const before = client
+      .fetchQuery({ ...sessionQueryOptions(authClient, store as never), retry: false })
+      .catch(() => undefined);
+    const after = refreshSession(client, authClient, store as never);
+    await vi.waitFor(() => expect(getSession).toHaveBeenCalledTimes(2));
+    replies[1]?.({ data: live, error: null });
+    expect(await after).toEqual(live);
+    // The old lookup answers "nobody" late; it must not replace the confirmed session.
+    replies[0]?.({ data: null, error: null });
+    await before;
+    expect(client.getQueryData(SESSION_QUERY_KEY)).toEqual(live);
+    expect(store.read()).toEqual(live);
+  });
+
+  it("does not let a timed-out lookup replace a newer confirmed session", async () => {
+    vi.useFakeTimers();
+    const store = memory();
+    store.write(live as never);
+    const client = new QueryClient();
+    let reply: (value: { data: null; error: null }) => void = () => undefined;
+    const slow = new Promise<{ data: null; error: null }>((resolve) => (reply = resolve));
+    const first = client.fetchQuery({
+      // SAFETY: test double standing in for the Better Auth client.
+      ...sessionQueryOptions({ getSession: () => slow } as never, store as never),
+      retry: false,
+    });
+    await vi.advanceTimersByTimeAsync(SESSION_FETCH_TIMEOUT_MS);
+    await first;
+    // A newer lookup confirms the session; then the old one answers "nobody".
+    const confirmed = {
+      ...live,
+      session: { ...live.session, id: "s2" },
+    };
+    await refreshSession(
+      client,
+      // SAFETY: test double standing in for the Better Auth client.
+      { getSession: async () => ({ data: confirmed, error: null }) } as never,
+      store as never,
+    );
+    reply({ data: null, error: null });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.getQueryData(SESSION_QUERY_KEY)).toEqual(confirmed);
+    expect(store.read()).toEqual(confirmed);
+  });
+
+  it("does not hand out a fallback that ran out while waiting for the network", async () => {
+    vi.useFakeTimers();
+    const store = memory();
+    const soon = { user, session: { id: "s1", expiresAt: new Date(Date.now() + 1000) } };
+    store.write(soon as never);
+    // SAFETY: test double standing in for the Better Auth client.
+    const options = sessionQueryOptions(
+      { getSession: () => new Promise(() => undefined) } as never,
+      store as never,
+    );
+    const running = new QueryClient().fetchQuery({ ...options, retry: false });
+    await vi.advanceTimersByTimeAsync(SESSION_FETCH_TIMEOUT_MS);
+    expect(await running).toBeNull();
+    expect(store.read()).toBeNull();
+  });
+
+  it("expires a cached session on resume once it has run out", () => {
+    const store = memory();
+    const client = new QueryClient();
+    const gone = { user, session: { id: "s1", expiresAt: new Date(Date.now() - 1000) } };
+    store.write(gone as never);
+    client.setQueryData(SESSION_QUERY_KEY, gone);
+    expireRememberedSession(client, store as never);
+    expect(client.getQueryData(SESSION_QUERY_KEY)).toBeNull();
+    expect(store.read()).toBeNull();
+    client.setQueryData(SESSION_QUERY_KEY, live);
+    expireRememberedSession(client, store as never);
+    expect(client.getQueryData(SESSION_QUERY_KEY)).toEqual(live);
   });
 });

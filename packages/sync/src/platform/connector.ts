@@ -36,8 +36,19 @@ export type ConnectorOptions = {
    * is sent as is and the server refuses it by name.
    */
   uploadColumns: ReadonlyMap<string, ReadonlySet<string>>;
+  /**
+   * A table whose upload projection changed: an entry queued by an older build lacks the `marker`
+   * column and keeps `columns`, the projection (and so the digest) it was queued under. Without
+   * this an upgrade would strip a pending write's payload or resend it changed after a lost ack.
+   */
+  legacyUploadColumns?: ReadonlyMap<string, LegacyUploadProjection>;
   /** Reported `expiresAt` is this much earlier than the token's, so the SDK renews in time. */
   renewalMarginMs?: number;
+};
+
+export type LegacyUploadProjection = {
+  marker: string;
+  columns: ReadonlySet<string>;
 };
 
 /** Renew when about this much of the five minute token is left (ADR 0017). */
@@ -54,6 +65,16 @@ export class SyncUploadError extends Error {
 }
 
 type KeptOp = { entry: CrudEntry; ordinal: number; op: SyncOp };
+
+function columnsFor(
+  entry: CrudEntry,
+  current: ReadonlySet<string> | undefined,
+  legacy: LegacyUploadProjection | undefined,
+): ReadonlySet<string> | undefined {
+  if (legacy && entry.op !== "DELETE" && !(entry.opData && legacy.marker in entry.opData))
+    return legacy.columns;
+  return current;
+}
 
 function toWireOp(entry: CrudEntry, columns: ReadonlySet<string> | undefined): SyncOp | null {
   const data = entry.opData
@@ -95,6 +116,7 @@ export function createConnector({
   transport,
   onSignal,
   uploadColumns,
+  legacyUploadColumns,
   renewalMarginMs = DEFAULT_RENEWAL_MARGIN_MS,
 }: ConnectorOptions) {
   /** Maps a failed call to a signal and the error the SDK retries on. */
@@ -136,7 +158,14 @@ export function createConnector({
       let kept: KeptOp[];
       try {
         kept = transaction.crud.flatMap((entry, ordinal) => {
-          const op = toWireOp(entry, uploadColumns.get(entry.table));
+          const op = toWireOp(
+            entry,
+            columnsFor(
+              entry,
+              uploadColumns.get(entry.table),
+              legacyUploadColumns?.get(entry.table),
+            ),
+          );
           return op ? [{ entry, ordinal, op }] : [];
         });
         if (kept.length > 0 && checkSyncLimits(kept.map((item) => item.op))) {

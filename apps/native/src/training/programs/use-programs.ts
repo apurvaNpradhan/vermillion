@@ -1,11 +1,13 @@
 import { watchPrograms, type ProgramSummary } from "@workspace/sync";
 import { useCallback } from "react";
+import { useIsOnline } from "@/platform/network";
 import { useSyncStatus } from "@/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { trainStatus } from "@/training/train/train-status";
 const NONE: ProgramSummary[] = [];
 export function usePrograms() {
   const { snapshot } = useSyncStatus();
+  const online = useIsOnline();
   const subscribe = useCallback(
     (
       database: Parameters<typeof watchPrograms>[0],
@@ -24,6 +26,7 @@ export function usePrograms() {
       loading: state.loading,
       count: programs.length,
       snapshot,
+      online,
     }),
   };
 }

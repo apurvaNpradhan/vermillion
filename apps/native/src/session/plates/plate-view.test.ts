@@ -26,6 +26,7 @@ import {
   stackCount,
   stackSideKg,
   stackTotalKg,
+  noBarCopy,
 } from "./plate-view";
 
 let nextId = 0;
@@ -236,6 +237,23 @@ describe("canSeedEquipment", () => {
     ["with equipment present", { rowCount: 3 }],
   ])("does not seed %s", (_name, change) => {
     expect(canSeedEquipment({ ...ready, ...change })).toBe(false);
+  });
+});
+
+describe("noBarCopy", () => {
+  const first = { rowCount: 0, hasSynced: false };
+  it("waits for the first sync only when it can happen", () => {
+    expect(noBarCopy({ ...first, indicator: "connected" })).toBe("plates__syncing");
+    expect(noBarCopy({ ...first, indicator: "paused" })).toBe("plates__syncing");
+    expect(noBarCopy({ ...first, indicator: null })).toBe("plates__syncing");
+    expect(noBarCopy({ ...first, indicator: "locked" })).toBe("plates__locked");
+    expect(noBarCopy({ ...first, indicator: "update-required" })).toBe("plates__update");
+  });
+  it("is the plain message once synced or when there are rows", () => {
+    expect(noBarCopy({ rowCount: 0, hasSynced: true, indicator: "locked" })).toBe("plates__no_bar");
+    expect(noBarCopy({ rowCount: 2, hasSynced: false, indicator: "connected" })).toBe(
+      "plates__no_bar",
+    );
   });
 });
 

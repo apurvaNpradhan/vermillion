@@ -19,7 +19,14 @@ import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useEffect } from "react";
 
-import { routeGuards, toSessionState, useAuthReturn, useSession, useSignedOut } from "@/auth";
+import {
+  routeGuards,
+  toSessionState,
+  useAuthReturn,
+  useExpireSessionOnResume,
+  useSession,
+  useSignedOut,
+} from "@/auth";
 import { BodyReminderHost } from "@/body";
 import { useNotificationNavigation } from "@/platform/navigation/use-notification-navigation";
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
@@ -38,6 +45,7 @@ export const unstable_settings = { anchor: "(app)" };
 function RootStack() {
   const { session, isPending: sessionPending } = useSession();
   const owner = useDeviceOwner();
+  useExpireSessionOnResume();
   // Inter, mapped to HeroUI's font tokens in the generated native-tokens.css.
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,

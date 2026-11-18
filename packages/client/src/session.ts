@@ -58,6 +58,12 @@ export function isSessionExpired(session: NonNullable<SessionData>, now = Date.n
  */
 let writeGeneration = 0;
 
+/**
+ * Bumped for every lookup that starts. Only the newest lookup may store or publish what it learns:
+ * a superseded one (a slow lookup from before sign-in, one that timed out) is stale news.
+ */
+let lookupGeneration = 0;
+
 /** Fences every session lookup still running: their answers are dropped, never stored. */
 export function fenceSessionWrites() {
   writeGeneration += 1;
@@ -78,7 +84,9 @@ export function sessionQueryOptions(authClient: AuthClient, store?: SessionStore
     networkMode: "always",
     queryFn: async ({ client }): Promise<SessionData> => {
       const started = writeGeneration;
+      const mine = ++lookupGeneration;
       const fresh = () => writeGeneration === started;
+      const newest = () => fresh() && lookupGeneration === mine;
       const stored = store?.read() ?? null;
       const expired = stored !== null && isSessionExpired(stored);
       const remembered = expired ? null : stored;
@@ -98,16 +106,23 @@ export function sessionQueryOptions(authClient: AuthClient, store?: SessionStore
       if (result.kind === "answer") {
         // Fenced: the account changed while this ran, so what it learned is about someone else.
         if (!fresh()) return null;
+        // Superseded by a newer lookup (sign-in refreshed it): its answer is not stored or kept.
+        if (!newest()) return client.getQueryData<SessionData>(SESSION_QUERY_KEY) ?? result.data;
         store?.write(result.data);
         return result.data;
       }
       if (remembered) {
         // The stored session stands in now; a definitive answer that still arrives replaces it.
         void answer.then((late) => {
-          if (late.kind !== "answer" || !fresh()) return;
+          if (late.kind !== "answer" || !newest()) return;
           store?.write(late.data);
           client.setQueryData(SESSION_QUERY_KEY, late.data);
         });
+        // The wait may have outlived the stored session.
+        if (isSessionExpired(remembered)) {
+          if (newest()) store?.write(null);
+          return null;
+        }
         return remembered;
       }
       // An expired session is a session that ended, not a lookup that failed.
@@ -133,11 +148,27 @@ export async function clearSession(queryClient: QueryClient) {
   queryClient.getMutationCache().clear();
 }
 
-/** Fetches the session again, bypassing the cache (after sign-in or verification). */
-export function refreshSession(
+/**
+ * Ends a remembered session that has run out while the app sat in the background or offline: the
+ * cache and the store forget it, so the guards react without waiting for a lookup.
+ */
+export function expireRememberedSession(queryClient: QueryClient, store?: SessionStore) {
+  const cached = queryClient.getQueryData<SessionData>(SESSION_QUERY_KEY);
+  if (!cached || !isSessionExpired(cached)) return;
+  store?.write(null);
+  queryClient.setQueryData(SESSION_QUERY_KEY, null);
+}
+
+/**
+ * Fetches the session again, bypassing the cache (after sign-in or verification). A lookup
+ * already running was started before the sign-in, so it is cancelled first: joining it would hand
+ * back its answer ("nobody") and send no request at all.
+ */
+export async function refreshSession(
   queryClient: QueryClient,
   authClient: AuthClient,
   store?: SessionStore,
 ) {
+  await queryClient.cancelQueries({ queryKey: SESSION_QUERY_KEY });
   return queryClient.fetchQuery({ ...sessionQueryOptions(authClient, store), staleTime: 0 });
 }
