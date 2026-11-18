@@ -1,14 +1,12 @@
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { useIdentityColor, useOnIdentityColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
 export type RoutineUpdate = { structure: boolean; targets: boolean; saveNew: boolean };
 
@@ -17,8 +15,6 @@ export type RoutineUpdate = { structure: boolean; targets: boolean; saveNew: boo
  * keep it as it was. When the source is gone, offer to save the session as a new workout. A plain
  * list says what would change; "Choose what to update" reveals one switch per kind of change.
  */
-const LIST_MAX_HEIGHT = 280;
-
 export function UpdateRoutineSheet({
   isOpen,
   title,
@@ -42,7 +38,6 @@ export function UpdateRoutineSheet({
   onKeep: () => void;
 }) {
   const { t } = useTranslation();
-  const { bottom } = useSafeAreaInsets();
   const [structure, setStructure] = useState(true);
   const [targets, setTargets] = useState(true);
   const [choosing, setChoosing] = useState(false);
@@ -58,13 +53,36 @@ export function UpdateRoutineSheet({
     >
       <BottomSheet.Portal>
         <BottomSheet.Overlay isCloseOnPress={!busy} />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          // While the update saves the sheet stays put, so a failed save leaves it open to retry.
+        <ScrollableSheetContent
+          // Keep the sheet open after a failed save so the user can retry.
           enablePanDownToClose={!busy}
-          backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-4 px-4 pt-2"
-          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
+          footer={
+            <View className="gap-2">
+              <Button
+                isDisabled={busy}
+                onPress={() =>
+                  onApply(
+                    missing
+                      ? { structure: false, targets: false, saveNew: true }
+                      : {
+                          structure: hasStructure && (structure || !hasTargets),
+                          targets: hasTargets && (targets || !hasStructure),
+                          saveNew: false,
+                        },
+                  )
+                }
+              >
+                <Button.Label>
+                  {t(missing ? "session__save_new_confirm" : "session__update_routine_confirm")}
+                </Button.Label>
+              </Button>
+              <Button variant="secondary" isDisabled={busy} onPress={onKeep}>
+                <Button.Label>
+                  {t(missing ? "session__not_now" : "session__keep_original")}
+                </Button.Label>
+              </Button>
+            </View>
+          }
         >
           <View className="gap-1 px-1">
             <BottomSheet.Title className="font-semibold text-title-lg">
@@ -77,16 +95,13 @@ export function UpdateRoutineSheet({
             ) : null}
           </View>
           {!missing && lines.length > 0 ? (
-            // A workout can change in many places: the list scrolls and the actions stay in reach.
-            <BottomSheetScrollView style={{ maxHeight: LIST_MAX_HEIGHT }}>
-              <View className="gap-2 px-1">
-                {lines.map((line, index) => (
-                  <Text key={index} className="text-body text-foreground">
-                    {line}
-                  </Text>
-                ))}
-              </View>
-            </BottomSheetScrollView>
+            <View className="gap-2 px-1">
+              {lines.map((line, index) => (
+                <Text key={index} className="text-body text-foreground">
+                  {line}
+                </Text>
+              ))}
+            </View>
           ) : null}
           {!missing && hasStructure && hasTargets ? (
             <View className="gap-1">
@@ -115,32 +130,7 @@ export function UpdateRoutineSheet({
               ) : null}
             </View>
           ) : null}
-          <View className="gap-2">
-            <Button
-              isDisabled={busy}
-              onPress={() =>
-                onApply(
-                  missing
-                    ? { structure: false, targets: false, saveNew: true }
-                    : {
-                        structure: hasStructure && (structure || !hasTargets),
-                        targets: hasTargets && (targets || !hasStructure),
-                        saveNew: false,
-                      },
-                )
-              }
-            >
-              <Button.Label>
-                {t(missing ? "session__save_new_confirm" : "session__update_routine_confirm")}
-              </Button.Label>
-            </Button>
-            <Button variant="secondary" isDisabled={busy} onPress={onKeep}>
-              <Button.Label>
-                {t(missing ? "session__not_now" : "session__keep_original")}
-              </Button.Label>
-            </Button>
-          </View>
-        </BottomSheet.Content>
+        </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

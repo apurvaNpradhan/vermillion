@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
 import { useActiveRun } from "./use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
@@ -220,6 +221,7 @@ function LoadedProgram({
 
   return (
     <>
+      <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={program.title}
         back

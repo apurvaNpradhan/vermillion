@@ -7,8 +7,7 @@ import {
   stopProgram,
   watchRunState,
 } from "@workspace/sync";
-import { useCallback } from "react";
-import { Alert } from "react-native";
+import { useCallback, useState } from "react";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
@@ -21,6 +20,7 @@ import { useTrainingWrite } from "@/training/shared/use-training-write";
  */
 export function useActiveRun() {
   const { t } = useTranslation();
+  const [pendingProgramId, setPendingProgramId] = useState<string | null>(null);
   const { write, writeScope } = useTrainingWrite();
   const subscribe = useCallback(
     (...args: Parameters<typeof watchRunState>) => watchRunState(...args),
@@ -33,26 +33,43 @@ export function useActiveRun() {
   const activate = useCallback(
     (id: string) => {
       const apply = () => void write((db) => activateProgram(db, id, writeScope), null);
-      if (runProgramId !== null && runProgramId !== id)
-        Alert.alert(t("run__switch_title"), t("run__switch_body"), [
-          { text: t("common__cancel"), style: "cancel" },
-          { text: t("run__set_active"), onPress: apply },
-        ]);
+      if (runProgramId !== null && runProgramId !== id) setPendingProgramId(id);
       else apply();
     },
-    [runProgramId, write, writeScope, t],
+    [runProgramId, write, writeScope],
   );
   const stop = useCallback(
     () => (runId ? write((db) => stopProgram(db, runId, writeScope), undefined) : undefined),
     [runId, write, writeScope],
   );
-  return { run, runs: state, runProgramId, loading: state.loading, activate, stop };
+  return {
+    run,
+    runs: state,
+    runProgramId,
+    loading: state.loading,
+    activate,
+    stop,
+    confirmationProps: {
+      isOpen: pendingProgramId !== null,
+      onOpenChange: (open: boolean) => {
+        if (!open) setPendingProgramId(null);
+      },
+      title: t("run__switch_title"),
+      description: t("run__switch_body"),
+      cancelLabel: t("common__cancel"),
+      confirmLabel: t("run__set_active"),
+      onConfirm: () => {
+        if (pendingProgramId !== null)
+          void write((db) => activateProgram(db, pendingProgramId, writeScope), null);
+      },
+    },
+  };
 }
 
 export function useActiveProgram() {
   const { write, writeScope } = useTrainingWrite();
   const { preferences } = usePreferences();
-  const { run, runs, runProgramId, loading, activate, stop } = useActiveRun();
+  const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;
   const sessions = runs.value?.sessions.flatMap((s) => (s.runId === run?.id ? [s] : [])) ?? [];
@@ -73,6 +90,7 @@ export function useActiveProgram() {
     ready: !loading && (run === null || detail.status !== "loading"),
     activate,
     stop,
+    confirmationProps,
     finish: () => run && write((db) => finishRun(db, run.id, writeScope), undefined),
     keep: () => run && write((db) => keepGoing(db, run.id, writeScope), undefined),
     again: () => run && write((db) => runAgain(db, run.id, run.program_id, writeScope), null),
