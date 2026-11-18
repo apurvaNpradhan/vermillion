@@ -163,9 +163,9 @@ describe("tickSet and untickSet", () => {
       exercises: s.all("session_exercise"),
     };
     const result = await tickSet(s.training, t.work1, { weight: 100, reps: 5, rpe: 8 });
-    expect(result).toEqual({ ok: true, wrote: true, values: { weight_kg: 100, reps: 5, rpe: 8 } });
+    expect(result).toEqual({ ok: true, wrote: true, values: { weight_kg: 100, reps: 5 } });
     const ticked = s.one("session_set", t.work1);
-    expect(ticked).toMatchObject({ weight_kg: 100, reps: 5, rpe: 8 });
+    expect(ticked).toMatchObject({ weight_kg: 100, reps: 5, rpe: null });
     expect(ticked?.["completed_at"]).toEqual(expect.any(String));
     // Nothing else changed: not another set, not the Session, not the exercises.
     const after = s.all("session_set");

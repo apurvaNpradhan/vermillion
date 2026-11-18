@@ -103,6 +103,11 @@ export async function runAgain(
   });
 }
 
+export const hasCountedSetSql = `EXISTS (
+  SELECT 1 FROM session_exercise e JOIN session_set s ON s.session_exercise_id = e.id
+  WHERE e.session_id = training_session.id AND s.completed_at IS NOT NULL AND s.kind <> 'warmup'
+)`;
+
 const progressSchema = z.object({
   id: z.string(),
   runId: z.string().nullable(),
@@ -110,6 +115,7 @@ const progressSchema = z.object({
   cycle: z.number().nullable(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
+  hasCountedSet: z.coerce.boolean(),
 });
 export function watchRunState(
   database: TrainingDatabase,
@@ -121,14 +127,17 @@ export function watchRunState(
 ) {
   const controller = new AbortController();
   database.watchWithCallback(
-    "SELECT r.id, s.id FROM program_run r LEFT JOIN training_session s ON s.run_id = r.id LIMIT 10000",
+    `SELECT r.id, training_session.id, ${hasCountedSetSql}
+     FROM program_run r LEFT JOIN training_session ON training_session.run_id = r.id LIMIT 10000`,
     [],
     {
       onResult: () => {
         void Promise.all([
           readRuns(database),
           database.getAll(
-            "SELECT id, run_id AS runId, workout_id AS workoutId, cycle, started_at AS startedAt, finished_at AS finishedAt FROM training_session WHERE run_id IS NOT NULL ORDER BY started_at, id LIMIT 10000",
+            `SELECT id, run_id AS runId, workout_id AS workoutId, cycle, started_at AS startedAt,
+                    finished_at AS finishedAt, ${hasCountedSetSql} AS hasCountedSet
+             FROM training_session WHERE run_id IS NOT NULL ORDER BY started_at, id LIMIT 10000`,
           ),
         ])
           .then(([runs, sessions]) => {
@@ -139,7 +148,11 @@ export function watchRunState(
       },
       onError,
     },
-    { signal: controller.signal, tables: ["program_run", "training_session"], throttleMs: 150 },
+    {
+      signal: controller.signal,
+      tables: ["program_run", "training_session", "session_exercise", "session_set"],
+      throttleMs: 150,
+    },
   );
   return () => controller.abort();
 }
