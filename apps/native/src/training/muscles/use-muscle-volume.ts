@@ -29,15 +29,17 @@ const DAY_MS = 86_400_000;
 /**
  * Muscle volume for the week `weeksAgo` weeks back: Counted sets per muscle against each muscle's
  * weekly range, plus the goal writer. Reads that week's Sessions and the muscles of their
- * exercises from the local database.
+ * exercises from the local database. With `weeks` above one, the window is that many weeks
+ * ending with the week `weeksAgo` back, and every figure is the average per week.
  */
-export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null) {
+export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null, weeks = 1) {
   const { preferences, setUi } = usePreferences();
   const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { weekStart, muscleGoals } = preferences.ui;
   // The clock is read once per mount; a screen left open across midnight shows the old week.
   const [now] = useState(() => new Date());
-  const week = shiftWeek(weekRange(now, timezone, weekStart), weeksAgo);
+  const last = shiftWeek(weekRange(now, timezone, weekStart), weeksAgo);
+  const week = { start: last.start - (weeks - 1) * 7 * DAY_MS, end: last.end };
   // A day of slack each side: Sessions are stored in UTC and bucketed by the user's calendar day.
   const from = new Date(week.start - DAY_MS).toISOString();
   const to = new Date(week.end + DAY_MS).toISOString();
@@ -64,7 +66,10 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null)
     ),
   );
   const exercises = muscles.value ?? [];
-  const loads = weeklyMuscleVolume(sessions, exercises, week, timezone);
+  const loads = weeklyMuscleVolume(sessions, exercises, week, timezone).map((load) => ({
+    ...load,
+    sets: load.sets / weeks,
+  }));
   const planned = program === null ? null : plannedMuscleVolume(program);
   const rows = muscleRows(loads, muscleGoals, planned);
   return {
@@ -82,7 +87,10 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null)
     rows,
     onTarget: onTargetCount(rows),
     contributions: (muscle: TargetMuscle) =>
-      muscleContributions(sessions, exercises, muscle, week, timezone),
+      muscleContributions(sessions, exercises, muscle, week, timezone).map((entry) => ({
+        ...entry,
+        sets: entry.sets / weeks,
+      })),
     setGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) => {
       const next: MuscleGoals = { ...muscleGoals };
       if (goal === null) delete next[muscle];

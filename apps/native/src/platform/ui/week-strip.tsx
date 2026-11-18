@@ -32,6 +32,7 @@ export function WeekStrip({
   marks,
   faded,
   disabled,
+  pressable,
   labels,
   onSelect,
 }: {
@@ -43,6 +44,8 @@ export function WeekStrip({
   faded?: (day: number) => boolean;
   /** Faded and not pressable. */
   disabled?: (day: number) => boolean;
+  /** Which days respond to a press; the rest stay as they look. Everything, by default. */
+  pressable?: (day: number) => boolean;
   labels: {
     weekday: (day: number) => string;
     day: (day: number) => string;
@@ -56,14 +59,15 @@ export function WeekStrip({
         const mark = marks?.(day);
         const off = disabled?.(day) ?? false;
         const dim = off || (faded?.(day) ?? false);
+        const inert = off || onSelect === undefined || pressable?.(day) === false;
         const dots = (mark?.dots ?? []).slice(0, 3);
         return (
           <Pressable
             key={day}
             accessibilityRole="button"
             accessibilityLabel={[labels.date(day), mark?.label].filter(Boolean).join(", ")}
-            accessibilityState={{ disabled: off || onSelect === undefined }}
-            disabled={off || onSelect === undefined}
+            accessibilityState={{ disabled: inert }}
+            disabled={inert}
             onPress={() => onSelect?.(day)}
             className={`min-h-[68px] flex-1 items-center gap-1 rounded-2xl border py-2 active:bg-default ${
               day === today ? "border-identity bg-default" : "border-transparent"

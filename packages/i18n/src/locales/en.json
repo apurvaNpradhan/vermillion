@@ -1052,6 +1052,8 @@
   "home__next_summary_new_other": "{{count}} exercises · not done yet",
   "home__week_progress": "{{done}} of {{total}} sessions",
   "home__week_strip_label": "{{count}} of 7 days trained this week",
+  "home__day_trained": "Trained",
+  "home__day_planned": "Next workout planned",
   "home__week_totals": "{{sets}} · {{volume}}",
   "home__training": "Training",
   "home__weigh_in": "Weigh-in",
