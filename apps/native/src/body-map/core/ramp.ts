@@ -20,23 +20,57 @@ export function mixHex(from: string, to: string, amount: number): string {
   return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** Where the ramp starts, so the weakest tint still reads against the grey body. */
-const RAMP_FLOOR = 0.3;
+/** The least contrast (WCAG ratio) a trained region has against the silhouette: a graphic. */
+export const MIN_RAMP_CONTRAST = 3;
+
+function luminance(hex: string): number {
+  const rgb = channels(hex);
+  if (rgb === null) return 0;
+  const [r, g, b] = rgb.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
+}
+
+/** WCAG contrast ratio of two `#RRGGBB` colours; 1 for one that is not a hex colour. */
+export function contrastBetween(a: string, b: string): number {
+  if (channels(a) === null || channels(b) === null) return 1;
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}
+
+const FLOOR_STEPS = 40;
 
 /**
- * A colour per group for a heat map: `from` (a quiet surface) toward `to` (the accent) as the
- * intensity (0 to 1) grows, starting above `from` so a muscle with any sets is always visible.
+ * Where the ramp starts, as the share of the way from `from` to `to`: the first step at which the
+ * colour has {@link MIN_RAMP_CONTRAST} against `from`, so the weakest tint still reads against the
+ * silhouette in every theme. 1 when even `to` falls short (then the ramp is one colour).
+ */
+export function rampFloor(from: string, to: string): number {
+  for (let step = 0; step <= FLOOR_STEPS; step += 1) {
+    const amount = step / FLOOR_STEPS;
+    if (contrastBetween(mixHex(from, to, amount), from) >= MIN_RAMP_CONTRAST) return amount;
+  }
+  return 1;
+}
+
+/**
+ * A colour per group for a heat map: from a visible tint of `to` (the accent, at least
+ * {@link MIN_RAMP_CONTRAST} against `from`, the silhouette) up to `to` as the intensity (0 to 1)
+ * grows. A muscle with any sets is always visible; one with none is left out.
  */
 export function intensityTints(
   intensity: Partial<Record<BodyGroup, number>>,
   from: string,
   to: string,
 ): Partial<Record<BodyGroup, string>> {
+  const floor = rampFloor(from, to);
   const tints: Partial<Record<BodyGroup, string>> = {};
   for (const group of BODY_GROUPS) {
     const value = intensity[group];
     if (value === undefined || value <= 0) continue;
-    tints[group] = mixHex(from, to, RAMP_FLOOR + (1 - RAMP_FLOOR) * Math.min(1, value));
+    tints[group] = mixHex(from, to, floor + (1 - floor) * Math.min(1, value));
   }
   return tints;
 }

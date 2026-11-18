@@ -21,6 +21,8 @@ export type BodyMapProps = {
   intensity?: Partial<Record<BodyGroup, number>>;
   /** A flat colour per group, instead of the drawn one: an accent ramp for a heat map. */
   tints?: Partial<Record<BodyGroup, string>>;
+  /** A flat colour for the body behind a heat map, so the ramp is measured against a known base. */
+  silhouette?: string;
   /** Groups drawn in full as chosen (the filter's selection, the group just tapped). */
   selected?: readonly MuscleGroup[];
   /** Called with the group under a tap, or from an accessibility action; never a coordinate. */
@@ -31,7 +33,8 @@ export type BodyMapProps = {
 const FILL = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" } as const;
 
 /**
- * The body with groups highlighted, as drawn: the grey anatomy untinted, each highlighted group's
+ * The body with groups highlighted, as drawn: the grey anatomy untinted (or one flat `silhouette`
+ * colour behind a heat map), each highlighted group's
  * muscle layers in their own colour at the group's opacity (primary 1, secondary lighter, an
  * intensity as given). It fills the width of its box and keeps the body's proportions.
  * The picture cannot be focused part by part, so each highlighted group is also an accessibility
@@ -43,6 +46,7 @@ export function BodyMap({
   secondary,
   intensity,
   tints,
+  silhouette,
   selected,
   onPressGroup,
   style,
@@ -102,7 +106,11 @@ export function BodyMap({
       style={[{ width: "100%", aspectRatio: BODY_ASPECT }, style]}
     >
       <View pointerEvents="none" style={FILL}>
-        <Image source={LAYER_SOURCES[BASE_LAYERS[view]]} resizeMode="stretch" style={FILL} />
+        <Image
+          source={LAYER_SOURCES[BASE_LAYERS[view]]}
+          resizeMode="stretch"
+          style={silhouette === undefined ? FILL : [FILL, { tintColor: silhouette }]}
+        />
         {BODY_GROUPS.flatMap((group) => {
           const alpha = alphas.get(group);
           if (alpha === undefined) return [];
