@@ -122,6 +122,20 @@ describe("share rows", () => {
     expect(rows[0]?.record).toBe(false);
   });
 
+  it("counts warm-ups, their Records and a warm-up-only exercise when they are counted", () => {
+    const warmups = session([
+      entry("a", [set("a1", { kind: "warmup", weightKg: 20 }), set("a2")]),
+      entry("b", [set("b1", { kind: "warmup" })]),
+    ]);
+    expect(shareRows(warmups, new Set(["a1"]), true, true)).toMatchObject([
+      { id: "a", sets: 2, record: true },
+      { id: "b", sets: 1, record: false },
+    ]);
+    expect(shareRows(warmups, new Set(["a1"]), true, false)).toMatchObject([
+      { id: "a", sets: 1, record: false },
+    ]);
+  });
+
   it("shows rep ranges when weights are off", () => {
     const rows = shareRows(
       session([entry("a", [set("a1", { reps: 8 }), set("a2", { reps: 5 })])]),

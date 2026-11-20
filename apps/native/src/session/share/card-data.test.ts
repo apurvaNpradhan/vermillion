@@ -146,6 +146,31 @@ describe("session card data", () => {
     expect(data.exercises?.items.map((item) => item.record)).toEqual([true, true]);
   });
 
+  it("agrees with the warm-up setting for a warm-up-only session, both ways", () => {
+    const warm = session(1);
+    warm.exercises[0] = {
+      ...exercise(1),
+      sets: [set("w1", { kind: "warmup" }), set("w2", { kind: "warmup" })],
+    };
+    const flagged: Parameters<typeof buildCardData>[0]["flagged"] = new Map([
+      ["w1", ["heaviest_weight"]],
+    ]);
+    const without = buildCardData({ ...base, flagged, session: warm, toggles: on });
+    expect(without.stats.find((stat) => stat.id === "sets")?.value).toBe("0");
+    expect(without.records).toBeNull();
+    expect(without.exercises?.items).toEqual([]);
+    const counted = buildCardData({
+      ...base,
+      flagged,
+      session: warm,
+      toggles: on,
+      countWarmups: true,
+    });
+    expect(counted.stats.find((stat) => stat.id === "sets")?.value).toBe("2");
+    expect(counted.records).toBe("1 Records");
+    expect(counted.exercises?.items).toHaveLength(1);
+  });
+
   it("ranks muscles for the Muscles card", () => {
     const data = buildCardData({ ...base, session: session(1), toggles: on });
     expect(data.muscles).toEqual([{ name: "chest", sets: "2 sets", share: 1 }]);

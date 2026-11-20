@@ -1,5 +1,5 @@
 import { useWeight } from "@/body";
-import { MUSCLE_GROUP_KEYS, recordFlags } from "@workspace/shared";
+import { MUSCLE_GROUP_KEYS, recordFlags, withWarmupsCounted } from "@workspace/shared";
 import type { ShareTemplate, ShareToggle, SharePhoto } from "@/share";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
@@ -49,7 +49,7 @@ export function useSessionShare(id: string): SessionShare {
   // A failed Record history leaves the Records out rather than the card unshared.
   const flagged = history.failed
     ? new Map<string, never>()
-    : recordFlags(history.sessions, bodyweightKg);
+    : recordFlags(withWarmupsCounted(history.sessions, preferences.ui.countWarmups), bodyweightKg);
   const distribution = session.exercises.flatMap((entry) =>
     entry.exercise
       ? [

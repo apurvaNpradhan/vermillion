@@ -75,16 +75,20 @@ export function buildCardData(input: {
   labels: SessionCardLabels;
 }): SessionCardData {
   const { session, flagged, bodyweightKg, toggles, labels } = input;
-  const sets = loggedSetsOf(session, input.countWarmups ?? false);
+  const countWarmups = input.countWarmups ?? false;
+  const sets = loggedSetsOf(session, countWarmups);
   const totals = sessionTotals(sets, bodyweightKg);
   const records = session.exercises
     .flatMap((entry) => entry.sets)
     .reduce(
       (count, set) =>
-        count + (set.kind !== "warmup" && set.completedAt ? (flagged.get(set.id)?.length ?? 0) : 0),
+        count +
+        (set.completedAt && (countWarmups || set.kind !== "warmup")
+          ? (flagged.get(set.id)?.length ?? 0)
+          : 0),
       0,
     );
-  const rows = shareRows(session, flagged, toggles.weights);
+  const rows = shareRows(session, flagged, toggles.weights, countWarmups);
   const { shown, more } = compactRows(rows);
   const loads = muscleDistribution(sets, input.distribution);
   const max = loads[0]?.sets ?? 1;
