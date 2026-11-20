@@ -18,7 +18,7 @@ import {
   type SessionInput,
   type SessionSetInput,
 } from "@workspace/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -250,6 +250,22 @@ const patchSessionExercise = z
   })
   .partial();
 
+// The training advisory lock serializes this check with set completion on another device.
+async function assertExerciseHasNoCompletedSets(db: DbExecutor, id: string) {
+  const [completed] = await db
+    .select({ id: sessionSet.id })
+    .from(sessionSet)
+    .where(
+      and(
+        eq(sessionSet.sessionExerciseId, id),
+        isNull(sessionSet.deletedAt),
+        isNotNull(sessionSet.completedAt),
+      ),
+    )
+    .limit(1);
+  if (completed) throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
+}
+
 const sessionExerciseSyncHandler: SyncTableHandler = {
   table: "session_exercise",
   async apply(db, userId, op) {
@@ -297,6 +313,9 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
           .values({ id, userId, sessionId: values.session_id, ...columns(values), ...keyed });
         return;
       }
+      if (found.row.exerciseId !== values.exercise_id) {
+        await assertExerciseHasNoCompletedSets(db, id);
+      }
       const deletedAt = found.row.deletedAt;
       if (deletedAt !== null) {
         assertRoom(live, 1, SESSION_LIMITS.exercisesPerSession, "SESSION_LIMIT_REACHED");
@@ -329,6 +348,9 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       }),
     );
     if (patch.exercise_id !== undefined) await exerciseVisible(db, userId, patch.exercise_id);
+    if (patch.exercise_id !== undefined && patch.exercise_id !== row.exerciseId) {
+      await assertExerciseHasNoCompletedSets(db, id);
+    }
     await db
       .update(sessionExercise)
       .set({
@@ -426,6 +448,14 @@ const sessionSetSyncHandler: SyncTableHandler = {
 
     if (op.op === "DELETE") {
       const row = ownRow(found);
+      // The writer last saw this set unticked (or at some time); another device completing it
+      // since must not be erased by a queued swap or delete. Roll the whole transaction back.
+      const known = op.expect?.completed_at;
+      if (known !== undefined && row.deletedAt === null) {
+        const stored = row.completedAt?.getTime() ?? null;
+        const expected = known === null ? null : Date.parse(known);
+        if (stored !== expected) throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
+      }
       if (row.deletedAt === null) {
         const at = now();
         await db

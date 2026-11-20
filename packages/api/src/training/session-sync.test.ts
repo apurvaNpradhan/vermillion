@@ -843,6 +843,68 @@ describe("session upload handlers", () => {
     });
   });
 
+  it("refuses a queued swap that would erase or re-attribute a set another device completed", async () => {
+    const client = app.client(await createSignedInUser(app, "session-swap-race@example.com"));
+    const { userId } = await client.sync.credentials();
+    const me = installOf(client, userId);
+    const otherDevice = installOf(client, userId);
+    const [replacement] = await app.rows(
+      sql`SELECT id FROM exercise WHERE user_id IS NULL AND exercise_type = 'weight_reps'
+        AND id <> ${weightReps} LIMIT 1`,
+    );
+    const replacementId = String(replacement?.id);
+    const t = await training(me);
+    const ticked = minutesAgo(1);
+    // Device B ticks the set first; device A, offline, queued a split deleting it as unticked.
+    expect(
+      await otherDevice.send([
+        op("PATCH", "session_set", t.set2, { weight_kg: 62.5, reps: 7, completed_at: ticked }),
+      ]),
+    ).toEqual(applied);
+    const newExercise = uuidv7();
+    const staleSplit = await me.send([
+      putExercise(newExercise, t.sessionId, replacementId, { position: "a1" }),
+      { op: "DELETE", table: "session_set", id: t.set2, expect: { completed_at: null } },
+      putSet(uuidv7(), newExercise, { position: "a0" }),
+    ]);
+    expect(staleSplit).toMatchObject(rejected("SYNC_CONSTRAINT_VIOLATION"));
+    // The whole transaction rolled back: the set survives and the new exercise never appeared.
+    expect(await deletedAt("session_set", t.set2)).toBeNull();
+    expect(await stored("session_set", t.set2)).toMatchObject({ weight_kg: 62.5, reps: 7 });
+    expect(await stored("session_exercise", newExercise)).toBeUndefined();
+    // A delete whose expectation still holds goes through, with or without a known tick.
+    expect(
+      await me.send([
+        { op: "DELETE", table: "session_set", id: t.set1, expect: { completed_at: null } },
+      ]),
+    ).toEqual(applied);
+    expect(await deletedAt("session_set", t.set1)).not.toBeNull();
+    expect(
+      await me.send([
+        { op: "DELETE", table: "session_set", id: t.set2, expect: { completed_at: ticked } },
+      ]),
+    ).toEqual(applied);
+    // A stale in-place swap (same type, nothing completed in the snapshot) cannot take a
+    // completed set for the replacement.
+    const other = await training(me);
+    expect(
+      await otherDevice.send([
+        op("PATCH", "session_set", other.set1, { weight_kg: 50, reps: 5, completed_at: ticked }),
+      ]),
+    ).toEqual(applied);
+    expect(
+      await me.send([
+        op("PATCH", "session_exercise", other.exerciseId, {
+          exercise_id: replacementId,
+          exercise_title: "Replacement press",
+        }),
+      ]),
+    ).toMatchObject(rejected("SYNC_CONSTRAINT_VIOLATION"));
+    expect(await stored("session_exercise", other.exerciseId)).toMatchObject({
+      exercise_id: weightReps,
+    });
+  });
+
   it("enforces 40 exercises per Session and 20 sets per exercise, also on restore", async () => {
     const me = await writer("session-limits@example.com");
     const sessionId = uuidv7();

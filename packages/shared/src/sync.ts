@@ -55,6 +55,12 @@ export const syncOpSchema = z.object({
   id: z.string().min(1),
   /** Absent for DELETE; every column for PUT; only the changed columns for PATCH. */
   opData: z.record(z.string(), syncValueSchema).optional(),
+  /**
+   * What the writing device last knew of columns it relies on, from PowerSync's previous values
+   * (DELETE only). The server refuses the operation, and so its transaction, when the stored row
+   * differs: a delete queued offline must not erase what another device completed since.
+   */
+  expect: z.strictObject({ completed_at: z.iso.datetime({ offset: true }).nullable() }).optional(),
 });
 export type SyncOp = z.infer<typeof syncOpSchema>;
 
@@ -185,8 +191,11 @@ const utf8Bytes = (text: string) => new TextEncoder().encode(text).length;
 const compareCodeUnits = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 function canonicalOp(op: SyncOp): string {
-  // Keys in code-unit order: id, op, opData, table.
+  // Keys in code-unit order: expect, id, op, opData, table.
   const parts = [`"id":${JSON.stringify(op.id)}`, `"op":${JSON.stringify(op.op)}`];
+  if (op.expect !== undefined) {
+    parts.unshift(`"expect":${JSON.stringify(op.expect)}`);
+  }
   if (op.opData !== undefined) {
     const data = Object.entries(op.opData)
       // Object.entries creates a fresh array; sort works on native runtimes without toSorted.

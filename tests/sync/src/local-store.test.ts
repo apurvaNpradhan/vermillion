@@ -103,6 +103,23 @@ describe("Drizzle writes reach the upload queue", () => {
     expect((await database.getUploadQueueStats()).count).toBe(before);
   });
 
+  it("tracks the completion state of a locally deleted session set", async () => {
+    const completedAt = "2026-11-19T15:00:00.000Z";
+    await database.execute("INSERT INTO session_set (id) VALUES ('unticked')");
+    await database.execute("INSERT INTO session_set (id, completed_at) VALUES ('ticked', ?)", [
+      completedAt,
+    ]);
+    await database.execute("DELETE FROM session_set");
+
+    const deletes = (await database.getCrudBatch(10))?.crud.filter(
+      (entry) => entry.op === "DELETE",
+    );
+    expect(deletes).toEqual([
+      expect.objectContaining({ id: "unticked", previousValues: { completed_at: null } }),
+      expect.objectContaining({ id: "ticked", previousValues: { completed_at: completedAt } }),
+    ]);
+  });
+
   it("commits a create as one transaction", async () => {
     await createCustomExercise(database, input("One"));
     const tx = await database.getNextCrudTransaction();

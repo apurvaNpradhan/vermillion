@@ -76,6 +76,16 @@ function columnsFor(
   return current;
 }
 
+/**
+ * A deleted set carries the completion it last knew (PowerSync's previous values), so the server
+ * can refuse the delete when another device completed the set meanwhile.
+ */
+function expectationOf(entry: CrudEntry): Pick<SyncOp, "expect"> {
+  if (entry.op !== "DELETE" || entry.table !== "session_set") return {};
+  const known = entry.previousValues?.completed_at;
+  return known === undefined ? {} : { expect: { completed_at: known } };
+}
+
 function toWireOp(entry: CrudEntry, columns: ReadonlySet<string> | undefined): SyncOp | null {
   const data = entry.opData
     ? Object.fromEntries(
@@ -89,6 +99,7 @@ function toWireOp(entry: CrudEntry, columns: ReadonlySet<string> | undefined): S
     table: entry.table,
     id: entry.id,
     ...(entry.op === "DELETE" ? {} : { opData: data ?? {} }),
+    ...expectationOf(entry),
   });
   if (!parsed.success) throw new LocalRejection("SYNC_INVALID_OP");
   return parsed.data;
