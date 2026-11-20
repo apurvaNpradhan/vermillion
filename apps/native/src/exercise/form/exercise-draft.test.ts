@@ -8,6 +8,7 @@ import {
   isExerciseDraftDirty,
   shouldBlockLeaving,
   startExerciseDraft,
+  toggleDetail,
   toggleSecondary,
   validateExerciseForm,
   type ExerciseFormValues,
@@ -18,9 +19,80 @@ const saved: ExerciseFormValues = {
   equipment: "dumbbell",
   primaryMuscle: "chest",
   secondaryMuscles: ["triceps", "shoulders"],
+  primaryDetail: ["upper_chest"],
+  secondaryDetail: ["rear_delts"],
   exerciseType: "weight_reps",
   notes: "Push.",
 };
+
+describe("muscle details in the form", () => {
+  it("is clean until a detail changes, then sends only that list", () => {
+    let draft = startExerciseDraft(saved);
+    expect(exerciseDraftPatch(draft)).toEqual({});
+    draft = editExerciseDraft(draft, "primaryDetail", toggleDetail(["upper_chest"], "lower_chest"));
+    expect(exerciseDraftPatch(draft)).toEqual({ primary_detail: ["upper_chest", "lower_chest"] });
+    expect(isExerciseDraftDirty(draft)).toBe(true);
+    expect(exerciseDraftPatch(editExerciseDraft(draft, "primaryDetail", ["upper_chest"]))).toEqual(
+      {},
+    );
+  });
+
+  it("clears the primary details when the primary group changes, and sends the clear", () => {
+    const draft = editExerciseDraft(startExerciseDraft(saved), "primaryMuscle", "biceps");
+    expect(draft.values.primaryDetail).toEqual([]);
+    expect(exerciseDraftPatch(draft)).toMatchObject({
+      primary_muscle: "biceps",
+      primary_detail: [],
+    });
+  });
+
+  it("drops a secondary group's details when the group leaves the list", () => {
+    const draft = editExerciseDraft(startExerciseDraft(saved), "secondaryMuscles", ["triceps"]);
+    expect(draft.values.secondaryDetail).toEqual([]);
+    expect(exerciseDraftPatch(draft)).toEqual({
+      secondary_muscles: ["triceps"],
+      secondary_detail: [],
+    });
+    // A new primary group that was a secondary one takes its details out too.
+    const swapped = editExerciseDraft(startExerciseDraft(saved), "primaryMuscle", "shoulders");
+    expect(swapped.values.secondaryDetail).toEqual([]);
+  });
+
+  it("toggles details in vocabulary order", () => {
+    expect(toggleDetail(["rear_delts"], "front_delts")).toEqual(["front_delts", "rear_delts"]);
+    expect(toggleDetail(["front_delts", "rear_delts"], "front_delts")).toEqual(["rear_delts"]);
+  });
+
+  it("follows the saved row for untouched details only", () => {
+    let draft = startExerciseDraft(saved);
+    draft = editExerciseDraft(draft, "primaryDetail", ["lower_chest"]);
+    const next = applyLatestExercise(draft, {
+      ...saved,
+      primaryDetail: ["upper_chest", "lower_chest"],
+      secondaryDetail: ["side_delts"],
+    });
+    expect(next.values.primaryDetail).toEqual(["lower_chest"]);
+    expect(next.values.secondaryDetail).toEqual(["side_delts"]);
+  });
+
+  it("saves the details with the form and refuses ones outside the groups", () => {
+    const ok = validateExerciseForm(saved);
+    expect(ok).toMatchObject({
+      ok: true,
+      input: { primary_detail: ["upper_chest"], secondary_detail: ["rear_delts"] },
+    });
+    const bad = validateExerciseForm({ ...saved, primaryDetail: ["side_delts"] });
+    expect(bad).toMatchObject({
+      ok: false,
+      errors: { primaryDetail: "exercise__error_details_invalid" },
+    });
+    expect(validateExerciseForm({ ...saved, secondaryDetail: ["obliques"] }).ok).toBe(false);
+  });
+
+  it("starts a new exercise without details", () => {
+    expect(emptyExerciseValues("x")).toMatchObject({ primaryDetail: [], secondaryDetail: [] });
+  });
+});
 
 describe("the form's dirty-field diff", () => {
   it("is empty and clean until the user changes something", () => {
@@ -58,6 +130,7 @@ describe("the form's dirty-field diff", () => {
     expect(exerciseDraftPatch(draft)).toEqual({
       primary_muscle: "triceps",
       secondary_muscles: ["shoulders"],
+      primary_detail: [],
     });
   });
 
@@ -107,8 +180,8 @@ describe("validation", () => {
         title: "My press",
         primary_muscle: "chest",
         secondary_muscles: ["triceps", "shoulders"],
-        primary_detail: [],
-        secondary_detail: [],
+        primary_detail: ["upper_chest"],
+        secondary_detail: ["rear_delts"],
         equipment: "dumbbell",
         exercise_type: "weight_reps",
         is_full_bodyweight: false,

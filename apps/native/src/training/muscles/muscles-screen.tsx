@@ -16,6 +16,7 @@ import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-
 
 import { bodyIntensity } from "./muscle-bars";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
+import { groupParts } from "./muscle-parts";
 import { MuscleRow } from "./muscle-row";
 import { muscleRadarAxes, radarValue } from "./muscle-axes";
 import { useActiveProgram } from "@/training/programs/use-active-program";
@@ -238,6 +239,7 @@ export function MusclesScreen() {
                 key={row.muscle}
                 row={row}
                 peak={peak}
+                parts={groupParts(volume.detailLoads, row.muscle)}
                 onPress={() => setChosen(row.muscle)}
               />
             ))}

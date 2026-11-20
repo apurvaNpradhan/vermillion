@@ -9,6 +9,7 @@ import {
   onTargetCount,
   plannedMuscleVolume,
   shiftWeek,
+  weeklyDetailVolume,
   weeklyMuscleVolume,
 } from "./weekly-muscle-volume";
 
@@ -20,6 +21,24 @@ const exercises = [
 const NOW = new Date("2026-11-18T12:00:00Z"); // a Wednesday
 const week = (weekStart: "monday" | "sunday" | "saturday", timezone = "UTC") =>
   weekRange(NOW, timezone, weekStart);
+
+describe("weeklyDetailVolume", () => {
+  it("splits the week's Counted sets and leaves other weeks out", () => {
+    const lateral = {
+      id: "lateral",
+      primary_muscle: "shoulders",
+      secondary_muscles: [],
+      primary_detail: ["side_delts"],
+    } as const;
+    const sessions = [
+      sessionOf("a", "2026-11-17T10:00:00Z", [loggedSet({ exercise_id: "lateral" })]),
+      sessionOf("b", "2026-11-02T10:00:00Z", [loggedSet({ exercise_id: "lateral" })]),
+    ];
+    expect(weeklyDetailVolume(sessions, [lateral], week("monday"), "UTC")).toEqual([
+      { muscle: "shoulders", parts: [{ detail: "side_delts", sets: 1 }] },
+    ]);
+  });
+});
 
 describe("weeklyMuscleVolume", () => {
   it("gives 1 set to the primary muscle and 0.5 to each secondary", () => {

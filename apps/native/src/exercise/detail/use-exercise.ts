@@ -41,8 +41,8 @@ export function useExercise(id: string): ExerciseState {
 }
 
 /**
- * Exercises to swap `exercise` for: live, same primary muscle, other equipment, best rank first,
- * at most eight. Empty until the exercise has loaded.
+ * Exercises to swap `exercise` for: live, same primary muscle, other equipment, most shared
+ * primary details first, then best rank, at most eight. Empty until the exercise has loaded.
  */
 export function useSwapCandidates(exercise: ExerciseDetail | null): LibraryRow[] {
   const local = useLocalData();
@@ -51,7 +51,9 @@ export function useSwapCandidates(exercise: ExerciseDetail | null): LibraryRow[]
   const id = exercise?.id;
   const primaryMuscle = exercise?.primaryMuscle;
   const equipment = exercise?.equipment;
-  const key = `${id}|${primaryMuscle}|${equipment}`;
+  const primaryDetail = exercise?.primaryDetail;
+  const detailKey = primaryDetail?.join(",") ?? "";
+  const key = `${id}|${primaryMuscle}|${equipment}|${detailKey}`;
 
   useEffect(() => {
     if (!database || id === undefined || primaryMuscle === undefined || equipment === undefined) {
@@ -59,13 +61,13 @@ export function useSwapCandidates(exercise: ExerciseDetail | null): LibraryRow[]
     }
     return watchSwapCandidates(
       database,
-      { id, primaryMuscle, equipment },
+      { id, primaryMuscle, equipment, primaryDetail },
       {
         onRows: (rows) => setFound({ key, rows }),
         onError: () => setFound({ key, rows: [] }),
       },
     );
-  }, [database, id, primaryMuscle, equipment, key]);
+  }, [database, id, primaryMuscle, equipment, primaryDetail, key]);
 
   return found?.key === key ? found.rows : NO_ROWS;
 }

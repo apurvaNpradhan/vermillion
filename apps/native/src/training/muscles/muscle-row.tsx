@@ -1,4 +1,9 @@
-import { MUSCLE_GROUP_KEYS, type MuscleRow as Row } from "@workspace/shared";
+import {
+  MUSCLE_DETAIL_KEYS,
+  MUSCLE_GROUP_KEYS,
+  type DetailPart,
+  type MuscleRow as Row,
+} from "@workspace/shared";
 import { Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -14,7 +19,18 @@ const STATUS_KEYS = {
 } as const;
 
 /** One muscle: its name, "9 of 10–20", an accent bar for its sets and a tick where its target starts. */
-export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPress: () => void }) {
+export function MuscleRow({
+  row,
+  peak,
+  parts = [],
+  onPress,
+}: {
+  row: Row;
+  peak: number;
+  /** The muscle's sets by detail; shown as a second line when it has any. */
+  parts?: readonly DetailPart[];
+  onPress: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const { fill, bandStart } = barLayout(row.sets, row.range, peak);
   const fillStyle = useFillStyle(fill);
@@ -28,18 +44,29 @@ export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPr
       : min === max
         ? t("muscles__row_count_target", { sets, target: min })
         : t("muscles__row_value", { sets, min, max });
+  const breakdown = parts
+    .map((part) =>
+      t("muscles__part_value", {
+        name:
+          part.detail === "unspecified"
+            ? t("muscles__part_unspecified")
+            : t(MUSCLE_DETAIL_KEYS[part.detail]),
+        sets: formatSets(part.sets, i18n.language),
+      }),
+    )
+    .join(" · ");
+  const label =
+    row.status === null
+      ? t("muscles__row_volume_label", { muscle: name, sets })
+      : t("muscles__row_progress_label", {
+          muscle: name,
+          value,
+          status: t(STATUS_KEYS[row.status]),
+        });
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        row.status === null
-          ? t("muscles__row_volume_label", { muscle: name, sets })
-          : t("muscles__row_progress_label", {
-              muscle: name,
-              value,
-              status: t(STATUS_KEYS[row.status]),
-            })
-      }
+      accessibilityLabel={breakdown === "" ? label : `${label}. ${breakdown}`}
       accessibilityHint={t("muscles__goal_hint")}
       onPress={onPress}
       className="min-h-11 gap-2 rounded-xl px-3 py-2 active:bg-default"
@@ -67,6 +94,9 @@ export function MuscleRow({ row, peak, onPress }: { row: Row; peak: number; onPr
           />
         )}
       </View>
+      {breakdown === "" ? null : (
+        <Text className="text-caption tabular-nums text-muted">{breakdown}</Text>
+      )}
     </Pressable>
   );
 }

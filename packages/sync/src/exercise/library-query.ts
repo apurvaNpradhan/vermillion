@@ -1,4 +1,10 @@
-import { searchTokens, type Equipment, type MuscleGroup } from "@workspace/shared";
+import {
+  detailLikePattern,
+  detailsMatching,
+  searchTokens,
+  type Equipment,
+  type MuscleGroup,
+} from "@workspace/shared";
 
 /** Which exercises the library lists: the catalog and Custom exercises, only Custom, or archived Custom. */
 export const LIBRARY_SHOW = ["all", "custom", "archived"] as const;
@@ -57,9 +63,13 @@ function whereClause(filters: LibraryFilters): WhereClause {
   else clauses.push("retired_at IS NULL");
 
   for (const token of searchTokens(filters.search)) {
-    clauses.push(`(title ${LIKE} OR aka ${LIKE} OR search_terms ${LIKE})`);
+    // A word that names a muscle detail also finds rows that carry it (ADR 0050).
+    const details = detailsMatching(token);
+    const byDetail = details.map(() => `OR primary_detail ${LIKE} OR secondary_detail ${LIKE}`);
+    clauses.push(`(title ${LIKE} OR aka ${LIKE} OR search_terms ${LIKE} ${byDetail.join(" ")})`);
     const pattern = `%${token}%`;
     params.push(pattern, pattern, pattern);
+    for (const detail of details) params.push(detailLikePattern(detail), detailLikePattern(detail));
   }
 
   if (filters.muscles.length > 0) {

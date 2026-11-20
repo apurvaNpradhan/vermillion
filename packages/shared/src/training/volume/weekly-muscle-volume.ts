@@ -4,8 +4,10 @@ import { GOAL_ROTATION_MAX } from "../plans/session-goal";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { calendarDay, type WeekRange } from "../plans/week";
 import {
+  detailDistribution,
   distributeSets,
   muscleDistribution,
+  type DetailLoad,
   type DistributionExercise,
   type MuscleLoad,
 } from "./muscle-distribution";
@@ -49,6 +51,19 @@ export function weeklyMuscleVolume(
   timezone: string,
 ): MuscleLoad[] {
   return muscleDistribution(
+    sessionsInRange(sessions, week, timezone).flatMap((session) => session.sets),
+    exercises,
+  );
+}
+
+/** The same Counted sets as `weeklyMuscleVolume`, split into each group's muscle details. */
+export function weeklyDetailVolume(
+  sessions: readonly Pick<SessionHistory, "started_at" | "sets">[],
+  exercises: readonly DistributionExercise[],
+  week: WeekRange,
+  timezone: string,
+): DetailLoad[] {
+  return detailDistribution(
     sessionsInRange(sessions, week, timezone).flatMap((session) => session.sets),
     exercises,
   );

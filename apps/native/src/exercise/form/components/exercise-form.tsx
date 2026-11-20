@@ -6,6 +6,8 @@ import {
   EQUIPMENT_KEYS,
   EXERCISE_INSTRUCTIONS_MAX,
   EXERCISE_TITLE_MAX,
+  MUSCLE_GROUP_KEYS,
+  detailsOf,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
 import { useNavigation, usePreventRemove } from "expo-router";
@@ -35,6 +37,7 @@ import {
   exerciseDraftPatch,
   isExerciseDraftDirty,
   startExerciseDraft,
+  toggleDetail,
   toggleSecondary,
   validateExerciseForm,
   type ExerciseDraft,
@@ -42,6 +45,7 @@ import {
   shouldBlockLeaving,
 } from "../exercise-draft";
 import { formValuesOf } from "../form-values";
+import { DetailPicker } from "./detail-picker";
 import { PrimaryMusclePicker, SecondaryMusclePicker } from "./muscle-picker";
 import { TypePicker } from "./type-picker";
 
@@ -194,6 +198,7 @@ function ExerciseForm({
   const [detailsOpen, setDetailsOpen] = useState(
     () =>
       initial.secondaryMuscles.length > 0 ||
+      initial.secondaryDetail.length > 0 ||
       initial.notes.trim() !== "" ||
       saved?.imageMediaId != null,
   );
@@ -330,6 +335,22 @@ function ExerciseForm({
           />
         </Section>
 
+        {draft.values.primaryMuscle !== null && detailsOf(draft.values.primaryMuscle).length > 0 ? (
+          <Section
+            title={t("exercise__field_detail")}
+            hint={t("exercise__field_detail_hint")}
+            error={errors.primaryDetail ? t(errors.primaryDetail) : undefined}
+          >
+            <DetailPicker
+              group={draft.values.primaryMuscle}
+              value={draft.values.primaryDetail}
+              onToggle={(detail) =>
+                set("primaryDetail", toggleDetail(draft.values.primaryDetail, detail))
+              }
+            />
+          </Section>
+        ) : null}
+
         <Section title={t("exercise__field_log")}>
           <TypePicker
             value={draft.values.exerciseType}
@@ -388,6 +409,27 @@ function ExerciseForm({
                 }
               />
             </Section>
+
+            {draft.values.secondaryMuscles.flatMap((group) =>
+              detailsOf(group).length === 0
+                ? []
+                : [
+                    <Section
+                      key={group}
+                      title={t("exercise__field_detail_group", {
+                        group: t(MUSCLE_GROUP_KEYS[group]),
+                      })}
+                    >
+                      <DetailPicker
+                        group={group}
+                        value={draft.values.secondaryDetail}
+                        onToggle={(detail) =>
+                          set("secondaryDetail", toggleDetail(draft.values.secondaryDetail, detail))
+                        }
+                      />
+                    </Section>,
+                  ],
+            )}
 
             <Field
               label={t("exercise__field_notes")}

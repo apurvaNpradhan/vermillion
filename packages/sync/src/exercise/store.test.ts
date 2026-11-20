@@ -111,6 +111,58 @@ describe("exercise store", () => {
     ).rejects.toThrow();
   });
 
+  it("edits a row that holds a detail slug this build does not know", async () => {
+    const s = await setup();
+    const id = await createCustomExercise(s.exercises, {
+      ...input,
+      secondary_muscles: ["shoulders"],
+    });
+    // A newer build stored a detail slug this one has no entry for, next to a known one.
+    s.sqlite
+      .prepare("UPDATE exercise SET primary_detail = ?, secondary_detail = ? WHERE id = ?")
+      .run('["upper_chest","future_chest_part"]', '["rear_delts","future_delt"]', id);
+
+    // Another field changes: it must not fail, and the stored details are not touched.
+    expect(await updateCustomExercise(s.exercises, id, { title: "Renamed" })).toBe(true);
+    expect(row(s, id)).toMatchObject({
+      title: "Renamed",
+      primary_detail: '["upper_chest","future_chest_part"]',
+      secondary_detail: '["rear_delts","future_delt"]',
+    });
+
+    // The form hands back the known part unchanged: nothing to write.
+    expect(
+      await updateCustomExercise(s.exercises, id, {
+        primary_detail: ["upper_chest"],
+        secondary_detail: ["rear_delts"],
+      }),
+    ).toBe(false);
+
+    // A real details change writes known slugs only; the unknown one is never sent back.
+    expect(await updateCustomExercise(s.exercises, id, { primary_detail: ["lower_chest"] })).toBe(
+      true,
+    );
+    expect(row(s, id)).toMatchObject({
+      primary_detail: '["lower_chest"]',
+      secondary_detail: '["rear_delts","future_delt"]',
+    });
+  });
+
+  it("drops an unplaceable unknown slug when the muscle groups change", async () => {
+    const s = await setup();
+    const id = await createCustomExercise(s.exercises, input);
+    s.sqlite
+      .prepare("UPDATE exercise SET primary_detail = ? WHERE id = ?")
+      .run('["upper_chest","future_chest_part"]', id);
+    expect(await updateCustomExercise(s.exercises, id, { secondary_muscles: ["biceps"] })).toBe(
+      true,
+    );
+    expect(row(s, id)).toMatchObject({
+      secondary_muscles: '["biceps"]',
+      primary_detail: '["upper_chest"]',
+    });
+  });
+
   it("never writes a catalog row", async () => {
     const s = await setup();
     s.sqlite

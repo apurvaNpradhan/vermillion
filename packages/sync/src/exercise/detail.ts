@@ -1,5 +1,11 @@
 import type { QueryResult } from "@powersync/common";
-import { EQUIPMENT, EXERCISE_TYPES, MUSCLE_GROUPS, type MuscleDetail } from "@workspace/shared";
+import {
+  EQUIPMENT,
+  EXERCISE_TYPES,
+  MUSCLE_GROUPS,
+  detailLikePattern,
+  type MuscleDetail,
+} from "@workspace/shared";
 import { z } from "zod";
 
 import { parseMuscleDetails } from "./details";
@@ -77,18 +83,33 @@ export function exerciseDetailQuery(id: string): LibraryQuery {
 }
 
 /**
- * Live exercises with the same primary muscle and a different equipment, best rank first, then
- * title, then id; at most `limit`. The exercise itself is never listed (it has its own equipment).
+ * Live exercises with the same primary muscle and a different equipment, most shared primary
+ * details first (ADR 0050), then best rank first, then title, then id; at most `limit`. The
+ * exercise itself is never listed (it has its own equipment). Without details the order is rank.
  */
 export function swapCandidatesQuery(
-  exercise: { id: string; primaryMuscle: string; equipment: string },
+  exercise: {
+    id: string;
+    primaryMuscle: string;
+    equipment: string;
+    primaryDetail?: readonly MuscleDetail[];
+  },
   limit: number = SWAP_CANDIDATE_LIMIT,
 ): LibraryQuery {
+  const details = exercise.primaryDetail ?? [];
+  const overlap = details.map(() => `(primary_detail LIKE ? ESCAPE '\\')`);
+  const shared = overlap.length > 0 ? `(${overlap.join(" + ")}) DESC, ` : "";
   return {
     sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM exercise
       WHERE retired_at IS NULL AND primary_muscle = ? AND equipment <> ? AND id <> ?
-      ORDER BY rank DESC, title COLLATE NOCASE, id LIMIT ?`,
-    params: [exercise.primaryMuscle, exercise.equipment, exercise.id, limit],
+      ORDER BY ${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
+    params: [
+      exercise.primaryMuscle,
+      exercise.equipment,
+      exercise.id,
+      ...details.map(detailLikePattern),
+      limit,
+    ],
   };
 }
 
@@ -158,7 +179,12 @@ export function watchExercise(
 /** Watches the swap candidates of `exercise`. */
 export function watchSwapCandidates(
   database: ExerciseDatabase,
-  exercise: { id: string; primaryMuscle: string; equipment: string },
+  exercise: {
+    id: string;
+    primaryMuscle: string;
+    equipment: string;
+    primaryDetail?: readonly MuscleDetail[];
+  },
   handlers: { onRows: (rows: LibraryRow[]) => void; onError: (error: Error) => void },
 ): () => void {
   return watch(

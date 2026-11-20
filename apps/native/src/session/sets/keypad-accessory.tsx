@@ -7,7 +7,7 @@ import { Pressable, Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useThemeColor } from "heroui-native";
 
-import { PlateCalculatorSheet } from "@/session/plates";
+import { PlateCalculatorSheet, usesPlateCalculator } from "@/session/plates";
 
 /** The cell the keypad is editing, which is all an accessory needs to decide what to show. */
 export type KeypadCell = {
@@ -33,7 +33,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
   // The weight the calculator works on is fixed when it opens, so typing on the keypad behind the
   // sheet does not recompute it.
   const [openedKg, setOpenedKg] = useState(0);
-  if (!cell || cell.field !== "weight" || cell.exercise.exercise?.equipment !== "barbell") {
+  if (!cell || cell.field !== "weight" || !usesPlateCalculator(cell.exercise.exercise?.equipment)) {
     return null;
   }
   return (
@@ -54,6 +54,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
         isOpen={open}
         targetKg={openedKg}
         exerciseId={cell.exercise.exerciseId}
+        equipment={cell.exercise.exercise?.equipment}
         onUse={(weightKg) => {
           cell.putKg(weightKg);
           setOpen(false);

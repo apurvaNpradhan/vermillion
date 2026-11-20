@@ -14,6 +14,8 @@ type Seed = {
   title: string;
   primary?: string;
   secondary?: string[];
+  primaryDetail?: string[];
+  secondaryDetail?: string[];
   equipment?: string;
   rank?: number;
   aka?: string | null;
@@ -79,14 +81,15 @@ const seeds: Seed[] = [
   },
 ];
 
-async function setup() {
+async function setup(extra: Seed[] = []) {
   const fake = createFakeDatabase();
   const insert = fake.sqlite.prepare(
     `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
-       exercise_type, is_full_bodyweight, rank, search_terms, aka, thumbnail_key, retired_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'weight_reps', 0, ?, ?, ?, NULL, ?, 'now')`,
+       exercise_type, is_full_bodyweight, rank, search_terms, aka, thumbnail_key, retired_at,
+       primary_detail, secondary_detail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'weight_reps', 0, ?, ?, ?, NULL, ?, ?, ?, 'now')`,
   );
-  for (const s of seeds) {
+  for (const s of [...seeds, ...extra]) {
     insert.run(
       s.id,
       s.user ?? null,
@@ -98,13 +101,15 @@ async function setup() {
       s.terms ?? null,
       s.aka ?? null,
       s.retired ?? null,
+      JSON.stringify(s.primaryDetail ?? []),
+      JSON.stringify(s.secondaryDetail ?? []),
     );
   }
   return fake.sqlite;
 }
 
-const ids = async (filters: Partial<LibraryFilters>, limit = 50) => {
-  const sqlite = await setup();
+const ids = async (filters: Partial<LibraryFilters>, limit = 50, extra: Seed[] = []) => {
+  const sqlite = await setup(extra);
   const { sql, params } = libraryQuery({ ...DEFAULT_LIBRARY_FILTERS, ...filters }, limit);
   return sqlite
     .prepare(sql)
@@ -117,6 +122,49 @@ const total = async (filters: Partial<LibraryFilters>) => {
   const { sql, params } = libraryCountQuery({ ...DEFAULT_LIBRARY_FILTERS, ...filters });
   return sqlite.prepare(sql).get(...params)?.["total"];
 };
+
+const detailRows: Seed[] = [
+  {
+    id: "d1",
+    title: "Face Pull",
+    primary: "upper_back",
+    secondary: ["shoulders"],
+    primaryDetail: ["mid_traps"],
+    secondaryDetail: ["rear_delts", "rotator_cuff"],
+    equipment: "cable",
+  },
+  {
+    id: "d2",
+    title: "My Reverse Fly",
+    primary: "shoulders",
+    primaryDetail: ["rear_delts"],
+    equipment: "dumbbell",
+    user: "u1",
+  },
+  { id: "d3", title: "Lateral Raise", primary: "shoulders", primaryDetail: ["side_delts"] },
+];
+
+describe("library query: muscle details", () => {
+  it("finds rows by a detail's alias when the title does not match", async () => {
+    expect(await ids({ search: "rear delt" }, 50, detailRows)).toEqual(["d1", "d2"]);
+    expect(await ids({ search: "rear delts" }, 50, detailRows)).toEqual(["d1", "d2"]);
+    expect(await ids({ search: "posterior delt" }, 50, detailRows)).toEqual(["d1", "d2"]);
+  });
+
+  it("matches primary and secondary details, catalog and Custom rows alike", async () => {
+    expect(await ids({ search: "rotator" }, 50, detailRows)).toEqual(["d1"]);
+    expect(await ids({ search: "lateral" }, 50, detailRows)).toEqual(["d3"]);
+  });
+
+  it("still ANDs the words", async () => {
+    expect(await ids({ search: "rear delt cable" }, 50, detailRows)).toEqual([]);
+    expect(await ids({ search: "rear face" }, 50, detailRows)).toEqual(["d1"]);
+  });
+
+  it("is unchanged for a word that names no detail", async () => {
+    expect(await ids({ search: "squat" }, 50, detailRows)).toEqual(["a4"]);
+  });
+});
 
 describe("library query", () => {
   it("lists live exercises A-Z, case-insensitively, with id as the tie-break", async () => {

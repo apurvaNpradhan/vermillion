@@ -241,6 +241,13 @@ export const HIT_MASKS = {
     "h": 21,
     "bits": "BEIgDvf5n//5nud5nud5nud5DudwDudwBmZgBiZAAgQ="
   },
+  "front_iliopsoas": {
+    "x0": 18,
+    "y0": 55,
+    "w": 14,
+    "h": 7,
+    "bits": "AeAAbIAZYAaYASYAAQ=="
+  },
   "front_neck": {
     "x0": 19,
     "y0": 13,

@@ -1,8 +1,11 @@
 import {
   defaultGymKit,
+  EZ_BAR_LABEL,
   KG_PER_LB,
+  TRAP_BAR_LABEL,
   type BarLoad,
   type BarLoading,
+  type Equipment,
   type GymEquipmentInput,
   type LoadPlate,
   type WeightUnit,
@@ -36,18 +39,60 @@ const STANDARD_BAR_KG = { kg: 20, lb: 45 * KG_PER_LB } as const satisfies Record
   number
 >;
 
+/** Whether the plate calculator is offered for an exercise's equipment: bars loaded with plates. */
+export function usesPlateCalculator(equipment: Equipment | undefined): boolean {
+  return equipment === "barbell" || equipment === "ez_bar" || equipment === "trap_bar";
+}
+
+/** The bar label an EZ bar or trap bar exercise opens on; null for other equipment. */
+export function barLabelFor(equipment: Equipment | null | undefined): string | null {
+  if (equipment === "ez_bar") return EZ_BAR_LABEL;
+  if (equipment === "trap_bar") return TRAP_BAR_LABEL;
+  return null;
+}
+
+const sameLabel = (a: string | null, b: string) =>
+  (a ?? "").trim().toLowerCase() === b.toLowerCase();
+
+/** The enabled bar labelled for the equipment (case-insensitive), the preferred unit's first. */
+function labelledBar(
+  bars: readonly EquipmentRow[],
+  equipment: Equipment | null | undefined,
+  preferred: WeightUnit,
+): EquipmentRow | undefined {
+  const label = barLabelFor(equipment);
+  if (label === null) return undefined;
+  const found = bars.filter((bar) => sameLabel(bar.label, label));
+  return found.find((bar) => bar.unit === preferred) ?? found[0];
+}
+
 /**
- * The bar the calculator starts on: the one the exercise remembers if it is still enabled, else
- * the standard bar of the preferred unit (20 kg, 45 lb), else the first bar of that unit, else
- * the first bar.
+ * The label an EZ bar or trap bar exercise needs when no enabled bar carries it, so the sheet can
+ * point at Manage equipment; null when the bar exists or the equipment needs none.
+ */
+export function missingBarLabel(
+  bars: readonly EquipmentRow[],
+  equipment: Equipment | null | undefined,
+): string | null {
+  const label = barLabelFor(equipment);
+  return label !== null && !bars.some((bar) => sameLabel(bar.label, label)) ? label : null;
+}
+
+/**
+ * The bar the calculator starts on: the one the exercise remembers if it is still enabled; for an
+ * EZ bar or trap bar exercise the enabled bar labelled "EZ" or "Trap"; else the standard bar of
+ * the preferred unit (20 kg, 45 lb), else the first bar of that unit, else the first bar.
  */
 export function defaultBar(
   bars: readonly EquipmentRow[],
   rememberedId: string | null | undefined,
   preferred: WeightUnit,
+  equipment?: Equipment | null,
 ): EquipmentRow | undefined {
   const remembered = rememberedId ? bars.find((bar) => bar.id === rememberedId) : undefined;
   if (remembered) return remembered;
+  const labelled = labelledBar(bars, equipment, preferred);
+  if (labelled) return labelled;
   const inUnit = bars.filter((bar) => bar.unit === preferred);
   return (
     inUnit.find((bar) => Math.abs(bar.weightKg - STANDARD_BAR_KG[preferred]) < SAME) ??

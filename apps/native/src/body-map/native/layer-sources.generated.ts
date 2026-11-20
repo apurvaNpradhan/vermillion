@@ -36,6 +36,7 @@ export const LAYER_SOURCES = {
   front_gastrocnemius: require("../assets/interim/front_gastrocnemius.webp"),
   front_grey_body: require("../assets/interim/front_grey_body.webp"),
   front_hip_adductors: require("../assets/interim/front_hip_adductors.webp"),
+  front_iliopsoas: require("../assets/interim/front_iliopsoas.webp"),
   front_neck: require("../assets/interim/front_neck.webp"),
   front_obliques: require("../assets/interim/front_obliques.webp"),
   front_quadriceps: require("../assets/interim/front_quadriceps.webp"),

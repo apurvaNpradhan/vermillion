@@ -1,4 +1,4 @@
-import { MUSCLE_GROUP_KEYS, type MuscleGroup } from "@workspace/shared";
+import { MUSCLE_GROUP_KEYS, type MuscleDetail, type MuscleGroup } from "@workspace/shared";
 import { useMemo, useState } from "react";
 import { Image, Pressable, View, type GestureResponderEvent, type ViewStyle } from "react-native";
 import Svg, { Defs, FeColorMatrix, Filter, G, Image as SvgImage } from "react-native-svg";
@@ -7,7 +7,8 @@ import { useTranslation } from "@/platform/i18n";
 
 import { muscleArtTint, tintOpacity } from "../core/ramp";
 import { BODY_ASPECT, BODY_CANVAS } from "../core/body-canvas";
-import { BASE_LAYERS, GROUP_LAYERS } from "../core/group-layers";
+import { layerAlphas } from "../core/detail-layers";
+import { BASE_LAYERS } from "../core/group-layers";
 import { groupAt } from "../core/hit-test";
 import { BODY_GROUPS, type BodyGroup, type BodyView } from "../core/groups";
 import { groupAlphas } from "../core/intensity";
@@ -19,6 +20,11 @@ export type BodyMapProps = {
   primary?: readonly MuscleGroup[];
   /** Groups drawn lighter. */
   secondary?: readonly MuscleGroup[];
+  /**
+   * Parts of the groups above to light instead of the whole group (an exercise's muscle details).
+   * A group with none of its details listed is lit whole.
+   */
+  details?: readonly MuscleDetail[];
   /** 0..1 per group (clamped), replacing the primary and secondary opacities: a heat map. */
   intensity?: Partial<Record<BodyGroup, number>>;
   /** Optional recolouring of the shaded artwork for the weekly muscle map. */
@@ -41,6 +47,7 @@ export function BodyMap({
   view,
   primary,
   secondary,
+  details,
   intensity,
   artTint,
   selected,
@@ -54,11 +61,7 @@ export function BodyMap({
     () => groupAlphas({ primary, secondary, intensity, selected }),
     [primary, secondary, intensity, selected],
   );
-  const layers = BODY_GROUPS.flatMap((group) => {
-    const opacity = alphas.get(group);
-    if (opacity === undefined) return [];
-    return GROUP_LAYERS[group][view].map((layer) => ({ layer, opacity }));
-  });
+  const layers = useMemo(() => layerAlphas(view, alphas, details), [view, alphas, details]);
   const actions = useMemo(
     () =>
       BODY_GROUPS.flatMap((group) => {
