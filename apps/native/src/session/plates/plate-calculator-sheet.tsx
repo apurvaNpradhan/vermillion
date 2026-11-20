@@ -6,7 +6,7 @@ import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatWeight, type LoadPlate, type WeightUnit } from "@workspace/shared";
+import { formatWeight, type Equipment, type LoadPlate, type WeightUnit } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
@@ -97,6 +97,7 @@ export function PlateCalculatorSheet({
   isOpen,
   targetKg,
   exerciseId,
+  equipment,
   onUse,
   onClose,
 }: {
@@ -105,12 +106,14 @@ export function PlateCalculatorSheet({
   /** Fixed for as long as the sheet is open; the caller captures it when opening. */
   targetKg: number;
   exerciseId: string;
+  /** The exercise's equipment: an EZ bar or trap bar opens on its own bar. */
+  equipment?: Equipment;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment);
   return (
     <BottomSheet
       isOpen={isOpen}
@@ -238,6 +241,21 @@ function CalculatorBody({
                   />
                 ))}
               </View>
+            ) : null}
+            {state.missingBar !== null && state.bar ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={t("plates__missing_bar", { name: state.missingBar })}
+                onPress={() => {
+                  onClose();
+                  router.push("/session/equipment");
+                }}
+                className="min-h-11 justify-center active:opacity-70"
+              >
+                <Text className="text-label text-identity">
+                  {t("plates__missing_bar", { name: state.missingBar })}
+                </Text>
+              </Pressable>
             ) : null}
             {!state.bar ? (
               <Text className="text-body text-muted">{t(noBarKey)}</Text>

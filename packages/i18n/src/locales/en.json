@@ -1095,6 +1095,7 @@
   "plates__clear": "Clear",
   "plates__build_hint": "Tap a plate to add a pair. Tap a plate on the bar to remove it.",
   "plates__remove_plate": "Remove {{weight}}",
+  "plates__missing_bar": "No {{name}} bar in your equipment. Add one in Manage equipment.",
   "plates__over_inventory": "This uses more plates than your equipment list has.",
   "plates__bars_in": "Bars ({{unit}})",
   "plates__plates_in": "Plates ({{unit}})",

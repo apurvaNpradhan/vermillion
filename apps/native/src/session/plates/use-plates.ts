@@ -1,5 +1,10 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { loadBar, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
+import {
+  loadBar,
+  type Equipment,
+  type GymEquipmentInput,
+  type WeightUnit,
+} from "@workspace/shared";
 import {
   deleteEquipment,
   restoreEquipment,
@@ -25,6 +30,7 @@ import {
   enabledBars,
   hasTarget,
   loadInputKey,
+  missingBarLabel,
   missingKitItems,
   platesForBar,
 } from "./plate-view";
@@ -153,7 +159,12 @@ export function useEquipment(enabled = true) {
  * The calculator's state for one exercise. Enable it only while the calculator is open: it
  * watches the equipment and the exercise's remembered bar, and solves the load.
  */
-export function usePlates(targetKg: number, exerciseId: string, enabled = true) {
+export function usePlates(
+  targetKg: number,
+  exerciseId: string,
+  enabled = true,
+  equipmentKind?: Equipment,
+) {
   const equipment = useEquipment(enabled);
   const { run, scope } = equipment;
   const [selected, setSelected] = useState<{
@@ -179,6 +190,7 @@ export function usePlates(targetKg: number, exerciseId: string, enabled = true) 
       ? selected.id
       : remembered.value,
     equipment.unit,
+    equipmentKind,
   );
   const plates = bar ? platesForBar(equipment.rows, bar) : [];
   const target = useDeferredValue(targetKg);
@@ -208,6 +220,8 @@ export function usePlates(targetKg: number, exerciseId: string, enabled = true) 
     },
     bars,
     bar,
+    /** The "EZ" or "Trap" bar this exercise opens on, when the kit has no such bar. */
+    missingBar: missingBarLabel(bars, equipmentKind),
     /** The unit the calculator works in: the bar's own. */
     barUnit: bar?.unit ?? equipment.unit,
     plates,

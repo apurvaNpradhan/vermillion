@@ -13,6 +13,7 @@ import {
   kitGroups,
   loadChoices,
   loadInputKey,
+  missingBarLabel,
   missingKitItems,
   nearestChoice,
   overInventory,
@@ -27,6 +28,7 @@ import {
   stackSideKg,
   stackTotalKg,
   noBarCopy,
+  usesPlateCalculator,
 } from "./plate-view";
 
 let nextId = 0;
@@ -80,6 +82,59 @@ describe("defaultBar", () => {
     expect(defaultBar([heavy], null, "kg")).toBe(heavy);
     expect(defaultBar([heavy], null, "lb")).toBe(heavy);
     expect(defaultBar([], null, "kg")).toBeUndefined();
+  });
+});
+
+describe("defaultBar by equipment", () => {
+  const rows = [...kit("kg"), ...kit("lb")];
+  const bars = enabledBars(rows);
+
+  it("opens an EZ bar exercise on the bar labelled EZ and a trap bar exercise on Trap", () => {
+    const ez = defaultBar(bars, null, "kg", "ez_bar");
+    expect(ez).toMatchObject({ label: "EZ", unit: "kg", weightKg: 10 });
+    const trap = defaultBar(bars, null, "kg", "trap_bar");
+    expect(trap).toMatchObject({ label: "Trap", unit: "kg", weightKg: 25 });
+  });
+
+  it("prefers the labelled bar of the preferred unit", () => {
+    expect(defaultBar(bars, null, "lb", "trap_bar")).toMatchObject({ label: "Trap", unit: "lb" });
+    const onlyKg = enabledBars(kit("kg"));
+    expect(defaultBar(onlyKg, null, "lb", "ez_bar")).toMatchObject({ label: "EZ", unit: "kg" });
+  });
+
+  it("matches the label case-insensitively and ignoring spaces around it", () => {
+    const custom = row({ kind: "bar", weightKg: 12, label: "  ez " });
+    expect(defaultBar([...bars, custom].toReversed(), null, "kg", "ez_bar")?.weightKg).toBe(
+      custom.weightKg,
+    );
+  });
+
+  it("lets a remembered bar win", () => {
+    const olympic = bars.find((bar) => bar.weightKg === 20);
+    expect(defaultBar(bars, olympic?.id, "kg", "ez_bar")).toBe(olympic);
+  });
+
+  it("skips a disabled labelled bar and uses today's rule, as for other equipment", () => {
+    const withoutEz = bars.filter((bar) => bar.label !== "EZ");
+    expect(defaultBar(withoutEz, null, "kg", "ez_bar")?.weightKg).toBe(20);
+    expect(defaultBar(bars, null, "kg", "barbell")?.weightKg).toBe(20);
+    expect(defaultBar(bars, null, "kg", undefined)?.weightKg).toBe(20);
+  });
+
+  it("names the missing labelled bar for the hint, and only then", () => {
+    const withoutTrap = bars.filter((bar) => bar.label !== "Trap");
+    expect(missingBarLabel(withoutTrap, "trap_bar")).toBe("Trap");
+    expect(missingBarLabel(bars, "trap_bar")).toBeNull();
+    expect(missingBarLabel(withoutTrap, "ez_bar")).toBeNull();
+    expect(missingBarLabel(withoutTrap, "barbell")).toBeNull();
+  });
+
+  it("offers the calculator for barbells, EZ bars and trap bars only", () => {
+    expect(usesPlateCalculator("barbell")).toBe(true);
+    expect(usesPlateCalculator("ez_bar")).toBe(true);
+    expect(usesPlateCalculator("trap_bar")).toBe(true);
+    expect(usesPlateCalculator("dumbbell")).toBe(false);
+    expect(usesPlateCalculator(undefined)).toBe(false);
   });
 });
 
