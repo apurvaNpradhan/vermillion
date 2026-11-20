@@ -4,6 +4,7 @@ import {
   EXERCISE_TYPE_KEYS,
   hasWarmupRamp,
   MUSCLE_DETAIL_KEYS,
+  MUSCLE_DETAILS,
   MUSCLE_GROUP_KEYS,
   type MuscleDetail,
   type MuscleGroup,
@@ -400,13 +401,6 @@ function MuscleSection({
   // Cardio, full body and other have no drawing: the map would show a bare body.
   const drawn = primary.some(isBodyGroup) || secondary.some(isBodyGroup);
 
-  const role = (group: MuscleGroup) =>
-    group === exercise.primaryMuscle
-      ? t("exercise__muscle_primary")
-      : secondary.includes(group)
-        ? t("exercise__muscle_secondary")
-        : t("exercise__muscle_not_worked");
-
   return (
     <CollapsibleSection title={t("exercise__muscles_title")} defaultOpen={defaultOpen}>
       {drawn ? (
@@ -420,91 +414,110 @@ function MuscleSection({
           }}
         />
       ) : null}
-      <DetailChips primary={exercise.primaryDetail} secondary={exercise.secondaryDetail} />
-      <MuscleLegend
+      <MuscleBreakdown
         primary={exercise.primaryMuscle}
         secondary={secondary}
+        primaryDetail={exercise.primaryDetail}
+        secondaryDetail={exercise.secondaryDetail}
         tapped={tapped}
-        role={role}
         onBrowse={onBrowseGroup}
       />
     </CollapsibleSection>
   );
 }
 
-/** The muscle parts the exercise works, primary first; nothing for an exercise without any. */
-function DetailChips({
-  primary,
-  secondary,
-}: {
-  primary: readonly MuscleDetail[];
-  secondary: readonly MuscleDetail[];
-}) {
-  const { t } = useTranslation();
-  if (primary.length === 0 && secondary.length === 0) return null;
-  return (
-    <View className="flex-row flex-wrap gap-2">
-      {primary.map((detail) => (
-        <View
-          key={detail}
-          accessible
-          accessibilityLabel={`${t(MUSCLE_DETAIL_KEYS[detail])}, ${t("exercise__muscle_primary")}`}
-          className="rounded-full bg-default px-3 py-1.5"
-        >
-          <Text className="text-label font-medium text-foreground">
-            {t(MUSCLE_DETAIL_KEYS[detail])}
-          </Text>
-        </View>
-      ))}
-      {secondary.map((detail) => (
-        <View
-          key={detail}
-          accessible
-          accessibilityLabel={`${t(MUSCLE_DETAIL_KEYS[detail])}, ${t("exercise__muscle_secondary")}`}
-          className="rounded-full bg-surface px-3 py-1.5"
-        >
-          <Text className="text-label text-muted">{t(MUSCLE_DETAIL_KEYS[detail])}</Text>
-        </View>
-      ))}
-    </View>
-  );
+type BreakdownRow = {
+  group: MuscleGroup;
+  /** The parts of the group the exercise works; empty when the whole group is meant. */
+  parts: readonly MuscleDetail[];
+};
+
+/** One row per group, in order, each with the parts of it that are listed. */
+function breakdownRows(
+  groups: readonly MuscleGroup[],
+  details: readonly MuscleDetail[],
+  taken: ReadonlySet<MuscleGroup>,
+): BreakdownRow[] {
+  const ordered = [...groups];
+  for (const detail of details) {
+    const group: MuscleGroup = MUSCLE_DETAILS[detail];
+    if (!ordered.includes(group) && !taken.has(group)) ordered.push(group);
+  }
+  return ordered.map((group) => ({
+    group,
+    parts: details.filter((detail) => MUSCLE_DETAILS[detail] === group),
+  }));
 }
 
-function MuscleLegend({
+/**
+ * Primary and secondary as two labelled blocks, each group a row with its parts beneath, so
+ * a long list reads as a list instead of a pile of chips. The dots echo the map: primary full,
+ * secondary lighter. Tapping a group on the map narrows this to that group.
+ */
+function MuscleBreakdown({
   primary,
   secondary,
+  primaryDetail,
+  secondaryDetail,
   tapped,
-  role,
   onBrowse,
 }: {
   primary: MuscleGroup;
   secondary: readonly MuscleGroup[];
+  primaryDetail: readonly MuscleDetail[];
+  secondaryDetail: readonly MuscleDetail[];
   tapped: BodyGroup | null;
-  role: (group: MuscleGroup) => string;
   onBrowse?: (group: MuscleGroup) => void;
 }) {
   const { t } = useTranslation();
-  // The tapped group, else the muscles the exercise works, so the card never sits empty.
-  const shown: readonly MuscleGroup[] = tapped ? [tapped] : [primary, ...secondary];
+  const primaryRows = breakdownRows([primary], primaryDetail, new Set());
+  const taken = new Set(primaryRows.map((row) => row.group));
+  const secondaryRows = breakdownRows(
+    secondary.filter((group) => !taken.has(group)),
+    secondaryDetail,
+    taken,
+  );
+  const blocks = [
+    { key: "primary", label: t("exercise__muscle_primary"), rows: primaryRows, soft: false },
+    { key: "secondary", label: t("exercise__muscle_secondary"), rows: secondaryRows, soft: true },
+  ] as const;
   return (
-    <View className="gap-3">
-      {shown.map((group) => (
-        <View key={group} className="flex-row items-center justify-between gap-3">
-          <View className="flex-1">
-            <Text className="font-medium text-body text-foreground">
-              {t(MUSCLE_GROUP_KEYS[group])}
-            </Text>
-            <Text className="text-caption text-muted">{role(group)}</Text>
+    <View className="gap-4">
+      {blocks.map(({ key, label, rows, soft }) => {
+        const shown = tapped ? rows.filter((row) => row.group === tapped) : rows;
+        if (shown.length === 0) return null;
+        return (
+          <View key={key} className="gap-2">
+            <View className="flex-row items-center gap-2">
+              <View className={`size-2.5 rounded-full bg-danger ${soft ? "opacity-45" : ""}`} />
+              <Text accessibilityRole="header" className="text-caption text-muted">
+                {label}
+              </Text>
+            </View>
+            {shown.map(({ group, parts }) => (
+              <View key={group} className="flex-row items-center justify-between gap-3">
+                <View className="flex-1">
+                  <Text className="font-medium text-body text-foreground">
+                    {t(MUSCLE_GROUP_KEYS[group])}
+                  </Text>
+                  {parts.length > 0 ? (
+                    <Text className="text-caption text-muted">
+                      {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
+                    </Text>
+                  ) : null}
+                </View>
+                {onBrowse && tapped !== null && isBodyGroup(group) ? (
+                  <Button variant="secondary" size="sm" onPress={() => onBrowse(group)}>
+                    <Button.Label>
+                      {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[group]) })}
+                    </Button.Label>
+                  </Button>
+                ) : null}
+              </View>
+            ))}
           </View>
-          {onBrowse && tapped !== null && isBodyGroup(group) ? (
-            <Button variant="secondary" size="sm" onPress={() => onBrowse(group)}>
-              <Button.Label>
-                {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[group]) })}
-              </Button.Label>
-            </Button>
-          ) : null}
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

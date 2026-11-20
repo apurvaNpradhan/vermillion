@@ -38,8 +38,12 @@ import {
 } from "./library-states";
 
 const ESTIMATED_ROW_HEIGHT = 72;
-/** Search field (44), gap (8), filter row (44) and the pinned layer's bottom padding (8). */
-const PINNED_HEIGHT = 104;
+/**
+ * Search field (44), gap (8), filter row (44) and the pinned layer's bottom padding (8), plus 8
+ * so the count and sort row below clears the opaque layer (measured on a device: at 104 the top
+ * of the sort control was covered).
+ */
+const PINNED_HEIGHT = 112;
 
 type ListItem =
   | { kind: "header"; key: string; title: string }

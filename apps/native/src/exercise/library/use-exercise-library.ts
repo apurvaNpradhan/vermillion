@@ -64,8 +64,15 @@ export function useExerciseLibrary(filters: LibraryFilters) {
     [key, limit],
   );
   const state = useLocalWatch(subscribe);
-  const page = state.value?.page;
-  const total = state.value?.total ?? null;
+  // Widening the window restarts the watch, which has no value until the wider page arrives. Hold
+  // the last result for the same filters meanwhile: an empty frame would reset the list to the top.
+  const [held, setHeld] = useState<{ key: string; value: typeof state.value } | null>(null);
+  if (state.value !== undefined && (held?.key !== key || held.value !== state.value)) {
+    setHeld({ key, value: state.value });
+  }
+  const value = state.value ?? (held?.key === key && !state.failed ? held.value : undefined);
+  const page = value?.page;
+  const total = value?.total ?? null;
   const retry = state.retry;
 
   const loadMore = useCallback(
@@ -82,9 +89,10 @@ export function useExerciseLibrary(filters: LibraryFilters) {
     rows: page?.rows ?? [],
     recent: NO_RECENT,
     total,
-    hasMore: page?.hasMore ?? false,
+    // Only a fresh page may ask for more, so a held one cannot widen the window twice.
+    hasMore: state.value?.page.hasMore ?? false,
     /** No result has arrived yet for these filters. */
-    isLoading: state.loading,
+    isLoading: state.loading && value === undefined,
     status,
     loadMore,
     retry,
