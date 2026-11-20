@@ -579,7 +579,8 @@ const putSetting = z.strictObject({
   log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
   auto_warmups: wireBoolean.optional(),
-  note: exerciseSettingInput.shape.note.optional(),
+  // Unwrap the default: an omitted note must stay omitted, not become null and erase the value.
+  note: exerciseSettingInput.shape.note.unwrap().optional(),
 });
 // A setting belongs to one exercise for good.
 const patchSetting = z
@@ -588,7 +589,7 @@ const patchSetting = z
     log_effort: wireBoolean,
     progression_per_set: wireBoolean,
     auto_warmups: wireBoolean,
-    note: exerciseSettingInput.shape.note,
+    note: exerciseSettingInput.shape.note.unwrap(),
   })
   .partial();
 
