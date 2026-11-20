@@ -438,6 +438,23 @@ describe("session upload handlers", () => {
     expect(await me.send([op("DELETE", "session_set", t.set2)])).toEqual(applied);
   });
 
+  it("stores the repeated flag of an exercise and keeps it when a later PUT omits it", async () => {
+    const me = await writer("session-repeated@example.com");
+    const t = await training(me);
+    const repeated = uuidv7();
+    expect(
+      await me.send([
+        putExercise(repeated, t.sessionId, weightReps, { repeated: 1, position: "a1" }),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", repeated)).toMatchObject({ repeated: true });
+    expect(
+      await me.send([putExercise(repeated, t.sessionId, weightReps, { position: "a1" })]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", repeated)).toMatchObject({ repeated: true });
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({ repeated: false });
+  });
+
   it("keeps a pinned note when an update omits it, and clears it on an explicit null", async () => {
     const me = await writer("session-setting-note@example.com");
     const other = await writer("session-setting-note-other@example.com");

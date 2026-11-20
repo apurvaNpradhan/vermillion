@@ -134,6 +134,8 @@ export const sessionExercise = sqliteTable(
     log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
     /** The inputs the generated warm-up ramp was last built from (see `replaceWarmups`). */
     warmup_key: text("warmup_key"),
+    /** Made by Perform again: its copied targets outrank Previous for the Ghost values. */
+    repeated: integer("repeated", { mode: "boolean" }).notNull().default(false),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

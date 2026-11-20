@@ -107,6 +107,7 @@ export const trainingUploadColumns = {
     "superset_group",
     "log_effort",
     "warmup_key",
+    "repeated",
     "restore",
   ]),
   session_set: new Set([

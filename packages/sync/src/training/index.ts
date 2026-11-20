@@ -151,6 +151,8 @@ export {
   type FinishInput,
   type FinishResult,
   type SessionSource,
+  beginSession,
+  type BeginSource,
 } from "./sessions/session-store";
 export {
   addSessionExercises,

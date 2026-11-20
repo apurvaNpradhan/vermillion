@@ -278,6 +278,8 @@ export const sessionExercise = pgTable(
     logEffort: boolean("log_effort").notNull().default(false),
     /** The inputs the generated warm-up ramp was last built from; null before the first ramp. */
     warmupKey: text("warmup_key"),
+    /** Made by Perform again: its copied targets outrank Previous for the Ghost values. */
+    repeated: boolean("repeated").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

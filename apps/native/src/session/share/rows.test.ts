@@ -44,6 +44,7 @@ const entry = (id: string, sets: SetDetail[], extra: Partial<Entry> = {}): Entry
   pinnedNote: null,
   lastNote: null,
   warmupKey: null,
+  repeated: false,
   barId: null,
   exercise: null,
   sets,

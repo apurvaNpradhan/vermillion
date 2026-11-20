@@ -241,6 +241,7 @@ export function useLoggingState({
         at.set.target,
         at.exercise.logEffort,
         suggestions.get(at.exercise.id)?.sets[at.index],
+        at.exercise.repeated,
       );
     },
     [found, previousOf, previous, suggestions],

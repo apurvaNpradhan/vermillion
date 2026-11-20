@@ -83,6 +83,12 @@ describe("Ghost values", () => {
     expect(ghostsOf("weight_reps", null, null, false)).toEqual({ weight: null, reps: null });
   });
 
+  it("takes the copied target over newer Previous in a repeated exercise", () => {
+    expect(
+      ghostsOf("weight_reps", { weight_kg: 90, reps: 7 }, target, false, undefined, true),
+    ).toEqual({ weight: 100, reps: 7 });
+  });
+
   it("keeps a warm-up's planned weight over the Previous warm-up of the same place", () => {
     const warmup = { kind: "warmup", weight_kg: 60, reps_min: 5, reps_max: 5 } as const;
     expect(ghostsOf("weight_reps", { weight_kg: 40, reps: 10 }, warmup, false)).toEqual({

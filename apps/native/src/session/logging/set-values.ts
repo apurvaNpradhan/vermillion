@@ -51,6 +51,7 @@ export function ghostsOf(
   target: PlannedSet | null,
   logEffort: boolean,
   suggestion?: SuggestedSet | null,
+  repeated = false,
 ): Ghosts {
   const fields: readonly GhostField[] = logEffort ? [...SET_FIELDS[type], "rpe"] : SET_FIELDS[type];
   // A warm-up with a planned weight (a Workout's, or a generated ramp) keeps it: the weight of the
@@ -60,7 +61,7 @@ export function ghostsOf(
       ? { ...previous, weight_kg: null }
       : previous;
   const ghosts: Ghosts = {};
-  for (const field of fields) ghosts[field] = ghostFor(field, before, target, suggestion);
+  for (const field of fields) ghosts[field] = ghostFor(field, before, target, suggestion, repeated);
   return ghosts;
 }
 

@@ -82,7 +82,12 @@ describe("rampTargets", () => {
 });
 
 describe("shouldAutoWarmup", () => {
-  const base = { autoWarmups: true, type: "weight_reps" as const, sets: [set("working")] };
+  const base = {
+    autoWarmups: true,
+    repeated: false,
+    type: "weight_reps" as const,
+    sets: [set("working")],
+  };
   it("needs the setting, a loaded lift and nothing ticked yet", () => {
     expect(shouldAutoWarmup(base)).toBe(true);
     expect(shouldAutoWarmup({ ...base, autoWarmups: false })).toBe(false);
@@ -90,6 +95,9 @@ describe("shouldAutoWarmup", () => {
     expect(
       shouldAutoWarmup({ ...base, sets: [set("warmup", { done: true }), set("working")] }),
     ).toBe(false);
+  });
+  it("leaves a repeated exercise alone, whose warm-ups were copied", () => {
+    expect(shouldAutoWarmup({ ...base, repeated: true })).toBe(false);
   });
   it("only loaded lifts can add warm-ups", () => {
     expect(canAddWarmups({ type: "weight_reps" })).toBe(true);

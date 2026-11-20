@@ -240,6 +240,7 @@ const putSessionExercise = z.strictObject({
   superset_group: sessionExerciseInput.shape.superset_group.default(null),
   log_effort: wireBoolean.default(false),
   warmup_key: wireWarmupKey.optional(),
+  repeated: wireBoolean.optional(),
 });
 // An exercise never moves to another Session.
 const patchSessionExercise = z
@@ -280,11 +281,16 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       const {
         restore,
         warmup_key: warmupKey,
+        repeated,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
-      const keyed = warmupKey === undefined ? {} : { warmupKey };
+      const keyed = {
+        ...(warmupKey === undefined ? {} : { warmupKey }),
+        // Set when the exercise is created and never edited, so a PUT that omits it keeps it.
+        ...(repeated === undefined ? {} : { repeated }),
+      };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
       if (!(await liveSession(db, userId, values.session_id))) parentMissing();
       await exerciseVisible(db, userId, values.exercise_id);

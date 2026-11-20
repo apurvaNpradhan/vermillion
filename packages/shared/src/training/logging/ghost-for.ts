@@ -12,13 +12,15 @@ export type GhostField = SetField | "rpe";
  * - Reps: Previous reps when they lie inside the planned range, else the range's lower bound;
  *   with no range, Previous reps.
  * - Effort: the planned effort (the lower end of its range).
- * - Weight, duration, distance, floors and steps: Previous, else the planned target.
+ * - Weight, duration, distance, floors and steps: Previous, else the planned target. In a repeated
+ *   exercise (Perform again) the planned target, which is what was logged last time, comes first.
  */
 export function ghostFor(
   field: GhostField,
   previous: SetValues | null,
   target: PlannedSet | null,
   suggestion?: SuggestedSet | null,
+  repeated = false,
 ): number | null {
   if (suggestion && (!target || progresses(target.kind))) {
     if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
@@ -33,5 +35,7 @@ export function ghostFor(
     return reps !== null && reps >= min && reps <= max ? reps : min;
   }
   const key = SET_VALUE_KEYS[field];
-  return previous?.[key] ?? target?.[key] ?? null;
+  return repeated
+    ? (target?.[key] ?? previous?.[key] ?? null)
+    : (previous?.[key] ?? target?.[key] ?? null);
 }

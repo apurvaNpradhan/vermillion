@@ -59,6 +59,7 @@ const exercise = (n: number): SessionDetail["exercises"][number] => ({
   pinnedNote: null,
   lastNote: null,
   warmupKey: null,
+  repeated: false,
   barId: null,
   exercise: {
     primaryMuscle: "chest",
