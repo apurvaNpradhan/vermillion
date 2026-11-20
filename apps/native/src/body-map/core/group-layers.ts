@@ -1,3 +1,5 @@
+import type { MuscleDetail } from "@workspace/shared";
+
 import type { BodyGroup, BodyView } from "./groups";
 
 /**
@@ -30,22 +32,19 @@ export const GROUP_LAYERS = {
   lats: { front: [], back: ["back_latissimus_dorsi"] },
   lower_back: { front: [], back: ["back_erector_spinae"] },
   neck: { front: ["front_neck"], back: ["back_neck"] },
-  quadriceps: { front: ["front_quadriceps", "front_sartorius"], back: ["back_quadriceps"] },
+  quadriceps: {
+    front: ["front_quadriceps", "front_sartorius", "front_iliopsoas"],
+    back: ["back_quadriceps"],
+  },
   shoulders: {
     front: ["front_deltoid_anterior", "front_deltoid_lateral"],
-    back: ["back_deltoids"],
+    back: ["back_deltoids", "back_infraspinatus", "back_teres_minor"],
   },
   traps: { front: ["front_trapezius"], back: ["back_upper_trapezius"] },
   triceps: { front: ["front_triceps"], back: ["back_triceps"] },
   upper_back: {
     front: [],
-    back: [
-      "back_middle_trapezius",
-      "back_lower_trapezius",
-      "back_teres_major",
-      "back_teres_minor",
-      "back_infraspinatus",
-    ],
+    back: ["back_middle_trapezius", "back_lower_trapezius", "back_teres_major"],
   },
 } as const satisfies Record<BodyGroup, Record<BodyView, readonly string[]>>;
 
@@ -88,3 +87,33 @@ export function allLayerNames(): LayerName[] {
     ...Object.values(GROUP_LAYERS).flatMap((views) => [...views.front, ...views.back]),
   ];
 }
+
+/**
+ * The art layers of each muscle detail (ADR 0050), per view. Each is a subset of its group's
+ * layers; layers no detail names (sartorius, popliteus, serratus) light only with the whole group.
+ */
+export const DETAIL_LAYERS = {
+  front_delts: { front: ["front_deltoid_anterior"], back: [] },
+  side_delts: { front: ["front_deltoid_lateral"], back: [] },
+  rear_delts: { front: [], back: ["back_deltoids"] },
+  rotator_cuff: { front: [], back: ["back_infraspinatus", "back_teres_minor"] },
+  upper_chest: { front: ["front_chest_clavicular_head"], back: [] },
+  lower_chest: { front: ["front_chest"], back: [] },
+  mid_traps: { front: [], back: ["back_middle_trapezius"] },
+  lower_traps: { front: [], back: ["back_lower_trapezius"] },
+  teres_major: { front: [], back: ["back_teres_major"] },
+  biceps_brachii: { front: ["front_biceps"], back: ["back_biceps"] },
+  brachialis: { front: ["front_brachialis"], back: ["back_brachialis"] },
+  brachioradialis: { front: ["front_brachioradialis"], back: [] },
+  wrist_flexors: { front: [], back: ["back_wrist_flexors"] },
+  wrist_extensors: { front: ["front_wrist_extensors"], back: [] },
+  rectus_abdominis: { front: ["front_rectus_abdominis"], back: [] },
+  obliques: { front: ["front_obliques"], back: ["back_obliques"] },
+  deep_core: { front: [], back: [] },
+  gastrocnemius: { front: ["front_gastrocnemius"], back: ["back_gastrocnemius"] },
+  soleus: { front: ["front_soleus"], back: ["back_soleus"] },
+  tibialis: { front: ["front_tibias"], back: [] },
+  glute_medius: { front: [], back: ["back_gluteus_medius"] },
+  tfl: { front: ["front_tensor_fasciae_latae"], back: [] },
+  hip_flexors: { front: ["front_iliopsoas"], back: [] },
+} as const satisfies Record<MuscleDetail, Record<BodyView, readonly string[]>>;
