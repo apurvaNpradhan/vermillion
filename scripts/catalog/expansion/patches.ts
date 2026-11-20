@@ -286,7 +286,9 @@ export function buildRanksPatch(
     const choice = approved.get(item.id);
     const row = rows.get(item.id);
     if (choice === undefined || item.source !== "catalog" || row === undefined) continue;
-    const to = choice.edits.tier === undefined ? item.rank : TIER_RANK[choice.edits.tier];
+    // The tier decides the rank. The old catalog's own ranks used another scale (10 was its top),
+    // so keeping an existing non-zero rank would sort staples below tier-2 rows.
+    const to = TIER_RANK[choice.edits.tier ?? item.tier];
     if (to === row.rank) continue;
     if (row.rank === 0) fills.push({ id: row.id, rank: to });
     else changes.push({ id: row.id, field: "rank", from: row.rank, to });

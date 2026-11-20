@@ -320,8 +320,9 @@ describe("the ranks patch", () => {
     expect(validatePatches([{ name: "0003", patch }], seed)).toEqual([]);
     expect(parsePatchFile("0003", JSON.stringify(patch)).change).toHaveLength(1);
   });
-  it("leaves a kept rank alone", () => {
-    expect(nonEmpty(buildRanksPatch([approve("ranks", C)], ranks, seed))).toBe(false);
+  it("moves an existing rank from the old scale to its tier's rank", () => {
+    const patch = buildRanksPatch([approve("ranks", C)], ranks, seed);
+    expect(patch.change).toEqual([{ id: C, field: "rank", from: 8, to: 30 }]);
   });
 });
 
