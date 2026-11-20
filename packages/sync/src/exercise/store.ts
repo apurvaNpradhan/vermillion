@@ -40,7 +40,10 @@ export type ExercisePatch = Partial<CustomExerciseInput>;
  * not; it is left out of every check and every comparison here, never sent back, and never makes
  * an edit of another field fail (ADR 0050).
  */
-const knownDetails = (stored: readonly string[]): MuscleDetail[] => stored.filter(isMuscleDetail);
+// A row synced before the detail columns existed reads NULL, which the column type does not admit.
+const storedList = (stored: readonly string[] | null): readonly string[] => stored ?? [];
+const knownDetails = (stored: readonly string[] | null): MuscleDetail[] =>
+  storedList(stored).filter(isMuscleDetail);
 
 const clients = new WeakMap<ExerciseDatabase, ReturnType<typeof open>>();
 
@@ -177,13 +180,13 @@ export async function updateCustomExercise(
     if (changes.primary_muscle !== undefined || changes.secondary_muscles !== undefined) {
       if (
         changes.primary_detail === undefined &&
-        current.primary_detail.length > stored.primary_detail.length
+        storedList(current.primary_detail).length > stored.primary_detail.length
       ) {
         changes.primary_detail = stored.primary_detail;
       }
       if (
         changes.secondary_detail === undefined &&
-        current.secondary_detail.length > stored.secondary_detail.length
+        storedList(current.secondary_detail).length > stored.secondary_detail.length
       ) {
         changes.secondary_detail = stored.secondary_detail;
       }

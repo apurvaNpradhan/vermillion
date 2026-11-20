@@ -163,6 +163,29 @@ describe("exercise store", () => {
     });
   });
 
+  it("edits a row whose detail columns are NULL", async () => {
+    const s = await setup();
+    const id = await createCustomExercise(s.exercises, input);
+    // A row synced before the detail columns existed reads NULL, not '[]'.
+    s.sqlite
+      .prepare("UPDATE exercise SET primary_detail = NULL, secondary_detail = NULL WHERE id = ?")
+      .run(id);
+    expect(await updateCustomExercise(s.exercises, id, { title: "Renamed" })).toBe(true);
+    expect(row(s, id)).toMatchObject({ title: "Renamed", primary_detail: null });
+    // Handing back the empty lists is not a change.
+    expect(
+      await updateCustomExercise(s.exercises, id, { primary_detail: [], secondary_detail: [] }),
+    ).toBe(false);
+    // A group change with NULL details still saves.
+    expect(await updateCustomExercise(s.exercises, id, { secondary_muscles: ["biceps"] })).toBe(
+      true,
+    );
+    expect(await updateCustomExercise(s.exercises, id, { primary_detail: ["lower_chest"] })).toBe(
+      true,
+    );
+    expect(row(s, id)).toMatchObject({ primary_detail: '["lower_chest"]' });
+  });
+
   it("never writes a catalog row", async () => {
     const s = await setup();
     s.sqlite
