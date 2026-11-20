@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import type { Database, Transaction } from "@workspace/db";
 import { log } from "@workspace/logger";
 import { compareVersions, hasValidDetails, hasValidSecondaryMuscles } from "@workspace/shared";
-import { eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { readSetting } from "../../platform/settings/settings";
 import { exerciseTypeLocked } from "../operations/exercise-type-locked";
@@ -31,7 +31,7 @@ export type PatchOutcome = {
   changed: number;
   /** Changes whose `from` no longer matched (or whose exercise type is locked): `id:field`. */
   skippedChanges: string[];
-  /** Rows whose detail fills were dropped with a skipped change. */
+  /** Fill fields dropped because they only fit a skipped change: `id:field`. */
   skippedFills: string[];
 };
 
@@ -77,7 +77,9 @@ function valuesOf(row: Row): Values {
 }
 
 function sameSet(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value) => b.includes(value));
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 /** Applies one change when the row still holds `from`; false when it does not. */
@@ -120,24 +122,6 @@ function applyChange(next: Values, change: PatchChange): boolean {
 
 const isEmptyText = (value: string | null) => value === null || value === "";
 
-/** Fills the empty fields among the muscle ones (groups and details); true if any was set. */
-function fillMuscles(next: Values, fill: PatchFill): boolean {
-  let any = false;
-  if (fill.secondary_muscles && next.secondaryMuscles.length === 0) {
-    next.secondaryMuscles = fill.secondary_muscles;
-    any = true;
-  }
-  if (fill.primary_detail && next.primaryDetail.length === 0) {
-    next.primaryDetail = fill.primary_detail;
-    any = true;
-  }
-  if (fill.secondary_detail && next.secondaryDetail.length === 0) {
-    next.secondaryDetail = fill.secondary_detail;
-    any = true;
-  }
-  return any;
-}
-
 /** Fills the other empty fields (`null`, `''` or `rank = 0`); true if any was set. */
 function fillPlain(next: Values, fill: PatchFill): boolean {
   let any = false;
@@ -178,7 +162,35 @@ function musclesValid(values: Values): boolean {
   return hasValidSecondaryMuscles(rule) && hasValidDetails(rule);
 }
 
-type Planned = { id: string; next: Values; changed: number; filled: boolean };
+/** The fields one row changes (only those are written) and how many came from `change`. */
+type Planned = { id: string; set: Partial<Values>; next: Values; changed: number; filled: boolean };
+
+const VALUE_KEYS = [
+  "title",
+  "primaryMuscle",
+  "secondaryMuscles",
+  "primaryDetail",
+  "secondaryDetail",
+  "equipment",
+  "exerciseType",
+  "rank",
+  "searchTerms",
+  "aka",
+  "instructions",
+  "videoKey",
+  "thumbnailKey",
+] as const satisfies readonly (keyof Values)[];
+
+/** Only the fields whose value differs from what the locked row held. */
+function difference(before: Values, after: Values): Partial<Values> {
+  const set: Partial<Values> = {};
+  for (const key of VALUE_KEYS) {
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
+      Object.assign(set, { [key]: after[key] });
+    }
+  }
+  return set;
+}
 
 type Plan = {
   inserts: ReturnType<typeof catalogRowValues>[];
@@ -199,6 +211,20 @@ async function plan(tx: Transaction, name: string, file: PatchFile): Promise<Pla
   const fail = (message: string): never => {
     throw new CatalogPatchError(`patch ${name}: ${message}`);
   };
+  // Lock the rows the file touches before reading anything, so an admin save either lands first
+  // (and is what the guards below see) or waits until this file is done. The advisory lock only
+  // orders patch runners; it does nothing about the admin.
+  const touchedIds = [
+    ...new Set([...file.change.map((entry) => entry.id), ...file.fill.map((entry) => entry.id)]),
+  ];
+  if (touchedIds.length > 0) {
+    await tx
+      .select({ id: exercise.id })
+      .from(exercise)
+      .where(and(inArray(exercise.id, touchedIds), isNull(exercise.userId)))
+      .orderBy(asc(exercise.id))
+      .for("update");
+  }
   const catalog = await tx.select().from(exercise).where(isNull(exercise.userId));
   const byId = new Map(catalog.map((row) => [row.id, row]));
 
@@ -224,7 +250,7 @@ async function plan(tx: Transaction, name: string, file: PatchFile): Promise<Pla
   for (const entry of [...file.fill, ...file.change]) {
     if (!byId.has(entry.id)) fail(`${entry.id} is not a catalog exercise`);
   }
-  const touched = [...new Set([...file.change.map((c) => c.id), ...file.fill.map((f) => f.id)])];
+  const touched = touchedIds;
 
   const skippedChanges: string[] = [];
   const skippedFills: string[] = [];
@@ -249,26 +275,39 @@ async function plan(tx: Transaction, name: string, file: PatchFile): Promise<Pla
     }
     if (!musclesValid(next)) fail(`${id}: the changes leave bad muscles or details`);
 
+    // Fills go field by field: a field that only fits a skipped change is left out (and reported)
+    // while the row's other fills still apply.
     let filled = false;
+    const attempt = (field: string, assign: (target: Values) => void) => {
+      const trial = { ...next };
+      assign(trial);
+      if (musclesValid(trial)) {
+        assign(next);
+        filled = true;
+      } else if (skippedHere) {
+        skippedFills.push(`${id}:${field}`);
+      } else {
+        fail(`${id}: the ${field} fill leaves bad muscles or details`);
+      }
+    };
     for (const fill of file.fill.filter((entry) => entry.id === id)) {
-      const trial = { ...next, secondaryMuscles: [...next.secondaryMuscles] };
-      if (fillMuscles(trial, fill)) {
-        if (musclesValid(trial)) {
-          Object.assign(next, trial);
-          filled = true;
-        } else if (skippedHere) {
-          // The fill was written for the changed value; leave it with the skipped change.
-          skippedFills.push(id);
-        } else {
-          fail(`${id}: the fill leaves bad muscles or details`);
-        }
+      const { secondary_muscles, primary_detail, secondary_detail } = fill;
+      if (secondary_muscles && next.secondaryMuscles.length === 0) {
+        attempt("secondary_muscles", (target) => (target.secondaryMuscles = secondary_muscles));
+      }
+      if (primary_detail && next.primaryDetail.length === 0) {
+        attempt("primary_detail", (target) => (target.primaryDetail = primary_detail));
+      }
+      if (secondary_detail && next.secondaryDetail.length === 0) {
+        attempt("secondary_detail", (target) => (target.secondaryDetail = secondary_detail));
       }
       if (fillPlain(next, fill)) filled = true;
     }
     if (next.videoKey !== null && next.thumbnailKey === null) {
       fail(`${id}: a video without a thumbnail`);
     }
-    if (changed > 0 || filled) updates.push({ id, next, changed, filled });
+    const set = difference(valuesOf(current), next);
+    if (Object.keys(set).length > 0) updates.push({ id, set, next, changed, filled });
   }
 
   // Titles stay unique: exactly across the catalog, ignoring case among live rows.
@@ -294,7 +333,7 @@ async function plan(tx: Transaction, name: string, file: PatchFile): Promise<Pla
     inserts: file.insert.map((row) => catalogRowValues(row, now)),
     updates,
     skippedChanges,
-    skippedFills: [...new Set(skippedFills)],
+    skippedFills,
   };
 }
 
@@ -384,14 +423,25 @@ async function applyOne(db: Database, source: PatchSource, gate: boolean): Promi
     }
 
     const planned = await plan(tx, source.name, file);
+    const now = new Date();
+    // Titles are unique, so free every renamed row's title first (a unique temporary one; the real
+    // title follows below), then insert: a patch may rename `Cable Row` and add a new `Cable Row`,
+    // or swap two titles. The final state was checked in `plan`.
+    for (const update of planned.updates) {
+      if (update.set.title === undefined) continue;
+      await tx
+        .update(exercise)
+        .set({ title: `~patch ${update.id}`, updatedAt: now })
+        .where(eq(exercise.id, update.id));
+    }
     for (let offset = 0; offset < planned.inserts.length; offset += BATCH) {
       await tx.insert(exercise).values(planned.inserts.slice(offset, offset + BATCH));
     }
-    const now = new Date();
+    // Only the fields the patch changes are written, never the whole planned row.
     for (const update of planned.updates) {
       await tx
         .update(exercise)
-        .set({ ...update.next, updatedAt: now })
+        .set({ ...update.set, updatedAt: now })
         .where(eq(exercise.id, update.id));
     }
     await tx.insert(referenceImport).values({ catalog: key, fingerprint, importedAt: now });

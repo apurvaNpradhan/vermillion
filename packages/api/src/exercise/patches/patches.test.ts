@@ -19,7 +19,14 @@ const ADMIN = "owner@example.com";
 type Fixture = {
   requires_app_version?: string;
   insert?: ReturnType<typeof newRow>[];
-  fill?: { id: string; rank?: number; instructions?: string; primary_detail?: string[] }[];
+  fill?: {
+    id: string;
+    rank?: number;
+    instructions?: string;
+    primary_detail?: string[];
+    secondary_detail?: string[];
+    secondary_muscles?: string[];
+  }[];
   change?: { id: string; field: string; from: string | string[]; to: string | string[] }[];
 };
 
@@ -152,10 +159,110 @@ describe("Catalog patches (seam 1)", () => {
       status: "applied",
       changed: 0,
       skippedChanges: [`${edited}:equipment`, `${moved}:primary_muscle`],
-      skippedFills: [moved],
+      skippedFills: [`${moved}:primary_detail`],
     });
     expect(await row(edited)).toMatchObject({ equipment: "barbell" });
     expect(await row(moved)).toMatchObject({ primary_muscle: "lats", primary_detail: "[]" });
+  });
+
+  it("keeps an admin edit made while the patch waits for the row, and writes only its own fields", async () => {
+    const id = await pick(sql`primary_muscle = 'chest'`);
+    await app.rows(
+      sql`UPDATE exercise SET instructions = NULL, rank = 0, aka = 'before' WHERE id = ${id}`,
+    );
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    // The admin's save: holds the row, then commits an instructions value and an unrelated field.
+    const admin = app.services.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM exercise WHERE id = ${id} FOR UPDATE`);
+      await gate;
+      await tx.execute(
+        sql`UPDATE exercise SET instructions = 'Admin', aka = 'Admin aka' WHERE id = ${id}`,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const patching = applyCatalogPatches(db(), {
+      gate: false,
+      files: [source("0001-test.json", { fill: [{ id, instructions: "Fill", rank: 12 }] })],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    release();
+    await admin;
+    await patching;
+    const [after] = await app.rows(
+      sql`SELECT instructions, aka, rank FROM exercise WHERE id = ${id}`,
+    );
+    // The fill saw the admin's value and left it; the field it did not touch is not reverted.
+    expect(after).toMatchObject({ instructions: "Admin", aka: "Admin aka", rank: 12 });
+  });
+
+  it("applies the fills a skipped change does not affect and reports the others", async () => {
+    const id = await pick(sql`primary_muscle = 'shoulders'`);
+    await app.rows(
+      sql`UPDATE exercise SET primary_muscle = 'lats', secondary_muscles = '{biceps}',
+            primary_detail = '{}', secondary_detail = '{}' WHERE id = ${id}`,
+    );
+    const [outcome] = await applyCatalogPatches(db(), {
+      gate: false,
+      files: [
+        source("0001-test.json", {
+          change: [{ id, field: "primary_muscle", from: "shoulders", to: "chest" }],
+          fill: [{ id, primary_detail: ["upper_chest"], secondary_detail: ["brachialis"] }],
+        }),
+      ],
+    });
+    expect(outcome).toMatchObject({
+      status: "applied",
+      changed: 0,
+      filled: 1,
+      skippedChanges: [`${id}:primary_muscle`],
+      skippedFills: [`${id}:primary_detail`],
+    });
+    expect(await row(id)).toMatchObject({ primary_muscle: "lats", primary_detail: "[]" });
+    const [stored] = await app.rows(
+      sql`SELECT to_json(secondary_detail)::text AS d FROM exercise WHERE id = ${id}`,
+    );
+    expect(stored?.d).toBe('["brachialis"]');
+  });
+
+  it("frees a title before another row takes it", async () => {
+    const [first, second] = await Promise.all([
+      pick(sql`primary_muscle = 'chest'`),
+      pick(sql`primary_muscle = 'lats'`),
+    ]);
+    const firstTitle = String((await row(first))?.title);
+    const secondTitle = String((await row(second))?.title);
+    const added = newRow(firstTitle);
+    // A rename plus a new row on the old title, and a swap of two titles.
+    const [outcome] = await applyCatalogPatches(db(), {
+      gate: false,
+      files: [
+        source("0001-test.json", {
+          insert: [added],
+          change: [
+            { id: first, field: "title", from: firstTitle, to: secondTitle },
+            { id: second, field: "title", from: secondTitle, to: `${firstTitle} (renamed)` },
+          ],
+        }),
+      ],
+    });
+    expect(outcome).toMatchObject({ status: "applied", inserted: 1, changed: 2 });
+    expect((await row(first))?.title).toBe(secondTitle);
+    expect((await row(second))?.title).toBe(`${firstTitle} (renamed)`);
+    expect((await row(added.id))?.title).toBe(firstTitle);
+  });
+
+  it("refuses repeated entries in an array value, and compares arrays as sets", async () => {
+    const id = uuidv7();
+    for (const patch of [
+      { fill: [{ id, secondary_muscles: ["chest", "chest"] }] },
+      { change: [{ id, field: "secondary_muscles", from: ["chest", "chest"], to: ["chest"] }] },
+      { fill: [{ id, primary_detail: ["upper_chest", "upper_chest"] }] },
+    ]) {
+      expect(() => parsePatchFile("0001-dup.json", JSON.stringify(patch))).toThrow(
+        /repeats an entry/u,
+      );
+    }
   });
 
   it("compares arrays as sets in a change", async () => {

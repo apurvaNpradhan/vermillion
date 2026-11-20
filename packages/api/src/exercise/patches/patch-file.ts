@@ -25,8 +25,11 @@ const mediaKey = z
   .refine((key) => !key.startsWith("/") && !key.includes("://") && !/\s/u.test(key), {
     error: "a media key is a relative path",
   });
-const groups = z.array(z.enum(MUSCLE_GROUPS));
-const details = z.array(z.enum(MUSCLE_DETAIL_SLUGS));
+/** Array values are sets: a repeated entry is a mistake in the file, not a different set. */
+const noRepeats = (values: readonly string[]) => new Set(values).size === values.length;
+const noRepeatsMessage = { error: "repeats an entry" };
+const groups = z.array(z.enum(MUSCLE_GROUPS)).refine(noRepeats, noRepeatsMessage);
+const details = z.array(z.enum(MUSCLE_DETAIL_SLUGS)).refine(noRepeats, noRepeatsMessage);
 const rank = z.number().int().min(0).max(32_767);
 
 /**
