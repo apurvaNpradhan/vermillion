@@ -124,7 +124,7 @@ export const SetGrid = memo(function SetGrid({
   return (
     <SwipeGroup>
       <View className="gap-1">
-        <View className="flex-row items-center gap-1.5 px-1">
+        <View className="flex-row items-center gap-1.5 border border-transparent px-1">
           <Text className="w-10 text-center text-caption text-muted">{t("training__col_set")}</Text>
           <Text className="min-w-0 flex-[1.3] text-center text-caption text-muted">
             {t("session__col_previous")}
@@ -143,7 +143,7 @@ export const SetGrid = memo(function SetGrid({
               {t(effortScale === "rpe" ? "training__effort_rpe" : "training__effort_rir")}
             </Text>
           ) : null}
-          <View className="w-11" />
+          {editingFinished ? null : <View className="w-11" />}
         </View>
         {exercise.sets.map((set, index) => (
           <Animated.View key={set.id} {...rowMotion}>

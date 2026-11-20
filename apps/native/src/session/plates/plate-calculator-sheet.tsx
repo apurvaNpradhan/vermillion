@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useRouter } from "expo-router";
 import { BottomSheet } from "heroui-native";
 import { Minus } from "phosphor-react-native";
@@ -121,19 +122,18 @@ export function PlateCalculatorSheet({
         <BottomSheet.Overlay />
         {/* A fixed height and the sheet's own scroll view: a plain ScrollView loses its drags to
             the sheet's pan gesture, so the body could not be scrolled. */}
-        <BottomSheet.Content
-          snapPoints={["90%"]}
+        <FixedSheetContent
+          fraction={0.9}
           enableDynamicSizing={false}
           enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full"
         >
           <View className="px-4 pb-3 pt-2">
             <BottomSheet.Title>{t("plates__title")}</BottomSheet.Title>
           </View>
           {isOpen ? <CalculatorBody state={state} onUse={onUse} onClose={onClose} /> : null}
-        </BottomSheet.Content>
+        </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

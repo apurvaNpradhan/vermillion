@@ -61,6 +61,8 @@ export function WeightScreen() {
   const points = (rows: readonly TrendPoint[]) =>
     rows.map((p) => ({ id: p.date, x: Date.parse(p.date), y: p.trend, label: date(p.date) }));
   const delta = changeOver(selected, Math.max(0, selected.length - 1));
+  const change = delta === null ? null : format(delta);
+  const rate = state.rate === null ? null : format(state.rate);
   const empty = state.loading || state.failed || !state.entries.length;
   const lastWeighIn = state.lastMeasurementDate;
   const stale = trendIsStale(lastWeighIn, state.today);
@@ -110,12 +112,15 @@ export function WeightScreen() {
               >
                 {state.trend === null ? t("body__empty") : format(state.trend)}
               </Text>
-              <Text className="text-body text-muted">
-                {t("body__headline_change", {
-                  change: delta === null ? t("body__no_data") : format(delta),
-                  rate: state.rate === null ? t("body__no_data") : format(state.rate),
-                })}
-              </Text>
+              {change !== null || rate !== null ? (
+                <Text className="text-body text-muted">
+                  {change !== null && rate !== null
+                    ? t("body__headline_change", { change, rate })
+                    : change !== null
+                      ? t("body__headline_change_only", { change })
+                      : t("body__headline_rate_only", { rate })}
+                </Text>
+              ) : null}
               {stale && lastWeighIn !== null ? (
                 <Text className="text-caption text-muted">
                   {t("body__last_weigh_in", {

@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
 import { Plus } from "phosphor-react-native";
@@ -31,13 +32,12 @@ function Sheet({
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          snapPoints={["60%"]}
+        <FixedSheetContent
+          fraction={0.6}
           enableDynamicSizing={false}
           enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full"
         >
           <View className="px-5 pb-3 pt-2">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
@@ -48,7 +48,7 @@ function Sheet({
           >
             {children}
           </BottomSheetScrollView>
-        </BottomSheet.Content>
+        </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
 import { useRouter } from "expo-router";
@@ -37,13 +38,12 @@ export function AddToProgramSheet({
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          snapPoints={["50%"]}
+        <FixedSheetContent
+          fraction={0.5}
           enableDynamicSizing={false}
           enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full"
         >
           <View className="px-5 pb-3 pt-2">
             <BottomSheet.Title className="font-semibold text-title-lg">
@@ -83,7 +83,7 @@ export function AddToProgramSheet({
               />
             ) : null}
           </BottomSheetScrollView>
-        </BottomSheet.Content>
+        </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

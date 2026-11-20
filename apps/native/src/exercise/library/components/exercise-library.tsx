@@ -9,11 +9,12 @@ import {
 } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
 import { deviceStorage } from "@/platform/storage";
+import { Button } from "@/platform/ui/button";
 import { LibrarySetup } from "@/platform/ui/library-setup";
 import { Page } from "@/platform/ui/page";
 import { SearchBar } from "@/platform/ui/search-bar";
@@ -37,7 +38,7 @@ import {
 } from "./library-states";
 
 const ESTIMATED_ROW_HEIGHT = 72;
-/** Search field (44), gap (8) and pill row (36), plus the pinned layer's bottom padding (8) and 8 of air. */
+/** Search field (44), gap (8), filter row (44) and the pinned layer's bottom padding (8). */
 const PINNED_HEIGHT = 104;
 
 type ListItem =
@@ -251,14 +252,24 @@ export function ExerciseLibrary({
                 placeholder={t("exercise__search_placeholder")}
                 clearLabel={t("exercise__search_clear")}
               />
-              <View className="flex-row">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerClassName="h-11 flex-row items-center gap-2"
+              >
                 <FilterPill
                   label={t("exercise__filters_title")}
                   active={hasActiveFilters(filters)}
-                  accessibilityLabel={t("exercise__filters_title")}
                   onPress={() => setFiltersOpen(true)}
                 />
-              </View>
+                <FilterChips chips={chips} />
+                {chips.length > 0 ? (
+                  <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
+                    <Button.Label>{t("exercise__clear_filters")}</Button.Label>
+                  </Button>
+                ) : null}
+              </ScrollView>
             </View>
           ),
         }}
@@ -293,7 +304,6 @@ export function ExerciseLibrary({
                   <SyncBanner />
                   <RejectedExercises />
                   {listHeader}
-                  <FilterChips chips={chips} />
                   <View className="flex-row items-center justify-between gap-3">
                     <Text className="flex-1 text-caption text-muted">
                       {library.total === null || status !== "ready"

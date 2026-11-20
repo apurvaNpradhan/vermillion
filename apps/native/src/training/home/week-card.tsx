@@ -3,9 +3,9 @@ import { useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { NumberFlow } from "@/platform/ui/number-flow";
 import { ProgressRing } from "@/platform/ui/progress-ring";
 import { RadarChart } from "@/platform/ui/radar-chart";
+import { SummaryValue } from "@/platform/ui/summary-value";
 import { radarValue, type MuscleRadarAxis } from "@/training/muscles/muscle-axes";
 
 import { goalFraction, type WeekSummary } from "./home-stats";
@@ -26,7 +26,7 @@ export function WeekCard({
   summary: WeekSummary;
   goal: number | null;
   /** Volume in the shown unit, with that unit's label. */
-  volume: { value: number; unit: string };
+  volume: { value: string; unit: string };
   axes: readonly MuscleRadarAxis[];
   radarLabel: string;
 }) {
@@ -63,11 +63,11 @@ export function WeekCard({
     </View>
   );
   return (
-    <View className="gap-4 rounded-2xl bg-surface p-4">
+    <View className="gap-3">
       <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
         {t("home__week")}
       </Text>
-      <View className="flex-row items-center gap-4">
+      <View className="flex-row items-center gap-3 border-t border-border pt-3">
         {goal === null ? (
           <Text
             accessibilityLabel={sessionsLabel}
@@ -87,20 +87,15 @@ export function WeekCard({
             </Text>
           </ProgressRing>
         )}
-        <View className="flex-1 gap-3">
+        <View className="min-w-0 flex-1 gap-2">
           {stat(
             t("stats__sets"),
-            <NumberFlow value={summary.sets} locale={i18n.language} size="md" />,
+            <SummaryValue value={new Intl.NumberFormat(i18n.language).format(summary.sets)} />,
             summary.setsChange,
           )}
           {stat(
             t("stats__volume"),
-            <NumberFlow
-              value={volume.value}
-              locale={i18n.language}
-              size="md"
-              suffix={volume.unit}
-            />,
+            <SummaryValue value={volume.value} unit={volume.unit} />,
             summary.volumeChange,
           )}
         </View>
@@ -110,7 +105,7 @@ export function WeekCard({
           onPress={() => router.push("/muscles")}
           className="rounded-xl active:bg-default"
         >
-          <RadarChart compact size={84} axes={radarAxes} accessibilityLabel={radarLabel} />
+          <RadarChart compact size={64} axes={radarAxes} accessibilityLabel={radarLabel} />
         </Pressable>
       </View>
     </View>

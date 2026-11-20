@@ -31,6 +31,7 @@ export function ScrollableSheetContent({
   const { height } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
   const [footerHeight, setFooterHeight] = useState(0);
+  const [bodyHeight, setBodyHeight] = useState(0);
   const cap = Math.min(560, (height - top) * 0.85);
   const footerView = (
     <View
@@ -42,44 +43,77 @@ export function ScrollableSheetContent({
     </View>
   );
 
-  if (size === "tall") {
+  if (size === "fit" && bodyHeight + footerHeight + HANDLE <= cap) {
     return (
       <BottomSheet.Content
         animationConfigs={SHEET_SPRING}
-        backgroundClassName="rounded-t-[28px] bg-overlay"
+        backgroundClassName="rounded-t-[20px] bg-overlay"
         {...props}
         topInset={top}
-        snapPoints={[cap]}
-        enableDynamicSizing={false}
+        enableDynamicSizing
+        maxDynamicContentSize={cap}
         enableOverDrag={false}
-        contentContainerClassName="h-full"
       >
-        <BottomSheetScrollView style={{ flex: 1 }} contentContainerStyle={BODY_PADDING}>
+        <View
+          style={BODY_PADDING}
+          onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
+        >
           {children}
-        </BottomSheetScrollView>
+        </View>
         {footerView}
       </BottomSheet.Content>
     );
   }
 
+  const sheetHeight =
+    size === "tall" || bodyHeight === 0 ? cap : Math.min(cap, bodyHeight + footerHeight + HANDLE);
+
   return (
     <BottomSheet.Content
       animationConfigs={SHEET_SPRING}
-      backgroundClassName="rounded-t-[28px] bg-overlay"
+      backgroundClassName="rounded-t-[20px] bg-overlay"
       {...props}
       topInset={top}
-      enableDynamicSizing
-      maxDynamicContentSize={cap}
+      snapPoints={[sheetHeight]}
+      enableDynamicSizing={false}
       enableOverDrag={false}
+      contentContainerProps={{ style: { height: Math.max(0, sheetHeight - HANDLE) } }}
     >
-      {/* The body takes what the cap leaves after the footer, so the footer is never clipped. */}
       <BottomSheetScrollView
-        style={{ maxHeight: Math.max(0, cap - footerHeight - HANDLE) }}
+        style={{ flex: 1 }}
         contentContainerStyle={BODY_PADDING}
+        onContentSizeChange={(_width, measuredHeight) => setBodyHeight(measuredHeight)}
+        keyboardShouldPersistTaps="handled"
       >
         {children}
       </BottomSheetScrollView>
       {footerView}
+    </BottomSheet.Content>
+  );
+}
+
+/** A fixed sheet whose content is bounded by its visible snap height, including the handle. */
+export function FixedSheetContent({
+  fraction,
+  children,
+  ...props
+}: Omit<ComponentProps<typeof BottomSheet.Content>, "snapPoints" | "children"> & {
+  fraction: number;
+  children: ReactNode;
+}) {
+  const { height } = useWindowDimensions();
+  const { top } = useSafeAreaInsets();
+  const sheetHeight = Math.max(0, (height - top) * fraction);
+  return (
+    <BottomSheet.Content
+      backgroundClassName="rounded-t-[20px] bg-overlay"
+      {...props}
+      topInset={top}
+      snapPoints={[sheetHeight]}
+      enableDynamicSizing={false}
+      contentContainerProps={{ style: { height: Math.max(0, sheetHeight - HANDLE) } }}
+    >
+      {children}
     </BottomSheet.Content>
   );
 }

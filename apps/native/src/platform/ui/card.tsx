@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 
 /** Panels use a surface fill and rounded corners for separation. */
 function CardRoot({ className, ...props }: ComponentProps<typeof HeroCard>) {
-  return <HeroCard className={cn("rounded-2xl border-0 shadow-none", className)} {...props} />;
+  return <HeroCard className={cn("rounded-xl border-0 shadow-none", className)} {...props} />;
 }
 
 function CardTitle({ className, ...props }: ComponentProps<typeof HeroCard.Title>) {

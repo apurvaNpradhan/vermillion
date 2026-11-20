@@ -7,19 +7,18 @@ import { useSubtleColor } from "@/platform/theme";
 export function FilterPill({
   label,
   active,
-  accessibilityLabel,
   onPress,
 }: {
   label: string;
   active: boolean;
-  accessibilityLabel: string;
   onPress: () => void;
 }) {
   const subtle = useSubtleColor();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${accessibilityLabel}, ${label}`}
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       className={`h-9 flex-row items-center gap-1.5 rounded-full border active:opacity-70 px-3 ${
         active ? "border-identity bg-default" : "border-transparent bg-surface"

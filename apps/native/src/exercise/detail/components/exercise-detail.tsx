@@ -390,7 +390,6 @@ function MuscleSection({
     [exercise.secondaryMuscles, exercise.primaryMuscle],
   );
   const primary = useMemo(() => [exercise.primaryMuscle], [exercise.primaryMuscle]);
-  const selected = useMemo(() => (tapped ? [tapped] : []), [tapped]);
   // Cardio, full body and other have no drawing: the map would show a bare body.
   const drawn = primary.some(isBodyGroup) || secondary.some(isBodyGroup);
 
@@ -407,7 +406,6 @@ function MuscleSection({
         <BodyMapPair
           primary={primary}
           secondary={secondary}
-          selected={selected}
           onPressGroup={(group) => {
             haptic.tick();
             setTapped((current) => (current === group ? null : group));

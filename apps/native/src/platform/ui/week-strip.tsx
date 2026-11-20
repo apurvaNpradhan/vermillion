@@ -2,7 +2,7 @@
  * Source: PanelUI WeekStrip (panelui-native 1.4.0, MIT, https://panelui.dev).
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
  * Keeps the row of seven day columns with a weekday over its number, marks beneath it, a ringed
- * today (static: the strip has no selection) and faded or disabled days. Changes: UTC calendar-day numbers instead of `Date`s, role
+ * selected day and faded or disabled days. Changes: UTC calendar-day numbers instead of `Date`s, role
  * classes (`success`, `identity`, `muted`) instead of the library's tones, a hollow dot for a
  * planned day, no scrolling layout, no `tailwind-variants`, and every string from the caller.
  */
@@ -29,6 +29,7 @@ const TONE = {
 export function WeekStrip({
   days,
   today,
+  selected = today,
   marks,
   faded,
   disabled,
@@ -39,6 +40,7 @@ export function WeekStrip({
   /** The days to show (UTC calendar-day numbers), oldest first. */
   days: readonly number[];
   today: number;
+  selected?: number;
   marks?: (day: number) => WeekStripMarks | undefined;
   /** Faded but still pressable, such as a day that has not happened. */
   faded?: (day: number) => boolean;
@@ -74,10 +76,10 @@ export function WeekStrip({
             ]
               .filter(Boolean)
               .join(", ")}
-            accessibilityState={{ disabled: inert }}
+            accessibilityState={{ disabled: inert, selected: day === selected }}
             disabled={inert}
             onPress={() => onSelect?.(day)}
-            className={`min-h-[68px] flex-1 items-center gap-1 rounded-2xl border py-2 active:bg-default ${day === today ? "border-identity bg-default" : "border-transparent"} ${dim ? "opacity-40" : ""}`}
+            className={`min-h-[68px] flex-1 items-center gap-1 rounded-2xl border py-2 active:bg-default ${day === selected ? "border-identity bg-default" : "border-transparent"} ${dim ? "opacity-40" : ""}`}
           >
             <Text numberOfLines={1} className="text-caption font-medium text-muted">
               {labels.weekday(day)}

@@ -128,7 +128,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   const tickPop = usePop(ticked);
-  const showsEffort = logEffort && fields.includes("reps") && set.kind !== "warmup";
+  const hasEffortColumn = logEffort && fields.includes("reps");
   const previousText = previous ? previousLabel(previous, type, unit) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
 
@@ -256,7 +256,8 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         )}
       </Pressable>
       {fields.map(cell)}
-      {showsEffort ? (
+      {hasEffortColumn && set.kind === "warmup" ? <View className="w-11" /> : null}
+      {hasEffortColumn && set.kind !== "warmup" ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("training__effort_cell_label", {

@@ -48,6 +48,7 @@ export type WorkoutExerciseInfo = {
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment;
   exerciseType: ExerciseType;
+  progressionPerSet: boolean;
   thumbnailKey: string | null;
   imageMediaId?: string | null;
   isArchived: boolean;
@@ -209,6 +210,7 @@ const detailRowSchema = z.object({
   secondary_muscles: secondaryText,
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
+  progression_per_set: z.number().nullable(),
   thumbnail_key: z.string().nullable(),
   image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
@@ -219,7 +221,9 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
-    e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at
+    e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at,
+    (SELECT progression_per_set FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -254,6 +258,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
               secondaryMuscles: row.secondary_muscles,
               equipment: row.equipment,
               exerciseType: row.exercise_type,
+              progressionPerSet: row.progression_per_set === 1,
               thumbnailKey: row.thumbnail_key,
               imageMediaId: row.image_media_id ?? null,
               isArchived: row.retired_at !== null,
@@ -479,7 +484,7 @@ export function watchWorkout(
     database,
     WORKOUT_DETAIL_SQL,
     [id],
-    WORKOUT_TABLES,
+    [...WORKOUT_TABLES, "exercise_setting"],
     parsing(parseWorkoutDetail, { onResult: handlers.onWorkout, onError: handlers.onError }),
     handlers.onError,
   );

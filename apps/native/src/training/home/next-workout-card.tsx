@@ -31,7 +31,7 @@ export function NextWorkoutCard({
   const { t } = useTranslation();
   const onAction = useThemeColor("accent-foreground");
   return (
-    <View className="gap-4 rounded-2xl bg-surface p-4">
+    <View className="gap-3 rounded-xl bg-surface p-3.5">
       {title === null ? null : (
         <View className="gap-1">
           {eyebrow ? (

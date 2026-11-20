@@ -17,6 +17,7 @@ const entry = (id: string, group: string | null = null): WorkoutExerciseDetail =
     secondaryMuscles: ["triceps"],
     equipment: "barbell",
     exerciseType: "weight_reps",
+    progressionPerSet: false,
     thumbnailKey: null,
     isArchived: false,
   },

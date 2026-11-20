@@ -1,12 +1,15 @@
+import { Text, View } from "react-native";
+import { CaretLeft, CaretRight } from "phosphor-react-native";
+import { useSubtleColor } from "@/platform/theme";
 import { useWeight, WeightTrendCard } from "@/body";
 import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { useActiveSessions, useStartSession } from "@/session";
-import { KG_PER_LB, sessionGoal } from "@workspace/shared";
+import { calendarDay, KG_PER_LB, sessionGoal } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { comparableWeekSessions, homeWeek, weekSummary } from "./home-stats";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
@@ -27,10 +30,13 @@ import { WeekCard } from "./week-card";
  * card joins them only when a deload is suggested.
  */
 export function TrainingHome() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { start, sheet } = useStartSession();
-  const state = useHomeTraining();
+  const [weeksAgo, setWeeksAgo] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const subtle = useSubtleColor();
+  const state = useHomeTraining(undefined, weeksAgo);
   const weight = useWeight();
   const active = useActiveSessions();
   const programState = useActiveProgram();
@@ -105,7 +111,17 @@ export function TrainingHome() {
       : t("home__next_workout");
 
   // ---- Week strip and this week ----
-  const week = homeWeek(state.sessions, now, state.timezone, state.weekStart, hasWorkout);
+  const week = homeWeek(state.sessions, now, state.timezone, state.weekStart, hasWorkout, weeksAgo);
+  const selected = selectedDay ?? week.today;
+  const viewingPast = selected !== week.today;
+  const selectedSessions = state.sessions.filter(
+    (session) => calendarDay(session.started_at, state.timezone) === selected,
+  );
+  const moveWeek = (step: -1 | 1) => {
+    const next = Math.max(0, weeksAgo - step);
+    setWeeksAgo(next);
+    setSelectedDay(next === 0 ? null : selected + step * 7 * 86_400_000);
+  };
   const { current, previous } = comparableWeekSessions(
     state.sessions,
     now,
@@ -113,9 +129,12 @@ export function TrainingHome() {
     state.weekStart,
   );
   const summary = weekSummary(current, previous, state.bodyweightKg);
+  const metric = state.weightUnit === "kg";
   const volume = {
-    value: Math.round(state.weightUnit === "lb" ? summary.volume / KG_PER_LB : summary.volume),
-    unit: t(state.weightUnit === "lb" ? "training__unit_lb" : "training__unit_kg"),
+    value: new Intl.NumberFormat(i18n.language, {
+      maximumFractionDigits: metric ? 1 : 0,
+    }).format(metric ? summary.volume / 1000 : summary.volume / KG_PER_LB),
+    unit: t(metric ? "session__volume_tonnes" : "training__unit_lb"),
   };
   const onTarget = muscles.rows.filter((row) => row.status !== null);
   const radarLabel = onTarget.length
@@ -124,24 +143,74 @@ export function TrainingHome() {
 
   return (
     <FadeIn className="gap-6">
-      <HomeWeekStrip
-        week={week}
-        onOpenSession={(id) =>
-          router.push({ pathname: "/history/[id]", params: { id } }, { withAnchor: true })
-        }
-      />
-      <NextWorkoutCard
-        eyebrow={eyebrow}
-        title={hasWorkout ? title : null}
-        meta={meta}
-        resuming={resume !== undefined}
-        onStart={() =>
-          resume
-            ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-            : void start(workoutId)
-        }
-        onStartEmpty={() => void start(null)}
-      />
+      <View className="gap-2">
+        <View className="flex-row items-center justify-between">
+          <Button
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("muscles__previous_week")}
+            onPress={() => moveWeek(-1)}
+          >
+            <CaretLeft size={20} color={subtle} />
+          </Button>
+          <Button
+            variant="ghost"
+            onPress={() => {
+              setWeeksAgo(0);
+              setSelectedDay(null);
+            }}
+          >
+            <Button.Label>{t("home__today")}</Button.Label>
+          </Button>
+          <Button
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("muscles__next_week")}
+            isDisabled={weeksAgo === 0}
+            onPress={() => moveWeek(1)}
+          >
+            <CaretRight size={20} color={subtle} />
+          </Button>
+        </View>
+        <HomeWeekStrip week={week} selected={selected} onSelect={setSelectedDay} />
+      </View>
+      {viewingPast ? (
+        <View className="gap-3 rounded-2xl bg-surface p-4">
+          <Text className="font-semibold text-title-md text-foreground">
+            {new Intl.DateTimeFormat(i18n.language, { dateStyle: "full", timeZone: "UTC" }).format(
+              selected,
+            )}
+          </Text>
+          {selectedSessions.length === 0 ? (
+            <Text className="text-body text-muted">{t("session__history_empty_day")}</Text>
+          ) : (
+            selectedSessions.map((session) => (
+              <Button
+                key={session.id}
+                variant="secondary"
+                onPress={() =>
+                  router.push({ pathname: "/history/[id]", params: { id: session.id } })
+                }
+              >
+                <Button.Label>{session.title}</Button.Label>
+              </Button>
+            ))
+          )}
+        </View>
+      ) : (
+        <NextWorkoutCard
+          eyebrow={eyebrow}
+          title={hasWorkout ? title : null}
+          meta={meta}
+          resuming={resume !== undefined}
+          onStart={() =>
+            resume
+              ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })
+              : void start(workoutId)
+          }
+          onStartEmpty={() => void start(null)}
+        />
+      )}
       <LighterWeekCard state={state} />
       <WeekCard
         summary={summary}

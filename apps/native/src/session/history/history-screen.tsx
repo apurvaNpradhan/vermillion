@@ -3,7 +3,7 @@ import { calendarDay, type WeekStart } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Barbell, CalendarPlus, ClockCounterClockwise } from "phosphor-react-native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Text, View } from "react-native";
 import Animated, {
   FadeIn,
@@ -29,7 +29,12 @@ import {
 } from "./history-calendar";
 import { HistoryCalendar } from "./history-calendar-view";
 import { historyFormat } from "./history-format";
-import { HistoryAll, HistoryWeek, HistoryYear } from "./history-period-details";
+import {
+  HistoryAll,
+  HistoryWeek,
+  HistoryWeekCalendar,
+  HistoryYear,
+} from "./history-period-details";
 import { HistoryRow, WeekHeading } from "./history-rows";
 import { NumberFlow } from "@/platform/ui/number-flow";
 import { PeriodCard } from "@/platform/ui/period-card";
@@ -62,19 +67,21 @@ function useToday(timezone: string) {
   return calendarDay(now, timezone);
 }
 
-export function HistoryScreen() {
+export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const subtle = useSubtleColor();
   const reduced = useReduceMotion();
   const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
+  const day = initialDay !== null && initialDay <= today ? initialDay : null;
   const [selection, setSelection] = useState<Selection>({
     period: "month",
-    anchor: null,
+    anchor: day,
     direction: 0,
   });
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState(day);
+  const list = useRef<ComponentRef<typeof AnimatedLegendList>>(null);
   const { period, anchor, direction } = selection;
   const latest = periodStart(period, today, weekStart);
   const start = Math.min(latest, periodStart(period, anchor ?? today, weekStart));
@@ -133,6 +140,10 @@ export function HistoryScreen() {
     [sessions, activeDay, period, timezone, weekStart],
   );
   const openLog = () => router.push("/history/log-past");
+  const selectDay = (next: number | null) => {
+    setSelected(next);
+    void list.current?.scrollToOffset({ offset: 0, animated: false });
+  };
   const ready = !loading && !failed;
   const periodTitle =
     period === "all"
@@ -149,10 +160,23 @@ export function HistoryScreen() {
       reduceMotion: ReduceMotion.Never,
     }),
   }));
+  const calendar = (
+    <HistoryCalendar
+      month={start}
+      today={today}
+      selected={activeDay}
+      history={history}
+      goal={goal}
+      weekStart={weekStart}
+      format={format}
+      onSelect={selectDay}
+    />
+  );
 
   return (
     <Page
       title={t("session__history")}
+      back={day !== null}
       actions={
         <>
           <Button
@@ -177,7 +201,9 @@ export function HistoryScreen() {
       {({ header, contentContainerStyle, ...scroll }) => (
         <AnimatedLegendList
           {...scroll}
+          ref={list}
           recycleItems={false}
+          maintainVisibleContentPosition={false}
           data={ready ? items : []}
           keyExtractor={(item) => `${item.kind}-${item.id}`}
           estimatedItemSize={95}
@@ -209,7 +235,13 @@ export function HistoryScreen() {
                         })}
                         className="flex-row flex-wrap items-baseline gap-1"
                       >
-                        <NumberFlow value={count} locale={format.locale} />
+                        {period === "week" || activeDay !== null ? (
+                          <Text className="text-title-md font-semibold tabular-nums text-foreground">
+                            {format.integer(count)}
+                          </Text>
+                        ) : (
+                          <NumberFlow value={count} locale={format.locale} />
+                        )}
                         <Text className="text-body text-muted">
                           {t("session__workout_unit", { count })}
                         </Text>
@@ -223,26 +255,9 @@ export function HistoryScreen() {
                     canNext={canNext}
                     onMove={move}
                   >
-                    {period === "month" && (
-                      <HistoryCalendar
-                        month={start}
-                        today={today}
-                        selected={activeDay}
-                        history={history}
-                        goal={goal}
-                        weekStart={weekStart}
-                        format={format}
-                        onSelect={setSelected}
-                      />
-                    )}
+                    {period === "month" && activeDay === null ? calendar : null}
                     {period === "week" && (
-                      <HistoryWeek
-                        start={start}
-                        today={today}
-                        history={history}
-                        goal={goal}
-                        format={format}
-                      />
+                      <HistoryWeek start={start} history={history} goal={goal} format={format} />
                     )}
                     {period === "year" && (
                       <HistoryYear
@@ -270,7 +285,40 @@ export function HistoryScreen() {
                   </PeriodCard>
                 </Animated.View>
               )}
+              {ready && activeDay !== null ? (
+                <Animated.View
+                  key={activeDay}
+                  entering={FadeIn.duration(120).reduceMotion(ReduceMotion.Never)}
+                  className="flex-row flex-wrap items-center justify-between gap-2"
+                >
+                  <Text
+                    accessibilityRole="header"
+                    className="flex-1 text-title-md font-semibold text-foreground"
+                  >
+                    {format.full(activeDay)}
+                  </Text>
+                  <Button variant="ghost" onPress={() => selectDay(null)}>
+                    <Button.Label>{t("session__history_clear_day")}</Button.Label>
+                  </Button>
+                </Animated.View>
+              ) : null}
             </View>
+          }
+          ListFooterComponent={
+            ready && (activeDay !== null || period === "week") ? (
+              <View className="mt-4 rounded-xl bg-surface p-3">
+                {activeDay !== null ? (
+                  calendar
+                ) : (
+                  <HistoryWeekCalendar
+                    start={start}
+                    today={today}
+                    history={history}
+                    format={format}
+                  />
+                )}
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             failed ? (

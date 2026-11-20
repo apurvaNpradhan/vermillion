@@ -5,8 +5,8 @@ import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { NumberFlow } from "@/platform/ui/number-flow";
 import { Sparkline } from "@/platform/ui/charts/sparkline";
+import { SummaryValue } from "@/platform/ui/summary-value";
 
 import type { useWeight } from "./use-weight";
 import { WeightLogSheet } from "./weight-log-sheet";
@@ -44,16 +44,11 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
         : goal !== null
           ? t("body__trend_line_goal", { goal, unit })
           : null;
-  const trend =
-    weight.trend === null
-      ? t("body__no_data")
-      : t("body__value", {
-          value: formatBodyWeight(weight.trend, weight.unit, i18n.language),
-          unit,
-        });
+  const value = weight.trend === null ? null : formatBodyWeight(weight.trend, unit, i18n.language);
+  const trend = value === null ? t("body__no_data") : t("body__value", { value, unit });
   const spark = weight.series.slice(-SPARK_DAYS).map((point) => point.trend);
   return (
-    <View className="gap-3 rounded-2xl bg-surface p-4">
+    <View className="gap-3 rounded-xl bg-surface p-3.5">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("body__weight_trend")}, ${trend}`}
@@ -62,19 +57,19 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
       >
         <Text className="text-title-md font-semibold text-foreground">{t("body__title")}</Text>
         <View className="flex-row items-center justify-between gap-3">
-          {weight.trend === null ? (
-            <Text className="text-numeric-md tabular-nums text-foreground">{trend}</Text>
+          {value === null ? (
+            <Text className="text-body text-muted">{trend}</Text>
           ) : (
-            <NumberFlow
-              value={shownWeight(weight.trend, weight.unit)}
-              locale={i18n.language}
-              size="md"
-              decimals={1}
-              reserve={4}
-              suffix={unit}
-            />
+            <SummaryValue value={value} unit={unit} />
           )}
-          {spark.length > 1 ? <Sparkline values={spark} /> : null}
+          {spark.length > 1 ? (
+            <View className="items-end">
+              <Sparkline values={spark} />
+              <Text className="text-caption text-muted">
+                {t("body__days", { count: SPARK_DAYS })}
+              </Text>
+            </View>
+          ) : null}
         </View>
         {line ? <Text className="text-caption tabular-nums text-muted">{line}</Text> : null}
       </Pressable>

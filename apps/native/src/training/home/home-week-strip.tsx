@@ -6,15 +6,17 @@ import { WeekStrip, type WeekStripMarks } from "@/platform/ui/week-strip";
 import type { HomeWeek } from "./home-stats";
 
 /**
- * Home's header strip: this week's seven days, a dot on each trained day, today ringed and the
- * day of the next planned workout hollow. A past trained day opens its Session.
+ * Home's displayed week, a dot on each trained day, the selected day ringed and the
+ * day of the next planned workout hollow. Taps select a day on Home.
  */
 export function HomeWeekStrip({
   week,
-  onOpenSession,
+  selected,
+  onSelect,
 }: {
   week: HomeWeek;
-  onOpenSession: (id: string) => void;
+  selected: number;
+  onSelect: (day: number) => void;
 }) {
   const { t, i18n } = useTranslation();
   const labels = useMemo(() => {
@@ -29,7 +31,7 @@ export function HomeWeekStrip({
     };
   }, [i18n.language, t]);
   const marks = (day: number): WeekStripMarks | undefined => {
-    if (week.sessionByDay.has(day)) return { dots: ["success"], label: t("home__day_trained") };
+    if (week.trained.has(day)) return { dots: ["success"], label: t("home__day_trained") };
     if (day === week.planned) return { planned: true, label: t("home__day_planned") };
     return undefined;
   };
@@ -37,14 +39,12 @@ export function HomeWeekStrip({
     <WeekStrip
       days={week.days}
       today={week.today}
+      selected={selected}
       marks={marks}
       faded={(day) => day > week.today && day !== week.planned}
-      pressable={(day) => week.sessionByDay.has(day)}
+      pressable={(day) => day <= week.today}
       labels={labels}
-      onSelect={(day) => {
-        const id = week.sessionByDay.get(day);
-        if (id !== undefined) onOpenSession(id);
-      }}
+      onSelect={onSelect}
     />
   );
 }

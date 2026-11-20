@@ -1,10 +1,12 @@
 import { MUSCLE_GROUP_KEYS, type MuscleGroup } from "@workspace/shared";
 import { useMemo, useState } from "react";
 import { Image, Pressable, View, type GestureResponderEvent, type ViewStyle } from "react-native";
+import Svg, { Defs, FeColorMatrix, Filter, G, Image as SvgImage } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
 
-import { BODY_ASPECT } from "../core/body-canvas";
+import { muscleArtTint, tintOpacity } from "../core/ramp";
+import { BODY_ASPECT, BODY_CANVAS } from "../core/body-canvas";
 import { BASE_LAYERS, GROUP_LAYERS } from "../core/group-layers";
 import { groupAt } from "../core/hit-test";
 import { BODY_GROUPS, type BodyGroup, type BodyView } from "../core/groups";
@@ -19,10 +21,8 @@ export type BodyMapProps = {
   secondary?: readonly MuscleGroup[];
   /** 0..1 per group (clamped), replacing the primary and secondary opacities: a heat map. */
   intensity?: Partial<Record<BodyGroup, number>>;
-  /** A flat colour per group, instead of the drawn one: an accent ramp for a heat map. */
-  tints?: Partial<Record<BodyGroup, string>>;
-  /** A flat colour for the body behind a heat map, so the ramp is measured against a known base. */
-  silhouette?: string;
+  /** Optional recolouring of the shaded artwork for the weekly muscle map. */
+  artTint?: ReturnType<typeof muscleArtTint>;
   /** Groups drawn in full as chosen (the filter's selection, the group just tapped). */
   selected?: readonly MuscleGroup[];
   /** Called with the group under a tap, or from an accessibility action; never a coordinate. */
@@ -33,10 +33,7 @@ export type BodyMapProps = {
 const FILL = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" } as const;
 
 /**
- * The body with groups highlighted, as drawn: the grey anatomy untinted (or one flat `silhouette`
- * colour behind a heat map), each highlighted group's
- * muscle layers in their own colour at the group's opacity (primary 1, secondary lighter, an
- * intensity as given). It fills the width of its box and keeps the body's proportions.
+ * Highlights use the original red artwork at the group's opacity by default.
  * The picture cannot be focused part by part, so each highlighted group is also an accessibility
  * action.
  */
@@ -45,8 +42,7 @@ export function BodyMap({
   primary,
   secondary,
   intensity,
-  tints,
-  silhouette,
+  artTint,
   selected,
   onPressGroup,
   style,
@@ -58,6 +54,11 @@ export function BodyMap({
     () => groupAlphas({ primary, secondary, intensity, selected }),
     [primary, secondary, intensity, selected],
   );
+  const layers = BODY_GROUPS.flatMap((group) => {
+    const opacity = alphas.get(group);
+    if (opacity === undefined) return [];
+    return GROUP_LAYERS[group][view].map((layer) => ({ layer, opacity }));
+  });
   const actions = useMemo(
     () =>
       BODY_GROUPS.flatMap((group) => {
@@ -106,24 +107,53 @@ export function BodyMap({
       style={[{ width: "100%", aspectRatio: BODY_ASPECT }, style]}
     >
       <View pointerEvents="none" style={FILL}>
-        <Image
-          source={LAYER_SOURCES[BASE_LAYERS[view]]}
-          resizeMode="stretch"
-          style={silhouette === undefined ? FILL : [FILL, { tintColor: silhouette }]}
-        />
-        {BODY_GROUPS.flatMap((group) => {
-          const alpha = alphas.get(group);
-          if (alpha === undefined) return [];
-          const tint = tints?.[group];
-          return GROUP_LAYERS[group][view].map((layer) => (
-            <Image
-              key={layer}
-              source={LAYER_SOURCES[layer]}
-              resizeMode="stretch"
-              style={[FILL, tint === undefined ? { opacity: alpha } : { tintColor: tint }]}
+        {artTint ? (
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${BODY_CANVAS.width} ${BODY_CANVAS.height}`}
+          >
+            <Defs>
+              <Filter id="body-shading">
+                <FeColorMatrix values={artTint.body} />
+              </Filter>
+              <Filter id="muscle-shading">
+                <FeColorMatrix values={artTint.muscle} />
+              </Filter>
+            </Defs>
+            <SvgImage
+              href={LAYER_SOURCES[BASE_LAYERS[view]]}
+              width="100%"
+              height="100%"
+              preserveAspectRatio="none"
+              filter="url(#body-shading)"
             />
-          ));
-        })}
+            <G filter="url(#muscle-shading)">
+              {layers.map(({ layer, opacity }) => (
+                <SvgImage
+                  key={layer}
+                  href={LAYER_SOURCES[layer]}
+                  width="100%"
+                  height="100%"
+                  preserveAspectRatio="none"
+                  opacity={tintOpacity(opacity)}
+                />
+              ))}
+            </G>
+          </Svg>
+        ) : (
+          <>
+            <Image source={LAYER_SOURCES[BASE_LAYERS[view]]} resizeMode="stretch" style={FILL} />
+            {layers.map(({ layer, opacity }) => (
+              <Image
+                key={layer}
+                source={LAYER_SOURCES[layer]}
+                resizeMode="stretch"
+                style={[FILL, { opacity }]}
+              />
+            ))}
+          </>
+        )}
       </View>
     </Pressable>
   );

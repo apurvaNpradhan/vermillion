@@ -18,10 +18,12 @@ const subscribeRecent = (
     onSessions: onValue,
     onError,
   });
-export function useHomeTraining(workoutId?: string) {
+export function useHomeTraining(workoutId?: string, weeksAgo = 0) {
   const weight = useWeight();
   // Home reads this and last week and the last 30 days; the latest Session comes separately.
-  const from = new Date(Date.now() - 6 * 7 * 86400000).toISOString().slice(0, 10);
+  const from = new Date(Date.now() - Math.max(6, weeksAgo + 2) * 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
   const history = useLocalWatch(
     useCallback(
       (db: TrainingDatabase, onValue: (sessions: FinishedSession[]) => void, onError: () => void) =>

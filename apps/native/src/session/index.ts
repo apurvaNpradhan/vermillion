@@ -15,5 +15,6 @@ export { formatElapsed } from "./timer/clock";
 export { doneSummary } from "./finish/summary";
 
 export { usePreviousSets } from "./logging/use-previous-sets";
+export { previewProgression } from "./logging/preview-progression";
 
 export { WorkoutLiveHost } from "./notifications/workout-live-host";

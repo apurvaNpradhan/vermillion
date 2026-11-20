@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { EQUIPMENT, EQUIPMENT_KEYS, type MuscleGroup } from "@workspace/shared";
 import { LIBRARY_SHOW, type LibraryFilters, type LibraryShow } from "@workspace/sync";
@@ -55,13 +56,12 @@ export function FilterSheet({
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          snapPoints={["88%"]}
+        <FixedSheetContent
+          fraction={0.88}
           enableDynamicSizing={false}
           enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full"
         >
           <View className="flex-row items-center justify-between px-5 pb-3 pt-2">
             <BottomSheet.Title className="font-semibold text-title-lg">
@@ -162,7 +162,7 @@ export function FilterSheet({
               <Button.Label>{t("exercise__show_results", { count: total ?? 0 })}</Button.Label>
             </Button>
           </View>
-        </BottomSheet.Content>
+        </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

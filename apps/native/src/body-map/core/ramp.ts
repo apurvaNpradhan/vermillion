@@ -1,76 +1,47 @@
-import { BODY_GROUPS, type BodyGroup } from "./groups";
+import { mixHex } from "@workspace/ui/tokens/mix";
 
-const HEX = /^#([0-9a-f]{6})$/i;
+/** Map the artwork's luminance between two colours while keeping its alpha channel. */
+export function shadingMatrix(shadow: string, highlight: string): number[] {
+  const channel = (hex: string, offset: number) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
 
-function channels(hex: string): [number, number, number] | null {
-  const match = HEX.exec(hex);
-  const digits = match?.[1];
-  if (digits === undefined) return null;
-  const value = Number.parseInt(digits, 16);
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+  return [
+    ...[1, 3, 5].flatMap((offset) => {
+      const low = channel(shadow, offset);
+      const range = channel(highlight, offset) - low;
+      return [0.2126 * range, 0.7152 * range, 0.0722 * range, 0, low];
+    }),
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
 }
 
-/** `from` mixed toward `to` by `amount` (0 to 1), as `#RRGGBB`. A value that is not a hex colour returns `to`. */
-export function mixHex(from: string, to: string, amount: number): string {
-  const a = channels(from);
-  const b = channels(to);
-  if (a === null || b === null) return to;
-  const t = Math.min(1, Math.max(0, amount));
-  const mixed = a.map((channel, index) => Math.round(channel + ((b[index] ?? 0) - channel) * t));
-  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+export function muscleArtTint(accent: string, dark: boolean) {
+  const bodyHighlight = dark ? "#454545" : "#F3F3F3";
+  const muscleShadow = mixHex(accent, "#000000", dark ? 0.12 : 0.28);
+  const muscleHighlight = mixHex(accent, "#FFFFFF", dark ? 0.4 : 0.22);
+  const bodyMidtone = mixHex("#000000", bodyHighlight, 0.8);
+  const muscleMidtone = mixHex(muscleShadow, muscleHighlight, 0.45);
+
+  return {
+    body: shadingMatrix("#000000", bodyHighlight),
+    muscle: shadingMatrix(muscleShadow, muscleHighlight),
+    legend: {
+      untrained: bodyMidtone,
+      low: mixHex(bodyMidtone, muscleMidtone, tintOpacity(0.2)),
+      mid: mixHex(bodyMidtone, muscleMidtone, tintOpacity(0.6)),
+      high: muscleMidtone,
+    },
+  };
 }
 
-/** The least contrast (WCAG ratio) a trained region has against the silhouette: a graphic. */
-export const MIN_RAMP_CONTRAST = 3;
-
-function luminance(hex: string): number {
-  const rgb = channels(hex);
-  if (rgb === null) return 0;
-  const [r, g, b] = rgb.map((channel) => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
-}
-
-/** WCAG contrast ratio of two `#RRGGBB` colours; 1 for one that is not a hex colour. */
-export function contrastBetween(a: string, b: string): number {
-  if (channels(a) === null || channels(b) === null) return 1;
-  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
-}
-
-const FLOOR_STEPS = 40;
-
-/**
- * Where the ramp starts, as the share of the way from `from` to `to`: the first step at which the
- * colour has {@link MIN_RAMP_CONTRAST} against `from`, so the weakest tint still reads against the
- * silhouette in every theme. 1 when even `to` falls short (then the ramp is one colour).
- */
-export function rampFloor(from: string, to: string): number {
-  for (let step = 0; step <= FLOOR_STEPS; step += 1) {
-    const amount = step / FLOOR_STEPS;
-    if (contrastBetween(mixHex(from, to, amount), from) >= MIN_RAMP_CONTRAST) return amount;
-  }
+/** Separate low, mid and high volume while preserving the artwork's shading. */
+export function tintOpacity(intensity: number): number {
+  if (intensity <= 0) return 0;
+  if (intensity < 0.4) return 0.28;
+  if (intensity < 0.8) return 0.64;
   return 1;
-}
-
-/**
- * A colour per group for a heat map: from a visible tint of `to` (the accent, at least
- * {@link MIN_RAMP_CONTRAST} against `from`, the silhouette) up to `to` as the intensity (0 to 1)
- * grows. A muscle with any sets is always visible; one with none is left out.
- */
-export function intensityTints(
-  intensity: Partial<Record<BodyGroup, number>>,
-  from: string,
-  to: string,
-): Partial<Record<BodyGroup, string>> {
-  const floor = rampFloor(from, to);
-  const tints: Partial<Record<BodyGroup, string>> = {};
-  for (const group of BODY_GROUPS) {
-    const value = intensity[group];
-    if (value === undefined || value <= 0) continue;
-    tints[group] = mixHex(from, to, floor + (1 - floor) * Math.min(1, value));
-  }
-  return tints;
 }

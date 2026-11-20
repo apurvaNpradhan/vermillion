@@ -47,6 +47,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
     : (state.value ?? (scope && cached.current?.scope === scope ? cached.current.history : EMPTY));
   return {
     history: new Map([...history].map(([id, sessions]) => [id, weight.withBodyweight(sessions)])),
+    bodyweightOn: weight.bodyweightOn,
     ready: !state.loading && !state.failed,
     failed: state.failed,
     retry: state.retry,

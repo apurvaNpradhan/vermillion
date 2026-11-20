@@ -99,26 +99,26 @@ export const ExerciseRow = memo(function ExerciseRow({
         >
           {thumbnail(40)}
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: open }}
-          accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
-          accessibilityHint={
-            readOnly
-              ? t("training__row_open_hint")
-              : `${t("training__row_open_hint")}. ${t("training__drag_hint")}`
-          }
-          onPress={() => onToggle(exercise.id)}
-          className="min-h-[64px] flex-1 flex-row items-center py-2 pl-3 active:bg-default"
-        >
-          <View className="flex-1 gap-0.5">
+        <View className="min-h-[64px] min-w-0 flex-1 justify-center">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: open }}
+            accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
+            accessibilityHint={
+              readOnly
+                ? t("training__row_open_hint")
+                : `${t("training__row_open_hint")}. ${t("training__drag_hint")}`
+            }
+            onPress={() => onToggle(exercise.id)}
+            className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
+          >
             {place === "first" ? (
               <Text className="font-semibold text-overline uppercase text-identity">
                 {t("training__superset")}
               </Text>
             ) : null}
-            <Text numberOfLines={1} className="font-medium text-body text-foreground">
-              {name}
+            <Text numberOfLines={2} className="font-medium text-body text-foreground">
+              {name || t(FALLBACK_TITLE_KEY)}
             </Text>
             <Text
               numberOfLines={1}
@@ -127,9 +127,9 @@ export const ExerciseRow = memo(function ExerciseRow({
             >
               {subtitle}
             </Text>
-          </View>
-        </Pressable>
-        {progression}
+          </Pressable>
+          {progression}
+        </View>
         {showAddSet && !open && !readOnly ? (
           <Pressable
             accessibilityRole="button"

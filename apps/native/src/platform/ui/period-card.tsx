@@ -76,7 +76,7 @@ export function PeriodCard({
   });
   return (
     <GestureDetector gesture={pan}>
-      <View className="gap-4 overflow-hidden rounded-2xl bg-surface p-3">
+      <View className="gap-2 overflow-hidden rounded-xl bg-surface p-3">
         <View className="flex-row items-center justify-between gap-1">
           <View className="min-w-0 flex-1">
             <Animated.View style={slide}>

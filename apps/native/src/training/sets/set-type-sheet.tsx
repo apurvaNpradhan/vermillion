@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { SET_KINDS, SET_KIND_KEYS, type SetKind } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
@@ -55,13 +56,13 @@ export function SetTypeSheet({
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          snapPoints={["80%"]}
+        <FixedSheetContent
+          fraction={0.8}
           enableDynamicSizing={false}
           enableOverDrag={false}
           animationConfigs={SHEET_SPRING}
           backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="h-full gap-4 pt-2"
+          contentContainerClassName="gap-4 pt-2"
         >
           <BottomSheet.Title className="px-4 font-semibold text-title-lg">
             {title ?? t("training__set_kind_title")}
@@ -102,7 +103,7 @@ export function SetTypeSheet({
                   ],
             )}
           </BottomSheetScrollView>
-        </BottomSheet.Content>
+        </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

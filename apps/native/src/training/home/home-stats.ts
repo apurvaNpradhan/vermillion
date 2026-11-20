@@ -10,38 +10,35 @@ import { plannedDay, stripDays } from "../../platform/ui/week-strip-math";
 
 const DAY_MS = 86_400_000;
 
-/** The Home week strip: its seven days, the Session each trained day opens, and the planned day. */
+/** The Home week strip: its seven days, which days were trained, and the planned day. */
 export type HomeWeek = {
   days: number[];
   today: number;
-  /** The latest Session that started on each trained day of the week. */
-  sessionByDay: Map<number, string>;
+  trained: ReadonlySet<number>;
   /** The day the next workout is planned for, or null when no workout is up next. */
   planned: number | null;
 };
 
 export function homeWeek(
-  sessions: readonly { id: string; started_at: string }[],
+  sessions: readonly { started_at: string }[],
   now: Date,
   timezone: string,
   weekStart: WeekStart,
   hasNextWorkout: boolean,
+  weeksAgo = 0,
 ): HomeWeek {
-  const days = stripDays(weekRange(now, timezone, weekStart).start);
+  const days = stripDays(weekRange(now, timezone, weekStart).start - weeksAgo * 7 * DAY_MS);
   const today = calendarDay(now, timezone);
-  const latest = new Map<number, { id: string; started_at: string }>();
+  const trained = new Set<number>();
   for (const session of sessions) {
     const day = calendarDay(session.started_at, timezone);
-    if (!days.includes(day)) continue;
-    const known = latest.get(day);
-    if (!known || known.started_at < session.started_at) latest.set(day, session);
+    if (days.includes(day)) trained.add(day);
   }
-  const sessionByDay = new Map([...latest].map(([day, session]) => [day, session.id]));
   return {
     days,
     today,
-    sessionByDay,
-    planned: hasNextWorkout ? plannedDay(days, new Set(sessionByDay.keys()), today) : null,
+    trained,
+    planned: hasNextWorkout ? plannedDay(days, trained, today) : null,
   };
 }
 

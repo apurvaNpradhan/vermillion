@@ -2,11 +2,11 @@ import { isTargetMuscle, type TargetMuscle } from "@workspace/shared";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
-import { BodyMapPair, intensityTints, isBodyGroup, type BodyGroup } from "@/body-map";
+import { BodyMapPair, isBodyGroup, muscleArtTint, type BodyGroup } from "@/body-map";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { nativeColors } from "@workspace/ui/tokens/brand";
-import { useAppliedVariant } from "@/platform/theme";
+import { useAppliedVariant, useThemeMode } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { ScrollPage } from "@/platform/ui/page";
@@ -27,6 +27,15 @@ const DAY_MS = 86_400_000;
 
 type Span = "week" | "four";
 const WEEKS: Record<Span, number> = { week: 1, four: 4 };
+const MAP_LEVELS = ["untrained", "low", "mid", "high"] as const;
+const SAMPLE_INTENSITY = {
+  chest: 0.9,
+  biceps: 0.2,
+  lats: 0.9,
+  quadriceps: 0.6,
+  glutes: 0.6,
+  hamstrings: 0.2,
+} satisfies Partial<Record<BodyGroup, number>>;
 
 /**
  * Muscles: a period card (Week, or the average a week over the four whole weeks before it) with a
@@ -43,6 +52,8 @@ export function MusclesScreen() {
   const program = useActiveProgram();
   const volume = useMuscleVolume(weeksAgo, program.program, WEEKS[span]);
   const [chosen, setChosen] = useState<TargetMuscle | null>(null);
+  const [showSample, setShowSample] = useState(false);
+  const sampleVisible = __DEV__ && showSample;
   const colors = nativeColors[useAppliedVariant()];
   const options: SegmentedOption<Span>[] = [
     { value: "week", label: t("muscles__period_week") },
@@ -99,8 +110,8 @@ export function MusclesScreen() {
   const intensity: Partial<Record<BodyGroup, number>> = {};
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
-  const silhouette = colors["surface-control"];
-  const tints = intensityTints(intensity, silhouette, colors.identity);
+  const dark = useThemeMode() === "dark";
+  const artTint = useMemo(() => muscleArtTint(colors.identity, dark), [colors.identity, dark]);
   const canPrevious = weeksAgo < MAX_WEEKS_AGO;
   const canNext = weeksAgo > 0;
   const step = (by: -1 | 1) => {
@@ -169,10 +180,53 @@ export function MusclesScreen() {
               </Text>
             </View>
           </PeriodCard>
-          <View className="gap-2 rounded-2xl bg-surface p-4">
-            <BodyMapPair intensity={intensity} tints={tints} silhouette={silhouette} />
+          <View className="gap-4 rounded-2xl bg-surface p-4">
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              <Text className="font-semibold text-title-md text-foreground">
+                {t("muscles__map_title")}
+              </Text>
+              {__DEV__ ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => setShowSample((value) => !value)}
+                >
+                  <Button.Label>
+                    {t(sampleVisible ? "muscles__map_show_actual" : "muscles__map_show_sample")}
+                  </Button.Label>
+                </Button>
+              ) : null}
+            </View>
+            {sampleVisible ? (
+              <Text className="text-caption text-muted">{t("muscles__map_sample_caption")}</Text>
+            ) : null}
+            <View className="w-full max-w-[340px] gap-3 self-center rounded-xl bg-background p-3">
+              <BodyMapPair
+                intensity={sampleVisible ? SAMPLE_INTENSITY : intensity}
+                artTint={artTint}
+              />
+              <View className="flex-row gap-4" accessible={false} aria-hidden>
+                <Text className="flex-1 text-center text-caption text-muted">
+                  {t("bodymap__view_front")}
+                </Text>
+                <Text className="flex-1 text-center text-caption text-muted">
+                  {t("bodymap__view_back")}
+                </Text>
+              </View>
+            </View>
+            <View className="flex-row flex-wrap justify-center gap-3">
+              {MAP_LEVELS.map((level) => (
+                <View key={level} className="flex-row items-center gap-1.5">
+                  <View
+                    className="size-3 rounded-sm"
+                    style={{ backgroundColor: artTint.legend[level] }}
+                  />
+                  <Text className="text-caption text-muted">{t(`muscles__map_${level}`)}</Text>
+                </View>
+              ))}
+            </View>
             <Text className="text-center text-caption text-muted">
-              {t(volume.planned === null ? "muscles__map_volume_caption" : "muscles__map_caption")}
+              {t(targets.length === 0 ? "muscles__map_volume_caption" : "muscles__map_caption")}
             </Text>
           </View>
           {volume.loads.length === 0 ? (

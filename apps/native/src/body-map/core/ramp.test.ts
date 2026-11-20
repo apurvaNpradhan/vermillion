@@ -1,79 +1,38 @@
+import { nativeColors, nativeVariantNames } from "@workspace/ui/tokens/brand";
+import { contrastRatio } from "@workspace/ui/tokens/mix";
 import { describe, expect, it } from "vitest";
 
-import { nativeColors, nativeVariantNames } from "@workspace/ui/tokens/brand";
+import { muscleArtTint, shadingMatrix, tintOpacity } from "./ramp";
 
-import { contrastBetween, intensityTints, MIN_RAMP_CONTRAST, mixHex, rampFloor } from "./ramp";
+describe("muscle artwork tint", () => {
+  it("preserves alpha and maps darker pixels to darker shades", () => {
+    const matrix = shadingMatrix("#204060", "#80A0C0");
+    expect(matrix.slice(15)).toEqual([0, 0, 0, 1, 0]);
+    for (const [row, shadow, highlight] of [
+      [0, 32, 128],
+      [5, 64, 160],
+      [10, 96, 192],
+    ] as const) {
+      const low = matrix[row + 4] ?? 0;
+      const light = matrix.slice(row, row + 3).reduce((sum, value) => sum + value, low);
+      expect(low).toBeCloseTo(shadow / 255);
+      expect(light).toBeCloseTo(highlight / 255);
+    }
+  });
 
-describe("mixHex", () => {
-  it("returns the ends and the middle", () => {
-    expect(mixHex("#000000", "#ffffff", 0)).toBe("#000000");
-    expect(mixHex("#000000", "#ffffff", 1)).toBe("#ffffff");
-    expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
+  it("uses separate bands at 0, 40% and 80%", () => {
+    expect(tintOpacity(0)).toBe(0);
+    expect(tintOpacity(0.01)).toBe(tintOpacity(0.39));
+    expect(tintOpacity(0.4)).toBeGreaterThan(tintOpacity(0.39));
+    expect(tintOpacity(0.4)).toBe(tintOpacity(0.79));
+    expect(tintOpacity(0.8)).toBeGreaterThan(tintOpacity(0.79));
+    expect(tintOpacity(0.8)).toBe(1);
   });
-  it("clamps the amount", () => {
-    expect(mixHex("#102030", "#ffffff", 2)).toBe("#ffffff");
-    expect(mixHex("#102030", "#ffffff", -1)).toBe("#102030");
-  });
-  it("falls back to the target for a colour it cannot read", () => {
-    expect(mixHex("oklch(0.5 0 0)", "#336699", 0.5)).toBe("#336699");
-  });
-});
 
-describe("intensityTints", () => {
-  const tints = intensityTints({ chest: 1, lats: 0.2, biceps: 0 }, "#3b4252", "#88c0d0");
-  it("reaches the accent at full intensity", () => {
-    expect(tints.chest).toBe("#88c0d0");
-  });
-  it("starts above the surface so a muscle with sets shows", () => {
-    expect(tints.lats).not.toBe("#3b4252");
-    expect(tints.lats).not.toBe(tints.chest);
-  });
-  it("leaves groups with no intensity out", () => {
-    expect(tints.biceps).toBeUndefined();
-  });
-});
-
-describe("contrastBetween", () => {
-  it("is the WCAG ratio", () => {
-    expect(contrastBetween("#000000", "#ffffff")).toBeCloseTo(21, 5);
-    expect(contrastBetween("#777777", "#777777")).toBe(1);
-  });
-});
-
-describe("the ramp in every Nord variant", () => {
-  const groups = ["chest", "lats", "biceps"] as const;
-  it.each(nativeVariantNames)(
-    "keeps every trained region 3:1 from the silhouette: %s",
-    (variant) => {
-      const colors = nativeColors[variant];
-      const silhouette = colors["surface-control"];
-      // The faintest muscle that still has sets, up to the most worked one.
-      const tints = intensityTints(
-        { chest: 0.01, lats: 0.5, biceps: 1 },
-        silhouette,
-        colors.identity,
-      );
-      for (const group of groups) {
-        const tint = tints[group];
-        expect(tint, group).toBeDefined();
-        expect(
-          contrastBetween(tint ?? silhouette, silhouette),
-          `${variant} ${group}`,
-        ).toBeGreaterThanOrEqual(MIN_RAMP_CONTRAST);
-      }
-      expect(tints.biceps).toBe(colors.identity.toLowerCase());
-    },
-  );
-  it.each(nativeVariantNames)("steps up from the first tint to the accent: %s", (variant) => {
-    const colors = nativeColors[variant];
-    const floor = rampFloor(colors["surface-control"], colors.identity);
-    expect(floor).toBeGreaterThan(0);
-    expect(floor).toBeLessThan(1);
-    const tints = intensityTints(
-      { chest: 0.2, lats: 0.6 },
-      colors["surface-control"],
-      colors.identity,
-    );
-    expect(tints.chest).not.toBe(tints.lats);
+  it.each(nativeVariantNames)("keeps four distinct legend shades in %s", (variant) => {
+    const { legend } = muscleArtTint(nativeColors[variant].identity, variant.includes("dark"));
+    expect(contrastRatio(legend.untrained, legend.low)).toBeGreaterThan(1.25);
+    expect(contrastRatio(legend.low, legend.mid)).toBeGreaterThan(1.25);
+    expect(contrastRatio(legend.mid, legend.high)).toBeGreaterThan(1.25);
   });
 });

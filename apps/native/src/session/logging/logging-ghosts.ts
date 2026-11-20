@@ -1,6 +1,9 @@
 import {
   suggestNext,
+  type Equipment,
+  type ExerciseType,
   type LighterPeriod,
+  type PlannedSet,
   type SessionHistory,
   type WeightUnit,
 } from "@workspace/shared";
@@ -16,6 +19,23 @@ export type SuggestionSettings = {
   deload?: boolean;
 };
 
+export function plannedSuggestion(
+  sets: readonly PlannedSet[],
+  history: readonly SessionHistory[],
+  exercise: { type: ExerciseType; equipment: Equipment; progressionPerSet: boolean },
+  settings: SuggestionSettings,
+  now = new Date(),
+) {
+  return suggestNext(
+    sets,
+    history,
+    exercise.type,
+    exercise.equipment,
+    { ...settings, progressionPerSet: exercise.progressionPerSet },
+    { now, lighterWeeks: settings.lighterWeeks, deload: settings.deload },
+  );
+}
+
 export function exerciseSuggestion(
   exercise: SessionExerciseDetail,
   history: readonly SessionHistory[],
@@ -23,13 +43,15 @@ export function exerciseSuggestion(
 ) {
   return !exercise.sourceWorkoutExerciseId
     ? null
-    : suggestNext(
+    : plannedSuggestion(
         exercise.sets.map((set) => ({ ...set.target, kind: set.kind })),
         history,
-        exercise.type,
-        exercise.exercise?.equipment ?? "other",
-        { ...settings, progressionPerSet: exercise.progressionPerSet },
-        { now: new Date(), lighterWeeks: settings.lighterWeeks, deload: settings.deload },
+        {
+          type: exercise.type,
+          equipment: exercise.exercise?.equipment ?? "other",
+          progressionPerSet: exercise.progressionPerSet,
+        },
+        settings,
       );
 }
 export function loggingGhosts(

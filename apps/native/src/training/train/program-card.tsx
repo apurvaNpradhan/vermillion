@@ -17,10 +17,12 @@ export function ProgramCard({
   state,
   onOpen,
   onStart,
+  startSecondary,
 }: {
   state: ReturnType<typeof useActiveProgram>;
   onOpen: (programId: string) => void;
   onStart: (workoutId: string) => void;
+  startSecondary: boolean;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -40,7 +42,7 @@ export function ProgramCard({
         : t("run__progress", { week, workout: position });
   const nextTitle = next?.workoutId ? slotTitle(next, t) : null;
   return (
-    <View className="gap-4 rounded-2xl bg-surface p-4">
+    <View className="gap-4 rounded-xl bg-surface p-3.5">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${program.title}, ${progressText}`}
@@ -95,8 +97,13 @@ export function ProgramCard({
         })}
       </View>
       {next?.workoutId && nextTitle ? (
-        <Button size="lg" className="h-14 w-full" onPress={() => onStart(next.workoutId ?? "")}>
-          <Play size={20} color={onAction} />
+        <Button
+          size="lg"
+          variant={startSecondary ? "secondary" : "primary"}
+          className="h-14 w-full"
+          onPress={() => onStart(next.workoutId ?? "")}
+        >
+          <Play size={20} color={startSecondary ? subtle : onAction} />
           <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>
         </Button>
       ) : null}

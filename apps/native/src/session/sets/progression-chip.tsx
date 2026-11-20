@@ -29,7 +29,7 @@ export function ProgressionChip({
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={() => setOpen(true)}
-        className="min-h-11 justify-center px-2"
+        className="min-h-11 max-w-full self-start justify-center pl-3 pr-2 active:opacity-70"
       >
         <Text className="text-caption font-semibold text-identity">{label}</Text>
       </Pressable>
@@ -38,7 +38,7 @@ export function ProgressionChip({
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
-            backgroundClassName="bg-overlay"
+            backgroundClassName="rounded-t-[20px] bg-overlay"
             contentContainerClassName="px-5 pb-10 gap-3"
           >
             <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>

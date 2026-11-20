@@ -11,8 +11,8 @@ export const DISC_CLASS = "overflow-hidden rounded-full bg-white";
 
 /**
  * A circular icon of one group: the drawn body (front or back, whichever shows the group best)
- * zoomed to the group, the group's layers in their own colour, on a light disc. The art is never
- * tinted. `null` for a group with no drawing, so the caller picks a symbol for it.
+ * zoomed to the group, with the original highlight on a light disc. Returns `null` for a group
+ * with no drawing, so the caller can pick a symbol for it.
  */
 export function BodyGroupIcon({ group, size }: { group: MuscleGroup; size: number }) {
   if (!isBodyGroup(group)) return null;

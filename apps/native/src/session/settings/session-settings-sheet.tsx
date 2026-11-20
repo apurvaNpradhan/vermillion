@@ -1,3 +1,4 @@
+import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheet } from "heroui-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
@@ -49,13 +50,12 @@ export function SessionSettingsSheet({
       <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
-          <BottomSheet.Content
-            snapPoints={["88%"]}
+          <FixedSheetContent
+            fraction={0.88}
             enableDynamicSizing={false}
             enableOverDrag={false}
             animationConfigs={SHEET_SPRING}
             backgroundClassName="rounded-t-[28px] bg-overlay"
-            contentContainerClassName="h-full"
           >
             <View className="px-5 pb-3 pt-2">
               <BottomSheet.Title className="font-semibold text-title-lg">
@@ -87,7 +87,7 @@ export function SessionSettingsSheet({
                 {t("session__settings_footnote")}
               </Text>
             </BottomSheetScrollView>
-          </BottomSheet.Content>
+          </FixedSheetContent>
         </BottomSheet.Portal>
       </BottomSheet>
       {settings.sheets}

@@ -1,17 +1,10 @@
 import type { WeekStart } from "@workspace/shared";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { useEffect } from "react";
-import Animated, {
-  ReduceMotion,
-  useAnimatedProps,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
-import Svg, { Circle, Rect } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
 import { useTranslation } from "@/platform/i18n";
-import { isColorString, useIdentityColor } from "@/platform/theme";
+import { isColorString } from "@/platform/theme";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 
 import {
@@ -28,24 +21,17 @@ import {
 } from "./history-calendar";
 import { DayFill } from "./history-calendar-view";
 import type { HistoryFormat } from "./history-format";
-import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const SIZE = 60;
-const RADIUS = 27;
-const CIRCUMFERENCE = Math.PI * 2 * RADIUS;
 const BAR_STEP = 32;
 const BAR_HEIGHT = 76;
 
 export function HistoryWeek({
   start,
-  today,
   history,
   goal,
   format,
 }: {
   start: number;
-  today: number;
   history: History;
   goal: number | null;
   format: HistoryFormat;
@@ -59,59 +45,12 @@ export function HistoryWeek({
   const volume = (stats: Totals) => format.volumeValue(stats.volume);
 
   return (
-    <View className="gap-4">
-      <View className="flex-row gap-1">
-        {Array.from({ length: 7 }, (_, index) => {
-          const day = start + index * DAY_MS;
-          const sessions = history.byDay.get(day) ?? [];
-          const title = sessions[0]?.title;
-          const trained = sessions.length > 0;
-          const tone = trained ? "text-on-identity" : "text-muted";
-          return (
-            <View
-              key={index}
-              accessible
-              accessibilityLabel={
-                title
-                  ? t("session__calendar_day_title", {
-                      date: format.full(day),
-                      count: sessions.length,
-                      title,
-                    })
-                  : format.full(day)
-              }
-              className={`min-h-28 flex-1 overflow-hidden rounded-lg bg-default px-0.5 py-2 ${day > today ? "opacity-45" : ""}`}
-            >
-              <DayFill trained={trained} />
-              {day === today && (
-                <View
-                  pointerEvents="none"
-                  className={`absolute inset-0 rounded-lg border ${trained ? "border-on-identity" : "border-identity"}`}
-                />
-              )}
-              <Text className={`text-center text-caption ${tone}`}>
-                {format.weekdayLetter(day)}
-              </Text>
-              <Text
-                className={`text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
-              >
-                {format.day(day)}
-              </Text>
-              {title && (
-                <Text numberOfLines={2} className={`mt-auto text-center text-overline ${tone}`}>
-                  {title}
-                </Text>
-              )}
-            </View>
-          );
-        })}
-      </View>
-      {goal !== null && (
-        <View className="flex-row items-center gap-3">
-          <GoalRing count={totals.workouts} goal={goal} format={format} />
-          <Text className="text-body text-muted">{t("session__weekly_goal")}</Text>
-        </View>
-      )}
+    <View className="gap-2">
+      {goal !== null ? (
+        <Text className="text-caption text-muted">
+          {t("session__goal_accessible", { count: totals.workouts, goal })}
+        </Text>
+      ) : null}
       <StatTiles
         items={[
           {
@@ -138,61 +77,62 @@ export function HistoryWeek({
   );
 }
 
-function GoalRing({ count, goal, format }: { count: number; goal: number; format: HistoryFormat }) {
+export function HistoryWeekCalendar({
+  start,
+  today,
+  history,
+  format,
+}: {
+  start: number;
+  today: number;
+  history: History;
+  format: HistoryFormat;
+}) {
   const { t } = useTranslation();
-  const track = useCSSVariable("--color-default");
-  const fill = useIdentityColor();
-  const fraction = Math.min(1, count / goal);
-  const reduced = useReduceMotion();
-  // Reduce Motion: the final arc fades in over 120 ms (as the period card does) instead of filling.
-  const opacity = useSharedValue(reduced ? 0 : 1);
-  useEffect(() => {
-    if (reduced) {
-      opacity.set(0);
-      opacity.set(withTiming(1, { duration: 120, reduceMotion: ReduceMotion.Never }));
-    } else {
-      opacity.set(1);
-    }
-  }, [reduced, opacity]);
-  const animated = useAnimatedProps(() => ({
-    strokeDashoffset: reduced
-      ? CIRCUMFERENCE * (1 - fraction)
-      : withTiming(CIRCUMFERENCE * (1 - fraction), { duration: 320 }),
-    opacity: opacity.get(),
-  }));
   return (
-    <View
-      accessible
-      accessibilityLabel={t("session__goal_accessible", { count, goal })}
-      className="size-[60px] items-center justify-center"
-    >
-      <Svg width={SIZE} height={SIZE} className="absolute" accessible={false}>
-        <Circle
-          cx={30}
-          cy={30}
-          r={RADIUS}
-          fill="none"
-          stroke={isColorString(track) ? track : undefined}
-          strokeWidth={4}
-        />
-        <AnimatedCircle
-          cx={30}
-          cy={30}
-          r={RADIUS}
-          fill="none"
-          stroke={fill}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeDasharray={[CIRCUMFERENCE, CIRCUMFERENCE]}
-          animatedProps={animated}
-          rotation={-90}
-          originX={30}
-          originY={30}
-        />
-      </Svg>
-      <Text className="text-label tabular-nums text-foreground">
-        {t("session__goal_ratio", { done: format.integer(count), goal: format.integer(goal) })}
-      </Text>
+    <View className="flex-row gap-1">
+      {Array.from({ length: 7 }, (_, index) => {
+        const day = start + index * DAY_MS;
+        const sessions = history.byDay.get(day) ?? [];
+        const title = sessions[0]?.title;
+        const trained = sessions.length > 0;
+        const tone = trained ? "text-on-identity" : "text-muted";
+        return (
+          <View
+            key={index}
+            accessible
+            accessibilityLabel={
+              title
+                ? t("session__calendar_day_title", {
+                    date: format.full(day),
+                    count: sessions.length,
+                    title,
+                  })
+                : format.full(day)
+            }
+            className={`min-h-28 flex-1 overflow-hidden rounded-lg bg-default px-0.5 py-2 ${day > today ? "opacity-45" : ""}`}
+          >
+            <DayFill trained={trained} />
+            {day === today && (
+              <View
+                pointerEvents="none"
+                className={`absolute inset-0 rounded-lg border ${trained ? "border-on-identity" : "border-identity"}`}
+              />
+            )}
+            <Text className={`text-center text-caption ${tone}`}>{format.weekdayLetter(day)}</Text>
+            <Text
+              className={`text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
+            >
+              {format.day(day)}
+            </Text>
+            {title && (
+              <Text numberOfLines={2} className={`mt-auto text-center text-overline ${tone}`}>
+                {title}
+              </Text>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }

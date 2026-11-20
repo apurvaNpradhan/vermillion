@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
+import { setExerciseSetting } from "./sessions/equipment-store";
 import {
   addExercises,
   addSlot,
@@ -83,6 +84,9 @@ describe("workout reads", () => {
     expect(read?.exercises.map((entry) => entry.exercise?.title)).toEqual(["Plank", "Squat"]);
     expect(read?.exercises[0]).toMatchObject({ restSeconds: null, note: "Slow" });
     expect(read?.exercises[1]?.exercise?.secondaryMuscles).toEqual(["glutes"]);
+    expect(read?.exercises[1]?.exercise?.progressionPerSet).toBe(false);
+    await setExerciseSetting(training, SQUAT, { progression_per_set: true });
+    expect(detail(id)?.exercises[1]?.exercise?.progressionPerSet).toBe(true);
     expect(detail("missing")).toBeNull();
   });
 

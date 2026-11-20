@@ -18,7 +18,7 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
-import { usePreviousSets, useStartSession, formatElapsed } from "@/session";
+import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/training/home/last-done";
 import { doneSummary } from "@/session";
@@ -29,6 +29,7 @@ import { plannedColumns, plannedRows } from "@/training/sets/set-text-rows";
 import { chipTexts } from "@/training/sets/set-editing";
 import { useColumnHeaders } from "@/training/sets/use-column-headers";
 import { SetTextTable } from "@/training/sets/set-text-table";
+import { WorkoutProgressionPreview } from "./workout-progression-preview";
 
 export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
@@ -36,7 +37,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const subtle = useSubtleColor();
   const foreground = useThemeColor("foreground");
   const columnHeader = useColumnHeaders();
-  const { preferences } = usePreferences();
+  const { preferences, isLoading: preferencesLoading } = usePreferences();
   const state = useWorkout(id);
   const history = useHomeTraining(id);
   const previousHistory = usePreviousSets(
@@ -84,6 +85,44 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       })
     : t("workout__never_done");
   const ready = state.status === "ready" ? state.workout : null;
+  const now = new Date();
+  const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
+  const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
+    const history = historyForWorkout(previousHistory.history.get(entry.exerciseId) ?? [], id);
+    const lastSessionId = history[0]?.id ?? null;
+    const type = entry.exercise?.exerciseType ?? "weight_reps";
+    const count = stalledSessions(history, type, {
+      bodyweightKg,
+      lighterWeeks: preferences.ui.lighterWeeks,
+    });
+    return {
+      entry,
+      history,
+      type,
+      count,
+      lastSessionId,
+      memory: stallMemory(entry.exerciseId, lastSessionId),
+    };
+  });
+  const progression =
+    previousHistory.ready && !preferencesLoading
+      ? exerciseHistory.flatMap(({ entry, history, count, memory }) => {
+          const preview = previewProgression(
+            entry,
+            history,
+            {
+              weightUnit: unit,
+              weightIncrementKg: preferences.ui.weightIncrementKg,
+              lighterWeeks: preferences.ui.lighterWeeks,
+              deload: count > 0 && memory.applied,
+            },
+            now,
+          );
+          return preview && entry.exercise
+            ? [{ id: entry.id, title: entry.exercise.title, preview }]
+            : [];
+        })
+      : [];
   return (
     <>
       <ScrollPage
@@ -130,6 +169,11 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               <Button onPress={() => void start(id)}>
                 <Button.Label>{t("session__start")}</Button.Label>
               </Button>
+              <WorkoutProgressionPreview
+                exercises={progression}
+                unit={unit}
+                unitLabel={unitLabel}
+              />
               {ready.note ? <Text className="text-body text-muted">{ready.note}</Text> : null}
             </View>
             {!history.loading && !history.failed && sessions.length ? (
@@ -182,27 +226,11 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
                 }
               />
-              {ready.exercises.map((entry) => {
-                const previous = historyForWorkout(
-                  previousHistory.history.get(entry.exerciseId) ?? [],
-                  id,
-                )[0];
-                const fullHistory = historyForWorkout(
-                  previousHistory.history.get(entry.exerciseId) ?? [],
-                  id,
-                );
-                const stallCount = stalledSessions(
-                  fullHistory,
-                  entry.exercise?.exerciseType ?? "weight_reps",
-                  { bodyweightKg: history.bodyweightKg, lighterWeeks: preferences.ui.lighterWeeks },
-                );
-                // `stallVersion` re-renders this list when a note is dismissed or applied.
-                const memory = stallMemory(entry.exerciseId, fullHistory[0]?.id ?? null);
+              {exerciseHistory.map(({ entry, history, type, count, lastSessionId, memory }) => {
                 const sets =
-                  previous?.sets.flatMap((set) =>
+                  history[0]?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
                   ) ?? [];
-                const type = entry.exercise?.exerciseType ?? "weight_reps";
                 const columns = plannedColumns(type, entry.sets);
                 const scale = preferences.ui.effortScale;
                 const rows = plannedRows(
@@ -234,12 +262,12 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         })
                       }
                     />
-                    {stallCount > 0 && fullHistory[0] && (!memory.dismissed || memory.applied) ? (
+                    {count > 0 && lastSessionId && (!memory.dismissed || memory.applied) ? (
                       <StalledNote
                         key={stallVersion}
                         exerciseId={entry.exerciseId}
-                        latestSessionId={fullHistory[0].id}
-                        count={stallCount}
+                        latestSessionId={lastSessionId}
+                        count={count}
                         applied={memory.applied}
                       />
                     ) : null}

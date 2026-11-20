@@ -13,7 +13,7 @@ import { EmptyState } from "@/platform/ui/empty-state";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { Page } from "@/platform/ui/page";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
-import { useStartSession } from "@/session";
+import { useActiveSessions, useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
 
 import { lastDoneLabel } from "@/training/home/last-done";
@@ -47,6 +47,8 @@ const rowKey = (row: Row) =>
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { sessions } = useActiveSessions();
+  const resume = sessions[0];
   const workoutList = useWorkouts(true);
   const active = useActiveProgram();
   const programList = useProgramLibrary(active);
@@ -230,11 +232,34 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             ListHeaderComponent={
               <View className="gap-4 px-4 pb-1">
                 {header}
+                {resume ? (
+                  <View className="flex-row flex-wrap items-center gap-3 rounded-xl bg-surface p-3.5">
+                    <View className="min-w-0 flex-1 gap-0.5">
+                      <Text className="text-title-md font-semibold text-foreground">
+                        {resume.title}
+                      </Text>
+                      <Text className="text-caption text-muted">{t("home__in_progress")}</Text>
+                    </View>
+                    <Button
+                      accessibilityLabel={t("session__resume_label", { title: resume.title })}
+                      onPress={() =>
+                        router.push({ pathname: "/session/[id]", params: { id: resume.id } })
+                      }
+                    >
+                      <Button.Label>{t("session__resume")}</Button.Label>
+                    </Button>
+                  </View>
+                ) : null}
                 <SyncBanner />
                 <TrainingListState status={status} onRetry={retry} />
                 {status === "list" ? (
                   <>
-                    <ProgramCard state={active} onOpen={openProgram} onStart={startWorkout} />
+                    <ProgramCard
+                      state={active}
+                      onOpen={openProgram}
+                      onStart={startWorkout}
+                      startSecondary={resume !== undefined}
+                    />
                     <View className="flex-row gap-3">
                       <Button
                         variant="secondary"
