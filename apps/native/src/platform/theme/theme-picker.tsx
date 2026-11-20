@@ -3,14 +3,13 @@ import { themeIds, themeVariants, type ThemeId } from "@workspace/ui/tokens/them
 import { BottomSheet, Switch } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Polygon, Rect } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useThemeChoice } from "./index";
 import { APPEARANCES, type AppearanceChoice, type ThemeChoice } from "./theme-state";
 
@@ -22,6 +21,9 @@ const APPEARANCE_LABELS = {
 
 const THEME_LABELS = {
   nord: "theme__nord",
+  slate: "theme__slate",
+  olive: "theme__olive",
+  mulberry: "theme__mulberry",
 } satisfies Record<ThemeId, TranslationKey>;
 
 export function useAppearanceSummary(choice: ThemeChoice): string {
@@ -61,18 +63,12 @@ export function AppearanceSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { bottom } = useSafeAreaInsets();
   const { choice, setChoice } = useThemeChoice();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-5 px-4 pt-2"
-          contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
-        >
+        <ScrollableSheetContent>
           <BottomSheet.Title className="px-1 font-semibold text-title-lg">
             {t("settings__appearance_title")}
           </BottomSheet.Title>
@@ -141,7 +137,7 @@ export function AppearanceSheet({
               }
             />
           </ListSection>
-        </BottomSheet.Content>
+        </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

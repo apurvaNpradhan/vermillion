@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { themeIds } from "@workspace/ui/tokens/theme-variants";
 import {
   APPEARANCES,
   DEFAULT_THEME,
@@ -47,17 +48,17 @@ describe("device theme selection", () => {
     }
   });
 
-  it("round-trips and resolves every appearance and contrast", () => {
+  it.each(themeIds)("round-trips and resolves every appearance and contrast for %s", (theme) => {
     for (const appearance of APPEARANCES)
       for (const contrast of [false, true]) {
-        const choice = { theme: "nord", appearance, contrast } as const;
+        const choice = { theme, appearance, contrast } as const;
         expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
         // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
         for (const os of ["light", "dark", null] as const) {
           const scheme = appearance === "system" ? (os ?? "light") : appearance;
           expect(resolvedScheme(choice, os)).toBe(scheme);
           expect(resolvedVariant(choice, os)).toBe(
-            contrast ? `nord-${scheme}-contrast` : `nord-${scheme}`,
+            contrast ? `${theme}-${scheme}-contrast` : `${theme}-${scheme}`,
           );
         }
       }

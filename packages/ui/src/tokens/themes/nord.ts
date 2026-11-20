@@ -1,15 +1,8 @@
 import type { Family, ThemeDefinition } from "./engine";
 
-/**
- * Nord, the app's default theme (ADR 0048), after Arctic Ice Studio's Nord palette
- * (nordtheme.com, MIT). Polar Night surfaces, Snow Storm ink, a Frost accent and the Aurora
- * family for status, set kinds and charts. The dark canvas sits one step below Nord's own
- * `#2E3440`, which becomes the card colour, so layers read clearly during a workout.
- */
-
-/** Aurora and Frost: the theme's data colours, made readable per scheme by the engine. */
+/** Graphite and chalk neutrals with restrained data colours. */
 const aurora: Family = {
-  success: "#A3BE8C",
+  success: "#9CB7A1",
   warning: "#EBCB8B",
   danger: "#BF616A",
   protein: "#81A1C1",
@@ -21,24 +14,41 @@ const aurora: Family = {
   "set-top": "#B48EAD",
   "set-backoff": "#8FBCBB",
   "set-myo": "#D08770",
-  chart: ["#A3BE8C", "#B48EAD", "#D08770", "#EBCB8B"],
+  chart: ["#AAA8A2", "#898781", "#C0BDB5", "#77756E"],
 };
 
 /** Light fills sit on near-white cards, so the done fill takes a deeper Aurora green. */
-const auroraLight: Family = { ...aurora, success: "#8FAE76" };
+const auroraLight: Family = {
+  ...aurora,
+  success: "#719477",
+  danger: "#A52F2F",
+  chart: ["#6B6862", "#77746E", "#4F4C46", "#827D74"],
+};
 
 export const nord: ThemeDefinition = {
   light: {
-    base: "#ECEFF4",
-    accent: "#5E81AC",
-    onAccent: "#FFFFFF",
-    pin: { surface: "#F8FAFC", ink: "#2E3440" },
+    base: "#F4F2ED",
+    accent: "#191918",
+    onAccent: "#F4F2ED",
+    pin: {
+      surface: "#FBFAF7",
+      control: "#EAE7E0",
+      ink: "#191918",
+      muted: "#5E5C56",
+      hairline: "#D4D0C7",
+    },
   },
   dark: {
-    base: "#1F232B",
-    accent: "#88C0D0",
-    onAccent: "#2E3440",
-    pin: { surface: "#2E3440", control: "#3B4252", ink: "#ECEFF4" },
+    base: "#070707",
+    accent: "#B9B8B2",
+    pin: {
+      surface: "#121212",
+      control: "#1C1C1C",
+      ink: "#EFEEE9",
+      muted: "#AAA8A2",
+      hairline: "#2B2B2B",
+      action: "#656565",
+    },
   },
   family: { light: auroraLight, dark: aurora },
 };

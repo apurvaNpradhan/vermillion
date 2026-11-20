@@ -6,7 +6,8 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native ships one theme, **Nord**, in Light and Dark at standard or increased contrast
+Native offers **Graphite & chalk** (the default), **Slate**, **Olive**, and **Mulberry**, each in
+Light and Dark at standard or increased contrast
 ([ADR 0048](docs/adr/0048-theme-engine-and-nord.md)). Appearance (Match device, Light, Dark), the
 theme and Increase contrast are device settings, available in Preferences and on the signed-out
 welcome screen.
@@ -15,7 +16,9 @@ welcome screen.
   (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
   `brand.ts` holds every variant. Email and the site use Cinnabar, built by the same engine.
 - The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
-  theme's family; completed sets use its success colour. The muscle map uses an accent ramp.
+  theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
+  the original red artwork with lighter secondary highlights. The weekly muscle map uses the
+  theme accent and keeps the muscle shading.
 - `device.theme` stores `{ theme, appearance, contrast }` locally. Native chrome, status bars,
   blur and CAPTCHA use `useThemeMode()`.
 
@@ -59,7 +62,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 | --- | ----------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | 1   | Primary platform  | Phone-first native, web later                                                                         | Sets and meals are logged in the moment, on a phone                              |
 | 2   | Color modes       | Dark default + light mode, role-based tokens                                                          | Bright gyms and kitchens; light mode costs a week, not a month                   |
-| 3   | Primary action    | White fill in dark, near-black in light, no hue                                                       | One loud action without a brand color competing with data colors                 |
+| 3   | Primary action    | Muted fill with light text in dark, deep fill with light text in light                                | A clear primary action with a subdued fill                                       |
 | 4   | Macro colors      | Protein blue, carbs amber, fat orchid; calories neutral                                               | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
 | 5   | Number typeface   | Inter for everything + numeric tier                                                                   | One font, smaller app, precise feel; `tnum` aligns numbers                       |
 | 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                       |

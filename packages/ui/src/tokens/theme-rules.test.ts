@@ -42,8 +42,6 @@ const themes = nativeVariantNames.map((mode) => ({
 const L = (hex: string) => oklabL(hex);
 const MIN_STEP = 0.015;
 const MAX_STEP = 0.08;
-/** The accent and the done colour must read as different hues (ADR 0048's clash rule). */
-const MIN_ACCENT_SUCCESS_HUE = 60;
 
 describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   const c = colors;
@@ -155,14 +153,17 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   });
 });
 
-describe.each(themes)("theme identity: $mode", ({ colors: c }) => {
-  it("keeps the accent's hue apart from the done colour", () => {
+describe.each(themes)("theme identity: $mode", ({ mode, colors: c }) => {
+  it("distinguishes current and completed sets", () => {
     const accent = toOklch(c.identity);
     const done = toOklch(c["set-done"]);
-    // Hue only means something on a coloured value.
-    expect(accent.c).toBeGreaterThan(0.04);
     expect(done.c).toBeGreaterThan(0.04);
-    expect(hueDistance(accent.h, done.h)).toBeGreaterThanOrEqual(MIN_ACCENT_SUCCESS_HUE);
+    if (mode === "light" || mode === "dark" || mode.startsWith("nord-")) {
+      expect(accent.c).toBeLessThan(0.04);
+    } else {
+      expect(accent.c).toBeGreaterThan(0.04);
+      expect(hueDistance(accent.h, done.h)).toBeGreaterThanOrEqual(60);
+    }
   });
 
   it("keeps every chart series visible on the page", () => {
@@ -173,14 +174,14 @@ describe.each(themes)("theme identity: $mode", ({ colors: c }) => {
     }
   });
 
-  it("tints the surfaces with the theme's hue", () => {
+  it("keeps surfaces neutral", () => {
     // A tinted neutral: some chroma, never a saturated colour. A light card may sit close to
     // white, so it only needs a trace of the hue.
-    const floors = { canvas: 0.005, surface: 0.002, "surface-control": 0.005 } as const;
+    const floors = { canvas: 0, surface: 0, "surface-control": 0 } as const;
     // SAFETY: `floors` is a literal object, so its entries are exactly its keys and numbers.
     for (const [role, floor] of Object.entries(floors) as [keyof typeof floors, number][]) {
       const { c: chroma } = toOklch(c[role]);
-      expect(chroma, role).toBeGreaterThan(floor);
+      expect(chroma, role).toBeGreaterThanOrEqual(floor);
       expect(chroma, role).toBeLessThan(0.05);
     }
   });
@@ -193,6 +194,14 @@ const contrastPairs = themeIds.flatMap((theme) =>
     increased: themeVariants[`${theme}-${scheme}-contrast`],
   })),
 );
+
+describe.each(themes.filter(({ isLight }) => !isLight))("dark palette: $mode", ({ colors }) => {
+  it("uses a near-black canvas and a quieter primary action", () => {
+    expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.1);
+    expect(oklabL(colors.action)).toBeLessThan(oklabL(colors.identity));
+    expect(contrastRatio(colors.action, colors.surface)).toBeGreaterThanOrEqual(3);
+  });
+});
 
 describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased }) => {
   it("raises text contrast and holds secondary text to 7:1", () => {
@@ -218,14 +227,27 @@ describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased
 });
 
 describe("nord", () => {
-  it("keeps the Nord colours it pins", () => {
-    const dark = themeVariants["nord-dark"];
-    expect(dark.canvas).toBe("#1F232B");
-    expect(dark.surface).toBe("#2E3440");
-    expect(dark["surface-control"]).toBe("#3B4252");
-    expect(dark["text-primary"]).toBe("#ECEFF4");
-    expect(dark.identity).toBe("#88C0D0");
-    expect(themeVariants["nord-light"].canvas).toBe("#ECEFF4");
+  it("keeps the pinned monochrome colours in standard contrast", () => {
+    expect(themeVariants["nord-light"]).toMatchObject({
+      canvas: "#F4F2ED",
+      surface: "#FBFAF7",
+      "surface-control": "#EAE7E0",
+      "text-primary": "#191918",
+      "text-muted": "#5E5C56",
+      hairline: "#D4D0C7",
+      action: "#191918",
+      "on-action": "#F4F2ED",
+    });
+    expect(themeVariants["nord-dark"]).toMatchObject({
+      canvas: "#070707",
+      surface: "#121212",
+      "surface-control": "#1C1C1C",
+      "text-primary": "#EFEEE9",
+      "text-muted": "#AAA8A2",
+      hairline: "#2B2B2B",
+      action: "#656565",
+      "on-action": "#EFEEE9",
+    });
   });
 });
 

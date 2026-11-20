@@ -20,12 +20,19 @@ import type { RoleTokens } from "../roles";
 export interface SchemeInput {
   /** The page behind everything; its hue tints every neutral. */
   base: string;
-  /** The one colour: "you / now", primary buttons, chart-1. */
+  /** The default colour for "you / now", primary buttons and chart-1. */
   accent: string;
-  /** Text on the accent; the better of the ink and the canvas when left out. */
+  /** Text on the primary action; the better of the ink and the canvas when left out. */
   onAccent?: string;
   /** Hand-picked values that replace a derived one. */
-  pin?: Partial<{ surface: string; control: string; ink: string }>;
+  pin?: Partial<{
+    surface: string;
+    control: string;
+    ink: string;
+    muted: string;
+    hairline: string;
+    action: string;
+  }>;
 }
 
 /** A theme's own data colours. Text tones are made readable per scheme; fills keep the hue. */
@@ -145,13 +152,14 @@ export function deriveScheme(
     readableByLightness(color, textGrounds, ratio, toward);
   // The selected-chip fill, tinted by the raw accent so the readable accent can be held to it.
   const identitySoft = mixHex(surface, input.accent, isLight ? 0.12 : 0.14);
-  const onAccent = input.onAccent ?? inkOn(input.accent, ink, canvas);
+  const actionSeed = input.pin?.action ?? input.accent;
+  const onAccent = input.onAccent ?? inkOn(actionSeed, ink, canvas);
   // Hover and press move the fill away from its own ink, so the label only gains contrast.
   const shade = inkOn(onAccent, ink, canvas);
   const lightLabel = contrastRatio(onAccent, "#000000") > contrastRatio(onAccent, "#FFFFFF");
   // The fill keeps its label readable (darker under a light label, lighter under a dark one);
   // marks and text in the accent stay readable on the page.
-  const action = readableByLightness(input.accent, [onAccent], TEXT, lightLabel ? -1 : 1);
+  const action = readableByLightness(actionSeed, [onAccent], TEXT, lightLabel ? -1 : 1);
   const identity = readableByLightness(input.accent, [...grounds, identitySoft], TEXT, toward);
   const onIdentity = inkOn(identity, surface, isLight ? ink : canvas);
   const danger = readableByLightness(family.danger, grounds, TEXT, toward);
@@ -163,12 +171,20 @@ export function deriveScheme(
     surface,
     "surface-control": control,
     "surface-floating": floating,
-    hairline: mixHex(control, ink, level.hairline),
+    hairline:
+      input.pin?.hairline === undefined
+        ? mixHex(control, ink, level.hairline)
+        : mixHex(input.pin.hairline, ink, contrast === "standard" ? 0 : level.hairline),
     "hairline-strong": mixHex(control, ink, level.strong),
     backdrop: isLight ? "rgb(0 0 0 / 30%)" : "rgb(0 0 0 / 60%)",
     "text-primary": ink,
     "text-secondary": text(mixHex(ink, surface, level.secondary), level.text),
-    "text-muted": text(mixHex(ink, surface, level.muted), level.text),
+    "text-muted": text(
+      contrast === "standard" && input.pin?.muted
+        ? input.pin.muted
+        : mixHex(ink, surface, level.muted),
+      level.text,
+    ),
     "text-disabled": mixHex(ink, surface, level.disabled),
     chart: series(input.accent),
     "chart-1": series(input.accent),
