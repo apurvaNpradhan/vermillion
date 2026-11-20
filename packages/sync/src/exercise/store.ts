@@ -20,6 +20,8 @@ export const exerciseUploadColumns: ReadonlySet<string> = new Set([
   "title",
   "primary_muscle",
   "secondary_muscles",
+  "primary_detail",
+  "secondary_detail",
   "equipment",
   "exercise_type",
   "is_full_bodyweight",
@@ -118,6 +120,8 @@ export async function updateCustomExercise(
       title: current.title,
       primary_muscle: current.primary_muscle,
       secondary_muscles: current.secondary_muscles,
+      primary_detail: current.primary_detail,
+      secondary_detail: current.secondary_detail,
       equipment: current.equipment,
       exercise_type: current.exercise_type,
       is_full_bodyweight: current.is_full_bodyweight,
@@ -136,6 +140,14 @@ export async function updateCustomExercise(
       ...(fields.secondary_muscles !== undefined &&
       JSON.stringify(fields.secondary_muscles) !== JSON.stringify(stored.secondary_muscles)
         ? { secondary_muscles: fields.secondary_muscles }
+        : {}),
+      ...(fields.primary_detail !== undefined &&
+      JSON.stringify(fields.primary_detail) !== JSON.stringify(stored.primary_detail)
+        ? { primary_detail: fields.primary_detail }
+        : {}),
+      ...(fields.secondary_detail !== undefined &&
+      JSON.stringify(fields.secondary_detail) !== JSON.stringify(stored.secondary_detail)
+        ? { secondary_detail: fields.secondary_detail }
         : {}),
       ...(fields.equipment !== undefined && fields.equipment !== stored.equipment
         ? { equipment: fields.equipment }

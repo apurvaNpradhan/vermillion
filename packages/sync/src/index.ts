@@ -306,7 +306,7 @@ export {
   moveSessionPhoto,
   releaseSessionPhotos,
 } from "./training";
-export { setExerciseImage } from "./exercise";
+export { parseMuscleDetails, setExerciseImage } from "./exercise";
 export { watchSessionPhotos, type SessionPhoto } from "./training";
 export {
   PREFERENCES_SQL,

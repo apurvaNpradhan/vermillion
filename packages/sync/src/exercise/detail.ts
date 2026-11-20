@@ -1,7 +1,8 @@
 import type { QueryResult } from "@powersync/common";
-import { EQUIPMENT, EXERCISE_TYPES, MUSCLE_GROUPS } from "@workspace/shared";
+import { EQUIPMENT, EXERCISE_TYPES, MUSCLE_GROUPS, type MuscleDetail } from "@workspace/shared";
 import { z } from "zod";
 
+import { parseMuscleDetails } from "./details";
 import type { LibraryRow } from "./library";
 import { LIBRARY_ROW_COLUMNS, type LibraryQuery } from "./library-query";
 import type { ExerciseDatabase } from "./store";
@@ -15,7 +16,7 @@ const muscleGroupSchema = z.enum(MUSCLE_GROUPS);
 const equipmentSchema = z.enum(EQUIPMENT);
 
 const DETAIL_COLUMNS =
-  "id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at";
+  "id, user_id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail, equipment, exercise_type, is_full_bodyweight, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at";
 
 const detailRowSchema = z.object({
   id: z.string(),
@@ -23,6 +24,8 @@ const detailRowSchema = z.object({
   title: z.string(),
   primary_muscle: muscleGroupSchema,
   secondary_muscles: z.string().nullable(),
+  primary_detail: z.string().nullable(),
+  secondary_detail: z.string().nullable(),
   equipment: equipmentSchema,
   exercise_type: z.enum(EXERCISE_TYPES),
   is_full_bodyweight: z.number(),
@@ -56,6 +59,8 @@ export type ExerciseDetail = {
   instructions: string | null;
   primaryMuscle: z.infer<typeof muscleGroupSchema>;
   secondaryMuscles: z.infer<typeof muscleGroupSchema>[];
+  primaryDetail: MuscleDetail[];
+  secondaryDetail: MuscleDetail[];
   equipment: z.infer<typeof equipmentSchema>;
   exerciseType: (typeof EXERCISE_TYPES)[number];
   isFullBodyweight: boolean;
@@ -92,6 +97,8 @@ const candidateRowSchema = z.object({
   user_id: z.string().nullable(),
   title: z.string(),
   primary_muscle: muscleGroupSchema,
+  primary_detail: z.string().nullable().optional(),
+  secondary_detail: z.string().nullable().optional(),
   equipment: equipmentSchema,
   image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
@@ -132,6 +139,8 @@ export function watchExercise(
         instructions: row.instructions,
         primaryMuscle: row.primary_muscle,
         secondaryMuscles: secondary.data,
+        primaryDetail: parseMuscleDetails(row.primary_detail),
+        secondaryDetail: parseMuscleDetails(row.secondary_detail),
         equipment: row.equipment,
         exerciseType: row.exercise_type,
         isFullBodyweight: row.is_full_bodyweight !== 0,
@@ -166,6 +175,8 @@ export function watchSwapCandidates(
           id: row.id,
           title: row.title,
           primaryMuscle: row.primary_muscle,
+          primaryDetail: parseMuscleDetails(row.primary_detail),
+          secondaryDetail: parseMuscleDetails(row.secondary_detail),
           equipment: row.equipment,
           thumbnailKey: row.thumbnail_key,
           imageMediaId: row.image_media_id ?? null,

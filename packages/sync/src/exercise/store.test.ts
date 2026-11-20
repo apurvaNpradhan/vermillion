@@ -17,6 +17,8 @@ const input: CustomExerciseInput = {
   title: "My press",
   primary_muscle: "chest",
   secondary_muscles: ["triceps"],
+  primary_detail: ["upper_chest"],
+  secondary_detail: [],
   equipment: "dumbbell",
   exercise_type: "weight_reps",
   is_full_bodyweight: false,
@@ -83,6 +85,29 @@ describe("exercise store", () => {
     expect(row(s, id)).toMatchObject({ equipment: "barbell", title: "My press" });
     await expect(
       updateCustomExercise(s.exercises, id, { secondary_muscles: ["chest"] }),
+    ).rejects.toThrow();
+  });
+
+  it("stores details as JSON text and validates them against the groups", async () => {
+    const s = await setup();
+    const id = await createCustomExercise(s.exercises, {
+      ...input,
+      secondary_muscles: ["shoulders"],
+      secondary_detail: ["rear_delts"],
+    });
+    expect(row(s, id)).toMatchObject({
+      primary_detail: '["upper_chest"]',
+      secondary_detail: '["rear_delts"]',
+    });
+    expect(await updateCustomExercise(s.exercises, id, { primary_detail: ["lower_chest"] })).toBe(
+      true,
+    );
+    expect(row(s, id)?.primary_detail).toBe('["lower_chest"]');
+    await expect(
+      updateCustomExercise(s.exercises, id, { primary_detail: ["side_delts"] }),
+    ).rejects.toThrow();
+    await expect(
+      createCustomExercise(s.exercises, { ...input, primary_detail: ["obliques"] }),
     ).rejects.toThrow();
   });
 

@@ -1,6 +1,7 @@
-import { MUSCLE_GROUPS, type MuscleGroup } from "@workspace/shared";
+import { MUSCLE_GROUPS, type MuscleDetail, type MuscleGroup } from "@workspace/shared";
 import { z } from "zod";
 
+import { parseMuscleDetails } from "./details";
 import type { ExerciseDatabase } from "./store";
 
 const muscleGroupSchema = z.enum(MUSCLE_GROUPS);
@@ -11,6 +12,8 @@ const rowSchema = z.object({
   title: z.string(),
   primary_muscle: muscleGroupSchema,
   secondary_muscles: z.string().nullable(),
+  primary_detail: z.string().nullable(),
+  secondary_detail: z.string().nullable(),
 });
 const secondarySchema = z.array(muscleGroupSchema);
 
@@ -20,6 +23,8 @@ export type ExerciseMuscles = {
   title: string;
   primary_muscle: MuscleGroup;
   secondary_muscles: MuscleGroup[];
+  primary_detail: MuscleDetail[];
+  secondary_detail: MuscleDetail[];
 };
 
 function parseSecondary(text: string | null): MuscleGroup[] | null {
@@ -48,7 +53,7 @@ export function watchExerciseMuscles(
   }
   const controller = new AbortController();
   database.watchWithCallback(
-    `SELECT id, title, primary_muscle, secondary_muscles FROM exercise WHERE id IN (${unique.map(() => "?").join(",")})`,
+    `SELECT id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail FROM exercise WHERE id IN (${unique.map(() => "?").join(",")})`,
     unique,
     {
       onResult: (result) => {
@@ -66,6 +71,8 @@ export function watchExerciseMuscles(
             title: parsed.data.title,
             primary_muscle: parsed.data.primary_muscle,
             secondary_muscles: secondary,
+            primary_detail: parseMuscleDetails(parsed.data.primary_detail),
+            secondary_detail: parseMuscleDetails(parsed.data.secondary_detail),
           });
         }
         handlers.onRows(rows);

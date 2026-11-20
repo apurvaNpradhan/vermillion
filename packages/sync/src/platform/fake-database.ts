@@ -31,7 +31,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
   const createSchema = () =>
     sqlite.exec(`
       CREATE TABLE exercise (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, primary_muscle TEXT,
-        secondary_muscles TEXT, equipment TEXT, exercise_type TEXT, is_full_bodyweight INTEGER,
+        secondary_muscles TEXT, primary_detail TEXT, secondary_detail TEXT, equipment TEXT,
+        exercise_type TEXT, is_full_bodyweight INTEGER,
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
         thumbnail_key TEXT, image_media_id TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,

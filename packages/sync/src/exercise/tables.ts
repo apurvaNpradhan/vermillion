@@ -1,4 +1,4 @@
-import type { Equipment, ExerciseType, MuscleGroup } from "@workspace/shared";
+import type { Equipment, ExerciseType, MuscleDetail, MuscleGroup } from "@workspace/shared";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
@@ -15,6 +15,14 @@ export const exercise = sqliteTable(
     primary_muscle: text("primary_muscle").$type<MuscleGroup>().notNull(),
     secondary_muscles: text("secondary_muscles", { mode: "json" })
       .$type<MuscleGroup[]>()
+      .notNull()
+      .default([]),
+    primary_detail: text("primary_detail", { mode: "json" })
+      .$type<MuscleDetail[]>()
+      .notNull()
+      .default([]),
+    secondary_detail: text("secondary_detail", { mode: "json" })
+      .$type<MuscleDetail[]>()
       .notNull()
       .default([]),
     equipment: text("equipment").$type<Equipment>().notNull(),

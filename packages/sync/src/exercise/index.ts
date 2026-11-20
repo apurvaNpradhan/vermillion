@@ -38,5 +38,6 @@ export { rejectedExercisePayloadTitle, rejectedExerciseTitle } from "./rejected"
 export { watchCatalogThumbnailKeys } from "./thumbnails";
 export { retiredExerciseIds } from "./retired";
 
+export { parseMuscleDetails } from "./details";
 export { setExerciseImage } from "./image-store";
 export { watchExerciseMuscles, type ExerciseMuscles } from "./muscles";

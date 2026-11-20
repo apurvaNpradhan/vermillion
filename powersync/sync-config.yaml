@@ -13,13 +13,13 @@ streams:
   exercise_catalog:
     auto_subscribe: true
     priority: 3
-    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at FROM exercise WHERE user_id IS NULL
+    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at FROM exercise WHERE user_id IS NULL
 
   # A user's Custom exercises, archived ones included.
   my_library:
     auto_subscribe: true
     priority: 1
-    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at FROM exercise WHERE user_id = auth.user_id()
+    query: SELECT id, user_id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at FROM exercise WHERE user_id = auth.user_id()
 
   # A user's training (ADR 0036, 0038): one subscription over the four plan tables, so a Workout,
   # its exercises and the Rotation arrive together, and the session tables (a Session, its

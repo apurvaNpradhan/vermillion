@@ -1,3 +1,4 @@
+import { parseMuscleDetails } from "@workspace/sync";
 import { v7 as uuidv7 } from "uuid";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -65,6 +66,39 @@ describe("exercise sync", () => {
         WHERE e.user_id IS NULL LIMIT 5`,
     );
     expect(flattened.length).toBeGreaterThan(0);
+  });
+
+  it("delivers muscle details as JSON text that the client parses", async () => {
+    const [row] = (
+      await database.query<{ id: string }>(
+        "SELECT id FROM exercise WHERE user_id IS NULL AND primary_muscle = 'shoulders' LIMIT 1",
+      )
+    ).rows;
+    const id = String(row?.id);
+    await database.query(
+      "UPDATE exercise SET primary_detail = ARRAY['side_delts','rear_delts'], updated_at = now() WHERE id = $1",
+      [id],
+    );
+    try {
+      const client = await newClient(await createUser());
+      await client.connect();
+      await vi.waitFor(async () => {
+        const local = await client.database.getOptional<{
+          primary_detail: string;
+          secondary_detail: string;
+        }>("SELECT primary_detail, secondary_detail FROM exercise WHERE id = ?", [id]);
+        expect(local).toEqual({
+          primary_detail: '["side_delts","rear_delts"]',
+          secondary_detail: "[]",
+        });
+        expect(parseMuscleDetails(local?.primary_detail)).toEqual(["side_delts", "rear_delts"]);
+      }, within);
+    } finally {
+      await database.query(
+        "UPDATE exercise SET primary_detail = '{}', secondary_detail = '{}', updated_at = now() WHERE id = $1",
+        [id],
+      );
+    }
   });
 
   it("syncs Custom exercises to the owner's devices only", async () => {

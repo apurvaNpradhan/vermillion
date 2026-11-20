@@ -49,6 +49,8 @@ const input = (title: string): CustomExerciseInput => ({
   title,
   primary_muscle: "chest",
   secondary_muscles: ["triceps"],
+  primary_detail: [],
+  secondary_detail: [],
   equipment: "dumbbell",
   exercise_type: "weight_reps",
   is_full_bodyweight: false,
