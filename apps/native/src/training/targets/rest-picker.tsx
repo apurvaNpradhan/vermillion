@@ -222,7 +222,7 @@ export function RestPicker({
               className={`flex-1 ${draft === preset ? "border border-foreground bg-default" : ""}`}
               onPress={() => choose(preset)}
             >
-              <Button.Label>{formatClock(preset)}</Button.Label>
+              <Button.Label className="tabular-nums">{formatClock(preset)}</Button.Label>
             </Button>
           ))}
         </View>

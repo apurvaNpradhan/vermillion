@@ -52,7 +52,7 @@ export function WeightChanges({
                 .join(", ")}
               className="min-h-16 flex-1 gap-0.5 rounded-xl bg-surface px-3 py-2"
             >
-              <Text className="text-caption text-muted">
+              <Text className="text-caption tabular-nums text-muted">
                 {t("body__days", { count: change.days })}
               </Text>
               <Text numberOfLines={1} className="text-numeric-sm tabular-nums text-foreground">

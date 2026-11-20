@@ -302,7 +302,7 @@ function CalculatorBody({
                       ? t("plates__bar_weight", { weight: weight(barKg) })
                       : t("plates__side_weight", { weight: weight(sideKg) })}
                   </Text>
-                  <Text className="text-body text-muted">{sideText}</Text>
+                  <Text className="text-body text-muted tabular-nums">{sideText}</Text>
                   {!building &&
                   hasTarget(state.target) &&
                   result &&

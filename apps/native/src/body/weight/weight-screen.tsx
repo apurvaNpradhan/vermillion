@@ -225,7 +225,9 @@ export function WeightScreen() {
                           }}
                           className="flex-row justify-between rounded-xl py-4 active:bg-default"
                         >
-                          <Text className="text-body text-muted">{date(row.local_date)}</Text>
+                          <Text className="text-body tabular-nums text-muted">
+                            {date(row.local_date)}
+                          </Text>
                           <Text className="text-body tabular-nums text-foreground">
                             {format(row.value)}
                           </Text>
