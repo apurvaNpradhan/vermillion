@@ -9,6 +9,8 @@ export function formValuesOf(exercise: ExerciseDetail): ExerciseFormValues {
     equipment: exercise.equipment,
     primaryMuscle: exercise.primaryMuscle,
     secondaryMuscles: exercise.secondaryMuscles,
+    primaryDetail: exercise.primaryDetail,
+    secondaryDetail: exercise.secondaryDetail,
     exerciseType: exercise.exerciseType,
     notes: exercise.instructions ?? "",
   };

@@ -1,11 +1,15 @@
 import {
   EXERCISE_INSTRUCTIONS_MAX,
   EXERCISE_TITLE_MAX,
+  MUSCLE_DETAIL_SLUGS,
   MUSCLE_GROUPS,
   customExerciseInput,
+  groupOf,
+  hasValidDetails,
   type CustomExerciseInput,
   type Equipment,
   type ExerciseType,
+  type MuscleDetail,
   type MuscleGroup,
 } from "@workspace/shared";
 import type { ExercisePatch } from "@workspace/sync";
@@ -16,6 +20,10 @@ export type ExerciseFormValues = {
   equipment: Equipment | null;
   primaryMuscle: MuscleGroup | null;
   secondaryMuscles: readonly MuscleGroup[];
+  /** Parts of the primary group (ADR 0050); optional, empty for a group without details. */
+  primaryDetail: readonly MuscleDetail[];
+  /** Parts of the secondary groups. */
+  secondaryDetail: readonly MuscleDetail[];
   exerciseType: ExerciseType;
   /** Saved as `instructions`. */
   notes: string;
@@ -36,6 +44,8 @@ export function emptyExerciseValues(title = ""): ExerciseFormValues {
     equipment: null,
     primaryMuscle: null,
     secondaryMuscles: [],
+    primaryDetail: [],
+    secondaryDetail: [],
     exerciseType: "weight_reps",
     notes: "",
   };
@@ -47,7 +57,9 @@ export function startExerciseDraft(values: ExerciseFormValues): ExerciseDraft {
 
 /**
  * Changes one field. A new primary muscle leaves the secondary list, because a muscle is never
- * both; the secondary change is then part of the patch too.
+ * both; the secondary change is then part of the patch too. Details follow their groups: a new
+ * primary group clears the primary details, and a group that leaves the secondary list takes its
+ * details with it.
  */
 export function editExerciseDraft<F extends ExerciseFormField>(
   draft: ExerciseDraft,
@@ -57,6 +69,12 @@ export function editExerciseDraft<F extends ExerciseFormField>(
   const values = { ...draft.values, [field]: value };
   if (field === "primaryMuscle") {
     values.secondaryMuscles = values.secondaryMuscles.filter((muscle) => muscle !== value);
+    if (value !== draft.values.primaryMuscle) values.primaryDetail = [];
+  }
+  if (field === "primaryMuscle" || field === "secondaryMuscles") {
+    values.secondaryDetail = values.secondaryDetail.filter((detail) =>
+      values.secondaryMuscles.includes(groupOf(detail)),
+    );
   }
   return { ...draft, values };
 }
@@ -72,7 +90,18 @@ export function toggleSecondary(
   return MUSCLE_GROUPS.filter((candidate) => next.includes(candidate));
 }
 
-const sameMuscles = (a: readonly MuscleGroup[], b: readonly MuscleGroup[]) =>
+/** Adds or removes a detail of the primary or a secondary group, in the vocabulary's order. */
+export function toggleDetail(
+  current: readonly MuscleDetail[],
+  detail: MuscleDetail,
+): MuscleDetail[] {
+  const next = current.includes(detail)
+    ? current.filter((candidate) => candidate !== detail)
+    : [...current, detail];
+  return MUSCLE_DETAIL_SLUGS.filter((candidate) => next.includes(candidate));
+}
+
+const sameMuscles = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((muscle) => b.includes(muscle));
 
 const instructionsOf = (notes: string): string | null => (notes.trim() === "" ? null : notes);
@@ -92,6 +121,12 @@ export function exerciseDraftPatch(draft: ExerciseDraft): ExercisePatch {
       : {}),
     ...(!sameMuscles(values.secondaryMuscles, baseline.secondaryMuscles)
       ? { secondary_muscles: [...values.secondaryMuscles] }
+      : {}),
+    ...(!sameMuscles(values.primaryDetail, baseline.primaryDetail)
+      ? { primary_detail: [...values.primaryDetail] }
+      : {}),
+    ...(!sameMuscles(values.secondaryDetail, baseline.secondaryDetail)
+      ? { secondary_detail: [...values.secondaryDetail] }
       : {}),
     ...(values.equipment !== baseline.equipment && values.equipment !== null
       ? { equipment: values.equipment }
@@ -127,6 +162,8 @@ export function isExerciseDraftDirty(draft: ExerciseDraft): boolean {
     values.equipment !== baseline.equipment ||
     values.exerciseType !== baseline.exerciseType ||
     !sameMuscles(values.secondaryMuscles, baseline.secondaryMuscles) ||
+    !sameMuscles(values.primaryDetail, baseline.primaryDetail) ||
+    !sameMuscles(values.secondaryDetail, baseline.secondaryDetail) ||
     instructionsOf(values.notes) !== instructionsOf(baseline.notes)
   );
 }
@@ -155,6 +192,11 @@ export function applyLatestExercise(
     "secondaryMuscles",
     sameMuscles(draft.values.secondaryMuscles, draft.baseline.secondaryMuscles),
   );
+  follow("primaryDetail", sameMuscles(draft.values.primaryDetail, draft.baseline.primaryDetail));
+  follow(
+    "secondaryDetail",
+    sameMuscles(draft.values.secondaryDetail, draft.baseline.secondaryDetail),
+  );
   return { baseline, values };
 }
 
@@ -164,7 +206,8 @@ export type ExerciseFormErrorKey =
   | "exercise__error_title_long"
   | "exercise__error_equipment_required"
   | "exercise__error_muscle_required"
-  | "exercise__error_notes_long";
+  | "exercise__error_notes_long"
+  | "exercise__error_details_invalid";
 
 export type ExerciseFormErrors = Partial<Record<ExerciseFormField, ExerciseFormErrorKey>>;
 
@@ -183,12 +226,25 @@ export function validateExerciseForm(
   if (values.equipment === null) errors.equipment = "exercise__error_equipment_required";
   if (values.primaryMuscle === null) errors.primaryMuscle = "exercise__error_muscle_required";
   if (values.notes.length > EXERCISE_INSTRUCTIONS_MAX) errors.notes = "exercise__error_notes_long";
+  if (
+    values.primaryMuscle !== null &&
+    !hasValidDetails({
+      primary_muscle: values.primaryMuscle,
+      secondary_muscles: values.secondaryMuscles,
+      primary_detail: values.primaryDetail,
+      secondary_detail: values.secondaryDetail,
+    })
+  ) {
+    errors.primaryDetail = "exercise__error_details_invalid";
+  }
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
   const parsed = customExerciseInput.safeParse({
     title,
     primary_muscle: values.primaryMuscle,
     secondary_muscles: [...values.secondaryMuscles],
+    primary_detail: [...values.primaryDetail],
+    secondary_detail: [...values.secondaryDetail],
     equipment: values.equipment,
     exercise_type: values.exerciseType,
     is_full_bodyweight: isFullBodyweight,
