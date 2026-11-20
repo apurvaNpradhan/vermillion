@@ -20,11 +20,13 @@ COPY --from=manifests /repo ./
 RUN pnpm install --frozen-lockfile --filter server... --ignore-scripts
 COPY . .
 # tsdown bundles every dependency, so dist/ runs without node_modules. It holds the server
-# (index.mjs), the replication bootstrap job (sync-bootstrap.mjs) and the migrations.
+# (index.mjs), the replication bootstrap job (sync-bootstrap.mjs), the migrations and the
+# Catalog patch files.
 RUN pnpm --filter server build \
   && test -f apps/server/dist/index.mjs \
   && test -f apps/server/dist/sync-bootstrap.mjs \
-  && test -d apps/server/dist/migrations
+  && test -d apps/server/dist/migrations \
+  && test -d apps/server/dist/patches
 
 FROM node:24-slim
 ENV NODE_ENV=production

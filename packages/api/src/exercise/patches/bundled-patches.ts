@@ -1,13 +1,29 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import type { PatchSource } from "./apply-patches";
 
 /**
- * The committed Catalog patches (`../data/patches/NNNN-<name>.json`). The server bundle inlines
- * JSON, so each file is imported here and listed; a test fails when a file in the folder is
- * missing from the list. The text is the file's content re-serialised, which fingerprints the
- * same for the same content.
- *
- * To add a patch: put the file in the folder, import it below and add a line to the array.
+ * Where the committed Catalog patches (`NNNN-<name>.json`) are: next to the source in development
+ * and tests, in `patches/` beside the bundle once built (tsdown copies the folder, as it does
+ * the migrations). They are read as files, never imported, so a patch's fingerprint is the hash
+ * of its exact bytes: a whitespace-only edit of an applied file is still refused.
  */
-export function bundledPatches(): PatchSource[] {
-  return [];
+const FOLDERS = [
+  fileURLToPath(new URL("../data/patches/", import.meta.url)),
+  fileURLToPath(new URL("./patches/", import.meta.url)),
+];
+
+export function bundledPatchesFolder(): string {
+  const found = FOLDERS.find((folder) => existsSync(folder));
+  if (!found) throw new Error("The Catalog patches folder is missing from this build");
+  return found;
+}
+
+/** The patch files in `folder` (the committed ones by default), in name order, as raw text. */
+export function bundledPatches(folder: string = bundledPatchesFolder()): PatchSource[] {
+  return readdirSync(folder)
+    .filter((name) => name.endsWith(".json"))
+    .toSorted()
+    .map((name) => ({ name, text: readFileSync(`${folder}/${name}`, "utf8") }));
 }

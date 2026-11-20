@@ -1,4 +1,6 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { uuidv7 } from "@workspace/db/columns";
 import { sql } from "drizzle-orm";
@@ -9,7 +11,7 @@ import { createTestApp, type TestApp } from "../../platform/testing/harness";
 import { bundledCatalogText } from "../operations/bundled-catalog";
 import { seedCatalog } from "../operations/seed-catalog";
 import { applyBundledPatches, applyCatalogPatches, type PatchSource } from "./apply-patches";
-import { bundledPatches } from "./bundled-patches";
+import { bundledPatches, bundledPatchesFolder } from "./bundled-patches";
 import { CatalogPatchError, parsePatchFile } from "./patch-file";
 
 const ADMIN = "owner@example.com";
@@ -324,21 +326,35 @@ describe("Catalog patches (seam 1)", () => {
 });
 
 describe("the committed patches", () => {
-  const folder = new URL("../data/patches/", import.meta.url);
-  const onDisk = existsSync(folder)
-    ? readdirSync(folder)
-        .filter((name) => name.endsWith(".json"))
-        .toSorted()
-    : [];
+  const folder = bundledPatchesFolder();
+  const onDisk = readdirSync(folder)
+    .filter((name) => name.endsWith(".json"))
+    .toSorted();
 
-  it("are all listed in the bundle, in name order, and valid", () => {
+  it("are all bundled, in name order, byte for byte, and valid", () => {
     const bundled = bundledPatches();
-    expect(bundled.map((patch) => patch.name).toSorted()).toEqual(onDisk);
+    expect(bundled.map((patch) => patch.name)).toEqual(onDisk);
     for (const patch of bundled) {
       expect(patch.name).toMatch(/^\d{4}-[a-z0-9-]+\.json$/u);
       expect(() => parsePatchFile(patch.name, patch.text)).not.toThrow();
-      const file = readFileSync(new URL(patch.name, folder), "utf8");
-      expect(JSON.parse(file)).toEqual(JSON.parse(patch.text));
+      expect(patch.text).toBe(readFileSync(join(folder, patch.name), "utf8"));
+    }
+  });
+
+  it("keep the original bytes, so a whitespace-only edit changes the fingerprint", () => {
+    const dir = mkdtempSync(join(tmpdir(), "patches-"));
+    try {
+      const text = '{  "insert" : [ ],\n\n "fill":[]}\n';
+      writeFileSync(join(dir, "0002-b.json"), text);
+      writeFileSync(join(dir, "0001-a.json"), "{}");
+      writeFileSync(join(dir, "notes.txt"), "ignored");
+      const bundled = bundledPatches(dir);
+      expect(bundled.map((patch) => patch.name)).toEqual(["0001-a.json", "0002-b.json"]);
+      expect(bundled[1]?.text).toBe(text);
+      // Same JSON content, different bytes.
+      expect(JSON.stringify(JSON.parse(text))).not.toBe(text);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
