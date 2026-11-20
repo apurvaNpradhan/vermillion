@@ -1391,6 +1391,8 @@
   "muscles__sets_from_more_one": "and {{count}} more exercise",
   "muscles__sets_from_more_other": "and {{count}} more exercises",
   "muscles__tile_value": "{{done}} of {{total}} on target",
+  "muscles__part_unspecified": "Unspecified",
+  "muscles__part_value": "{{name}} {{sets}}",
   "muscles__tile_label": "Muscles: {{done}} of {{total}} on target this week",
   "muscles__open": "Muscles",
   "progress__label_add_weight": "Add {{value}} {{unit}}",

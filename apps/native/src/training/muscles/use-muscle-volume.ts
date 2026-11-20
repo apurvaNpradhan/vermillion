@@ -5,6 +5,7 @@ import {
   onTargetCount,
   plannedMuscleVolume,
   sessionsInRange,
+  weeklyDetailVolume,
   weeklyMuscleVolume,
   type TargetMuscle,
   type WeekRange,
@@ -122,6 +123,10 @@ export function useMuscleLoads({
       ...load,
       sets: load.sets / weeks,
     }));
+    const detailLoads = weeklyDetailVolume(found, exercises, range, timezone).map((load) => ({
+      ...load,
+      parts: load.parts.map((part) => ({ ...part, sets: part.sets / weeks })),
+    }));
     const planned = program === null ? null : plannedMuscleVolume(program);
     const rows = muscleRows(loads, muscleGoals, planned);
     const completedSets =
@@ -131,6 +136,7 @@ export function useMuscleLoads({
       sessions: found,
       exercises,
       loads,
+      detailLoads,
       planned,
       rows,
       completedSets,
@@ -142,6 +148,7 @@ export function useMuscleLoads({
   const signature = JSON.stringify([
     computed.week,
     computed.loads,
+    computed.detailLoads,
     computed.planned,
     computed.rows,
   ]);
@@ -158,6 +165,8 @@ export function useMuscleLoads({
     goals: muscleGoals,
     planned: shown?.planned ?? null,
     loads: shown?.loads ?? EMPTY_LOADS,
+    /** Each group's sets split into its muscle details (already a weekly average). */
+    detailLoads: shown?.detailLoads ?? EMPTY_DETAIL_LOADS,
     rows: shown?.rows ?? EMPTY_ROWS,
     /** Counted sets in the period (a weekly average over several weeks); not weighted. */
     completedSets: shown?.completedSets ?? 0,
@@ -174,4 +183,5 @@ export function useMuscleLoads({
 }
 
 const EMPTY_LOADS: ReturnType<typeof weeklyMuscleVolume> = [];
+const EMPTY_DETAIL_LOADS: ReturnType<typeof weeklyDetailVolume> = [];
 const EMPTY_ROWS: ReturnType<typeof muscleRows> = [];
