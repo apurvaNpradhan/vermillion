@@ -41,6 +41,7 @@ const baseConfig: ApiConfig = {
     secretAccessKey: "vermillion-local-secret",
     publicUrl: "http://127.0.0.1:9000/vermillion-exercise-media",
   },
+  catalogPatchGate: false,
   releases: { owner: "example", repo: "cinnabar" },
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };

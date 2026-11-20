@@ -2,6 +2,7 @@ import { openapi } from "@orpc/openapi";
 import { releaseStatusSchema, semverSchema } from "@workspace/shared";
 import { z } from "zod";
 
+import { applyBundledPatches } from "../exercise/index";
 import { admin } from "../admin/index";
 import { base } from "../platform/orpc/base";
 import { rateLimit } from "../platform/orpc/rate-limit";
@@ -61,6 +62,11 @@ const setMinimum = releasesApi
         detail: { from: previous, to: input.version },
       }),
     );
+    // A raised minimum may release Catalog patches that waited for it (ADR 0050).
+    await applyBundledPatches(context.services.db, {
+      gate: context.services.config.catalogPatchGate,
+      files: context.services.config.catalogPatches,
+    });
     return releaseStatus(context.services);
   });
 

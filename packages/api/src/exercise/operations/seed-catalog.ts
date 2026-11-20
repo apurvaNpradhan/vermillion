@@ -3,6 +3,8 @@ import { log } from "@workspace/logger";
 import { isNull, sql } from "drizzle-orm";
 
 import { parseCatalog, type CatalogRow } from "../catalog-file";
+import { applyCatalogPatches } from "../patches/apply-patches";
+import { bundledPatches } from "../patches/bundled-patches";
 import { exercise } from "../tables";
 import { bundledCatalogText } from "./bundled-catalog";
 
@@ -30,7 +32,7 @@ export async function seedCatalog(db: Database, text: string): Promise<{ seeded:
     for (let offset = 0; offset < rows.length; offset += BATCH) {
       await tx
         .insert(exercise)
-        .values(rows.slice(offset, offset + BATCH).map((row) => toValues(row, now)));
+        .values(rows.slice(offset, offset + BATCH).map((row) => catalogRowValues(row, now)));
     }
     return { seeded: rows.length };
   });
@@ -38,13 +40,16 @@ export async function seedCatalog(db: Database, text: string): Promise<{ seeded:
   return result;
 }
 
-function toValues(row: CatalogRow, now: Date) {
+/** The insert values of a catalog file row (the seed and the patches share them). */
+export function catalogRowValues(row: CatalogRow, now: Date) {
   return {
     id: row.id,
     userId: null,
     title: row.title,
     primaryMuscle: row.primary_muscle,
     secondaryMuscles: row.secondary_muscles,
+    primaryDetail: row.primary_detail,
+    secondaryDetail: row.secondary_detail,
     equipment: row.equipment,
     exerciseType: row.exercise_type,
     isFullBodyweight: row.is_full_bodyweight,
@@ -63,11 +68,16 @@ export function seedBundledCatalog(db: Database) {
   return seedCatalog(db, bundledCatalogText());
 }
 
-/** `pnpm --filter server catalog:seed`: the same seed against a database URL, on its own pool. */
-export async function runCatalogSeed(databaseUrl: string) {
+/** `pnpm --filter server catalog:import`: the seed, then the patches, on its own pool. */
+export async function runCatalogSeed(databaseUrl: string, options: { patchGate: boolean }) {
   const { db, pool } = createDb(databaseUrl, { max: 2 });
   try {
-    return await seedBundledCatalog(db);
+    const seeded = await seedBundledCatalog(db);
+    const patches = await applyCatalogPatches(db, {
+      gate: options.patchGate,
+      files: bundledPatches(),
+    });
+    return { ...seeded, patches };
   } finally {
     await pool.end();
   }

@@ -50,6 +50,11 @@ export const env = createEnv({
     EMAIL_FROM: z.string().optional(),
     /** Log emails instead of sending them, even in production (throwaway stacks). */
     EMAIL_CONSOLE: z.stringbool().default(false),
+    /**
+     * Hold a Catalog patch that needs a newer app than `minimum_app_version` until the minimum
+     * reaches it. On in production, off elsewhere (ADR 0050).
+     */
+    CATALOG_PATCH_GATE: z.stringbool().default(isProductionEnv),
     /** Public URL of the PowerSync service, handed to clients. Defaults to the local dev service. */
     SYNC_ENDPOINT_URL: z.url().optional(),
     /** Replication slot lag (MiB of WAL behind) that logs a warning. */

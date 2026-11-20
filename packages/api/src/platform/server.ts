@@ -6,7 +6,7 @@ import { log } from "@workspace/logger";
 import { sql } from "drizzle-orm";
 
 import type { ApiConfig } from "./config";
-import { seedBundledCatalog } from "../exercise/index";
+import { applyBundledPatches, seedBundledCatalog } from "../exercise/index";
 import { createApp, type CreateAppOptions } from "./create-app";
 import { prepareDatabaseStartup } from "./database/prepare-database-startup";
 import { waitForDatabase } from "./database/wait-for-database";
@@ -40,6 +40,10 @@ export async function runServer(options: RunServerOptions) {
       await runMigrations({ pool }, options.migrationsFolder);
       // After the migrations: the table is in the publication, so seeded rows replicate.
       await seedBundledCatalog(db);
+      await applyBundledPatches(db, {
+        gate: options.config.catalogPatchGate,
+        files: options.config.catalogPatches,
+      });
     },
   });
 

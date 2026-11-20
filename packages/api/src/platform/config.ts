@@ -1,3 +1,4 @@
+import type { PatchSource } from "../exercise/index";
 import type { ObjectStoreConfig } from "../media/index";
 import type { SlotLagThresholds } from "./sync/slot-lag";
 
@@ -35,6 +36,13 @@ export type ApiConfig = {
    * `publicUrl` is where its objects are read (`https://media.<domain>` in production).
    */
   exerciseMedia: ObjectStoreConfig & { publicUrl: string };
+  /**
+   * Hold a Catalog patch that needs a newer app than `minimum_app_version` until the minimum
+   * reaches it (ADR 0050). On in production; development and tests apply patches at once.
+   */
+  catalogPatchGate: boolean;
+  /** The Catalog patch files to apply; absent means the ones committed with the server. */
+  catalogPatches?: readonly PatchSource[] | undefined;
   /** The public GitHub repository whose Releases hold the Android builds. */
   releases: { owner: string; repo: string };
   sync: {
