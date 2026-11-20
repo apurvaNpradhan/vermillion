@@ -1,0 +1,1 @@
+ALTER TABLE "training_session" ADD COLUMN "import_batch_id" uuid;

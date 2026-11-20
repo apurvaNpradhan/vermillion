@@ -94,6 +94,7 @@ const putSession = z.strictObject({
   restore: restoreMarker,
   workout_id: sessionInput.shape.workout_id.default(null),
   workout_structure: z.string().max(SYNC_LIMITS.maxValueBytes).nullable().optional(),
+  import_batch_id: z.uuid().nullable().optional(),
   program_id: sessionInput.shape.program_id.default(null),
   run_id: sessionInput.shape.run_id.default(null),
   slot_id: sessionInput.shape.slot_id.default(null),
@@ -185,7 +186,9 @@ const sessionSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, workout_structure, ...data } = accept(putSession.safeParse(op.opData ?? {}));
+      const { restore, workout_structure, import_batch_id, ...data } = accept(
+        putSession.safeParse(op.opData ?? {}),
+      );
       checkPut(found, restore);
       const values = accept(sessionInput.safeParse(data));
       await checkSessionRun(db, userId, values);
@@ -196,6 +199,7 @@ const sessionSyncHandler: SyncTableHandler = {
           id,
           userId,
           workoutStructure: workout_structure ?? null,
+          importBatchId: import_batch_id ?? null,
           ...sessionColumns(values),
         });
         return;

@@ -230,6 +230,8 @@ export const session = pgTable(
     restSetId: uuid("rest_set_id"),
     restStartedAt: timestamptz("rest_started_at"),
     restEndsAt: timestamptz("rest_ends_at"),
+    /** The history import that wrote the Session, so Undo import removes exactly its Sessions. */
+    importBatchId: uuid("import_batch_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "bf5bb969-9cb4-49e8-b995-030c82b44b48",
+  "prevIds": ["aa6f035f-9562-413e-9ba5-1ca8e5c2da6d"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "import_batch_id"],
+      "writes": [
+        "s|col|public.training_session.import_batch_id",
+        "n|col|public.training_session.import_batch_id",
+        "e|col|public.training_session.import_batch_id"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "import_batch_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}
