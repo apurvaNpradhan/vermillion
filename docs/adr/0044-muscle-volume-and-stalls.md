@@ -1,6 +1,6 @@
 # 0044. Muscle volume targets, stalled lifts and Lighter weeks
 
-Status: accepted (2026-11-17). Builds on [0038](0038-sessions.md). Terms: Muscle volume, Muscle goal, Stalled lift, Lighter week in [CONTEXT.md](../../CONTEXT.md).
+Status: accepted (2026-11-17); amended by [0050](0050-muscle-details-and-catalog-expansion.md): a per-detail breakdown inside each group. Builds on [0038](0038-sessions.md). Terms: Muscle volume, Muscle goal, Stalled lift, Lighter week in [CONTEXT.md](../../CONTEXT.md).
 
 ## Context
 
