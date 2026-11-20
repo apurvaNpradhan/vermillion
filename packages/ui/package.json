@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     "./native-tokens.css": "./src/styles/native-tokens.css",
-    "./web-tokens.css": "./src/styles/web-tokens.css",
     "./tokens/*": "./src/tokens/*.ts"
   },
   "scripts": {

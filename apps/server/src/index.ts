@@ -18,7 +18,7 @@ const config: ApiConfig = {
   appName: appConfig.displayName,
   appVersion: appConfig.version,
   appUrl: env.APP_URL,
-  // The site's origin: derived from app.config.ts, or the site's dev server.
+  // Keep the public and local site origins stable for auth and invites during the rebuild.
   siteUrl: isProduction ? appConfig.urls.site : `http://localhost:${appConfig.ports.web}`,
   adminEmails: parseAdminEmails(env.ADMIN_EMAILS),
   appScheme: appConfig.scheme,

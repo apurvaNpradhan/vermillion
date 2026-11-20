@@ -2,7 +2,7 @@
 
 **An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
-Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync. A TanStack Start site on Cloudflare Workers carries the public pages and the owner's admin. (The repository keeps its old name, vermillion.)
+Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync. (The repository keeps its old name, vermillion.)
 
 <p align="center">
   <img src="docs/screenshots/01-home.png" width="24%" alt="Home dashboard" />
@@ -19,7 +19,6 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
 - **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
-- **Admin site:** catalog editing with media uploads, accounts, invites, the minimum supported app version and an audit record, behind an authenticator step.
 - **Appearance:** a Nord theme in light and dark, with an Increase contrast setting.
 
 ## Screenshots
@@ -95,9 +94,9 @@ The API listens on <http://localhost:3000>; `/api/health` answers when it is up.
 | [docs/guides/android-release.md](docs/guides/android-release.md) | Signed APK builds on GitHub Actions and GitHub Releases             |
 | [DESIGN.md](DESIGN.md)                                           | Brand tokens                                                        |
 
-## Marketing site and companion app
+## Web rebuild
 
-Both are future, separate apps that call the same API (`packages/api` exports its types) and, for the companion, the same sync data. Nothing in the repo is shaped around them except keeping the server client-agnostic.
+The previous public site and admin UI are no longer built or deployed from this checkout. A replacement can start as a new workspace under `apps/` and use the existing API (`packages/api` exports its types). The API still supports admin, invites and releases, and the native app still uses the existing public site links.
 
 ## License
 

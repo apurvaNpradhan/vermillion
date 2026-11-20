@@ -1,6 +1,6 @@
 # Cinnabar context
 
-Cinnabar (the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `cinnabar-api.<domain>`) and a site with the owner's admin (`apps/web` on a Cloudflare Worker, at `cinnabar.<domain>`; [0046](docs/adr/0046-site-admin-closed-beta-and-rename.md)). A companion web app for users comes later.
+Cinnabar (the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `cinnabar-api.<domain>`). The old public site and admin UI were removed from the workspace for a rebuild; the API and its contract with the existing site remain.
 
 ## Glossary
 

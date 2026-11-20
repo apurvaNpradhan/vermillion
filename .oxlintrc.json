@@ -48,18 +48,6 @@
       }
     },
     {
-      // Copied from the coss ui registry into the site (its only web consumer); kept close to
-      // upstream so updates can be re-applied.
-      "files": ["apps/web/src/platform/ui/**"],
-      "rules": {
-        "anti-slop/no-chained-type-assertions": "off",
-        "anti-slop/no-known-value-widening": "off",
-        "anti-slop/no-unsafe-dictionary-type": "off",
-        "anti-slop/no-runtime-typeof": "off",
-        "anti-slop/require-safety-comment-for-type-assertion": "off"
-      }
-    },
-    {
       // Code that runs on the device (Hermes); tests and Node scripts run on Node.
       "files": [
         "apps/native/src/**",
@@ -102,7 +90,6 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/.turbo/**",
-    "**/routeTree.gen.ts",
     "**/.expo/**",
     "repos/**",
     "tools/oxlint/anti-slop/**",

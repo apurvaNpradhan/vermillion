@@ -5,17 +5,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { loadLocales, namespaceDirs, pluralBase, repoRoot, sorted } from "./shared.mjs";
+import { loadLocales, pluralBase, repoRoot, sorted } from "./shared.mjs";
 
-const SOURCE_ROOTS = [
-  "apps/native/src",
-  "apps/native/app",
-  "apps/server/src",
-  "apps/web/src",
-  "apps/web/worker",
-  "packages",
-];
-const SKIP = new Set(["node_modules", "dist", "locales", ".turbo", "routeTree.gen.ts"]);
+const SOURCE_ROOTS = ["apps/native/src", "apps/native/app", "apps/server/src", "packages"];
+const SKIP = new Set(["node_modules", "dist", "locales", ".turbo"]);
 // Appears in documentation comments as the naming pattern.
 const IGNORED = new Set(["feature__identifier"]);
 const KEY_IN_SOURCE = /["'`]([a-z]+__[a-z_]+)["'`]/gu;
@@ -46,9 +39,6 @@ for (const root of SOURCE_ROOTS) {
 
 const { reference } = await loadLocales();
 const defined = new Set(Object.keys(reference.data));
-for (const dir of namespaceDirs) {
-  for (const key of Object.keys((await loadLocales(dir)).reference.data)) defined.add(key);
-}
 const definedBases = new Set([...defined].map((key) => pluralBase(key) ?? key));
 
 const missing = [...used].filter((key) => !defined.has(key) && !definedBases.has(key));

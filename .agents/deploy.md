@@ -8,7 +8,7 @@ Details live in the docs; this page says where things run.
 - User media: a private R2 bucket (MinIO in development and in the local production check).
 - Android APK: `.github/workflows/android-release.yml` on a `v*` tag, signed with the keystore from secrets ([guide](../docs/guides/android-release.md)).
 - Native store builds: EAS profiles in `apps/native/eas.json`, EAS Update for JS fixes, store submission manual.
-- Site and admin: `apps/web` on a Cloudflare Worker with static assets at `cinnabar.<domain>`, deployed by `.github/workflows/deploy-web.yml` after CI ([web](web.md)).
+- Existing public site links still use `cinnabar.<domain>`; this repository does not deploy the site while it is being rebuilt.
 - Catalog media: the public R2 bucket on `media.<domain>`; the admin uploads to it with presigned URLs.
 - Hosts derive from `domain` in `app.config.ts`: site `cinnabar.`, API `cinnabar-api.`, sync `cinnabar-sync.`, media `media.`.
 
@@ -19,8 +19,8 @@ Read [docs/deployment.md](../docs/deployment.md) to set up, [docs/runbook.md](..
 - Env variables: update `.env.example`, `packages/env`, `turbo.json`, deployment.md.
 - Workflow actions: pin to a commit SHA (`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha`, dereference annotated tags), keep the version comment, run `zizmor`.
 - Migrations: additive-only.
-- Derived names (compose, Dockerfile port, EAS URLs, `apps/web/wrangler.jsonc`, workflow variables): edit them by hand after changing `app.config.ts`.
+- Derived names (compose, Dockerfile port, EAS URLs, workflow variables): edit them by hand after changing `app.config.ts`.
 - The Dockerfile, server startup, env schema or `powersync/`: run the local production check (`compose.prod.yml`, own project `vermillion-prodcheck`, [steps](../docs/deployment.md#local-production-check)) and add new variables to `compose.prod.yml` and `.env.prod.example`.
-- A package the server or the site starts or stops using: update the `paths` of `deploy-server.yml` or `deploy-web.yml`.
+- A package the server starts or stops using: update the `paths` of `deploy-server.yml`.
 - The base domain: follow "Moving to the final domain" in docs/deployment.md.
 - The Expo template (SDK upgrade): `apps/native/plugins/with-release-signing.js` patches `app/build.gradle`; its test holds the expected shape.

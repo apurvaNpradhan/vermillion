@@ -7,7 +7,6 @@
 | Server         | `@workspace/env/server`                                             | Secrets and server config. Importing it validates `process.env`.                                                                          |
 | Sync bootstrap | `@workspace/env/sync-bootstrap`                                     | Admin URL and PowerSync passwords for `pnpm sync:bootstrap` / `sync-bootstrap.mjs`. Separate from Server so the job needs no auth secret. |
 | Native         | `createNativeEnv({ EXPO_PUBLIC_...: process.env.EXPO_PUBLIC_... })` | Public `EXPO_PUBLIC_*` values only.                                                                                                       |
-| Web            | `createWebEnv(import.meta.env)`, `workerVarsSchema`                 | The site's public `VITE_*` values, and the Worker's vars (`API_ORIGIN`).                                                                  |
 
 ## Rules
 

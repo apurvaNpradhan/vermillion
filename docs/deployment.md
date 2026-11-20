@@ -1,22 +1,20 @@
 # Deployment
 
-Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the site and admin at `cinnabar.<domain>` (a Cloudflare Worker), the API at `cinnabar-api.<domain>` (Dokploy behind Cloudflare), sync at `cinnabar-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
+Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `cinnabar-api.<domain>` (Dokploy behind Cloudflare), sync at `cinnabar-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Existing account, invite and update links still point at `cinnabar.<domain>`, but the old site's build and deployment are out of this repository pending a rebuild. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
 
 ```text
 native app ──► Cloudflare (proxied cinnabar-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
            ──► Cloudflare (proxied cinnabar-sync.<domain>) ──► Dokploy: Traefik ──► PowerSync ──► Postgres
            ──► R2 (presigned URLs, user media) and media.<domain> (catalog media)
-browser    ──► Worker on cinnabar.<domain>: static pages; /rpc and /api forwarded to cinnabar-api.<domain>
 
 push to main ──► GitHub Actions: CI ──► image to GHCR ──► Dokploy API: run that image
-             ──► GitHub Actions: CI ──► site build ──► wrangler deploy
 ```
 
 Dokploy never builds: CI builds the server image once and Dokploy runs it ([ADR 0045](adr/0045-build-in-ci-deploy-by-api.md)). New here? Start at [What the owner must do once](#what-the-owner-must-do-once).
 
 The app reaches it through `EXPO_PUBLIC_SERVER_URL`. Passkeys and verified app links are withdrawn until the final domain, so the server publishes no `/.well-known` files.
 
-Before the first deploy, edit the files that cannot import `app.config.ts` by hand ([README](../README.md#configuring-the-app)): compose names, the server Dockerfile port, the EAS server URLs and `apps/web/wrangler.jsonc` (`API_ORIGIN`, the custom domain).
+Before the first deploy, edit the files that cannot import `app.config.ts` by hand ([README](../README.md#configuring-the-app)): compose names, the server Dockerfile port, and the EAS server URLs.
 
 ## API server on Dokploy
 
@@ -206,7 +204,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 **Cloudflare and the server**
 
-1. Add the domain's zone. Create proxied records `cinnabar-api`, `cinnabar-sync` and `dokploy` pointing at the server (the site's `cinnabar` record is created by the Worker's custom domain, step 24). SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
+1. Add the domain's zone. Create proxied records `cinnabar-api`, `cinnabar-sync` and `dokploy` pointing at the server. SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
 2. Install Dokploy on the server. Settings → Server domain: `dokploy.<domain>` with HTTPS.
 3. Firewall: inbound 80/443 only from Cloudflare's ranges, SSH from your address. ([Firewall](#firewall-only-cloudflare-reaches-the-origin))
 
@@ -248,17 +246,14 @@ In this order. Each step names what to create; nothing here is in the repo.
 22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
 23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release; the site's `/download` serves its APK.
 
-**Site and admin (Cloudflare)**
+**Turnstile and catalog media**
 
-24. Workers: the Worker `cinnabar-site` is created by the first deploy, with the custom domain `cinnabar.<domain>` from `apps/web/wrangler.jsonc` (Cloudflare creates its DNS record and certificate).
-25. Create an API token from the "Edit Cloudflare Workers" template, scoped to this account and zone. In the `production` environment add the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-26. Turnstile: add a widget (managed) with the hostnames `cinnabar.<domain>` and `cinnabar-api.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server; the site key in the `production` variable `VITE_TURNSTILE_SITE_KEY` and in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
-27. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
-28. Actions → Deploy site → Run workflow on `main`. Open `https://cinnabar.<domain>/admin`, sign in with your `ADMIN_EMAILS` address, scan the QR code with an authenticator and store the backup codes.
+24. Turnstile: add a managed widget that allows `cinnabar-api.<domain>` and, if serving the existing site, `cinnabar.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server and the public key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
+25. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
 
 **Google sign-in**
 
-29. Google Cloud console → OAuth client (Web application). Authorised redirect URI `https://cinnabar-api.<domain>/api/auth/callback/google`, JavaScript origin `https://cinnabar-api.<domain>`. Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. GitHub sign-in stays unconfigured in production.
+26. Google Cloud console → OAuth client (Web application). Authorised redirect URI `https://cinnabar-api.<domain>/api/auth/callback/google`, JavaScript origin `https://cinnabar-api.<domain>`. Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. GitHub sign-in stays unconfigured in production.
 
 ## Moving to the final domain
 
@@ -266,7 +261,7 @@ No data migration; the hosts change and the app is rebuilt.
 
 1. `app.config.ts`: change `domain` (and `releases` if the repository moves).
 2. DNS: the proxied `cinnabar-api`, `cinnabar-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
-3. `apps/web/wrangler.jsonc`: `API_ORIGIN` and the custom domain; deploy the site.
+3. Coordinate the public site host with the replacement site before switching the URLs used by native and invite emails.
 4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`; Turnstile widget hostnames.
 5. Google OAuth client: redirect URI and origin on the new API host.
 6. R2: the media bucket's custom domain and its CORS origin.
