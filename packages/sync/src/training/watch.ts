@@ -21,6 +21,7 @@ import {
   exerciseRecordsSql,
   sessionsPageSql,
   createFinishedHistoryReader,
+  finishedFingerprintSql,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -957,15 +958,38 @@ export function watchRecordHistory(
   );
 }
 
-/**
- * One exercise's complete finished history, read once (no 500-Session cap), so a
- * live Record check agrees with the finished Session and History screens, which read the same.
- */
+type RecordHistoryCutoff = { id: string; startedAt: string };
+
+const before = (session: RecordHistoryCutoff) => [session.startedAt, session.startedAt, session.id];
+
+/** Watches the earlier finished history relevant to the logging screen's Record bests. */
+export function watchRecordHistoryChanges(
+  database: TrainingDatabase,
+  exerciseIds: readonly string[],
+  session: RecordHistoryCutoff,
+  invalidate: () => void,
+): () => void {
+  if (exerciseIds.length === 0) return () => undefined;
+  return watch(
+    database,
+    finishedFingerprintSql(false, exerciseIds.length),
+    [...exerciseIds, ...before(session)],
+    SESSION_TABLES,
+    invalidate,
+    invalidate,
+  );
+}
+
+/** Reads an exercise's complete finished history, optionally stopping before a Session. */
 export async function readRecordHistory(
   database: TrainingDatabase,
   exerciseId: string,
+  earlierThan?: RecordHistoryCutoff,
 ): Promise<FinishedSession[]> {
-  return parseFinishedSessions(await database.getAll(exerciseRecordsSql(1), [exerciseId]));
+  const params = earlierThan ? [exerciseId, ...before(earlierThan)] : [exerciseId];
+  return parseFinishedSessions(
+    await database.getAll(exerciseRecordsSql(1, earlierThan !== undefined), params),
+  );
 }
 
 /** Local rows exclude deleted Workouts and exercises through the sync stream. */

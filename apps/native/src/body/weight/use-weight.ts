@@ -9,9 +9,10 @@ import {
   weighInDays,
 } from "@workspace/shared";
 import { watchMetric, type TrainingDatabase, type WatchedMeasurement } from "@workspace/sync";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreferences } from "@/preferences";
+const EMPTY: readonly WatchedMeasurement[] = [];
 const subscribe = (
   db: TrainingDatabase,
   onValue: (rows: WatchedMeasurement[]) => void,
@@ -21,8 +22,8 @@ export function useWeight() {
   const state = useLocalWatch(subscribe);
   const [entryLimit, setEntryLimit] = useState(50);
   const { preferences, isLoading, hasPreferences } = usePreferences();
-  const entries = state.value ?? [];
-  const daily = dailyWeights(entries);
+  const entries = state.value ?? EMPTY;
+  const daily = useMemo(() => dailyWeights(entries), [entries]);
   const series = trendSeries(daily);
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const localDate = useCallback(
@@ -47,22 +48,31 @@ export function useWeight() {
     rows.push(entry);
     months.set(month, rows);
   }
-  const bodyweightOn = (date: string) =>
-    bodyweightForDate(daily, localDate(date), preferences.ui.bodyweightKg);
+  const fallbackKg = preferences.ui.bodyweightKg;
+  const bodyweightOn = useCallback(
+    (date: string) => bodyweightForDate(daily, localDate(date), fallbackKg),
+    [daily, localDate, fallbackKg],
+  );
   const countWarmups = preferences.ui.countWarmups;
   /**
    * The sessions as the numbers read them: each set carries the bodyweight of its day, and
    * warm-ups count when the user chose to count them ("Count warm-up sets").
    */
-  const withBodyweight = <T extends SessionHistory>(sessions: readonly T[]): T[] =>
-    sessions.map((s) => ({
-      ...s,
-      sets: s.sets.map((set) => ({
-        ...set,
-        bodyweight_kg: bodyweightOn(s.started_at),
-        ...(countWarmups && set.kind === "warmup" ? { warmup_counted: true } : {}),
-      })),
-    }));
+  const withBodyweight = useCallback(
+    <T extends SessionHistory>(sessions: readonly T[]): T[] =>
+      sessions.map((s) => {
+        const kg = bodyweightOn(s.started_at);
+        return {
+          ...s,
+          sets: s.sets.map((set) => ({
+            ...set,
+            bodyweight_kg: kg,
+            ...(countWarmups && set.kind === "warmup" ? { warmup_counted: true } : {}),
+          })),
+        };
+      }),
+    [bodyweightOn, countWarmups],
+  );
   return {
     ...state,
     loading: state.loading || isLoading,

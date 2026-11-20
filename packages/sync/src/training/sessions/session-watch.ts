@@ -535,11 +535,25 @@ export async function readFinishedHistoryPages(
   }
 }
 
+const BEFORE_SESSION = "AND (s.started_at < ? OR (s.started_at = ? AND s.id < ?))";
+
+// Mix eight Unicode code points per SQLite recursion step. The small coefficients keep the
+// arithmetic in signed 64-bit integers, even at the largest Unicode code point.
+const HASH_COEFFICIENTS = [
+  73856093, 19349663, 83492791, 297121507, 15485863, 32452843, 49979687, 86028121,
+];
+const HASH_CHUNK = HASH_COEFFICIENTS.map(
+  (coefficient, index) => `COALESCE(unicode(substr(tail, ${index + 1}, 1)), 0) * ${coefficient}`,
+).join(" + ");
+
 /**
  * One fixed-size fingerprint per finished Session. Hash each display row in SQLite, then fold
  * the row hashes with their ordinal so a reorder or a same-total edit changes the digest.
  */
-export function finishedFingerprintSql(bounded = false): string {
+export function finishedFingerprintSql(bounded = false, exerciseCount = 0): string {
+  const exerciseFilter = exerciseCount
+    ? `AND se.exercise_id IN (${Array.from({ length: exerciseCount }, () => "?").join(", ")}) ${BEFORE_SESSION}`
+    : "";
   return `WITH RECURSIVE
     display_rows AS (
       SELECT s.id,
@@ -554,14 +568,13 @@ export function finishedFingerprintSql(bounded = false): string {
       LEFT JOIN session_exercise se ON se.session_id = s.id
       LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
       WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
+        ${exerciseFilter}
     ),
-    -- Mix two 21-bit Unicode code points at a time, retaining 44 bits without overflowing int64.
     hashes(id, ordinal, tail, hash) AS (
       SELECT id, ordinal, payload, 0 FROM display_rows
       UNION ALL
-      SELECT id, ordinal, substr(tail, 3),
-        (hash * 524287 + (unicode(tail) << 21) + COALESCE(unicode(substr(tail, 2, 1)), 0))
-          & 17592186044415
+      SELECT id, ordinal, substr(tail, ${HASH_COEFFICIENTS.length + 1}),
+        (hash * 262139 + ${HASH_CHUNK}) & 17592186044415
       FROM hashes WHERE tail <> ''
     ),
     digests AS (
@@ -657,12 +670,12 @@ export function createFinishedHistoryReader(range?: HistoryRange) {
  * just today's maxima. Scope to the displayed exercises but deliberately omit a session cap.
  * The ordinary Previous/chart read remains bounded.
  */
-export function exerciseRecordsSql(count: number): string {
+export function exerciseRecordsSql(count: number, beforeSession = false): string {
   const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
   return `SELECT ${SET_COLUMNS} FROM training_session s
     JOIN session_exercise se ON se.session_id = s.id AND se.exercise_id IN (${ids})
     JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL ${SET_ORDER}`;
+    WHERE s.finished_at IS NOT NULL ${beforeSession ? BEFORE_SESSION : ""} ${SET_ORDER}`;
 }
 
 const finishedRowSchema = z.object({

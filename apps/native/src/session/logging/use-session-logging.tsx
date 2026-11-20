@@ -11,6 +11,7 @@ import {
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useLoggingState } from "./use-logging-state";
 import { useOptimisticSession } from "./use-optimistic-session";
+import { useRecordBests } from "./use-record-bests";
 import { usePreviousSets } from "./use-previous-sets";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
@@ -27,7 +28,8 @@ export function useSessionLogging(stored: SessionDetail) {
   const { preferences, setUi, isLoading: preferencesLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const effortScale = preferences.ui.effortScale;
-  const bodyweightKg = useWeight().bodyweightOn(session.startedAt);
+  const weight = useWeight();
+  const bodyweightKg = weight.bodyweightOn(session.startedAt);
   const installId = useInstallId();
 
   // Ownership: another device's Session is read-only. A device that had it and lost it says so.
@@ -44,11 +46,18 @@ export function useSessionLogging(stored: SessionDetail) {
   );
   const {
     history: previous,
-    recordHistory,
     ready: historyReady,
     failed: historyFailed,
     retry: retryHistory,
   } = usePreviousSets(exerciseIds);
+
+  const { recordAlerts, sounds, soundMilestones } = preferences.ui;
+  const recordBests = useRecordBests(
+    session,
+    exerciseIds,
+    !readOnly && (recordAlerts || (sounds && soundMilestones)),
+    weight.withBodyweight,
+  );
 
   // Before the first Rest: our one-line explanation, then the system's dialog. Asked once.
   const permission = useNotificationPermission();
@@ -59,7 +68,7 @@ export function useSessionLogging(stored: SessionDetail) {
   const logging = useLoggingState({
     session,
     previous,
-    recordHistory,
+    recordBests,
     historyReady,
     historyFailed,
     unit,
@@ -67,7 +76,7 @@ export function useSessionLogging(stored: SessionDetail) {
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
     lighterWeeks: preferences.ui.lighterWeeks,
-    recordAlerts: preferences.ui.recordAlerts,
+    recordAlerts,
     previousSource: preferences.ui.previousSource,
     countWarmups: preferences.ui.countWarmups,
     readOnly,
