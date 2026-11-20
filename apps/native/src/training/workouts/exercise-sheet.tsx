@@ -194,7 +194,12 @@ function LoadedSheet({
         />
       )}
 
-      <DetailedTargets sets={draft.sets} type={type} onSets={(sets) => edit({ sets })} />
+      <DetailedTargets
+        sets={draft.sets}
+        type={type}
+        equipment={info?.equipment ?? null}
+        onSets={(sets) => edit({ sets })}
+      />
     </SheetFrame>
   );
 }

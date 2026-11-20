@@ -7,6 +7,7 @@ import {
   highlightOf,
   isBlockDone,
   nextAfter,
+  nextSupersetExercise,
   type BlockExercise,
 } from "./blocks";
 
@@ -108,5 +109,34 @@ describe("highlightOf", () => {
       exercise("b", "g", [true, true]),
     ]);
     expect(skipped && highlightOf(skipped)).toEqual({ exerciseId: "a", setId: "a-1" });
+  });
+});
+
+describe("nextSupersetExercise", () => {
+  const block = (list: BlockExercise[]) => {
+    const found = blocksOf(list)[0];
+    if (!found) throw new Error("no block");
+    return found;
+  };
+  it("goes to the next member with an open set, wrapping round", () => {
+    const ab = block([exercise("a", "g", [true, false]), exercise("b", "g", [false, false])]);
+    expect(nextSupersetExercise(ab, "a-1")?.id).toBe("b");
+    expect(nextSupersetExercise(ab, "b-1")?.id).toBe("a");
+  });
+  it("skips members that are done and returns null when the others are all done", () => {
+    const abc = block([
+      exercise("a", "g", [false]),
+      exercise("b", "g", [true]),
+      exercise("c", "g", [false]),
+    ]);
+    expect(nextSupersetExercise(abc, "a-1")?.id).toBe("c");
+    const done = block([exercise("a", "g", [true, false]), exercise("b", "g", [true, true])]);
+    expect(nextSupersetExercise(done, "a-1")).toBeNull();
+  });
+  it("is null for a lone exercise or an unknown set", () => {
+    const lone = block([exercise("a", null, [false, false])]);
+    expect(nextSupersetExercise(lone, "a-1")).toBeNull();
+    const ab = block([exercise("a", "g", [false]), exercise("b", "g", [false])]);
+    expect(nextSupersetExercise(ab, "zzz")).toBeNull();
   });
 });

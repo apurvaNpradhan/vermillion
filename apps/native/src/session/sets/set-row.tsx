@@ -38,6 +38,8 @@ export type Refusal = { setId: string; fields: readonly SetField[]; nonce: numbe
 export type SetRowProps = {
   historyReady: boolean;
   editingFinished: boolean;
+  /** The Inline timer preference: a running timer still shows, but none can be started. */
+  inlineTimer: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
   /** Number or letter on the badge. */
@@ -176,7 +178,11 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
             <LiveTimer startedAt={set.timerStartedAt} target={target} />
           ) : undefined}
         </SetCell>
-        {field === "duration" && !props.editingFinished && !ticked && !readOnly ? (
+        {field === "duration" &&
+        !props.editingFinished &&
+        !ticked &&
+        !readOnly &&
+        (props.inlineTimer || running) ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(

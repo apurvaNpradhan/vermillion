@@ -44,6 +44,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   effortScale,
   historyReady,
   editingFinished,
+  inlineTimer,
   entry,
   refusal,
   previousOf,
@@ -82,6 +83,8 @@ export const ExerciseItem = memo(function ExerciseItem({
   effortScale: EffortScale;
   historyReady: boolean;
   editingFinished: boolean;
+  /** Whether duration sets show their start/stop button. */
+  inlineTimer: boolean;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
   previousOf: (setId: string) => LoggedSet | null;
@@ -139,6 +142,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         lighter={lighter}
         historyReady={historyReady}
         editingFinished={editingFinished}
+        inlineTimer={inlineTimer}
         entry={entry}
         refusal={refusal}
         previousOf={previousOf}

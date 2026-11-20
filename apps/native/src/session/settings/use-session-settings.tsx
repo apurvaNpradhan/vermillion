@@ -1,8 +1,12 @@
 import { Switch } from "heroui-native";
 import {
+  ArrowsDownUp,
   Bell,
   CheckCircle,
+  Hourglass,
+  Keyboard,
   ListChecks,
+  Medal,
   SpeakerHigh,
   Sun,
   Timer,
@@ -41,7 +45,72 @@ export function useSessionSettings(): SessionSettings {
   const { preferences, setUi } = usePreferences();
   const permission = useNotificationPermission();
   const [picker, setPicker] = useState<Picker>(null);
-  const { keepAwake, sounds, soundRest, soundSets, soundMilestones, sessionView } = preferences.ui;
+  const {
+    keepAwake,
+    sounds,
+    soundRest,
+    soundSets,
+    soundMilestones,
+    sessionView,
+    systemKeyboard,
+    inlineTimer,
+    supersetScroll,
+    recordAlerts,
+  } = preferences.ui;
+
+  // The logging controls: one switch each, the same in Settings and in the Session's sheet.
+  const controls = [
+    {
+      key: "systemKeyboard",
+      icon: Keyboard,
+      title: t("session__setting_system_keyboard"),
+      hint: t("session__setting_system_keyboard_hint"),
+      on: systemKeyboard,
+      patch: (on: boolean) => ({ systemKeyboard: on }),
+    },
+    {
+      key: "inlineTimer",
+      icon: Hourglass,
+      title: t("session__setting_inline_timer"),
+      hint: t("session__setting_inline_timer_hint"),
+      on: inlineTimer,
+      patch: (on: boolean) => ({ inlineTimer: on }),
+    },
+    {
+      key: "supersetScroll",
+      icon: ArrowsDownUp,
+      title: t("session__setting_superset_scroll"),
+      hint: t("session__setting_superset_scroll_hint"),
+      on: supersetScroll,
+      patch: (on: boolean) => ({ supersetScroll: on }),
+    },
+    {
+      key: "recordAlerts",
+      icon: Medal,
+      title: t("session__setting_record_alerts"),
+      hint: t("session__setting_record_alerts_hint"),
+      on: recordAlerts,
+      patch: (on: boolean) => ({ recordAlerts: on }),
+    },
+  ] as const;
+  const controlRows = controls.map((control) => (
+    <ListRow
+      key={control.key}
+      icon={control.icon}
+      title={control.title}
+      description={control.hint}
+      accessory="none"
+      checked={control.on}
+      onPress={() => setUi(control.patch(!control.on))}
+      trailing={
+        <Switch
+          accessibilityLabel={control.title}
+          isSelected={control.on}
+          onSelectedChange={(value) => setUi(control.patch(value))}
+        />
+      }
+    />
+  ));
 
   const notificationStatus =
     permission === "granted"
@@ -154,6 +223,7 @@ export function useSessionSettings(): SessionSettings {
         />
       }
     />,
+    ...controlRows,
   ];
 
   const onOpenChange = (open: boolean) => {
