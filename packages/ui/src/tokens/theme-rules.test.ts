@@ -158,12 +158,8 @@ describe.each(themes)("theme identity: $mode", ({ mode, colors: c }) => {
     const accent = toOklch(c.identity);
     const done = toOklch(c["set-done"]);
     expect(done.c).toBeGreaterThan(0.04);
-    if (mode === "light" || mode === "dark" || mode.startsWith("nord-")) {
-      expect(accent.c).toBeLessThan(0.04);
-    } else {
-      expect(accent.c).toBeGreaterThan(0.04);
-      expect(hueDistance(accent.h, done.h)).toBeGreaterThanOrEqual(60);
-    }
+    expect(accent.c, mode).toBeGreaterThan(0.04);
+    expect(hueDistance(accent.h, done.h), mode).toBeGreaterThanOrEqual(60);
   });
 
   it("keeps every chart series visible on the page", () => {
@@ -227,7 +223,7 @@ describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased
 });
 
 describe("nord", () => {
-  it("keeps the pinned monochrome colours in standard contrast", () => {
+  it("keeps the pinned graphite neutrals and the lavender accent in standard contrast", () => {
     expect(themeVariants["nord-light"]).toMatchObject({
       canvas: "#F4F2ED",
       surface: "#FBFAF7",
@@ -235,7 +231,7 @@ describe("nord", () => {
       "text-primary": "#191918",
       "text-muted": "#5E5C56",
       hairline: "#D4D0C7",
-      action: "#191918",
+      action: "#6A4FA3",
       "on-action": "#F4F2ED",
     });
     expect(themeVariants["nord-dark"]).toMatchObject({
@@ -245,7 +241,7 @@ describe("nord", () => {
       "text-primary": "#EFEEE9",
       "text-muted": "#AAA8A2",
       hairline: "#2B2B2B",
-      action: "#656565",
+      action: "#6A5B92",
       "on-action": "#EFEEE9",
     });
   });

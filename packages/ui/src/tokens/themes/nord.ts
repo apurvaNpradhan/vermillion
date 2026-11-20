@@ -1,6 +1,6 @@
 import type { Family, ThemeDefinition } from "./engine";
 
-/** Graphite and chalk neutrals with restrained data colours. */
+/** Graphite and chalk neutrals with a lavender accent and restrained data colours. */
 const aurora: Family = {
   success: "#9CB7A1",
   warning: "#EBCB8B",
@@ -28,7 +28,7 @@ const auroraLight: Family = {
 export const nord: ThemeDefinition = {
   light: {
     base: "#F4F2ED",
-    accent: "#191918",
+    accent: "#6A4FA3",
     onAccent: "#F4F2ED",
     pin: {
       surface: "#FBFAF7",
@@ -40,14 +40,14 @@ export const nord: ThemeDefinition = {
   },
   dark: {
     base: "#070707",
-    accent: "#B9B8B2",
+    accent: "#B3A1E3",
     pin: {
       surface: "#121212",
       control: "#1C1C1C",
       ink: "#EFEEE9",
       muted: "#AAA8A2",
       hairline: "#2B2B2B",
-      action: "#656565",
+      action: "#6A5B92",
     },
   },
   family: { light: auroraLight, dark: aurora },
