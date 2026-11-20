@@ -4,12 +4,10 @@ import {
   muscleRows,
   onTargetCount,
   plannedMuscleVolume,
-  sessionsInRange,
   weeklyDetailVolume,
   weeklyMuscleVolume,
   type TargetMuscle,
   type WeekRange,
-  withWarmupsCounted,
 } from "@workspace/shared";
 import {
   watchExerciseMuscles,
@@ -25,7 +23,7 @@ import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useToday } from "@/platform/use-today";
 import { usePreferences } from "@/preferences";
 
-import { muscleWindow } from "./muscle-window";
+import { muscleSessionsInRange, muscleWindow } from "./muscle-window";
 
 const DAY_MS = 86_400_000;
 
@@ -59,10 +57,7 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null,
     ),
   );
   const volume = useMuscleLoads({
-    sessions:
-      history.failed || history.value === undefined
-        ? undefined
-        : withWarmupsCounted(history.value, preferences.ui.countWarmups),
+    sessions: history.failed ? undefined : history.value,
     week,
     weeks,
     weeksAgo,
@@ -99,12 +94,12 @@ export function useMuscleLoads({
 }) {
   const { preferences, setMuscleGoal } = usePreferences();
   const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { muscleGoals } = preferences.ui;
+  const { muscleGoals, countWarmups } = preferences.ui;
   const { start, end } = week;
   const range = useMemo(() => ({ start, end }), [start, end]);
   const sessions = useMemo(
-    () => (history ? sessionsInRange(history, range, timezone) : undefined),
-    [history, range, timezone],
+    () => (history ? muscleSessionsInRange(history, range, timezone, countWarmups) : undefined),
+    [history, countWarmups, range, timezone],
   );
   const idsKey = useMemo(
     () =>
