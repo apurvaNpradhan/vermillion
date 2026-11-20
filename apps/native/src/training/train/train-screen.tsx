@@ -10,7 +10,6 @@ import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { FadeIn } from "@/platform/ui/fade-in";
 import { Page } from "@/platform/ui/page";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { useActiveSessions, useStartSession } from "@/session";
@@ -28,8 +27,6 @@ import { trainList, trainRows, type TrainListItem } from "./train-rows";
 import { RunEndOffer } from "@/training/home/active-program-card";
 import { TrainingListState } from "./training-list-state";
 import { ProgramCard } from "./program-card";
-import { TrainingHeatmap } from "./training-heatmap";
-import { useTrainingHeatmap } from "./use-training-heatmap";
 import { WorkoutRow } from "./workout-row";
 
 type Row = TrainListItem<WorkoutSummary>;
@@ -39,9 +36,8 @@ const rowKey = (row: Row) =>
 
 /**
  * Train: the active program as a card with its rotation and Start, its workouts as rows (swipe for
- * Start and Edit) with when each was last done, everything else folded behind "Other workouts",
- * and the last 26 weeks as a heatmap, shown whenever there is training in them, even with no
- * plans. Programs sit behind the header button; Create and Start empty are two quiet buttons
+ * Start and Edit) with when each was last done, and everything else folded behind "Other
+ * workouts". Programs sit behind the header button; Create and Start empty are two quiet buttons
  * under the card, and the empty state offers Start empty too.
  */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
@@ -53,7 +49,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const active = useActiveProgram();
   const programList = useProgramLibrary(active);
   const [showOther, setShowOther] = useState(false);
-  const heatmap = useTrainingHeatmap();
   const { workouts } = workoutList;
   const { programs } = programList;
   const rows = useMemo(
@@ -276,15 +271,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                   </>
                 ) : null}
               </View>
-            }
-            ListFooterComponent={
-              !heatmap.loading && !heatmap.failed && heatmap.totals.days > 0 ? (
-                <View className="px-4 pt-8">
-                  <FadeIn>
-                    <TrainingHeatmap data={heatmap} />
-                  </FadeIn>
-                </View>
-              ) : null
             }
             ListEmptyComponent={
               <View className="px-4">
