@@ -363,6 +363,25 @@ describe("the History reader", () => {
     expect(await reader.refresh(read)).not.toBeNull();
   });
 
+  it("reloads a finished session when two completed sets trade durations", async () => {
+    const s = await setupSessions();
+    const id = await startSession(s.training, { workoutId: null, derivedTitle: "Planks" });
+    const [entry] = await addSessionExercises(s.training, id, [PLANK]);
+    const [first, second] = s.sets(entry ?? "").map((row) => String(row["id"]));
+    await tickSet(s.training, first ?? "", { duration: 30 });
+    await tickSet(s.training, second ?? "", { duration: 60 });
+    await finishSession(s.training, id, { startedAt: daysAgo(1) });
+    const { read } = readerOf(s);
+    const reader = createFinishedHistoryReader();
+    expect((await reader.refresh(read))?.[0]?.sets.map((set) => set.duration_s)).toEqual([30, 60]);
+
+    s.sqlite
+      .prepare(`UPDATE session_set SET duration_s = CASE WHEN id = ? THEN 60 ELSE 30 END
+      WHERE id IN (?, ?)`)
+      .run(first ?? "", first ?? "", second ?? "");
+    expect((await reader.refresh(read))?.[0]?.sets.map((set) => set.duration_s)).toEqual([60, 30]);
+  });
+
   it("reads a record history with no 500-Session cap, unlike Previous", async () => {
     const s = await setupSessions();
     await finishedSquat(s, daysAgo(2000), [200]);

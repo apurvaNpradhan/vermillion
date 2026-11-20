@@ -536,33 +536,44 @@ export async function readFinishedHistoryPages(
 }
 
 /**
- * One cheap row per finished Session (no set rows are transferred or parsed): its own columns and
- * sums over its ticked sets, plus the exercises' id, title, type and order and each ticked set's
- * exercise, kind and values, so a rename, a reorder or a re-attribution that keeps every sum is
- * seen too. Any edit a History row or total shows changes one of these values,
- * and a tick in an unfinished Session changes none, so the full read can be skipped.
+ * One fixed-size fingerprint per finished Session. Hash each display row in SQLite, then fold
+ * the row hashes with their ordinal so a reorder or a same-total edit changes the digest.
  */
 export function finishedFingerprintSql(bounded = false): string {
-  return `SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
+  return `WITH RECURSIVE
+    display_rows AS (
+      SELECT s.id,
+        ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY se.position, se.id, ss.position, ss.id) AS ordinal,
+        json_array(se.exercise_id, se.exercise_type, se.exercise_title, ss.id, ss.kind,
+          CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
+          ss.reps, ss.duration_s,
+          CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
+          ss.floors, ss.steps,
+          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.completed_at) AS payload
+      FROM training_session s
+      LEFT JOIN session_exercise se ON se.session_id = s.id
+      LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+      WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
+    ),
+    -- Mix two 21-bit Unicode code points at a time, retaining 44 bits without overflowing int64.
+    hashes(id, ordinal, tail, hash) AS (
+      SELECT id, ordinal, payload, 0 FROM display_rows
+      UNION ALL
+      SELECT id, ordinal, substr(tail, 3),
+        (hash * 524287 + (unicode(tail) << 21) + COALESCE(unicode(substr(tail, 2, 1)), 0))
+          & 17592186044415
+      FROM hashes WHERE tail <> ''
+    ),
+    digests AS (
+      SELECT id, COUNT(*) AS rows, SUM(hash) AS content,
+        SUM((hash * ordinal) & 17592186044415) AS display_order
+      FROM hashes WHERE tail = '' GROUP BY id
+    )
+    SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
       s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
-      COUNT(DISTINCT se.id) AS exercises, COUNT(ss.id) AS sets,
-      TOTAL(ss.weight_kg) AS weight, TOTAL(ss.reps) AS reps,
-      TOTAL(ss.weight_kg * ss.reps) AS volume, TOTAL(ss.duration_s) AS seconds,
-      TOTAL(ss.distance_m) AS distance, TOTAL(ss.floors) AS floors, TOTAL(ss.steps) AS steps,
-      TOTAL(ss.rpe) AS rpe, MAX(ss.completed_at) AS last_completed,
-      (SELECT GROUP_CONCAT(x.sig, ';') FROM (
-        SELECT se3.exercise_id || '|' || se3.exercise_title || '|' || se3.exercise_type || '|' ||
-          se3.position AS sig
-        FROM session_exercise se3 WHERE se3.session_id = s.id
-        ORDER BY se3.position, se3.id) x) AS exercise_sig,
-      GROUP_CONCAT(substr(se.id, -8) || substr(ss.id, -8) || ss.kind || ':' ||
-        COALESCE(ss.weight_kg, '') || ':' || COALESCE(ss.reps, ''), ',') AS set_sig,
-      ${SET_KINDS.map((kind) => `TOTAL(ss.kind = '${kind}') AS k_${kind}`).join(", ")}
-    FROM training_session s
-    LEFT JOIN session_exercise se ON se.session_id = s.id
-    LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
-    GROUP BY s.id`;
+      d.rows, printf('%llx-%llx', d.content, d.display_order) AS digest
+    FROM digests d JOIN training_session s ON s.id = d.id
+    ORDER BY s.id`;
 }
 
 /** The finished Sessions with these ids (at most {@link IDS_PER_READ}), with their ticked sets. */
