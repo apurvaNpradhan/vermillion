@@ -21,7 +21,7 @@ import {
 describe("vocabulary", () => {
   it("has the agreed sizes", () => {
     expect(MUSCLE_GROUPS).toHaveLength(20);
-    expect(EQUIPMENT).toHaveLength(9);
+    expect(EQUIPMENT).toHaveLength(13);
     expect(EXERCISE_TYPES).toHaveLength(10);
   });
 
@@ -87,7 +87,7 @@ describe("customExerciseInput", () => {
   });
 
   it("rejects unknown slugs and unknown fields", () => {
-    expect(customExerciseInput.safeParse({ ...valid, equipment: "cable" }).success).toBe(false);
+    expect(customExerciseInput.safeParse({ ...valid, equipment: "jetpack" }).success).toBe(false);
     expect(customExerciseInput.safeParse({ ...valid, rank: 5 }).success).toBe(false);
   });
 

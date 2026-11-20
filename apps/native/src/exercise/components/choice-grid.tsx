@@ -27,9 +27,13 @@ export const TILE = 36;
 const EQUIPMENT_ICONS = {
   none: PersonSimple,
   barbell: Barbell,
+  ez_bar: Barbell,
+  trap_bar: Barbell,
   dumbbell: Cylinder,
   kettlebell: Tire,
   machine: Gear,
+  cable: Lasso,
+  smith_machine: Gear,
   plate: Disc,
   resistance_band: Lasso,
   suspension: Link,

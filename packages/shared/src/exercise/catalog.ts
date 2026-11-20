@@ -6,6 +6,8 @@ import {
   EXERCISE_INSTRUCTIONS_MAX,
   EXERCISE_TITLE_MAX,
   EXERCISE_TYPES,
+  hasValidDetails,
+  MUSCLE_DETAIL_SLUGS,
   MUSCLE_GROUPS,
 } from "./vocabulary";
 
@@ -51,6 +53,8 @@ export const catalogExerciseFields = z.strictObject({
   title: z.string().trim().min(1).max(EXERCISE_TITLE_MAX),
   primaryMuscle: z.enum(MUSCLE_GROUPS),
   secondaryMuscles: z.array(z.enum(MUSCLE_GROUPS)).max(MUSCLE_GROUPS.length),
+  primaryDetail: z.array(z.enum(MUSCLE_DETAIL_SLUGS)),
+  secondaryDetail: z.array(z.enum(MUSCLE_DETAIL_SLUGS)),
   equipment: z.enum(EQUIPMENT),
   exerciseType: z.enum(EXERCISE_TYPES),
   isFullBodyweight: z.boolean(),
@@ -62,11 +66,26 @@ export const catalogExerciseFields = z.strictObject({
 export type CatalogExerciseFields = z.infer<typeof catalogExerciseFields>;
 
 /** A whole catalog exercise: the secondary muscles rule applies as for Custom exercises. */
-export const catalogExerciseInput = catalogExerciseFields.refine(
-  (value) =>
-    hasValidSecondaryMuscles({
-      primary_muscle: value.primaryMuscle,
-      secondary_muscles: value.secondaryMuscles,
-    }),
-  { path: ["secondaryMuscles"], error: "Secondary muscles must be unique and not the primary" },
-);
+export const catalogExerciseInput = catalogExerciseFields
+  .extend({
+    primaryDetail: catalogExerciseFields.shape.primaryDetail.default([]),
+    secondaryDetail: catalogExerciseFields.shape.secondaryDetail.default([]),
+  })
+  .refine(
+    (value) =>
+      hasValidSecondaryMuscles({
+        primary_muscle: value.primaryMuscle,
+        secondary_muscles: value.secondaryMuscles,
+      }),
+    { path: ["secondaryMuscles"], error: "Secondary muscles must be unique and not the primary" },
+  )
+  .refine(
+    (value) =>
+      hasValidDetails({
+        primary_muscle: value.primaryMuscle,
+        secondary_muscles: value.secondaryMuscles,
+        primary_detail: value.primaryDetail,
+        secondary_detail: value.secondaryDetail,
+      }),
+    { path: ["primaryDetail"], error: "Details must belong to the chosen muscle groups" },
+  );

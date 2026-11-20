@@ -35,7 +35,9 @@ Cinnabar (the repository is still called vermillion) is a mobile-first monorepo 
 - **Exercise catalog** — the Reference data exercises, maintained in the admin and synced by a global stream. The database is the source of truth.
 - **Seed** — the committed catalog file (`packages/api/src/exercise/data/exercises.json`), inserted only into an empty table on start; the admin's export reproduces it.
 - **Custom exercise** — an `exercise` row owned by a user. Archived and restored, never deleted; its type is fixed once a set uses it.
-- **Muscle group** — one of 20 code-defined slugs an exercise targets (one primary, any secondary). The body map draws 17 of them.
+- **Muscle group** — one of 20 code-defined slugs an exercise targets (one primary, any secondary). The body map draws 17 of them. Some groups have Muscle details.
+- **Muscle detail** — a finer part of exactly one Muscle group (23 code-defined slugs, for example `rear_delts` in shoulders), stored next to the groups as optional `primary_detail` and `secondary_detail`. Groups stay what everything reads; a row without details behaves as a group-only row. Clients drop slugs they do not know ([0050](docs/adr/0050-muscle-details-and-catalog-expansion.md)).
+- **Catalog patch** — a committed, ordered, validated file of changes to Reference data, applied once (fingerprinted per file in `reference_import`): it inserts catalog rows and fills empty fields, never deletes or overwrites a value the admin may have set. A deliberate change carries the value it expects to replace and is skipped if the row differs. It may wait for `minimum_app_version` ([0050](docs/adr/0050-muscle-details-and-catalog-expansion.md)).
 - **Program** — a plan followed over weeks: an ordered Rotation of Workouts and rest days, with an optional planned length in weeks, an optional Session goal and an optional cover photo. Owns its Workouts.
 - **Workout** — a plan for one training day ("Push A"): an ordered list of exercises, each with Planned sets, a rest time and a Pinned exercise note. Standalone, or owned by exactly one Program; adding a Workout to a Program copies it, never shares it. Not the record of training: that is a Session.
 - **Session** — the record of actually training on a given day, optionally started from a Workout. Keeps what was done even if the Workout later changes or is deleted.
@@ -59,7 +61,7 @@ Cinnabar (the repository is still called vermillion) is a mobile-first monorepo 
 - **Take over** — moving an Active session to this device; the other device becomes read-only for it.
 - **Record** — an exercise best (heaviest weight, estimated 1RM, best set volume, best session volume, rep records 1–12, longest duration/distance, best pace). Computed from Logged sets when read, warm-ups excluded.
 - **Counted set** — any Logged set except a warm-up. Volume, set counts, Records and muscle distribution use only Counted sets.
-- **Muscle distribution** — Counted sets per muscle group: 1 for the exercise's primary muscle, 0.5 for each secondary.
+- **Muscle distribution** — Counted sets per muscle group: 1 for the exercise's primary muscle, 0.5 for each secondary. Within a group a set's share is split equally across the exercise's details of that group (the rest is unspecified), so the breakdown adds up to the group total.
 - **Muscle volume** — Counted sets per muscle over a Week: 1 for the primary muscle, 0.5 for each secondary ([0044](docs/adr/0044-muscle-volume-and-stalls.md)).
 - **Muscle goal** — a weekly set range per targeted muscle: Maintain 6–10, Grow 10–20 (default), Focus 16–24 or Custom. Stored in the `ui` preferences as `muscleGoals`. Status is below, on target or above.
 - **Stalled lift** — an exercise whose best Session (estimated 1RM, or best reps) over the latest three Sessions of its Workout has not beaten the Session before them by 1%, with no 14-day gap among them. Shows a note offering 90% for today.

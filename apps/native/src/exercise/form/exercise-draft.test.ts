@@ -107,6 +107,8 @@ describe("validation", () => {
         title: "My press",
         primary_muscle: "chest",
         secondary_muscles: ["triceps", "shoulders"],
+        primary_detail: [],
+        secondary_detail: [],
         equipment: "dumbbell",
         exercise_type: "weight_reps",
         is_full_bodyweight: false,

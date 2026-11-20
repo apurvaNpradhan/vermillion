@@ -5,15 +5,19 @@ import type { WeightUnit } from "../vocabulary/vocabulary";
 /**
  * The smallest load change that equipment can make, in the display unit: a barbell with the
  * smallest plates adds 2.5 kg (5 lb) a side pair, a dumbbell rack steps by 1 kg (2.5 lb), a
- * kettlebell by 2 kg (5 lb). Plates held in the hand step like a barbell. Everything else (machines,
+ * kettlebell by 2 kg (5 lb). Plates held in the hand, the EZ and trap bars and the Smith machine step like a barbell. Everything else (machines, cables,
  * bands, suspension, no equipment) has fine adjustment, so 1 kg (2.5 lb).
  */
 const SMALLEST_STEP = {
   barbell: { kg: 2.5, lb: 5 },
+  ez_bar: { kg: 2.5, lb: 5 },
+  trap_bar: { kg: 2.5, lb: 5 },
+  smith_machine: { kg: 2.5, lb: 5 },
   plate: { kg: 2.5, lb: 5 },
   kettlebell: { kg: 2, lb: 5 },
   dumbbell: { kg: 1, lb: 2.5 },
   machine: { kg: 1, lb: 2.5 },
+  cable: { kg: 1, lb: 2.5 },
   resistance_band: { kg: 1, lb: 2.5 },
   suspension: { kg: 1, lb: 2.5 },
   none: { kg: 1, lb: 2.5 },

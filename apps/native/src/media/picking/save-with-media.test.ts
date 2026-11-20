@@ -120,6 +120,8 @@ describe("saving a new media with what points at it", () => {
       equipment: "dumbbell",
       exercise_type: "weight_reps",
       secondary_muscles: [],
+      primary_detail: [],
+      secondary_detail: [],
       is_full_bodyweight: false,
       instructions: null,
     });

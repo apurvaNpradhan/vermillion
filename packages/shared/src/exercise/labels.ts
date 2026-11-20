@@ -1,4 +1,10 @@
-import type { Equipment, ExerciseType, MuscleGroup, MuscleRegion } from "./vocabulary";
+import type {
+  Equipment,
+  ExerciseType,
+  MuscleDetail,
+  MuscleGroup,
+  MuscleRegion,
+} from "./vocabulary";
 
 // Written out as literals so `pnpm i18n:report` sees every key as used.
 
@@ -26,12 +32,43 @@ export const MUSCLE_GROUP_KEYS = {
   upper_back: "exercise__muscle_upper_back",
 } as const satisfies Record<MuscleGroup, string>;
 
+/** i18n key of each muscle detail's name. */
+export const MUSCLE_DETAIL_KEYS = {
+  upper_chest: "exercise__detail_upper_chest",
+  lower_chest: "exercise__detail_lower_chest",
+  front_delts: "exercise__detail_front_delts",
+  side_delts: "exercise__detail_side_delts",
+  rear_delts: "exercise__detail_rear_delts",
+  rotator_cuff: "exercise__detail_rotator_cuff",
+  mid_traps: "exercise__detail_mid_traps",
+  lower_traps: "exercise__detail_lower_traps",
+  teres_major: "exercise__detail_teres_major",
+  biceps_brachii: "exercise__detail_biceps_brachii",
+  brachialis: "exercise__detail_brachialis",
+  brachioradialis: "exercise__detail_brachioradialis",
+  wrist_flexors: "exercise__detail_wrist_flexors",
+  wrist_extensors: "exercise__detail_wrist_extensors",
+  rectus_abdominis: "exercise__detail_rectus_abdominis",
+  obliques: "exercise__detail_obliques",
+  deep_core: "exercise__detail_deep_core",
+  gastrocnemius: "exercise__detail_gastrocnemius",
+  soleus: "exercise__detail_soleus",
+  tibialis: "exercise__detail_tibialis",
+  glute_medius: "exercise__detail_glute_medius",
+  tfl: "exercise__detail_tfl",
+  hip_flexors: "exercise__detail_hip_flexors",
+} as const satisfies Record<MuscleDetail, string>;
+
 export const EQUIPMENT_KEYS = {
   none: "exercise__equipment_none",
   barbell: "exercise__equipment_barbell",
   dumbbell: "exercise__equipment_dumbbell",
   kettlebell: "exercise__equipment_kettlebell",
   machine: "exercise__equipment_machine",
+  cable: "exercise__equipment_cable",
+  smith_machine: "exercise__equipment_smith_machine",
+  ez_bar: "exercise__equipment_ez_bar",
+  trap_bar: "exercise__equipment_trap_bar",
   plate: "exercise__equipment_plate",
   resistance_band: "exercise__equipment_resistance_band",
   suspension: "exercise__equipment_suspension",
