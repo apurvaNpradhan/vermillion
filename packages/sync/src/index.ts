@@ -24,6 +24,7 @@ export {
   libraryQuery,
   watchExerciseLibrary,
   watchExerciseLibraryCount,
+  watchRecentExercises,
   watchExerciseMuscles,
   watchCatalogThumbnailKeys,
 } from "./exercise";
@@ -249,7 +250,12 @@ export type {
   WorkoutPatch,
   WorkoutRow,
 } from "./training";
-export { editFinishedSession, applySessionWorkout } from "./training";
+export {
+  editFinishedSession,
+  applySessionWorkout,
+  performAgain,
+  watchExerciseNote,
+} from "./training";
 
 export {
   watchRunState,

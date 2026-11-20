@@ -2,6 +2,7 @@ import {
   LIBRARY_PAGE_SIZE,
   watchExerciseLibrary,
   watchExerciseLibraryCount,
+  watchRecentExercises,
   type LibraryFilters,
   type LibraryPage,
   type LibraryRow,
@@ -14,8 +15,15 @@ import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 
 import { libraryStatus, type LibraryStatus } from "./library-status";
 
-/** The Recent section lists exercises the user trained lately; there is no training yet. */
 const NO_RECENT: LibraryRow[] = [];
+
+function subscribeRecent(
+  database: Parameters<typeof watchRecentExercises>[0],
+  onValue: (rows: LibraryRow[]) => void,
+  onError: () => void,
+) {
+  return watchRecentExercises(database, { onRows: onValue, onError });
+}
 
 /**
  * The exercise library for `filters`, read from the local database. Returns a bounded window of
@@ -64,6 +72,8 @@ export function useExerciseLibrary(filters: LibraryFilters) {
     [key, limit],
   );
   const state = useLocalWatch(subscribe);
+  // The Recent section: the exercises of the latest finished Sessions. Browsing never waits for it.
+  const recentState = useLocalWatch(subscribeRecent);
   // Widening the window restarts the watch, which has no value until the wider page arrives. Hold
   // the last result for the same filters meanwhile: an empty frame would reset the list to the top.
   const [held, setHeld] = useState<{ key: string; value: typeof state.value } | null>(null);
@@ -87,7 +97,7 @@ export function useExerciseLibrary(filters: LibraryFilters) {
 
   return {
     rows: page?.rows ?? [],
-    recent: NO_RECENT,
+    recent: recentState.value ?? NO_RECENT,
     total,
     // Only a fresh page may ask for more, so a held one cannot widen the window twice.
     hasMore: state.value?.page.hasMore ?? false,

@@ -141,6 +141,10 @@ export type SessionExerciseDetail = {
   position: string;
   restSeconds: number | null;
   note: string | null;
+  /** The exercise's pinned note (one per exercise), or null. */
+  pinnedNote: string | null;
+  /** The note this exercise had in the latest earlier finished Session, or null. */
+  lastNote: string | null;
   supersetGroup: string | null;
   logEffort: boolean;
   progressionPerSet: boolean;
@@ -172,6 +176,8 @@ export type SessionDetail = {
   title: string;
   titleDerived: boolean;
   note: string | null;
+  /** The note of the Workout this Session started from, if it has one. */
+  workoutNote: string | null;
   startedAt: string;
   finishedAt: string | null;
   /** The user's override of the clock duration. */
@@ -184,7 +190,8 @@ export type SessionDetail = {
 export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.cycle AS cycle, s.title AS title,
-    s.title_derived AS title_derived, s.note AS note, s.started_at AS started_at,
+    s.title_derived AS title_derived, s.note AS note,
+    (SELECT w.note FROM workout w WHERE w.id = s.workout_id) AS workout_note, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.device_id AS device_id,
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
@@ -197,6 +204,13 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS bar_id,
     (SELECT auto_warmups FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
+    (SELECT note FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
+    (SELECT se2.note FROM session_exercise se2
+      JOIN training_session s2 ON s2.id = se2.session_id
+      WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
+        AND s2.started_at < s.started_at
+      ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -223,6 +237,7 @@ const detailRowSchema = z.object({
   title: z.string(),
   title_derived: flag,
   note: z.string().nullable(),
+  workout_note: z.string().nullable(),
   started_at: z.string(),
   finished_at: z.string().nullable(),
   duration_s: z.number().nullable(),
@@ -242,6 +257,8 @@ const detailRowSchema = z.object({
   log_effort: flag.nullable(),
   progression_per_set: flag.nullable(),
   auto_warmups: flag.nullable(),
+  pinned_note: z.string().nullable(),
+  last_note: z.string().nullable(),
   warmup_key: z.string().nullable(),
   bar_id: z.string().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
@@ -264,6 +281,10 @@ const detailRowSchema = z.object({
   target: targetText,
   generated_warmup: flag.nullable(),
 });
+
+/** A note that is only whitespace counts as no note. */
+const nonEmpty = (note: string | null): string | null =>
+  note !== null && note.trim() !== "" ? note : null;
 
 /** Builds one Session from the joined rows of {@link SESSION_DETAIL_SQL}; null if there is none. */
 export function parseSessionDetail(rows: readonly object[]): SessionDetail | null {
@@ -292,6 +313,8 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         position: row.exercise_position,
         restSeconds: row.rest_seconds,
         note: row.exercise_note,
+        pinnedNote: nonEmpty(row.pinned_note),
+        lastNote: nonEmpty(row.last_note),
         supersetGroup: row.superset_group,
         logEffort: row.log_effort ?? false,
         progressionPerSet: row.progression_per_set ?? false,
@@ -342,6 +365,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
     title: first.title,
     titleDerived: first.title_derived,
     note: first.note,
+    workoutNote: nonEmpty(first.workout_note),
     startedAt: first.started_at,
     finishedAt: first.finished_at,
     durationS: first.duration_s,

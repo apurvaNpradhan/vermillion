@@ -5,7 +5,7 @@ import { DotsThreeVertical } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ExerciseThumbnail } from "@/exercise";
+import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
@@ -124,6 +124,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
             >
               {summary}
             </Text>
+            {entry.pinnedNote ? <PinnedNote note={entry.pinnedNote} /> : null}
             {entry.note ? (
               <Text numberOfLines={2} className="text-caption text-muted">
                 {entry.note}

@@ -2,7 +2,13 @@ import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { calendarDay, type WeekStart } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Barbell, CalendarPlus, ClockCounterClockwise } from "phosphor-react-native";
+import {
+  ArrowClockwise,
+  Barbell,
+  CalendarPlus,
+  ClockCounterClockwise,
+  Eye,
+} from "phosphor-react-native";
 import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Text, View } from "react-native";
 import Animated, {
@@ -14,6 +20,7 @@ import Animated, {
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
+import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
@@ -38,6 +45,7 @@ import {
 import { HistoryRow, WeekHeading } from "./history-rows";
 import { NumberFlow } from "@/platform/ui/number-flow";
 import { PeriodCard } from "@/platform/ui/period-card";
+import { useStartSession } from "@/session/lifecycle/use-start-session";
 import { useHistorySettings, useSessionHistory } from "./use-session-history";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
@@ -72,6 +80,8 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const router = useRouter();
   const subtle = useSubtleColor();
   const reduced = useReduceMotion();
+  const { startAgain, sheet: startSheet } = useStartSession();
+  const [menuSession, setMenuSession] = useState<FinishedSession | null>(null);
   const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
   const day = initialDay !== null && initialDay <= today ? initialDay : null;
@@ -174,199 +184,229 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   );
 
   return (
-    <Page
-      title={t("session__history")}
-      back={day !== null}
-      actions={
-        <>
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("muscles__open")}
-            onPress={() => router.push("/muscles")}
-          >
-            <Barbell size={24} weight="regular" color={subtle} />
-          </Button>
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("session__log_past")}
-            onPress={openLog}
-          >
-            <CalendarPlus size={24} weight="regular" color={subtle} />
-          </Button>
-        </>
-      }
-    >
-      {({ header, contentContainerStyle, ...scroll }) => (
-        <AnimatedLegendList
-          {...scroll}
-          ref={list}
-          recycleItems={false}
-          maintainVisibleContentPosition={false}
-          data={ready ? items : []}
-          keyExtractor={(item) => `${item.kind}-${item.id}`}
-          estimatedItemSize={95}
-          contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16 }}
-          ListHeaderComponent={
-            <View className="gap-3 pb-2">
-              {header}
-              <SegmentedControl
-                options={options}
-                value={period}
-                accessibilityLabel={t("session__history_period")}
-                onChange={(next) => {
-                  setSelected(null);
-                  setSelection({ period: next, anchor, direction: 0 });
-                }}
-              />
-              {ready && (
-                <Animated.View
-                  entering={FadeIn.duration(reduced ? 120 : 150).reduceMotion(ReduceMotion.Never)}
-                >
-                  <PeriodCard
-                    title={periodTitle}
-                    headline={
-                      <View
-                        accessible
-                        accessibilityLabel={t("session__workout_count", {
-                          count,
-                          value: format.integer(count),
-                        })}
-                        className="flex-row flex-wrap items-baseline gap-1"
-                      >
-                        {period === "week" || activeDay !== null ? (
-                          <Text className="text-title-md font-semibold tabular-nums text-foreground">
-                            {format.integer(count)}
-                          </Text>
-                        ) : (
-                          <NumberFlow value={count} locale={format.locale} />
-                        )}
-                        <Text className="text-body text-muted">
-                          {t("session__workout_unit", { count })}
-                        </Text>
-                      </View>
-                    }
-                    period={start}
-                    previousLabel={t("session__period_previous")}
-                    nextLabel={t("session__period_next")}
-                    direction={direction}
-                    canPrevious={canPrevious}
-                    canNext={canNext}
-                    onMove={move}
-                  >
-                    {period === "month" && activeDay === null ? calendar : null}
-                    {period === "week" && (
-                      <HistoryWeek start={start} history={history} goal={goal} format={format} />
-                    )}
-                    {period === "year" && (
-                      <HistoryYear
-                        start={start}
-                        today={today}
-                        currentWeek={currentWeek}
-                        history={history}
-                        goal={goal}
-                        weekStart={weekStart}
-                        format={format}
-                        onMonth={(month) => drillDown("month", month)}
-                      />
-                    )}
-                    {period === "all" && (
-                      <HistoryAll
-                        history={history}
-                        today={today}
-                        currentWeek={currentWeek}
-                        goal={goal}
-                        weekStart={weekStart}
-                        format={format}
-                        onYear={(year) => drillDown("year", year)}
-                      />
-                    )}
-                  </PeriodCard>
-                </Animated.View>
-              )}
-              {ready && activeDay !== null ? (
-                <Animated.View
-                  key={activeDay}
-                  entering={FadeIn.duration(120).reduceMotion(ReduceMotion.Never)}
-                  className="flex-row flex-wrap items-center justify-between gap-2"
-                >
-                  <Text
-                    accessibilityRole="header"
-                    className="flex-1 text-title-md font-semibold text-foreground"
-                  >
-                    {format.full(activeDay)}
-                  </Text>
-                  <Button variant="ghost" onPress={() => selectDay(null)}>
-                    <Button.Label>{t("session__history_clear_day")}</Button.Label>
-                  </Button>
-                </Animated.View>
-              ) : null}
-            </View>
-          }
-          ListFooterComponent={
-            ready && (activeDay !== null || period === "week") ? (
-              <View className="mt-4 rounded-xl bg-surface p-3">
-                {activeDay !== null ? (
-                  calendar
-                ) : (
-                  <HistoryWeekCalendar
-                    start={start}
-                    today={today}
-                    history={history}
-                    format={format}
-                  />
-                )}
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            failed ? (
-              <Button variant="secondary" onPress={retry}>
-                <Button.Label>{t("training__retry")}</Button.Label>
-              </Button>
-            ) : ready ? (
-              <EmptyState
-                icon={ClockCounterClockwise}
-                title={
-                  activeDay !== null
-                    ? t("session__history_empty_day")
-                    : t("session__history_empty_period")
-                }
-                action={
-                  activeDay === null
-                    ? { label: t("session__log_past"), onPress: openLog }
-                    : undefined
-                }
-              />
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <Animated.View style={entryOpacity}>
-              {item.kind === "week" ? (
-                <WeekHeading
-                  day={Date.parse(item.id)}
-                  sessions={item.sessions}
-                  totalsFor={(id) => history.bySession.get(id)?.totals ?? emptyTotals}
-                  format={format}
+    <>
+      <Page
+        title={t("session__history")}
+        back={day !== null}
+        actions={
+          <>
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("muscles__open")}
+              onPress={() => router.push("/muscles")}
+            >
+              <Barbell size={24} weight="regular" color={subtle} />
+            </Button>
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("session__log_past")}
+              onPress={openLog}
+            >
+              <CalendarPlus size={24} weight="regular" color={subtle} />
+            </Button>
+          </>
+        }
+      >
+        {({ header, contentContainerStyle, ...scroll }) => (
+          <AnimatedLegendList
+            {...scroll}
+            ref={list}
+            recycleItems={false}
+            maintainVisibleContentPosition={false}
+            data={ready ? items : []}
+            keyExtractor={(item) => `${item.kind}-${item.id}`}
+            estimatedItemSize={95}
+            contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16 }}
+            ListHeaderComponent={
+              <View className="gap-3 pb-2">
+                {header}
+                <SegmentedControl
+                  options={options}
+                  value={period}
+                  accessibilityLabel={t("session__history_period")}
+                  onChange={(next) => {
+                    setSelected(null);
+                    setSelection({ period: next, anchor, direction: 0 });
+                  }}
                 />
-              ) : (
-                <HistoryRow
-                  session={item.session}
-                  stats={history.bySession.get(item.id)}
-                  compact={activeDay !== null}
-                  format={format}
-                  timezone={timezone}
-                  onPress={() =>
-                    router.push({ pathname: "/history/[id]", params: { id: item.id } })
+                {ready && (
+                  <Animated.View
+                    entering={FadeIn.duration(reduced ? 120 : 150).reduceMotion(ReduceMotion.Never)}
+                  >
+                    <PeriodCard
+                      title={periodTitle}
+                      headline={
+                        <View
+                          accessible
+                          accessibilityLabel={t("session__workout_count", {
+                            count,
+                            value: format.integer(count),
+                          })}
+                          className="flex-row flex-wrap items-baseline gap-1"
+                        >
+                          {period === "week" || activeDay !== null ? (
+                            <Text className="text-title-md font-semibold tabular-nums text-foreground">
+                              {format.integer(count)}
+                            </Text>
+                          ) : (
+                            <NumberFlow value={count} locale={format.locale} />
+                          )}
+                          <Text className="text-body text-muted">
+                            {t("session__workout_unit", { count })}
+                          </Text>
+                        </View>
+                      }
+                      period={start}
+                      previousLabel={t("session__period_previous")}
+                      nextLabel={t("session__period_next")}
+                      direction={direction}
+                      canPrevious={canPrevious}
+                      canNext={canNext}
+                      onMove={move}
+                    >
+                      {period === "month" && activeDay === null ? calendar : null}
+                      {period === "week" && (
+                        <HistoryWeek start={start} history={history} goal={goal} format={format} />
+                      )}
+                      {period === "year" && (
+                        <HistoryYear
+                          start={start}
+                          today={today}
+                          currentWeek={currentWeek}
+                          history={history}
+                          goal={goal}
+                          weekStart={weekStart}
+                          format={format}
+                          onMonth={(month) => drillDown("month", month)}
+                        />
+                      )}
+                      {period === "all" && (
+                        <HistoryAll
+                          history={history}
+                          today={today}
+                          currentWeek={currentWeek}
+                          goal={goal}
+                          weekStart={weekStart}
+                          format={format}
+                          onYear={(year) => drillDown("year", year)}
+                        />
+                      )}
+                    </PeriodCard>
+                  </Animated.View>
+                )}
+                {ready && activeDay !== null ? (
+                  <Animated.View
+                    key={activeDay}
+                    entering={FadeIn.duration(120).reduceMotion(ReduceMotion.Never)}
+                    className="flex-row flex-wrap items-center justify-between gap-2"
+                  >
+                    <Text
+                      accessibilityRole="header"
+                      className="flex-1 text-title-md font-semibold text-foreground"
+                    >
+                      {format.full(activeDay)}
+                    </Text>
+                    <Button variant="ghost" onPress={() => selectDay(null)}>
+                      <Button.Label>{t("session__history_clear_day")}</Button.Label>
+                    </Button>
+                  </Animated.View>
+                ) : null}
+              </View>
+            }
+            ListFooterComponent={
+              ready && (activeDay !== null || period === "week") ? (
+                <View className="mt-4 rounded-xl bg-surface p-3">
+                  {activeDay !== null ? (
+                    calendar
+                  ) : (
+                    <HistoryWeekCalendar
+                      start={start}
+                      today={today}
+                      history={history}
+                      format={format}
+                    />
+                  )}
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={
+              failed ? (
+                <Button variant="secondary" onPress={retry}>
+                  <Button.Label>{t("training__retry")}</Button.Label>
+                </Button>
+              ) : ready ? (
+                <EmptyState
+                  icon={ClockCounterClockwise}
+                  title={
+                    activeDay !== null
+                      ? t("session__history_empty_day")
+                      : t("session__history_empty_period")
+                  }
+                  action={
+                    activeDay === null
+                      ? { label: t("session__log_past"), onPress: openLog }
+                      : undefined
                   }
                 />
-              )}
-            </Animated.View>
-          )}
-        />
-      )}
-    </Page>
+              ) : null
+            }
+            renderItem={({ item }) => (
+              <Animated.View style={entryOpacity}>
+                {item.kind === "week" ? (
+                  <WeekHeading
+                    day={Date.parse(item.id)}
+                    sessions={item.sessions}
+                    totalsFor={(id) => history.bySession.get(id)?.totals ?? emptyTotals}
+                    format={format}
+                  />
+                ) : (
+                  <HistoryRow
+                    session={item.session}
+                    stats={history.bySession.get(item.id)}
+                    compact={activeDay !== null}
+                    format={format}
+                    timezone={timezone}
+                    onPress={() =>
+                      router.push({ pathname: "/history/[id]", params: { id: item.id } })
+                    }
+                    onLongPress={() => setMenuSession(item.session)}
+                  />
+                )}
+              </Animated.View>
+            )}
+          />
+        )}
+      </Page>
+      <ActionSheet
+        title={menuSession?.title ?? ""}
+        isOpen={menuSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setMenuSession(null);
+        }}
+        actions={
+          menuSession
+            ? [
+                {
+                  key: "again",
+                  label: t("session__perform_again"),
+                  icon: ArrowClockwise,
+                  onPress: () => void startAgain(menuSession.id),
+                },
+                {
+                  key: "open",
+                  label: t("session__open_details"),
+                  icon: Eye,
+                  onPress: () =>
+                    router.push({ pathname: "/history/[id]", params: { id: menuSession.id } }),
+                },
+              ]
+            : []
+        }
+      />
+      {startSheet}
+    </>
   );
 }
 

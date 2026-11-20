@@ -164,7 +164,7 @@ export function ExerciseLibrary({
       key: `all-${exercise.id}`,
       exercise,
     }));
-    if (library.recent.length === 0 || searching) return rows;
+    if (library.recent.length === 0 || searching || hasActiveFilters(filters)) return rows;
     return [
       { kind: "header", key: "recent", title: t("exercise__recent") },
       ...library.recent.map((exercise): ListItem => ({
@@ -175,7 +175,7 @@ export function ExerciseLibrary({
       { kind: "header", key: "all", title: t("exercise__all") },
       ...rows,
     ];
-  }, [library.rows, library.recent, searching, t]);
+  }, [library.rows, library.recent, searching, filters, t]);
 
   const onRowPress = mode === "pick" ? onToggle : onOpen;
   // Only the Custom and Archived views swipe: "All" mixes in the read-only catalog.

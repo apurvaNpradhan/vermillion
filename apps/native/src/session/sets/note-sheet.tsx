@@ -10,12 +10,19 @@ export function NoteSheet({
   onOpenChange,
   title,
   value,
+  label,
+  hint,
+  placeholder,
   onSave,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   value: string | null;
+  /** Defaults to the note of this session's exercise. */
+  label?: string;
+  hint?: string;
+  placeholder?: string;
   onSave: (note: string | null) => void;
 }) {
   const { t } = useTranslation();
@@ -28,17 +35,17 @@ export function NoteSheet({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       title={title}
-      description={t("session__note_hint")}
+      description={hint ?? t("session__note_hint")}
       onDone={() => {
         onSave(draft);
         onOpenChange(false);
       }}
     >
       <InlineNote
-        label={t("training__pinned_note")}
+        label={label ?? t("training__pinned_note")}
         value={draft}
         onText={setDraft}
-        placeholder={t("training__pinned_note_placeholder")}
+        placeholder={placeholder ?? t("training__pinned_note_placeholder")}
         maxLength={SESSION_LIMITS.noteMax}
       />
     </TargetPickerSheet>

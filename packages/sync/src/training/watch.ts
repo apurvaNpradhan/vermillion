@@ -62,6 +62,8 @@ export type WorkoutExerciseDetail = {
   restSeconds: number | null;
   note: string | null;
   supersetGroup: string | null;
+  /** The exercise's pinned note (one per exercise, shown wherever it appears). */
+  pinnedNote: string | null;
   sets: PlannedSet[];
   exercise: WorkoutExerciseInfo | null;
 };
@@ -211,6 +213,7 @@ const detailRowSchema = z.object({
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   progression_per_set: z.number().nullable(),
+  pinned_note: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
   image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
@@ -223,7 +226,9 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
     e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at,
     (SELECT progression_per_set FROM exercise_setting
-      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT note FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS pinned_note
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
@@ -246,6 +251,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
       restSeconds: row.rest_seconds,
       note: row.exercise_note,
       supersetGroup: row.superset_group,
+      pinnedNote: row.pinned_note,
       sets: row.sets ?? [],
       exercise:
         row.exercise_title !== null &&
@@ -887,6 +893,29 @@ export function watchExerciseAutoWarmups(
       onResult: handlers.onValue,
       onError: handlers.onError,
     }),
+    handlers.onError,
+  );
+}
+
+/** Watches the exercise's pinned note; null while it has none. */
+export function watchExerciseNote(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onValue: (note: string | null) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ note: z.string().nullable() }));
+  return watch(
+    database,
+    "SELECT note FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing(
+      (rows) => {
+        const note = schema.parse(rows)[0]?.note ?? null;
+        return note !== null && note.trim() !== "" ? note : null;
+      },
+      { onResult: handlers.onValue, onError: handlers.onError },
+    ),
     handlers.onError,
   );
 }

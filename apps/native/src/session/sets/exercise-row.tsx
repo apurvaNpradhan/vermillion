@@ -4,7 +4,7 @@ import { DotsThreeVertical, Plus } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ExerciseThumbnail } from "@/exercise";
+import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { ReorderHeader, SupersetBracket } from "@/training";
@@ -127,6 +127,10 @@ export const ExerciseRow = memo(function ExerciseRow({
             >
               {subtitle}
             </Text>
+            <ExerciseNotes
+              pinned={exercise.pinnedNote}
+              lastTime={open ? exercise.lastNote : null}
+            />
           </Pressable>
           {progression}
         </View>
@@ -169,3 +173,22 @@ export const ExerciseRow = memo(function ExerciseRow({
     </View>
   );
 });
+
+/**
+ * The exercise's pinned note (a pin, then the text) and, while the row is open, the note it had
+ * last time in faded text under it. Nothing renders when both are empty.
+ */
+function ExerciseNotes({ pinned, lastTime }: { pinned: string | null; lastTime: string | null }) {
+  const { t } = useTranslation();
+  if (pinned === null && lastTime === null) return null;
+  return (
+    <View className="gap-0.5 pt-0.5">
+      {pinned === null ? null : <PinnedNote note={pinned} />}
+      {lastTime === null ? null : (
+        <Text numberOfLines={2} className="text-caption text-muted opacity-70">
+          {t("session__last_time", { note: lastTime })}
+        </Text>
+      )}
+    </View>
+  );
+}

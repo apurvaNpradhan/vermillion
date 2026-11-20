@@ -15,6 +15,7 @@ const squat: WorkoutExerciseDetail = {
   position: "a0",
   restSeconds: null,
   note: null,
+  pinnedNote: null,
   supersetGroup: null,
   sets: [{ kind: "warmup", reps_min: 5 }, working, working],
   exercise: {

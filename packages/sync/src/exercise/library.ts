@@ -5,6 +5,7 @@ import { z } from "zod";
 import { parseMuscleDetails } from "./details";
 import type { ExerciseDatabase } from "./store";
 import {
+  LIBRARY_ROW_COLUMNS,
   libraryCountQuery,
   libraryQuery,
   type LibraryFilters,
@@ -47,6 +48,21 @@ export type LibraryRow = {
   isArchived: boolean;
 };
 
+function toLibraryRow(row: z.infer<typeof libraryRowSchema>): LibraryRow {
+  return {
+    id: row.id,
+    title: row.title,
+    primaryMuscle: row.primary_muscle,
+    primaryDetail: parseMuscleDetails(row.primary_detail),
+    secondaryDetail: parseMuscleDetails(row.secondary_detail),
+    equipment: row.equipment,
+    thumbnailKey: row.thumbnail_key,
+    imageMediaId: row.image_media_id ?? null,
+    isCustom: row.user_id !== null,
+    isArchived: row.retired_at !== null,
+  };
+}
+
 export type LibraryPage = { rows: LibraryRow[]; hasMore: boolean };
 
 const countSchema = z.array(z.object({ total: z.number() })).min(1);
@@ -72,18 +88,7 @@ export function watchExerciseLibrary(
         return;
       }
       handlers.onPage({
-        rows: parsed.data.slice(0, limit).map((row) => ({
-          id: row.id,
-          title: row.title,
-          primaryMuscle: row.primary_muscle,
-          primaryDetail: parseMuscleDetails(row.primary_detail),
-          secondaryDetail: parseMuscleDetails(row.secondary_detail),
-          equipment: row.equipment,
-          thumbnailKey: row.thumbnail_key,
-          imageMediaId: row.image_media_id ?? null,
-          isCustom: row.user_id !== null,
-          isArchived: row.retired_at !== null,
-        })),
+        rows: parsed.data.slice(0, limit).map(toLibraryRow),
         hasMore: parsed.data.length > limit,
       });
     },
@@ -110,6 +115,60 @@ export function watchExerciseLibraryCount(
     },
     handlers.onError,
   );
+}
+
+/** How many recently trained exercises the Recent section lists. */
+const RECENT_LIMIT = 10;
+
+/**
+ * The exercises of finished Sessions, most recently trained first, one row each. Archived
+ * exercises are left out: they cannot be added to a workout any more.
+ */
+export const RECENT_QUERY: LibraryQuery = {
+  sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM (
+      SELECT se.exercise_id AS recent_id, MAX(s.started_at) AS last_at
+      FROM session_exercise se
+      JOIN training_session s ON s.id = se.session_id
+      WHERE s.finished_at IS NOT NULL
+      GROUP BY se.exercise_id
+      ORDER BY last_at DESC, se.exercise_id DESC
+      LIMIT ${RECENT_LIMIT}
+    ) recent JOIN exercise ON exercise.id = recent.recent_id
+    WHERE retired_at IS NULL
+    ORDER BY last_at DESC, exercise.id DESC`,
+  params: [],
+};
+
+/** Watches the user's most recently trained exercises (up to 10), most recent first. */
+export function watchRecentExercises(
+  database: ExerciseDatabase,
+  handlers: { onRows: (rows: LibraryRow[]) => void; onError: (error: Error) => void },
+): () => void {
+  const controller = new AbortController();
+  database.watchWithCallback(
+    RECENT_QUERY.sql,
+    RECENT_QUERY.params,
+    {
+      onResult: (result) => {
+        if (controller.signal.aborted) return;
+        const parsed = z.array(libraryRowSchema).safeParse(result.array);
+        if (!parsed.success) {
+          handlers.onError(new Error("Recent exercises could not be read"));
+          return;
+        }
+        handlers.onRows(parsed.data.map(toLibraryRow));
+      },
+      onError: (error) => {
+        if (!controller.signal.aborted) handlers.onError(error);
+      },
+    },
+    {
+      signal: controller.signal,
+      tables: ["exercise", "session_exercise", "training_session"],
+      throttleMs: THROTTLE_MS,
+    },
+  );
+  return () => controller.abort();
 }
 
 function watch(

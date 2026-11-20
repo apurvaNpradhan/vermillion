@@ -18,6 +18,7 @@ import {
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
+  setExerciseSetting,
   supersetSessionWithNext,
   takeOver,
   tickSet,
@@ -174,6 +175,22 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** The exercise's pinned note, kept for every session and workout it appears in; empty clears it. */
+  const setPinnedNote = useCallback(
+    (exerciseId: string, note: string | null) =>
+      write(
+        (db) =>
+          setExerciseSetting(
+            db,
+            exerciseId,
+            { note: note === null || note.trim() === "" ? null : note },
+            writeScope,
+          ),
+        null,
+      ),
+    [write, writeScope],
+  );
+
   const superset = useCallback(
     (id: string) => write((db) => supersetSessionWithNext(db, id, writeScope), false),
     [write, writeScope],
@@ -250,6 +267,7 @@ export function useSessionActions() {
     removeExercise,
     moveExercise,
     updateExercise,
+    setPinnedNote,
     superset,
     leaveSuperset,
     refreshDerivedTitle,

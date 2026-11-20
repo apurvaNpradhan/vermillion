@@ -3,6 +3,7 @@ import { useWeight } from "@/body";
 import { recordFlags, sessionTotals } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
+  ArrowClockwise,
   DotsThreeVertical,
   PencilSimple,
   ShareNetwork,
@@ -32,6 +33,7 @@ import { doneSummary, formatVolume } from "@/session/finish/summary";
 import { useSession } from "@/session/screen/use-session";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "@/session/finish/use-finish-session";
+import { useStartSession } from "@/session/lifecycle/use-start-session";
 import { useRecordHistory } from "./use-session-history";
 
 export function SessionDetailScreen({ id }: { id: string }) {
@@ -45,6 +47,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const weight = useWeight();
   const actions = useSessionActions();
   const finish = useFinishSession();
+  const { startAgain, sheet: startSheet } = useStartSession();
   const history = useRecordHistory(
     state.status === "ready" ? state.session.exercises.map((entry) => entry.exerciseId) : [],
   );
@@ -255,6 +258,12 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     onPress: () => router.push({ pathname: "/session/[id]", params: { id } }),
                   },
                   {
+                    key: "again",
+                    label: t("session__perform_again"),
+                    icon: ArrowClockwise,
+                    onPress: () => void startAgain(id),
+                  },
+                  {
                     key: "save",
                     label: t("session__save_new_workout"),
                     icon: FloppyDisk,
@@ -282,6 +291,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   },
                 ]}
               />
+              {startSheet}
               <ConfirmSheet
                 destructive
                 isOpen={confirm}

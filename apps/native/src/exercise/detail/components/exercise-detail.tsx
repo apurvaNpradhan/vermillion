@@ -19,6 +19,7 @@ import {
   Info,
   PencilSimple,
   FireSimple,
+  PushPin,
   Plus,
   SlidersHorizontal,
 } from "phosphor-react-native";
@@ -47,6 +48,8 @@ import { useExercise, useSwapCandidates } from "../use-exercise";
 import { useExerciseActions } from "../../use-exercise-actions";
 import { useExerciseAutoWarmups, useExerciseProgressionMode } from "../use-exercise-progression";
 import { useExerciseHistory } from "../use-exercise-history";
+import { useExerciseNote } from "../use-exercise-note";
+import { PinnedNoteSheet } from "../../components/pinned-note-sheet";
 import { SwapRow } from "./swap-row";
 import { VideoHero } from "./video-hero";
 
@@ -119,7 +122,9 @@ function LoadedDetail({
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
-  const { setProgressionPerSet, setAutoWarmups } = useExerciseActions();
+  const { setProgressionPerSet, setAutoWarmups, setPinnedNote } = useExerciseActions();
+  const pinned = useExerciseNote(exercise.id);
+  const [noteOpen, setNoteOpen] = useState(false);
   const autoWarmups = useExerciseAutoWarmups(exercise.id);
   const canSetWarmups = !exercise.isArchived && hasWarmupRamp(exercise.exerciseType);
   const warmupsOn = autoWarmups.value ?? false;
@@ -274,6 +279,20 @@ function LoadedDetail({
                 </Button>
               </View>
             ) : null}
+            {!exercise.isArchived && !pinned.loading && !pinned.failed ? (
+              <View className="px-4">
+                <ListSection title={t("exercise__pinned_note")}>
+                  <ListRow
+                    icon={PushPin}
+                    title={pinned.value ?? t("exercise__pinned_note_add")}
+                    description={
+                      pinned.value === null ? t("exercise__pinned_note_hint") : undefined
+                    }
+                    onPress={() => setNoteOpen(true)}
+                  />
+                </ListSection>
+              </View>
+            ) : null}
             {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
               <View className="px-4">
                 <ListSection title={t("exercise__settings")}>
@@ -348,6 +367,13 @@ function LoadedDetail({
         actions={menu}
         isOpen={menuOpen}
         onOpenChange={setMenuOpen}
+      />
+      <PinnedNoteSheet
+        isOpen={noteOpen}
+        onOpenChange={setNoteOpen}
+        title={exercise.title}
+        value={pinned.value ?? null}
+        onSave={(note) => void setPinnedNote(exercise.id, note).catch(() => undefined)}
       />
     </>
   );

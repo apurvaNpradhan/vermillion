@@ -56,6 +56,7 @@ export function HistoryRow({
   format,
   timezone,
   onPress,
+  onLongPress,
 }: {
   session: FinishedSession;
   stats: { day: number; totals: Totals } | undefined;
@@ -63,6 +64,8 @@ export function HistoryRow({
   format: HistoryFormat;
   timezone: string;
   onPress: () => void;
+  /** Opens the row's action menu. */
+  onLongPress?: () => void;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -76,6 +79,8 @@ export function HistoryRow({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityHint={onLongPress ? t("session__history_row_hint") : undefined}
       className="my-1 min-h-11 flex-row items-center gap-3 rounded-xl bg-surface p-3 active:bg-default"
     >
       {compact && stats && (
