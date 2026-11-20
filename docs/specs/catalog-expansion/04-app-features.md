@@ -13,25 +13,26 @@ Details show where ADR 0050 says, rows without details look exactly as today, an
 - Copy `front_iliopsoas.webp` from `~/Workspace/projects/vermillion/packages/body-map/assets/interim/` into `assets/interim/`; regenerate `layer-sources.generated.ts` and hit masks with `generate-assets.ts`. Add it to `GROUP_LAYERS.quadriceps.front`.
 - `DETAIL_LAYERS: Record<MuscleDetail, Record<BodyView, readonly string[]>>`:
 
-  | Detail | Front | Back |
-  | --- | --- | --- |
-  | front_delts | front_deltoid_anterior | |
-  | side_delts | front_deltoid_lateral | |
-  | rear_delts | | back_deltoids |
-  | rotator_cuff | | back_infraspinatus, back_teres_minor |
-  | upper_chest / lower_chest | front_chest_clavicular_head / front_chest | |
-  | mid_traps / lower_traps / teres_major | | back_middle_trapezius / back_lower_trapezius / back_teres_major |
-  | biceps_brachii / brachialis | front_biceps / front_brachialis | back_biceps / back_brachialis |
-  | brachioradialis | front_brachioradialis | |
-  | wrist_flexors / wrist_extensors | / front_wrist_extensors | back_wrist_flexors / |
-  | rectus_abdominis / obliques | front_rectus_abdominis / front_obliques | / back_obliques |
-  | deep_core | (none, listed only) | |
-  | gastrocnemius / soleus | front_gastrocnemius / front_soleus | back_gastrocnemius / back_soleus |
-  | tibialis | front_tibias | |
-  | glute_medius / tfl | / front_tensor_fasciae_latae | back_gluteus_medius / |
-  | hip_flexors | front_iliopsoas | |
+  | Detail                                | Front                                     | Back                                                            |
+  | ------------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
+  | front_delts                           | front_deltoid_anterior                    |                                                                 |
+  | side_delts                            | front_deltoid_lateral                     |                                                                 |
+  | rear_delts                            |                                           | back_deltoids                                                   |
+  | rotator_cuff                          |                                           | back_infraspinatus, back_teres_minor                            |
+  | upper_chest / lower_chest             | front_chest_clavicular_head / front_chest |                                                                 |
+  | mid_traps / lower_traps / teres_major |                                           | back_middle_trapezius / back_lower_trapezius / back_teres_major |
+  | biceps_brachii / brachialis           | front_biceps / front_brachialis           | back_biceps / back_brachialis                                   |
+  | brachioradialis                       | front_brachioradialis                     |                                                                 |
+  | wrist_flexors / wrist_extensors       | / front_wrist_extensors                   | back_wrist_flexors /                                            |
+  | rectus_abdominis / obliques           | front_rectus_abdominis / front_obliques   | / back_obliques                                                 |
+  | deep_core                             | (none, listed only)                       |                                                                 |
+  | gastrocnemius / soleus                | front_gastrocnemius / front_soleus        | back_gastrocnemius / back_soleus                                |
+  | tibialis                              | front_tibias                              |                                                                 |
+  | glute_medius / tfl                    | / front_tensor_fasciae_latae              | back_gluteus_medius /                                           |
+  | hip_flexors                           | front_iliopsoas                           |                                                                 |
 
   A test asserts each detail's layers are a subset of its group's layers.
+
 - `BodyMap` accepts highlights that are either groups or details (one input type, e.g. `{ groups, details }` with opacity per entry). An exercise with details lights its details' layers (primary full, secondary faded as today) plus, for groups with no details, the whole group. Taps still report a group.
 
 ### Volume breakdown (`packages/shared/src/training/volume/`)

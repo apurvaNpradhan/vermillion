@@ -14,17 +14,17 @@ An earlier dataset in the owner's own previous project (7,542 rows, 44 anatomica
 
 - **23 Muscle details, each inside exactly one existing group.** The 20 group slugs do not change. Groups not listed have no details.
 
-  | Group | Details |
-  | --- | --- |
-  | chest | `upper_chest`, `lower_chest` |
-  | shoulders | `front_delts`, `side_delts`, `rear_delts`, `rotator_cuff` |
-  | upper_back | `mid_traps`, `lower_traps`, `teres_major` |
-  | biceps | `biceps_brachii`, `brachialis` |
-  | forearms | `brachioradialis`, `wrist_flexors`, `wrist_extensors` |
-  | abdominals | `rectus_abdominis`, `obliques`, `deep_core` |
-  | calves | `gastrocnemius`, `soleus`, `tibialis` |
-  | abductors | `glute_medius`, `tfl` |
-  | quadriceps | `hip_flexors` |
+  | Group      | Details                                                   |
+  | ---------- | --------------------------------------------------------- |
+  | chest      | `upper_chest`, `lower_chest`                              |
+  | shoulders  | `front_delts`, `side_delts`, `rear_delts`, `rotator_cuff` |
+  | upper_back | `mid_traps`, `lower_traps`, `teres_major`                 |
+  | biceps     | `biceps_brachii`, `brachialis`                            |
+  | forearms   | `brachioradialis`, `wrist_flexors`, `wrist_extensors`     |
+  | abdominals | `rectus_abdominis`, `obliques`, `deep_core`               |
+  | calves     | `gastrocnemius`, `soleus`, `tibialis`                     |
+  | abductors  | `glute_medius`, `tfl`                                     |
+  | quadriceps | `hip_flexors`                                             |
 
 - **Stored next to the groups, optional.** `exercise.primary_detail text[]` and `exercise.secondary_detail text[]`, default `'{}'`. Every primary detail belongs to the primary group; every secondary detail's group is in `secondary_muscles`. Groups stay the columns everything reads; a row without details behaves as today. Replacing groups with a detail list was rejected: rows without details (Custom exercises, unsplit groups like lats and triceps) would need a fake detail equal to their group, and every group reader would change.
 - **The vocabulary is code** (`MUSCLE_DETAILS`, detail → group), with i18n keys and search aliases ("rear delt", "posterior delt"). Clients drop detail slugs they do not know instead of rejecting the row, so a later detail does not need an app release first.

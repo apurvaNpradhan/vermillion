@@ -39,13 +39,16 @@ The data model, sync and import path can carry Muscle details, the four new equi
   ```json
   {
     "requires_app_version": "1.4.0",
-    "insert": [ /* full catalog rows, same schema as the seed file plus primary_detail/secondary_detail */ ],
-    "fill": [ { "id": "…", "primary_detail": ["side_delts"], "instructions": "…" } ],
-    "change": [ { "id": "…", "field": "equipment", "from": "machine", "to": "cable" } ]
+    "insert": [
+      /* full catalog rows, same schema as the seed file plus primary_detail/secondary_detail */
+    ],
+    "fill": [{ "id": "…", "primary_detail": ["side_delts"], "instructions": "…" }],
+    "change": [{ "id": "…", "field": "equipment", "from": "machine", "to": "cable" }]
   }
   ```
 
   `requires_app_version` optional. `fill` sets a field only when the row's value is empty (`null`, `''`, `'{}'`, or `rank = 0`). `change` sets the field only when the current value equals `from` (arrays compared as sets); fields allowed in `change`: `equipment`, `primary_muscle`, `secondary_muscles`, `rank`, `exercise_type` (only if no set references the exercise), `title`, `thumbnail_key`, `video_key`.
+
 - Validation before any write: zod for the file; inserted rows pass `catalogRowSchema` + `hasValidDetails`; ids in `insert` are new; ids in `fill`/`change` exist and are catalog rows; titles unique across the catalog after the patch; the result of applying `fill`/`change` to each row still passes `hasValidDetails` (when a `change` is skipped, dependent fills that would break the rule are skipped with it and reported).
 - `applyCatalogPatches(db, { gate })`: for each file not yet recorded in `reference_import` (key `patch:<file name>`, value its SHA-256), in one transaction per file: insert, fill, change, record. A recorded file whose bytes changed is an error (patches are immutable once applied; write a new file).
 - **Gate**: when `gate` is on and the file has `requires_app_version` above `minimum_app_version` (or no minimum set), skip the file and log `exercise.catalog.patch_waiting`. Env `CATALOG_PATCH_GATE` in `packages/env` (server), default on in production, off otherwise.

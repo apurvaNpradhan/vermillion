@@ -21,31 +21,33 @@ Writes `backfill.json`, `candidates.json`, `ranks.json` to `<out-dir>` (a scratc
 
 **Muscle mapping** (old → detail, else group only):
 
-| Old | Detail (group) |
-| --- | --- |
-| `PECTORALIS_MAJOR_STERNAL_HEAD` / `_CLAVICULAR_HEAD` | `lower_chest` / `upper_chest` |
-| `DELTOID_ANTERIOR` / `_LATERAL` / `_POSTERIOR` | `front_delts` / `side_delts` / `rear_delts` |
-| `INFRASPINATUS`, `TERES_MINOR`, `SUBSCAPULARIS` | `rotator_cuff` |
-| `TRAPEZIUS_UPPER_FIBERS` | group `traps`, no detail |
-| `TRAPEZIUS_MIDDLE_FIBERS` / `_LOWER_FIBERS` | `mid_traps` / `lower_traps` |
-| `TERES_MAJOR` | `teres_major` |
-| `BICEPS_BRACHII`, `BRACHIALIS`, `BRACHIORADIALIS` | same names |
-| `WRIST_FLEXORS` / `WRIST_EXTENSORS` | same names |
-| `RECTUS_ABDOMINIS`, `OBLIQUES` / `TRANSVERSE_ABDOMINUS` | same / `deep_core` |
-| `GASTROCNEMIUS`, `SOLEUS` / `TIBIALIS_ANTERIOR` | same / `tibialis` |
-| `GLUTEUS_MEDIUS`, `GLUTEUS_MINIMUS` / `TENSOR_FASCIAE_LATAE` | `glute_medius` / `tfl` |
-| `ILIOPSOAS` | `hip_flexors` |
+| Old                                                                                                                                                              | Detail (group)                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `PECTORALIS_MAJOR_STERNAL_HEAD` / `_CLAVICULAR_HEAD`                                                                                                             | `lower_chest` / `upper_chest`                                                                                    |
+| `DELTOID_ANTERIOR` / `_LATERAL` / `_POSTERIOR`                                                                                                                   | `front_delts` / `side_delts` / `rear_delts`                                                                      |
+| `INFRASPINATUS`, `TERES_MINOR`, `SUBSCAPULARIS`                                                                                                                  | `rotator_cuff`                                                                                                   |
+| `TRAPEZIUS_UPPER_FIBERS`                                                                                                                                         | group `traps`, no detail                                                                                         |
+| `TRAPEZIUS_MIDDLE_FIBERS` / `_LOWER_FIBERS`                                                                                                                      | `mid_traps` / `lower_traps`                                                                                      |
+| `TERES_MAJOR`                                                                                                                                                    | `teres_major`                                                                                                    |
+| `BICEPS_BRACHII`, `BRACHIALIS`, `BRACHIORADIALIS`                                                                                                                | same names                                                                                                       |
+| `WRIST_FLEXORS` / `WRIST_EXTENSORS`                                                                                                                              | same names                                                                                                       |
+| `RECTUS_ABDOMINIS`, `OBLIQUES` / `TRANSVERSE_ABDOMINUS`                                                                                                          | same / `deep_core`                                                                                               |
+| `GASTROCNEMIUS`, `SOLEUS` / `TIBIALIS_ANTERIOR`                                                                                                                  | same / `tibialis`                                                                                                |
+| `GLUTEUS_MEDIUS`, `GLUTEUS_MINIMUS` / `TENSOR_FASCIAE_LATAE`                                                                                                     | `glute_medius` / `tfl`                                                                                           |
+| `ILIOPSOAS`                                                                                                                                                      | `hip_flexors`                                                                                                    |
 | `GLUTEUS_MAXIMUS`, `QUADRICEPS`, `HAMSTRINGS`, `LATISSIMUS_DORSI`, `TRICEPS_BRACHII`, `ERECTOR_SPINAE`, `ADDUCTOR_*`, `STERNOCLEIDOMASTOID`, `SERRATUS_ANTERIOR` | group only (`glutes`, `quadriceps`, `hamstrings`, `lats`, `triceps`, `lower_back`, `adductors`, `neck`, `chest`) |
-| `SARTORIUS`, `PECTINEOUS`, `GRACILIS`, `POPLITEUS`, `SPLENIUS`, `LEVATOR_SCAPULAE`, `DEEP_HIP_EXTERNAL_ROTATORS` | group only (`quadriceps`, `adductors`, `adductors`, `calves`, `neck`, `traps`, `glutes`) |
+| `SARTORIUS`, `PECTINEOUS`, `GRACILIS`, `POPLITEUS`, `SPLENIUS`, `LEVATOR_SCAPULAE`, `DEEP_HIP_EXTERNAL_ROTATORS`                                                 | group only (`quadriceps`, `adductors`, `adductors`, `calves`, `neck`, `traps`, `glutes`)                         |
 
 Cleaning: drop `rotator_cuff` as a secondary on compound presses, pulls and rows (title or primary heuristics; list what was dropped per row). Flag rows with more than 3 primary details.
 
 **Backfill (455).** For each matched row: details from the old row, kept only where the detail's group is already the row's primary group (→ `primary_detail`) or in its `secondary_muscles` (→ `secondary_detail`). Never change groups. Separately propose:
+
 - equipment retags: `cable` for cable titles/old Cable, `smith_machine` for Smith, `ez_bar`, `trap_bar`;
 - a real primary for `full_body` rows that are lifts (Olympic lifts, Overhead Squat, Landmine Squat and Press, high pulls), with secondaries; conditioning rows stay `full_body`.
-Unmatched rows (about 51) are listed with empty proposals for hand tagging on the page.
+  Unmatched rows (about 51) are listed with empty proposals for hand tagging on the page.
 
 **Candidates.** Old rows not matched to the catalog, filtered: exercise type known; a video present; body part not Stretching/Yoga; title not matching stretch, yoga, pose, pilates, massage, roll(ing) on foam/ball/stick, warm-up, vibrate; 1–3 primary muscles after mapping. Collapse duplicates by normalised title (drop `(male)`, `(female)`, `(VERSION n)`, extra spaces; keep the one with a video, then the plain name). Each candidate carries:
+
 - `id` (old id kept), `source_title`, suggested `title` ("Movement (Equipment)", Title Case, "Lever" → "(Machine)", gender/version stripped), `aka` when the source title differs a lot;
 - `primary_muscle` by heuristic (first of legs and hips → back → chest → shoulders → arms → core among the mapped primaries), other primaries → secondary; details as above;
 - `equipment` (old 28 → 13: Leverage/Sled machine/Assisted → `machine`; Smith → `smith_machine`; Cable/Rope → `cable`; Barbell/Olympic barbell → `barbell`; EZ Barbell → `ez_bar`; Trap bar → `trap_bar`; Body weight → `none`; Band/Resistance Band → `resistance_band`; Weighted → `plate`; Suspension → `suspension`; Dumbbell, Kettlebell same; the rest → `other`);
