@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Only the widget picker reads these; everything on the widget comes from the app's snapshot. -->
+  <string name="next_workout_widget_label">Next workout</string>
+  <string name="next_workout_widget_description">Your next workout and this week at a glance</string>
+</resources>
