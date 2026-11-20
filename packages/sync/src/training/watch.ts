@@ -957,6 +957,17 @@ export function watchRecordHistory(
   );
 }
 
+/**
+ * One exercise's complete finished history, read once (no 500-Session cap), so a
+ * live Record check agrees with the finished Session and History screens, which read the same.
+ */
+export async function readRecordHistory(
+  database: TrainingDatabase,
+  exerciseId: string,
+): Promise<FinishedSession[]> {
+  return parseFinishedSessions(await database.getAll(exerciseRecordsSql(1), [exerciseId]));
+}
+
 /** Local rows exclude deleted Workouts and exercises through the sync stream. */
 export const LATEST_EXERCISE_PLAN_SQL = `SELECT we.sets FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
      WHERE we.exercise_id = ? ORDER BY w.created_at DESC, w.id DESC, we.position, we.id LIMIT 1`;

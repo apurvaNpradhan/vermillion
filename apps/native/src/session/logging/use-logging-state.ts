@@ -12,6 +12,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type {
+  FinishedSession,
   SessionDetail,
   SessionExerciseDetail,
   SessionSetDetail,
@@ -45,6 +46,7 @@ import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
+import { historySettled } from "./history-gate";
 import { tickedSetIsRecord } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
 import {
@@ -80,7 +82,9 @@ export type StallInfo = { count: number; latestSessionId: string; applied: boole
 export function useLoggingState({
   session,
   previous,
+  recordHistory,
   historyReady,
+  historyFailed,
   unit,
   effortScale,
   bodyweightKg,
@@ -93,7 +97,11 @@ export function useLoggingState({
 }: {
   session: SessionDetail;
   previous: PreviousSets;
+  /** An exercise's whole finished history, for Record checks; null when it cannot be read. */
+  recordHistory: (exerciseId: string) => Promise<readonly FinishedSession[] | null>;
   historyReady: boolean;
+  /** The Previous lookup failed: sets with their own values can still be ticked. */
+  historyFailed: boolean;
   unit: WeightUnit;
   effortScale: EffortScale;
   bodyweightKg: number | null;
@@ -408,7 +416,12 @@ export function useLoggingState({
   const tickWith = useCallback(
     async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
       const at = found.get(setId);
-      if (!at || !previous.has(at.exercise.exerciseId)) return false;
+      if (
+        !at ||
+        !historySettled({ loaded: previous.has(at.exercise.exerciseId), failed: historyFailed })
+      ) {
+        return false;
+      }
       const block = blockOfSet(setId);
       // A finished Session being edited has no timers.
       const seconds =
@@ -431,7 +444,10 @@ export function useLoggingState({
             : set,
         );
       const record = tickedSetIsRecord({
-        history: previous.get(at.exercise.exerciseId) ?? [],
+        history:
+          (await recordHistory(at.exercise.exerciseId)) ??
+          previous.get(at.exercise.exerciseId) ??
+          [],
         session: { id: session.id, startedAt: session.startedAt },
         sets: ticked,
         setId,
@@ -453,10 +469,11 @@ export function useLoggingState({
     },
     [
       found,
-      historyReady,
+      historyFailed,
       actions,
       session,
       previous,
+      recordHistory,
       bodyweightKg,
       blockOfSet,
       onRestStarted,
@@ -516,7 +533,7 @@ export function useLoggingState({
   });
   const firing = useRef(new Set<string>());
   useEffect(() => {
-    if (readOnly || !historyReady) return;
+    if (readOnly || !(historyReady || historyFailed)) return;
     const run = () => {
       const sets = exercises.flatMap((exercise) => exercise.sets);
       for (const due of dueTimers(sets, Date.now())) {
@@ -534,7 +551,7 @@ export function useLoggingState({
       clearInterval(timer);
       subscription.remove();
     };
-  }, [exercises, readOnly, historyReady]);
+  }, [exercises, readOnly, historyReady, historyFailed]);
 
   // ---- Previous, kind, add and remove ----
   const onPrevious = useCallback(
@@ -603,7 +620,8 @@ export function useLoggingState({
   const stableOnTimer = useStableHandler(onTimer);
   const stableOnPrevious = useStableHandler(onPrevious);
   return {
-    historyReadyFor: (exerciseId: string) => previous.has(exerciseId),
+    historyReadyFor: (exerciseId: string) =>
+      historySettled({ loaded: previous.has(exerciseId), failed: historyFailed }),
     historyReady,
     blocks,
     places,

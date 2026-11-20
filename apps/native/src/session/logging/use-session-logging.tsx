@@ -44,6 +44,7 @@ export function useSessionLogging(stored: SessionDetail) {
   );
   const {
     history: previous,
+    recordHistory,
     ready: historyReady,
     failed: historyFailed,
     retry: retryHistory,
@@ -58,7 +59,9 @@ export function useSessionLogging(stored: SessionDetail) {
   const logging = useLoggingState({
     session,
     previous,
+    recordHistory,
     historyReady,
+    historyFailed,
     unit,
     effortScale,
     bodyweightKg,

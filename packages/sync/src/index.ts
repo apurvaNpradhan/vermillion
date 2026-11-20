@@ -162,7 +162,6 @@ export {
   removeSet,
   restoreSet,
   restoreSessionExercise,
-  replaceSessionExercise,
   supersetSessionWithNext,
   tickSet,
   untickSet,
@@ -193,6 +192,7 @@ export {
   watchSessionPage,
   watchFinishedHistory,
   watchRecordHistory,
+  readRecordHistory,
   parseActiveSessions,
   parseEquipment,
   parseFinishedSessions,
@@ -254,6 +254,8 @@ export {
   editFinishedSession,
   applySessionWorkout,
   performAgain,
+  replaceSessionExercise,
+  type SessionSwap,
   watchExerciseNote,
 } from "./training";
 

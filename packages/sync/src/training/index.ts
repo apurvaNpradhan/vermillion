@@ -95,6 +95,7 @@ export {
   watchSessionPage,
   watchFinishedHistory,
   watchRecordHistory,
+  readRecordHistory,
   watchWorkout,
   watchLatestExercisePlan,
   watchWorkouts,
@@ -161,7 +162,6 @@ export {
   removeSet,
   restoreSet,
   restoreSessionExercise,
-  replaceSessionExercise,
   supersetSessionWithNext,
   tickSet,
   untickSet,
@@ -184,6 +184,7 @@ export {
   type ExerciseSettingPatch,
 } from "./sessions/equipment-store";
 export { performAgain } from "./sessions/session-again-store";
+export { replaceSessionExercise, type SessionSwap } from "./sessions/session-swap-store";
 export { editFinishedSession, applySessionWorkout } from "./sessions/session-workout-store";
 
 export {

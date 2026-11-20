@@ -70,16 +70,17 @@ export function MusclesScreen() {
     start: date(volume.week.start),
     end: date(volume.week.end - DAY_MS),
   });
-  const title =
-    span === "four"
-      ? weeksAgo === 0
-        ? t("muscles__last_four")
-        : range
-      : weeksAgo === 0
-        ? t("muscles__this_week")
-        : weeksAgo === 1
-          ? t("muscles__last_week")
-          : range;
+  // Label and figures come from the period on screen, which lags the chosen one while it loads.
+  const shownFour = volume.weeks > 1;
+  const title = shownFour
+    ? volume.weeksAgo === 0
+      ? t("muscles__last_four")
+      : range
+    : volume.weeksAgo === 0
+      ? t("muscles__this_week")
+      : volume.weeksAgo === 1
+        ? t("muscles__last_week")
+        : range;
   const targets = volume.rows.filter((row) => row.status !== null);
   const rounded = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(
     volume.completedSets,
@@ -88,7 +89,7 @@ export function MusclesScreen() {
   const headlineText =
     targets.length > 0
       ? t("muscles__tile_value", { done: volume.onTarget, total: targets.length })
-      : span === "four"
+      : shownFour
         ? t("muscles__avg_per_week", { sets: rounded })
         : t("stats__sets", { count: Math.round(volume.completedSets) });
   const axes = useMemo(

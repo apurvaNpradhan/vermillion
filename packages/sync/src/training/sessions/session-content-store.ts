@@ -61,7 +61,7 @@ import {
 import { exerciseSetting, session, sessionExercise, sessionSet } from "../tables";
 
 /** The rest a Session exercise starts with, as the editor gives it (the preference, raised for barbell lifts). */
-function restFor(
+export function restFor(
   info: Awaited<ReturnType<typeof exerciseInfoOf>>,
   preferences: TrainingPreferences,
 ) {
@@ -71,7 +71,7 @@ function restFor(
   });
 }
 
-async function insertDefaultSets(
+export async function insertDefaultSets(
   tx: Tx,
   userId: string,
   sessionExerciseId: string,
@@ -137,42 +137,6 @@ export function addSessionExercises(
       ids.push(id);
     }
     return ids;
-  });
-}
-
-/**
- * Swaps the exercise of a Session exercise. The same type keeps its sets, rest and note; another
- * type drops the sets (their values cannot carry over) for that type's defaults and takes its
- * default rest, keeping the note. Previous and Ghost values then come from the new exercise's own
- * history. False if it is the same exercise.
- */
-export function replaceSessionExercise(
-  database: TrainingDatabase,
-  id: string,
-  exerciseId: string,
-  preferences: TrainingPreferences = DEFAULT_PREFERENCES,
-  expectedInstallId?: string,
-): Promise<boolean> {
-  return write(database, expectedInstallId, async (tx) => {
-    const userId = await ownerOf(tx);
-    const current = await requireSessionExercise(tx, id);
-    if (current.exercise_id === exerciseId) return false;
-    const after = await exerciseInfoOf(tx, exerciseId);
-    const kept = current.exercise_type === after.exercise_type;
-    await tx
-      .update(sessionExercise)
-      .set({
-        exercise_id: exerciseId,
-        exercise_title: after.title,
-        exercise_type: after.exercise_type,
-        ...(kept ? {} : { rest_seconds: restFor(after, preferences) }),
-      })
-      .where(eq(sessionExercise.id, id));
-    if (!kept) {
-      await tx.delete(sessionSet).where(eq(sessionSet.session_exercise_id, id));
-      await insertDefaultSets(tx, userId, id, defaultPlannedSets(after.exercise_type));
-    }
-    return true;
   });
 }
 

@@ -534,7 +534,9 @@ export async function readFinishedHistoryPages(
 
 /**
  * One cheap row per finished Session (no set rows are transferred or parsed): its own columns and
- * sums over its ticked sets. Any edit a History row or total shows changes one of these values,
+ * sums over its ticked sets, plus the exercises' id, title, type and order and each ticked set's
+ * exercise, kind and values, so a rename, a reorder or a re-attribution that keeps every sum is
+ * seen too. Any edit a History row or total shows changes one of these values,
  * and a tick in an unfinished Session changes none, so the full read can be skipped.
  */
 export function finishedFingerprintSql(bounded = false): string {
@@ -545,6 +547,13 @@ export function finishedFingerprintSql(bounded = false): string {
       TOTAL(ss.weight_kg * ss.reps) AS volume, TOTAL(ss.duration_s) AS seconds,
       TOTAL(ss.distance_m) AS distance, TOTAL(ss.floors) AS floors, TOTAL(ss.steps) AS steps,
       TOTAL(ss.rpe) AS rpe, MAX(ss.completed_at) AS last_completed,
+      (SELECT GROUP_CONCAT(x.sig, ';') FROM (
+        SELECT se3.exercise_id || '|' || se3.exercise_title || '|' || se3.exercise_type || '|' ||
+          se3.position AS sig
+        FROM session_exercise se3 WHERE se3.session_id = s.id
+        ORDER BY se3.position, se3.id) x) AS exercise_sig,
+      GROUP_CONCAT(substr(se.id, -8) || substr(ss.id, -8) || ss.kind || ':' ||
+        COALESCE(ss.weight_kg, '') || ':' || COALESCE(ss.reps, ''), ',') AS set_sig,
       ${SET_KINDS.map((kind) => `TOTAL(ss.kind = '${kind}') AS k_${kind}`).join(", ")}
     FROM training_session s
     LEFT JOIN session_exercise se ON se.session_id = s.id

@@ -15,6 +15,7 @@ import {
   replaceWarmups,
   restoreSet,
   restoreSessionExercise,
+  replaceExercise as replaceWorkoutExercise,
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
@@ -27,6 +28,7 @@ import {
   updateSet,
   type FinishInput,
   type FinishResult,
+  type SessionExerciseDetail,
   type SessionExercisePatch,
   type SetPatch,
   type TickResult,
@@ -131,21 +133,37 @@ export function useSessionActions() {
     [write, writeScope, training],
   );
 
-  /** Swaps the exercise; a toast says so when the type changed and the sets were reset. */
+  /**
+   * Swaps the exercise. Completed sets stay on the original (a toast says the rest moved) and a
+   * type change resets the remaining targets; `scope` "workout" also swaps it in the Workout the
+   * Session came from.
+   */
   const replaceExercise = useCallback(
-    (id: string, fromExerciseId: string, exerciseId: string) =>
+    (entry: SessionExerciseDetail, exerciseId: string, scope: "session" | "workout") =>
       write(async (db) => {
         const [before, after] = await Promise.all([
-          readExerciseType(db, fromExerciseId),
+          readExerciseType(db, entry.exerciseId),
           readExerciseType(db, exerciseId),
         ]);
-        const changed = await replaceSessionExercise(db, id, exerciseId, training(), writeScope);
-        if (changed && after !== null && before !== after) {
+        const swap = await replaceSessionExercise(db, entry.id, exerciseId, training(), writeScope);
+        if (!swap) return false;
+        if (scope === "workout" && entry.sourceWorkoutExerciseId) {
+          await replaceWorkoutExercise(
+            db,
+            entry.sourceWorkoutExerciseId,
+            exerciseId,
+            training(),
+            writeScope,
+          );
+        }
+        if (swap.split) {
+          toast.show({ label: t("session__swap_split_toast", { title: entry.title }) });
+        } else if (after !== null && before !== after) {
           toast.show({
             label: t("training__targets_reset_toast", { type: t(EXERCISE_TYPE_KEYS[after]) }),
           });
         }
-        return changed;
+        return true;
       }, false),
     [write, writeScope, training, toast, t],
   );

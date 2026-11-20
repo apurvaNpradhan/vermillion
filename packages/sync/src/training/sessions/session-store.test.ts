@@ -19,7 +19,6 @@ import {
   removeSet,
   restoreSet,
   restoreSessionExercise,
-  replaceSessionExercise,
   tickSet,
   untickSet,
   updateSet,
@@ -363,38 +362,6 @@ describe("exercises of a Session", () => {
     expect(s.exercises(id)).toHaveLength(38);
     await addSessionExercises(s.training, id, [CURL, CURL]);
     expect(s.exercises(id)).toHaveLength(SESSION_LIMITS.exercisesPerSession);
-  });
-
-  it("replaces: the same type keeps the sets, another type gets that type's defaults", async () => {
-    const s = await setupSessions();
-    const t = await started(s);
-    await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
-    expect(await replaceSessionExercise(s.training, t.squat, SQUAT)).toBe(false);
-    expect(await replaceSessionExercise(s.training, t.squat, CURL)).toBe(true);
-    expect(s.one("session_exercise", t.squat)).toMatchObject({
-      exercise_id: CURL,
-      exercise_title: "Curl",
-      exercise_type: "weight_reps",
-      source_workout_exercise_id: expect.any(String),
-    });
-    expect(s.sets(t.squat).map((row) => row["id"])).toEqual([t.warmup, t.work1, t.work2]);
-    expect(s.one("session_set", t.work1)).toMatchObject({
-      weight_kg: 100,
-      completed_at: expect.any(String),
-    });
-
-    expect(await replaceSessionExercise(s.training, t.squat, PLANK)).toBe(true);
-    expect(s.one("session_exercise", t.squat)).toMatchObject({
-      exercise_type: "duration",
-      exercise_title: "Plank",
-      rest_seconds: 120,
-    });
-    const sets = s.sets(t.squat);
-    expect(sets).toHaveLength(3);
-    expect(sets.every((row) => row["completed_at"] === null && row["weight_kg"] === null)).toBe(
-      true,
-    );
-    expect(JSON.parse(String(sets[0]?.["target"]))).toEqual({ kind: "working", duration_s: 30 });
   });
 
   it("moves with one row written and keeps supersets whole", async () => {
