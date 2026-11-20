@@ -12,6 +12,7 @@ export {
   LIBRARY_PAGE_SIZE,
   watchExerciseLibrary,
   watchExerciseLibraryCount,
+  watchRecentExercises,
   type LibraryPage,
   type LibraryRow,
 } from "./library";

@@ -63,7 +63,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
-        bar_id TEXT, log_effort INTEGER, progression_per_set INTEGER, auto_warmups INTEGER, created_at TEXT, restore INTEGER);
+        bar_id TEXT, log_effort INTEGER, progression_per_set INTEGER, auto_warmups INTEGER, note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
         height INTEGER, bytes INTEGER, thumb_bytes INTEGER, created_at TEXT);
       CREATE TABLE user_preferences (id TEXT PRIMARY KEY, user_id TEXT, locale TEXT, timezone TEXT,

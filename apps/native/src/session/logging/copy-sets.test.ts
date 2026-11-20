@@ -35,6 +35,8 @@ const exercise = (
   logEffort: true,
   progressionPerSet: false,
   autoWarmups: false,
+  pinnedNote: null,
+  lastNote: null,
   warmupKey: null,
   barId: null,
   exercise: null,

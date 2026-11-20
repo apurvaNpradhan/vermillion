@@ -133,6 +133,7 @@ export const trainingUploadColumns = {
     "log_effort",
     "progression_per_set",
     "auto_warmups",
+    "note",
     "restore",
   ]),
 } as const satisfies Record<string, ReadonlySet<string>>;

@@ -56,6 +56,8 @@ const exercise = (n: number): SessionDetail["exercises"][number] => ({
   logEffort: false,
   progressionPerSet: false,
   autoWarmups: false,
+  pinnedNote: null,
+  lastNote: null,
   warmupKey: null,
   barId: null,
   exercise: {
@@ -77,6 +79,7 @@ const session = (count: number): SessionDetail => ({
   titleDerived: false,
   workoutStructure: null,
   note: null,
+  workoutNote: null,
   startedAt: "2026-11-16T17:00:00Z",
   finishedAt: "2026-11-16T17:52:10Z",
   durationS: null,

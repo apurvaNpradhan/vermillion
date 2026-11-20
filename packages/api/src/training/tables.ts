@@ -416,6 +416,7 @@ export const exerciseSetting = pgTable(
     logEffort: boolean("log_effort").notNull().default(false),
     progressionPerSet: boolean("progression_per_set").notNull().default(false),
     autoWarmups: boolean("auto_warmups").notNull().default(false),
+    note: text("note"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -427,6 +428,10 @@ export const exerciseSetting = pgTable(
     uniqueIndex("exercise_setting_user_exercise_live_idx")
       .on(table.userId, table.exerciseId)
       .where(sql`${table.deletedAt} IS NULL`),
+    check(
+      "exercise_setting_note_length",
+      sql`char_length(${table.note}) <= ${raw(SESSION_LIMITS.noteMax)}`,
+    ),
   ],
 );
 

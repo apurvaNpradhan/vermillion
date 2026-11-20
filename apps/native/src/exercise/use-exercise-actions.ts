@@ -97,5 +97,19 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
-  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups };
+  /** The exercise's pinned note, shown under its name everywhere; empty clears it. */
+  const setPinnedNote = useCallback(
+    (id: string, note: string | null) =>
+      write((db) =>
+        setExerciseSetting(
+          db,
+          id,
+          { note: note === null || note.trim() === "" ? null : note },
+          writeScope,
+        ),
+      ),
+    [write, writeScope],
+  );
+
+  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups, setPinnedNote };
 }

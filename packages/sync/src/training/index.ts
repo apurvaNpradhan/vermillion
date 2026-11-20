@@ -84,6 +84,7 @@ export {
   watchExerciseBar,
   watchExerciseProgressionMode,
   watchExerciseAutoWarmups,
+  watchExerciseNote,
   watchExerciseHistory,
   watchExerciseHistories,
   watchProgram,
@@ -182,6 +183,7 @@ export {
   type EquipmentItem,
   type ExerciseSettingPatch,
 } from "./sessions/equipment-store";
+export { performAgain } from "./sessions/session-again-store";
 export { editFinishedSession, applySessionWorkout } from "./sessions/session-workout-store";
 
 export {

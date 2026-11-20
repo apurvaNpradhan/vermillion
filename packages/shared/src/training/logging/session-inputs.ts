@@ -205,5 +205,7 @@ export const exerciseSettingInput = z.strictObject({
   log_effort: z.boolean(),
   progression_per_set: z.boolean().default(false),
   auto_warmups: z.boolean().default(false),
+  /** The pinned note shown under the exercise name wherever it appears. */
+  note: note.default(null),
 });
 export type ExerciseSettingInput = z.infer<typeof exerciseSettingInput>;

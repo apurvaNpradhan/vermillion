@@ -1,0 +1,62 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b3e894b6-044b-4030-8b79-8b3a5fac9a43",
+  "prevIds": ["aa6f035f-9562-413e-9ba5-1ca8e5c2da6d"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise_setting", "note"],
+      "writes": [
+        "s|col|public.exercise_setting.note",
+        "n|col|public.exercise_setting.note",
+        "e|col|public.exercise_setting.note"
+      ],
+      "reads": ["n|tbl|public.exercise_setting", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "exercise_setting"],
+      "writes": [
+        "s|ck|public.exercise_setting.exercise_setting_note_length",
+        "n|ck|public.exercise_setting.exercise_setting_note_length",
+        "e|ck|public.exercise_setting.exercise_setting_note_length",
+        "n|con|public.exercise_setting.exercise_setting_note_length"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_setting",
+        "n|sch|public",
+        "n|col|public.exercise_setting.note"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "note",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "exercise_setting_note_length",
+        "value": "char_length(\"note\") <= 1000",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

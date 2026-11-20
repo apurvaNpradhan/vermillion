@@ -22,6 +22,7 @@ import {
   LinkBreak,
   NotePencil,
   Plus,
+  PushPin,
   Swap,
   Trash,
   WarningCircle,
@@ -127,6 +128,7 @@ function SessionBlank() {
 type Sheet =
   | { kind: "menu"; exercise: SessionExerciseDetail }
   | { kind: "note"; exercise: SessionExerciseDetail }
+  | { kind: "pinned"; exercise: SessionExerciseDetail }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
 
@@ -349,6 +351,16 @@ function LoadedSession({
           onPress: () => setSheet({ kind: "note", exercise: menuExercise }),
         },
         {
+          key: "pinned",
+          label: t(
+            menuExercise.pinnedNote === null
+              ? "session__pin_note_action"
+              : "session__edit_pinned_note_action",
+          ),
+          icon: PushPin,
+          onPress: () => setSheet({ kind: "pinned", exercise: menuExercise }),
+        },
+        {
           key: "effort",
           label: t(menuExercise.logEffort ? "session__effort_off" : "session__effort_on"),
           icon: Gauge,
@@ -385,6 +397,7 @@ function LoadedSession({
   const kindSet = sheet?.kind === "set-kind" ? logging.found.get(sheet.setId) : undefined;
   const effortSet = sheet?.kind === "effort" ? logging.found.get(sheet.setId) : undefined;
   const noteExercise = sheet?.kind === "note" ? sheet.exercise : null;
+  const pinnedExercise = sheet?.kind === "pinned" ? sheet.exercise : null;
 
   const accessory = useSessionKeypadAccessory(logging, unit);
 
@@ -485,6 +498,14 @@ function LoadedSession({
               </Button>
             </View>
           ) : null}
+          {session.workoutNote === null ? null : (
+            <View className="mx-4 mt-3 gap-0.5 rounded-xl bg-surface p-3">
+              <Text className="text-overline font-semibold uppercase text-muted">
+                {t("session__workout_note")}
+              </Text>
+              <Text className="text-body text-foreground">{session.workoutNote}</Text>
+            </View>
+          )}
           <View className="mt-3">
             <ReorderList
               items={session.exercises}
@@ -633,6 +654,20 @@ function LoadedSession({
         value={noteExercise?.note ?? null}
         onSave={(note) => {
           if (noteExercise) void actions.updateExercise(noteExercise.id, { note });
+        }}
+      />
+      <NoteSheet
+        isOpen={pinnedExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "pinned") closeSheet();
+        }}
+        title={pinnedExercise?.title ?? ""}
+        value={pinnedExercise?.pinnedNote ?? null}
+        label={t("session__pinned_exercise_note")}
+        hint={t("session__pinned_exercise_note_hint")}
+        placeholder={t("session__pinned_exercise_note_placeholder")}
+        onSave={(note) => {
+          if (pinnedExercise) void actions.setPinnedNote(pinnedExercise.exerciseId, note);
         }}
       />
       <SetTypeSheet

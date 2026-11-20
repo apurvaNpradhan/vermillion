@@ -195,6 +195,7 @@ export const exerciseSetting = sqliteTable(
       .notNull()
       .default(false),
     auto_warmups: integer("auto_warmups", { mode: "boolean" }).notNull().default(false),
+    note: text("note"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

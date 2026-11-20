@@ -3,6 +3,7 @@ import {
   discardSession,
   newSessionId,
   parseActiveSessions,
+  performAgain,
   restoreSession,
   startSession,
   type ActiveSession,
@@ -19,10 +20,12 @@ import { StartConflictSheet } from "./start-conflict-sheet";
 
 const NO_ACTIVE: ActiveSession[] = [];
 
-type Pending = { workoutId: string | null; active: ActiveSession[] };
+/** What a new Session is made from: a Workout (or nothing), or a finished Session to repeat. */
+type Source = { workoutId: string | null } | { againOf: string };
+type Pending = { source: Source; active: ActiveSession[] };
 
 /**
- * Starting a Session, from a Workout or empty. When one is already active the user is asked
+ * Starting a Session, from a Workout, empty, or as an exact copy of a finished one (Perform again). When one is already active the user is asked
  * whether to resume it or to discard it and start the new one (ADR 0038); nothing is discarded
  * without asking. Render `sheet` next to the screen that starts. A start is idempotent: it has
  * one id, so a double tap or a retry opens the same Session.
@@ -40,7 +43,7 @@ export function useStartSession() {
   );
 
   const begin = useCallback(
-    async (workoutId: string | null, discard: readonly ActiveSession[]) => {
+    async (source: Source, discard: readonly ActiveSession[]) => {
       if (starting.current) return;
       starting.current = true;
       try {
@@ -51,12 +54,17 @@ export function useStartSession() {
             const deleted = await discardSession(db, old.id, writeScope);
             if (deleted) removed.push(deleted);
           }
-          await startSession(
-            db,
-            { workoutId, derivedTitle: t("session__untitled") },
-            { id },
-            writeScope,
-          );
+          const derivedTitle = t("session__untitled");
+          if ("againOf" in source) {
+            await performAgain(db, source.againOf, derivedTitle, { id }, writeScope);
+          } else {
+            await startSession(
+              db,
+              { workoutId: source.workoutId, derivedTitle },
+              { id },
+              writeScope,
+            );
+          }
           return { id, removed };
         }, null);
         if (!result) return;
@@ -77,16 +85,22 @@ export function useStartSession() {
   );
 
   /** Starts a Session from `workoutId` (or empty), or asks first when one is active. */
-  const start = useCallback(
-    async (workoutId: string | null) => {
+  const startFrom = useCallback(
+    async (source: Source) => {
       const active = await write(
         async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
         NO_ACTIVE,
       );
-      if (active.length > 0) setPending({ workoutId, active });
-      else await begin(workoutId, []);
+      if (active.length > 0) setPending({ source, active });
+      else await begin(source, []);
     },
     [write, begin],
+  );
+  const start = useCallback((workoutId: string | null) => startFrom({ workoutId }), [startFrom]);
+  /** Starts a Session that repeats the finished Session `sessionId`, or asks first when one is active. */
+  const startAgain = useCallback(
+    (sessionId: string) => startFrom({ againOf: sessionId }),
+    [startFrom],
   );
 
   const sheet = (
@@ -103,10 +117,10 @@ export function useStartSession() {
       onDiscardAndStart={() => {
         const current = pending;
         setPending(null);
-        if (current) void begin(current.workoutId, current.active);
+        if (current) void begin(current.source, current.active);
       }}
     />
   );
 
-  return { start, sheet };
+  return { start, startAgain, sheet };
 }

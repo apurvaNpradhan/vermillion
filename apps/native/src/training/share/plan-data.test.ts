@@ -9,6 +9,7 @@ const entry = (id: string, group: string | null = null): WorkoutExerciseDetail =
   position: id,
   restSeconds: null,
   note: null,
+  pinnedNote: null,
   supersetGroup: group,
   sets: [{ kind: "working" }, { kind: "warmup" }],
   exercise: {
