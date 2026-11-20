@@ -22,6 +22,10 @@ The owner works through the review page. The lead reads the decisions back in ba
 - Copies each approved row's source PNG and MP4 from the source bucket to the exercise media bucket (`EXERCISE_MEDIA_S3_BUCKET`) under `exercises/v2/`:
   - thumbnail: PNG → WebP with `sharp` (a dev dependency of the scripts package), resized to the current thumbnails' pixel size (measure one existing thumbnail first), original background kept, under `EXERCISE_MEDIA_LIMITS.thumbnail.maxBytes`; plain variants preferred over `GREEN` ones;
   - video: copied as is if under `EXERCISE_MEDIA_LIMITS.video.maxBytes`, else listed for a decision.
+  - `_medium.png` exists in the source only for exercises with no video; it is that exercise's main
+    image. When an approved row has no video, also copy its medium PNG (converted to WebP at full
+    size, its own key under `exercises/v2/`) and keep it with the row; the small PNG still makes the
+    thumbnail. Rows with a video never use a medium PNG.
 - Idempotent (skips keys already present with the same size), resumable, prints a summary. Credentials for both buckets come from the environment at run time; none are committed.
 - Writes the new keys into `0002-expansion.json`.
 
