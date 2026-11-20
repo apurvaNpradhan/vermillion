@@ -9,6 +9,7 @@ import {
   weeklyMuscleVolume,
   type TargetMuscle,
   type WeekRange,
+  withWarmupsCounted,
 } from "@workspace/shared";
 import {
   watchExerciseMuscles,
@@ -58,7 +59,10 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null,
     ),
   );
   const volume = useMuscleLoads({
-    sessions: history.failed ? undefined : history.value,
+    sessions:
+      history.failed || history.value === undefined
+        ? undefined
+        : withWarmupsCounted(history.value, preferences.ui.countWarmups),
     week,
     weeks,
     program,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LoggedSet, SessionHistory } from "@workspace/shared";
-import { datedRecords, metricSeries, metricsFor, workingSetNumber } from "./numbers";
+import {
+  datedRecords,
+  metricSeries,
+  metricsFor,
+  recordsByYear,
+  recordYears,
+  workingSetNumber,
+} from "./numbers";
 const set: LoggedSet = {
   id: "set",
   exercise_id: "ex",
@@ -93,5 +100,35 @@ describe("workingSetNumber", () => {
       { kind: "myo" },
     ] as const;
     expect(sets.map((_, i) => workingSetNumber(sets, i))).toEqual([null, null, 1, null]);
+  });
+});
+
+describe("records by year", () => {
+  const history = [
+    session("old", [{ ...set, weight_kg: 100, reps: 5 }], "2025-06-10T10:00:00Z"),
+    session("new", [{ ...set, weight_kg: 80, reps: 8 }], "2026-03-01T10:00:00Z"),
+    session("other", [{ ...set, exercise_id: "else" }], "2024-01-01T10:00:00Z"),
+  ];
+
+  it("lists the years with a counted set of the exercise, newest first", () => {
+    expect(recordYears(history, "ex", "UTC")).toEqual([2026, 2025]);
+  });
+
+  it("scopes the best lifts to the year and keeps the all-time best beside them", () => {
+    const records = recordsByYear(history, "ex", null, 2026, "UTC");
+    const heaviest = records.find((record) => record.key === "heaviest_weight");
+    expect(heaviest).toEqual({
+      key: "heaviest_weight",
+      value: 80,
+      date: "2026-03-01T10:00:00Z",
+      allTime: 100,
+    });
+    expect(recordsByYear(history, "ex", null, 2024, "UTC")).toEqual([]);
+  });
+
+  it("buckets by the account's calendar day", () => {
+    const edge = [session("edge", [set], "2026-01-01T02:00:00Z")];
+    expect(recordYears(edge, "ex", "America/Los_Angeles")).toEqual([2025]);
+    expect(recordYears(edge, "ex", "UTC")).toEqual([2026]);
   });
 });

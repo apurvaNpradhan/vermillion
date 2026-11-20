@@ -2,7 +2,7 @@ import type { CardBackground, CardPalette } from "@workspace/ui/tokens/share-car
 import type { ReactNode } from "react";
 
 /** What a Share card is about. Each kind remembers its own choices on the device. */
-export const SHARE_KINDS = ["session", "workout", "program"] as const;
+export const SHARE_KINDS = ["session", "workout", "program", "report"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 
 /** The card's design units and final pixel dimensions; the capture frame is density-adjusted. */

@@ -8,6 +8,7 @@ import {
   fromZonedParts,
   sessionGoal,
   type WeekStart,
+  withWarmupsCounted,
 } from "@workspace/shared";
 import { watchFinishedHistory, watchRecordHistory, type FinishedSession } from "@workspace/sync";
 import { useCallback, useMemo } from "react";
@@ -47,7 +48,7 @@ export function useSessionHistory(
 ) {
   const { preferences } = usePreferences();
   const weight = useWeight();
-  const { bodyweightKg } = preferences.ui;
+  const { bodyweightKg, countWarmups } = preferences.ui;
   const from = window?.from;
   const to = window?.to;
   const subscribeRange = useCallback(
@@ -87,13 +88,18 @@ export function useSessionHistory(
     // once per account-local day.
     const lookup = bodyweightLookup(dailyWeights(entries), bodyweightKg);
     const byDay = new Map<number, number | null>();
-    return buildHistory(state.value ?? [], timezone, weekStart, (day) => {
-      if (byDay.has(day)) return byDay.get(day) ?? null;
-      const kg = lookup(new Date(day).toISOString().slice(0, 10));
-      byDay.set(day, kg);
-      return kg;
-    });
-  }, [state.value, entries, timezone, weekStart, bodyweightKg]);
+    return buildHistory(
+      withWarmupsCounted(state.value ?? [], countWarmups),
+      timezone,
+      weekStart,
+      (day) => {
+        if (byDay.has(day)) return byDay.get(day) ?? null;
+        const kg = lookup(new Date(day).toISOString().slice(0, 10));
+        byDay.set(day, kg);
+        return kg;
+      },
+    );
+  }, [state.value, entries, timezone, weekStart, bodyweightKg, countWarmups]);
 
   return {
     history,

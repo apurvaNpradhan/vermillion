@@ -1,3 +1,4 @@
+import { withWarmupsCounted } from "@workspace/shared";
 import { useWeight } from "@/body";
 import {
   watchSessionPage,
@@ -38,7 +39,9 @@ export function useHomeTraining(workoutId?: string, weeksAgo = 0) {
   const recent = useLocalWatch(subscribeRecent);
   const { preferences } = usePreferences();
   const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const sessions = weight.withBodyweight(history.value ?? []);
+  const sessions = weight.withBodyweight(
+    withWarmupsCounted(history.value ?? [], preferences.ui.countWarmups),
+  );
   return {
     sessions,
     /** The same Sessions as the watch returned them, for readers that need no bodyweight. */

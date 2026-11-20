@@ -1,4 +1,5 @@
 import {
+  calendarDay,
   exerciseRecords,
   inSessionOrder,
   isCounted,
@@ -70,4 +71,46 @@ export function datedRecords(
 export function workingSetNumber(sets: readonly { kind: SetKind }[], index: number): number | null {
   if (sets[index]?.kind !== "working") return null;
   return sets.slice(0, index + 1).filter((set) => set.kind === "working").length;
+}
+
+/** The calendar year of a Session in `timezone` (the device's zone when the account has none). */
+function sessionYear(startedAt: string, timezone: string | null): number {
+  const zone = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return new Date(calendarDay(startedAt, zone)).getUTCFullYear();
+}
+
+/** The years with a Session of this exercise, newest first. */
+export function recordYears(
+  sessions: readonly SessionHistory[],
+  exerciseId: string,
+  timezone: string | null,
+): number[] {
+  const years = new Set<number>();
+  for (const session of sessions) {
+    if (session.sets.some((set) => set.exercise_id === exerciseId && isCounted(set)))
+      years.add(sessionYear(session.started_at, timezone));
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
+ * The best of each record kind within one calendar year, next to the all-time best. A kind the
+ * year never set is absent; `date` is the Session that set that year's best. The all-time value
+ * is always at least the year's.
+ */
+export function recordsByYear(
+  sessions: readonly SessionHistory[],
+  exerciseId: string,
+  bodyweightKg: number | null,
+  year: number,
+  timezone: string | null,
+) {
+  const allTime = new Map(
+    datedRecords(sessions, exerciseId, bodyweightKg).map((record) => [record.key, record.value]),
+  );
+  const inYear = sessions.filter((session) => sessionYear(session.started_at, timezone) === year);
+  return datedRecords(inYear, exerciseId, bodyweightKg).map((record) => ({
+    ...record,
+    allTime: allTime.get(record.key) ?? record.value,
+  }));
 }

@@ -46,6 +46,8 @@ import { HistoryRow, WeekHeading } from "./history-rows";
 import { NumberFlow } from "@/platform/ui/number-flow";
 import { PeriodCard } from "@/platform/ui/period-card";
 import { useStartSession } from "@/session/lifecycle/use-start-session";
+
+import { reportKey } from "../report/report-period";
 import { useHistorySettings, useSessionHistory } from "./use-session-history";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
@@ -296,6 +298,24 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                     </PeriodCard>
                   </Animated.View>
                 )}
+                {ready &&
+                activeDay === null &&
+                count > 0 &&
+                (period === "month" || period === "year") ? (
+                  <Button
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/history/report/[key]",
+                        params: { key: reportKey({ kind: period, start }) },
+                      })
+                    }
+                  >
+                    <Button.Label>
+                      {t(period === "month" ? "report__open_month" : "report__open_year")}
+                    </Button.Label>
+                  </Button>
+                ) : null}
                 {ready && activeDay !== null ? (
                   <Animated.View
                     key={activeDay}
