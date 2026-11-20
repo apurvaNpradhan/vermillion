@@ -27,6 +27,10 @@ Share cards (ADR 0042, share slice 1) added `react-native-view-shot` (captures t
 no read access) and `expo-sharing` (the system share sheet), native stack revision 16: **rebuild the
 dev client** before running a build that includes them.
 
+History import (Settings, Import history) added `expo-document-picker` (the system file picker for the
+Strong or Hevy CSV), native stack revision 19: **rebuild the dev client** before running a build that
+includes it. It has no build script, so it needs no `allowBuilds` entry.
+
 ## Android emulator in T3 Code
 
 On Linux, install Android SDK Platform-Tools, Android Emulator and Command-line Tools (latest) in Android Studio's SDK Manager. Create a virtual device in Device Manager; `emulator -list-avds` should list it. T3 Code's live Android preview also needs `ffmpeg` with the `libx264` encoder on the machine running the emulator.
