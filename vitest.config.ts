@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // own `test` script through Turborepo once they have tests.
 export default defineConfig({
   test: {
-    include: ["scripts/**/*.test.mjs", "tools/**/*.test.ts"],
+    include: ["scripts/**/*.test.mjs", "scripts/**/*.test.ts", "tools/**/*.test.ts"],
     passWithNoTests: true,
   },
 });
