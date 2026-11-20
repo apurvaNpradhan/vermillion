@@ -56,7 +56,7 @@ export function distributeSets(
 
 /** One part of a group's volume: a detail, or `unspecified` for sets that name none. */
 export type DetailPart = { detail: MuscleDetail | "unspecified"; sets: number };
-export type DetailLoad = { muscle: MuscleGroup; parts: DetailPart[] };
+export type DetailLoad = { muscle: MuscleGroup; parts: readonly DetailPart[] };
 
 /**
  * The split of each group's sets across its details (ADR 0050): a set's 1 is divided equally over
