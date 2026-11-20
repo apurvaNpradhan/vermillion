@@ -4,18 +4,33 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { ShareComposer, type ShareTemplate, type ShareToggle } from "@/share";
 
+import type { PeriodReport } from "./period-report";
 import { ReportMusclesCard, ReportSummaryCard, type ReportToggleId } from "./report-cards";
 import { parseReportKey, type ReportPeriod } from "./report-period";
 import { buildReportView } from "./report-view";
 import { usePeriodReport } from "./use-period-report";
 import { useReportLabels } from "./use-report-labels";
+import { useReportShareSnapshot } from "./use-report-share-snapshot";
 
-function Status({ loading, onClose }: { loading: boolean; onClose: () => void }) {
+function Status({
+  loading,
+  onClose,
+  retry,
+}: {
+  loading: boolean;
+  onClose: () => void;
+  retry?: () => void;
+}) {
   const { t } = useTranslation();
   if (loading) return <View className="flex-1 bg-background" />;
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
       <Text className="text-center text-body text-muted">{t("session__load_failed")}</Text>
+      {retry ? (
+        <Button variant="secondary" onPress={retry}>
+          <Button.Label>{t("training__retry")}</Button.Label>
+        </Button>
+      ) : null}
       <Button variant="secondary" onPress={onClose}>
         <Button.Label>{t("share__close")}</Button.Label>
       </Button>
@@ -23,17 +38,14 @@ function Status({ loading, onClose }: { loading: boolean; onClose: () => void })
   );
 }
 
-function ReportShare({ period, onClose }: { period: ReportPeriod; onClose: () => void }) {
+function ReportShare({ report }: { report: PeriodReport }) {
   const { t } = useTranslation();
-  const state = usePeriodReport(period);
-  const { labels, title, kicker } = useReportLabels(period);
-  if (state.status !== "ready")
-    return <Status loading={state.status === "loading"} onClose={onClose} />;
+  const { labels, title, kicker } = useReportLabels(report.period);
   const data = {
     kicker,
     title,
-    view: buildReportView(state.report, labels),
-    shares: state.report.shares,
+    view: buildReportView(report, labels),
+    shares: report.shares,
   };
   const templates: ShareTemplate<ReportToggleId>[] = [
     {
@@ -42,7 +54,7 @@ function ReportShare({ period, onClose }: { period: ReportPeriod; onClose: () =>
       supportsTransparent: false,
       render: (context) => <ReportSummaryCard data={data} context={context} />,
     },
-    ...(state.report.shares.groups.length > 0
+    ...(report.shares.groups.length > 0
       ? [
           {
             id: "muscles",
@@ -66,12 +78,31 @@ function ReportShare({ period, onClose }: { period: ReportPeriod; onClose: () =>
   );
 }
 
-/** The Share composer for a month or year report (route `share/report/[id]`, id like `2026-10`). */
-export function ReportShareScreen({ id, onClose }: { id: string; onClose: () => void }) {
-  const period = parseReportKey(id);
-  return period ? (
-    <ReportShare period={period} onClose={onClose} />
-  ) : (
-    <Status loading={false} onClose={onClose} />
+function LoadReportShare({ period, onClose }: { period: ReportPeriod; onClose: () => void }) {
+  const state = usePeriodReport(period);
+  if (state.status === "ready") return <ReportShare report={state.report} />;
+  return (
+    <Status
+      loading={state.status === "loading"}
+      retry={state.status === "error" ? state.retry : undefined}
+      onClose={onClose}
+    />
   );
+}
+
+/** The Share composer for a month or year report (route `share/report/[id]`, id like `2026-10`). */
+export function ReportShareScreen({
+  id,
+  snapshot,
+  onClose,
+}: {
+  id: string;
+  snapshot?: string;
+  onClose: () => void;
+}) {
+  const { pending, report } = useReportShareSnapshot(id, snapshot);
+  if (report) return <ReportShare report={report} />;
+  const period = parseReportKey(id);
+  if (pending || !period) return <Status loading={pending} onClose={onClose} />;
+  return <LoadReportShare period={period} onClose={onClose} />;
 }

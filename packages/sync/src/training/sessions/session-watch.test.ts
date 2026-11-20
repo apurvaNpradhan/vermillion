@@ -392,10 +392,30 @@ describe("the History reader", () => {
     ).get(SQUAT);
     expect(previous).toHaveLength(500);
     expect(best(previous ?? [])).toBe(100);
-    const records = parseFinishedSessions(s.sqlite.prepare(exerciseRecordsSql(1)).all(SQUAT));
+    const records = parseFinishedSessions(
+      s.sqlite.prepare(exerciseRecordsSql()).all(JSON.stringify([SQUAT])),
+    );
     expect(records).toHaveLength(501);
     expect(best(records)).toBe(200);
     expect(await readRecordHistory(s.training, SQUAT)).toHaveLength(501);
+  });
+
+  it("can seed records with only the requested exercises before the report", async () => {
+    const s = await setupSessions();
+    const old = await finishedSquat(s, "2025-12-31T23:59:59.999Z", [100]);
+    await finishedSquat(s, "2026-01-01T00:00:00.000Z", [110]);
+    const [unrelated] = await addSessionExercises(s.training, old, [PLANK]);
+    const [plankSet] = s.sets(unrelated ?? "");
+    await tickSet(s.training, String(plankSet?.["id"]), { duration: 30 });
+
+    const exerciseIds = Array.from({ length: 1200 }, (_, index) => `ex-${index}`);
+    const earlier = parseFinishedSessions(
+      s.sqlite
+        .prepare(exerciseRecordsSql(true))
+        .all(JSON.stringify([...exerciseIds, SQUAT]), "2026-01-01T00:00:00.000Z"),
+    );
+    expect(earlier.map((row) => row.id)).toEqual([old]);
+    expect(earlier[0]?.sets.map((set) => set.exercise_id)).toEqual([SQUAT, SQUAT]);
   });
 
   it("keeps a range reader to its range", async () => {
@@ -497,7 +517,9 @@ it("pages beyond 500 Sessions and includes the oldest exercise best in Record co
         SELECT ?, user_id, ?, position, kind, weight_kg, reps, completed_at, created_at FROM session_set WHERE id = ?`)
         .run(`set-${i}`, `entry-${i}`, set);
     }
-    const history = parseFinishedSessions(s.sqlite.prepare(exerciseRecordsSql(1)).all(SQUAT));
+    const history = parseFinishedSessions(
+      s.sqlite.prepare(exerciseRecordsSql()).all(JSON.stringify([SQUAT])),
+    );
     expect(history).toHaveLength(503);
     expect(recordFlags(history).has(set)).toBe(false);
     let cursor = { startedAt: "9999", id: "~" };
