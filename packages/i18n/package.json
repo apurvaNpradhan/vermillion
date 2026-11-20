@@ -7,8 +7,8 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "build": "tsc -b",
-    "typecheck": "tsc -b",
+    "build": "tsc -b --force",
+    "typecheck": "tsc -b --force",
     "test": "vitest run"
   },
   "dependencies": {
