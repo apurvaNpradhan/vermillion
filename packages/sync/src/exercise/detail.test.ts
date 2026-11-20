@@ -9,6 +9,7 @@ type Seed = {
   primary: string;
   equipment: string;
   rank?: number;
+  details?: string[];
   retired?: string | null;
 };
 
@@ -27,11 +28,19 @@ function setup(rows: Seed[] = seeds) {
   const fake = createFakeDatabase();
   const insert = fake.sqlite.prepare(
     `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
-       exercise_type, is_full_bodyweight, rank, retired_at, created_at)
-     VALUES (?, NULL, ?, ?, '["triceps"]', ?, 'weight_reps', 0, ?, ?, 'now')`,
+       exercise_type, is_full_bodyweight, rank, retired_at, primary_detail, created_at)
+     VALUES (?, NULL, ?, ?, '["triceps"]', ?, 'weight_reps', 0, ?, ?, ?, 'now')`,
   );
   for (const s of rows) {
-    insert.run(s.id, s.title, s.primary, s.equipment, s.rank ?? 0, s.retired ?? null);
+    insert.run(
+      s.id,
+      s.title,
+      s.primary,
+      s.equipment,
+      s.rank ?? 0,
+      s.retired ?? null,
+      JSON.stringify(s.details ?? []),
+    );
   }
   return fake.sqlite;
 }
@@ -82,6 +91,71 @@ describe("swap candidates", () => {
         .prepare(sql)
         .all(...params),
     ).toHaveLength(8);
+  });
+});
+
+describe("swap candidates by muscle details", () => {
+  const shoulders: Seed[] = [
+    {
+      id: "lat-db",
+      title: "Dumbbell Lateral Raise",
+      primary: "shoulders",
+      equipment: "dumbbell",
+      rank: 10,
+      details: ["side_delts"],
+    },
+    {
+      id: "lat-cable",
+      title: "Cable Lateral Raise",
+      primary: "shoulders",
+      equipment: "cable",
+      rank: 5,
+      details: ["side_delts"],
+    },
+    {
+      id: "rear",
+      title: "Rear Delt Fly",
+      primary: "shoulders",
+      equipment: "machine",
+      rank: 90,
+      details: ["rear_delts"],
+    },
+    {
+      id: "press",
+      title: "Overhead Press",
+      primary: "shoulders",
+      equipment: "kettlebell",
+      rank: 80,
+      details: ["front_delts", "side_delts"],
+    },
+    { id: "plain", title: "Plain", primary: "shoulders", equipment: "other", rank: 95 },
+  ];
+  const order = (primaryDetail: ("side_delts" | "front_delts")[]) => {
+    const { sql, params } = swapCandidatesQuery({
+      id: "lat-bar",
+      primaryMuscle: "shoulders",
+      equipment: "barbell",
+      primaryDetail,
+    });
+    return setup(shoulders)
+      .prepare(sql)
+      .all(...params)
+      .map((row) => row["id"]);
+  };
+
+  it("ranks by shared primary details first, then rank", () => {
+    expect(order(["side_delts"])).toEqual(["press", "lat-db", "lat-cable", "plain", "rear"]);
+    expect(order(["side_delts", "front_delts"])).toEqual([
+      "press",
+      "lat-db",
+      "lat-cable",
+      "plain",
+      "rear",
+    ]);
+  });
+
+  it("keeps the rank order for an exercise without details", () => {
+    expect(order([])).toEqual(["plain", "rear", "press", "lat-db", "lat-cable"]);
   });
 });
 
