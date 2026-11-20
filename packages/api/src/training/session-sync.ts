@@ -240,6 +240,7 @@ const putSessionExercise = z.strictObject({
   superset_group: sessionExerciseInput.shape.superset_group.default(null),
   log_effort: wireBoolean.default(false),
   warmup_key: wireWarmupKey.optional(),
+  workout_swap_fragment: wireBoolean.nullable().optional(),
 });
 // An exercise never moves to another Session.
 const patchSessionExercise = z
@@ -247,6 +248,7 @@ const patchSessionExercise = z
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
     warmup_key: wireWarmupKey,
+    workout_swap_fragment: wireBoolean.nullable(),
   })
   .partial();
 
@@ -296,11 +298,15 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       const {
         restore,
         warmup_key: warmupKey,
+        workout_swap_fragment: workoutSwapFragment,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
-      const keyed = warmupKey === undefined ? {} : { warmupKey };
+      const extra = {
+        ...(warmupKey === undefined ? {} : { warmupKey }),
+        ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
+      };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
       if (!(await liveSession(db, userId, values.session_id))) parentMissing();
       await exerciseVisible(db, userId, values.exercise_id);
@@ -310,7 +316,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         assertRoom(live, 1, SESSION_LIMITS.exercisesPerSession, "SESSION_LIMIT_REACHED");
         await db
           .insert(sessionExercise)
-          .values({ id, userId, sessionId: values.session_id, ...columns(values), ...keyed });
+          .values({ id, userId, sessionId: values.session_id, ...columns(values), ...extra });
         return;
       }
       if (found.row.exerciseId !== values.exercise_id) {
@@ -323,15 +329,17 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       }
       await db
         .update(sessionExercise)
-        .set({ ...columns(values), ...keyed, updatedAt: now() })
+        .set({ ...columns(values), ...extra, updatedAt: now() })
         .where(eq(sessionExercise.id, id));
       return;
     }
 
     const row = liveRow(found);
-    const { warmup_key: warmupKey, ...patch } = accept(
-      patchSessionExercise.safeParse(op.opData ?? {}),
-    );
+    const {
+      warmup_key: warmupKey,
+      workout_swap_fragment: workoutSwapFragment,
+      ...patch
+    } = accept(patchSessionExercise.safeParse(op.opData ?? {}));
     const merged = accept(
       sessionExerciseInput.safeParse({
         session_id: row.sessionId,
@@ -356,6 +364,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       .set({
         ...columns(merged),
         ...(warmupKey === undefined ? {} : { warmupKey }),
+        ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
         updatedAt: now(),
       })
       .where(eq(sessionExercise.id, id));

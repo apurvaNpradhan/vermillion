@@ -1,10 +1,13 @@
+import { diffSessionAgainstWorkout } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { CURL, PLANK, SQUAT, pushWorkout, setupSessions, type Sessions } from "./session-fixtures";
-import { addSessionExercises, tickSet } from "./session-content-store";
+import { addSessionExercises, tickSet, updateSet } from "./session-content-store";
 import { replaceSessionExercise, swapTargets } from "./session-swap-store";
 import { finishSession, startSession } from "./session-store";
+import { applySessionWorkout } from "./session-workout-store";
+import { parseSessionDetail, SESSION_DETAIL_SQL } from "./session-watch";
 
 async function started(s: Sessions) {
   const plan = await pushWorkout(s);
@@ -13,6 +16,7 @@ async function started(s: Sessions) {
   const [warmup, work1, work2] = s.sets(squat ?? "").map((row) => String(row["id"]));
   return {
     id,
+    plan,
     squat: squat ?? "",
     plank: plank ?? "",
     warmup: warmup ?? "",
@@ -100,6 +104,18 @@ describe("replaceSessionExercise after sets were ticked", () => {
     });
   });
 
+  it("preserves the kind of an unticked set edited after the session started", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await tickSet(s.training, t.warmup, { weight: 40, reps: 10 });
+    await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
+    await updateSet(s.training, t.work2, { kind: "warmup" });
+
+    const swap = await replaceSessionExercise(s.training, t.squat, CURL);
+    expect(s.sets(swap?.id ?? "")[0]).toMatchObject({ kind: "warmup" });
+    expect(targetsOf(s, swap?.id ?? "")[0]).toMatchObject({ kind: "warmup" });
+  });
+
   it("re-types the remaining sets when the type differs and keeps the superset", async () => {
     const s = await setupSessions();
     const t = await started(s);
@@ -128,6 +144,13 @@ describe("replaceSessionExercise after sets were ticked", () => {
     await tickSet(s.training, first ?? "", { weight: 20, reps: 12 });
     await finishSession(s.training, past, {});
 
+    const warmups = await startSession(s.training, { workoutId: null, derivedTitle: "Warm-ups" });
+    const [warmupCurl] = await addSessionExercises(s.training, warmups, [CURL]);
+    const [warmup] = s.sets(warmupCurl ?? "").map((row) => String(row["id"]));
+    await updateSet(s.training, warmup ?? "", { kind: "warmup" });
+    await tickSet(s.training, warmup ?? "", { weight: 5, reps: 15 });
+    await finishSession(s.training, warmups, {});
+
     const t = await started(s);
     await tickSet(s.training, t.warmup, { weight: 40, reps: 10 });
     const swap = await replaceSessionExercise(s.training, t.squat, CURL);
@@ -147,6 +170,83 @@ describe("replaceSessionExercise after sets were ticked", () => {
     expect(s.sets(t.squat)).toHaveLength(3);
     expect(s.sets(swap?.id ?? "")).toHaveLength(3);
   });
+});
+
+describe("swap scope", () => {
+  it("refuses a workout swap when its source workout is gone", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    s.sqlite.prepare("DELETE FROM workout WHERE id = ?").run(t.plan.workoutId);
+
+    await expect(
+      replaceSessionExercise(s.training, t.squat, CURL, undefined, s.installId, "workout"),
+    ).rejects.toThrow();
+    expect(s.one("session_exercise", t.squat)).toMatchObject({ exercise_id: SQUAT });
+    expect(s.exercises(t.id)).toHaveLength(2);
+  });
+
+  it("rolls back the session swap when the workout write fails", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
+    s.sqlite.exec(`CREATE TRIGGER fail_workout_swap BEFORE UPDATE OF exercise_id ON workout_exercise
+      BEGIN SELECT RAISE(ABORT, 'workout write refused'); END`);
+
+    await expect(
+      replaceSessionExercise(s.training, t.squat, CURL, undefined, s.installId, "workout"),
+    ).rejects.toThrow("workout write refused");
+    expect(s.exercises(t.id)).toHaveLength(2);
+    expect(s.sets(t.squat)).toHaveLength(3);
+    expect(s.one("workout_exercise", t.plan.squat)).toMatchObject({ exercise_id: SQUAT });
+  });
+
+  it.each(["session", "workout"] as const)(
+    "keeps the completed fragment in history through finish with %s scope",
+    async (scope) => {
+      const s = await setupSessions();
+      const t = await started(s);
+      await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
+      const swap = await replaceSessionExercise(
+        s.training,
+        t.squat,
+        CURL,
+        undefined,
+        s.installId,
+        scope,
+      );
+      const replacement = s.sets(swap?.id ?? "")[1];
+      await tickSet(s.training, String(replacement?.["id"]), { weight: 20, reps: 8 });
+      await finishSession(s.training, t.id, {});
+
+      const detail = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(t.id));
+      expect(detail?.exercises.map((entry) => entry.exerciseId)).toEqual([SQUAT, CURL]);
+      const source = {
+        exercises: [
+          { id: t.plan.squat, exerciseId: scope === "workout" ? CURL : SQUAT, sets: [] },
+          { id: t.plan.plank, exerciseId: PLANK, sets: [] },
+        ],
+      };
+      if (!detail) throw new Error("Session missing after finish");
+      const diff = diffSessionAgainstWorkout(detail, source);
+      if (scope === "workout") {
+        expect(diff.structure).not.toContainEqual(expect.objectContaining({ exerciseId: SQUAT }));
+      } else {
+        expect(diff.structure).toContainEqual({ kind: "added", exerciseId: CURL });
+        expect(s.one("workout_exercise", t.plan.squat)).toMatchObject({ exercise_id: SQUAT });
+      }
+
+      await applySessionWorkout(s.training, t.id, {
+        structure: true,
+        targets: false,
+        saveNew: false,
+      });
+      const planned = s.all("workout_exercise").map((entry) => entry["exercise_id"]);
+      expect(planned.sort()).toEqual(
+        (scope === "workout" ? [CURL, PLANK] : [SQUAT, CURL, PLANK]).sort(),
+      );
+      expect(s.one("session_set", t.work1)).toMatchObject({ weight_kg: 100, reps: 5 });
+    },
+  );
 });
 
 describe("swapTargets", () => {

@@ -6,8 +6,9 @@ import {
   type ExerciseType,
   type PlannedSet,
 } from "@workspace/shared";
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, ne } from "drizzle-orm";
 
+import { replaceWorkoutExerciseIn } from "../plans/exercise-store";
 import { keysBetween } from "../position";
 import {
   DEFAULT_PREFERENCES,
@@ -16,8 +17,9 @@ import {
   write,
   type TrainingDatabase,
   type TrainingPreferences,
+  type Tx,
 } from "../store-common";
-import { session, sessionExercise, sessionSet } from "../tables";
+import { session, sessionExercise, sessionSet, workout, workoutExercise } from "../tables";
 import {
   assertSessionRoom,
   exerciseInfoOf,
@@ -26,6 +28,7 @@ import {
   repairSessionSupersets,
   requireSessionExercise,
   sessionExerciseListOf,
+  type SessionExerciseRow,
 } from "./session-common";
 import { insertDefaultSets, restFor } from "./session-content-store";
 import { plannedFromLogged } from "./session-again-store";
@@ -86,6 +89,23 @@ export function swapTargets(input: {
   return valid.success && valid.data.length > 0 ? valid.data : fallback;
 }
 
+async function requireWorkoutSource(tx: Tx, entry: SessionExerciseRow) {
+  const [source] = await tx
+    .select({ id: workoutExercise.id, exercise_id: workoutExercise.exercise_id })
+    .from(workoutExercise)
+    .innerJoin(workout, eq(workout.id, workoutExercise.workout_id))
+    .innerJoin(session, eq(session.workout_id, workout.id))
+    .where(
+      and(
+        eq(session.id, entry.session_id),
+        eq(workoutExercise.id, entry.source_workout_exercise_id ?? ""),
+      ),
+    )
+    .limit(1);
+  if (!source) throw new Error("The source workout exercise is gone");
+  return source;
+}
+
 /**
  * Swaps the exercise of a Session exercise. With no completed set it changes the row in place:
  * the same type keeps its sets, rest and note; another type drops the sets for that type's
@@ -100,11 +120,13 @@ export function replaceSessionExercise(
   exerciseId: string,
   preferences: TrainingPreferences = DEFAULT_PREFERENCES,
   expectedInstallId?: string,
+  scope: "session" | "workout" = "session",
 ): Promise<SessionSwap | null> {
   return write(database, expectedInstallId, async (tx) => {
     const userId = await ownerOf(tx);
     const current = await requireSessionExercise(tx, id);
     if (current.exercise_id === exerciseId) return null;
+    const source = scope === "workout" ? await requireWorkoutSource(tx, current) : null;
     const after = await exerciseInfoOf(tx, exerciseId);
     const kept = current.exercise_type === after.exercise_type;
     const sets = await tx
@@ -128,6 +150,7 @@ export function replaceSessionExercise(
         await tx.delete(sessionSet).where(eq(sessionSet.session_exercise_id, id));
         await insertDefaultSets(tx, userId, id, defaultPlannedSets(after.exercise_type));
       }
+      if (source) await replaceWorkoutExerciseIn(tx, source, exerciseId, preferences);
       return { id, split: false };
     }
 
@@ -148,9 +171,15 @@ export function replaceSessionExercise(
           eq(sessionExercise.exercise_id, exerciseId),
           isNotNull(session.finished_at),
           isNotNull(sessionSet.completed_at),
+          ne(sessionSet.kind, "warmup"),
         ),
       )
-      .orderBy(desc(session.started_at), desc(session.id))
+      .orderBy(
+        desc(session.started_at),
+        desc(session.id),
+        asc(sessionExercise.position),
+        asc(sessionExercise.id),
+      )
       .limit(1);
     const baseline = latest
       ? (
@@ -170,7 +199,7 @@ export function replaceSessionExercise(
       todo.length === 0
         ? defaultPlannedSets(after.exercise_type)
         : swapTargets({
-            old: todo.map((set) => set.target ?? { kind: set.kind }),
+            old: todo.map((set) => ({ ...set.target, kind: set.kind })),
             sameType: kept,
             type: after.exercise_type,
             baseline,
@@ -185,7 +214,7 @@ export function replaceSessionExercise(
       exercise_id: exerciseId,
       exercise_title: after.title,
       exercise_type: after.exercise_type,
-      source_workout_exercise_id: null,
+      source_workout_exercise_id: source?.id ?? null,
       position: position ?? current.position,
       // In a superset only the last member rests, and the new one is now after the original.
       rest_seconds: grouped || kept ? current.rest_seconds : restFor(after, preferences),
@@ -194,15 +223,19 @@ export function replaceSessionExercise(
       log_effort: current.log_effort,
       created_at: nowIso(),
     });
-    if (grouped) {
+    if (grouped || source) {
       await tx
         .update(sessionExercise)
-        .set({ rest_seconds: null })
+        .set({
+          ...(grouped ? { rest_seconds: null } : {}),
+          ...(source ? { source_workout_exercise_id: null, workout_swap_fragment: true } : {}),
+        })
         .where(eq(sessionExercise.id, id));
     }
     for (const set of todo) await tx.delete(sessionSet).where(eq(sessionSet.id, set.id));
     await insertDefaultSets(tx, userId, newId, targets);
     await repairSessionSupersets(tx, current.session_id);
+    if (source) await replaceWorkoutExerciseIn(tx, source, exerciseId, preferences);
     return { id: newId, split: true };
   });
 }

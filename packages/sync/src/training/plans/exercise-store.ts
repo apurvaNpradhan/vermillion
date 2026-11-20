@@ -203,15 +203,26 @@ export function replaceExercise(
       .where(eq(workoutExercise.id, id))
       .limit(1);
     if (!current || current.exercise_id === exerciseId) return false;
-    const before = await exerciseTypeOf(tx, current.exercise_id);
-    const after = await exerciseTypeOf(tx, exerciseId);
-    const kept = before.exercise_type === after.exercise_type;
-    await tx
-      .update(workoutExercise)
-      .set({ exercise_id: exerciseId, ...(kept ? {} : defaultsFor(after, preferences)) })
-      .where(eq(workoutExercise.id, id));
+    await replaceWorkoutExerciseIn(tx, current, exerciseId, preferences);
     return true;
   });
+}
+
+/** The replacement write shared by the Workout editor and the scoped Session swap. */
+export async function replaceWorkoutExerciseIn(
+  tx: Tx,
+  current: Pick<WorkoutExerciseRow, "id" | "exercise_id">,
+  exerciseId: string,
+  preferences: TrainingPreferences,
+) {
+  if (current.exercise_id === exerciseId) return;
+  const before = await exerciseTypeOf(tx, current.exercise_id);
+  const after = await exerciseTypeOf(tx, exerciseId);
+  const kept = before.exercise_type === after.exercise_type;
+  await tx
+    .update(workoutExercise)
+    .set({ exercise_id: exerciseId, ...(kept ? {} : defaultsFor(after, preferences)) })
+    .where(eq(workoutExercise.id, current.id));
 }
 
 /** Removes an exercise from its Workout. */

@@ -138,6 +138,7 @@ export type SessionExerciseDetail = {
   title: string;
   type: ExerciseType;
   sourceWorkoutExerciseId: string | null;
+  workoutSwapFragment?: boolean;
   position: string;
   restSeconds: number | null;
   note: string | null;
@@ -196,7 +197,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
+    se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
@@ -250,6 +251,7 @@ const detailRowSchema = z.object({
   exercise_title: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   source_workout_exercise_id: z.string().nullable(),
+  workout_swap_fragment: flag.nullable(),
   exercise_position: z.string().nullable(),
   rest_seconds: z.number().nullable(),
   exercise_note: z.string().nullable(),
@@ -310,6 +312,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         title: row.exercise_title,
         type: row.exercise_type,
         sourceWorkoutExerciseId: row.source_workout_exercise_id,
+        workoutSwapFragment: row.workout_swap_fragment === true,
         position: row.exercise_position,
         restSeconds: row.rest_seconds,
         note: row.exercise_note,

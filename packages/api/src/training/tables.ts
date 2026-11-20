@@ -270,6 +270,8 @@ export const sessionExercise = pgTable(
     exerciseTitle: text("exercise_title").notNull(),
     exerciseType: text("exercise_type").notNull(),
     sourceWorkoutExerciseId: uuid("source_workout_exercise_id"),
+    /** Completed history left by a swap that already updated the source Workout. */
+    workoutSwapFragment: boolean("workout_swap_fragment"),
     position: text("position").notNull(),
     /** Seconds; null means rest is off. */
     restSeconds: smallint("rest_seconds"),

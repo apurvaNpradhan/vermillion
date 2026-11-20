@@ -152,6 +152,7 @@ export function applySessionWorkout(
       stored.push({
         exerciseId: entry.exercise_id,
         sourceWorkoutExerciseId: entry.source_workout_exercise_id,
+        workoutSwapFragment: entry.workout_swap_fragment === true,
         restSeconds: entry.rest_seconds,
         note: entry.note,
         supersetGroup: entry.superset_group,
@@ -188,7 +189,10 @@ export function applySessionWorkout(
       completeStructure,
     );
     if (options.structure || !source) {
-      const logged = workoutUpdateEntries(realEntries, completeStructure);
+      const logged = workoutUpdateEntries(
+        source ? realEntries.filter((entry) => !entry.workoutSwapFragment) : realEntries,
+        completeStructure,
+      );
       const retained = planned.filter(
         (old) =>
           !completeStructure && !logged.some((entry) => entry.sourceWorkoutExerciseId === old.id),

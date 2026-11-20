@@ -905,6 +905,35 @@ describe("session upload handlers", () => {
     });
   });
 
+  it("rolls back a session swap when the workout side of its upload is rejected", async () => {
+    const me = await writer("workout-swap-rollback@example.com");
+    const workout = uuidv7();
+    const missingWorkoutExercise = uuidv7();
+    const session = uuidv7();
+    const entry = uuidv7();
+    expect(
+      await me.send([
+        op("PUT", "workout", workout, { title: "Legs" }),
+        putSession(session, { workout_id: workout }),
+        putExercise(entry, session, weightReps, {
+          source_workout_exercise_id: missingWorkoutExercise,
+        }),
+      ]),
+    ).toEqual(applied);
+
+    expect(
+      await me.send([
+        op("PATCH", "session_exercise", entry, {
+          exercise_id: duration,
+          exercise_type: "duration",
+          exercise_title: "Plank",
+        }),
+        op("PATCH", "workout_exercise", missingWorkoutExercise, { exercise_id: duration }),
+      ]),
+    ).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await stored("session_exercise", entry)).toMatchObject({ exercise_id: weightReps });
+  });
+
   it("enforces 40 exercises per Session and 20 sets per exercise, also on restore", async () => {
     const me = await writer("session-limits@example.com");
     const sessionId = uuidv7();
