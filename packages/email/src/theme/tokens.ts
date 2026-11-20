@@ -31,7 +31,7 @@ export const darkColors = {
   onAction: dark["on-action"],
 } as const;
 
-/** Inter where installed, then the platform UI font. */
+/** Geist where installed, then the platform UI font. */
 export const fontFamily = `${brandTokens.fonts.sans}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial`;
 export const monoFamily = brandTokens.fonts.mono;
 

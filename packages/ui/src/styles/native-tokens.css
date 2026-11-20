@@ -1362,10 +1362,12 @@
 }
 
 @theme {
-  --font-normal: "Inter_400Regular";
-  --font-medium: "Inter_500Medium";
-  --font-semibold: "Inter_600SemiBold";
-  --font-bold: "Inter_700Bold";
+  --font-normal: "Geist_400Regular";
+  --font-medium: "Geist_500Medium";
+  --font-semibold: "Geist_600SemiBold";
+  --font-bold: "Geist_700Bold";
+  --font-mono: "GeistMono_400Regular";
+  --font-mono-medium: "GeistMono_500Medium";
   --text-title-display: 2.625rem;
   --text-title-display--line-height: 3rem;
   --text-title-display--letter-spacing: -1px;
