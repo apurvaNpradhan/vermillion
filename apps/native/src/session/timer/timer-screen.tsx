@@ -254,8 +254,8 @@ function LoadedTimer({
     [session, ghostsFor, now],
   );
   const stats = useMemo(
-    () => sessionStats({ session, bodyweightKg, now }),
-    [session, bodyweightKg, now],
+    () => sessionStats({ session, bodyweightKg, now, countWarmups: preferences.ui.countWarmups }),
+    [session, bodyweightKg, now, preferences.ui.countWarmups],
   );
 
   // Typing in the keypad shows at once; the saved set trails it while writes are coalesced.

@@ -1,9 +1,12 @@
 import {
+  DEFAULT_WARMUP_STEPS,
   hasWarmupRamp,
   type Equipment,
   warmupRamp,
   type PlannedSet,
   type WarmupLoading,
+  type WarmupRounding,
+  type WarmupStep,
   type WeightUnit,
 } from "@workspace/shared";
 import type { EquipmentRow, SessionExerciseDetail } from "@workspace/sync";
@@ -28,6 +31,13 @@ export function firstWorkingWeightKg(
   if (!set) return null;
   return set.weightKg ?? ghostWeightOf(set.id);
 }
+
+/** The adjustable part of the ramp (Settings > Workout settings > Warm-up calculator). */
+export type WarmupSettings = { steps: readonly WarmupStep[]; rounding: WarmupRounding };
+
+const settingsText = (settings: WarmupSettings) =>
+  `${settings.rounding}:${settings.steps.map((step) => `${step.percent}x${step.reps}`).join(",")}`;
+const DEFAULT_SETTINGS_TEXT = settingsText({ steps: DEFAULT_WARMUP_STEPS, rounding: "equipment" });
 
 /** What can be loaded, with a key that changes only when what the ramp uses does. */
 type WarmupLoadingKey = { loading: WarmupLoading; key: string };
@@ -65,8 +75,11 @@ export function rampTargets(
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
+  settings?: WarmupSettings,
 ): PlannedSet[] {
   return warmupRamp({
+    steps: settings?.steps,
+    rounding: settings?.rounding,
     workingKg,
     exerciseType: exercise.type,
     equipment: equipmentOf(exercise),
@@ -112,6 +125,11 @@ export function rampKey(
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
+  settings?: WarmupSettings,
 ): string {
-  return `${workingKg}|${exercise.type}|${unit}|${warmupLoading(exercise, rows, unit, weightIncrementKg).key}`;
+  const loading = warmupLoading(exercise, rows, unit, weightIncrementKg).key;
+  const base = `${workingKg}|${exercise.type}|${unit}|${loading}`;
+  // The default ramp keeps its old key, so no stored ramp is rebuilt by this setting existing.
+  const text = settings ? settingsText(settings) : DEFAULT_SETTINGS_TEXT;
+  return text === DEFAULT_SETTINGS_TEXT ? base : `${base}|${text}`;
 }

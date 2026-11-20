@@ -189,6 +189,8 @@ export {
   watchSession,
   watchSessionsBetween,
   watchSessionSetCounts,
+  readSessionExportRows,
+  SESSION_EXPORT_SQL,
   watchSessionPage,
   watchFinishedHistory,
   watchRecordHistory,

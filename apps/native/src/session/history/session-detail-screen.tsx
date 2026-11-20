@@ -51,7 +51,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const totals = sessionTotals(
-    session ? loggedSetsOf(session) : [],
+    session ? loggedSetsOf(session, preferences.ui.countWarmups) : [],
     weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
   );
   const flags = recordFlags(
@@ -59,6 +59,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
     weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
   );
   const unit = preferences.ui.weightUnit;
+  const display = {
+    durationFormat: preferences.ui.durationFormat,
+    distanceUnit: preferences.ui.distanceUnit,
+  };
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const openShare = () =>
     router.push({ pathname: "/share/[kind]/[id]", params: { kind: "session", id } });
@@ -160,7 +164,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
               <MuscleDistribution
                 preview
                 split
-                sets={loggedSetsOf(session)}
+                sets={loggedSetsOf(session, preferences.ui.countWarmups)}
                 exercises={session.exercises.flatMap((entry) =>
                   entry.exercise
                     ? [
@@ -194,7 +198,13 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     marker: chips[index] ?? String(index + 1),
                     kind: set.kind,
                     cells: [
-                      doneSummary([{ ...set, kind: "working" }], entry.type, unit, unitLabel),
+                      doneSummary(
+                        [{ ...set, kind: "working" }],
+                        entry.type,
+                        unit,
+                        unitLabel,
+                        display,
+                      ),
                       set.rpe === null
                         ? ""
                         : t("session__effort_value", {

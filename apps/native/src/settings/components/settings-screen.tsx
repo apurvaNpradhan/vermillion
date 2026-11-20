@@ -2,8 +2,15 @@ import { AvatarPicker } from "@/account";
 import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
-import { SignOut, Trash } from "phosphor-react-native";
-import { Text, View } from "react-native";
+import {
+  Barbell,
+  ChatCircleText,
+  DownloadSimple,
+  Info,
+  SignOut,
+  Trash,
+} from "phosphor-react-native";
+import { Linking, View } from "react-native";
 
 import { useSignOut } from "@/auth";
 import { useIsOnline } from "@/platform/network";
@@ -14,14 +21,15 @@ import { FormError } from "@/platform/ui/form-error";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 import { PreferenceRows } from "@/preferences";
-import { useSessionSettings } from "@/session";
 import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
+import { useExportData } from "../export-data";
+
 /**
- * Settings as grouped rows: the profile picture, then Appearance, Training, Body and Account, and
- * the app version. Rows that open picker sheets show their current value; switches sit with the
- * training settings they belong to.
+ * Settings as grouped rows: the profile picture, Preferences (appearance, language, time zone,
+ * units), Workouts (a pushed page of its own), Body, Help, Data and Account. Rows that open picker
+ * sheets show their current value.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
@@ -29,16 +37,13 @@ export function SettingsScreen() {
   const signOut = useSignOut();
   const online = useIsOnline();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
-  const sessionSettings = useSessionSettings();
   const reminders = useBodyReminderRows();
-  const training = useTrainingPreferenceRows({
-    extraRows: [...sessionSettings.rows, ...sessionSettings.soundRows],
-  });
+  const training = useTrainingPreferenceRows();
+  const exportData = useExportData();
 
   return (
     <>
       <ConfirmationDialog {...confirmationProps} />
-      {sessionSettings.sheets}
       {training.sheets}
       {reminders.editor}
       <ScrollPage title={t("settings__title")}>
@@ -46,8 +51,15 @@ export function SettingsScreen() {
         <View>
           <SyncBanner />
         </View>
-        <PreferenceRows />
-        {training.section}
+        <PreferenceRows>{training.rows.unit}</PreferenceRows>
+        <ListSection title={t("settings__workouts_title")}>
+          <ListRow
+            icon={Barbell}
+            title={t("settings__workouts_screen")}
+            description={t("settings__workouts_hint")}
+            onPress={() => router.push("/settings/workouts")}
+          />
+        </ListSection>
         <ListSection title={t("settings__section_body")}>
           <WeightPreferenceRow />
           <HidePhotosRow />
@@ -56,6 +68,39 @@ export function SettingsScreen() {
             onPress={() => router.push("/settings/tracked-metrics")}
           />
           {reminders.rows}
+        </ListSection>
+        <ListSection title={t("settings__section_help")}>
+          <ListRow
+            icon={ChatCircleText}
+            title={t("settings__feedback")}
+            accessory="none"
+            onPress={() =>
+              void Linking.openURL(
+                `mailto:${appConfig.supportEmail}?subject=${encodeURIComponent(
+                  t("settings__feedback_subject", { name: appConfig.displayName }),
+                )}`,
+              )
+            }
+          />
+          <ListRow
+            icon={Info}
+            title={t("settings__about")}
+            accessory="none"
+            value={t("settings__version", {
+              name: appConfig.displayName,
+              version: appConfig.version,
+            })}
+          />
+        </ListSection>
+        <ListSection title={t("settings__section_data")}>
+          <ListRow
+            icon={DownloadSimple}
+            title={t("settings__export_title")}
+            description={t("settings__export_hint")}
+            accessory="none"
+            disabled={!exportData.ready || exportData.pending}
+            onPress={() => void exportData.run()}
+          />
         </ListSection>
         {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
         <ListSection title={t("settings__section_account")}>
@@ -76,9 +121,6 @@ export function SettingsScreen() {
             onPress={() => router.push("/settings/delete-account")}
           />
         </ListSection>
-        <Text className="text-center text-caption text-muted">
-          {t("settings__version", { name: appConfig.displayName, version: appConfig.version })}
-        </Text>
       </ScrollPage>
     </>
   );

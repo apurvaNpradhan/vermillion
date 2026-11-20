@@ -10,6 +10,7 @@ import {
   rampKey,
   rampTargets,
   shouldAutoWarmup,
+  type WarmupSettings,
 } from "./warmup-plan";
 
 type Actions = Pick<ReturnType<typeof useSessionActions>, "replaceWarmups">;
@@ -35,6 +36,7 @@ export function useAutoWarmups({
   historyReady,
   unit,
   weightIncrementKg,
+  warmupSettings,
   readOnly,
   actions,
   editsPending,
@@ -45,6 +47,7 @@ export function useAutoWarmups({
   historyReady: boolean;
   unit: WeightUnit;
   weightIncrementKg: number | null;
+  warmupSettings: WarmupSettings;
   readOnly: boolean;
   actions: Actions;
   editsPending: () => boolean;
@@ -65,7 +68,7 @@ export function useAutoWarmups({
       if (!shouldAutoWarmup(exercise)) continue;
       const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
       if (workingKg === null) continue;
-      const key = rampKey(workingKg, exercise, rows, unit, weightIncrementKg);
+      const key = rampKey(workingKg, exercise, rows, unit, weightIncrementKg, warmupSettings);
       if (exercise.warmupKey === key) continue;
       if (editsPending()) {
         flushEdits();
@@ -78,7 +81,7 @@ export function useAutoWarmups({
       asked.current.add(asking);
       void replaceWarmups(
         exercise.id,
-        rampTargets(exercise, workingKg, rows, unit, weightIncrementKg),
+        rampTargets(exercise, workingKg, rows, unit, weightIncrementKg, warmupSettings),
         { key, auto: true },
       ).finally(() => asked.current.delete(asking));
     }
@@ -94,6 +97,7 @@ export function useAutoWarmups({
     rows,
     unit,
     weightIncrementKg,
+    warmupSettings,
     replaceWarmups,
     editsPending,
     flushEdits,
@@ -108,16 +112,16 @@ export function useAutoWarmups({
         : null;
       const ramp =
         workingKg !== null && workingKg > 0
-          ? rampTargets(exercise, workingKg, rows, unit, weightIncrementKg)
+          ? rampTargets(exercise, workingKg, rows, unit, weightIncrementKg, warmupSettings)
           : [];
       if (ramp.length === 0 || workingKg === null) return "none";
       // The user asked for this ramp: storing its key keeps the automatic one from redoing it.
       await replaceWarmups(exercise.id, ramp, {
-        key: rampKey(workingKg, exercise, rows, unit, weightIncrementKg),
+        key: rampKey(workingKg, exercise, rows, unit, weightIncrementKg, warmupSettings),
       });
       return "added";
     },
-    [ghostWeightOf, rows, unit, weightIncrementKg, replaceWarmups],
+    [ghostWeightOf, rows, unit, weightIncrementKg, warmupSettings, replaceWarmups],
   );
 
   return { addWarmups };

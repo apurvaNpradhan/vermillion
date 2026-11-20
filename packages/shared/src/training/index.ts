@@ -11,6 +11,7 @@ export * from "./logging/ghost-for";
 export * from "./logging/history-for-workout";
 export * from "./logging/tick-values";
 export * from "./logging/warmup-ramp";
+export * from "./export/sessions-csv";
 export * from "./volume/volume";
 export * from "./progress/records";
 export * from "./volume/muscle-distribution";

@@ -5,6 +5,8 @@ import {
   patchFor,
   valueOfSet,
   formatCell,
+  formatDistance,
+  formatDuration,
   ghostsOf,
   loggedSetsOf,
   ordinalOf,
@@ -217,4 +219,23 @@ it("uses progression before Previous for ghosts, retaining effort and other ADR 
       { weightKg: 82.5, reps: 8 },
     ),
   ).toEqual({ weight: 80, reps: 12 });
+});
+
+describe("duration and distance display units", () => {
+  it("shows a duration as a clock or as seconds", () => {
+    expect(formatDuration(90, "clock")).toBe("1:30");
+    expect(formatDuration(90, "seconds")).toBe("90 s");
+  });
+  it("shows a distance in metres, kilometres or miles", () => {
+    expect(formatDistance(1500, "m")).toBe("1500");
+    expect(formatDistance(1500, "km")).toBe("1.5 km");
+    expect(formatDistance(1609.344, "mi")).toBe("1 mi");
+  });
+  it("keeps the old text without display units", () => {
+    expect(formatCell("duration", 90, "kg")).toBe("1:30");
+    expect(formatCell("distance", 400, "kg")).toBe("400");
+    expect(
+      formatCell("duration", 90, "kg", undefined, { durationFormat: "seconds", distanceUnit: "m" }),
+    ).toBe("90 s");
+  });
 });

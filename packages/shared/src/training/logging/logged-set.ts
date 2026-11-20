@@ -9,6 +9,11 @@ export type SetValues = { [Key in keyof ActualValues]?: number | null };
 export type LoggedSet = SetValues & {
   /** Computed on read from the weight log on this Session’s local date. */
   bodyweight_kg?: number | null;
+  /**
+   * Set by the user's "Count warm-up sets" setting on the sets a stat reads: a warm-up with it
+   * counts like a working set. Absent (the default) leaves warm-ups out of every number.
+   */
+  warmup_counted?: boolean;
   id: string;
   exercise_id: string;
   exercise_type: ExerciseType;
@@ -24,9 +29,26 @@ export type SessionHistory = {
   sets: readonly LoggedSet[];
 };
 
-/** A Counted set: ticked, and not a warm-up. Everything numeric uses only these. */
+/**
+ * A Counted set: ticked, and not a warm-up (unless the set carries `warmup_counted`).
+ * Everything numeric uses only these.
+ */
 export function isCounted(set: LoggedSet): boolean {
-  return set.completed_at !== null && set.kind !== "warmup";
+  return set.completed_at !== null && (set.kind !== "warmup" || set.warmup_counted === true);
+}
+
+/** Marks every warm-up of `sessions` as counted (or not), for the stats that read them. */
+export function withWarmupsCounted<Session extends { sets: readonly LoggedSet[] }>(
+  sessions: readonly Session[],
+  counted: boolean,
+): Session[] {
+  if (!counted) return [...sessions];
+  return sessions.map((session) => ({
+    ...session,
+    sets: session.sets.map((set) =>
+      set.kind === "warmup" ? { ...set, warmup_counted: true } : set,
+    ),
+  }));
 }
 
 /** Oldest first: by start time, then id, so two Sessions with one start still have an order. */

@@ -230,9 +230,13 @@ function LoadedSession({
     refreshDerivedTitle,
   ]);
 
+  const display = {
+    durationFormat: preferences.ui.durationFormat,
+    distanceUnit: preferences.ui.distanceUnit,
+  };
   const totals = useMemo(
-    () => sessionTotals(loggedSetsOf(session), bodyweightKg),
-    [session, bodyweightKg],
+    () => sessionTotals(loggedSetsOf(session, preferences.ui.countWarmups), bodyweightKg),
+    [session, bodyweightKg, preferences.ui.countWarmups],
   );
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const volume = `${formatVolume(totals.volume, unit, i18n.language)} ${unitName}`;
@@ -431,7 +435,7 @@ function LoadedSession({
       >
         <ScrollView>
           <MuscleDistribution
-            sets={loggedSetsOf(session)}
+            sets={loggedSetsOf(session, preferences.ui.countWarmups)}
             exercises={session.exercises.flatMap((entry) =>
               entry.exercise
                 ? [
@@ -507,7 +511,7 @@ function LoadedSession({
                     progress={progressText(entry.sets)}
                     summary={
                       allTicked(entry.sets)
-                        ? doneSummary(entry.sets, entry.type, unit, unitName)
+                        ? doneSummary(entry.sets, entry.type, unit, unitName, display)
                         : ""
                     }
                     showAddSet={

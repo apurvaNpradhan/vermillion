@@ -1,7 +1,7 @@
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
 import { getCalendars } from "expo-localization";
 import { Globe, Palette, Translate } from "phosphor-react-native";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
@@ -17,10 +17,11 @@ const DEVICE = "device";
 type Picker = "appearance" | "language" | "timezone" | null;
 
 /**
- * The Appearance section: appearance, language and time zone as settings rows. Each shows its
- * current value and opens a sheet; account settings go through the one preferences hook.
+ * The Preferences section: appearance, language and time zone as settings rows, then any rows
+ * passed in (Units). Each shows its current value and opens a sheet; account settings go through
+ * the one preferences hook.
  */
-export function PreferenceRows() {
+export function PreferenceRows({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   const { preferences, setLocale, setTimezone } = usePreferences();
   const { choice } = useThemeChoice();
@@ -46,7 +47,7 @@ export function PreferenceRows() {
 
   return (
     <>
-      <ListSection title={t("settings__appearance_title")}>
+      <ListSection title={t("settings__preferences_title")}>
         <ListRow
           icon={Palette}
           title={t("settings__appearance_title")}
@@ -68,6 +69,7 @@ export function PreferenceRows() {
           disabled={zoneOptions.length === 0}
           onPress={() => setPicker("timezone")}
         />
+        {children}
       </ListSection>
 
       <AppearanceSheet isOpen={picker === "appearance"} onOpenChange={onOpenChange} />

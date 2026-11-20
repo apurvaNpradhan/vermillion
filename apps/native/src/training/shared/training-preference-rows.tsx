@@ -79,27 +79,37 @@ export function useTrainingPreferenceRows({
       ),
       unit: weightUnit,
     });
-  const section = (
-    <ListSection title={t("training__settings_title")}>
+  const rows = {
+    unit: (
       <ListRow
+        key="unit"
         icon={Barbell}
         title={t("training__setting_unit")}
         value={t(WEIGHT_UNIT_KEYS[weightUnit])}
         onPress={() => setPicker("unit")}
       />
+    ),
+    effort: (
       <ListRow
+        key="effort"
         icon={Gauge}
         title={t("training__setting_effort")}
         value={t(EFFORT_SCALE_NAME_KEYS[effortScale])}
         onPress={() => setPicker("effort")}
       />
+    ),
+    rest: (
       <ListRow
+        key="rest"
         icon={Timer}
         title={t("training__setting_rest")}
         value={formatClock(defaultRestSeconds)}
         onPress={() => setPicker("rest")}
       />
+    ),
+    increment: (
       <ListRow
+        key="increment"
         icon={Barbell}
         title={t("progress__increment")}
         value={
@@ -109,13 +119,19 @@ export function useTrainingPreferenceRows({
         }
         onPress={() => setPicker("increment")}
       />
+    ),
+    weekStart: (
       <ListRow
+        key="weekStart"
         icon={CalendarBlank}
         title={t("training__setting_week_start")}
         value={t(WEEK_START_KEYS[weekStart])}
         onPress={() => setPicker("weekStart")}
       />
+    ),
+    sessions: (
       <ListRow
+        key="sessions"
         icon={Target}
         title={t("training__setting_sessions")}
         value={
@@ -125,12 +141,26 @@ export function useTrainingPreferenceRows({
         }
         onPress={() => setPicker("sessions")}
       />
-      {extraRows}
+    ),
+    equipment: (
       <ListRow
+        key="equipment"
         icon={Barbell}
         title={t("plates__manage")}
         onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
       />
+    ),
+  };
+  const section = (
+    <ListSection title={t("training__settings_title")}>
+      {rows.unit}
+      {rows.effort}
+      {rows.rest}
+      {rows.increment}
+      {rows.weekStart}
+      {rows.sessions}
+      {extraRows}
+      {rows.equipment}
     </ListSection>
   );
   const sheets = (
@@ -213,5 +243,5 @@ export function useTrainingPreferenceRows({
       />
     </>
   );
-  return { section, sheets };
+  return { section, sheets, rows };
 }
