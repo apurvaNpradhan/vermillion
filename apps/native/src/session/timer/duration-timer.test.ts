@@ -59,7 +59,9 @@ describe("dueTimers", () => {
 
   it("lists running countdowns that reached zero with the duration to log", () => {
     const now = at("2026-01-01T10:00:31.000Z");
-    expect(dueTimers([set()], now)).toEqual([{ id: "s1", duration: 30 }]);
+    expect(dueTimers([set()], now)).toEqual([
+      { id: "s1", duration: 30, expiresAt: at("2026-01-01T10:00:30.000Z") },
+    ]);
     expect(dueTimers([set()], at("2026-01-01T10:00:29.000Z"))).toEqual([]);
   });
 

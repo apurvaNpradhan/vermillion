@@ -22,6 +22,8 @@ export type SessionExportRow = {
   reps: number | null;
   durationS: number | null;
   distanceM: number | null;
+  floors: number | null;
+  steps: number | null;
   rpe: number | null;
 };
 
@@ -38,6 +40,8 @@ export function sessionsCsvHeader(unit: WeightUnit, scale: EffortScale): string[
     scale,
     "duration_seconds",
     "distance_meters",
+    "floors",
+    "steps",
     "workout_note",
     "exercise_note",
   ];
@@ -103,6 +107,8 @@ export function sessionsCsv(
         effort,
         number(row.durationS, 0),
         number(row.distanceM, 1),
+        number(row.floors, 0),
+        number(row.steps, 0),
         csvCell(row.sessionNote ?? ""),
         csvCell(row.exerciseNote ?? ""),
       ].join(","),

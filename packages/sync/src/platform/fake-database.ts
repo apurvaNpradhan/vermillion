@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type SQLOutputValue } from "node:sqlite";
 
 import type { CrudEntry, PowerSyncBackendConnector } from "@powersync/common";
 
@@ -112,25 +112,27 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
   };
 
   let depth = 0;
+  const tableWatchers: Array<(table: string) => void> = [];
+  // Use real SQLite transactions for both read snapshots and atomic writes.
+  const transaction = async <T>(fn: (t: typeof tx) => Promise<T>) => {
+    if (depth > 0) return fn(tx);
+    sqlite.exec("BEGIN");
+    depth += 1;
+    try {
+      const result = await fn(tx);
+      sqlite.exec("COMMIT");
+      return result;
+    } catch (error) {
+      sqlite.exec("ROLLBACK");
+      throw error;
+    } finally {
+      depth -= 1;
+    }
+  };
   const database = {
     ...tx,
-    // A real SQLite transaction: a throw rolls every write back, like PowerSync's. Nested calls
-    // join the outer one.
-    writeTransaction: async <T>(fn: (t: typeof tx) => Promise<T>) => {
-      if (depth > 0) return fn(tx);
-      sqlite.exec("BEGIN");
-      depth += 1;
-      try {
-        const result = await fn(tx);
-        sqlite.exec("COMMIT");
-        return result;
-      } catch (error) {
-        sqlite.exec("ROLLBACK");
-        throw error;
-      } finally {
-        depth -= 1;
-      }
-    },
+    readTransaction: transaction,
+    writeTransaction: transaction,
     readLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
     writeLock: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
     getNextCrudTransaction: async () => {
@@ -156,11 +158,21 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     },
     registerListener: () => () => undefined,
     watchWithCallback: (
-      _sql: string,
-      _params: Param[],
-      handler: { onResult: (result: { array: Array<Record<string, Param>> }) => void },
+      sql: string,
+      params: Param[],
+      handler: { onResult: (result: { array: Array<Record<string, SQLOutputValue>> }) => void },
+      options?: { tables?: string[]; signal?: AbortSignal },
     ) => {
-      state.watchers.push((rows) => handler.onResult({ array: rows }));
+      // The PowerSync CRUD queue is simulated by queue(), not stored in SQLite.
+      if (options?.tables && !options.tables.includes("ps_crud")) {
+        const emit = () => handler.onResult({ array: sqlite.prepare(sql).all(...params) });
+        tableWatchers.push((table) => {
+          if (!options.signal?.aborted && options.tables?.includes(table)) emit();
+        });
+        emit();
+      } else {
+        state.watchers.push((rows) => handler.onResult({ array: rows }));
+      }
     },
     connect: async (connector: PowerSyncBackendConnector) => {
       state.connector = connector;
@@ -204,6 +216,9 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
     ),
     sqlite,
     state,
+    notifyTable(table: string) {
+      for (const emit of tableWatchers) emit(table);
+    },
     queue(crud: CrudEntry[], transactionId: number | undefined = crud[0]?.clientId) {
       transactions.push({ transactionId, crud });
       for (const emit of state.watchers) emit([{ count: transactions.length }]);

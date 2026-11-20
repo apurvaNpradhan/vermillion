@@ -218,6 +218,15 @@ describe("beginSession", () => {
     expect(fresh.outcome).toBe("started");
   });
 
+  it("leaves no blank session when the widget's workout has been deleted", async () => {
+    const s = await setupSessions();
+    const deletedWorkout = "0192f0a0-0000-7000-8000-000000000001";
+    await expect(
+      beginSession(s.training, { workoutId: deletedWorkout }, derivedTitle, { resumeActive: true }),
+    ).rejects.toThrow("The workout is gone");
+    expect(s.all("training_session")).toEqual([]);
+  });
+
   it("starts the workout when nothing is active", async () => {
     const s = await setupSessions();
     const plan = await pushWorkout(s);

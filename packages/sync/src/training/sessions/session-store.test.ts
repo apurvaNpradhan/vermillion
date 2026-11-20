@@ -507,6 +507,46 @@ describe("Rest", () => {
     await expect(tickSet(s.training, t.work2, {}, undefined, 601)).rejects.toThrow("1 to 600");
   });
 
+  it("logs a countdown at its original expiry after a restart past both deadlines", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    const setId = String(s.sets(t.plank)[0]?.["id"]);
+    const timerStart = "2026-01-01T10:00:00.000Z";
+    await updateSet(s.training, setId, { timer_started_at: timerStart, duration_s: 30 });
+
+    const expiresAt = Date.parse(timerStart) + 30_000;
+    expect(await tickSet(s.training, setId, { duration: 30 }, undefined, 90, expiresAt)).toEqual({
+      ok: true,
+      wrote: true,
+      values: {},
+    });
+    expect(s.one("session_set", setId)).toMatchObject({
+      completed_at: "2026-01-01T10:00:30.000Z",
+      timer_started_at: null,
+      duration_s: 30,
+    });
+    expect(s.one("training_session", t.id)).toMatchObject({ rest_ends_at: null });
+  });
+
+  it("keeps only the remaining time when the countdown elapsed but its rest has time left", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    const setId = String(s.sets(t.plank)[0]?.["id"]);
+    const expiresAt = Date.now() - 15_000;
+    const timerStart = new Date(expiresAt - 30_000).toISOString();
+    await updateSet(s.training, setId, { timer_started_at: timerStart, duration_s: 30 });
+
+    expect(
+      await tickSet(s.training, setId, { duration: 30 }, undefined, 90, expiresAt),
+    ).toMatchObject({
+      ok: true,
+      rest: {
+        startedAt: new Date(expiresAt).toISOString(),
+        endsAt: new Date(expiresAt + 90_000).toISOString(),
+      },
+    });
+  });
+
   it("refuses a length outside 1 to 600 seconds and a set of another Session", async () => {
     const s = await setupSessions();
     const t = await started(s);

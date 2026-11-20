@@ -24,6 +24,8 @@ import { chipTexts } from "@/training";
 import { copySetUpdates } from "@/session/logging/copy-sets";
 import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
 
+import type { DisplayUnits } from "@/session/logging/set-values";
+
 /**
  * The sets of one exercise: a header over the columns, then a row for each set, then "+ Add set".
  * All state lives in the logging hook; a row gets only what it draws.
@@ -45,6 +47,7 @@ export const SetGrid = memo(function SetGrid({
   onTimer,
   onAddSet,
   unit,
+  display,
   effortScale,
   readOnly,
   onKind,
@@ -72,6 +75,7 @@ export const SetGrid = memo(function SetGrid({
   onTimer: (setId: string) => void;
   onAddSet: (exerciseId: string) => void;
   unit: WeightUnit;
+  display: DisplayUnits;
   effortScale: EffortScale;
   readOnly: boolean;
   onKind: (setId: string) => void;
@@ -115,7 +119,9 @@ export const SetGrid = memo(function SetGrid({
       case "duration":
         return t("training__field_duration");
       case "distance":
-        return t("training__col_distance", { unit: t("training__unit_m") });
+        return display.distanceUnit === "m"
+          ? t("training__col_distance", { unit: t("training__unit_m") })
+          : t("exercise__metric_distance");
       case "floors":
         return t("training__field_floors");
       case "steps":
@@ -166,6 +172,7 @@ export const SetGrid = memo(function SetGrid({
                 previous={previousOf(set.id)}
                 ghosts={ghostsFor(set.id)}
                 unit={unit}
+                display={display}
                 effortScale={effortScale}
                 entry={entry?.cell.setId === set.id ? entry : null}
                 refusal={refusal?.setId === set.id ? refusal : null}

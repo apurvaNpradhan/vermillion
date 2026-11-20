@@ -16,6 +16,8 @@ const row = (overrides: Partial<SessionExportRow> = {}): SessionExportRow => ({
   reps: 5,
   durationS: null,
   distanceM: null,
+  floors: null,
+  steps: null,
   rpe: 8,
   ...overrides,
 });
@@ -34,11 +36,11 @@ describe("sessionsCsv", () => {
       options,
     );
     expect(csv.split("\r\n")).toEqual([
-      "date,workout,exercise,set,kind,weight_kg,reps,rpe,duration_seconds,distance_meters,workout_note,exercise_note",
-      "2026-01-02,Push,Bench Press,1,warmup,60,10,,,,,",
-      "2026-01-02,Push,Bench Press,2,working,100,5,8,,,,",
-      "2026-01-02,Push,Dip,1,working,,12,,,,,",
-      "2026-01-09,Push,Bench Press,1,working,100,5,8,,,,",
+      "date,workout,exercise,set,kind,weight_kg,reps,rpe,duration_seconds,distance_meters,floors,steps,workout_note,exercise_note",
+      "2026-01-02,Push,Bench Press,1,warmup,60,10,,,,,,,",
+      "2026-01-02,Push,Bench Press,2,working,100,5,8,,,,,,",
+      "2026-01-02,Push,Dip,1,working,,12,,,,,,,",
+      "2026-01-09,Push,Bench Press,1,working,100,5,8,,,,,,",
       "",
     ]);
   });
@@ -53,15 +55,25 @@ describe("sessionsCsv", () => {
     expect(header).toContain("weight_lb");
     expect(header).toContain(",rir,");
     // 23:30 UTC on the 2nd is the 3rd in Auckland; RPE 8 is 2 reps in reserve.
-    expect(line).toBe("2026-01-03,Push,Bench Press,1,working,45,5,2,,,,");
+    expect(line).toBe("2026-01-03,Push,Bench Press,1,working,45,5,2,,,,,,");
   });
 
-  it("writes timed and distance sets", () => {
+  it("writes timed and distance sets, floors and steps", () => {
     const [, line] = sessionsCsv(
-      [row({ weightKg: null, reps: null, rpe: null, durationS: 90, distanceM: 400 })],
+      [
+        row({
+          weightKg: null,
+          reps: null,
+          rpe: null,
+          durationS: 90,
+          distanceM: 400,
+          floors: 9,
+          steps: 200,
+        }),
+      ],
       options,
     ).split("\r\n");
-    expect(line).toBe("2026-01-02,Push,Bench Press,1,working,,,,90,400,,");
+    expect(line).toBe("2026-01-02,Push,Bench Press,1,working,,,,90,400,9,200,,");
   });
 
   it("quotes notes and neutralises formulas", () => {

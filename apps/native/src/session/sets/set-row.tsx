@@ -23,8 +23,13 @@ import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/s
 import { SET_TONES, formatEffortRange } from "@/training";
 
 import type { CellRef } from "@/session/logging/keypad-entry";
-import { formatCell, previousLabel, valueOfSet } from "@/session/logging/set-values";
-import { formatElapsed } from "@/session/timer/clock";
+import {
+  formatCell,
+  formatDuration,
+  previousLabel,
+  valueOfSet,
+  type DisplayUnits,
+} from "@/session/logging/set-values";
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
 import { SetCell } from "./set-cell";
@@ -50,6 +55,7 @@ export type SetRowProps = {
   previous: LoggedSet | null;
   ghosts: Ghosts;
   unit: WeightUnit;
+  display: DisplayUnits;
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
@@ -69,7 +75,15 @@ export type SetRowProps = {
 };
 
 /** A running timer: counts down from its target, or up as a stopwatch; right after a restart. */
-function LiveTimer({ startedAt, target }: { startedAt: string; target: number | null }) {
+function LiveTimer({
+  startedAt,
+  target,
+  format,
+}: {
+  startedAt: string;
+  target: number | null;
+  format: DisplayUnits["durationFormat"];
+}) {
   const now = useNow(true, 250);
   const view = timerView(startedAt, target, now);
   return (
@@ -77,7 +91,7 @@ function LiveTimer({ startedAt, target }: { startedAt: string; target: number | 
       className="text-center font-semibold text-body text-identity"
       style={{ fontVariant: ["tabular-nums"] }}
     >
-      {formatElapsed(view.remaining ?? view.elapsed)}
+      {formatDuration(view.remaining ?? view.elapsed, format)}
     </Text>
   );
 }
@@ -117,6 +131,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     previous,
     ghosts,
     unit,
+    display,
     effortScale,
     entry,
     refusal,
@@ -131,10 +146,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const ticked = set.completedAt !== null;
   const tickPop = usePop(ticked);
   const hasEffortColumn = logEffort && fields.includes("reps");
-  const previousText = previous ? previousLabel(previous, type, unit) : null;
+  const previousText = previous ? previousLabel(previous, type, unit, display) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
 
-  const header = (field: SetField): string => {
+  const header = (field: SetField, editing: boolean): string => {
     switch (field) {
       case "weight":
         return t(addsLoad(type) ? "training__field_added_weight" : "training__field_weight", {
@@ -143,9 +158,11 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       case "reps":
         return t("training__field_reps");
       case "duration":
-        return t("training__field_duration");
+        return t(editing ? "session__edit_duration" : "training__field_duration");
       case "distance":
-        return t("training__col_distance", { unit: t("training__unit_m") });
+        return editing || display.distanceUnit === "m"
+          ? t("training__col_distance", { unit: t("training__unit_m") })
+          : t("exercise__metric_distance");
       case "floors":
         return t("training__field_floors");
       case "steps":
@@ -156,8 +173,8 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const cell = (field: SetField) => {
     const stored = valueOfSet(set, field);
     const editing = entry?.cell.setId === set.id && entry.cell.field === field;
-    const text = editing ? entry.text : formatCell(field, stored, unit);
-    const ghost = formatCell(field, ghosts[field] ?? null, unit);
+    const text = editing ? entry.text : formatCell(field, stored, unit, undefined, display);
+    const ghost = formatCell(field, ghosts[field] ?? null, unit, undefined, display);
     const refused = refusal?.setId === set.id && refusal.fields.includes(field);
     const running = field === "duration" && set.timerStartedAt !== null && !ticked;
     const target = timerTarget(set);
@@ -171,11 +188,15 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           refused={refused}
           refusedNonce={refusal?.nonce ?? 0}
           disabled={readOnly}
-          label={t("training__cell_label", { number, field: header(field) })}
+          label={t("training__cell_label", { number, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
         >
           {running && set.timerStartedAt !== null ? (
-            <LiveTimer startedAt={set.timerStartedAt} target={target} />
+            <LiveTimer
+              startedAt={set.timerStartedAt}
+              target={target}
+              format={display.durationFormat}
+            />
           ) : undefined}
         </SetCell>
         {field === "duration" &&

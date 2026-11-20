@@ -234,10 +234,8 @@ function LoadedSession({
     refreshDerivedTitle,
   ]);
 
-  const display = {
-    durationFormat: preferences.ui.durationFormat,
-    distanceUnit: preferences.ui.distanceUnit,
-  };
+  const { durationFormat, distanceUnit } = preferences.ui;
+  const display = useMemo(() => ({ durationFormat, distanceUnit }), [durationFormat, distanceUnit]);
   const totals = useMemo(
     () => sessionTotals(loggedSetsOf(session, preferences.ui.countWarmups), bodyweightKg),
     [session, bodyweightKg, preferences.ui.countWarmups],
@@ -559,6 +557,7 @@ function LoadedSession({
                     }
                     readOnly={readOnly}
                     unit={unit}
+                    display={display}
                     effortScale={effortScale}
                     historyReady={logging.historyReadyFor(entry.exerciseId)}
                     editingFinished={logging.editingFinished}

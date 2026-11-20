@@ -143,6 +143,7 @@ export {
   workoutExercise,
   SessionLimitError,
   adjustRest,
+  beginSession,
   clearRest,
   discardSession,
   finishSession,

@@ -672,7 +672,7 @@ export function watchSession(
     database,
     SESSION_DETAIL_SQL,
     [id],
-    [...SESSION_TABLES, "exercise", "exercise_setting"],
+    [...SESSION_TABLES, "exercise", "exercise_setting", "workout"],
     parsing(parseSessionDetail, { onResult: handlers.onSession, onError: handlers.onError }),
     handlers.onError,
   );

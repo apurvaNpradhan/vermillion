@@ -5,6 +5,7 @@ import {
   buildWidgetSnapshot,
   sameSnapshotContent,
   weekDots,
+  weekExpiry,
   widgetSnapshotSchema,
   type WidgetInput,
 } from "./widget-snapshot";
@@ -37,6 +38,7 @@ const input = (over: Partial<WidgetInput> = {}): WidgetInput => ({
   next: null,
   recent: null,
   sessionsThisWeek: 2,
+  weekExpiresAt: Date.parse("1970-01-05T00:00:00Z"),
   goal: 4,
   ...over,
 });
@@ -57,6 +59,7 @@ describe("buildWidgetSnapshot", () => {
       heading: "This week",
       label: "2 of 4",
       dots: [true, true, false, false],
+      expiresAt: Date.parse("1970-01-05T00:00:00Z"),
     });
     expect(widgetSnapshotSchema.parse(snapshot)).toEqual(snapshot);
   });
@@ -99,6 +102,18 @@ describe("buildWidgetSnapshot", () => {
   });
 });
 
+describe("weekExpiry", () => {
+  it("expires at the start of the next local week across a DST change", () => {
+    const sunday = new Date("2026-10-31T23:00:00Z");
+    expect(weekExpiry(sunday, "America/New_York", "monday")).toBe(
+      Date.parse("2026-11-02T05:00:00Z"),
+    );
+    expect(weekExpiry(sunday, "America/New_York", "sunday")).toBe(
+      Date.parse("2026-11-01T04:00:00Z"),
+    );
+  });
+});
+
 describe("weekDots", () => {
   it("has no dots without a goal", () => {
     expect(weekDots(3, null)).toEqual([]);
@@ -117,6 +132,12 @@ describe("sameSnapshotContent", () => {
     ).toBe(true);
     expect(
       sameSnapshotContent(buildWidgetSnapshot(input()), buildWidgetSnapshot(input({ goal: 5 }))),
+    ).toBe(false);
+    expect(
+      sameSnapshotContent(
+        buildWidgetSnapshot(input()),
+        buildWidgetSnapshot(input({ weekExpiresAt: Date.parse("1970-01-12T00:00:00Z") })),
+      ),
     ).toBe(false);
   });
 });

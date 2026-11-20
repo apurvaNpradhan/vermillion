@@ -1,3 +1,4 @@
+import { fromZonedParts, weekRange, type WeekStart } from "@workspace/shared";
 import { z } from "zod";
 
 /** Most dots the widget draws; a larger goal is shown as text only. */
@@ -30,6 +31,7 @@ export const widgetSnapshotSchema = z.object({
       heading: z.string(),
       label: z.string(),
       dots: z.array(z.boolean()),
+      expiresAt: z.number(),
     })
     .nullable(),
   colors: widgetColorsSchema,
@@ -65,6 +67,7 @@ export type WidgetInput = {
   recent: { workoutId: string; title: string } | null;
   /** Sessions started this week (in the user's week-start and time zone). */
   sessionsThisWeek: number;
+  weekExpiresAt: number;
   goal: number | null;
 };
 
@@ -76,6 +79,23 @@ export function weekDots(done: number, goal: number | null): boolean[] {
   const count = Math.min(goal, WIDGET_MAX_DOTS);
   const filled = Math.min(Math.max(done, 0), count);
   return Array.from({ length: count }, (_, index) => index < filled);
+}
+
+/** The epoch time at which the widget's current week stops being valid. */
+export function weekExpiry(now: Date, timezone: string, weekStart: WeekStart): number {
+  const next = new Date(weekRange(now, timezone, weekStart).end);
+  return Date.parse(
+    fromZonedParts(
+      {
+        year: next.getUTCFullYear(),
+        month: next.getUTCMonth() + 1,
+        day: next.getUTCDate(),
+        hour: 0,
+        minute: 0,
+      },
+      timezone,
+    ),
+  );
 }
 
 /** The widget's content for one moment; pure, so the host only gathers its inputs. */
@@ -97,6 +117,7 @@ export function buildWidgetSnapshot(input: WidgetInput): WidgetSnapshot {
     heading: text.weekHeading,
     label: text.weekLabel(input.sessionsThisWeek, input.goal),
     dots: weekDots(input.sessionsThisWeek, input.goal),
+    expiresAt: input.weekExpiresAt,
   };
   if (input.active) {
     return {

@@ -120,6 +120,12 @@ describe("Previous cell", () => {
     expect(previousLabel({ distance_m: 1000.04, duration_s: 300 }, "distance_duration", "kg")).toBe(
       "1000 · 5:00",
     );
+    expect(
+      previousLabel({ distance_m: 1609.344, duration_s: 90 }, "distance_duration", "kg", {
+        durationFormat: "seconds",
+        distanceUnit: "mi",
+      }),
+    ).toBe("1 mi · 90 s");
     expect(previousLabel({}, "weight_reps", "kg")).toBeNull();
   });
 

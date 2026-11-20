@@ -180,8 +180,8 @@ export async function writeRest(
   sessionId: string,
   setId: string,
   seconds: number,
+  start = Date.now(),
 ): Promise<RestTimes> {
-  const start = Date.now();
   const times = {
     startedAt: new Date(start).toISOString(),
     endsAt: new Date(start + seconds * 1000).toISOString(),

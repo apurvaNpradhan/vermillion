@@ -1,3 +1,4 @@
+import { isCounted } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 
 import { rowDetail, type RowDetail } from "./best-set";
@@ -26,8 +27,8 @@ export function shareRows(
   countWarmups = false,
 ): ShareRow[] {
   return session.exercises.flatMap((entry) => {
-    const counted = entry.sets.filter(
-      (set) => set.completedAt !== null && (countWarmups || set.kind !== "warmup"),
+    const counted = entry.sets.filter((set) =>
+      isCounted({ completed_at: set.completedAt, kind: set.kind, warmup_counted: countWarmups }),
     );
     const detail = rowDetail(entry.type, counted, showWeights);
     if (counted.length === 0 || detail === null) return [];

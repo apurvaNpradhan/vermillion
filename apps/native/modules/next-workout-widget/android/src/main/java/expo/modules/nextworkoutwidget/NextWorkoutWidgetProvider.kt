@@ -1,5 +1,6 @@
 package expo.modules.nextworkoutwidget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -11,20 +12,32 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import org.json.JSONObject
 
 /** Draws the snapshot with RemoteViews: no Compose or Glance dependency, and every tap is a link. */
 class NextWorkoutWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-    ids.forEach { update(context, manager, it) }
+    redraw(context, manager, ids)
+  }
+
+  override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action == WEEK_EXPIRED) refreshAll(context)
+    else super.onReceive(context, intent)
+  }
+
+  override fun onDisabled(context: Context) {
+    scheduleExpiry(context, 0L)
   }
 
   override fun onAppWidgetOptionsChanged(
     context: Context, manager: AppWidgetManager, id: Int, options: Bundle,
   ) {
-    update(context, manager, id)
+    redraw(context, manager, intArrayOf(id))
   }
 
   companion object {
+    private const val WEEK_EXPIRED = "expo.modules.nextworkoutwidget.WEEK_EXPIRED"
+
     private val DOTS = intArrayOf(
       R.id.dot1, R.id.dot2, R.id.dot3, R.id.dot4, R.id.dot5, R.id.dot6, R.id.dot7,
     )
@@ -32,7 +45,27 @@ class NextWorkoutWidgetProvider : AppWidgetProvider() {
     fun refreshAll(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
       val ids = manager.getAppWidgetIds(ComponentName(context, NextWorkoutWidgetProvider::class.java))
-      ids.forEach { update(context, manager, it) }
+      redraw(context, manager, ids)
+    }
+
+    private fun redraw(context: Context, manager: AppWidgetManager, ids: IntArray) {
+      if (ids.isEmpty()) return
+      val snapshot = WidgetSnapshotStore.read(context)
+      val now = System.currentTimeMillis()
+      val week = snapshot?.optJSONObject("week")?.takeIf { it.optLong("expiresAt") > now }
+      ids.forEach { update(context, manager, it, snapshot, week) }
+      scheduleExpiry(context, week?.optLong("expiresAt") ?: 0L)
+    }
+
+    private fun scheduleExpiry(context: Context, expiresAt: Long) {
+      val alarms = context.getSystemService(AlarmManager::class.java) ?: return
+      val intent = Intent(context, NextWorkoutWidgetProvider::class.java).setAction(WEEK_EXPIRED)
+      val refresh = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+      if (expiresAt > 0L) {
+        alarms.setAndAllowWhileIdle(AlarmManager.RTC, expiresAt, refresh)
+      } else {
+        alarms.cancel(refresh)
+      }
     }
 
     private fun color(value: String?, fallback: Int): Int = try {
@@ -53,9 +86,14 @@ class NextWorkoutWidgetProvider : AppWidgetProvider() {
       )
     }
 
-    private fun update(context: Context, manager: AppWidgetManager, id: Int) {
+    private fun update(
+      context: Context,
+      manager: AppWidgetManager,
+      id: Int,
+      snapshot: JSONObject?,
+      week: JSONObject?,
+    ) {
       val views = RemoteViews(context.packageName, R.layout.next_workout_widget)
-      val snapshot = WidgetSnapshotStore.read(context)
       val colors = snapshot?.optJSONObject("colors")
       val surface = color(colors?.optString("surface"), Color.parseColor("#1C1C1E"))
       val ink = color(colors?.optString("ink"), Color.WHITE)
@@ -84,7 +122,6 @@ class NextWorkoutWidgetProvider : AppWidgetProvider() {
       views.setTextViewText(R.id.widget_button_label, snapshot?.optString("button") ?: "")
       views.setTextColor(R.id.widget_button_label, onAccent)
 
-      val week = snapshot?.optJSONObject("week")
       val dots = week?.optJSONArray("dots")
       views.setViewVisibility(R.id.widget_week, if (week == null) View.GONE else View.VISIBLE)
       text(R.id.widget_week_label, week?.optString("label"), muted)

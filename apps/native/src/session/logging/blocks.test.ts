@@ -133,6 +133,27 @@ describe("nextSupersetExercise", () => {
     const done = block([exercise("a", "g", [true, false]), exercise("b", "g", [true, true])]);
     expect(nextSupersetExercise(done, "a-1")).toBeNull();
   });
+  it("stays on extra warm-ups before scrolling to the next working set", () => {
+    const a = exercise("a", "g", [true, false, false]);
+    const b = exercise("b", "g", [false]);
+    const uneven = block([
+      { ...a, sets: a.sets.map((set, index) => (index < 2 ? { ...set, kind: "warmup" } : set)) },
+      b,
+    ]);
+    expect(highlightOf(uneven)).toEqual({ exerciseId: "a", setId: "a-2" });
+    expect(nextSupersetExercise(uneven, "a-1")).toBeNull();
+    expect(nextSupersetExercise(uneven, "a-2")).toBeNull();
+    const work = block([
+      {
+        ...a,
+        sets: a.sets.map((set, index) =>
+          index < 2 ? { ...set, kind: "warmup", completedAt: "2026-01-01T10:00:00.000Z" } : set,
+        ),
+      },
+      b,
+    ]);
+    expect(nextSupersetExercise(work, "a-3")?.id).toBe("b");
+  });
   it("is null for a lone exercise or an unknown set", () => {
     const lone = block([exercise("a", null, [false, false])]);
     expect(nextSupersetExercise(lone, "a-1")).toBeNull();

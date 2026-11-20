@@ -56,8 +56,11 @@ export function useSessionActions() {
    * is given, in one write. `null` when the write failed.
    */
   const tick = useCallback(
-    (setId: string, ghosts: Ghosts, restSeconds: number | null = null) =>
-      write<TickResult | null>((db) => tickSet(db, setId, ghosts, writeScope, restSeconds), null),
+    (setId: string, ghosts: Ghosts, restSeconds: number | null = null, expiresAt?: number) =>
+      write<TickResult | null>(
+        (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt),
+        null,
+      ),
     [write, writeScope],
   );
 

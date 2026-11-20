@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -32,7 +31,7 @@ import {
 /** How the keypad scrolls the screen: the current offset and a way to move it. */
 export type EditorScroll = { offset: () => number; scrollTo: (y: number) => void };
 
-type Active = { tableId: string; entry: EditorEntry };
+type Active = { tableId: string; entry: EditorEntry; hasNext: boolean };
 
 type EditorKeypadValue = {
   /** The key of the cell being edited, or null. */
@@ -40,7 +39,7 @@ type EditorKeypadValue = {
   /** What the active cell shows while it is typed into. */
   text: string;
   open: (tableId: string, key: string) => void;
-  /** Gives the keypad the cells of a table, in Next order; call on every render of the table. */
+  /** Registers the cells of a committed table in Next order. */
   bind: (tableId: string, cells: readonly EditorCell[]) => void;
   /** Takes a table away when it unmounts; closes the keypad if it was editing that table. */
   unbind: (tableId: string) => void;
@@ -118,16 +117,29 @@ export function EditorKeypadProvider({
 
   const open = useCallback(
     (tableId: string, key: string) => {
-      const cell = tables.current.get(tableId)?.find((candidate) => candidate.key === key);
+      const cells = tables.current.get(tableId) ?? [];
+      const cell = cells.find((candidate) => candidate.key === key);
       if (!cell) return;
-      setCurrent({ tableId, entry: openEntry(cell) });
+      setCurrent({ tableId, entry: openEntry(cell), hasNext: nextEditorCell(cells, key) !== null });
       reveal(key);
     },
     [setCurrent, reveal],
   );
-  const bind = useCallback((tableId: string, cells: readonly EditorCell[]) => {
-    tables.current.set(tableId, cells);
-  }, []);
+  const bind = useCallback(
+    (tableId: string, cells: readonly EditorCell[]) => {
+      tables.current.set(tableId, cells);
+      const current = activeRef.current;
+      if (current?.tableId !== tableId) return;
+      const { key } = current.entry.cell;
+      if (!cells.some((cell) => cell.key === key)) {
+        setCurrent(null);
+        return;
+      }
+      const hasNext = nextEditorCell(cells, key) !== null;
+      if (hasNext !== current.hasNext) setCurrent({ ...current, hasNext });
+    },
+    [setCurrent],
+  );
   const unbind = useCallback(
     (tableId: string) => {
       if (unbindTable(tables.current, activeRef.current?.tableId ?? null, tableId)) {
@@ -150,7 +162,7 @@ export function EditorKeypadProvider({
       const cell = current && cellOf(current);
       if (!current || !cell) return;
       const result = pressKey({ ...current.entry, cell }, key);
-      setCurrent({ tableId: current.tableId, entry: result.entry });
+      setCurrent({ ...current, entry: result.entry });
       if (result.write) cell.onValue(result.value);
     },
     [cellOf, setCurrent],
@@ -161,15 +173,11 @@ export function EditorKeypadProvider({
       const cell = current && cellOf(current);
       if (!current || !cell) return;
       const result = pressStep({ ...current.entry, cell }, direction);
-      setCurrent({ tableId: current.tableId, entry: result.entry });
+      setCurrent({ ...current, entry: result.entry });
       cell.onValue(result.value);
     },
     [cellOf, setCurrent],
   );
-  const next = active
-    ? nextEditorCell(tables.current.get(active.tableId) ?? [], active.entry.cell.key)
-    : null;
-  const nextKey = next?.key ?? null;
   const onNext = useCallback(() => {
     const current = activeRef.current;
     if (!current) return;
@@ -178,11 +186,6 @@ export function EditorKeypadProvider({
     else setCurrent(null);
   }, [open, setCurrent]);
   const onDone = useCallback(() => setCurrent(null), [setCurrent]);
-
-  // A cell that is removed (its set was deleted) closes the keypad.
-  useEffect(() => {
-    if (active && !cellOf(active)) setCurrent(null);
-  });
 
   const value = useMemo<EditorKeypadValue | null>(
     () =>
@@ -226,7 +229,7 @@ export function EditorKeypadProvider({
               allowPoint={
                 active.entry.cell.field === "weight" || active.entry.cell.field === "distance"
               }
-              hasNext={nextKey !== null}
+              hasNext={active.hasNext}
               stepText={stepText}
               accessory={
                 <Text numberOfLines={1} className="flex-1 text-caption text-muted">

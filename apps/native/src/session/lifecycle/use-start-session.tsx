@@ -94,37 +94,6 @@ export function useStartSession() {
     [startFrom],
   );
 
-  /**
-   * The widget's Start: resumes the unfinished Session when there is one, else starts the Workout,
-   * decided in one transaction (so one that appears during the tap is resumed, never discarded)
-   * and opened by the id it returns. It never asks and never discards.
-   */
-  const startOrResume = useCallback(
-    async (workoutId: string) => {
-      if (starting.current) return;
-      starting.current = true;
-      try {
-        const result = await write(
-          (db) =>
-            beginSession(
-              db,
-              { workoutId },
-              t("session__untitled"),
-              { id: newSessionId(), resumeActive: true },
-              writeScope,
-            ),
-          null,
-        );
-        if (!result) return;
-        if (result.outcome === "started") haptic.confirm();
-        open(result.id);
-      } finally {
-        starting.current = false;
-      }
-    },
-    [write, writeScope, t, open],
-  );
-
   const sheet = (
     <StartConflictSheet
       active={pending?.active ?? []}
@@ -144,5 +113,5 @@ export function useStartSession() {
     />
   );
 
-  return { start, startAgain, startOrResume, sheet };
+  return { start, startAgain, sheet };
 }
