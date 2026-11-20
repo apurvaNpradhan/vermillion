@@ -31,6 +31,7 @@ import {
   parseSessionDetail,
 } from "./session-watch";
 import { setExerciseSetting, upsertEquipment } from "./equipment-store";
+import { readRecordHistory } from "../watch";
 
 const derivedTitle = "Quadriceps";
 const DAY = 86_400_000;
@@ -330,6 +331,71 @@ describe("the History reader", () => {
     // Finishing the live Session adds it.
     await finishSession(s.training, live, { startedAt: daysAgo(1) });
     expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([live, b, a]);
+  });
+
+  it("sees an edit that changes only an exercise title, its order or a set's kind", async () => {
+    const s = await setupSessions();
+    const id = await startSession(s.training, { workoutId: null, derivedTitle: "Mixed" });
+    const [squatId, plankId] = await addSessionExercises(s.training, id, [SQUAT, PLANK]);
+    const squat = squatId ?? "";
+    const plank = plankId ?? "";
+    await tickSet(s.training, String(s.sets(squat)[0]?.["id"]), { weight: 50, reps: 5 });
+    await tickSet(s.training, String(s.sets(plank)[0]?.["id"]), { duration: 30 });
+    await finishSession(s.training, id, { startedAt: daysAgo(3) });
+    const { read } = readerOf(s);
+    const reader = createFinishedHistoryReader();
+    expect((await reader.refresh(read))?.[0]?.exerciseTitles).toEqual(["Squat", "Plank"]);
+
+    s.sqlite
+      .prepare("UPDATE session_exercise SET exercise_title = 'Back squat' WHERE id = ?")
+      .run(squat);
+    expect((await reader.refresh(read))?.[0]?.exerciseTitles).toEqual(["Back squat", "Plank"]);
+    expect(await reader.refresh(read)).toBeNull();
+
+    s.sqlite.prepare("UPDATE session_exercise SET position = 'a0' WHERE id = ?").run(plank);
+    s.sqlite.prepare("UPDATE session_exercise SET position = 'a1' WHERE id = ?").run(squat);
+    expect((await reader.refresh(read))?.[0]?.exerciseTitles).toEqual(["Plank", "Back squat"]);
+
+    // The same sums, but the set now counts as another kind.
+    s.sqlite
+      .prepare("UPDATE session_set SET kind = 'warmup' WHERE session_exercise_id = ?")
+      .run(squat);
+    expect(await reader.refresh(read)).not.toBeNull();
+  });
+
+  it("reads a record history with no 500-Session cap, unlike Previous", async () => {
+    const s = await setupSessions();
+    await finishedSquat(s, daysAgo(2000), [200]);
+    const insertSession = s.sqlite.prepare(
+      `INSERT INTO training_session (id, user_id, title, started_at, finished_at, created_at)
+       VALUES (?, 'owner', 'Squats', ?, ?, 'now')`,
+    );
+    const insertExercise = s.sqlite.prepare(
+      `INSERT INTO session_exercise (id, user_id, session_id, exercise_id, exercise_title,
+         exercise_type, position, created_at) VALUES (?, 'owner', ?, ?, 'Squat', 'weight_reps', 'a0', 'now')`,
+    );
+    const insertSet = s.sqlite.prepare(
+      `INSERT INTO session_set (id, user_id, session_exercise_id, position, kind, weight_kg, reps,
+         completed_at, created_at) VALUES (?, 'owner', ?, 'a0', 'working', 100, 5, ?, 'now')`,
+    );
+    for (let i = 0; i < 500; i += 1) {
+      const at = new Date(Date.now() - (1500 - i) * DAY).toISOString();
+      insertSession.run(`bulk-${i}`, at, at);
+      insertExercise.run(`bulk-e-${i}`, `bulk-${i}`, SQUAT);
+      insertSet.run(`bulk-s-${i}`, `bulk-e-${i}`, at);
+    }
+
+    const best = (sessions: { sets: { weight_kg?: number | null }[] }[]) =>
+      Math.max(...sessions.flatMap((row) => row.sets.map((set) => set.weight_kg ?? 0)));
+    const previous = parseExerciseHistories(
+      s.sqlite.prepare(exerciseHistoriesSql(1)).all(SQUAT, SQUAT),
+    ).get(SQUAT);
+    expect(previous).toHaveLength(500);
+    expect(best(previous ?? [])).toBe(100);
+    const records = parseFinishedSessions(s.sqlite.prepare(exerciseRecordsSql(1)).all(SQUAT));
+    expect(records).toHaveLength(501);
+    expect(best(records)).toBe(200);
+    expect(await readRecordHistory(s.training, SQUAT)).toHaveLength(501);
   });
 
   it("keeps a range reader to its range", async () => {

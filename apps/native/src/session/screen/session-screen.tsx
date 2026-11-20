@@ -131,6 +131,7 @@ type Sheet =
   | { kind: "menu"; exercise: SessionExerciseDetail }
   | { kind: "note"; exercise: SessionExerciseDetail }
   | { kind: "pinned"; exercise: SessionExerciseDetail }
+  | { kind: "swap"; exercise: SessionExerciseDetail; next: string }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
 
@@ -276,7 +277,10 @@ function LoadedSession({
   const replace = async (entry: SessionExerciseDetail) => {
     const picked = await pickExercises({ max: 1, exclude: exerciseIds, swapFor: entry.exerciseId });
     const next = picked?.[0];
-    if (next) await actions.replaceExercise(entry.id, entry.exerciseId, next);
+    if (!next) return;
+    // A Session from a Workout asks how far the swap goes; one without has only itself.
+    if (entry.sourceWorkoutExerciseId) setSheet({ kind: "swap", exercise: entry, next });
+    else await actions.replaceExercise(entry, next, "session");
   };
 
   // Scroll the open block to the top, and the edited row above the keypad.
@@ -412,6 +416,24 @@ function LoadedSession({
             if (hasTicks) setConfirmRemove(menuExercise);
             else void actions.removeExercise(menuExercise.id);
           },
+        },
+      ]
+    : [];
+
+  const swap = sheet?.kind === "swap" ? sheet : null;
+  const swapActions: SwipeAction[] = swap
+    ? [
+        {
+          key: "session",
+          label: t("session__swap_session"),
+          icon: Swap,
+          onPress: () => void actions.replaceExercise(swap.exercise, swap.next, "session"),
+        },
+        {
+          key: "workout",
+          label: t("session__swap_workout"),
+          icon: Swap,
+          onPress: () => void actions.replaceExercise(swap.exercise, swap.next, "workout"),
         },
       ]
     : [];
@@ -666,6 +688,14 @@ function LoadedSession({
         isOpen={menuExercise !== null}
         onOpenChange={(open) => {
           if (!open && sheet?.kind === "menu") closeSheet();
+        }}
+      />
+      <ActionSheet
+        title={t("session__swap_scope_title", { title: swap?.exercise.title ?? "" })}
+        actions={swapActions}
+        isOpen={swap !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "swap") closeSheet();
         }}
       />
       <NoteSheet

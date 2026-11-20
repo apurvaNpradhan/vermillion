@@ -1,4 +1,4 @@
-import { EQUIPMENT_KEYS } from "@workspace/shared";
+import { EQUIPMENT_KEYS, MUSCLE_DETAIL_KEYS, MUSCLE_GROUP_KEYS } from "@workspace/shared";
 import type { LibraryRow } from "@workspace/sync";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
@@ -67,7 +67,12 @@ export function SwapRow({
                 {candidate.title}
               </Text>
               <Text numberOfLines={1} className="text-caption text-muted">
-                {t(EQUIPMENT_KEYS[candidate.equipment])}
+                {t(EQUIPMENT_KEYS[candidate.equipment])} ·{" "}
+                {t(
+                  candidate.primaryDetail[0]
+                    ? MUSCLE_DETAIL_KEYS[candidate.primaryDetail[0]]
+                    : MUSCLE_GROUP_KEYS[candidate.primaryMuscle],
+                )}
               </Text>
             </Pressable>
           );

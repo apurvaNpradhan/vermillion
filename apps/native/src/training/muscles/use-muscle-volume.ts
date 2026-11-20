@@ -65,6 +65,7 @@ export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null,
         : withWarmupsCounted(history.value, preferences.ui.countWarmups),
     week,
     weeks,
+    weeksAgo,
     program,
   });
   return {
@@ -86,11 +87,14 @@ export function useMuscleLoads({
   sessions: history,
   week,
   weeks = 1,
+  weeksAgo = 0,
   program,
 }: {
   sessions: readonly FinishedSession[] | undefined;
   week: WeekRange;
   weeks?: number;
+  /** Which period `week` is, kept with the result so a held one is labelled as itself. */
+  weeksAgo?: number;
   program: ProgramDetail | null;
 }) {
   const { preferences, setMuscleGoal } = usePreferences();
@@ -137,6 +141,8 @@ export function useMuscleLoads({
       found.reduce((sum, session) => sum + session.sets.filter(isCounted).length, 0) / weeks;
     return {
       week: range,
+      weeks,
+      weeksAgo,
       sessions: found,
       exercises,
       loads,
@@ -146,11 +152,13 @@ export function useMuscleLoads({
       completedSets,
       onTarget: onTargetCount(rows),
     };
-  }, [sessions, muscles.value, range, timezone, weeks, program, muscleGoals]);
+  }, [sessions, muscles.value, range, timezone, weeks, weeksAgo, program, muscleGoals]);
   // The last result that was ready, kept while the next period loads. Stored when the content
   // changes (compared by value, so a re-render with the same data cannot loop).
   const signature = JSON.stringify([
     computed.week,
+    computed.weeks,
+    computed.weeksAgo,
     computed.loads,
     computed.detailLoads,
     computed.planned,
@@ -165,6 +173,9 @@ export function useMuscleLoads({
     failed: muscles.failed,
     retry: muscles.retry,
     week: shown?.week ?? range,
+    /** Weeks and offset of the period shown, which lag the requested ones while it loads. */
+    weeks: shown?.weeks ?? weeks,
+    weeksAgo: shown?.weeksAgo ?? weeksAgo,
     timezone,
     goals: muscleGoals,
     planned: shown?.planned ?? null,
@@ -179,7 +190,7 @@ export function useMuscleLoads({
       shown === null
         ? []
         : muscleContributions(shown.sessions, shown.exercises, muscle, shown.week, timezone).map(
-            (entry) => ({ ...entry, sets: entry.sets / weeks }),
+            (entry) => ({ ...entry, sets: entry.sets / shown.weeks }),
           ),
     // One muscle at a time: sending the whole map would erase another device's edit.
     setGoal: setMuscleGoal,
