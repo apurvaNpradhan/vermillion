@@ -66,6 +66,43 @@ describe("admin catalog", () => {
     );
   });
 
+  it("validates details against the row another save just changed", async () => {
+    const created = await admin.admin.catalog.create({
+      exercise: {
+        ...fields("Race Press (Dumbbell)"),
+        primaryMuscle: "shoulders",
+        secondaryMuscles: ["chest"],
+        primaryDetail: ["side_delts"],
+        secondaryDetail: [],
+      },
+      thumbnailKey: THUMB,
+    });
+    // Hold the row the way a concurrent admin save does, start our save, then let the other one
+    // commit: shoulders becomes chest, so rear_delts would land in the wrong group.
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const held = app.services.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM exercise WHERE id = ${created.id} FOR UPDATE`);
+      await gate;
+      await tx.execute(
+        sql`UPDATE exercise SET primary_muscle = 'chest', secondary_muscles = '{}',
+              primary_detail = '{upper_chest}' WHERE id = ${created.id}`,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const stale = rejection(
+      admin.admin.catalog.update({ id: created.id, patch: { primaryDetail: ["rear_delts"] } }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    release();
+    await held;
+    expect(await stale).toMatchObject({ code: "BAD_REQUEST" });
+    const [row] = await app.rows(
+      sql`SELECT primary_muscle, to_json(primary_detail)::text AS d FROM exercise WHERE id = ${created.id}`,
+    );
+    expect(row).toMatchObject({ primary_muscle: "chest", d: '["upper_chest"]' });
+  });
+
   it("carries muscle details through create, update, the export, and refuses a bad pair", async () => {
     const created = await admin.admin.catalog.create({
       exercise: {

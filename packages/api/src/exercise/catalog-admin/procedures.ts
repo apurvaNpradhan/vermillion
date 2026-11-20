@@ -9,8 +9,6 @@ import {
   exerciseMediaSlotSchema,
   MEDIA_UPLOAD_URL_SECONDS,
   MUSCLE_GROUPS,
-  hasValidDetails,
-  hasValidSecondaryMuscles,
 } from "@workspace/shared";
 import { z } from "zod";
 
@@ -203,25 +201,6 @@ const update = catalogApi
   )
   .output(detail)
   .handler(async ({ context, input }) => {
-    const current = await getCatalogRow(context.services.db, input.id);
-    if (!current) throw new ORPCError("NOT_FOUND", { message: "No such catalog exercise" });
-    const primary = input.patch.primaryMuscle ?? current.primaryMuscle;
-    const secondary = input.patch.secondaryMuscles ?? current.secondaryMuscles;
-    if (!hasValidSecondaryMuscles({ primary_muscle: primary, secondary_muscles: secondary })) {
-      throw new ORPCError("BAD_REQUEST", { message: "Secondary muscles include the primary one" });
-    }
-    const valid = hasValidDetails({
-      primary_muscle: primary,
-      secondary_muscles: secondary,
-      primary_detail: input.patch.primaryDetail ?? current.primaryDetail,
-      secondary_detail: input.patch.secondaryDetail ?? current.secondaryDetail,
-    });
-    if (!valid) {
-      throw new ORPCError("BAD_REQUEST", { message: "Details do not match the muscle groups" });
-    }
-    if (input.patch.videoKey && !(input.patch.thumbnailKey ?? current.thumbnailKey)) {
-      throw thumbnailRequired();
-    }
     await assertUploaded(context.services, input.patch.thumbnailKey);
     await assertUploaded(context.services, input.patch.videoKey);
     await context.audited(

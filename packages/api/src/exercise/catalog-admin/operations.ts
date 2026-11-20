@@ -3,10 +3,12 @@ import { randomBytes } from "node:crypto";
 import { ORPCError } from "@orpc/server";
 import type { Database, DbExecutor, Transaction } from "@workspace/db";
 import { uuidv7 } from "@workspace/db/columns";
-import type {
-  CatalogExerciseFields,
-  ExerciseMediaSlot,
-  EXERCISE_MEDIA_LIMITS,
+import {
+  hasValidDetails,
+  hasValidSecondaryMuscles,
+  type CatalogExerciseFields,
+  type ExerciseMediaSlot,
+  type EXERCISE_MEDIA_LIMITS,
 } from "@workspace/shared";
 import { and, asc, eq, ilike, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 
@@ -146,6 +148,17 @@ export async function getCatalogRow(db: DbExecutor, id: string) {
   return row ?? null;
 }
 
+/** Like `getCatalogRow`, but locks the row until the transaction ends (`SELECT ... FOR UPDATE`). */
+async function lockCatalogRow(tx: Transaction, id: string) {
+  const [row] = await tx
+    .select()
+    .from(exercise)
+    .where(and(eq(exercise.id, id), catalogOnly))
+    .limit(1)
+    .for("update");
+  return row ?? null;
+}
+
 export type CatalogMediaKeys = { thumbnailKey: string | null; videoKey: string | null };
 
 /** Inserts a catalog exercise with a server-generated UUIDv7 id. */
@@ -198,8 +211,30 @@ type PatchField = (typeof PATCH_FIELDS)[number];
  * delivers it. Returns the names of the fields that changed.
  */
 export async function updateCatalogExercise(tx: Transaction, id: string, patch: CatalogPatch) {
-  const current = await getCatalogRow(tx, id);
+  // Locked first: two admin saves of one row run one after the other, each merged and validated
+  // against what the other left, never against a stale read.
+  const current = await lockCatalogRow(tx, id);
   if (!current) throw new ORPCError("NOT_FOUND", { message: "No such catalog exercise" });
+  const primary = patch.primaryMuscle ?? current.primaryMuscle;
+  const secondary = patch.secondaryMuscles ?? current.secondaryMuscles;
+  if (!hasValidSecondaryMuscles({ primary_muscle: primary, secondary_muscles: secondary })) {
+    throw new ORPCError("BAD_REQUEST", { message: "Secondary muscles include the primary one" });
+  }
+  const validDetails = hasValidDetails({
+    primary_muscle: primary,
+    secondary_muscles: secondary,
+    primary_detail: patch.primaryDetail ?? current.primaryDetail,
+    secondary_detail: patch.secondaryDetail ?? current.secondaryDetail,
+  });
+  if (!validDetails) {
+    throw new ORPCError("BAD_REQUEST", { message: "Details do not match the muscle groups" });
+  }
+  if (patch.videoKey && !(patch.thumbnailKey ?? current.thumbnailKey)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "A live catalog exercise needs a thumbnail",
+      data: { code: "CATALOG_THUMBNAIL_REQUIRED" },
+    });
+  }
   if (patch.exerciseType !== undefined && patch.exerciseType !== current.exerciseType) {
     if (await exerciseTypeLocked(tx, id)) {
       throw new ORPCError("CONFLICT", {
