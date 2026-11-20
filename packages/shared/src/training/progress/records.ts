@@ -111,13 +111,15 @@ export function exerciseRecords(
  * Sessions before its own (ordered by start, then id), not its siblings. Only sets with a
  * Record appear. The first Session of an exercise has nothing to beat and flags nothing. A
  * session-volume Record sits on the last Counted set of that exercise in the Session.
+ * `earlier` optionally seeds the bests with Sessions strictly before the ones being flagged.
  */
 export function recordFlags(
   sessions: readonly SessionHistory[],
   bodyweightKg: number | null = null,
+  earlier: readonly SessionHistory[] = [],
 ): Map<string, RecordKey[]> {
   const flags = new Map<string, RecordKey[]>();
-  const bests = new Map<string, ExerciseBests>();
+  const bests = exerciseRecords(earlier, bodyweightKg);
   for (const session of inSessionOrder(sessions)) {
     for (const [exerciseId, sets] of countedByExercise(session)) {
       const earlier = bests.get(exerciseId);
@@ -136,4 +138,12 @@ export function recordFlags(
     foldSession(bests, session, bodyweightKg);
   }
   return flags;
+}
+
+/** Counts record flags on these sets, one per record kind. */
+export function recordCount(
+  flags: ReadonlyMap<string, readonly RecordKey[]>,
+  sets: readonly { id: string }[],
+): number {
+  return sets.reduce((count, set) => count + (flags.get(set.id)?.length ?? 0), 0);
 }
