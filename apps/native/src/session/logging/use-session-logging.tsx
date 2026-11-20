@@ -64,6 +64,7 @@ export function useSessionLogging(stored: SessionDetail) {
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
     lighterWeeks: preferences.ui.lighterWeeks,
+    recordAlerts: preferences.ui.recordAlerts,
     readOnly,
     actions,
     onRestStarted,

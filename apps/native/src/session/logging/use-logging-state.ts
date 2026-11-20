@@ -22,6 +22,8 @@ import { AppState } from "react-native";
 
 import { stallMemory, useStallVersion } from "@/exercise";
 import { haptic } from "@/platform/haptics";
+import { useTranslation } from "@/platform/i18n";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
@@ -32,16 +34,14 @@ import { useStableHandler } from "@/session/shared/use-stable-handler";
 import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
 import {
   applyKey,
-  cellOrder,
   displayOfText,
-  nextCell,
   stepOf,
   stepValue,
   textOfValue,
   valueOfText,
-  type CellRef,
   type EntryField,
-} from "./keypad-entry";
+} from "@/platform/ui/keypad-entry";
+import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
@@ -86,6 +86,7 @@ export function useLoggingState({
   bodyweightKg,
   weightIncrementKg,
   lighterWeeks,
+  recordAlerts,
   readOnly,
   actions,
   onRestStarted,
@@ -98,6 +99,8 @@ export function useLoggingState({
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
   lighterWeeks: readonly LighterPeriod[];
+  /** Whether a new Record shows its on-screen alert (its sound is the milestone sound's). */
+  recordAlerts: boolean;
   readOnly: boolean;
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
@@ -330,12 +333,13 @@ export function useLoggingState({
       const ghost = ghostsFor(current.cell.setId)[field] ?? null;
       const next = stepValue(field, typed, ghost, direction, {
         unit,
-        barbell: at.exercise.exercise?.equipment === "barbell",
+        equipment: at.exercise.exercise?.equipment ?? null,
+        incrementKg: weightIncrementKg,
       });
       setEntry({ cell: current.cell, raw: textOfValue(field, next, unit), fresh: false });
       commit(current.cell, next);
     },
-    [found, unit, ghostsFor, commit],
+    [found, unit, ghostsFor, commit, weightIncrementKg],
   );
 
   const blockOfSet = useCallback(
@@ -363,9 +367,13 @@ export function useLoggingState({
     if (!entry) return "";
     const at = found.get(entry.cell.setId);
     return String(
-      stepOf(entry.cell.field, { unit, barbell: at?.exercise.exercise?.equipment === "barbell" }),
+      stepOf(entry.cell.field, {
+        unit,
+        equipment: at?.exercise.exercise?.equipment ?? null,
+        incrementKg: weightIncrementKg,
+      }),
     );
-  }, [entry, found, unit]);
+  }, [entry, found, unit, weightIncrementKg]);
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
@@ -385,6 +393,10 @@ export function useLoggingState({
 
   // ---- Ticking ----
   const sound = useSoundCues();
+  const { t } = useTranslation();
+  const { toast } = useAppToast();
+  /** The last set that was ticked, so the screen can follow a superset to its next exercise. */
+  const [tickEvent, setTickEvent] = useState<{ setId: string; nonce: number } | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const refusals = useRef(0);
 
@@ -427,6 +439,13 @@ export function useLoggingState({
       });
       if (record || strong) haptic.success();
       else haptic.tick();
+      if (record && recordAlerts) {
+        toast.show({
+          variant: "success",
+          label: t("session__record_alert", { exercise: at.exercise.title }),
+        });
+      }
+      setTickEvent((before) => ({ setId, nonce: (before?.nonce ?? 0) + 1 }));
       // A countdown that reached zero is the only `strong` tick.
       sound.playTick({ record, countdown: strong });
       if (result.rest) onRestStarted?.();
@@ -442,6 +461,9 @@ export function useLoggingState({
       blockOfSet,
       onRestStarted,
       sound,
+      recordAlerts,
+      toast,
+      t,
     ],
   );
 
@@ -633,6 +655,7 @@ export function useLoggingState({
     onTick: stableOnTick,
     editingFinished: session.finishedAt !== null,
     onTimer: stableOnTimer,
+    tickEvent,
     onPrevious: stableOnPrevious,
     onCopySets: stableOnCopySets,
     onKindSelected,

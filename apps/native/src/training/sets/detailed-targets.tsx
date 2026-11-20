@@ -1,4 +1,9 @@
-import { type ExerciseType, type PlannedSet, type SetKind } from "@workspace/shared";
+import {
+  type Equipment,
+  type ExerciseType,
+  type PlannedSet,
+  type SetKind,
+} from "@workspace/shared";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -23,10 +28,13 @@ import { SetTypeSheet } from "./set-type-sheet";
 export function DetailedTargets({
   sets,
   type,
+  equipment = null,
   onSets,
 }: {
   sets: readonly PlannedSet[];
   type: ExerciseType;
+  /** The exercise's equipment, for the keypad's step. */
+  equipment?: Equipment | null;
   onSets: (sets: PlannedSet[]) => void;
 }) {
   const { t } = useTranslation();
@@ -58,6 +66,8 @@ export function DetailedTargets({
         ids={ids}
         chips={chipTexts(sets, letters)}
         weightUnit={preferences.weightUnit}
+        weightIncrementKg={preferences.weightIncrementKg}
+        equipment={equipment}
         effortScale={preferences.effortScale}
         onChange={(index, change) => {
           const set = sets[index];

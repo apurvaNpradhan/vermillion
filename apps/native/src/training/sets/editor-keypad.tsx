@@ -1,0 +1,244 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { Text, View } from "react-native";
+
+import { useTranslation } from "@/platform/i18n";
+import { useHideTabBar } from "@/platform/navigation/tab-action";
+import { Keypad } from "@/platform/ui/keypad";
+import type { KeypadKey } from "@/platform/ui/keypad-keys";
+import { stepOf } from "@/platform/ui/keypad-entry";
+import { usePreferences } from "@/preferences";
+
+import {
+  entryDisplay,
+  nextEditorCell,
+  openEntry,
+  pressKey,
+  pressStep,
+  type EditorCell,
+  type EditorEntry,
+} from "./editor-entry";
+
+/** How the keypad scrolls the screen: the current offset and a way to move it. */
+export type EditorScroll = { offset: () => number; scrollTo: (y: number) => void };
+
+type Active = { tableId: string; entry: EditorEntry };
+
+type EditorKeypadValue = {
+  /** The key of the cell being edited, or null. */
+  activeKey: string | null;
+  /** What the active cell shows while it is typed into. */
+  text: string;
+  open: (tableId: string, key: string) => void;
+  /** Gives the keypad the cells of a table, in Next order; call on every render of the table. */
+  bind: (tableId: string, cells: readonly EditorCell[]) => void;
+  registerNode: (key: string) => (node: View | null) => void;
+};
+
+const EditorKeypadContext = createContext<EditorKeypadValue | null>(null);
+
+/**
+ * The keypad of the Workout editor's set tables, or null where there is none (the system keyboard
+ * is asked for, or the table sits outside an {@link EditorKeypadProvider}).
+ */
+export function useEditorKeypad(): EditorKeypadValue | null {
+  return useContext(EditorKeypadContext);
+}
+
+/** Two frames: the layout of the current render is committed. */
+function afterLayout(run: () => void): () => void {
+  let second = 0;
+  const first = requestAnimationFrame(() => {
+    second = requestAnimationFrame(run);
+  });
+  return () => {
+    cancelAnimationFrame(first);
+    cancelAnimationFrame(second);
+  };
+}
+
+/**
+ * Wraps a screen that holds set tables: gives them one docked keypad at the bottom of the screen
+ * (in the layout, so the page above shrinks and scrolls clear of it), hides the tab bar while it
+ * is open, and scrolls the edited cell above it. With "Use system keyboard" on it provides
+ * nothing and the tables keep their text inputs.
+ */
+export function EditorKeypadProvider({
+  scroll,
+  children,
+}: {
+  scroll: EditorScroll;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const { systemKeyboard } = usePreferences().preferences.ui;
+  const [active, setActive] = useState<Active | null>(null);
+  const activeRef = useRef(active);
+  const setCurrent = useCallback((next: Active | null) => {
+    activeRef.current = next;
+    setActive(next);
+  }, []);
+  const tables = useRef(new Map<string, readonly EditorCell[]>());
+  const nodes = useRef(new Map<string, View>());
+  const dock = useRef<View>(null);
+  const scrollRef = useRef(scroll);
+  scrollRef.current = scroll;
+  useHideTabBar(active !== null);
+
+  const cellOf = useCallback((current: Active): EditorCell | undefined => {
+    // The newest cell of the table: its value callback closes over the newest sets.
+    return tables.current.get(current.tableId)?.find((cell) => cell.key === current.entry.cell.key);
+  }, []);
+
+  const reveal = useCallback((key: string) => {
+    return afterLayout(() => {
+      const node = nodes.current.get(key);
+      const bar = dock.current;
+      if (!node || !bar) return;
+      node.measureInWindow((_x, y, _width, height) => {
+        bar.measureInWindow((_dx, dockTop) => {
+          const over = y + height - (dockTop - 12);
+          if (over > 0) scrollRef.current.scrollTo(scrollRef.current.offset() + over);
+        });
+      });
+    });
+  }, []);
+
+  const open = useCallback(
+    (tableId: string, key: string) => {
+      const cell = tables.current.get(tableId)?.find((candidate) => candidate.key === key);
+      if (!cell) return;
+      setCurrent({ tableId, entry: openEntry(cell) });
+      reveal(key);
+    },
+    [setCurrent, reveal],
+  );
+  const bind = useCallback((tableId: string, cells: readonly EditorCell[]) => {
+    tables.current.set(tableId, cells);
+  }, []);
+  const registerNode = useCallback(
+    (key: string) => (node: View | null) => {
+      if (node) nodes.current.set(key, node);
+      else nodes.current.delete(key);
+    },
+    [],
+  );
+
+  const onKey = useCallback(
+    (key: KeypadKey) => {
+      const current = activeRef.current;
+      const cell = current && cellOf(current);
+      if (!current || !cell) return;
+      const result = pressKey({ ...current.entry, cell }, key);
+      setCurrent({ tableId: current.tableId, entry: result.entry });
+      if (result.write) cell.onValue(result.value);
+    },
+    [cellOf, setCurrent],
+  );
+  const onStep = useCallback(
+    (direction: 1 | -1) => {
+      const current = activeRef.current;
+      const cell = current && cellOf(current);
+      if (!current || !cell) return;
+      const result = pressStep({ ...current.entry, cell }, direction);
+      setCurrent({ tableId: current.tableId, entry: result.entry });
+      cell.onValue(result.value);
+    },
+    [cellOf, setCurrent],
+  );
+  const next = active
+    ? nextEditorCell(tables.current.get(active.tableId) ?? [], active.entry.cell.key)
+    : null;
+  const nextKey = next?.key ?? null;
+  const onNext = useCallback(() => {
+    const current = activeRef.current;
+    if (!current) return;
+    const after = nextEditorCell(tables.current.get(current.tableId) ?? [], current.entry.cell.key);
+    if (after) open(current.tableId, after.key);
+    else setCurrent(null);
+  }, [open, setCurrent]);
+  const onDone = useCallback(() => setCurrent(null), [setCurrent]);
+
+  // A cell that is removed (its set was deleted) closes the keypad.
+  useEffect(() => {
+    if (active && !cellOf(active)) setCurrent(null);
+  });
+
+  const value = useMemo<EditorKeypadValue | null>(
+    () =>
+      systemKeyboard
+        ? null
+        : {
+            activeKey: active?.entry.cell.key ?? null,
+            text: active ? entryDisplay(active.entry) : "",
+            open,
+            bind,
+            registerNode,
+          },
+    [systemKeyboard, active, open, bind, registerNode],
+  );
+
+  const stepText = active
+    ? String(
+        stepOf(active.entry.cell.field, {
+          unit: active.entry.cell.unit,
+          equipment: active.entry.cell.equipment,
+          incrementKg: active.entry.cell.incrementKg,
+        }),
+      )
+    : "";
+  return (
+    <EditorKeypadContext value={value}>
+      <View className="flex-1">
+        <View className="flex-1">{children}</View>
+        <View ref={dock} collapsable={false}>
+          {active && !systemKeyboard ? (
+            <Keypad
+              labels={{
+                point: t("session__key_point"),
+                backspace: t("session__key_backspace"),
+                decrease: t("session__key_decrease", { step: stepText }),
+                increase: t("session__key_increase", { step: stepText }),
+                next: t("session__key_next"),
+                done: t("session__key_done"),
+              }}
+              allowPoint={
+                active.entry.cell.field === "weight" || active.entry.cell.field === "distance"
+              }
+              hasNext={nextKey !== null}
+              stepText={stepText}
+              accessory={
+                <Text numberOfLines={1} className="flex-1 text-caption text-muted">
+                  {active.entry.cell.label}
+                </Text>
+              }
+              onKey={onKey}
+              onStep={onStep}
+              onNext={onNext}
+              onDone={onDone}
+            />
+          ) : null}
+        </View>
+      </View>
+    </EditorKeypadContext>
+  );
+}
+
+/** Keeps a table's cells bound to the keypad, newest render first. */
+export function useBindEditorCells(tableId: string, cells: readonly EditorCell[]) {
+  const keypad = useEditorKeypad();
+  const bind = keypad?.bind;
+  // Layout effect: before any press that follows this render can read the cells.
+  useLayoutEffect(() => {
+    bind?.(tableId, cells);
+  });
+}

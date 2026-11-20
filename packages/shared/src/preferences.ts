@@ -55,6 +55,10 @@ const uiFields = {
   soundRest: z.boolean(),
   soundSets: z.boolean(),
   soundMilestones: z.boolean(),
+  systemKeyboard: z.boolean(),
+  inlineTimer: z.boolean(),
+  supersetScroll: z.boolean(),
+  recordAlerts: z.boolean(),
   sidebarCollapsed: z.boolean(),
   dismissedHints: z.array(z.string().max(100)).max(100),
   weightIncrementKg: z.number().positive().max(100).nullable(),
@@ -96,6 +100,11 @@ export const uiPreferencesSchema = z
     soundRest: uiFields.soundRest.optional(),
     soundSets: uiFields.soundSets.default(true),
     soundMilestones: uiFields.soundMilestones.default(true),
+    // Logging controls: the number pad is ours unless the system keyboard is asked for.
+    systemKeyboard: uiFields.systemKeyboard.default(false),
+    inlineTimer: uiFields.inlineTimer.default(true),
+    supersetScroll: uiFields.supersetScroll.default(true),
+    recordAlerts: uiFields.recordAlerts.default(true),
     /** Legacy: the single "Rest timer sound" switch. Read only to migrate it into `soundRest`. */
     restSound: z.boolean().optional(),
     sidebarCollapsed: uiFields.sidebarCollapsed.default(false),

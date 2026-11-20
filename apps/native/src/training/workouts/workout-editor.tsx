@@ -46,6 +46,7 @@ import { HideWhileDragging } from "@/training/reorder/hide-while-dragging";
 import { ReorderList } from "@/training/reorder/reorder-list";
 import { useReorderScroll } from "@/training/reorder/use-reorder-scroll";
 import { SavedTextField } from "@/training/targets/saved-text-field";
+import { EditorKeypadProvider } from "@/training/sets/editor-keypad";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
 import { WorkoutNote } from "./workout-note";
 
@@ -270,175 +271,183 @@ function LoadedEditor({
 
   return (
     <>
-      <Page
-        title={title}
-        back
-        actions={
-          <View className="flex-row">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("share__share")}
-              className="h-11 w-11 items-center justify-center"
-              onPress={() => {
-                writer.flush();
-                router.push({
-                  pathname: "/share/[kind]/[id]",
-                  params: { kind: "workout", id: workout.id },
-                });
-              }}
-            >
-              <ShareNetwork size={24} color={foreground} />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("training__workout_menu")}
-              onPress={() => setMenuOpen(true)}
-              className="h-11 w-11 items-center justify-center"
-            >
-              <DotsThreeVertical size={24} color={foreground} />
-            </Pressable>
-          </View>
-        }
+      <EditorKeypadProvider
+        scroll={{
+          offset: () => reorderScroll.offset.value,
+          scrollTo: (y) => reorderScroll.ref.current?.scrollTo({ y, animated: true }),
+        }}
       >
-        {({ header, contentContainerStyle, ...scroll }) => (
-          <AnimatedKeyboardAwareScrollView
-            bottomOffset={24}
-            {...scroll}
-            className="flex-1"
-            contentContainerStyle={contentContainerStyle}
-            contentContainerClassName="gap-4"
-            ref={(node: ScrollView | null) => {
-              scroll.ref(node);
-              reorderScroll.ref(node);
-            }}
-            animatedProps={reorderScroll.animatedProps}
-            onContentSizeChange={reorderScroll.onContentSizeChange}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            <View className="px-4">{header}</View>
-            <View className="gap-3 px-4">
-              {editingDetails ? (
-                <>
-                  <SavedTextField
-                    label={t("training__name_label")}
-                    value={workout.title}
-                    onText={(next) => writer.queue({ title: next })}
-                    placeholder={title}
-                    maxLength={TRAINING_LIMITS.titleMax}
-                    returnKeyType="next"
-                  />
-                  <WorkoutNote
-                    value={workout.note}
-                    onText={(next) => writer.queue({ note: next })}
-                  />
-                  <Button
-                    variant="secondary"
-                    onPress={() => {
-                      writer.flush();
-                      Keyboard.dismiss();
-                      setEditingDetails(false);
-                    }}
-                  >
-                    <Button.Label>{t("training__effort_done")}</Button.Label>
-                  </Button>
-                </>
-              ) : null}
+        <Page
+          title={title}
+          back
+          actions={
+            <View className="flex-row">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("share__share")}
+                className="h-11 w-11 items-center justify-center"
+                onPress={() => {
+                  writer.flush();
+                  router.push({
+                    pathname: "/share/[kind]/[id]",
+                    params: { kind: "workout", id: workout.id },
+                  });
+                }}
+              >
+                <ShareNetwork size={24} color={foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("training__workout_menu")}
+                onPress={() => setMenuOpen(true)}
+                className="h-11 w-11 items-center justify-center"
+              >
+                <DotsThreeVertical size={24} color={foreground} />
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showMore }}
-              accessibilityLabel={t(showMore ? "training__show_less" : "training__show_more")}
-              onPress={() => setShowMore((open) => !open)}
-              className="mx-4 h-11 flex-row items-center justify-between"
+          }
+        >
+          {({ header, contentContainerStyle, ...scroll }) => (
+            <AnimatedKeyboardAwareScrollView
+              bottomOffset={24}
+              {...scroll}
+              className="flex-1"
+              contentContainerStyle={contentContainerStyle}
+              contentContainerClassName="gap-4"
+              ref={(node: ScrollView | null) => {
+                scroll.ref(node);
+                reorderScroll.ref(node);
+              }}
+              animatedProps={reorderScroll.animatedProps}
+              onContentSizeChange={reorderScroll.onContentSizeChange}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
-              <Text className="font-medium text-label text-foreground">
-                {t(showMore ? "training__show_less" : "training__show_more")}
-              </Text>
-              {showMore ? (
-                <CaretUp size={20} color={foreground} />
-              ) : (
-                <CaretDown size={20} color={foreground} />
-              )}
-            </Pressable>
-            {showMore ? (
+              <View className="px-4">{header}</View>
               <View className="gap-3 px-4">
-                {workout.note && !editingDetails ? (
-                  <Text className="text-body text-muted">{workout.note}</Text>
+                {editingDetails ? (
+                  <>
+                    <SavedTextField
+                      label={t("training__name_label")}
+                      value={workout.title}
+                      onText={(next) => writer.queue({ title: next })}
+                      placeholder={title}
+                      maxLength={TRAINING_LIMITS.titleMax}
+                      returnKeyType="next"
+                    />
+                    <WorkoutNote
+                      value={workout.note}
+                      onText={(next) => writer.queue({ note: next })}
+                    />
+                    <Button
+                      variant="secondary"
+                      onPress={() => {
+                        writer.flush();
+                        Keyboard.dismiss();
+                        setEditingDetails(false);
+                      }}
+                    >
+                      <Button.Label>{t("training__effort_done")}</Button.Label>
+                    </Button>
+                  </>
                 ) : null}
-                <View className="flex-row items-center gap-4">
-                  <BodyMapPair
-                    primary={muscles.primary}
-                    secondary={muscles.secondary}
-                    gap={8}
-                    style={{ width: 112 }}
-                  />
-                  <View className="flex-1 gap-2">
-                    <Text className="font-medium text-label text-foreground">
-                      {t("training__muscles_trained")}
-                    </Text>
-                    <Text className="text-caption text-muted">
-                      {muscles.primary.map((muscle) => t(MUSCLE_GROUP_KEYS[muscle])).join(" · ") ||
-                        t("bodymap__none")}
-                    </Text>
-                    {muscles.secondary.length > 0 ? (
-                      <Text className="text-caption text-muted">
-                        {t("training__assisting_muscles", {
-                          names: muscles.secondary
-                            .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))
-                            .join(" · "),
-                        })}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showMore }}
+                accessibilityLabel={t(showMore ? "training__show_less" : "training__show_more")}
+                onPress={() => setShowMore((open) => !open)}
+                className="mx-4 h-11 flex-row items-center justify-between"
+              >
+                <Text className="font-medium text-label text-foreground">
+                  {t(showMore ? "training__show_less" : "training__show_more")}
+                </Text>
+                {showMore ? (
+                  <CaretUp size={20} color={foreground} />
+                ) : (
+                  <CaretDown size={20} color={foreground} />
+                )}
+              </Pressable>
+              {showMore ? (
+                <View className="gap-3 px-4">
+                  {workout.note && !editingDetails ? (
+                    <Text className="text-body text-muted">{workout.note}</Text>
+                  ) : null}
+                  <View className="flex-row items-center gap-4">
+                    <BodyMapPair
+                      primary={muscles.primary}
+                      secondary={muscles.secondary}
+                      gap={8}
+                      style={{ width: 112 }}
+                    />
+                    <View className="flex-1 gap-2">
+                      <Text className="font-medium text-label text-foreground">
+                        {t("training__muscles_trained")}
                       </Text>
-                    ) : null}
+                      <Text className="text-caption text-muted">
+                        {muscles.primary
+                          .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))
+                          .join(" · ") || t("bodymap__none")}
+                      </Text>
+                      {muscles.secondary.length > 0 ? (
+                        <Text className="text-caption text-muted">
+                          {t("training__assisting_muscles", {
+                            names: muscles.secondary
+                              .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))
+                              .join(" · "),
+                          })}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ) : null}
-            <ReorderList
-              items={workout.exercises}
-              scroll={reorderScroll}
-              topInset={contentContainerStyle.paddingTop}
-              bottomInset={contentContainerStyle.paddingBottom}
-              onMove={(id, beforeId) => void actions.move(id, beforeId)}
-              renderItem={(entry, { collapsed }) => (
-                <WorkoutExerciseRow
-                  entry={entry}
-                  expanded={expandedId === entry.id}
-                  onToggle={() =>
-                    setExpandedId((current) => (current === entry.id ? null : entry.id))
-                  }
-                  collapsed={collapsed}
-                  place={places.get(entry.id) ?? "none"}
-                  onMenu={setRowMenu}
-                />
-              )}
-            />
-            <HideWhileDragging dragging={reorderScroll.dragging}>
-              {workout.exercises.length === 0 ? (
-                <EmptyState
-                  icon={Plus}
-                  title={t("training__workout_empty_meta")}
-                  action={{
-                    label: t("training__add_exercises"),
-                    onPress: () => void addExercises(),
-                  }}
-                />
-              ) : (
-                <View className="px-4">
-                  <Button
-                    variant="secondary"
-                    isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
-                    onPress={() => void addExercises()}
-                  >
-                    <Plus size={20} color={foreground} />
-                    <Button.Label>{t("training__add_exercises")}</Button.Label>
-                  </Button>
-                </View>
-              )}
-            </HideWhileDragging>
-          </AnimatedKeyboardAwareScrollView>
-        )}
-      </Page>
+              ) : null}
+              <ReorderList
+                items={workout.exercises}
+                scroll={reorderScroll}
+                topInset={contentContainerStyle.paddingTop}
+                bottomInset={contentContainerStyle.paddingBottom}
+                onMove={(id, beforeId) => void actions.move(id, beforeId)}
+                renderItem={(entry, { collapsed }) => (
+                  <WorkoutExerciseRow
+                    entry={entry}
+                    expanded={expandedId === entry.id}
+                    onToggle={() =>
+                      setExpandedId((current) => (current === entry.id ? null : entry.id))
+                    }
+                    collapsed={collapsed}
+                    place={places.get(entry.id) ?? "none"}
+                    onMenu={setRowMenu}
+                  />
+                )}
+              />
+              <HideWhileDragging dragging={reorderScroll.dragging}>
+                {workout.exercises.length === 0 ? (
+                  <EmptyState
+                    icon={Plus}
+                    title={t("training__workout_empty_meta")}
+                    action={{
+                      label: t("training__add_exercises"),
+                      onPress: () => void addExercises(),
+                    }}
+                  />
+                ) : (
+                  <View className="px-4">
+                    <Button
+                      variant="secondary"
+                      isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
+                      onPress={() => void addExercises()}
+                    >
+                      <Plus size={20} color={foreground} />
+                      <Button.Label>{t("training__add_exercises")}</Button.Label>
+                    </Button>
+                  </View>
+                )}
+              </HideWhileDragging>
+            </AnimatedKeyboardAwareScrollView>
+          )}
+        </Page>
+      </EditorKeypadProvider>
       <ActionSheet
         title={title}
         actions={[

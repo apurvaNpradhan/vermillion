@@ -58,6 +58,8 @@ import { allTicked, doneSummary, formatVolume, progressText } from "@/session/fi
 import { restBelongsTo } from "@/session/rest/rest-rules";
 import { useRestRunning } from "@/session/rest/use-rest-running";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
+import { blockOf, nextSupersetExercise } from "@/session/logging/blocks";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { canAddWarmups } from "@/session/warmups/warmup-plan";
 import { useWarmCount } from "./use-warm-count";
 import { useFinishFlow } from "@/session/finish/use-finish-flow";
@@ -282,6 +284,22 @@ function LoadedSession({
     // After the next layout pass, not a fixed delay.
     return afterLayout(() => alignTop(`ex:${openFirst}`));
   }, [openFirst, alignTop]);
+  // Smart superset scrolling: after a tick, bring the next member that still has an open set to
+  // the top. Reduce Motion turns the scroll's animation off.
+  const { tickEvent, found: foundSets, blocks: loggingBlocks } = logging;
+  const supersetScroll = preferences.ui.supersetScroll;
+  const reduceMotion = useReduceMotion();
+  const followed = useRef(0);
+  useEffect(() => {
+    if (!tickEvent || tickEvent.nonce === followed.current) return;
+    followed.current = tickEvent.nonce;
+    if (!supersetScroll) return;
+    const at = foundSets.get(tickEvent.setId);
+    const block = at ? blockOf(loggingBlocks, at.exercise.id) : undefined;
+    const next = block ? nextSupersetExercise(block, tickEvent.setId) : null;
+    if (!next) return;
+    return afterLayout(() => alignTop(`ex:${next.id}`, !reduceMotion));
+  }, [tickEvent, supersetScroll, foundSets, loggingBlocks, alignTop, reduceMotion]);
   const activeSetId = logging.activeSetId;
   // Back closes the keypad before it minimises the workout.
   useFocusEffect(
@@ -540,6 +558,7 @@ function LoadedSession({
                     effortScale={effortScale}
                     historyReady={logging.historyReadyFor(entry.exerciseId)}
                     editingFinished={logging.editingFinished}
+                    inlineTimer={preferences.ui.inlineTimer}
                     entry={ownEntry(entry, logging.entry)}
                     refusal={
                       logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)

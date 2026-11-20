@@ -29,6 +29,7 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
         row: { top: number; bottom: number },
         view: { top: number; bottom: number },
       ) => number | null,
+      animated = true,
     ) => {
       const row = rows.current.get(key);
       const viewport = viewportRef.current;
@@ -37,7 +38,7 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
         row.measureInWindow((_rx, ry, _rw, rh) => {
           const delta = then({ top: ry, bottom: ry + rh }, { top: vy, bottom: vy + vh });
           if (delta !== null && delta !== 0) {
-            scrollRef.current?.scrollTo({ y: Math.max(0, offset.current + delta), animated: true });
+            scrollRef.current?.scrollTo({ y: Math.max(0, offset.current + delta), animated });
           }
         });
       });
@@ -58,7 +59,7 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
 
   /** Puts the row at the top of the viewport. */
   const alignTop = useCallback(
-    (key: string) => measure(key, (row, view) => row.top - view.top - 8),
+    (key: string, animated = true) => measure(key, (row, view) => row.top - view.top - 8, animated),
     [measure],
   );
 

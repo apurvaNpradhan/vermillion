@@ -33,6 +33,7 @@ export const SetGrid = memo(function SetGrid({
   lighter,
   historyReady,
   editingFinished,
+  inlineTimer,
   entry,
   refusal,
   previousOf,
@@ -57,6 +58,7 @@ export const SetGrid = memo(function SetGrid({
   /** Previous values of this exercise have loaded. */
   historyReady: boolean;
   editingFinished: boolean;
+  inlineTimer: boolean;
   /** The keypad's cell, only when it is in this exercise. */
   entry: ActiveEntry | null;
   /** A refused tick, only when it is in this exercise. */
@@ -154,6 +156,7 @@ export const SetGrid = memo(function SetGrid({
             >
               <SetRow
                 editingFinished={editingFinished}
+                inlineTimer={inlineTimer}
                 set={set}
                 type={exercise.type}
                 badge={badges[index] ?? String(index + 1)}

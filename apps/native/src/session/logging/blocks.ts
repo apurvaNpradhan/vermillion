@@ -127,3 +127,19 @@ export function highlightOf(block: Block<BlockExercise>): Highlight | null {
   }
   return null;
 }
+
+/**
+ * Where a superset goes after `setId` is ticked: the next member (wrapping round) that still has an
+ * unticked set, or null for a lone exercise, a set outside the block, or a superset with nothing
+ * left to do in the other members.
+ */
+export function nextSupersetExercise<E extends BlockExercise>(
+  block: Block<E>,
+  setId: string,
+): E | null {
+  if (!block.superset) return null;
+  const at = block.members.findIndex((member) => member.sets.some((set) => set.id === setId));
+  if (at < 0) return null;
+  const others = [...block.members.slice(at + 1), ...block.members.slice(0, at)];
+  return others.find((member) => member.sets.some((set) => set.completedAt === null)) ?? null;
+}

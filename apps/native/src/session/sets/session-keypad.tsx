@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
+import { usePreferences } from "@/preferences";
 import type { WeightUnit } from "@workspace/shared";
 
 import { useKeypadAccessory } from "./keypad-accessory";
@@ -47,6 +48,7 @@ export function SessionKeypad({
   withinSet?: boolean;
 }) {
   const { t } = useTranslation();
+  const { systemKeyboard } = usePreferences().preferences.ui;
   if (!logging.entry || !logging.activeField) return null;
   return (
     <Keypad
@@ -62,6 +64,7 @@ export function SessionKeypad({
       hasNext={withinSet ? logging.hasNextInSet : logging.hasNext}
       stepText={logging.stepText}
       accessory={accessory}
+      systemKeyboard={systemKeyboard}
       onKey={logging.onKey}
       onStep={logging.onStep}
       onNext={withinSet ? logging.onNextInSet : logging.onNext}

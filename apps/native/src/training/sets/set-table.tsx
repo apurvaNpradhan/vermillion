@@ -1,6 +1,7 @@
 import {
   SET_FIELDS,
   addsLoad,
+  type Equipment,
   SET_KIND_KEYS,
   formatWeight,
   parseWeight,
@@ -11,6 +12,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import { Trash } from "phosphor-react-native";
+import { useId } from "react";
 import { Keyboard, Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -25,6 +27,9 @@ import type { Target } from "./set-editing";
 import { SET_TONES } from "./set-tones";
 import { RepTarget } from "@/training/targets/rep-target";
 import { CellInput } from "./cell-input";
+import { EditorCellButton } from "./editor-cell";
+import type { EditorCell, EditorField } from "./editor-entry";
+import { useBindEditorCells, useEditorKeypad } from "./editor-keypad";
 
 const decimal = (text: string): number | undefined | null => {
   const cleaned = text.trim().replace(",", ".");
@@ -56,6 +61,8 @@ export function SetTable({
   ids,
   chips,
   weightUnit,
+  weightIncrementKg,
+  equipment,
   effortScale,
   onChange,
   onKind,
@@ -70,6 +77,10 @@ export function SetTable({
   /** The text of each set's chip (W, 1…n, D, F, T, B, M). */
   chips: readonly string[];
   weightUnit: WeightUnit;
+  /** The manual weight increment in kg; null is "Auto by equipment". */
+  weightIncrementKg: number | null;
+  /** The exercise's equipment, for the keypad's − / + step. */
+  equipment: Equipment | null;
   effortScale: EffortScale;
   onChange: (index: number, change: Partial<Target>) => void;
   onKind: (index: number) => void;
@@ -79,6 +90,10 @@ export function SetTable({
   const rowMotion = useRowMotion();
   const columns = setColumns(type);
   const unitName = t(weightUnit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const keypad = useEditorKeypad();
+  const tableId = useId();
+  // The cells the keypad types into, in the order Next walks them (filled while rows are built).
+  const cells: EditorCell[] = [];
 
   const header = (column: SetField | "effort"): string => {
     switch (column) {
@@ -102,7 +117,62 @@ export function SetTable({
   };
   const grow = (column: SetField | "effort") => (column === "reps" ? "flex-[1.7]" : "flex-1");
 
-  return (
+  /**
+   * A number cell: a pressable the editor keypad types into, or (with "Use system keyboard", or
+   * outside a keypad) the text input. Either way it registers with the keypad, in row order.
+   */
+  const numberCell = (
+    index: number,
+    number: string | number,
+    column: EditorField,
+    spec: {
+      value: number | undefined;
+      decimal?: boolean;
+      placeholder?: string;
+      parse: (text: string) => number | undefined | null;
+      format: (value: number) => string;
+      onValue: (value: number | undefined) => void;
+    },
+  ) => {
+    const label = t("training__cell_label", { number, field: header(column) });
+    const key = `${ids[index] ?? index}:${column}`;
+    cells.push({
+      key,
+      field: column,
+      label,
+      value: spec.value,
+      unit: weightUnit,
+      equipment,
+      incrementKg: weightIncrementKg,
+      onValue: spec.onValue,
+    });
+    if (keypad) {
+      return (
+        <EditorCellButton
+          key={column}
+          tableId={tableId}
+          cellKey={key}
+          label={label}
+          text={spec.value === undefined ? "" : spec.format(spec.value)}
+          placeholder={spec.placeholder ?? "–"}
+        />
+      );
+    }
+    return (
+      <CellInput
+        key={column}
+        label={label}
+        value={spec.value}
+        decimal={spec.decimal}
+        placeholder={spec.placeholder}
+        parse={spec.parse}
+        format={spec.format}
+        onValue={spec.onValue}
+      />
+    );
+  };
+
+  const body = (
     <SwipeGroup>
       <View className="gap-2">
         <View className="flex-row items-center gap-2">
@@ -125,20 +195,16 @@ export function SetTable({
               return <View key={column} className={grow(column)} />;
             switch (column) {
               case "weight":
-                return (
-                  <CellInput
-                    key={column}
-                    label={t("training__cell_label", { number, field: header(column) })}
-                    value={set.weight_kg}
-                    decimal
-                    parse={(text) => {
-                      const cleaned = text.trim();
-                      return cleaned === "" ? undefined : parseWeight(cleaned, weightUnit);
-                    }}
-                    format={(kg) => formatWeight(kg, weightUnit)}
-                    onValue={(weight_kg) => onChange(index, { weight_kg })}
-                  />
-                );
+                return numberCell(index, number, column, {
+                  value: set.weight_kg,
+                  decimal: true,
+                  parse: (text) => {
+                    const cleaned = text.trim();
+                    return cleaned === "" ? undefined : parseWeight(cleaned, weightUnit);
+                  },
+                  format: (kg) => formatWeight(kg, weightUnit),
+                  onValue: (weight_kg) => onChange(index, { weight_kg }),
+                });
               case "reps":
                 return (
                   <View key={column} className={grow(column)}>
@@ -179,53 +245,36 @@ export function SetTable({
                 );
               }
               case "duration":
-                return (
-                  <CellInput
-                    key={column}
-                    label={t("training__cell_label", { number, field: header(column) })}
-                    value={set.duration_s}
-                    placeholder="0:00"
-                    parse={parseDuration}
-                    format={formatClock}
-                    onValue={(duration_s) => onChange(index, { duration_s })}
-                  />
-                );
+                return numberCell(index, number, column, {
+                  value: set.duration_s,
+                  placeholder: "0:00",
+                  parse: parseDuration,
+                  format: formatClock,
+                  onValue: (duration_s) => onChange(index, { duration_s }),
+                });
               case "distance":
-                return (
-                  <CellInput
-                    key={column}
-                    label={t("training__cell_label", { number, field: header(column) })}
-                    value={set.distance_m}
-                    decimal
-                    parse={decimal}
-                    format={meters}
-                    onValue={(distance_m) => onChange(index, { distance_m })}
-                  />
-                );
+                return numberCell(index, number, column, {
+                  value: set.distance_m,
+                  decimal: true,
+                  parse: decimal,
+                  format: meters,
+                  onValue: (distance_m) => onChange(index, { distance_m }),
+                });
               case "floors":
-                return (
-                  <CellInput
-                    key={column}
-                    label={t("training__cell_label", { number, field: header(column) })}
-                    value={set.floors}
-                    parse={whole}
-                    format={String}
-                    onValue={(floors) =>
-                      onChange(index, { floors: floors === 0 ? undefined : floors })
-                    }
-                  />
-                );
+                return numberCell(index, number, column, {
+                  value: set.floors,
+                  parse: whole,
+                  format: String,
+                  onValue: (floors) =>
+                    onChange(index, { floors: floors === 0 ? undefined : floors }),
+                });
               case "steps":
-                return (
-                  <CellInput
-                    key={column}
-                    label={t("training__cell_label", { number, field: header(column) })}
-                    value={set.steps}
-                    parse={whole}
-                    format={String}
-                    onValue={(steps) => onChange(index, { steps: steps === 0 ? undefined : steps })}
-                  />
-                );
+                return numberCell(index, number, column, {
+                  value: set.steps,
+                  parse: whole,
+                  format: String,
+                  onValue: (steps) => onChange(index, { steps: steps === 0 ? undefined : steps }),
+                });
             }
           };
           const row = (a11y?: SwipeA11yProps) => (
@@ -278,4 +327,7 @@ export function SetTable({
       </View>
     </SwipeGroup>
   );
+  // After the rows are built: they register their cells, in order, with the keypad.
+  useBindEditorCells(tableId, cells);
+  return body;
 }

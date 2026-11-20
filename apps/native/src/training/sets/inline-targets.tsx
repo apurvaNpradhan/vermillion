@@ -44,7 +44,12 @@ export function InlineTargets({
   const type = entry.exercise?.exerciseType ?? "weight_reps";
   return (
     <View className="gap-3">
-      <DetailedTargets sets={draft.sets} type={type} onSets={onSets} />
+      <DetailedTargets
+        sets={draft.sets}
+        type={type}
+        equipment={entry.exercise?.equipment ?? null}
+        onSets={onSets}
+      />
       {!grouped ? <RestPicker value={draft.restSeconds} onChange={onRest} /> : null}
     </View>
   );
