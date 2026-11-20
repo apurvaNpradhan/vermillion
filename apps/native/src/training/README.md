@@ -12,4 +12,5 @@ Public surface: `index.ts`. Each folder is one feature; hooks, components, pure 
 - `targets/`: effort, reps and rest target controls and their formatting. Start at `effort.ts`.
 - `reorder/`: drag-to-reorder maths and list. Start at `reorder.ts`.
 - `share/`: Workout and Program share cards. Start at `plan-share-screen.tsx`.
+- `widget/`: the Android home-screen widget's snapshot builder, its host and the Start link screen. Start at `widget-snapshot.ts`.
 - `shared/`: writes, coalescing, sheet frame and preference rows used by several features. Start at `use-training-write.ts`.
