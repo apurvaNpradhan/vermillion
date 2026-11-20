@@ -3,7 +3,9 @@ import {
   EXERCISE_INSTRUCTIONS_MAX,
   EXERCISE_TITLE_MAX,
   EXERCISE_TYPES,
+  hasValidDetails,
   hasValidSecondaryMuscles,
+  MUSCLE_DETAIL_SLUGS,
   MUSCLE_GROUPS,
 } from "@workspace/shared";
 import { z } from "zod";
@@ -21,6 +23,8 @@ export const catalogRowSchema = z.strictObject({
   title: z.string().min(1).max(EXERCISE_TITLE_MAX),
   primary_muscle: z.enum(MUSCLE_GROUPS),
   secondary_muscles: z.array(z.enum(MUSCLE_GROUPS)),
+  primary_detail: z.array(z.enum(MUSCLE_DETAIL_SLUGS)).default([]),
+  secondary_detail: z.array(z.enum(MUSCLE_DETAIL_SLUGS)).default([]),
   equipment: z.enum(EQUIPMENT),
   exercise_type: z.enum(EXERCISE_TYPES),
   is_full_bodyweight: z.boolean(),
@@ -83,6 +87,9 @@ export function parseCatalog(text: string): CatalogRow[] {
   for (const row of rows) {
     if (!hasValidSecondaryMuscles(row)) {
       throw new CatalogValidationError(`catalog row ${row.id}: bad secondary muscles`);
+    }
+    if (!hasValidDetails(row)) {
+      throw new CatalogValidationError(`catalog row ${row.id}: bad muscle details`);
     }
     // A video needs a thumbnail (its poster); a thumbnail alone is fine.
     if (row.video_key !== null && row.thumbnail_key === null) {

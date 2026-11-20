@@ -19,7 +19,7 @@ describe("catalog validation", () => {
   };
 
   it("refuses an unknown slug", () => {
-    refused((list) => (list[0].equipment = "cable"));
+    refused((list) => (list[0].equipment = "jetpack"));
     refused((list) => (list[0].primary_muscle = "wings"));
     refused((list) => (list[0].exercise_type = "telepathy"));
   });

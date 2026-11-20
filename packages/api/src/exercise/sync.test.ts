@@ -135,6 +135,59 @@ describe("exercise upload handler", () => {
     expect((await stored(id))?.title).toBe("Replaced");
   });
 
+  it("accepts valid muscle details, as arrays or JSON text, and refuses the rest", async () => {
+    const me: Writer = await writer("details@example.com");
+    const detailsOf = async (id: string) =>
+      (
+        await app.rows(
+          sql`SELECT to_json(primary_detail)::text AS primary_detail, to_json(secondary_detail)::text AS secondary_detail FROM exercise WHERE id = ${id}`,
+        )
+      )[0];
+    const shoulders = {
+      ...mine,
+      primary_muscle: "shoulders",
+      secondary_muscles: '["chest"]',
+    };
+    const id = uuidv7();
+    expect(
+      await me.send([
+        put(id, {
+          ...shoulders,
+          primary_detail: '["side_delts","rear_delts"]',
+          secondary_detail: '["upper_chest"]',
+        }),
+      ]),
+    ).toEqual({ status: "applied" });
+    expect(await detailsOf(id)).toEqual({
+      primary_detail: '["side_delts","rear_delts"]',
+      secondary_detail: '["upper_chest"]',
+    });
+
+    // A PATCH is checked together with the stored muscles.
+    expect(await me.send([patch(id, { primary_detail: '["front_delts"]' })])).toEqual({
+      status: "applied",
+    });
+    expect((await detailsOf(id))?.primary_detail).toBe('["front_delts"]');
+    expect(await me.send([patch(id, { primary_detail: '["upper_chest"]' })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(await me.send([patch(id, { primary_muscle: "biceps" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+
+    // A detail outside its group, in a group that is not selected, a repeat and an unknown slug.
+    for (const bad of [
+      { ...shoulders, primary_detail: '["upper_chest"]' },
+      { ...shoulders, secondary_detail: '["obliques"]' },
+      { ...shoulders, primary_detail: '["side_delts","side_delts"]' },
+      { ...shoulders, primary_detail: '["side_delts"]', secondary_detail: '["side_delts"]' },
+      { ...shoulders, primary_detail: '["a_later_detail"]' },
+      { ...shoulders, primary_detail: "not json" },
+    ]) {
+      expect(await me.send([put(uuidv7(), bad)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    }
+  });
+
   it("refuses writes to a catalog row, and deletes", async () => {
     const me = await writer("catalog@example.com");
     const before = await stored(catalogId);
@@ -182,7 +235,7 @@ describe("exercise upload handler", () => {
     await invalid({ ...mine, title: "   " });
     await invalid({ ...mine, title: "a".repeat(101) });
     await invalid({ ...mine, instructions: "x".repeat(2001) });
-    await invalid({ ...mine, equipment: "cable" });
+    await invalid({ ...mine, equipment: "jetpack" });
     await invalid({ ...mine, secondary_muscles: '["chest"]' });
     await invalid({ ...mine, secondary_muscles: '["triceps","triceps"]' });
     await invalid({ ...mine, secondary_muscles: "not json" });

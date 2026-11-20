@@ -5,6 +5,7 @@ import {
   EXERCISE_INSTRUCTIONS_MAX,
   EXERCISE_TITLE_MAX,
   EXERCISE_TYPES,
+  MUSCLE_DETAIL_SLUGS,
   MUSCLE_GROUPS,
 } from "@workspace/shared";
 import { sql, type SQL } from "drizzle-orm";
@@ -44,6 +45,14 @@ export const exercise = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    primaryDetail: text("primary_detail")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    secondaryDetail: text("secondary_detail")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     equipment: text("equipment").notNull(),
     exerciseType: text("exercise_type").notNull(),
     isFullBodyweight: boolean("is_full_bodyweight").notNull().default(false),
@@ -73,6 +82,14 @@ export const exercise = pgTable(
     check(
       "exercise_secondary_muscles_known",
       sql`${table.secondaryMuscles} <@ ARRAY[${literals(MUSCLE_GROUPS)}]::text[]`,
+    ),
+    check(
+      "exercise_primary_detail_known",
+      sql`${table.primaryDetail} <@ ARRAY[${literals(MUSCLE_DETAIL_SLUGS)}]::text[]`,
+    ),
+    check(
+      "exercise_secondary_detail_known",
+      sql`${table.secondaryDetail} <@ ARRAY[${literals(MUSCLE_DETAIL_SLUGS)}]::text[]`,
     ),
     check("exercise_equipment_known", oneOf(table.equipment, EQUIPMENT)),
     check("exercise_type_known", oneOf(table.exerciseType, EXERCISE_TYPES)),

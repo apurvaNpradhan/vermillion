@@ -116,6 +116,8 @@ const expectation: Expectation = {
         title: { type: "text", notNull: true, default: null },
         primary_muscle: { type: "text", notNull: true, default: null },
         secondary_muscles: { type: "text[]", notNull: true, default: "'{}'::text[]" },
+        primary_detail: { type: "text[]", notNull: true, default: "'{}'::text[]" },
+        secondary_detail: { type: "text[]", notNull: true, default: "'{}'::text[]" },
         equipment: { type: "text", notNull: true, default: null },
         exercise_type: { type: "text", notNull: true, default: null },
         is_full_bodyweight: { type: "boolean", notNull: true, default: "false" },
@@ -398,7 +400,7 @@ const expectation: Expectation = {
     powersync: [
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
-      "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id)",
+      "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id, primary_detail, secondary_detail)",
       "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",

@@ -1,0 +1,124 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "aa6f035f-9562-413e-9ba5-1ca8e5c2da6d",
+  "prevIds": ["77c3aefc-1975-410f-baca-c5be1f406e70"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise", "primary_detail"],
+      "writes": [
+        "s|col|public.exercise.primary_detail",
+        "n|col|public.exercise.primary_detail",
+        "e|col|public.exercise.primary_detail"
+      ],
+      "reads": ["n|tbl|public.exercise", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise", "secondary_detail"],
+      "writes": [
+        "s|col|public.exercise.secondary_detail",
+        "n|col|public.exercise.secondary_detail",
+        "e|col|public.exercise.secondary_detail"
+      ],
+      "reads": ["n|tbl|public.exercise", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "exercise"],
+      "writes": [
+        "s|ck|public.exercise.exercise_primary_detail_known",
+        "n|ck|public.exercise.exercise_primary_detail_known",
+        "e|ck|public.exercise.exercise_primary_detail_known",
+        "n|con|public.exercise.exercise_primary_detail_known"
+      ],
+      "reads": ["n|tbl|public.exercise", "n|sch|public", "n|col|public.exercise.primary_detail"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "exercise"],
+      "writes": [
+        "s|ck|public.exercise.exercise_secondary_detail_known",
+        "n|ck|public.exercise.exercise_secondary_detail_known",
+        "e|ck|public.exercise.exercise_secondary_detail_known",
+        "n|con|public.exercise.exercise_secondary_detail_known"
+      ],
+      "reads": ["n|tbl|public.exercise", "n|sch|public", "n|col|public.exercise.secondary_detail"]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": ["table", "public", "exercise"],
+      "writes": ["s|ck|public.exercise.exercise_equipment_known"],
+      "reads": [
+        "n|tbl|public.exercise",
+        "n|sch|public",
+        "n|col|public.exercise.equipment",
+        "e|col|public.exercise.equipment"
+      ],
+      "sqlHash": "16cd2343bf575622"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise",
+        "name": "primary_detail",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise",
+        "name": "secondary_detail",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise",
+        "name": "exercise_primary_detail_known",
+        "value": "\"primary_detail\" <@ ARRAY['upper_chest', 'lower_chest', 'front_delts', 'side_delts', 'rear_delts', 'rotator_cuff', 'mid_traps', 'lower_traps', 'teres_major', 'biceps_brachii', 'brachialis', 'brachioradialis', 'wrist_flexors', 'wrist_extensors', 'rectus_abdominis', 'obliques', 'deep_core', 'gastrocnemius', 'soleus', 'tibialis', 'glute_medius', 'tfl', 'hip_flexors']::text[]",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise",
+        "name": "exercise_secondary_detail_known",
+        "value": "\"secondary_detail\" <@ ARRAY['upper_chest', 'lower_chest', 'front_delts', 'side_delts', 'rear_delts', 'rotator_cuff', 'mid_traps', 'lower_traps', 'teres_major', 'biceps_brachii', 'brachialis', 'brachioradialis', 'wrist_flexors', 'wrist_extensors', 'rectus_abdominis', 'obliques', 'deep_core', 'gastrocnemius', 'soleus', 'tibialis', 'glute_medius', 'tfl', 'hip_flexors']::text[]",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"exercise\",\"exercise_equipment_known\"]",
+      "set": {
+        "value": "\"equipment\" IN ('none', 'barbell', 'ez_bar', 'trap_bar', 'dumbbell', 'kettlebell', 'machine', 'cable', 'smith_machine', 'plate', 'resistance_band', 'suspension', 'other')"
+      }
+    }
+  ]
+}

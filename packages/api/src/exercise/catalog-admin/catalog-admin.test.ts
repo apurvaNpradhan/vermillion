@@ -66,6 +66,43 @@ describe("admin catalog", () => {
     );
   });
 
+  it("carries muscle details through create, update, the export, and refuses a bad pair", async () => {
+    const created = await admin.admin.catalog.create({
+      exercise: {
+        ...fields("Detail Press (Dumbbell)"),
+        primaryMuscle: "shoulders",
+        secondaryMuscles: ["chest"],
+        primaryDetail: ["side_delts"],
+        secondaryDetail: ["upper_chest"],
+      },
+      thumbnailKey: THUMB,
+    });
+    expect(created).toMatchObject({
+      primaryDetail: ["side_delts"],
+      secondaryDetail: ["upper_chest"],
+    });
+    const updated = await admin.admin.catalog.update({
+      id: created.id,
+      patch: { primaryDetail: ["side_delts", "rear_delts"] },
+    });
+    expect(updated.primaryDetail).toEqual(["side_delts", "rear_delts"]);
+    // The stored groups decide: chest details do not fit a shoulders primary.
+    await expect(
+      admin.admin.catalog.update({ id: created.id, patch: { primaryDetail: ["upper_chest"] } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      admin.admin.catalog.create({
+        exercise: { ...fields("Bad Detail Press"), primaryDetail: ["obliques"] },
+        thumbnailKey: THUMB,
+      }),
+    ).rejects.toThrow();
+    const exported = await admin.admin.catalog.export();
+    expect(exported.find((row) => row.id === created.id)).toMatchObject({
+      primary_detail: ["side_delts", "rear_delts"],
+      secondary_detail: ["upper_chest"],
+    });
+  });
+
   it("needs an uploaded thumbnail for a live exercise, but not for a retired one", async () => {
     expect(
       await rejection(admin.admin.catalog.create({ exercise: fields("No Thumb (Dumbbell)") })),
@@ -221,7 +258,12 @@ describe("admin catalog", () => {
       await seedCatalog(fresh.services.db, bundledCatalogText());
       const client = fresh.client((await createFullAdmin(fresh, ADMIN)).headers);
       const exported = await client.admin.catalog.export();
-      expect(JSON.stringify(exported)).toBe(JSON.stringify(JSON.parse(bundledCatalogText())));
+      // The seed predates details: its rows have none, which the export writes as empty lists.
+      const withoutDetails = exported.map(({ primary_detail, secondary_detail, ...rest }) => {
+        expect([primary_detail, secondary_detail]).toEqual([[], []]);
+        return rest;
+      });
+      expect(JSON.stringify(withoutDetails)).toBe(JSON.stringify(JSON.parse(bundledCatalogText())));
     } finally {
       await fresh.close();
     }

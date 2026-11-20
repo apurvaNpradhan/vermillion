@@ -9,6 +9,7 @@ import {
   exerciseMediaSlotSchema,
   MEDIA_UPLOAD_URL_SECONDS,
   MUSCLE_GROUPS,
+  hasValidDetails,
   hasValidSecondaryMuscles,
 } from "@workspace/shared";
 import { z } from "zod";
@@ -87,6 +88,8 @@ async function detailOf(services: Services, id: string) {
     title: row.title,
     primaryMuscle: row.primaryMuscle,
     secondaryMuscles: row.secondaryMuscles,
+    primaryDetail: row.primaryDetail,
+    secondaryDetail: row.secondaryDetail,
     equipment: row.equipment,
     exerciseType: row.exerciseType,
     isFullBodyweight: row.isFullBodyweight,
@@ -206,6 +209,15 @@ const update = catalogApi
     const secondary = input.patch.secondaryMuscles ?? current.secondaryMuscles;
     if (!hasValidSecondaryMuscles({ primary_muscle: primary, secondary_muscles: secondary })) {
       throw new ORPCError("BAD_REQUEST", { message: "Secondary muscles include the primary one" });
+    }
+    const valid = hasValidDetails({
+      primary_muscle: primary,
+      secondary_muscles: secondary,
+      primary_detail: input.patch.primaryDetail ?? current.primaryDetail,
+      secondary_detail: input.patch.secondaryDetail ?? current.secondaryDetail,
+    });
+    if (!valid) {
+      throw new ORPCError("BAD_REQUEST", { message: "Details do not match the muscle groups" });
     }
     if (input.patch.videoKey && !(input.patch.thumbnailKey ?? current.thumbnailKey)) {
       throw thumbnailRequired();

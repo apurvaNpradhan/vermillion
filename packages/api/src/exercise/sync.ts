@@ -2,6 +2,7 @@ import {
   CUSTOM_EXERCISE_LIMIT,
   customExerciseFields,
   customExerciseInput,
+  MUSCLE_DETAIL_SLUGS,
   MUSCLE_GROUPS,
 } from "@workspace/shared";
 import { assertMediaReference } from "../media/index";
@@ -35,20 +36,24 @@ const newExerciseId = z.uuidv7();
 const wireBoolean = z
   .union([z.boolean(), z.literal(0), z.literal(1)])
   .transform((value) => value === true || value === 1);
-const wireMuscles = z.union([
-  z.array(z.enum(MUSCLE_GROUPS)),
-  z
-    .string()
-    .transform((text, ctx) => {
-      try {
-        return JSON.parse(text);
-      } catch {
-        ctx.addIssue({ code: "custom", message: "not JSON" });
-        return z.NEVER;
-      }
-    })
-    .pipe(z.array(z.enum(MUSCLE_GROUPS))),
-]);
+const wireList = <Item extends z.ZodType>(item: Item) =>
+  z.union([
+    z.array(item),
+    z
+      .string()
+      .transform((text, ctx) => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          ctx.addIssue({ code: "custom", message: "not JSON" });
+          return z.NEVER;
+        }
+      })
+      .pipe(z.array(item)),
+  ]);
+const wireMuscles = wireList(z.enum(MUSCLE_GROUPS));
+// The server is strict about details: an unknown slug is refused (clients drop them leniently).
+const wireDetails = wireList(z.enum(MUSCLE_DETAIL_SLUGS));
 const wireRetiredAt = z.iso.datetime({ offset: true }).nullable();
 
 // Strict: a column the server owns (rank, aka, media keys, search terms, user_id, timestamps)
@@ -57,6 +62,8 @@ const putData = z.strictObject({
   title: customExerciseFields.shape.title,
   primary_muscle: customExerciseFields.shape.primary_muscle,
   secondary_muscles: wireMuscles.default([]),
+  primary_detail: wireDetails.default([]),
+  secondary_detail: wireDetails.default([]),
   equipment: customExerciseFields.shape.equipment,
   exercise_type: customExerciseFields.shape.exercise_type,
   is_full_bodyweight: wireBoolean.default(false),
@@ -68,6 +75,8 @@ const patchData = z.strictObject({
   title: customExerciseFields.shape.title.optional(),
   primary_muscle: customExerciseFields.shape.primary_muscle.optional(),
   secondary_muscles: wireMuscles.optional(),
+  primary_detail: wireDetails.optional(),
+  secondary_detail: wireDetails.optional(),
   equipment: customExerciseFields.shape.equipment.optional(),
   exercise_type: customExerciseFields.shape.exercise_type.optional(),
   is_full_bodyweight: wireBoolean.optional(),

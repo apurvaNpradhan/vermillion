@@ -21,6 +21,8 @@ export async function createCustomExercise(
     title: input.title,
     primaryMuscle: input.primary_muscle,
     secondaryMuscles: input.secondary_muscles,
+    primaryDetail: input.primary_detail,
+    secondaryDetail: input.secondary_detail,
     equipment: input.equipment,
     exerciseType: input.exercise_type,
     isFullBodyweight: input.is_full_bodyweight,

@@ -12,6 +12,8 @@ export function patchValues(patch: ExercisePatch) {
     ...(patch.title !== undefined ? { title: patch.title } : {}),
     ...(patch.primary_muscle !== undefined ? { primaryMuscle: patch.primary_muscle } : {}),
     ...(patch.secondary_muscles !== undefined ? { secondaryMuscles: patch.secondary_muscles } : {}),
+    ...(patch.primary_detail !== undefined ? { primaryDetail: patch.primary_detail } : {}),
+    ...(patch.secondary_detail !== undefined ? { secondaryDetail: patch.secondary_detail } : {}),
     ...(patch.equipment !== undefined ? { equipment: patch.equipment } : {}),
     ...(patch.exercise_type !== undefined ? { exerciseType: patch.exercise_type } : {}),
     ...(patch.is_full_bodyweight !== undefined
@@ -27,6 +29,8 @@ export function rowAsInput(row: ExerciseRow) {
     title: row.title,
     primary_muscle: row.primaryMuscle,
     secondary_muscles: row.secondaryMuscles,
+    primary_detail: row.primaryDetail,
+    secondary_detail: row.secondaryDetail,
     equipment: row.equipment,
     exercise_type: row.exerciseType,
     is_full_bodyweight: row.isFullBodyweight,
