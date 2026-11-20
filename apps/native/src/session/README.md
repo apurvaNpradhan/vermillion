@@ -14,5 +14,6 @@ Public surface: `index.ts`. Each folder is one feature; hooks, components, pure 
 - `finish/`: finish flow, summary screen, records and the routine update sheet. Start at `use-finish-flow.tsx`.
 - `history/`: history list, calendar, detail and logging a past session. Start at `history-screen.tsx`.
 - `settings/`: session settings sheet and sound cues. Start at `use-session-settings.tsx`.
+- `report/`: the month and year report (History's Report button, Home's card, its share cards). Start at `period-report.ts`.
 - `share/`: the Session share cards and composer. Start at `session-share-screen.tsx`.
 - `shared/`: small helpers two or more features use (sheet shell, install id, clock hook).

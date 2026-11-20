@@ -1,10 +1,13 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
 
-import { SessionShareScreen } from "@/session";
+import { ReportShareScreen, SessionShareScreen } from "@/session";
 
 import { WorkoutShareScreen, ProgramShareScreen } from "@/training";
-const paramsSchema = z.object({ kind: z.enum(["session", "workout", "program"]), id: z.string() });
+const paramsSchema = z.object({
+  kind: z.enum(["session", "workout", "program", "report"]),
+  id: z.string(),
+});
 
 /** The Share composer for one thing, by kind. */
 export default function ShareRoute() {
@@ -16,7 +19,9 @@ export default function ShareRoute() {
       ? WorkoutShareScreen
       : params.data.kind === "program"
         ? ProgramShareScreen
-        : SessionShareScreen;
+        : params.data.kind === "report"
+          ? ReportShareScreen
+          : SessionShareScreen;
   return (
     <Screen
       id={params.data.id}

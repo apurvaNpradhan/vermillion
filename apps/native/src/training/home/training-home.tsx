@@ -6,7 +6,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
-import { useActiveSessions, useStartSession } from "@/session";
+import { ReportCard, useActiveSessions, useStartSession } from "@/session";
 import { calendarDay, KG_PER_LB, sessionGoal } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -211,6 +211,7 @@ export function TrainingHome() {
           onStartEmpty={() => void start(null)}
         />
       )}
+      <ReportCard />
       <LighterWeekCard state={state} />
       <WeekCard
         summary={summary}

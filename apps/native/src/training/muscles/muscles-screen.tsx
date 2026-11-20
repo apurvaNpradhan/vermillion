@@ -1,4 +1,4 @@
-import { isTargetMuscle, type TargetMuscle } from "@workspace/shared";
+import { isTargetMuscle, muscleShares, type TargetMuscle } from "@workspace/shared";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
@@ -15,6 +15,7 @@ import { RadarChart } from "@/platform/ui/radar-chart";
 import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-control";
 
 import { bodyIntensity } from "./muscle-bars";
+import { MuscleDistribution } from "./muscle-distribution";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
 import { groupParts } from "./muscle-parts";
 import { MuscleRow } from "./muscle-row";
@@ -107,6 +108,10 @@ export function MusclesScreen() {
       })),
     [axes, t],
   );
+  const shares = useMemo(
+    () => muscleShares(volume.loads, volume.detailLoads),
+    [volume.loads, volume.detailLoads],
+  );
   const peak = Math.max(1, ...volume.loads.map((load) => load.sets));
   const intensity: Partial<Record<BodyGroup, number>> = {};
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
@@ -181,6 +186,16 @@ export function MusclesScreen() {
               </Text>
             </View>
           </PeriodCard>
+          <View className="gap-3 rounded-2xl bg-surface p-4">
+            <Text
+              accessibilityRole="header"
+              className="font-semibold text-title-md text-foreground"
+            >
+              {t("muscles__distribution_title")}
+            </Text>
+            <Text className="text-caption text-muted">{t("muscles__distribution_caption")}</Text>
+            <MuscleDistribution shares={shares} />
+          </View>
           <View className="gap-4 rounded-2xl bg-surface p-4">
             <View className="flex-row flex-wrap items-center justify-between gap-2">
               <Text className="font-semibold text-title-md text-foreground">

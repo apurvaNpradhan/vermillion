@@ -17,7 +17,14 @@ import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
 import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
-import { datedRecords, metricSeries, metricsFor, type Metric } from "../numbers";
+import {
+  datedRecords,
+  metricSeries,
+  metricsFor,
+  recordsByYear,
+  recordYears,
+  type Metric,
+} from "../numbers";
 
 const LABELS = {
   most_reps: "exercise__metric_most_reps",
@@ -36,6 +43,9 @@ const LABELS = {
 function isMetricLabel(key: Metric): key is keyof typeof LABELS {
   return key in LABELS;
 }
+
+/** A record row: the shown best, and the all-time best beside it when a year is chosen. */
+type YearRecord = ReturnType<typeof datedRecords>[number] & { allTime: number | null };
 
 export function ExerciseNumbers({
   sessions: rawSessions,
@@ -67,6 +77,7 @@ export function ExerciseNumbers({
   const [selected, setSelected] = useState<Metric>(metrics[0] ?? "total_reps");
   const metric = metrics.includes(selected) ? selected : (metrics[0] ?? "total_reps");
   const [help, setHelp] = useState(false);
+  const [year, setYear] = useState<number | null>(null);
   const date = (value: string | number) =>
     new Intl.DateTimeFormat(i18n.language, {
       dateStyle: "medium",
@@ -103,7 +114,16 @@ export function ExerciseNumbers({
     ...p,
     label: date(p.x),
   }));
-  const records = datedRecords(sessions, exerciseId, bodyweightKg);
+  const years = recordYears(sessions, exerciseId, timezone);
+  // A year that no longer has data (a deleted Session) falls back to all time.
+  const activeYear = year !== null && years.includes(year) ? year : null;
+  const records =
+    activeYear === null
+      ? datedRecords(sessions, exerciseId, bodyweightKg).map((record): YearRecord => ({
+          ...record,
+          allTime: null,
+        }))
+      : recordsByYear(sessions, exerciseId, bodyweightKg, activeYear, timezone);
   const Chart =
     metric === "total_reps" || metric === "floors" || metric === "steps" ? BarChart : LineChart;
   // Volume and the estimated one-rep max of these types need a bodyweight to be right.
@@ -182,6 +202,27 @@ export function ExerciseNumbers({
             <Button.Label>{t("exercise__records_help_symbol")}</Button.Label>
           </Button>
         </View>
+        {years.length > 1 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-2"
+          >
+            {([null, ...years] satisfies (number | null)[]).map((value) => (
+              <Button
+                key={value ?? "all"}
+                size="sm"
+                variant={value === activeYear ? "primary" : "tertiary"}
+                accessibilityState={{ selected: value === activeYear }}
+                onPress={() => setYear(value)}
+              >
+                <Button.Label>
+                  {value === null ? t("exercise__records_all_time") : String(value)}
+                </Button.Label>
+              </Button>
+            ))}
+          </ScrollView>
+        ) : null}
         {records.length ? (
           records.map((record) => (
             <View key={record.key} className="flex-row justify-between gap-3">
@@ -189,9 +230,24 @@ export function ExerciseNumbers({
                 <Text className="text-body text-foreground">{label(record.key)}</Text>
                 <Text className="text-caption text-muted">{date(record.date)}</Text>
               </View>
-              <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
-                {format(record.value, record.key)}
-              </Text>
+              <View className="items-end">
+                <Text
+                  className="text-body text-foreground"
+                  style={{ fontVariant: ["tabular-nums"] }}
+                >
+                  {format(record.value, record.key)}
+                </Text>
+                {record.allTime !== null ? (
+                  <Text
+                    className="text-caption text-muted"
+                    style={{ fontVariant: ["tabular-nums"] }}
+                  >
+                    {t("exercise__records_all_time_value", {
+                      value: format(record.allTime, record.key),
+                    })}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           ))
         ) : (
