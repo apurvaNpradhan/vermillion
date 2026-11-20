@@ -4,7 +4,9 @@ import {
   CUSTOM_EXERCISE_LIMIT,
   customExerciseFields,
   customExerciseInput,
+  isMuscleDetail,
   type CustomExerciseInput,
+  type MuscleDetail,
 } from "@workspace/shared";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
@@ -32,6 +34,13 @@ export const exerciseUploadColumns: ReadonlySet<string> = new Set([
 
 export type ExerciseDatabase = AbstractPowerSyncDatabase;
 export type ExercisePatch = Partial<CustomExerciseInput>;
+
+/**
+ * The detail slugs this build knows. A row written by a newer build may hold a slug this one does
+ * not; it is left out of every check and every comparison here, never sent back, and never makes
+ * an edit of another field fail (ADR 0050).
+ */
+const knownDetails = (stored: readonly string[]): MuscleDetail[] => stored.filter(isMuscleDetail);
 
 const clients = new WeakMap<ExerciseDatabase, ReturnType<typeof open>>();
 
@@ -120,8 +129,8 @@ export async function updateCustomExercise(
       title: current.title,
       primary_muscle: current.primary_muscle,
       secondary_muscles: current.secondary_muscles,
-      primary_detail: current.primary_detail,
-      secondary_detail: current.secondary_detail,
+      primary_detail: knownDetails(current.primary_detail),
+      secondary_detail: knownDetails(current.secondary_detail),
       equipment: current.equipment,
       exercise_type: current.exercise_type,
       is_full_bodyweight: current.is_full_bodyweight,
@@ -163,6 +172,22 @@ export async function updateCustomExercise(
         ? { instructions: fields.instructions }
         : {}),
     };
+    // A group change can strand a slug this build cannot place: send the known part instead, so
+    // the row never keeps a detail outside its groups.
+    if (changes.primary_muscle !== undefined || changes.secondary_muscles !== undefined) {
+      if (
+        changes.primary_detail === undefined &&
+        current.primary_detail.length > stored.primary_detail.length
+      ) {
+        changes.primary_detail = stored.primary_detail;
+      }
+      if (
+        changes.secondary_detail === undefined &&
+        current.secondary_detail.length > stored.secondary_detail.length
+      ) {
+        changes.secondary_detail = stored.secondary_detail;
+      }
+    }
     if (Object.keys(changes).length === 0) return false;
     customExerciseInput.parse({ ...stored, ...changes });
     await tx.update(exercise).set(changes).where(eq(exercise.id, id));

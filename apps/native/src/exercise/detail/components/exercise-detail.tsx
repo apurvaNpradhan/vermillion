@@ -3,7 +3,9 @@ import {
   EQUIPMENT_KEYS,
   EXERCISE_TYPE_KEYS,
   hasWarmupRamp,
+  MUSCLE_DETAIL_KEYS,
   MUSCLE_GROUP_KEYS,
+  type MuscleDetail,
   type MuscleGroup,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
@@ -390,6 +392,11 @@ function MuscleSection({
     [exercise.secondaryMuscles, exercise.primaryMuscle],
   );
   const primary = useMemo(() => [exercise.primaryMuscle], [exercise.primaryMuscle]);
+  // An exercise with details lights only those parts; a group without any lights whole.
+  const details = useMemo(
+    () => [...exercise.primaryDetail, ...exercise.secondaryDetail],
+    [exercise.primaryDetail, exercise.secondaryDetail],
+  );
   // Cardio, full body and other have no drawing: the map would show a bare body.
   const drawn = primary.some(isBodyGroup) || secondary.some(isBodyGroup);
 
@@ -406,12 +413,14 @@ function MuscleSection({
         <BodyMapPair
           primary={primary}
           secondary={secondary}
+          details={details}
           onPressGroup={(group) => {
             haptic.tick();
             setTapped((current) => (current === group ? null : group));
           }}
         />
       ) : null}
+      <DetailChips primary={exercise.primaryDetail} secondary={exercise.secondaryDetail} />
       <MuscleLegend
         primary={exercise.primaryMuscle}
         secondary={secondary}
@@ -420,6 +429,44 @@ function MuscleSection({
         onBrowse={onBrowseGroup}
       />
     </CollapsibleSection>
+  );
+}
+
+/** The muscle parts the exercise works, primary first; nothing for an exercise without any. */
+function DetailChips({
+  primary,
+  secondary,
+}: {
+  primary: readonly MuscleDetail[];
+  secondary: readonly MuscleDetail[];
+}) {
+  const { t } = useTranslation();
+  if (primary.length === 0 && secondary.length === 0) return null;
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {primary.map((detail) => (
+        <View
+          key={detail}
+          accessible
+          accessibilityLabel={`${t(MUSCLE_DETAIL_KEYS[detail])}, ${t("exercise__muscle_primary")}`}
+          className="rounded-full bg-default px-3 py-1.5"
+        >
+          <Text className="text-label font-medium text-foreground">
+            {t(MUSCLE_DETAIL_KEYS[detail])}
+          </Text>
+        </View>
+      ))}
+      {secondary.map((detail) => (
+        <View
+          key={detail}
+          accessible
+          accessibilityLabel={`${t(MUSCLE_DETAIL_KEYS[detail])}, ${t("exercise__muscle_secondary")}`}
+          className="rounded-full bg-surface px-3 py-1.5"
+        >
+          <Text className="text-label text-muted">{t(MUSCLE_DETAIL_KEYS[detail])}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
