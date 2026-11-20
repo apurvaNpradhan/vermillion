@@ -97,7 +97,15 @@ export function useSessionShare(id: string): SessionShare {
 
   const firstPhoto = photos.value?.[0]?.media_id ?? null;
   const dataFor = (toggles: Readonly<Record<SessionToggleId, boolean>>) =>
-    buildCardData({ session, flagged, bodyweightKg, distribution, toggles, labels });
+    buildCardData({
+      session,
+      flagged,
+      bodyweightKg,
+      countWarmups: preferences.ui.countWarmups,
+      distribution,
+      toggles,
+      labels,
+    });
   const templates: ShareTemplate<SessionToggleId>[] = [
     {
       id: "summary",

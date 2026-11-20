@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { defaultGymKit } from "../plates/gym-kit";
 import { KG_PER_LB } from "../vocabulary/format";
-import { hasWarmupRamp, warmupRamp, type WarmupLoading } from "./warmup-ramp";
+import { DEFAULT_WARMUP_STEPS, hasWarmupRamp, warmupRamp, type WarmupLoading } from "./warmup-ramp";
 
 function kit(unit: "kg" | "lb", barIndex = 0): NonNullable<WarmupLoading["bar"]> {
   const items = defaultGymKit(unit);
@@ -233,5 +233,62 @@ describe("warmupRamp for types without a load to ramp", () => {
   it("gives none for a non-finite or negative weight", () => {
     expect(barbell(Number.NaN, { bar: kit("kg") })).toEqual([]);
     expect(barbell(-10, { bar: kit("kg") })).toEqual([]);
+  });
+});
+
+describe("warmupRamp with adjusted steps and rounding", () => {
+  it("uses the given steps, lightest first, with the usual opener", () => {
+    const ramp = barbell(100, {
+      bar: kit("kg"),
+    });
+    const custom = warmupRamp({
+      workingKg: 100,
+      exerciseType: "weight_reps",
+      equipment: "barbell",
+      unit: "kg",
+      loading: { bar: kit("kg") },
+      steps: [
+        { percent: 80, reps: 2 },
+        { percent: 60, reps: 4 },
+      ],
+    });
+    expect(asKg(ramp)).toHaveLength(4);
+    expect(asKg(custom)).toEqual([
+      [20, 10],
+      [60, 4],
+      [80, 2],
+    ]);
+  });
+
+  it("gives the default ramp when no steps are given or the default steps are", () => {
+    const loading = { bar: kit("kg") };
+    const same = warmupRamp({
+      workingKg: 100,
+      exerciseType: "weight_reps",
+      equipment: "barbell",
+      unit: "kg",
+      loading,
+      steps: DEFAULT_WARMUP_STEPS,
+      rounding: "equipment",
+    });
+    expect(asKg(same)).toEqual(asKg(barbell(100, loading)));
+  });
+
+  it("rounds to a fixed increment instead of the plates", () => {
+    const ramp = warmupRamp({
+      workingKg: 62.5,
+      exerciseType: "weight_reps",
+      equipment: "barbell",
+      unit: "kg",
+      loading: { bar: kit("kg"), stepKg: 5 },
+      rounding: "increment",
+    });
+    // 31.25 -> 30, 43.75 -> 45, 53.125 -> 55 (all multiples of 5), after the 20 kg bar.
+    expect(asKg(ramp)).toEqual([
+      [20, 10],
+      [30, 5],
+      [45, 3],
+      [55, 1],
+    ]);
   });
 });

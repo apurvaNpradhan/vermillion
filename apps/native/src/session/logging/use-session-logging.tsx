@@ -65,11 +65,19 @@ export function useSessionLogging(stored: SessionDetail) {
     weightIncrementKg: preferences.ui.weightIncrementKg,
     lighterWeeks: preferences.ui.lighterWeeks,
     recordAlerts: preferences.ui.recordAlerts,
+    previousSource: preferences.ui.previousSource,
+    countWarmups: preferences.ui.countWarmups,
     readOnly,
     actions,
     onRestStarted,
   });
 
+  const { warmupSteps, warmupRounding } = preferences.ui;
+  // Stable between renders, so the automatic ramp is not looked at again for nothing.
+  const warmupSettings = useMemo(
+    () => ({ steps: warmupSteps, rounding: warmupRounding }),
+    [warmupSteps, warmupRounding],
+  );
   const { ghostsFor } = logging;
   const ghostWeightOf = useCallback(
     (setId: string) => ghostsFor(setId).weight ?? null,
@@ -81,6 +89,7 @@ export function useSessionLogging(stored: SessionDetail) {
     historyReady,
     unit,
     weightIncrementKg: preferences.ui.weightIncrementKg,
+    warmupSettings,
     readOnly,
     actions,
     editsPending: logging.editsPending,

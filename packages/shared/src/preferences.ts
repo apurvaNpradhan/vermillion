@@ -11,7 +11,16 @@ import {
   REST_SECONDS_MAX,
   SESSION_VIEWS,
   WEIGHT_UNITS,
+  DEFAULT_PREVIOUS_SOURCE,
+  DISTANCE_UNITS,
+  DURATION_FORMATS,
+  PREVIOUS_SOURCES,
 } from "./training/vocabulary/vocabulary";
+import {
+  DEFAULT_WARMUP_STEPS,
+  WARMUP_ROUNDINGS,
+  warmupStepsSchema,
+} from "./training/logging/warmup-ramp";
 import { lighterPeriodSchema, LIGHTER_WEEKS_KEPT } from "./training/progress/lighter-week";
 import {
   muscleGoalSchema,
@@ -67,6 +76,12 @@ const uiFields = {
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
   sessionView: z.enum(SESSION_VIEWS),
   weekStart: z.enum(WEEK_STARTS),
+  previousSource: z.enum(PREVIOUS_SOURCES),
+  countWarmups: z.boolean(),
+  warmupSteps: warmupStepsSchema,
+  warmupRounding: z.enum(WARMUP_ROUNDINGS),
+  durationFormat: z.enum(DURATION_FORMATS),
+  distanceUnit: z.enum(DISTANCE_UNITS),
   muscleGoals: muscleGoalsSchema,
   deloadUntil: z.iso.datetime().nullable(),
   lighterWeeks: z.array(lighterPeriodSchema).max(LIGHTER_WEEKS_KEPT),
@@ -115,6 +130,13 @@ export const uiPreferencesSchema = z
     defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
     sessionView: uiFields.sessionView.default("sets"),
     weekStart: uiFields.weekStart.default(DEFAULT_WEEK_START),
+    // Where Previous values come from; warm-ups stay out of the numbers unless counted.
+    previousSource: uiFields.previousSource.default(DEFAULT_PREVIOUS_SOURCE),
+    countWarmups: uiFields.countWarmups.default(false),
+    warmupSteps: uiFields.warmupSteps.default([...DEFAULT_WARMUP_STEPS]),
+    warmupRounding: uiFields.warmupRounding.default("equipment"),
+    durationFormat: uiFields.durationFormat.default("clock"),
+    distanceUnit: uiFields.distanceUnit.default("m"),
     // Only muscles whose goal level was changed; a missing muscle is on Grow.
     muscleGoals: uiFields.muscleGoals.default({}),
     // The running Lighter week ends here (null when none), every Lighter week so far is in

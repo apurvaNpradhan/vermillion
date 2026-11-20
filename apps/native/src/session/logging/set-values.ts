@@ -6,6 +6,8 @@ import {
   formatWeight,
   ghostFor,
   previousFor,
+  type DistanceUnit,
+  type DurationFormat,
   type ExerciseType,
   type GhostField,
   type Ghosts,
@@ -64,6 +66,24 @@ export function ghostsOf(
 
 const SEPARATOR = " · ";
 const meters = (value: number) => String(Number(value.toFixed(1)));
+const METERS_PER_UNIT = { m: 1, km: 1000, mi: 1609.344 } as const satisfies Record<
+  DistanceUnit,
+  number
+>;
+
+/** How durations and distances are shown (Settings > Workout settings). */
+export type DisplayUnits = { durationFormat: DurationFormat; distanceUnit: DistanceUnit };
+
+/** A distance in metres as text in `unit`: plain metres, or kilometres and miles with a suffix. */
+export function formatDistance(meterValue: number, unit: DistanceUnit): string {
+  if (unit === "m") return meters(meterValue);
+  return `${Number((meterValue / METERS_PER_UNIT[unit]).toFixed(2))} ${unit}`;
+}
+
+/** A duration in seconds as `1:30`, or as whole seconds (`90 s`). */
+export function formatDuration(seconds: number, format: DurationFormat): string {
+  return format === "seconds" ? `${Math.round(seconds)} s` : formatElapsed(seconds);
+}
 
 /**
  * One cell value as text, in the user's unit; empty for null. With a `type` that adds load, the
@@ -74,15 +94,16 @@ export function formatCell(
   value: number | null | undefined,
   unit: WeightUnit,
   type?: ExerciseType,
+  display?: DisplayUnits,
 ): string {
   if (value === null || value === undefined) return "";
   switch (field) {
     case "weight":
       return type === undefined ? formatWeight(value, unit) : formatLoad(value, unit, type);
     case "duration":
-      return formatElapsed(value);
+      return display ? formatDuration(value, display.durationFormat) : formatElapsed(value);
     case "distance":
-      return meters(value);
+      return display ? formatDistance(value, display.distanceUnit) : meters(value);
     case "reps":
     case "floors":
     case "steps":
@@ -169,9 +190,10 @@ export function valueOfSet(
 }
 
 /** The sets of a Session as Logged sets, for the totals in the header. */
-export function loggedSetsOf(detail: SessionDetail): LoggedSet[] {
+export function loggedSetsOf(detail: SessionDetail, countWarmups = false): LoggedSet[] {
   return detail.exercises.flatMap((exercise) =>
     exercise.sets.map((set): LoggedSet => ({
+      ...(countWarmups ? { warmup_counted: true } : {}),
       id: set.id,
       exercise_id: exercise.exerciseId,
       exercise_type: exercise.type,

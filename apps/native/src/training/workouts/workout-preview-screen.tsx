@@ -88,7 +88,10 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const now = new Date();
   const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
   const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
-    const history = historyForWorkout(previousHistory.history.get(entry.exerciseId) ?? [], id);
+    const history = historyForWorkout(
+      previousHistory.history.get(entry.exerciseId) ?? [],
+      preferences.ui.previousSource === "same_workout" ? id : null,
+    );
     const lastSessionId = history[0]?.id ?? null;
     const type = entry.exercise?.exerciseType ?? "weight_reps";
     const count = stalledSessions(history, type, {

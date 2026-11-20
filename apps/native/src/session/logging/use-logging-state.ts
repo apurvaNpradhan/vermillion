@@ -2,6 +2,7 @@ import { exerciseSuggestion } from "./logging-ghosts";
 import {
   SET_FIELDS,
   historyForWorkout,
+  type PreviousSource,
   activeLighterWeek,
   stalledSessions,
   supersetPlaces,
@@ -87,6 +88,8 @@ export function useLoggingState({
   weightIncrementKg,
   lighterWeeks,
   recordAlerts,
+  previousSource,
+  countWarmups,
   readOnly,
   actions,
   onRestStarted,
@@ -101,6 +104,10 @@ export function useLoggingState({
   lighterWeeks: readonly LighterPeriod[];
   /** Whether a new Record shows its on-screen alert (its sound is the milestone sound's). */
   recordAlerts: boolean;
+  /** The "Previous values from" setting. */
+  previousSource: PreviousSource;
+  /** The "Count warm-up sets" setting. */
+  countWarmups: boolean;
   readOnly: boolean;
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
@@ -161,9 +168,10 @@ export function useLoggingState({
   );
 
   // ---- Previous and Ghost values ----
-  // A Session started from a Workout compares with that Workout's own Sessions first. Records
-  // keep reading the global `previous`.
-  const workoutId = session.workoutId;
+  // With "Same workout" (the default) a Session started from a Workout compares with that
+  // Workout's own Sessions first; "Any session" reads them all. Records keep reading the global
+  // `previous`.
+  const workoutId = previousSource === "same_workout" ? session.workoutId : null;
   const previousByWorkout = useMemo(
     () =>
       new Map([...previous].map(([id, sessions]) => [id, historyForWorkout(sessions, workoutId)])),
@@ -423,7 +431,7 @@ export function useLoggingState({
         return false;
       }
       if (!result.wrote) return true;
-      const ticked = loggedSetsOf(session)
+      const ticked = loggedSetsOf(session, countWarmups)
         .filter((set) => set.exercise_id === at.exercise.exerciseId)
         .map((set) =>
           set.id === setId
@@ -458,6 +466,7 @@ export function useLoggingState({
       session,
       previous,
       bodyweightKg,
+      countWarmups,
       blockOfSet,
       onRestStarted,
       sound,

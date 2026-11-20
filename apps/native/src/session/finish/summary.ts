@@ -1,6 +1,6 @@
 import { SET_FIELDS, type ExerciseType, type SetKind, type WeightUnit } from "@workspace/shared";
 
-import { formatCell } from "../logging/set-values";
+import { formatCell, type DisplayUnits } from "../logging/set-values";
 
 /** The fields of a Session set the summary reads. */
 export type SummarySet = {
@@ -34,6 +34,7 @@ export function doneSummary(
   type: ExerciseType,
   unit: WeightUnit,
   unitLabel: string,
+  display?: DisplayUnits,
 ): string {
   const counted = sets.filter((set) => set.completedAt !== null && set.kind !== "warmup");
   const fields: readonly string[] = SET_FIELDS[type];
@@ -55,9 +56,9 @@ export function doneSummary(
       case "reps":
         return formatCell("reps", set.reps, unit);
       case "duration":
-        return formatCell("duration", set.durationS, unit);
+        return formatCell("duration", set.durationS, unit, undefined, display);
       case "distance":
-        return formatCell("distance", set.distanceM, unit);
+        return formatCell("distance", set.distanceM, unit, undefined, display);
       case "floors":
         return formatCell("floors", set.floors, unit);
       case "steps":

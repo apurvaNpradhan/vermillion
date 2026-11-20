@@ -12,6 +12,8 @@ export const appConfig = {
   name: "cinnabar",
   displayName: "Cinnabar",
   description: "Cinnabar is a training log for lifting",
+  /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */
+  supportEmail: `support@${domain}`,
   version: "1.0.0",
   /** Base domain of every public host. */
   domain,

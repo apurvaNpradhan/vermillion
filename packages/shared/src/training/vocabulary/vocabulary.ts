@@ -30,6 +30,22 @@ export const WEEK_STARTS = ["monday", "sunday", "saturday"] as const;
 export type WeekStart = (typeof WEEK_STARTS)[number];
 export const DEFAULT_WEEK_START: WeekStart = "monday";
 
+/**
+ * Where an exercise's Previous values come from: the Workout the Session was started from (the
+ * default, and what Previous has always done), or any finished Session of the exercise.
+ */
+export const PREVIOUS_SOURCES = ["same_workout", "any_session"] as const;
+export type PreviousSource = (typeof PREVIOUS_SOURCES)[number];
+export const DEFAULT_PREVIOUS_SOURCE: PreviousSource = "same_workout";
+
+/** How a duration is shown: `1:30`, or whole seconds (`90 s`). */
+export const DURATION_FORMATS = ["clock", "seconds"] as const;
+export type DurationFormat = (typeof DURATION_FORMATS)[number];
+
+/** How a distance is shown. It is stored in metres. */
+export const DISTANCE_UNITS = ["m", "km", "mi"] as const;
+export type DistanceUnit = (typeof DISTANCE_UNITS)[number];
+
 export const EFFORT_SCALES = ["rpe", "rir"] as const;
 export type EffortScale = (typeof EFFORT_SCALES)[number];
 

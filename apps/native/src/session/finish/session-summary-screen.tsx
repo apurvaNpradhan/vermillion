@@ -147,7 +147,11 @@ function FinishFlow({
       return () => listener.remove();
     }, [updateOpen, keepOriginal, session.finishedAt, backToWorkout, onDone]),
   );
-  const totals = sessionTotals(loggedSetsOf(session), weight.bodyweightOn(session.startedAt));
+  const countWarmups = preferences.ui.countWarmups;
+  const totals = sessionTotals(
+    loggedSetsOf(session, countWarmups),
+    weight.bodyweightOn(session.startedAt),
+  );
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const records = recordFlags(
@@ -157,7 +161,7 @@ function FinishFlow({
         id: session.id,
         started_at: session.startedAt,
         finished_at: session.finishedAt ?? new Date().toISOString(),
-        sets: loggedSetsOf(session),
+        sets: loggedSetsOf(session, countWarmups),
       },
     ],
     weight.bodyweightOn(session.startedAt),

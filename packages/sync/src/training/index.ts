@@ -107,6 +107,7 @@ export {
   type WorkoutExerciseInfo,
   type WorkoutSummary,
 } from "./watch";
+export { SESSION_EXPORT_SQL, readSessionExportRows } from "./sessions/session-export";
 export {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,

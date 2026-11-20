@@ -49,10 +49,19 @@ export function useWeight() {
   }
   const bodyweightOn = (date: string) =>
     bodyweightForDate(daily, localDate(date), preferences.ui.bodyweightKg);
+  const countWarmups = preferences.ui.countWarmups;
+  /**
+   * The sessions as the numbers read them: each set carries the bodyweight of its day, and
+   * warm-ups count when the user chose to count them ("Count warm-up sets").
+   */
   const withBodyweight = <T extends SessionHistory>(sessions: readonly T[]): T[] =>
     sessions.map((s) => ({
       ...s,
-      sets: s.sets.map((set) => ({ ...set, bodyweight_kg: bodyweightOn(s.started_at) })),
+      sets: s.sets.map((set) => ({
+        ...set,
+        bodyweight_kg: bodyweightOn(s.started_at),
+        ...(countWarmups && set.kind === "warmup" ? { warmup_counted: true } : {}),
+      })),
     }));
   return {
     ...state,

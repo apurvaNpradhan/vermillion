@@ -185,8 +185,9 @@ export function sessionStats(input: {
   session: SessionDetail;
   bodyweightKg: number | null;
   now: number;
+  countWarmups?: boolean;
 }): SessionStats {
-  const { session, bodyweightKg, now } = input;
+  const { session, bodyweightKg, now, countWarmups = false } = input;
   const sets = session.exercises.flatMap((exercise) => exercise.sets);
   const times = sets
     .flatMap((set) => {
@@ -199,7 +200,7 @@ export function sessionStats(input: {
     return gap > 0 && gap <= BREAK_S ? [gap] : [];
   });
   return {
-    volumeKg: sessionTotals(loggedSetsOf(session), bodyweightKg).volume,
+    volumeKg: sessionTotals(loggedSetsOf(session, countWarmups), bodyweightKg).volume,
     setsDone: times.length,
     setsTotal: sets.length,
     elapsedS: elapsedSeconds(session.startedAt, now),

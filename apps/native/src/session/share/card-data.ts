@@ -65,6 +65,7 @@ export function buildCardData(input: {
   /** Which set ids set a Record. */
   flagged: ReturnType<typeof recordFlags>;
   bodyweightKg: number | null;
+  countWarmups?: boolean;
   distribution: readonly {
     id: string;
     primary_muscle: MuscleGroup;
@@ -74,7 +75,7 @@ export function buildCardData(input: {
   labels: SessionCardLabels;
 }): SessionCardData {
   const { session, flagged, bodyweightKg, toggles, labels } = input;
-  const sets = loggedSetsOf(session);
+  const sets = loggedSetsOf(session, input.countWarmups ?? false);
   const totals = sessionTotals(sets, bodyweightKg);
   const records = session.exercises
     .flatMap((entry) => entry.sets)
