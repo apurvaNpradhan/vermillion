@@ -22,6 +22,7 @@ import {
   entryDisplay,
   nextEditorCell,
   openEntry,
+  unbindTable,
   pressKey,
   pressStep,
   type EditorCell,
@@ -41,6 +42,8 @@ type EditorKeypadValue = {
   open: (tableId: string, key: string) => void;
   /** Gives the keypad the cells of a table, in Next order; call on every render of the table. */
   bind: (tableId: string, cells: readonly EditorCell[]) => void;
+  /** Takes a table away when it unmounts; closes the keypad if it was editing that table. */
+  unbind: (tableId: string) => void;
   registerNode: (key: string) => (node: View | null) => void;
 };
 
@@ -125,6 +128,14 @@ export function EditorKeypadProvider({
   const bind = useCallback((tableId: string, cells: readonly EditorCell[]) => {
     tables.current.set(tableId, cells);
   }, []);
+  const unbind = useCallback(
+    (tableId: string) => {
+      if (unbindTable(tables.current, activeRef.current?.tableId ?? null, tableId)) {
+        setCurrent(null);
+      }
+    },
+    [setCurrent],
+  );
   const registerNode = useCallback(
     (key: string) => (node: View | null) => {
       if (node) nodes.current.set(key, node);
@@ -182,9 +193,10 @@ export function EditorKeypadProvider({
             text: active ? entryDisplay(active.entry) : "",
             open,
             bind,
+            unbind,
             registerNode,
           },
-    [systemKeyboard, active, open, bind, registerNode],
+    [systemKeyboard, active, open, bind, unbind, registerNode],
   );
 
   const stepText = active
@@ -237,8 +249,11 @@ export function EditorKeypadProvider({
 export function useBindEditorCells(tableId: string, cells: readonly EditorCell[]) {
   const keypad = useEditorKeypad();
   const bind = keypad?.bind;
+  const unbind = keypad?.unbind;
   // Layout effect: before any press that follows this render can read the cells.
   useLayoutEffect(() => {
     bind?.(tableId, cells);
   });
+  // A collapsed exercise unmounts its table: its cells leave Next's order and its keypad closes.
+  useLayoutEffect(() => () => unbind?.(tableId), [unbind, tableId]);
 }
