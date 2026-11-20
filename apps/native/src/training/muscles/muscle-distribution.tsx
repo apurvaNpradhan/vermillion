@@ -89,7 +89,7 @@ export function MuscleDistribution({
         </View>
       ) : null}
       {rows.map((row) => {
-        const percent = formatPercent(row.share, i18n.language);
+        const percent = formatPercent(row.percent, i18n.language);
         return (
           <View
             key={row.key}
