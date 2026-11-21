@@ -8,7 +8,7 @@ Details live in the docs; this page says where things run.
 - User media: a private R2 bucket (MinIO in development and in the local production check).
 - Android APK: `.github/workflows/android-release.yml` on a `v*` tag, signed with the keystore from secrets ([guide](../docs/guides/android-release.md)).
 - Native store builds: EAS profiles in `apps/native/eas.json`, EAS Update for JS fixes, store submission manual.
-- Existing public site links still use `basalt.<domain>`; this repository does not deploy the site while it is being rebuilt.
+- Public website (`apps/web`, site host from `app.config.ts`): TanStack Start, prerendered, deployed to a Cloudflare Worker by `.github/workflows/deploy-web.yml` with Wrangler ([ADR 0052](../docs/adr/0052-public-website-on-workers.md)). Public pages only: landing, privacy, terms, delete-account.
 - Catalog media: the public R2 bucket on `media.<domain>`; the admin uploads to it with presigned URLs.
 - Hosts derive from `domain` in `app.config.ts`: site `basalt.`, API `basalt-api.`, sync `basalt-sync.`, media `media.`.
 
@@ -17,6 +17,7 @@ Read [docs/deployment.md](../docs/deployment.md) to set up, [docs/runbook.md](..
 ## When you change
 
 - Env variables: update `.env.example`, `packages/env`, `turbo.json`, deployment.md.
+- The site host: `apps/web/wrangler.jsonc` holds it as a custom-domain route; `pnpm --filter web check:host` compares it with `app.config.ts` and the deploy workflow runs it. Edit both together.
 - Workflow actions: pin to a commit SHA (`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha`, dereference annotated tags), keep the version comment, run `zizmor`.
 - Migrations: additive-only.
 - Derived names (compose, Dockerfile port, EAS URLs, workflow variables): edit them by hand after changing `app.config.ts`.

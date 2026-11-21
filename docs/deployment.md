@@ -1,6 +1,6 @@
 # Deployment
 
-Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `basalt-api.<domain>` (Dokploy behind Cloudflare), sync at `basalt-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Existing account, invite and update links still point at `basalt.<domain>`, but the old site's build and deployment are out of this repository pending a rebuild. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
+Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `basalt-api.<domain>` (Dokploy behind Cloudflare), sync at `basalt-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). The public site (`apps/web`) is served from the site host in `app.config.ts` by a Cloudflare Worker ([Website](#website)); the old site and admin stay removed. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
 
 ```text
 native app ──► Cloudflare (proxied basalt-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
@@ -183,6 +183,26 @@ Without this, anyone can call the origin directly with a forged `Cf-Connecting-I
 GitHub's runners must reach the Dokploy API, so the panel needs a proxied hostname behind Cloudflare (Dokploy → Settings → Server domain) instead of the host's port 3000, which the firewall keeps closed.
 
 Workflow actions are pinned to commit SHAs and audited with zizmor in CI. When adding one, look up its SHA with `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha` (dereference annotated tags) and keep the version comment.
+
+## Website
+
+`apps/web` is a prerendered TanStack Start site on a Cloudflare Worker (`patina-web`), with the landing page, privacy policy, terms and the account-deletion page ([ADR 0052](adr/0052-public-website-on-workers.md)). It reads no environment variables and needs no database or API.
+
+Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --filter web build` writes `dist/`, and `pnpm --filter web preview` serves the production build the way the Worker does.
+
+**The host.** `wrangler.jsonc` holds the custom domain as a route (`patina.lostsignal.cloud`, `custom_domain: true`). Wrangler cannot import `app.config.ts`, so `pnpm --filter web check:host` compares the route with the hostname of `appConfig.urls.site` and fails on a mismatch; the deploy workflow runs it first. When you change `domain` or the site host in `app.config.ts`, edit `wrangler.jsonc` in the same commit.
+
+**Set up once**
+
+1. Cloudflare dashboard → My Profile → API Tokens → Create Token (custom). Permissions: Account → Workers Scripts → Edit; Zone → Workers Routes → Edit (this also covers Custom Domains). Zone resources: only the zone of `domain`. Account resources: this account. Do not use the global API key.
+2. Copy the account id (dashboard → Workers & Pages overview, right-hand panel).
+3. GitHub → Settings → Secrets: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, either in the `production` environment (the workflow's job uses it, so required reviewers would gate each deploy) or at repository level.
+4. DNS: none to create by hand. A custom-domain route makes Cloudflare add the proxied record for `patina.<domain>` and its certificate on the first deploy. The hostname must not already have a DNS record pointing elsewhere (delete an old `basalt` or `cinnabar` record for that name first).
+5. First deploy: Actions → Deploy web → Run workflow on `main`. Then `curl -I https://patina.<domain>/privacy` (an HTTP 200 after the trailing-slash redirect).
+
+After that, a push to `main` that touches `apps/web`, `app.config.ts` or the lockfile deploys. The first deploy by hand is also possible: `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… pnpm --filter web deploy`.
+
+The policy and terms text is a draft; see the comment at the top of `apps/web/src/content/legal.ts` and the open items in [privacy readiness](privacy-readiness.md). Google Play's data-safety form and "delete account" URL point at `/privacy` and `/delete-account` on the site host.
 
 ## Local production check
 
