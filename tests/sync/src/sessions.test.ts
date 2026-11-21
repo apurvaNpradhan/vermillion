@@ -182,21 +182,21 @@ describe("sessions sync", () => {
     await a.disconnect();
     const result = await tickSet(a.database, s.sets[0] ?? "", { weight: 60, reps: 8, rpe: 8 });
     expect(result).toMatchObject({ ok: true, wrote: true });
-    // One queued write, a PATCH of that set with the values and the time only.
+    // One queued write, a PATCH of that set with the values and the time only. The RPE ghost is a
+    // target, not a logged effort, so a tick does not adopt it.
     const queued = (await a.database.getCrudBatch(10))?.crud ?? [];
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({ op: "PATCH", table: "session_set", id: s.sets[0] });
     expect(Object.keys(queued[0]?.opData ?? {}).sort()).toEqual([
       "completed_at",
       "reps",
-      "rpe",
       "weight_kg",
     ]);
     expect((await serverSet(s.sets[0] ?? ""))?.completed_at).toBeNull();
 
     await a.connect();
     await a.uploaded();
-    expect(await serverSet(s.sets[0] ?? "")).toMatchObject({ weight_kg: 60, reps: 8, rpe: 8 });
+    expect(await serverSet(s.sets[0] ?? "")).toMatchObject({ weight_kg: 60, reps: 8, rpe: null });
     expect((await serverSet(s.sets[0] ?? ""))?.completed_at).not.toBeNull();
     await vi.waitFor(async () => {
       expect(

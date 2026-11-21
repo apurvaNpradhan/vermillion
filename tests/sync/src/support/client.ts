@@ -37,6 +37,8 @@ export const schema = new Schema({
     title: column.text,
     primary_muscle: column.text,
     secondary_muscles: column.text,
+    primary_detail: column.text,
+    secondary_detail: column.text,
     equipment: column.text,
     exercise_type: column.text,
     is_full_bodyweight: column.integer,
