@@ -110,6 +110,16 @@ describe("preferences", () => {
         deloadUntil: null,
         lighterWeeks: [],
         deloadCardDismissedAt: null,
+        previousSource: "same_workout",
+        countWarmups: false,
+        warmupSteps: [
+          { percent: 50, reps: 5 },
+          { percent: 70, reps: 3 },
+          { percent: 85, reps: 1 },
+        ],
+        warmupRounding: "equipment",
+        durationFormat: "clock",
+        distanceUnit: "m",
       },
     });
     expect(await rows()).toBe(before);
@@ -161,6 +171,16 @@ describe("preferences", () => {
         deloadUntil: null,
         lighterWeeks: [],
         deloadCardDismissedAt: null,
+        previousSource: "same_workout",
+        countWarmups: false,
+        warmupSteps: [
+          { percent: 50, reps: 5 },
+          { percent: 70, reps: 3 },
+          { percent: 85, reps: 1 },
+        ],
+        warmupRounding: "equipment",
+        durationFormat: "clock",
+        distanceUnit: "m",
       },
     });
     expect(await client.preferences.update({ ui: { sidebarCollapsed: true } })).toMatchObject({
@@ -204,6 +224,16 @@ describe("preferences", () => {
         deloadUntil: null,
         lighterWeeks: [],
         deloadCardDismissedAt: null,
+        previousSource: "same_workout",
+        countWarmups: false,
+        warmupSteps: [
+          { percent: 50, reps: 5 },
+          { percent: 70, reps: 3 },
+          { percent: 85, reps: 1 },
+        ],
+        warmupRounding: "equipment",
+        durationFormat: "clock",
+        distanceUnit: "m",
       },
     });
     expect(
@@ -253,6 +283,16 @@ describe("preferences", () => {
         deloadUntil: null,
         lighterWeeks: [],
         deloadCardDismissedAt: null,
+        previousSource: "same_workout",
+        countWarmups: false,
+        warmupSteps: [
+          { percent: 50, reps: 5 },
+          { percent: 70, reps: 3 },
+          { percent: 85, reps: 1 },
+        ],
+        warmupRounding: "equipment",
+        durationFormat: "clock",
+        distanceUnit: "m",
       },
     });
     // null clears; omitted fields stay
