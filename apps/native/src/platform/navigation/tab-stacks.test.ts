@@ -23,7 +23,6 @@ const tabState: NavigationState = {
       key: "exercises",
       name: "exercises",
       state: {
-        type: "stack",
         stale: false,
         key: "exercise-stack",
         routeKeySeq: 2,
@@ -55,7 +54,7 @@ describe("tab stacks", () => {
     ).toBe(true);
   });
 
-  it("targets the exercise stack when switching away from exercise detail to Home", () => {
+  it("targets the exercise stack when switching from an anchored detail to Home", () => {
     expect(blurredTabStack({ ...tabState, index: 0 }, "exercises")).toBe("exercise-stack");
   });
 

@@ -4,5 +4,6 @@ import type { NavigationState } from "expo-router";
 export function blurredTabStack(tabs: NavigationState, blurredKey: string): string | undefined {
   if (tabs.routes[tabs.index]?.key === blurredKey) return;
   const stack = tabs.routes.find((tab) => tab.key === blurredKey)?.state;
-  if (stack?.type === "stack" && (stack.index ?? 0) > 0) return stack.key;
+  // A stack seeded by an anchored link may not have a router type until it handles an action.
+  if (stack && (stack.index ?? 0) > 0) return stack.key;
 }
