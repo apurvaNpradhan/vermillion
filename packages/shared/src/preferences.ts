@@ -150,8 +150,8 @@ export const uiPreferencesSchema = z
     sessionsPerWeek: uiFields.sessionsPerWeek.default(null),
     // Onboarding answers, editable in Settings. They only choose defaults (the warm-up ramp, the
     // first bars and plates); null means never answered.
-    trainingExperience: uiFields.trainingExperience.default(null),
-    trainingPlace: uiFields.trainingPlace.default(null),
+    trainingExperience: uiFields.trainingExperience.default(null).catch(null),
+    trainingPlace: uiFields.trainingPlace.default(null).catch(null),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

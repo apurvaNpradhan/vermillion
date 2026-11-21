@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 
-export type Choice<T extends string> = { value: T; label: string; hint?: string };
+type Choice<T extends string> = { value: T; label: string; hint?: string };
 
 /**
  * One question, a few answers: each a full-width tile with the chosen one on `bg-default` and a
@@ -32,6 +32,7 @@ export function ChoiceList<T extends string>({
             accessibilityRole="radio"
             accessibilityState={{ checked: chosen }}
             accessibilityLabel={choice.label}
+            accessibilityHint={choice.hint}
             onPress={() => {
               if (chosen) return;
               haptic.tick();

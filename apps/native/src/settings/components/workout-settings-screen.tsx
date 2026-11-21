@@ -7,7 +7,6 @@ import {
   TRAINING_EXPERIENCE_KEYS,
   TRAINING_PLACES,
   TRAINING_PLACE_KEYS,
-  experienceDefaults,
   type DistanceUnit,
   type DurationFormat,
   type PreviousSource,
@@ -189,10 +188,11 @@ export function WorkoutSettingsScreen() {
         description={t("settings__experience_hint")}
         options={TRAINING_EXPERIENCES.map((value) => ({
           value,
-          label: `${t(TRAINING_EXPERIENCE_KEYS[value])}, ${t(TRAINING_EXPERIENCE_HINT_KEYS[value]).toLowerCase()}`,
+          label: t(TRAINING_EXPERIENCE_KEYS[value]),
+          description: t(TRAINING_EXPERIENCE_HINT_KEYS[value]),
         }))}
         value={trainingExperience}
-        onSelect={(value) => setUi(experienceDefaults(value, preferences.ui))}
+        onSelect={(value) => setUi({ trainingExperience: value })}
       />
       <OptionSheet<TrainingPlace>
         isOpen={picker === "place"}

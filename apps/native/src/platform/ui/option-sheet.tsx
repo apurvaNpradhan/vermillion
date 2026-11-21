@@ -6,7 +6,7 @@ import { haptic } from "@/platform/haptics";
 import { ListRow, ListSection } from "./list";
 import { ScrollableSheetContent } from "./scrollable-sheet-content";
 
-export type SheetOption<T extends string> = { value: T; label: string };
+export type SheetOption<T extends string> = { value: T; label: string; description?: string };
 
 /**
  * A bottom sheet with one choice from a short list, the chosen one ticked. Picking an option
@@ -48,6 +48,8 @@ export function OptionSheet<T extends string>({
               <ListRow
                 key={option.value}
                 title={option.label}
+                description={option.description}
+                accessibilityHint={option.description}
                 accessory={option.value === value ? "check" : "none"}
                 onPress={() => {
                   haptic.tick();

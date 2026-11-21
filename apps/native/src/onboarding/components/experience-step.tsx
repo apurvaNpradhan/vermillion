@@ -4,7 +4,6 @@ import {
   TRAINING_EXPERIENCES,
   TRAINING_EXPERIENCE_HINT_KEYS,
   TRAINING_EXPERIENCE_KEYS,
-  experienceDefaults,
   type TrainingExperience,
 } from "@workspace/shared";
 
@@ -18,21 +17,21 @@ import { ChoiceList } from "./choice-list";
 
 /**
  * How long the person has lifted. It only picks the starting warm-up ramp (see
- * `experienceDefaults`); programs are never touched. Skipping stores nothing.
+ * the preferences write); programs are never touched. Skipping stores nothing.
  */
 export function ExperienceStep({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
-  const { preferences, setUiAsync } = usePreferences();
+  const { setUiAsync } = usePreferences();
   const [experience, setExperience] = useState<TrainingExperience | null>(null);
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const save = async () => {
-    if (experience === null) return onDone();
+    if (experience === null) return;
     setPending(true);
     setFailed(false);
     try {
-      await setUiAsync(experienceDefaults(experience, preferences.ui));
+      await setUiAsync({ trainingExperience: experience });
       haptic.confirm();
       onDone();
     } catch {
@@ -48,7 +47,12 @@ export function ExperienceStep({ onDone }: { onDone: () => void }) {
       position={stepPosition("get-started", "experience")}
       title={t("onboarding__experience_title")}
       subtitle={t("onboarding__experience_body")}
-      action={{ label: t("onboarding__continue"), onPress: () => void save(), loading: pending }}
+      action={{
+        label: t("onboarding__continue"),
+        onPress: () => void save(),
+        disabled: experience === null,
+        loading: pending,
+      }}
       secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: pending }}
     >
       <FormError message={failed ? t("onboarding__prefs_failed") : null} />

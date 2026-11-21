@@ -1,6 +1,6 @@
 import { DEFAULT_WARMUP_STEPS, type WarmupStep } from "../logging/warmup-ramp";
 
-/** How long someone has lifted: the one thing onboarding asks that sets progression defaults. */
+/** How long someone has lifted: used to choose a starting warm-up ramp. */
 export const TRAINING_EXPERIENCES = ["new", "some", "experienced"] as const;
 export type TrainingExperience = (typeof TRAINING_EXPERIENCES)[number];
 
@@ -47,31 +47,18 @@ export const EXPERIENCE_WARMUP_STEPS = {
   ],
 } as const satisfies Record<TrainingExperience, readonly WarmupStep[]>;
 
-const sameSteps = (a: readonly WarmupStep[], b: readonly WarmupStep[]) =>
-  a.length === b.length &&
-  a.every((step, index) => step.percent === b[index]?.percent && step.reps === b[index]?.reps);
-
-/**
- * The preferences an experience answer sets. It only moves the warm-up ramp, and only while the
- * ramp is still one of the three presets: a ramp the person edited is theirs and stays. Programs
- * and the progression increment are never touched.
- */
-export function experienceDefaults(
+/** Picks a new ramp only while the current steps still match a preset. */
+export function experienceWarmupSteps(
   experience: TrainingExperience,
-  current: { warmupSteps: readonly WarmupStep[] },
-): { trainingExperience: TrainingExperience; warmupSteps?: WarmupStep[] } {
-  const untouched = TRAINING_EXPERIENCES.some((preset) =>
-    sameSteps(current.warmupSteps, EXPERIENCE_WARMUP_STEPS[preset]),
+  current: readonly WarmupStep[],
+): WarmupStep[] | undefined {
+  // Ramps are applied in ascending percentage, regardless of how the editor stored them.
+  const isPreset = Object.values(EXPERIENCE_WARMUP_STEPS).some(
+    (steps) =>
+      current.length === steps.length &&
+      steps.every((preset) =>
+        current.some((step) => step.percent === preset.percent && step.reps === preset.reps),
+      ),
   );
-  return untouched
-    ? {
-        trainingExperience: experience,
-        warmupSteps: EXPERIENCE_WARMUP_STEPS[experience].map((step) => ({ ...step })),
-      }
-    : { trainingExperience: experience };
-}
-
-/** Which of the two seeded kits a place gets: the full gym kit, or the smaller home kit. */
-export function kitFor(place: TrainingPlace | null): "gym" | "home" {
-  return place === null || place === "gym" ? "gym" : "home";
+  if (isPreset) return EXPERIENCE_WARMUP_STEPS[experience].map((step) => ({ ...step }));
 }
