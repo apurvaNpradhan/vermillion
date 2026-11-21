@@ -1,6 +1,6 @@
 /**
  * The Patina tortoise as two filled paths, for `Mascot`. Traced from the logo kit's
- * `vector/basalt-logo-outline.svg` (source contours, eye and shell cuts included) and reduced with
+ * outline SVG (source contours, eye and shell cuts included) and reduced with
  * a 1 px Douglas-Peucker pass from about 50 KB to under 6 KB. The shell is drawn with the
  * even-odd rule so its cuts and the eye stay open; the dot is the olive circle above it.
  */

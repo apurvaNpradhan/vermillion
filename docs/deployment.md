@@ -262,11 +262,19 @@ Renaming the hosts (Basalt to Patina, [ADR 0052](adr/0052-rename-to-patina.md)) 
 
 1. Cloudflare DNS: add proxied records `patina`, `patina-api` and `patina-sync` (same targets as the old ones). SSL/TLS stays Full (strict).
 2. Dokploy: change the server application's domain to `patina-api.<domain>` (port 3000) and the PowerSync `powersync` service's domain to `patina-sync.<domain>` (port 8080); redeploy both.
-3. Server env on the Dokploy application: `APP_URL=https://patina-api.<domain>` and `SYNC_ENDPOINT_URL=https://patina-sync.<domain>` (the trusted origins and CORS allow-list are derived from `APP_URL` and the site origin in `app.config.ts`; there is no separate `BETTER_AUTH_URL`).
+3. Server env on the Dokploy application: `APP_URL=https://patina-api.<domain>` and
+   `SYNC_ENDPOINT_URL=https://patina-sync.<domain>`. Better Auth derives its trusted origins from
+   `APP_URL`, the site origin and the native scheme. If `PS_JWKS_URI` uses a retired host, point it
+   at the current server's internal Dokploy address.
 4. Turnstile widget hostnames and the Google OAuth redirect URI and origin: new API host. R2 media CORS origin: `https://patina.<domain>`.
-5. GitHub repository variable `EXPO_PUBLIC_SERVER_URL=https://patina-api.<domain>`, and the same value in the EAS **production** environment; then tag a release.
-6. Check `curl https://patina-api.<domain>/api/health` and `https://patina-sync.<domain>/probes/readiness`.
-7. Remove the old `cinnabar`, `cinnabar-api` and `cinnabar-sync` DNS records and Dokploy domains.
+5. Update `EMAIL_FROM` if its display name contains the former brand. Keep the sending address
+   on a domain verified in Resend. If the Sentry project was renamed, update `SENTRY_PROJECT` in
+   GitHub and EAS.
+6. Update `EXPO_PUBLIC_SERVER_URL=https://patina-api.<domain>` in GitHub and the EAS
+   **production** environment. Check the API health endpoint, PowerSync readiness and the site's
+   `/terms` and `/privacy` pages before tagging a release.
+7. Remove the previous site, API and sync DNS records and Dokploy domains after the cutover and
+   any overlap needed by older clients.
 
 The EAS slug follows `appConfig.name` (`patina`). If expo.dev refuses the slug change, run `eas init` again and replace `easProjectId` in `app.config.ts`.
 
