@@ -21,8 +21,9 @@ const APPEARANCE_LABELS = {
 
 const THEME_LABELS = {
   nord: "theme__nord",
+  graphite: "theme__graphite",
+  oxide: "theme__oxide",
   slate: "theme__slate",
-  olive: "theme__olive",
   mulberry: "theme__mulberry",
 } satisfies Record<ThemeId, TranslationKey>;
 

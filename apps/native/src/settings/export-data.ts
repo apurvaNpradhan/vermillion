@@ -36,7 +36,7 @@ export function useExportData() {
       });
       const folder = new Directory(Paths.cache, "export");
       folder.create({ idempotent: true, intermediates: true });
-      const file = new File(folder, "cinnabar-sessions.csv");
+      const file = new File(folder, "basalt-sessions.csv");
       file.create({ overwrite: true });
       file.write(csv);
       if (!(await isAvailableAsync())) {

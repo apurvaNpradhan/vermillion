@@ -1,7 +1,7 @@
 # PowerSync for production, as a Dokploy Compose application (docs/deployment.md, "PowerSync
 # service"). Create it from this repository with compose path `powersync/compose.dokploy.yml`,
 # set the variables below in its Environment tab, and give the `powersync` service the domain
-# `cinnabar-sync.<domain>` on port 8080 in its Domains tab. No host port is published.
+# `basalt-sync.<domain>` on port 8080 in its Domains tab. No host port is published.
 #
 #   POSTGRES_HOST                   internal host name of the Dokploy Postgres service
 #   POSTGRES_DB                     the application database

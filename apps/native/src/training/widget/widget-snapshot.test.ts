@@ -12,7 +12,7 @@ import {
 
 const input = (over: Partial<WidgetInput> = {}): WidgetInput => ({
   signedIn: true,
-  scheme: "cinnabar",
+  scheme: "basalt",
   now: 1000,
   colors: {
     surface: "#111111",
@@ -23,7 +23,7 @@ const input = (over: Partial<WidgetInput> = {}): WidgetInput => ({
   },
   text: {
     signedOutTitle: "Sign in",
-    openApp: "Open Cinnabar",
+    openApp: "Open Basalt",
     planWorkout: "Plan a workout",
     noWorkouts: "No workouts yet",
     start: "Start",
@@ -53,7 +53,7 @@ describe("buildWidgetSnapshot", () => {
       eyebrow: "Next · Day 2 of 4",
       title: "Push",
       button: "Start",
-      url: "cinnabar://widget-start?workout=w%201",
+      url: "basalt://widget-start?workout=w%201",
     });
     expect(snapshot.week).toEqual({
       heading: "This week",
@@ -80,7 +80,7 @@ describe("buildWidgetSnapshot", () => {
       kind: "resume",
       title: "Pull",
       button: "Resume",
-      url: "cinnabar://session/s1",
+      url: "basalt://session/s1",
     });
   });
 
@@ -88,15 +88,15 @@ describe("buildWidgetSnapshot", () => {
     expect(buildWidgetSnapshot(input())).toMatchObject({
       kind: "empty",
       button: "Plan a workout",
-      url: "cinnabar://train",
+      url: "basalt://train",
     });
   });
 
   it("asks a signed-out user to open the app and shows no week", () => {
     expect(buildWidgetSnapshot(input({ signedIn: false }))).toMatchObject({
       kind: "signedOut",
-      button: "Open Cinnabar",
-      url: "cinnabar://",
+      button: "Open Basalt",
+      url: "basalt://",
       week: null,
     });
   });

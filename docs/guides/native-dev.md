@@ -37,7 +37,7 @@ On Linux, install Android SDK Platform-Tools, Android Emulator and Command-line 
 
 In a local T3 Code project thread, open the right panel → **Device**, complete setup and select or start the emulator. Restart T3 Code's environment server if it was already running when you installed the SDK tools. Enable **Agents can use devices** in **Settings → Devices** only if you want agents to control the emulator.
 
-The panel streams the emulator; it doesn't install Cinnabar. Run `pnpm --filter native android` with the emulator running to install the dev client, and use the `adb reverse` commands below for local services.
+The panel streams the emulator; it doesn't install Basalt. Run `pnpm --filter native android` with the emulator running to install the dev client, and use the `adb reverse` commands below for local services.
 
 ## Runtime version
 

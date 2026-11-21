@@ -43,6 +43,7 @@ export function WelcomeScreen() {
       >
         <Animated.View entering={rise(0)}>
           <Text className="text-title-md font-bold text-foreground">{appConfig.displayName}</Text>
+          <Text className="text-body-sm text-muted">{appConfig.tagline}</Text>
         </Animated.View>
 
         <Animated.View entering={rise(60)} className="flex-1 justify-center">

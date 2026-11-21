@@ -1,7 +1,7 @@
 import type { RoleName, RoleTokens } from "./roles";
 import {
+  basalt,
   buildTheme,
-  cinnabar,
   DEFAULT_THEME_ID,
   themeVariantNames,
   themeVariants,
@@ -24,7 +24,7 @@ export const nativeColors: Record<NativeVariant, RoleTokens> = {
   ...themeVariants,
 };
 
-const { light, dark } = buildTheme(cinnabar);
+const { light, dark } = buildTheme(basalt);
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
