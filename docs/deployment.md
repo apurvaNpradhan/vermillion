@@ -1,6 +1,6 @@
 # Deployment
 
-Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `patina-api.<domain>` (Dokploy behind Cloudflare), sync at `patina-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Existing account, invite and update links still point at `patina.<domain>`, but the old site's build and deployment are out of this repository pending a rebuild. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
+Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `patina-api.<domain>` (Dokploy behind Cloudflare), sync at `patina-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). The public site (`apps/web`) is served from the site host in `app.config.ts` by a Cloudflare Worker ([Website](#website)); the old site and admin stay removed. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
 
 ```text
 native app ──► Cloudflare (proxied patina-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
@@ -184,6 +184,28 @@ GitHub's runners must reach the Dokploy API, so the panel needs a proxied hostna
 
 Workflow actions are pinned to commit SHAs and audited with zizmor in CI. When adding one, look up its SHA with `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha` (dereference annotated tags) and keep the version comment.
 
+## Website
+
+`apps/web` is a prerendered TanStack Start site on a Cloudflare Worker (`patina-web`), with the landing page, privacy policy, terms and the account-deletion page ([ADR 0053](adr/0053-public-website-on-workers.md)). It reads no environment variables and needs no database or API.
+
+Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --filter web build` writes `dist/`, and `pnpm --filter web preview` serves the production build the way the Worker does.
+
+**The host.** `wrangler.jsonc` holds the custom domain as a route (`patina.lostsignal.cloud`, `custom_domain: true`). `pnpm --filter web check:host` verifies the route against `appConfig.urls.site` before deploy. When you change the public website host in `app.config.ts`, edit `wrangler.jsonc` in the same commit.
+
+**Set up once**
+
+1. Cloudflare dashboard → My Profile → API Tokens → Create Token (custom). Permissions: Account → Workers Scripts → Edit; Zone → Workers Routes → Edit (this also covers Custom Domains). Zone resources: only the zone of `domain`. Account resources: this account. Do not use the global API key.
+2. Copy the account id (dashboard → Workers & Pages overview, right-hand panel).
+3. GitHub → Settings → Secrets: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, either in the `production` environment (the workflow's job uses it, so required reviewers would gate each deploy) or at repository level.
+4. Cloudflare creates the DNS record and certificate for `patina.<domain>` when it attaches the custom domain. Check for an existing CNAME on that exact hostname before deployment.
+5. In Actions, run Deploy web on `main`. Verify that `curl -I https://patina.<domain>/privacy` returns HTTP 200 directly and that an unknown URL returns HTTP 404.
+
+Pushes to `main` that change the website, shared TypeScript or package manager configuration, or the workflow trigger a deploy. To deploy by hand, set the two Cloudflare variables in the shell and run `pnpm --filter web deploy`.
+
+The policy and terms are drafts. Before submitting the site URLs to Google Play, review the open items in [privacy readiness](privacy-readiness.md) and verify that the support inbox accepts and can handle account-deletion requests. The intended URLs are `/privacy` and `/delete-account` on the public website host.
+
+When the native rename ships, coordinate the welcome screen's privacy and terms links with the published site. The welcome screen currently points to the API origin. The native updater still expects `/download` on the legacy site. The new landing page links to GitHub Releases.
+
 ## Local production check
 
 `compose.prod.yml` runs the production image on your machine against Postgres 18 with the logical-WAL flags, the replication bootstrap, PowerSync and MinIO in place of R2. Use it before the first deploy and after a change to the Dockerfile, startup, env schema or `powersync/`. It has its own project name, volumes and ports (API 13000, PowerSync 18090), so it runs beside the development stack.
@@ -245,7 +267,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://patina-api.<domain>` (repository level). ([Android release](guides/android-release.md))
 22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
-23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release; the site's `/download` serves its APK.
+23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish the APK on GitHub Releases.
 
 **Turnstile and catalog media**
 

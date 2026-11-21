@@ -62,3 +62,6 @@ repos/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Wrangler local state (apps/web)
+.wrangler

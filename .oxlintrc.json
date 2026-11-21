@@ -91,6 +91,8 @@
     "**/dist/**",
     "**/.turbo/**",
     "**/.expo/**",
+    "**/.wrangler/**",
+    "apps/web/src/routeTree.gen.ts",
     "repos/**",
     "tools/oxlint/anti-slop/**",
     ".agents/**",

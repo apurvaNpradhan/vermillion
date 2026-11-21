@@ -7,7 +7,7 @@ Read the guide for the area you touch before editing. Terms are defined in [CONT
 ## Layout
 
 - `app.config.ts`: the only place the app's name, URLs, ports, bundle ids, scheme and versions live.
-- `apps/native`, `apps/server`: thin apps. Domain code lives in verticals under `src/<vertical>/`.
+- `apps/native`, `apps/server`: thin apps. `apps/web`: the public website (TanStack Start on Cloudflare Workers; landing, privacy, terms, delete-account; no admin or sign-in; copy in `src/content`). Domain code lives in verticals under `src/<vertical>/`.
 - `packages/{api,auth,db,ui,env,shared,logger,i18n,email,client,sync,config}`: `@workspace/*` (`ui` holds the brand tokens only). A package exists only if more than one app or package uses it.
 - `scripts/`, `tools/`: repo tooling (i18n checks, lint plugins, secret scan, ops).
 

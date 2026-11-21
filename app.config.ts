@@ -23,7 +23,7 @@ export const appConfig = {
   domain,
   urls: {
     server: "http://localhost:3000",
-    /** Existing public site used for account, invite and update links. */
+    /** The public website (`apps/web` on a Cloudflare Worker): landing, legal pages, download. */
     site: `https://${name}.${domain}`,
     /** The API in production (`apps/server`). */
     api: `https://${name}-api.${domain}`,

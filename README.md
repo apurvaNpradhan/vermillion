@@ -98,7 +98,7 @@ The API listens on <http://localhost:3000>; `/api/health` answers when it is up.
 
 ## Web rebuild
 
-The previous public site and admin UI are no longer built or deployed from this checkout. A replacement can start as a new workspace under `apps/` and use the existing API (`packages/api` exports its types). The API still supports admin, invites and releases, and the native app still uses the existing public site links.
+The previous public site and admin UI are removed. `apps/web` is the new public website (landing, privacy, terms, delete-account; see [ADR 0053](docs/adr/0053-public-website-on-workers.md)); it has no admin, invites or sign-in. The API still supports admin, invites and releases.
 
 ## License
 
