@@ -8,6 +8,12 @@ import { SHEET_SPRING } from "./sheet-motion";
 
 /** Room for the drag handle above the content. */
 const HANDLE = 28;
+/**
+ * HeroUI's BottomSheet.Content pads its container 20dp on every side. The sheets own their edge
+ * spacing, so the container gives up its horizontal padding and the body's 16dp is the only
+ * gutter: the sheet edge to the cards and the footer, with list rows padding themselves inside.
+ */
+const CONTAINER_GUTTER = { paddingHorizontal: 0 } as const;
 const BODY_PADDING = { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, gap: 16 };
 
 /**
@@ -50,6 +56,7 @@ export function ScrollableSheetContent({
         backgroundClassName="rounded-t-[20px] bg-overlay"
         {...props}
         topInset={top}
+        contentContainerProps={{ style: CONTAINER_GUTTER }}
         enableDynamicSizing
         maxDynamicContentSize={cap}
         enableOverDrag={false}
@@ -77,7 +84,9 @@ export function ScrollableSheetContent({
       snapPoints={[sheetHeight]}
       enableDynamicSizing={false}
       enableOverDrag={false}
-      contentContainerProps={{ style: { height: Math.max(0, sheetHeight - HANDLE) } }}
+      contentContainerProps={{
+        style: [CONTAINER_GUTTER, { height: Math.max(0, sheetHeight - HANDLE) }],
+      }}
     >
       <BottomSheetScrollView
         style={{ flex: 1 }}
@@ -111,7 +120,9 @@ export function FixedSheetContent({
       topInset={top}
       snapPoints={[sheetHeight]}
       enableDynamicSizing={false}
-      contentContainerProps={{ style: { height: Math.max(0, sheetHeight - HANDLE) } }}
+      contentContainerProps={{
+        style: [CONTAINER_GUTTER, { height: Math.max(0, sheetHeight - HANDLE) }],
+      }}
     >
       {children}
     </BottomSheet.Content>

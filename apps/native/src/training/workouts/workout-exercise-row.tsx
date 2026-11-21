@@ -1,4 +1,4 @@
-import { ReorderHeader } from "@/training/reorder/reorder-list";
+import { ReorderBlock, ReorderTrigger } from "@/training/reorder/reorder-block";
 import type { SupersetPlace } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { DotsThreeVertical } from "phosphor-react-native";
@@ -40,22 +40,23 @@ export function SupersetBracket({ place }: { place: SupersetPlace }) {
 
 /**
  * One exercise of a Workout as a summary row: thumbnail, name, `3 × 8–10 · RPE 8–9 · 2:00` and
- * the pinned note. While the list is dragged it is a single line.
+ * the pinned note. Holding the header opens the Reorder view.
  */
 export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   entry,
   expanded,
   onToggle,
-  collapsed,
   place,
+  onReorder,
   onMenu,
 }: {
   entry: WorkoutExerciseDetail;
   expanded: boolean;
   onToggle: () => void;
-  collapsed: boolean;
   /** Where the row sits in a superset; `none` for a plain row. */
   place: SupersetPlace;
+  /** Long press on the header: open the Reorder view. */
+  onReorder: () => void;
   onMenu: (entry: WorkoutExerciseDetail) => void;
 }) {
   const { t } = useTranslation();
@@ -83,27 +84,18 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
     />
   );
 
-  if (collapsed) {
-    return (
-      <View
-        className={`h-14 flex-row items-center gap-3 bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
-      >
-        <SupersetBracket place={place} />
-        {thumbnail(32)}
-        <Text numberOfLines={1} className="flex-1 font-medium text-body text-foreground">
-          {name}
-        </Text>
-      </View>
-    );
-  }
   return (
-    <View>
-      <ReorderHeader className="min-h-[72px] flex-row items-center bg-background">
+    <ReorderBlock onReorder={onReorder}>
+      <ReorderTrigger className="min-h-[72px] flex-row items-center bg-background">
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${summary}${entry.note ? `, ${entry.note}` : ""}`}
           accessibilityHint={`${t("training__row_open_hint")}. ${t("training__drag_hint")}`}
+          accessibilityActions={[{ name: "reorder", label: t("training__reorder") }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "reorder") onReorder();
+          }}
           onPress={onToggle}
           className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
@@ -141,12 +133,12 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
         >
           <DotsThreeVertical size={20} color={subtle} />
         </Pressable>
-      </ReorderHeader>
+      </ReorderTrigger>
       {expanded ? (
         <View className="gap-3 bg-surface px-4 py-4">
           <InlineTargets entry={entry} grouped={place === "first" || place === "middle"} />
         </View>
       ) : null}
-    </View>
+    </ReorderBlock>
   );
 });

@@ -28,11 +28,10 @@ import {
   WarningCircle,
 } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Animated from "react-native-reanimated";
 import { BackHandler, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { usePickExercises } from "@/exercise";
+import { ExerciseThumbnail, usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -41,13 +40,7 @@ import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { FadeIn } from "@/platform/ui/fade-in";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
-import {
-  HideWhileDragging,
-  ReorderList,
-  useReorderScroll,
-  SetTypeSheet,
-  supportsWarmups,
-} from "@/training";
+import { CompactRow, ReorderView, SetTypeSheet, supportsWarmups } from "@/training";
 
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import {
@@ -172,8 +165,9 @@ function LoadedSession({
   } = useSessionLogging(stored);
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
-  const reorderScroll = useReorderScroll();
-  const reveal = useRowReveal(reorderScroll.ref);
+  const scrollRef = useRef<ScrollView>(null);
+  const reveal = useRowReveal(scrollRef);
+  const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const restRunning = useRestRunning(session.rest);
 
@@ -181,6 +175,14 @@ function LoadedSession({
   // next workout (started or resumed) opens in the view used last.
   // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
   const { closeKeypad } = logging;
+  const openReorder = useCallback(() => {
+    if (readOnly) return;
+    closeKeypad();
+    setReordering(true);
+  }, [closeKeypad, readOnly]);
+  useEffect(() => {
+    if (readOnly) setReordering(false);
+  }, [readOnly]);
   const openTimer = useCallback(() => {
     closeKeypad();
     setUi({ sessionView: "timer" });
@@ -527,11 +529,9 @@ function LoadedSession({
         onOpenTimer={openTimer}
       />
       <View ref={reveal.viewportRef} collapsable={false} className="flex-1">
-        <Animated.ScrollView
-          ref={reorderScroll.ref}
+        <ScrollView
+          ref={scrollRef}
           className="flex-1"
-          animatedProps={reorderScroll.animatedProps}
-          onContentSizeChange={reorderScroll.onContentSizeChange}
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
           onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
@@ -562,86 +562,76 @@ function LoadedSession({
             </View>
           )}
           <View className="mt-3">
-            <ReorderList
-              items={session.exercises}
-              scroll={reorderScroll}
-              headerHeight={64}
-              enabled={!readOnly}
-              onDragStart={logging.closeKeypad}
-              onMove={(id, beforeId) => void actions.moveExercise(id, beforeId)}
-              renderItem={(entry, { collapsed }) => (
-                <View ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
-                  <ExerciseItem
-                    exercise={entry}
-                    suggestion={logging.suggestions.get(entry.id) ?? null}
-                    stall={logging.stalls.get(entry.id) ?? null}
-                    lighter={logging.lighter}
-                    place={logging.places.get(entry.id) ?? "none"}
-                    open={openIds.has(entry.id)}
-                    warm={warmIds.has(entry.id)}
-                    dragging={collapsed}
-                    progress={progressText(entry.sets)}
-                    summary={
-                      allTicked(entry.sets)
-                        ? doneSummary(entry.sets, entry.type, unit, unitName, display)
-                        : ""
-                    }
-                    showAddSet={
-                      logging.justCollapsedId === entry.id &&
-                      restBelongsTo(session.rest, entry, restRunning)
-                    }
-                    readOnly={readOnly}
-                    unit={unit}
-                    display={display}
-                    effortScale={effortScale}
-                    historyReady={logging.historyReadyFor(entry.exerciseId)}
-                    editingFinished={logging.editingFinished}
-                    inlineTimer={preferences.ui.inlineTimer}
-                    entry={ownEntry(entry, logging.entry)}
-                    refusal={
-                      logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
-                        ? logging.refusal
-                        : null
-                    }
-                    previousOf={logging.previousOf}
-                    ghostsFor={logging.ghostsFor}
-                    onView={viewExercise}
-                    onToggle={toggleBlock}
-                    onMenu={onMenu}
-                    onAddSet={onAddSet}
-                    onNote={onNote}
-                    onRest={onRest}
-                    onCell={openCell}
-                    onTick={onTick}
-                    onKind={onKind}
-                    onEffort={onEffort}
-                    onPrevious={onPrevious}
-                    onCopySets={logging.onCopySets}
-                    onRemoveSet={actions.removeOneSet}
-                    addedSetIds={addedSetIds}
-                    onAddedSetShown={onAddedSetShown}
-                    onTimer={onTimer}
-                    registerRow={registerSetRow}
-                  />
-                </View>
-              )}
-            />
+            {session.exercises.map((entry) => (
+              <View key={entry.id} ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
+                <ExerciseItem
+                  exercise={entry}
+                  suggestion={logging.suggestions.get(entry.id) ?? null}
+                  stall={logging.stalls.get(entry.id) ?? null}
+                  lighter={logging.lighter}
+                  place={logging.places.get(entry.id) ?? "none"}
+                  open={openIds.has(entry.id)}
+                  warm={warmIds.has(entry.id)}
+                  progress={progressText(entry.sets)}
+                  summary={
+                    allTicked(entry.sets)
+                      ? doneSummary(entry.sets, entry.type, unit, unitName, display)
+                      : ""
+                  }
+                  showAddSet={
+                    logging.justCollapsedId === entry.id &&
+                    restBelongsTo(session.rest, entry, restRunning)
+                  }
+                  readOnly={readOnly}
+                  unit={unit}
+                  display={display}
+                  effortScale={effortScale}
+                  historyReady={logging.historyReadyFor(entry.exerciseId)}
+                  editingFinished={logging.editingFinished}
+                  inlineTimer={preferences.ui.inlineTimer}
+                  entry={ownEntry(entry, logging.entry)}
+                  refusal={
+                    logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
+                      ? logging.refusal
+                      : null
+                  }
+                  previousOf={logging.previousOf}
+                  ghostsFor={logging.ghostsFor}
+                  onView={viewExercise}
+                  onToggle={toggleBlock}
+                  onMenu={onMenu}
+                  onAddSet={onAddSet}
+                  onReorder={openReorder}
+                  onNote={onNote}
+                  onRest={onRest}
+                  onCell={openCell}
+                  onTick={onTick}
+                  onKind={onKind}
+                  onEffort={onEffort}
+                  onPrevious={onPrevious}
+                  onCopySets={logging.onCopySets}
+                  onRemoveSet={actions.removeOneSet}
+                  addedSetIds={addedSetIds}
+                  onAddedSetShown={onAddedSetShown}
+                  onTimer={onTimer}
+                  registerRow={registerSetRow}
+                />
+              </View>
+            ))}
           </View>
           {readOnly ? null : (
-            <HideWhileDragging dragging={reorderScroll.dragging}>
-              <View className="mt-4 px-4">
-                <Button
-                  variant={session.exercises.length === 0 ? "primary" : "secondary"}
-                  isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
-                  onPress={() => void addExercises()}
-                >
-                  <Plus size={20} color={foreground} />
-                  <Button.Label>{t("training__add_exercises")}</Button.Label>
-                </Button>
-              </View>
-            </HideWhileDragging>
+            <View className="mt-4 px-4">
+              <Button
+                variant={session.exercises.length === 0 ? "primary" : "secondary"}
+                isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
+                onPress={() => void addExercises()}
+              >
+                <Plus size={20} color={foreground} />
+                <Button.Label>{t("training__add_exercises")}</Button.Label>
+              </Button>
+            </View>
           )}
-        </Animated.ScrollView>
+        </ScrollView>
       </View>
       {session.rest && !readOnly ? (
         <RestBar
@@ -652,6 +642,27 @@ function LoadedSession({
         />
       ) : null}
       <SessionKeypad logging={logging} accessory={accessory} />
+      <ReorderView
+        visible={reordering && !readOnly}
+        onClose={() => setReordering(false)}
+        items={session.exercises}
+        onMove={actions.moveExercise}
+        labelOf={(entry) => entry.title || t("training__exercise_missing")}
+        renderRow={(entry, _index, place) => (
+          <CompactRow
+            place={place}
+            title={entry.title || t("training__exercise_missing")}
+            leading={
+              <ExerciseThumbnail
+                title={entry.title}
+                imageMediaId={entry.exercise?.imageMediaId}
+                thumbnailKey={entry.exercise?.thumbnailKey ?? null}
+                size={36}
+              />
+            }
+          />
+        )}
+      />
 
       <ActionSheet
         isOpen={sessionMenu}

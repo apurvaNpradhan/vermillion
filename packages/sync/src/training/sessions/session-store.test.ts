@@ -383,6 +383,37 @@ describe("exercises of a Session", () => {
     expect(s.exercises(t.id).map((row) => row["superset_group"])).toEqual([null, null, null, null]);
   });
 
+  it("refuses a queued exercise move after another device takes over the live Session", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    const before = s.exercises(t.id);
+
+    // Apply the ownership change the device would receive from sync.
+    s.sqlite
+      .prepare("UPDATE training_session SET device_id = ? WHERE id = ?")
+      .run("another-device", t.id);
+
+    expect(await moveSessionExercise(s.training, t.plank, t.squat, s.installId)).toBe(false);
+    expect(s.exercises(t.id)).toEqual(before);
+    expect(await takeOver(s.training, t.id, s.installId)).toBe(true);
+    expect(await moveSessionExercise(s.training, t.plank, t.squat, s.installId)).toBe(true);
+    expect(s.exercises(t.id).map((row) => row["id"])).toEqual([t.plank, t.squat]);
+  });
+
+  it("keeps finished Sessions editable from another device", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await tickSet(s.training, t.work1, { weight: 100, reps: 5 });
+    await tickSet(s.training, String(s.sets(t.plank)[0]?.["id"]), { duration: 30 });
+    await finishSession(s.training, t.id);
+    s.sqlite
+      .prepare("UPDATE training_session SET device_id = ? WHERE id = ?")
+      .run("another-device", t.id);
+
+    expect(await moveSessionExercise(s.training, t.plank, t.squat, s.installId)).toBe(true);
+    expect(s.exercises(t.id).map((row) => row["id"])).toEqual([t.plank, t.squat]);
+  });
+
   it("removes an exercise with its sets and its Rest, repairing a superset of one", async () => {
     const s = await setupSessions();
     const t = await started(s);

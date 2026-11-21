@@ -20,7 +20,7 @@ import {
 import { useMemo, useState } from "react";
 import { Keyboard, Pressable, Text, View, type ScrollView } from "react-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
-import Animated from "react-native-reanimated";
+import Animated, { useAnimatedRef, useScrollOffset } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 const AnimatedKeyboardAwareScrollView = Animated.createAnimatedComponent(KeyboardAwareScrollView);
@@ -28,7 +28,7 @@ const AnimatedKeyboardAwareScrollView = Animated.createAnimatedComponent(Keyboar
 import { BodyMapPair } from "@/body-map";
 import { workoutMuscles } from "./workout-muscles";
 import { MUSCLE_GROUP_KEYS } from "@workspace/shared";
-import { usePickExercises } from "@/exercise";
+import { ExerciseThumbnail, usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
@@ -42,9 +42,8 @@ import { useProgramActions } from "@/training/programs/use-program-actions";
 import { useWorkout } from "./use-workout";
 import { useWorkoutActions } from "./use-workout-actions";
 import { AddToProgramSheet } from "@/training/rotation/add-to-program-sheet";
-import { HideWhileDragging } from "@/training/reorder/hide-while-dragging";
-import { ReorderList } from "@/training/reorder/reorder-list";
-import { useReorderScroll } from "@/training/reorder/use-reorder-scroll";
+import { CompactRow } from "@/training/reorder/compact-row";
+import { ReorderView } from "@/training/reorder/reorder-view";
 import { SavedTextField } from "@/training/targets/saved-text-field";
 import { EditorKeypadProvider } from "@/training/sets/editor-keypad";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
@@ -114,7 +113,10 @@ function LoadedEditor({
   const pickExercises = usePickExercises("train");
   const [menuOpen, setMenuOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<WorkoutExerciseDetail | null>(null);
-  const reorderScroll = useReorderScroll();
+  const [reordering, setReordering] = useState(false);
+  // The keypad provider scrolls and reads the offset of the page's scroll view.
+  const editorScroll = useAnimatedRef<ScrollView>();
+  const editorOffset = useScrollOffset(editorScroll);
 
   const title = displayTitle(
     workout.title,
@@ -273,8 +275,8 @@ function LoadedEditor({
     <>
       <EditorKeypadProvider
         scroll={{
-          offset: () => reorderScroll.offset.value,
-          scrollTo: (y) => reorderScroll.ref.current?.scrollTo({ y, animated: true }),
+          offset: () => editorOffset.value,
+          scrollTo: (y) => editorScroll.current?.scrollTo({ y, animated: true }),
         }}
       >
         <Page
@@ -316,10 +318,8 @@ function LoadedEditor({
               contentContainerClassName="gap-4"
               ref={(node: ScrollView | null) => {
                 scroll.ref(node);
-                reorderScroll.ref(node);
+                editorScroll(node);
               }}
-              animatedProps={reorderScroll.animatedProps}
-              onContentSizeChange={reorderScroll.onContentSizeChange}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
             >
@@ -402,52 +402,65 @@ function LoadedEditor({
                   </View>
                 </View>
               ) : null}
-              <ReorderList
-                items={workout.exercises}
-                scroll={reorderScroll}
-                topInset={contentContainerStyle.paddingTop}
-                bottomInset={contentContainerStyle.paddingBottom}
-                onMove={(id, beforeId) => void actions.move(id, beforeId)}
-                renderItem={(entry, { collapsed }) => (
-                  <WorkoutExerciseRow
-                    entry={entry}
-                    expanded={expandedId === entry.id}
-                    onToggle={() =>
-                      setExpandedId((current) => (current === entry.id ? null : entry.id))
-                    }
-                    collapsed={collapsed}
-                    place={places.get(entry.id) ?? "none"}
-                    onMenu={setRowMenu}
-                  />
-                )}
-              />
-              <HideWhileDragging dragging={reorderScroll.dragging}>
-                {workout.exercises.length === 0 ? (
-                  <EmptyState
-                    icon={Plus}
-                    title={t("training__workout_empty_meta")}
-                    action={{
-                      label: t("training__add_exercises"),
-                      onPress: () => void addExercises(),
-                    }}
-                  />
-                ) : (
-                  <View className="px-4">
-                    <Button
-                      variant="secondary"
-                      isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
-                      onPress={() => void addExercises()}
-                    >
-                      <Plus size={20} color={foreground} />
-                      <Button.Label>{t("training__add_exercises")}</Button.Label>
-                    </Button>
-                  </View>
-                )}
-              </HideWhileDragging>
+              {workout.exercises.map((entry) => (
+                <WorkoutExerciseRow
+                  key={entry.id}
+                  entry={entry}
+                  expanded={expandedId === entry.id}
+                  onToggle={() =>
+                    setExpandedId((current) => (current === entry.id ? null : entry.id))
+                  }
+                  place={places.get(entry.id) ?? "none"}
+                  onReorder={() => setReordering(true)}
+                  onMenu={setRowMenu}
+                />
+              ))}
+              {workout.exercises.length === 0 ? (
+                <EmptyState
+                  icon={Plus}
+                  title={t("training__workout_empty_meta")}
+                  action={{
+                    label: t("training__add_exercises"),
+                    onPress: () => void addExercises(),
+                  }}
+                />
+              ) : (
+                <View className="px-4">
+                  <Button
+                    variant="secondary"
+                    isDisabled={workout.exercises.length >= TRAINING_LIMITS.exercisesPerWorkout}
+                    onPress={() => void addExercises()}
+                  >
+                    <Plus size={20} color={foreground} />
+                    <Button.Label>{t("training__add_exercises")}</Button.Label>
+                  </Button>
+                </View>
+              )}
             </AnimatedKeyboardAwareScrollView>
           )}
         </Page>
       </EditorKeypadProvider>
+      <ReorderView
+        visible={reordering}
+        onClose={() => setReordering(false)}
+        items={workout.exercises}
+        onMove={actions.move}
+        labelOf={(entry) => entry.exercise?.title ?? t("training__exercise_missing")}
+        renderRow={(entry, _index, place) => (
+          <CompactRow
+            place={place}
+            title={entry.exercise?.title ?? t("training__exercise_missing")}
+            leading={
+              <ExerciseThumbnail
+                title={entry.exercise?.title ?? ""}
+                imageMediaId={entry.exercise?.imageMediaId}
+                thumbnailKey={entry.exercise?.thumbnailKey ?? null}
+                size={36}
+              />
+            }
+          />
+        )}
+      />
       <ActionSheet
         title={title}
         actions={[
