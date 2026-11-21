@@ -3,7 +3,7 @@ import type { TranslationKey } from "@workspace/i18n";
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { DotsThreeVertical, Moon } from "phosphor-react-native";
 import { memo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type AccessibilityActionEvent } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
@@ -53,6 +53,12 @@ export const RotationRow = memo(function RotationRow({
   const subtle = useSubtleColor();
   const workout = slot.workout;
   const name = workout ? title : t("training__rest_day");
+  const reorderActions = {
+    accessibilityActions: [{ name: "reorder", label: t("training__reorder") }],
+    onAccessibilityAction: (event: AccessibilityActionEvent) => {
+      if (event.nativeEvent.actionName === "reorder") onReorder();
+    },
+  };
 
   const menu = (
     <Pressable
@@ -76,6 +82,7 @@ export const RotationRow = memo(function RotationRow({
           <View
             accessibilityLabel={t("training__slot_rest_label", { number })}
             accessibilityHint={t("training__drag_hint")}
+            {...reorderActions}
             accessible
             className="min-h-[72px] flex-1 flex-row items-center gap-3 pl-4"
           >
@@ -114,6 +121,7 @@ export const RotationRow = memo(function RotationRow({
             repeats > 1 ? `, ${t("training__repeat_badge_label", { count: repeats })}` : ""
           }`}
           accessibilityHint={`${t("training__slot_open_hint")}. ${t("training__drag_hint")}`}
+          {...reorderActions}
           onPress={() => onOpen(slot)}
           className="min-h-[72px] flex-1 flex-row items-center gap-3 py-2 pl-4 active:bg-default"
         >

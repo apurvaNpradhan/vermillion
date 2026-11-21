@@ -176,9 +176,13 @@ function LoadedSession({
   // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
   const { closeKeypad } = logging;
   const openReorder = useCallback(() => {
+    if (readOnly) return;
     closeKeypad();
     setReordering(true);
-  }, [closeKeypad]);
+  }, [closeKeypad, readOnly]);
+  useEffect(() => {
+    if (readOnly) setReordering(false);
+  }, [readOnly]);
   const openTimer = useCallback(() => {
     closeKeypad();
     setUi({ sessionView: "timer" });
@@ -639,14 +643,14 @@ function LoadedSession({
       ) : null}
       <SessionKeypad logging={logging} accessory={accessory} />
       <ReorderView
-        visible={reordering}
+        visible={reordering && !readOnly}
         onClose={() => setReordering(false)}
         items={session.exercises}
-        onMove={(id, beforeId) => void actions.moveExercise(id, beforeId)}
+        onMove={actions.moveExercise}
         labelOf={(entry) => entry.title || t("training__exercise_missing")}
-        renderRow={(entry) => (
+        renderRow={(entry, _index, place) => (
           <CompactRow
-            place={logging.places.get(entry.id) ?? "none"}
+            place={place}
             title={entry.title || t("training__exercise_missing")}
             leading={
               <ExerciseThumbnail

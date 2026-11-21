@@ -94,6 +94,12 @@ export const ExerciseRow = memo(function ExerciseRow({
                 ? t("training__row_open_hint")
                 : `${t("training__row_open_hint")}. ${t("training__drag_hint")}`
             }
+            accessibilityActions={
+              readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
+            }
+            onAccessibilityAction={(event) => {
+              if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
+            }}
             onPress={() => onToggle(exercise.id)}
             className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
           >

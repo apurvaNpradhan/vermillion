@@ -444,11 +444,11 @@ function LoadedEditor({
         visible={reordering}
         onClose={() => setReordering(false)}
         items={workout.exercises}
-        onMove={(id, beforeId) => void actions.move(id, beforeId)}
+        onMove={actions.move}
         labelOf={(entry) => entry.exercise?.title ?? t("training__exercise_missing")}
-        renderRow={(entry) => (
+        renderRow={(entry, _index, place) => (
           <CompactRow
-            place={places.get(entry.id) ?? "none"}
+            place={place}
             title={entry.exercise?.title ?? t("training__exercise_missing")}
             leading={
               <ExerciseThumbnail

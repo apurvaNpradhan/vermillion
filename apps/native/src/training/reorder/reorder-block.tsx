@@ -1,11 +1,10 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from "react";
 import { View, type ViewProps } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
@@ -14,6 +13,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { haptic } from "@/platform/haptics";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
 /** How long a touch rests on the header before the block starts to lift. */
 const LIFT_DELAY = 140;
@@ -41,7 +41,7 @@ export function ReorderBlock({
   enabled?: boolean;
 }) {
   const pressed = useSharedValue(0);
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const lift = useAnimatedStyle(() => ({
     transform: [{ scale: reduced ? 1 : 1 - 0.012 * pressed.value }],
   }));
@@ -66,21 +66,28 @@ export function ReorderBlock({
 export function ReorderTrigger(props: ViewProps) {
   const block = useContext(BlockContext);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
+  const enabled = block?.enabled ?? false;
+  const onReorder = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    onReorder.current = enabled ? (block?.onReorder ?? null) : null;
+  });
+  useLayoutEffect(
     () => () => {
+      onReorder.current = null;
       if (timer.current) clearTimeout(timer.current);
     },
-    [],
+    [enabled],
   );
-  const onReorder = block?.onReorder;
   const open = () => {
+    if (!onReorder.current) return;
     haptic.confirm();
-    timer.current = setTimeout(() => onReorder?.(), OPEN_DELAY);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onReorder.current?.(), OPEN_DELAY);
   };
   const pressed = block?.pressed;
   const activated = useSharedValue(false);
   const gesture = usePanGesture({
-    enabled: block?.enabled ?? false,
+    enabled,
     activateAfterLongPress: LONG_PRESS,
     // A finger that moves before the long press is a scroll: the pan fails and the block lets go.
     onBegin: () => {
@@ -99,5 +106,5 @@ export function ReorderTrigger(props: ViewProps) {
     },
   });
   const header = <View {...props} collapsable={false} />;
-  return block?.enabled ? <GestureDetector gesture={gesture}>{header}</GestureDetector> : header;
+  return enabled ? <GestureDetector gesture={gesture}>{header}</GestureDetector> : header;
 }

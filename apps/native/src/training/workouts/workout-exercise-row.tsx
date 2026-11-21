@@ -92,6 +92,10 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
           accessibilityRole="button"
           accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${summary}${entry.note ? `, ${entry.note}` : ""}`}
           accessibilityHint={`${t("training__row_open_hint")}. ${t("training__drag_hint")}`}
+          accessibilityActions={[{ name: "reorder", label: t("training__reorder") }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "reorder") onReorder();
+          }}
           onPress={onToggle}
           className={`min-h-[72px] flex-1 flex-row items-center gap-3 py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >

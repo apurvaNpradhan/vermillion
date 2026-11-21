@@ -334,16 +334,18 @@ function LoadedProgram({
         visible={reordering}
         onClose={() => setReordering(false)}
         items={slots}
-        onMove={(id, beforeId) => void actions.move(id, beforeId)}
-        labelOf={(slot) => `${numbers.get(slot.id) ?? 0}. ${slotTitle(slot, (key) => t(key))}`}
-        renderRow={(slot) => (
+        onMove={actions.move}
+        labelOf={(slot) =>
+          slot.workout ? slotTitle(slot, (key) => t(key)) : t("training__rest_day")
+        }
+        renderRow={(slot, index) => (
           <CompactRow
             leading={
               <Text
                 className="w-8 text-center text-label font-semibold text-muted"
                 style={{ fontVariant: ["tabular-nums"] }}
               >
-                {numbers.get(slot.id) ?? 0}
+                {index + 1}
               </Text>
             }
             title={slot.workout ? slotTitle(slot, (key) => t(key)) : t("training__rest_day")}

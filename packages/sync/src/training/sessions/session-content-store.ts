@@ -149,6 +149,8 @@ export function moveSessionExercise(
 ): Promise<boolean> {
   return write(database, expectedInstallId, async (tx) => {
     const current = await requireSessionExercise(tx, id);
+    const owner = await requireSession(tx, current.session_id);
+    if (owner.finished_at === null && owner.device_id !== (await installIdOf(tx))) return false;
     const items = await rebalanceSessionExercises(
       tx,
       await sessionExerciseListOf(tx, current.session_id),

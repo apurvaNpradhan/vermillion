@@ -1,3 +1,5 @@
+import { planSupersetAfterMove, type SupersetItem } from "@workspace/shared";
+
 /** The index the dragged row would take with its centre at `fingerY` (list coordinates). */
 export function targetIndex(fingerY: number, rowHeight: number, count: number): number {
   "worklet";
@@ -27,6 +29,42 @@ export function movedOrder<T>(items: readonly T[], from: number, to: number): T[
 /** The id the moved row now sits before (`null` = last), for `moveWorkoutExercise`. */
 export function beforeIdOf(ids: readonly string[], from: number, to: number): string | null {
   return movedOrder(ids, from, to)[to + 1] ?? null;
+}
+
+type MovePreview = { base: readonly SupersetItem[]; rows: readonly SupersetItem[] };
+
+/** Keep a local preview until the database watcher publishes a new order or grouping. */
+export function reconcileOrder(
+  incoming: readonly SupersetItem[],
+  preview: MovePreview | null,
+): readonly SupersetItem[] {
+  if (
+    preview &&
+    incoming.length === preview.base.length &&
+    incoming.every((row, index) => {
+      const previous = preview.base[index];
+      return (
+        row.id === previous?.id &&
+        row.superset_group === previous.superset_group &&
+        row.rest_seconds === previous.rest_seconds
+      );
+    })
+  ) {
+    return preview.rows;
+  }
+  return incoming;
+}
+
+/** Preview the same order, superset membership and rest changes the store will write. */
+export function previewMove(rows: readonly SupersetItem[], id: string, to: number) {
+  const from = rows.findIndex((row) => row.id === id);
+  if (from < 0 || from === to || to < 0 || to >= rows.length) return null;
+  const ordered = movedOrder(rows, from, to);
+  const changes = new Map(planSupersetAfterMove(rows, ordered, id).map((row) => [row.id, row]));
+  return {
+    beforeId: ordered[to + 1]?.id ?? null,
+    rows: ordered.map((row) => ({ ...row, ...changes.get(row.id) })),
+  };
 }
 
 /** Convert viewport coordinates to a collapsed slot, including the parent's scroll offset. */
