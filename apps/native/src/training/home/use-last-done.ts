@@ -22,8 +22,8 @@ const subscribe = (
  */
 export function useLastDone() {
   const recent = useLocalWatch(subscribe);
-  const { preferences } = usePreferences();
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timeZone } = usePreferences();
+  const timezone = timeZone;
   const lastDone = new Map<string, string>();
   for (const session of recent.value ?? []) {
     if (session.workoutId && !lastDone.has(session.workoutId))

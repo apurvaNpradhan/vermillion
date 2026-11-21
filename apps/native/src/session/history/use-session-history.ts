@@ -25,11 +25,11 @@ const idle = () => () => undefined;
 
 /** What the History screen needs from preferences and the active program. */
 export function useHistorySettings() {
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const program = useActiveProgram();
   const { sessionsPerWeek, weekStart, weightUnit } = preferences.ui;
   return {
-    timezone: preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: timeZone,
     weekStart,
     weightUnit,
     goal: sessionGoal(program.program, sessionsPerWeek),

@@ -12,7 +12,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
   const { t } = useTranslation();
   const exercise = useExercise(id);
   const history = useExerciseHistory(id);
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   return (
     <Page title={t("exercise__history_title")} back>
       {({ header, contentContainerStyle, ...scroll }) => (
@@ -30,7 +30,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
               <RecentSessions
                 sessions={[item]}
                 unit={preferences.ui.weightUnit}
-                timezone={preferences.timezone}
+                timezone={timeZone}
                 showHeading={false}
               />
             </View>

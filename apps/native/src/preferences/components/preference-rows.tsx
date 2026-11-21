@@ -1,6 +1,5 @@
 import { SUPPORTED_LOCALES, isLocale } from "@workspace/shared";
-import { getCalendars } from "expo-localization";
-import { Globe, Palette, Translate } from "phosphor-react-native";
+import { Palette, Translate } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -14,20 +13,19 @@ import { usePreferences } from "../use-preferences";
 const LOCALE_NAMES = { en: "English" };
 const DEVICE = "device";
 
-type Picker = "appearance" | "language" | "timezone" | null;
+type Picker = "appearance" | "language" | null;
 
 /**
- * The Preferences section: appearance, language and time zone as settings rows, then any rows
+ * The Preferences section: appearance and language as settings rows, then any rows
  * passed in (Units). Each shows its current value and opens a sheet; account settings go through
  * the one preferences hook.
  */
 export function PreferenceRows({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
-  const { preferences, setLocale, setTimezone } = usePreferences();
+  const { preferences, setLocale } = usePreferences();
   const { choice } = useThemeChoice();
   const appearance = useAppearanceSummary(choice);
   const [picker, setPicker] = useState<Picker>(null);
-  const deviceZone = getCalendars()[0]?.timeZone ?? null;
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
@@ -36,13 +34,6 @@ export function PreferenceRows({ children }: { children?: ReactNode }) {
   const localeOptions = [
     { value: DEVICE, label: t("settings__language_device") },
     ...SUPPORTED_LOCALES.map((code) => ({ value: code, label: LOCALE_NAMES[code] })),
-  ];
-  const zone = preferences.timezone;
-  const zoneOptions = [
-    ...(zone ? [{ value: zone, label: zone }] : []),
-    ...(deviceZone && deviceZone !== zone
-      ? [{ value: deviceZone, label: t("settings__timezone_device", { zone: deviceZone }) }]
-      : []),
   ];
 
   return (
@@ -62,13 +53,6 @@ export function PreferenceRows({ children }: { children?: ReactNode }) {
             onPress={() => setPicker("language")}
           />
         )}
-        <ListRow
-          icon={Globe}
-          title={t("settings__timezone_title")}
-          value={zone ?? t("settings__timezone_unset")}
-          disabled={zoneOptions.length === 0}
-          onPress={() => setPicker("timezone")}
-        />
         {children}
       </ListSection>
 
@@ -84,15 +68,6 @@ export function PreferenceRows({ children }: { children?: ReactNode }) {
           if (value === DEVICE) setLocale(null);
           else if (isLocale(value)) setLocale(value);
         }}
-      />
-      <OptionSheet
-        isOpen={picker === "timezone"}
-        onOpenChange={onOpenChange}
-        title={t("settings__timezone_title")}
-        description={t("settings__timezone_hint")}
-        options={zoneOptions}
-        value={zone ?? ""}
-        onSelect={setTimezone}
       />
     </>
   );

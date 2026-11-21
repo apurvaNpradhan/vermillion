@@ -68,17 +68,13 @@ export function useActiveRun() {
 
 export function useActiveProgram() {
   const { write, writeScope } = useTrainingWrite();
-  const { preferences } = usePreferences();
+  const { timeZone } = usePreferences();
   const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;
   const sessions = runs.value?.sessions.flatMap((s) => (s.runId === run?.id ? [s] : [])) ?? [];
   const progress = cycleState(program?.slots ?? [], sessions);
-  const week = runWeek(
-    run?.started_at ?? null,
-    new Date(),
-    preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
+  const week = runWeek(run?.started_at ?? null, new Date(), timeZone);
   return {
     run,
     runProgramId,

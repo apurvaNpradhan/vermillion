@@ -24,8 +24,8 @@ export function LogPastScreen() {
   const [invalid, setInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [shownMonth, setShownMonth] = useState<number | null>(null);
-  const { preferences } = usePreferences();
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { preferences, timeZone } = usePreferences();
+  const timezone = timeZone;
   const bounds = logPastBounds(new Date(), timezone);
   const format = (options: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat(i18n.language, { timeZone: "UTC", ...options }).format;

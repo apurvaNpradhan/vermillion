@@ -25,7 +25,7 @@ const { page, loadMore } = useExerciseLibrary(filters);
 
 ## Preferences and theme
 
-One `usePreferences` hook reads and updates `user_preferences` (locale, timezone, `ui`). Theme is per device, in device storage, never the database.
+One `usePreferences` hook reads and updates `user_preferences` (locale and `ui`; dates always use the device time zone, `timeZone` from the hook, and the stored `timezone` column is no longer read or written). Theme is per device, in device storage, never the database.
 
 ## Tab stacks
 

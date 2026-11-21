@@ -37,8 +37,8 @@ export function useHomeTraining(workoutId?: string, weeksAgo = 0) {
     ),
   );
   const recent = useLocalWatch(subscribeRecent);
-  const { preferences } = usePreferences();
-  const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { preferences, timeZone } = usePreferences();
+  const zone = timeZone;
   const sessions = weight.withBodyweight(
     withWarmupsCounted(history.value ?? [], preferences.ui.countWarmups),
   );

@@ -44,7 +44,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const state = useSession(id);
   const session = state.status === "ready" ? state.session : null;
   const source = useWorkout(session?.workoutId ?? "");
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const weight = useWeight();
   const actions = useSessionActions();
   const finish = useFinishSession();
@@ -114,7 +114,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   {new Intl.DateTimeFormat(i18n.language, {
                     dateStyle: "full",
                     timeStyle: "short",
-                    timeZone: preferences.timezone ?? undefined,
+                    timeZone,
                   }).format(new Date(session.startedAt))}
                 </Text>
                 {source.status === "ready" ? (
