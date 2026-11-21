@@ -9,10 +9,10 @@ The app needs a public face: a landing page with the Android download, and the p
 ## Decision
 
 - `apps/web` is a TanStack Start app built with Vite and the Cloudflare Vite plugin, deployed with Wrangler to a Cloudflare Worker named `patina-web`.
-- It has **public pages only**: `/`, `/privacy`, `/terms`, `/delete-account` and a 404. No admin, no invites, no sign-in, no API calls, no cookies and no environment variables. Every page is prerendered at build time and served as a static asset; the Worker only handles misses.
-- The site's host is `appConfig.urls.site`. Wrangler cannot import `app.config.ts`, so `wrangler.jsonc` holds the custom domain as a route and `pnpm --filter web check:host` (run by the deploy workflow) fails when the two differ.
-- English copy lives in `apps/web/src/content/`: `@workspace/i18n` serves the app, the API and email, and the site is English only. Brand colours are local to the site (the logo palette: ink, ivory, olive) rather than imported from `@workspace/ui`, which carries the app's theme tokens. A package is shared only when a second consumer needs it.
-- Deploys run from `.github/workflows/deploy-web.yml` on pushes to `main` that touch `apps/web`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The API stays on Dokploy ([0045](0045-build-in-ci-deploy-by-api.md)).
+- It has **public pages only**: `/`, `/privacy`, `/terms`, `/delete-account` and a 404. No admin, invites, sign-in, API calls, cookies or runtime environment variables. The four public pages are prerendered and served as static assets at their canonical URLs, with no trailing slash on the legal pages. The Worker renders the 404 for unmatched paths.
+- `appConfig.publicSite` holds the Patina name and origin while the native app and API still use the Basalt identity. Wrangler cannot import `app.config.ts`, so `wrangler.jsonc` holds the custom domain as a route and `pnpm --filter web check:host` validates it before deploy.
+- The site's English catalog and legal copy live in `apps/web/src/content/`. The site has one locale. `@workspace/i18n` serves the app, API and email. The website uses local brand tokens for the logo palette of ink, ivory and olive.
+- Deploys run from `.github/workflows/deploy-web.yml` on relevant pushes to `main`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The API stays on Dokploy ([0045](0045-build-in-ci-deploy-by-api.md)).
 - The privacy policy and terms are drafts the owner must review; the legal text sits in one content module with a comment saying so.
 
 ## Consequences

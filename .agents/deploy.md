@@ -8,9 +8,9 @@ Details live in the docs; this page says where things run.
 - User media: a private R2 bucket (MinIO in development and in the local production check).
 - Android APK: `.github/workflows/android-release.yml` on a `v*` tag, signed with the keystore from secrets ([guide](../docs/guides/android-release.md)).
 - Native store builds: EAS profiles in `apps/native/eas.json`, EAS Update for JS fixes, store submission manual.
-- Public website (`apps/web`, site host from `app.config.ts`): TanStack Start, prerendered, deployed to a Cloudflare Worker by `.github/workflows/deploy-web.yml` with Wrangler ([ADR 0052](../docs/adr/0052-public-website-on-workers.md)). Public pages only: landing, privacy, terms, delete-account.
+- Public website (`apps/web`, host from `appConfig.publicSite.url`): TanStack Start, prerendered, deployed to a Cloudflare Worker by `.github/workflows/deploy-web.yml` with Wrangler ([ADR 0052](../docs/adr/0052-public-website-on-workers.md)). Public pages only: landing, privacy, terms, delete-account.
 - Catalog media: the public R2 bucket on `media.<domain>`; the admin uploads to it with presigned URLs.
-- Hosts derive from `domain` in `app.config.ts`: site `basalt.`, API `basalt-api.`, sync `basalt-sync.`, media `media.`.
+- Hosts derive from `domain` in `app.config.ts`: public website `patina.`, legacy site links `basalt.`, API `basalt-api.`, sync `basalt-sync.`, media `media.`.
 
 Read [docs/deployment.md](../docs/deployment.md) to set up, [docs/runbook.md](../docs/runbook.md) to operate.
 

@@ -1,10 +1,11 @@
+import { en } from "../content/en.ts";
 import type { LegalDocument } from "../content/legal.ts";
 
 export function LegalPage({ document }: { document: LegalDocument }) {
   return (
     <article className="page narrow prose">
       <h1>{document.title}</h1>
-      <p className="meta">Last updated {document.updated}</p>
+      <p className="meta">{en.lastUpdated(document.updated)}</p>
       <p className="lede">{document.intro}</p>
       {document.sections.map((section) => (
         <section key={section.title}>

@@ -21,6 +21,11 @@ export const appConfig = {
   version: "0.1.0",
   /** Base domain of every public host. */
   domain,
+  /** Public website during the rename. Native and API links still use the legacy identity. */
+  publicSite: {
+    displayName: "Patina",
+    url: `https://patina.${domain}`,
+  },
   urls: {
     server: "http://localhost:3000",
     /** Existing public site used for account, invite and update links. */

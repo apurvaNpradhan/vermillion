@@ -1,27 +1,53 @@
 import { appConfig } from "../../../../app.config.ts";
 
 /**
- * All English copy and links for the public site live in this folder. The site has no i18n:
- * `@workspace/i18n` serves the app, the API and email, and the site is English only for now.
- * Name, tagline, support address and URLs come from `app.config.ts`.
+ * English is the site's only locale. The copy here and in legal.ts is resolved at build time.
+ * The name, tagline, support address and deployment URL come from app.config.ts.
  */
 
 const { owner, repo } = appConfig.releases;
 const githubUrl = `https://github.com/${owner}/${repo}`;
 
 export const site = {
-  name: appConfig.displayName,
+  name: appConfig.publicSite.displayName,
   tagline: appConfig.tagline,
   /** The site's own line (`appConfig.subtitle` is the store-listing line and may differ). */
   subtitle: "A private log for training.",
-  description: `${appConfig.displayName}: ${appConfig.tagline} A private log for training.`,
-  url: appConfig.urls.site,
+  description: `Log workouts offline, follow training programs and track your progress with ${appConfig.publicSite.displayName}.`,
+  url: appConfig.publicSite.url,
   supportEmail: appConfig.supportEmail,
   githubUrl,
-  releasesUrl: `${githubUrl}/releases/latest`,
+  releasesUrl: `${githubUrl}/releases`,
   /** Obtainium takes the repository URL and follows its GitHub Releases. */
   obtainiumUrl: "https://github.com/ImranR98/Obtainium",
-} as const;
+};
+
+export const en = {
+  skipToContent: "Skip to content",
+  homeLink: `${site.name} home`,
+  logoAlt: `${site.name} tortoise logo`,
+  releases: "Android releases",
+  iosNote: "iOS is not available yet.",
+  features: "What it does",
+  screenshots: "Screenshots",
+  updatesTitle: "Get updates with Obtainium",
+  updatesIntro:
+    "Obtainium can install an Android build from GitHub Releases once one is available.",
+  updatesLink: "Get Obtainium",
+  footer: "Footer",
+  privacyLink: "Privacy",
+  termsLink: "Terms",
+  deletionLink: "Delete account",
+  github: "GitHub",
+  notFoundTitle: "Page not found",
+  notFoundBody: "That page does not exist, or it moved.",
+  backHome: "Back to the home page",
+  lastUpdated: (date: string) => `Last updated ${date}`,
+  deletionSteps: "In the app",
+  deletionScope: "What is deleted",
+  deletionRetention: "What may remain",
+  emailSupport: "Email support",
+};
 
 export const features = [
   {
@@ -34,7 +60,7 @@ export const features = [
   },
   {
     title: "History and records",
-    body: "Every session is kept. Personal records and progress charts show up without any setup.",
+    body: "Review your past sessions, personal records and progress charts.",
   },
   {
     title: "Body weight and measurements",
@@ -54,18 +80,18 @@ export const features = [
   },
   {
     title: "Private",
-    body: "No ads, no selling data and no third-party analytics.",
+    body: "Your training log is private to your account. App crash reporting is optional.",
   },
-] as const;
+];
 
 export const screenshots = [
   { src: "/screenshots/live-session.webp", alt: "A workout in progress with a rest timer" },
   { src: "/screenshots/program.webp", alt: "A training program with three workouts" },
   { src: "/screenshots/exercises.webp", alt: "The exercise library with search and filters" },
-] as const;
+];
 
 export const obtainiumSteps = [
   "Install Obtainium from its GitHub page or F-Droid.",
   `In Obtainium choose Add app and paste ${githubUrl}.`,
-  "Add it. Obtainium installs the latest release and tells you when a new one is out.",
-] as const;
+  "Add the repository to follow new Android releases.",
+];

@@ -190,19 +190,19 @@ Workflow actions are pinned to commit SHAs and audited with zizmor in CI. When a
 
 Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --filter web build` writes `dist/`, and `pnpm --filter web preview` serves the production build the way the Worker does.
 
-**The host.** `wrangler.jsonc` holds the custom domain as a route (`patina.lostsignal.cloud`, `custom_domain: true`). Wrangler cannot import `app.config.ts`, so `pnpm --filter web check:host` compares the route with the hostname of `appConfig.urls.site` and fails on a mismatch; the deploy workflow runs it first. When you change `domain` or the site host in `app.config.ts`, edit `wrangler.jsonc` in the same commit.
+**The host.** `wrangler.jsonc` holds the custom domain as a route (`patina.lostsignal.cloud`, `custom_domain: true`). `pnpm --filter web check:host` verifies the route against `appConfig.publicSite.url` before deploy. The native app and API still use the legacy `appConfig.urls.site` for their existing links. When you change the public website host in `app.config.ts`, edit `wrangler.jsonc` in the same commit.
 
 **Set up once**
 
 1. Cloudflare dashboard → My Profile → API Tokens → Create Token (custom). Permissions: Account → Workers Scripts → Edit; Zone → Workers Routes → Edit (this also covers Custom Domains). Zone resources: only the zone of `domain`. Account resources: this account. Do not use the global API key.
 2. Copy the account id (dashboard → Workers & Pages overview, right-hand panel).
 3. GitHub → Settings → Secrets: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, either in the `production` environment (the workflow's job uses it, so required reviewers would gate each deploy) or at repository level.
-4. DNS: none to create by hand. A custom-domain route makes Cloudflare add the proxied record for `patina.<domain>` and its certificate on the first deploy. The hostname must not already have a DNS record pointing elsewhere (delete an old `basalt` or `cinnabar` record for that name first).
-5. First deploy: Actions → Deploy web → Run workflow on `main`. Then `curl -I https://patina.<domain>/privacy` (an HTTP 200 after the trailing-slash redirect).
+4. Cloudflare creates the DNS record and certificate for `patina.<domain>` when it attaches the custom domain. Check for an existing CNAME on that exact hostname before deployment.
+5. In Actions, run Deploy web on `main`. Verify that `curl -I https://patina.<domain>/privacy` returns HTTP 200 directly and that an unknown URL returns HTTP 404.
 
-After that, a push to `main` that touches `apps/web`, `app.config.ts` or the lockfile deploys. The first deploy by hand is also possible: `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… pnpm --filter web deploy`.
+Pushes to `main` that change the website, shared TypeScript or package manager configuration, or the workflow trigger a deploy. To deploy by hand, set the two Cloudflare variables in the shell and run `pnpm --filter web deploy`.
 
-The policy and terms text is a draft; see the comment at the top of `apps/web/src/content/legal.ts` and the open items in [privacy readiness](privacy-readiness.md). Google Play's data-safety form and "delete account" URL point at `/privacy` and `/delete-account` on the site host.
+The policy and terms are drafts. Before submitting the site URLs to Google Play, review the open items in [privacy readiness](privacy-readiness.md) and verify that the support inbox accepts and can handle account-deletion requests. The intended URLs are `/privacy` and `/delete-account` on the public website host.
 
 ## Local production check
 

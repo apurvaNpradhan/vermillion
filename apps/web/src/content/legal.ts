@@ -1,4 +1,4 @@
-import { site } from "./site.ts";
+import { site } from "./en.ts";
 
 export interface LegalSection {
   title: string;
@@ -16,68 +16,61 @@ export interface LegalDocument {
 const email = site.supportEmail;
 
 /*
- * DRAFT pending review by the owner and, ideally, a qualified reviewer. Not legal advice. Every
- * statement below was checked against the code on the date of "updated" (packages/auth,
- * packages/email, packages/api media and user-data, docs/guides/sentry.md,
- * .agents/media.md, .agents/sync.md). Decisions the owner still has to make are listed in
- * docs/privacy-readiness.md and in the hand-off notes of the commit that added this site: the
- * contact address, governing law, a retention period for server logs, and the controller's name.
- * Change the text here whenever the app starts collecting or sharing something new.
+ * Draft for owner and legal review. See docs/privacy-readiness.md for the open decisions.
+ * Update this copy when the app changes what it collects, shares or retains.
  */
 export const privacy: LegalDocument = {
   title: "Privacy policy",
   updated: "21 November 2026",
-  intro: `${site.name} is a private training log. This page says what it collects, where that goes and how to get rid of it. It is written in plain language and covers the ${site.name} Android app and this website.`,
+  intro: `This policy covers the ${site.name} Android app and this website. It explains what data we collect, how we use it and how to request deletion.`,
   sections: [
     {
       title: "What we collect",
       items: [
-        "Your account: your email address, an optional display name and, if you use Google to sign in, the account id Google gives us.",
-        "Your training data: programs, workouts, sessions, sets, notes, records and your preferences.",
-        "Your body data: body weight, measurements and any progress or session photos you add.",
-        "Sign-in records: when you sign in, our server keeps a session with the time, your IP address and your device's user agent, and the app version you last used.",
+        "Your account includes your email address, display name and any profile picture you add. If you use Google or another available sign-in provider, we store your linked provider account ID and may receive profile details and store sign-in tokens from that provider.",
+        "Training data includes programs, workouts, sessions, sets, notes, custom exercises, imported history and preferences.",
+        "Body data includes weight, measurements and any progress photos you add. You can also attach photos to sessions.",
+        "We record sign-in details such as the time, IP address, user agent and sign-in method. We also record your latest reported app version and when it was last seen.",
+        "Our website and API receive technical request information, such as your IP address and the requested page or endpoint, to serve and protect the service.",
         "Crash reports and feedback, described below.",
       ],
     },
     {
       title: "Where it goes",
       items: [
-        "Training data, body data, preferences and account details are stored in a database on a server we rent (a virtual private server). The app keeps a copy on your phone, in an encrypted local database, and syncs it with the server so your data works offline and on more than one device. We can technically read what is on the server: it is not end-to-end encrypted.",
-        "Photos are stored in a private Cloudflare R2 bucket. Nothing in it is public. Your phone uploads and downloads photos through short-lived signed links, and photos are stripped of location data before they leave your phone.",
-        "Sign-in codes are emailed through Resend, which receives your email address and the message.",
+        "We store account details, training data, body data and preferences in a database on a rented server. The app syncs training and body data and preferences with an encrypted database on your phone so you can work offline and use more than one device. Server operators can read the data stored on the server.",
+        "Uploaded profile pictures and photos are stored in a private Cloudflare R2 bucket. Your phone uses short-lived signed links to upload and download them. The app re-encodes your uploads on the phone to strip embedded location data.",
+        "We use Resend to send account emails, including sign-in codes, sign-in notices and deletion links. Resend receives your email address and the message, which can include the time, IP address, browser and operating system associated with the request.",
         "Cloudflare also sits in front of our servers and this website, so your requests pass through it.",
-        "If you sign in with Google, Google processes that sign-in under its own policy.",
-        "When it is turned on, Cloudflare Turnstile checks that a sign-in comes from a person. It runs in the app's sign-in screen and sends Cloudflare what its challenge needs, such as device and network signals.",
-        "Android builds are downloaded from GitHub Releases, which sees your download request.",
+        "If you use a third-party sign-in provider such as Google, that provider processes the sign-in under its own privacy policy.",
+        "When enabled, Cloudflare Turnstile uses device and network signals to check requests such as sending a sign-in code or starting a third-party sign-in. The server sends the challenge token to Cloudflare for verification.",
+        "GitHub handles visits to our release page and any Android downloads from GitHub Releases.",
+        "Authorized administrators can see account details, sign-in information, the last reported app version, account restrictions and record counts in their account view.",
       ],
     },
     {
       title: "Crash reports and feedback",
       paragraphs: [
-        "The app can send crash reports and error details to Sentry. They hold the error, the app version and build, your phone model and Android version, and the screens and requests leading up to it, with email addresses removed and no query strings. They do not include your email, your IP address, your account id, workouts, body data or photos. They carry one random id made on your phone, which is not linked to your account.",
-        "Crash reports are on by default and you can turn them off in Settings, under Send crash reports. It takes effect at once.",
-        "Our server also reports unexpected errors to Sentry, with the request path, the error and your internal user id, but no request body or email.",
-        "When you use Send feedback, the message you write goes to us with your device and app version. Your email is added only if you switch on Include my email.",
+        "In builds with Sentry configured, the app can send crash reports and error details. These can include stack traces, app and Android versions, device model, recent screens and request URLs, and console messages. The app uses a random ID made on your device in place of your account ID, removes query strings from request URLs and redacts email addresses from error messages.",
+        "In those builds, crash reporting is on by default. You can turn it off on each device in Settings under Send crash reports.",
+        "When server reporting is enabled, Sentry can receive unexpected server errors, including the request method and path, the error and, when available, your internal account ID. The server strips request bodies and query strings and redacts email addresses from error messages.",
+        "Feedback you submit in the app goes to Sentry with device and app details. The app attaches your account email if you turn on Include my email. Feedback can be sent with crash reporting turned off. In a build without Sentry, Send feedback opens your email app.",
       ],
     },
     {
-      title: "What we do not do",
-      items: [
-        "We do not show ads.",
-        "We do not sell or rent your data.",
-        "We do not use third-party analytics or tracking in the app or on this website.",
-        "We do not use your data to train AI models.",
+      title: "Website cookies",
+      paragraphs: [
+        "The website itself sets no cookies and includes no advertising or analytics scripts.",
       ],
     },
     {
       title: "How long we keep it",
       items: [
-        "Your account and training data stay until you delete them or your account.",
-        "When you delete a workout, session or photo, it is marked deleted and removed from your devices. The record's content is erased from the database within about 120 days, and a deleted photo is removed from storage within a day.",
-        "When you delete your account, your data is deleted from the database and your photos are deleted from storage. Copies in database backups remain until those backups expire, which is up to 14 days. If a backup is ever restored, we remove accounts that were deleted after it was made.",
-        "Sign-in sessions end when you sign out or they expire, and are deleted with your account.",
-        "Server logs are kept for a limited time for security and debugging and hold no workout or body data.",
-        "Crash reports are kept by Sentry for the period its plan allows.",
+        "When you delete a workout or session, the app hides it from your synced training log. The server keeps the deleted record until account deletion. Some other sync records, such as upload receipts, are eligible for cleanup after 120 days.",
+        "When a photo deletion syncs, an hourly job removes the file from storage after it has been marked deleted for at least an hour. A minimal deletion record can remain until account deletion.",
+        "Account deletion removes your account and training and body data from the live database and starts cleanup of your files in storage. Copies can remain in database backups until those backups expire.",
+        "Sign-in sessions end when you sign out or they expire. Account deletion removes them from the live database.",
+        "Operational logs, administrative audit records and Sentry reports can be retained separately from your account. Some of these records can include an internal account ID.",
       ],
     },
     {
@@ -86,25 +79,19 @@ export const privacy: LegalDocument = {
         "Export your finished workouts as a CSV file in Settings, under Export data.",
         "Delete your account and all your data from the app: Settings, Account, Delete account. See the delete account page.",
         "Turn off crash reports in Settings.",
-        `Ask us to access, correct or delete your data, or to answer a question, by emailing ${email}. We will answer within 30 days.`,
+        `To ask about accessing, correcting or deleting your data, email ${email}.`,
       ],
     },
     {
       title: "Security",
       paragraphs: [
-        "Connections to our servers use TLS. The local database on your phone is encrypted, the photo bucket is private, and access to the server is limited to the people who run it. No system is perfectly secure, and a copy of your data on a phone you have lost is protected only by your phone's own lock until you delete your account from another device or sign out.",
+        "Public connections to our servers use HTTPS. Your phone's local database is encrypted and uploaded photos are kept in private storage. A device can keep a local copy after losing access to the account. Account deletion cannot remotely erase data from a lost or offline device.",
       ],
     },
     {
       title: "Health and sensitive data",
       paragraphs: [
-        `${site.name} is a training log, not a medical device, and gives no medical advice. Body weight, measurements and photos can be sensitive. You decide whether to add them, and you can delete them at any time.`,
-      ],
-    },
-    {
-      title: "Children",
-      paragraphs: [
-        `${site.name} is not meant for children under 16, and we do not knowingly collect their data.`,
+        "Body weight, measurements and photos can be sensitive. Adding them is optional.",
       ],
     },
     {
@@ -120,12 +107,12 @@ export const privacy: LegalDocument = {
 export const terms: LegalDocument = {
   title: "Terms of use",
   updated: "21 November 2026",
-  intro: `These terms cover ${site.name} while it is a free beta. By using the app you agree to them. They are short on purpose.`,
+  intro: `These terms cover the ${site.name} beta.`,
   sections: [
     {
       title: "The beta",
       paragraphs: [
-        `${site.name} is free and is still being built. Features can change or go away, there can be bugs, and the service can be down. Keep your own copy of anything you cannot lose: you can export your workouts as a CSV file in Settings.`,
+        `${site.name} is in development. Features can change and the service can be unavailable. You can export finished workouts as a CSV file in Settings.`,
       ],
     },
     {
@@ -133,7 +120,7 @@ export const terms: LegalDocument = {
       items: [
         "Use a real email address you control and keep your sign-in codes to yourself.",
         "You are responsible for what happens under your account.",
-        "You can delete your account at any time. See the delete account page.",
+        "You can request account deletion in the app or by contacting support. See the delete account page.",
       ],
     },
     {
@@ -145,7 +132,7 @@ export const terms: LegalDocument = {
     {
       title: "What we ask of you",
       items: [
-        "Do not attack, overload or reverse engineer the service, or try to reach other people's data.",
+        "Do not attack or overload the service, or try to access other people's data.",
         "Do not use the app to store anything unlawful.",
         "Do not create accounts in bulk or by automation.",
       ],
@@ -159,25 +146,25 @@ export const terms: LegalDocument = {
     {
       title: "No warranty, limited liability",
       paragraphs: [
-        "The app is provided as is, without promises that it is accurate, always available or free of errors. To the extent the law allows, we are not liable for lost data, lost profits or any indirect damage from using it, and our total liability is limited to what you paid us, which for the free beta is nothing. Nothing here limits rights you have under the law that cannot be limited.",
+        "The app is provided as is, without promises that it is accurate, always available or free of errors. To the extent the law allows, we are not liable for lost data, lost profits or any indirect damage from using it, and our total liability is limited to what you paid us. Nothing here limits rights you have under the law that cannot be limited.",
       ],
     },
     {
       title: "Ending use",
       paragraphs: [
-        "You can stop at any time. We can suspend or remove an account that breaks these terms or harms the service, and we can end the beta with reasonable notice.",
+        "You can stop using the app at any time. We can suspend or remove an account that breaks these terms or harms the service.",
       ],
     },
     {
-      title: "Open source and third parties",
+      title: "Source code and third parties",
       paragraphs: [
-        `The source code is published at ${site.githubUrl}. Its licence applies to the code. The ${site.name} name and logo are not licensed for reuse. Parts of the app use third-party software under their own licences.`,
+        `The source code is available at ${site.githubUrl}. Parts of the app use third-party software under their own licences.`,
       ],
     },
     {
       title: "Changes and contact",
       paragraphs: [
-        "We may update these terms. Continuing to use the app after a change means you accept it, and we will update the date at the top of this page.",
+        "If we change these terms, we will update the date at the top of this page.",
         `Questions: ${site.supportEmail}.`,
       ],
     },
@@ -186,23 +173,23 @@ export const terms: LegalDocument = {
 
 export const deleteAccount = {
   title: "Delete your account",
-  intro: `You can delete your ${site.name} account and everything stored with it from inside the app. Nothing is deleted until you confirm from an email link.`,
+  intro: `You can request deletion of your ${site.name} account and its data in the app or by contacting support.`,
   steps: [
     "Open the app and go to Settings.",
     "Under Account, tap Delete account.",
     "Type your email address to confirm and tap Delete my account.",
-    "Open the email we send you and follow the link. The app opens and your account is deleted.",
+    "Open the link in the email within one hour. Stay signed in to the same account in the app.",
+    "On the confirmation screen, tap Delete my account again while connected to the internet.",
   ],
   whatIsDeleted: [
-    "Your account, display name and sign-in sessions.",
-    "Your programs, workouts, sessions, sets, notes, records and preferences.",
-    "Your body weight, measurements and every progress and session photo, including the files in storage.",
-    "The copy of your data on devices signed in to the account is wiped the next time they connect.",
+    "Your account, linked sign-in accounts and sessions.",
+    "Your programs, workouts, sessions, sets, notes, records and preferences in the live database.",
+    "Your body weight and measurements. The server also clears your profile picture and progress and session photos from storage, with follow-up jobs to remove any remaining files.",
   ],
   whatRemains: [
-    "Encrypted database backups keep a copy until they expire, up to 14 days. We do not use them except to recover from a failure.",
-    "Crash reports already sent to Sentry carry no account information. Server logs hold no workout or body data and expire on their own schedule.",
+    "The app tries to clear local data on the device where you requested and confirmed deletion. Other devices can still hold a local copy, especially if they are offline. Clear the app's stored data on those devices to remove it.",
+    "Copies may remain in database backups until the backups expire. Operational logs, audit records, crash reports and feedback are kept separately and can outlast account deletion.",
   ],
   fallbackTitle: "Cannot use the app?",
-  fallback: `If you cannot sign in or no longer have the app, email ${site.supportEmail} from the address on your account with the subject "Delete my account". We will confirm it is you and delete the account within 30 days.`,
-} as const;
+  fallback: `To request account deletion without the app, email ${site.supportEmail} from the address on your account with the subject “Delete my account”.`,
+};

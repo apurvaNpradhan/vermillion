@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { unstable_readConfig, type Unstable_Config } from "wrangler";
 
 import { appConfig } from "../../../app.config.ts";
 
@@ -6,13 +7,23 @@ import { appConfig } from "../../../app.config.ts";
  * wrangler.jsonc cannot import app.config.ts, so its custom domain is written out. This fails
  * the deploy when the two disagree.
  */
-const expected = new URL(appConfig.urls.site).hostname;
-const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
-const patterns = [...wrangler.matchAll(/"pattern"\s*:\s*"([^"]+)"/g)].map((match) => match[1]);
+const expected = new URL(appConfig.publicSite.url).hostname;
+const { routes } = unstable_readConfig({
+  config: fileURLToPath(new URL("../wrangler.jsonc", import.meta.url)),
+});
+const [route] = routes ?? [];
 
-if (patterns.length !== 1 || patterns[0] !== expected) {
+function isCustomDomain(
+  route: NonNullable<Unstable_Config["routes"]>[number] | undefined,
+): route is { pattern: string; custom_domain: true } {
+  return (
+    !!route && typeof route !== "string" && "custom_domain" in route && route.custom_domain === true
+  );
+}
+
+if (routes?.length !== 1 || !isCustomDomain(route) || route.pattern !== expected) {
   console.error(
-    `wrangler.jsonc routes ${patterns.join(", ") || "nothing"}, but app.config.ts says the site is ${expected}.`,
+    `wrangler.jsonc must have exactly one route with pattern "${expected}" and custom_domain: true.`,
   );
   process.exit(1);
 }

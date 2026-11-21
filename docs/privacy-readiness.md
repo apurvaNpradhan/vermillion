@@ -25,6 +25,16 @@ This is an engineering checklist for qualified review. It is not legal advice an
 | User media bucket             | The R2 user-media bucket is private (no public access, no public dev URL), objects reachable only by short-lived presigned URLs; R2 listed as a processor; media deletion (≤ 24 h) and account prefix deletion verified; progress photos treated as health data ([0040](adr/0040-user-media.md)).     | open   |
 | Synthetic data until sign-off | Environments and demos contain only synthetic data; sign-off date, reviewer and decisions recorded here.                                                                                                                                                                                              | open   |
 
+## Public website drafts
+
+- Confirm the controller or legal entity, contact address, governing law and any age eligibility.
+- Verify the support inbox and define how support verifies and handles requests to delete accounts
+  without the app. Agree on response times before publishing them.
+- Confirm production retention for backups, operational logs, audit records and Sentry. Document
+  how to reapply deletions after a backup restore.
+- Review the terms' liability and suspension language and decide how users will receive updates
+  about changes or the end of the beta.
+
 Sign-off: reviewer, date, decisions and open risks are to be recorded below by the maintainer.
 
 Not yet signed off.

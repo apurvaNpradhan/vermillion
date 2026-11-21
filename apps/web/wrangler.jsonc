@@ -4,8 +4,11 @@
   "compatibility_date": "2026-11-21",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": { "html_handling": "drop-trailing-slash" },
   "observability": { "enabled": true },
-  // The host must equal the hostname of `appConfig.urls.site` in app.config.ts. `pnpm --filter web
+  // The host must equal the hostname of `appConfig.publicSite.url` in app.config.ts. `pnpm --filter web
   // check:host` verifies it and the deploy workflow runs it first.
   "routes": [{ "pattern": "patina.lostsignal.cloud", "custom_domain": true }],
 }

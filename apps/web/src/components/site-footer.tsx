@@ -1,16 +1,16 @@
 import { Link } from "@tanstack/react-router";
 
-import { site } from "../content/site.ts";
+import { en, site } from "../content/en.ts";
 
 export function SiteFooter() {
   return (
     <footer className="site-footer">
-      <nav aria-label="Footer">
-        <Link to="/privacy">Privacy</Link>
-        <Link to="/terms">Terms</Link>
-        <Link to="/delete-account">Delete account</Link>
+      <nav aria-label={en.footer}>
+        <Link to="/privacy">{en.privacyLink}</Link>
+        <Link to="/terms">{en.termsLink}</Link>
+        <Link to="/delete-account">{en.deletionLink}</Link>
         <a href={site.githubUrl} rel="noreferrer">
-          GitHub
+          {en.github}
         </a>
       </nav>
       <p>

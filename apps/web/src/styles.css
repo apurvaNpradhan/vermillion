@@ -36,9 +36,21 @@ a {
 }
 
 a:focus-visible,
-.button:focus-visible {
+main:focus-visible {
   outline: 2px solid var(--olive-strong);
   outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  inset: 1rem auto auto 1rem;
+  z-index: 1;
+  padding: 0.5rem 1rem;
+  background: var(--ink);
+}
+
+.skip-link:not(:focus) {
+  clip-path: inset(50%);
 }
 
 h1,
@@ -57,6 +69,7 @@ h3 {
 
 .narrow {
   width: min(42rem, 100% - 2rem);
+  overflow-wrap: anywhere;
 }
 
 .site-header {
@@ -140,7 +153,7 @@ h3 {
 
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -163,7 +176,7 @@ h3 {
 
 .shots {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
   gap: 1.25rem;
 }
 

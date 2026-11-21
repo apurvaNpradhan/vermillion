@@ -2,7 +2,7 @@ name: Deploy web
 
 # Builds apps/web (TanStack Start, prerendered) and deploys it to Cloudflare Workers with Wrangler
 # (ADR 0052). The custom domain is the route in apps/web/wrangler.jsonc; `check:host` fails the
-# job when it no longer matches `appConfig.urls.site`.
+# job when it no longer matches `appConfig.publicSite.url`.
 #
 # Secrets, in the `production` environment or at repository level:
 #   CLOUDFLARE_API_TOKEN   an API token with Workers Scripts: Edit and the zone's Workers Routes
@@ -13,13 +13,16 @@ on:
     branches: [main]
     paths:
       - apps/web/**
+      - packages/config/**
       - app.config.ts
+      - package.json
+      - .npmrc
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .github/workflows/deploy-web.yml
   workflow_dispatch:
 
-# One deploy at a time, in order; a running deploy is never cancelled half way.
+# Finish the running deploy. If pushes pile up, keep the newest pending run.
 concurrency:
   group: deploy-web
   cancel-in-progress: false
@@ -44,7 +47,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       - name: Custom domain matches app.config.ts
         run: pnpm --filter web check:host
@@ -58,4 +61,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         # Deploys what the build wrote: Wrangler follows `.wrangler/deploy/config.json` to the
         # generated config in dist/server. Passing --config would bypass it.
-        run: pnpm --filter web exec wrangler deploy
+        run: |
+          missing=()
+          [[ -n "$CLOUDFLARE_API_TOKEN" ]] || missing+=(CLOUDFLARE_API_TOKEN)
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] || missing+=(CLOUDFLARE_ACCOUNT_ID)
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing GitHub Actions secrets: ${missing[*]}. Set them in the production environment or repository settings."
+            exit 1
+          fi
+          pnpm --filter web exec wrangler deploy
