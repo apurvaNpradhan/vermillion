@@ -1,6 +1,6 @@
 # Native themes
 
-Native offers **Graphite & chalk** (the default), **Slate**, **Olive**, and **Mulberry**, each in
+Native offers **Basalt** (the default, stored id `nord`), **Graphite**, **Oxide**, **Slate** and **Mulberry**, each in
 Light and Dark at standard or increased contrast
 ([ADR 0048](../adr/0048-theme-engine-and-nord.md)). Preferences and the signed-out welcome
 screen share an Appearance sheet: Match device / Light / Dark, the theme cards, and an Increase

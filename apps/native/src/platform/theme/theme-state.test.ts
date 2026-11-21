@@ -84,3 +84,10 @@ describe("device theme selection", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("retired themes", () => {
+  it.each(["olive", "cinnabar", "nope"])("falls back to the default for %s", (theme) => {
+    const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
+    expect(parseTheme(stored)).toEqual({ theme: "nord", appearance: "dark", contrast: true });
+  });
+});

@@ -1,21 +1,22 @@
 import type { RoleTokens } from "./roles";
 import { buildTheme } from "./themes/engine";
+import { graphite } from "./themes/graphite";
 import { mulberry } from "./themes/mulberry";
 import { nord } from "./themes/nord";
-import { olive } from "./themes/olive";
+import { oxide } from "./themes/oxide";
 import { slate } from "./themes/slate";
 
-export { cinnabar } from "./themes/cinnabar";
 export { buildTheme } from "./themes/engine";
+export { nord as basalt } from "./themes/nord";
 
 // SAFETY: the literal list defines the complete app theme union.
-export const themeIds = ["nord", "slate", "olive", "mulberry"] as const;
+export const themeIds = ["nord", "graphite", "oxide", "slate", "mulberry"] as const;
 /** An app theme the person can pick. */
 export type ThemeId = (typeof themeIds)[number];
 /** The app's default theme. */
 export const DEFAULT_THEME_ID: ThemeId = "nord";
 
-const definitions = { nord, slate, olive, mulberry } as const;
+const definitions = { nord, graphite, oxide, slate, mulberry } as const;
 
 // SAFETY: the literal list defines the complete variant-suffix union.
 export const variantSuffixes = ["light", "dark", "light-contrast", "dark-contrast"] as const;
