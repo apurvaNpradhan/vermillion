@@ -1664,6 +1664,8 @@
   "onboarding__days_title": "How many days a week?",
   "onboarding__days_body": "Your weekly goal on Home. Pick the day your week starts too.",
   "onboarding__days_label": "Training days per week",
+  "onboarding__days_option_one": "{{days}} day per week",
+  "onboarding__days_option_other": "{{days}} days per week",
   "onboarding__place_title": "Where do you train?",
   "onboarding__place_body": "This picks the bars and plates the plate calculator starts with. You can change it any time in Settings.",
   "profile__experience_new": "New to lifting",

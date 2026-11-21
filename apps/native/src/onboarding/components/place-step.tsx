@@ -22,7 +22,7 @@ export function PlaceStep({ onDone }: { onDone: () => void }) {
   const [failed, setFailed] = useState(false);
 
   const save = async () => {
-    if (place === null) return onDone();
+    if (place === null) return;
     setPending(true);
     setFailed(false);
     try {
@@ -42,7 +42,12 @@ export function PlaceStep({ onDone }: { onDone: () => void }) {
       position={stepPosition("get-started", "place")}
       title={t("onboarding__place_title")}
       subtitle={t("onboarding__place_body")}
-      action={{ label: t("onboarding__continue"), onPress: () => void save(), loading: pending }}
+      action={{
+        label: t("onboarding__continue"),
+        onPress: () => void save(),
+        disabled: place === null,
+        loading: pending,
+      }}
       secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: pending }}
     >
       <FormError message={failed ? t("onboarding__prefs_failed") : null} />

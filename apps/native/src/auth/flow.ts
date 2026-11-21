@@ -3,30 +3,22 @@
  * and the "first screen is a close button" rule both read from here, so adding a screen to a flow
  * is one row, not a change in every screen.
  */
+const ONBOARDING_ORDER = [
+  "name",
+  "units",
+  "body",
+  "experience",
+  "days",
+  "place",
+  "reminders",
+] as const;
+export type OnboardingStepId = (typeof ONBOARDING_ORDER)[number];
+
 export type FlowKind = "get-started" | "sign-in";
-export type FlowStepId =
-  | "email"
-  | "code"
-  | "name"
-  | "units"
-  | "body"
-  | "experience"
-  | "days"
-  | "place"
-  | "reminders";
+export type FlowStepId = "email" | "code" | OnboardingStepId;
 
 export const FLOW_STEPS = {
-  "get-started": [
-    "email",
-    "code",
-    "name",
-    "units",
-    "body",
-    "experience",
-    "days",
-    "place",
-    "reminders",
-  ],
+  "get-started": ["email", "code", ...ONBOARDING_ORDER],
   "sign-in": ["email", "code"],
 } as const satisfies Record<FlowKind, readonly FlowStepId[]>;
 
@@ -44,22 +36,7 @@ export function parseFlowKind(raw: string | undefined): FlowKind {
   return raw === "sign-in" ? "sign-in" : "get-started";
 }
 
-/** The screens onboarding itself shows, in order; the app opens after the last one. */
-export type OnboardingStepId = Extract<
-  FlowStepId,
-  "name" | "units" | "body" | "experience" | "days" | "place" | "reminders"
->;
-const ONBOARDING_ORDER: readonly OnboardingStepId[] = [
-  "name",
-  "units",
-  "body",
-  "experience",
-  "days",
-  "place",
-  "reminders",
-];
-
-/** A stored step name back to a step; anything unknown (an older build's) is `null`. */
+/** A stored step name back to a step; anything unrecognised is `null`. */
 export function parseOnboardingStep(raw: string | null | undefined): OnboardingStepId | null {
   return ONBOARDING_ORDER.find((step) => step === raw) ?? null;
 }

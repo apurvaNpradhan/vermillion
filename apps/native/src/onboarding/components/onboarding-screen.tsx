@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 import {
@@ -103,14 +103,32 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
  */
 export function OnboardingScreen() {
   const { session } = useSession();
-  const userId = session?.user.id ?? "";
+  if (!session) return null;
+  return (
+    <AccountSetup
+      key={session.user.id}
+      userId={session.user.id}
+      hasName={(session.user.name ?? "").trim() !== ""}
+    />
+  );
+}
+
+function AccountSetup({ userId, hasName }: { userId: string; hasName: boolean }) {
+  const mounted = useRef(false);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [step, setStep] = useState<OnboardingStepId>(() =>
     firstOnboardingStep({
-      hasName: (session?.user.name ?? "").trim() !== "",
+      hasName,
       resumeAt: savedSetupStep(userId),
     }),
   );
   const advance = () => {
+    if (!mounted.current) return;
     const next = nextOnboardingStep(step);
     if (next) {
       saveSetupStep(userId, next);
