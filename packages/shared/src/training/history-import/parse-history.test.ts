@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createCsvReader, detectDelimiter, parseCsvText } from "./csv";
+import { CSV_MAX_BYTES, checkCsvSize, createCsvReader, detectDelimiter, parseCsvText } from "./csv";
 import { HEVY, HEVY_LBS_MILES, STRONG_COMMA, STRONG_SEMICOLON, STRONG_UNITS } from "./fixtures";
 import {
   detectDayFirst,
@@ -195,5 +195,91 @@ describe("unrecognised files", () => {
   it("counts rows it cannot place", () => {
     const text = `${STRONG_COMMA}not a date,X,1m,Curl,1,10,10,0,0,,,\n`;
     expect(parsed(text).skippedRows).toBe(1);
+  });
+});
+
+describe("review regression cases", () => {
+  it("reads Strong workout duration, per-row units and quoted decimal commas", () => {
+    const text = `Date,Workout Name,Workout Duration,Exercise Name,Set Order,Weight,Weight Unit,Distance,Distance Unit,Reps
+2026-03-02 18:30:00,Legs,1h 14m,Squat,1,"102,5",lb,"1,25",mi,5
+2026-03-02 18:30:00,Legs,1h 14m,Squat,2,50,kg,2,km,6
+2026-03-02 18:30:00,Legs,1h 14m,Squat,3,25,,10,m,7
+`;
+    const workout = parsed(text).sessions[0];
+    expect(workout?.durationS).toBe(4440);
+    expect(workout?.exercises[0]?.sets).toMatchObject([
+      { weight: 102.5, weightUnit: "lb", distanceM: 2011.68 },
+      { weight: 50, weightUnit: "kg", distanceM: 2000 },
+      { weight: 25, weightUnit: null, distanceM: 10 },
+    ]);
+  });
+
+  it("keeps repeated blocks and notes, sorting indexed sets within each block", () => {
+    const text = `title,start_time,exercise_title,exercise_notes,superset_id,set_index,set_type,reps
+A,2026-03-02 18:30:00,Squat,First,0,2,normal,12
+A,2026-03-02 18:30:00,Squat,,0,0,normal,10
+A,2026-03-02 18:30:00,Squat,,0,1,normal,11
+A,2026-03-02 18:30:00,Row,Second,0,0,normal,8
+A,2026-03-02 18:30:00,Squat,Third,1,0,normal,4
+A,2026-03-02 18:30:00,Squat,Fourth,1,0,normal,2
+`;
+    expect(
+      parsed(text).sessions[0]?.exercises.map((e) => [
+        e.name,
+        e.note,
+        e.supersetKey,
+        e.sets.map((set) => set.reps),
+      ]),
+    ).toEqual([
+      ["Squat", "First", "0", [10, 11, 12]],
+      ["Row", "Second", "0", [8]],
+      ["Squat", "Third", "1", [4]],
+      ["Squat", "Fourth", "1", [2]],
+    ]);
+  });
+
+  it("uses the chosen date order and source zone, refusing partial or impossible timestamps", () => {
+    const text = "Date,Exercise Name,Set Order,Reps\n03/04/2026 18:30,Squat,1,5";
+    const day = parseHistoryCsv(text, { dayFirst: true, timeZone: "Asia/Kolkata" });
+    const month = parseHistoryCsv(text, { dayFirst: false, timeZone: "UTC" });
+    expect(day).toMatchObject({
+      ok: true,
+      history: { ambiguousDates: true, sessions: [{ startedAt: "2026-04-03T13:00:00.000Z" }] },
+    });
+    expect(month).toMatchObject({
+      ok: true,
+      history: { sessions: [{ startedAt: "2026-03-04T18:30:00.000Z" }] },
+    });
+    for (const invalid of [
+      "2026-02-30 12:00",
+      "2026-01-01 6:00 trailing",
+      "2026-01-01 13:00 PM",
+      "2026-01-01 06:10Z",
+    ]) {
+      expect(parseWallClock(invalid, true)).toBeNull();
+    }
+    expect(parseWallClock("2026-01-01 06:10:00.123", true)?.millisecond).toBe(123);
+  });
+
+  it("reports DST gaps and overlaps, choosing the earlier instant in an overlap", () => {
+    const text =
+      "Date,Exercise Name,Set Order,Reps\n2026-03-08 02:30,Squat,1,5\n2026-11-01 01:30,Squat,1,5";
+    expect(parseHistoryCsv(text, { timeZone: "America/New_York" })).toMatchObject({
+      ok: true,
+      history: { gaps: 1, overlaps: 1, sessions: [{ startedAt: "2026-11-01T05:30:00.000Z" }] },
+    });
+  });
+
+  it("rejects invalid quotes and bounds bytes, rows, columns and fields", () => {
+    const header = "Date,Exercise Name,Set Order,Reps\n";
+    expect(parseHistoryCsv(header + '2026-03-02 18:30,"Squat,1,5')).toEqual({
+      ok: false,
+      reason: "csv_syntax",
+    });
+    expect(() => checkCsvSize(CSV_MAX_BYTES + 1)).toThrow("csv_limit");
+    expect(() => checkCsvSize(CSV_MAX_BYTES)).not.toThrow();
+    for (const text of [",".repeat(128), "a".repeat(16_385), "a\n".repeat(100_001)]) {
+      expect(() => parseCsvText(text)).toThrow("csv_limit");
+    }
   });
 });

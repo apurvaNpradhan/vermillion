@@ -46,7 +46,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, created_at TEXT);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
-      CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT,
+      CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT, import_fingerprint TEXT, import_content TEXT, import_undo TEXT,
         program_id TEXT, run_id TEXT, slot_id TEXT, cycle INTEGER, title TEXT,
         title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
         device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT,
@@ -76,6 +76,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         size INTEGER, media_type TEXT, state INTEGER, has_synced INTEGER, meta_data TEXT);
       CREATE TABLE device_owner (id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT);
       CREATE TABLE install_meta (id TEXT PRIMARY KEY, install_id TEXT, created_at TEXT);
+      CREATE TABLE history_import_receipt (id TEXT PRIMARY KEY, receipt TEXT);
       CREATE TABLE rejected_writes (id TEXT PRIMARY KEY, tx_id TEXT, op_ordinal INTEGER,
         schema_version INTEGER, table_name TEXT, row_id TEXT, op TEXT, code TEXT, payload TEXT,
         payload_truncated INTEGER, created_at TEXT);
@@ -202,6 +203,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "device_owner",
         "install_meta",
         "rejected_writes",
+        "history_import_receipt",
       ]) {
         sqlite.exec(`DELETE FROM ${table}`);
       }

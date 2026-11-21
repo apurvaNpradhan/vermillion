@@ -8,6 +8,7 @@ import { userPreferences } from "../preferences/tables";
 import {
   exerciseSetting,
   gymEquipment,
+  historyImportReceipt,
   program,
   programRun,
   programSlot,
@@ -42,6 +43,7 @@ export const drizzleSchema = {
   deviceOwner,
   installMeta,
   rejectedWrites,
+  historyImportReceipt,
 };
 
 /**
@@ -72,6 +74,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
   attachments: { tableDefinition: attachments, options: { localOnly: true } },
   deviceOwner: { tableDefinition: deviceOwner, options: { localOnly: true } },
   installMeta: { tableDefinition: installMeta, options: { localOnly: true } },
+  historyImportReceipt: { tableDefinition: historyImportReceipt, options: { localOnly: true } },
   rejectedWrites: { tableDefinition: rejectedWrites, options: { localOnly: true } },
 });
 

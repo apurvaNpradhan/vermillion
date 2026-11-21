@@ -1,0 +1,67 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "d07a1203-587c-437a-9a5f-1aae8118a70e",
+  "prevIds": [
+    "852ceae3-5067-47bd-b6c9-9dd75ef3f25d",
+    "281189aa-d8f6-4b0d-9556-5e4268c30891",
+    "bf5bb969-9cb4-49e8-b995-030c82b44b48"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "import_fingerprint"],
+      "writes": [
+        "s|col|public.training_session.import_fingerprint",
+        "n|col|public.training_session.import_fingerprint",
+        "e|col|public.training_session.import_fingerprint"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "import_content"],
+      "writes": [
+        "s|col|public.training_session.import_content",
+        "n|col|public.training_session.import_content",
+        "e|col|public.training_session.import_content"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "import_fingerprint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "import_content",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

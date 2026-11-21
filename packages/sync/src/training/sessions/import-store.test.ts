@@ -1,14 +1,30 @@
-import type { PlannedImportSession } from "@workspace/shared";
+import {
+  sha256Hex,
+  SYNC_LIMITS,
+  type PlannedImportSession,
+  type SyncUploadRequest,
+} from "@workspace/shared";
+import { z } from "zod";
 import { describe, expect, it } from "vitest";
 
+import { createConnector } from "../../platform/connector";
+import { crudEntry } from "../../platform/fake-database";
+import { uploadColumns } from "../../platform/upload-columns";
 import { readMatchingLibrary } from "../../exercise/matching-library";
 import {
+  batchImportSessions,
   importSessionBatch,
+  importSessionCost,
   newImportBatchId,
-  readKnownSessions,
+  readImportFingerprints,
+  watchImportedSessions,
+  type ImportedSessions,
   undoImportChunk,
 } from "./import-store";
-import { PLANK, SQUAT, setupSessions } from "./session-fixtures";
+import { addSet } from "./session-content-store";
+import { addSessionPhoto } from "./photo-store";
+import { adoptLegacyImportReceipt, readImportReceipt, type ImportReceipt } from "./import-receipt";
+import { PLANK, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
 
 const day = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString();
 
@@ -18,6 +34,7 @@ function planned(
 ): PlannedImportSession {
   return {
     key: startedAt,
+    fingerprint: sha256Hex(startedAt),
     title: "Push Day",
     note: "Shoulder tight",
     startedAt,
@@ -64,7 +81,7 @@ describe("importSessionBatch", () => {
     const batch = newImportBatchId();
     const started = day(10);
     const result = await importSessionBatch(s.training, batch, [planned(started)]);
-    expect(result).toEqual({ sessions: 1, sets: 3 });
+    expect(result).toMatchObject({ sessions: 1, sets: 3, duplicates: 0 });
 
     const [row] = s.all("training_session");
     expect(row).toMatchObject({
@@ -120,36 +137,283 @@ describe("importSessionBatch", () => {
   });
 });
 
-describe("readKnownSessions", () => {
-  it("lists finished Sessions in the window with their exercise ids", async () => {
+function receipt(batchId: string): ImportReceipt {
+  return {
+    batchId,
+    importedAt: day(0),
+    format: "strong",
+    sessions: 0,
+    sets: 0,
+    createdExercises: 0,
+    skippedDuplicates: 0,
+    skippedOther: 0,
+    omittedSets: 2,
+    omittedExercises: 1,
+    oversized: 0,
+    from: null,
+    to: null,
+    complete: false,
+    undoStarted: false,
+  };
+}
+
+describe("dedupe and recovery", () => {
+  it("adopts an older receipt only for the account with its matching batch", async () => {
     const s = await setupSessions();
-    const started = day(3);
-    await importSessionBatch(s.training, newImportBatchId(), [planned(started), planned(day(40))]);
-    const known = await readKnownSessions(s.training, { from: day(10), to: day(0) });
-    expect(known).toHaveLength(1);
-    expect(known[0]?.startedAt).toBe(started);
-    expect([...(known[0]?.exerciseIds ?? [])].sort()).toEqual([PLANK, SQUAT].sort());
+    const batch = newImportBatchId();
+    const legacy = JSON.stringify(receipt(batch));
+    expect(await adoptLegacyImportReceipt(s.training, "owner", s.installId, legacy)).toBeNull();
+    await importSessionBatch(s.training, batch, [planned(day(2))]);
+    expect(await adoptLegacyImportReceipt(s.training, "other", s.installId, legacy)).toBeNull();
+    expect(await adoptLegacyImportReceipt(s.training, "owner", s.installId, legacy)).toMatchObject({
+      batchId: batch,
+      legacy: true,
+    });
+    expect(await readImportReceipt(s.training, "owner")).toMatchObject({
+      batchId: batch,
+      legacy: true,
+    });
+  });
+
+  it("rechecks fingerprints at write time and dedupes within and across batches", async () => {
+    const s = await setupSessions();
+    const batch = newImportBatchId();
+    const startedAt = day(3);
+    const workout = planned(startedAt);
+    const remapped = {
+      ...workout,
+      exercises: workout.exercises.map((entry) => ({ ...entry, title: "Renamed" })),
+    };
+    const distinct = planned(new Date(Date.parse(startedAt) + 30_000).toISOString(), {
+      exercises: workout.exercises.map((entry) => ({
+        ...entry,
+        sets: entry.sets.map((set) => ({ ...set, reps: 12 })),
+      })),
+    });
+    const knownBeforeWrite = await readImportFingerprints(s.training, {
+      from: day(10),
+      to: day(0),
+    });
+    expect(knownBeforeWrite.size).toBe(0);
+    const first = await importSessionBatch(
+      s.training,
+      batch,
+      [workout, remapped],
+      s.installId,
+      receipt(batch),
+    );
+    expect(first).toMatchObject({ sessions: 1, duplicates: 1 });
+    const saved = await readImportReceipt(s.training, "owner");
+    expect(saved).toMatchObject({
+      batchId: batch,
+      sessions: 1,
+      sets: 3,
+      complete: false,
+      skippedDuplicates: 1,
+    });
+    expect(await readImportReceipt(s.training, "someone-else")).toBeNull();
+
+    const result = await importSessionBatch(
+      s.training,
+      batch,
+      [remapped, distinct],
+      s.installId,
+      saved ?? undefined,
+    );
+    expect(result).toMatchObject({ sessions: 1, duplicates: 1 });
+    expect(await readImportReceipt(s.training, "owner")).toMatchObject({
+      sessions: 2,
+      sets: 6,
+      skippedDuplicates: 2,
+    });
+    const known = await readImportFingerprints(s.training, { from: day(10), to: day(0) });
+    expect(known).toEqual(new Set([workout.fingerprint, distinct.fingerprint]));
   });
 });
 
-describe("undoImportChunk", () => {
-  it("deletes exactly the Sessions of the batch, in chunks", async () => {
+const capturedRow = z.object({
+  kind: z.enum(["PUT", "PATCH"]),
+  row_id: z.string(),
+  table_name: z.string(),
+  payload: z.string(),
+});
+
+/** Simulate PowerSync's CRUD capture at the fake database boundary using the actual SQLite writes. */
+function captureCrud(s: Sessions) {
+  s.sqlite.exec(
+    "CREATE TEMP TABLE import_crud (kind TEXT, row_id TEXT, table_name TEXT, payload TEXT)",
+  );
+  for (const table of ["training_session", "session_exercise", "session_set"]) {
+    const columns = s.sqlite.prepare(`PRAGMA table_info(${table})`).all();
+    const fields = columns.flatMap(({ name }) => (name === "id" ? [] : [`'${name}', NEW.${name}`]));
+    s.sqlite.exec(`
+      CREATE TEMP TRIGGER capture_${table} AFTER INSERT ON ${table} BEGIN
+        INSERT INTO import_crud VALUES ('PUT', NEW.id, '${table}', json_object(${fields.join(", ")}));
+      END;
+    `);
+  }
+  s.sqlite.exec(`
+    CREATE TEMP TRIGGER capture_undo AFTER UPDATE OF import_undo ON training_session BEGIN
+      INSERT INTO import_crud VALUES ('PATCH', NEW.id, 'training_session', json_object('import_undo', NEW.import_undo));
+    END;
+  `);
+  return () => {
+    const rows = z
+      .array(capturedRow)
+      .parse(s.sqlite.prepare("SELECT * FROM import_crud ORDER BY rowid").all());
+    s.sqlite.exec("DELETE FROM import_crud");
+    s.queue(
+      rows.map(({ kind, row_id, table_name, payload }) => {
+        const data = z
+          .record(z.string(), z.union([z.string(), z.number(), z.null()]))
+          .parse(JSON.parse(payload));
+        return crudEntry(
+          kind,
+          row_id,
+          Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null)),
+          table_name,
+        );
+      }),
+    );
+  };
+}
+
+describe("connector budgeting", () => {
+  it("imports more than 100 CRUD rows and queues more than 100 guarded cascades in bounded transactions", async () => {
     const s = await setupSessions();
-    const mine = newImportBatchId();
-    const other = newImportBatchId();
-    await importSessionBatch(s.training, mine, [planned(day(1)), planned(day(2)), planned(day(3))]);
-    await importSessionBatch(s.training, other, [planned(day(4))]);
+    const capture = captureCrud(s);
+    const batch = newImportBatchId();
+    const workouts = Array.from({ length: 101 }, (_, index) => planned(day(index + 1)));
+    const uploaded: SyncUploadRequest[] = [];
+    const connector = createConnector({
+      database: s.database,
+      uploadColumns,
+      onSignal: () => undefined,
+      transport: {
+        credentials: async () => {
+          throw new Error("Not used by uploadData");
+        },
+        upload: async (request) => {
+          uploaded.push(request);
+          return { status: "applied" };
+        },
+      },
+    });
 
-    const first = await undoImportChunk(s.training, mine, 2);
-    expect(first).toEqual({ deleted: 2, remaining: 1 });
-    const second = await undoImportChunk(s.training, mine, 2);
-    expect(second).toEqual({ deleted: 1, remaining: 0 });
+    let saved = receipt(batch);
+    for (const chunk of batchImportSessions(workouts)) {
+      const result = await importSessionBatch(s.training, batch, chunk, s.installId, saved);
+      saved = result.receipt ?? saved;
+      capture();
+      await connector.uploadData();
+    }
+    expect(uploaded.reduce((count, request) => count + request.ops.length, 0)).toBe(606);
+    expect(uploaded.every(({ ops }) => ops.length <= SYNC_LIMITS.maxOps)).toBe(true);
+    expect(saved.sessions).toBe(101);
 
-    const left = s.all("training_session");
-    expect(left).toHaveLength(1);
-    expect(left[0]).toMatchObject({ import_batch_id: other });
-    expect(s.all("session_exercise")).toHaveLength(2);
+    uploaded.length = 0;
+    let cursor = "";
+    for (const expected of [100, 1]) {
+      const result = await undoImportChunk(s.training, batch, cursor, s.installId);
+      expect(result.scanned).toBe(expected);
+      cursor = result.cursor ?? "";
+      capture();
+      await connector.uploadData();
+    }
+    expect(uploaded.map(({ ops }) => ops.length)).toEqual([100, 1]);
+    expect(
+      uploaded
+        .flatMap(({ ops }) => ops)
+        .every((op) => String(op.opData?.import_undo).startsWith(`${batch}:`)),
+    ).toBe(true);
+    expect(s.all("rejected_writes")).toEqual([]);
+    expect(await readImportReceipt(s.training, "owner")).toMatchObject({
+      batchId: batch,
+      undoStarted: true,
+    });
+    expect(s.all("training_session")).toHaveLength(101); // Until PowerSync confirms the cascade.
+  });
+
+  it("refuses a single oversized workout at preview and in the writer", async () => {
+    const s = await setupSessions();
+    const workout = planned(day(1));
+    workout.exercises = Array.from({ length: 34 }, () => workout.exercises[0]!);
+    expect(importSessionCost(workout)).toBeNull();
+    await expect(importSessionBatch(s.training, newImportBatchId(), [workout])).rejects.toThrow(
+      "sync transaction budget",
+    );
+    expect(s.all("training_session")).toHaveLength(0);
+    expect(s.all("session_exercise")).toHaveLength(0);
+  });
+});
+
+describe("undo safety", () => {
+  it("keeps photos and added sets and reports their workouts while untouched workouts are queued", async () => {
+    const s = await setupSessions();
+    const batch = newImportBatchId();
+    await importSessionBatch(s.training, batch, [
+      planned(day(1), { title: "With photo" }),
+      planned(day(2), { title: "With extra set" }),
+      planned(day(3), { title: "Untouched" }),
+    ]);
+    const rows = s.all("training_session");
+    s.sqlite
+      .prepare("INSERT INTO session_photo (id, session_id) VALUES (?, ?)")
+      .run("photo", rows[0]!.id!);
+    const exercise = s.exercises(String(rows[1]?.id))[0];
+    s.sqlite
+      .prepare("INSERT INTO session_set (id, session_exercise_id) VALUES (?, ?)")
+      .run("extra", exercise!.id!);
+    await undoImportChunk(s.training, batch, "", s.installId);
+    expect(s.all("training_session").map((row) => row.import_undo)).toEqual([
+      null,
+      null,
+      expect.stringContaining(`${batch}:`),
+    ]);
+
+    const values: ImportedSessions[] = [];
+    const stop = watchImportedSessions(
+      s.training,
+      batch,
+      (value) => values.push(value),
+      () => {
+        throw new Error("Unable to read the receipt");
+      },
+    );
+    expect(values[0]).toMatchObject({
+      sessions: 3,
+      pending: 1,
+      kept: [{ title: "With extra set" }, { title: "With photo" }],
+    });
+    stop();
+    expect(s.all("session_photo")).toHaveLength(1);
+    expect(s.all("session_set")).toHaveLength(10);
+  });
+
+  it("protects an offline queued undo from new local sets and photos, then allows a rejected undo to be retried", async () => {
+    const s = await setupSessions();
+    const batch = newImportBatchId();
+    await importSessionBatch(s.training, batch, [planned(day(1))], s.installId, receipt(batch));
+    await undoImportChunk(s.training, batch, "", s.installId);
+    const [session] = s.all("training_session");
+    const id = String(session?.id);
+    const [exercise] = s.exercises(id);
+    const exerciseId = String(exercise?.id);
+    const image = { width: 512, height: 512, bytes: 1000, thumbBytes: 100 };
+
+    await expect(addSet(s.training, exerciseId)).rejects.toThrow("undo is pending");
+    await expect(addSessionPhoto(s.training, id, image)).rejects.toThrow("undo is pending");
     expect(s.all("session_set")).toHaveLength(3);
+    expect(s.all("session_photo")).toEqual([]);
+
+    const marker = String(session?.import_undo);
+    s.sqlite
+      .prepare(`INSERT INTO rejected_writes (id, table_name, row_id, op, payload)
+      VALUES ('other', 'training_session', ?, 'PATCH', ?)`)
+      .run(id, JSON.stringify({ import_undo: marker }));
+    await undoImportChunk(s.training, batch, "", s.installId);
+    expect(s.one("training_session", id)?.import_undo).not.toBe(marker);
+    expect(await readImportReceipt(s.training, "owner")).toMatchObject({ undoStarted: true });
   });
 });
 

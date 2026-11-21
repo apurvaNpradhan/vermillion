@@ -1,3 +1,18 @@
+export const CSV_MAX_BYTES = 20 * 1024 * 1024;
+const CSV_MAX_ROWS = 100_000;
+const CSV_MAX_COLUMNS = 128;
+const CSV_MAX_FIELD_LENGTH = 16_384;
+
+export class HistoryCsvError extends Error {
+  constructor(readonly reason: "csv_syntax" | "csv_limit") {
+    super(reason);
+  }
+}
+
+export function checkCsvSize(bytes: number) {
+  if (bytes > CSV_MAX_BYTES) throw new HistoryCsvError("csv_limit");
+}
+
 /** The separators a spreadsheet export uses: comma, semicolon (comma-decimal locales) or tab. */
 export type CsvDelimiter = "," | ";" | "\t";
 
@@ -46,36 +61,49 @@ export type CsvReader = {
 export function createCsvReader(text: string, delimiter: CsvDelimiter = ","): CsvReader {
   let at = text.startsWith("﻿") ? 1 : 0;
 
+  let rowCount = 0;
+
   function readRow(): string[] {
     const row: string[] = [];
     let field = "";
     let quoted = false;
+    let closed = false;
+    const append = (char: string) => {
+      if (field.length >= CSV_MAX_FIELD_LENGTH) throw new HistoryCsvError("csv_limit");
+      field += char;
+    };
+    const push = () => {
+      if (row.length >= CSV_MAX_COLUMNS) throw new HistoryCsvError("csv_limit");
+      row.push(field);
+      field = "";
+      closed = false;
+    };
     while (at < text.length) {
-      const char = text.charAt(at);
+      const char = text.charAt(at++);
+      if (char === "\u0000") throw new HistoryCsvError("csv_syntax");
       if (quoted) {
-        if (char === '"') {
-          if (text.charAt(at + 1) === '"') {
-            field += '"';
-            at += 2;
-            continue;
-          }
+        if (char !== '"') append(char);
+        else if (text.charAt(at) === '"') {
+          append('"');
+          at += 1;
+        } else {
           quoted = false;
-        } else field += char;
-        at += 1;
-        continue;
-      }
-      if (char === '"' && field === "") quoted = true;
-      else if (char === delimiter) {
-        row.push(field);
-        field = "";
+          closed = true;
+        }
+      } else if (char === delimiter) {
+        push();
       } else if (char === "\n" || char === "\r") {
-        at += char === "\r" && text.charAt(at + 1) === "\n" ? 2 : 1;
-        row.push(field);
+        if (char === "\r" && text.charAt(at) === "\n") at += 1;
+        push();
         return row;
-      } else field += char;
-      at += 1;
+      } else if (char === '"' && field === "" && !closed) {
+        quoted = true;
+      } else if (closed || char === '"') {
+        throw new HistoryCsvError("csv_syntax");
+      } else append(char);
     }
-    row.push(field);
+    if (quoted) throw new HistoryCsvError("csv_syntax");
+    push();
     return row;
   }
 
@@ -86,6 +114,8 @@ export function createCsvReader(text: string, delimiter: CsvDelimiter = ","): Cs
     readRows(limit) {
       const rows: string[][] = [];
       while (rows.length < limit && at < text.length) {
+        rowCount += 1;
+        if (rowCount > CSV_MAX_ROWS) throw new HistoryCsvError("csv_limit");
         const row = readRow();
         if (row.length === 1 && row[0]?.trim() === "") continue;
         rows.push(row);

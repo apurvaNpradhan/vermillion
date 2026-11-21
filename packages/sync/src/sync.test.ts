@@ -76,7 +76,7 @@ describe("row conversion", () => {
 describe("powerSyncSchema", () => {
   const tables = Object.fromEntries(powerSyncSchema.tables.map((table) => [table.name, table]));
 
-  it("has the synced tables and four local-only tables", () => {
+  it("has the synced tables and five local-only tables", () => {
     expect(Object.keys(tables).sort()).toEqual([
       "attachments",
       "body_measurement",
@@ -84,6 +84,7 @@ describe("powerSyncSchema", () => {
       "exercise",
       "exercise_setting",
       "gym_equipment",
+      "history_import_receipt",
       "install_meta",
       "media",
       "program",
@@ -124,6 +125,8 @@ describe("powerSyncSchema", () => {
     expect(tables.attachments?.localOnly).toBe(true);
     expect(uploadColumns.has("attachments")).toBe(false);
     expect(tables.rejected_writes?.localOnly).toBe(true);
+    expect(tables.history_import_receipt?.localOnly).toBe(true);
+    expect(uploadColumns.has("history_import_receipt")).toBe(false);
   });
 
   it("indexes the exercise filter and sort keys", () => {
@@ -147,6 +150,7 @@ describe("powerSyncSchema", () => {
     expect(indexed("session_set")).toContainEqual(["session_exercise_id", "position"]);
     expect(indexed("training_session")).toContainEqual(["started_at"]);
     expect(indexed("training_session")).toContainEqual(["finished_at"]);
+    expect(indexed("training_session")).toContainEqual(["import_fingerprint"]);
     expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
   });
 
@@ -162,9 +166,13 @@ describe("powerSyncSchema", () => {
       if (!local || !table?.match(/program|workout|session|gym|exercise_setting/)) continue;
       checked.push(table);
       const names = local.columns.map((column) => column.name);
-      // PowerSync adds `id`; `restore` is local only.
+      // PowerSync adds `id`. Restore and undo markers are written by the device.
       const listed = (columns ?? "").split(", ").filter((name) => name !== "id");
-      expect(names.filter((name) => name !== "restore").sort(), table).toEqual(listed.sort());
+      const writeOnly = table === "training_session" ? ["restore", "import_undo"] : ["restore"];
+      expect(names.filter((name) => !writeOnly.includes(name)).sort(), table).toEqual(
+        listed.sort(),
+      );
+      if (table === "training_session") expect(names).toContain("import_undo");
       if (table !== "program_run") expect(names, table).toContain("restore");
     }
     expect(checked.sort()).toEqual([

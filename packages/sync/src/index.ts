@@ -263,13 +263,17 @@ export {
   watchExerciseNote,
 } from "./training";
 export {
+  batchImportSessions,
+  importSessionCost,
+  adoptLegacyImportReceipt,
+  readImportReceipt,
   importSessionBatch,
   newImportBatchId,
-  readKnownSessions,
+  readImportFingerprints,
   undoImportChunk,
   watchImportedSessions,
   type ImportedSessions,
-  type ImportWrite,
+  type ImportReceipt,
 } from "./training";
 
 export {

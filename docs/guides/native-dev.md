@@ -28,7 +28,7 @@ no read access) and `expo-sharing` (the system share sheet), native stack revisi
 dev client** before running a build that includes them.
 
 History import (Settings, Import history) added `expo-document-picker` (the system file picker for the
-Strong or Hevy CSV), native stack revision 19: **rebuild the dev client** before running a build that
+Strong or Hevy CSV), native stack revision 21: **rebuild the dev client** before running a build that
 includes it. It has no build script, so it needs no `allowBuilds` entry.
 
 ## Android emulator in T3 Code

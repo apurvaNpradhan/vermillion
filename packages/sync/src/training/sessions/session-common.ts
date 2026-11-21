@@ -5,7 +5,7 @@ import {
   type SupersetChange,
   type SupersetItem,
 } from "@workspace/shared";
-import { asc, count, eq } from "drizzle-orm";
+import { asc, count, eq, sql } from "drizzle-orm";
 
 import { exercise } from "../../exercise";
 import { installMeta } from "../../platform/tables";
@@ -48,6 +48,26 @@ export async function installIdOf(tx: Tx): Promise<string> {
   const [install] = await tx.select({ id: installMeta.install_id }).from(installMeta).limit(1);
   if (!install) throw new Error("This device has no install id yet");
   return install.id;
+}
+
+// The connector records a rejection before advancing the queue. Compare the exact single-field
+// payload, since rejected payloads from other writes can contain truncated JSON.
+export const IMPORT_UNDO_PENDING_SQL = `training_session.import_undo IS NOT NULL AND NOT EXISTS (
+  SELECT 1 FROM rejected_writes r
+  WHERE r.table_name = 'training_session'
+    AND r.row_id = training_session.id
+    AND r.op = 'PATCH'
+    AND r.payload = json_object('import_undo', training_session.import_undo)
+)`;
+export const importUndoPending = sql<number>`${sql.raw(IMPORT_UNDO_PENDING_SQL)}`;
+
+export async function assertImportUndoNotPending(tx: Tx, id: string) {
+  const [row] = await tx
+    .select({ pending: importUndoPending })
+    .from(session)
+    .where(eq(session.id, id))
+    .limit(1);
+  if (row?.pending) throw new Error("An import undo is pending for this session");
 }
 
 export async function requireSession(tx: Tx, id: string): Promise<SessionRow> {

@@ -109,16 +109,26 @@ export const session = sqliteTable(
     rest_ends_at: text("rest_ends_at"),
     /** Set on Sessions written by a history import; Undo import deletes by it. */
     import_batch_id: text("import_batch_id"),
+    import_fingerprint: text("import_fingerprint"),
+    import_content: text("import_content"),
+    // Write-only request. The server performs a guarded cascade under the training lock.
+    import_undo: text("import_undo"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
-    index("session_import_batch_idx").on(table.import_batch_id),
+    index("session_import_batch_idx").on(table.import_batch_id, table.id),
+    index("session_import_fingerprint_idx").on(table.import_fingerprint),
     index("session_run_id_idx").on(table.run_id),
     index("session_finished_at_idx").on(table.finished_at),
   ],
 );
+
+export const historyImportReceipt = sqliteTable("history_import_receipt", {
+  id: text("id").primaryKey().notNull(),
+  receipt: text("receipt").notNull(),
+});
 
 export const sessionExercise = sqliteTable(
   "session_exercise",

@@ -6,6 +6,7 @@ import {
   EXERCISE_TYPES,
   exerciseSettingInput,
   gymEquipmentInput,
+  importDigestSchema,
   plannedSetSchema,
   SESSION_LIMITS,
   SYNC_LIMITS,
@@ -24,6 +25,7 @@ import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import {
   deleteSessionCascade,
+  importedSessionUnchanged,
   deleteSessionExerciseCascade,
   restoreSessionCascade,
   restoreSessionExerciseCascade,
@@ -95,6 +97,9 @@ const putSession = z.strictObject({
   workout_id: sessionInput.shape.workout_id.default(null),
   workout_structure: z.string().max(SYNC_LIMITS.maxValueBytes).nullable().optional(),
   import_batch_id: z.uuid().nullable().optional(),
+  import_fingerprint: importDigestSchema.nullable().optional(),
+  import_content: importDigestSchema.nullable().optional(),
+  import_undo: z.null().optional(),
   program_id: sessionInput.shape.program_id.default(null),
   run_id: sessionInput.shape.run_id.default(null),
   slot_id: sessionInput.shape.slot_id.default(null),
@@ -109,6 +114,12 @@ const putSession = z.strictObject({
   rest_set_id: sessionInput.shape.rest_set_id.default(null),
   rest_started_at: sessionInput.shape.rest_started_at.default(null),
   rest_ends_at: sessionInput.shape.rest_ends_at.default(null),
+});
+const undoImport = z.strictObject({
+  import_undo: z
+    .string()
+    .transform((request) => request.split(":"))
+    .pipe(z.tuple([z.uuid(), z.uuid()])),
 });
 const patchSession = z
   .strictObject({ ...sessionInput.shape, title_derived: wireBoolean })
@@ -171,9 +182,17 @@ const sessionSyncHandler: SyncTableHandler = {
     await lockUserTraining(db, userId);
     const found = await findSession(db, userId, id);
 
-    if (op.op === "DELETE") {
+    const undo = op.op === "PATCH" ? undoImport.safeParse(op.opData) : null;
+    if (op.op === "DELETE" || undo?.success) {
       const row = ownRow(found);
       if (row.deletedAt === null) {
+        if (
+          undo?.success &&
+          (row.importBatchId !== undo.data.import_undo[0] ||
+            !row.importContent ||
+            !(await importedSessionUnchanged(db, id, row.importContent)))
+        )
+          throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
         await deleteSessionCascade(db, id, now());
         await jobs.enqueue(
           sessionMediaCleanupQueue,
@@ -186,9 +205,20 @@ const sessionSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, workout_structure, import_batch_id, ...data } = accept(
-        putSession.safeParse(op.opData ?? {}),
-      );
+      const {
+        restore,
+        workout_structure,
+        import_batch_id,
+        import_fingerprint,
+        import_content,
+        import_undo: _undo,
+        ...data
+      } = accept(putSession.safeParse(op.opData ?? {}));
+      if (
+        Boolean(import_fingerprint) !== Boolean(import_content) ||
+        (import_fingerprint && (!import_batch_id || data.finished_at === null))
+      )
+        invalid();
       checkPut(found, restore);
       const values = accept(sessionInput.safeParse(data));
       await checkSessionRun(db, userId, values);
@@ -200,6 +230,8 @@ const sessionSyncHandler: SyncTableHandler = {
           userId,
           workoutStructure: workout_structure ?? null,
           importBatchId: import_batch_id ?? null,
+          importFingerprint: import_fingerprint ?? null,
+          importContent: import_content ?? null,
           ...sessionColumns(values),
         });
         return;

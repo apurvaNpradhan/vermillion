@@ -3,6 +3,7 @@ import { createExerciseMatcher, type ImportedSession, type LibraryEntry } from "
 
 import {
   NEW_EXERCISE_PREFIX,
+  applyRememberedMappings,
   collectNames,
   createResolver,
   matchNames,
@@ -23,6 +24,8 @@ function session(key: string, ...exercises: [string, ReturnType<typeof set>[]][]
   return {
     key,
     title: key,
+    format: "strong",
+    startedAt: "2026-03-02T10:00:00.000Z",
     start: { year: 2026, month: 3, day: 2, hour: 10, minute: 0, second: 0 },
     durationS: null,
     note: null,
@@ -103,4 +106,27 @@ describe("resolving names", () => {
       equipment: "other",
     });
   });
+});
+
+it("reuses a manual mapping with the library's current title and ignores retired targets", () => {
+  const names = collectNames([session("a", ["Bench Press (Barbell)", [set(5, 60)]])]);
+  const matches = matchNames(names, createExerciseMatcher(library), byId);
+  const target: LibraryEntry = {
+    id: "manual",
+    title: "Updated bench",
+    aka: null,
+    custom: true,
+    exerciseType: "bodyweight_reps",
+  };
+  const current = new Map(byId).set(target.id, target);
+  const remembered = applyRememberedMappings(matches, current, (key) =>
+    key === "bench press barbell" ? target.id : null,
+  );
+  expect(
+    createResolver(remembered.matches, remembered.resolutions)("Bench Press (Barbell)"),
+  ).toEqual({ exerciseId: "manual", title: "Updated bench", type: "bodyweight_reps" });
+  const retired = applyRememberedMappings(matches, byId, () => target.id);
+  expect(
+    createResolver(retired.matches, retired.resolutions)("Bench Press (Barbell)")?.exerciseId,
+  ).toBe("bench");
 });

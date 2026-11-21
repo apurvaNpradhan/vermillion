@@ -1,26 +1,32 @@
-import { isNetworkError } from "@workspace/client/network-error";
 import {
+  checkCsvSize,
   createCsvReader,
-  createDuplicateFinder,
   createExerciseMatcher,
   createHistoryBuilder,
+  createImportClock,
   detectDelimiter,
+  deviceTimeZone,
+  HistoryCsvError,
   planSession,
-  wallClockToIso,
-  type ImportFormat,
+  type HistoryBuilder,
   type LibraryEntry,
-  type ParsedHistory,
   type PlannedImportSession,
   type WeightUnit,
 } from "@workspace/shared";
 import {
+  adoptLegacyImportReceipt,
+  batchImportSessions,
   createCustomExercise,
   importSessionBatch,
+  importSessionCost,
   newImportBatchId,
-  readKnownSessions,
+  phaseOwner,
+  readImportFingerprints,
+  readImportReceipt,
   readMatchingLibrary,
   undoImportChunk,
   watchImportedSessions,
+  type ImportReceipt,
 } from "@workspace/sync";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -28,36 +34,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
+import { deviceStorage } from "@/platform/storage";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { useAppToast } from "@/platform/ui/use-app-toast";
 import { usePreferences } from "@/preferences";
 import { useLocalData, useSyncValue } from "@/sync";
 
-import { batchSessions, countSets } from "./import-batches";
 import {
   NEW_EXERCISE_PREFIX,
+  applyRememberedMappings,
   collectNames,
   createResolver,
   matchNames,
   newExerciseInput,
   type NameMatch,
-  type NameUse,
   type Resolution,
 } from "./import-names";
-import type { ImportReceipt } from "./import-receipt";
-import { clearReceipt, readReceipt, saveReceipt } from "./receipt-storage";
+import { readMapping, saveMapping } from "./mapping-storage";
 
 const READ_SLICE = 1500;
 const PLAN_SLICE = 100;
-const WRITE_SESSIONS = 25;
-const WRITE_SETS = 600;
-const UNDO_SESSIONS = 50;
-/** A day each way around the file's dates when looking for Sessions already in the app. */
-const KNOWN_MARGIN_MS = 86_400_000;
+const DAY_MS = 86_400_000;
+const LEGACY_RECEIPT_KEY = "history-import-last";
 
 export type FailReason =
+  | HistoryCsvError["reason"]
   | "unreadable"
   | "unknown_format"
+  | "invalid_rows"
   | "empty"
   | "import_failed"
   | "undo_failed";
@@ -81,17 +84,17 @@ export type ImportSummary = {
   duplicates: number;
   /** Workouts with no usable set, or outside the last 10 years. */
   skippedOther: number;
+  omittedSets: number;
+  omittedExercises: number;
+  oversized: number;
   /** Custom exercises the import would create. */
   creating: number;
 };
 
 type Loaded = {
   fileName: string;
-  history: ParsedHistory;
+  builder: HistoryBuilder;
   matches: NameMatch[];
-  library: Map<string, LibraryEntry>;
-  from: string | null;
-  to: string | null;
 };
 
 export type UnmatchedExercise = {
@@ -110,6 +113,9 @@ const EMPTY_SUMMARY: ImportSummary = {
   sets: 0,
   duplicates: 0,
   skippedOther: 0,
+  omittedSets: 0,
+  omittedExercises: 0,
+  oversized: 0,
   creating: 0,
 };
 
@@ -120,8 +126,8 @@ const EMPTY_SUMMARY: ImportSummary = {
  */
 export function useHistoryImport() {
   const { t } = useTranslation();
-  const { toast } = useAppToast();
   const local = useLocalData();
+  const userId = useSyncValue((snapshot) => (snapshot ? phaseOwner(snapshot.phase) : null));
   const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
   const { preferences } = usePreferences();
   const pickExercises = usePickExercises("session");
@@ -130,10 +136,56 @@ export function useHistoryImport() {
   const [step, setStep] = useState<ImportStep>({ kind: "idle" });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [unit, setUnit] = useState<WeightUnit>(preferences.ui.weightUnit);
-  const [unitFromFile, setUnitFromFile] = useState(false);
+  const [timeZone, setTimeZone] = useState(deviceTimeZone);
+  const [dayFirst, setDayFirst] = useState(true);
   const [resolutions, setResolutions] = useState<ReadonlyMap<string, Resolution>>(new Map());
   const [summary, setSummary] = useState<ImportSummary>(EMPTY_SUMMARY);
-  const [receipt, setReceipt] = useState<ImportReceipt | null>(() => readReceipt());
+  const [receiptState, setReceiptState] = useState<{
+    userId: string;
+    value: ImportReceipt | null;
+  } | null>(null);
+  const receipt = receiptState?.userId === userId ? receiptState.value : null;
+  const cancelled = useRef(false);
+  const [cancelling, setCancelling] = useState(false);
+  useEffect(
+    () => () => {
+      cancelled.current = true;
+    },
+    [],
+  );
+  const timeZoneValid = useMemo(() => createImportClock(timeZone.trim()) !== null, [timeZone]);
+  const history = useMemo(
+    () =>
+      loaded && timeZoneValid
+        ? loaded.builder.finish({ dayFirst, timeZone: timeZone.trim() })
+        : null,
+    [loaded, dayFirst, timeZone, timeZoneValid],
+  );
+  const from = history?.sessions[0]?.startedAt ?? null;
+  const to = history?.sessions.at(-1)?.startedAt ?? null;
+
+  useEffect(() => {
+    if (!database || !userId || !writeScope) return;
+    let current = true;
+    void readImportReceipt(database, userId)
+      .then(async (saved) => {
+        if (saved || !current) return saved;
+        const legacy = deviceStorage.get(LEGACY_RECEIPT_KEY);
+        if (!legacy) return null;
+        const receipt = await adoptLegacyImportReceipt(database, userId, writeScope, legacy);
+        if (receipt?.legacy) deviceStorage.set(LEGACY_RECEIPT_KEY, null);
+        return receipt;
+      })
+      .then((value) => {
+        if (current) setReceiptState({ userId, value });
+      })
+      .catch(() => {
+        if (current) setReceiptState({ userId, value: null });
+      });
+    return () => {
+      current = false;
+    };
+  }, [database, userId, writeScope]);
   const planned = useRef<PlannedImportSession[]>([]);
   const planRun = useRef(0);
   const busy = useRef(false);
@@ -141,31 +193,48 @@ export function useHistoryImport() {
   // ---- Planning: what the file would write, given the unit and the choices ----
 
   useEffect(() => {
-    if (!loaded || step.kind !== "preview" || !database) return;
+    if (!loaded || !history || step.kind !== "preview" || !database) return;
     planRun.current += 1;
     const run = planRun.current;
     setSummary((previous) => ({ ...previous, planning: true }));
     void (async () => {
       const resolve = createResolver(loaded.matches, resolutions);
-      const sessions = loaded.history.sessions;
-      const first = loaded.from ? Date.parse(loaded.from) : Date.now();
-      const last = loaded.to ? Date.parse(loaded.to) : Date.now();
-      const known = await readKnownSessions(database, {
-        from: new Date(first - KNOWN_MARGIN_MS).toISOString(),
-        to: new Date(last + KNOWN_MARGIN_MS).toISOString(),
-      });
-      const isDuplicate = createDuplicateFinder(known);
+      const sessions = history.sessions;
+      const known =
+        from && to
+          ? await readImportFingerprints(database, {
+              // The stream may serialize timestamps differently from the local ISO strings.
+              from: new Date(Date.parse(from) - DAY_MS).toISOString(),
+              to: new Date(Date.parse(to) + DAY_MS).toISOString(),
+            })
+          : new Set<string>();
       const fallbackTitle = t("import__untitled");
       const next: PlannedImportSession[] = [];
       let duplicates = 0;
       let skippedOther = 0;
+      let omittedSets = 0;
+      let omittedExercises = 0;
+      let oversized = 0;
+      let sets = 0;
       for (let at = 0; at < sessions.length; at += PLAN_SLICE) {
         if (run !== planRun.current) return;
         for (const imported of sessions.slice(at, at + PLAN_SLICE)) {
           const outcome = planSession(imported, resolve, unit, fallbackTitle);
+          if (outcome.kind === "planned" && known.has(outcome.session.fingerprint)) {
+            duplicates += 1;
+            continue;
+          }
+          if (outcome.kind !== "out_of_range") {
+            omittedSets += outcome.omittedSets;
+            omittedExercises += outcome.omittedExercises;
+          }
           if (outcome.kind !== "planned") skippedOther += 1;
-          else if (isDuplicate(outcome.session)) duplicates += 1;
-          else next.push(outcome.session);
+          else if (!importSessionCost(outcome.session)) oversized += 1;
+          else {
+            known.add(outcome.session.fingerprint);
+            next.push(outcome.session);
+            for (const exercise of outcome.session.exercises) sets += exercise.sets.length;
+          }
         }
         await yieldToUi();
       }
@@ -181,20 +250,26 @@ export function useHistoryImport() {
       setSummary({
         planning: false,
         sessions: next.length,
-        sets: countSets(next),
+        sets,
         duplicates,
         skippedOther,
+        omittedSets,
+        omittedExercises,
+        oversized,
         creating: creating.size,
       });
     })().catch(() => {
       if (run === planRun.current) setStep({ kind: "failed", reason: "unreadable" });
     });
-  }, [loaded, unit, resolutions, step.kind, database, t]);
+    return () => {
+      planRun.current += 1;
+    };
+  }, [loaded, history, from, to, unit, resolutions, step.kind, database, t]);
 
   // ---- Choosing and reading a file ----
 
   const pickFile = useCallback(async () => {
-    if (busy.current || !database) return;
+    if (busy.current || !database || !userId) return;
     busy.current = true;
     try {
       const picked = await DocumentPicker.getDocumentAsync({
@@ -206,11 +281,16 @@ export function useHistoryImport() {
       if (!asset) return;
       setStep({ kind: "reading", progress: 0 });
       await yieldToUi();
-      const text = await new File(asset.uri).text();
+      const file = new File(asset.uri);
+      if (asset.size !== undefined) checkCsvSize(asset.size);
+      const size = file.info().size;
+      if (size === null || size === undefined) throw new Error("File size unavailable");
+      checkCsvSize(size);
+      const text = await file.text();
       const delimiter = detectDelimiter(text.replace(/^﻿/u, ""));
       const reader = createCsvReader(text, delimiter);
       const [header] = reader.readRows(1);
-      const created = header ? createHistoryBuilder(header, delimiter) : null;
+      const created = header ? createHistoryBuilder(header) : null;
       if (!created?.ok) {
         setStep({ kind: "failed", reason: header ? "unknown_format" : "empty" });
         return;
@@ -221,39 +301,35 @@ export function useHistoryImport() {
         setStep({ kind: "reading", progress: reader.progress() });
         await yieldToUi();
       }
-      const history = builder.finish();
-      if (history.sessions.length === 0) {
-        setStep({ kind: "failed", reason: "empty" });
+      // UTC preserves all valid wall clocks for name matching, including those in a DST gap.
+      const source = builder.finish({ timeZone: "UTC" });
+      if (source.sessions.length === 0) {
+        setStep({ kind: "failed", reason: source.skippedRows > 0 ? "invalid_rows" : "empty" });
         return;
       }
-      const libraryEntries = await readMatchingLibrary(database);
-      const library = new Map(libraryEntries.map((entry) => [entry.id, entry]));
-      const matches = matchNames(
-        collectNames(history.sessions),
-        createExerciseMatcher(libraryEntries),
+      const entries = await readMatchingLibrary(database);
+      const library = new Map(entries.map((entry) => [entry.id, entry]));
+      const remembered = applyRememberedMappings(
+        matchNames(collectNames(source.sessions), createExerciseMatcher(entries), library),
         library,
+        (key) => readMapping(userId, builder.format, key),
       );
-      const firstSession = history.sessions[0];
-      const lastSession = history.sessions.at(-1);
-      setLoaded({
-        fileName: asset.name,
-        history,
-        matches,
-        library,
-        from: firstSession ? wallClockToIso(firstSession.start) : null,
-        to: lastSession ? wallClockToIso(lastSession.start) : null,
-      });
-      setUnit(history.weightUnit ?? preferences.ui.weightUnit);
-      setUnitFromFile(history.weightUnit !== null);
-      setResolutions(new Map());
+      setLoaded({ fileName: asset.name, builder, matches: remembered.matches });
+      setUnit(source.weightUnit ?? preferences.ui.weightUnit);
+      setDayFirst(source.dayFirst);
+      setTimeZone(deviceTimeZone());
+      setResolutions(remembered.resolutions);
       setSummary(EMPTY_SUMMARY);
       setStep({ kind: "preview" });
-    } catch {
-      setStep({ kind: "failed", reason: "unreadable" });
+    } catch (error) {
+      setStep({
+        kind: "failed",
+        reason: error instanceof HistoryCsvError ? error.reason : "unreadable",
+      });
     } finally {
       busy.current = false;
     }
-  }, [database, preferences.ui.weightUnit]);
+  }, [database, preferences.ui.weightUnit, userId]);
 
   // ---- Matching names ----
 
@@ -272,24 +348,29 @@ export function useHistoryImport() {
   );
   const matchedCount = (loaded?.matches.length ?? 0) - unmatched.length;
 
-  const setResolution = useCallback((key: string, resolution: Resolution) => {
-    setResolutions((previous) => new Map(previous).set(key, resolution));
-  }, []);
+  const setResolution = useCallback(
+    (key: string, resolution: Resolution) => {
+      if (!userId || !loaded) return;
+      saveMapping(
+        userId,
+        loaded.builder.format,
+        key,
+        resolution.kind === "mapped" ? resolution.target.exerciseId : null,
+      );
+      setSummary((previous) => ({ ...previous, planning: true }));
+      setResolutions((previous) => new Map(previous).set(key, resolution));
+    },
+    [userId, loaded],
+  );
 
-  /** Maps one name from the file to an exercise the user picks from the library. */
   const mapName = useCallback(
     async (key: string) => {
       if (!database || !loaded) return;
       const ids = await pickExercises({ max: 1 });
       const id = ids?.[0];
       if (!id) return;
-      let entry = loaded.library.get(id);
-      if (!entry) {
-        // Created from inside the picker: it is not in the list read when the file was opened.
-        const fresh = await readMatchingLibrary(database);
-        entry = fresh.find((candidate) => candidate.id === id);
-        for (const candidate of fresh) loaded.library.set(candidate.id, candidate);
-      }
+      const library = await readMatchingLibrary(database);
+      const entry: LibraryEntry | undefined = library.find((candidate) => candidate.id === id);
       if (!entry) return;
       setResolution(key, {
         kind: "mapped",
@@ -302,119 +383,131 @@ export function useHistoryImport() {
   // ---- Writing ----
 
   const startImport = useCallback(async () => {
-    if (busy.current || !database || !loaded || summary.planning) return;
+    if (busy.current || !database || !userId || !loaded || !history || summary.planning) return;
     busy.current = true;
+    cancelled.current = false;
+    setCancelling(false);
     const batchId = newImportBatchId();
-    let written = { sessions: 0, sets: 0 };
-    let created = 0;
+    let next: ImportReceipt = {
+      batchId,
+      importedAt: new Date().toISOString(),
+      format: history.format,
+      sessions: 0,
+      sets: 0,
+      createdExercises: 0,
+      skippedDuplicates: summary.duplicates,
+      skippedOther: summary.skippedOther,
+      omittedSets: summary.omittedSets,
+      omittedExercises: summary.omittedExercises,
+      oversized: summary.oversized,
+      from: null,
+      to: null,
+      complete: false,
+      undoStarted: false,
+    };
     try {
       setStep({ kind: "importing", progress: 0 });
       await yieldToUi();
       const uses = new Map(loaded.matches.map((match) => [match.use.key, match.use]));
       const realIds = new Map<string, string>();
-      const needed = new Set(
-        planned.current.flatMap((session) =>
-          session.exercises
-            .filter((entry) => entry.exerciseId.startsWith(NEW_EXERCISE_PREFIX))
-            .map((entry) => entry.exerciseId),
-        ),
-      );
-      for (const placeholder of needed) {
-        const use: NameUse | undefined = uses.get(placeholder.slice(NEW_EXERCISE_PREFIX.length));
-        if (!use) continue;
-        realIds.set(
-          placeholder,
-          await createCustomExercise(database, newExerciseInput(use), writeScope),
-        );
-        created += 1;
-      }
-      const sessions = planned.current.map((session) => ({
-        ...session,
-        exercises: session.exercises.map((entry) => ({
-          ...entry,
-          exerciseId: realIds.get(entry.exerciseId) ?? entry.exerciseId,
-        })),
-      }));
-      const batches = batchSessions(sessions, WRITE_SESSIONS, WRITE_SETS);
+      const batches = batchImportSessions(planned.current);
+      let processed = 0;
+      const total = planned.current.length;
+      let createdExercises = 0;
+      let duplicates = summary.duplicates;
       for (const batch of batches) {
-        const result = await importSessionBatch(database, batchId, batch, writeScope);
-        written = {
-          sessions: written.sessions + result.sessions,
-          sets: written.sets + result.sets,
-        };
-        setStep({ kind: "importing", progress: written.sessions / Math.max(sessions.length, 1) });
+        if (cancelled.current) break;
+        // Create only the exercises this batch needs, so a cancelled import leaves fewer extras.
+        for (const session of batch) {
+          for (const exercise of session.exercises) {
+            const id = exercise.exerciseId;
+            if (!id.startsWith(NEW_EXERCISE_PREFIX) || realIds.has(id)) continue;
+            const use = uses.get(id.slice(NEW_EXERCISE_PREFIX.length));
+            if (!use) throw new Error("Missing imported exercise");
+            realIds.set(
+              id,
+              await createCustomExercise(database, newExerciseInput(use), writeScope),
+            );
+            createdExercises += 1;
+          }
+        }
+        const sessions = batch.map((session) => ({
+          ...session,
+          exercises: session.exercises.map((entry) => ({
+            ...entry,
+            exerciseId: realIds.get(entry.exerciseId) ?? entry.exerciseId,
+          })),
+        }));
+        const result = await importSessionBatch(database, batchId, sessions, writeScope, {
+          ...next,
+          createdExercises,
+          skippedDuplicates: duplicates,
+          complete: processed + batch.length === total,
+        });
+        duplicates += result.duplicates;
+        if (result.receipt) {
+          next = result.receipt;
+          setReceiptState({ userId, value: next });
+        }
+        processed += batch.length;
+        setStep({ kind: "importing", progress: processed / Math.max(total, 1) });
         await yieldToUi();
       }
-      finishImport(batchId, written, created);
-    } catch (error) {
-      if (!(error instanceof Error && isNetworkError(error))) {
-        // Whole Sessions already written stay; the receipt says how many, and Undo removes them.
-        if (written.sessions > 0 || created > 0) finishImport(batchId, written, created);
-      }
+      planned.current = [];
+      setLoaded(null);
+      setStep({ kind: next.sessions > 0 ? "done" : "idle" });
+    } catch {
       setStep({ kind: "failed", reason: "import_failed" });
     } finally {
       busy.current = false;
     }
-
-    function finishImport(id: string, counts: { sessions: number; sets: number }, made: number) {
-      const next: ImportReceipt = {
-        batchId: id,
-        importedAt: new Date().toISOString(),
-        format: loaded?.history.format ?? "strong",
-        sessions: counts.sessions,
-        sets: counts.sets,
-        createdExercises: made,
-        skippedDuplicates: summary.duplicates,
-        skippedOther: summary.skippedOther,
-        from: loaded?.from ?? null,
-        to: loaded?.to ?? null,
-      };
-      saveReceipt(next);
-      setReceipt(next);
-      // The file's rows are no longer needed; free them before the receipt shows.
-      planned.current = [];
-      setLoaded(null);
-      setStep({ kind: "done" });
-    }
-  }, [database, loaded, summary, writeScope]);
+  }, [database, history, loaded, summary, userId, writeScope]);
 
   // ---- The receipt and Undo ----
 
+  const receiptBatchId = receipt?.batchId;
+  const [keptPage, setKeptPage] = useState<{ batchId: string; offset: number } | null>(null);
+  const keptOffset = keptPage?.batchId === receiptBatchId ? (keptPage?.offset ?? 0) : 0;
   const watchBatch = useCallback(
     (
       db: Parameters<typeof watchImportedSessions>[0],
       onValue: Parameters<typeof watchImportedSessions>[2],
       onError: () => void,
-    ) => (receipt ? watchImportedSessions(db, receipt.batchId, onValue, onError) : () => undefined),
-    [receipt],
+    ) =>
+      receiptBatchId
+        ? watchImportedSessions(db, receiptBatchId, onValue, onError, keptOffset)
+        : () => undefined,
+    [receiptBatchId, keptOffset],
   );
   const imported = useLocalWatch(watchBatch).value ?? null;
 
   const undo = useCallback(async () => {
-    if (busy.current || !database || !receipt) return;
+    if (busy.current || !database || !userId || !receipt || receipt.legacy) return;
     busy.current = true;
     const total = Math.max(imported?.sessions ?? receipt.sessions, 1);
-    let removed = 0;
+    let scanned = 0;
     try {
+      setKeptPage(null);
       setStep({ kind: "undoing", progress: 0 });
-      for (;;) {
-        const chunk = await undoImportChunk(database, receipt.batchId, UNDO_SESSIONS, writeScope);
-        removed += chunk.deleted;
-        setStep({ kind: "undoing", progress: Math.min(removed / total, 1) });
+      let cursor: string | null = "";
+      while (cursor !== null) {
+        const chunk = await undoImportChunk(database, receipt.batchId, cursor, writeScope);
+        scanned += chunk.scanned;
+        cursor = chunk.cursor;
+        setStep({ kind: "undoing", progress: Math.min(scanned / total, 1) });
         await yieldToUi();
-        if (chunk.remaining === 0 || chunk.deleted === 0) break;
       }
-      clearReceipt();
-      setReceipt(null);
+      setReceiptState({ userId, value: { ...receipt, undoStarted: true } });
       setLoaded(null);
       setStep({ kind: "idle" });
-      toast.show({ variant: "success", label: t("import__undone", { count: removed }) });
     } catch {
+      const saved = await readImportReceipt(database, userId).catch(() => receipt);
+      setReceiptState({ userId, value: saved });
       setStep({ kind: "failed", reason: "undo_failed" });
     } finally {
       busy.current = false;
     }
-  }, [database, imported, receipt, t, toast, writeScope]);
+  }, [database, imported, receipt, userId, writeScope]);
 
   const reset = useCallback(() => {
     planRun.current += 1;
@@ -426,21 +519,49 @@ export function useHistoryImport() {
   const lastImport = receipt && (imported === null || imported.sessions > 0) ? receipt : null;
 
   return {
-    ready: database !== null,
+    ready:
+      database !== null &&
+      userId !== null &&
+      receiptState?.userId === userId &&
+      (receipt === null || (imported !== null && imported.pending === 0)),
     step,
     file: loaded
       ? {
           name: loaded.fileName,
-          format: loaded.history.format satisfies ImportFormat,
-          from: loaded.from,
-          to: loaded.to,
-          workouts: loaded.history.sessions.length,
-          unreadableRows: loaded.history.skippedRows,
+          format: loaded.builder.format,
+          from,
+          to,
+          workouts: history?.sessions.length ?? 0,
+          unreadableRows: history?.skippedRows ?? 0,
+          ambiguousDates: history?.ambiguousDates ?? false,
+          gaps: history?.gaps ?? 0,
+          overlaps: history?.overlaps ?? 0,
         }
       : null,
     unit,
-    unitFromFile,
-    setUnit,
+    unitFromFile: !history?.sessions.some((session) =>
+      session.exercises.some((exercise) =>
+        exercise.sets.some((set) => set.weight !== null && !set.weightUnit),
+      ),
+    ),
+    setUnit: (value: WeightUnit) => {
+      if (value === unit) return;
+      setSummary((previous) => ({ ...previous, planning: true }));
+      setUnit(value);
+    },
+    timeZone,
+    timeZoneValid,
+    setTimeZone: (value: string) => {
+      if (value === timeZone) return;
+      setSummary((previous) => ({ ...previous, planning: true }));
+      setTimeZone(value);
+    },
+    dayFirst,
+    setDayFirst: (value: boolean) => {
+      if (value === dayFirst) return;
+      setSummary((previous) => ({ ...previous, planning: true }));
+      setDayFirst(value);
+    },
     summary,
     matchedCount,
     unmatched,
@@ -448,8 +569,18 @@ export function useHistoryImport() {
     mapName,
     setResolution,
     startImport,
+    cancelImport: () => {
+      cancelled.current = true;
+      setCancelling(true);
+    },
+    cancelling,
     receipt: lastImport,
-    liveSessions: imported?.sessions ?? null,
+    imported,
+    keptOffset,
+    changeKeptPage: (delta: number) => {
+      if (receiptBatchId)
+        setKeptPage({ batchId: receiptBatchId, offset: Math.max(keptOffset + delta, 0) });
+    },
     undo,
     reset,
   };
