@@ -39,6 +39,7 @@ const NATIVE_STACK_REVISION = 24;
  */
 const LOGO_INK = "#19130F";
 const LOGO_OLIVE = "#869044";
+const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release
@@ -75,8 +76,9 @@ const config: ExpoConfig = {
     adaptiveIcon: {
       // The logo's ink; the foreground is the tortoise from the logo kit.
       backgroundColor: LOGO_INK,
-      foregroundImage: "./assets/images/android-icon-foreground.png",
-      monochromeImage: "./assets/images/android-icon-monochrome.png",
+      foregroundImage: ADAPTIVE_FOREGROUND,
+      // Android tints the same silhouette for themed icons.
+      monochromeImage: ADAPTIVE_FOREGROUND,
     },
     predictiveBackGestureEnabled: false,
     package: appConfig.bundleIds.android,
@@ -145,6 +147,8 @@ const config: ExpoConfig = {
         // The tortoise on ink in light and dark alike: the brand, not the appearance.
         image: "./assets/images/splash-icon.png",
         imageWidth: 240,
+        // The Android splash masks the drawable to a 192dp circle.
+        android: { imageWidth: 200 },
         resizeMode: "contain",
         backgroundColor: LOGO_INK,
         dark: { image: "./assets/images/splash-icon.png", backgroundColor: LOGO_INK },
