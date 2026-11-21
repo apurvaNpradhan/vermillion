@@ -355,6 +355,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               ) : ready ? (
                 <EmptyState
                   icon={ClockCounterClockwise}
+                  mascot
                   title={
                     activeDay !== null
                       ? t("session__history_empty_day")

@@ -32,6 +32,7 @@ export function NoMatchesState({
   return (
     <EmptyState
       icon={MagnifyingGlass}
+      mascot
       title={t("exercise__no_matches")}
       action={
         canClear
@@ -53,6 +54,7 @@ export function ArchivedEmptyState({ onBrowse }: { onBrowse: () => void }) {
   return (
     <EmptyState
       icon={MagnifyingGlass}
+      mascot
       title={t("exercise__archived_empty")}
       action={{ label: t("exercise__clear_filters"), onPress: onBrowse }}
     />
