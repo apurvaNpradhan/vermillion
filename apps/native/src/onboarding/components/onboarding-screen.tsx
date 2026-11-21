@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 import {
@@ -17,9 +17,12 @@ import { confirmOnline } from "@/platform/network";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { FormError } from "@/platform/ui/form-error";
 
-import { beginSetup, finishSetup } from "../setup-state";
+import { beginSetup, finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
 import { BodyStep } from "./body-step";
+import { DaysStep } from "./days-step";
+import { ExperienceStep } from "./experience-step";
+import { PlaceStep } from "./place-step";
 import { RemindersStep } from "./reminders-step";
 import { UnitsStep } from "./units-step";
 
@@ -93,20 +96,44 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
 
 /**
  * Account first: one question per screen, the only way into the app until the last step is done
- * or skipped. The name is required, then the units, the
- * body numbers and the notifications. Finishing clears the setup mark and the root guard opens
- * the app; an account that was closed mid-way resumes at the units.
+ * or skipped. The name is required, then the units, the body numbers, three optional questions
+ * (experience, training days, where you train) and the notifications. Each step is saved as it is
+ * answered and the step reached is kept on the device, so an account closed mid-way resumes
+ * there. Finishing clears the setup mark and the root guard opens the app.
  */
 export function OnboardingScreen() {
   const { session } = useSession();
-  const userId = session?.user.id ?? "";
+  if (!session) return null;
+  return (
+    <AccountSetup
+      key={session.user.id}
+      userId={session.user.id}
+      hasName={(session.user.name ?? "").trim() !== ""}
+    />
+  );
+}
+
+function AccountSetup({ userId, hasName }: { userId: string; hasName: boolean }) {
+  const mounted = useRef(false);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [step, setStep] = useState<OnboardingStepId>(() =>
-    firstOnboardingStep({ hasName: (session?.user.name ?? "").trim() !== "" }),
+    firstOnboardingStep({
+      hasName,
+      resumeAt: savedSetupStep(userId),
+    }),
   );
   const advance = () => {
+    if (!mounted.current) return;
     const next = nextOnboardingStep(step);
-    if (next) setStep(next);
-    else finishSetup(userId);
+    if (next) {
+      saveSetupStep(userId, next);
+      setStep(next);
+    } else finishSetup(userId);
   };
   switch (step) {
     case "name":
@@ -115,6 +142,12 @@ export function OnboardingScreen() {
       return <UnitsStep onDone={advance} />;
     case "body":
       return <BodyStep onDone={advance} />;
+    case "experience":
+      return <ExperienceStep onDone={advance} />;
+    case "days":
+      return <DaysStep onDone={advance} />;
+    case "place":
+      return <PlaceStep onDone={advance} />;
     case "reminders":
       return <RemindersStep onDone={advance} />;
   }

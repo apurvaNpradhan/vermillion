@@ -6,6 +6,7 @@ export {
   firstOnboardingStep,
   nextOnboardingStep,
   parseFlowKind,
+  parseOnboardingStep,
   stepPosition,
   type OnboardingStepId,
 } from "./flow";

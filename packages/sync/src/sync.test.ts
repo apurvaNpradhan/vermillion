@@ -154,7 +154,7 @@ describe("powerSyncSchema", () => {
     expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
   });
 
-  it("has the columns every training stream lists, and a restore marker the stream never fills", () => {
+  it("has the training stream columns and the upload-only markers", () => {
     const config = readFileSync(
       new URL("../../../powersync/sync-config.yaml", import.meta.url),
       "utf8",
@@ -166,14 +166,15 @@ describe("powerSyncSchema", () => {
       if (!local || !table?.match(/program|workout|session|gym|exercise_setting/)) continue;
       checked.push(table);
       const names = local.columns.map((column) => column.name);
-      // PowerSync adds `id`. Restore and undo markers are written by the device.
+      // PowerSync adds `id`. Upload-only markers are written by the device.
       const listed = (columns ?? "").split(", ").filter((name) => name !== "id");
-      const writeOnly = table === "training_session" ? ["restore", "import_undo"] : ["restore"];
+      const writeOnly = ["restore"];
+      if (table === "training_session") writeOnly.push("import_undo");
+      if (table === "gym_equipment") writeOnly.push("seed");
       expect(names.filter((name) => !writeOnly.includes(name)).sort(), table).toEqual(
         listed.sort(),
       );
-      if (table === "training_session") expect(names).toContain("import_undo");
-      if (table !== "program_run") expect(names, table).toContain("restore");
+      if (table !== "program_run") expect(names, table).toEqual(expect.arrayContaining(writeOnly));
     }
     expect(checked.sort()).toEqual([
       "exercise_setting",

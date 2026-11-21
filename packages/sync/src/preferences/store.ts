@@ -1,6 +1,7 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import {
+  experienceWarmupSteps,
   isLocale,
   TARGET_MUSCLES,
   type MuscleGoals,
@@ -12,6 +13,7 @@ import {
 } from "@workspace/shared";
 import { desc, eq } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
+import { z } from "zod";
 
 import { DEVICE_OWNER_ID } from "../platform/device-owner";
 import { drizzleSchema } from "../platform/schema";
@@ -42,7 +44,13 @@ export const PREFERENCES_SQL =
   "SELECT locale, timezone, ui FROM user_preferences WHERE user_id = ? ORDER BY id DESC LIMIT 1";
 
 /** What the user changed, as stored; keys this build does not know (a newer app's) are kept. */
-const storedUiSchema = uiPreferencesPatchSchema.loose();
+const storedUiSchema = uiPreferencesPatchSchema
+  .extend({
+    // Keep future enum values in storage even when this build displays them as unanswered.
+    trainingExperience: z.string().nullable().optional(),
+    trainingPlace: z.string().nullable().optional(),
+  })
+  .loose();
 
 function sparseUi(text: string | undefined) {
   try {
@@ -125,6 +133,11 @@ export async function savePreferences(
       .orderBy(desc(userPreferences.id))
       .limit(1);
     const merged = { ...sparseUi(row?.ui), ...patch.ui };
+    const experience = patch.ui?.trainingExperience;
+    if (experience && patch.ui?.warmupSteps === undefined) {
+      const steps = experienceWarmupSteps(experience, readPreferencesRow(row).ui.warmupSteps);
+      if (steps) merged.warmupSteps = steps;
+    }
     const changes = patch.muscleGoalChanges;
     if (changes) {
       // The local view of the per-muscle edits; the upload carries only the edits themselves.

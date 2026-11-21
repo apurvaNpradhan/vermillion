@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  EXPERIENCE_WARMUP_STEPS,
   SYNC_SCHEMA_VERSION,
   type SyncOp,
   type UpdatePreferences,
@@ -65,6 +66,41 @@ describe("preferences uploads", () => {
     expect(await a.client.preferences.get()).toMatchObject({
       timezone: "Europe/Berlin",
       ui: { weightUnit: "lb", keepAwake: false },
+    });
+  });
+
+  it("derives the ramp from the server's current preferences and keeps custom edits", async () => {
+    const a = await writer();
+    const id = uuidv7();
+    const choose = (trainingExperience: "new" | "experienced") =>
+      a.send([
+        {
+          op: "PATCH",
+          table,
+          id,
+          opData: { patch: JSON.stringify({ ui: { trainingExperience } }) },
+        },
+      ]);
+    expect(await choose("new")).toMatchObject({ status: "applied" });
+    expect((await a.client.preferences.get()).ui.warmupSteps).toEqual(EXPERIENCE_WARMUP_STEPS.new);
+
+    const custom = [{ percent: 40, reps: 8 }];
+    await a.client.preferences.update({
+      ui: { warmupSteps: custom, trainingPlace: "home_barbell" },
+    });
+    expect(await choose("experienced")).toMatchObject({ status: "applied" });
+    expect(
+      await a.send([{ op: "PUT", table, id, opData: { ui: '{"weightUnit":"lb"}' } }]),
+    ).toMatchObject({
+      status: "applied",
+    });
+    expect(await a.client.preferences.get()).toMatchObject({
+      ui: {
+        trainingExperience: "experienced",
+        trainingPlace: "home_barbell",
+        warmupSteps: custom,
+        weightUnit: "lb",
+      },
     });
   });
 

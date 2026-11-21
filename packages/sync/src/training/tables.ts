@@ -197,6 +197,8 @@ export const gymEquipment = sqliteTable("gym_equipment", {
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   created_at: text("created_at").notNull(),
   restore: integer("restore"),
+  // Upload only: the first row ID of the automatic kit this item belongs to.
+  seed: text("seed"),
 });
 
 export const exerciseSetting = sqliteTable(

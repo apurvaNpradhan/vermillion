@@ -1,12 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 
-import {
-  defaultGymKit,
-  exerciseSettingInput,
-  gymEquipmentInput,
-  type WeightUnit,
-} from "@workspace/shared";
-import { eq } from "drizzle-orm";
+import { defaultGymKit, exerciseSettingInput, gymEquipmentInput } from "@workspace/shared";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -17,6 +12,7 @@ import {
   write,
   type TrainingDatabase,
 } from "../store-common";
+import { readPreferencesRow, userPreferences } from "../../preferences";
 import { exerciseSetting, gymEquipment } from "../tables";
 
 const equipmentItem = gymEquipmentInput.safeExtend({ id: z.uuid().optional() });
@@ -112,16 +108,28 @@ export async function setExerciseSetting(
 }
 
 /** Seeds once, inside the same write transaction as the empty-inventory check. */
-export async function seedEquipment(database: TrainingDatabase, unit: WeightUnit, scope: string) {
+export async function seedEquipment(database: TrainingDatabase, scope: string) {
   return write(database, scope, async (tx) => {
     const [existing] = await tx.select({ id: gymEquipment.id }).from(gymEquipment).limit(1);
     if (existing) return;
     const userId = await ownerOf(tx);
-    for (const item of defaultGymKit(unit)) {
-      await tx
-        .insert(gymEquipment)
-        .values({ ...item, id: uuidv7(), user_id: userId, created_at: nowIso() });
-    }
+    const [row] = await tx
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.user_id, userId))
+      .orderBy(desc(userPreferences.id))
+      .limit(1);
+    const { weightUnit, trainingPlace } = readPreferencesRow(row).ui;
+    const seed = uuidv7();
+    await tx.insert(gymEquipment).values(
+      defaultGymKit(weightUnit, trainingPlace).map((item, index) => ({
+        ...item,
+        id: index === 0 ? seed : uuidv7(),
+        user_id: userId,
+        created_at: nowIso(),
+        seed,
+      })),
+    );
   });
 }
 
@@ -142,7 +150,10 @@ export async function restoreEquipment(
   scope: string,
 ) {
   return write(database, scope, async (tx) => {
-    await tx.insert(gymEquipment).values(marked(row)).onConflictDoNothing();
+    await tx
+      .insert(gymEquipment)
+      .values(marked({ ...row, seed: null }))
+      .onConflictDoNothing();
   });
 }
 

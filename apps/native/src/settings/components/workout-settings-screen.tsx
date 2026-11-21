@@ -2,12 +2,19 @@ import {
   DISTANCE_UNITS,
   DURATION_FORMATS,
   PREVIOUS_SOURCES,
+  TRAINING_EXPERIENCES,
+  TRAINING_EXPERIENCE_HINT_KEYS,
+  TRAINING_EXPERIENCE_KEYS,
+  TRAINING_PLACES,
+  TRAINING_PLACE_KEYS,
   type DistanceUnit,
   type DurationFormat,
   type PreviousSource,
+  type TrainingExperience,
+  type TrainingPlace,
 } from "@workspace/shared";
 import { Switch } from "heroui-native";
-import { Clock, Flame, MapPin, Rows, Timer as TimerIcon } from "phosphor-react-native";
+import { Clock, Flame, House, MapPin, Rows, Timer as TimerIcon, User } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { useRouter } from "expo-router";
@@ -22,7 +29,7 @@ import { useTrainingPreferenceRows } from "@/training";
 
 import { workoutLive } from "../../../modules/workout-live";
 
-type Picker = "previous" | "duration" | "distance" | null;
+type Picker = "previous" | "duration" | "distance" | "experience" | "place" | null;
 
 const PREVIOUS_KEYS = {
   any_session: "settings__previous_any",
@@ -57,7 +64,14 @@ export function WorkoutSettingsScreen() {
     const subscription = AppState.addEventListener("change", refresh);
     return () => subscription.remove();
   }, []);
-  const { previousSource, countWarmups, durationFormat, distanceUnit } = preferences.ui;
+  const {
+    previousSource,
+    countWarmups,
+    durationFormat,
+    distanceUnit,
+    trainingExperience,
+    trainingPlace,
+  } = preferences.ui;
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
@@ -114,6 +128,22 @@ export function WorkoutSettingsScreen() {
         <ListSection title={t("settings__plan")}>
           {training.rows.sessions}
           {training.rows.weekStart}
+          <ListRow
+            icon={User}
+            title={t("settings__experience_title")}
+            value={
+              trainingExperience === null
+                ? undefined
+                : t(TRAINING_EXPERIENCE_KEYS[trainingExperience])
+            }
+            onPress={() => setPicker("experience")}
+          />
+          <ListRow
+            icon={House}
+            title={t("settings__place_title")}
+            value={trainingPlace === null ? undefined : t(TRAINING_PLACE_KEYS[trainingPlace])}
+            onPress={() => setPicker("place")}
+          />
         </ListSection>
         <ListSection title={t("session__setting_sounds")}>{sessionSettings.soundRows}</ListSection>
         <ListSection title={t("settings__during_workout")}>
@@ -150,6 +180,28 @@ export function WorkoutSettingsScreen() {
         options={DURATION_FORMATS.map((value) => ({ value, label: t(DURATION_KEYS[value]) }))}
         value={durationFormat}
         onSelect={(value) => setUi({ durationFormat: value })}
+      />
+      <OptionSheet<TrainingExperience>
+        isOpen={picker === "experience"}
+        onOpenChange={onOpenChange}
+        title={t("settings__experience_title")}
+        description={t("settings__experience_hint")}
+        options={TRAINING_EXPERIENCES.map((value) => ({
+          value,
+          label: t(TRAINING_EXPERIENCE_KEYS[value]),
+          description: t(TRAINING_EXPERIENCE_HINT_KEYS[value]),
+        }))}
+        value={trainingExperience}
+        onSelect={(value) => setUi({ trainingExperience: value })}
+      />
+      <OptionSheet<TrainingPlace>
+        isOpen={picker === "place"}
+        onOpenChange={onOpenChange}
+        title={t("settings__place_title")}
+        description={t("settings__place_hint")}
+        options={TRAINING_PLACES.map((value) => ({ value, label: t(TRAINING_PLACE_KEYS[value]) }))}
+        value={trainingPlace}
+        onSelect={(value) => setUi({ trainingPlace: value })}
       />
       <OptionSheet<DistanceUnit>
         isOpen={picker === "distance"}

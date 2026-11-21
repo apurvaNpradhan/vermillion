@@ -48,6 +48,8 @@ describe("ui preferences schema", () => {
       durationFormat: "clock",
       distanceUnit: "m",
       sessionsPerWeek: null,
+      trainingExperience: null,
+      trainingPlace: null,
       muscleGoals: {},
       deloadUntil: null,
       lighterWeeks: [],

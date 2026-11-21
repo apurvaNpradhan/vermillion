@@ -1,3 +1,4 @@
+import { EXPERIENCE_WARMUP_STEPS } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
@@ -55,6 +56,40 @@ describe("preferences store", () => {
       keepAwake: false,
     });
     expect(readPreferencesRow(row as never).timezone).toBe("Europe/Berlin");
+  });
+
+  it("preserves future training answers through an unrelated local write", async () => {
+    const s = await setup();
+    await savePreferences(s.database, { ui: { weightUnit: "lb" } }, s.scope);
+    s.sqlite
+      .prepare("UPDATE user_preferences SET ui = ?")
+      .run('{"weightUnit":"lb","trainingPlace":"future_place","futureKey":true}');
+    await savePreferences(s.database, { ui: { keepAwake: false } }, s.scope);
+    expect(JSON.parse(String((s.rows()[0] as { ui: string }).ui))).toMatchObject({
+      trainingPlace: "future_place",
+      futureKey: true,
+    });
+    expect((await readPreferences(s.database, "owner")).ui).toMatchObject({
+      weightUnit: "lb",
+      trainingPlace: null,
+      keepAwake: false,
+    });
+  });
+
+  it("derives the local warm-up default without uploading the ramp", async () => {
+    const s = await setup();
+    await savePreferences(s.database, { ui: { trainingExperience: "new" } }, s.scope);
+    expect((await readPreferences(s.database, "owner")).ui.warmupSteps).toEqual(
+      EXPERIENCE_WARMUP_STEPS.new,
+    );
+    expect(s.patchOf().ui).toEqual({ trainingExperience: "new" });
+    const custom = [{ percent: 40, reps: 8 }];
+    await savePreferences(s.database, { ui: { warmupSteps: custom } }, s.scope);
+    await savePreferences(s.database, { ui: { trainingExperience: "experienced" } }, s.scope);
+    expect((await readPreferences(s.database, "owner")).ui).toMatchObject({
+      trainingExperience: "experienced",
+      warmupSteps: custom,
+    });
   });
 
   it("refuses a value the server would refuse, and a write from a changed account", async () => {

@@ -41,7 +41,7 @@ function StepDashes({ index, total, label }: FlowPosition & { label: string }) {
         <View
           key={step}
           className={cn(
-            "h-1 w-8 rounded-full",
+            "h-1 w-8 shrink rounded-full",
             step === index ? "bg-identity" : step < index ? "bg-muted/60" : "bg-border",
           )}
         />

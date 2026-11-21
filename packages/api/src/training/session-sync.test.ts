@@ -439,6 +439,45 @@ describe("session upload handlers", () => {
     expect(await me.send([op("DELETE", "session_set", t.set2)])).toEqual(applied);
   });
 
+  it("applies only one automatic equipment kit when two uploads race", async () => {
+    const client = app.client(await createSignedInUser(app, "equipment-seed-race@example.com"));
+    const { userId } = await client.sync.credentials();
+    const race = async (device: Writer) => {
+      const seed = uuidv7();
+      const plate = uuidv7();
+      const result = await device.send([
+        putEquipment(seed, { seed }),
+        putEquipment(plate, { seed, kind: "plate", weight_kg: 5 }),
+      ]);
+      expect(result).toEqual(applied);
+      return [await stored("gym_equipment", seed), await stored("gym_equipment", plate)];
+    };
+    const first = installOf(client, userId);
+    const second = installOf(client, userId);
+    const kits = await Promise.all([race(first), race(second)]);
+    expect(kits.map((kit) => kit.filter(Boolean).length).sort()).toEqual([0, 2]);
+
+    const manual = uuidv7();
+    expect(await second.send([putEquipment(manual, { label: "Custom" })])).toEqual(applied);
+    expect(await stored("gym_equipment", manual)).toMatchObject({ label: "Custom" });
+  });
+
+  it("skips a late automatic kit when the inventory already contains custom equipment", async () => {
+    const me = await writer("equipment-seed-late@example.com");
+    const custom = uuidv7();
+    expect(await me.send([putEquipment(custom, { label: "Custom", weight_kg: 17 })])).toEqual(
+      applied,
+    );
+    const seed = uuidv7();
+    const plate = uuidv7();
+    expect(
+      await me.send([putEquipment(seed, { seed }), putEquipment(plate, { seed, kind: "plate" })]),
+    ).toEqual(applied);
+    expect(await stored("gym_equipment", seed)).toBeUndefined();
+    expect(await stored("gym_equipment", plate)).toBeUndefined();
+    expect(await stored("gym_equipment", custom)).toMatchObject({ label: "Custom", weight_kg: 17 });
+  });
+
   it("stores the repeated flag of an exercise and keeps it when a later PUT omits it", async () => {
     const me = await writer("session-repeated@example.com");
     const t = await training(me);

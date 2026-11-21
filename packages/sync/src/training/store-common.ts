@@ -132,7 +132,16 @@ export const trainingUploadColumns = {
     "generated_warmup",
     "restore",
   ]),
-  gym_equipment: new Set(["kind", "weight_kg", "unit", "label", "count", "enabled", "restore"]),
+  gym_equipment: new Set([
+    "kind",
+    "weight_kg",
+    "unit",
+    "label",
+    "count",
+    "enabled",
+    "restore",
+    "seed",
+  ]),
   exercise_setting: new Set([
     "exercise_id",
     "bar_id",

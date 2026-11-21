@@ -3,6 +3,7 @@ import { SyncRejection } from "../../platform/sync/handler";
 import { media, assertMediaReference } from "../../media/index";
 import type { DbExecutor } from "@workspace/db";
 import {
+  experienceWarmupSteps,
   TARGET_MUSCLES,
   type MuscleGoals,
   type Preferences,
@@ -35,6 +36,11 @@ export async function updatePreferences(
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`avatar:${userId}`}, 0))`);
     const previous = await getPreferences(tx, userId);
+    // Recheck the authoritative ramp under the same lock as manual ramp edits.
+    if (ui.trainingExperience && ui.warmupSteps === undefined) {
+      const steps = experienceWarmupSteps(ui.trainingExperience, previous.ui.warmupSteps);
+      if (steps) ui.warmupSteps = steps;
+    }
     // Only a changed avatar is checked: a device that merely re-sends the current one, or an old
     // one it never changed, must not lose its other edits to a media check.
     if (ui.avatarMediaId && ui.avatarMediaId !== previous.ui.avatarMediaId) {

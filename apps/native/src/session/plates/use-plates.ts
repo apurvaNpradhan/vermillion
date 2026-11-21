@@ -90,21 +90,10 @@ export function useEquipment(enabled = true) {
     )
       return;
     seededScopes.add(scope);
-    void run((db) => seedEquipment(db, unit, scope)).then((done) => {
+    void run((db) => seedEquipment(db, scope)).then((done) => {
       if (done === null) seededScopes.delete(scope);
     });
-  }, [
-    enabled,
-    database,
-    isLoading,
-    hasSynced,
-    snapshot?.writeScope,
-    loaded,
-    rowCount,
-    unit,
-    scope,
-    run,
-  ]);
+  }, [enabled, database, isLoading, hasSynced, snapshot?.writeScope, loaded, rowCount, scope, run]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
     run((db) => upsertEquipment(db, [item], scope));
   const edit = (id: string, patch: EquipmentPatch) =>
