@@ -13,14 +13,16 @@ export function StatTiles({
     <View className="flex-row flex-wrap gap-x-8 gap-y-3">
       {items.map((item) => (
         <View key={item.label} className="gap-0.5">
-          <Text className="text-caption text-muted">{item.label}</Text>
+          <Text className="font-normal text-caption text-muted">{item.label}</Text>
           <Text
             className="text-title-md font-semibold text-foreground"
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {item.value}
           </Text>
-          {item.detail ? <Text className="text-caption text-muted">{item.detail}</Text> : null}
+          {item.detail ? (
+            <Text className="font-normal text-caption text-muted">{item.detail}</Text>
+          ) : null}
         </View>
       ))}
     </View>

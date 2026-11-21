@@ -45,7 +45,7 @@ export function InlineNote({
         setText(next);
         onText(next.trim() === "" ? null : next);
       }}
-      className="min-h-11 py-2 text-body text-foreground"
+      className="font-normal min-h-11 py-2 text-body text-foreground"
     />
   );
 }

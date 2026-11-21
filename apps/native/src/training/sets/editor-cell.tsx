@@ -40,7 +40,7 @@ export function EditorCellButton({
     >
       <Text
         numberOfLines={1}
-        className={`text-center text-body ${shown === "" ? "text-muted" : "text-foreground"}`}
+        className={`font-normal text-center text-body ${shown === "" ? "text-muted" : "text-foreground"}`}
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {shown === "" ? placeholder : shown}

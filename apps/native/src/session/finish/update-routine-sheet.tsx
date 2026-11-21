@@ -99,7 +99,7 @@ export function UpdateRoutineSheet({
           {!missing && lines.length > 0 ? (
             <View className="gap-2 px-1">
               {lines.map((line, index) => (
-                <Text key={index} className="text-body text-foreground">
+                <Text key={index} className="font-normal text-body text-foreground">
                   {line}
                 </Text>
               ))}
@@ -113,7 +113,9 @@ export function UpdateRoutineSheet({
                 className="min-h-11 flex-row items-center gap-2 px-1"
                 onPress={() => setChoosing(!choosing)}
               >
-                <Text className="text-body text-muted">{t("session__choose_update")}</Text>
+                <Text className="font-normal text-body text-muted">
+                  {t("session__choose_update")}
+                </Text>
                 {choosing ? (
                   <CaretUp size={20} color={subtle} />
                 ) : (
@@ -162,7 +164,7 @@ function Toggle({
       onPress={() => onChange(!value)}
       className="min-h-11 flex-row items-center justify-between gap-3 px-1 active:opacity-70"
     >
-      <Text className="flex-1 text-body text-foreground">{label}</Text>
+      <Text className="font-normal flex-1 text-body text-foreground">{label}</Text>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         <Switch
           trackColor={{ false: field, true: identity }}

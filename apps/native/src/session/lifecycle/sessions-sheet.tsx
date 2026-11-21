@@ -45,7 +45,10 @@ export function SessionsSheet({
               <Text numberOfLines={1} className="font-medium text-body text-foreground">
                 {session.title}
               </Text>
-              <Text className="text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text
+                className="font-normal text-caption text-muted"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
                 <Elapsed startedAt={session.startedAt} />
                 {` · ${t("session__progress_sets", { done: session.tickedSets, total: session.totalSets })}`}
               </Text>

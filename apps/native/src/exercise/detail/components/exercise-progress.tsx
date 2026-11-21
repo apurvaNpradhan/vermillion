@@ -63,14 +63,14 @@ export function ExerciseProgress({
       </Text>
       {best ? (
         <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-          <Text className="text-title-lg font-semibold text-foreground">
+          <Text className="text-title-lg font-semibold tabular-nums text-foreground">
             {t("progress__best", {
               weight: formatLoad(best.set.weight_kg ?? 0, unit, type),
               unit,
               reps: best.set.reps,
             })}
           </Text>
-          <Text className="text-caption text-muted">
+          <Text className="font-normal text-caption tabular-nums text-muted">
             {t("progress__one_rm", { value: formatWeight(best.oneRepMax, unit), unit })}
           </Text>
         </View>
@@ -203,10 +203,10 @@ export function NextTimeLine({
   return (
     <View className="gap-2 pt-3">
       <View className="flex-row justify-between gap-3">
-        <Text className="text-body text-muted">{t("progress__next")}</Text>
-        <Text className="text-body text-foreground">{aim}</Text>
+        <Text className="font-normal text-body text-muted">{t("progress__next")}</Text>
+        <Text className="font-normal text-body text-foreground">{aim}</Text>
       </View>
-      <Text className="text-caption text-muted">
+      <Text className="font-normal text-caption text-muted">
         {t(progressionLabelKey(suggestion.reason), {
           value: formatWeight(suggestion.incrementKg, unit),
           unit,

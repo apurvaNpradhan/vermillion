@@ -104,12 +104,12 @@ export function SessionDetailScreen({ id }: { id: string }) {
           ) : null}
           {!session ? (
             state.status === "loading" ? null : (
-              <Text className="text-body text-muted">{t("session__load_failed")}</Text>
+              <Text className="font-normal text-body text-muted">{t("session__load_failed")}</Text>
             )
           ) : (
             <>
               <View className="gap-4">
-                <Text className="text-body text-muted">
+                <Text className="font-normal text-body text-muted">
                   {new Intl.DateTimeFormat(i18n.language, {
                     dateStyle: "full",
                     timeStyle: "short",
@@ -160,7 +160,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   ]}
                 />
                 {session.note ? (
-                  <Text className="text-body text-foreground">{session.note}</Text>
+                  <Text className="font-normal text-body text-foreground">{session.note}</Text>
                 ) : null}
               </View>
               <SessionPhotos sessionId={id} />
@@ -234,7 +234,9 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         }
                       />
                       {entry.note ? (
-                        <Text className="px-1 text-caption text-muted">{entry.note}</Text>
+                        <Text className="font-normal px-1 text-caption text-muted">
+                          {entry.note}
+                        </Text>
                       ) : null}
                       <SetTextTable
                         headers={[t("session__col_result"), ""]}

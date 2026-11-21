@@ -6,15 +6,14 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native offers **Basalt** (the default, stored id `nord`), **Graphite**, **Oxide**, **Slate** and **Mulberry**, each in
+Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
 Light and Dark at standard or increased contrast
-([ADR 0048](docs/adr/0048-theme-engine-and-nord.md)). Appearance (Match device, Light, Dark), the
-theme and Increase contrast are device settings, available in Preferences and on the signed-out
-welcome screen.
+([ADR 0048](docs/adr/0048-theme-engine-and-nord.md), [ADR 0052](docs/adr/0052-rename-to-patina.md)). Appearance (Match device, Light, Dark), the
+theme and Increase contrast are device settings in Preferences. A saved `nord` falls back to Patina. The signed-out welcome screen is always the Patina dark variant.
 
 - A theme is a base, an accent and a family of data colours per scheme
   (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
-  `brand.ts` holds every variant. Email and the site use Basalt (the default theme), built by the same engine.
+  `brand.ts` holds every variant. Email and the site use Patina (the default theme), built by the same engine.
 - The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
   theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
   the original red artwork with lighter secondary highlights. The weekly muscle map uses the
@@ -26,7 +25,7 @@ See the [native themes guide](docs/guides/native-themes.md).
 
 ## Overview
 
-Vermillion is a precise, quiet tool for training and nutrition. It is built on tinted surface steps, spaced groups, tight corners, Inter with OpenType features, one accent that means "you / now" and one primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
+Vermillion is a precise, quiet tool for training and nutrition. It is built on tinted surface steps, spaced groups, tight corners, Geist with tabular figures, one accent that means "you / now" and one primary action per screen, plus what a phone-first fitness app needs: color as data, big numbers, touch sizes for sweaty hands, motion, and haptics.
 
 Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web companion is a later decision. One token source (`packages/ui/src/tokens/brand.ts`) feeds native and email.
 
@@ -50,7 +49,7 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 | Surfaces | Four steps, spaced for phone screens                                                             |
 | Depth    | No shadows except floating layers and the button keycap edge                                     |
 | Controls | 44pt Standard, 56–64pt Active                                                                    |
-| Type     | Inter + `tnum` + `ss01`; numeric display tier up to 72pt                                         |
+| Type     | Geist, Geist Mono for code, `tnum`, numeric display tier up to 72pt                              |
 | Radius   | 4/8/12/16/28                                                                                     |
 | Motion   | Full motion and haptic token sets                                                                |
 
@@ -64,7 +63,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 | 2   | Color modes       | Dark default + light mode, role-based tokens                                                          | Bright gyms and kitchens; light mode costs a week, not a month                   |
 | 3   | Primary action    | Muted fill with light text in dark, deep fill with light text in light                                | A clear primary action with a subdued fill                                       |
 | 4   | Macro colors      | Protein blue, carbs amber, fat orchid; calories neutral                                               | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
-| 5   | Number typeface   | Inter for everything + numeric tier                                                                   | One font, smaller app, precise feel; `tnum` aligns numbers                       |
+| 5   | Number typeface   | Geist for numbers                                                                                     | `tnum` aligns digits across tables and timers                                    |
 | 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                       |
 | 7   | Radius            | 4 / 8 / 12 / 16 / 28 + full                                                                           | Precise corners, one step softer for phones                                      |
 | 8   | Depth             | No shadows except floating layers                                                                     | Filled cards; sheets need separation in light mode                               |
@@ -141,13 +140,12 @@ Light-mode carbs fill reaches only 2.7:1 against its track, because amber can't 
 
 ## Typography
 
-Inter is the only typeface, with tabular figures on every number. Large numbers use Inter Display, Inter's tighter cut for big sizes.
+Geist is the primary typeface, including the large numeric tier. Geist Mono sets inline code. See [ADR 0051](docs/adr/0051-geist-typeface.md).
 
 ### Font setup
 
-- **Native:** load Inter 400 / 500 / 600 / 700 and Inter Display 600 as static files, and map them to HeroUI Native's `--font-normal`, `--font-medium`, `--font-semibold` and `--font-bold`.
-- **Web:** load Inter (variable, with the optical-size axis) and set `font-feature-settings: "kern", "calt"` on body; the numeric classes below add `tnum` and `ss01`.
-- **OpenType features:** `tnum` (equal-width digits) is the must-have and works on iOS, Android and web (`fontVariant: ['tabular-nums']` in React Native). `ss01` (open digits) is a nice-to-have; check that it renders on both phone platforms before relying on it.
+- Native loads Geist 400 / 500 / 600 / 700 and Geist Mono 400 / 500 before hiding the splash screen. HeroUI Native's four weight utilities select the matching Geist faces. Use `font-mono` for Geist Mono regular or `font-mono-medium` for medium.
+- Apply `tabular-nums` to numeric text. It maps to `fontVariant: ['tabular-nums']` in React Native and requests equal-width digits from Geist's `tnum` feature.
 - **Accessibility:** keep system text scaling on. Cap `numeric-hero` and `numeric-xl` at 1.3× so a giant timer can't overflow the screen.
 
 ### Text scale (UI)
@@ -168,15 +166,15 @@ Button labels in Active mode use `body-strong` at 17pt.
 
 ### Numeric tier
 
-Always `tnum`; `ss01` where supported.
+Use `tnum` throughout the numeric tier.
 
-| Token          | Size / line | Weight             | Tracking | Use                                |
-| -------------- | ----------- | ------------------ | -------- | ---------------------------------- |
-| `numeric-hero` | 72 / 76     | 600, Inter Display | -1.5     | Rest timer, calories remaining     |
-| `numeric-xl`   | 48 / 52     | 600, Inter Display | -1.0     | Current set weight × reps          |
-| `numeric-lg`   | 32 / 36     | 600                | -0.5     | Daily totals, body weight          |
-| `numeric-md`   | 20 / 24     | 500                | -0.2     | Macro values in cards, set history |
-| `numeric-sm`   | 15 / 20     | 500                | 0        | Table cells, chart axis labels     |
+| Token          | Size / line | Weight | Tracking | Use                                |
+| -------------- | ----------- | ------ | -------- | ---------------------------------- |
+| `numeric-hero` | 72 / 76     | 600    | -1.5     | Rest timer, calories remaining     |
+| `numeric-xl`   | 48 / 52     | 600    | -1.0     | Current set weight × reps          |
+| `numeric-lg`   | 32 / 36     | 600    | -0.5     | Daily totals, body weight          |
+| `numeric-md`   | 20 / 24     | 500    | -0.2     | Macro values in cards, set history |
+| `numeric-sm`   | 15 / 20     | 500    | 0        | Table cells, chart axis labels     |
 
 ### Unit rule
 
@@ -501,7 +499,7 @@ One token file is the source of truth; a build step writes the native adapter in
 | Path                                      | Role                                                                                                                                                                                                                                                                         |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/ui/src/tokens/brand.ts`         | Every role from this doc with `light` and `dark` values, the shared Vermillion-only colors, the type scale, radius and fonts                                                                                                                                                 |
-| `packages/ui/src/tokens/to-native-css.ts` | `nativeTokenSources`: HeroUI Native name -> role, depth shadows, Inter font tokens; writes `src/styles/native-tokens.css`                                                                                                                                                    |
+| `packages/ui/src/tokens/to-native-css.ts` | `nativeTokenSources`: HeroUI Native name -> role, depth shadows, Geist font tokens; writes `src/styles/native-tokens.css`                                                                                                                                                    |
 | `apps/native/global.css`                  | Imports `native-tokens.css` after `heroui-native/styles`                                                                                                                                                                                                                     |
 | `apps/native/src/platform/ui/`            | HeroUI `Button` and `Card` in Vermillion shape (import these, not HeroUI's), plus components copied in from PanelUI and Reacticx and restyled to tokens (ADR 0030): `Field`, `OtpInput`, `SearchBar`, `Skeleton`, `EmptyState`, `SegmentedControl`, `NumberFlow`, `StatTile` |
 
@@ -539,11 +537,11 @@ Product code uses semantic utilities only; never a hex value or a `gray-*` class
 | `danger`                       | `text-destructive-foreground`                 | `text-danger`                          |
 | `success` / `success-text`     | `bg-success` / `text-success-foreground`      | `bg-success`                           |
 
-Text styles: `text-title-xl`, `text-title-lg`, `text-title-md`, `text-body-lg`, `text-body`, `text-label`, `text-caption`, `text-overline` and `text-numeric-{hero,xl,lg,md,sm}`. On web the class carries the weight; on native the weight picks the Inter file, so add `font-semibold` (titles, numeric) or `font-medium` (label). Pair every numeric style with `numeric` (web) or `tabular-nums` (native).
+Text styles: `text-title-xl`, `text-title-lg`, `text-title-md`, `text-body-lg`, `text-body`, `text-label`, `text-caption`, `text-overline` and `text-numeric-{hero,xl,lg,md,sm}`. On web the class carries the weight; on native the weight picks the Geist face, so every Text and TextInput carries a face: `font-normal` (body, caption), `font-medium` (label) or `font-semibold` (titles, numeric). Text without one falls back to the system font. Pair every numeric style with `numeric` (web) or `tabular-nums` (native).
 
 Radius: web `--radius` is 12px, and `globals.css` sets `rounded-xs` 4, `rounded-sm`/`md` 8, `rounded-lg` 12, `rounded-xl`/`2xl` 16, `rounded-3xl` 28. Native `--radius` is 8px with HeroUI's multipliers (`rounded-xl` 12, `rounded-2xl` 16) and `--field-radius` 12.
 
-Fonts: web loads `@fontsource-variable/inter/opsz.css` (variable, with the optical-size axis); native loads Inter 400/500/600/700 from `@expo-google-fonts/inter` before hiding the splash screen. Inter Display on native is still open (see Verify on device).
+Native font assets come from `@expo-google-fonts/geist` and `@expo-google-fonts/geist-mono`.
 
 Icons: `phosphor-react-native` on native (`@phosphor-icons/react` would be the web counterpart).
 
@@ -552,7 +550,7 @@ Icons: `phosphor-react-native` on native (`@phosphor-icons/react` would be the w
 `packages/email` renders transactional mail with React Email. Its theme (`src/theme/tokens.ts`) imports the role values from `brand.ts`, so a rebrand needs no edit there. Email clients know neither CSS variables nor our font, so the values are inlined as hex.
 
 - Light first. Page background `canvas`; the content sits in one flat card: `surface` with a 1px `hairline`, `radius` 16, no shadow, no accent hue. Text is `text-primary` for titles, `text-secondary` for body and `text-muted` for hints and the footer.
-- Type is Inter with the system UI font as fallback, on the `title-lg`, `body`, `label` and `caption` scale. The app name is the wordmark above the card and comes from `app.config.ts`.
+- Type is Geist where installed, with the system UI font as fallback, on the `title-lg`, `body`, `label` and `caption` scale. The app name is the wordmark above the card and comes from `app.config.ts`.
 - The sign-in and change-email code is one text node in `numeric-xl` tabular figures with wide letter spacing, centred in a `radius-md` box on `surface-control`. Code emails carry no links. The subject starts with the code ("123456 is your {app} code") so lock-screen previews show it.
 - The one link email (account deletion) has a single primary button, `action` fill and `on-action` text, with the URL repeated below as plain text.
 - Dark: a `prefers-color-scheme: dark` block (plus the Outlook.com `data-ogsc` selectors) swaps in the dark role values through `m-*` classes. Apple Mail honours it; clients that ignore it show the light email.
@@ -582,7 +580,7 @@ The token layer is complete; what remains is verification on device and a few sy
 
 ### Verify on device
 
-- [ ] `ss01` and Inter Display render on iOS and Android through Expo
+- [ ] Geist tabular figures keep set columns and timers stable on iOS and Android, and Geist Mono renders in Markdown
 - [ ] Dark surface steps stay distinguishable at 30% brightness and outdoors
 - [ ] Light-mode carbs bars read clearly next to protein and fat
 - [ ] Spring values for sheets feel snappy on a mid-range Android phone

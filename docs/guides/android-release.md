@@ -8,7 +8,7 @@
 2. The `with-release-signing` config plugin (`apps/native/plugins/`) adds a `release` signing config to `app/build.gradle`. It reads the keystore from `VERMILLION_UPLOAD_STORE_FILE`, `_STORE_PASSWORD`, `_KEY_ALIAS` and `_KEY_PASSWORD`. Without a store file (a local `expo run:android --variant release`) it keeps the debug key; with a store file and a missing value the build stops.
 3. Gradle runs `assembleRelease` for `arm64-v8a`, which covers nearly every current phone. A manual run can choose `universal` (all four ABIs, about 15 minutes more).
 4. The job checks with `apksigner` that the APK is signed by the keystore's certificate, and prints that certificate's SHA-256 fingerprint in the job summary.
-5. On a tag, a second job (the only one with a write token) creates the release and uploads `basalt-<tag>-<abis>.apk` and its `.sha256`.
+5. On a tag, a second job (the only one with a write token) creates the release and uploads `patina-<tag>-<abis>.apk` and its `.sha256`.
 
 `EXPO_PUBLIC_SERVER_URL` is baked into the JavaScript bundle at build time. The version name is `version` in the root `app.config.ts`; the version code is the workflow's run number, so each build installs over the previous one.
 
@@ -29,7 +29,7 @@
    gh secret set ANDROID_UPLOAD_STORE_PASSWORD   # prompts
    gh secret set ANDROID_UPLOAD_KEY_ALIAS --body vermillion
    gh secret set ANDROID_UPLOAD_KEY_PASSWORD     # prompts; the store password for PKCS12
-   gh variable set EXPO_PUBLIC_SERVER_URL --body https://basalt-api.<domain>
+   gh variable set EXPO_PUBLIC_SERVER_URL --body https://patina-api.<domain>
    # optional: gh variable set EXPO_PUBLIC_TURNSTILE_SITE_KEY --body <site key>
    ```
 
@@ -53,7 +53,7 @@ git tag v1.0.0 && git push origin v1.0.0
 
 A manual run (Actions → Android release → Run workflow) builds the same APK as a workflow artifact (`android-apk`, kept 14 days) without creating a release. Re-running a tag's workflow replaces the release's files.
 
-To check a download: `sha256sum -c basalt-v1.0.0-arm64-v8a.apk.sha256`.
+To check a download: `sha256sum -c patina-v1.0.0-arm64-v8a.apk.sha256`.
 
 ## When it fails
 

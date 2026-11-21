@@ -60,15 +60,19 @@ export function PhotoSlots({
                   style={{ width: "100%", height: "100%" }}
                 />
                 <View className="absolute inset-x-0 bottom-0 bg-background/80 py-0.5">
-                  <Text className="text-center text-caption text-foreground">{name}</Text>
+                  <Text className="font-normal text-center text-caption text-foreground">
+                    {name}
+                  </Text>
                 </View>
               </>
             ) : (
               <View className="items-center gap-0.5">
                 <Camera size={20} color={muted} />
-                <Text className="text-caption text-foreground">{name}</Text>
+                <Text className="font-normal text-caption text-foreground">{name}</Text>
                 {slot === "back" ? (
-                  <Text className="text-caption text-muted">{t("body__photo_optional")}</Text>
+                  <Text className="font-normal text-caption text-muted">
+                    {t("body__photo_optional")}
+                  </Text>
                 ) : null}
               </View>
             )}

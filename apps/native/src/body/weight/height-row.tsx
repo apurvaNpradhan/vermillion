@@ -64,11 +64,11 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
         >
           {sheet.probe}
           <BottomSheet.Title>{t("body__height")}</BottomSheet.Title>
-          <Text className="text-numeric-xl tabular-nums text-foreground">
+          <Text className="font-semibold text-numeric-xl tabular-nums text-foreground">
             {t("body__value", { value, unit })}
           </Text>
           {error ? (
-            <Text accessibilityRole="alert" className="text-body text-danger">
+            <Text accessibilityRole="alert" className="font-normal text-body text-danger">
               {error}
             </Text>
           ) : null}

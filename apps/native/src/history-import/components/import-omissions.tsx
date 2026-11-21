@@ -15,17 +15,17 @@ export function ImportOmissions({
   return (
     <>
       {oversized > 0 ? (
-        <Text className="text-caption text-danger">
+        <Text className="font-normal text-caption text-danger">
           {t("import__oversized", { count: oversized })}
         </Text>
       ) : null}
       {omittedSets > 0 ? (
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {t("import__omitted_sets", { count: omittedSets })}
         </Text>
       ) : null}
       {omittedExercises > 0 ? (
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {t("import__omitted_exercises", { count: omittedExercises })}
         </Text>
       ) : null}

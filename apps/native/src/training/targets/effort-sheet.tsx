@@ -48,7 +48,7 @@ export function EffortSheet({
             </BottomSheet.Description>
           </View>
           <EffortSelector value={value} scale={scale} onChange={onChange} />
-          <Text className="px-1 text-caption text-muted">
+          <Text className="font-normal px-1 text-caption text-muted">
             {t(scale === "rpe" ? "training__effort_rpe_name" : "training__effort_rir_name")}
           </Text>
           <Button variant="primary" onPress={() => onOpenChange(false)}>

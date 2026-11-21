@@ -55,7 +55,7 @@ export function SessionSummaryScreen({
   if (state.status !== "ready")
     return (
       <View className="flex-1 justify-center bg-background p-4">
-        <Text className="text-body text-foreground">{t("session__load_failed")}</Text>
+        <Text className="font-normal text-body text-foreground">{t("session__load_failed")}</Text>
         <Button onPress={state.status === "error" ? state.retry : onDone}>
           <Button.Label>{t("session__done")}</Button.Label>
         </Button>
@@ -335,7 +335,7 @@ function FinishFlow({
                 onChangeText={field.handleChange}
                 multiline
                 textAlignVertical="top"
-                className="min-h-16 text-body text-foreground"
+                className="font-normal min-h-16 text-body text-foreground"
                 style={inputStyle}
               />
             )}
@@ -351,7 +351,9 @@ function FinishFlow({
                 className="gap-0.5"
                 onPress={() => setDurationOpen(true)}
               >
-                <Text className="text-caption text-muted">{t("session__stat_duration")}</Text>
+                <Text className="font-normal text-caption text-muted">
+                  {t("session__stat_duration")}
+                </Text>
                 <Text
                   className="font-semibold text-title-md text-identity"
                   style={{ fontVariant: ["tabular-nums"] }}
@@ -445,11 +447,11 @@ function FinishFlow({
           </View>
         ) : null}
         <View className="gap-3 px-4">
-          <Text className="text-body text-muted">
+          <Text className="font-normal text-body text-muted">
             {t("session__finish_unticked", { count: unticked })}
           </Text>
           {invalid ? (
-            <Text accessibilityRole="alert" className="text-body text-danger">
+            <Text accessibilityRole="alert" className="font-normal text-body text-danger">
               {t("session__invalid_summary")}
             </Text>
           ) : null}
@@ -536,7 +538,7 @@ function FinishFlow({
 function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View className="gap-0.5">
-      <Text className="text-caption text-muted">{label}</Text>
+      <Text className="font-normal text-caption text-muted">{label}</Text>
       {children}
     </View>
   );

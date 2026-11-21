@@ -33,7 +33,7 @@ export function ImportReceiptCard({
       : undefined;
   return (
     <View className="gap-4 rounded-2xl bg-surface p-4">
-      <Text className="text-body text-muted">
+      <Text className="font-normal text-body text-muted">
         {t("import__receipt_when", {
           date: formatDate(receipt.importedAt),
           source: t(`import__format_${receipt.format}`),
@@ -52,24 +52,24 @@ export function ImportReceiptCard({
         ]}
       />
       {receipt.skippedOther > 0 ? (
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {t("import__receipt_other_skipped", { count: receipt.skippedOther })}
         </Text>
       ) : null}
       {!receipt.complete ? (
-        <Text className="text-caption text-muted">{t("import__partial")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("import__partial")}</Text>
       ) : null}
       <ImportOmissions {...receipt} />
       {receipt.undoStarted && imported ? (
         imported.pending > 0 ? (
-          <Text className="text-caption text-muted">{t("import__undo_pending")}</Text>
+          <Text className="font-normal text-caption text-muted">{t("import__undo_pending")}</Text>
         ) : imported.sessions > 0 ? (
           <View className="gap-1">
-            <Text className="text-caption text-muted">
+            <Text className="font-normal text-caption text-muted">
               {t("import__undo_kept", { count: imported.sessions })}
             </Text>
             {imported.kept.map((workout) => (
-              <Text key={workout.id} className="text-caption text-foreground">
+              <Text key={workout.id} className="font-normal text-caption text-foreground">
                 {t("import__kept_workout", {
                   title: workout.title,
                   date: formatDate(workout.startedAt),
@@ -90,7 +90,7 @@ export function ImportReceiptCard({
         ) : null
       ) : null}
       {receipt.legacy ? (
-        <Text className="text-caption text-muted">{t("import__undo_legacy")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("import__undo_legacy")}</Text>
       ) : (
         <Button variant="danger-soft" isDisabled={Boolean(imported?.pending)} onPress={onUndo}>
           <Button.Label>{t("import__undo")}</Button.Label>

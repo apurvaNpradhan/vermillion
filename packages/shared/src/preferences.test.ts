@@ -78,6 +78,11 @@ describe("ui preferences schema", () => {
   it("drops unknown keys", () => {
     expect(uiPreferencesSchema.parse({ legacy: 1 })).toEqual(DEFAULT_UI_PREFERENCES);
   });
+  it("keeps other preferences when an older client includes a theme id", () => {
+    const ui = { theme: "nord", soundRest: false };
+    expect(uiPreferencesSchema.parse(ui)).toEqual({ ...DEFAULT_UI_PREFERENCES, soundRest: false });
+    expect(uiPreferencesPatchSchema.parse(ui)).toEqual({ soundRest: false });
+  });
   it("rejects wrong types", () => {
     expect(uiPreferencesSchema.safeParse({ sidebarCollapsed: "yes" }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ dismissedHints: [1] }).success).toBe(false);

@@ -150,7 +150,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           <Button onPress={state.retry}>{t("training__retry")}</Button>
         ) : !ready ? (
           state.status === "loading" ? null : (
-            <Text className="text-body text-muted">{t("session__load_failed")}</Text>
+            <Text className="font-normal text-body text-muted">{t("session__load_failed")}</Text>
           )
         ) : (
           <View className="gap-8">
@@ -160,7 +160,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   {t("training__retry")}
                 </Button>
               ) : (
-                <Text className="text-body text-muted">
+                <Text className="font-normal text-body text-muted">
                   {history.loading
                     ? null
                     : t("workout__subtitle", {
@@ -177,7 +177,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 unit={unit}
                 unitLabel={unitLabel}
               />
-              {ready.note ? <Text className="text-body text-muted">{ready.note}</Text> : null}
+              {ready.note ? (
+                <Text className="font-normal text-body text-muted">{ready.note}</Text>
+              ) : null}
             </View>
             {!history.loading && !history.failed && sessions.length ? (
               <LineChart
@@ -277,7 +279,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                     {entry.restSeconds !== null ? (
                       <View className="min-h-8 flex-row items-center gap-2 px-1">
                         <Timer size={20} color={subtle} />
-                        <Text className="text-caption text-muted tabular-nums">
+                        <Text className="font-normal text-caption text-muted tabular-nums">
                           {t("training__rest_link", { value: formatClock(entry.restSeconds) })}
                         </Text>
                       </View>
@@ -285,7 +287,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                     {entry.note ? (
                       <View className="min-h-8 flex-row items-start gap-2 px-1">
                         <Note size={20} color={subtle} />
-                        <Text className="flex-1 text-caption text-muted">{entry.note}</Text>
+                        <Text className="font-normal flex-1 text-caption text-muted">
+                          {entry.note}
+                        </Text>
                       </View>
                     ) : null}
                     <SetTextTable
@@ -293,7 +297,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                       rows={rows}
                     />
                     {sets.length ? (
-                      <Text className="px-1 text-caption text-muted">
+                      <Text className="font-normal px-1 text-caption text-muted">
                         {t("workout__previous", {
                           values: doneSummary(
                             sets.map((set) => ({

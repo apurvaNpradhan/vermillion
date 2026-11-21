@@ -46,7 +46,7 @@ export function RepTarget({
         }}
         className="h-11 flex-1 flex-row items-center justify-center gap-1 rounded-lg bg-default px-1"
       >
-        <Text className="text-body text-foreground tabular-nums">{value}</Text>
+        <Text className="font-normal text-body text-foreground tabular-nums">{value}</Text>
       </Pressable>
       <TargetPickerSheet
         isOpen={open}
@@ -109,7 +109,7 @@ export function RepTarget({
           ) : null}
         </View>
         {parsed === null ? (
-          <Text accessibilityRole="alert" className="text-caption text-danger">
+          <Text accessibilityRole="alert" className="font-normal text-caption text-danger">
             {t("training__rep_target_invalid")}
           </Text>
         ) : null}

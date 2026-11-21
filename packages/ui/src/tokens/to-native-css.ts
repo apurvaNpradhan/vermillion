@@ -30,16 +30,20 @@ export const nativeTokenSources = {
   "default-foreground": "text-primary",
   accent: "action",
   "accent-foreground": "on-action",
+  "accent-hover": "action-hover",
+  "accent-soft-foreground": "accent-soft-text",
   "field-background": "surface-control",
   "field-foreground": "text-primary",
   "field-placeholder": "text-muted",
   "field-border": "surface-control",
   success: "success",
   "success-foreground": "on-success",
+  "success-soft-foreground": "success-soft-text",
   warning: "warning-text",
   "warning-foreground": "on-warning",
   danger: "danger",
   "danger-foreground": "on-danger",
+  "danger-soft-foreground": "danger-soft-text",
   segment: "surface",
   "segment-foreground": "text-primary",
   border: "hairline",
@@ -98,6 +102,15 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       "  }",
       "}",
     ].join("\n"),
+    // HeroUI reads these variables at runtime, so keep them even without a utility using them.
+    [
+      "@theme inline static {",
+      "  --color-accent-hover: var(--accent-hover);",
+      "  --color-accent-soft-foreground: var(--accent-soft-foreground);",
+      "  --color-danger-soft-foreground: var(--danger-soft-foreground);",
+      "  --color-success-soft-foreground: var(--success-soft-foreground);",
+      "}",
+    ].join("\n"),
     [
       "@theme inline {",
       ...Object.keys(sharedTokenSources).map((name) => `  --color-${name}: var(--${name});`),
@@ -105,9 +118,7 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
     ].join("\n"),
     [
       "@theme {",
-      ...Object.entries(tokens.fonts.native).map(
-        ([weight, font]) => `  --font-${weight}: "${font}";`,
-      ),
+      ...Object.entries(tokens.fonts.native).map(([name, font]) => `  --font-${name}: "${font}";`),
       ...Object.entries(tokens.type).flatMap(([name, style]) => [
         `  --text-${name}: ${px(style.size)};`,
         `  --text-${name}--line-height: ${px(style.lineHeight)};`,

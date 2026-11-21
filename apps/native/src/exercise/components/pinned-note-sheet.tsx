@@ -66,7 +66,7 @@ export function PinnedNoteSheet({
             accessibilityLabel={t("session__pinned_exercise_note")}
             placeholder={t("session__pinned_exercise_note_placeholder")}
             placeholderTextColorClassName="accent-muted"
-            className="min-h-11 py-2 text-body text-foreground"
+            className="font-normal min-h-11 py-2 text-body text-foreground"
           />
           <Button
             variant="primary"

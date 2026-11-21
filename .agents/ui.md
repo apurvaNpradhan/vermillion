@@ -10,15 +10,15 @@ Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input
 
 HeroUI Native is the base. When it lacks a component, copy it from PanelUI (MIT; Uniwind) or, for Reanimated-only pieces, Reacticx (MIT) into `apps/native/src/platform/ui/`. Never add either as a dependency; no Skia. Restyle to role tokens, swap icons to Phosphor, take every string through props, put pure logic in a tested sibling file, and start the file with a comment naming the source, version, MIT licence and the changes. Port only when a screen uses it in the same change.
 
-In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState`, `NumberFlow`, `StatTile`, `WeekStrip`, `RadarChart` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `ProgressRing`, `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
+In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState` (`mascot` swaps its icon for the `Mascot`), `Mascot` (the tortoise from the logo, never animated), `NumberFlow`, `StatTile`, `WeekStrip`, `RadarChart` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `ProgressRing`, `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
 
 ## Tokens
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native ships five themes (Basalt is the default) in light and dark at standard or increased contrast.
+Native ships five themes (Patina is the default) in light and dark at standard or increased contrast.
 `packages/ui/src/tokens/brand.ts` exports `nativeColors` (every variant) for the app and
-`brandTokens.colors` (Basalt) for the site and email; both come from the theme engine in
+`brandTokens.colors` (Patina) for the site and email; both come from the theme engine in
 `tokens/themes/` (ADR 0048). Regenerate CSS after editing. Layout never branches on appearance.
 Use `useThemeMode()` for native chrome. See the
 [native themes guide](../docs/guides/native-themes.md).

@@ -41,7 +41,7 @@ export function ActiveProgramCard({
           <Text numberOfLines={1} className="font-semibold text-body text-foreground">
             {program.title}
           </Text>
-          <Text className="text-caption text-muted">
+          <Text className="font-normal text-caption text-muted">
             {position > 0
               ? progressText
               : program.plannedWeeks
@@ -101,7 +101,7 @@ export function ActiveProgramCard({
       </View>
       {next?.workoutId ? (
         <View className="flex-row items-center justify-between gap-3">
-          <Text numberOfLines={1} className="flex-1 text-body text-foreground">
+          <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
             {t("run__next", { title: slotTitle(next, t) })}
           </Text>
           <Button

@@ -25,7 +25,9 @@ function Status({
   if (loading) return <View className="flex-1 bg-background" />;
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
-      <Text className="text-center text-body text-muted">{t("session__load_failed")}</Text>
+      <Text className="font-normal text-center text-body text-muted">
+        {t("session__load_failed")}
+      </Text>
       {retry ? (
         <Button variant="secondary" onPress={retry}>
           <Button.Label>{t("training__retry")}</Button.Label>

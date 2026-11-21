@@ -47,12 +47,12 @@ export function MeasurementDate({
         onPress={() => setOpen(!open)}
         className="py-3"
       >
-        <Text className="text-body text-muted">{label}</Text>
+        <Text className="font-normal text-body text-muted">{label}</Text>
       </Pressable>
       {open
         ? parts.map((part) => (
             <View key={part} className="flex-row items-center justify-between gap-2">
-              <Text className="text-body text-muted">{t(keys[part])}</Text>
+              <Text className="font-normal text-body text-muted">{t(keys[part])}</Text>
               <Button
                 size="sm"
                 variant="tertiary"

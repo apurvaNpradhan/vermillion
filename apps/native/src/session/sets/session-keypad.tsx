@@ -71,7 +71,11 @@ export function SessionKeypad({
       hasNext={withinSet ? logging.hasNextInSet : logging.hasNext}
       stepText={logging.stepText}
       accessory={
-        editLabel ? <Text className="text-caption text-muted">{editLabel}</Text> : accessory
+        editLabel ? (
+          <Text className="font-normal text-caption text-muted">{editLabel}</Text>
+        ) : (
+          accessory
+        )
       }
       systemKeyboard={systemKeyboard}
       onKey={logging.onKey}

@@ -10,7 +10,7 @@ export function DeleteAccountScreen() {
   const { t } = useTranslation();
   return (
     <ScrollPage title={t("settings__delete_title")} back>
-      <Text className="text-body text-subtle">{t("settings__delete_body")}</Text>
+      <Text className="font-normal text-body text-subtle">{t("settings__delete_body")}</Text>
       <DeleteAccountSection />
     </ScrollPage>
   );

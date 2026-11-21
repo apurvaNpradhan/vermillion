@@ -10,8 +10,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Nord, following the device, at standard contrast", () => {
-    expect(DEFAULT_THEME).toEqual({ theme: "nord", appearance: "system", contrast: false });
+  it("starts on Patina, following the device, at standard contrast", () => {
+    expect(DEFAULT_THEME).toEqual({ theme: "patina", appearance: "system", contrast: false });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -86,8 +86,8 @@ describe("device theme selection", () => {
 });
 
 describe("retired themes", () => {
-  it.each(["olive", "cinnabar", "nope"])("falls back to the default for %s", (theme) => {
+  it.each(["nord", "olive", "cinnabar", "nope"])("falls back to the default for %s", (theme) => {
     const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-    expect(parseTheme(stored)).toEqual({ theme: "nord", appearance: "dark", contrast: true });
+    expect(parseTheme(stored)).toEqual({ theme: "patina", appearance: "dark", contrast: true });
   });
 });

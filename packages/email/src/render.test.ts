@@ -64,7 +64,7 @@ describe("email templates", () => {
   it("carries the dark scheme and the brand fonts", async () => {
     const email = await render({ ...base, template: "sign-in-code", otp: "482913" });
     expect(email.html).toContain("prefers-color-scheme: dark");
-    expect(email.html).toContain("Inter");
+    expect(email.html).toContain("Geist");
   });
 
   it("uses the primary button for the one link email", async () => {

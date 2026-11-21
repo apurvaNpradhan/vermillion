@@ -7,13 +7,13 @@
  * see docs/deployment.md, "Moving to the final domain".
  */
 const domain = "lostsignal.cloud";
+/** The product slug: EAS slug, scheme, bundle id suffix and the host prefixes below. */
+const name = "patina";
 
 export const appConfig = {
-  name: "basalt",
-  displayName: "Basalt",
-  description: "Basalt is a calm, private training log",
-  /** Short line shown with the name (welcome screen, README). */
-  tagline: "Quiet progress.",
+  name,
+  displayName: "Patina",
+  description: "Patina is a calm, private training log",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",
   /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */
@@ -24,11 +24,11 @@ export const appConfig = {
   urls: {
     server: "http://localhost:3000",
     /** Existing public site used for account, invite and update links. */
-    site: `https://basalt.${domain}`,
+    site: `https://${name}.${domain}`,
     /** The API in production (`apps/server`). */
-    api: `https://basalt-api.${domain}`,
+    api: `https://${name}-api.${domain}`,
     /** The PowerSync service in production. */
-    sync: `https://basalt-sync.${domain}`,
+    sync: `https://${name}-sync.${domain}`,
     /** Public base URL of the exercise media bucket (thumbnails and videos; rows hold keys). */
     exerciseMedia: `https://media.${domain}`,
   },
@@ -42,10 +42,10 @@ export const appConfig = {
     powersync: 8090,
   },
   bundleIds: {
-    ios: "io.github.apurvanpradhan.basalt",
-    android: "io.github.apurvanpradhan.basalt",
+    ios: `io.github.apurvanpradhan.${name}`,
+    android: `io.github.apurvanpradhan.${name}`,
   },
-  scheme: "basalt",
+  scheme: name,
   /** The public GitHub repository whose Releases hold the Android builds. */
   releases: { owner: "apurvaNpradhan", repo: "vermillion" },
   /** Expo project id from `eas init`; links EAS Build and enables EAS Update. */

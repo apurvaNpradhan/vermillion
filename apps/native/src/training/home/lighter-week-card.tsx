@@ -41,7 +41,9 @@ export function LighterWeekCard({ state }: { state: ReturnType<typeof useHomeTra
     }).format(new Date(active.until));
     return (
       <View className="min-h-11 flex-row items-center justify-between gap-3 px-1">
-        <Text className="flex-1 text-caption text-muted">{t("lighter__until", { date })}</Text>
+        <Text className="font-normal flex-1 text-caption text-muted">
+          {t("lighter__until", { date })}
+        </Text>
         <Pressable
           accessibilityRole="button"
           hitSlop={8}
@@ -65,7 +67,7 @@ export function LighterWeekCard({ state }: { state: ReturnType<typeof useHomeTra
   if (!offer) return null;
   return (
     <View className="gap-3 rounded-2xl bg-surface p-4">
-      <Text className="text-body text-foreground">{t("lighter__card_title")}</Text>
+      <Text className="font-normal text-body text-foreground">{t("lighter__card_title")}</Text>
       <View className="flex-row gap-3">
         <Button
           className="flex-1"

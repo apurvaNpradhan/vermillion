@@ -275,7 +275,7 @@ function PageTitle({
       className={back ? "pb-2" : overline ? "pb-1" : "h-11 justify-center"}
       style={style}
     >
-      {overline ? <Text className="text-caption text-muted">{overline}</Text> : null}
+      {overline ? <Text className="font-normal text-caption text-muted">{overline}</Text> : null}
       <Text
         accessibilityRole="header"
         numberOfLines={1}

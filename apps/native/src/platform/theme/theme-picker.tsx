@@ -1,12 +1,10 @@
 import type { TranslationKey } from "@workspace/i18n";
 import { themeIds, themeVariants, type ThemeId } from "@workspace/ui/tokens/theme-variants";
 import { BottomSheet, Switch } from "heroui-native";
-import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { Circle, Polygon, Rect } from "react-native-svg";
 
 import { useTranslation } from "@/platform/i18n";
-import { Button } from "@/platform/ui/button";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
@@ -20,7 +18,7 @@ const APPEARANCE_LABELS = {
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
 const THEME_LABELS = {
-  nord: "theme__nord",
+  patina: "theme__patina",
   graphite: "theme__graphite",
   oxide: "theme__oxide",
   slate: "theme__slate",
@@ -141,21 +139,5 @@ export function AppearanceSheet({
         </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
-  );
-}
-
-/** The same device settings are available before an account exists. */
-export function SignedOutThemeSettings() {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <View className="flex-row justify-center">
-        <Button variant="ghost" onPress={() => setOpen(true)}>
-          <Button.Label>{t("settings__appearance_title")}</Button.Label>
-        </Button>
-      </View>
-      <AppearanceSheet isOpen={open} onOpenChange={setOpen} />
-    </>
   );
 }

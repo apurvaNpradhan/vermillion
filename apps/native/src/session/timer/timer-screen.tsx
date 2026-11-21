@@ -150,7 +150,7 @@ function Keycap({
     >
       <Text
         numberOfLines={1}
-        className="text-overline uppercase text-foreground"
+        className="font-semibold text-overline uppercase text-foreground"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {label}
@@ -162,12 +162,12 @@ function Keycap({
 function Stat({ label, value, first }: { label: string; value: string; first: boolean }) {
   return (
     <View className={`flex-1 gap-0.5 px-3 ${first ? "pl-0" : ""}`}>
-      <Text className="text-overline uppercase text-muted" numberOfLines={1}>
+      <Text className="font-semibold text-overline uppercase text-muted" numberOfLines={1}>
         {label}
       </Text>
       <Text
         numberOfLines={1}
-        className="text-numeric-md text-foreground"
+        className="font-medium text-numeric-md text-foreground"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {value}
@@ -409,14 +409,14 @@ function LoadedTimer({
         return [
           ...(before
             ? [
-                <Text key={`${part.field}-sep`} className="text-body text-muted">
+                <Text key={`${part.field}-sep`} className="font-normal text-body text-muted">
                   {partSeparator(before, part)}
                 </Text>,
               ]
             : []),
           <Text
             key={part.field}
-            className={`rounded-md px-1.5 text-body text-foreground ${editing === part.field ? "bg-default" : ""}`}
+            className={`font-normal rounded-md px-1.5 text-body text-foreground ${editing === part.field ? "bg-default" : ""}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {part.text}
@@ -481,10 +481,13 @@ function LoadedTimer({
         </View>
 
         <View className="mt-2 flex-row items-center gap-3 px-5 pb-3">
-          <Text className="text-overline uppercase text-muted">
+          <Text className="font-semibold text-overline uppercase text-muted">
             {t("session__timer_progress_label")}
           </Text>
-          <Text className="text-overline text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className="font-semibold text-overline text-foreground"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {t("session__timer_progress", {
               done: padCount(action.setsDone),
               total: padCount(action.setsTotal),
@@ -499,10 +502,12 @@ function LoadedTimer({
               {t("session__timer_all_done")}
             </Text>
           ) : current === null ? (
-            <Text className="text-center text-body text-muted">{t("session__timer_no_sets")}</Text>
+            <Text className="font-normal text-center text-body text-muted">
+              {t("session__timer_no_sets")}
+            </Text>
           ) : (
             <>
-              <Text className="text-overline uppercase text-muted">
+              <Text className="font-semibold text-overline uppercase text-muted">
                 {t(resting ? "session__timer_rest_label" : "session__timer_work_label")}
               </Text>
               <Pressable
@@ -551,7 +556,7 @@ function LoadedTimer({
                     />
                   </View>
                   <Text
-                    className="text-center text-overline uppercase text-muted"
+                    className="font-semibold text-center text-overline uppercase text-muted"
                     style={{ fontVariant: ["tabular-nums"] }}
                   >
                     {t("session__timer_rest_span", {
@@ -578,14 +583,17 @@ function LoadedTimer({
                   {chip || String(current.index + 1)}
                 </Text>
               </View>
-              <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text
+                className="font-normal text-body text-foreground"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
                 {t("session__timer_set_of", { number: current.index + 1, total: current.total })}
               </Text>
               {parts.length > 0 ? <View className="size-1 rounded-full bg-muted" /> : null}
               {valueRow}
             </View>
             {action.next ? (
-              <Text numberOfLines={1} className="text-label text-muted">
+              <Text numberOfLines={1} className="font-medium text-label text-muted">
                 {action.next.kind === "exercise"
                   ? t("session__timer_next_exercise", { title: action.next.title })
                   : t("session__timer_next_set", { number: action.next.number })}

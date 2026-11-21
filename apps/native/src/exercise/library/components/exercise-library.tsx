@@ -309,7 +309,7 @@ export function ExerciseLibrary({
                   <RejectedExercises />
                   {listHeader}
                   <View className="flex-row items-center justify-between gap-3">
-                    <Text className="flex-1 text-caption text-muted">
+                    <Text className="font-normal flex-1 text-caption text-muted">
                       {library.total === null || status !== "ready"
                         ? ""
                         : t("exercise__count", { count: library.total })}

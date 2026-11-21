@@ -80,7 +80,7 @@ export function FeedbackSheet({
           />
           {email ? (
             <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1 text-body text-foreground">
+              <Text className="font-normal flex-1 text-body text-foreground">
                 {t("settings__feedback_include_email")}
               </Text>
               <Switch

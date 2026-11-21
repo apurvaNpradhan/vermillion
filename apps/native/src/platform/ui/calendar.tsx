@@ -1,7 +1,7 @@
 /**
  * Source: PanelUI Calendar (panelui-native 1.4.0, MIT, https://panelui.dev).
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
- * Keeps the caption, paging and fixed six-week grid in single-date mode. Uses Nord role
+ * Keeps the caption, paging and fixed six-week grid in single-date mode. Uses role
  * classes, Phosphor icons, caller-supplied strings and Gregorian UTC calendar-day values.
  */
 import type { WeekStart } from "@workspace/shared";
@@ -78,7 +78,7 @@ export function Calendar({
         accessibilityElementsHidden
       >
         {rows[0]?.map((day) => (
-          <Text key={day} className="flex-1 text-center text-caption text-muted">
+          <Text key={day} className="font-normal flex-1 text-center text-caption text-muted">
             {labels.weekday(day)}
           </Text>
         ))}
@@ -106,7 +106,7 @@ export function Calendar({
                   ${disabled ? "opacity-40" : ""}`}
               >
                 <Text
-                  className={`text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-medium text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
                 >
                   {labels.day(day)}
                 </Text>

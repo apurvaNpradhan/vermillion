@@ -22,7 +22,7 @@ export function AccountDeletedScreen() {
           <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
             {t("settings__delete_done_title")}
           </Text>
-          <Text className="text-muted">{t("settings__delete_done_body")}</Text>
+          <Text className="font-normal text-muted">{t("settings__delete_done_body")}</Text>
         </View>
         <Button onPress={() => router.replace("/")}>
           <Button.Label>{t("nav__home")}</Button.Label>

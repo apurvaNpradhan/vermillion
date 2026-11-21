@@ -108,7 +108,7 @@ export function DateSheet({
                   : "min-h-11 justify-center rounded-xl border border-transparent bg-surface px-3 active:opacity-60"
               }
             >
-              <Text className="text-body text-foreground">
+              <Text className="font-normal text-body text-foreground">
                 {index === 0
                   ? t("session__today")
                   : yesterday && index === 1
@@ -119,7 +119,9 @@ export function DateSheet({
           );
         })}
       </View>
-      <Text className="text-body text-muted tabular-nums">{time.format(startedAt)}</Text>
+      <Text className="font-normal text-body text-muted tabular-nums">
+        {time.format(startedAt)}
+      </Text>
       <View className="gap-3">
         <Stepper
           label={t("session__hour")}

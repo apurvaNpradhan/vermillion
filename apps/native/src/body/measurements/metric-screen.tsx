@@ -111,8 +111,10 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
                     onPress={() => setEntry(row)}
                     className="flex-row justify-between gap-4 rounded-xl py-4 active:bg-default"
                   >
-                    <Text className="text-body text-muted">{date(row.local_date)}</Text>
-                    <Text className="text-body tabular-nums text-foreground">
+                    <Text className="font-normal text-body tabular-nums text-muted">
+                      {date(row.local_date)}
+                    </Text>
+                    <Text className="font-normal text-body tabular-nums text-foreground">
                       {format(row.value)}
                     </Text>
                   </Pressable>

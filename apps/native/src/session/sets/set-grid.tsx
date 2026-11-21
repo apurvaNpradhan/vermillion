@@ -134,21 +134,26 @@ export const SetGrid = memo(function SetGrid({
     <SwipeGroup>
       <View className="gap-1">
         <View className="flex-row items-center gap-1.5 border border-transparent px-1">
-          <Text className="w-10 text-center text-caption text-muted">{t("training__col_set")}</Text>
-          <Text className="min-w-0 flex-[1.3] text-center text-caption text-muted">
+          <Text className="font-normal w-10 text-center text-caption text-muted">
+            {t("training__col_set")}
+          </Text>
+          <Text className="font-normal min-w-0 flex-[1.3] text-center text-caption text-muted">
             {t("session__col_previous")}
           </Text>
           {fields.map((field) => (
             <Text
               key={field}
               numberOfLines={1}
-              className={`min-w-0 text-center text-caption text-muted ${field === "reps" ? "flex-[1.2]" : "flex-1"}`}
+              className={`font-normal min-w-0 text-center text-caption text-muted ${field === "reps" ? "flex-[1.2]" : "flex-1"}`}
             >
               {header(field)}
             </Text>
           ))}
           {showsEffort ? (
-            <Text numberOfLines={1} className="w-11 text-center text-caption text-muted">
+            <Text
+              numberOfLines={1}
+              className="font-normal w-11 text-center text-caption text-muted"
+            >
               {t(effortScale === "rpe" ? "training__effort_rpe" : "training__effort_rir")}
             </Text>
           ) : null}
@@ -195,7 +200,9 @@ export const SetGrid = memo(function SetGrid({
               onTimer={onTimer}
             />
             {optional.has(index) && set.completedAt === null ? (
-              <Text className="px-3 pb-1 text-caption text-muted">{t("lighter__optional")}</Text>
+              <Text className="font-normal px-3 pb-1 text-caption text-muted">
+                {t("lighter__optional")}
+              </Text>
             ) : null}
           </View>
         ))}

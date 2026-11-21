@@ -63,7 +63,9 @@ export function MuscleDistribution({
   const name = (row: ShareRow) =>
     t(row.detail === null ? MUSCLE_GROUP_KEYS[row.muscle] : MUSCLE_DETAIL_KEYS[row.detail]);
   if (rows.length === 0) {
-    return <Text className="text-body text-muted">{t("muscles__distribution_empty")}</Text>;
+    return (
+      <Text className="font-normal text-body text-muted">{t("muscles__distribution_empty")}</Text>
+    );
   }
   return (
     <View className="gap-3">
@@ -98,7 +100,7 @@ export function MuscleDistribution({
             className="gap-1.5"
           >
             <View className="flex-row items-baseline justify-between gap-3">
-              <Text className="flex-1 text-body text-foreground" numberOfLines={1}>
+              <Text className="font-normal flex-1 text-body text-foreground" numberOfLines={1}>
                 {name(row)}
                 {detailed ? (
                   <Text className="text-caption text-muted">
@@ -107,7 +109,10 @@ export function MuscleDistribution({
                   </Text>
                 ) : null}
               </Text>
-              <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text
+                className="font-normal text-body text-foreground"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
                 {percent}
               </Text>
             </View>

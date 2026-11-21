@@ -125,15 +125,15 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
       <FormError message={failure} />
       <NeedsConnection />
       {notice ? (
-        <Text accessibilityLiveRegion="polite" className="text-caption text-muted">
+        <Text accessibilityLiveRegion="polite" className="font-normal text-caption text-muted">
           {notice}
         </Text>
       ) : null}
       {flow === "get-started" ? (
-        <Text className="text-caption text-muted">{t("auth__code_existing_hint")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("auth__code_existing_hint")}</Text>
       ) : null}
       <View className="flex-row flex-wrap items-center gap-1.5 pt-2">
-        <Text className="text-body text-muted">{t("auth__code_no_code")}</Text>
+        <Text className="font-normal text-body text-muted">{t("auth__code_no_code")}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: resendDisabled }}

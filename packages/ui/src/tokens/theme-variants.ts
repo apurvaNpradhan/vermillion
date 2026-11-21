@@ -2,26 +2,26 @@ import type { RoleTokens } from "./roles";
 import { buildTheme } from "./themes/engine";
 import { graphite } from "./themes/graphite";
 import { mulberry } from "./themes/mulberry";
-import { nord } from "./themes/nord";
+import { patina } from "./themes/patina";
 import { oxide } from "./themes/oxide";
 import { slate } from "./themes/slate";
 
 export { buildTheme } from "./themes/engine";
-export { nord as basalt } from "./themes/nord";
+export { patina } from "./themes/patina";
 
 // SAFETY: the literal list defines the complete app theme union.
-export const themeIds = ["nord", "graphite", "oxide", "slate", "mulberry"] as const;
+export const themeIds = ["patina", "graphite", "oxide", "slate", "mulberry"] as const;
 /** An app theme the person can pick. */
 export type ThemeId = (typeof themeIds)[number];
 /** The app's default theme. */
-export const DEFAULT_THEME_ID: ThemeId = "nord";
+export const DEFAULT_THEME_ID: ThemeId = "patina";
 
-const definitions = { nord, graphite, oxide, slate, mulberry } as const;
+const definitions = { patina, graphite, oxide, slate, mulberry } as const;
 
 // SAFETY: the literal list defines the complete variant-suffix union.
 export const variantSuffixes = ["light", "dark", "light-contrast", "dark-contrast"] as const;
 export type VariantSuffix = (typeof variantSuffixes)[number];
-/** A Uniwind theme name: one theme in one scheme at one contrast level (`nord-dark-contrast`). */
+/** A Uniwind theme name: one theme in one scheme at one contrast level (`patina-dark-contrast`). */
 export type ThemeVariant = `${ThemeId}-${VariantSuffix}`;
 
 export function variantName(theme: ThemeId, suffix: VariantSuffix): ThemeVariant {

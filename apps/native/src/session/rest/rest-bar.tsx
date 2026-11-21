@@ -84,7 +84,7 @@ export function RestBar({
       </View>
       <View className="flex-row items-center gap-2 px-3 py-2">
         <View className="flex-1">
-          <Text className="text-caption text-muted">{t("session__rest_label")}</Text>
+          <Text className="font-normal text-caption text-muted">{t("session__rest_label")}</Text>
           <Animated.Text
             accessibilityLiveRegion="none"
             className="font-semibold text-numeric-md text-foreground"
@@ -100,7 +100,9 @@ export function RestBar({
           className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
         >
           <Minus size={20} color={foreground} />
-          <Text className="text-label text-foreground">{REST_ADJUST_SECONDS}</Text>
+          <Text className="font-medium text-label tabular-nums text-foreground">
+            {REST_ADJUST_SECONDS}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -109,7 +111,9 @@ export function RestBar({
           className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
         >
           <Plus size={20} color={foreground} />
-          <Text className="text-label text-foreground">{REST_ADJUST_SECONDS}</Text>
+          <Text className="font-medium text-label tabular-nums text-foreground">
+            {REST_ADJUST_SECONDS}
+          </Text>
         </Pressable>
         <Button variant="secondary" onPress={onSkip}>
           <Button.Label>{t("session__rest_skip")}</Button.Label>

@@ -19,7 +19,7 @@
       "environment": "production",
       "channel": "production",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_SERVER_URL": "https://basalt-api.lostsignal.cloud" }
+      "env": { "EXPO_PUBLIC_SERVER_URL": "https://patina-api.lostsignal.cloud" }
     }
   },
   "submit": {

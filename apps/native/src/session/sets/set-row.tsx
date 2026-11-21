@@ -279,7 +279,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         ) : (
           <Text
             numberOfLines={1}
-            className="text-center text-caption text-muted"
+            className="font-normal text-center text-caption text-muted"
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {previousText ?? "–"}
@@ -300,7 +300,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
         >
           <Text
-            className={`text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
+            className={`font-normal text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}

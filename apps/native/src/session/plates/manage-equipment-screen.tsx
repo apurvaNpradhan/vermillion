@@ -112,9 +112,11 @@ export function ManageEquipmentScreen() {
                             accessibilityLabel={t("plates__edit_item", { name: label(item) })}
                             onPress={() => openForm(item.kind, item.unit, item)}
                           >
-                            <Text className="text-body text-foreground">{label(item)}</Text>
+                            <Text className="font-normal text-body text-foreground">
+                              {label(item)}
+                            </Text>
                             {item.kind === "plate" ? (
-                              <Text className="text-caption text-muted">
+                              <Text className="font-normal text-caption text-muted tabular-nums">
                                 {item.count === null
                                   ? t("plates__unlimited")
                                   : t("plates__pairs", { count: item.count })}
@@ -299,7 +301,7 @@ function CustomEquipmentForm({
         </form.Field>
       )}
       {error ? (
-        <Text accessibilityRole="alert" className="text-body text-danger">
+        <Text accessibilityRole="alert" className="font-normal text-body text-danger">
           {t("plates__invalid")}
         </Text>
       ) : null}

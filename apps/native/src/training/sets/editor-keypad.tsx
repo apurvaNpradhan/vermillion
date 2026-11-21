@@ -232,7 +232,7 @@ export function EditorKeypadProvider({
               hasNext={active.hasNext}
               stepText={stepText}
               accessory={
-                <Text numberOfLines={1} className="flex-1 text-caption text-muted">
+                <Text numberOfLines={1} className="font-normal flex-1 text-caption text-muted">
                   {active.entry.cell.label}
                 </Text>
               }

@@ -165,7 +165,9 @@ function LoadedDetails({
           />
         </View>
         {sessions === null ? (
-          <Text className="text-caption text-muted">{t("training__sessions_per_week_auto")}</Text>
+          <Text className="font-normal text-caption text-muted">
+            {t("training__sessions_per_week_auto")}
+          </Text>
         ) : null}
       </View>
 

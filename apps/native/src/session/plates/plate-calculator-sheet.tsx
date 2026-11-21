@@ -70,7 +70,7 @@ export function PlateChip({
         className="min-h-11 flex-row items-center gap-2 px-3 active:opacity-60"
       >
         {swatch ? <View className={`size-3 rounded-full ${swatch}`} /> : null}
-        <Text className="text-body text-foreground tabular-nums">{label}</Text>
+        <Text className="font-normal text-body text-foreground tabular-nums">{label}</Text>
         {count ? (
           <Text className="font-semibold text-body text-foreground tabular-nums">×{count}</Text>
         ) : null}
@@ -252,13 +252,13 @@ function CalculatorBody({
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
-                <Text className="text-label text-identity">
+                <Text className="font-medium text-label text-identity">
                   {t("plates__missing_bar", { name: state.missingBar })}
                 </Text>
               </Pressable>
             ) : null}
             {!state.bar ? (
-              <Text className="text-body text-muted">{t(noBarKey)}</Text>
+              <Text className="font-normal text-body text-muted">{t(noBarKey)}</Text>
             ) : (
               <>
                 <SegmentedControl
@@ -287,36 +287,42 @@ function CalculatorBody({
                 ) : null}
                 <View className="gap-1">
                   {!building && hasTarget(state.target) ? (
-                    <Text className="text-label text-muted tabular-nums">
+                    <Text className="font-medium text-label text-muted tabular-nums">
                       {t("plates__target", { weight: weight(state.target) })}
                     </Text>
                   ) : null}
-                  <Text className="text-title-lg text-foreground tabular-nums">
+                  <Text className="font-semibold text-title-lg text-foreground tabular-nums">
                     {t("plates__total", { weight: weight(totalKg) })}
                     {!building && choice && choice.differenceKg === 0
                       ? ` · ${t("plates__exact")}`
                       : null}
                   </Text>
-                  <Text className="text-body text-foreground tabular-nums">
+                  <Text className="font-normal text-body text-foreground tabular-nums">
                     {platesPerSide.length === 0
                       ? t("plates__bar_weight", { weight: weight(barKg) })
                       : t("plates__side_weight", { weight: weight(sideKg) })}
                   </Text>
-                  <Text className="text-body text-muted">{sideText}</Text>
+                  <Text className="font-normal text-body text-muted tabular-nums">{sideText}</Text>
                   {!building &&
                   hasTarget(state.target) &&
                   result &&
                   result.below === null &&
                   !result.exact ? (
-                    <Text className="text-body text-muted">{t("plates__below_bar")}</Text>
+                    <Text className="font-normal text-body text-muted">
+                      {t("plates__below_bar")}
+                    </Text>
                   ) : null}
                   {!building && !hasTarget(state.target) ? (
-                    <Text className="text-body text-muted">{t("plates__enter_weight")}</Text>
+                    <Text className="font-normal text-body text-muted">
+                      {t("plates__enter_weight")}
+                    </Text>
                   ) : !building && !choice ? (
-                    <Text className="text-body text-muted">{t("plates__no_load")}</Text>
+                    <Text className="font-normal text-body text-muted">{t("plates__no_load")}</Text>
                   ) : null}
                   {building && over.length > 0 ? (
-                    <Text className="text-body text-warning">{t("plates__over_inventory")}</Text>
+                    <Text className="font-normal text-body text-warning">
+                      {t("plates__over_inventory")}
+                    </Text>
                   ) : null}
                 </View>
                 <BarDiagram
@@ -331,7 +337,7 @@ function CalculatorBody({
                 {building ? (
                   <>
                     <View className="flex-row items-center justify-between">
-                      <Text className="flex-1 text-label text-muted">
+                      <Text className="font-medium flex-1 text-label text-muted">
                         {t("plates__build_hint")}
                       </Text>
                       {stack.length > 0 ? (
@@ -369,8 +375,10 @@ function CalculatorBody({
                   </>
                 ) : (
                   <>
-                    <Text className="text-label text-muted">{t("plates__available")}</Text>
-                    <Text className="text-body text-muted tabular-nums">
+                    <Text className="font-medium text-label text-muted">
+                      {t("plates__available")}
+                    </Text>
+                    <Text className="font-normal text-body text-muted tabular-nums">
                       {unitPlates.map((p) => label(p)).join(", ")}
                     </Text>
                   </>

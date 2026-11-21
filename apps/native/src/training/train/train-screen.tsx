@@ -136,7 +136,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             >
               {t("training__other_workouts")}
             </Text>
-            <Text className="text-body tabular-nums text-muted">{item.count}</Text>
+            <Text className="font-normal text-body tabular-nums text-muted">{item.count}</Text>
             <View className="flex-1" />
             <Caret size={20} weight="regular" color={subtle} />
           </Pressable>
@@ -233,7 +233,9 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                       <Text className="text-title-md font-semibold text-foreground">
                         {resume.title}
                       </Text>
-                      <Text className="text-caption text-muted">{t("home__in_progress")}</Text>
+                      <Text className="font-normal text-caption text-muted">
+                        {t("home__in_progress")}
+                      </Text>
                     </View>
                     <Button
                       accessibilityLabel={t("session__resume_label", { title: resume.title })}
@@ -276,7 +278,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               <View className="px-4">
                 {status === "empty" ? (
                   <View className="items-center gap-2">
-                    <EmptyState icon={Barbell} title={t("training__empty_plans")} />
+                    <EmptyState icon={Barbell} mascot title={t("training__empty_plans")} />
                     <View className="flex-row flex-wrap justify-center gap-3">
                       <Button variant="secondary" onPress={newWorkout}>
                         <Button.Label>{t("training__new_workout")}</Button.Label>
@@ -293,7 +295,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                   isFirstSync(workoutList.status) ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
                   ) : (
-                    <EmptyState icon={Barbell} title={t("training__no_workouts")} />
+                    <EmptyState icon={Barbell} mascot title={t("training__no_workouts")} />
                   )
                 ) : null}
               </View>

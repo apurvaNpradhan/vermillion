@@ -36,7 +36,7 @@ export function StalledNote({
         }}
         className="min-h-11 flex-1 justify-center"
       >
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {applied ? t("stall__applied") : t("stall__note", { count })}
           {applied ? <Text className="text-identity">{` ${t("stall__undo")}`}</Text> : null}
         </Text>

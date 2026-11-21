@@ -179,7 +179,10 @@ export function HeatmapChart({
                     [flipped ? "right" : "left"]: flipped ? width - anchorX : anchorX,
                   }}
                 >
-                  <Text numberOfLines={1} className="text-caption tabular-nums text-foreground">
+                  <Text
+                    numberOfLines={1}
+                    className="font-normal text-caption tabular-nums text-foreground"
+                  >
                     {labels.cell(bin)}
                   </Text>
                 </View>
@@ -195,7 +198,7 @@ export function HeatmapChart({
               <Text
                 key={month.column}
                 numberOfLines={1}
-                className="absolute text-caption text-muted"
+                className="font-normal absolute text-caption text-muted"
                 style={{ left: month.column * step }}
               >
                 {labels.month(month.day)}

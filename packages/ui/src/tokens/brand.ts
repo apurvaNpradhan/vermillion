@@ -1,6 +1,6 @@
 import type { RoleName, RoleTokens } from "./roles";
 import {
-  basalt,
+  patina,
   buildTheme,
   DEFAULT_THEME_ID,
   themeVariantNames,
@@ -24,7 +24,7 @@ export const nativeColors: Record<NativeVariant, RoleTokens> = {
   ...themeVariants,
 };
 
-const { light, dark } = buildTheme(basalt);
+const { light, dark } = buildTheme(patina);
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
@@ -117,14 +117,16 @@ export const brandTokens = {
   nativeRadius: "8px",
   type: typeScale,
   fonts: {
-    sans: '"Inter Variable", ui-sans-serif, system-ui, sans-serif',
-    mono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    /** Static Inter files loaded by the native app, by PostScript name. */
+    sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
+    mono: '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    /** Static faces registered by Expo under these keys. */
     native: {
-      normal: "Inter_400Regular",
-      medium: "Inter_500Medium",
-      semibold: "Inter_600SemiBold",
-      bold: "Inter_700Bold",
+      normal: "Geist_400Regular",
+      medium: "Geist_500Medium",
+      semibold: "Geist_600SemiBold",
+      bold: "Geist_700Bold",
+      mono: "GeistMono_400Regular",
+      "mono-medium": "GeistMono_500Medium",
     },
   },
 } as const;

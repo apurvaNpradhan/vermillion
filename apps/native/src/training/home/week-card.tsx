@@ -55,10 +55,10 @@ export function WeekCard({
   );
   const stat = (label: string, value: ReactNode, change: number | null) => (
     <View className="gap-0.5">
-      <Text className="text-caption text-muted">{label}</Text>
+      <Text className="font-normal text-caption text-muted">{label}</Text>
       {value}
       {change === null ? null : (
-        <Text className="text-caption tabular-nums text-muted">{percent(change)}</Text>
+        <Text className="font-normal text-caption tabular-nums text-muted">{percent(change)}</Text>
       )}
     </View>
   );
@@ -82,7 +82,7 @@ export function WeekCard({
             size={72}
             label={t("session__goal_accessible", { count: summary.sessions, goal })}
           >
-            <Text className="text-numeric-md tabular-nums text-foreground">
+            <Text className="font-medium text-numeric-md tabular-nums text-foreground">
               {t("session__goal_ratio", { done: summary.sessions, goal })}
             </Text>
           </ProgressRing>

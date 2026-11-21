@@ -15,7 +15,7 @@ export function OwnershipBanner({ lost, onTakeOver }: { lost: boolean; onTakeOve
         <Text accessibilityRole="header" className="font-semibold text-body text-foreground">
           {t(lost ? "session__continued_elsewhere" : "session__in_progress_elsewhere")}
         </Text>
-        <Text className="text-caption text-muted">{t("session__read_only_hint")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("session__read_only_hint")}</Text>
       </View>
       <Button variant="primary" onPress={onTakeOver}>
         <Button.Label>{t("session__take_over")}</Button.Label>

@@ -103,7 +103,7 @@ function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: ()
         </Text>
         <Text
           numberOfLines={1}
-          className="text-caption text-muted"
+          className="font-normal text-caption text-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
           <Clock startedAt={session.startedAt} />

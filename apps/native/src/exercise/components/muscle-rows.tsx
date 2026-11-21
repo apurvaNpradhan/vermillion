@@ -38,7 +38,7 @@ export function MuscleRegions({
     <View className="gap-4">
       {MUSCLE_REGIONS.map((region) => (
         <View key={region} className="gap-2">
-          <Text accessibilityRole="header" className="text-caption text-muted">
+          <Text accessibilityRole="header" className="font-normal text-caption text-muted">
             {t(MUSCLE_REGION_KEYS[region])}
           </Text>
           <MuscleRows

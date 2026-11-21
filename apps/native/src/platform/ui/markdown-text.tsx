@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
-import { Linking, Platform, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 
 import { isLongMarkdown, markdownRuns } from "./markdown";
-
-const MONO = Platform.select({ ios: "Menlo", default: "monospace" });
 
 /**
  * Markdown, read only, as one block of native text (headings bold, lists bulleted, links
@@ -28,17 +26,22 @@ export function MarkdownText({
 
   return (
     <View className="items-start gap-1">
-      <Text numberOfLines={clamp} className="text-body text-foreground">
+      <Text numberOfLines={clamp} className="font-normal text-body text-foreground">
         {runs.map((run, index) => {
           const href = run.href;
+          const font = run.code
+            ? run.bold
+              ? "font-mono-medium"
+              : "font-mono"
+            : run.bold
+              ? "font-semibold"
+              : "";
           return (
             <Text
               key={index}
               accessibilityRole={href === null ? undefined : "link"}
               onPress={href === null ? undefined : () => void Linking.openURL(href)}
-              className={`text-body text-foreground ${run.bold ? "font-semibold" : ""} ${
-                href === null ? "" : "underline"
-              }`}
+              className={`text-body text-foreground ${font} ${href === null ? "" : "underline"}`}
               style={{
                 fontStyle: run.italic ? "italic" : "normal",
                 textDecorationLine:
@@ -49,7 +52,6 @@ export function MarkdownText({
                       : href !== null
                         ? "underline"
                         : "none",
-                ...(run.code ? { fontFamily: MONO } : null),
               }}
             >
               {run.text}

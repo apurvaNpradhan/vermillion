@@ -63,7 +63,7 @@ export function RemindersStep({ onDone }: { onDone: () => void }) {
           <Icon size={24} color={foreground} />
           <View className="flex-1 gap-0.5">
             <Text className="text-body font-semibold text-foreground">{t(title)}</Text>
-            <Text className="text-body text-muted">{t(body)}</Text>
+            <Text className="font-normal text-body text-muted">{t(body)}</Text>
           </View>
         </View>
       ))}
@@ -72,7 +72,7 @@ export function RemindersStep({ onDone }: { onDone: () => void }) {
           <Text className="text-body font-medium text-foreground">
             {t("onboarding__notify_daily")}
           </Text>
-          <Text className="text-caption text-muted">
+          <Text className="font-normal text-caption text-muted">
             {t("onboarding__notify_daily_hint", { time: preferences.ui.weighInReminder.time })}
           </Text>
         </View>

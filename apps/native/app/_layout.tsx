@@ -3,13 +3,13 @@ import "@/platform/local-database/crypto-polyfill";
 import "@/platform/i18n/polyfills";
 import "../global.css";
 
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
+import { Geist_400Regular } from "@expo-google-fonts/geist/400Regular";
+import { Geist_500Medium } from "@expo-google-fonts/geist/500Medium";
+import { Geist_600SemiBold } from "@expo-google-fonts/geist/600SemiBold";
+import { Geist_700Bold } from "@expo-google-fonts/geist/700Bold";
+import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
+import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
+import { useFonts } from "expo-font";
 import { pendingOnboardingSteps } from "@workspace/shared";
 import { useSetupPending } from "@/onboarding";
 import * as SplashScreen from "expo-splash-screen";
@@ -47,12 +47,14 @@ function RootStack() {
   const { session, isPending: sessionPending } = useSession();
   const owner = useDeviceOwner();
   useExpireSessionOnResume();
-  // Inter, mapped to HeroUI's font tokens in the generated native-tokens.css.
+  // The registration keys match the generated native font tokens.
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
   });
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).

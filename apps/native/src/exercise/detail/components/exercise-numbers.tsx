@@ -134,7 +134,9 @@ export function ExerciseNumbers({
   return (
     <View className="gap-6 px-4">
       {addsLoad(type) && needsBodyweight ? (
-        <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
+        <Text className="font-normal text-caption text-muted">
+          {t("exercise__bodyweight_hint")}
+        </Text>
       ) : null}
       {type === "weight_reps" || addsLoad(type) ? (
         <ExerciseProgress
@@ -170,7 +172,9 @@ export function ExerciseNumbers({
             ))}
           </ScrollView>
           {needsBodyweight ? (
-            <Text className="text-caption text-muted">{t("exercise__bodyweight_hint")}</Text>
+            <Text className="font-normal text-caption text-muted">
+              {t("exercise__bodyweight_hint")}
+            </Text>
           ) : null}
           <Chart
             points={points}
@@ -227,19 +231,21 @@ export function ExerciseNumbers({
           records.map((record) => (
             <View key={record.key} className="flex-row justify-between gap-3">
               <View className="flex-1">
-                <Text className="text-body text-foreground">{label(record.key)}</Text>
-                <Text className="text-caption text-muted">{date(record.date)}</Text>
+                <Text className="font-normal text-body text-foreground">{label(record.key)}</Text>
+                <Text className="font-normal text-caption tabular-nums text-muted">
+                  {date(record.date)}
+                </Text>
               </View>
               <View className="items-end">
                 <Text
-                  className="text-body text-foreground"
+                  className="font-normal text-body text-foreground"
                   style={{ fontVariant: ["tabular-nums"] }}
                 >
                   {format(record.value, record.key)}
                 </Text>
                 {record.allTime !== null ? (
                   <Text
-                    className="text-caption text-muted"
+                    className="font-normal text-caption text-muted"
                     style={{ fontVariant: ["tabular-nums"] }}
                   >
                     {t("exercise__records_all_time_value", {
@@ -251,7 +257,7 @@ export function ExerciseNumbers({
             </View>
           ))
         ) : (
-          <Text className="text-body text-muted">{t("exercise__records_empty")}</Text>
+          <Text className="font-normal text-body text-muted">{t("exercise__records_empty")}</Text>
         )}
       </View>
       <BottomSheet isOpen={help} onOpenChange={setHelp}>
@@ -277,7 +283,7 @@ export function ExerciseNumbers({
                   <Text className="text-body font-semibold text-foreground">
                     {key === "reps_1" ? t("exercise__rep_records") : label(key)}
                   </Text>
-                  <Text className="text-body text-muted">
+                  <Text className="font-normal text-body text-muted">
                     {t(
                       key === "reps_1"
                         ? "exercise__help_reps"

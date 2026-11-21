@@ -38,7 +38,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
           ListHeaderComponent={<View className="px-4 pb-4">{header}</View>}
           ListEmptyComponent={
             history.status === "loading" ? null : (
-              <Text className="px-4 text-body text-muted">
+              <Text className="font-normal px-4 text-body text-muted">
                 {t(
                   history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
                 )}

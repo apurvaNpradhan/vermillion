@@ -20,7 +20,7 @@ import Animated, {
 import Svg, { G, Line, Path, Polygon, Text as SvgText } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
-import { nativeColors } from "@workspace/ui/tokens/brand";
+import { brandTokens, nativeColors } from "@workspace/ui/tokens/brand";
 
 import { isColorString, useAppliedVariant, useSubtleColor } from "@/platform/theme";
 
@@ -230,7 +230,7 @@ export function RadarChart({
                     y={y}
                     fill={labelColor}
                     fontSize={11}
-                    fontWeight="500"
+                    fontFamily={brandTokens.fonts.native.medium}
                     textAnchor={anchor}
                   >
                     {axis.label}

@@ -18,12 +18,12 @@ function contrast(a: string, b: string) {
 }
 
 describe("theme list", () => {
-  it("offers Basalt, Graphite, Oxide, Slate, Mulberry in that order, without Olive", () => {
-    expect(themeIds).toEqual(["nord", "graphite", "oxide", "slate", "mulberry"]);
+  it("offers Patina, Graphite, Oxide, Slate, Mulberry in that order, without Nord or Olive", () => {
+    expect(themeIds).toEqual(["patina", "graphite", "oxide", "slate", "mulberry"]);
   });
 });
 
-describe.each(["nord", "graphite", "oxide"] as const)("%s accent", (id) => {
+describe.each(["patina", "graphite", "oxide"] as const)("%s accent", (id) => {
   for (const scheme of ["light", "dark"] as const) {
     const c = themeVariants[`${id}-${scheme}`];
     it(`${scheme}: on-action text is at least 4.5:1 on the filled button`, () => {
@@ -36,10 +36,28 @@ describe.each(["nord", "graphite", "oxide"] as const)("%s accent", (id) => {
   }
 });
 
-describe("Basalt moss", () => {
-  it("keeps a dark moss button with pale lichen text in dark mode", () => {
-    const c = themeVariants["nord-dark"];
-    expect(c.action.toLowerCase()).toBe("#2c4231");
-    expect(c["on-action"].toLowerCase()).toBe("#cfe3d2");
+describe("Patina logo colours", () => {
+  it("is the logo as drawn in dark: ink canvas, ivory text, an olive button with an ink label", () => {
+    const c = themeVariants["patina-dark"];
+    expect(c.canvas.toLowerCase()).toBe("#19130f");
+    expect(c["text-primary"].toLowerCase()).toBe("#fdf4e6");
+    expect(c.action.toLowerCase()).toBe("#869044");
+    expect(c["on-action"].toLowerCase()).toBe("#19130f");
+  });
+
+  it("is ivory paper with ink text in light, and a deeper olive that holds its label", () => {
+    const c = themeVariants["patina-light"];
+    expect(c.canvas.toLowerCase()).toBe("#fdf4e6");
+    expect(c["text-primary"].toLowerCase()).toBe("#19130f");
+    expect(contrast(c["on-action"], c.action)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(c.action, c.canvas)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps the label and the accent readable in both contrast levels", () => {
+    for (const mode of ["light", "dark", "light-contrast", "dark-contrast"] as const) {
+      const c = themeVariants[`patina-${mode}`];
+      expect(contrast(c["on-action"], c.action), mode).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(c.identity, c.canvas), mode).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

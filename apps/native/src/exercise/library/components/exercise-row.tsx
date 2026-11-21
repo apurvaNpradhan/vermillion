@@ -101,11 +101,13 @@ export const ExerciseRow = memo(function ExerciseRow({
           </Text>
           {exercise.isCustom ? (
             <View className="rounded-sm bg-default px-1.5 py-0.5">
-              <Text className="text-caption text-muted">{t("exercise__custom_badge")}</Text>
+              <Text className="font-normal text-caption text-muted">
+                {t("exercise__custom_badge")}
+              </Text>
             </View>
           ) : null}
         </View>
-        <Text numberOfLines={1} className="text-caption text-muted">
+        <Text numberOfLines={1} className="font-normal text-caption text-muted">
           {subtitle}
         </Text>
       </View>

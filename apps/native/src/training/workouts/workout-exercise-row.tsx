@@ -111,14 +111,14 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
             </Text>
             <Text
               numberOfLines={2}
-              className="text-caption text-muted"
+              className="font-normal text-caption text-muted"
               style={{ fontVariant: ["tabular-nums"] }}
             >
               {summary}
             </Text>
             {entry.pinnedNote ? <PinnedNote note={entry.pinnedNote} /> : null}
             {entry.note ? (
-              <Text numberOfLines={2} className="text-caption text-muted">
+              <Text numberOfLines={2} className="font-normal text-caption text-muted">
                 {entry.note}
               </Text>
             ) : null}

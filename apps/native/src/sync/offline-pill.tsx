@@ -53,7 +53,7 @@ export function OfflinePill() {
               <BottomSheet.Title className="font-semibold text-title-lg">
                 {t("offline__title")}
               </BottomSheet.Title>
-              <Text className="text-body text-muted">{t("offline__body")}</Text>
+              <Text className="font-normal text-body text-muted">{t("offline__body")}</Text>
             </View>
           </BottomSheet.Content>
         </BottomSheet.Portal>

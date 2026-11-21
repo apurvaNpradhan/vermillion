@@ -178,12 +178,14 @@ export function SetTable({
     <SwipeGroup>
       <View className="gap-2">
         <View className="flex-row items-center gap-2">
-          <Text className="w-12 text-center text-caption text-muted">{t("training__col_set")}</Text>
+          <Text className="font-normal w-12 text-center text-caption text-muted">
+            {t("training__col_set")}
+          </Text>
           {columns.map((column) => (
             <Text
               key={column}
               numberOfLines={1}
-              className={`${grow(column)} text-center text-caption text-muted`}
+              className={`font-normal ${grow(column)} text-center text-caption text-muted`}
             >
               {header(column)}
             </Text>
@@ -238,7 +240,7 @@ export function SetTable({
                     className="h-10 flex-1 items-center justify-center rounded-lg bg-field active:bg-default"
                   >
                     <Text
-                      className={`text-body ${value === null ? "text-muted" : "text-foreground"}`}
+                      className={`font-normal text-body ${value === null ? "text-muted" : "text-foreground"}`}
                       style={{ fontVariant: ["tabular-nums"] }}
                     >
                       {value ?? "–"}

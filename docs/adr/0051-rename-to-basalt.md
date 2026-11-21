@@ -1,6 +1,6 @@
 # 0051. Rename to Basalt
 
-Status: accepted, 2026-11-21. Amends [0046](0046-site-admin-closed-beta-and-rename.md) (the
+Status: superseded by [0052](0052-rename-to-patina.md), 2026-11-21. Amended [0046](0046-site-admin-closed-beta-and-rename.md) (the
 name, scheme, bundle id and hosts it chose). Earlier ADRs keep the name they were written with.
 
 ## Context

@@ -184,11 +184,11 @@ function CheckInForm({
                       onPress={() => select(index)}
                       className={`flex-1 flex-row justify-between gap-3 rounded-xl px-2 py-3 active:opacity-70 ${index === active ? "bg-default" : ""}`}
                     >
-                      <Text className="text-body text-foreground">
+                      <Text className="font-normal text-body text-foreground">
                         {t(metricLabels[item.metric])}
                       </Text>
                       <Text
-                        className={`text-body tabular-nums ${!entry && !item.touched ? "text-muted" : "text-foreground"}`}
+                        className={`font-normal text-body tabular-nums ${!entry && !item.touched ? "text-muted" : "text-foreground"}`}
                       >
                         {t("body__value", {
                           value: item.touched
@@ -219,10 +219,10 @@ function CheckInForm({
               })}
             </View>
             {!entry ? (
-              <Text className="text-caption text-muted">{t("body__ghost_hint")}</Text>
+              <Text className="font-normal text-caption text-muted">{t("body__ghost_hint")}</Text>
             ) : null}
             {actions.error || photoActions.error ? (
-              <Text accessibilityRole="alert" className="text-body text-danger">
+              <Text accessibilityRole="alert" className="font-normal text-body text-danger">
                 {actions.error || photoActions.error}
               </Text>
             ) : null}

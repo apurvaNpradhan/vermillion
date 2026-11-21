@@ -90,7 +90,7 @@ export function MuscleGoalSheet({
             />
           )}
           {planned !== null && picked === null && planned > 0 ? (
-            <Text className="text-caption tabular-nums text-muted">
+            <Text className="font-normal text-caption tabular-nums text-muted">
               {t("muscles__program_count", { sets: formatSets(planned, i18n.language) })}
             </Text>
           ) : null}
@@ -106,7 +106,7 @@ export function MuscleGoalSheet({
             </Button>
           ) : null}
           {planned !== null && preset ? (
-            <Text className="text-caption tabular-nums text-muted">
+            <Text className="font-normal text-caption tabular-nums text-muted">
               {t("muscles__level_range", preset)}
             </Text>
           ) : planned !== null && picked === "custom" ? (
@@ -143,24 +143,26 @@ export function MuscleGoalSheet({
           <View className="gap-2 rounded-2xl bg-surface p-4">
             <Text className="text-caption font-medium text-muted">{t("muscles__sets_from")}</Text>
             {contributions.length === 0 ? (
-              <Text className="text-body text-muted">{t("muscles__sets_from_none")}</Text>
+              <Text className="font-normal text-body text-muted">
+                {t("muscles__sets_from_none")}
+              </Text>
             ) : (
               contributions.slice(0, LISTED).map((item) => (
                 <View
                   key={item.exerciseId}
                   className="flex-row items-baseline justify-between gap-3"
                 >
-                  <Text numberOfLines={1} className="flex-1 text-body text-foreground">
+                  <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
                     {item.title}
                   </Text>
-                  <Text className="text-body tabular-nums text-muted">
+                  <Text className="font-normal text-body tabular-nums text-muted">
                     {formatSets(item.sets, i18n.language)}
                   </Text>
                 </View>
               ))
             )}
             {contributions.length > LISTED ? (
-              <Text className="text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("muscles__sets_from_more", { count: contributions.length - LISTED })}
               </Text>
             ) : null}

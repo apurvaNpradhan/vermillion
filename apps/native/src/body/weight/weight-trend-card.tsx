@@ -58,20 +58,22 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
         <Text className="text-title-md font-semibold text-foreground">{t("body__title")}</Text>
         <View className="flex-row items-center justify-between gap-3">
           {value === null ? (
-            <Text className="text-body text-muted">{trend}</Text>
+            <Text className="font-normal text-body text-muted">{trend}</Text>
           ) : (
             <SummaryValue value={value} unit={unit} />
           )}
           {spark.length > 1 ? (
             <View className="items-end">
               <Sparkline values={spark} />
-              <Text className="text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("body__days", { count: SPARK_DAYS })}
               </Text>
             </View>
           ) : null}
         </View>
-        {line ? <Text className="text-caption tabular-nums text-muted">{line}</Text> : null}
+        {line ? (
+          <Text className="font-normal text-caption tabular-nums text-muted">{line}</Text>
+        ) : null}
       </Pressable>
       <Button variant="secondary" className="w-full" onPress={() => setLogging(true)}>
         <Button.Label>{t("body__log")}</Button.Label>

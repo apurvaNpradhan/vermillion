@@ -67,7 +67,7 @@ export function PhotoDatePicker({
             </Button>
             <Text
               accessibilityRole="header"
-              className="flex-1 text-center text-label text-foreground"
+              className="font-medium flex-1 text-center text-label text-foreground"
             >
               {new Intl.DateTimeFormat(i18n.language, {
                 month: "long",
@@ -89,7 +89,7 @@ export function PhotoDatePicker({
           </View>
           <View className="flex-row">
             {weekdays.map((label, day) => (
-              <Text key={day} className="flex-1 text-center text-caption text-muted">
+              <Text key={day} className="font-normal flex-1 text-center text-caption text-muted">
                 {label}
               </Text>
             ))}
@@ -118,7 +118,7 @@ export function PhotoDatePicker({
                   className={`h-11 items-center justify-center rounded-full active:opacity-60 ${date === selected ? "bg-default" : ""}`}
                 >
                   <Text
-                    className={`text-body tabular-nums ${date && enabled.has(date) ? "text-foreground" : "text-muted opacity-40"}`}
+                    className={`font-normal text-body tabular-nums ${date && enabled.has(date) ? "text-foreground" : "text-muted opacity-40"}`}
                   >
                     {date ? dayFormat.format(Number(date.slice(-2))) : ""}
                   </Text>
@@ -126,7 +126,9 @@ export function PhotoDatePicker({
               </View>
             ))}
           </View>
-          <Text className="text-center text-caption text-muted">{t("body__photo_dates_hint")}</Text>
+          <Text className="font-normal text-center text-caption text-muted">
+            {t("body__photo_dates_hint")}
+          </Text>
           <Button variant="tertiary" onPress={onClose}>
             <Button.Label>{t("common__cancel")}</Button.Label>
           </Button>

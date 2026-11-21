@@ -101,8 +101,8 @@ export function CompareScreen() {
   const stats = (side: SideStats | null, delta: SideStats | null, since: string | null) => (
     <View className="flex-1 gap-2">
       <View className="gap-1">
-        <Text className="text-caption text-muted">{t("body__compare_trend")}</Text>
-        <Text className="text-numeric-md tabular-nums text-foreground">
+        <Text className="font-normal text-caption text-muted">{t("body__compare_trend")}</Text>
+        <Text className="font-medium text-numeric-md tabular-nums text-foreground">
           {side?.weightKg == null ? t("body__no_data") : weightText(side.weightKg)}
         </Text>
         {delta?.weightKg != null && since ? (
@@ -117,8 +117,8 @@ export function CompareScreen() {
         ) : null}
       </View>
       <View className="gap-1">
-        <Text className="text-caption text-muted">{t("body__compare_waist")}</Text>
-        <Text className="text-numeric-md tabular-nums text-foreground">
+        <Text className="font-normal text-caption text-muted">{t("body__compare_waist")}</Text>
+        <Text className="font-medium text-numeric-md tabular-nums text-foreground">
           {side?.waistCm == null ? t("body__no_data") : waistText(side.waistCm)}
         </Text>
         {delta?.waistCm != null && since ? (

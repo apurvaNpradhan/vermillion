@@ -55,7 +55,7 @@ export function ProgramCard({
           <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
             {program.title}
           </Text>
-          <Text numberOfLines={1} className="text-caption tabular-nums text-muted">
+          <Text numberOfLines={1} className="font-normal text-caption tabular-nums text-muted">
             {progressText}
           </Text>
         </View>

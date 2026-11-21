@@ -79,11 +79,11 @@ describe("account deletion", () => {
     const session = await createSignedInUser(app, email);
     const client = app.client(session);
     const { id } = await client.account.me();
-    await client.account.requestDeletion({ callbackURL: "basalt://confirm-deletion" });
+    await client.account.requestDeletion({ callbackURL: "patina://confirm-deletion" });
     const mail = await app.waitForEmail(
       (m) => m.to === email && /deleting|Löschen/.test(m.subject),
     );
-    const token = /basalt:\/\/confirm-deletion\?token=([a-z0-9]+)/.exec(mail.text)?.[1];
+    const token = /patina:\/\/confirm-deletion\?token=([a-z0-9]+)/.exec(mail.text)?.[1];
     expect(token).toBeTruthy();
     await expect(app.client().account.confirmDeletion({ token: token! })).rejects.toMatchObject({
       code: "UNAUTHORIZED",
@@ -112,7 +112,7 @@ describe("account deletion", () => {
   });
 
   describe("confirmation callback", () => {
-    const scheme = "basalt";
+    const scheme = "patina";
     const confirmationFor = async (email: string, callbackURL: string) => {
       const client = app.client(await createSignedInUser(app, email));
       await client.account.requestDeletion({ callbackURL });
@@ -138,8 +138,8 @@ describe("account deletion", () => {
       "javascript:alert(1)",
       "exp://192.168.0.2:8081/--/x",
       "evil://account-deleted",
-      "basalt.evil://x",
-      "basalt:/x",
+      "patina.evil://x",
+      "patina:/x",
       `${scheme}://evil@host`,
       `${scheme}://x y`,
     ])("rejects %s", async (callbackURL) => {

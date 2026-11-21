@@ -13,7 +13,7 @@ export function NeedsConnection({ className }: { className?: string }) {
   const online = useIsOnline();
   if (online) return null;
   return (
-    <Text accessibilityRole="text" className={className ?? "text-caption text-muted"}>
+    <Text accessibilityRole="text" className={className ?? "font-normal text-caption text-muted"}>
       {t("common__needs_connection")}
     </Text>
   );

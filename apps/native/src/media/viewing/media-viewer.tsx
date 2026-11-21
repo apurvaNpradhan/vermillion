@@ -43,7 +43,9 @@ function FullMediaImage({
           accessibilityLabel={t("media__not_on_device")}
           className="absolute inset-0 items-center justify-center px-6"
         >
-          <Text className="text-center text-body text-muted">{t("media__not_on_device")}</Text>
+          <Text className="font-normal text-center text-body text-muted">
+            {t("media__not_on_device")}
+          </Text>
         </View>
       ) : null}
       {full.uri === null && full.state === "downloading" ? (

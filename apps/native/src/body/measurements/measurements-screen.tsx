@@ -103,11 +103,11 @@ export function MeasurementsScreen() {
                         }
                         className="w-1/2 gap-3 rounded-xl px-3 py-4 active:bg-default"
                       >
-                        <Text className="text-label text-foreground">
+                        <Text className="font-medium text-label text-foreground">
                           {t(metricLabels[metric])}
                         </Text>
                         <Sparkline values={lastN(rows, 7).map((row) => row.value)} />
-                        <Text className="text-numeric-md tabular-nums text-foreground">
+                        <Text className="font-medium text-numeric-md tabular-nums text-foreground">
                           {valueText}
                         </Text>
                         {delta !== null && changeText !== null ? (
@@ -153,9 +153,11 @@ export function MeasurementsScreen() {
                 ).map((item) =>
                   item.value === null ? null : (
                     <View key={item.label} className="w-1/2 gap-3 px-3 py-4">
-                      <Text className="text-label text-foreground">{t(item.label)}</Text>
+                      <Text className="font-medium text-label text-foreground">
+                        {t(item.label)}
+                      </Text>
                       <Sparkline values={item.history.slice(-7)} />
-                      <Text className="text-numeric-md tabular-nums text-foreground">
+                      <Text className="font-medium text-numeric-md tabular-nums text-foreground">
                         {new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 }).format(
                           item.value,
                         )}

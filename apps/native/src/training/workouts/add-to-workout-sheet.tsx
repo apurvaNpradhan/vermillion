@@ -100,7 +100,7 @@ export function AddToWorkoutSheet({
               </ListSection>
             ) : null}
             {status === "empty" || isFirstSync(status) ? (
-              <Text className="px-1 text-center text-caption text-muted">
+              <Text className="font-normal px-1 text-center text-caption text-muted">
                 {t("training__add_to_empty")}
               </Text>
             ) : null}

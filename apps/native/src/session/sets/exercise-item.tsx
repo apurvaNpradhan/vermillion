@@ -201,7 +201,7 @@ function ExerciseBody({
     <View>
       {readOnly ? (
         entry.note ? (
-          <Text className="py-2 text-body text-muted">{entry.note}</Text>
+          <Text className="font-normal py-2 text-body text-muted">{entry.note}</Text>
         ) : null
       ) : (
         <InlineNote

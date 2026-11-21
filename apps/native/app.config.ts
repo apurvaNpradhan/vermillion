@@ -30,7 +30,16 @@ import { appConfig } from "../../app.config.ts";
 // 21: expo-document-picker (history import from a CSV file).
 // 22: renamed to Basalt: new bundle id, scheme and EAS slug.
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
-const NATIVE_STACK_REVISION = 23;
+// 24: renamed to Patina: new bundle id, scheme and EAS slug again.
+const NATIVE_STACK_REVISION = 24;
+
+/**
+ * The logo's own colours, for the places the native build needs a literal (icon background, splash
+ * and notification accent). They match the Patina theme's dark canvas and accent.
+ */
+const LOGO_INK = "#19130F";
+const LOGO_OLIVE = "#869044";
+const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release
@@ -65,10 +74,11 @@ const config: ExpoConfig = {
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
-      foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
-      monochromeImage: "./assets/images/android-icon-monochrome.png",
+      // The logo's ink; the foreground is the tortoise from the logo kit.
+      backgroundColor: LOGO_INK,
+      foregroundImage: ADAPTIVE_FOREGROUND,
+      // Android tints the same silhouette for themed icons.
+      monochromeImage: ADAPTIVE_FOREGROUND,
     },
     predictiveBackGestureEnabled: false,
     package: appConfig.bundleIds.android,
@@ -86,7 +96,9 @@ const config: ExpoConfig = {
     [
       "expo-notifications",
       {
+        // A white silhouette of the tortoise (shell cuts and eye transparent); Android tints it.
         icon: "./assets/images/notification-icon.png",
+        color: LOGO_OLIVE,
         sounds: ["./assets/sounds/rest_end.wav"],
       },
     ],
@@ -132,11 +144,14 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
+        // The tortoise on ink in light and dark alike: the brand, not the appearance.
         image: "./assets/images/splash-icon.png",
-        imageWidth: 200,
+        imageWidth: 240,
+        // The Android splash masks the drawable to a 192dp circle.
+        android: { imageWidth: 200 },
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
-        dark: { backgroundColor: "#000000" },
+        backgroundColor: LOGO_INK,
+        dark: { image: "./assets/images/splash-icon.png", backgroundColor: LOGO_INK },
       },
     ],
   ],

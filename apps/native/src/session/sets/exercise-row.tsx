@@ -113,7 +113,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             </Text>
             <Text
               numberOfLines={1}
-              className="text-caption text-muted"
+              className="font-normal text-caption text-muted"
               style={{ fontVariant: ["tabular-nums"] }}
             >
               {subtitle}
@@ -176,7 +176,7 @@ function ExerciseNotes({ pinned, lastTime }: { pinned: string | null; lastTime: 
     <View className="gap-0.5 pt-0.5">
       {pinned === null ? null : <PinnedNote note={pinned} />}
       {lastTime === null ? null : (
-        <Text numberOfLines={2} className="text-caption text-muted opacity-70">
+        <Text numberOfLines={2} className="font-normal text-caption text-muted opacity-70">
           {t("session__last_time", { note: lastTime })}
         </Text>
       )}
