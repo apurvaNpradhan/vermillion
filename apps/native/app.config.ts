@@ -26,7 +26,8 @@ import { appConfig } from "../../app.config.ts";
 // 17: react-native-passkey removed, no associated domains; new bundle id (Cinnabar).
 // 18: @react-native-community/netinfo feeds the online state (offline-first).
 // 19: local Android next-workout-widget module (home-screen widget, RemoteViews).
-const NATIVE_STACK_REVISION = 19;
+// 20: the home-screen widget expires weekly progress in the native provider.
+const NATIVE_STACK_REVISION = 20;
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 

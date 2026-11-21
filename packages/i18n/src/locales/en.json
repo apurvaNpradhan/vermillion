@@ -809,6 +809,7 @@
   "session__warmups_none": "No warm-ups needed for this weight",
   "session__effort_off": "Stop logging effort",
   "session__load_failed": "Could not load this workout.",
+  "session__edit_duration": "Duration (m:ss)",
   "session__key_point": "Decimal point",
   "session__key_backspace": "Delete",
   "session__key_decrease": "Decrease by {{step}}",

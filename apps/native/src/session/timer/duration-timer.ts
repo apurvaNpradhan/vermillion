@@ -43,11 +43,12 @@ export function timerView(startedAt: string, target: number | null, now: number)
 export function dueTimers<S extends TimerSet & { id: string }>(
   sets: readonly S[],
   now: number,
-): { id: string; duration: number }[] {
+): { id: string; duration: number; expiresAt: number }[] {
   return sets.flatMap((set) => {
     if (set.timerStartedAt === null || set.completedAt !== null) return [];
     const target = timerTarget(set);
     if (target === null) return [];
-    return timerView(set.timerStartedAt, target, now).due ? [{ id: set.id, duration: target }] : [];
+    const expiresAt = Date.parse(set.timerStartedAt) + target * 1000;
+    return expiresAt <= now ? [{ id: set.id, duration: target, expiresAt }] : [];
   });
 }

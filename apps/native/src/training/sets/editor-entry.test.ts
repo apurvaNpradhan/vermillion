@@ -6,6 +6,7 @@ import {
   openEntry,
   pressKey,
   pressStep,
+  unbindTable,
   type EditorCell,
   type EditorEntry,
 } from "./editor-entry";
@@ -72,5 +73,17 @@ describe("editor keypad entry", () => {
     expect(nextEditorCell(cells, "a:weight")?.key).toBe("a:duration");
     expect(nextEditorCell(cells, "b:weight")).toBeNull();
     expect(nextEditorCell(cells, "zzz")).toBeNull();
+  });
+
+  it("forgets an unmounted table and closes the keypad only when it was editing it", () => {
+    const tables = new Map<string, readonly EditorCell[]>([
+      ["t1", [cell({ key: "a:weight" })]],
+      ["t2", [cell({ key: "b:weight" })]],
+    ]);
+    expect(unbindTable(tables, "t1", "t1")).toBe(true);
+    expect([...tables.keys()]).toEqual(["t2"]);
+    expect(unbindTable(tables, "t2", "t1")).toBe(false);
+    expect(unbindTable(tables, null, "t2")).toBe(false);
+    expect(tables.size).toBe(0);
   });
 });

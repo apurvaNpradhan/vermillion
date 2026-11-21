@@ -438,6 +438,53 @@ describe("session upload handlers", () => {
     expect(await me.send([op("DELETE", "session_set", t.set2)])).toEqual(applied);
   });
 
+  it("stores the repeated flag of an exercise and keeps it when a later PUT omits it", async () => {
+    const me = await writer("session-repeated@example.com");
+    const t = await training(me);
+    const repeated = uuidv7();
+    expect(
+      await me.send([
+        putExercise(repeated, t.sessionId, weightReps, { repeated: 1, position: "a1" }),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", repeated)).toMatchObject({ repeated: true });
+    expect(
+      await me.send([putExercise(repeated, t.sessionId, weightReps, { position: "a1" })]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", repeated)).toMatchObject({ repeated: true });
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({ repeated: false });
+  });
+
+  it("keeps a pinned note when an update omits it, and clears it on an explicit null", async () => {
+    const me = await writer("session-setting-note@example.com");
+    const other = await writer("session-setting-note-other@example.com");
+    const settingId = uuidv7();
+    expect(
+      await me.send([putSetting(settingId, weightReps, { note: "Pause at the bottom" })]),
+    ).toEqual(applied);
+    // A PATCH from changing the auto warm-ups leaves the note alone.
+    expect(
+      await me.send([op("PATCH", "exercise_setting", settingId, { auto_warmups: 1 })]),
+    ).toEqual(applied);
+    expect(await stored("exercise_setting", settingId)).toMatchObject({
+      note: "Pause at the bottom",
+      auto_warmups: true,
+    });
+    // An older client's PUT omits the note too.
+    expect(await me.send([putSetting(settingId, weightReps, { log_effort: 1 })])).toEqual(applied);
+    expect(await stored("exercise_setting", settingId)).toMatchObject({
+      note: "Pause at the bottom",
+      log_effort: true,
+    });
+    expect(
+      await other.send([op("PATCH", "exercise_setting", settingId, { note: null })]),
+    ).not.toEqual(applied);
+    expect(await me.send([op("PATCH", "exercise_setting", settingId, { note: null })])).toEqual(
+      applied,
+    );
+    expect(await stored("exercise_setting", settingId)).toMatchObject({ note: null });
+  });
+
   it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {
     const me = await writer("session-new-columns@example.com");
     const legacySession = uuidv7();

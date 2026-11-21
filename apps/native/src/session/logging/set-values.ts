@@ -51,6 +51,7 @@ export function ghostsOf(
   target: PlannedSet | null,
   logEffort: boolean,
   suggestion?: SuggestedSet | null,
+  repeated = false,
 ): Ghosts {
   const fields: readonly GhostField[] = logEffort ? [...SET_FIELDS[type], "rpe"] : SET_FIELDS[type];
   // A warm-up with a planned weight (a Workout's, or a generated ramp) keeps it: the weight of the
@@ -60,7 +61,7 @@ export function ghostsOf(
       ? { ...previous, weight_kg: null }
       : previous;
   const ghosts: Ghosts = {};
-  for (const field of fields) ghosts[field] = ghostFor(field, before, target, suggestion);
+  for (const field of fields) ghosts[field] = ghostFor(field, before, target, suggestion, repeated);
   return ghosts;
 }
 
@@ -113,16 +114,17 @@ export function formatCell(
 
 /**
  * The Previous cell: "60 × 8" for weight and reps, otherwise the recorded fields joined by " · ".
- * Units are left out; the column header carries the weight unit.
+ * The weight unit comes from the table header. Other fields use the selected display units.
  */
 export function previousLabel(
   previous: SetValues,
   type: ExerciseType,
   unit: WeightUnit,
+  display?: DisplayUnits,
 ): string | null {
   const fields: readonly SetField[] = SET_FIELDS[type];
   const parts = fields.flatMap((field) => {
-    const text = formatCell(field, previous[SET_VALUE_KEYS[field]], unit, type);
+    const text = formatCell(field, previous[SET_VALUE_KEYS[field]], unit, type, display);
     return text === "" ? [] : [{ field, text }];
   });
   if (parts.length === 0) return null;

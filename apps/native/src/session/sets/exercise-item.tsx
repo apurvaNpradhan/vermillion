@@ -22,6 +22,8 @@ import { ExerciseRow } from "./exercise-row";
 import type { ActiveEntry, Refusal } from "./set-row";
 import { SetGrid } from "./set-grid";
 
+import type { DisplayUnits } from "@/session/logging/set-values";
+
 /**
  * One exercise of the accordion with its body. Memoized on what it draws, so opening another
  * exercise re-renders only the two rows whose `open` changed, and a keystroke only the grid that
@@ -41,6 +43,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   showAddSet,
   readOnly,
   unit,
+  display,
   effortScale,
   historyReady,
   editingFinished,
@@ -82,6 +85,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   showAddSet: boolean;
   readOnly: boolean;
   unit: WeightUnit;
+  display: DisplayUnits;
   effortScale: EffortScale;
   historyReady: boolean;
   editingFinished: boolean;
@@ -152,6 +156,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         previousOf={previousOf}
         ghostsFor={ghostsFor}
         unit={unit}
+        display={display}
         effortScale={effortScale}
         readOnly={readOnly}
         onCell={onCell}

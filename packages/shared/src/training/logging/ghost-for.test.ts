@@ -27,6 +27,26 @@ describe("ghostFor", () => {
     expect(ghostFor("weight", { weight_kg: 0 }, target)).toBe(0);
   });
 
+  it("prefers the copied target over newer Previous in a repeated exercise", () => {
+    const copied = {
+      kind: "working",
+      weight_kg: 100,
+      reps_min: 6,
+      reps_max: 6,
+      duration_s: 45,
+      distance_m: 500,
+    } as const;
+    const newer = { weight_kg: 110, reps: 4, duration_s: 30, distance_m: 400 };
+    expect(ghostFor("weight", newer, copied, null, true)).toBe(100);
+    expect(ghostFor("reps", newer, copied, null, true)).toBe(6);
+    expect(ghostFor("duration", newer, copied, null, true)).toBe(45);
+    expect(ghostFor("distance", newer, copied, null, true)).toBe(500);
+    // Previous still fills what the copy has no value for.
+    expect(ghostFor("floors", { floors: 12 }, copied, null, true)).toBe(12);
+    // Without the flag Previous wins, as before.
+    expect(ghostFor("weight", newer, copied)).toBe(110);
+  });
+
   it("uses Previous reps inside the planned range, else the lower bound", () => {
     expect(ghostFor("reps", { reps: 10 }, target)).toBe(10);
     expect(ghostFor("reps", { reps: 8 }, target)).toBe(8);

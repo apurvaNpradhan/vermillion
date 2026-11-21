@@ -104,10 +104,14 @@ export function canAddWarmups(exercise: Pick<SessionExerciseDetail, "type">): bo
  * left alone, so a tick is never moved under the user's thumb).
  */
 export function shouldAutoWarmup(
-  exercise: Pick<SessionExerciseDetail, "autoWarmups" | "type"> & { sets: readonly PlanSet[] },
+  exercise: Pick<SessionExerciseDetail, "autoWarmups" | "repeated" | "type"> & {
+    sets: readonly PlanSet[];
+  },
 ): boolean {
   return (
     exercise.autoWarmups &&
+    // A repeat keeps the warm-ups it copied; "Add warm-ups" still recalculates on request.
+    !exercise.repeated &&
     hasWarmupRamp(exercise.type) &&
     exercise.sets.every((set) => set.completedAt === null)
   );

@@ -68,6 +68,7 @@ export function loggingGhosts(
         set.target,
         exercise.logEffort,
         exerciseSuggestion(exercise, history, settings)?.sets[index],
+        exercise.repeated,
       )
     : {};
 }

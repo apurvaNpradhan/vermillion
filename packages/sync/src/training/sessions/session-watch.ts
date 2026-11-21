@@ -152,6 +152,8 @@ export type SessionExerciseDetail = {
   autoWarmups: boolean;
   /** The inputs the generated ramp was last built from; null before the first one. */
   warmupKey: string | null;
+  /** Made by Perform again: its copied targets outrank Previous for the Ghost values. */
+  repeated: boolean;
   /** The bar the exercise remembers, if any. */
   barId: string | null;
   /** The library's current data (muscles, media); null while it has not arrived on this device. */
@@ -197,7 +199,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
-    se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key,
+    se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
     (SELECT bar_id FROM exercise_setting
@@ -260,6 +262,7 @@ const detailRowSchema = z.object({
   pinned_note: z.string().nullable(),
   last_note: z.string().nullable(),
   warmup_key: z.string().nullable(),
+  repeated: flag.nullable(),
   bar_id: z.string().nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   secondary_muscles: secondaryText,
@@ -320,6 +323,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         progressionPerSet: row.progression_per_set ?? false,
         autoWarmups: row.auto_warmups ?? false,
         warmupKey: row.warmup_key,
+        repeated: row.repeated ?? false,
         barId: row.bar_id,
         exercise:
           row.primary_muscle !== null && row.equipment !== null

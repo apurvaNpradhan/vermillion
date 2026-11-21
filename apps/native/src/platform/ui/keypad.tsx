@@ -8,7 +8,7 @@ import Animated from "react-native-reanimated";
 
 import { decimalSeparator, useKeypadMotion } from "./keypad-motion";
 
-import { KEYPAD_DIGITS, keypadKeyOf, keypadNavOf, type KeypadKey } from "./keypad-keys";
+import { KEYPAD_DIGITS, keypadKeysOfText, keypadPressOf, type KeypadKey } from "./keypad-keys";
 
 /** Everything the keypad says; the caller passes translated text, so nothing here is hard-coded. */
 export type KeypadLabels = {
@@ -102,11 +102,8 @@ export function Keypad({
       ref={input}
       value=""
       onChangeText={(text) => {
-        // The system keyboard delivers what was typed here; each character is one key press.
-        for (const char of text) {
-          const key = keypadKeyOf(char);
-          if (key !== null && (key !== "." || allowPoint)) onKey(key);
-        }
+        // The one path for printable characters: system keyboard, hardware keyboard and paste.
+        for (const key of keypadKeysOfText(text, allowPoint)) onKey(key);
       }}
       inputMode={systemKeyboard ? (allowPoint ? "decimal" : "numeric") : "none"}
       showSoftInputOnFocus={systemKeyboard}
@@ -116,13 +113,9 @@ export function Keypad({
       importantForAccessibility="no"
       accessibilityElementsHidden
       onKeyPress={(event) => {
-        const name = event.nativeEvent.key;
-        const key = keypadKeyOf(name);
-        if (key !== null) {
-          if (key !== "." || allowPoint) onKey(key);
-          return;
-        }
-        const nav = keypadNavOf(name);
+        // Printable keys arrive through onChangeText; only Backspace, Tab and Enter act here.
+        const { edit, nav } = keypadPressOf(event.nativeEvent.key);
+        if (edit !== null) onKey(edit);
         if (nav === "next") (hasNext ? onNext : onDone)();
         if (nav === "done") onDone();
       }}

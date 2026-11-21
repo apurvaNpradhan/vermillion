@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
 import { createFakeDatabase } from "../platform/fake-database";
+import { pushWorkout, setupSessions } from "./sessions/session-fixtures";
+import { startSession } from "./sessions/session-store";
 import { setExerciseSetting } from "./sessions/equipment-store";
 import {
   addExercises,
@@ -12,6 +14,7 @@ import {
   removeWorkoutExercise,
   restoreWorkoutExercise,
   setProgramCoverToNewMedia,
+  updateWorkout,
   updateWorkoutExercise,
   type TrainingDatabase,
 } from "./store";
@@ -28,6 +31,7 @@ import {
   readExerciseType,
   readProgramPlan,
   readWorkoutDetail,
+  watchSession,
 } from "./watch";
 
 const SQUAT = "0192f0a0-0000-7000-8000-000000000001";
@@ -257,4 +261,21 @@ it("selects the latest surviving Workout prescription for the exercise", async (
       ),
     },
   ]);
+});
+
+it("refreshes session detail after only the workout note changes", async () => {
+  const s = await setupSessions();
+  const { workoutId } = await pushWorkout(s);
+  const id = await startSession(s.training, { workoutId, derivedTitle: "Legs" });
+  const notes: (string | null)[] = [];
+  const stop = watchSession(s.training, id, {
+    onSession: (session) => notes.push(session?.workoutNote ?? null),
+    onError: (error) => {
+      throw error;
+    },
+  });
+  await updateWorkout(s.training, workoutId, { note: "Keep the same pace" });
+  s.notifyTable("workout");
+  stop();
+  expect(notes).toEqual([null, "Keep the same pace"]);
 });

@@ -612,7 +612,8 @@ export type TickResult =
  * no Ghost for it is refused with the list of those fields, and nothing is written. Ticking a
  * ticked set writes nothing. A running timer on the set stops.
  * `restSeconds` (1 to 600) also starts the Rest after it in the same transaction, so a tick is one
- * local change for the screens that watch the Session rather than two.
+ * local change for the screens that watch the Session rather than two. An automatic countdown
+ * tick uses its original expiry and never starts a rest that has already elapsed.
  */
 export function tickSet(
   database: TrainingDatabase,
@@ -620,6 +621,7 @@ export function tickSet(
   ghosts: Ghosts,
   expectedInstallId?: string,
   restSeconds?: number | null,
+  expiresAt?: number,
 ): Promise<TickResult> {
   if (restSeconds != null && !isRestSeconds(restSeconds)) {
     return Promise.reject(new Error("Rest is 1 to 600 seconds"));
@@ -628,19 +630,45 @@ export function tickSet(
     const [current] = await tx.select().from(sessionSet).where(eq(sessionSet.id, id)).limit(1);
     if (!current) throw new Error("The set is gone");
     if (current.completed_at !== null) return { ok: true, wrote: false, values: {} };
+    const now = Date.now();
+    const duration = current.duration_s ?? current.target?.duration_s;
+    if (expiresAt !== undefined) {
+      const startedAt = Date.parse(current.timer_started_at ?? "");
+      if (duration == null || startedAt + duration * 1000 !== expiresAt || expiresAt > now) {
+        return { ok: true, wrote: false, values: {} };
+      }
+    }
+    const completedAt = expiresAt ?? now;
     const parent = await requireSessionExercise(tx, current.session_exercise_id);
     const result = tickValues(current, ghosts, SET_FIELDS[parent.exercise_type]);
-    if (!result.ok) return result;
+    if (!result.ok) {
+      // A countdown with a missing field keeps its elapsed duration and stops in the same write.
+      if (expiresAt !== undefined && duration != null) {
+        await tx
+          .update(sessionSet)
+          .set({ duration_s: duration, timer_started_at: null })
+          .where(eq(sessionSet.id, id));
+      }
+      return result;
+    }
     const changes = {
       ...result.values,
-      completed_at: nowIso(),
+      completed_at: new Date(completedAt).toISOString(),
       ...(current.timer_started_at === null ? {} : { timer_started_at: null }),
       ...(current.generated_warmup ? { generated_warmup: false } : {}),
     };
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
-    if (restSeconds == null) return { ok: true, wrote: true, values: result.values };
-    const rest = await writeRest(tx, parent.session_id, id, restSeconds);
+    if (restSeconds == null || completedAt + restSeconds * 1000 <= now) {
+      return { ok: true, wrote: true, values: result.values };
+    }
+    if (expiresAt !== undefined) {
+      const owner = await requireSession(tx, parent.session_id);
+      if (owner.rest_started_at && Date.parse(owner.rest_started_at) > expiresAt) {
+        return { ok: true, wrote: true, values: result.values };
+      }
+    }
+    const rest = await writeRest(tx, parent.session_id, id, restSeconds, completedAt);
     return { ok: true, wrote: true, values: result.values, rest };
   });
 }

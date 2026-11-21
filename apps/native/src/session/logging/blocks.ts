@@ -119,27 +119,29 @@ export function roundsOf<E extends BlockExercise>(block: Block<E>): RoundSet<E>[
  * exercise: its first unticked set. In a superset, ticking a member's set moves the highlight to
  * the next member's matching set.
  */
-export function highlightOf(block: Block<BlockExercise>): Highlight | null {
+export function highlightOf(block: Block<BlockExercise>, justTicked?: string): Highlight | null {
   for (const round of roundsOf(block)) {
     for (const { exercise, set } of round) {
-      if (set.completedAt === null) return { exerciseId: exercise.id, setId: set.id };
+      if (set.completedAt === null && set.id !== justTicked) {
+        return { exerciseId: exercise.id, setId: set.id };
+      }
     }
   }
   return null;
 }
 
 /**
- * Where a superset goes after `setId` is ticked: the next member (wrapping round) that still has an
- * unticked set, or null for a lone exercise, a set outside the block, or a superset with nothing
- * left to do in the other members.
+ * Scrolls to the highlighted exercise after a tick only when it is a different superset member.
+ * The database watch may still show the just-ticked set as open.
  */
 export function nextSupersetExercise<E extends BlockExercise>(
   block: Block<E>,
   setId: string,
 ): E | null {
   if (!block.superset) return null;
-  const at = block.members.findIndex((member) => member.sets.some((set) => set.id === setId));
-  if (at < 0) return null;
-  const others = [...block.members.slice(at + 1), ...block.members.slice(0, at)];
-  return others.find((member) => member.sets.some((set) => set.completedAt === null)) ?? null;
+  const current = block.members.find((member) => member.sets.some((set) => set.id === setId));
+  if (!current) return null;
+  const next = highlightOf(block, setId);
+  if (!next || next.exerciseId === current.id) return null;
+  return block.members.find((member) => member.id === next.exerciseId) ?? null;
 }

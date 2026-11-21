@@ -1,6 +1,6 @@
 import { SessionPhotos } from "@/session/screen/session-photos";
 import { useWeight } from "@/body";
-import { recordFlags, sessionTotals } from "@workspace/shared";
+import { recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
@@ -58,7 +58,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
     weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
   );
   const flags = recordFlags(
-    history.sessions,
+    withWarmupsCounted(history.sessions, preferences.ui.countWarmups),
     weight.bodyweightOn(session?.startedAt ?? new Date().toISOString()),
   );
   const unit = preferences.ui.weightUnit;

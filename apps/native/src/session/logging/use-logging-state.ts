@@ -249,6 +249,7 @@ export function useLoggingState({
         at.set.target,
         at.exercise.logEffort,
         suggestions.get(at.exercise.id)?.sets[at.index],
+        at.exercise.repeated,
       );
     },
     [found, previousOf, previous, suggestions],
@@ -422,7 +423,8 @@ export function useLoggingState({
    * exercise calls for; one that cannot shakes the cells that lack a value. Returns whether it ticked.
    */
   const tickWith = useCallback(
-    async (setId: string, ghosts: Ghosts, strong = false): Promise<boolean> => {
+    async (setId: string, ghosts: Ghosts, expiresAt?: number): Promise<boolean> => {
+      const strong = expiresAt !== undefined;
       const at = found.get(setId);
       if (
         !at ||
@@ -434,7 +436,7 @@ export function useLoggingState({
       // A finished Session being edited has no timers.
       const seconds =
         block && session.finishedAt === null ? restAfterTick(block, at.exercise.id, setId) : null;
-      const result = await actions.tick(setId, ghosts, seconds);
+      const result = await actions.tick(setId, ghosts, seconds, expiresAt);
       if (!result) return false;
       if (!result.ok) {
         refusals.current += 1;
@@ -448,7 +450,11 @@ export function useLoggingState({
         .filter((set) => set.exercise_id === at.exercise.exerciseId)
         .map((set) =>
           set.id === setId
-            ? { ...set, ...result.values, completed_at: new Date().toISOString() }
+            ? {
+                ...set,
+                ...result.values,
+                completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
+              }
             : set,
         );
       const record = tickedSetIsRecord({
@@ -532,12 +538,12 @@ export function useLoggingState({
 
   // A countdown that reaches zero ticks its set by itself, also when the app was in the background
   // meanwhile (it is checked again when the app comes back).
-  const autoTick = useRef<(id: string, duration: number) => Promise<void>>(async () => undefined);
+  const autoTick = useRef<(timer: ReturnType<typeof dueTimers>[number]) => Promise<void>>(
+    async () => undefined,
+  );
   useEffect(() => {
-    autoTick.current = async (id, duration) => {
-      const ticked = await tickWith(id, { ...ghostsFor(id), duration }, true);
-      // A set that cannot be ticked (a missing distance) keeps its duration and stops the timer.
-      if (!ticked) await actions.updateValues(id, { duration_s: duration, timer_started_at: null });
+    autoTick.current = async ({ id, duration, expiresAt }) => {
+      await tickWith(id, { ...ghostsFor(id), duration }, expiresAt);
     };
   });
   const firing = useRef(new Set<string>());
@@ -548,7 +554,7 @@ export function useLoggingState({
       for (const due of dueTimers(sets, Date.now())) {
         if (firing.current.has(due.id)) continue;
         firing.current.add(due.id);
-        void autoTick.current(due.id, due.duration).finally(() => firing.current.delete(due.id));
+        void autoTick.current(due).finally(() => firing.current.delete(due.id));
       }
     };
     run();

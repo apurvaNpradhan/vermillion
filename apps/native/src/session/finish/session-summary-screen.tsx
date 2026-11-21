@@ -12,6 +12,7 @@ import {
   diffSessionAgainstWorkout,
   workoutStructureKey,
   recordFlags,
+  withWarmupsCounted,
   sessionTotals,
   SESSION_LIMITS,
   TRAINING_LIMITS,
@@ -156,7 +157,10 @@ function FinishFlow({
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const records = recordFlags(
     [
-      ...history.sessions.filter((item) => item.id !== session.id),
+      ...withWarmupsCounted(
+        history.sessions.filter((item) => item.id !== session.id),
+        countWarmups,
+      ),
       {
         id: session.id,
         started_at: session.startedAt,

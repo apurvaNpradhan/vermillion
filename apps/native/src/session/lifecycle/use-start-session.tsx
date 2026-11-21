@@ -1,13 +1,10 @@
 import {
   ACTIVE_SESSIONS_SQL,
-  discardSession,
+  beginSession,
   newSessionId,
   parseActiveSessions,
-  performAgain,
   restoreSession,
-  startSession,
   type ActiveSession,
-  type DeletedSession,
 } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -48,25 +45,19 @@ export function useStartSession() {
       starting.current = true;
       try {
         const id = newSessionId();
-        const result = await write(async (db) => {
-          const removed: DeletedSession[] = [];
-          for (const old of discard) {
-            const deleted = await discardSession(db, old.id, writeScope);
-            if (deleted) removed.push(deleted);
-          }
-          const derivedTitle = t("session__untitled");
-          if ("againOf" in source) {
-            await performAgain(db, source.againOf, derivedTitle, { id }, writeScope);
-          } else {
-            await startSession(
+        // The source is read, the active Session discarded and the new one created in one
+        // transaction, so a source that is gone leaves the active Session alone.
+        const result = await write(
+          (db) =>
+            beginSession(
               db,
-              { workoutId: source.workoutId, derivedTitle },
-              { id },
+              source,
+              t("session__untitled"),
+              { id, discardIds: discard.map((old) => old.id) },
               writeScope,
-            );
-          }
-          return { id, removed };
-        }, null);
+            ),
+          null,
+        );
         if (!result) return;
         haptic.confirm();
         if (result.removed.length > 0) {

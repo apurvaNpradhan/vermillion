@@ -44,6 +44,7 @@ const entry = (id: string, sets: SetDetail[], extra: Partial<Entry> = {}): Entry
   pinnedNote: null,
   lastNote: null,
   warmupKey: null,
+  repeated: false,
   barId: null,
   exercise: null,
   sets,
@@ -119,6 +120,20 @@ describe("share rows", () => {
       true,
     );
     expect(rows[0]?.record).toBe(false);
+  });
+
+  it("counts warm-ups, their Records and a warm-up-only exercise when they are counted", () => {
+    const warmups = session([
+      entry("a", [set("a1", { kind: "warmup", weightKg: 20 }), set("a2")]),
+      entry("b", [set("b1", { kind: "warmup" })]),
+    ]);
+    expect(shareRows(warmups, new Set(["a1"]), true, true)).toMatchObject([
+      { id: "a", sets: 2, record: true },
+      { id: "b", sets: 1, record: false },
+    ]);
+    expect(shareRows(warmups, new Set(["a1"]), true, false)).toMatchObject([
+      { id: "a", sets: 1, record: false },
+    ]);
   });
 
   it("shows rep ranges when weights are off", () => {

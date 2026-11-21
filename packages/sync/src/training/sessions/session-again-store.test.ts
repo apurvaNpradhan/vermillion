@@ -11,6 +11,7 @@ import {
 import type { SessionSetRow } from "./session-common";
 import { RECENT_QUERY } from "../../exercise/library";
 import { performAgain, plannedFromLogged } from "./session-again-store";
+import { beginSession } from "./session-store";
 import { finishSession, startSession } from "./session-store";
 import { parseSessionDetail, SESSION_DETAIL_SQL } from "./session-watch";
 
@@ -165,5 +166,85 @@ describe("recent exercises and the workout note", () => {
     expect(
       parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(id))?.workoutNote,
     ).toBeNull();
+  });
+});
+
+describe("beginSession", () => {
+  it("keeps the active session when the repeated source is missing", async () => {
+    const s = await setupSessions();
+    const live = await startSession(s.training, { workoutId: null, derivedTitle });
+    await expect(
+      beginSession(s.training, { againOf: "missing-source" }, derivedTitle, {
+        discardIds: [live],
+      }),
+    ).rejects.toThrow();
+    expect(s.one("training_session", live)).toMatchObject({ id: live, finished_at: null });
+  });
+
+  it("keeps the active session when the repeated source is unfinished", async () => {
+    const s = await setupSessions();
+    const live = await startSession(s.training, { workoutId: null, derivedTitle });
+    const other = await startSession(s.training, { workoutId: null, derivedTitle });
+    await expect(
+      beginSession(s.training, { againOf: other }, derivedTitle, { discardIds: [live] }),
+    ).rejects.toThrow(/finished/);
+    expect(s.one("training_session", live)).toBeDefined();
+  });
+
+  it("discards the active session and creates the repeat together", async () => {
+    const { s, id } = await finishedLegs();
+    const live = await startSession(s.training, { workoutId: null, derivedTitle });
+    const result = await beginSession(s.training, { againOf: id }, derivedTitle, {
+      discardIds: [live],
+    });
+    expect(result.outcome).toBe("started");
+    expect(result.removed.map((deleted) => deleted.session.id)).toEqual([live]);
+    expect(s.one("training_session", live)).toBeUndefined();
+    expect(s.exercises(result.id)).toHaveLength(2);
+  });
+
+  it("resumes a session that appeared before the start instead of starting a second one", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const live = await startSession(s.training, { workoutId: null, derivedTitle });
+    const result = await beginSession(s.training, { workoutId: plan.workoutId }, derivedTitle, {
+      resumeActive: true,
+    });
+    expect(result).toMatchObject({ id: live, outcome: "resumed", removed: [] });
+    const fresh = await beginSession(s.training, { workoutId: plan.workoutId }, derivedTitle, {
+      resumeActive: true,
+      discardIds: [live],
+    });
+    expect(fresh.outcome).toBe("started");
+  });
+
+  it("leaves no blank session when the widget's workout has been deleted", async () => {
+    const s = await setupSessions();
+    const deletedWorkout = "0192f0a0-0000-7000-8000-000000000001";
+    await expect(
+      beginSession(s.training, { workoutId: deletedWorkout }, derivedTitle, { resumeActive: true }),
+    ).rejects.toThrow("The workout is gone");
+    expect(s.all("training_session")).toEqual([]);
+  });
+
+  it("starts the workout when nothing is active", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const result = await beginSession(s.training, { workoutId: plan.workoutId }, derivedTitle, {
+      resumeActive: true,
+    });
+    expect(result.outcome).toBe("started");
+    expect(s.exercises(result.id).length).toBeGreaterThan(0);
+  });
+});
+
+describe("repeated exercises", () => {
+  it("marks every copied exercise as repeated", async () => {
+    const { s, id } = await finishedLegs();
+    const copy = await performAgain(s.training, id, derivedTitle);
+    expect(s.exercises(copy).every((row) => row["repeated"] === 1)).toBe(true);
+    expect(s.exercises(id).every((row) => !row["repeated"])).toBe(true);
+    const detail = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(copy));
+    expect(detail?.exercises.every((exercise) => exercise.repeated)).toBe(true);
   });
 });

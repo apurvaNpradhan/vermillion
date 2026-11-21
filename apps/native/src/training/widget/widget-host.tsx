@@ -17,6 +17,7 @@ import { useWorkoutRecency } from "../train/use-workout-recency";
 import {
   buildWidgetSnapshot,
   sameSnapshotContent,
+  weekExpiry,
   type WidgetColors,
   type WidgetInput,
   type WidgetSnapshot,
@@ -108,8 +109,12 @@ const EMPTY_INPUT = {
   next: null,
   recent: null,
   sessionsThisWeek: 0,
+  weekExpiresAt: 0,
   goal: null,
-} satisfies Pick<WidgetInput, "active" | "next" | "recent" | "sessionsThisWeek" | "goal">;
+} satisfies Pick<
+  WidgetInput,
+  "active" | "next" | "recent" | "sessionsThisWeek" | "weekExpiresAt" | "goal"
+>;
 
 function SignedInWidget() {
   const colors = useWidgetColors();
@@ -129,6 +134,10 @@ function SignedInWidget() {
   const recent = recency.value?.[0];
   const resume = active.sessions[0];
   const sessionsThisWeek = sessionsInWeek(home.sessions, now, home.timezone, home.weekStart).length;
+  const weekExpiresAt = useMemo(
+    () => weekExpiry(now, home.timezone, home.weekStart),
+    [now, home.timezone, home.weekStart],
+  );
   const goal = sessionGoal(programState.program, home.sessionsPerWeek);
   const nextTitle = nextSlot ? slotTitle(nextSlot, t) : null;
   const nextIndex = nextSlot ? slots.findIndex((slot) => slot.id === nextSlot.id) : -1;
@@ -152,6 +161,7 @@ function SignedInWidget() {
             : null,
         recent: recent ? { workoutId: recent.id, title: recent.title } : null,
         sessionsThisWeek,
+        weekExpiresAt,
         goal,
       })
     : null;

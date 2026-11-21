@@ -45,6 +45,7 @@ const exercise = (
   pinnedNote: null,
   lastNote: null,
   warmupKey: null,
+  repeated: false,
   barId: null,
   exercise: null,
   sets,

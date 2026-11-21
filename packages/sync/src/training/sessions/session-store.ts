@@ -9,11 +9,12 @@ import {
   workoutStructureKey,
   type PlannedSet,
 } from "@workspace/shared";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { programRun, programSlot } from "../tables";
 import { hasCountedSetSql } from "../plans/run-store";
 import { keysAfterLast } from "../position";
+import { performAgainIn } from "./session-again-store";
 import {
   assertSessionRoom,
   exerciseInfoOf,
@@ -224,6 +225,55 @@ export function startSession(
   });
 }
 
+/** What starts a Session: a Workout (or nothing), or a finished Session to repeat. */
+export type BeginSource = { workoutId: string | null } | { againOf: string };
+
+/**
+ * Starts a Session in ONE transaction: the source is read, the Sessions in `discardIds` are
+ * discarded, and the new Session is created, so a source that turns out to be gone rolls the
+ * discard back with it. With `resumeActive`, an unfinished Session already present (even one that
+ * appeared a moment ago) is returned as "resumed" instead of starting a second one. Idempotent on
+ * `options.id`.
+ */
+export function beginSession(
+  database: TrainingDatabase,
+  source: BeginSource,
+  derivedTitle: string,
+  options: { id?: string; discardIds?: readonly string[]; resumeActive?: boolean } = {},
+  expectedInstallId?: string,
+): Promise<{ id: string; outcome: "started" | "resumed"; removed: DeletedSession[] }> {
+  return write(database, expectedInstallId, async (tx, active) => {
+    const id = options.id ?? uuidv7();
+    const [existing] = await tx.select({ id: session.id }).from(session).where(eq(session.id, id));
+    if (existing) return { id, outcome: "started", removed: [] };
+    const removed: DeletedSession[] = [];
+    for (const old of options.discardIds ?? []) {
+      const deleted = await discardSessionIn(tx, old);
+      if (deleted) removed.push(deleted);
+    }
+    if (options.resumeActive) {
+      const [open] = await tx
+        .select({ id: session.id })
+        .from(session)
+        .where(isNull(session.finished_at))
+        .orderBy(desc(session.started_at), desc(session.id))
+        .limit(1);
+      if (open) return { id: open.id, outcome: "resumed", removed };
+    }
+    if ("againOf" in source) {
+      await performAgainIn(tx, source.againOf, derivedTitle, id);
+    } else {
+      await createSessionIn(
+        tx,
+        { workoutId: source.workoutId, derivedTitle },
+        { id, startedAt: nowIso(), finishedAt: null, durationS: null },
+        active,
+      );
+    }
+    return { id, outcome: "started", removed };
+  });
+}
+
 /**
  * Logs a past workout: a finished Session started at `startedAt` (within the last 10 years, not
  * in the future), copied from a Workout or empty, with no timers. Its sets start unticked for
@@ -372,46 +422,49 @@ export function discardSession(
   id: string,
   expectedInstallId?: string,
 ): Promise<DeletedSession | null> {
-  return write(database, expectedInstallId, async (tx) => {
-    const [current] = await tx.select().from(session).where(eq(session.id, id)).limit(1);
-    if (!current) return null;
-    const exercises = await tx
-      .select()
-      .from(sessionExercise)
-      .where(eq(sessionExercise.session_id, id));
-    const sets = exercises.length
-      ? await tx
-          .select()
-          .from(sessionSet)
-          .where(
-            inArray(
-              sessionSet.session_exercise_id,
-              exercises.map((entry) => entry.id),
-            ),
-          )
-      : [];
-    if (sets.length > 0) {
-      await tx.delete(sessionSet).where(
-        inArray(
-          sessionSet.id,
-          sets.map((set) => set.id),
-        ),
-      );
-    }
-    await tx.delete(sessionExercise).where(eq(sessionExercise.session_id, id));
-    const photos = await tx
-      .select({ mediaId: sessionPhoto.media_id })
-      .from(sessionPhoto)
-      .where(eq(sessionPhoto.session_id, id))
-      .limit(4);
-    await tx.delete(session).where(eq(session.id, id));
-    return {
-      session: current,
-      exercises,
-      sets,
-      photoMediaIds: photos.map((photo) => photo.mediaId),
-    };
-  });
+  return write(database, expectedInstallId, (tx) => discardSessionIn(tx, id));
+}
+
+/** {@link discardSession} inside a transaction the caller owns. */
+export async function discardSessionIn(tx: Tx, id: string): Promise<DeletedSession | null> {
+  const [current] = await tx.select().from(session).where(eq(session.id, id)).limit(1);
+  if (!current) return null;
+  const exercises = await tx
+    .select()
+    .from(sessionExercise)
+    .where(eq(sessionExercise.session_id, id));
+  const sets = exercises.length
+    ? await tx
+        .select()
+        .from(sessionSet)
+        .where(
+          inArray(
+            sessionSet.session_exercise_id,
+            exercises.map((entry) => entry.id),
+          ),
+        )
+    : [];
+  if (sets.length > 0) {
+    await tx.delete(sessionSet).where(
+      inArray(
+        sessionSet.id,
+        sets.map((set) => set.id),
+      ),
+    );
+  }
+  await tx.delete(sessionExercise).where(eq(sessionExercise.session_id, id));
+  const photos = await tx
+    .select({ mediaId: sessionPhoto.media_id })
+    .from(sessionPhoto)
+    .where(eq(sessionPhoto.session_id, id))
+    .limit(4);
+  await tx.delete(session).where(eq(session.id, id));
+  return {
+    session: current,
+    exercises,
+    sets,
+    photoMediaIds: photos.map((photo) => photo.mediaId),
+  };
 }
 
 /** Undo of {@link discardSession}: the same ids and content. False if the Session is back already. */

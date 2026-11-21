@@ -33,7 +33,9 @@ export type SessionHistory = {
  * A Counted set: ticked, and not a warm-up (unless the set carries `warmup_counted`).
  * Everything numeric uses only these.
  */
-export function isCounted(set: LoggedSet): boolean {
+export function isCounted(
+  set: Pick<LoggedSet, "completed_at" | "kind" | "warmup_counted">,
+): boolean {
   return set.completed_at !== null && (set.kind !== "warmup" || set.warmup_counted === true);
 }
 

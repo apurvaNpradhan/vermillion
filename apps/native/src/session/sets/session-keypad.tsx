@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Text } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
@@ -50,6 +51,12 @@ export function SessionKeypad({
   const { t } = useTranslation();
   const { systemKeyboard } = usePreferences().preferences.ui;
   if (!logging.entry || !logging.activeField) return null;
+  const editLabel =
+    logging.activeField === "duration"
+      ? t("session__edit_duration")
+      : logging.activeField === "distance"
+        ? t("training__col_distance", { unit: t("training__unit_m") })
+        : null;
   return (
     <Keypad
       labels={{
@@ -63,7 +70,9 @@ export function SessionKeypad({
       allowPoint={logging.activeField === "weight" || logging.activeField === "distance"}
       hasNext={withinSet ? logging.hasNextInSet : logging.hasNext}
       stepText={logging.stepText}
-      accessory={accessory}
+      accessory={
+        editLabel ? <Text className="text-caption text-muted">{editLabel}</Text> : accessory
+      }
       systemKeyboard={systemKeyboard}
       onKey={logging.onKey}
       onStep={logging.onStep}

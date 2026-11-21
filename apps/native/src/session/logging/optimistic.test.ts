@@ -50,6 +50,7 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     pinnedNote: null,
     lastNote: null,
     warmupKey: null,
+    repeated: false,
     barId: null,
     sets,
     exercise: null,

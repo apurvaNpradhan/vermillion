@@ -77,5 +77,5 @@ export function useTrainingWrite() {
     [t, toast],
   );
 
-  return { write, writeScope, training, undoToast };
+  return { write, writeScope, training, undoToast, isOpening: local === null };
 }

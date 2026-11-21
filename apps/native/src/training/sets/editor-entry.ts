@@ -85,3 +85,16 @@ export function nextEditorCell(cells: readonly EditorCell[], key: string): Edito
   const at = cells.findIndex((cell) => cell.key === key);
   return at < 0 ? null : (cells[at + 1] ?? null);
 }
+
+/**
+ * Forgets the cells of a table that is gone (its exercise collapsed or its screen closed) and says
+ * whether the keypad was editing one of them, so it must close.
+ */
+export function unbindTable(
+  tables: Map<string, readonly EditorCell[]>,
+  activeTableId: string | null,
+  tableId: string,
+): boolean {
+  tables.delete(tableId);
+  return activeTableId === tableId;
+}

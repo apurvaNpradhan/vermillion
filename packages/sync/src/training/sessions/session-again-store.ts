@@ -55,15 +55,24 @@ export function performAgain(
   options: { id?: string } = {},
   expectedInstallId?: string,
 ): Promise<string> {
-  return write(database, expectedInstallId, async (tx) => {
-    const id = options.id ?? uuidv7();
-    const [existing] = await tx.select({ id: session.id }).from(session).where(eq(session.id, id));
-    if (existing) return id;
-    const source = await requireSession(tx, sourceSessionId);
-    if (source.finished_at === null) throw new Error("Only a finished session can be repeated");
-    await copyInto(tx, source, id, derivedTitle);
-    return id;
-  });
+  return write(database, expectedInstallId, (tx) =>
+    performAgainIn(tx, sourceSessionId, derivedTitle, options.id ?? uuidv7()),
+  );
+}
+
+/** {@link performAgain} inside a transaction the caller owns: validates the source, then copies it. */
+export async function performAgainIn(
+  tx: Tx,
+  sourceSessionId: string,
+  derivedTitle: string,
+  id: string,
+): Promise<string> {
+  const [existing] = await tx.select({ id: session.id }).from(session).where(eq(session.id, id));
+  if (existing) return id;
+  const source = await requireSession(tx, sourceSessionId);
+  if (source.finished_at === null) throw new Error("Only a finished session can be repeated");
+  await copyInto(tx, source, id, derivedTitle);
+  return id;
 }
 
 async function copyInto(
@@ -132,6 +141,7 @@ async function copyInto(
       log_effort: entry.log_effort,
       // Keeps an auto warm-up ramp from being generated a second time over the copied warm-ups.
       warmup_key: entry.warmup_key,
+      repeated: true,
       created_at: nowIso(),
     });
     const keys = keysAfterLast([], sets.length);

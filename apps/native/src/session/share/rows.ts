@@ -1,3 +1,4 @@
+import { isCounted } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 
 import { rowDetail, type RowDetail } from "./best-set";
@@ -8,7 +9,7 @@ export type ShareRow = {
   title: string;
   thumbnailKey: string | null;
   imageMediaId: string | null;
-  /** Counted sets: ticked, no warm-ups. */
+  /** Counted sets: ticked, no warm-ups unless they are counted. */
   sets: number;
   detail: RowDetail;
   /** A Counted set of it set a Record. */
@@ -16,16 +17,19 @@ export type ShareRow = {
 };
 
 /**
- * The exercises that have Counted sets, in Session order. Warm-ups and unticked sets are left
- * out, so an exercise with only those has no row. `flagged` says which set ids set a Record.
+ * The exercises that have Counted sets, in Session order. Unticked sets are left out, and so are
+ * warm-ups unless "Count warm-up sets" is on, so an exercise with only those has no row. `flagged` says which set ids set a Record.
  */
 export function shareRows(
   session: SessionDetail,
   flagged: { has: (setId: string) => boolean },
   showWeights: boolean,
+  countWarmups = false,
 ): ShareRow[] {
   return session.exercises.flatMap((entry) => {
-    const counted = entry.sets.filter((set) => set.completedAt !== null && set.kind !== "warmup");
+    const counted = entry.sets.filter((set) =>
+      isCounted({ completed_at: set.completedAt, kind: set.kind, warmup_counted: countWarmups }),
+    );
     const detail = rowDetail(entry.type, counted, showWeights);
     if (counted.length === 0 || detail === null) return [];
     return [
