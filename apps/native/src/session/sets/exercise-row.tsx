@@ -7,21 +7,19 @@ import { Pressable, Text, View } from "react-native";
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
-import { ReorderHeader, SupersetBracket } from "@/training";
+import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
 const HIDDEN = { display: "none" } as const;
 const FALLBACK_TITLE_KEY = "training__exercise_missing";
 
 /**
- * One exercise of the accordion. Collapsed it reads "2/4" or "4/4 · 60 kg × 8, 8, 7, 6"; while a
- * row is dragged it is a single line. Open it shows its pinned note and its body (rest chip, set
+ * One exercise of the accordion. Collapsed it reads "2/4" or "4/4 · 60 kg × 8, 8, 7, 6". Open it shows its pinned note and its body (rest chip, set
  * grid). A superset member carries the bracket, and the whole block opens together.
  */
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
   place,
   open,
-  dragging,
   progress,
   summary,
   showAddSet,
@@ -31,14 +29,13 @@ export const ExerciseRow = memo(function ExerciseRow({
   onToggle,
   onMenu,
   onAddSet,
+  onReorder,
   children,
   progression,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
   open: boolean;
-  /** A row is being dragged: every row is one line. */
-  dragging: boolean;
   /** "2/4". */
   progress: string;
   /** The done summary after the progress; empty while sets remain. */
@@ -52,6 +49,8 @@ export const ExerciseRow = memo(function ExerciseRow({
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
+  /** Long press on the header: open the Reorder view. */
+  onReorder: () => void;
   /** The open body: note, rest chip, set grid. */
   children: ReactNode;
   progression?: ReactNode;
@@ -71,23 +70,9 @@ export const ExerciseRow = memo(function ExerciseRow({
   );
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
 
-  if (dragging) {
-    return (
-      <View
-        className={`h-14 flex-row items-center gap-3 bg-surface pr-4 ${grouped ? "pl-6" : "pl-4"}`}
-      >
-        <SupersetBracket place={place} />
-        {thumbnail(32)}
-        <Text numberOfLines={1} className="flex-1 font-medium text-body text-foreground">
-          {name || t(FALLBACK_TITLE_KEY)}
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <View>
-      <ReorderHeader
+    <ReorderBlock onReorder={onReorder} enabled={!readOnly}>
+      <ReorderTrigger
         className={`min-h-[64px] flex-row items-center ${open ? "bg-background" : "bg-surface"}`}
       >
         <SupersetBracket place={place} />
@@ -159,7 +144,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             <DotsThreeVertical size={20} color={subtle} />
           </Pressable>
         )}
-      </ReorderHeader>
+      </ReorderTrigger>
       {open || warm ? (
         <View
           className="gap-3 bg-default/30 px-3 py-4"
@@ -170,7 +155,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           {children}
         </View>
       ) : null}
-    </View>
+    </ReorderBlock>
   );
 });
 

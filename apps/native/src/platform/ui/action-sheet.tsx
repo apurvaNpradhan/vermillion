@@ -28,7 +28,7 @@ export function ActionSheet({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
-          <View className="px-1">
+          <View className="px-4">
             <BottomSheet.Title numberOfLines={1} className="font-semibold text-title-lg">
               {title}
             </BottomSheet.Title>

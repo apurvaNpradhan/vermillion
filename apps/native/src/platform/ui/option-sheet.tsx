@@ -34,7 +34,7 @@ export function OptionSheet<T extends string>({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
-          <View className="gap-1 px-1">
+          <View className="gap-1 px-4">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             {description ? (
               <BottomSheet.Description className="text-body text-muted">

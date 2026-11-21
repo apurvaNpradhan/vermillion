@@ -40,8 +40,8 @@ import {
   type ProgramWorkoutChoice,
 } from "@/training/rotation/program-workout-sheets";
 import { ProgramTile } from "./program-row";
-import { ReorderList } from "@/training/reorder/reorder-list";
-import { useReorderScroll } from "@/training/reorder/use-reorder-scroll";
+import { CompactRow } from "@/training/reorder/compact-row";
+import { ReorderView } from "@/training/reorder/reorder-view";
 import { RotationRow, slotTitle } from "@/training/rotation/rotation-row";
 
 /** The cover tile in the header. */
@@ -117,7 +117,7 @@ function LoadedProgram({
   const [dayOpen, setDayOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
-  const reorderScroll = useReorderScroll();
+  const [reordering, setReordering] = useState(false);
 
   const slots = program.slots;
   const numbers = useMemo(() => new Map(slots.map((slot, index) => [slot.id, index + 1])), [slots]);
@@ -254,12 +254,6 @@ function LoadedProgram({
             className="flex-1"
             contentContainerStyle={contentContainerStyle}
             contentContainerClassName="gap-8"
-            ref={(node) => {
-              scroll.ref(node);
-              reorderScroll.ref(node);
-            }}
-            animatedProps={reorderScroll.animatedProps}
-            onContentSizeChange={reorderScroll.onContentSizeChange}
             keyboardShouldPersistTaps="handled"
           >
             <View className="px-4">{header}</View>
@@ -318,30 +312,45 @@ function LoadedProgram({
                 />
               ) : (
                 <View className="px-4">
-                  <ReorderList
-                    items={slots}
-                    scroll={reorderScroll}
-                    topInset={contentContainerStyle.paddingTop}
-                    bottomInset={contentContainerStyle.paddingBottom}
-                    onMove={(id, beforeId) => void actions.move(id, beforeId)}
-                    renderItem={(slot, { collapsed }) => (
-                      <RotationRow
-                        slot={slot}
-                        number={numbers.get(slot.id) ?? 0}
-                        title={slotTitle(slot, (key) => t(key))}
-                        repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
-                        collapsed={collapsed}
-                        onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
-                        onMenu={setSlotMenu}
-                      />
-                    )}
-                  />
+                  {slots.map((slot) => (
+                    <RotationRow
+                      key={slot.id}
+                      slot={slot}
+                      number={numbers.get(slot.id) ?? 0}
+                      title={slotTitle(slot, (key) => t(key))}
+                      repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                      onReorder={() => setReordering(true)}
+                      onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
+                      onMenu={setSlotMenu}
+                    />
+                  ))}
                 </View>
               )}
             </View>
           </Animated.ScrollView>
         )}
       </Page>
+      <ReorderView
+        visible={reordering}
+        onClose={() => setReordering(false)}
+        items={slots}
+        onMove={(id, beforeId) => void actions.move(id, beforeId)}
+        labelOf={(slot) => `${numbers.get(slot.id) ?? 0}. ${slotTitle(slot, (key) => t(key))}`}
+        renderRow={(slot) => (
+          <CompactRow
+            leading={
+              <Text
+                className="w-8 text-center text-label font-semibold text-muted"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
+                {numbers.get(slot.id) ?? 0}
+              </Text>
+            }
+            title={slot.workout ? slotTitle(slot, (key) => t(key)) : t("training__rest_day")}
+            muted={!slot.workout}
+          />
+        )}
+      />
       <ActionSheet
         title={program.title}
         actions={menu}

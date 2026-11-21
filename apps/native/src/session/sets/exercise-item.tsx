@@ -37,7 +37,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   place,
   open,
   warm,
-  dragging,
   progress,
   summary,
   showAddSet,
@@ -56,6 +55,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   onToggle,
   onMenu,
   onAddSet,
+  onReorder,
   onNote,
   onRest,
   onCell,
@@ -79,7 +79,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   place: SupersetPlace;
   open: boolean;
   warm: boolean;
-  dragging: boolean;
   progress: string;
   summary: string;
   showAddSet: boolean;
@@ -99,6 +98,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
+  onReorder: () => void;
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
   onCell: (setId: string, field: SetField) => void;
@@ -120,7 +120,6 @@ export const ExerciseItem = memo(function ExerciseItem({
       place={place}
       open={open}
       warm={warm}
-      dragging={dragging}
       progress={progress}
       summary={summary}
       showAddSet={showAddSet}
@@ -129,6 +128,7 @@ export const ExerciseItem = memo(function ExerciseItem({
       onToggle={onToggle}
       onMenu={onMenu}
       onAddSet={onAddSet}
+      onReorder={onReorder}
     >
       {stall ? (
         <StalledNote

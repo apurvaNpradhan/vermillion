@@ -454,7 +454,11 @@ export function useLoggingState({
             .filter((set) => set.exercise_id === at.exercise.exerciseId)
             .map((set) =>
               set.id === setId
-                ? { ...set, ...result.values, completed_at: new Date(expiresAt ?? Date.now()).toISOString() }
+                ? {
+                    ...set,
+                    ...result.values,
+                    completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
+                  }
                 : set,
             ),
           setId,

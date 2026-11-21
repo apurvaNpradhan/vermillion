@@ -13,8 +13,9 @@ export { MuscleDistribution } from "./muscles/muscle-distribution";
 export { formatPercent, groupRows } from "./muscles/muscle-share-rows";
 export { SetTypeSheet } from "./sets/set-type-sheet";
 export { RestPicker } from "./targets/rest-picker";
-export { ReorderList, ReorderHeader } from "./reorder/reorder-list";
-export { HideWhileDragging } from "./reorder/hide-while-dragging";
+export { ReorderBlock, ReorderTrigger } from "./reorder/reorder-block";
+export { ReorderView } from "./reorder/reorder-view";
+export { CompactRow } from "./reorder/compact-row";
 export { InlineNote } from "./shared/inline-note";
 export { TargetPickerSheet } from "./targets/target-picker-sheet";
 export { SET_TONES } from "./sets/set-tones";
@@ -27,7 +28,6 @@ export { useWorkout } from "./workouts/use-workout";
 export { useWorkouts } from "./train/use-workouts";
 export { WorkoutPreviewScreen } from "./workouts/workout-preview-screen";
 
-export { useReorderScroll } from "./reorder/use-reorder-scroll";
 export { Stepper } from "./targets/stepper";
 export { SetTextTable } from "./sets/set-text-table";
 
