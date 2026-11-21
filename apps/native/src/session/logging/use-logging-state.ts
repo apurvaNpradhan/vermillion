@@ -30,6 +30,7 @@ import type { KeypadKey } from "@/platform/ui/keypad-keys";
 import { useCoalescedWriter } from "@/training";
 
 import { copySetUpdates } from "./copy-sets";
+import { nextRowLookups, shareMapValues, type RowLookups } from "./row-lookups";
 import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 
@@ -195,6 +196,7 @@ export function useLoggingState({
   );
   // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
   const stallVersion = useStallVersion();
+  const stallsRef = useRef(new Map<string, StallInfo>());
   const stalls = useMemo(
     () =>
       new Map(
@@ -213,6 +215,12 @@ export function useLoggingState({
     // `stallVersion` changes when a note is dismissed or applied: the memory lives on the device.
     [exercises, previousByWorkout, session.finishedAt, bodyweightKg, lighterWeeks, stallVersion],
   );
+  // Unchanged notes keep their objects, so a write elsewhere does not redraw every exercise.
+  const sharedStalls = useMemo(() => {
+    stallsRef.current = shareMapValues(stallsRef.current, stalls);
+    return stallsRef.current;
+  }, [stalls]);
+  const suggestionsRef = useRef(new Map<string, ReturnType<typeof exerciseSuggestion> | null>());
   const suggestions = useMemo(
     () =>
       new Map(
@@ -238,6 +246,10 @@ export function useLoggingState({
       stalls,
     ],
   );
+  const sharedSuggestions = useMemo(() => {
+    suggestionsRef.current = shareMapValues(suggestionsRef.current, suggestions);
+    return suggestionsRef.current;
+  }, [suggestions]);
   const ghostsFor = useCallback(
     (setId: string): Ghosts => {
       const at = found.get(setId);
@@ -253,6 +265,11 @@ export function useLoggingState({
     },
     [found, previousOf, previous, suggestions],
   );
+  const lookupsRef = useRef(new Map<string, RowLookups>());
+  const rowLookups = useMemo(() => {
+    lookupsRef.current = nextRowLookups(lookupsRef.current, exercises, previousOf, ghostsFor);
+    return lookupsRef.current;
+  }, [exercises, previousOf, ghostsFor]);
 
   // ---- The keypad ----
   const [entry, setEntryState] = useState<Entry | null>(null);
@@ -644,6 +661,7 @@ export function useLoggingState({
 
   // Rows are memoized: hand them handlers that keep their identity across data changes.
   const stableOpenCell = useStableHandler(openCell);
+  const stableToggleBlock = useStableHandler(toggleBlock);
   const stableOnTick = useStableHandler(onTick);
   const stableOnTimer = useStableHandler(onTimer);
   const stableOnPrevious = useStableHandler(onPrevious);
@@ -660,11 +678,13 @@ export function useLoggingState({
         ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
         : openBlockId,
     justCollapsedId,
-    toggleBlock,
+    toggleBlock: stableToggleBlock,
     previousOf,
     ghostsFor,
-    suggestions,
-    stalls,
+    /** Per exercise row: Previous and Ghost lookups that keep their identity while unchanged. */
+    rowLookups,
+    suggestions: sharedSuggestions,
+    stalls: sharedStalls,
     // A Lighter week halves the suggested sets; the rest stay visible but optional.
     lighter: activeLighterWeek(lighterWeeks, new Date()) !== null,
     unit,

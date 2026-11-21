@@ -595,8 +595,8 @@ function LoadedSession({
                       ? logging.refusal
                       : null
                   }
-                  previousOf={logging.previousOf}
-                  ghostsFor={logging.ghostsFor}
+                  previousOf={logging.rowLookups.get(entry.id)?.previousOf ?? logging.previousOf}
+                  ghostsFor={logging.rowLookups.get(entry.id)?.ghostsFor ?? logging.ghostsFor}
                   onView={viewExercise}
                   onToggle={toggleBlock}
                   onMenu={onMenu}

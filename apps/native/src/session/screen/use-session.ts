@@ -3,6 +3,8 @@ import { useCallback } from "react";
 
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 
+import { shareSession } from "./share-session";
+
 export type SessionState =
   | { status: "loading" }
   | { status: "ready"; session: SessionDetail }
@@ -16,7 +18,17 @@ export function useSession(id: string): SessionState {
       database: Parameters<typeof watchSession>[0],
       onValue: (value: SessionDetail | null) => void,
       onError: () => void,
-    ) => watchSession(database, id, { onSession: onValue, onError }),
+    ) => {
+      // Each subscription keeps its last emission, so unchanged rows stay the same objects.
+      let last: SessionDetail | null = null;
+      return watchSession(database, id, {
+        onSession: (value) => {
+          last = value ? shareSession(last, value) : null;
+          onValue(last);
+        },
+        onError,
+      });
+    },
     [id],
   );
   const state = useLocalWatch(subscribe);
