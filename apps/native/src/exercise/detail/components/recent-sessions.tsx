@@ -54,12 +54,12 @@ export function RecentSessions({
       {sessions.map((session) => (
         <View key={session.id} className="gap-2 pb-3 pt-1">
           <Text className="text-body font-semibold text-foreground">{session.title}</Text>
-          <Text className="text-caption text-muted">
+          <Text className="font-normal text-caption text-muted">
             {date.format(new Date(session.started_at))}
           </Text>
           {session.sets.map((set, index) => (
             <View key={set.id} className="flex-row gap-3">
-              <Text className={`text-caption ${KIND_TEXT[set.kind]}`}>
+              <Text className={`font-normal text-caption ${KIND_TEXT[set.kind]}`}>
                 {set.kind === "working"
                   ? t("exercise__history_set", { number: workingSetNumber(session.sets, index) })
                   : t(SET_KIND_KEYS[set.kind])}
@@ -67,7 +67,7 @@ export function RecentSessions({
               <View className="flex-1 flex-row flex-wrap gap-2">
                 {set.weight_kg != null ? (
                   <Text
-                    className="text-body text-foreground"
+                    className="font-normal text-body text-foreground"
                     style={{ fontVariant: ["tabular-nums"] }}
                   >
                     {t("exercise__value_weight", {
@@ -82,7 +82,7 @@ export function RecentSessions({
                   set[field] != null ? (
                     <Text
                       key={field}
-                      className="text-body text-foreground"
+                      className="font-normal text-body text-foreground"
                       style={{ fontVariant: ["tabular-nums"] }}
                     >
                       {t(

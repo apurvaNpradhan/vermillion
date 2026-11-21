@@ -47,7 +47,7 @@ export function HistoryWeek({
   return (
     <View className="gap-2">
       {goal !== null ? (
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {t("session__goal_accessible", { count: totals.workouts, goal })}
         </Text>
       ) : null}
@@ -119,14 +119,19 @@ export function HistoryWeekCalendar({
                 className={`absolute inset-0 rounded-lg border ${trained ? "border-on-identity" : "border-identity"}`}
               />
             )}
-            <Text className={`text-center text-caption ${tone}`}>{format.weekdayLetter(day)}</Text>
+            <Text className={`font-normal text-center text-caption ${tone}`}>
+              {format.weekdayLetter(day)}
+            </Text>
             <Text
-              className={`text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
+              className={`font-normal text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
             >
               {format.day(day)}
             </Text>
             {title && (
-              <Text numberOfLines={2} className={`mt-auto text-center text-overline ${tone}`}>
+              <Text
+                numberOfLines={2}
+                className={`font-normal mt-auto text-center text-overline ${tone}`}
+              >
                 {title}
               </Text>
             )}
@@ -208,7 +213,10 @@ export function HistoryYear({
                     </View>
                   ))}
                 </View>
-                <Text numberOfLines={1} className="text-caption tabular-nums text-muted">
+                <Text
+                  numberOfLines={1}
+                  className="font-normal text-caption tabular-nums text-muted"
+                >
                   {format.integer(count)}
                 </Text>
               </Pressable>
@@ -335,14 +343,16 @@ export function HistoryAll({
                 >
                   {points.map(({ month, count }) => (
                     <View key={month} style={{ width: BAR_STEP }} className="items-center">
-                      <Text className="text-overline tabular-nums text-muted">
+                      <Text className="font-normal text-overline tabular-nums text-muted">
                         {format.integer(count)}
                       </Text>
-                      <Text className="text-overline text-muted">{format.shortMonth(month)}</Text>
+                      <Text className="font-normal text-overline text-muted">
+                        {format.shortMonth(month)}
+                      </Text>
                     </View>
                   ))}
                 </View>
-                <Text className="text-label tabular-nums text-foreground">
+                <Text className="font-normal text-label tabular-nums text-foreground">
                   {format.year(yearStart)}
                 </Text>
               </Pressable>

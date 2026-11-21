@@ -391,7 +391,7 @@ export function ImageViewer({
           </Pressable>
           {count > 1 ? (
             <View className="rounded-full bg-surface px-3 py-2">
-              <Text className="text-label tabular-nums text-foreground">
+              <Text className="font-normal text-label tabular-nums text-foreground">
                 {pageLabel(page, count)}
               </Text>
             </View>
@@ -406,7 +406,7 @@ export function ImageViewer({
             ]}
             className="items-center"
           >
-            <Text className="rounded-full bg-surface px-3 py-2 text-label text-foreground">
+            <Text className="font-normal rounded-full bg-surface px-3 py-2 text-label text-foreground">
               {caption}
             </Text>
           </Animated.View>

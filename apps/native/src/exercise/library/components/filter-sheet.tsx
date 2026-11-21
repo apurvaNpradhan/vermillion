@@ -72,7 +72,7 @@ export function FilterSheet({
               hitSlop={12}
               onPress={() => onChange(withoutFacets(filters))}
             >
-              <Text className="text-body text-subtle">{t("exercise__clear")}</Text>
+              <Text className="font-normal text-body text-subtle">{t("exercise__clear")}</Text>
             </Pressable>
           </View>
           <BottomSheetScrollView
@@ -101,7 +101,7 @@ export function FilterSheet({
                       toggleMuscle(muscle);
                     }}
                   />
-                  <Text className="text-center text-caption text-muted">
+                  <Text className="font-normal text-center text-caption text-muted">
                     {t("exercise__body_hint")}
                   </Text>
                   <MuscleRows
@@ -117,7 +117,7 @@ export function FilterSheet({
                 />
               )}
               <View className="mt-4 flex-row items-center justify-between gap-4">
-                <Text className="flex-1 text-body text-foreground">
+                <Text className="font-normal flex-1 text-body text-foreground">
                   {t("exercise__include_secondary")}
                 </Text>
                 <Switch

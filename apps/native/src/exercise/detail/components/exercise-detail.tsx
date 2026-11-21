@@ -98,7 +98,7 @@ export function ExerciseDetailScreen(props: ExerciseDetailProps) {
           )}
         />
         {state.status === "missing" ? (
-          <Text className="px-4 text-center text-caption text-muted">
+          <Text className="font-normal px-4 text-center text-caption text-muted">
             {t("exercise__detail_missing_hint")}
           </Text>
         ) : null}
@@ -246,7 +246,7 @@ function LoadedDetail({
                 </Text>
               ) : null}
               {exercise.aka ? (
-                <Text className="text-body text-muted">
+                <Text className="font-normal text-body text-muted">
                   {t("exercise__aka", { aka: exercise.aka })}
                 </Text>
               ) : null}
@@ -342,7 +342,7 @@ function LoadedDetail({
                 </View>
               </>
             ) : history.status === "loading" ? null : (
-              <Text className="px-4 text-body text-muted">
+              <Text className="font-normal px-4 text-body text-muted">
                 {t(
                   history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
                 )}
@@ -397,7 +397,7 @@ function MenuButton({ onPress }: { onPress: () => void }) {
 function InfoChip({ label }: { label: string }) {
   return (
     <View className="rounded-full bg-default px-3 py-1">
-      <Text className="text-label text-foreground">{label}</Text>
+      <Text className="font-normal text-label text-foreground">{label}</Text>
     </View>
   );
 }
@@ -516,7 +516,7 @@ function MuscleBreakdown({
           <View key={key} className="gap-2">
             <View className="flex-row items-center gap-2">
               <View className={`size-2.5 rounded-full bg-danger ${soft ? "opacity-45" : ""}`} />
-              <Text accessibilityRole="header" className="text-caption text-muted">
+              <Text accessibilityRole="header" className="font-normal text-caption text-muted">
                 {label}
               </Text>
             </View>
@@ -527,7 +527,7 @@ function MuscleBreakdown({
                     {t(MUSCLE_GROUP_KEYS[group])}
                   </Text>
                   {parts.length > 0 ? (
-                    <Text className="text-caption text-muted">
+                    <Text className="font-normal text-caption text-muted">
                       {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
                     </Text>
                   ) : null}
@@ -601,7 +601,7 @@ function FormSection({ steps, defaultOpen }: { steps: readonly string[]; default
             className="size-6 items-center justify-center rounded-full bg-default"
           >
             <Text
-              className="text-caption text-foreground"
+              className="font-normal text-caption text-foreground"
               style={{ fontVariant: ["tabular-nums"] }}
             >
               {index + 1}
@@ -610,7 +610,7 @@ function FormSection({ steps, defaultOpen }: { steps: readonly string[]; default
           <Text
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
-            className="flex-1 text-body text-foreground"
+            className="font-normal flex-1 text-body text-foreground"
           >
             {step}
           </Text>

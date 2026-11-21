@@ -30,7 +30,10 @@ function Change({ change }: { change: NonNullable<StatView["change"]> }) {
       className="flex-row items-center gap-1"
     >
       <Icon size={14} weight="bold" color={subtle} />
-      <Text className="text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+      <Text
+        className="font-normal text-caption text-muted"
+        style={{ fontVariant: ["tabular-nums"] }}
+      >
         {change.text}
       </Text>
     </View>
@@ -40,12 +43,15 @@ function Change({ change }: { change: NonNullable<StatView["change"]> }) {
 function Stat({ stat }: { stat: StatView }) {
   return (
     <View className="min-w-[44%] flex-1 gap-1">
-      <Text className="text-caption text-muted">{stat.label}</Text>
+      <Text className="font-normal text-caption text-muted">{stat.label}</Text>
       <View className="flex-row items-baseline gap-1">
-        <Text className="text-numeric-md text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text
+          className="font-normal text-numeric-md text-foreground"
+          style={{ fontVariant: ["tabular-nums"] }}
+        >
           {stat.value}
         </Text>
-        {stat.unit ? <Text className="text-body text-muted">{stat.unit}</Text> : null}
+        {stat.unit ? <Text className="font-normal text-body text-muted">{stat.unit}</Text> : null}
       </View>
       {stat.change ? <Change change={stat.change} /> : null}
     </View>
@@ -68,13 +74,19 @@ function TopList({ rows }: { rows: { id: string; title: string; value: string }[
     <View className="gap-2">
       {rows.map((row, index) => (
         <View key={row.id} className="flex-row items-baseline gap-3">
-          <Text className="w-5 text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className="font-normal w-5 text-caption text-muted"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {index + 1}
           </Text>
-          <Text className="flex-1 text-body text-foreground" numberOfLines={1}>
+          <Text className="font-normal flex-1 text-body text-foreground" numberOfLines={1}>
             {row.title}
           </Text>
-          <Text className="text-body text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className="font-normal text-body text-muted"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {row.value}
           </Text>
         </View>
@@ -95,20 +107,22 @@ function ReportBody({ report, labels }: { report: PeriodReport; labels: ReportLa
             <Stat key={stat.id} stat={stat} />
           ))}
         </View>
-        {view.versus ? <Text className="text-caption text-muted">{view.versus}</Text> : null}
+        {view.versus ? (
+          <Text className="font-normal text-caption text-muted">{view.versus}</Text>
+        ) : null}
       </View>
       {view.records || view.streak ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           {view.records ? (
             <View className="flex-row items-center gap-3">
               <Medal size={20} weight="fill" color={subtle} />
-              <Text className="flex-1 text-body text-foreground">{view.records}</Text>
+              <Text className="font-normal flex-1 text-body text-foreground">{view.records}</Text>
             </View>
           ) : null}
           {view.streak ? (
             <View className="flex-row items-baseline justify-between gap-3">
-              <Text className="text-body text-muted">{t("report__streak")}</Text>
-              <Text className="text-body text-foreground">{view.streak}</Text>
+              <Text className="font-normal text-body text-muted">{t("report__streak")}</Text>
+              <Text className="font-normal text-body text-foreground">{view.streak}</Text>
             </View>
           ) : null}
         </View>
@@ -177,7 +191,7 @@ export function ReportScreen({ period }: { period: ReportPeriod }) {
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
       ) : state.status === "loading" ? null : state.report.stats.workouts === 0 ? (
-        <Text className="text-center text-body text-muted">{t("report__empty")}</Text>
+        <Text className="font-normal text-center text-body text-muted">{t("report__empty")}</Text>
       ) : (
         <ReportBody report={state.report} labels={labels} />
       )}

@@ -56,7 +56,7 @@ export function SetTextTable({
           {row.cells.map((cell, cellIndex) => (
             <Text
               key={cellIndex}
-              className="text-body text-foreground"
+              className="font-normal text-body text-foreground"
               style={{ flex: weight(cellIndex), fontVariant: ["tabular-nums"] }}
             >
               {cell}

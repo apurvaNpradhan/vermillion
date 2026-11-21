@@ -95,7 +95,9 @@ function ReminderEditor({
             </BottomSheet.Title>
             {explain ? (
               <View className="gap-3">
-                <Text className="text-body text-foreground">{t("body__reminder_permission")}</Text>
+                <Text className="font-normal text-body text-foreground">
+                  {t("body__reminder_permission")}
+                </Text>
                 <Button
                   isDisabled={busy}
                   onPress={() => {
@@ -170,7 +172,9 @@ function ReminderEditor({
                     };
                     return (
                       <View key={column.part} className="flex-1 gap-2">
-                        <Text className="text-body text-foreground">{column.label}</Text>
+                        <Text className="font-normal text-body text-foreground">
+                          {column.label}
+                        </Text>
                         <View className="flex-row items-center justify-between rounded-xl bg-default">
                           <Pressable
                             accessibilityRole="button"
@@ -186,7 +190,7 @@ function ReminderEditor({
                               part: column.label,
                               value: column.selected,
                             })}
-                            className="text-numeric-md tabular-nums text-foreground"
+                            className="font-normal text-numeric-md tabular-nums text-foreground"
                           >
                             {column.selected}
                           </Text>
@@ -205,7 +209,7 @@ function ReminderEditor({
                   })}
                 </View>
                 {error ? (
-                  <Text accessibilityRole="alert" className="text-body text-danger">
+                  <Text accessibilityRole="alert" className="font-normal text-body text-danger">
                     {t("errors__unknown")}
                   </Text>
                 ) : null}

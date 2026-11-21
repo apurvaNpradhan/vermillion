@@ -24,7 +24,9 @@ export function SessionShareScreen({ id, onClose }: { id: string; onClose: () =>
   if (share.status === "loading") return <View className="flex-1 bg-background" />;
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
-      <Text className="text-center text-body text-muted">{t("session__load_failed")}</Text>
+      <Text className="font-normal text-center text-body text-muted">
+        {t("session__load_failed")}
+      </Text>
       {share.status === "error" ? (
         <Button onPress={share.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>

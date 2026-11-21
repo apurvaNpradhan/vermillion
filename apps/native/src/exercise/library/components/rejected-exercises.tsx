@@ -49,10 +49,10 @@ export function RejectedExercises() {
               <Text numberOfLines={2} className="font-medium text-body text-foreground">
                 {title ?? t("exercise__rejected_unnamed")}
               </Text>
-              <Text className="text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t(write.op === "PUT" ? "exercise__rejected_create" : "exercise__rejected_change")}
               </Text>
-              <Text className="text-muted">{t(rejectionMessageKey(write.code))}</Text>
+              <Text className="font-normal text-muted">{t(rejectionMessageKey(write.code))}</Text>
             </View>
             <View className="flex-row gap-2">
               <Button size="sm" variant="danger-soft" onPress={() => setDiscarding(write.id)}>

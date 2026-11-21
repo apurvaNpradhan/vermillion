@@ -56,7 +56,7 @@ export function CellInput({
         const parsed = parse(next);
         if (parsed !== null) onValue(parsed);
       }}
-      className={`h-10 min-w-0 flex-1 rounded-lg px-1 text-center text-body text-foreground ${
+      className={`font-normal h-10 min-w-0 flex-1 rounded-lg px-1 text-center text-body text-foreground ${
         focused ? "border border-focus-ring bg-field" : "border border-transparent bg-field"
       }`}
       style={{ fontVariant: ["tabular-nums"] }}

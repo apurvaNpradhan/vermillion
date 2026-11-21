@@ -33,7 +33,7 @@ export function WorkoutProgressionPreview({
         <View key={id} className="gap-2 border-t border-border pt-3">
           <View className="gap-0.5">
             <Text className="text-body font-medium text-foreground">{title}</Text>
-            <Text className="text-caption text-muted">
+            <Text className="font-normal text-caption text-muted">
               {t(progressionLabelKey(suggestion.reason), {
                 value: formatWeight(suggestion.incrementKg, unit),
                 unit: unitLabel,
@@ -43,7 +43,7 @@ export function WorkoutProgressionPreview({
           </View>
           {changes.map(({ kind, number, last, today }) => (
             <View key={`${kind}-${number}`} className="gap-0.5">
-              <Text className="text-caption tabular-nums text-muted">
+              <Text className="font-normal text-caption tabular-nums text-muted">
                 {kind === "working"
                   ? t("exercise__history_set", { number: integer.format(number) })
                   : t("workout__progression_set", {
@@ -52,7 +52,7 @@ export function WorkoutProgressionPreview({
                     })}
               </Text>
               <View className="flex-row flex-wrap gap-x-4 gap-y-1">
-                <Text className="text-caption tabular-nums text-muted">
+                <Text className="font-normal text-caption tabular-nums text-muted">
                   {t("workout__previous", { values: valueLabel(last) })}
                 </Text>
                 <Text className="text-caption font-semibold tabular-nums text-foreground">

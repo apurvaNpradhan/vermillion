@@ -43,7 +43,7 @@ export function WelcomeScreen() {
       >
         <Animated.View entering={rise(0)}>
           <Text className="text-title-md font-bold text-foreground">{appConfig.displayName}</Text>
-          <Text className="text-body-sm text-muted">{appConfig.tagline}</Text>
+          <Text className="font-normal text-body-sm text-muted">{appConfig.tagline}</Text>
         </Animated.View>
 
         <Animated.View entering={rise(60)} className="flex-1 justify-center">
@@ -81,7 +81,7 @@ export function WelcomeScreen() {
         <SignedOutThemeSettings />
 
         <Animated.View entering={rise(180)} className="pt-5">
-          <Text className="text-center text-caption text-muted">
+          <Text className="font-normal text-center text-caption text-muted">
             {legal.map((part, index) => {
               if (part.kind === "text") return part.text;
               const link = legalLinks[part.kind];

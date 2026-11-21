@@ -34,7 +34,7 @@ export function WeekHeading({
       <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
         {t("session__week", { date: format.medium(day) })}
       </Text>
-      <Text className="text-caption tabular-nums text-muted">
+      <Text className="font-normal text-caption tabular-nums text-muted">
         {t("session__week_totals", {
           sessions: t("session__workout_count", {
             count: sessions.length,
@@ -94,9 +94,9 @@ export function HistoryRow({
         </View>
       )}
       <View className="min-w-0 flex-1 gap-1">
-        <Text className="text-title-md text-foreground">{session.title}</Text>
+        <Text className="font-normal text-title-md text-foreground">{session.title}</Text>
         {!compact && <SessionPhotos sessionId={session.id} readOnly localOnly />}
-        <Text className="text-caption tabular-nums text-muted">
+        <Text className="font-normal text-caption tabular-nums text-muted">
           {compact
             ? t("session__compact_history_row", {
                 sets: t("stats__sets", { count: totals.sets }),
@@ -114,7 +114,9 @@ export function HistoryRow({
               })}
         </Text>
         {!compact && session.exerciseTitles?.length ? (
-          <Text className="text-caption text-muted">{session.exerciseTitles.join(" · ")}</Text>
+          <Text className="font-normal text-caption text-muted">
+            {session.exerciseTitles.join(" · ")}
+          </Text>
         ) : null}
       </View>
       <CaretRight size={20} weight="regular" color={subtle} />

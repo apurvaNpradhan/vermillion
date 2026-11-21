@@ -45,7 +45,7 @@ export function PrimaryMusclePicker({
               onChange(muscle);
             }}
           />
-          <Text className="text-center text-caption text-muted">
+          <Text className="font-normal text-center text-caption text-muted">
             {t("exercise__form_body_hint")}
           </Text>
           <MuscleRows

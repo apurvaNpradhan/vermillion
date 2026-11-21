@@ -64,16 +64,16 @@ export function WeightLogSheet({
           <BottomSheet.Title>{t(goal ? "body__goal" : "body__log")}</BottomSheet.Title>
           <View className="flex-row items-baseline gap-2">
             <Text
-              className="text-numeric-xl text-foreground"
+              className="font-normal text-numeric-xl text-foreground"
               style={{ fontVariant: ["tabular-nums"] }}
             >
               {value}
             </Text>
-            <Text className="text-body text-muted">{state.unit}</Text>
+            <Text className="font-normal text-body text-muted">{state.unit}</Text>
           </View>
           {!goal ? <MeasurementDate value={date} timeZone={state.zone} onChange={setDate} /> : null}
           {action.error ? (
-            <Text accessibilityRole="alert" className="text-body text-danger">
+            <Text accessibilityRole="alert" className="font-normal text-body text-danger">
               {action.error}
             </Text>
           ) : null}

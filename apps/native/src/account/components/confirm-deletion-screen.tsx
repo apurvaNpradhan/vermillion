@@ -26,7 +26,7 @@ export function ConfirmDeletionScreen({ token }: { token?: string }) {
         <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
           {t("settings__delete_title")}
         </Text>
-        <Text className="text-muted">{t("settings__delete_body")}</Text>
+        <Text className="font-normal text-muted">{t("settings__delete_body")}</Text>
         <FormError
           message={error ? errorMessage(t, error) : !token ? t("auth__error_invalid_token") : null}
         />

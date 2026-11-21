@@ -119,10 +119,12 @@ export function ListRow({
         <ListGroup.ItemTitle className={cn("text-body font-normal", titleColor)}>
           {title}
         </ListGroup.ItemTitle>
-        {description ? <Text className="text-caption text-muted">{description}</Text> : null}
+        {description ? (
+          <Text className="font-normal text-caption text-muted">{description}</Text>
+        ) : null}
       </ListGroup.ItemContent>
       {value ? (
-        <Text numberOfLines={1} className="max-w-[45%] text-body text-muted">
+        <Text numberOfLines={1} className="font-normal max-w-[45%] text-body text-muted">
           {value}
         </Text>
       ) : null}

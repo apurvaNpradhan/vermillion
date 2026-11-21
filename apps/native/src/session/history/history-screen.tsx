@@ -255,7 +255,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                           ) : (
                             <NumberFlow value={count} locale={format.locale} />
                           )}
-                          <Text className="text-body text-muted">
+                          <Text className="font-normal text-body text-muted">
                             {t("session__workout_unit", { count })}
                           </Text>
                         </View>

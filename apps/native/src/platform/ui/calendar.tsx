@@ -78,7 +78,7 @@ export function Calendar({
         accessibilityElementsHidden
       >
         {rows[0]?.map((day) => (
-          <Text key={day} className="flex-1 text-center text-caption text-muted">
+          <Text key={day} className="font-normal flex-1 text-center text-caption text-muted">
             {labels.weekday(day)}
           </Text>
         ))}
@@ -106,7 +106,7 @@ export function Calendar({
                   ${disabled ? "opacity-40" : ""}`}
               >
                 <Text
-                  className={`text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-normal text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
                 >
                   {labels.day(day)}
                 </Text>

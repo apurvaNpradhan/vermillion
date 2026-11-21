@@ -83,7 +83,7 @@ export function SessionSettingsSheet({
                 </ListSection>
               )}
               {training.section}
-              <Text className="px-1 text-caption text-muted">
+              <Text className="font-normal px-1 text-caption text-muted">
                 {t("session__settings_footnote")}
               </Text>
             </BottomSheetScrollView>

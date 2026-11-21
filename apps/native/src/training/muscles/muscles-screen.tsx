@@ -156,7 +156,9 @@ export function MusclesScreen() {
             nextLabel={t("muscles__next_week")}
             onMove={step}
             headline={
-              <Text className="text-numeric-md tabular-nums text-foreground">{headlineText}</Text>
+              <Text className="font-normal text-numeric-md tabular-nums text-foreground">
+                {headlineText}
+              </Text>
             }
           >
             <View className="gap-2">
@@ -182,7 +184,7 @@ export function MusclesScreen() {
                     .join(", "),
                 })}
               />
-              <Text className="text-center text-caption text-muted">
+              <Text className="font-normal text-center text-caption text-muted">
                 {t(hasTarget ? "muscles__radar_caption_target" : "muscles__radar_caption")}
               </Text>
             </View>
@@ -194,7 +196,9 @@ export function MusclesScreen() {
             >
               {t("muscles__distribution_title")}
             </Text>
-            <Text className="text-caption text-muted">{t("muscles__distribution_caption")}</Text>
+            <Text className="font-normal text-caption text-muted">
+              {t("muscles__distribution_caption")}
+            </Text>
             <MuscleDistribution shares={shares} />
           </View>
           <View className="gap-4 rounded-2xl bg-surface p-4">
@@ -215,7 +219,9 @@ export function MusclesScreen() {
               ) : null}
             </View>
             {sampleVisible ? (
-              <Text className="text-caption text-muted">{t("muscles__map_sample_caption")}</Text>
+              <Text className="font-normal text-caption text-muted">
+                {t("muscles__map_sample_caption")}
+              </Text>
             ) : null}
             <View className="w-full max-w-[340px] gap-3 self-center rounded-xl bg-background p-3">
               <BodyMapPair
@@ -223,10 +229,10 @@ export function MusclesScreen() {
                 artTint={artTint}
               />
               <View className="flex-row gap-4" accessible={false} aria-hidden>
-                <Text className="flex-1 text-center text-caption text-muted">
+                <Text className="font-normal flex-1 text-center text-caption text-muted">
                   {t("bodymap__view_front")}
                 </Text>
-                <Text className="flex-1 text-center text-caption text-muted">
+                <Text className="font-normal flex-1 text-center text-caption text-muted">
                   {t("bodymap__view_back")}
                 </Text>
               </View>
@@ -238,16 +244,20 @@ export function MusclesScreen() {
                     className="size-3 rounded-sm"
                     style={{ backgroundColor: artTint.legend[level] }}
                   />
-                  <Text className="text-caption text-muted">{t(`muscles__map_${level}`)}</Text>
+                  <Text className="font-normal text-caption text-muted">
+                    {t(`muscles__map_${level}`)}
+                  </Text>
                 </View>
               ))}
             </View>
-            <Text className="text-center text-caption text-muted">
+            <Text className="font-normal text-center text-caption text-muted">
               {t(targets.length === 0 ? "muscles__map_volume_caption" : "muscles__map_caption")}
             </Text>
           </View>
           {volume.loads.length === 0 ? (
-            <Text className="text-center text-body text-muted">{t("muscles__empty")}</Text>
+            <Text className="font-normal text-center text-body text-muted">
+              {t("muscles__empty")}
+            </Text>
           ) : null}
           <View className="gap-1 rounded-2xl bg-surface py-2">
             {volume.rows.map((row) => (

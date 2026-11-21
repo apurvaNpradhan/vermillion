@@ -538,7 +538,7 @@ Product code uses semantic utilities only; never a hex value or a `gray-*` class
 | `danger`                       | `text-destructive-foreground`                 | `text-danger`                          |
 | `success` / `success-text`     | `bg-success` / `text-success-foreground`      | `bg-success`                           |
 
-Text styles: `text-title-xl`, `text-title-lg`, `text-title-md`, `text-body-lg`, `text-body`, `text-label`, `text-caption`, `text-overline` and `text-numeric-{hero,xl,lg,md,sm}`. On web the class carries the weight; on native the weight picks the Geist face, so add `font-semibold` (titles, numeric) or `font-medium` (label). Pair every numeric style with `numeric` (web) or `tabular-nums` (native).
+Text styles: `text-title-xl`, `text-title-lg`, `text-title-md`, `text-body-lg`, `text-body`, `text-label`, `text-caption`, `text-overline` and `text-numeric-{hero,xl,lg,md,sm}`. On web the class carries the weight; on native the weight picks the Geist face, so every Text and TextInput carries a face: `font-normal` (body, caption), `font-medium` (label) or `font-semibold` (titles, numeric). Text without one falls back to the system font. Pair every numeric style with `numeric` (web) or `tabular-nums` (native).
 
 Radius: web `--radius` is 12px, and `globals.css` sets `rounded-xs` 4, `rounded-sm`/`md` 8, `rounded-lg` 12, `rounded-xl`/`2xl` 16, `rounded-3xl` 28. Native `--radius` is 8px with HeroUI's multipliers (`rounded-xl` 12, `rounded-2xl` 16) and `--field-radius` 12.
 

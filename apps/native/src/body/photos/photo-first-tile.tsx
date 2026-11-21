@@ -25,8 +25,8 @@ export function PhotoFirstTile() {
   if (!photo) {
     return (
       <View className="w-1/2 gap-2 py-6">
-        <Text className="text-body text-muted">{t("body__photo_slot")}</Text>
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-body text-muted">{t("body__photo_slot")}</Text>
+        <Text className="font-normal text-caption text-muted">
           {latest.loading ? null : t("body__photo_later")}
         </Text>
       </View>
@@ -45,7 +45,7 @@ export function PhotoFirstTile() {
         hiddenLabel={t("body__photo_hidden")}
         onPress={() => (hidden ? reveal.reveal(photo.id) : router.push("/body/photos"))}
       />
-      <Text className="text-caption text-muted">
+      <Text className="font-normal text-caption text-muted">
         {t("body__photo_tile", { pose: t(poseLabels[photo.pose]), date })}
       </Text>
     </View>

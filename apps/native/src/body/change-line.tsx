@@ -58,7 +58,7 @@ export function ChangeLine({
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         <Icon size={20} color={subtle} />
       </View>
-      <Text className="flex-1 text-caption text-muted">{text}</Text>
+      <Text className="font-normal flex-1 text-caption text-muted">{text}</Text>
     </View>
   );
 }

@@ -13,7 +13,7 @@ export default function NotFound() {
           {t("errors__page_not_found")}
         </Text>
         <Link href="/" asChild>
-          <Text className="text-foreground underline">{t("nav__home")}</Text>
+          <Text className="font-normal text-foreground underline">{t("nav__home")}</Text>
         </Link>
       </View>
     </>

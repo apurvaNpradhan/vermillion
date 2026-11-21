@@ -177,7 +177,7 @@ function Chart({
                 .map((tick) => (
                   <Text
                     key={tick}
-                    className="text-caption text-muted"
+                    className="font-normal text-caption text-muted"
                     style={{
                       fontVariant: ["tabular-nums"],
                       position: "absolute",
@@ -277,17 +277,23 @@ function Chart({
             </GestureDetector>
           </View>
           <View className="flex-row justify-between">
-            <Text className="text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+            <Text
+              className="font-normal text-caption text-muted"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
               {first?.label}
             </Text>
             {data.length > 1 ? (
-              <Text className="text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text
+                className="font-normal text-caption text-muted"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
                 {last?.label}
               </Text>
             ) : null}
           </View>
           {data.length === 1 ? (
-            <Text className="text-caption text-muted">{t("charts__one_point")}</Text>
+            <Text className="font-normal text-caption text-muted">{t("charts__one_point")}</Text>
           ) : null}
         </>
       ) : null}

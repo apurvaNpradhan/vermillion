@@ -72,11 +72,11 @@ export function MuscleRow({
       className="min-h-11 gap-2 rounded-xl px-3 py-2 active:bg-default"
     >
       <View className="flex-row items-baseline justify-between gap-3">
-        <Text numberOfLines={1} className="flex-1 text-body text-foreground">
+        <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
           {name}
         </Text>
         <Text
-          className={`text-body tabular-nums ${
+          className={`font-normal text-body tabular-nums ${
             row.status === "above" ? "text-warning" : "text-muted"
           }`}
         >
@@ -95,7 +95,7 @@ export function MuscleRow({
         )}
       </View>
       {breakdown === "" ? null : (
-        <Text className="text-caption tabular-nums text-muted">{breakdown}</Text>
+        <Text className="font-normal text-caption tabular-nums text-muted">{breakdown}</Text>
       )}
     </Pressable>
   );

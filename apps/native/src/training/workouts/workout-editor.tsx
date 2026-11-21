@@ -371,7 +371,7 @@ function LoadedEditor({
               {showMore ? (
                 <View className="gap-3 px-4">
                   {workout.note && !editingDetails ? (
-                    <Text className="text-body text-muted">{workout.note}</Text>
+                    <Text className="font-normal text-body text-muted">{workout.note}</Text>
                   ) : null}
                   <View className="flex-row items-center gap-4">
                     <BodyMapPair
@@ -384,13 +384,13 @@ function LoadedEditor({
                       <Text className="font-medium text-label text-foreground">
                         {t("training__muscles_trained")}
                       </Text>
-                      <Text className="text-caption text-muted">
+                      <Text className="font-normal text-caption text-muted">
                         {muscles.primary
                           .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))
                           .join(" · ") || t("bodymap__none")}
                       </Text>
                       {muscles.secondary.length > 0 ? (
-                        <Text className="text-caption text-muted">
+                        <Text className="font-normal text-caption text-muted">
                           {t("training__assisting_muscles", {
                             names: muscles.secondary
                               .map((muscle) => t(MUSCLE_GROUP_KEYS[muscle]))

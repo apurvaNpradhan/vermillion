@@ -394,7 +394,9 @@ function ExerciseForm({
                 </Button>
               ) : null}
               {image.dirty ? (
-                <Text className="text-caption text-muted">{t("media__photo_changed")}</Text>
+                <Text className="font-normal text-caption text-muted">
+                  {t("media__photo_changed")}
+                </Text>
               ) : null}
             </View>
             <Section
@@ -466,11 +468,11 @@ function Section({
         <Text accessibilityRole="header" className="text-label font-medium text-foreground">
           {title}
         </Text>
-        {hint ? <Text className="text-caption text-muted">{hint}</Text> : null}
+        {hint ? <Text className="font-normal text-caption text-muted">{hint}</Text> : null}
       </View>
       {children}
       {error ? (
-        <Text accessibilityRole="alert" className="text-caption text-danger">
+        <Text accessibilityRole="alert" className="font-normal text-caption text-danger">
           {error}
         </Text>
       ) : null}

@@ -37,7 +37,7 @@ export function SessionPhotos({
   return (
     <View className="gap-2">
       {state.photos.length ? (
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-caption text-muted">
           {t("media__photo_count", { count: state.photos.length })}
         </Text>
       ) : null}
@@ -72,7 +72,7 @@ export function SessionPhotos({
             onPress={() => setAdding(true)}
           >
             <Plus size={24} color={muted} />
-            <Text className="text-caption text-muted">{t("media__add_photos")}</Text>
+            <Text className="font-normal text-caption text-muted">{t("media__add_photos")}</Text>
           </Pressable>
         ) : null}
       </ScrollView>

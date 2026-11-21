@@ -94,7 +94,7 @@ export function ChangeEmailSection({ onDone }: { onDone: () => void }) {
           </>
         ) : (
           <>
-            <Text className="text-body text-muted">
+            <Text className="font-normal text-body text-muted">
               {t("settings__email_code_hint", { email: sent })}
             </Text>
             <OtpInput

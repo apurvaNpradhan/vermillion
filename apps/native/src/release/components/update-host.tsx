@@ -22,7 +22,7 @@ function UpdateRequiredScreen({ minimumVersion }: { minimumVersion: string }) {
           <Text accessibilityRole="header" className="font-semibold text-title-xl text-foreground">
             {t("release__required_title")}
           </Text>
-          <Text className="text-muted">
+          <Text className="font-normal text-muted">
             {t("release__required_body", { version: minimumVersion })}
           </Text>
         </View>
@@ -56,7 +56,9 @@ function UpdateAvailableNotice({ version, onDismiss }: { version: string; onDism
             <Text className="text-body font-semibold text-foreground">
               {t("release__available_title", { version })}
             </Text>
-            <Text className="text-caption text-muted">{t("release__available_body")}</Text>
+            <Text className="font-normal text-caption text-muted">
+              {t("release__available_body")}
+            </Text>
           </View>
         </Pressable>
         <Pressable

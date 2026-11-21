@@ -31,8 +31,8 @@ export function SessionRecord({
     <View className="flex-row items-start gap-3 py-2">
       <Medal size={20} color={subtle} weight="fill" />
       <View className="flex-1 gap-0.5">
-        <Text className="text-body text-foreground">{exercise}</Text>
-        <Text className="text-caption text-muted">
+        <Text className="font-normal text-body text-foreground">{exercise}</Text>
+        <Text className="font-normal text-caption text-muted">
           {records
             .map((key) =>
               hasLabel(key)

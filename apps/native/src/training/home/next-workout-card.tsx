@@ -41,7 +41,7 @@ export function NextWorkoutCard({
             {title}
           </Text>
           {meta ? (
-            <Text numberOfLines={1} className="text-body tabular-nums text-muted">
+            <Text numberOfLines={1} className="font-normal text-body tabular-nums text-muted">
               {meta}
             </Text>
           ) : null}

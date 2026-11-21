@@ -26,7 +26,7 @@ export function MarkdownText({
 
   return (
     <View className="items-start gap-1">
-      <Text numberOfLines={clamp} className="text-body text-foreground">
+      <Text numberOfLines={clamp} className="font-normal text-body text-foreground">
         {runs.map((run, index) => {
           const href = run.href;
           const font = run.code

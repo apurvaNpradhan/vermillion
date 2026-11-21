@@ -22,7 +22,7 @@ export function BodyState({
     <View className="min-h-64 justify-center gap-4 rounded-2xl bg-surface p-5">
       {failed ? (
         <>
-          <Text accessibilityRole="alert" className="text-center text-body text-muted">
+          <Text accessibilityRole="alert" className="font-normal text-center text-body text-muted">
             {t("body__load_error")}
           </Text>
           {retry ? (
@@ -33,7 +33,7 @@ export function BodyState({
         </>
       ) : loading ? null : (
         <>
-          <Text className="text-center text-body text-muted">{empty}</Text>
+          <Text className="font-normal text-center text-body text-muted">{empty}</Text>
           {children}
         </>
       )}

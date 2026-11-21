@@ -100,7 +100,7 @@ export function ImportHistoryScreen() {
           <>
             {step.kind === "failed" ? <FormError message={t(FAILURE_KEYS[step.reason])} /> : null}
             <View className="gap-3">
-              <Text className="text-body text-muted">{t("import__intro")}</Text>
+              <Text className="font-normal text-body text-muted">{t("import__intro")}</Text>
               <Button
                 variant="primary"
                 isDisabled={!flow.ready}
@@ -108,7 +108,7 @@ export function ImportHistoryScreen() {
               >
                 <Button.Label>{t("import__choose")}</Button.Label>
               </Button>
-              <Text className="text-caption text-muted">{t("import__formats")}</Text>
+              <Text className="font-normal text-caption text-muted">{t("import__formats")}</Text>
             </View>
             {flow.receipt ? (
               <ListSection title={t("import__last")}>
@@ -148,7 +148,7 @@ export function ImportHistoryScreen() {
               <Text className="text-body font-medium text-foreground" numberOfLines={1}>
                 {file.name}
               </Text>
-              <Text className="text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("import__file_detail", {
                   source: t(`import__format_${file.format}`),
                   count: file.workouts,
@@ -201,12 +201,12 @@ export function ImportHistoryScreen() {
               />
             ) : null}
             {file.gaps > 0 ? (
-              <Text className="text-caption text-danger">
+              <Text className="font-normal text-caption text-danger">
                 {t("import__dst_gap", { count: file.gaps })}
               </Text>
             ) : null}
             {file.overlaps > 0 ? (
-              <Text className="text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("import__dst_overlap", { count: file.overlaps })}
               </Text>
             ) : null}
@@ -224,12 +224,14 @@ export function ImportHistoryScreen() {
                     { value: "lb", label: t("import__unit_lb") },
                   ]}
                 />
-                <Text className="px-1 text-caption text-muted">{t("import__unit_assumed")}</Text>
+                <Text className="font-normal px-1 text-caption text-muted">
+                  {t("import__unit_assumed")}
+                </Text>
               </View>
             ) : null}
             {flow.unmatched.length > 0 ? (
               <ListSection title={t("import__unmatched_title")}>
-                <Text className="px-1 pb-1 text-caption text-muted">
+                <Text className="font-normal px-1 pb-1 text-caption text-muted">
                   {t("import__unmatched_hint", { count: flow.matchedCount })}
                 </Text>
                 {flow.unmatched.map((item) => (
@@ -241,23 +243,23 @@ export function ImportHistoryScreen() {
                 ))}
               </ListSection>
             ) : (
-              <Text className="px-1 text-caption text-muted">
+              <Text className="font-normal px-1 text-caption text-muted">
                 {t("import__all_matched", { count: flow.matchedCount })}
               </Text>
             )}
             {!summary.planning && summary.skippedOther > 0 ? (
-              <Text className="px-1 text-caption text-muted">
+              <Text className="font-normal px-1 text-caption text-muted">
                 {t("import__skipped_other", { count: summary.skippedOther })}
               </Text>
             ) : null}
             {!summary.planning ? <ImportOmissions {...summary} /> : null}
             {file.unreadableRows > 0 ? (
-              <Text className="px-1 text-caption text-muted">
+              <Text className="font-normal px-1 text-caption text-muted">
                 {t("import__unreadable_rows", { count: file.unreadableRows })}
               </Text>
             ) : null}
             {!summary.planning && summary.creating > 0 ? (
-              <Text className="px-1 text-caption text-muted">
+              <Text className="font-normal px-1 text-caption text-muted">
                 {t("import__will_create", { count: summary.creating })}
               </Text>
             ) : null}

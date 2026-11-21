@@ -78,7 +78,7 @@ export function Field({
             setFocused(false);
             onBlur?.(event);
           }}
-          className="flex-1 text-body text-foreground"
+          className="font-normal flex-1 text-body text-foreground"
           {...input}
         />
         {end}
@@ -90,10 +90,10 @@ export function Field({
           className="flex-row items-center gap-1.5"
         >
           <Warning size={20} color={danger} />
-          <Text className="flex-1 text-caption text-foreground">{error}</Text>
+          <Text className="font-normal flex-1 text-caption text-foreground">{error}</Text>
         </View>
       ) : description ? (
-        <Text className="text-caption text-muted">{description}</Text>
+        <Text className="font-normal text-caption text-muted">{description}</Text>
       ) : null}
     </View>
   );

@@ -45,7 +45,7 @@ export function BodyStep({ onDone }: { onDone: () => void }) {
       }
     },
   });
-  const unit = (label: string) => <Text className="text-body text-muted">{label}</Text>;
+  const unit = (label: string) => <Text className="font-normal text-body text-muted">{label}</Text>;
   const heightError = invalid.includes("height") ? t("body__invalid_height") : undefined;
 
   return (

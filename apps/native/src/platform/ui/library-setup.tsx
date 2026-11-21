@@ -14,7 +14,7 @@ export function LibrarySetup({ offline = false }: { offline?: boolean }) {
       <Text className="text-center font-semibold text-title-md text-foreground">
         {t(offline ? "library__waiting_title" : "library__setting_up")}
       </Text>
-      <Text className="text-center text-body text-muted">
+      <Text className="font-normal text-center text-body text-muted">
         {t(offline ? "library__waiting_hint" : "library__setting_up_hint")}
       </Text>
     </View>

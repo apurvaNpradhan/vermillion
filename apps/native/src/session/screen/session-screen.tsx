@@ -545,7 +545,7 @@ function LoadedSession({
           )}
           {historyFailed ? (
             <View className="gap-2 p-4">
-              <Text accessibilityRole="alert" className="text-body text-muted">
+              <Text accessibilityRole="alert" className="font-normal text-body text-muted">
                 {t("session__previous_failed")}
               </Text>
               <Button variant="secondary" onPress={retryHistory}>
@@ -558,7 +558,7 @@ function LoadedSession({
               <Text className="text-overline font-semibold uppercase text-muted">
                 {t("session__workout_note")}
               </Text>
-              <Text className="text-body text-foreground">{session.workoutNote}</Text>
+              <Text className="font-normal text-body text-foreground">{session.workoutNote}</Text>
             </View>
           )}
           <View className="mt-3">

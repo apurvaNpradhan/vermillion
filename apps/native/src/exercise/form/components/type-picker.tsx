@@ -71,7 +71,9 @@ export function TypePicker({
       {locked ? (
         <View className="flex-row items-start gap-2" accessibilityRole="alert">
           <Lock size={20} color={subtle} />
-          <Text className="flex-1 text-caption text-muted">{t("exercise__type_locked")}</Text>
+          <Text className="font-normal flex-1 text-caption text-muted">
+            {t("exercise__type_locked")}
+          </Text>
         </View>
       ) : null}
       <OptionSheet<ExerciseType>

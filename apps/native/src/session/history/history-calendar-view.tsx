@@ -38,7 +38,7 @@ export function HistoryCalendar({
         {Array.from({ length: 7 }, (_, index) => {
           const day = firstWeek + index * DAY_MS;
           return (
-            <Text key={day} className="flex-1 text-center text-caption text-muted">
+            <Text key={day} className="font-normal flex-1 text-center text-caption text-muted">
               {format.weekdayLetter(day)}
             </Text>
           );
@@ -84,7 +84,7 @@ export function HistoryCalendar({
                   />
                 )}
                 <Text
-                  className={`text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-normal text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
                 >
                   {format.day(day)}
                 </Text>
@@ -142,7 +142,7 @@ function MonthGoal({
           <Check size={20} weight="regular" color={onIdentity} />
         </View>
       ) : (
-        <Text className="text-caption tabular-nums text-muted">{ratio}</Text>
+        <Text className="font-normal text-caption tabular-nums text-muted">{ratio}</Text>
       )}
     </View>
   );

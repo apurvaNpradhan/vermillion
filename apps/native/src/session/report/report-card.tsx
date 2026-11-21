@@ -40,7 +40,7 @@ function Card({
         <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
           {t(period.kind === "year" ? "report__card_year" : "report__card_month", { period: name })}
         </Text>
-        <Text className="text-caption text-muted">{t("report__card_body")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("report__card_body")}</Text>
       </View>
       <Button
         variant="secondary"

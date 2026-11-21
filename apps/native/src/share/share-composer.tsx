@@ -284,7 +284,9 @@ export function ShareComposer<Id extends string>({
 
             {actions.denied ? (
               <View className="items-center gap-2">
-                <Text className="text-center text-caption text-muted">{t("share__denied")}</Text>
+                <Text className="font-normal text-center text-caption text-muted">
+                  {t("share__denied")}
+                </Text>
                 <Button variant="secondary" size="sm" onPress={() => void Linking.openSettings()}>
                   <Button.Label>{t("share__open_settings")}</Button.Label>
                 </Button>

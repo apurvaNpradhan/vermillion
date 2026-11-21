@@ -98,7 +98,7 @@ export const RotationRow = memo(function RotationRow({
             >
               <Moon size={20} color={subtle} />
             </View>
-            <Text className="flex-1 text-body text-muted">{name}</Text>
+            <Text className="font-normal flex-1 text-body text-muted">{name}</Text>
           </View>
           {menu}
         </ReorderTrigger>
@@ -136,7 +136,7 @@ export const RotationRow = memo(function RotationRow({
             <Text numberOfLines={2} className="font-medium text-body text-foreground">
               {title}
             </Text>
-            <Text numberOfLines={1} className="text-caption text-muted">
+            <Text numberOfLines={1} className="font-normal text-caption text-muted">
               {meta}
             </Text>
           </View>
@@ -146,7 +146,10 @@ export const RotationRow = memo(function RotationRow({
               importantForAccessibility="no-hide-descendants"
               className="rounded-full bg-default px-2 py-0.5"
             >
-              <Text className="text-caption text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text
+                className="font-normal text-caption text-muted"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
                 {t("training__repeat_badge", { count: repeats })}
               </Text>
             </View>

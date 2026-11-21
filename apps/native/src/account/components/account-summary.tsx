@@ -53,7 +53,7 @@ export function AccountSummary({ variant = "row" }: { variant?: "row" | "card" }
         <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
           {user?.name ?? " "}
         </Text>
-        <Text numberOfLines={1} className="text-caption text-muted">
+        <Text numberOfLines={1} className="font-normal text-caption text-muted">
           {user?.email ?? " "}
         </Text>
       </View>

@@ -114,7 +114,9 @@ export function LogPastScreen() {
                   />
                   {(["hour", "minute"] as const).map((part) => (
                     <View key={part} className="gap-1">
-                      <Text className="text-caption text-muted">{t(`session__${part}`)}</Text>
+                      <Text className="font-normal text-caption text-muted">
+                        {t(`session__${part}`)}
+                      </Text>
                       <Stepper
                         label={t(`session__${part}`)}
                         valueText={timeDigits.format(parts[part])}
@@ -137,7 +139,9 @@ export function LogPastScreen() {
             }}
           </form.Field>
           {invalid ? (
-            <Text className="text-body text-danger">{t("session__invalid_start_date")}</Text>
+            <Text className="font-normal text-body text-danger">
+              {t("session__invalid_start_date")}
+            </Text>
           ) : null}
           <Button isDisabled={busy} onPress={() => void form.handleSubmit()}>
             <Button.Label>{t("session__log_past")}</Button.Label>

@@ -96,7 +96,9 @@ export function SetTypeSheet({
                         <Text className="font-medium text-body text-foreground">
                           {t(SET_KIND_KEYS[kind])}
                         </Text>
-                        <Text className="text-caption text-muted">{t(HINTS[kind])}</Text>
+                        <Text className="font-normal text-caption text-muted">
+                          {t(HINTS[kind])}
+                        </Text>
                       </View>
                       {value === kind ? <Check size={20} color={subtle} /> : null}
                     </Pressable>,

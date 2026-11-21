@@ -56,7 +56,7 @@ export function WarmupSettingsScreen() {
 
   return (
     <ScrollPage title={t("settings__warmup_title")} back backFallback="/settings/workouts">
-      <Text className="px-1 text-caption text-muted">{t("settings__warmup_hint")}</Text>
+      <Text className="font-normal px-1 text-caption text-muted">{t("settings__warmup_hint")}</Text>
       <ListSection title={t("settings__warmup_steps")}>
         {steps.map((step, index) => (
           <View key={index} className="gap-2 px-4 py-3">

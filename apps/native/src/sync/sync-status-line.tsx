@@ -28,7 +28,7 @@ export function SyncStatusLine() {
     <Text
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
-      className="text-body text-muted"
+      className="font-normal text-body text-muted"
     >
       {text}
     </Text>

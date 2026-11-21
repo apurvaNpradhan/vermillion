@@ -182,7 +182,9 @@ export function TrainingHome() {
             )}
           </Text>
           {selectedSessions.length === 0 ? (
-            <Text className="text-body text-muted">{t("session__history_empty_day")}</Text>
+            <Text className="font-normal text-body text-muted">
+              {t("session__history_empty_day")}
+            </Text>
           ) : (
             selectedSessions.map((session) => (
               <Button

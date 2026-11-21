@@ -33,7 +33,7 @@ export function SwapRow({
         <Text accessibilityRole="header" className="font-semibold text-title-md text-foreground">
           {t("exercise__swap_title")}
         </Text>
-        <Text className="text-caption text-muted">{t("exercise__swap_hint")}</Text>
+        <Text className="font-normal text-caption text-muted">{t("exercise__swap_hint")}</Text>
       </View>
       <ScrollView
         horizontal
@@ -66,7 +66,7 @@ export function SwapRow({
               <Text numberOfLines={2} className="min-h-10 text-caption font-medium text-foreground">
                 {candidate.title}
               </Text>
-              <Text numberOfLines={1} className="text-caption text-muted">
+              <Text numberOfLines={1} className="font-normal text-caption text-muted">
                 {t(EQUIPMENT_KEYS[candidate.equipment])} ·{" "}
                 {t(
                   candidate.primaryDetail[0]

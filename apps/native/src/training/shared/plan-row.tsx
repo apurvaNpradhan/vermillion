@@ -58,7 +58,11 @@ export function PlanRow({
                       {title}
                     </Text>
                     {shown.map((line, index) => (
-                      <Text key={index} numberOfLines={1} className="text-caption text-muted">
+                      <Text
+                        key={index}
+                        numberOfLines={1}
+                        className="font-normal text-caption text-muted"
+                      >
                         {line}
                       </Text>
                     ))}

@@ -271,7 +271,7 @@ function LoadedProgram({
                 />
                 <View className="flex-1 gap-1">
                   <Text className="text-label font-medium text-foreground">{meta}</Text>
-                  <Text className="text-caption text-muted">
+                  <Text className="font-normal text-caption text-muted">
                     {program.plannedWeeks === null
                       ? t("training__program_open_ended")
                       : t("training__planned_summary", { count: program.plannedWeeks })}

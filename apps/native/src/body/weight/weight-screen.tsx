@@ -91,7 +91,7 @@ export function WeightScreen() {
           <View className="gap-6">
             <View className="gap-2">
               <View className="flex-row items-center justify-between">
-                <Text className="text-caption text-muted">{t("body__trend_now")}</Text>
+                <Text className="font-normal text-caption text-muted">{t("body__trend_now")}</Text>
                 <View className="flex-row items-center gap-2">
                   <Button
                     isIconOnly
@@ -107,13 +107,13 @@ export function WeightScreen() {
                 </View>
               </View>
               <Text
-                className="text-numeric-xl text-foreground"
+                className="font-normal text-numeric-xl text-foreground"
                 style={{ fontVariant: ["tabular-nums"] }}
               >
                 {state.trend === null ? t("body__empty") : format(state.trend)}
               </Text>
               {change !== null || rate !== null ? (
-                <Text className="text-body text-muted">
+                <Text className="font-normal text-body text-muted">
                   {change !== null && rate !== null
                     ? t("body__headline_change", { change, rate })
                     : change !== null
@@ -122,14 +122,14 @@ export function WeightScreen() {
                 </Text>
               ) : null}
               {stale && lastWeighIn !== null ? (
-                <Text className="text-caption text-muted">
+                <Text className="font-normal text-caption text-muted">
                   {t("body__last_weigh_in", {
                     date: date(lastWeighIn),
                     count: daysSince(lastWeighIn, state.today),
                   })}
                 </Text>
               ) : selected[0] ? (
-                <Text className="text-caption text-muted">
+                <Text className="font-normal text-caption text-muted">
                   {t("body__date_range", {
                     from: date(selected[0].date),
                     to: date(selected.at(-1)?.date ?? state.today),
@@ -191,7 +191,7 @@ export function WeightScreen() {
               </Text>
               {state.months.map(([month, entries]) => (
                 <View key={month} className="gap-2">
-                  <Text className="text-caption text-muted">
+                  <Text className="font-normal text-caption text-muted">
                     {new Intl.DateTimeFormat(i18n.language, {
                       month: "long",
                       year: "numeric",
@@ -225,10 +225,10 @@ export function WeightScreen() {
                           }}
                           className="flex-row justify-between rounded-xl py-4 active:bg-default"
                         >
-                          <Text className="text-body tabular-nums text-muted">
+                          <Text className="font-normal text-body tabular-nums text-muted">
                             {date(row.local_date)}
                           </Text>
-                          <Text className="text-body tabular-nums text-foreground">
+                          <Text className="font-normal text-body tabular-nums text-foreground">
                             {format(row.value)}
                           </Text>
                         </Pressable>
@@ -277,7 +277,7 @@ export function WeightScreen() {
             contentContainerClassName="gap-4 p-5"
           >
             <BottomSheet.Title>{t("body__info")}</BottomSheet.Title>
-            <Text className="text-body text-muted">{t("body__explanation")}</Text>
+            <Text className="font-normal text-body text-muted">{t("body__explanation")}</Text>
             <Button onPress={() => setInfo(false)}>
               <Button.Label>{t("session__done")}</Button.Label>
             </Button>

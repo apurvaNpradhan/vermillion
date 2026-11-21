@@ -8,7 +8,7 @@ const DIGITS = Array.from({ length: 10 }, (_, index) => index);
 /** The text styles a rolling number can take, with the line height each one needs. */
 const SIZES = {
   xl: { style: "text-numeric-xl font-semibold tabular-nums text-foreground", lineHeight: 52 },
-  md: { style: "text-numeric-md tabular-nums text-foreground", lineHeight: 24 },
+  md: { style: "text-numeric-md font-normal tabular-nums text-foreground", lineHeight: 24 },
   title: { style: "text-title-md font-semibold tabular-nums text-foreground", lineHeight: 24 },
 } as const;
 

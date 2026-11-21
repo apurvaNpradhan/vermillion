@@ -70,7 +70,7 @@ export function ExerciseProgress({
               reps: best.set.reps,
             })}
           </Text>
-          <Text className="text-caption tabular-nums text-muted">
+          <Text className="font-normal text-caption tabular-nums text-muted">
             {t("progress__one_rm", { value: formatWeight(best.oneRepMax, unit), unit })}
           </Text>
         </View>
@@ -203,10 +203,10 @@ export function NextTimeLine({
   return (
     <View className="gap-2 pt-3">
       <View className="flex-row justify-between gap-3">
-        <Text className="text-body text-muted">{t("progress__next")}</Text>
-        <Text className="text-body text-foreground">{aim}</Text>
+        <Text className="font-normal text-body text-muted">{t("progress__next")}</Text>
+        <Text className="font-normal text-body text-foreground">{aim}</Text>
       </View>
-      <Text className="text-caption text-muted">
+      <Text className="font-normal text-caption text-muted">
         {t(progressionLabelKey(suggestion.reason), {
           value: formatWeight(suggestion.incrementKg, unit),
           unit,

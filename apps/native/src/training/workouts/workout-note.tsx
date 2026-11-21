@@ -30,7 +30,7 @@ export function WorkoutNote({
         className="gap-1.5 rounded-xl bg-field px-3 py-2.5"
       >
         <Text className="text-label font-medium text-foreground">{t("training__note_label")}</Text>
-        <Text className="text-body text-foreground">
+        <Text className="font-normal text-body text-foreground">
           {splitLinks(value).map((segment, index) =>
             segment.url === null ? (
               segment.text

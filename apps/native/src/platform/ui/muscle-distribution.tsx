@@ -44,7 +44,9 @@ export function MuscleDistribution({
         </Text>
         {shown.map((share) => (
           <View key={share.muscle} className="gap-1">
-            <Text className="text-body text-foreground">{t(MUSCLE_GROUP_KEYS[share.muscle])}</Text>
+            <Text className="font-normal text-body text-foreground">
+              {t(MUSCLE_GROUP_KEYS[share.muscle])}
+            </Text>
             <View className="flex-row items-center gap-3">
               <View className="h-2 flex-1 overflow-hidden rounded-full bg-default">
                 <View
@@ -54,7 +56,7 @@ export function MuscleDistribution({
               </View>
               <Text
                 numberOfLines={1}
-                className="w-12 text-right text-body text-foreground"
+                className="font-normal w-12 text-right text-body text-foreground"
                 style={{ fontVariant: ["tabular-nums"] }}
               >
                 {share.percent}%
@@ -85,14 +87,19 @@ export function MuscleDistribution({
         {title ?? t("exercise__muscle_distribution")}
       </Text>
       <BodyMapPair intensity={intensity} />
-      <Text className="text-caption text-muted">
+      <Text className="font-normal text-caption text-muted">
         {t("exercise__muscle_scale", { value: new Intl.NumberFormat(i18n.language).format(max) })}
       </Text>
       {(preview && !showAll ? loads.slice(0, 3) : loads).map((load) => (
         <View key={load.muscle} className="gap-1">
           <View className="flex-row justify-between">
-            <Text className="text-body text-foreground">{t(MUSCLE_GROUP_KEYS[load.muscle])}</Text>
-            <Text className="text-body text-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+            <Text className="font-normal text-body text-foreground">
+              {t(MUSCLE_GROUP_KEYS[load.muscle])}
+            </Text>
+            <Text
+              className="font-normal text-body text-foreground"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
               {t("stats__sets", {
                 count: load.sets,
               })}

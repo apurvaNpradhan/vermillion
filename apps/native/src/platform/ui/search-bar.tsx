@@ -64,7 +64,7 @@ export function SearchBar({
           autoCapitalize="none"
           returnKeyType="search"
           clearButtonMode="never"
-          className="h-11 flex-1 text-body text-foreground"
+          className="font-normal h-11 flex-1 text-body text-foreground"
         />
         {value.length > 0 ? (
           <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(120)}>
@@ -93,7 +93,7 @@ export function SearchBar({
               onCancel?.();
             }}
           >
-            <Text className="text-body text-subtle">{cancelLabel}</Text>
+            <Text className="font-normal text-body text-subtle">{cancelLabel}</Text>
           </Pressable>
         </Animated.View>
       ) : null}

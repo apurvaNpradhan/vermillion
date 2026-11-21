@@ -23,7 +23,7 @@ import { useTurnstile } from "./use-turnstile";
 function OrDivider({ label }: { label: string }) {
   return (
     <View className="items-center py-2" accessibilityElementsHidden>
-      <Text className="text-caption text-muted">{label}</Text>
+      <Text className="font-normal text-caption text-muted">{label}</Text>
     </View>
   );
 }
@@ -106,7 +106,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
               />
             )}
           </form.Field>
-          <Text className="text-caption text-muted">
+          <Text className="font-normal text-caption text-muted">
             {creating ? t("auth__email_helper_new") : t("auth__email_helper_back")}
           </Text>
           {hasSocial ? (

@@ -11,7 +11,7 @@ export function PinnedNote({ note, lines = 2 }: { note: string; lines?: number }
       <View className="pt-0.5">
         <PushPin size={14} weight="fill" color={subtle} />
       </View>
-      <Text numberOfLines={lines} className="flex-1 text-caption text-foreground">
+      <Text numberOfLines={lines} className="font-normal flex-1 text-caption text-foreground">
         {note}
       </Text>
     </View>

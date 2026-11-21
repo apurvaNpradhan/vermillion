@@ -26,7 +26,7 @@ export function EmptyState({ icon: Icon, title, action }: EmptyStateProps) {
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Icon size={48} color={muted} />
       </View>
-      <Text accessibilityRole="text" className="text-center text-body text-muted">
+      <Text accessibilityRole="text" className="font-normal text-center text-body text-muted">
         {title}
       </Text>
       {action ? (

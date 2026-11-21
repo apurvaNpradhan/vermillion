@@ -179,7 +179,7 @@ export function PhotosScreen() {
                     >
                       {formatCalendarDate(day.date, i18n.language)}
                     </Text>
-                    <Text className="text-caption text-muted">
+                    <Text className="font-normal text-caption text-muted">
                       {t("body__photo_count", { count: day.count })}
                     </Text>
                   </View>

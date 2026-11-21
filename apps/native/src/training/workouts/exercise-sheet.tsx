@@ -165,7 +165,7 @@ function LoadedSheet({
             {name}
           </Text>
           {info ? (
-            <Text numberOfLines={1} className="text-caption text-muted">
+            <Text numberOfLines={1} className="font-normal text-caption text-muted">
               {t("exercise__row_subtitle", {
                 muscle: t(MUSCLE_GROUP_KEYS[info.primaryMuscle]),
                 equipment: t(EQUIPMENT_KEYS[info.equipment]),
@@ -185,7 +185,7 @@ function LoadedSheet({
       />
 
       {place === "first" || place === "middle" ? (
-        <Text className="text-body text-muted">{t("training__rest_group_member")}</Text>
+        <Text className="font-normal text-body text-muted">{t("training__rest_group_member")}</Text>
       ) : (
         <RestPicker
           value={draft.restSeconds}

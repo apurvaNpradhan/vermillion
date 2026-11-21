@@ -128,10 +128,12 @@ export function FlowStep({
         </View>
         <View className="mx-auto w-full max-w-md gap-6 pt-10">
           <View className="gap-2">
-            <Text accessibilityRole="header" className="text-title-xl text-foreground">
+            <Text accessibilityRole="header" className="font-normal text-title-xl text-foreground">
               {title}
             </Text>
-            {subtitle ? <Text className="text-body-lg text-muted">{subtitle}</Text> : null}
+            {subtitle ? (
+              <Text className="font-normal text-body-lg text-muted">{subtitle}</Text>
+            ) : null}
           </View>
           <View className="gap-3">{children}</View>
         </View>

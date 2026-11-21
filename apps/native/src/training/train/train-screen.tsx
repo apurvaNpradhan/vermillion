@@ -136,7 +136,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             >
               {t("training__other_workouts")}
             </Text>
-            <Text className="text-body tabular-nums text-muted">{item.count}</Text>
+            <Text className="font-normal text-body tabular-nums text-muted">{item.count}</Text>
             <View className="flex-1" />
             <Caret size={20} weight="regular" color={subtle} />
           </Pressable>
@@ -233,7 +233,9 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                       <Text className="text-title-md font-semibold text-foreground">
                         {resume.title}
                       </Text>
-                      <Text className="text-caption text-muted">{t("home__in_progress")}</Text>
+                      <Text className="font-normal text-caption text-muted">
+                        {t("home__in_progress")}
+                      </Text>
                     </View>
                     <Button
                       accessibilityLabel={t("session__resume_label", { title: resume.title })}

@@ -106,7 +106,7 @@ export function OtpInput({
         aria-invalid={error}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="absolute inset-0 opacity-0"
+        className="font-normal absolute inset-0 opacity-0"
       />
     </View>
   );

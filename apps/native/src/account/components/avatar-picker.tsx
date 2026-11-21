@@ -99,7 +99,7 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
           className="items-center gap-0.5 active:opacity-80"
         >
           <Text className="font-semibold text-title-md text-foreground">{user?.name ?? " "}</Text>
-          <Text className="text-caption text-muted">{user?.email ?? " "}</Text>
+          <Text className="font-normal text-caption text-muted">{user?.email ?? " "}</Text>
         </Pressable>
       ) : null}
       <ActionSheet
