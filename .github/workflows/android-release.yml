@@ -174,10 +174,12 @@ jobs:
         run: |
           built=apps/native/android/app/build/outputs/apk/release/app-release.apk
           apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
-          signer=$("$apksigner" verify --print-certs "$built" \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          certs=$("$apksigner" verify --print-certs "$built")
+          # Build-tools 37 prints "V2 Signer: certificate ...", older ones "Signer #1 certificate ...".
+          signer=$(printf '%s\n' "$certs" | sed -n 's/^.*Signer.* certificate SHA-256 digest: //p' | head -n 1)
           expected=$(printf '%s' "$FINGERPRINT" | tr -d ':' | tr 'A-F' 'a-f')
           if [ "$signer" != "$expected" ]; then
+            printf '%s\n' "$certs" | grep -i 'digest' || true
             echo "::error title=Signature::The APK is not signed with the release keystore (signer $signer)."
             exit 1
           fi
