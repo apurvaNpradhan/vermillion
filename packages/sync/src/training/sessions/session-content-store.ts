@@ -28,6 +28,7 @@ import { z } from "zod";
 import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
   applySessionSupersetChanges,
+  assertImportUndoNotPending,
   assertSessionRoom,
   exerciseInfoOf,
   exercisesInSession,
@@ -107,6 +108,7 @@ export function addSessionExercises(
   return write(database, expectedInstallId, async (tx) => {
     const userId = await ownerOf(tx);
     await requireSession(tx, sessionId);
+    await assertImportUndoNotPending(tx, sessionId);
     assertSessionRoom(
       await exercisesInSession(tx, sessionId),
       exerciseIds.length,
@@ -344,6 +346,7 @@ export async function addSet(
   return write(database, expectedInstallId, async (tx) => {
     const userId = await ownerOf(tx);
     const parent = await requireSessionExercise(tx, sessionExerciseId);
+    await assertImportUndoNotPending(tx, parent.session_id);
     assertSessionRoom(await setsInExercise(tx, sessionExerciseId), 1, "setsPerExercise");
     const items = await rebalanceSessionSets(tx, await sessionSetListOf(tx, sessionExerciseId));
     const row = {
@@ -457,6 +460,7 @@ export function replaceWarmups(
   return write(database, expectedInstallId, async (tx) => {
     const userId = await ownerOf(tx);
     const parent = await requireSessionExercise(tx, sessionExerciseId);
+    await assertImportUndoNotPending(tx, parent.session_id);
     const rows = (
       await tx
         .select()
@@ -737,6 +741,7 @@ export function restoreSet(
       .where(eq(sessionExercise.id, row.session_exercise_id))
       .limit(1);
     if (existing || !parent) return false;
+    await assertImportUndoNotPending(tx, parent.session_id);
     if (row.generated_warmup) {
       const siblings = await tx
         .select()
@@ -773,6 +778,7 @@ export function restoreSessionExercise(
       .where(eq(session.id, removed.exercise.session_id))
       .limit(1);
     if (existing || !parent) return false;
+    await assertImportUndoNotPending(tx, parent.id);
     assertSessionRoom(await exercisesInSession(tx, parent.id), 1, "exercisesPerSession");
     await tx.insert(sessionExercise).values(marked(removed.exercise));
     if (removed.sets.length > 0) await tx.insert(sessionSet).values(removed.sets.map(marked));

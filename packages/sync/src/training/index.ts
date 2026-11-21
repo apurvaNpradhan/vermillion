@@ -131,14 +131,20 @@ export {
   type SessionSetDetail,
 } from "./sessions/session-watch";
 export {
+  batchImportSessions,
+  importSessionCost,
   importSessionBatch,
   newImportBatchId,
-  readKnownSessions,
+  readImportFingerprints,
   undoImportChunk,
   watchImportedSessions,
   type ImportedSessions,
-  type ImportWrite,
 } from "./sessions/import-store";
+export {
+  adoptLegacyImportReceipt,
+  readImportReceipt,
+  type ImportReceipt,
+} from "./sessions/import-receipt";
 export {
   SessionLimitError,
   type DeletedSession,

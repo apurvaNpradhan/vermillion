@@ -480,7 +480,7 @@ export function restoreSession(
       .where(eq(session.id, deleted.session.id))
       .limit(1);
     if (existing) return false;
-    await tx.insert(session).values(marked(deleted.session));
+    await tx.insert(session).values(marked({ ...deleted.session, import_undo: null }));
     if (deleted.exercises.length > 0) {
       await tx.insert(sessionExercise).values(deleted.exercises.map(marked));
     }

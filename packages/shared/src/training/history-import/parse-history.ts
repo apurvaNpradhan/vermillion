@@ -1,23 +1,20 @@
 import { SESSION_LIMITS, type SetKind, type WeightUnit } from "../vocabulary/vocabulary";
-import { createCsvReader, detectDelimiter, type CsvDelimiter } from "./csv";
+import { checkCsvSize, createCsvReader, detectDelimiter, HistoryCsvError } from "./csv";
+import { createImportClock, deviceTimeZone, wallClockMillis, type WallClock } from "./import-time";
+
+export function wallClockToIso(value: WallClock): string | null {
+  return createImportClock(deviceTimeZone())?.(value)?.iso ?? null;
+}
 
 /** The apps whose CSV export can be imported. */
 export type ImportFormat = "strong" | "hevy";
-
-/** A date and time as the app wrote it, in the exporter's local time (no zone in the files). */
-export type WallClock = {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-};
 
 /** One set as the file records it, in the file's own units (weight in the file's unit). */
 export type ImportedSet = {
   kind: SetKind;
   weight: number | null;
+  weightUnit?: WeightUnit | null;
+  invalid?: boolean;
   reps: number | null;
   durationS: number | null;
   /** Meters. */
@@ -39,6 +36,8 @@ export type ImportedSession = {
   key: string;
   title: string;
   start: WallClock;
+  startedAt: string;
+  format: ImportFormat;
   durationS: number | null;
   note: string | null;
   exercises: ImportedExercise[];
@@ -52,6 +51,10 @@ export type ParsedHistory = {
   sessions: ImportedSession[];
   /** Rows left out: an unreadable date or no exercise name. Rest timers are not counted. */
   skippedRows: number;
+  dayFirst: boolean;
+  ambiguousDates: boolean;
+  gaps: number;
+  overlaps: number;
 };
 
 export type HistoryBuilderResult =
@@ -61,11 +64,24 @@ export type HistoryBuilderResult =
 export type HistoryBuilder = {
   format: ImportFormat;
   addRows(rows: readonly (readonly string[])[]): void;
-  finish(): ParsedHistory;
+  finish(options?: { dayFirst?: boolean; timeZone?: string }): ParsedHistory;
 };
 
 const METERS_PER_MILE = 1609.344;
-const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTHS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
 
 type Column = { index: number; unit: string };
 
@@ -98,11 +114,13 @@ export function detectFormat(header: readonly string[]): ImportFormat | null {
 const cellOf = (row: readonly string[], column: Column | undefined) =>
   column === undefined ? "" : (row[column.index] ?? "").trim();
 
-function parseNumber(text: string, delimiter: CsvDelimiter): number | null {
-  if (text === "") return null;
-  const value = Number(delimiter === "," ? text : text.replace(",", "."));
-  return Number.isFinite(value) && value >= 0 ? value : null;
+function parseNumber(text: string): number | null {
+  if (!/^\d+(?:[.,]\d+)?$/u.test(text)) return null;
+  const value = Number(text.replace(",", "."));
+  return Number.isFinite(value) ? value : null;
 }
+
+const setIndex = (text: string): number | null => (/^\d+$/u.test(text) ? parseNumber(text) : null);
 
 /** Strong writes a duration as `1h 5m`, `45m`, `30s`, `1:05:00` or plain seconds. */
 export function parseDurationText(text: string, plainUnit: "s" | "min" = "s"): number | null {
@@ -114,31 +132,38 @@ export function parseDurationText(text: string, plainUnit: "s" | "min" = "s"): n
   if (units && (units[1] ?? units[2] ?? units[3]) !== undefined) {
     return Number(units[1] ?? 0) * 3600 + Number(units[2] ?? 0) * 60 + Number(units[3] ?? 0);
   }
-  const plain = Number(clean.replace(",", "."));
-  if (!Number.isFinite(plain) || plain < 0) return null;
+  const plain = parseNumber(clean);
+  if (plain === null) return null;
   return Math.round(plainUnit === "min" ? plain * 60 : plain);
 }
 
-const TIME = String.raw`(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*([AaPp][Mm])?)?`;
-const ISO_DATE = new RegExp(String.raw`^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})${TIME}`, "u");
+const TIME = String.raw`(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?\s*([AaPp][Mm])?)?`;
+const ISO_DATE = new RegExp(String.raw`^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})${TIME}$`, "u");
 const DAY_MONTH_NAME = new RegExp(
-  String.raw`^(\d{1,2})[ -]([A-Za-z]{3,9})\.?,?[ -](\d{4})${TIME}`,
+  String.raw`^(\d{1,2})[ -]([A-Za-z]{3,9})\.?,?[ -](\d{4})${TIME}$`,
   "u",
 );
 const MONTH_NAME_DAY = new RegExp(
-  String.raw`^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})${TIME}`,
+  String.raw`^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})${TIME}$`,
   "u",
 );
-const NUMERIC_DATE = new RegExp(String.raw`^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})${TIME}`, "u");
+const NUMERIC_DATE = new RegExp(
+  String.raw`^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})${TIME}$`,
+  "u",
+);
 
-const monthIndex = (name: string) => MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1;
+const monthIndex = (name: string) =>
+  MONTHS.findIndex(
+    (month) => month === name.toLowerCase() || month.slice(0, 3) === name.toLowerCase(),
+  ) + 1;
 
 function clock(
   parts: { year: number; month: number; day: number },
   time: readonly (string | undefined)[],
 ): WallClock | null {
   let hour = Number(time[0] ?? 0);
-  const meridiem = time[3]?.toLowerCase();
+  const meridiem = time[4]?.toLowerCase();
+  if (meridiem && (hour < 1 || hour > 12)) return null;
   if (meridiem === "pm" && hour < 12) hour += 12;
   if (meridiem === "am" && hour === 12) hour = 0;
   const value: WallClock = {
@@ -147,15 +172,9 @@ function clock(
     minute: Number(time[1] ?? 0),
     second: Number(time[2] ?? 0),
   };
-  const valid =
-    value.month >= 1 &&
-    value.month <= 12 &&
-    value.day >= 1 &&
-    value.day <= 31 &&
-    value.hour <= 23 &&
-    value.minute <= 59 &&
-    value.second <= 59;
-  return valid ? value : null;
+  const millisecond = Number(time[3]?.padEnd(3, "0") ?? 0);
+  if (millisecond > 0) value.millisecond = millisecond;
+  return Number.isNaN(wallClockMillis(value)) ? null : value;
 }
 
 /** Whether a numeric date such as `03/04/2023` is written day first, from every date in a file. */
@@ -197,26 +216,13 @@ export function parseWallClock(text: string, dayFirst: boolean): WallClock | nul
     const first = Number(numeric[1]);
     const second = Number(numeric[2]);
     const year = Number(numeric[3]) < 100 ? 2000 + Number(numeric[3]) : Number(numeric[3]);
+    const dayComesFirst = first > 12 || (second <= 12 && dayFirst);
     return clock(
-      dayFirst ? { year, month: second, day: first } : { year, month: first, day: second },
+      dayComesFirst ? { year, month: second, day: first } : { year, month: first, day: second },
       numeric.slice(4),
     );
   }
   return null;
-}
-
-/** The instant of a wall-clock time in the device's time zone; null for a day that is not real. */
-export function wallClockToIso(value: WallClock): string | null {
-  const date = new Date(
-    value.year,
-    value.month - 1,
-    value.day,
-    value.hour,
-    value.minute,
-    value.second,
-  );
-  if (Number.isNaN(date.getTime()) || date.getDate() !== value.day) return null;
-  return date.toISOString();
 }
 
 /** Effort as the app stores it: halves from 6 to 10; anything lower, or none, is no effort. */
@@ -239,7 +245,13 @@ type RawSession = {
   endText: string | null;
   durationS: number | null;
   note: string | null;
-  exercises: Map<string, ImportedExercise>;
+  exercises: RawExercise[];
+};
+
+type RawExercise = Omit<ImportedExercise, "sets"> & {
+  sourceIndex: string;
+  firstIndexSeen: boolean;
+  sets: { index: number | null; set: ImportedSet }[];
 };
 
 type RowSet = {
@@ -252,21 +264,24 @@ type RowSet = {
   exercise: string;
   exerciseNote: string | null;
   supersetKey: string | null;
-  set: ImportedSet | null;
+  index: number | null;
+  sourceIndex: string;
+  set: ImportedSet;
 };
 
 const exerciseKey = (name: string) => name.trim().toLowerCase().replace(/\s+/gu, " ");
 
 function weightUnitOf(text: string): WeightUnit | null {
-  if (text === "kg" || text === "kgs") return "kg";
-  if (text === "lb" || text === "lbs") return "lb";
+  if (["kg", "kgs", "kilogram", "kilograms"].includes(text)) return "kg";
+  if (["lb", "lbs", "pound", "pounds"].includes(text)) return "lb";
   return null;
 }
 
-function distanceFactor(unit: string): number {
+function distanceFactor(unit: string): number | null {
+  if (["", "m", "meter", "meters", "metre", "metres"].includes(unit)) return 1;
   if (unit === "km" || unit === "kilometers" || unit === "kilometres") return 1000;
   if (unit === "mi" || unit === "mile" || unit === "miles") return METERS_PER_MILE;
-  return 1;
+  return null;
 }
 
 type RowReader = {
@@ -274,15 +289,15 @@ type RowReader = {
   read(row: readonly string[]): RowSet | null | "rest";
 };
 
-function strongReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowReader {
+function strongReader(columns: Map<string, Column>): RowReader {
   const weight = columns.get("weight");
-  const duration = columns.get("duration");
-  const factor = distanceFactor(columns.get("distance")?.unit ?? "");
+  const duration = columns.get("workout duration") ?? columns.get("duration");
+  const weightUnit = weightUnitOf(weight?.unit ?? "");
   const durationUnit = duration?.unit.startsWith("min") ? "min" : "s";
   const number = (name: string, row: readonly string[]) =>
-    parseNumber(cellOf(row, columns.get(name)), delimiter);
+    parseNumber(cellOf(row, columns.get(name)));
   return {
-    weightUnit: weightUnitOf(weight?.unit ?? ""),
+    weightUnit,
     read(row) {
       const order = cellOf(row, columns.get("set order")).toLowerCase();
       if (order.includes("rest")) return "rest";
@@ -290,11 +305,17 @@ function strongReader(columns: Map<string, Column>, delimiter: CsvDelimiter): Ro
       const startText = cellOf(row, columns.get("date"));
       if (name === "" || startText === "") return null;
       const title = cellOf(row, columns.get("workout name"));
+      const workoutId = cellOf(row, columns.get("workout id"));
       const kind: SetKind =
         order === "w" ? "warmup" : order === "d" ? "drop" : order === "f" ? "failure" : "working";
       const distance = number("distance", row);
+      const distanceUnit = cellOf(row, columns.get("distance unit")).toLowerCase();
+      const factor = distanceFactor(distanceUnit || columns.get("distance")?.unit || "");
+      const unit = cellOf(row, columns.get("weight unit")).toLowerCase();
+      const explicitUnit = weightUnitOf(unit);
+      const rawWeight = number("weight", row);
       return {
-        sessionKey: `${startText}\u0000${title}`,
+        sessionKey: `${startText}\u0000${title}\u0000${workoutId}`,
         title,
         startText,
         endText: null,
@@ -302,13 +323,22 @@ function strongReader(columns: Map<string, Column>, delimiter: CsvDelimiter): Ro
         note: clampNote(cellOf(row, columns.get("workout notes"))),
         exercise: name,
         exerciseNote: clampNote(cellOf(row, columns.get("notes"))),
-        supersetKey: null,
+        supersetKey: cellOf(row, columns.get("superset id")) || null,
+        index: setIndex(order),
+        sourceIndex: cellOf(row, columns.get("exercise index") ?? columns.get("exercise order")),
         set: {
           kind,
-          weight: number("weight", row),
+          weight: rawWeight,
+          weightUnit: explicitUnit ?? weightUnit,
+          invalid:
+            (Boolean(unit) && explicitUnit === null && rawWeight !== null) ||
+            (distance !== null && factor === null) ||
+            ["weight", "reps", "seconds", "distance"].some(
+              (name) => cellOf(row, columns.get(name)) !== "" && number(name, row) === null,
+            ),
           reps: number("reps", row),
           durationS: number("seconds", row),
-          distanceM: distance === null ? null : distance * factor,
+          distanceM: distance === null || factor === null ? null : distance * factor,
           rpe: normalizeEffort(number("rpe", row)),
         },
       };
@@ -316,13 +346,13 @@ function strongReader(columns: Map<string, Column>, delimiter: CsvDelimiter): Ro
   };
 }
 
-function hevyReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowReader {
+function hevyReader(columns: Map<string, Column>): RowReader {
   const kg = columns.get("weight_kg");
   const lb = columns.get("weight_lbs") ?? columns.get("weight_lb");
   const km = columns.get("distance_km");
   const miles = columns.get("distance_miles");
   const number = (column: Column | undefined, row: readonly string[]) =>
-    parseNumber(cellOf(row, column), delimiter);
+    parseNumber(cellOf(row, column));
   return {
     weightUnit: kg ? "kg" : lb ? "lb" : null,
     read(row) {
@@ -330,6 +360,7 @@ function hevyReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowR
       const startText = cellOf(row, columns.get("start_time"));
       if (name === "" || startText === "") return null;
       const title = cellOf(row, columns.get("title"));
+      const workoutId = cellOf(row, columns.get("workout_id"));
       const type = cellOf(row, columns.get("set_type")).toLowerCase();
       const kind: SetKind =
         type === "warmup"
@@ -343,7 +374,7 @@ function hevyReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowR
       const distanceMiles = number(miles, row);
       const superset = cellOf(row, columns.get("superset_id"));
       return {
-        sessionKey: `${startText}\u0000${title}`,
+        sessionKey: `${startText}\u0000${title}\u0000${workoutId}`,
         title,
         startText,
         endText: cellOf(row, columns.get("end_time")) || null,
@@ -352,9 +383,15 @@ function hevyReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowR
         exercise: name,
         exerciseNote: clampNote(cellOf(row, columns.get("exercise_notes"))),
         supersetKey: superset === "" ? null : superset,
+        index: setIndex(cellOf(row, columns.get("set_index"))),
+        sourceIndex: cellOf(row, columns.get("exercise_index")),
         set: {
           kind,
-          weight: number(kg ?? lb, row),
+          weight: number(kg, row) ?? number(lb, row),
+          weightUnit: number(kg, row) !== null ? "kg" : number(lb, row) !== null ? "lb" : null,
+          invalid: [kg, lb, km, miles, columns.get("reps"), columns.get("duration_seconds")].some(
+            (column) => cellOf(row, column) !== "" && number(column, row) === null,
+          ),
           reps: number(columns.get("reps"), row),
           durationS: number(columns.get("duration_seconds"), row),
           distanceM:
@@ -374,16 +411,13 @@ function hevyReader(columns: Map<string, Column>, delimiter: CsvDelimiter): RowR
  * Starts reading a Strong or Hevy export from its header row. Feed it rows in slices with
  * `addRows` (so a big file does not block the UI), then `finish` to group them into workouts.
  */
-export function createHistoryBuilder(
-  header: readonly string[],
-  delimiter: CsvDelimiter,
-): HistoryBuilderResult {
+export function createHistoryBuilder(header: readonly string[]): HistoryBuilderResult {
   const format = detectFormat(header);
   if (format === null) return { ok: false, reason: "unknown_format" };
   const columns = readColumns(header);
-  const reader =
-    format === "hevy" ? hevyReader(columns, delimiter) : strongReader(columns, delimiter);
-  const raw = new Map<string, RawSession>();
+  const reader = format === "hevy" ? hevyReader(columns) : strongReader(columns);
+  const raw: RawSession[] = [];
+  const firstIndex = format === "hevy" ? 0 : 1;
   let skippedRows = 0;
 
   const builder: HistoryBuilder = {
@@ -396,8 +430,8 @@ export function createHistoryBuilder(
           skippedRows += 1;
           continue;
         }
-        let session = raw.get(read.sessionKey);
-        if (!session) {
+        let session = raw.at(-1);
+        if (!session || session.key !== read.sessionKey) {
           session = {
             key: read.sessionKey,
             title: read.title,
@@ -405,61 +439,112 @@ export function createHistoryBuilder(
             endText: read.endText,
             durationS: read.durationS,
             note: read.note,
-            exercises: new Map(),
+            exercises: [],
           };
-          raw.set(read.sessionKey, session);
+          raw.push(session);
         }
         session.durationS ??= read.durationS;
         session.note ??= read.note;
-        const key = exerciseKey(read.exercise);
-        let exercise = session.exercises.get(key);
-        if (!exercise) {
+        let exercise = session.exercises.at(-1);
+        const reset = read.index === firstIndex && exercise?.firstIndexSeen && !read.sourceIndex;
+        if (
+          !exercise ||
+          reset ||
+          exerciseKey(exercise.name) !== exerciseKey(read.exercise) ||
+          (exercise.sourceIndex && read.sourceIndex && exercise.sourceIndex !== read.sourceIndex) ||
+          (exercise.supersetKey !== null &&
+            read.supersetKey !== null &&
+            exercise.supersetKey !== read.supersetKey)
+        ) {
           exercise = {
-            name: read.exercise.trim(),
+            name: read.exercise,
             note: read.exerciseNote,
             supersetKey: read.supersetKey,
+            sourceIndex: read.sourceIndex,
+            firstIndexSeen: false,
             sets: [],
           };
-          session.exercises.set(key, exercise);
+          session.exercises.push(exercise);
         }
         exercise.note ??= read.exerciseNote;
-        if (read.set) exercise.sets.push(read.set);
+        exercise.supersetKey ??= read.supersetKey;
+        if (!exercise.sourceIndex) exercise.sourceIndex = read.sourceIndex;
+        exercise.firstIndexSeen ||= read.index === firstIndex;
+        exercise.sets.push({ index: read.index, set: read.set });
       }
     },
-    finish() {
+    finish(options) {
       const sessions: ImportedSession[] = [];
-      const dayFirst = detectDayFirst(raw.values().map((session) => session.startText));
-      for (const session of raw.values()) {
+      const dates = raw
+        .values()
+        .flatMap((session) => [session.startText, session.endText ?? ""])
+        .toArray();
+      const dayFirst = options?.dayFirst ?? detectDayFirst(dates);
+      const ambiguousDates = dates.some((text) => {
+        const match = NUMERIC_DATE.exec(text);
+        return (
+          match !== null &&
+          Number(match[1]) !== Number(match[2]) &&
+          Number(match[1]) <= 12 &&
+          Number(match[2]) <= 12
+        );
+      });
+      const toInstant = createImportClock(options?.timeZone ?? deviceTimeZone());
+      if (!toInstant) throw new RangeError("Invalid source time zone");
+      let unreadable = skippedRows;
+      let gaps = 0;
+      let overlaps = 0;
+      for (const session of raw) {
         const start = parseWallClock(session.startText, dayFirst);
-        if (!start) {
-          skippedRows += session.exercises
-            .values()
-            .reduce((sum, item) => sum + item.sets.length, 0);
+        const end = session.endText !== null ? parseWallClock(session.endText, dayFirst) : null;
+        if (!start || (session.endText !== null && !end)) {
+          unreadable += session.exercises.reduce((sum, item) => sum + item.sets.length, 0);
           continue;
         }
-        let durationS = session.durationS;
-        if (durationS === null && session.endText !== null) {
-          const end = parseWallClock(session.endText, dayFirst);
-          const from = wallClockToIso(start);
-          const to = end ? wallClockToIso(end) : null;
-          if (from !== null && to !== null) {
-            const seconds = Math.round((Date.parse(to) - Date.parse(from)) / 1000);
-            if (seconds >= 0) durationS = seconds;
-          }
+        const from = toInstant(start);
+        const to = end ? toInstant(end) : null;
+        if (!from || (end && !to)) {
+          gaps += 1;
+          continue;
         }
+        if (from.overlap || to?.overlap) overlaps += 1;
+        const seconds = to ? Math.round((Date.parse(to.iso) - Date.parse(from.iso)) / 1000) : null;
         sessions.push({
           key: session.key,
+          format,
           title: session.title,
           start,
-          durationS,
+          startedAt: from.iso,
+          durationS: session.durationS ?? (seconds !== null && seconds >= 0 ? seconds : null),
           note: session.note,
-          exercises: [...session.exercises.values()],
+          exercises: session.exercises.map(({ name, note, supersetKey, sets }) => {
+            // Sort the indexed slots and retain the file positions of unindexed sets.
+            const indexed = sets
+              .flatMap(({ index, set }) => (index === null ? [] : [{ index, set }]))
+              .sort((a, b) => a.index - b.index)
+              .values();
+            return {
+              name,
+              note,
+              supersetKey,
+              sets: sets.map(({ index, set }) =>
+                index === null ? set : (indexed.next().value?.set ?? set),
+              ),
+            };
+          }),
         });
       }
-      sessions.sort((a, b) =>
-        (wallClockToIso(a.start) ?? "").localeCompare(wallClockToIso(b.start) ?? ""),
-      );
-      return { format, weightUnit: reader.weightUnit, sessions, skippedRows };
+      sessions.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+      return {
+        format,
+        weightUnit: reader.weightUnit,
+        sessions,
+        skippedRows: unreadable,
+        dayFirst,
+        ambiguousDates,
+        gaps,
+        overlaps,
+      };
     },
   };
   return { ok: true, builder };
@@ -467,17 +552,27 @@ export function createHistoryBuilder(
 
 export type ParseHistoryResult =
   | { ok: true; history: ParsedHistory }
-  | { ok: false; reason: "unknown_format" | "empty" };
+  | { ok: false; reason: "unknown_format" | "empty" | HistoryCsvError["reason"] };
 
 /** A whole export at once; the app reads large files in slices with {@link createHistoryBuilder}. */
-export function parseHistoryCsv(text: string): ParseHistoryResult {
-  const delimiter = detectDelimiter(text.replace(/^﻿/u, ""));
-  const reader = createCsvReader(text, delimiter);
-  const [header] = reader.readRows(1);
-  if (!header) return { ok: false, reason: "empty" };
-  const created = createHistoryBuilder(header, delimiter);
-  if (!created.ok) return created;
-  created.builder.addRows(reader.readRows(Number.POSITIVE_INFINITY));
-  const history = created.builder.finish();
-  return history.sessions.length === 0 ? { ok: false, reason: "empty" } : { ok: true, history };
+export function parseHistoryCsv(
+  text: string,
+  options?: Parameters<HistoryBuilder["finish"]>[0],
+): ParseHistoryResult {
+  try {
+    checkCsvSize(new TextEncoder().encode(text).length);
+    const reader = createCsvReader(text, detectDelimiter(text));
+    const [header] = reader.readRows(1);
+    if (!header) return { ok: false, reason: "empty" };
+    const created = createHistoryBuilder(header);
+    if (!created.ok) return created;
+    created.builder.addRows(reader.readRows(Number.POSITIVE_INFINITY));
+    const history = created.builder.finish(options);
+    return history.sessions.length === 0 && history.gaps === 0
+      ? { ok: false, reason: "empty" }
+      : { ok: true, history };
+  } catch (error) {
+    if (error instanceof HistoryCsvError) return { ok: false, reason: error.reason };
+    throw error;
+  }
 }

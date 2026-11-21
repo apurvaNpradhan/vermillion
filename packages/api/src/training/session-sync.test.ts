@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  importContentDigest,
   SESSION_LIMITS,
   SYNC_LIMITS,
   SYNC_SCHEMA_VERSION,
@@ -543,6 +544,72 @@ describe("session upload handlers", () => {
     expect(await me.send([putSession(uuidv7(), { import_batch_id: "not-a-uuid" })])).toMatchObject(
       rejected("SYNC_INVALID_OP"),
     );
+  });
+
+  it("accepts import fingerprints and cascades a guarded undo of an untouched workout", async () => {
+    const me = await writer("session-import-undo@example.com");
+    const id = uuidv7(),
+      batch = uuidv7(),
+      exercise = uuidv7(),
+      set = uuidv7();
+    const fingerprint = "a".repeat(64);
+    expect(
+      await me.send([
+        putSession(id, {
+          import_batch_id: batch,
+          import_fingerprint: fingerprint,
+          import_content: importContentDigest([exercise, set]),
+          finished_at: minutesAgo(1),
+        }),
+        putExercise(exercise, id),
+        putSet(set, exercise),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("training_session", id)).toMatchObject({ import_fingerprint: fingerprint });
+    expect(
+      await me.send([op("PATCH", "training_session", id, { import_undo: `${batch}:${uuidv7()}` })]),
+    ).toEqual(applied);
+    for (const { table, row } of [
+      { table: "training_session", row: id },
+      { table: "session_exercise", row: exercise },
+      { table: "session_set", row: set },
+    ]) {
+      expect((await stored(table, row))?.deleted_at).toBeTruthy();
+    }
+  });
+
+  it("refuses guarded undo when another write added a set, and validates import metadata", async () => {
+    const me = await writer("session-import-undo-keep@example.com");
+    const id = uuidv7(),
+      batch = uuidv7(),
+      exercise = uuidv7(),
+      extraSet = uuidv7();
+    expect(
+      await me.send([
+        putSession(uuidv7(), {
+          import_batch_id: batch,
+          import_fingerprint: "invalid",
+          import_content: "a".repeat(64),
+        }),
+      ]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(
+      await me.send([
+        putSession(id, {
+          import_batch_id: batch,
+          import_fingerprint: "a".repeat(64),
+          import_content: importContentDigest([exercise]),
+          finished_at: minutesAgo(1),
+        }),
+        putExercise(exercise, id),
+      ]),
+    ).toEqual(applied);
+    expect(await me.send([putSet(extraSet, exercise)])).toEqual(applied);
+    expect(
+      await me.send([op("PATCH", "training_session", id, { import_undo: `${batch}:${uuidv7()}` })]),
+    ).toMatchObject(rejected("SYNC_CONSTRAINT_VIOLATION"));
+    expect(await stored("training_session", id)).toMatchObject({ deleted_at: null });
+    expect(await stored("session_set", extraSet)).toMatchObject({ deleted_at: null });
   });
 
   it("refuses columns the server owns, malformed data and bad ids", async () => {

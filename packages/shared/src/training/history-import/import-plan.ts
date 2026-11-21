@@ -1,13 +1,17 @@
+import { z } from "zod";
+import { sha256Hex } from "../../sha256";
 import { SET_FIELDS, type ExerciseType } from "../../exercise/vocabulary";
 import { sessionSetSchema, sessionStartAllowed } from "../logging/session-inputs";
 import { KG_PER_LB } from "../vocabulary/format";
 import { SESSION_LIMITS, type SetKind, type WeightUnit } from "../vocabulary/vocabulary";
 import {
-  wallClockToIso,
+  type ImportFormat,
   type ImportedExercise,
   type ImportedSession,
   type ImportedSet,
 } from "./parse-history";
+
+import { normalizeExerciseName } from "./match-exercises";
 
 /** What a file's exercise name was resolved to: a library exercise and its snapshot. */
 export type ExerciseTarget = { exerciseId: string; title: string; type: ExerciseType };
@@ -35,6 +39,7 @@ export type PlannedImportExercise = {
 
 export type PlannedImportSession = {
   key: string;
+  fingerprint: string;
   title: string;
   note: string | null;
   /** UTC instant, ISO 8601. */
@@ -43,11 +48,41 @@ export type PlannedImportSession = {
   exercises: PlannedImportExercise[];
 };
 
-/** A workout planned, or why it was left out. `trimmed` counts sets and exercises past a limit. */
+type OmittedRows = { omittedSets: number; omittedExercises: number };
+
+/** A workout planned, or why it was left out, including any unusable or trimmed rows. */
 export type PlanOutcome =
-  | { kind: "planned"; session: PlannedImportSession; trimmed: number }
+  | ({ kind: "planned"; session: PlannedImportSession } & OmittedRows)
   | { kind: "out_of_range" }
-  | { kind: "empty" };
+  | ({ kind: "empty" } & OmittedRows);
+
+export const importDigestSchema = z.string().regex(/^[0-9a-f]{64}$/u);
+
+export function sourceFingerprint(format: ImportFormat, imported: ImportedSession): string {
+  return sha256Hex(
+    JSON.stringify([
+      format,
+      imported.startedAt,
+      imported.exercises.map(({ name, sets }) => [
+        normalizeExerciseName(name),
+        sets.map(({ kind, weight, weightUnit, reps, durationS, distanceM, rpe }) => [
+          kind,
+          weight,
+          weightUnit ?? null,
+          reps,
+          durationS,
+          distanceM,
+          rpe,
+        ]),
+      ]),
+    ]),
+  );
+}
+
+/** Exercise, set and photo ids are UUIDs. Sorting makes the membership test order independent. */
+export function importContentDigest(ids: string[]): string {
+  return sha256Hex(ids.sort().join(","));
+}
 
 const SAMPLE_IDS = {
   exercise: "00000000-0000-7000-8000-000000000000",
@@ -67,10 +102,11 @@ export function fitSet(
   set: ImportedSet,
   unit: WeightUnit,
 ): PlannedImportSet | null {
+  if (set.invalid) return null;
   const fields: readonly string[] = SET_FIELDS[type];
   const planned: PlannedImportSet = {
     kind: set.kind,
-    weightKg: fields.includes("weight") ? toKg(set.weight ?? 0, unit) : null,
+    weightKg: fields.includes("weight") ? toKg(set.weight ?? 0, set.weightUnit ?? unit) : null,
     reps: fields.includes("reps") && set.reps !== null ? Math.round(set.reps) : null,
     durationS:
       fields.includes("duration") && set.durationS !== null ? Math.round(set.durationS) : null,
@@ -111,39 +147,39 @@ export function planSession(
   unit: WeightUnit,
   fallbackTitle: string,
 ): PlanOutcome {
-  const startedAt = wallClockToIso(imported.start);
-  if (startedAt === null || !sessionStartAllowed(startedAt)) return { kind: "out_of_range" };
+  const { startedAt } = imported;
+  if (!sessionStartAllowed(startedAt)) return { kind: "out_of_range" };
 
-  let trimmed = 0;
+  let omittedSets = 0;
+  let omittedExercises = 0;
   const exercises: PlannedImportExercise[] = [];
   for (const entry of imported.exercises) {
     const target = resolve(entry.name);
-    if (!target) continue;
+    if (!target || exercises.length >= SESSION_LIMITS.exercisesPerSession) {
+      omittedExercises += 1;
+      omittedSets += entry.sets.length;
+      continue;
+    }
     const sets: PlannedImportSet[] = [];
     for (const set of entry.sets) {
       const fitted = fitSet(target.type, set, unit);
-      if (fitted) sets.push(fitted);
+      if (fitted && sets.length < SESSION_LIMITS.setsPerExercise) sets.push(fitted);
+      else omittedSets += 1;
     }
-    if (sets.length === 0) continue;
-    if (sets.length > SESSION_LIMITS.setsPerExercise) {
-      trimmed += sets.length - SESSION_LIMITS.setsPerExercise;
-      sets.length = SESSION_LIMITS.setsPerExercise;
-    }
-    exercises.push(plannedExercise(entry, target, sets));
+    if (sets.length === 0) omittedExercises += 1;
+    else exercises.push(plannedExercise(entry, target, sets));
   }
-  if (exercises.length === 0) return { kind: "empty" };
-  if (exercises.length > SESSION_LIMITS.exercisesPerSession) {
-    trimmed += exercises.length - SESSION_LIMITS.exercisesPerSession;
-    exercises.length = SESSION_LIMITS.exercisesPerSession;
-  }
+  if (exercises.length === 0) return { kind: "empty", omittedSets, omittedExercises };
   keepSharedSupersets(exercises);
 
   const title = imported.title.trim().slice(0, SESSION_LIMITS.titleMax);
   return {
     kind: "planned",
-    trimmed,
+    omittedSets,
+    omittedExercises,
     session: {
       key: imported.key,
+      fingerprint: sourceFingerprint(imported.format, imported),
       title: title === "" ? fallbackTitle : title,
       note: imported.note,
       startedAt,
@@ -183,45 +219,4 @@ function keepSharedSupersets(exercises: PlannedImportExercise[]) {
     if (entry.supersetKey !== null && (counts.get(entry.supersetKey) ?? 0) < 2)
       entry.supersetKey = null;
   }
-}
-
-/** A Session already in the app, as much as is needed to recognise a workout as the same one. */
-export type KnownSession = { startedAt: string; exerciseIds: readonly string[] };
-
-const DUPLICATE_WINDOW_MS = 60_000;
-const BUCKET_MS = 60_000;
-
-const sameExercises = (a: readonly string[], b: readonly string[]) => {
-  const left = new Set(a);
-  const right = new Set(b);
-  return left.size === right.size && left.values().every((id) => right.has(id));
-};
-
-/**
- * A finder of Sessions that are the same workout as a planned one: started within a minute and
- * with the same set of exercises. The known Sessions are bucketed by minute once, so checking
- * thousands of planned workouts stays fast.
- */
-export function createDuplicateFinder(known: readonly KnownSession[]) {
-  const buckets = new Map<number, { at: number; exerciseIds: readonly string[] }[]>();
-  for (const item of known) {
-    const at = Date.parse(item.startedAt);
-    if (Number.isNaN(at)) continue;
-    const bucket = Math.floor(at / BUCKET_MS);
-    const list = buckets.get(bucket) ?? [];
-    list.push({ at, exerciseIds: item.exerciseIds });
-    buckets.set(bucket, list);
-  }
-  return (planned: PlannedImportSession): boolean => {
-    const at = Date.parse(planned.startedAt);
-    const bucket = Math.floor(at / BUCKET_MS);
-    const ids = planned.exercises.map((entry) => entry.exerciseId);
-    for (const near of [bucket - 1, bucket, bucket + 1]) {
-      for (const item of buckets.get(near) ?? []) {
-        if (Math.abs(item.at - at) <= DUPLICATE_WINDOW_MS && sameExercises(item.exerciseIds, ids))
-          return true;
-      }
-    }
-    return false;
-  };
 }

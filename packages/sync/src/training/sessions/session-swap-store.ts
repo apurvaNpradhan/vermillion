@@ -21,6 +21,7 @@ import {
 } from "../store-common";
 import { session, sessionExercise, sessionSet, workout, workoutExercise } from "../tables";
 import {
+  assertImportUndoNotPending,
   assertSessionRoom,
   exerciseInfoOf,
   exercisesInSession,
@@ -126,6 +127,7 @@ export function replaceSessionExercise(
     const userId = await ownerOf(tx);
     const current = await requireSessionExercise(tx, id);
     if (current.exercise_id === exerciseId) return null;
+    await assertImportUndoNotPending(tx, current.session_id);
     const source = scope === "workout" ? await requireWorkoutSource(tx, current) : null;
     const after = await exerciseInfoOf(tx, exerciseId);
     const kept = current.exercise_type === after.exercise_type;

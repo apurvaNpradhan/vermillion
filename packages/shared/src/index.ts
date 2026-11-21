@@ -13,3 +13,5 @@ export * from "./training/index";
 
 export * from "./body";
 export * from "./media";
+
+export { sha256Hex } from "./sha256";

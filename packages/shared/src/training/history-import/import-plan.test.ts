@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { HEVY, STRONG_COMMA, STRONG_UNITS } from "./fixtures";
-import { createDuplicateFinder, fitSet, planSession, type ExerciseTarget } from "./import-plan";
+import { fitSet, planSession, sourceFingerprint, type ExerciseTarget } from "./import-plan";
 import {
   createExerciseMatcher,
   inferEquipment,
@@ -153,14 +153,14 @@ describe("planning a workout", () => {
   it("leaves out exercises with no target and a workout with nothing left", () => {
     const [, run] = history(STRONG_COMMA).sessions;
     const none = planSession(run as ImportedSession, () => null, "kg", "Workout");
-    expect(none).toEqual({ kind: "empty" });
+    expect(none).toEqual({ kind: "empty", omittedExercises: 1, omittedSets: 1 });
   });
 
   it("leaves out a workout older than ten years", () => {
     const [push] = history(STRONG_COMMA).sessions;
     const old = {
       ...(push as ImportedSession),
-      start: { ...(push as ImportedSession).start, year: 2001 },
+      startedAt: "2001-03-02T18:30:00.000Z",
     };
     expect(planSession(old, resolve, "kg", "Workout")).toEqual({ kind: "out_of_range" });
   });
@@ -206,7 +206,7 @@ describe("planning a workout", () => {
       "Workout",
     );
     if (outcome.kind !== "planned") throw new Error(outcome.kind);
-    expect(outcome.trimmed).toBe(5);
+    expect(outcome.omittedSets).toBe(5);
     expect(outcome.session.exercises[0]?.sets).toHaveLength(20);
   });
 
@@ -223,35 +223,58 @@ describe("planning a workout", () => {
   });
 });
 
-describe("duplicates", () => {
-  const planned = (startedAt: string, ids: string[]) => ({
-    key: "k",
-    title: "t",
-    note: null,
-    startedAt,
-    durationS: null,
-    exercises: ids.map((exerciseId) => ({
-      exerciseId,
-      title: exerciseId,
-      type: "weight_reps" as const,
-      note: null,
-      supersetKey: null,
-      logEffort: false,
-      sets: [],
-    })),
-  });
-  const find = createDuplicateFinder([
-    { startedAt: "2026-03-02T18:30:00.000Z", exerciseIds: ["bench", "squat"] },
-  ]);
+describe("source fingerprint", () => {
+  function strongWorkout() {
+    const [workout] = history(STRONG_UNITS).sessions;
+    if (!workout) throw new Error("Expected a Strong workout");
+    return workout;
+  }
 
-  it("matches the same exercises within a minute, in any order", () => {
-    expect(find(planned("2026-03-02T18:30:45.000Z", ["squat", "bench"]))).toBe(true);
-    expect(find(planned("2026-03-02T18:29:00.000Z", ["bench", "squat"]))).toBe(true);
+  it("is independent of mapping and fallback units", () => {
+    const source = strongWorkout();
+    const first = planSession(
+      source,
+      () => ({ exerciseId: "one", title: "Squat", type: "weight_reps" }),
+      "kg",
+      "Workout",
+    );
+    const second = planSession(
+      source,
+      () => ({ exerciseId: "two", title: "Barbell Squat", type: "weight_reps" }),
+      "lb",
+      "Workout",
+    );
+    expect(first.kind).toBe("planned");
+    expect(second.kind).toBe("planned");
+    if (first.kind !== "planned" || second.kind !== "planned") throw new Error("expected plans");
+    expect(first.session.fingerprint).toBe(second.session.fingerprint);
+    expect(first.session.exercises[0]?.sets[0]?.weightKg).toBe(61.235);
   });
 
-  it("does not match a different time or different exercises", () => {
-    expect(find(planned("2026-03-02T18:31:30.000Z", ["bench", "squat"]))).toBe(false);
-    expect(find(planned("2026-03-02T18:30:00.000Z", ["bench"]))).toBe(false);
-    expect(find(planned("2026-03-02T18:30:00.000Z", ["bench", "squat", "row"]))).toBe(false);
+  it("uses the source app, normalized names, start instant and set content", () => {
+    const source = strongWorkout();
+    const fingerprint = sourceFingerprint("strong", source);
+    const renamed = structuredClone(source);
+    renamed.exercises[0]!.name = "SQUAT barbell";
+    expect(sourceFingerprint("strong", renamed)).toBe(fingerprint);
+    const different = structuredClone(renamed);
+    different.exercises[0]!.sets[0]!.reps = 42;
+    expect(sourceFingerprint("strong", different)).not.toBe(fingerprint);
+    expect(sourceFingerprint("hevy", source)).not.toBe(fingerprint);
+    const next = new Date(Date.parse(source.startedAt) + 30_000).toISOString();
+    expect(sourceFingerprint("strong", { ...source, startedAt: next })).not.toBe(fingerprint);
+  });
+
+  it("reports malformed and unusable sets, including exercises left with no sets", () => {
+    const source = strongWorkout();
+    source.exercises[0]!.sets = [set({ reps: 3, invalid: true }), set({ weight: 60 })];
+    expect(
+      planSession(
+        source,
+        () => ({ exerciseId: "squat", title: "Squat", type: "weight_reps" }),
+        "kg",
+        "Workout",
+      ),
+    ).toEqual({ kind: "empty", omittedExercises: 1, omittedSets: 2 });
   });
 });

@@ -9,6 +9,7 @@ import {
   type NewMedia,
 } from "../../media/index";
 import { session, sessionPhoto } from "../tables";
+import { assertImportUndoNotPending } from "./session-common";
 
 export function addSessionPhoto(
   database: MediaDatabase,
@@ -19,6 +20,7 @@ export function addSessionPhoto(
   return writeMedia(database, scope, async (tx) => {
     const [parent] = await tx.select().from(session).where(eq(session.id, sessionId)).limit(1);
     if (!parent) throw new Error("Session not found");
+    await assertImportUndoNotPending(tx, sessionId);
     const rows = await tx
       .select()
       .from(sessionPhoto)

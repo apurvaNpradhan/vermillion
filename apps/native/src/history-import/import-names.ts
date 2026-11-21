@@ -80,6 +80,29 @@ export type Resolution =
   | { kind: "skip" }
   | { kind: "mapped"; target: ExerciseTarget };
 
+/**
+ * A saved target takes precedence over an automatic match. Resolve its latest title and type
+ * from the live library, and ignore ids whose exercises have since been retired.
+ */
+export function applyRememberedMappings(
+  matches: readonly NameMatch[],
+  library: ReadonlyMap<string, LibraryEntry>,
+  read: (key: string) => string | null,
+) {
+  const resolutions = new Map<string, Resolution>();
+  const reviewed = matches.map((match) => {
+    const id = read(match.use.key);
+    const entry = id ? library.get(id) : undefined;
+    if (!entry) return match;
+    resolutions.set(match.use.key, {
+      kind: "mapped",
+      target: { exerciseId: entry.id, title: entry.title, type: entry.exerciseType },
+    });
+    return { ...match, matched: null };
+  });
+  return { matches: reviewed, resolutions };
+}
+
 /** The exercise a not-yet-created name will become: its type comes from the sets it logged. */
 export function newExerciseTarget(use: NameUse): ExerciseTarget {
   return {

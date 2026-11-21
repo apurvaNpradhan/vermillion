@@ -1,4 +1,5 @@
 import type { DbExecutor } from "@workspace/db";
+import { importContentDigest, SYNC_LIMITS } from "@workspace/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { session, sessionExercise, sessionSet, sessionPhoto } from "../tables";
@@ -14,6 +15,37 @@ const exerciseIdsOfSession = (db: DbExecutor, sessionId: string) =>
     .select({ id: sessionExercise.id })
     .from(sessionExercise)
     .where(eq(sessionExercise.sessionId, sessionId));
+
+/** Called under the training lock shared by the exercise, set and photo writers. */
+export async function importedSessionUnchanged(db: DbExecutor, id: string, digest: string) {
+  const [photo] = await db
+    .select({ id: sessionPhoto.id })
+    .from(sessionPhoto)
+    .where(and(eq(sessionPhoto.sessionId, id), isNull(sessionPhoto.deletedAt)))
+    .limit(1);
+  if (photo) return false;
+  const exercises = await db
+    .select({ id: sessionExercise.id })
+    .from(sessionExercise)
+    .where(and(eq(sessionExercise.sessionId, id), isNull(sessionExercise.deletedAt)))
+    .limit(SYNC_LIMITS.maxOps);
+  const sets = await db
+    .select({ id: sessionSet.id })
+    .from(sessionSet)
+    .innerJoin(sessionExercise, eq(sessionSet.sessionExerciseId, sessionExercise.id))
+    .where(
+      and(
+        eq(sessionExercise.sessionId, id),
+        isNull(sessionExercise.deletedAt),
+        isNull(sessionSet.deletedAt),
+      ),
+    )
+    .limit(SYNC_LIMITS.maxOps);
+  return (
+    exercises.length + sets.length < SYNC_LIMITS.maxOps &&
+    importContentDigest([...exercises, ...sets].map((row) => row.id)) === digest
+  );
+}
 
 /** Soft-deletes a Session with its exercises and their sets. */
 export async function deleteSessionCascade(db: DbExecutor, id: string, now: Date) {

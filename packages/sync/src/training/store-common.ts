@@ -94,6 +94,9 @@ export const trainingUploadColumns = {
     "rest_started_at",
     "rest_ends_at",
     "import_batch_id",
+    "import_fingerprint",
+    "import_content",
+    "import_undo",
     "restore",
   ]),
   session_exercise: new Set([
@@ -168,6 +171,7 @@ export function write<T>(
   database: TrainingDatabase,
   expectedInstallId: string | undefined,
   run: (tx: Tx, active: Awaited<ReturnType<typeof reconcileRuns>>) => Promise<T>,
+  options?: { reconcileRuns: false },
 ): Promise<T> {
   return local(database).transaction(async (tx) => {
     if (expectedInstallId !== undefined) {
@@ -178,7 +182,7 @@ export function write<T>(
         .limit(1);
       if (!install) throw new Error("The device account changed; reopen the screen");
     }
-    const active = await reconcileRuns(tx);
+    const active = options ? null : await reconcileRuns(tx);
     return run(tx, active);
   });
 }
