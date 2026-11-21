@@ -44,7 +44,9 @@ export function ChoiceList<T extends string>({
           >
             <View className="flex-1 gap-0.5">
               <Text className="text-body font-semibold text-foreground">{choice.label}</Text>
-              {choice.hint ? <Text className="text-caption text-muted">{choice.hint}</Text> : null}
+              {choice.hint ? (
+                <Text className="font-normal text-caption text-muted">{choice.hint}</Text>
+              ) : null}
             </View>
             {chosen ? <Check size={20} weight="bold" color={identity} /> : null}
           </Pressable>

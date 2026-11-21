@@ -16,8 +16,8 @@ import {
 
 const STORAGE_KEY = "release.check";
 
-/** The site page that redirects to the newest Android build. */
-export const DOWNLOAD_URL = `${appConfig.urls.site}/download`;
+/** The newest GitHub release, where the Android APK is attached (the site has no download page). */
+export const DOWNLOAD_URL = `https://github.com/${appConfig.releases.owner}/${appConfig.releases.repo}/releases/latest`;
 
 function readStored() {
   return parseStoredCheck(deviceStorage.get(STORAGE_KEY));

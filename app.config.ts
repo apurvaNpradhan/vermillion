@@ -13,6 +13,7 @@ const name = "patina";
 export const appConfig = {
   name,
   displayName: "Patina",
+  tagline: "Quiet progress.",
   description: "Patina is a calm, private training log",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",

@@ -38,7 +38,7 @@ export function OptionSheet<T extends string>({
           <View className="gap-1 px-4">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             {description ? (
-              <BottomSheet.Description className="text-body text-muted">
+              <BottomSheet.Description className="font-normal text-body text-muted">
                 {description}
               </BottomSheet.Description>
             ) : null}
