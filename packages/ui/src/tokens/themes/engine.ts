@@ -163,6 +163,14 @@ export function deriveScheme(
   const identity = readableByLightness(input.accent, [...grounds, identitySoft], TEXT, toward);
   const onIdentity = inkOn(identity, surface, isLight ? ink : canvas);
   const danger = readableByLightness(family.danger, grounds, TEXT, toward);
+  // HeroUI's soft fills tint their underlying surface by up to 20% on press.
+  const softText = (fill: string, inkAmount = 0.2) =>
+    readableByLightness(
+      mixHex(fill, ink, inkAmount),
+      textGrounds.map((ground) => mixHex(ground, fill, 0.2)),
+      TEXT,
+      toward,
+    );
   const warningText = text(family.warning);
   const series = (color: string) => readableByLightness(color, grounds, MARK, toward);
   const [chart2, chart3, chart4, chart5] = family.chart;
@@ -201,11 +209,14 @@ export function deriveScheme(
     "action-hover": mixHex(action, shade, 0.08),
     "action-pressed": mixHex(action, shade, 0.16),
     "on-action": onAccent,
+    "accent-soft-text": softText(action),
     danger,
     "on-danger": inkOn(danger, "#FFFFFF", "#111214"),
+    "danger-soft-text": softText(danger),
     success: family.success,
     "success-text": text(family.success),
     "on-success": inkOn(family.success, "#FFFFFF", "#111214"),
+    "success-soft-text": softText(family.success, 0.3),
     warning: family.warning,
     "warning-text": warningText,
     // HeroUI's `warning` fill is the readable tone, so its label is chosen against that.

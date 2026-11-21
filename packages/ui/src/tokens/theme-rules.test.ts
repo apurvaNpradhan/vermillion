@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
-import { hueDistance, toOklch } from "./mix";
+import { hueDistance, mixHex, toOklch } from "./mix";
 import { themeIds, themeVariants } from "./theme-variants";
 
 const linear = (hex: string) =>
@@ -86,6 +86,24 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
 
   it("keeps the warning label readable on HeroUI's warning fill", () => {
     expect(ratio("on-warning", "warning-text")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps HeroUI's tinted labels readable in resting and pressed states", () => {
+    const pairs = [
+      ["accent-soft-text", "action"],
+      ["danger-soft-text", "danger"],
+      ["success-soft-text", "success"],
+    ] as const;
+    for (const [label, fill] of pairs) {
+      for (const bg of ["canvas", "surface", "surface-control", "surface-floating"] as const) {
+        for (const tint of [0.15, 0.2]) {
+          expect(
+            contrastRatio(c[label], mixHex(c[bg], c[fill], tint)),
+            `${label} on ${bg} at ${tint}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
   });
 
   it("ranks primary text above secondary and secondary above muted", () => {
@@ -199,7 +217,9 @@ describe.each(themes.filter(({ isLight }) => !isLight))(
   ({ mode, colors }) => {
     const isGraphite = mode.startsWith("graphite");
     it("uses a near-black canvas and a quieter primary action", () => {
-      expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.2);
+      // The built-in dark variant also uses Patina's pinned logo ink.
+      const isPatina = mode === "dark" || mode.startsWith("patina-");
+      expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(isPatina ? 1.2 : 1.1);
       // Graphite's accent is ink, so its action is the accent itself.
       if (!isGraphite) expect(oklabL(colors.action)).toBeLessThan(oklabL(colors.identity));
       // A dark filled button is found by its label (4.5:1, checked in the theme tests), so its fill
