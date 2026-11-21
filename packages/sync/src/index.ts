@@ -262,6 +262,15 @@ export {
   type SessionSwap,
   watchExerciseNote,
 } from "./training";
+export {
+  importSessionBatch,
+  newImportBatchId,
+  readKnownSessions,
+  undoImportChunk,
+  watchImportedSessions,
+  type ImportedSessions,
+  type ImportWrite,
+} from "./training";
 
 export {
   watchRunState,
@@ -318,7 +327,7 @@ export {
   moveSessionPhoto,
   releaseSessionPhotos,
 } from "./training";
-export { parseMuscleDetails, setExerciseImage } from "./exercise";
+export { parseMuscleDetails, readMatchingLibrary, setExerciseImage } from "./exercise";
 export { watchSessionPhotos, type SessionPhoto } from "./training";
 export {
   PREFERENCES_SQL,

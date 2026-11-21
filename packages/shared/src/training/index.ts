@@ -29,3 +29,4 @@ export * from "./plans/session-goal";
 export * from "./volume/muscle-targets";
 export * from "./volume/weekly-muscle-volume";
 export * from "./volume/muscle-share";
+export * from "./history-import/index";

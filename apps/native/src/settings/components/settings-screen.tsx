@@ -13,6 +13,7 @@ import {
 import { Linking, View } from "react-native";
 
 import { useSignOut } from "@/auth";
+import { ImportHistoryRow } from "@/history-import";
 import { useIsOnline } from "@/platform/network";
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
@@ -104,6 +105,7 @@ export function SettingsScreen() {
         </ListSection>
         {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
         <ListSection title={t("settings__section_account")}>
+          <ImportHistoryRow />
           <ListRow
             icon={SignOut}
             title={t("nav__sign_out")}

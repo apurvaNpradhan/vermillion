@@ -27,7 +27,8 @@ import { appConfig } from "../../app.config.ts";
 // 18: @react-native-community/netinfo feeds the online state (offline-first).
 // 19: local Android next-workout-widget module (home-screen widget, RemoteViews).
 // 20: the home-screen widget expires weekly progress in the native provider.
-const NATIVE_STACK_REVISION = 20;
+// 21: expo-document-picker (history import from a CSV file).
+const NATIVE_STACK_REVISION = 21;
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 

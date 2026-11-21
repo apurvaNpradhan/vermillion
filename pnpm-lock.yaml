@@ -343,6 +343,9 @@ importers:
       expo-dev-client:
         specifier: ~58.0.13
         version: 58.0.18(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))
+      expo-document-picker:
+        specifier: ~58.0.5
+        version: 58.0.5(expo@58.0.23)
       expo-file-system:
         specifier: ~58.0.13
         version: 58.0.13(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))
@@ -4897,6 +4900,11 @@ packages:
     peerDependencies:
       expo: '*'
       react-native: '*'
+
+  expo-document-picker@58.0.5:
+    resolution: {integrity: sha512-DHv8GhjDwu2BbDWhV2j52iaqwWsA9P7n5nAwreiKRGQSxv0wpF/C0Cqpqj1B72io8E2KXddwxxKPWVPlV/kgtA==}
+    peerDependencies:
+      expo: '*'
 
   expo-eas-client@58.0.2:
     resolution: {integrity: sha512-mhRYnE35MzGxR1Xnl9FAg7/yHaocy4xoVzgsDmS9cbK+1wM6l74/I/73/E4Kr6wChdVZfeS6S+Tv4I1qYbGY2g==}
@@ -10830,6 +10838,10 @@ snapshots:
       expo: 58.0.23(221e0eec18e53d37ca40e947fdb43a83)
       expo-dev-menu-interface: 58.0.1(expo@58.0.23)
       react-native: 0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
+
+  expo-document-picker@58.0.5(expo@58.0.23):
+    dependencies:
+      expo: 58.0.23(221e0eec18e53d37ca40e947fdb43a83)
 
   expo-eas-client@58.0.2: {}
 

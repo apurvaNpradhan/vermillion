@@ -530,6 +530,21 @@ describe("session upload handlers", () => {
     ).toMatchObject(rejected("SYNC_LIMIT_EXCEEDED"));
   });
 
+  it("stores the import batch id on a Session and refuses one that is not a UUID", async () => {
+    const me = await writer("session-import-batch@example.com");
+    const plain = uuidv7();
+    const imported = uuidv7();
+    const batch = uuidv7();
+    expect(
+      await me.send([putSession(plain), putSession(imported, { import_batch_id: batch })]),
+    ).toEqual(applied);
+    expect(await stored("training_session", plain)).toMatchObject({ import_batch_id: null });
+    expect(await stored("training_session", imported)).toMatchObject({ import_batch_id: batch });
+    expect(await me.send([putSession(uuidv7(), { import_batch_id: "not-a-uuid" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+  });
+
   it("refuses columns the server owns, malformed data and bad ids", async () => {
     const me = await writer("session-strict@example.com");
     const owned: Record<string, Value>[] = [

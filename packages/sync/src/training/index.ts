@@ -131,6 +131,15 @@ export {
   type SessionSetDetail,
 } from "./sessions/session-watch";
 export {
+  importSessionBatch,
+  newImportBatchId,
+  readKnownSessions,
+  undoImportChunk,
+  watchImportedSessions,
+  type ImportedSessions,
+  type ImportWrite,
+} from "./sessions/import-store";
+export {
   SessionLimitError,
   type DeletedSession,
   type SessionExerciseRow,

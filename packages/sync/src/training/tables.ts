@@ -107,11 +107,14 @@ export const session = sqliteTable(
     rest_set_id: text("rest_set_id"),
     rest_started_at: text("rest_started_at"),
     rest_ends_at: text("rest_ends_at"),
+    /** Set on Sessions written by a history import; Undo import deletes by it. */
+    import_batch_id: text("import_batch_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
+    index("session_import_batch_idx").on(table.import_batch_id),
     index("session_run_id_idx").on(table.run_id),
     index("session_finished_at_idx").on(table.finished_at),
   ],

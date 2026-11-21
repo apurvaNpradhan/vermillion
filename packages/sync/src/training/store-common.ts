@@ -93,6 +93,7 @@ export const trainingUploadColumns = {
     "rest_set_id",
     "rest_started_at",
     "rest_ends_at",
+    "import_batch_id",
     "restore",
   ]),
   session_exercise: new Set([
