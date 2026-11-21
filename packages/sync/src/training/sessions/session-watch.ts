@@ -481,7 +481,7 @@ const SESSION_COUNT_LIMIT = 5000;
  * One row per finished Session that started in `[from, to)`: when it started and how many Counted
  * sets (ticked, not warm-up) it has. A calendar-heat read needs no set rows, so this is the
  * bounded alternative to {@link SESSIONS_BETWEEN_SQL}: it is not capped at
- * {@link SESSION_READ_LIMIT} Sessions. The caller buckets `started_at` by the account's time zone,
+ * {@link SESSION_READ_LIMIT} Sessions. The caller buckets `started_at` by the device's time zone,
  * which SQLite cannot do.
  */
 export const SESSION_SET_COUNTS_SQL = `SELECT s.started_at AS started_at, COUNT(ss.id) AS sets

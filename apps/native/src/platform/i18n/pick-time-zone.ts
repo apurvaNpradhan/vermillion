@@ -1,3 +1,5 @@
+import { isTimeZone } from "@workspace/shared";
+
 /**
  * The time zone the app uses: the device's. The calendar zone the phone reports comes first, then
  * the JavaScript engine's, then UTC. A zone saved on the account never overrides it (the setting
@@ -5,6 +7,7 @@
  */
 export function pickTimeZone(calendarZone: string | null | undefined, engineZone: string): string {
   const calendar = calendarZone?.trim();
-  if (calendar) return calendar;
-  return engineZone.trim() || "UTC";
+  if (calendar && isTimeZone(calendar)) return calendar;
+  const engine = engineZone.trim();
+  return engine && isTimeZone(engine) ? engine : "UTC";
 }

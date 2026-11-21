@@ -16,10 +16,10 @@ import {
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useSession } from "@/auth";
 import { useLocalData, useSyncValue } from "@/sync";
 
-import { deviceTimeZone } from "./device-time-zone";
 import { preferencesAccess, type PreferencesAccess } from "./preferences-access";
 import { preferencesSnapshot, publishPreferences, subscribePreferences } from "./preferences-store";
 
@@ -79,6 +79,7 @@ export function usePreferences() {
   sessionUserRef.current = session?.user.id ?? null;
   const [saving, setSaving] = useState(0);
   const { setDeviceLocale } = useLocale();
+  const timeZone = useDeviceTimeZone();
 
   const save = useCallback(
     async (patch: UpdatePreferences) => {
@@ -113,7 +114,7 @@ export function usePreferences() {
     // The stored `timezone` is never read: the app always uses the device's zone.
     preferences: state.value ?? EMPTY,
     /** The device's time zone, which every date in the app uses. */
-    timeZone: deviceTimeZone(),
+    timeZone,
     /** True only until the device's database has answered (milliseconds), never on the network. */
     isLoading: !unavailable && !state.failed && state.value === undefined,
     hasPreferences: state.value !== undefined,

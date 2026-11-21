@@ -1,4 +1,4 @@
-import { EXERCISE_TYPES, SET_KINDS, type SessionExportRow } from "@workspace/shared";
+import { SET_KINDS, type SessionExportRow } from "@workspace/shared";
 import { z } from "zod";
 
 import type { TrainingDatabase } from "../store-common";
@@ -12,7 +12,7 @@ const EXPORT_PAGE = 2000;
  */
 export const SESSION_EXPORT_SQL = `SELECT s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.note AS session_note, s.duration_s AS session_duration_s, s.finished_at AS finished_at, se.id AS exercise_row, se.exercise_title AS exercise_title,
-    se.exercise_type AS exercise_type, se.note AS exercise_note, ss.kind AS kind,
+    se.note AS exercise_note, ss.kind AS kind,
     ss.weight_kg AS weight_kg, ss.reps AS reps, ss.duration_s AS duration_s,
     ss.distance_m AS distance_m, ss.rpe AS rpe
   FROM training_session s
@@ -31,7 +31,6 @@ const exportRowSchema = z.object({
   finished_at: z.string().nullable(),
   exercise_row: z.string(),
   exercise_title: z.string().nullable(),
-  exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   exercise_note: z.string().nullable(),
   kind: z.enum(SET_KINDS),
   weight_kg: z.number().nullable(),

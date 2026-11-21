@@ -7,8 +7,8 @@ import { ListRow, ListSection } from "@/platform/ui/list";
 import { useExportData } from "../export-data";
 
 /**
- * Your data, pushed from Settings: export every finished workout as a Strong-format CSV (which
- * Hevy and Lyfta import), and import from Strong or Hevy, with the last import and its undo.
+ * Your data, pushed from Settings: export logged sets as Strong CSV, and import from Strong
+ * or Hevy, with the last import and its undo.
  */
 export function DataSettingsScreen() {
   const { t } = useTranslation();

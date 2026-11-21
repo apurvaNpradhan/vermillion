@@ -10,5 +10,7 @@ describe("pickTimeZone", () => {
     expect(pickTimeZone(null, "Europe/Berlin")).toBe("Europe/Berlin");
     expect(pickTimeZone(undefined, "Europe/Berlin")).toBe("Europe/Berlin");
     expect(pickTimeZone(" ", "")).toBe("UTC");
+    expect(pickTimeZone("GMT+05:30", "Asia/Kolkata")).toBe("Asia/Kolkata");
+    expect(pickTimeZone(null, "invalid")).toBe("UTC");
   });
 });

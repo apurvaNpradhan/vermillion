@@ -23,7 +23,7 @@ const row = (overrides: Partial<SessionExportRow> = {}): SessionExportRow => ({
   ...overrides,
 });
 
-const kg = { unit: "kg", timeZone: "UTC" } as const;
+const utc = { timeZone: "UTC" };
 
 describe("strongCsv", () => {
   it("writes Strong's header and one line per set, numbering working sets only", () => {
@@ -37,49 +37,50 @@ describe("strongCsv", () => {
         row({ exerciseKey: "e2", exercise: "Dip", weightKg: null, reps: 12, rpe: null }),
         row({ sessionId: "s2", startedAt: "2026-01-09T10:00:00.000Z" }),
       ],
-      kg,
+      utc,
     );
     expect(csv.split("\r\n")).toEqual([
       "Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE",
-      "2026-01-02 23:30:00,Push,1h 5m,Bench Press,W,60,10,0,0,,,",
-      "2026-01-02 23:30:00,Push,1h 5m,Bench Press,1,100,5,0,0,,,8",
-      "2026-01-02 23:30:00,Push,1h 5m,Bench Press,D,80,8,0,0,,,",
-      "2026-01-02 23:30:00,Push,1h 5m,Bench Press,2,100,5,0,0,,,8",
-      "2026-01-02 23:30:00,Push,1h 5m,Bench Press,F,100,5,0,0,,,",
-      "2026-01-02 23:30:00,Push,1h 5m,Dip,1,0,12,0,0,,,",
-      "2026-01-09 10:00:00,Push,1h 5m,Bench Press,1,100,5,0,0,,,8",
+      '2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",W,60,10,0,0,"","",',
+      '2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",1,100,5,0,0,,,8',
+      '2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",D,80,8,0,0,,,',
+      '2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",2,100,5,0,0,,,8',
+      '2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",F,100,5,0,0,,,',
+      '2026-01-02 23:30:00,"Push",1h 5m,"Dip",1,0,12,0,0,"",,',
+      '2026-01-09 10:00:00,"Push",1h 5m,"Bench Press",1,100,5,0,0,"","",8',
       "",
     ]);
   });
 
-  it("writes the weight in the user's unit and the date in their time zone", () => {
+  it("keeps the stored kilograms of a pound entry and uses the supplied time zone", () => {
     const [, line] = strongCsv([row({ weightKg: 45 * KG_PER_LB })], {
-      unit: "lb",
       timeZone: "Pacific/Auckland",
     }).split("\r\n");
     // 23:30 UTC on the 2nd is 12:30 on the 3rd in Auckland (summer time).
-    expect(line).toBe("2026-01-03 12:30:00,Push,1h 5m,Bench Press,1,45,5,0,0,,,8");
+    expect(line).toBe('2026-01-03 12:30:00,"Push",1h 5m,"Bench Press",1,20.41165665,5,0,0,"","",8');
   });
 
   it("writes timed and distance sets in Seconds and metres", () => {
     const [, line] = strongCsv(
       [row({ weightKg: null, reps: null, rpe: null, durationS: 90, distanceM: 400 })],
-      kg,
+      utc,
     ).split("\r\n");
-    expect(line).toBe("2026-01-02 23:30:00,Push,1h 5m,Bench Press,1,0,0,400,90,,,");
+    expect(line).toBe('2026-01-02 23:30:00,"Push",1h 5m,"Bench Press",1,0,0,400,90,"","",');
   });
 
-  it("writes the exercise note once and the workout note on every line, quoted", () => {
+  it("writes exercise and workout notes once, with unicode, quotes and newlines", () => {
     const lines = strongCsv(
       [
-        row({ sessionNote: "Felt good, tight\nshoulder", exerciseNote: 'Paused "touch"' }),
-        row({ sessionNote: "Felt good, tight\nshoulder", exerciseNote: 'Paused "touch"' }),
+        row({ sessionNote: "训练, tight\nshoulder", exerciseNote: 'Paused "touch"' }),
+        row({ sessionNote: "训练, tight\nshoulder", exerciseNote: 'Paused "touch"' }),
+        row({ exerciseKey: "e2", sessionNote: "训练, tight\nshoulder", exerciseNote: "第二组" }),
       ],
-      kg,
+      utc,
     );
-    expect(lines).toContain('"Paused ""touch""","Felt good, tight\nshoulder",8\r\n');
+    expect(lines).toContain('"Paused ""touch""","训练, tight\nshoulder",8\r\n');
+    expect(lines).toContain(',"第二组",,8\r\n');
     expect(lines.match(/Paused/g)).toHaveLength(1);
-    expect(lines.match(/Felt good/g)).toHaveLength(2);
+    expect(lines.match(/训练/g)).toHaveLength(1);
   });
 
   it("formats durations as Strong does", () => {
@@ -93,12 +94,13 @@ describe("strongCsv", () => {
   it("quotes cells and neutralises formulas", () => {
     expect(csvCell('say "hi", ok')).toBe('"say ""hi"", ok"');
     expect(csvCell("two\nlines")).toBe('"two\nlines"');
-    expect(csvCell("=SUM(A1)")).toBe("'=SUM(A1)");
-    expect(csvCell("plain")).toBe("plain");
+    expect(csvCell("=SUM(A1)")).toBe('"\'=SUM(A1)"');
+    expect(csvCell("\n=1+1")).toBe('"\'\n=1+1"');
+    expect(csvCell("plain")).toBe('"plain"');
   });
 
   it("is only the header without sets", () => {
-    expect(strongCsv([], kg).split("\r\n")).toHaveLength(2);
+    expect(strongCsv([], utc).split("\r\n")).toHaveLength(2);
   });
 });
 
@@ -144,6 +146,13 @@ describe("round trip through the Strong importer", () => {
       durationS: 60,
     }),
     row({
+      exerciseKey: "assisted",
+      exercise: "Pull Up (Assisted)",
+      weightKg: 12.345,
+      reps: 10,
+      rpe: null,
+    }),
+    row({
       sessionId: "s2",
       workout: "Run",
       startedAt: "2026-01-05T07:00:00.000Z",
@@ -161,6 +170,7 @@ describe("round trip through the Strong importer", () => {
   const types: Record<string, ExerciseType> = {
     "Bench Press": "weight_reps",
     "Pull Up": "bodyweight_reps",
+    "Pull Up (Assisted)": "bodyweight_assisted_reps",
     Plank: "duration",
     Running: "distance_duration",
   };
@@ -169,15 +179,15 @@ describe("round trip through the Strong importer", () => {
     return type ? { exerciseId: name, title: name, type } : null;
   };
 
-  function roundTrip(unit: "kg" | "lb") {
-    const csv = strongCsv(rows, { unit, timeZone: "UTC" });
-    const result = parseHistoryCsv(csv, { timeZone: "UTC" });
+  function roundTrip() {
+    const csv = strongCsv(rows, utc);
+    const result = parseHistoryCsv(csv, utc);
     if (!result.ok) throw new Error(result.reason);
     return result.history;
   }
 
   it("is read as a Strong file with the same workouts, dates, notes and sets", () => {
-    const history = roundTrip("kg");
+    const history = roundTrip();
     expect(history.format).toBe("strong");
     expect(history.skippedRows).toBe(0);
     expect(history.sessions.map((s) => [s.title, s.startedAt, s.durationS, s.note])).toEqual([
@@ -189,6 +199,7 @@ describe("round trip through the Strong importer", () => {
       ["Bench Press", 'Paused "touch and go"', 4],
       ["Pull Up", null, 1],
       ["Plank", null, 1],
+      ["Pull Up (Assisted)", null, 1],
     ]);
     expect(push?.exercises[0]?.sets.map((s) => [s.kind, s.weight, s.reps, s.rpe])).toEqual([
       ["warmup", 40, 8, null],
@@ -203,8 +214,8 @@ describe("round trip through the Strong importer", () => {
     });
   });
 
-  it("plans to the same sets in kg, bodyweight and timed sets included", () => {
-    const planned = roundTrip("kg").sessions.map((s) => planSession(s, resolve, "kg", "Workout"));
+  it("plans the same weights, including assistance, and retains bodyweight and timed sets", () => {
+    const planned = roundTrip().sessions.map((s) => planSession(s, resolve, "kg", "Workout"));
     const push = planned[0];
     if (push?.kind !== "planned") throw new Error("not planned");
     expect(
@@ -218,15 +229,8 @@ describe("round trip through the Strong importer", () => {
       ],
       [["working", null, 10]],
       [["working", null, null]],
+      [["working", 12.345, 10]],
     ]);
     expect(push.session.exercises[2]?.sets[0]?.durationS).toBe(60);
-  });
-
-  it("keeps pounds when the importer is told the file's unit", () => {
-    const planned = roundTrip("lb").sessions.map((s) => planSession(s, resolve, "lb", "Workout"));
-    const push = planned[0];
-    if (push?.kind !== "planned") throw new Error("not planned");
-    const bench = push.session.exercises[0]?.sets.map((s) => s.weightKg ?? 0) ?? [];
-    expect(bench.map((w) => Number(w.toFixed(1)))).toEqual([40, 60, 62.5, 50]);
   });
 });

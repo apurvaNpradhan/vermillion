@@ -1,5 +1,4 @@
-import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
-import { KG_PER_LB } from "../vocabulary/format";
+import type { SetKind } from "../vocabulary/vocabulary";
 
 /** One ticked set of a finished Session, with what the export writes of its Session and exercise. */
 export type SessionExportRow = {
@@ -23,10 +22,8 @@ export type SessionExportRow = {
 };
 
 /**
- * Strong's export layout, which Hevy and Lyfta import and our own importer reads (see
- * `history-import/fixtures.ts`): these columns, in this order, with the weight in the user's unit
- * (the header does not name it, as in Strong), the distance in metres and `Seconds` for a timed
- * set.
+ * Strong's comma-delimited export layout. The unitless Weight column contains kilograms, as
+ * Hevy's Strong importer expects. Distance is in metres and Seconds is for a timed set.
  */
 export const STRONG_CSV_HEADER = [
   "Date",
@@ -45,29 +42,19 @@ export const STRONG_CSV_HEADER = [
 
 /**
  * A cell as CSV text. Text that a spreadsheet would run as a formula (it starts with `=`, `+`,
- * `-`, `@`, tab or a carriage return) is prefixed with an apostrophe, and anything with a comma,
- * quote or line break is quoted.
+ * `-`, `@`, tab or a line break) is prefixed with an apostrophe. Strong quotes text cells
+ * and doubles any quotation marks inside them.
  */
 export function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+  const safe = /^[=+\-@\t\r\n]/.test(value) ? `'${value}` : value;
+  return `"${safe.replaceAll('"', '""')}"`;
 }
 
-const number = (value: number | null, digits: number) =>
-  value === null ? "0" : String(Number(value.toFixed(digits)));
+const number = (value: number | null) => String(value ?? 0);
 
 /** The local wall-clock time of an ISO time in a time zone, as Strong writes it: `2026-11-20 18:30:00`. */
-function localDateTime(iso: string, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(iso));
+function localDateTime(iso: string, formatter: Intl.DateTimeFormat): string {
+  const parts = formatter.formatToParts(new Date(iso));
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
   return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}:${part("second")}`;
 }
@@ -90,40 +77,55 @@ const SET_LETTER: Partial<Record<SetKind, string>> = {
  * Every finished Session in Strong's CSV format (RFC 4180, CRLF line ends): one line per ticked
  * set, in the order given (oldest first). Working sets are numbered from 1 within their exercise;
  * warm-up, drop and failure sets are `W`, `D` and `F`. Bodyweight and unused cells are `0`, effort
- * is the RPE, the exercise note is on the exercise's first line and the workout note on every
- * line. The date is the local time in `timeZone`. Floors and steps have no Strong column and are
- * left out.
+ * is the RPE. Workout and exercise notes appear on their respective first lines.
+ * The date is local to `timeZone`.
+ * Strong's set-based CSV has no columns for floors, steps or empty workouts.
  */
 export function strongCsv(
   rows: readonly SessionExportRow[],
-  options: { unit: WeightUnit; timeZone: string },
+  options: { timeZone: string },
 ): string {
   const lines = [STRONG_CSV_HEADER.join(",")];
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: options.timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  let sessionId: string | undefined;
+  let date = "";
   let place = "";
   let working = 0;
   for (const row of rows) {
+    const firstSet = row.sessionId !== sessionId;
+    if (firstSet) {
+      sessionId = row.sessionId;
+      date = localDateTime(row.startedAt, formatter);
+    }
     const key = `${row.sessionId}|${row.exerciseKey}`;
     const first = key !== place;
     working = first ? 0 : working;
     place = key;
     const letter = SET_LETTER[row.kind];
     if (letter === undefined) working += 1;
-    const weight =
-      row.weightKg === null || options.unit === "kg" ? row.weightKg : row.weightKg / KG_PER_LB;
     lines.push(
       [
-        localDateTime(row.startedAt, options.timeZone),
+        date,
         csvCell(row.workout),
         strongDuration(row.sessionDurationS),
         csvCell(row.exercise),
         letter ?? String(working),
-        number(weight, 2),
-        number(row.reps, 0),
-        number(row.distanceM, 1),
-        number(row.durationS, 0),
+        number(row.weightKg),
+        number(row.reps),
+        number(row.distanceM),
+        number(row.durationS),
         first ? csvCell(row.exerciseNote ?? "") : "",
-        csvCell(row.sessionNote ?? ""),
-        row.rpe === null ? "" : String(Number(row.rpe.toFixed(1))),
+        firstSet ? csvCell(row.sessionNote ?? "") : "",
+        row.rpe === null ? "" : String(row.rpe),
       ].join(","),
     );
   }

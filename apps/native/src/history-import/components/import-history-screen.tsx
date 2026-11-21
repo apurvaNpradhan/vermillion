@@ -1,9 +1,12 @@
 import { FilePlus, MagnifyingGlass, ProhibitInset } from "phosphor-react-native";
+import { usePreventRemove } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import type { ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
+import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { Button } from "@/platform/ui/button";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { ActionSheet } from "@/platform/ui/action-sheet";
@@ -42,8 +45,15 @@ export function ImportHistoryScreen({ title, header }: { title: string; header?:
   const [matching, setMatching] = useState<string | null>(null);
   const [confirmUndo, setConfirmUndo] = useState(false);
   const { step, file, summary } = flow;
+  const writing = step.kind === "importing" || step.kind === "undoing";
+  useHideTabBar(writing);
+  // Imports can be cancelled with their own button, after which the receipt is ready to read.
+  usePreventRemove(writing, () => undefined);
+  const deviceZone = useDeviceTimeZone();
   const formatDate = (iso: string) =>
-    new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(iso));
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeZone: deviceZone }).format(
+      new Date(iso),
+    );
   const formatSourceDate = (iso: string) =>
     new Intl.DateTimeFormat(i18n.language, {
       dateStyle: "medium",
@@ -97,7 +107,7 @@ export function ImportHistoryScreen({ title, header }: { title: string; header?:
             : []
         }
       />
-      <ScrollPage back title={title} backFallback="/settings">
+      <ScrollPage back={!writing} title={title} backFallback="/settings">
         {step.kind === "idle" || step.kind === "failed" ? (
           <>
             {header}
