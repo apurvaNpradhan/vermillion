@@ -1,10 +1,10 @@
-const { getDefaultConfig } = require("expo/metro-config");
+const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 const { withUniwindConfig } = require("uniwind/metro");
 const { wrapWithReanimatedMetroConfig } = require("react-native-reanimated/metro-config");
 const themeVariants = require("./theme-variants");
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 module.exports = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
   extraThemes: themeVariants,
