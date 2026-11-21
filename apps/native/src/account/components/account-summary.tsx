@@ -1,5 +1,5 @@
-import { Avatar, cn, useThemeColor } from "heroui-native";
-import { useRouter } from "expo-router";
+import { Avatar, useThemeColor } from "heroui-native";
+import { usePathname, useRouter } from "expo-router";
 import { CaretRight } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -19,37 +19,38 @@ export function initials(name: string): string {
 }
 
 /** The user's initials in a neutral circle; a person icon until the profile has loaded. */
-export function AccountAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+function AccountAvatar() {
   const { user } = useCurrentUser();
   const text = user ? initials(user.name) : "";
   return (
-    <Avatar size={size} color="default" alt={user?.name ?? ""}>
+    <Avatar size="md" color="default" alt={user?.name ?? ""}>
       <Avatar.Fallback>{text || undefined}</Avatar.Fallback>
     </Avatar>
   );
 }
 
 /**
- * Avatar, name and email in one row that opens the profile. Used as the card at the top of
- * settings and as the header of the tab bar's menu.
+ * The tab menu's account row with a shortcut to Profile.
  */
-export function AccountSummary({ variant = "row" }: { variant?: "row" | "card" }) {
+export function AccountSummary({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useCurrentUser();
   const muted = useThemeColor("muted");
-  const card = variant === "card";
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("settings__open_profile", { name: user?.name ?? "" })}
-      onPress={() => router.navigate("/settings/profile", ANCHORED)}
-      className={cn(
-        "flex-row items-center gap-3 active:opacity-80",
-        card ? "rounded-2xl bg-surface p-4" : "rounded-2xl px-2 py-1.5",
-      )}
+      onPress={() => {
+        onOpen();
+        if (pathname === "/settings/profile") return;
+        if (pathname.startsWith("/settings/")) router.dismissTo("/settings");
+        router.navigate("/settings/profile", ANCHORED);
+      }}
+      className="flex-row items-center gap-3 rounded-2xl px-2 py-1.5 active:opacity-80"
     >
-      <AccountAvatar size={card ? "lg" : "md"} />
+      <AccountAvatar />
       <View className="flex-1 gap-0.5">
         <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
           {user?.name ?? " "}

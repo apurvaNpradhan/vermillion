@@ -283,7 +283,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         .applyWorkout(id, { saveNew: true, structure: true, targets: true })
                         .then((saved) => {
                           if (saved)
-                            router.push({ pathname: "/train/workout/[id]", params: { id: saved } });
+                            router.push(
+                              { pathname: "/train/workout/[id]", params: { id: saved } },
+                              ANCHORED,
+                            );
                         });
                     },
                   },

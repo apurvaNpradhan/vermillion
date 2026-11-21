@@ -1,11 +1,42 @@
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { NavigationState } from "expo-router";
+
+import { blurredTabStack } from "./blurred-tab-stack";
 
 const APP = join(__dirname, "../../../app/(app)");
 const tabs = readdirSync(APP, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
+
+const tabState: NavigationState = {
+  type: "tab",
+  stale: false,
+  key: "tabs",
+  routeKeySeq: 2,
+  index: 1,
+  routeNames: ["index", "exercises"],
+  routes: [
+    { key: "home", name: "index" },
+    {
+      key: "exercises",
+      name: "exercises",
+      state: {
+        type: "stack",
+        stale: false,
+        key: "exercise-stack",
+        routeKeySeq: 2,
+        index: 1,
+        routeNames: ["index", "[id]"],
+        routes: [
+          { key: "library", name: "index" },
+          { key: "detail", name: "[id]" },
+        ],
+      },
+    },
+  ],
+};
 
 describe("tab stacks", () => {
   it("finds the tabs", () => {
@@ -24,8 +55,11 @@ describe("tab stacks", () => {
     ).toBe(true);
   });
 
-  it("pops every tab to its first screen when it is left", () => {
-    const layout = readFileSync(join(APP, "_layout.tsx"), "utf8");
-    expect(layout).toMatch(/popToTopOnBlur:\s*true/u);
+  it("targets the exercise stack when switching away from exercise detail to Home", () => {
+    expect(blurredTabStack({ ...tabState, index: 0 }, "exercises")).toBe("exercise-stack");
+  });
+
+  it("preserves exercise detail when a root modal takes focus", () => {
+    expect(blurredTabStack(tabState, "exercises")).toBeUndefined();
   });
 });

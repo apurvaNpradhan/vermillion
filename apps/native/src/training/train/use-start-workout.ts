@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useRef } from "react";
 
 import { usePickExercises } from "@/exercise";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 import { useWorkoutActions } from "@/training/workouts/use-workout-actions";
 
@@ -25,7 +26,7 @@ export function useStartWorkout() {
       creating.current = true;
       try {
         const id = await create(exerciseIds, programId);
-        if (id) router.push({ pathname: "/train/workout/[id]/edit", params: { id } });
+        if (id) router.push({ pathname: "/train/workout/[id]/edit", params: { id } }, ANCHORED);
         return id;
       } finally {
         creating.current = false;

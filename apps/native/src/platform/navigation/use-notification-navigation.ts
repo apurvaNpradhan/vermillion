@@ -18,7 +18,7 @@ export function useNotificationNavigation(ready: boolean) {
     if (!ready || !response) return;
     const request = response.notification.request;
     const destination = bodyDestination.safeParse(request.content.data?.url);
-    if (destination.success) router.push(destination.data, ANCHORED);
+    if (destination.success) router.navigate(destination.data, ANCHORED);
     else if (request.identifier.startsWith("rest:"))
       router.push({ pathname: "/session/[id]", params: { id: request.identifier.slice(5) } });
     Notifications.clearLastNotificationResponse();

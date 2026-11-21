@@ -7,6 +7,7 @@ import {
 } from "@workspace/client/native-return-location";
 
 import { appConfig } from "@/platform/app-config";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 /** Protected stacks discard signed-out routes; keep the incoming destination until login and onboarding complete. */
 export function useAuthReturn(signedIn: boolean, appReady: boolean) {
@@ -35,7 +36,7 @@ export function useAuthReturn(signedIn: boolean, appReady: boolean) {
   useEffect(() => {
     if (signedIn && appReady && pending) {
       setPending(null);
-      router.replace(pending);
+      router.replace(pending, ANCHORED);
     }
   }, [signedIn, appReady, pending, router]);
 }
