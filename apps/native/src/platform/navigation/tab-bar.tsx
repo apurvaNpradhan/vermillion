@@ -22,8 +22,6 @@ import Animated, {
   FadeIn,
   FadeOut,
   ReduceMotion,
-  ZoomIn,
-  ZoomOut,
   Extrapolation,
   interpolate,
   useAnimatedStyle,
@@ -404,8 +402,8 @@ export function TabBar({
         {action ? (
           <Animated.View
             key={action.label}
-            entering={ZoomIn.duration(140).reduceMotion(ReduceMotion.System)}
-            exiting={ZoomOut.duration(90).reduceMotion(ReduceMotion.System)}
+            entering={FadeIn.duration(120).reduceMotion(ReduceMotion.System)}
+            exiting={FadeOut.duration(90).reduceMotion(ReduceMotion.System)}
             className="absolute"
             style={{ right: SIDE, bottom }}
           >

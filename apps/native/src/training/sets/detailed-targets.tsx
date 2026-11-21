@@ -29,12 +29,14 @@ export function DetailedTargets({
   sets,
   type,
   equipment = null,
+  animateRows = true,
   onSets,
 }: {
   sets: readonly PlannedSet[];
   type: ExerciseType;
   /** The exercise's equipment, for the keypad's step. */
   equipment?: Equipment | null;
+  animateRows?: boolean;
   onSets: (sets: PlannedSet[]) => void;
 }) {
   const { t } = useTranslation();
@@ -68,6 +70,7 @@ export function DetailedTargets({
         weightUnit={preferences.weightUnit}
         weightIncrementKg={preferences.weightIncrementKg}
         equipment={equipment}
+        animateRows={animateRows}
         effortScale={preferences.effortScale}
         onChange={(index, change) => {
           const set = sets[index];

@@ -292,7 +292,9 @@ const ReorderItem = memo(function ReorderItem({
     }
     return {
       overflow: "hidden",
-      height: height.value * (1 - p) + Math.min(height.value, headerHeight) * p,
+      // At rest, size to the children in the same layout pass that expands or collapses them.
+      // The measured height is only needed for the drag animation.
+      height: p > 0 ? height.value * (1 - p) + Math.min(height.value, headerHeight) * p : undefined,
       transform: [{ translateY }],
       zIndex: active.value === index ? 10 : 0,
     };

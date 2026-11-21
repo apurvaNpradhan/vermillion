@@ -252,6 +252,7 @@ function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addedSetIds, setAddedSetIds] = useState<ReadonlySet<string>>(() => new Set());
   const closeSheet = useCallback(() => setSheet(null), []);
 
   const allSets = session.exercises.flatMap((entry) => entry.sets);
@@ -450,9 +451,21 @@ function LoadedSession({
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
   }, []);
-  const removeSet = useCallback((setId: string) => void actions.removeOneSet(setId), [actions]);
   const { toggleBlock, addSet, openCell, onTick, onPrevious, onTimer } = logging;
-  const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
+  const onAddSet = useCallback(
+    async (exerciseId: string) => {
+      const id = await addSet(exerciseId);
+      if (id) setAddedSetIds((ids) => new Set([...ids, id]));
+    },
+    [addSet],
+  );
+  const onAddedSetShown = useCallback((id: string) => {
+    setAddedSetIds((ids) => {
+      const next = new Set(ids);
+      next.delete(id);
+      return next;
+    });
+  }, []);
   const { updateExercise } = actions;
   const onNote = useCallback(
     (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
@@ -605,7 +618,9 @@ function LoadedSession({
                     onEffort={onEffort}
                     onPrevious={onPrevious}
                     onCopySets={logging.onCopySets}
-                    onRemoveSet={removeSet}
+                    onRemoveSet={actions.removeOneSet}
+                    addedSetIds={addedSetIds}
+                    onAddedSetShown={onAddedSetShown}
                     onTimer={onTimer}
                     registerRow={registerSetRow}
                   />

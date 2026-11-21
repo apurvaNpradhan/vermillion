@@ -48,6 +48,7 @@ export function InlineTargets({
         sets={draft.sets}
         type={type}
         equipment={entry.exercise?.equipment ?? null}
+        animateRows={false}
         onSets={onSets}
       />
       {!grouped ? <RestPicker value={draft.restSeconds} onChange={onRest} /> : null}

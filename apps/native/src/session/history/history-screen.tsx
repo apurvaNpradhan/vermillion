@@ -317,11 +317,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                   </Button>
                 ) : null}
                 {ready && activeDay !== null ? (
-                  <Animated.View
-                    key={activeDay}
-                    entering={FadeIn.duration(120).reduceMotion(ReduceMotion.Never)}
-                    className="flex-row flex-wrap items-center justify-between gap-2"
-                  >
+                  <View className="flex-row flex-wrap items-center justify-between gap-2">
                     <Text
                       accessibilityRole="header"
                       className="flex-1 text-title-md font-semibold text-foreground"
@@ -331,7 +327,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                     <Button variant="ghost" onPress={() => selectDay(null)}>
                       <Button.Label>{t("session__history_clear_day")}</Button.Label>
                     </Button>
-                  </Animated.View>
+                  </View>
                 ) : null}
               </View>
             }

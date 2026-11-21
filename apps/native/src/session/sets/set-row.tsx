@@ -28,6 +28,7 @@ import { formatElapsed } from "@/session/timer/clock";
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
 import { SetCell } from "./set-cell";
+import { useSetRowMotion } from "./set-row-motion";
 
 /** The cell being edited and what is typed into it, as the row shows it. */
 export type ActiveEntry = { cell: CellRef; text: string };
@@ -63,7 +64,9 @@ export type SetRowProps = {
   onKind: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
-  onRemove: (setId: string) => void;
+  onRemove: (setId: string) => Promise<boolean>;
+  added: boolean;
+  onAddedShown: (setId: string) => void;
   /** Starts, cancels or stops (and ticks) the set's duration timer. */
   onTimer: (setId: string) => void;
 };
@@ -130,6 +133,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   const tickPop = usePop(ticked);
+  const motion = useSetRowMotion(set.id, props.added, props.onAddedShown, props.onRemove);
   const hasEffortColumn = logEffort && fields.includes("reps");
   const previousText = previous ? previousLabel(previous, type, unit) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -327,11 +331,15 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       icon: Trash,
       tone: "danger",
       iconOnly: true,
-      onPress: () => props.onRemove(set.id),
+      onPress: motion.remove,
     });
-  return !readOnly && actions.length > 0 ? (
-    <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
-  ) : (
-    row()
+  return (
+    <Animated.View style={motion.style} exiting={motion.exiting}>
+      {!readOnly && actions.length > 0 ? (
+        <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
+      ) : (
+        row()
+      )}
+    </Animated.View>
   );
 }, sameRowProps);

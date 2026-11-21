@@ -13,6 +13,7 @@ import { CaretDown, DotsThreeVertical, Flag, Trash, WarningCircle } from "phosph
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 
@@ -37,6 +38,7 @@ import {
 } from "@/session/logging/current-action";
 import { timerView } from "./duration-timer";
 import { REST_ADJUST_SECONDS } from "@/session/rest/rest-rules";
+import { useRestPulse } from "@/session/rest/use-rest-pulse";
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import {
   askNotificationPermission,
@@ -253,6 +255,7 @@ function LoadedTimer({
     () => currentAction({ session, ghostsFor, now, restEndedAt: restEndedAt(session.id) }),
     [session, ghostsFor, now],
   );
+  const restPulse = useRestPulse(session.rest?.endsAt ?? null, action.rest?.remaining ?? 0);
   const stats = useMemo(
     () => sessionStats({ session, bodyweightKg, now, countWarmups: preferences.ui.countWarmups }),
     [session, bodyweightKg, now, preferences.ui.countWarmups],
@@ -510,22 +513,25 @@ function LoadedTimer({
                 disabled={!canStartSetTimer}
                 onPress={() => void logging.onTimer(current.setId)}
               >
-                <Text
+                <Animated.Text
                   accessibilityLiveRegion="none"
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.5}
                   className="text-center font-semibold text-numeric-hero text-foreground"
                   // Larger than the scale's numeric-hero (72): the clock is the whole point here.
-                  style={{
-                    fontVariant: ["tabular-nums"],
-                    fontSize: CLOCK_SIZE,
-                    lineHeight: CLOCK_SIZE + 4,
-                    letterSpacing: -3,
-                  }}
+                  style={[
+                    {
+                      fontVariant: ["tabular-nums"],
+                      fontSize: CLOCK_SIZE,
+                      lineHeight: CLOCK_SIZE + 4,
+                      letterSpacing: -3,
+                    },
+                    restPulse,
+                  ]}
                 >
                   {formatElapsed(bigSeconds)}
-                </Text>
+                </Animated.Text>
               </Pressable>
               {resting && session.rest ? (
                 <View className="w-full gap-2">

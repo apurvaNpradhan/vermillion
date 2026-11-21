@@ -64,6 +64,7 @@ export function SetTable({
   weightIncrementKg,
   equipment,
   effortScale,
+  animateRows,
   onChange,
   onKind,
   onEffort,
@@ -82,6 +83,7 @@ export function SetTable({
   /** The exercise's equipment, for the keypad's − / + step. */
   equipment: Equipment | null;
   effortScale: EffortScale;
+  animateRows: boolean;
   onChange: (index: number, change: Partial<Target>) => void;
   onKind: (index: number) => void;
   onEffort: (index: number) => void;
@@ -301,27 +303,32 @@ export function SetTable({
               {columns.map((column) => cell(column))}
             </View>
           );
-          return (
-            <Animated.View key={ids[index] ?? index} {...rowMotion}>
-              {onRemove && sets.length > 1 ? (
-                <SwipeRow
-                  actions={[
-                    {
-                      key: "remove",
-                      label: t("training__remove"),
-                      icon: Trash,
-                      tone: "danger",
-                      iconOnly: true,
-                      onPress: () => onRemove(index),
-                    },
-                  ]}
-                >
-                  {(a11y) => row(a11y)}
-                </SwipeRow>
-              ) : (
-                <View>{row()}</View>
-              )}
+          const content =
+            onRemove && sets.length > 1 ? (
+              <SwipeRow
+                actions={[
+                  {
+                    key: "remove",
+                    label: t("training__remove"),
+                    icon: Trash,
+                    tone: "danger",
+                    iconOnly: true,
+                    onPress: () => onRemove(index),
+                  },
+                ]}
+              >
+                {(a11y) => row(a11y)}
+              </SwipeRow>
+            ) : (
+              <View>{row()}</View>
+            );
+          const key = ids[index] ?? index;
+          return animateRows ? (
+            <Animated.View key={key} {...rowMotion}>
+              {content}
             </Animated.View>
+          ) : (
+            <View key={key}>{content}</View>
           );
         })}
       </View>

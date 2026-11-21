@@ -619,6 +619,7 @@ export function useLoggingState({
         if (block) setOpenBlockId(block.id);
         setJustCollapsedId(null);
       }
+      return added;
     },
     [exercises, readOnly, actions, blocks],
   );

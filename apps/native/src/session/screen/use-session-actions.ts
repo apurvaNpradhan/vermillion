@@ -94,10 +94,7 @@ export function useSessionActions() {
 
   const addExtraSet = useCallback(
     (exerciseId: string, target: PlannedSet | null) =>
-      write(async (db) => {
-        await addSet(db, exerciseId, { target }, writeScope);
-        return true;
-      }, false),
+      write((db) => addSet(db, exerciseId, { target }, writeScope), null),
     [write, writeScope],
   );
 
