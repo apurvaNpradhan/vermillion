@@ -70,12 +70,12 @@ export function fakeNetwork(options: {
       if (!release) return new Response("{}", { status: 404 });
       return Response.json({
         tag_name: release.tag,
-        html_url: "https://github.com/example/cinnabar/releases/tag/" + release.tag,
+        html_url: "https://github.com/example/basalt/releases/tag/" + release.tag,
         published_at: release.publishedAt,
         assets: [
           {
-            name: `cinnabar-${release.tag}-arm64-v8a.apk`,
-            browser_download_url: `https://github.com/example/cinnabar/releases/download/${release.tag}/app.apk`,
+            name: `basalt-${release.tag}-arm64-v8a.apk`,
+            browser_download_url: `https://github.com/example/basalt/releases/download/${release.tag}/app.apk`,
           },
         ],
       });

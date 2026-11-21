@@ -671,7 +671,7 @@ describe("user media", () => {
       return installOf(client, userId);
     }
     async function deleteAccount(me: Writer, email: string) {
-      await me.client.account.requestDeletion({ callbackURL: "cinnabar://confirm-deletion" });
+      await me.client.account.requestDeletion({ callbackURL: "basalt://confirm-deletion" });
       const mail = await app.waitForEmail(
         (m) => m.to === email && /deleting|Löschen/.test(m.subject),
       );

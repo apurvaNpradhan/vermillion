@@ -4,7 +4,7 @@ import { createTanstackQueryUtils, type RouterUtils } from "@orpc/tanstack-query
 import type { AppRouterClient } from "@workspace/api/client";
 
 export type RpcOptions = {
-  /** Public origin of the API server (`https://cinnabar-api.<domain>` in production). */
+  /** Public origin of the API server (`https://basalt-api.<domain>` in production). */
   serverUrl: string;
   /** Fetch implementation; defaults to the global one. Native swaps in `expo/fetch`. */
   fetch?: (url: string, init: RequestInit) => Promise<Response>;

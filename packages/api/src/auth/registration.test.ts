@@ -116,7 +116,7 @@ describe("registration policy", () => {
 
     it("exempts no client: a native app without a token is refused too", async () => {
       const app = await create({ config: { turnstileSecret: "secret" }, fetch: answer(good) });
-      const native = new Headers({ "user-agent": "okhttp/4", "expo-origin": "cinnabar://" });
+      const native = new Headers({ "user-agent": "okhttp/4", "expo-origin": "basalt://" });
       await expect(requestCode(app, "native@example.com", native)).rejects.toMatchObject({
         body: { code: "CAPTCHA_FAILED" },
       });

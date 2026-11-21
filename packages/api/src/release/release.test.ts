@@ -40,7 +40,7 @@ describe("release status", () => {
     app = await createTestApp({ fetch: network.fetch });
     const latest = {
       version: "1.3.0",
-      url: "https://github.com/example/cinnabar/releases/download/v1.3.0/app.apk",
+      url: "https://github.com/example/basalt/releases/download/v1.3.0/app.apk",
       publishedAt: "2026-11-16T09:00:00Z",
     };
     await expect(app.client().release.status()).resolves.toEqual({ minimumVersion: null, latest });

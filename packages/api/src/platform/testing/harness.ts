@@ -12,10 +12,10 @@ import { createServices } from "../services";
 import { cloneDatabase, dropDatabase, urlForDatabase } from "./postgres";
 
 const baseConfig: ApiConfig = {
-  appName: "Cinnabar",
+  appName: "Basalt",
   appVersion: "1.0.0",
   appUrl: "http://localhost:3000",
-  appScheme: "cinnabar",
+  appScheme: "basalt",
   siteUrl: "http://localhost:3001",
   adminEmails: [],
   nativePort: 8081,
@@ -42,7 +42,7 @@ const baseConfig: ApiConfig = {
     publicUrl: "http://127.0.0.1:9000/vermillion-exercise-media",
   },
   catalogPatchGate: false,
-  releases: { owner: "example", repo: "cinnabar" },
+  releases: { owner: "example", repo: "basalt" },
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };
 

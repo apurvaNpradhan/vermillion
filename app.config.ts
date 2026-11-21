@@ -9,9 +9,13 @@
 const domain = "lostsignal.cloud";
 
 export const appConfig = {
-  name: "cinnabar",
-  displayName: "Cinnabar",
-  description: "Cinnabar is a training log for lifting",
+  name: "basalt",
+  displayName: "Basalt",
+  description: "Basalt is a calm, private training log",
+  /** Short line shown with the name (welcome screen, README). */
+  tagline: "Quiet progress.",
+  /** Longer line for store listings and the site. */
+  subtitle: "A private log for training — and soon, food.",
   /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */
   supportEmail: `support@${domain}`,
   version: "1.0.0",
@@ -20,11 +24,11 @@ export const appConfig = {
   urls: {
     server: "http://localhost:3000",
     /** Existing public site used for account, invite and update links. */
-    site: `https://cinnabar.${domain}`,
+    site: `https://basalt.${domain}`,
     /** The API in production (`apps/server`). */
-    api: `https://cinnabar-api.${domain}`,
+    api: `https://basalt-api.${domain}`,
     /** The PowerSync service in production. */
-    sync: `https://cinnabar-sync.${domain}`,
+    sync: `https://basalt-sync.${domain}`,
     /** Public base URL of the exercise media bucket (thumbnails and videos; rows hold keys). */
     exerciseMedia: `https://media.${domain}`,
   },
@@ -38,10 +42,10 @@ export const appConfig = {
     powersync: 8090,
   },
   bundleIds: {
-    ios: "io.github.apurvanpradhan.cinnabar",
-    android: "io.github.apurvanpradhan.cinnabar",
+    ios: "io.github.apurvanpradhan.basalt",
+    android: "io.github.apurvanpradhan.basalt",
   },
-  scheme: "cinnabar",
+  scheme: "basalt",
   /** The public GitHub repository whose Releases hold the Android builds. */
   releases: { owner: "apurvaNpradhan", repo: "vermillion" },
   /** Expo project id from `eas init`; links EAS Build and enables EAS Update. */
