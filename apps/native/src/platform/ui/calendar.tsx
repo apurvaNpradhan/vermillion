@@ -1,7 +1,7 @@
 /**
  * Source: PanelUI Calendar (panelui-native 1.4.0, MIT, https://panelui.dev).
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
- * Keeps the caption, paging and fixed six-week grid in single-date mode. Uses Nord role
+ * Keeps the caption, paging and fixed six-week grid in single-date mode. Uses role
  * classes, Phosphor icons, caller-supplied strings and Gregorian UTC calendar-day values.
  */
 import type { WeekStart } from "@workspace/shared";

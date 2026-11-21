@@ -1,20 +1,22 @@
 # Native themes
 
-Native offers **Basalt** (the default, stored id `nord`), **Graphite**, **Oxide**, **Slate** and **Mulberry**, each in
+Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
 Light and Dark at standard or increased contrast
-([ADR 0048](../adr/0048-theme-engine-and-nord.md)). Preferences and the signed-out welcome
-screen share an Appearance sheet: Match device / Light / Dark, the theme cards, and an Increase
-contrast switch.
+([ADR 0048](../adr/0048-theme-engine-and-nord.md), [ADR 0052](../adr/0052-rename-to-patina.md)).
+Preferences has an Appearance sheet: Match device / Light / Dark, the theme cards, and an Increase
+contrast switch. A saved `nord` (the retired default) or any other unknown id resolves to Patina.
+The signed-out welcome screen is the one screen fixed to the Patina dark variant; see
+[Fixed theme](#fixed-theme).
 
 ## Tokens
 
-A theme is a definition in `packages/ui/src/tokens/themes/` (see `nord.ts`): per scheme a base
+A theme is a definition in `packages/ui/src/tokens/themes/` (see `patina.ts`): per scheme a base
 (the canvas), an accent, the ink on the accent and optional pins (surface, control, ink), plus a
 family of data colours. A theme can pin a quieter action fill separately from its accent.
 `themes/engine.ts` derives every role in OKLCH. `theme-variants.ts`
-builds the four variants of every theme (`nord-light`, `nord-dark`, `nord-light-contrast`,
-`nord-dark-contrast`); `brand.ts` exports them as `nativeColors`, with Uniwind's built-in
-`light` and `dark` carrying Graphite & chalk at standard contrast.
+builds the four variants of every theme (`patina-light`, `patina-dark`, `patina-light-contrast`,
+`patina-dark-contrast`); `brand.ts` exports them as `nativeColors`, with Uniwind's built-in
+`light` and `dark` carrying the default theme (Patina) at standard contrast.
 
 After changing a theme run `pnpm --filter @workspace/ui tokens`. The rule tests check layer
 order, 7:1 primary text, 4.5:1 text and labels, 3:1 chart marks, subtle surface tint, accent and
@@ -39,5 +41,5 @@ backgrounding it. Switch Light, Dark and Increase contrast and restart to check 
 persists. Check status and navigation bars follow the canvas.
 
 HeroUI Native's blur and glass defaults guess dark mode with `endsWith("dark")`, which reads
-`nord-dark-contrast` as light. Pass an explicit tint from `useThemeMode()` wherever those
+`patina-dark-contrast` as light. Pass an explicit tint from `useThemeMode()` wherever those
 defaults are used.

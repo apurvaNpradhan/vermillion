@@ -20,7 +20,7 @@ const APPEARANCE_LABELS = {
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
 const THEME_LABELS = {
-  nord: "theme__nord",
+  patina: "theme__patina",
   graphite: "theme__graphite",
   oxide: "theme__oxide",
   slate: "theme__slate",

@@ -6,15 +6,14 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native offers **Basalt** (the default, stored id `nord`), **Graphite**, **Oxide**, **Slate** and **Mulberry**, each in
+Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
 Light and Dark at standard or increased contrast
-([ADR 0048](docs/adr/0048-theme-engine-and-nord.md)). Appearance (Match device, Light, Dark), the
-theme and Increase contrast are device settings, available in Preferences and on the signed-out
-welcome screen.
+([ADR 0048](docs/adr/0048-theme-engine-and-nord.md), [ADR 0052](docs/adr/0052-rename-to-patina.md)). Appearance (Match device, Light, Dark), the
+theme and Increase contrast are device settings in Preferences. A saved `nord` falls back to Patina. The signed-out welcome screen is always the Patina dark variant.
 
 - A theme is a base, an accent and a family of data colours per scheme
   (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
-  `brand.ts` holds every variant. Email and the site use Basalt (the default theme), built by the same engine.
+  `brand.ts` holds every variant. Email and the site use Patina (the default theme), built by the same engine.
 - The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
   theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
   the original red artwork with lighter secondary highlights. The weekly muscle map uses the

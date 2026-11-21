@@ -1,6 +1,6 @@
 import type { RoleName, RoleTokens } from "./roles";
 import {
-  basalt,
+  patina,
   buildTheme,
   DEFAULT_THEME_ID,
   themeVariantNames,
@@ -24,7 +24,7 @@ export const nativeColors: Record<NativeVariant, RoleTokens> = {
   ...themeVariants,
 };
 
-const { light, dark } = buildTheme(basalt);
+const { light, dark } = buildTheme(patina);
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from

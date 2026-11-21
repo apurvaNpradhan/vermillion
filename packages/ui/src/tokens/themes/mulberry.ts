@@ -1,5 +1,5 @@
 import type { ThemeDefinition } from "./engine";
-import { nord } from "./nord";
+import { graphiteDark, graphiteLight } from "./graphite-neutrals";
 
 /** Parchment and plum surfaces with a mulberry accent. */
 export const mulberry: ThemeDefinition = {
@@ -28,7 +28,7 @@ export const mulberry: ThemeDefinition = {
     },
   },
   family: {
-    light: { ...nord.family.light, success: "#315E56" },
-    dark: { ...nord.family.dark, success: "#86AE9B" },
+    light: { ...graphiteLight, success: "#315E56" },
+    dark: { ...graphiteDark, success: "#86AE9B" },
   },
 };

@@ -61,7 +61,7 @@ describe("share card palettes", () => {
   it("uses the fixed palette whatever the appearance for Light, Dark, Photo and Sticker", () => {
     for (const kind of ["light", "dark", "photo", "sticker"] as const) {
       expect(cardPalette("light", kind)).toEqual(cardPalette("dark", kind));
-      expect(cardPalette("nord-dark-contrast", kind)).toEqual(cardPalette("dark", kind));
+      expect(cardPalette("patina-dark-contrast", kind)).toEqual(cardPalette("dark", kind));
     }
     expect(cardPalette("dark", "light").fill).toBe(nativeColors.light.canvas);
     expect(cardPalette("light", "dark").fill).toBe(nativeColors.dark.canvas);

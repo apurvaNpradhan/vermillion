@@ -4,10 +4,10 @@
  * the two lists equal. Restart Metro with `--clear` after changing it.
  */
 module.exports = [
-  "nord-light",
-  "nord-dark",
-  "nord-light-contrast",
-  "nord-dark-contrast",
+  "patina-light",
+  "patina-dark",
+  "patina-light-contrast",
+  "patina-dark-contrast",
   "graphite-light",
   "graphite-dark",
   "graphite-light-contrast",

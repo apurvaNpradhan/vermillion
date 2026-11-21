@@ -158,9 +158,9 @@ describe.each(themes)("theme identity: $mode", ({ mode, colors: c }) => {
     const accent = toOklch(c.identity);
     const done = toOklch(c["set-done"]);
     expect(done.c).toBeGreaterThan(0.04);
-    // Basalt's moss and Graphite's ink accents sit close to (or without) a hue of their own, so
+    // Patina's olive and Classic's ink accents sit close to (or without) a hue of their own, so
     // a completed set is told apart by its checkmark there, not by hue.
-    if (/^(light|dark|nord|graphite)/.test(mode)) return;
+    if (/^(light|dark|patina|graphite)/.test(mode)) return;
     expect(accent.c, mode).toBeGreaterThan(0.04);
     expect(hueDistance(accent.h, done.h), mode).toBeGreaterThanOrEqual(60);
   });
@@ -199,7 +199,7 @@ describe.each(themes.filter(({ isLight }) => !isLight))(
   ({ mode, colors }) => {
     const isGraphite = mode.startsWith("graphite");
     it("uses a near-black canvas and a quieter primary action", () => {
-      expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.1);
+      expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.2);
       // Graphite's accent is ink, so its action is the accent itself.
       if (!isGraphite) expect(oklabL(colors.action)).toBeLessThan(oklabL(colors.identity));
       // A dark filled button is found by its label (4.5:1, checked in the theme tests), so its fill
@@ -232,27 +232,19 @@ describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased
   });
 });
 
-describe("nord (Basalt)", () => {
-  it("keeps the pinned graphite neutrals and the moss accent in standard contrast", () => {
-    expect(themeVariants["nord-light"]).toMatchObject({
-      canvas: "#F4F2ED",
-      surface: "#FBFAF7",
-      "surface-control": "#EAE7E0",
-      "text-primary": "#191918",
-      "text-muted": "#5E5C56",
-      hairline: "#D4D0C7",
-      action: "#2E4A35",
-      "on-action": "#F4F2ED",
+describe("patina", () => {
+  it("pins the logo's ink and ivory as canvas and text", () => {
+    expect(themeVariants["patina-light"]).toMatchObject({
+      canvas: "#FDF4E6",
+      surface: "#FFFBF3",
+      "text-primary": "#19130F",
     });
-    expect(themeVariants["nord-dark"]).toMatchObject({
-      canvas: "#070707",
-      surface: "#121212",
-      "surface-control": "#1C1C1C",
-      "text-primary": "#EFEEE9",
-      "text-muted": "#AAA8A2",
-      hairline: "#2B2B2B",
-      action: "#2C4231",
-      "on-action": "#CFE3D2",
+    expect(themeVariants["patina-dark"]).toMatchObject({
+      canvas: "#19130F",
+      surface: "#221B16",
+      "text-primary": "#FDF4E6",
+      action: "#869044",
+      "on-action": "#19130F",
     });
   });
 });

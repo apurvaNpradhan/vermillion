@@ -16,9 +16,9 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native ships five themes (Basalt is the default) in light and dark at standard or increased contrast.
+Native ships five themes (Patina is the default) in light and dark at standard or increased contrast.
 `packages/ui/src/tokens/brand.ts` exports `nativeColors` (every variant) for the app and
-`brandTokens.colors` (Basalt) for the site and email; both come from the theme engine in
+`brandTokens.colors` (Patina) for the site and email; both come from the theme engine in
 `tokens/themes/` (ADR 0048). Regenerate CSS after editing. Layout never branches on appearance.
 Use `useThemeMode()` for native chrome. See the
 [native themes guide](../docs/guides/native-themes.md).
