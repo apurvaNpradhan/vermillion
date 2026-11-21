@@ -1,6 +1,6 @@
 import { variantName } from "@workspace/ui/tokens/theme-variants";
 import { NavigationBar } from "expo-navigation-bar";
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { Platform, Text, View } from "react-native";
@@ -12,6 +12,7 @@ import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { Mascot } from "@/platform/ui/mascot";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 
 import { splitLegal } from "../legal-text";
 
@@ -27,11 +28,6 @@ const rise = (delay: number) =>
 const WELCOME_THEME = variantName("patina", "dark");
 
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
-
-/** The legal pages live on the site; open them in the in-app browser, not another app. */
-function openLegal(kind: keyof typeof LEGAL_PATHS) {
-  void WebBrowser.openBrowserAsync(`${appConfig.urls.site}${LEGAL_PATHS[kind]}`);
-}
 
 /**
  * The tortoise, the wordmark and tagline, one way in (email) and the legal line. Account creation
@@ -49,15 +45,28 @@ export function WelcomeScreen() {
 function Welcome() {
   const { t } = useTranslation();
   const router = useRouter();
+  const focused = useIsFocused();
   const insets = useSafeAreaInsets();
+  const { toast } = useAppToast();
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
 
+  async function openLegal(kind: keyof typeof LEGAL_PATHS) {
+    try {
+      await WebBrowser.openBrowserAsync(`${appConfig.urls.site}${LEGAL_PATHS[kind]}`);
+    } catch {
+      toast.show({ label: t("auth__legal_open_failed") });
+    }
+  }
+
   return (
     <View className="flex-1 bg-background">
-      {/* Light icons on the always-dark canvas, whatever the device appearance. */}
-      <StatusBar style="light" />
-      {Platform.OS === "android" ? <NavigationBar style="light" /> : null}
+      {focused ? (
+        <>
+          <StatusBar style="light" />
+          {Platform.OS === "android" ? <NavigationBar style="light" /> : null}
+        </>
+      ) : null}
       <View
         className="flex-1 px-6"
         style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
@@ -71,7 +80,9 @@ function Welcome() {
             >
               {appConfig.displayName}
             </Text>
-            <Text className="font-normal text-body-lg text-muted">{appConfig.tagline}</Text>
+            <Text className="font-normal text-body-lg text-muted">
+              {t("auth__welcome_tagline")}
+            </Text>
           </View>
         </Animated.View>
 
@@ -80,7 +91,7 @@ function Welcome() {
             variant="primary"
             size="lg"
             className="h-14 rounded-full"
-            onPress={() => router.push({ pathname: "/email", params: { flow: "get-started" } })}
+            onPress={() => router.push({ pathname: "/email", params: { flow: "sign-in" } })}
           >
             <Button.Label className="text-body-lg font-semibold">
               {t("auth__continue_with_email")}
@@ -96,8 +107,8 @@ function Welcome() {
                 <Text
                   key={`${part.kind}-${index}`}
                   accessibilityRole="link"
-                  className="font-medium text-foreground"
-                  onPress={() => openLegal(part.kind)}
+                  className="font-medium text-foreground underline"
+                  onPress={() => void openLegal(part.kind)}
                 >
                   {legalLabels[part.kind]}
                 </Text>

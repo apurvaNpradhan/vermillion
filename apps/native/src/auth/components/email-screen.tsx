@@ -65,7 +65,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
       {([isSubmitting, email]) => (
         <FlowStep
           position={stepPosition(flow, "email")}
-          title={creating ? t("auth__email_title_new") : t("auth__email_title_back")}
+          title={creating ? t("auth__email_title_new") : t("auth__continue_with_email")}
           subtitle={t("auth__email_subtitle")}
           action={{
             label: t("auth__continue"),
@@ -107,7 +107,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
             )}
           </form.Field>
           <Text className="font-normal text-caption text-muted">
-            {creating ? t("auth__email_helper_new") : t("auth__email_helper_back")}
+            {creating ? t("auth__email_helper_new") : t("auth__email_helper")}
           </Text>
           {hasSocial ? (
             <View className="gap-3 pt-6">

@@ -14,8 +14,6 @@ export const appConfig = {
   name,
   displayName: "Patina",
   description: "Patina is a calm, private training log",
-  /** Short line shown with the name (welcome screen, README). */
-  tagline: "Quiet progress.",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",
   /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */

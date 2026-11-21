@@ -12,8 +12,8 @@ Basalt also clashes with a Google Play title (ADR 0051).
 
 ## Decision
 
-- **Name.** The app is Patina. The tagline "Quiet progress." and the subtitle stay. Both live in
-  `app.config.ts`.
+- **Name.** The app is Patina. The tagline "Quiet progress." lives in the locale, and the
+  subtitle lives in `app.config.ts`.
 - **Identity.** Scheme `patina`, bundle id `io.github.apurvanpradhan.patina` on both platforms and
   EAS slug `patina`. All are derived from one `name` constant in `app.config.ts`; `easProjectId`
   is kept.
