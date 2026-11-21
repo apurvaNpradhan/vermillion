@@ -100,7 +100,7 @@ export function RestBar({
           className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
         >
           <Minus size={20} color={foreground} />
-          <Text className="font-normal text-label tabular-nums text-foreground">
+          <Text className="font-medium text-label tabular-nums text-foreground">
             {REST_ADJUST_SECONDS}
           </Text>
         </Pressable>
@@ -111,7 +111,7 @@ export function RestBar({
           className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
         >
           <Plus size={20} color={foreground} />
-          <Text className="font-normal text-label tabular-nums text-foreground">
+          <Text className="font-medium text-label tabular-nums text-foreground">
             {REST_ADJUST_SECONDS}
           </Text>
         </Pressable>

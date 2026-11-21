@@ -102,7 +102,7 @@ export function CompareScreen() {
     <View className="flex-1 gap-2">
       <View className="gap-1">
         <Text className="font-normal text-caption text-muted">{t("body__compare_trend")}</Text>
-        <Text className="font-normal text-numeric-md tabular-nums text-foreground">
+        <Text className="font-medium text-numeric-md tabular-nums text-foreground">
           {side?.weightKg == null ? t("body__no_data") : weightText(side.weightKg)}
         </Text>
         {delta?.weightKg != null && since ? (
@@ -118,7 +118,7 @@ export function CompareScreen() {
       </View>
       <View className="gap-1">
         <Text className="font-normal text-caption text-muted">{t("body__compare_waist")}</Text>
-        <Text className="font-normal text-numeric-md tabular-nums text-foreground">
+        <Text className="font-medium text-numeric-md tabular-nums text-foreground">
           {side?.waistCm == null ? t("body__no_data") : waistText(side.waistCm)}
         </Text>
         {delta?.waistCm != null && since ? (

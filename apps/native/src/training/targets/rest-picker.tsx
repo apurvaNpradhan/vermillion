@@ -169,14 +169,14 @@ export function RestPicker({
       >
         <Timer size={20} color={subtle} />
         {link ? (
-          <Text className="font-normal text-label text-subtle tabular-nums">
+          <Text className="font-medium text-label text-subtle tabular-nums">
             {t(group ? "training__rest_group_link" : "training__rest_link", {
               value: value === null ? t("training__rest_off") : formatClock(value),
             })}
           </Text>
         ) : (
           <>
-            <Text className="font-normal flex-1 text-label text-muted">
+            <Text className="font-medium flex-1 text-label text-muted">
               {t(group ? "training__rest_group_title" : "training__rest_title")}
             </Text>
             <Text className="font-medium text-label text-foreground tabular-nums">
@@ -196,7 +196,7 @@ export function RestPicker({
           setOpen(false);
         }}
       >
-        <Text className="font-normal text-center text-numeric-xl text-foreground tabular-nums">
+        <Text className="font-semibold text-center text-numeric-xl text-foreground tabular-nums">
           {formatClock(draft)}
         </Text>
         <View className="flex-row gap-3" key={version}>

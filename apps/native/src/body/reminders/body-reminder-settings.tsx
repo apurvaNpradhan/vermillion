@@ -190,7 +190,7 @@ function ReminderEditor({
                               part: column.label,
                               value: column.selected,
                             })}
-                            className="font-normal text-numeric-md tabular-nums text-foreground"
+                            className="font-medium text-numeric-md tabular-nums text-foreground"
                           >
                             {column.selected}
                           </Text>

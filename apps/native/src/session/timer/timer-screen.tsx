@@ -150,7 +150,7 @@ function Keycap({
     >
       <Text
         numberOfLines={1}
-        className="font-normal text-overline uppercase text-foreground"
+        className="font-semibold text-overline uppercase text-foreground"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {label}
@@ -162,12 +162,12 @@ function Keycap({
 function Stat({ label, value, first }: { label: string; value: string; first: boolean }) {
   return (
     <View className={`flex-1 gap-0.5 px-3 ${first ? "pl-0" : ""}`}>
-      <Text className="font-normal text-overline uppercase text-muted" numberOfLines={1}>
+      <Text className="font-semibold text-overline uppercase text-muted" numberOfLines={1}>
         {label}
       </Text>
       <Text
         numberOfLines={1}
-        className="font-normal text-numeric-md text-foreground"
+        className="font-medium text-numeric-md text-foreground"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {value}
@@ -481,11 +481,11 @@ function LoadedTimer({
         </View>
 
         <View className="mt-2 flex-row items-center gap-3 px-5 pb-3">
-          <Text className="font-normal text-overline uppercase text-muted">
+          <Text className="font-semibold text-overline uppercase text-muted">
             {t("session__timer_progress_label")}
           </Text>
           <Text
-            className="font-normal text-overline text-foreground"
+            className="font-semibold text-overline text-foreground"
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {t("session__timer_progress", {
@@ -507,7 +507,7 @@ function LoadedTimer({
             </Text>
           ) : (
             <>
-              <Text className="font-normal text-overline uppercase text-muted">
+              <Text className="font-semibold text-overline uppercase text-muted">
                 {t(resting ? "session__timer_rest_label" : "session__timer_work_label")}
               </Text>
               <Pressable
@@ -556,7 +556,7 @@ function LoadedTimer({
                     />
                   </View>
                   <Text
-                    className="font-normal text-center text-overline uppercase text-muted"
+                    className="font-semibold text-center text-overline uppercase text-muted"
                     style={{ fontVariant: ["tabular-nums"] }}
                   >
                     {t("session__timer_rest_span", {
@@ -593,7 +593,7 @@ function LoadedTimer({
               {valueRow}
             </View>
             {action.next ? (
-              <Text numberOfLines={1} className="font-normal text-label text-muted">
+              <Text numberOfLines={1} className="font-medium text-label text-muted">
                 {action.next.kind === "exercise"
                   ? t("session__timer_next_exercise", { title: action.next.title })
                   : t("session__timer_next_set", { number: action.next.number })}

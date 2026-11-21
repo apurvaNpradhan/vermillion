@@ -24,7 +24,7 @@ function Clock({
   const { t } = useTranslation();
   const now = useNow(!frozen);
   const text = (
-    <Text className="font-normal text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+    <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
       {formatElapsed(elapsedSeconds(startedAt, now))}
     </Text>
   );
@@ -104,10 +104,10 @@ export function SessionHeader({
               {...(readOnly || !onOpenTimer ? {} : { onPress: onOpenTimer })}
             />
           )}
-          <Text className="font-normal text-label text-muted">·</Text>
+          <Text className="font-medium text-label text-muted">·</Text>
           <Text
             numberOfLines={1}
-            className="font-normal min-w-0 flex-shrink text-label text-muted"
+            className="font-medium min-w-0 flex-shrink text-label text-muted"
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {t("session__header_stats", { volume, count: sets })}

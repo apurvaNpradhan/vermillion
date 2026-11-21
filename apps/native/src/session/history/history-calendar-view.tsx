@@ -84,7 +84,7 @@ export function HistoryCalendar({
                   />
                 )}
                 <Text
-                  className={`font-normal text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-medium text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
                 >
                   {format.day(day)}
                 </Text>

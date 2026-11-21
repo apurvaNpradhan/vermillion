@@ -84,7 +84,7 @@ export function WeekStrip({
             <Text numberOfLines={1} className="text-caption font-medium text-muted">
               {labels.weekday(day)}
             </Text>
-            <Text className="font-normal text-numeric-sm tabular-nums text-foreground">
+            <Text className="font-medium text-numeric-sm tabular-nums text-foreground">
               {labels.day(day)}
             </Text>
             <View className="h-2 flex-row items-center justify-center gap-1">

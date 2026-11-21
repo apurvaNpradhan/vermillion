@@ -57,7 +57,7 @@ export function WeightChanges({
               </Text>
               <Text
                 numberOfLines={1}
-                className="font-normal text-numeric-sm tabular-nums text-foreground"
+                className="font-medium text-numeric-sm tabular-nums text-foreground"
               >
                 {value}
               </Text>

@@ -252,7 +252,7 @@ function CalculatorBody({
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
-                <Text className="font-normal text-label text-identity">
+                <Text className="font-medium text-label text-identity">
                   {t("plates__missing_bar", { name: state.missingBar })}
                 </Text>
               </Pressable>
@@ -287,11 +287,11 @@ function CalculatorBody({
                 ) : null}
                 <View className="gap-1">
                   {!building && hasTarget(state.target) ? (
-                    <Text className="font-normal text-label text-muted tabular-nums">
+                    <Text className="font-medium text-label text-muted tabular-nums">
                       {t("plates__target", { weight: weight(state.target) })}
                     </Text>
                   ) : null}
-                  <Text className="font-normal text-title-lg text-foreground tabular-nums">
+                  <Text className="font-semibold text-title-lg text-foreground tabular-nums">
                     {t("plates__total", { weight: weight(totalKg) })}
                     {!building && choice && choice.differenceKg === 0
                       ? ` · ${t("plates__exact")}`
@@ -337,7 +337,7 @@ function CalculatorBody({
                 {building ? (
                   <>
                     <View className="flex-row items-center justify-between">
-                      <Text className="font-normal flex-1 text-label text-muted">
+                      <Text className="font-medium flex-1 text-label text-muted">
                         {t("plates__build_hint")}
                       </Text>
                       {stack.length > 0 ? (
@@ -375,7 +375,7 @@ function CalculatorBody({
                   </>
                 ) : (
                   <>
-                    <Text className="font-normal text-label text-muted">
+                    <Text className="font-medium text-label text-muted">
                       {t("plates__available")}
                     </Text>
                     <Text className="font-normal text-body text-muted tabular-nums">

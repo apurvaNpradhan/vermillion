@@ -67,7 +67,7 @@ export function PhotoDatePicker({
             </Button>
             <Text
               accessibilityRole="header"
-              className="font-normal flex-1 text-center text-label text-foreground"
+              className="font-medium flex-1 text-center text-label text-foreground"
             >
               {new Intl.DateTimeFormat(i18n.language, {
                 month: "long",

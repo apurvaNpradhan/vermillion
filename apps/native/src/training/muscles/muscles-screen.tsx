@@ -156,7 +156,7 @@ export function MusclesScreen() {
             nextLabel={t("muscles__next_week")}
             onMove={step}
             headline={
-              <Text className="font-normal text-numeric-md tabular-nums text-foreground">
+              <Text className="font-medium text-numeric-md tabular-nums text-foreground">
                 {headlineText}
               </Text>
             }

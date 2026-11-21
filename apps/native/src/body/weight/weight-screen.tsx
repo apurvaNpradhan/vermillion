@@ -107,7 +107,7 @@ export function WeightScreen() {
                 </View>
               </View>
               <Text
-                className="font-normal text-numeric-xl text-foreground"
+                className="font-semibold text-numeric-xl text-foreground"
                 style={{ fontVariant: ["tabular-nums"] }}
               >
                 {state.trend === null ? t("body__empty") : format(state.trend)}

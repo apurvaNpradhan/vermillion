@@ -397,7 +397,7 @@ function MenuButton({ onPress }: { onPress: () => void }) {
 function InfoChip({ label }: { label: string }) {
   return (
     <View className="rounded-full bg-default px-3 py-1">
-      <Text className="font-normal text-label text-foreground">{label}</Text>
+      <Text className="font-medium text-label text-foreground">{label}</Text>
     </View>
   );
 }

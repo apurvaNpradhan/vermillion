@@ -92,7 +92,7 @@ export function Keypad({
   const digit = (value: (typeof KEYPAD_DIGITS)[number]) => (
     <Cap key={value} label={value} onPress={() => onKey(value)}>
       <Text
-        className="font-normal text-numeric-md text-foreground"
+        className="font-medium text-numeric-md text-foreground"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {value}
@@ -138,7 +138,7 @@ export function Keypad({
           <Minus size={20} color={foreground} />
         )}
         <Text
-          className="font-normal text-label text-foreground"
+          className="font-medium text-label text-foreground"
           style={{ fontVariant: ["tabular-nums"] }}
         >
           {stepText}
@@ -199,7 +199,7 @@ export function Keypad({
       </View>
       <View className="flex-row gap-2">
         <Cap label={labels.point} onPress={() => onKey(".")} disabled={!allowPoint}>
-          <Text className="font-normal text-numeric-md text-foreground">{decimalSeparator()}</Text>
+          <Text className="font-medium text-numeric-md text-foreground">{decimalSeparator()}</Text>
         </Cap>
         {digit("0")}
         <Cap label={labels.backspace} onPress={() => onKey("backspace")}>

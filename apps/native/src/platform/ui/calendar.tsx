@@ -106,7 +106,7 @@ export function Calendar({
                   ${disabled ? "opacity-40" : ""}`}
               >
                 <Text
-                  className={`font-normal text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-medium text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
                 >
                   {labels.day(day)}
                 </Text>

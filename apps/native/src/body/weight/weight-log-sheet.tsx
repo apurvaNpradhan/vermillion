@@ -64,7 +64,7 @@ export function WeightLogSheet({
           <BottomSheet.Title>{t(goal ? "body__goal" : "body__log")}</BottomSheet.Title>
           <View className="flex-row items-baseline gap-2">
             <Text
-              className="font-normal text-numeric-xl text-foreground"
+              className="font-semibold text-numeric-xl text-foreground"
               style={{ fontVariant: ["tabular-nums"] }}
             >
               {value}

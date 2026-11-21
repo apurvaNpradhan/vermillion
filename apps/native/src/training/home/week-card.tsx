@@ -82,7 +82,7 @@ export function WeekCard({
             size={72}
             label={t("session__goal_accessible", { count: summary.sessions, goal })}
           >
-            <Text className="font-normal text-numeric-md tabular-nums text-foreground">
+            <Text className="font-medium text-numeric-md tabular-nums text-foreground">
               {t("session__goal_ratio", { done: summary.sessions, goal })}
             </Text>
           </ProgressRing>

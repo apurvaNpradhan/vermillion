@@ -128,7 +128,10 @@ export function FlowStep({
         </View>
         <View className="mx-auto w-full max-w-md gap-6 pt-10">
           <View className="gap-2">
-            <Text accessibilityRole="header" className="font-normal text-title-xl text-foreground">
+            <Text
+              accessibilityRole="header"
+              className="font-semibold text-title-xl text-foreground"
+            >
               {title}
             </Text>
             {subtitle ? (

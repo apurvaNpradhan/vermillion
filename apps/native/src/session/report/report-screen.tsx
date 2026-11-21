@@ -46,7 +46,7 @@ function Stat({ stat }: { stat: StatView }) {
       <Text className="font-normal text-caption text-muted">{stat.label}</Text>
       <View className="flex-row items-baseline gap-1">
         <Text
-          className="font-normal text-numeric-md text-foreground"
+          className="font-medium text-numeric-md text-foreground"
           style={{ fontVariant: ["tabular-nums"] }}
         >
           {stat.value}

@@ -123,14 +123,14 @@ export function HistoryWeekCalendar({
               {format.weekdayLetter(day)}
             </Text>
             <Text
-              className={`font-normal text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
+              className={`font-medium text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
             >
               {format.day(day)}
             </Text>
             {title && (
               <Text
                 numberOfLines={2}
-                className={`font-normal mt-auto text-center text-overline ${tone}`}
+                className={`font-semibold mt-auto text-center text-overline ${tone}`}
               >
                 {title}
               </Text>
@@ -343,16 +343,16 @@ export function HistoryAll({
                 >
                   {points.map(({ month, count }) => (
                     <View key={month} style={{ width: BAR_STEP }} className="items-center">
-                      <Text className="font-normal text-overline tabular-nums text-muted">
+                      <Text className="font-semibold text-overline tabular-nums text-muted">
                         {format.integer(count)}
                       </Text>
-                      <Text className="font-normal text-overline text-muted">
+                      <Text className="font-semibold text-overline text-muted">
                         {format.shortMonth(month)}
                       </Text>
                     </View>
                   ))}
                 </View>
-                <Text className="font-normal text-label tabular-nums text-foreground">
+                <Text className="font-medium text-label tabular-nums text-foreground">
                   {format.year(yearStart)}
                 </Text>
               </Pressable>

@@ -64,7 +64,7 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
         >
           {sheet.probe}
           <BottomSheet.Title>{t("body__height")}</BottomSheet.Title>
-          <Text className="font-normal text-numeric-xl tabular-nums text-foreground">
+          <Text className="font-semibold text-numeric-xl tabular-nums text-foreground">
             {t("body__value", { value, unit })}
           </Text>
           {error ? (
