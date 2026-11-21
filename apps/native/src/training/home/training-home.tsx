@@ -20,6 +20,7 @@ import { slotTitle } from "@/training/rotation/rotation-row";
 import { HomeWeekStrip } from "./home-week-strip";
 import { LighterWeekCard } from "./lighter-week-card";
 import { NextWorkoutCard } from "./next-workout-card";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 /**
  * Home, in three blocks: the week strip, the next workout and the body (weight trend). The Lighter
@@ -151,7 +152,7 @@ export function TrainingHome() {
                 key={session.id}
                 variant="secondary"
                 onPress={() =>
-                  router.push({ pathname: "/history/[id]", params: { id: session.id } })
+                  router.push({ pathname: "/history/[id]", params: { id: session.id } }, ANCHORED)
                 }
               >
                 <Button.Label>{session.title}</Button.Label>

@@ -26,3 +26,7 @@ const { page, loadMore } = useExerciseLibrary(filters);
 ## Preferences and theme
 
 One `usePreferences` hook reads and updates `user_preferences` (locale, timezone, `ui`). Theme is per device, in device storage, never the database.
+
+## Tab stacks
+
+Each tab in `app/(app)` is its own stack. Every tab layout exports `unstable_settings = { initialRouteName }` (its first screen), the tab navigator sets `popToTopOnBlur`, and tapping the open tab pops it, so a tab always opens on its first screen. A push into another tab's nested route (profile from the menu, a history detail from Home) passes `ANCHORED` (`@/platform/navigation/anchored`) so Back lands on that tab's first screen. The Session screens are outside the tabs and are not affected. `tab-stacks.test.ts` checks the layouts.

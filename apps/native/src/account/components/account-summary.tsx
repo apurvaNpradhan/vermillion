@@ -6,6 +6,7 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 
 import { useCurrentUser } from "../use-current-user";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 /** Up to two initials from a display name, for the avatar fallback. */
 export function initials(name: string): string {
@@ -42,7 +43,7 @@ export function AccountSummary({ variant = "row" }: { variant?: "row" | "card" }
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("settings__open_profile", { name: user?.name ?? "" })}
-      onPress={() => router.navigate("/settings/profile")}
+      onPress={() => router.navigate("/settings/profile", ANCHORED)}
       className={cn(
         "flex-row items-center gap-3 active:opacity-80",
         card ? "rounded-2xl bg-surface p-4" : "rounded-2xl px-2 py-1.5",

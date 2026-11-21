@@ -63,6 +63,10 @@ export default function AppLayout() {
         // Direction-aware horizontal slide: a tab to the right enters from the right.
         screenOptions={{
           headerShown: false,
+          // Each tab stack goes back to its first screen when the user leaves the tab (pill or
+          // menu); tapping the open tab pops it too (the stack listens for `tabPress`). The
+          // Session screen is outside the tabs and is not touched.
+          popToTopOnBlur: true,
           // `progress` is -1 for tabs left of the open one, 0 for it, 1 for tabs to its right.
           // The page moves about a quarter of the width and fades faster than it moves, so the
           // two pages do not ghost through each other.

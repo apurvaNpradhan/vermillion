@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
 
 import { ExerciseDetailScreen } from "@/exercise";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 const paramsSchema = z.object({ id: z.string() });
 
@@ -12,7 +13,9 @@ export default function TrainExerciseDetail() {
   return (
     <ExerciseDetailScreen
       id={id}
-      onSeeHistory={() => router.push({ pathname: "/exercises/[id]/history", params: { id } })}
+      onSeeHistory={() =>
+        router.push({ pathname: "/exercises/[id]/history", params: { id } }, ANCHORED)
+      }
       onOpenExercise={(next) =>
         router.push({ pathname: "/train/exercise/[id]", params: { id: next } })
       }

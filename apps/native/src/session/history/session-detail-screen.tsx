@@ -35,6 +35,7 @@ import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "@/session/finish/use-finish-session";
 import { useStartSession } from "@/session/lifecycle/use-start-session";
 import { useRecordHistory } from "./use-session-history";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
@@ -123,10 +124,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         title: source.workout.title ?? t("training__workout"),
                       })}
                       onPress={() =>
-                        router.push({
-                          pathname: "/train/workout/[id]",
-                          params: { id: source.workout.id },
-                        })
+                        router.push(
+                          { pathname: "/train/workout/[id]", params: { id: source.workout.id } },
+                          ANCHORED,
+                        )
                       }
                     />
                   </ListSection>
