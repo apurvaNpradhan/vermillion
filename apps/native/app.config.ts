@@ -25,12 +25,12 @@ import { appConfig } from "../../app.config.ts";
 // 16: react-native-view-shot, expo-media-library (add-only) and expo-sharing for Share cards.
 // 17: react-native-passkey removed, no associated domains; new bundle id (Cinnabar).
 // 18: @react-native-community/netinfo feeds the online state (offline-first).
-// 19: local Android next-workout-widget module (home-screen widget, RemoteViews).
-// 20: the home-screen widget expires weekly progress in the native provider.
+// 19, 20: the Android home-screen widget module (removed in 24, ADR 0052).
 // 21: expo-document-picker (history import from a CSV file).
 // 22: renamed to Basalt: new bundle id, scheme and EAS slug.
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
-const NATIVE_STACK_REVISION = 23;
+// 24: the Android next-workout-widget module is removed (ADR 0052).
+const NATIVE_STACK_REVISION = 24;
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release
