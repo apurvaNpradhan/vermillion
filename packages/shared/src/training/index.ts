@@ -1,6 +1,7 @@
 export * from "./vocabulary/format";
 export * from "./vocabulary/inputs";
 export * from "./vocabulary/labels";
+export * from "./vocabulary/profile";
 export * from "./plans/planned-sets";
 export * from "./vocabulary/vocabulary";
 export * from "./plans/supersets";

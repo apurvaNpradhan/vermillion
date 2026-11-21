@@ -16,6 +16,7 @@ import {
   DURATION_FORMATS,
   PREVIOUS_SOURCES,
 } from "./training/vocabulary/vocabulary";
+import { TRAINING_EXPERIENCES, TRAINING_PLACES } from "./training/vocabulary/profile";
 import {
   DEFAULT_WARMUP_STEPS,
   WARMUP_ROUNDINGS,
@@ -92,6 +93,8 @@ const uiFields = {
     .min(TRAINING_LIMITS.sessionsPerWeekMin)
     .max(TRAINING_LIMITS.sessionsPerWeekMax)
     .nullable(),
+  trainingExperience: z.enum(TRAINING_EXPERIENCES).nullable(),
+  trainingPlace: z.enum(TRAINING_PLACES).nullable(),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -145,6 +148,10 @@ export const uiPreferencesSchema = z
     lighterWeeks: uiFields.lighterWeeks.default([]),
     deloadCardDismissedAt: uiFields.deloadCardDismissedAt.default(null),
     sessionsPerWeek: uiFields.sessionsPerWeek.default(null),
+    // Onboarding answers, editable in Settings. They only choose defaults (the warm-up ramp, the
+    // first bars and plates); null means never answered.
+    trainingExperience: uiFields.trainingExperience.default(null),
+    trainingPlace: uiFields.trainingPlace.default(null),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

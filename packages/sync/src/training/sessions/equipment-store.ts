@@ -2,6 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   defaultGymKit,
+  type TrainingPlace,
   exerciseSettingInput,
   gymEquipmentInput,
   type WeightUnit,
@@ -112,12 +113,17 @@ export async function setExerciseSetting(
 }
 
 /** Seeds once, inside the same write transaction as the empty-inventory check. */
-export async function seedEquipment(database: TrainingDatabase, unit: WeightUnit, scope: string) {
+export async function seedEquipment(
+  database: TrainingDatabase,
+  unit: WeightUnit,
+  scope: string,
+  place: TrainingPlace | null = null,
+) {
   return write(database, scope, async (tx) => {
     const [existing] = await tx.select({ id: gymEquipment.id }).from(gymEquipment).limit(1);
     if (existing) return;
     const userId = await ownerOf(tx);
-    for (const item of defaultGymKit(unit)) {
+    for (const item of defaultGymKit(unit, place)) {
       await tx
         .insert(gymEquipment)
         .values({ ...item, id: uuidv7(), user_id: userId, created_at: nowIso() });
