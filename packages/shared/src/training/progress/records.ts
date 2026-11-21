@@ -60,9 +60,9 @@ function setMetrics(set: LoggedSet, bodyweightKg: number | null): [RecordKey, nu
 }
 
 /** The Counted sets of one Session by exercise, in display order. */
-function countedByExercise(session: SessionHistory): Map<string, LoggedSet[]> {
+function countedByExercise(sets: readonly LoggedSet[]): Map<string, LoggedSet[]> {
   const byExercise = new Map<string, LoggedSet[]>();
-  for (const set of session.sets) {
+  for (const set of sets) {
     if (!isCounted(set)) continue;
     const list = byExercise.get(set.exercise_id) ?? [];
     list.push(set);
@@ -83,7 +83,7 @@ function foldSession(
   session: SessionHistory,
   bodyweightKg: number | null,
 ) {
-  for (const [exerciseId, sets] of countedByExercise(session)) {
+  for (const [exerciseId, sets] of countedByExercise(session.sets)) {
     const exerciseBests = bests.get(exerciseId) ?? new Map<RecordKey, number>();
     for (const set of sets) {
       for (const [key, value] of setMetrics(set, bodyweightKg)) raise(exerciseBests, key, value);
@@ -106,6 +106,30 @@ export function exerciseRecords(
   return bests;
 }
 
+/** Records in one Session, compared with bests from the Sessions before it. */
+export function sessionRecordFlags(
+  loggedSets: readonly LoggedSet[],
+  bests: ReadonlyMap<string, ExerciseBests>,
+  bodyweightKg: number | null,
+): Map<string, RecordKey[]> {
+  const flags = new Map<string, RecordKey[]>();
+  for (const [exerciseId, sets] of countedByExercise(loggedSets)) {
+    const earlier = bests.get(exerciseId);
+    if (!earlier) continue;
+    for (const set of sets) {
+      const won = setMetrics(set, bodyweightKg).flatMap(([key, value]) =>
+        value > (earlier.get(key) ?? 0) ? [key] : [],
+      );
+      if (won.length > 0) flags.set(set.id, won);
+    }
+    const last = sets[sets.length - 1];
+    if (last && sessionVolumeOf(sets, bodyweightKg) > (earlier.get("session_volume") ?? 0)) {
+      flags.set(last.id, [...(flags.get(last.id) ?? []), "session_volume"]);
+    }
+  }
+  return flags;
+}
+
 /**
  * Which sets were Records at the time, by set id: a set beats every set of that exercise in the
  * Sessions before its own (ordered by start, then id), not its siblings. Only sets with a
@@ -121,19 +145,8 @@ export function recordFlags(
   const flags = new Map<string, RecordKey[]>();
   const bests = exerciseRecords(earlier, bodyweightKg);
   for (const session of inSessionOrder(sessions)) {
-    for (const [exerciseId, sets] of countedByExercise(session)) {
-      const earlier = bests.get(exerciseId);
-      if (!earlier) continue;
-      for (const set of sets) {
-        const won = setMetrics(set, bodyweightKg).flatMap(([key, value]) =>
-          value > (earlier.get(key) ?? 0) ? [key] : [],
-        );
-        if (won.length > 0) flags.set(set.id, won);
-      }
-      const last = sets[sets.length - 1];
-      if (last && sessionVolumeOf(sets, bodyweightKg) > (earlier.get("session_volume") ?? 0)) {
-        flags.set(last.id, [...(flags.get(last.id) ?? []), "session_volume"]);
-      }
+    for (const [setId, keys] of sessionRecordFlags(session.sets, bests, bodyweightKg)) {
+      flags.set(setId, keys);
     }
     foldSession(bests, session, bodyweightKg);
   }

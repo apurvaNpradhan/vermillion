@@ -1,0 +1,1 @@
+ALTER TABLE "session_exercise" ADD COLUMN "workout_swap_fragment" boolean;

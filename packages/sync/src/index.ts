@@ -195,6 +195,7 @@ export {
   watchSessionPage,
   watchFinishedHistory,
   watchRecordHistory,
+  watchRecordHistoryChanges,
   readRecordHistory,
   parseActiveSessions,
   parseEquipment,

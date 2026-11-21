@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "852ceae3-5067-47bd-b6c9-9dd75ef3f25d",
+  "prevIds": ["b3e894b6-044b-4030-8b79-8b3a5fac9a43"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "session_exercise", "workout_swap_fragment"],
+      "writes": [
+        "s|col|public.session_exercise.workout_swap_fragment",
+        "n|col|public.session_exercise.workout_swap_fragment",
+        "e|col|public.session_exercise.workout_swap_fragment"
+      ],
+      "reads": ["n|tbl|public.session_exercise", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "session_exercise",
+        "name": "workout_swap_fragment",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

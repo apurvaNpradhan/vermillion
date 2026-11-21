@@ -21,6 +21,7 @@ import {
   parseSessionSetCounts,
   exerciseHistoriesSql,
   exerciseRecordsSql,
+  finishedFingerprintSql,
   sessionsPageSql,
   readFinishedHistoryPages,
   createFinishedHistoryReader,
@@ -363,6 +364,25 @@ describe("the History reader", () => {
     expect(await reader.refresh(read)).not.toBeNull();
   });
 
+  it("reloads a finished session when two completed sets trade durations", async () => {
+    const s = await setupSessions();
+    const id = await startSession(s.training, { workoutId: null, derivedTitle: "Planks" });
+    const [entry] = await addSessionExercises(s.training, id, [PLANK]);
+    const [first, second] = s.sets(entry ?? "").map((row) => String(row["id"]));
+    await tickSet(s.training, first ?? "", { duration: 30 });
+    await tickSet(s.training, second ?? "", { duration: 60 });
+    await finishSession(s.training, id, { startedAt: daysAgo(1) });
+    const { read } = readerOf(s);
+    const reader = createFinishedHistoryReader();
+    expect((await reader.refresh(read))?.[0]?.sets.map((set) => set.duration_s)).toEqual([30, 60]);
+
+    s.sqlite
+      .prepare(`UPDATE session_set SET duration_s = CASE WHEN id = ? THEN 60 ELSE 30 END
+      WHERE id IN (?, ?)`)
+      .run(first ?? "", first ?? "", second ?? "");
+    expect((await reader.refresh(read))?.[0]?.sets.map((set) => set.duration_s)).toEqual([60, 30]);
+  });
+
   it("reads a record history with no 500-Session cap, unlike Previous", async () => {
     const s = await setupSessions();
     await finishedSquat(s, daysAgo(2000), [200]);
@@ -416,6 +436,34 @@ describe("the History reader", () => {
     );
     expect(earlier.map((row) => row.id)).toEqual([old]);
     expect(earlier[0]?.sets.map((set) => set.exercise_id)).toEqual([SQUAT, SQUAT]);
+  });
+
+  it("invalidates record bests only for changes to earlier finished history", async () => {
+    const s = await setupSessions();
+    const older = await finishedSquat(s, daysAgo(3), [100]);
+    const current = await finishedSquat(s, daysAgo(2), [110]);
+    const later = await finishedSquat(s, daysAgo(1), [120]);
+    const cutoff = {
+      id: current,
+      startedAt: String(s.one("training_session", current)?.["started_at"]),
+    };
+    const params = [SQUAT, cutoff.startedAt, cutoff.startedAt, cutoff.id];
+    const read = () => s.sqlite.prepare(finishedFingerprintSql(false, 1)).all(...params);
+    const initial = read();
+    expect(initial).toEqual([expect.objectContaining({ id: older })]);
+    expect((await readRecordHistory(s.training, SQUAT, cutoff)).map((row) => row.id)).toEqual([
+      older,
+    ]);
+
+    for (const id of [current, later]) {
+      const entry = String(s.exercises(id)[0]?.["id"]);
+      await updateSet(s.training, String(s.sets(entry)[1]?.["id"]), { weight_kg: 130 });
+    }
+    expect(read()).toEqual(initial);
+
+    const entry = String(s.exercises(older)[0]?.["id"]);
+    await updateSet(s.training, String(s.sets(entry)[1]?.["id"]), { weight_kg: 140 });
+    expect(read()).not.toEqual(initial);
   });
 
   it("keeps a range reader to its range", async () => {

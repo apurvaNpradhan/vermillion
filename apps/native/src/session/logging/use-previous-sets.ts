@@ -1,6 +1,6 @@
 import { useWeight } from "@/body";
-import { useLocalData, useSyncValue } from "@/sync";
-import { readRecordHistory, watchExerciseHistories, type FinishedSession } from "@workspace/sync";
+import { useSyncValue } from "@/sync";
+import { watchExerciseHistories, type FinishedSession } from "@workspace/sync";
 import { useCallback, useEffect, useRef } from "react";
 
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
@@ -45,27 +45,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
   const history = state.failed
     ? EMPTY
     : (state.value ?? (scope && cached.current?.scope === scope ? cached.current.history : EMPTY));
-  const local = useLocalData();
-  const database = local?.status === "ready" ? local.database : null;
-  const { withBodyweight } = weight;
-  /**
-   * An exercise's whole finished history, read when a Record is checked: Previous above keeps the
-   * latest 500 Sessions, but the finished Session and History screens compare with all of them,
-   * so a live alert must too. Null when it cannot be read (the caller falls back to Previous).
-   */
-  const recordHistory = useCallback(
-    async (exerciseId: string): Promise<readonly FinishedSession[] | null> => {
-      if (!database) return null;
-      try {
-        return withBodyweight(await readRecordHistory(database, exerciseId));
-      } catch {
-        return null;
-      }
-    },
-    [database, withBodyweight],
-  );
   return {
-    recordHistory,
     history: new Map([...history].map(([id, sessions]) => [id, weight.withBodyweight(sessions)])),
     bodyweightOn: weight.bodyweightOn,
     ready: !state.loading && !state.failed,

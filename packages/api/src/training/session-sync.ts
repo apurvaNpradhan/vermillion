@@ -18,7 +18,7 @@ import {
   type SessionInput,
   type SessionSetInput,
 } from "@workspace/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -241,6 +241,7 @@ const putSessionExercise = z.strictObject({
   log_effort: wireBoolean.default(false),
   warmup_key: wireWarmupKey.optional(),
   repeated: wireBoolean.optional(),
+  workout_swap_fragment: wireBoolean.nullable().optional(),
 });
 // An exercise never moves to another Session.
 const patchSessionExercise = z
@@ -248,8 +249,25 @@ const patchSessionExercise = z
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
     warmup_key: wireWarmupKey,
+    workout_swap_fragment: wireBoolean.nullable(),
   })
   .partial();
+
+// The training advisory lock serializes this check with set completion on another device.
+async function assertExerciseHasNoCompletedSets(db: DbExecutor, id: string) {
+  const [completed] = await db
+    .select({ id: sessionSet.id })
+    .from(sessionSet)
+    .where(
+      and(
+        eq(sessionSet.sessionExerciseId, id),
+        isNull(sessionSet.deletedAt),
+        isNotNull(sessionSet.completedAt),
+      ),
+    )
+    .limit(1);
+  if (completed) throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
+}
 
 const sessionExerciseSyncHandler: SyncTableHandler = {
   table: "session_exercise",
@@ -282,14 +300,16 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         restore,
         warmup_key: warmupKey,
         repeated,
+        workout_swap_fragment: workoutSwapFragment,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
-      const keyed = {
+      const extra = {
         ...(warmupKey === undefined ? {} : { warmupKey }),
         // Set when the exercise is created and never edited, so a PUT that omits it keeps it.
         ...(repeated === undefined ? {} : { repeated }),
+        ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
       };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
       if (!(await liveSession(db, userId, values.session_id))) parentMissing();
@@ -300,8 +320,11 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         assertRoom(live, 1, SESSION_LIMITS.exercisesPerSession, "SESSION_LIMIT_REACHED");
         await db
           .insert(sessionExercise)
-          .values({ id, userId, sessionId: values.session_id, ...columns(values), ...keyed });
+          .values({ id, userId, sessionId: values.session_id, ...columns(values), ...extra });
         return;
+      }
+      if (found.row.exerciseId !== values.exercise_id) {
+        await assertExerciseHasNoCompletedSets(db, id);
       }
       const deletedAt = found.row.deletedAt;
       if (deletedAt !== null) {
@@ -310,15 +333,17 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       }
       await db
         .update(sessionExercise)
-        .set({ ...columns(values), ...keyed, updatedAt: now() })
+        .set({ ...columns(values), ...extra, updatedAt: now() })
         .where(eq(sessionExercise.id, id));
       return;
     }
 
     const row = liveRow(found);
-    const { warmup_key: warmupKey, ...patch } = accept(
-      patchSessionExercise.safeParse(op.opData ?? {}),
-    );
+    const {
+      warmup_key: warmupKey,
+      workout_swap_fragment: workoutSwapFragment,
+      ...patch
+    } = accept(patchSessionExercise.safeParse(op.opData ?? {}));
     const merged = accept(
       sessionExerciseInput.safeParse({
         session_id: row.sessionId,
@@ -335,11 +360,15 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       }),
     );
     if (patch.exercise_id !== undefined) await exerciseVisible(db, userId, patch.exercise_id);
+    if (patch.exercise_id !== undefined && patch.exercise_id !== row.exerciseId) {
+      await assertExerciseHasNoCompletedSets(db, id);
+    }
     await db
       .update(sessionExercise)
       .set({
         ...columns(merged),
         ...(warmupKey === undefined ? {} : { warmupKey }),
+        ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
         updatedAt: now(),
       })
       .where(eq(sessionExercise.id, id));
@@ -432,6 +461,14 @@ const sessionSetSyncHandler: SyncTableHandler = {
 
     if (op.op === "DELETE") {
       const row = ownRow(found);
+      // The writer last saw this set unticked (or at some time); another device completing it
+      // since must not be erased by a queued swap or delete. Roll the whole transaction back.
+      const known = op.expect?.completed_at;
+      if (known !== undefined && row.deletedAt === null) {
+        const stored = row.completedAt?.getTime() ?? null;
+        const expected = known === null ? null : Date.parse(known);
+        if (stored !== expected) throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
+      }
       if (row.deletedAt === null) {
         const at = now();
         await db

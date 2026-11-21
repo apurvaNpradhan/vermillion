@@ -52,6 +52,20 @@ async function ready(fake: ReturnType<typeof setup>) {
 const rejectedRows = (fake: ReturnType<typeof setup>) =>
   fake.sqlite.prepare("SELECT * FROM rejected_writes ORDER BY op_ordinal").all();
 
+it("uploads the completion state PowerSync recorded when a set was deleted", async () => {
+  const fake = setup();
+  await ready(fake);
+  const tracked = crudEntry("DELETE", EXERCISE, undefined, "session_set");
+  tracked.previousValues = { completed_at: null };
+  fake.queue([tracked]);
+
+  await fake.connector.uploadData();
+
+  expect(fake.uploads[0]?.ops).toEqual([
+    { op: "DELETE", table: "session_set", id: EXERCISE, expect: { completed_at: null } },
+  ]);
+});
+
 describe("fetchCredentials", () => {
   it("returns the endpoint and token, renewing before the token's own expiry", async () => {
     const fake = setup();

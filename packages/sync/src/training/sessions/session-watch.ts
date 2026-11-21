@@ -138,6 +138,7 @@ export type SessionExerciseDetail = {
   title: string;
   type: ExerciseType;
   sourceWorkoutExerciseId: string | null;
+  workoutSwapFragment?: boolean;
   position: string;
   restSeconds: number | null;
   note: string | null;
@@ -198,7 +199,7 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
+    se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
@@ -252,6 +253,7 @@ const detailRowSchema = z.object({
   exercise_title: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   source_workout_exercise_id: z.string().nullable(),
+  workout_swap_fragment: flag.nullable(),
   exercise_position: z.string().nullable(),
   rest_seconds: z.number().nullable(),
   exercise_note: z.string().nullable(),
@@ -313,6 +315,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         title: row.exercise_title,
         type: row.exercise_type,
         sourceWorkoutExerciseId: row.source_workout_exercise_id,
+        workoutSwapFragment: row.workout_swap_fragment === true,
         position: row.exercise_position,
         restSeconds: row.rest_seconds,
         note: row.exercise_note,
@@ -536,34 +539,58 @@ export async function readFinishedHistoryPages(
   }
 }
 
+const BEFORE_SESSION = "AND (s.started_at < ? OR (s.started_at = ? AND s.id < ?))";
+
+// Mix eight Unicode code points per SQLite recursion step. The small coefficients keep the
+// arithmetic in signed 64-bit integers, even at the largest Unicode code point.
+const HASH_COEFFICIENTS = [
+  73856093, 19349663, 83492791, 297121507, 15485863, 32452843, 49979687, 86028121,
+];
+const HASH_CHUNK = HASH_COEFFICIENTS.map(
+  (coefficient, index) => `COALESCE(unicode(substr(tail, ${index + 1}, 1)), 0) * ${coefficient}`,
+).join(" + ");
+
 /**
- * One cheap row per finished Session (no set rows are transferred or parsed): its own columns and
- * sums over its ticked sets, plus the exercises' id, title, type and order and each ticked set's
- * exercise, kind and values, so a rename, a reorder or a re-attribution that keeps every sum is
- * seen too. Any edit a History row or total shows changes one of these values,
- * and a tick in an unfinished Session changes none, so the full read can be skipped.
+ * One fixed-size fingerprint per finished Session. Hash each display row in SQLite, then fold
+ * the row hashes with their ordinal so a reorder or a same-total edit changes the digest.
  */
-export function finishedFingerprintSql(bounded = false): string {
-  return `SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
+export function finishedFingerprintSql(bounded = false, exerciseCount = 0): string {
+  const exerciseFilter = exerciseCount
+    ? `AND se.exercise_id IN (${Array.from({ length: exerciseCount }, () => "?").join(", ")}) ${BEFORE_SESSION}`
+    : "";
+  return `WITH RECURSIVE
+    display_rows AS (
+      SELECT s.id,
+        ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY se.position, se.id, ss.position, ss.id) AS ordinal,
+        json_array(se.exercise_id, se.exercise_type, se.exercise_title, ss.id, ss.kind,
+          CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
+          ss.reps, ss.duration_s,
+          CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
+          ss.floors, ss.steps,
+          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.completed_at) AS payload
+      FROM training_session s
+      LEFT JOIN session_exercise se ON se.session_id = s.id
+      LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+      WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
+        ${exerciseFilter}
+    ),
+    hashes(id, ordinal, tail, hash) AS (
+      SELECT id, ordinal, payload, 0 FROM display_rows
+      UNION ALL
+      SELECT id, ordinal, substr(tail, ${HASH_COEFFICIENTS.length + 1}),
+        (hash * 262139 + ${HASH_CHUNK}) & 17592186044415
+      FROM hashes WHERE tail <> ''
+    ),
+    digests AS (
+      SELECT id, COUNT(*) AS rows, SUM(hash) AS content,
+        SUM((hash * ordinal) & 17592186044415) AS display_order
+      FROM hashes WHERE tail = '' GROUP BY id
+    )
+    SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
       s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
-      COUNT(DISTINCT se.id) AS exercises, COUNT(ss.id) AS sets,
-      TOTAL(ss.weight_kg) AS weight, TOTAL(ss.reps) AS reps,
-      TOTAL(ss.weight_kg * ss.reps) AS volume, TOTAL(ss.duration_s) AS seconds,
-      TOTAL(ss.distance_m) AS distance, TOTAL(ss.floors) AS floors, TOTAL(ss.steps) AS steps,
-      TOTAL(ss.rpe) AS rpe, MAX(ss.completed_at) AS last_completed,
-      (SELECT GROUP_CONCAT(x.sig, ';') FROM (
-        SELECT se3.exercise_id || '|' || se3.exercise_title || '|' || se3.exercise_type || '|' ||
-          se3.position AS sig
-        FROM session_exercise se3 WHERE se3.session_id = s.id
-        ORDER BY se3.position, se3.id) x) AS exercise_sig,
-      GROUP_CONCAT(substr(se.id, -8) || substr(ss.id, -8) || ss.kind || ':' ||
-        COALESCE(ss.weight_kg, '') || ':' || COALESCE(ss.reps, ''), ',') AS set_sig,
-      ${SET_KINDS.map((kind) => `TOTAL(ss.kind = '${kind}') AS k_${kind}`).join(", ")}
-    FROM training_session s
-    LEFT JOIN session_exercise se ON se.session_id = s.id
-    LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
-    GROUP BY s.id`;
+      d.rows, printf('%llx-%llx', d.content, d.display_order) AS digest
+    FROM digests d JOIN training_session s ON s.id = d.id
+    ORDER BY s.id`;
 }
 
 /** The finished Sessions with these ids (at most {@link IDS_PER_READ}), with their ticked sets. */
@@ -647,12 +674,12 @@ export function createFinishedHistoryReader(range?: HistoryRange) {
  * just today's maxima. Scope to the displayed exercises but deliberately omit a session cap.
  * The ordinary Previous/chart read remains bounded.
  */
-export function exerciseRecordsSql(bounded = false): string {
+export function exerciseRecordsSql(bounded = false, beforeSession = false): string {
   return `SELECT ${SET_COLUMNS} FROM training_session s
     JOIN session_exercise se ON se.session_id = s.id
       AND se.exercise_id IN (SELECT value FROM json_each(?))
     JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at < ?" : ""} ${SET_ORDER}`;
+    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at < ?" : ""} ${beforeSession ? BEFORE_SESSION : ""} ${SET_ORDER}`;
 }
 
 const finishedRowSchema = z.object({

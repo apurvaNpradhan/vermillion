@@ -16,6 +16,8 @@ export type DiffSessionSet = {
 export type DiffSessionExercise = {
   exerciseId: string;
   sourceWorkoutExerciseId: string | null;
+  /** A scoped swap already updated the Workout. This fragment belongs to the log. */
+  workoutSwapFragment?: boolean;
   sets: readonly DiffSessionSet[];
 };
 export type DiffWorkoutExercise = { id: string; exerciseId: string; sets: readonly PlannedSet[] };
@@ -156,13 +158,15 @@ export function diffSessionAgainstWorkout(
   completeStructure = false,
 ) {
   const logged = workoutUpdateEntries(
-    session.exercises.map((entry) => ({
-      ...entry,
-      sets: withoutGeneratedWarmups(
-        entry.sets,
-        workout.exercises.find((item) => item.id === entry.sourceWorkoutExerciseId)?.sets ?? [],
-      ),
-    })),
+    session.exercises
+      .filter((entry) => !entry.workoutSwapFragment)
+      .map((entry) => ({
+        ...entry,
+        sets: withoutGeneratedWarmups(
+          entry.sets,
+          workout.exercises.find((item) => item.id === entry.sourceWorkoutExerciseId)?.sets ?? [],
+        ),
+      })),
     completeStructure,
   );
   const snapshotTrusted =

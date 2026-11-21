@@ -95,6 +95,7 @@ export {
   watchSessionPage,
   watchFinishedHistory,
   watchRecordHistory,
+  watchRecordHistoryChanges,
   readRecordHistory,
   watchWorkout,
   watchLatestExercisePlan,

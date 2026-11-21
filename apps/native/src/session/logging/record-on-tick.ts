@@ -1,23 +1,48 @@
-import { recordFlags, type LoggedSet, type SessionHistory } from "@workspace/shared";
+import { sessionRecordFlags, type ExerciseBests, type LoggedSet } from "@workspace/shared";
 
-/**
- * Whether the set just ticked is a Record: it beats every set of that exercise in the finished
- * Sessions before this one. `history` is the exercise's finished Sessions (what Previous reads);
- * `sets` are this Session's sets of the exercise as they are after the tick. A first-ever
- * Session of an exercise has nothing to beat, so it is never a Record. Warm-ups never are.
- */
+type Bests = Map<string, ExerciseBests>;
+
+type CachedBests = {
+  value: Bests | null;
+  ready: Promise<Bests | null>;
+};
+
+/** Deduplicates in-flight reads and keeps only the computed bests for each exercise. */
+export function createRecordBestsCache(read: (exerciseId: string) => Promise<Bests>) {
+  const entries = new Map<string, CachedBests>();
+  return {
+    clear: () => entries.clear(),
+    get(exerciseId: string): CachedBests {
+      const existing = entries.get(exerciseId);
+      if (existing) return existing;
+      const entry: CachedBests = {
+        value: null,
+        ready: Promise.resolve()
+          .then(() => read(exerciseId))
+          .then(
+            (value) => {
+              if (entries.get(exerciseId) !== entry) return null;
+              entry.value = value;
+              return value;
+            },
+            () => {
+              if (entries.get(exerciseId) === entry) entries.delete(exerciseId);
+              return null;
+            },
+          ),
+      };
+      entries.set(exerciseId, entry);
+      return entry;
+    },
+  };
+}
+
+/** A live tick uses the same metrics and earlier-session comparison as the finish summary. */
 export function tickedSetIsRecord(input: {
-  history: readonly SessionHistory[];
-  session: { id: string; startedAt: string };
+  bests: Bests;
   sets: readonly LoggedSet[];
   setId: string;
   bodyweightKg: number | null;
 }): boolean {
-  const current: SessionHistory = {
-    id: input.session.id,
-    started_at: input.session.startedAt,
-    finished_at: null,
-    sets: input.sets,
-  };
-  return recordFlags([...input.history, current], input.bodyweightKg).has(input.setId);
+  return sessionRecordFlags(input.sets, input.bests, input.bodyweightKg).has(input.setId);
 }

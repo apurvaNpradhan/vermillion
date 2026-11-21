@@ -15,7 +15,6 @@ import {
   replaceWarmups,
   restoreSet,
   restoreSessionExercise,
-  replaceExercise as replaceWorkoutExercise,
   replaceSessionExercise,
   restoreSession,
   setDerivedTitle,
@@ -145,17 +144,15 @@ export function useSessionActions() {
           readExerciseType(db, entry.exerciseId),
           readExerciseType(db, exerciseId),
         ]);
-        const swap = await replaceSessionExercise(db, entry.id, exerciseId, training(), writeScope);
+        const swap = await replaceSessionExercise(
+          db,
+          entry.id,
+          exerciseId,
+          training(),
+          writeScope,
+          scope,
+        );
         if (!swap) return false;
-        if (scope === "workout" && entry.sourceWorkoutExerciseId) {
-          await replaceWorkoutExercise(
-            db,
-            entry.sourceWorkoutExerciseId,
-            exerciseId,
-            training(),
-            writeScope,
-          );
-        }
         if (swap.split) {
           toast.show({ label: t("session__swap_split_toast", { title: entry.title }) });
         } else if (after !== null && before !== after) {

@@ -101,6 +101,7 @@ export const trainingUploadColumns = {
     "exercise_title",
     "exercise_type",
     "source_workout_exercise_id",
+    "workout_swap_fragment",
     "position",
     "rest_seconds",
     "note",

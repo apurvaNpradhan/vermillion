@@ -7,13 +7,13 @@ import {
   stalledSessions,
   supersetPlaces,
   type EffortScale,
+  type ExerciseBests,
   type Ghosts,
   type SetKind,
   type LighterPeriod,
   type WeightUnit,
 } from "@workspace/shared";
 import type {
-  FinishedSession,
   SessionDetail,
   SessionExerciseDetail,
   SessionSetDetail,
@@ -48,7 +48,7 @@ import type { PreviousSets } from "./use-previous-sets";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { historySettled } from "./history-gate";
-import { tickedSetIsRecord } from "./record-on-tick";
+import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
 import {
   ghostsOf,
@@ -83,7 +83,7 @@ export type StallInfo = { count: number; latestSessionId: string; applied: boole
 export function useLoggingState({
   session,
   previous,
-  recordHistory,
+  recordBests,
   historyReady,
   historyFailed,
   unit,
@@ -100,8 +100,7 @@ export function useLoggingState({
 }: {
   session: SessionDetail;
   previous: PreviousSets;
-  /** An exercise's whole finished history, for Record checks; null when it cannot be read. */
-  recordHistory: (exerciseId: string) => Promise<readonly FinishedSession[] | null>;
+  recordBests: ReturnType<typeof createRecordBestsCache> | null;
   historyReady: boolean;
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
@@ -446,39 +445,48 @@ export function useLoggingState({
         return false;
       }
       if (!result.wrote) return true;
-      const ticked = loggedSetsOf(session, countWarmups)
-        .filter((set) => set.exercise_id === at.exercise.exerciseId)
-        .map((set) =>
-          set.id === setId
-            ? {
-                ...set,
-                ...result.values,
-                completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
-              }
-            : set,
-        );
-      const record = tickedSetIsRecord({
-        history:
-          (await recordHistory(at.exercise.exerciseId)) ??
-          previous.get(at.exercise.exerciseId) ??
-          [],
-        session: { id: session.id, startedAt: session.startedAt },
-        sets: ticked,
-        setId,
-        bodyweightKg,
-      });
+      const prior =
+        countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
+      const isRecord = (bests: Map<string, ExerciseBests>) =>
+        tickedSetIsRecord({
+          bests,
+          sets: loggedSetsOf(session, countWarmups)
+            .filter((set) => set.exercise_id === at.exercise.exerciseId)
+            .map((set) =>
+              set.id === setId
+                ? { ...set, ...result.values, completed_at: new Date(expiresAt ?? Date.now()).toISOString() }
+                : set,
+            ),
+          setId,
+          bodyweightKg,
+        });
+      const announce = () => {
+        if (recordAlerts) {
+          toast.show({
+            variant: "success",
+            label: t("session__record_alert", { exercise: at.exercise.title }),
+          });
+        }
+      };
+      const record = prior?.value ? isRecord(prior.value) : false;
       if (record || strong) haptic.success();
       else haptic.tick();
-      if (record && recordAlerts) {
-        toast.show({
-          variant: "success",
-          label: t("session__record_alert", { exercise: at.exercise.title }),
-        });
-      }
+      if (record) announce();
       setTickEvent((before) => ({ setId, nonce: (before?.nonce ?? 0) + 1 }));
       // A countdown that reached zero is the only `strong` tick.
       sound.playTick({ record, countdown: strong });
       if (result.rest) onRestStarted?.();
+
+      // The first tick for an exercise can precede its bests. Give immediate tick feedback, then
+      // play the milestone cue and announce a Record if the history still applies when it arrives.
+      if (prior && !prior.value) {
+        void prior.ready.then((bests) => {
+          if (bests && isRecord(bests)) {
+            sound.play("record");
+            announce();
+          }
+        });
+      }
       return true;
     },
     [
@@ -487,7 +495,7 @@ export function useLoggingState({
       actions,
       session,
       previous,
-      recordHistory,
+      recordBests,
       bodyweightKg,
       countWarmups,
       blockOfSet,

@@ -14,7 +14,10 @@ import {
   createProgram,
   createWorkout,
   deleteProgram,
+  ensureInstallId,
   powerSyncSchema,
+  replaceSessionExercise,
+  startSession,
   updateCustomExercise,
   updateWorkoutExercise,
   watchExercise,
@@ -86,9 +89,9 @@ describe("Drizzle writes reach the upload queue", () => {
     // A raw INSERT produces the same PUT payload (PowerSync leaves NULL columns out).
     const columns = Object.keys(entries[0]?.opData ?? {}).sort();
     await database.execute(
-      `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
-         exercise_type, is_full_bodyweight, rank, instructions, created_at)
-       VALUES (?, 'owner', 'Raw', 'chest', '["triceps"]', 'dumbbell', 'weight_reps', 0, 0, 'text', ?)`,
+      `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, primary_detail,
+         secondary_detail, equipment, exercise_type, is_full_bodyweight, rank, instructions, created_at)
+       VALUES (?, 'owner', 'Raw', 'chest', '["triceps"]', '[]', '[]', 'dumbbell', 'weight_reps', 0, 0, 'text', ?)`,
       ["raw", new Date().toISOString()],
     );
     const raw = (await database.getCrudBatch(10))?.crud.at(-1);
@@ -101,6 +104,50 @@ describe("Drizzle writes reach the upload queue", () => {
     await updateCustomExercise(database, id, { title: "Same" });
     await expect(updateCustomExercise(database, id, { title: "" })).rejects.toThrow();
     expect((await database.getUploadQueueStats()).count).toBe(before);
+  });
+
+  it("tracks the completion state of a locally deleted session set", async () => {
+    const completedAt = "2026-11-19T15:00:00.000Z";
+    await database.execute("INSERT INTO session_set (id) VALUES ('unticked')");
+    await database.execute("INSERT INTO session_set (id, completed_at) VALUES ('ticked', ?)", [
+      completedAt,
+    ]);
+    await database.execute("DELETE FROM session_set");
+
+    const deletes = (await database.getCrudBatch(10))?.crud.filter(
+      (entry) => entry.op === "DELETE",
+    );
+    expect(deletes).toEqual([
+      expect.objectContaining({ id: "unticked", previousValues: { completed_at: null } }),
+      expect.objectContaining({ id: "ticked", previousValues: { completed_at: completedAt } }),
+    ]);
+  });
+
+  it("queues workout and session replacements in the same CRUD transaction", async () => {
+    const original = await createCustomExercise(database, input("Original"));
+    const replacement = await createCustomExercise(database, input("Replacement"));
+    const scope = await ensureInstallId(database);
+    const workoutId = await createWorkout(database, { title: "Workout" });
+    const [source] = await addExercises(database, workoutId, [original]);
+    const sessionId = await startSession(database, { workoutId, derivedTitle: "Workout" });
+    const { id } = await database.get<{ id: string }>(
+      "SELECT id FROM session_exercise WHERE session_id = ?",
+      [sessionId],
+    );
+    await (await database.getCrudBatch(100))?.complete();
+
+    expect(
+      await replaceSessionExercise(database, id, replacement, undefined, scope, "workout"),
+    ).toEqual({ id, split: false });
+    const upload = await database.getNextCrudTransaction();
+    expect(
+      upload?.crud.map((entry) => [entry.op, entry.table, entry.id, entry.opData?.exercise_id]),
+    ).toEqual([
+      ["PATCH", "session_exercise", id, replacement],
+      ["PATCH", "workout_exercise", source, replacement],
+    ]);
+    await upload?.complete();
+    expect(await database.getNextCrudTransaction()).toBeNull();
   });
 
   it("commits a create as one transaction", async () => {
