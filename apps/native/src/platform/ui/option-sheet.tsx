@@ -26,7 +26,8 @@ export function OptionSheet<T extends string>({
   title: string;
   description?: string;
   options: SheetOption<T>[];
-  value: T;
+  /** `null` when nothing is chosen yet: no row is ticked. */
+  value: T | null;
   onSelect: (value: T) => void;
 }) {
   return (
