@@ -10,10 +10,12 @@ import {
   SignOut,
   Trash,
 } from "phosphor-react-native";
+import { useState } from "react";
 import { Linking, View } from "react-native";
 
-import { useSignOut } from "@/auth";
+import { useSession, useSignOut } from "@/auth";
 import { ImportHistoryRow } from "@/history-import";
+import { crashReportingConfigured } from "@/platform/crash-reporting";
 import { useIsOnline } from "@/platform/network";
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
@@ -26,6 +28,8 @@ import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 import { useExportData } from "../export-data";
+import { CrashReportsRow } from "./crash-reports-row";
+import { FeedbackSheet } from "./feedback-sheet";
 
 /**
  * Settings as grouped rows: the profile picture, Preferences (appearance, language, time zone,
@@ -41,12 +45,19 @@ export function SettingsScreen() {
   const reminders = useBodyReminderRows();
   const training = useTrainingPreferenceRows();
   const exportData = useExportData();
+  const { session } = useSession();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
     <>
       <ConfirmationDialog {...confirmationProps} />
       {training.sheets}
       {reminders.editor}
+      <FeedbackSheet
+        isOpen={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        email={session?.user.email ?? null}
+      />
       <ScrollPage title={t("settings__title")}>
         <AvatarPicker />
         <View>
@@ -75,14 +86,18 @@ export function SettingsScreen() {
             icon={ChatCircleText}
             title={t("settings__feedback")}
             accessory="none"
-            onPress={() =>
-              void Linking.openURL(
-                `mailto:${appConfig.supportEmail}?subject=${encodeURIComponent(
-                  t("settings__feedback_subject", { name: appConfig.displayName }),
-                )}`,
-              )
-            }
+            onPress={() => {
+              // Without a Sentry project the form has nowhere to go: write an email instead.
+              if (crashReportingConfigured) setFeedbackOpen(true);
+              else
+                void Linking.openURL(
+                  `mailto:${appConfig.supportEmail}?subject=${encodeURIComponent(
+                    t("settings__feedback_subject", { name: appConfig.displayName }),
+                  )}`,
+                );
+            }}
           />
+          <CrashReportsRow />
           <ListRow
             icon={Info}
             title={t("settings__about")}

@@ -12,6 +12,9 @@ name: Android release
 # Needs (docs/guides/android-release.md):
 #   variable  EXPO_PUBLIC_SERVER_URL            https://basalt-api.<domain>, baked into the app
 #   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
+#   variable  EXPO_PUBLIC_SENTRY_DSN            optional; crash reporting and feedback (docs/guides/sentry.md)
+#   variable  SENTRY_ORG, SENTRY_PROJECT        optional; with the secret below, source maps upload
+#   secret    SENTRY_AUTH_TOKEN                 optional; without it the build skips the upload
 #   secret    ANDROID_UPLOAD_KEYSTORE_BASE64    base64 of the release keystore
 #   secret    ANDROID_UPLOAD_STORE_PASSWORD
 #   secret    ANDROID_UPLOAD_KEY_ALIAS
@@ -45,6 +48,9 @@ jobs:
     env:
       EXPO_PUBLIC_SERVER_URL: ${{ vars.EXPO_PUBLIC_SERVER_URL }}
       EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
       REF_NAME: ${{ github.ref_name }}
       REF_TYPE: ${{ github.ref_type }}
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
@@ -131,6 +137,8 @@ jobs:
         env:
           # Rises with every run, so each APK installs over the previous one.
           ANDROID_VERSION_CODE: ${{ github.run_number }}
+          # Present: the Sentry plugin wires the source map upload into the release build.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           pnpm exec expo prebuild --platform android --no-install
           grep -q "with-release-signing" android/app/build.gradle
@@ -142,6 +150,8 @@ jobs:
           VERMILLION_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
           VERMILLION_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           VERMILLION_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          # Uploads the JS source maps and native debug files; the build skips it when unset.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           # arm64 covers nearly every current phone and keeps the APK small.
           if [ "$ABIS" = universal ]; then

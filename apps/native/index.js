@@ -1,3 +1,4 @@
+import "./src/platform/crash-reporting/init";
 import "./src/platform/local-database/crypto-polyfill";
 import "./src/platform/i18n/polyfills";
 import { AppRegistry } from "react-native";

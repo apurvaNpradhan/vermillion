@@ -20,6 +20,7 @@
     "@orpc/server": "catalog:",
     "@orpc/shared": "catalog:",
     "@orpc/zod": "catalog:",
+    "@sentry/node": "11.9.0",
     "@workspace/auth": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/email": "workspace:*",

@@ -29,7 +29,16 @@ import { appConfig } from "../../app.config.ts";
 // 20: the home-screen widget expires weekly progress in the native provider.
 // 21: expo-document-picker (history import from a CSV file).
 // 22: renamed to Basalt: new bundle id, scheme and EAS slug.
-const NATIVE_STACK_REVISION = 22;
+// 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
+const NATIVE_STACK_REVISION = 23;
+
+/**
+ * Source map upload is on only when the build has a Sentry auth token (the Android release
+ * workflow and EAS provide it); every other build skips it instead of failing. Organization and
+ * project come from `SENTRY_ORG` / `SENTRY_PROJECT` when set; the plugin falls back to the
+ * same variables during the build.
+ */
+const sentryUpload = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
 
@@ -111,6 +120,15 @@ const config: ExpoConfig = {
     "./plugins/with-local-database-backup-rules.js",
     // Release builds sign with the keystore the Android release workflow provides.
     "./plugins/with-release-signing.js",
+    // Crash reporting. The SDK itself starts only when EXPO_PUBLIC_SENTRY_DSN is set.
+    [
+      "@sentry/react-native/expo",
+      {
+        ...(process.env.SENTRY_ORG ? { organization: process.env.SENTRY_ORG } : {}),
+        ...(process.env.SENTRY_PROJECT ? { project: process.env.SENTRY_PROJECT } : {}),
+        disableAutoUpload: !sentryUpload,
+      },
+    ],
     [
       "expo-splash-screen",
       {

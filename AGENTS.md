@@ -57,6 +57,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [ui](.agents/ui.md)                     | HeroUI Native, tokens                                         |
 | [sync](.agents/sync.md)                 | Local-first sync: tables, streams, uploads, tests, ops        |
 | [media](.agents/media.md)               | User images: private bucket, presigned URLs, attachment queue |
+| [sentry](docs/guides/sentry.md)         | Crash reporting, feedback, what is sent, source maps          |
 | [deploy](.agents/deploy.md)             | Where things run; pointers to docs                            |
 
 Vendored skills live in `.agents/skills/` (see `skills-lock.json`); load the matching skill for Better Auth, Hono, Expo and Turborepo work.

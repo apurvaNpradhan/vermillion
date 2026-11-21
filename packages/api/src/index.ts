@@ -15,3 +15,4 @@ export {
 export { thresholdsFromMegabytes } from "./platform/sync/slot-lag";
 export { runCatalogSeed } from "./exercise/index";
 export { runTrainingDemo } from "./training/index";
+export { initErrorReporting } from "./platform/error-reporting";

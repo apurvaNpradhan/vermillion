@@ -1,4 +1,9 @@
-import { runServer, thresholdsFromMegabytes, type ApiConfig } from "@workspace/api";
+import {
+  initErrorReporting,
+  runServer,
+  thresholdsFromMegabytes,
+  type ApiConfig,
+} from "@workspace/api";
 import { parseAdminEmails } from "@workspace/auth";
 import { createEmailTransport } from "@workspace/email";
 import { initLogger } from "@workspace/logger";
@@ -8,6 +13,13 @@ import { appConfig } from "../../../app.config";
 import { env } from "@workspace/env/server";
 
 initLogger({ env: { service: `${appConfig.name}-server` } });
+
+// A no-op without SENTRY_DSN. The release is the commit the image was built from, else the version.
+initErrorReporting({
+  dsn: env.SENTRY_DSN,
+  environment: env.NODE_ENV,
+  release: env.SENTRY_RELEASE ?? `${appConfig.name}-server@${appConfig.version}`,
+});
 
 const credentials = (clientId?: string, clientSecret?: string) =>
   clientId && clientSecret ? { clientId, clientSecret } : undefined;
