@@ -1702,11 +1702,14 @@
   }
 }
 
-@theme inline {
+@theme inline static {
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft-foreground: var(--accent-soft-foreground);
   --color-danger-soft-foreground: var(--danger-soft-foreground);
   --color-success-soft-foreground: var(--success-soft-foreground);
+}
+
+@theme inline {
   --color-chart: var(--chart);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

@@ -102,12 +102,17 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
       "  }",
       "}",
     ].join("\n"),
+    // HeroUI reads these variables at runtime, so keep them even without a utility using them.
     [
-      "@theme inline {",
+      "@theme inline static {",
       "  --color-accent-hover: var(--accent-hover);",
       "  --color-accent-soft-foreground: var(--accent-soft-foreground);",
       "  --color-danger-soft-foreground: var(--danger-soft-foreground);",
       "  --color-success-soft-foreground: var(--success-soft-foreground);",
+      "}",
+    ].join("\n"),
+    [
+      "@theme inline {",
       ...Object.keys(sharedTokenSources).map((name) => `  --color-${name}: var(--${name});`),
       "}",
     ].join("\n"),
