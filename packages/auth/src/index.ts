@@ -40,10 +40,10 @@ type OAuthCredentials = { clientId: string; clientSecret: string };
 
 export type AuthOptions = {
   db: Database;
-  /** Public origin of the API (`https://basalt-api.<domain>`); auth cookies stay host-only. */
+  /** Public origin of the API (`https://patina-api.<domain>`); auth cookies stay host-only. */
   baseUrl: string;
   /**
-   * Public origin of the site (`https://basalt.<domain>`). Its Worker forwards `/api/auth` to
+   * Public origin of the site (`https://patina.<domain>`). Its Worker forwards `/api/auth` to
    * the API, so browser requests carry this origin; it is trusted, and its Turnstile hostname too.
    */
   siteUrl: string;

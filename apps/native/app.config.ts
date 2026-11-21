@@ -30,7 +30,8 @@ import { appConfig } from "../../app.config.ts";
 // 21: expo-document-picker (history import from a CSV file).
 // 22: renamed to Basalt: new bundle id, scheme and EAS slug.
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
-const NATIVE_STACK_REVISION = 23;
+// 24: renamed to Patina: new bundle id, scheme and EAS slug again.
+const NATIVE_STACK_REVISION = 24;
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release

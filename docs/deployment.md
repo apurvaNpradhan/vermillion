@@ -1,10 +1,10 @@
 # Deployment
 
-Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `basalt-api.<domain>` (Dokploy behind Cloudflare), sync at `basalt-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Existing account, invite and update links still point at `basalt.<domain>`, but the old site's build and deployment are out of this repository pending a rebuild. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
+Every public host derives from `domain` in `app.config.ts` (today `lostsignal.cloud`): the API at `patina-api.<domain>` (Dokploy behind Cloudflare), sync at `patina-sync.<domain>`, and catalog media at `media.<domain>` (a public R2 bucket). Existing account, invite and update links still point at `patina.<domain>`, but the old site's build and deployment are out of this repository pending a rebuild. Cloudflare's free certificate covers one level of subdomain, so the hosts are flat ([ADR 0046](adr/0046-site-admin-closed-beta-and-rename.md)).
 
 ```text
-native app ──► Cloudflare (proxied basalt-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
-           ──► Cloudflare (proxied basalt-sync.<domain>) ──► Dokploy: Traefik ──► PowerSync ──► Postgres
+native app ──► Cloudflare (proxied patina-api.<domain>)  ──► Dokploy: Traefik ──► server ──► Postgres
+           ──► Cloudflare (proxied patina-sync.<domain>) ──► Dokploy: Traefik ──► PowerSync ──► Postgres
            ──► R2 (presigned URLs, user media) and media.<domain> (catalog media)
 
 push to main ──► GitHub Actions: CI ──► image to GHCR ──► Dokploy API: run that image
@@ -40,7 +40,7 @@ Four Dokploy pieces in one project: a PostgreSQL database service with a backup 
 1. Create an **Application**. Source: **Docker**. Image `ghcr.io/<owner>/<repo>-server:latest`, registry URL `ghcr.io`, username and password a GitHub user and a token with `read:packages` (the package is private). The deploy workflow rewrites the image to the commit's tag, with the same credentials, on every deploy.
 2. Autodeploy **off**. Only the workflow deploys ([Continuous delivery](#continuous-delivery)).
 3. Environment: see [Environment](#environment).
-4. Domain: `basalt-api.<domain>`, port `3000`, HTTPS (Let's Encrypt), no path prefix. Cloudflare SSL/TLS mode must be **Full (strict)**.
+4. Domain: `patina-api.<domain>`, port `3000`, HTTPS (Let's Encrypt), no path prefix. Cloudflare SSL/TLS mode must be **Full (strict)**.
 5. Health check: the image declares one against `/api/health` (every 2 seconds while starting, then every 30). Dokploy shows the container unhealthy if it fails. Optional, for a deploy that rolls itself back: Advanced → Cluster Settings → Swarm Settings, Update Config `{"Parallelism":1,"Delay":10000000000,"FailureAction":"rollback","Order":"start-first"}` (Dokploy's "going to production" guide).
 
 The image is built from `apps/server/Dockerfile` with the repository root as context ([ADR 0009](adr/0009-dokploy-dockerfile.md)). It holds the bundled server, the replication bootstrap job (`sync-bootstrap.mjs`) and the migrations, has no `node_modules`, and runs as the `node` user.
@@ -56,12 +56,12 @@ Validated at startup by `packages/env`; the server exits with the failing variab
 | Variable                                                   | Required          | Notes                                                                                                                                                                                                                              |
 | ---------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`                                             | yes               | The Postgres service's internal host with the unprivileged `vermillion` role ([Postgres](#postgres)), not the superuser.                                                                                                           |
-| `APP_URL`                                                  | yes               | Public origin of the API, `https://basalt-api.<domain>`. Auth links and the trusted-origin check use it. The site's origin comes from `app.config.ts`.                                                                             |
+| `APP_URL`                                                  | yes               | Public origin of the API, `https://patina-api.<domain>`. Auth links and the trusted-origin check use it. The site's origin comes from `app.config.ts`.                                                                             |
 | `BETTER_AUTH_SECRET`                                       | yes               | 32+ chars, `openssl rand -hex 32`. Placeholders are refused in production.                                                                                                                                                         |
 | `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                                                                                                                                 |
 | `REGISTRATION_OPEN`                                        | no                | `false` (production, the closed beta): only an address with a live invite, or in `ADMIN_EMAILS`, may create an account; existing accounts still sign in. Default `true`.                                                           |
 | `ADMIN_EMAILS`                                             | for the admin     | Comma-separated addresses that hold the admin role, reconciled on start and every sign-in. The only way to become an admin. Empty: no admin.                                                                                       |
-| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent, on social sign-in and on access requests. Pair with the site key on native and on the site. The widget must allow both hostnames (`basalt.<domain>` and `basalt-api.<domain>`). |
+| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent, on social sign-in and on access requests. Pair with the site key on native and on the site. The widget must allow both hostnames (`patina.<domain>` and `patina-api.<domain>`). |
 | `SENTRY_DSN`, `SENTRY_RELEASE`                             | no                | Error reporting to Sentry; off without the DSN. The image build sets the release to the commit. See [Sentry](guides/sentry.md).                                                                                                    |
 | `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set. Production configures Google only ([Google sign-in](#google-sign-in)).                                                                                                 |
 | `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only).                                                                                                               |
@@ -92,7 +92,7 @@ Catalog exercise media (the public bucket the admin uploads to):
 | `EXERCISE_MEDIA_S3_ACCESS_KEY_ID`, `EXERCISE_MEDIA_S3_SECRET_ACCESS_KEY` | production | An R2 API token scoped to this bucket only, Object Read & Write.                                     |
 | `EXERCISE_MEDIA_S3_REGION`, `EXERCISE_MEDIA_PUBLIC_URL`                  | no         | `auto`; the public URL defaults to `https://media.<domain>` in production.                           |
 
-The exercise-media bucket needs a CORS rule so the admin's browser can upload with presigned URLs: allowed origin `https://basalt.<domain>`, methods `PUT`, headers `Content-Type` and `Content-Length`, max age 3600. Keep its custom domain `media.<domain>` (public read). Keys the admin uploads are under `exercises/admin/`.
+The exercise-media bucket needs a CORS rule so the admin's browser can upload with presigned URLs: allowed origin `https://patina.<domain>`, methods `PUT`, headers `Content-Type` and `Content-Length`, max age 3600. Keep its custom domain `media.<domain>` (public read). Keys the admin uploads are under `exercises/admin/`.
 
 R2 setup: create the bucket (no public access), create an API token limited to it, put the four values on the server service. Objects live under `users/<userId>/`; account deletion and the hourly `media.purge-objects` job delete them. The bucket is a processor of health-adjacent data: keep it on the [privacy readiness](privacy-readiness.md) checklist.
 
@@ -118,7 +118,7 @@ R2 setup: create the bucket (no public access), create an API token limited to i
 
 PowerSync is a long-lived streaming connection with bearer tokens, so it gets its own subdomain instead of sharing the API host ([ADR 0017](adr/0017-sync-credentials-and-transport.md)).
 
-1. DNS: a proxied record `basalt-sync.<domain>` pointing at the Dokploy server; Traefik routes it to the PowerSync container port. Set `SYNC_ENDPOINT_URL=https://basalt-sync.<domain>` on the server; clients get it from `sync.credentials`, never from a build constant.
+1. DNS: a proxied record `patina-sync.<domain>` pointing at the Dokploy server; Traefik routes it to the PowerSync container port. Set `SYNC_ENDPOINT_URL=https://patina-sync.<domain>` on the server; clients get it from `sync.credentials`, never from a build constant.
 2. The firewall rules above apply unchanged (only Cloudflare reaches the origin).
 3. Before rollout verify on this hostname: a stream stays open past Cloudflare's idle timeout and reconnects, and the proxy does not buffer the stream. These are unverified in this repo.
 
@@ -161,7 +161,7 @@ Without this, anyone can call the origin directly with a forged `Cf-Connecting-I
 
 1. Add the domain's zone to Cloudflare and create a **proxied** (orange cloud) DNS record `api` that points at the Dokploy server's IP.
 2. SSL/TLS mode **Full (strict)**.
-3. Check it with `curl https://basalt-api.<domain>/api/health` (`{"status":"ok"}`).
+3. Check it with `curl https://patina-api.<domain>/api/health` (`{"status":"ok"}`).
 4. Optional: a WAF rate limit rule for `/api/auth/*` as a second layer behind the in-process limits.
 
 ## Continuous delivery
@@ -205,7 +205,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 **Cloudflare and the server**
 
-1. Add the domain's zone. Create proxied records `basalt-api`, `basalt-sync` and `dokploy` pointing at the server. SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
+1. Add the domain's zone. Create proxied records `patina-api`, `patina-sync` and `dokploy` pointing at the server. SSL/TLS mode Full (strict). ([Cloudflare](#cloudflare))
 2. Install Dokploy on the server. Settings → Server domain: `dokploy.<domain>` with HTTPS.
 3. Firewall: inbound 80/443 only from Cloudflare's ranges, SSH from your address. ([Firewall](#firewall-only-cloudflare-reaches-the-origin))
 
@@ -228,54 +228,54 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 **Server (Dokploy)**
 
-12. Create the server application: Docker source, `ghcr.io/<owner>/<repo>-server:latest`, registry `ghcr.io` with the user and token of step 8, autodeploy off, domain `basalt-api.<domain>` port 3000. Copy its id.
+12. Create the server application: Docker source, `ghcr.io/<owner>/<repo>-server:latest`, registry `ghcr.io` with the user and token of step 8, autodeploy off, domain `patina-api.<domain>` port 3000. Copy its id.
 13. Profile → API/CLI keys: create the API key.
 14. Generate the secrets: `BETTER_AUTH_SECRET` (`openssl rand -hex 32`), `POWERSYNC_REPLICATION_PASSWORD` and `POWERSYNC_STORAGE_PASSWORD` (`openssl rand -hex 24`), `PS_ADMIN_TOKEN` (`openssl rand -hex 32`).
-15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://basalt-api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://basalt-sync.<domain>`, `REGISTRATION_OPEN=false`, `ADMIN_EMAILS=<your address>`, the four `MEDIA_S3_*` and the `EXERCISE_MEDIA_S3_*` values, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`/`_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
+15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://patina-api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://patina-sync.<domain>`, `REGISTRATION_OPEN=false`, `ADMIN_EMAILS=<your address>`, the four `MEDIA_S3_*` and the `EXERCISE_MEDIA_S3_*` values, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`/`_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
 16. Run the bootstrap job on the host. ([Sync infrastructure](#sync-infrastructure), step 2)
-17. Approve the waiting deploy job (or run the workflow again). Check `curl https://basalt-api.<domain>/api/health` and `/api/ready`.
+17. Approve the waiting deploy job (or run the workflow again). Check `curl https://patina-api.<domain>/api/health` and `/api/ready`.
 18. Traefik: keep Cloudflare's `X-Forwarded-For`, then verify the client IP. ([Trusted proxies](#trusted-proxies-and-the-client-ip))
 
 **PowerSync (Dokploy)**
 
-19. Create the Compose application from `powersync/compose.dokploy.yml`, set its environment, give the `powersync` service the domain `basalt-sync.<domain>` port 8080, deploy. Check `curl https://basalt-sync.<domain>/probes/readiness`.
+19. Create the Compose application from `powersync/compose.dokploy.yml`, set its environment, give the `powersync` service the domain `patina-sync.<domain>` port 8080, deploy. Check `curl https://patina-sync.<domain>/probes/readiness`.
 20. Point an external monitor at `/api/ready`. ([Sync infrastructure](#sync-infrastructure), step 4)
 
 **Android app**
 
-21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://basalt-api.<domain>` (repository level). ([Android release](guides/android-release.md))
+21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://patina-api.<domain>` (repository level). ([Android release](guides/android-release.md))
 22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
 23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release; the site's `/download` serves its APK.
 
 **Turnstile and catalog media**
 
-24. Turnstile: add a managed widget that allows `basalt-api.<domain>` and, if serving the existing site, `basalt.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server and the public key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
+24. Turnstile: add a managed widget that allows `patina-api.<domain>` and, if serving the existing site, `patina.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server and the public key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
 25. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
 
 **Google sign-in**
 
-26. Google Cloud console → OAuth client (Web application). Authorised redirect URI `https://basalt-api.<domain>/api/auth/callback/google`, JavaScript origin `https://basalt-api.<domain>`. Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. GitHub sign-in stays unconfigured in production.
+26. Google Cloud console → OAuth client (Web application). Authorised redirect URI `https://patina-api.<domain>/api/auth/callback/google`, JavaScript origin `https://patina-api.<domain>`. Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. GitHub sign-in stays unconfigured in production.
 
 ## Moving hosts
 
-Renaming the hosts (Cinnabar to Basalt, [ADR 0051](adr/0051-rename-to-basalt.md)) or moving to another domain follows one checklist. Do the new side first and the removals last:
+Renaming the hosts (Basalt to Patina, [ADR 0052](adr/0052-rename-to-patina.md)) or moving to another domain follows one checklist. Do the new side first and the removals last:
 
-1. Cloudflare DNS: add proxied records `basalt`, `basalt-api` and `basalt-sync` (same targets as the old ones). SSL/TLS stays Full (strict).
-2. Dokploy: change the server application's domain to `basalt-api.<domain>` (port 3000) and the PowerSync `powersync` service's domain to `basalt-sync.<domain>` (port 8080); redeploy both.
-3. Server env on the Dokploy application: `APP_URL=https://basalt-api.<domain>` and `SYNC_ENDPOINT_URL=https://basalt-sync.<domain>` (the trusted origins and CORS allow-list are derived from `APP_URL` and the site origin in `app.config.ts`; there is no separate `BETTER_AUTH_URL`).
-4. Turnstile widget hostnames and the Google OAuth redirect URI and origin: new API host. R2 media CORS origin: `https://basalt.<domain>`.
-5. GitHub repository variable `EXPO_PUBLIC_SERVER_URL=https://basalt-api.<domain>`, and the same value in the EAS **production** environment; then tag a release.
-6. Check `curl https://basalt-api.<domain>/api/health` and `https://basalt-sync.<domain>/probes/readiness`.
+1. Cloudflare DNS: add proxied records `patina`, `patina-api` and `patina-sync` (same targets as the old ones). SSL/TLS stays Full (strict).
+2. Dokploy: change the server application's domain to `patina-api.<domain>` (port 3000) and the PowerSync `powersync` service's domain to `patina-sync.<domain>` (port 8080); redeploy both.
+3. Server env on the Dokploy application: `APP_URL=https://patina-api.<domain>` and `SYNC_ENDPOINT_URL=https://patina-sync.<domain>` (the trusted origins and CORS allow-list are derived from `APP_URL` and the site origin in `app.config.ts`; there is no separate `BETTER_AUTH_URL`).
+4. Turnstile widget hostnames and the Google OAuth redirect URI and origin: new API host. R2 media CORS origin: `https://patina.<domain>`.
+5. GitHub repository variable `EXPO_PUBLIC_SERVER_URL=https://patina-api.<domain>`, and the same value in the EAS **production** environment; then tag a release.
+6. Check `curl https://patina-api.<domain>/api/health` and `https://patina-sync.<domain>/probes/readiness`.
 7. Remove the old `cinnabar`, `cinnabar-api` and `cinnabar-sync` DNS records and Dokploy domains.
 
-The EAS slug follows `appConfig.name` (`basalt`). If expo.dev refuses the slug change, run `eas init` again and replace `easProjectId` in `app.config.ts`.
+The EAS slug follows `appConfig.name` (`patina`). If expo.dev refuses the slug change, run `eas init` again and replace `easProjectId` in `app.config.ts`.
 
 ## Moving to the final domain
 
 No data migration; the hosts change and the app is rebuilt.
 
 1. `app.config.ts`: change `domain` (and `releases` if the repository moves).
-2. DNS: the proxied `basalt-api`, `basalt-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
+2. DNS: the proxied `patina-api`, `patina-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
 3. Coordinate the public site host with the replacement site before switching the URLs used by native and invite emails.
 4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`; Turnstile widget hostnames.
 5. Google OAuth client: redirect URI and origin on the new API host.
@@ -295,4 +295,4 @@ eas update --channel production --environment production --message "…"  # expl
 eas build --profile production --platform all  # store build; submission stays manual
 ```
 
-Set `EXPO_PUBLIC_SERVER_URL` in each build profile of `eas.json` by hand: `https://basalt-api.<domain>` for `production` and your staging API for `preview`. OTA publication does not read build-profile `env`: create `EXPO_PUBLIC_SERVER_URL` (and the optional `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_SENTRY_DSN`; upload OTA source maps as described in [Sentry](guides/sentry.md#source-maps)) in the EAS **production** environment with the same public values, and always pass `--environment production`. Check `eas env:list --environment production` before publishing; the API origin must be the production API host, never localhost. If the host changes, update those EAS values too. Over-the-air updates only carry JS and assets: a change that needs new native code needs a new build.
+Set `EXPO_PUBLIC_SERVER_URL` in each build profile of `eas.json` by hand: `https://patina-api.<domain>` for `production` and your staging API for `preview`. OTA publication does not read build-profile `env`: create `EXPO_PUBLIC_SERVER_URL` (and the optional `EXPO_PUBLIC_TURNSTILE_SITE_KEY` and `EXPO_PUBLIC_SENTRY_DSN`; upload OTA source maps as described in [Sentry](guides/sentry.md#source-maps)) in the EAS **production** environment with the same public values, and always pass `--environment production`. Check `eas env:list --environment production` before publishing; the API origin must be the production API host, never localhost. If the host changes, update those EAS values too. Over-the-air updates only carry JS and assets: a change that needs new native code needs a new build.

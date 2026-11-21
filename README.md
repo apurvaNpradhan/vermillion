@@ -1,4 +1,4 @@
-# Basalt
+# Patina
 
 > Quiet progress. A private log for training — and soon, food.
 
