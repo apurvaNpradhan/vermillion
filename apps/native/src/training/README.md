@@ -2,9 +2,9 @@
 
 Public surface: `index.ts`. Each folder is one feature; hooks, components, pure logic and tests live together.
 
-- `home/`: the Home tab, its week card and last-done dates. Start at `home-screen.tsx`.
+- `home/`: the Home tab, the week strip, next workout, Lighter week card and last-done dates. Start at `home-screen.tsx`.
 - `train/`: the Train tab workout list, its rows and starting a workout. Start at `train-screen.tsx`.
-- `muscles/`: weekly muscle volume against goals: the Muscles screen, its goal sheet and the Home tile. Start at `muscles-screen.tsx`.
+- `muscles/`: weekly muscle volume against goals: the Muscles screen, its goal sheet. Start at `muscles-screen.tsx`.
 - `programs/`: Program library, run, details, cover and meta. Start at `program-screen.tsx`.
 - `rotation/`: rotation slots, their rows and adding workouts to a Program. Start at `rotation.ts`.
 - `workouts/`: Workout preview, editor, exercise rows, notes and muscle coverage. Start at `workout-editor.tsx`.

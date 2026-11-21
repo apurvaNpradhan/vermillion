@@ -11,7 +11,7 @@ import { useReportCard } from "./use-report-card";
 import { useReportLabels } from "./use-report-labels";
 
 /**
- * Home's "Your October report" (or "Your 2026 in review" in January): shown for the first days of
+ * The top of History: "Your October report" (or "Your 2026 in review" in January): shown for the first days of
  * a month, opens that report, and can be dismissed for good on this device.
  */
 export function ReportCard() {
