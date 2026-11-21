@@ -2,7 +2,6 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferenceHandlerPlugin } from "@orpc/openapi/plugins";
 import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
-import { HTTP_STATUS_BY_CODE } from "@workspace/shared";
 import { currentRequestLog, log, requestLoggingOptions } from "@workspace/logger";
 import type { DrainFn } from "evlog";
 import { createAuthMiddleware } from "evlog/better-auth";
@@ -12,6 +11,7 @@ import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 
 import { authRoutes } from "../auth/index";
+import { isServerFault, reportServerError, statusForCode } from "./error-reporting";
 import { clientIpMiddleware } from "./http/client-ip";
 import { compressResponses } from "./http/compress";
 import { requireTrustedOrigin } from "./http/require-trusted-origin";
@@ -20,11 +20,6 @@ import { generateOpenApiDocument, OPENAPI_PREFIX, smartCoercion } from "./orpc/o
 import { appRouter } from "./orpc/router";
 import type { Services } from "./services";
 
-function statusForCode(code: string) {
-  const known = Object.entries(HTTP_STATUS_BY_CODE).find(([name]) => name === code);
-  return known ? known[1] : 500;
-}
-
 export type CreateAppOptions = {
   /** Where wide events go besides stdout (a file drain in development). */
   drain?: DrainFn | undefined;
@@ -32,6 +27,7 @@ export type CreateAppOptions = {
 
 // Typed failures (ORPCError) are expected; only the unexpected is logged as an error.
 function reportUnexpected(error: Error | string) {
+  if (error instanceof Error) reportServerError(error);
   const request = currentRequestLog();
   if (request) request.error(error);
   else log.error({ action: "orpc.unexpected" });
@@ -70,6 +66,7 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
       const status = statusForCode(error.code);
       return c.json({ code: error.code, message: error.message }, status);
     }
+    if (error instanceof Error) reportServerError(error);
     currentRequestLog()?.error(error instanceof Error ? error : String(error));
     return c.json({ message: "Internal Server Error" }, 500);
   });
@@ -96,7 +93,7 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
   const rpcHandler = new RPCHandler(appRouter, {
     interceptors: [
       onError((error) => {
-        if (!(error instanceof ORPCError))
+        if (!(error instanceof ORPCError) || isServerFault(error))
           reportUnexpected(error instanceof Error ? error : String(error));
       }),
     ],
@@ -113,7 +110,7 @@ export function createApp(services: Services, options: CreateAppOptions = {}) {
     const openApiHandler = new OpenAPIHandler(appRouter, {
       interceptors: [
         onError((error) => {
-          if (!(error instanceof ORPCError))
+          if (!(error instanceof ORPCError) || isServerFault(error))
             reportUnexpected(error instanceof Error ? error : String(error));
         }),
       ],

@@ -30,6 +30,9 @@ RUN pnpm --filter server build \
 
 FROM node:24-slim
 ENV NODE_ENV=production
+# The commit this image was built from; names the release in Sentry events.
+ARG SENTRY_RELEASE
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
 WORKDIR /app
 COPY --from=build /repo/apps/server/dist ./
 USER node

@@ -4,6 +4,7 @@ import type { ErrorCode } from "@workspace/shared";
 import { APIError } from "better-auth/api";
 
 import { recordAppVersion } from "../app-version";
+import { rememberErrorUser } from "../error-reporting";
 import type { Services } from "../services";
 
 /** What the transport hands every procedure: the request headers and the process services. */
@@ -82,7 +83,13 @@ export const authed = base
     const session = await readSession(context);
     if (!session) throw new ORPCError("UNAUTHORIZED");
     recordAppVersion(context.services, session.user.id, context.headers);
-    return next({
-      context: { user: session.user, session: session.session, userId: session.user.id },
-    });
+    try {
+      return await next({
+        context: { user: session.user, session: session.session, userId: session.user.id },
+      });
+    } catch (error) {
+      // A report of this failure names the internal user id (never the email).
+      if (error instanceof Error) rememberErrorUser(error, session.user.id);
+      throw error;
+    }
   });

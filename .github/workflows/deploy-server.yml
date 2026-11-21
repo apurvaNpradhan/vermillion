@@ -84,6 +84,8 @@ jobs:
           file: apps/server/Dockerfile
           platforms: linux/amd64
           push: true
+          build-args: |
+            SENTRY_RELEASE=${{ github.sha }}
           tags: |
             ${{ steps.name.outputs.image }}:${{ github.sha }}
             ${{ steps.name.outputs.image }}:latest

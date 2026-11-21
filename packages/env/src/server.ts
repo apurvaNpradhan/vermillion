@@ -42,6 +42,10 @@ export const env = createEnv({
      */
     ADMIN_EMAILS: z.string().default(""),
     TURNSTILE_SECRET_KEY: z.string().optional(),
+    /** Sentry DSN of the server project; error reporting runs only when set. */
+    SENTRY_DSN: z.url().optional(),
+    /** Release name for Sentry events (the image build sets it to the commit); defaults to the version. */
+    SENTRY_RELEASE: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),

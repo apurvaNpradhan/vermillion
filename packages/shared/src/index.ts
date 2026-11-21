@@ -15,3 +15,4 @@ export * from "./body";
 export * from "./media";
 
 export { sha256Hex } from "./sha256";
+export * from "./telemetry-scrub";
