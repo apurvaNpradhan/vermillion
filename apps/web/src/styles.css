@@ -1,0 +1,204 @@
+@import "@fontsource-variable/geist";
+
+/* Brand colours from the logo kit: ink background, ivory text, olive accent. Local to the site;
+   the app's tokens live in packages/ui and do not carry the logo palette. */
+:root {
+  --ink: #19130f;
+  --ink-raised: #241c16;
+  --ivory: #fdf4e6;
+  --ivory-muted: #c9bfae;
+  --olive: #869044;
+  --olive-strong: #a3ae5c;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: "Geist Variable", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--olive-strong);
+  text-underline-offset: 0.2em;
+}
+
+a:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--olive-strong);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.page {
+  width: min(64rem, 100% - 2rem);
+  margin: 0 auto;
+  padding: 3rem 0;
+}
+
+.narrow {
+  width: min(42rem, 100% - 2rem);
+}
+
+.site-header {
+  width: min(64rem, 100% - 2rem);
+  margin: 0 auto;
+  padding: 1.25rem 0 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ivory);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.brand img {
+  border-radius: 8px;
+}
+
+.hero {
+  text-align: center;
+  padding-top: 4rem;
+}
+
+.hero-logo {
+  width: 10rem;
+  height: auto;
+}
+
+.hero h1 {
+  margin: 1rem 0 0;
+  font-size: clamp(2.75rem, 9vw, 4.5rem);
+}
+
+.tagline {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  color: var(--olive-strong);
+}
+
+.lede {
+  color: var(--ivory-muted);
+  font-size: 1.1875rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.note {
+  color: var(--ivory-muted);
+  font-size: 0.9375rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.8rem 1.6rem;
+  border-radius: 999px;
+  background: var(--olive);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--olive-strong);
+}
+
+.features,
+.shots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+
+.features li {
+  padding: 1.25rem;
+  border-radius: 16px;
+  background: var(--ink-raised);
+}
+
+.features h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.0625rem;
+}
+
+.features p {
+  margin: 0;
+  color: var(--ivory-muted);
+  font-size: 0.9688rem;
+}
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1.25rem;
+}
+
+.shots img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  background: var(--ink-raised);
+}
+
+.prose h2 {
+  margin-top: 2.25rem;
+  font-size: 1.375rem;
+}
+
+.prose li {
+  margin: 0.4rem 0;
+}
+
+.meta {
+  color: var(--ivory-muted);
+  font-size: 0.9375rem;
+}
+
+.site-footer {
+  width: min(64rem, 100% - 2rem);
+  margin: 2rem auto 0;
+  padding: 2rem 0 3rem;
+  color: var(--ivory-muted);
+  font-size: 0.9375rem;
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}

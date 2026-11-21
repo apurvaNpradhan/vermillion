@@ -1,0 +1,25 @@
+{
+  "name": "Patina",
+  "short_name": "Patina",
+  "description": "Quiet progress. A private log for training.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#19130F",
+  "theme_color": "#19130F",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
