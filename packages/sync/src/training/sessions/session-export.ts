@@ -11,10 +11,10 @@ const EXPORT_PAGE = 2000;
  * data export writes. Pages use a total order within one read snapshot.
  */
 export const SESSION_EXPORT_SQL = `SELECT s.id AS session_id, s.title AS title, s.started_at AS started_at,
-    s.note AS session_note, se.id AS exercise_row, se.exercise_title AS exercise_title,
+    s.note AS session_note, s.duration_s AS session_duration_s, s.finished_at AS finished_at, se.id AS exercise_row, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.note AS exercise_note, ss.kind AS kind,
     ss.weight_kg AS weight_kg, ss.reps AS reps, ss.duration_s AS duration_s,
-    ss.distance_m AS distance_m, ss.floors AS floors, ss.steps AS steps, ss.rpe AS rpe
+    ss.distance_m AS distance_m, ss.rpe AS rpe
   FROM training_session s
   JOIN session_exercise se ON se.session_id = s.id
   JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
@@ -27,6 +27,8 @@ const exportRowSchema = z.object({
   title: z.string(),
   started_at: z.string(),
   session_note: z.string().nullable(),
+  session_duration_s: z.number().nullable(),
+  finished_at: z.string().nullable(),
   exercise_row: z.string(),
   exercise_title: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
@@ -36,10 +38,20 @@ const exportRowSchema = z.object({
   reps: z.number().nullable(),
   duration_s: z.number().nullable(),
   distance_m: z.number().nullable(),
-  floors: z.number().nullable(),
-  steps: z.number().nullable(),
   rpe: z.number().nullable(),
 });
+
+/** The recorded duration, else the time between start and finish. */
+function sessionDuration(row: {
+  session_duration_s: number | null;
+  started_at: string;
+  finished_at: string | null;
+}): number | null {
+  if (row.session_duration_s !== null) return row.session_duration_s;
+  if (row.finished_at === null) return null;
+  const seconds = (Date.parse(row.finished_at) - Date.parse(row.started_at)) / 1000;
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds) : null;
+}
 
 /** Reads every page from the same SQLite snapshot, even while sync writes. */
 export function readSessionExportRows(
@@ -56,6 +68,7 @@ export function readSessionExportRows(
           sessionId: row.session_id,
           workout: row.title,
           startedAt: row.started_at,
+          sessionDurationS: sessionDuration(row),
           sessionNote: row.session_note,
           exerciseKey: row.exercise_row,
           exercise: row.exercise_title ?? "",
@@ -65,8 +78,6 @@ export function readSessionExportRows(
           reps: row.reps,
           durationS: row.duration_s,
           distanceM: row.distance_m,
-          floors: row.floors,
-          steps: row.steps,
           rpe: row.rpe,
         });
       }

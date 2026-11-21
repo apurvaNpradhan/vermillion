@@ -39,9 +39,11 @@ it("reads every ticked set of every finished Session, oldest first, and nothing 
     ["2026-01-05", "working", 105],
   ]);
   expect(rows[1]).toMatchObject({ exercise: "Squat", reps: 5, workout: "Squats" });
+  // No recorded duration: it is the time between start and finish.
+  expect(rows[1]?.sessionDurationS).toBe(3600);
 });
 
-it("reads all pages in one transaction and preserves floors and steps", async () => {
+it("reads all pages in one transaction and pages past the first read", async () => {
   const s = await setupSessions();
   const id = await startSession(s.training, { workoutId: null, derivedTitle: "Cardio" });
   const [exercise] = await addSessionExercises(s.training, id, [SQUAT]);
@@ -55,9 +57,8 @@ it("reads all pages in one transaction and preserves floors and steps", async ()
     WITH RECURSIVE seq(n) AS (
       SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2001
     )
-    INSERT INTO session_set (id, session_exercise_id, position, kind, completed_at, floors, steps)
-    SELECT printf('export-%04d', n), ?, 'z', 'working', '2026-01-01T10:00:00Z',
-      CASE WHEN n = 2000 THEN 9 END, CASE WHEN n = 2001 THEN 200 END
+    INSERT INTO session_set (id, session_exercise_id, position, kind, completed_at)
+    SELECT printf('export-%04d', n), ?, 'z', 'working', '2026-01-01T10:00:00Z'
     FROM seq
   `)
     .run(exercise ?? "");
@@ -66,6 +67,4 @@ it("reads all pages in one transaction and preserves floors and steps", async ()
   const rows = await readSessionExportRows(s.training);
   expect(readTransaction).toHaveBeenCalledTimes(1);
   expect(rows).toHaveLength(2002);
-  expect(rows.at(-2)).toMatchObject({ floors: 9, steps: null });
-  expect(rows.at(-1)).toMatchObject({ floors: null, steps: 200 });
 });

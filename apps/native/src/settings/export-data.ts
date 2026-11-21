@@ -1,18 +1,20 @@
-import { sessionsCsv } from "@workspace/shared";
+import { deviceTimeZone, strongCsv } from "@workspace/shared";
 import { readSessionExportRows } from "@workspace/sync";
 import { Directory, File, Paths } from "expo-file-system";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 import { useCallback, useState } from "react";
 
+import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { usePreferences } from "@/preferences";
 import { useLocalData } from "@/sync";
 
 /**
- * "Export data": every finished Session as a CSV file from the local database (no network),
- * handed to the system share sheet. The file lives in the cache folder and is replaced by the next
- * export.
+ * "Export history (CSV)": every finished Session as a Strong-format CSV file (the layout Hevy and
+ * Lyfta import) from the local database (no network), handed to the system share sheet. Weights
+ * are in the user's unit and times in the device time zone. The file lives in the cache folder and
+ * is replaced by the next export.
  */
 export function useExportData() {
   const { t } = useTranslation();
@@ -27,16 +29,13 @@ export function useExportData() {
     setPending(true);
     try {
       const rows = await readSessionExportRows(database);
-      const timeZone =
-        preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
-      const csv = sessionsCsv(rows, {
+      const csv = strongCsv(rows, {
         unit: preferences.ui.weightUnit,
-        effortScale: preferences.ui.effortScale,
-        timeZone,
+        timeZone: deviceTimeZone(),
       });
       const folder = new Directory(Paths.cache, "export");
       folder.create({ idempotent: true, intermediates: true });
-      const file = new File(folder, "basalt-sessions.csv");
+      const file = new File(folder, `${appConfig.displayName.toLowerCase()}-history.csv`);
       file.create({ overwrite: true });
       file.write(csv);
       if (!(await isAvailableAsync())) {

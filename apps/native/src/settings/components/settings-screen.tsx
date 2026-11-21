@@ -2,19 +2,11 @@ import { AvatarPicker } from "@/account";
 import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
-import {
-  Barbell,
-  ChatCircleText,
-  DownloadSimple,
-  Info,
-  SignOut,
-  Trash,
-} from "phosphor-react-native";
+import { Barbell, ChatCircleText, Database, Info, SignOut, Trash } from "phosphor-react-native";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 
 import { useSession, useSignOut } from "@/auth";
-import { ImportHistoryRow } from "@/history-import";
 import { crashReportingConfigured } from "@/platform/crash-reporting";
 import { useIsOnline } from "@/platform/network";
 import { appConfig } from "@/platform/app-config";
@@ -27,7 +19,6 @@ import { PreferenceRows } from "@/preferences";
 import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
-import { useExportData } from "../export-data";
 import { CrashReportsRow } from "./crash-reports-row";
 import { FeedbackSheet } from "./feedback-sheet";
 
@@ -44,7 +35,6 @@ export function SettingsScreen() {
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
   const reminders = useBodyReminderRows();
   const training = useTrainingPreferenceRows();
-  const exportData = useExportData();
   const { session } = useSession();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
@@ -110,17 +100,14 @@ export function SettingsScreen() {
         </ListSection>
         <ListSection title={t("settings__section_data")}>
           <ListRow
-            icon={DownloadSimple}
-            title={t("settings__export_title")}
-            description={t("settings__export_hint")}
-            accessory="none"
-            disabled={!exportData.ready || exportData.pending}
-            onPress={() => void exportData.run()}
+            icon={Database}
+            title={t("settings__data_title")}
+            description={t("settings__data_hint")}
+            onPress={() => router.push("/settings/data")}
           />
         </ListSection>
         {isNetworkError(signOut.error) ? <FormError message={t("errors__offline")} /> : null}
         <ListSection title={t("settings__section_account")}>
-          <ImportHistoryRow />
           <ListRow
             icon={SignOut}
             title={t("nav__sign_out")}
