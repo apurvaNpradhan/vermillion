@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, type NavigationState } from "expo-router";
 import {
   Barbell,
   ClockCounterClockwise,
@@ -13,6 +13,7 @@ import { Dimensions, Easing, type ColorValue } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { TabActionProvider } from "@/platform/navigation/tab-action";
 import { TabBar } from "@/platform/navigation/tab-bar";
+import { blurredTabStack } from "@/platform/navigation/blurred-tab-stack";
 import { isColorString } from "@/platform/theme";
 import { useThumbnailPrefetch } from "@/exercise";
 import { useAccountLocale } from "@/preferences";
@@ -52,14 +53,25 @@ export default function AppLayout() {
     // Reset account-scoped screens and drafts, not the root auth/deep-link state.
     <TabActionProvider key={writeScope ?? "unclaimed"}>
       <Tabs
+        backBehavior="history"
         tabBar={(props) => (
           <TabBar
             {...props}
             directTabCount={DIRECT_TABS}
-            menuHeader={() => <AccountSummary />}
+            menuHeader={(closeMenu) => <AccountSummary onOpen={closeMenu} />}
             aboveBar={<ResumeBar />}
           />
         )}
+        screenListeners={({ route, navigation }) => ({
+          blur: () => {
+            const tabs: NavigationState = navigation.getState();
+            const stack = blurredTabStack(tabs, route.key);
+            if (stack) {
+              // Reset on blur even if a second tab change interrupts the slide animation.
+              navigation.dispatch({ type: "POP_TO_TOP", target: stack });
+            }
+          },
+        })}
         // Direction-aware horizontal slide: a tab to the right enters from the right.
         screenOptions={{
           headerShown: false,

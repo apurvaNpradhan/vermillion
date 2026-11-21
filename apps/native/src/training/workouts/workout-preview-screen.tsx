@@ -30,6 +30,7 @@ import { chipTexts } from "@/training/sets/set-editing";
 import { useColumnHeaders } from "@/training/sets/use-column-headers";
 import { SetTextTable } from "@/training/sets/set-text-table";
 import { WorkoutProgressionPreview } from "./workout-progression-preview";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
@@ -261,10 +262,10 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                       imageMediaId={entry.exercise?.imageMediaId}
                       thumbnailKey={entry.exercise?.thumbnailKey ?? null}
                       onPress={() =>
-                        router.push({
-                          pathname: "/exercises/[id]",
-                          params: { id: entry.exerciseId },
-                        })
+                        router.push(
+                          { pathname: "/exercises/[id]", params: { id: entry.exerciseId } },
+                          ANCHORED,
+                        )
                       }
                     />
                     {count > 0 && lastSessionId && (!memory.dismissed || memory.applied) ? (

@@ -21,8 +21,8 @@ export function useReportCard(): {
   reportId: string;
   dismiss: () => void;
 } | null {
-  const { preferences } = usePreferences();
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timeZone } = usePreferences();
+  const timezone = timeZone;
   const { today } = useToday(timezone);
   const [dismissed, setDismissed] = useState(() => readDismissed(deviceStorage.get(DISMISSED_KEY)));
   const period = reportCardPeriod(today);

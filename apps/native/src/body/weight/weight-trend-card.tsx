@@ -10,6 +10,7 @@ import { SummaryValue } from "@/platform/ui/summary-value";
 
 import type { useWeight } from "./use-weight";
 import { WeightLogSheet } from "./weight-log-sheet";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 /** Days of trend the sparkline draws. */
 const SPARK_DAYS = 30;
@@ -52,7 +53,7 @@ export function WeightTrendCard({ weight }: { weight: ReturnType<typeof useWeigh
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("body__weight_trend")}, ${trend}`}
-        onPress={() => router.push("/body/weight")}
+        onPress={() => router.push("/body/weight", ANCHORED)}
         className="gap-1 rounded-xl active:opacity-70"
       >
         <Text className="text-title-md font-semibold text-foreground">{t("body__title")}</Text>

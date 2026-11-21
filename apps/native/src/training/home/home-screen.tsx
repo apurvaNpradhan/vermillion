@@ -6,12 +6,12 @@ import { TrainingHome } from "./training-home";
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const { preferences } = usePreferences();
+  const { timeZone } = usePreferences();
   const date = new Intl.DateTimeFormat(i18n.language, {
     weekday: "long",
     day: "numeric",
     month: "long",
-    timeZone: preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timeZone: timeZone,
   }).format(new Date());
   return (
     <ScrollPage title={t("home__title")} overline={date}>

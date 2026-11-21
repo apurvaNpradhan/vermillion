@@ -21,11 +21,11 @@ const subscribe = (
 export function useWeight() {
   const state = useLocalWatch(subscribe);
   const [entryLimit, setEntryLimit] = useState(50);
-  const { preferences, isLoading, hasPreferences } = usePreferences();
+  const { preferences, isLoading, hasPreferences, timeZone } = usePreferences();
   const entries = state.value ?? EMPTY;
   const daily = useMemo(() => dailyWeights(entries), [entries]);
   const series = trendSeries(daily);
-  const zone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone = timeZone;
   const localDate = useCallback(
     (date: string) => {
       const parts = new Intl.DateTimeFormat("en-CA", {

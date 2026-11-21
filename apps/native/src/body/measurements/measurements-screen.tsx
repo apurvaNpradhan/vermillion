@@ -21,6 +21,7 @@ import { useMeasurements } from "./use-measurements";
 import { CheckInSheet } from "./check-in-sheet";
 import { PhotoFirstTile } from "@/body/photos/photo-first-tile";
 import { groupLabels, metricLabels } from "./metric-labels";
+import { ANCHORED } from "@/platform/navigation/anchored";
 export function MeasurementsScreen() {
   const router = useRouter();
   const { reminder } = useLocalSearchParams<{ reminder?: string }>();
@@ -47,7 +48,7 @@ export function MeasurementsScreen() {
       <Button isDisabled={state.loading || state.failed} onPress={() => setOpen(true)}>
         <Button.Label>{t("body__check_in")}</Button.Label>
       </Button>
-      <Button variant="tertiary" onPress={() => router.push("/settings/tracked-metrics")}>
+      <Button variant="tertiary" onPress={() => router.push("/settings/tracked-metrics", ANCHORED)}>
         <Button.Label>{t("body__tracked_metrics")}</Button.Label>
       </Button>
       {state.loading || state.failed ? (

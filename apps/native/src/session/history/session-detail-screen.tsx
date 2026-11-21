@@ -35,6 +35,7 @@ import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "@/session/finish/use-finish-session";
 import { useStartSession } from "@/session/lifecycle/use-start-session";
 import { useRecordHistory } from "./use-session-history";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
@@ -43,7 +44,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
   const state = useSession(id);
   const session = state.status === "ready" ? state.session : null;
   const source = useWorkout(session?.workoutId ?? "");
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const weight = useWeight();
   const actions = useSessionActions();
   const finish = useFinishSession();
@@ -113,7 +114,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   {new Intl.DateTimeFormat(i18n.language, {
                     dateStyle: "full",
                     timeStyle: "short",
-                    timeZone: preferences.timezone ?? undefined,
+                    timeZone,
                   }).format(new Date(session.startedAt))}
                 </Text>
                 {source.status === "ready" ? (
@@ -123,10 +124,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         title: source.workout.title ?? t("training__workout"),
                       })}
                       onPress={() =>
-                        router.push({
-                          pathname: "/train/workout/[id]",
-                          params: { id: source.workout.id },
-                        })
+                        router.push(
+                          { pathname: "/train/workout/[id]", params: { id: source.workout.id } },
+                          ANCHORED,
+                        )
                       }
                     />
                   </ListSection>
@@ -284,7 +285,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         .applyWorkout(id, { saveNew: true, structure: true, targets: true })
                         .then((saved) => {
                           if (saved)
-                            router.push({ pathname: "/train/workout/[id]", params: { id: saved } });
+                            router.push(
+                              { pathname: "/train/workout/[id]", params: { id: saved } },
+                              ANCHORED,
+                            );
                         });
                     },
                   },

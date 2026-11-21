@@ -1,8 +1,12 @@
 import { FilePlus, MagnifyingGlass, ProhibitInset } from "phosphor-react-native";
+import { usePreventRemove } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
+import type { ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
+import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { Button } from "@/platform/ui/button";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { ActionSheet } from "@/platform/ui/action-sheet";
@@ -32,16 +36,24 @@ const FAILURE_KEYS = {
 
 /**
  * Import history: choose a Strong or Hevy CSV, check what it would add and match its exercise
- * names, import, and undo. The last import's receipt stays here until it is undone.
+ * names, import, and undo. The last import's receipt stays here until it is undone. Settings'
+ * "Your data" page hosts it: `header` is drawn above the import while nothing is being imported.
  */
-export function ImportHistoryScreen() {
+export function ImportHistoryScreen({ title, header }: { title: string; header?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const flow = useHistoryImport();
   const [matching, setMatching] = useState<string | null>(null);
   const [confirmUndo, setConfirmUndo] = useState(false);
   const { step, file, summary } = flow;
+  const writing = step.kind === "importing" || step.kind === "undoing";
+  useHideTabBar(writing);
+  // Imports can be cancelled with their own button, after which the receipt is ready to read.
+  usePreventRemove(writing, () => undefined);
+  const deviceZone = useDeviceTimeZone();
   const formatDate = (iso: string) =>
-    new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(iso));
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeZone: deviceZone }).format(
+      new Date(iso),
+    );
   const formatSourceDate = (iso: string) =>
     new Intl.DateTimeFormat(i18n.language, {
       dateStyle: "medium",
@@ -95,21 +107,24 @@ export function ImportHistoryScreen() {
             : []
         }
       />
-      <ScrollPage back title={t("import__title")} backFallback="/settings">
+      <ScrollPage back={!writing} title={title} backFallback="/settings">
         {step.kind === "idle" || step.kind === "failed" ? (
           <>
+            {header}
             {step.kind === "failed" ? <FormError message={t(FAILURE_KEYS[step.reason])} /> : null}
-            <View className="gap-3">
-              <Text className="font-normal text-body text-muted">{t("import__intro")}</Text>
-              <Button
-                variant="primary"
-                isDisabled={!flow.ready}
-                onPress={() => void flow.pickFile()}
-              >
-                <Button.Label>{t("import__choose")}</Button.Label>
-              </Button>
-              <Text className="font-normal text-caption text-muted">{t("import__formats")}</Text>
-            </View>
+            <ListSection title={t("import__title")}>
+              <View className="gap-3">
+                <Text className="font-normal text-body text-muted">{t("import__intro")}</Text>
+                <Button
+                  variant="primary"
+                  isDisabled={!flow.ready}
+                  onPress={() => void flow.pickFile()}
+                >
+                  <Button.Label>{t("import__choose")}</Button.Label>
+                </Button>
+                <Text className="font-normal text-caption text-muted">{t("import__formats")}</Text>
+              </View>
+            </ListSection>
             {flow.receipt ? (
               <ListSection title={t("import__last")}>
                 <ImportReceiptCard

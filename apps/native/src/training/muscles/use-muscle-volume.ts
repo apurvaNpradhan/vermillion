@@ -38,8 +38,8 @@ const DAY_MS = 86_400_000;
  * `loading` is only true before the first result, and `refreshing` while a later one is on its way.
  */
 export function useMuscleVolume(weeksAgo: number, program: ProgramDetail | null, weeks = 1) {
-  const { preferences } = usePreferences();
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { preferences, timeZone } = usePreferences();
+  const timezone = timeZone;
   const { now } = useToday(timezone);
   const { weekStart } = preferences.ui;
   const week = useMemo(
@@ -92,8 +92,8 @@ export function useMuscleLoads({
   weeksAgo?: number;
   program: ProgramDetail | null;
 }) {
-  const { preferences, setMuscleGoal } = usePreferences();
-  const timezone = preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { preferences, setMuscleGoal, timeZone } = usePreferences();
+  const timezone = timeZone;
   const { muscleGoals, countWarmups } = preferences.ui;
   const { start, end } = week;
   const range = useMemo(() => ({ start, end }), [start, end]);

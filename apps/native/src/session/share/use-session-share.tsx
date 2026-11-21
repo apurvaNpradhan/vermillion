@@ -36,7 +36,7 @@ export function useSessionShare(id: string): SessionShare {
   );
   const photos = useSessionPhotoList(id);
   const weight = useWeight();
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
 
   if (state.status === "error") return state;
   if (!session) return { status: state.status === "missing" ? "missing" : "loading" };
@@ -44,7 +44,7 @@ export function useSessionShare(id: string): SessionShare {
 
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const timeZone = preferences.timezone ?? null;
+
   const bodyweightKg = weight.bodyweightOn(session.startedAt);
   // A failed Record history leaves the Records out rather than the card unshared.
   const flagged = history.failed

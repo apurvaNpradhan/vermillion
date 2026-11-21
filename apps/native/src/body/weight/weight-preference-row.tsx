@@ -4,6 +4,7 @@ import { formatBodyWeight } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
 import { useWeight } from "./use-weight";
+import { ANCHORED } from "@/platform/navigation/anchored";
 export function WeightPreferenceRow() {
   const weight = useWeight();
   const router = useRouter();
@@ -21,7 +22,7 @@ export function WeightPreferenceRow() {
               unit: weight.unit,
             })
       }
-      onPress={() => router.push("/body/weight")}
+      onPress={() => router.push("/body/weight", ANCHORED)}
     />
   );
 }

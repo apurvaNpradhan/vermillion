@@ -133,7 +133,7 @@ function LoadedDetail({
     (exercise.exerciseType === "weight_reps" ||
       exercise.exerciseType === "bodyweight_weighted_reps");
   const perSet = mode.value ?? false;
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const hasHistory = history.status === "ready" && history.sessions.length > 0;
   const swaps = useSwapCandidates(exercise);
   const foreground = useThemeColor("foreground");
@@ -330,13 +330,13 @@ function LoadedDetail({
                   bodyweightKg={preferences.ui.bodyweightKg}
                   weekStart={preferences.ui.weekStart}
                   unit={preferences.ui.weightUnit}
-                  timezone={preferences.timezone}
+                  timezone={timeZone}
                 />
                 <View className="px-4">
                   <RecentSessions
                     sessions={history.sessions.slice(0, 3)}
                     unit={preferences.ui.weightUnit}
-                    timezone={preferences.timezone}
+                    timezone={timeZone}
                     onSeeAll={onSeeHistory}
                   />
                 </View>

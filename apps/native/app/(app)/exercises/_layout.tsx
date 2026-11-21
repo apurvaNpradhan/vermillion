@@ -2,6 +2,9 @@ import { Stack } from "expo-router";
 
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 
+/** The tab's first screen, kept under any page opened from another tab (`ANCHORED`). */
+export const unstable_settings = { initialRouteName: "index" };
+
 /** Sheet motion for the exercise form and the picker: they rise over the screen below. */
 const FORM_OPTIONS = {
   presentation: "modal",

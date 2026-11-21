@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useSession } from "@/auth";
 import { useLocalData, useSyncValue } from "@/sync";
 
@@ -78,6 +79,7 @@ export function usePreferences() {
   sessionUserRef.current = session?.user.id ?? null;
   const [saving, setSaving] = useState(0);
   const { setDeviceLocale } = useLocale();
+  const timeZone = useDeviceTimeZone();
 
   const save = useCallback(
     async (patch: UpdatePreferences) => {
@@ -109,7 +111,10 @@ export function usePreferences() {
   const quietly = (patch: UpdatePreferences) => void save(patch).catch(() => undefined);
 
   return {
+    // The stored `timezone` is never read: the app always uses the device's zone.
     preferences: state.value ?? EMPTY,
+    /** The device's time zone, which every date in the app uses. */
+    timeZone,
     /** True only until the device's database has answered (milliseconds), never on the network. */
     isLoading: !unavailable && !state.failed && state.value === undefined,
     hasPreferences: state.value !== undefined,
@@ -119,7 +124,6 @@ export function usePreferences() {
       setDeviceLocale(locale);
       quietly({ locale });
     },
-    setTimezone: (timezone: string | null) => quietly({ timezone }),
     /** Saves some of the `ui` preferences (weight unit, effort scale, default rest). */
     setUiAsync: (ui: UiPreferencesPatch) => save({ ui }),
     setUi: (ui: UiPreferencesPatch) => quietly({ ui }),

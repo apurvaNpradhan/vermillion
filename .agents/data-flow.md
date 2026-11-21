@@ -25,4 +25,8 @@ const { page, loadMore } = useExerciseLibrary(filters);
 
 ## Preferences and theme
 
-One `usePreferences` hook reads and updates `user_preferences` (locale, timezone, `ui`). Theme is per device, in device storage, never the database.
+One `usePreferences` hook reads and updates the account locale and `ui` settings. Its `timeZone` follows the device calendar. The `user_preferences.timezone` column remains for compatibility with older clients. Theme is per device, in device storage, never the database.
+
+## Tab stacks
+
+Every stack tab in `app/(app)` declares its first screen with `unstable_settings.initialRouteName`. When the active tab changes, the tab navigator resets the stack that lost focus. Tapping the current tab also pops it to the top. A push to another tab's nested route passes `ANCHORED` (`@/platform/navigation/anchored`) to seed an unmounted stack with its first screen. Back from a tab root follows tab history. Opening a root modal such as the Session screen or the import's exercise picker keeps the underlying tab stack.

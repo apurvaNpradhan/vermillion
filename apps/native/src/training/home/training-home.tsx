@@ -6,28 +6,25 @@ import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
-import { ReportCard, useActiveSessions, useStartSession } from "@/session";
-import { calendarDay, KG_PER_LB, sessionGoal } from "@workspace/shared";
+import { useActiveSessions, useStartSession } from "@/session";
+import { calendarDay } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import { comparableWeekSessions, homeWeek, weekSummary } from "./home-stats";
+import { useState } from "react";
+import { homeWeek } from "./home-stats";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
 import { useWorkout } from "@/training/workouts/use-workout";
 import { estimateMinutes } from "@/training/workouts/estimate";
 import { useWorkoutRecency } from "@/training/train/use-workout-recency";
 import { slotTitle } from "@/training/rotation/rotation-row";
-import { muscleRadarAxes } from "@/training/muscles/muscle-axes";
-import { muscleWindow } from "@/training/muscles/muscle-window";
-import { useMuscleLoads } from "@/training/muscles/use-muscle-volume";
 import { HomeWeekStrip } from "./home-week-strip";
 import { LighterWeekCard } from "./lighter-week-card";
 import { NextWorkoutCard } from "./next-workout-card";
-import { WeekCard } from "./week-card";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 /**
- * Home, in four blocks: the week strip, the next workout, this week and the body. The Lighter week
- * card joins them only when a deload is suggested.
+ * Home, in three blocks: the week strip, the next workout and the body (weight trend). The Lighter
+ * week card joins them only when a deload is suggested. The yearly report lives on History.
  */
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
@@ -42,20 +39,6 @@ export function TrainingHome() {
   const programState = useActiveProgram();
   const recency = useWorkoutRecency();
   const { now } = useToday(state.timezone);
-  // This week's muscle volume reads the Sessions Home already watches, not a second watch of them.
-  const muscleWeek = useMemo(
-    () => muscleWindow(now, state.timezone, state.weekStart, 0, 1),
-    [now, state.timezone, state.weekStart],
-  );
-  const muscles = useMuscleLoads({
-    sessions: state.finished,
-    week: muscleWeek,
-    program: programState.program,
-  });
-  const radarAxes = useMemo(
-    () => muscleRadarAxes(muscles.loads, muscles.rows),
-    [muscles.loads, muscles.rows],
-  );
   const next = programState.program?.slots.find(
     (slot) => slot.id === programState.progress.next?.id,
   );
@@ -67,15 +50,13 @@ export function TrainingHome() {
     state.loading ||
     weight.loading ||
     active.loading ||
-    muscles.loading ||
     !programState.ready ||
     recency.loading ||
     (workoutId !== null && workout.status === "loading");
-  const failed = state.failed || weight.failed || muscles.failed;
+  const failed = state.failed || weight.failed;
   const retry = () => {
     state.retry();
     weight.retry();
-    muscles.retry();
   };
 
   if (failed) {
@@ -110,7 +91,7 @@ export function TrainingHome() {
       ? t("home__next_day", { day: nextIndex + 1, total: slots.length })
       : t("home__next_workout");
 
-  // ---- Week strip and this week ----
+  // ---- Week strip ----
   const week = homeWeek(state.sessions, now, state.timezone, state.weekStart, hasWorkout, weeksAgo);
   const selected = selectedDay ?? week.today;
   const viewingPast = selected !== week.today;
@@ -122,24 +103,6 @@ export function TrainingHome() {
     setWeeksAgo(next);
     setSelectedDay(next === 0 ? null : selected + step * 7 * 86_400_000);
   };
-  const { current, previous } = comparableWeekSessions(
-    state.sessions,
-    now,
-    state.timezone,
-    state.weekStart,
-  );
-  const summary = weekSummary(current, previous, state.bodyweightKg);
-  const metric = state.weightUnit === "kg";
-  const volume = {
-    value: new Intl.NumberFormat(i18n.language, {
-      maximumFractionDigits: metric ? 1 : 0,
-    }).format(metric ? summary.volume / 1000 : summary.volume / KG_PER_LB),
-    unit: t(metric ? "session__volume_tonnes" : "training__unit_lb"),
-  };
-  const onTarget = muscles.rows.filter((row) => row.status !== null);
-  const radarLabel = onTarget.length
-    ? t("muscles__tile_label", { done: muscles.onTarget, total: onTarget.length })
-    : t("muscles__open");
 
   return (
     <FadeIn className="gap-6">
@@ -191,7 +154,7 @@ export function TrainingHome() {
                 key={session.id}
                 variant="secondary"
                 onPress={() =>
-                  router.push({ pathname: "/history/[id]", params: { id: session.id } })
+                  router.push({ pathname: "/history/[id]", params: { id: session.id } }, ANCHORED)
                 }
               >
                 <Button.Label>{session.title}</Button.Label>
@@ -213,15 +176,7 @@ export function TrainingHome() {
           onStartEmpty={() => void start(null)}
         />
       )}
-      <ReportCard />
       <LighterWeekCard state={state} />
-      <WeekCard
-        summary={summary}
-        goal={sessionGoal(programState.program, state.sessionsPerWeek)}
-        volume={volume}
-        axes={radarAxes}
-        radarLabel={radarLabel}
-      />
       <WeightTrendCard weight={weight} />
       {sheet}
     </FadeIn>

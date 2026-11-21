@@ -53,6 +53,7 @@ import { useSessionLogging } from "@/session/logging/use-session-logging";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
 import { restEndedAt } from "@/session/rest/rest-ended";
 import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session-keypad";
+import { usePreferences } from "@/preferences";
 
 const KEEP_AWAKE_TAG = "session-timer";
 /** A pull of this many points, or a fast flick, down closes the Timer. */
@@ -203,7 +204,7 @@ function LoadedTimer({
   } = useSessionLogging(stored);
   const pickExercises = usePickExercises("session");
   const keepAwake = preferences.ui.keepAwake;
-  const timeZone = preferences.timezone;
+  const { timeZone } = usePreferences();
 
   // Awake while it is in front; the Rest is shown here, so the system banner for it is held back.
   useFocusEffect(

@@ -33,7 +33,6 @@ import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
 import { AppProviders } from "@/platform/providers";
 import { UpdateHost } from "@/release";
-import { WidgetHost } from "@/training";
 import { useDeviceOwner } from "@/sync";
 import { applyStoredTheme, useThemeMode } from "@/platform/theme";
 
@@ -88,7 +87,6 @@ function RootStack() {
   if (isPending) return null;
   return (
     <UpdateHost>
-      <WidgetHost signedIn={guards.app} />
       {guards.app && (
         <>
           <RestNotificationHost />
@@ -99,8 +97,6 @@ function RootStack() {
       <Stack screenOptions={STACK_OPTIONS}>
         <Stack.Protected guard={guards.app}>
           <Stack.Screen name="(app)" />
-          {/* Opened by the Android widget's Start button; hands over to Home and the Session. */}
-          <Stack.Screen name="widget-start" options={{ animation: "none" }} />
           {/* The logging screen rises over the tabs; its chevron minimises it. */}
           <Stack.Screen
             name="session"

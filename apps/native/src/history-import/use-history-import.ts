@@ -5,7 +5,6 @@ import {
   createHistoryBuilder,
   createImportClock,
   detectDelimiter,
-  deviceTimeZone,
   HistoryCsvError,
   planSession,
   type HistoryBuilder,
@@ -34,9 +33,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
+import { deviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { deviceStorage } from "@/platform/storage";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { usePreferences } from "@/preferences";
 import { useLocalData, useSyncValue } from "@/sync";
 
 import {
@@ -129,13 +128,12 @@ export function useHistoryImport() {
   const local = useLocalData();
   const userId = useSyncValue((snapshot) => (snapshot ? phaseOwner(snapshot.phase) : null));
   const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? "");
-  const { preferences } = usePreferences();
   const pickExercises = usePickExercises("session");
   const database = local?.status === "ready" ? local.database : null;
 
   const [step, setStep] = useState<ImportStep>({ kind: "idle" });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [unit, setUnit] = useState<WeightUnit>(preferences.ui.weightUnit);
+  const [unit, setUnit] = useState<WeightUnit>("kg");
   const [timeZone, setTimeZone] = useState(deviceTimeZone);
   const [dayFirst, setDayFirst] = useState(true);
   const [resolutions, setResolutions] = useState<ReadonlyMap<string, Resolution>>(new Map());
@@ -315,7 +313,7 @@ export function useHistoryImport() {
         (key) => readMapping(userId, builder.format, key),
       );
       setLoaded({ fileName: asset.name, builder, matches: remembered.matches });
-      setUnit(source.weightUnit ?? preferences.ui.weightUnit);
+      setUnit(source.weightUnit ?? "kg");
       setDayFirst(source.dayFirst);
       setTimeZone(deviceTimeZone());
       setResolutions(remembered.resolutions);
@@ -329,7 +327,7 @@ export function useHistoryImport() {
     } finally {
       busy.current = false;
     }
-  }, [database, preferences.ui.weightUnit, userId]);
+  }, [database, userId]);
 
   // ---- Matching names ----
 

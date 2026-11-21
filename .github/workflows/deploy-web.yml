@@ -1,7 +1,7 @@
 name: Deploy web
 
 # Builds apps/web (TanStack Start, prerendered) and deploys it to Cloudflare Workers with Wrangler
-# (ADR 0052). The custom domain is the route in apps/web/wrangler.jsonc; `check:host` fails the
+# (ADR 0053). The custom domain is the route in apps/web/wrangler.jsonc; `check:host` fails the
 # job when it no longer matches `appConfig.urls.site`.
 #
 # Secrets, in the `production` environment or at repository level:

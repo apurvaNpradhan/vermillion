@@ -107,19 +107,3 @@ Android force-stop removes notifications and blocks background work until the ap
 Test killed-process actions with process death, separately from force-stop. The native countdown
 continues without JS. The Rest-over text refresh uses a native timer while the process lives and an
 inexact system alarm after process death, so Android may defer that text refresh in Doze.
-
-### Android home-screen widget
-
-Native stack revision 19 adds the local `next-workout-widget` module: a resizable (about 4x2)
-"Next workout + week" widget drawn with plain `RemoteViews` (no Glance or Compose dependency, no new
-package). Rebuild the dev client on every machine. The module's manifest registers the
-`AppWidgetProvider` receiver and the provider XML; Android's manifest merger adds both, so no config
-plugin is needed.
-
-The app builds a localised snapshot (`training/widget/widget-snapshot.ts`: next workout, week dots,
-goal, theme colours) and passes it to the module, which stores it in the no-backup directory and
-redraws the widget. `WidgetHost` rewrites it when the data, theme or language changes and on
-foreground. The widget never reads the database, and its text comes from the snapshot, so the only
-Android string resources are the picker's label and description. Start opens
-`<scheme>://widget-start?workout=<id>`, which resumes an active Session or starts the Workout
-without the conflict sheet. iOS does nothing.

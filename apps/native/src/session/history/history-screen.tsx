@@ -47,9 +47,11 @@ import { NumberFlow } from "@/platform/ui/number-flow";
 import { PeriodCard } from "@/platform/ui/period-card";
 import { useStartSession } from "@/session/lifecycle/use-start-session";
 
+import { ReportCard } from "../report/report-card";
 import { reportKey } from "../report/report-period";
 import { useHistorySettings, useSessionHistory } from "./use-session-history";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
+import { ANCHORED } from "@/platform/navigation/anchored";
 
 type HistoryItem =
   | { kind: "week"; id: string; sessions: readonly FinishedSession[] }
@@ -196,7 +198,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               isIconOnly
               variant="ghost"
               accessibilityLabel={t("muscles__open")}
-              onPress={() => router.push("/muscles")}
+              onPress={() => router.push("/muscles", ANCHORED)}
             >
               <Barbell size={24} weight="regular" color={subtle} />
             </Button>
@@ -224,6 +226,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
             ListHeaderComponent={
               <View className="gap-3 pb-2">
                 {header}
+                <ReportCard />
                 <SegmentedControl
                   options={options}
                   value={period}
