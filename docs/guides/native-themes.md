@@ -31,6 +31,16 @@ completion differentiation, and stronger text and lines in increased contrast.
    Restart Metro with `--clear` and load the app once so Uniwind regenerates its local type declarations.
 3. Add `theme__<id>` to the locale and the label to `THEME_LABELS` in `theme-picker.tsx`.
 
+## Fixed theme
+
+The signed-out welcome screen (`auth/components/welcome-screen.tsx`) is the only screen fixed to a
+theme: it is always Patina dark, ink and ivory as in the logo, whatever the device appearance and
+the saved choice. It wraps its content in Uniwind's `ScopedTheme` with the `patina-dark` variant,
+so classes and `useCSSVariable` inside it resolve against that variant, and sets light status and
+navigation bar icons. The theme is scoped, not applied: leaving the screen restores the device
+theme for the email and code screens and onboarding. There is no Appearance control while signed
+out. Do not fix other screens the same way; a theme choice is the person's.
+
 ## Storage and device checks
 
 `platform/theme/theme-state.ts` reads `{ theme, appearance, contrast }` from `device.theme`.
@@ -38,7 +48,9 @@ Earlier formats keep their appearance; true black and retired palette fields are
 
 On a device, change the OS appearance with Match device selected, with the app open and after
 backgrounding it. Switch Light, Dark and Increase contrast and restart to check that the choice
-persists. Check status and navigation bars follow the canvas.
+persists. Check status and navigation bars follow the canvas. Sign out with the device in light
+appearance: the welcome screen must stay ink-dark with light status bar icons, and the email screen
+after it must follow the device again.
 
 HeroUI Native's blur and glass defaults guess dark mode with `endsWith("dark")`, which reads
 `patina-dark-contrast` as light. Pass an explicit tint from `useThemeMode()` wherever those
