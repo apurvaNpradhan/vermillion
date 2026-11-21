@@ -204,6 +204,8 @@ Pushes to `main` that change the website, shared TypeScript or package manager c
 
 The policy and terms are drafts. Before submitting the site URLs to Google Play, review the open items in [privacy readiness](privacy-readiness.md) and verify that the support inbox accepts and can handle account-deletion requests. The intended URLs are `/privacy` and `/delete-account` on the public website host.
 
+When the native rename ships, coordinate the welcome screen's privacy and terms links with the published site. The welcome screen currently points to the API origin. The native updater still expects `/download` on the legacy site. The new landing page links to GitHub Releases.
+
 ## Local production check
 
 `compose.prod.yml` runs the production image on your machine against Postgres 18 with the logical-WAL flags, the replication bootstrap, PowerSync and MinIO in place of R2. Use it before the first deploy and after a change to the Dockerfile, startup, env schema or `powersync/`. It has its own project name, volumes and ports (API 13000, PowerSync 18090), so it runs beside the development stack.
@@ -265,7 +267,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 21. Create the release keystore and back it up. Add the secrets `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` and the variable `EXPO_PUBLIC_SERVER_URL=https://basalt-api.<domain>` (repository level). ([Android release](guides/android-release.md))
 22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
-23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish a release; the site's `/download` serves its APK.
+23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish the APK on GitHub Releases.
 
 **Turnstile and catalog media**
 
