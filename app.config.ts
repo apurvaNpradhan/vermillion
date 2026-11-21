@@ -18,7 +18,7 @@ export const appConfig = {
   subtitle: "A private log for training — and soon, food.",
   /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */
   supportEmail: `support@${domain}`,
-  version: "1.0.0",
+  version: "0.1.0",
   /** Base domain of every public host. */
   domain,
   urls: {
