@@ -2,7 +2,7 @@ import { muscleShares } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import type { PeriodReport } from "./period-report";
-import { buildReportView, trainedTime, type ReportLabels } from "./report-view";
+import { buildReportView, reportShareStats, trainedTime, type ReportLabels } from "./report-view";
 
 const labels: ReportLabels = {
   statLabel: (id) => id,
@@ -77,5 +77,25 @@ describe("buildReportView", () => {
     expect(view.records).toBeNull();
     expect(view.streak).toBeNull();
     expect(view.stats.every((stat) => stat.change === null)).toBe(true);
+  });
+
+  it("shows volume that fell to nothing against a heavier period", () => {
+    const view = buildReportView(
+      report({
+        stats: { workouts: 1, trainingDays: 1, sets: 5, volume: 0, seconds: 60 },
+        changes: {
+          workouts: null,
+          sets: null,
+          volume: { direction: "down", percent: 100 },
+          seconds: null,
+        },
+      }),
+      labels,
+    );
+    expect(reportShareStats(view, true).find((stat) => stat.id === "volume")?.change).toEqual({
+      direction: "down",
+      text: "100%",
+    });
+    expect(reportShareStats(view, false).map((stat) => stat.id)).not.toContain("volume");
   });
 });

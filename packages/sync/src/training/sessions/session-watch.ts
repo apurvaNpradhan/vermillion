@@ -647,12 +647,12 @@ export function createFinishedHistoryReader(range?: HistoryRange) {
  * just today's maxima. Scope to the displayed exercises but deliberately omit a session cap.
  * The ordinary Previous/chart read remains bounded.
  */
-export function exerciseRecordsSql(count: number): string {
-  const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
+export function exerciseRecordsSql(bounded = false): string {
   return `SELECT ${SET_COLUMNS} FROM training_session s
-    JOIN session_exercise se ON se.session_id = s.id AND se.exercise_id IN (${ids})
+    JOIN session_exercise se ON se.session_id = s.id
+      AND se.exercise_id IN (SELECT value FROM json_each(?))
     JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL ${SET_ORDER}`;
+    WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at < ?" : ""} ${SET_ORDER}`;
 }
 
 const finishedRowSchema = z.object({

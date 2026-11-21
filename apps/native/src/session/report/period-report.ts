@@ -1,19 +1,22 @@
 import {
   calendarDay,
+  isCounted,
   muscleShares,
+  recordCount,
   recordFlags,
-  sessionTotals,
+  setVolume,
   weekStartDay,
   weeklyDetailVolume,
   weeklyMuscleVolume,
   type DistributionExercise,
+  type LoggedSet,
   type MuscleShares,
   type WeekStart,
 } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 
 import { buildHistory, DAY_MS, goalStreaks } from "../history/history-calendar";
-import { previousReport, reportEnd, type ReportPeriod } from "./report-period";
+import { previousReport, reportEnd, reportHistoryWindow, type ReportPeriod } from "./report-period";
 
 /** What the report needs of an exercise: its muscles and its name. */
 export type ReportExercise = DistributionExercise & { title: string };
@@ -65,14 +68,27 @@ function within(
   });
 }
 
+type History = ReturnType<typeof buildHistory>;
+
+/** The totals of the Sessions of `history` whose day falls in `[start, end)`. */
 function statsOf(
   sessions: readonly FinishedSession[],
-  timezone: string,
-  weekStart: WeekStart,
+  history: History,
+  start: number,
+  end: number,
 ): PeriodStats {
-  // Sets already carry the bodyweight of their day, so no fallback is needed here.
-  const { totals, byDay } = buildHistory(sessions, timezone, weekStart, () => null);
-  return { ...totals, trainingDays: byDay.size };
+  const stats = { workouts: 0, sets: 0, volume: 0, seconds: 0 };
+  const days = new Set<number>();
+  for (const session of sessions) {
+    const own = history.bySession.get(session.id);
+    if (!own || own.day < start || own.day >= end) continue;
+    stats.workouts += own.totals.workouts;
+    stats.sets += own.totals.sets;
+    stats.volume += own.totals.volume;
+    stats.seconds += own.totals.seconds;
+    days.add(own.day);
+  }
+  return { ...stats, trainingDays: days.size };
 }
 
 /** Up, down or the same as `before`, as a whole percent; null when there is nothing to compare. */
@@ -92,16 +108,23 @@ function topExercises(
   exercises: readonly ReportExercise[],
 ): TopExercises {
   const titles = new Map(exercises.map((exercise) => [exercise.id, exercise.title]));
-  const sets = sessions.flatMap((session) => session.sets);
-  const ids = [...new Set(sets.map((set) => set.exercise_id))];
-  const all = ids.flatMap((exerciseId): ExerciseTotal[] => {
-    const title = titles.get(exerciseId);
-    if (title === undefined) return [];
-    const own = sessionTotals(sets.filter((set) => set.exercise_id === exerciseId));
-    return own.sets > 0 ? [{ exerciseId, title, sets: own.sets, volume: own.volume }] : [];
-  });
+  const byExercise = new Map<string, ExerciseTotal>();
+  for (const session of sessions) {
+    for (const set of session.sets) {
+      const exerciseId = set.exercise_id;
+      const title = titles.get(exerciseId);
+      if (title === undefined) continue;
+      const total = byExercise.get(exerciseId) ?? { exerciseId, title, sets: 0, volume: 0 };
+      byExercise.set(exerciseId, total);
+      if (!isCounted(set)) continue;
+      total.sets += 1;
+      total.volume += setVolume(set);
+    }
+  }
+  const all = [...byExercise.values()].filter((total) => total.sets > 0);
   // `sort` on a copy, not `toSorted`: Hermes on the device has no ES2023 array methods.
-  const byName = (a: ExerciseTotal, b: ExerciseTotal) => (a.title < b.title ? -1 : 1);
+  const byName = (a: ExerciseTotal, b: ExerciseTotal) =>
+    a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
   return {
     bySets: [...all].sort((a, b) => b.sets - a.sets || byName(a, b)).slice(0, TOP_EXERCISES),
     byVolume: all
@@ -116,15 +139,13 @@ function topExercises(
  * fourth day (the rule of the year goal in History), so a split week counts once.
  */
 function longestStreak(
-  sessions: readonly FinishedSession[],
+  weekCounts: ReadonlyMap<number, number>,
   period: ReportPeriod,
   goal: number | null,
   today: number,
-  timezone: string,
   weekStart: WeekStart,
 ): number {
   if (goal === null) return 0;
-  const { weekCounts } = buildHistory(sessions, timezone, weekStart, () => null);
   const end = reportEnd(period);
   const counts = new Map<number, number>();
   for (const [week, count] of weekCounts) {
@@ -136,15 +157,32 @@ function longestStreak(
   return goalStreaks(counts, goal, current).longest;
 }
 
+function sessionsForRecordBests(
+  sessions: readonly FinishedSession[],
+  currentSets: readonly LoggedSet[],
+  cutoff: number,
+): FinishedSession[] {
+  const done = new Set<string>();
+  for (const set of currentSets) {
+    if (isCounted(set)) done.add(set.exercise_id);
+  }
+  if (done.size === 0) return [];
+  return sessions.flatMap((session) => {
+    if (Date.parse(session.started_at) >= cutoff) return [];
+    const sets = session.sets.filter((set) => done.has(set.exercise_id));
+    return sets.length > 0 ? [{ ...session, sets }] : [];
+  });
+}
+
 /**
- * Everything the report of one month or year shows. `sessions` are all the finished Sessions (the
- * previous period and the earlier Records need them), with each set's bodyweight already attached.
- * Totals, Records, volume and muscle shares come from the helpers History, the Session summary and
- * the Muscles screen use, so the report agrees with them.
+ * Uses the comparison period, the report period and the trailing days of its last credited week.
+ * Sets already carry their session's bodyweight. `earlierHistory` contains the scoped record
+ * history before the UTC cutoff; a full history can supply both through `sessions`.
  */
 export function buildPeriodReport(input: {
   period: ReportPeriod;
   sessions: readonly FinishedSession[];
+  earlierHistory?: readonly FinishedSession[];
   exercises: readonly ReportExercise[];
   timezone: string;
   weekStart: WeekStart;
@@ -152,17 +190,27 @@ export function buildPeriodReport(input: {
   /** The current calendar day. */
   today: number;
 }): PeriodReport {
-  const { period, sessions, exercises, timezone, weekStart, goal, today } = input;
+  const { period, exercises, timezone, weekStart, goal, today } = input;
   const end = reportEnd(period);
-  const inPeriod = within(sessions, period.start, end, timezone);
   const before = previousReport(period);
-  const earlier = within(sessions, before.start, period.start, timezone);
-  const stats = statsOf(inPeriod, timezone, weekStart);
-  const previous = earlier.length > 0 ? statsOf(earlier, timezone, weekStart) : null;
-  const flagged = recordFlags(sessions);
-  const records = inPeriod
-    .flatMap((session) => session.sets)
-    .reduce((count, set) => count + (flagged.get(set.id)?.length ?? 0), 0);
+  const windowed = within(input.sessions, before.start, end + 3 * DAY_MS, timezone);
+  const calendar = buildHistory(windowed, timezone, weekStart, () => null);
+  const inPeriod = windowed.filter((session) => {
+    const day = calendar.bySession.get(session.id)?.day;
+    return day !== undefined && day >= period.start && day < end;
+  });
+  const stats = statsOf(inPeriod, calendar, period.start, end);
+  const earlier = statsOf(windowed, calendar, before.start, period.start);
+  const previous = earlier.workouts > 0 ? earlier : null;
+  const currentSets = inPeriod.flatMap((session) => session.sets);
+  const { recordsBefore } = reportHistoryWindow(period);
+  const earlierRecords =
+    input.earlierHistory ?? sessionsForRecordBests(input.sessions, currentSets, recordsBefore);
+  // Keep the boundary sessions in chronological order even when clocks turn back into another day.
+  const recordWindow = windowed.filter(
+    (session) => Date.parse(session.started_at) >= recordsBefore,
+  );
+  const records = recordCount(recordFlags(recordWindow, null, earlierRecords), currentSets);
   const range = { start: period.start, end };
   const top = topExercises(inPeriod, exercises);
   return {
@@ -182,6 +230,6 @@ export function buildPeriodReport(input: {
       weeklyMuscleVolume(inPeriod, exercises, range, timezone),
       weeklyDetailVolume(inPeriod, exercises, range, timezone),
     ),
-    longestStreak: longestStreak(sessions, period, goal, today, timezone, weekStart),
+    longestStreak: longestStreak(calendar.weekCounts, period, goal, today, weekStart),
   };
 }

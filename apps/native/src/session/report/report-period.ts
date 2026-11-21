@@ -1,4 +1,4 @@
-import { shiftPeriod } from "../history/history-calendar";
+import { DAY_MS, shiftPeriod } from "../history/history-calendar";
 
 /** A report covers one calendar month or one calendar year. */
 export type ReportKind = "month" | "year";
@@ -31,6 +31,17 @@ export const previousReport = (period: ReportPeriod): ReportPeriod => ({
   kind: period.kind,
   start: shiftPeriod(period.kind, period.start, -1),
 });
+
+/** UTC bounds for local calendar days. A day of slack covers all time zones and clock changes. */
+export function reportHistoryWindow(period: ReportPeriod) {
+  return {
+    from: previousReport(period).start - DAY_MS,
+    // A report can own the first three days after it through its final credited week.
+    to: reportEnd(period) + 4 * DAY_MS,
+    // Everything before this instant is earlier than any session in the report.
+    recordsBefore: period.start - DAY_MS,
+  };
+}
 
 /** The period that holds a calendar day. */
 export function reportContaining(kind: ReportKind, day: number): ReportPeriod {

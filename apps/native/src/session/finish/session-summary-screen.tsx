@@ -6,12 +6,12 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { haptic } from "@/platform/haptics";
 import { SessionRecord } from "./session-record";
+import { sessionRecords } from "./session-records";
 import { useForm } from "@tanstack/react-form";
 import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
   workoutStructureKey,
-  recordFlags,
   withWarmupsCounted,
   sessionTotals,
   SESSION_LIMITS,
@@ -149,28 +149,21 @@ function FinishFlow({
     }, [updateOpen, keepOriginal, session.finishedAt, backToWorkout, onDone]),
   );
   const countWarmups = preferences.ui.countWarmups;
-  const totals = sessionTotals(
-    loggedSetsOf(session, countWarmups),
-    weight.bodyweightOn(session.startedAt),
-  );
+  const logged = loggedSetsOf(session, countWarmups);
+  const bodyweightKg = weight.bodyweightOn(session.startedAt);
+  const totals = sessionTotals(logged, bodyweightKg);
   const unit = preferences.ui.weightUnit;
   const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const records = recordFlags(
-    [
-      ...withWarmupsCounted(
-        history.sessions.filter((item) => item.id !== session.id),
-        countWarmups,
-      ),
-      {
-        id: session.id,
-        started_at: session.startedAt,
-        finished_at: session.finishedAt ?? new Date().toISOString(),
-        sets: loggedSetsOf(session, countWarmups),
-      },
-    ],
-    weight.bodyweightOn(session.startedAt),
-  );
-  const recordCount = records.values().reduce((sum, keys) => sum + keys.length, 0);
+  const records = sessionRecords({
+    history: withWarmupsCounted(history.sessions, countWarmups),
+    session: {
+      id: session.id,
+      started_at: session.startedAt,
+      finished_at: session.finishedAt ?? new Date().toISOString(),
+      sets: logged,
+    },
+    bodyweightKg,
+  });
   const [baseline] = useState({
     title: session.title,
     note: session.note ?? "",
@@ -378,9 +371,14 @@ function FinishFlow({
               <Stat label={t("session__stat_sets")}>
                 <NumberFlow value={totals.sets} locale={i18n.language} size="title" reserve={3} />
               </Stat>
-              {recordCount > 0 ? (
+              {records.total > 0 ? (
                 <Stat label={t("session__stat_records")}>
-                  <NumberFlow value={recordCount} locale={i18n.language} size="title" reserve={2} />
+                  <NumberFlow
+                    value={records.total}
+                    locale={i18n.language}
+                    size="title"
+                    reserve={2}
+                  />
                 </Stat>
               ) : null}
             </View>
@@ -399,7 +397,7 @@ function FinishFlow({
             <Button.Label>{t("session__save_and_share")}</Button.Label>
           </Button>
         </View>
-        {recordCount > 0 ? (
+        {records.total > 0 ? (
           <View className="gap-1 px-4">
             <Text
               accessibilityRole="header"
@@ -409,12 +407,12 @@ function FinishFlow({
             </Text>
             {session.exercises.flatMap((entry) =>
               entry.sets.flatMap((set) =>
-                records.has(set.id)
+                records.flags.has(set.id)
                   ? [
                       <SessionRecord
                         key={set.id}
                         exercise={entry.title}
-                        records={records.get(set.id) ?? []}
+                        records={records.flags.get(set.id) ?? []}
                       />,
                     ]
                   : [],

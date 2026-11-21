@@ -55,7 +55,8 @@ const topRows = (
 /**
  * What the report screen and its share card show, already formatted: five figures (with the
  * change since the previous period where there is one), the Records, the longest goal streak and
- * the top exercises. Volume is absent when nothing moved weight.
+ * the top exercises. Volume is absent when nothing moved weight and there is no volume to compare
+ * with (a fall to nothing from a heavier period is still shown).
  */
 export function buildReportView(report: PeriodReport, labels: ReportLabels): ReportView {
   const { stats, changes } = report;
@@ -81,7 +82,7 @@ export function buildReportView(report: PeriodReport, labels: ReportLabels): Rep
         value: labels.count(stats.sets),
         change: changeView(changes.sets, labels),
       },
-      ...(stats.volume > 0
+      ...(stats.volume > 0 || changes.volume !== null
         ? [
             {
               id: "volume" as const,
@@ -107,4 +108,9 @@ export function buildReportView(report: PeriodReport, labels: ReportLabels): Rep
       return `${value} ${unit}`;
     }),
   };
+}
+
+/** The share card's visible rows after applying its Show weights toggle. */
+export function reportShareStats(view: ReportView, showWeights: boolean): StatView[] {
+  return showWeights ? view.stats : view.stats.filter((stat) => stat.id !== "volume");
 }

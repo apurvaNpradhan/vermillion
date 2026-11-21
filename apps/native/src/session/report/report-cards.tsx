@@ -7,7 +7,7 @@ import { useTranslation } from "@/platform/i18n";
 import { CardText, type CardContext } from "@/share";
 
 import { RecordsChip } from "../share/card-parts";
-import type { ReportView, StatView } from "./report-view";
+import { reportShareStats, type ReportView, type StatView } from "./report-view";
 
 export type ReportToggleId = "weights";
 
@@ -100,7 +100,7 @@ export function ReportSummaryCard({ data, context }: Props) {
   const { t } = useTranslation();
   const { palette, toggles } = context;
   const { view } = data;
-  const stats = toggles.weights ? view.stats : view.stats.filter((stat) => stat.id !== "volume");
+  const stats = reportShareStats(view, toggles.weights);
   const top = view.topBySets.slice(0, 3);
   return (
     <View style={{ flex: 1 }}>
@@ -171,7 +171,7 @@ export function ReportMusclesCard({ data, context }: Props) {
                 </CardText>
               </View>
               <CardText size={42} weight="semibold" tabular color={palette.text}>
-                {formatPercent(row.share, i18n.language)}
+                {formatPercent(row.percent, i18n.language)}
               </CardText>
             </View>
             <View

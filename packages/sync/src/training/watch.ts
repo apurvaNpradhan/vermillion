@@ -937,11 +937,12 @@ export function watchSessionPage(
   );
 }
 
-/** Complete exercise-scoped chronological history for Record comparisons. */
+/** Exercise-scoped history for Record comparisons, optionally before an exclusive UTC cutoff. */
 export function watchRecordHistory(
   database: TrainingDatabase,
   ids: readonly string[],
   handlers: { onSessions: (sessions: FinishedSession[]) => void; onError: (error: Error) => void },
+  before?: string,
 ) {
   if (!ids.length) {
     handlers.onSessions([]);
@@ -949,8 +950,8 @@ export function watchRecordHistory(
   }
   return watch(
     database,
-    exerciseRecordsSql(ids.length),
-    [...ids],
+    exerciseRecordsSql(before !== undefined),
+    before === undefined ? [JSON.stringify(ids)] : [JSON.stringify(ids), before],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,
@@ -965,7 +966,9 @@ export async function readRecordHistory(
   database: TrainingDatabase,
   exerciseId: string,
 ): Promise<FinishedSession[]> {
-  return parseFinishedSessions(await database.getAll(exerciseRecordsSql(1), [exerciseId]));
+  return parseFinishedSessions(
+    await database.getAll(exerciseRecordsSql(), [JSON.stringify([exerciseId])]),
+  );
 }
 
 /** Local rows exclude deleted Workouts and exercises through the sync stream. */

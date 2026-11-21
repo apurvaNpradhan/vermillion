@@ -6,6 +6,7 @@ import {
   reportCardPeriod,
   reportContaining,
   reportEnd,
+  reportHistoryWindow,
   reportKey,
 } from "./report-period";
 
@@ -29,6 +30,14 @@ describe("report periods", () => {
     expect(reportEnd({ kind: "month", start: day(2026, 12, 1) })).toBe(day(2027, 1, 1));
     expect(previousReport({ kind: "month", start: day(2026, 1, 1) }).start).toBe(day(2025, 12, 1));
     expect(previousReport({ kind: "year", start: day(2026, 1, 1) }).start).toBe(day(2025, 1, 1));
+  });
+
+  it("covers the comparison, both UTC boundary offsets, and the last split week", () => {
+    expect(reportHistoryWindow({ kind: "month", start: day(2026, 11, 1) })).toEqual({
+      from: day(2026, 9, 30),
+      to: day(2026, 12, 5),
+      recordsBefore: day(2026, 10, 31),
+    });
   });
 
   it("finds the period of a day", () => {

@@ -16,6 +16,7 @@ import type { PeriodReport } from "./period-report";
 import { buildReportView, type ReportLabels, type StatView } from "./report-view";
 import { usePeriodReport } from "./use-period-report";
 import { useReportLabels } from "./use-report-labels";
+import { usePrepareReportShare } from "./use-report-share-snapshot";
 
 function Change({ change }: { change: NonNullable<StatView["change"]> }) {
   const { t } = useTranslation();
@@ -143,8 +144,15 @@ export function ReportScreen({ period }: { period: ReportPeriod }) {
   const state = usePeriodReport(period);
   const { labels, title, kicker } = useReportLabels(period);
   const key = reportKey(period);
-  const share = () =>
-    router.push({ pathname: "/share/[kind]/[id]", params: { kind: "report", id: key } });
+  const prepareShare = usePrepareReportShare();
+  const share = () => {
+    if (state.status !== "ready") return;
+    const snapshot = prepareShare(state.report);
+    router.push({
+      pathname: "/share/[kind]/[id]",
+      params: { kind: "report", id: key, snapshot },
+    });
+  };
   return (
     <ScrollPage
       title={title}

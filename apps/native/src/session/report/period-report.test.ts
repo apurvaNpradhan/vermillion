@@ -3,7 +3,7 @@ import type { FinishedSession } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
 import { buildPeriodReport, change, type ReportExercise } from "./period-report";
-import { parseReportKey, type ReportPeriod } from "./report-period";
+import { parseReportKey, reportHistoryWindow, type ReportPeriod } from "./report-period";
 
 const bench: ReportExercise = {
   id: "bench",
@@ -55,15 +55,21 @@ const period = (key: string): ReportPeriod => {
   if (!parsed) throw new Error(key);
   return parsed;
 };
-const build = (key: string, sessions: FinishedSession[], goal: number | null = 2) =>
+const build = (
+  key: string,
+  sessions: FinishedSession[],
+  goal: number | null = 2,
+  timezone = "UTC",
+  today = Date.UTC(2026, 10, 20),
+) =>
   buildPeriodReport({
     period: period(key),
     sessions,
     exercises,
-    timezone: "UTC",
+    timezone,
     weekStart: "monday",
     goal,
-    today: Date.UTC(2026, 10, 20),
+    today,
   });
 
 describe("change", () => {
@@ -145,6 +151,119 @@ describe("buildPeriodReport", () => {
       session("w3b", "2026-10-21T10:00:00Z", [lift("bench", 50, 5)]),
     ];
     expect(build("2026-10", weekly).longestStreak).toBe(3);
+  });
+
+  it("buckets a Session by the user's local day, not the UTC date", () => {
+    // 1 Nov 03:30 UTC is still 31 Oct (20:30) in Los Angeles, where daylight time ends that night,
+    // but already 1 Nov (16:30) in Auckland (UTC+13): the UTC date names another month.
+    const late = session("late", "2026-11-01T03:30:00Z", [lift("bench", 50, 5)]);
+    const early = session("early", "2026-10-31T12:00:00Z", [lift("bench", 50, 5)]);
+    const all = [late, early];
+    expect(build("2026-10", all, null, "America/Los_Angeles").stats.workouts).toBe(2);
+    expect(build("2026-11", all, null, "America/Los_Angeles").stats.workouts).toBe(0);
+    // In Auckland both fall on 1 Nov (late: 16:30, early: 01:00).
+    expect(build("2026-10", all, null, "Pacific/Auckland").stats.workouts).toBe(0);
+    expect(build("2026-11", all, null, "Pacific/Auckland").stats.workouts).toBe(2);
+    expect(build("2026-10", all, null, "UTC").stats.workouts).toBe(1);
+  });
+
+  it("uses chronological record comparisons when the clock falls back into October", () => {
+    const earlier = session("oct-early", "2009-10-20T12:00:00Z", [lift("bench", 100, 5)]);
+    const first = session("nov-first", "2009-11-01T03:00:30Z", [lift("bench", 110, 5)]);
+    // At 03:01 UTC, Goose Bay's clocks moved from 00:01 November 1 back to October 31.
+    const repeated = session("oct-repeat", "2009-11-01T03:30:00Z", [lift("bench", 200, 5)]);
+    const later = session("nov-later", "2009-11-01T04:15:00Z", [lift("bench", 130, 5)]);
+    const all = [earlier, first, repeated, later];
+    const timezone = "America/Goose_Bay";
+    const month = period("2009-11");
+    const { from, to, recordsBefore } = reportHistoryWindow(month);
+    const report = build("2009-11", all, null, timezone);
+    expect(
+      buildPeriodReport({
+        period: month,
+        sessions: all.filter((item) => {
+          const started = Date.parse(item.started_at);
+          return started >= from && started < to;
+        }),
+        earlierHistory: all.filter((item) => Date.parse(item.started_at) < recordsBefore),
+        exercises,
+        timezone,
+        weekStart: "monday",
+        goal: null,
+        today: Date.UTC(2026, 10, 20),
+      }),
+    ).toEqual(report);
+    expect(report.stats.workouts).toBe(2);
+    expect(report.previous?.workouts).toBe(2);
+    expect(report.records).toBe(5);
+  });
+
+  it("credits a week split across December and January to the month with its fourth day", () => {
+    // Monday weeks: 29 Dec 2025 to 4 Jan 2026 has its fourth day on 1 Jan, so it is January's.
+    const split = [
+      session("dec", "2025-12-30T10:00:00Z", [lift("bench", 50, 5)]),
+      session("jan", "2026-01-02T10:00:00Z", [lift("bench", 50, 5)]),
+    ];
+    expect(build("2025-12", split).longestStreak).toBe(0);
+    expect(build("2026-01", split).longestStreak).toBe(1);
+    // 28 Dec 2026 to 3 Jan 2027 has its fourth day on 31 Dec, so it is December's.
+    const other = [
+      session("dec", "2026-12-29T10:00:00Z", [lift("bench", 50, 5)]),
+      session("jan", "2027-01-02T10:00:00Z", [lift("bench", 50, 5)]),
+    ];
+    expect(build("2026-12", other, 2, "UTC", Date.UTC(2027, 5, 1)).longestStreak).toBe(1);
+    expect(build("2027-01", other, 2, "UTC", Date.UTC(2027, 5, 1)).longestStreak).toBe(0);
+  });
+
+  it("matches a full history using the comparison window and only earlier records", () => {
+    const far = session("far", "2019-03-03T10:00:00Z", [lift("bench", 130, 5)]);
+    const unrelated = session("curl", "2019-05-03T10:00:00Z", [lift("curl", 100, 5)]);
+    const later = session("later", "2027-05-03T10:00:00Z", [lift("bench", 200, 5)]);
+    const windowed = sessions.filter((item) => item.id !== "other-year");
+    const earlier = [
+      far,
+      ...sessions.filter((item) => item.id === "d" || item.id === "other-year"),
+    ];
+    const full = build("2026-10", [...sessions, far, unrelated, later]);
+    const bounded = buildPeriodReport({
+      period: period("2026-10"),
+      sessions: windowed,
+      earlierHistory: earlier,
+      exercises,
+      timezone: "UTC",
+      weekStart: "monday",
+      goal: 2,
+      today: Date.UTC(2026, 10, 20),
+    });
+
+    expect(bounded).toEqual(full);
+    expect(full.records).toBeLessThan(build("2026-10", sessions).records);
+  });
+
+  it("ranks every exercise of the period, not a fixed number of them", () => {
+    const many = Array.from({ length: 250 }, (_, index) => ({
+      ...bench,
+      id: `ex-${index}`,
+      title: `Exercise ${String(index).padStart(3, "0")}`,
+    }));
+    const done = session(
+      "big",
+      "2026-10-05T10:00:00Z",
+      many.map((exercise, index) => lift(exercise.id, 50 + index, 5)),
+    );
+    const report = buildPeriodReport({
+      period: period("2026"),
+      sessions: [done],
+      exercises: many,
+      timezone: "UTC",
+      weekStart: "monday",
+      goal: null,
+      today: Date.UTC(2026, 10, 20),
+    });
+    expect(report.stats.sets).toBe(250);
+    expect(report.topBySets).toHaveLength(5);
+    expect(report.topByVolume[0]?.exerciseId).toBe("ex-249");
+    expect(report.shares.total).toBe(375);
   });
 
   it("is empty for a period without Sessions", () => {
