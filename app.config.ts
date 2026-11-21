@@ -17,8 +17,10 @@ export const appConfig = {
   description: "Patina is a calm, private training log",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",
-  /** Where "Send feedback" in Settings writes to. A placeholder on the base domain until a real inbox exists. */
-  supportEmail: `support@${domain}`,
+  /** Contact for support, privacy and deletion requests, and where "Send feedback" in Settings writes to. */
+  supportEmail: "apurvanarayanpradhan@gmail.com",
+  /** Who runs the service, named on the legal pages. */
+  operator: { name: "Apurva Pradhan", country: "India" },
   version: "0.1.0",
   /** Base domain of every public host. */
   domain,

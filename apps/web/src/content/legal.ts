@@ -1,3 +1,4 @@
+import { appConfig } from "../../../../app.config.ts";
 import { site } from "./en.ts";
 
 export interface LegalSection {
@@ -22,7 +23,7 @@ const email = site.supportEmail;
 export const privacy: LegalDocument = {
   title: "Privacy policy",
   updated: "21 November 2026",
-  intro: `This policy covers the ${site.name} Android app and this website. It explains what data we collect, how we use it and how to request deletion.`,
+  intro: `This policy covers the ${site.name} Android app and this website. ${site.name} is run by ${appConfig.operator.name}, an individual developer in ${appConfig.operator.country} ("we"), who decides how your data is used. It explains what data we collect, how we use it and how to request deletion.`,
   sections: [
     {
       title: "What we collect",
@@ -97,6 +98,7 @@ export const privacy: LegalDocument = {
     {
       title: "Changes and contact",
       paragraphs: [
+        `${site.name} is for people aged 16 or older. We do not knowingly collect data from younger children; if you believe a child under 16 has an account, contact us and we will delete it.`,
         "If this policy changes in a way that matters, we will update the date at the top of this page.",
         `Questions or requests: ${email}.`,
       ],
@@ -107,7 +109,7 @@ export const privacy: LegalDocument = {
 export const terms: LegalDocument = {
   title: "Terms of use",
   updated: "21 November 2026",
-  intro: `These terms cover the ${site.name} beta.`,
+  intro: `These terms cover the ${site.name} beta, run by ${appConfig.operator.name} in ${appConfig.operator.country}. You must be 16 or older to use it.`,
   sections: [
     {
       title: "The beta",
@@ -159,6 +161,12 @@ export const terms: LegalDocument = {
       title: "Source code and third parties",
       paragraphs: [
         `The source code is available at ${site.githubUrl}. Parts of the app use third-party software under their own licences.`,
+      ],
+    },
+    {
+      title: "Governing law",
+      paragraphs: [
+        `These terms are governed by the laws of ${appConfig.operator.country}, and the courts of ${appConfig.operator.country} have jurisdiction over any dispute, without taking away protections you have under the law where you live.`,
       ],
     },
     {
