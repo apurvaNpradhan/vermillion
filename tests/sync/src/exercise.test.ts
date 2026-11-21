@@ -70,13 +70,15 @@ describe("exercise sync", () => {
 
   it("delivers muscle details as JSON text that the client parses", async () => {
     const [row] = (
-      await database.query<{ id: string }>(
-        "SELECT id FROM exercise WHERE user_id IS NULL AND primary_muscle = 'shoulders' LIMIT 1",
+      await database.query<{ id: string; primary_detail: string[]; secondary_detail: string[] }>(
+        "SELECT id, primary_detail, secondary_detail FROM exercise WHERE user_id IS NULL AND primary_muscle = 'shoulders' LIMIT 1",
       )
     ).rows;
     const id = String(row?.id);
+    // Seeded catalog rows carry their own details; set both so the expectation does not depend on
+    // the catalog, and put the originals back afterwards.
     await database.query(
-      "UPDATE exercise SET primary_detail = ARRAY['side_delts','rear_delts'], updated_at = now() WHERE id = $1",
+      "UPDATE exercise SET primary_detail = ARRAY['side_delts','rear_delts'], secondary_detail = '{}', updated_at = now() WHERE id = $1",
       [id],
     );
     try {
@@ -95,8 +97,8 @@ describe("exercise sync", () => {
       }, within);
     } finally {
       await database.query(
-        "UPDATE exercise SET primary_detail = '{}', secondary_detail = '{}', updated_at = now() WHERE id = $1",
-        [id],
+        "UPDATE exercise SET primary_detail = $2, secondary_detail = $3, updated_at = now() WHERE id = $1",
+        [id, row?.primary_detail ?? [], row?.secondary_detail ?? []],
       );
     }
   });
