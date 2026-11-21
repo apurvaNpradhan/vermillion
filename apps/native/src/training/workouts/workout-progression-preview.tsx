@@ -43,7 +43,7 @@ export function WorkoutProgressionPreview({
           </View>
           {changes.map(({ kind, number, last, today }) => (
             <View key={`${kind}-${number}`} className="gap-0.5">
-              <Text className="text-caption text-muted">
+              <Text className="text-caption tabular-nums text-muted">
                 {kind === "working"
                   ? t("exercise__history_set", { number: integer.format(number) })
                   : t("workout__progression_set", {

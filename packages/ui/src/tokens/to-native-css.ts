@@ -105,9 +105,7 @@ export function toNativeCss(tokens: typeof brandTokens = brandTokens): string {
     ].join("\n"),
     [
       "@theme {",
-      ...Object.entries(tokens.fonts.native).map(
-        ([weight, font]) => `  --font-${weight}: "${font}";`,
-      ),
+      ...Object.entries(tokens.fonts.native).map(([name, font]) => `  --font-${name}: "${font}";`),
       ...Object.entries(tokens.type).flatMap(([name, style]) => [
         `  --text-${name}: ${px(style.size)};`,
         `  --text-${name}--line-height: ${px(style.lineHeight)};`,

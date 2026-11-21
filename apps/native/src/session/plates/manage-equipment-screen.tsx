@@ -114,7 +114,7 @@ export function ManageEquipmentScreen() {
                           >
                             <Text className="text-body text-foreground">{label(item)}</Text>
                             {item.kind === "plate" ? (
-                              <Text className="text-caption text-muted">
+                              <Text className="text-caption text-muted tabular-nums">
                                 {item.count === null
                                   ? t("plates__unlimited")
                                   : t("plates__pairs", { count: item.count })}

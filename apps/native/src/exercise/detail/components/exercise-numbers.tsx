@@ -228,7 +228,7 @@ export function ExerciseNumbers({
             <View key={record.key} className="flex-row justify-between gap-3">
               <View className="flex-1">
                 <Text className="text-body text-foreground">{label(record.key)}</Text>
-                <Text className="text-caption text-muted">{date(record.date)}</Text>
+                <Text className="text-caption tabular-nums text-muted">{date(record.date)}</Text>
               </View>
               <View className="items-end">
                 <Text

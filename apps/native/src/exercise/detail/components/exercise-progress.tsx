@@ -63,14 +63,14 @@ export function ExerciseProgress({
       </Text>
       {best ? (
         <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-          <Text className="text-title-lg font-semibold text-foreground">
+          <Text className="text-title-lg font-semibold tabular-nums text-foreground">
             {t("progress__best", {
               weight: formatLoad(best.set.weight_kg ?? 0, unit, type),
               unit,
               reps: best.set.reps,
             })}
           </Text>
-          <Text className="text-caption text-muted">
+          <Text className="text-caption tabular-nums text-muted">
             {t("progress__one_rm", { value: formatWeight(best.oneRepMax, unit), unit })}
           </Text>
         </View>
