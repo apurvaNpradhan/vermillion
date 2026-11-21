@@ -572,6 +572,7 @@ const sessionSetSyncHandler: SyncTableHandler = {
 
 const putEquipment = z.strictObject({
   restore: restoreMarker,
+  seed: newRowId.optional(),
   kind: gymEquipmentInput.shape.kind,
   weight_kg: gymEquipmentInput.shape.weight_kg,
   unit: gymEquipmentInput.shape.unit,
@@ -613,9 +614,26 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, ...data } = accept(putEquipment.safeParse(op.opData ?? {}));
-      checkPut(found, restore);
+      const { restore, seed, ...data } = accept(putEquipment.safeParse(op.opData ?? {}));
       const values = accept(gymEquipmentInput.safeParse(data));
+      if (seed) {
+        if (restore) invalid();
+        if (found.kind !== "absent") return;
+        // The seed transaction writes its anchor first. Under the user lock, only the first kit
+        // to reach an empty inventory inserts its anchor and the rest of its rows.
+        if (id === seed) {
+          const [existing] = await db
+            .select({ id: gymEquipment.id })
+            .from(gymEquipment)
+            .where(and(eq(gymEquipment.userId, userId), isNull(gymEquipment.deletedAt)))
+            .limit(1);
+          if (existing) return;
+        } else {
+          const anchor = await findEquipment(db, userId, seed);
+          if (anchor.kind !== "own" || anchor.row.deletedAt !== null) return;
+        }
+      }
+      checkPut(found, restore);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         await db.insert(gymEquipment).values({ id, userId, ...equipmentColumns(values) });

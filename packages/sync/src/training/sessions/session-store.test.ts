@@ -1,4 +1,4 @@
-import { SESSION_LIMITS } from "@workspace/shared";
+import { defaultGymKit, SESSION_LIMITS } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -35,7 +35,32 @@ import {
   startSession,
   takeOver,
 } from "./session-store";
-import { setExerciseSetting, upsertEquipment, updateEquipment } from "./equipment-store";
+import {
+  seedEquipment,
+  setExerciseSetting,
+  upsertEquipment,
+  updateEquipment,
+} from "./equipment-store";
+
+import { savePreferences } from "../../preferences";
+
+it("seeds a single home kit from current preferences and leaves existing equipment alone", async () => {
+  const s = await setupSessions();
+  const scope = { installId: s.installId, owner: "owner" };
+  await savePreferences(
+    s.training,
+    { ui: { weightUnit: "lb", trainingPlace: "home_barbell" } },
+    scope,
+  );
+  await seedEquipment(s.training, s.installId);
+  const rows = s.all("gym_equipment");
+  const anchor = rows[0]?.id;
+  expect(rows).toHaveLength(defaultGymKit("lb", "home_barbell").length);
+  expect(rows.every((row) => row["unit"] === "lb" && row["seed"] === anchor)).toBe(true);
+  await savePreferences(s.training, { ui: { trainingPlace: "gym" } }, scope);
+  await seedEquipment(s.training, s.installId);
+  expect(s.all("gym_equipment")).toEqual(rows);
+});
 
 const derivedTitle = "Quadriceps";
 

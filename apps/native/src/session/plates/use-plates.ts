@@ -48,7 +48,6 @@ export function useEquipment(enabled = true) {
   const scope = snapshot?.writeScope ?? "";
   const { preferences, isLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
-  const place = preferences.ui.trainingPlace;
   const subscribe = useCallback(
     (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) => {
       if (!enabled) {
@@ -91,22 +90,10 @@ export function useEquipment(enabled = true) {
     )
       return;
     seededScopes.add(scope);
-    void run((db) => seedEquipment(db, unit, scope, place)).then((done) => {
+    void run((db) => seedEquipment(db, scope)).then((done) => {
       if (done === null) seededScopes.delete(scope);
     });
-  }, [
-    enabled,
-    database,
-    isLoading,
-    hasSynced,
-    snapshot?.writeScope,
-    loaded,
-    rowCount,
-    unit,
-    place,
-    scope,
-    run,
-  ]);
+  }, [enabled, database, isLoading, hasSynced, snapshot?.writeScope, loaded, rowCount, scope, run]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
     run((db) => upsertEquipment(db, [item], scope));
   const edit = (id: string, patch: EquipmentPatch) =>

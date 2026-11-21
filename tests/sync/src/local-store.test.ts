@@ -17,8 +17,10 @@ import {
   ensureInstallId,
   powerSyncSchema,
   replaceSessionExercise,
+  seedEquipment,
   startSession,
   updateCustomExercise,
+  updateEquipment,
   updateWorkoutExercise,
   watchExercise,
   watchExerciseLibrary,
@@ -96,6 +98,28 @@ describe("Drizzle writes reach the upload queue", () => {
     );
     const raw = (await database.getCrudBatch(10))?.crud.at(-1);
     expect(Object.keys(raw?.opData ?? {}).sort()).toEqual(columns);
+  });
+
+  it("queues an automatic kit in one transaction with its anchor first", async () => {
+    const install = await ensureInstallId(database);
+    await seedEquipment(database, install);
+    const kit = await database.getNextCrudTransaction();
+    expect(kit?.crud).toHaveLength(13);
+    const anchor = kit?.crud[0];
+    if (!kit || !anchor) throw new Error("The equipment seed was not queued");
+    for (const entry of kit.crud) {
+      expect(entry).toMatchObject({
+        op: "PUT",
+        table: "gym_equipment",
+        opData: { seed: anchor.id },
+      });
+    }
+    await kit.complete();
+
+    await updateEquipment(database, anchor.id, { label: "My bar" }, install);
+    const edit = await database.getNextCrudTransaction();
+    expect(edit?.crud).toMatchObject([{ id: anchor.id, op: "PATCH", opData: { label: "My bar" } }]);
+    expect(edit?.crud[0]?.opData).not.toHaveProperty("seed");
   });
 
   it("queues nothing for a no-op update or a write that fails validation", async () => {
