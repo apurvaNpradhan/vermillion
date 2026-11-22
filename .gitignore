@@ -65,3 +65,7 @@ repos/
 
 # Wrangler local state (apps/web)
 .wrangler
+
+# Taste Skill ships ~40 MB of assets; restore it from skills-lock.json with `npx skills experimental_install`.
+.agents/skills/design-taste-frontend/
+.claude/skills/design-taste-frontend
