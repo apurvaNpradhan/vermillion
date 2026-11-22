@@ -113,12 +113,6 @@ export function useOnSetDoneColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
-/** The palette's accent, for marks whose props require a color string. */
-export function useIdentityColor(): string | undefined {
-  const value = useCSSVariable("--color-identity");
-  return isColorString(value) ? value : undefined;
-}
-
 /** Primary action ink (toggles, timers, progress), for props that require a color string. */
 export function useActionColor(): string | undefined {
   const value = useCSSVariable("--accent");
@@ -128,12 +122,6 @@ export function useActionColor(): string | undefined {
 /** The icon and text colour on an `action` fill. */
 export function useOnActionColor(): string | undefined {
   const value = useCSSVariable("--accent-foreground");
-  return isColorString(value) ? value : undefined;
-}
-
-/** The icon and text colour on an `identity` fill. */
-export function useOnIdentityColor(): string | undefined {
-  const value = useCSSVariable("--color-on-identity");
   return isColorString(value) ? value : undefined;
 }
 

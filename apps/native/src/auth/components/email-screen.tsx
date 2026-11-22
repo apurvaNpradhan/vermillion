@@ -32,7 +32,7 @@ function OrDivider({ label }: { label: string }) {
  * First step of both flows: an email address. A code follows on the next screen, for new and
  * returning people alike, and the answer never says whether the address has an account.
  */
-export function EmailScreen({ flow }: { flow: FlowKind }) {
+export function EmailScreen({ flow, initialEmail }: { flow: FlowKind; initialEmail?: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const turnstile = useTurnstile();
@@ -44,7 +44,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
 
   const schema = useMemo(() => z.object({ email: z.email(t("auth__error_email_invalid")) }), [t]);
   const form = useForm({
-    defaultValues: { email: "" },
+    defaultValues: { email: initialEmail ?? "" },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
       if (!(await confirmOnline())) return;
@@ -101,7 +101,7 @@ export function EmailScreen({ flow }: { flow: FlowKind }) {
                 autoCorrect={false}
                 textContentType="emailAddress"
                 returnKeyType="send"
-                autoFocus
+                autoFocus={!initialEmail}
                 onSubmitEditing={() => void form.handleSubmit()}
               />
             )}

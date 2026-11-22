@@ -84,7 +84,8 @@ export function ProgramsScreen() {
               status === "empty" ? (
                 <EmptyState
                   icon={ListNumbers}
-                  mascot
+                  drawing
+                  label={t("empty__programs", { count: 0 })}
                   title={t("training__no_programs")}
                   action={{
                     label: t("training__new_program"),

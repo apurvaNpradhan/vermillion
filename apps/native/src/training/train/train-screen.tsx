@@ -278,7 +278,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               <View className="px-4">
                 {status === "empty" ? (
                   <View className="items-center gap-2">
-                    <EmptyState icon={Barbell} mascot title={t("training__empty_plans")} />
+                    <EmptyState icon={Barbell} drawing title={t("training__empty_plans")} />
                     <View className="flex-row flex-wrap justify-center gap-3">
                       <Button variant="secondary" onPress={newWorkout}>
                         <Button.Label>{t("training__new_workout")}</Button.Label>
@@ -295,7 +295,12 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                   isFirstSync(workoutList.status) ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
                   ) : (
-                    <EmptyState icon={Barbell} mascot title={t("training__no_workouts")} />
+                    <EmptyState
+                      icon={Barbell}
+                      drawing
+                      label={t("empty__workouts", { count: 0 })}
+                      title={t("training__no_workouts")}
+                    />
                   )
                 ) : null}
               </View>
