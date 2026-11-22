@@ -1,16 +1,26 @@
 {
-  "name": "Patina",
-  "short_name": "Patina",
-  "description": "Quiet progress. A private log for training.",
+  "name": "Sigil: Strength Log",
+  "short_name": "Sigil",
+  "description": "Earn the mark. A strength log for Android.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "browser",
-  "background_color": "#070707",
-  "theme_color": "#070707",
+  "background_color": "#0B0A09",
+  "theme_color": "#0B0A09",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/icons/icon-maskable-192.png",
       "sizes": "192x192",

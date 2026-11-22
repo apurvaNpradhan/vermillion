@@ -13,7 +13,13 @@ export default defineConfig({
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({
       prerender: { enabled: true },
-      pages: [{ path: "/" }, { path: "/privacy" }, { path: "/terms" }, { path: "/delete-account" }],
+      pages: [
+        { path: "/" },
+        { path: "/screens" },
+        { path: "/privacy" },
+        { path: "/terms" },
+        { path: "/delete-account" },
+      ],
     }),
     viteReact(),
   ],

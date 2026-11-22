@@ -11,34 +11,61 @@ const githubUrl = `https://github.com/${owner}/${repo}`;
 export const site = {
   name: appConfig.displayName,
   tagline: appConfig.tagline,
-  /** The site's own line (`appConfig.subtitle` is the store-listing line and may differ). */
-  subtitle: "A private log for training.",
-  description: `Log workouts offline, follow training programs and track your progress with ${appConfig.displayName}.`,
+  title: `${appConfig.displayName}: Strength Log`,
+  description: `${appConfig.displayName} is a strength log for Android. Plan programs, log every set offline and keep your personal records.`,
   url: appConfig.urls.site,
+  version: appConfig.version,
   supportEmail: appConfig.supportEmail,
   githubUrl,
   releasesUrl: `${githubUrl}/releases`,
+  latestApkUrl: `${githubUrl}/releases/latest`,
   /** Obtainium takes the repository URL and follows its GitHub Releases. */
   obtainiumUrl: "https://github.com/ImranR98/Obtainium",
+};
+
+/** The one photograph on the site and its required credit (CC BY-SA 3.0). */
+export const photo = {
+  alt: "Michelangelo's unfinished 'Atlas' Prisoner: a torso emerging from a block of marble.",
+  credit: "Michelangelo, 'Atlas' Prisoner. Photo: Jörg Bittner Unna, CC BY-SA 3.0, edited.",
+  sourceUrl:
+    "https://commons.wikimedia.org/wiki/File:%27Atlas_Slave%27_by_Michelangelo_-_JBU_02.jpg",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
 };
 
 export const en = {
   skipToContent: "Skip to content",
   homeLink: `${site.name} home`,
-  logoAlt: `${site.name} tortoise logo`,
-  releases: "Android releases",
-  iosNote: "iOS is not available yet.",
-  features: "What it does",
-  screenshots: "Screenshots",
-  updatesTitle: "Get updates with Obtainium",
-  updatesIntro:
-    "Obtainium can install an Android build from GitHub Releases once one is available.",
-  updatesLink: "Get Obtainium",
+  primaryNav: "Primary",
   footer: "Footer",
+  screensLink: "Screens",
   privacyLink: "Privacy",
   termsLink: "Terms",
   deletionLink: "Delete account",
   github: "GitHub",
+  download: "Download",
+  downloadApk: "Download the APK",
+  addToObtainium: "Add to Obtainium",
+  heroKicker: "Strength log",
+  heroPlatform: `Android · v${site.version}`,
+  heroTitle: "A strength log for Android.",
+  heroLead: "Plan programs, log every set offline, and see what you lifted last time.",
+  heroFacts: "Works offline · Imports Strong and Hevy · Exports CSV",
+  manifestoLabel: "Nonfinito",
+  manifestoTitle: "The iron",
+  manifestoAccent: "remembers.",
+  manifesto: [
+    "Every set you finish is written down. The weight, the reps, the rest you took. Some days the bar moves less than you hoped. It still counts.",
+    `Weeks pass and the numbers stack. A heavier single. One more rep. When you beat your best, ${site.name} marks it, so you don't have to keep count.`,
+  ],
+  featuresTitle: "What it does in the gym.",
+  featuresLead: "Four things, done properly. No feed, no coach, no streaks.",
+  installTitle: "Install it from GitHub.",
+  installLead: "Not on iPhone yet.",
+  installFacts: `v${site.version} · Android · Signed release`,
+  photoCaption: "Unfinished, c. 1530",
+  closeSeal: `${appConfig.displayName.toUpperCase()} · STRENGTH LOG · EARN THE MARK · `,
+  screensTitle: "Screens.",
+  screensLead: "The app as it is today, on a real phone with a real training log.",
   notFoundTitle: "Page not found",
   notFoundBody: "That page does not exist, or it moved.",
   backHome: "Back to the home page",
@@ -51,36 +78,28 @@ export const en = {
 
 export const features = [
   {
-    title: "Programs and workouts",
-    body: "Plan a rotation of workouts, set targets for every exercise and follow the next one.",
+    label: "Programs",
+    title: "A rotation that queues the next workout.",
+    body: "Targets for every exercise, and progression that moves the weight when you hit them.",
+    detail: "Push · Pull · Legs / 3 days",
   },
   {
-    title: "Live logging",
-    body: "Log sets as you train, with rest timers, ghost values from last time and a plate calculator.",
+    label: "Live log",
+    title: "Every set, as you lift it.",
+    body: "Rest timer, last time's numbers in each field, and a plate calculator.",
+    detail: "Rest 3:00 / 60 kg × 8",
   },
   {
-    title: "History and records",
-    body: "Review your past sessions, personal records and progress charts.",
+    label: "Records",
+    title: "Personal records, marked when you set them.",
+    body: "History and charts show the climb, exercise by exercise.",
+    detail: "102.5 kg × 5 / Bench press",
   },
   {
-    title: "Body weight and measurements",
-    body: "Track weight with a trend line, take measurements and keep progress photos in private storage.",
-  },
-  {
-    title: "Muscle volume",
-    body: "See the weekly sets each muscle gets against a target, on a body map.",
-  },
-  {
-    title: "Bring your data, take it back",
-    body: "Import your history from Strong or Hevy. Export every finished workout as a CSV file.",
-  },
-  {
-    title: "Works offline",
-    body: "The gym basement is fine. Everything saves on your phone first and syncs when you are back online.",
-  },
-  {
-    title: "Private",
-    body: "Your training log is private to your account. App crash reporting is optional.",
+    label: "Offline",
+    title: "Saves on the phone first.",
+    body: "A basement gym with no signal is fine. Import from Strong or Hevy; export to CSV.",
+    detail: "No signal / No sets lost",
   },
 ];
 
@@ -91,7 +110,7 @@ export const screenshots = [
 ];
 
 export const obtainiumSteps = [
-  "Install Obtainium from its GitHub page or F-Droid.",
-  `In Obtainium choose Add app and paste ${githubUrl}.`,
-  "Add the repository to follow new Android releases.",
+  "Install Obtainium from GitHub or F-Droid.",
+  `Choose Add app and paste ${githubUrl}.`,
+  "Obtainium checks for each new release.",
 ];

@@ -11,11 +11,12 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: `${en.notFoundTitle} | ${site.name}` },
-      { name: "theme-color", content: "#070707" },
+      { name: "theme-color", content: "#0B0A09" },
     ],
     links: [
       { rel: "stylesheet", href: styles },
       { rel: "icon", href: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon/favicon-16.png" },
       { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon/favicon-32.png" },
       { rel: "icon", type: "image/png", sizes: "48x48", href: "/favicon/favicon-48.png" },

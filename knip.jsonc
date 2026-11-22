@@ -1,8 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreExportsUsedInFile": true,
-  // Vendored agent skills ship their own scripts and assets.
-  "ignore": [".agents/**", ".claude/skills/**"],
+  // Vendored agent skills ship their own scripts and assets; design references are not built.
+  "ignore": [".agents/**", ".claude/skills/**", "docs/design/**"],
   // Public type of the app config, imported by derived tooling later.
   "ignoreIssues": { "app.config.ts": ["types"] },
   "workspaces": {
@@ -31,7 +31,11 @@
     },
     "apps/web": {
       // Loaded by CSS (`@import` in styles.css), not by an import statement.
-      "ignoreDependencies": ["@fontsource-variable/geist"],
+      "ignoreDependencies": [
+        "@fontsource-variable/geist",
+        "@fontsource-variable/geist-mono",
+        "@fontsource-variable/eb-garamond",
+      ],
     },
     "packages/api": {
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).
