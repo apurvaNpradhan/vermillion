@@ -38,6 +38,30 @@ describe("share card palettes", () => {
     }
     // The graphic marks need 3:1.
     expect(contrast(c.accent, c.ground), "accent on ground").toBeGreaterThanOrEqual(3);
+    expect(contrast(c.record, c.ground), "record on ground").toBeGreaterThanOrEqual(3);
+  });
+
+  it("draws no glow on Sigil cards and keeps Classic's accent glow", () => {
+    for (const appearance of nativeVariantNames) {
+      for (const kind of kinds) {
+        const glow = cardPalette(appearance, kind).glow;
+        if (appearance.startsWith("classic") && kind === "theme") {
+          expect(glow, `${appearance} ${kind}`).toBe(nativeColors[appearance].identity);
+        } else {
+          expect(glow, `${appearance} ${kind}`).toBeNull();
+        }
+      }
+    }
+  });
+
+  it("keeps ember for records on Sigil cards: every other mark is ink", () => {
+    for (const appearance of nativeVariantNames.filter((name) => !name.startsWith("classic"))) {
+      for (const kind of kinds) {
+        const c = cardPalette(appearance, kind);
+        expect(c.accent, `${appearance} ${kind}`).toBe(c.text);
+        expect(c.record, `${appearance} ${kind}`).not.toBe(c.text);
+      }
+    }
   });
 
   it.each(cases.filter((entry) => entry.kind === "theme"))(

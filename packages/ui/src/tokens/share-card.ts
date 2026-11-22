@@ -4,8 +4,10 @@ import { mixHex } from "./mix";
 export { mixHex };
 
 /**
- * Share card colours (ADR 0042): derived from the accent's roles, never hand-picked. The native
+ * Share card colours (ADR 0042): derived from the theme's roles, never hand-picked. The native
  * Share composer renders cards with these and `share-card.test.ts` holds every pair to AA.
+ * Sigil cards use two inks and no glow; ember (`record`) marks personal records only. Classic
+ * cards keep the accent glow and draw records in their accent.
  */
 
 /** The backgrounds a card offers. Photo only exists when the card has a picture. */
@@ -32,14 +34,19 @@ export interface CardPalette {
   text: string;
   textSecondary: string;
   textMuted: string;
-  /** Marks (the Record medal, rules): a graphic, not text. */
+  /** Marks (rules, bars): a graphic, not text. In Sigil this is ink. */
   accent: string;
+  /** The personal-record mark and the footer mark's dot: ember in Sigil. A graphic, not text. */
+  record: string;
   /** Round thumbnails, letter avatars and bars. */
   plate: string;
   hairline: string;
 }
 
-function neutral(roles: RoleTokens, fill: string): CardPalette {
+/** Whether a variant belongs to Classic; the built-in `light` and `dark` are Sigil. */
+const isClassic = (variant: NativeVariant) => variant.startsWith("classic");
+
+function neutral(roles: RoleTokens, fill: string, classic = false): CardPalette {
   return {
     fill,
     glow: null,
@@ -48,7 +55,8 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
     text: roles["text-primary"],
     textSecondary: roles["text-secondary"],
     textMuted: roles["text-muted"],
-    accent: roles.identity,
+    accent: classic ? roles.identity : roles["text-primary"],
+    record: roles.identity,
     plate: roles["surface-control"],
     hairline: roles.hairline,
   };
@@ -62,8 +70,9 @@ export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): C
   switch (kind) {
     case "theme": {
       const roles = nativeColors[appearance];
+      if (!isClassic(appearance)) return neutral(roles, roles.surface);
       return {
-        ...neutral(roles, roles.surface),
+        ...neutral(roles, roles.surface, true),
         glow: roles.identity,
         // The glow lightens or tints the top of the card, so muted text leans on the stronger tone.
         textMuted: mixHex(roles["text-muted"], roles["text-secondary"], 0.6),
@@ -75,6 +84,27 @@ export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): C
       return neutral(nativeColors.dark, nativeColors.dark.canvas);
     case "accent": {
       const roles = nativeColors[appearance];
+      if (!isClassic(appearance)) {
+        // Sigil's accent card is the ink: ivory on dark, near-black on light. The record mark takes
+        // the other scheme's ember so it keeps its contrast against the ink fill.
+        const dark = appearance === "dark" || appearance.includes("-dark");
+        const other = nativeColors[dark ? "light" : "dark"];
+        const fill = roles.action;
+        const ink = roles["on-action"];
+        return {
+          fill,
+          glow: null,
+          scrim: null,
+          ground: fill,
+          text: ink,
+          textSecondary: ink,
+          textMuted: ink,
+          accent: ink,
+          record: other.identity,
+          plate: mixHex(fill, ink, 0.12),
+          hairline: mixHex(fill, ink, 0.3),
+        };
+      }
       const fill = roles.identity;
       const ink = roles["on-identity"];
       return {
@@ -87,6 +117,7 @@ export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): C
         textSecondary: ink,
         textMuted: ink,
         accent: ink,
+        record: ink,
         plate: mixHex(fill, ink, 0.12),
         hairline: mixHex(fill, ink, 0.3),
       };
