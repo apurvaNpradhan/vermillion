@@ -1,6 +1,6 @@
-# Patina context
+# Sigil context
 
-Patina (formerly Cinnabar; the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `patina-api.<domain>`). The old public site and admin UI were removed from the workspace for a rebuild; the API and its contract with the existing site remain.
+Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `sigil-api.<domain>`). The old public site and admin UI were removed from the workspace for a rebuild; the API and its contract with the existing site remain.
 
 ## Glossary
 
@@ -69,7 +69,7 @@ Patina (formerly Cinnabar; the repository is still called vermillion) is a mobil
 - **Gym equipment** — a user's bars and plates (seeded kit plus custom items, with plate counts) used by the plate calculator. Not part of the exercise equipment taxonomy.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam; the site's Worker routing and admin gate are unit tested.
-- **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `patina-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
+- **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `sigil-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
 - **Brand tokens** — `packages/ui/src/tokens/brand.ts`, the one place colors, radius and fonts are defined; mapped to native by generated CSS and read directly by the email templates.
 - **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark are Classic, as in email ([0031](docs/adr/0031-native-themes-colour-only-oklch.md), amended: named themes sunset).
 - **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.

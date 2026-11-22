@@ -1,6 +1,6 @@
-# Patina
+# Sigil
 
-> Quiet progress. A private log for training — and soon, food.
+> Earn the mark. A private log for training — and soon, food.
 
 **An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
@@ -21,7 +21,7 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
 - **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
-- **Appearance:** a Patina theme (ink, ivory and olive) in light and dark, plus four more, with an Increase contrast setting.
+- **Appearance:** a Sigil theme (two inks and one ember) in light and dark, plus four more, with an Increase contrast setting.
 
 ## Screenshots
 

@@ -2,15 +2,15 @@
 
 Details live in the docs; this page says where things run.
 
-- Server (`patina-api.<domain>`): CI builds `apps/server/Dockerfile` once and pushes it to GHCR; `.github/workflows/deploy-server.yml` then points the Dokploy application (Docker image source, autodeploy off) at that commit's tag through the Dokploy API ([ADR 0045](../docs/adr/0045-build-in-ci-deploy-by-api.md)). Migrates on start, then seeds an empty catalog. Behind Cloudflare.
+- Server (`sigil-api.<domain>`): CI builds `apps/server/Dockerfile` once and pushes it to GHCR; `.github/workflows/deploy-server.yml` then points the Dokploy application (Docker image source, autodeploy off) at that commit's tag through the Dokploy API ([ADR 0045](../docs/adr/0045-build-in-ci-deploy-by-api.md)). Migrates on start, then seeds an empty catalog. Behind Cloudflare.
 - Postgres: a separate Dokploy database service, backed up to R2. The server connects as an unprivileged role.
-- PowerSync: a Dokploy Compose application from `powersync/compose.dokploy.yml`, on `patina-sync.<domain>`. Redeployed by hand.
+- PowerSync: a Dokploy Compose application from `powersync/compose.dokploy.yml`, on `sigil-sync.<domain>`. Redeployed by hand.
 - User media: a private R2 bucket (MinIO in development and in the local production check).
 - Android APK: `.github/workflows/android-release.yml` on a `v*` tag, signed with the keystore from secrets ([guide](../docs/guides/android-release.md)).
 - Native store builds: EAS profiles in `apps/native/eas.json`, EAS Update for JS fixes, store submission manual.
 - Public website (`apps/web`, host from `appConfig.urls.site`): TanStack Start, prerendered, deployed to a Cloudflare Worker by `.github/workflows/deploy-web.yml` with Wrangler ([ADR 0053](../docs/adr/0053-public-website-on-workers.md)). Public pages only: landing, privacy, terms, delete-account.
 - Catalog media: the public R2 bucket on `media.<domain>`; the admin uploads to it with presigned URLs.
-- Hosts derive from `domain` in `app.config.ts`: site `patina.`, API `patina-api.`, sync `patina-sync.`, media `media.`.
+- Hosts derive from `domain` in `app.config.ts`: site `sigil.`, API `sigil-api.`, sync `sigil-sync.`, media `media.`.
 
 Read [docs/deployment.md](../docs/deployment.md) to set up, [docs/runbook.md](../docs/runbook.md) to operate.
 
