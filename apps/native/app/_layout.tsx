@@ -10,12 +10,11 @@ import { Geist_700Bold } from "@expo-google-fonts/geist/700Bold";
 import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
 import { EBGaramond_500Medium } from "@expo-google-fonts/eb-garamond/500Medium";
-import { EBGaramond_600SemiBold } from "@expo-google-fonts/eb-garamond/600SemiBold";
 import { useFonts } from "expo-font";
 import { pendingOnboardingSteps } from "@workspace/shared";
 import { useSetupPending } from "@/onboarding";
 import * as SplashScreen from "expo-splash-screen";
-import { Stack } from "expo-router";
+import { Stack, useSegments } from "expo-router";
 import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
@@ -57,7 +56,6 @@ function RootStack() {
     GeistMono_400Regular,
     GeistMono_500Medium,
     EBGaramond_500Medium,
-    EBGaramond_600SemiBold,
   });
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).
@@ -143,7 +141,10 @@ function RootStack() {
 
 function ThemedStatusBar() {
   const mode = useThemeMode();
-  const style = mode === "dark" ? "light" : "dark";
+  const segments = useSegments();
+  // The welcome screen (the auth group's index) is always dark: light bars over it.
+  const onWelcome = segments[0] === "(auth)" && segments.length === 1;
+  const style = mode === "dark" || onWelcome ? "light" : "dark";
   return (
     <>
       <StatusBar style={style} />

@@ -79,7 +79,7 @@ export function OtpInput({
               <View
                 className={cn(
                   "h-14 max-w-14 flex-1 items-center justify-center rounded-xl border bg-field",
-                  error ? "border-danger" : isActive ? "border-identity" : "border-transparent",
+                  error ? "border-danger" : isActive ? "border-focus-ring" : "border-transparent",
                 )}
               >
                 <Text className="text-numeric-md font-medium tabular-nums text-foreground">

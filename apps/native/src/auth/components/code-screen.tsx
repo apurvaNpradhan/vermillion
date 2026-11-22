@@ -95,6 +95,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
   return (
     <FlowStep
       position={stepPosition(flow, "code")}
+      plainTitle
       title={t("auth__code_title")}
       subtitle={t("auth__code_body", { email })}
       action={{
@@ -142,7 +143,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
           <Text
             className={cn(
               "text-body font-semibold",
-              resendDisabled ? "text-muted" : "text-identity",
+              resendDisabled ? "text-muted" : "text-foreground underline",
             )}
           >
             {resendLabel}

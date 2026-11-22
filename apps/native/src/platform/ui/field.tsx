@@ -90,7 +90,7 @@ export function Field({
           className="flex-row items-center gap-1.5"
         >
           <Warning size={20} color={danger} />
-          <Text className="font-normal flex-1 text-caption text-foreground">{error}</Text>
+          <Text className="font-normal flex-1 text-caption text-danger">{error}</Text>
         </View>
       ) : description ? (
         <Text className="font-normal text-caption text-muted">{description}</Text>

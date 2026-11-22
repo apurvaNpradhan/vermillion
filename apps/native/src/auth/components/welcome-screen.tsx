@@ -1,44 +1,46 @@
-import { themeVariants } from "@workspace/ui/tokens/theme-variants";
+import { themeVariants, type ThemeVariant } from "@workspace/ui/tokens/theme-variants";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Text, View, useWindowDimensions } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { ScopedTheme } from "uniwind";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
+import { PHOTO_CREDIT_URL } from "@/platform/photo-credit";
+import { useThemeChoice } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
-import { Field } from "@/platform/ui/field";
 import { SigilMark } from "@/platform/ui/sigil-mark";
 import { useAppToast } from "@/platform/ui/use-app-toast";
-import { PHOTO_CREDIT_URL } from "@/platform/photo-credit";
 
 import { splitLegal } from "../legal-text";
-
-// motion-base: a gentle rise, staggered by a beat; Reduce Motion skips it.
-const rise = (delay: number) =>
-  FadeInDown.duration(200).delay(delay).reduceMotion(ReduceMotion.System);
+import { useRegistrationStatus } from "../use-registration-status";
+import { EmailSheet } from "./email-sheet";
+import { GoogleButton } from "./google-button";
 
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 /** The photograph fills this share of the screen, fading into the ground at its lower edge. */
-const PHOTO_SHARE = 0.65;
+const PHOTO_SHARE = 0.62;
 /** The fade covers this share of the photograph's height. */
-const FADE_SHARE = 0.55;
+const FADE_SHARE = 0.5;
+/** Room above the wordmark where the scrim fades the photograph out behind the text. */
+const SCRIM_RISE = 72;
 
-/** The sign-in screen is always dark, whatever the app's appearance. */
-const ground = themeVariants["sigil-dark"];
+/** The welcome screen is always dark Sigil; increased contrast follows the person's preference. */
+export function welcomeVariant(contrast: boolean): ThemeVariant {
+  return contrast ? "sigil-dark-contrast" : "sigil-dark";
+}
 
 /**
- * The graded Atlas photograph fading into the ground, the mark top-left, the wordmark and tagline,
- * an email field with its one way in, and the legal line. Account creation and sign-in share the
- * email step: the emailed code and the session guard tell new accounts from returning ones, and
- * neither answer reveals which an address is.
+ * The first screen of a signed-out app: the graded Atlas photograph filling the top and fading
+ * into the ground, mark A2 top-left, and at the bottom the wordmark, the tagline and the two ways
+ * in (Google, email). The email field is not here: "Continue with email" opens a sheet, and a sent
+ * code opens the code screen. The bottom block scrolls, pinned to the bottom, so a large font or a
+ * short screen never clips it; a scrim keeps its text readable over the photograph.
  */
 export function WelcomeScreen() {
   const { t } = useTranslation();
@@ -46,7 +48,14 @@ export function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { toast } = useAppToast();
-  const [email, setEmail] = useState("");
+  const { choice } = useThemeChoice();
+  const { sheet } = useLocalSearchParams<{ sheet?: string }>();
+  const status = useRegistrationStatus();
+  const [emailOpen, setEmailOpen] = useState(sheet === "email");
+  const [creditShown, setCreditShown] = useState(false);
+
+  const variant = welcomeVariant(choice.contrast);
+  const ground = themeVariants[variant];
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
   const photoHeight = Math.round(height * PHOTO_SHARE);
@@ -60,16 +69,10 @@ export function WelcomeScreen() {
     }
   }
 
-  function continueWithEmail() {
-    router.push({
-      pathname: "/email",
-      params: { flow: "sign-in", ...(email.trim() ? { email: email.trim() } : {}) },
-    });
-  }
-
   return (
-    <ScopedTheme theme="sigil-dark">
+    <ScopedTheme theme={variant}>
       <View className="flex-1 bg-background">
+        {/* The screen is dark whatever the app's appearance: light system bars over it. */}
         <StatusBar style="light" />
         <Image
           source={require("../../../assets/images/sigil-atlas.jpg")}
@@ -103,74 +106,111 @@ export function WelcomeScreen() {
           <SigilMark size={48} color={ground["text-primary"]} emberColor={ground["brand-detail"]} />
         </View>
 
-        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-          <View className="flex-1 justify-end px-6" style={{ paddingBottom: insets.bottom + 16 }}>
-            <Animated.View entering={rise(0)} className="gap-1 pb-6">
-              <Text
-                accessibilityRole="header"
-                className="font-display text-display-wordmark text-foreground"
-              >
-                {appConfig.displayName}
-              </Text>
-              <Text className="font-normal text-body-lg text-muted">
-                {t("auth__welcome_tagline")}
-              </Text>
-            </Animated.View>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View>
+            {/* The scrim: transparent at the top, the ground by the wordmark. */}
+            <View pointerEvents="none" style={{ position: "absolute", inset: 0 }}>
+              <Svg width="100%" height="100%" accessible={false}>
+                <Defs>
+                  <LinearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={ground.canvas} stopOpacity={0} />
+                    <Stop offset="0.3" stopColor={ground.canvas} stopOpacity={0.88} />
+                    <Stop offset="1" stopColor={ground.canvas} stopOpacity={1} />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" fill="url(#scrim)" />
+              </Svg>
+            </View>
+            <View
+              className="mx-auto w-full max-w-md gap-3 px-6"
+              style={{ paddingTop: SCRIM_RISE, paddingBottom: insets.bottom + 16 }}
+            >
+              <View className="gap-1 pb-3">
+                <Text
+                  accessibilityRole="header"
+                  className="font-display text-display-wordmark text-foreground"
+                >
+                  {appConfig.displayName}
+                </Text>
+                <Text className="font-normal text-body-lg text-muted">
+                  {t("auth__welcome_tagline")}
+                </Text>
+              </View>
 
-            <Animated.View entering={rise(80)} className="w-full max-w-md gap-3">
-              <Field
-                accessibilityLabel={t("auth__email")}
-                placeholder={t("auth__email_placeholder")}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoCorrect={false}
-                textContentType="emailAddress"
-                returnKeyType="go"
-                value={email}
-                onChangeText={setEmail}
-                onSubmitEditing={continueWithEmail}
-              />
+              {status?.providers.google ? <GoogleButton glyphColor={ground["on-action"]} /> : null}
               <Button
-                variant="primary"
+                variant="secondary"
                 size="lg"
-                className="h-14 rounded-full"
-                onPress={continueWithEmail}
+                className="h-13 rounded-full"
+                onPress={() => setEmailOpen(true)}
               >
-                <Button.Label className="text-body-lg font-semibold">
+                <Button.Label className="text-body-lg font-semibold text-foreground">
                   {t("auth__continue_with_email")}
                 </Button.Label>
               </Button>
-            </Animated.View>
 
-            <Animated.View entering={rise(140)} className="gap-1 pt-5">
-              <Text className="font-normal text-center text-caption text-muted">
-                {legal.map((part, index) => {
-                  if (part.kind === "text") return part.text;
-                  return (
-                    <Text
-                      key={`${part.kind}-${index}`}
-                      accessibilityRole="link"
-                      className="font-medium text-foreground underline"
-                      onPress={() =>
-                        void openPage(`${appConfig.urls.site}${LEGAL_PATHS[part.kind]}`)
-                      }
-                    >
-                      {legalLabels[part.kind]}
+              <View className="gap-2 pt-3">
+                {status && !status.open ? (
+                  <Text className="font-normal text-center text-caption text-muted">
+                    {status.mode === "invite" ? t("auth__invite_only_line") : t("auth__closed")}
+                  </Text>
+                ) : null}
+                <Text className="font-normal text-center text-caption text-muted">
+                  {legal.map((part, index) => {
+                    if (part.kind === "text") return part.text;
+                    return (
+                      <Text
+                        key={`${part.kind}-${index}`}
+                        accessibilityRole="link"
+                        className="font-medium text-foreground underline"
+                        onPress={() =>
+                          void openPage(`${appConfig.urls.site}${LEGAL_PATHS[part.kind]}`)
+                        }
+                      >
+                        {legalLabels[part.kind]}
+                      </Text>
+                    );
+                  })}
+                </Text>
+                {creditShown ? (
+                  <Text
+                    accessibilityRole="link"
+                    className="font-normal text-center text-caption text-muted underline"
+                    onPress={() => void openPage(PHOTO_CREDIT_URL)}
+                  >
+                    {t("settings__photo_credit_line")}
+                  </Text>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setCreditShown(true)}
+                    className="items-center"
+                  >
+                    <Text className="font-normal text-center text-caption text-muted">
+                      {t("auth__photo_credit")}
                     </Text>
-                  );
-                })}
-              </Text>
-              <Text
-                accessibilityRole="link"
-                className="font-normal text-center text-caption text-muted"
-                onPress={() => void openPage(PHOTO_CREDIT_URL)}
-              >
-                {t("auth__photo_credit")}
-              </Text>
-            </Animated.View>
+                  </Pressable>
+                )}
+              </View>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        </ScrollView>
+
+        <EmailSheet
+          isOpen={emailOpen}
+          onOpenChange={setEmailOpen}
+          scope={variant}
+          onSent={(email) => {
+            setEmailOpen(false);
+            router.push({ pathname: "/code", params: { email, flow: "sign-in" } });
+          }}
+        />
       </View>
     </ScopedTheme>
   );
