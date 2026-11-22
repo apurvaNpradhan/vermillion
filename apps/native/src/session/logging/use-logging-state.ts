@@ -1,4 +1,6 @@
 import { exerciseSuggestion } from "./logging-ghosts";
+import { recordMessage } from "./record-message";
+import { RecordToastIcon } from "./record-toast-icon";
 import {
   SET_FIELDS,
   historyForWorkout,
@@ -19,7 +21,7 @@ import type {
   SessionSetDetail,
   SetPatch,
 } from "@workspace/sync";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 import { stallMemory, useStallVersion } from "@/exercise";
@@ -483,9 +485,19 @@ export function useLoggingState({
         });
       const announce = () => {
         if (recordAlerts) {
+          const message = recordMessage(
+            at.exercise.title,
+            { weightKg: result.values.weight_kg, reps: result.values.reps },
+            unit,
+          );
           toast.show({
-            variant: "success",
-            label: t("session__record_alert", { exercise: at.exercise.title }),
+            icon: createElement(RecordToastIcon),
+            label:
+              message.kind === "weight-reps"
+                ? t("session__record_toast_weight_reps", message)
+                : message.kind === "reps"
+                  ? t("session__record_toast_reps", message)
+                  : t("session__record_toast_plain", message),
           });
         }
       };
