@@ -6,20 +6,31 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native uses **Classic**, a monochrome UI with functional data colours. Match device is the default;
-Light, Dark and Increase contrast remain device settings in Preferences. Every screen, including
-the signed-out welcome screen, follows them.
+Native ships two themes, **Sigil** (the default) and **Classic**, each in light and dark at standard
+or increased contrast. Match device is the default appearance. The brand spec is
+[docs/design/sigil/SPEC.md](docs/design/sigil/SPEC.md); where this file disagrees with it, the spec wins.
 
-- Classic is a base, an ink accent and a family of data colours per scheme
-  (`packages/ui/src/tokens/themes/graphite.ts`); the engine derives semantic roles in OKLCH.
-  `nativeColors` in `brand.ts` holds every variant. Email uses the standard light/dark palettes.
-- The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
-  theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
-  the original red artwork with lighter secondary highlights. The weekly muscle map uses the
-  theme accent and keeps the muscle shading.
-- `device.theme` stores `{ appearance, contrast }` locally and ignores previous palette choices.
-  Native chrome, status bars,
-  blur and CAPTCHA use `useThemeMode()`.
+- **Sigil** is two inks and one rare ember (`packages/ui/src/tokens/themes/sigil.ts`): ground
+  `#0B0A09` / `#EFEBE2`, ink `#ECE6D8` / `#141210`, hairline, raised and control surface steps, no
+  borders. The primary action, focus ring, toggles, progress rings and rest timers are **ink**.
+  **Ember** (`identity`) means "you / now / earned" only: the current set, a personal record, today,
+  the active tab's dot and a selected chip's text. Completed sets use lichen (`set-done`,
+  `set-done-soft`). Danger is a cooler rose, never ember, always with an icon and words. Charts use
+  lichen, sand and stones, never ember. The engine's `override` input pins the spec's exact values;
+  `accent-soft-text` stays tied to the ink action so pressed pairs keep AA.
+- **Classic** is a base, an ink accent and a family of data colours per scheme
+  (`themes/classic.ts`). Its identity is near-neutral.
+- Saved theme ids that no longer exist (`patina`, `oxide`, `slate`, `mulberry`, unknown) fall back to
+  Sigil. `nativeColors` in `brand.ts` holds every variant (`sigil-dark`, `classic-light-contrast`, …);
+  the built-in `light` and `dark` carry Sigil at standard contrast. Email uses those.
+- `device.theme` stores `{ theme, appearance, contrast }`. Native chrome, status bars, blur and
+  CAPTCHA use `useThemeMode()`.
+- EB Garamond (500, 600) sets only the large titles of tab roots, onboarding step titles, the
+  sign-in wordmark and the session finish title (`font-display`, `text-display-lg`,
+  `text-display-wordmark`). Collapsed headers and everything else stay Geist.
+- Brand images (icon, adaptive and notification icons, splash, graded sign-in photo) are generated
+  by `pnpm brand:assets`. Sign-in is always dark. Empty states draw the hairline construction
+  drawing (`ConstructionDrawing`) with a mono count label, one plain line and at most one action.
 
 See the [native themes guide](docs/guides/native-themes.md).
 

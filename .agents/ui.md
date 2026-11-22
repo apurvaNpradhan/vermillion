@@ -10,23 +10,31 @@ Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input
 
 HeroUI Native is the base. When it lacks a component, copy it from PanelUI (MIT; Uniwind) or, for Reanimated-only pieces, Reacticx (MIT) into `apps/native/src/platform/ui/`. Never add either as a dependency; no Skia. Restyle to role tokens, swap icons to Phosphor, take every string through props, put pure logic in a tested sibling file, and start the file with a comment naming the source, version, MIT licence and the changes. Port only when a screen uses it in the same change.
 
-In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState` (`mascot` swaps its icon for the `Mascot`), `Mascot` (the tortoise from the logo, never animated), `NumberFlow`, `StatTile`, `WeekStrip`, `RadarChart` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
+In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState` (`drawing` swaps its icon for the `ConstructionDrawing`, `label` adds the mono count), `ConstructionDrawing` (the hairline circle, golden rectangle and spiral in `muted`, never animated), `SigilMark` (mark A, or A2 with `emberColor`), `NumberFlow`, `StatTile`, `WeekStrip`, `RadarChart` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
 
 ## Tokens
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native ships one palette, Classic, in light and dark at standard or increased contrast.
-`packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app and standard light/dark
-`brandTokens.colors` for email. The public site uses a fixed monochrome palette.
+Native ships two themes, Sigil (default) and Classic, each in light and dark at standard or
+increased contrast. `packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app (variants
+such as `sigil-dark`; the built-in `light` and `dark` are Sigil) and standard light/dark
+`brandTokens.colors` for email. The public site has its own palette.
 Regenerate CSS after editing the native tokens. Layout never branches on appearance.
 Use `useThemeMode()` for native chrome. See the
-[native themes guide](../docs/guides/native-themes.md).
+[native themes guide](../docs/guides/native-themes.md) and the [Sigil spec](../docs/design/sigil/SPEC.md).
 
-Rules: the accent (`identity`, `action`) means "you / now" (active tab, current set, today, the
-primary button, the active program, selected chips, goal progress); data and status take the
-theme's family (`set-*`, `success`, `chart-1` … `chart-5`); one filled primary action per screen;
-numbers use tabular figures. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text
+Rules: in Sigil the primary action, focus ring, toggles, progress and timers are ink (`bg-accent`,
+`text-accent-foreground`, `useActionColor()`), never `identity`. Ember (`identity`) means "you / now /
+earned" only: the current set, a personal record, today, the active tab's dot, a selected chip's
+text. Completed sets are lichen (`set-done`); danger is the rose, with an icon and words. Never use
+ember for charts, errors or decoration. Classic's `identity` is near-neutral, so the same classes
+work in both. Data and status take the theme's family (`set-*`, `success`, `chart-1` … `chart-5`);
+one filled primary action per screen;
+numbers use tabular figures. EB Garamond (`font-display`, `text-display-lg`) is only for the large titles of tab roots,
+onboarding step titles, the sign-in wordmark and the session finish title; collapsed headers and
+all other text are Geist. Run `pnpm brand:assets` after changing the mark or the hero photo.
+Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text
 glyphs. Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 
 Native groups use spacing, rounded corners and canvas/surface/default fills, with no row dividers or card outlines. Keep outlines only for fields and selected chips, swatches or option tiles; preserve diagram strokes and progress tracks. When removing a line, review row padding and group gaps, and keep a visible pressed state.
