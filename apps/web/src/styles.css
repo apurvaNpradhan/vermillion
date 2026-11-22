@@ -200,6 +200,7 @@ p {
 
 .hero-figure {
   position: absolute;
+  overflow: hidden;
   top: 6.5rem;
   bottom: 0;
   right: max(-2.5rem, calc((100% - 80rem) / 2 - 3.75rem));
@@ -241,15 +242,14 @@ p {
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 1;
-  stroke-dashoffset: 0;
 }
 
-.construction.is-drawing .line {
+.construction .line {
   stroke-dashoffset: 1;
   animation: draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.2s forwards;
 }
 
-.construction.is-drawing .spiral {
+.construction .spiral {
   animation-delay: 1.1s;
   animation-duration: 2s;
 }
@@ -261,7 +261,7 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .construction.is-drawing .line {
+  .construction .line {
     animation: none;
     stroke-dashoffset: 0;
   }
@@ -388,8 +388,10 @@ p {
   list-style: none;
 }
 
-.feature-grid > li {
+.feature-grid > li,
+.feature-grid .enhance {
   display: flex;
+  flex: 1;
 }
 
 .spotlight-card.feature-card {
@@ -427,9 +429,19 @@ p {
   color: var(--lamp);
 }
 
+.paper :focus-visible {
+  outline-color: var(--lamp);
+}
+
 .paper a.button {
   background: var(--lamp);
   color: var(--paper);
+}
+
+.paper a.button.ghost {
+  background: transparent;
+  color: var(--lamp);
+  box-shadow: inset 0 0 0 1px var(--paper-rule);
 }
 
 .paper .lead {
@@ -552,6 +564,12 @@ p {
   gap: 0.5rem 1.25rem;
 }
 
+.footer-notes {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 44rem;
+}
+
 .site-footer a {
   color: var(--ink-2);
   text-decoration: none;
@@ -626,7 +644,7 @@ p {
 }
 
 @media (max-width: 53.75rem) {
-  .nav-link {
+  .nav-link:not(.keep) {
     display: none;
   }
 

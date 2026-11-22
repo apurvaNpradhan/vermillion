@@ -1,7 +1,7 @@
 {
-  "name": "Sigil: Strength Log",
-  "short_name": "Sigil",
-  "description": "Earn the mark. A strength log for Android.",
+  "name": "Patina: Strength Log",
+  "short_name": "Patina",
+  "description": "Quiet progress. Patina is a strength log for Android. Plan programs, log every set offline and keep your personal records.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

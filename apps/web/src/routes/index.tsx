@@ -1,15 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import {
-  CircularText,
-  ClientOnly,
-  Magnet,
-  Noise,
-  ScrollReveal,
-  SplitText,
-  SpotlightCard,
-} from "../components/client-only.tsx";
 import { Construction } from "../components/construction.tsx";
+import { CircularText, Enhance, Noise, SplitText, SpotlightCard } from "../components/enhance.tsx";
 import { Mark } from "../components/mark.tsx";
 import { en, features, obtainiumSteps, photo, site } from "../content/en.ts";
 import { pageHead } from "../page-head.ts";
@@ -20,9 +12,17 @@ export const Route = createFileRoute("/")({
 });
 
 /** The hero photograph's pixel space, shared by the picture and its construction drawing. */
-const HERO_FRAME = { x: 330, y: 700, h: 420, viewBox: "0 0 1080 1456" };
+const HERO_FRAME = { x: 330, y: 700, h: 420, viewBox: "0 0 1080 1360" };
 
-function Photo({ className, sizes }: { className: string; sizes: string }) {
+function Photo({
+  className,
+  sizes,
+  priority,
+}: {
+  className: string;
+  sizes: string;
+  priority: boolean;
+}) {
   return (
     <picture className={className}>
       <source
@@ -35,52 +35,35 @@ function Photo({ className, sizes }: { className: string; sizes: string }) {
         srcSet="/brand/atlas-640.webp 640w, /brand/atlas-1080.webp 1080w"
         sizes={sizes}
         width={1080}
-        height={1456}
+        height={1360}
         alt={photo.alt}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
       />
     </picture>
-  );
-}
-
-function DownloadButton() {
-  const button = (
-    <a className="button" href={site.latestApkUrl} rel="noreferrer">
-      {en.downloadApk}
-    </a>
-  );
-  return (
-    <ClientOnly fallback={button}>
-      <Magnet padding={60} magnetStrength={4}>
-        {button}
-      </Magnet>
-    </ClientOnly>
   );
 }
 
 function Landing() {
   return (
     <>
-      <ClientOnly fallback={null}>
+      <Enhance nearView={false} fallback={null}>
         <Noise
           opacity={0.05}
           size={1.1}
-          fps={10}
+          fps={0}
           blendMode="overlay"
-          dust={0.02}
+          dust={0}
           scratches={0}
           fixed
           zIndex={60}
         />
-      </ClientOnly>
+      </Enhance>
 
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-figure">
-          <Photo className="hero-photo" sizes="(max-width: 860px) 100vw, 640px" />
-          <ClientOnly
-            fallback={<Construction animate={false} className="hero-lines" frame={HERO_FRAME} />}
-          >
-            <Construction animate className="hero-lines" frame={HERO_FRAME} />
-          </ClientOnly>
+          <Photo className="hero-photo" sizes="(max-width: 860px) 100vw, 640px" priority />
+          <Construction className="hero-lines" frame={HERO_FRAME} />
         </div>
         <div className="wrap hero-inner">
           <p className="hero-meta label">
@@ -88,32 +71,30 @@ function Landing() {
             <span>{en.heroPlatform}</span>
           </p>
           <div className="hero-copy">
-            <ClientOnly
-              fallback={
-                <p className="mast" aria-hidden="true">
-                  {site.name}
-                </p>
-              }
-            >
-              <SplitText
-                text={site.name}
-                tag="p"
-                className="mast"
-                splitType="chars"
-                effect="rise"
-                mask
-                trigger="load"
-                delay={70}
-                duration={1.1}
-                textAlign="left"
-              />
-            </ClientOnly>
+            <div aria-hidden="true">
+              <Enhance nearView={false} fallback={<p className="mast">{site.name}</p>}>
+                <SplitText
+                  text={site.name}
+                  tag="p"
+                  className="mast"
+                  splitType="chars"
+                  effect="rise"
+                  mask
+                  trigger="load"
+                  delay={70}
+                  duration={1.1}
+                  textAlign="left"
+                />
+              </Enhance>
+            </div>
             <p className="tagline">{site.tagline}</p>
             <h1 id="hero-title">{en.heroTitle}</h1>
             <p className="lead">{en.heroLead}</p>
             <div className="actions">
-              <DownloadButton />
-              <a className="button ghost" href={site.obtainiumUrl} rel="noreferrer">
+              <a className="button" href={site.latestReleaseUrl} rel="noreferrer">
+                {en.downloadRelease}
+              </a>
+              <a className="button ghost" href={site.obtainiumAddUrl}>
                 {en.addToObtainium}
               </a>
             </div>
@@ -129,19 +110,19 @@ function Landing() {
         </h2>
         <div className="poem">
           {en.manifesto.map((paragraph) => (
-            <ClientOnly key={paragraph} fallback={<p className="poem-line">{paragraph}</p>}>
-              <ScrollReveal
-                enableBlur
-                blurStrength={6}
-                baseOpacity={0.14}
-                baseRotation={0}
-                effect="fade"
-                mode="scrub"
-                textClassName="poem-line"
-              >
-                {paragraph}
-              </ScrollReveal>
-            </ClientOnly>
+            <Enhance key={paragraph} nearView fallback={<p className="poem-line">{paragraph}</p>}>
+              <SplitText
+                text={paragraph}
+                tag="p"
+                className="poem-line"
+                splitType="words"
+                effect="blur"
+                trigger="view"
+                delay={18}
+                duration={0.9}
+                textAlign="left"
+              />
+            </Enhance>
           ))}
         </div>
       </section>
@@ -158,12 +139,14 @@ function Landing() {
                 <span className="label">{feature.label}</span>
                 <h3>{feature.title}</h3>
                 <p>{feature.body}</p>
-                <span className="label detail">{feature.detail}</span>
               </>
             );
             return (
               <li key={feature.label}>
-                <ClientOnly fallback={<div className="feature-card spotlight-card">{body}</div>}>
+                <Enhance
+                  nearView
+                  fallback={<div className="feature-card spotlight-card">{body}</div>}
+                >
                   <SpotlightCard
                     className="feature-card"
                     theme="dark"
@@ -175,7 +158,7 @@ function Landing() {
                   >
                     {body}
                   </SpotlightCard>
-                </ClientOnly>
+                </Enhance>
               </li>
             );
           })}
@@ -196,38 +179,46 @@ function Landing() {
               ))}
             </ol>
             <div className="actions">
-              <a className="button" href={site.latestApkUrl} rel="noreferrer">
-                {en.downloadApk}
+              <a className="button" href={site.latestReleaseUrl} rel="noreferrer">
+                {en.downloadRelease}
+              </a>
+              <a className="button ghost" href={site.obtainiumAddUrl}>
+                {en.addToObtainium}
               </a>
             </div>
-            <p className="label facts">{en.installFacts}</p>
           </div>
           <figure className="panel">
-            <Photo className="panel-photo" sizes="(max-width: 860px) 100vw, 560px" />
+            <Photo
+              className="panel-photo"
+              sizes="(max-width: 860px) 100vw, 560px"
+              priority={false}
+            />
             <figcaption className="label">{en.photoCaption}</figcaption>
           </figure>
         </div>
       </section>
 
       <section className="close" aria-labelledby="close-title">
-        <div className="seal">
-          <ClientOnly fallback={null}>
+        <div className="seal" aria-hidden="true">
+          <Enhance nearView fallback={null}>
             <CircularText
               text={en.closeSeal}
               size={210}
               fontSize={12}
               letterSpacing={4}
-              color="#A39D90"
+              color="var(--muted)"
               spinDuration={40}
               onHover="slowDown"
             />
-          </ClientOnly>
+          </Enhance>
           <Mark size={48} ember />
         </div>
-        <p id="close-title" className="close-title">
+        <h2 id="close-title" className="close-title">
           {site.tagline}
-        </p>
-        <DownloadButton />
+        </h2>
+        <a className="button" href={site.latestReleaseUrl} rel="noreferrer">
+          {en.downloadRelease}
+        </a>
       </section>
     </>
   );

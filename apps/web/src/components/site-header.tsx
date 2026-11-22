@@ -11,7 +11,7 @@ export function SiteHeader() {
         <span>{site.name}</span>
       </Link>
       <nav aria-label={en.primaryNav}>
-        <Link to="/screens" className="nav-link">
+        <Link to="/screens" className="nav-link keep">
           {en.screensLink}
         </Link>
         <Link to="/privacy" className="nav-link">
@@ -20,7 +20,7 @@ export function SiteHeader() {
         <a href={site.githubUrl} rel="noreferrer" className="nav-link">
           {en.github}
         </a>
-        <a href={site.latestApkUrl} rel="noreferrer" className="button">
+        <a href={site.latestReleaseUrl} rel="noreferrer" className="button">
           {en.download}
         </a>
       </nav>

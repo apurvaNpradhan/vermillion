@@ -1,7 +1,8 @@
 /**
  * The brand's construction drawing: a circle over a golden rectangle, the rectangle carved into
- * squares and a golden spiral, drawn as hairlines. It draws itself once when `animate` is set.
- * Coordinates are in the hero photograph's pixel space (1080 x 1456) so the circle frames the figure.
+ * squares and a golden spiral, drawn as hairlines. CSS draws it once on load (static under reduced
+ * motion), so the prerendered page and the browser render the same single SVG.
+ * Coordinates are in the hero photograph's pixel space (1080 x 1360) so the circle frames the figure.
  */
 const PHI = 1.618034;
 
@@ -44,11 +45,9 @@ function goldenSpiral(x: number, y: number, h: number, turns: number): Spiral {
 }
 
 export function Construction({
-  animate,
   className,
   frame,
 }: {
-  animate: boolean;
   className: string;
   /** Photo-space layout of the drawing: the rectangle's left edge, top edge and height. */
   frame: { x: number; y: number; h: number; viewBox: string };
@@ -60,7 +59,7 @@ export function Construction({
   const tick = h * 0.06;
   return (
     <svg
-      className={`construction${animate ? " is-drawing" : ""} ${className}`}
+      className={`construction ${className}`}
       viewBox={viewBox}
       preserveAspectRatio="xMidYMin slice"
       fill="none"

@@ -17,15 +17,21 @@ export const site = {
   version: appConfig.version,
   supportEmail: appConfig.supportEmail,
   githubUrl,
-  releasesUrl: `${githubUrl}/releases`,
-  latestApkUrl: `${githubUrl}/releases/latest`,
-  /** Obtainium takes the repository URL and follows its GitHub Releases. */
-  obtainiumUrl: "https://github.com/ImranR98/Obtainium",
+  subtitle: appConfig.subtitle,
+  /** The latest GitHub release; its APK is listed under Assets. */
+  latestReleaseUrl: `${githubUrl}/releases/latest`,
+  /** Opens Obtainium's Add App screen with this repository filled in (its documented deep link). */
+  obtainiumAddUrl: `obtainium://add/${githubUrl}`,
 };
 
 /** The one photograph on the site and its required credit (CC BY-SA 3.0). */
 export const photo = {
   alt: "Michelangelo's unfinished 'Atlas' Prisoner: a torso emerging from a block of marble.",
+  work: "Michelangelo, 'Atlas' Prisoner",
+  byline: "Photo: Jörg Bittner Unna,",
+  license: "CC BY-SA 3.0",
+  changes: "graded and cropped.",
+  /** The same credit as one line, for places without links (the social preview image). */
   credit: "Michelangelo, 'Atlas' Prisoner. Photo: Jörg Bittner Unna, CC BY-SA 3.0, edited.",
   sourceUrl:
     "https://commons.wikimedia.org/wiki/File:%27Atlas_Slave%27_by_Michelangelo_-_JBU_02.jpg",
@@ -43,7 +49,8 @@ export const en = {
   deletionLink: "Delete account",
   github: "GitHub",
   download: "Download",
-  downloadApk: "Download the APK",
+  downloadRelease: "Download for Android",
+  licensesLink: "Licences",
   addToObtainium: "Add to Obtainium",
   heroKicker: "Strength log",
   heroPlatform: `Android · v${site.version}`,
@@ -61,7 +68,6 @@ export const en = {
   featuresLead: "Four things, done properly. No feed, no coach, no streaks.",
   installTitle: "Install it from GitHub.",
   installLead: "Not on iPhone yet.",
-  installFacts: `v${site.version} · Android · Signed release`,
   photoCaption: "Unfinished, c. 1530",
   closeSeal: `${appConfig.displayName.toUpperCase()} · STRENGTH LOG · EARN THE MARK · `,
   screensTitle: "Screens.",
@@ -81,25 +87,21 @@ export const features = [
     label: "Programs",
     title: "A rotation that queues the next workout.",
     body: "Targets for every exercise, and progression that moves the weight when you hit them.",
-    detail: "Push · Pull · Legs / 3 days",
   },
   {
     label: "Live log",
     title: "Every set, as you lift it.",
     body: "Rest timer, last time's numbers in each field, and a plate calculator.",
-    detail: "Rest 3:00 / 60 kg × 8",
   },
   {
     label: "Records",
     title: "Personal records, marked when you set them.",
     body: "History and charts show the climb, exercise by exercise.",
-    detail: "102.5 kg × 5 / Bench press",
   },
   {
     label: "Offline",
     title: "Saves on the phone first.",
     body: "A basement gym with no signal is fine. Import from Strong or Hevy; export to CSV.",
-    detail: "No signal / No sets lost",
   },
 ];
 
@@ -111,6 +113,6 @@ export const screenshots = [
 
 export const obtainiumSteps = [
   "Install Obtainium from GitHub or F-Droid.",
-  `Choose Add app and paste ${githubUrl}.`,
+  `Tap Add to Obtainium, or choose Add app in Obtainium and paste ${githubUrl}.`,
   "Obtainium checks for each new release.",
 ];

@@ -14,13 +14,23 @@ export function SiteFooter() {
           <a href={site.githubUrl} rel="noreferrer">
             {en.github}
           </a>
+          <a href="/licenses/react-bits.txt">{en.licensesLink}</a>
         </nav>
-        <p>
-          {site.name}. {site.tagline}{" "}
-          <a href={photo.sourceUrl} rel="noreferrer">
-            {photo.credit}
-          </a>
-        </p>
+        <div className="footer-notes">
+          <p>
+            {site.name}. {site.tagline} {site.subtitle}
+          </p>
+          <p>
+            <a href={photo.sourceUrl} rel="noreferrer">
+              {photo.work}
+            </a>
+            . {photo.byline}{" "}
+            <a href={photo.licenseUrl} rel="license noreferrer">
+              {photo.license}
+            </a>
+            , {photo.changes}
+          </p>
+        </div>
       </div>
     </footer>
   );

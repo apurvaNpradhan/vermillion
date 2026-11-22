@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 
+import { photo, site } from "../src/content/en.ts";
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../..");
 const design = path.join(root, "docs/design/sigil");
@@ -22,15 +24,15 @@ const EMBER = "#E04A2F";
 /** Grayscale, local contrast, levels and a gentle S-curve, mapped onto ink → ivory. */
 async function duotone(source: string, width: number) {
   const meta = await sharp(source).metadata();
-  // The bottom ~10% of the source shows the display plinth's edge; the figure ends above it.
-  const crop = { left: 0, top: 0, width: meta.width, height: Math.round(meta.height * 0.9) };
+  // The bottom ~16% of the source shows the display plinth's edge; the figure ends above it.
+  const crop = { left: 0, top: 0, width: meta.width, height: Math.round(meta.height * 0.84) };
   const image = sharp(source).grayscale().extract(crop);
   const { data, info } = await image
     .resize({ width, withoutEnlargement: true })
-    .clahe({ width: 64, height: 64, maxSlope: 2 })
+    .clahe({ width: 160, height: 160, maxSlope: 1 })
     .raw()
     .toBuffer({ resolveWithObject: true });
-  const black = 0.05;
+  const black = 0.09;
   const white = 0.93;
   const gamma = 1.2;
   const out = Buffer.alloc(info.width * info.height * 3);
@@ -80,14 +82,43 @@ function ico(images: { size: number; png: Buffer }[]) {
   return Buffer.concat([header, ...images.map((image) => image.png)]);
 }
 
+/** The web app manifest, from app.config.ts and the site copy so it never drifts. */
+async function manifest() {
+  const icon = (size: number, purpose: string, file: string) => ({
+    src: `/icons/${file}-${size}.png`,
+    sizes: `${size}x${size}`,
+    type: "image/png",
+    purpose,
+  });
+  const body = {
+    name: site.title,
+    short_name: site.name,
+    description: `${site.tagline} ${site.description}`,
+    id: "/",
+    start_url: "/",
+    scope: "/",
+    display: "browser",
+    background_color: "#0B0A09",
+    theme_color: "#0B0A09",
+    icons: [
+      icon(192, "any", "icon"),
+      icon(512, "any", "icon"),
+      icon(192, "maskable", "icon-maskable"),
+      icon(512, "maskable", "icon-maskable"),
+    ],
+  };
+  await writeFile(path.join(pub, "manifest.webmanifest"), `${JSON.stringify(body, null, 2)}\n`);
+}
+
 async function main() {
-  const photo = path.join(design, "source/atlas-prisoner-jbu-02.jpg");
+  await manifest();
+  const sourcePhoto = path.join(design, "source/atlas-prisoner-jbu-02.jpg");
   await mkdir(path.join(pub, "brand"), { recursive: true });
   await mkdir(path.join(pub, "favicon"), { recursive: true });
   await mkdir(path.join(pub, "icons"), { recursive: true });
 
   for (const width of [640, 1080]) {
-    const graded = await duotone(photo, width);
+    const graded = await duotone(sourcePhoto, width);
     await graded
       .clone()
       .webp({ quality: 82 })
@@ -125,7 +156,7 @@ async function main() {
   }
 
   // Social preview: ink ground, the graded photograph on the right, the brand mark on the left.
-  const og = await duotone(photo, 520);
+  const og = await duotone(sourcePhoto, 520);
   const ogPhoto = await og
     .clone()
     .resize({ height: 630, width: 520, fit: "cover", position: "top" })
@@ -135,10 +166,15 @@ async function main() {
     .replace('fill="currentColor"', `fill="rgb(${IVORY.r},${IVORY.g},${IVORY.b})"`)
     .replace(/#E04A2F/g, EMBER)
     .replace("<svg ", '<svg width="260" height="260" ');
+  // CC BY-SA requires the credit to travel with the image, so it is set into the card itself.
+  const credit = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+    <text x="60" y="600" font-family="sans-serif" font-size="14" fill="rgb(${IVORY.r},${IVORY.g},${IVORY.b})" fill-opacity="0.8">${photo.credit} creativecommons.org/licenses/by-sa/3.0</text>
+  </svg>`;
   await sharp({ create: { width: 1200, height: 630, channels: 3, background: INK } })
     .composite([
       { input: ogPhoto, left: 640, top: 0 },
       { input: Buffer.from(brandMark), left: 150, top: 185 },
+      { input: Buffer.from(credit), left: 0, top: 0 },
     ])
     .png()
     .toFile(path.join(pub, "brand/og.png"));
