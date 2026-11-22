@@ -684,3 +684,21 @@ p {
     margin: 0 0 3rem;
   }
 }
+
+@media (max-width: 22.5rem) {
+  .site-header nav {
+    gap: 0.875rem;
+  }
+
+  .lockup {
+    gap: 0.5rem;
+  }
+
+  .lockup span {
+    letter-spacing: 0.1em;
+  }
+
+  .site-header .button {
+    padding: 0 1rem;
+  }
+}

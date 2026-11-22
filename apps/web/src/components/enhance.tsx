@@ -70,6 +70,8 @@ export function Enhance({
   useEffect(() => {
     const element = anchor.current;
     if (!nearView || !element) return;
+    // Old browsers without IntersectionObserver keep the static fallback.
+    if (!("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {

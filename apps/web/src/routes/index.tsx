@@ -94,7 +94,7 @@ function Landing() {
               <a className="button" href={site.latestReleaseUrl} rel="noreferrer">
                 {en.downloadRelease}
               </a>
-              <a className="button ghost" href={site.obtainiumAddUrl}>
+              <a className="button ghost" href={site.obtainiumAddUrl} rel="noreferrer">
                 {en.addToObtainium}
               </a>
             </div>
@@ -118,6 +118,8 @@ function Landing() {
                 splitType="words"
                 effect="blur"
                 trigger="view"
+                threshold={0}
+                rootMargin="0px"
                 delay={18}
                 duration={0.9}
                 textAlign="left"
@@ -182,7 +184,7 @@ function Landing() {
               <a className="button" href={site.latestReleaseUrl} rel="noreferrer">
                 {en.downloadRelease}
               </a>
-              <a className="button ghost" href={site.obtainiumAddUrl}>
+              <a className="button ghost" href={site.obtainiumAddUrl} rel="noreferrer">
                 {en.addToObtainium}
               </a>
             </div>

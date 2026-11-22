@@ -20,8 +20,11 @@ export const site = {
   subtitle: appConfig.subtitle,
   /** The latest GitHub release; its APK is listed under Assets. */
   latestReleaseUrl: `${githubUrl}/releases/latest`,
-  /** Opens Obtainium's Add App screen with this repository filled in (its documented deep link). */
-  obtainiumAddUrl: `obtainium://add/${githubUrl}`,
+  /**
+   * Obtainium's documented redirect page: it opens the app's Add App screen with this repository
+   * filled in, and offers to install Obtainium when the app does not answer.
+   */
+  obtainiumAddUrl: `https://apps.obtainium.imranr.dev/redirect?r=${encodeURIComponent(`obtainium://add/${githubUrl}`)}`,
 };
 
 /** The one photograph on the site and its required credit (CC BY-SA 3.0). */
