@@ -17,7 +17,7 @@ import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
 import { usePop } from "@/platform/ui/use-pop";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -143,7 +143,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const onIdentity = useOnIdentityColor();
+  const onAction = useOnActionColor();
   const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
@@ -222,10 +222,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
               haptic.tick();
               props.onTimer(set.id);
             }}
-            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
+            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-accent" : "bg-field"}`}
           >
             {running ? (
-              <Stop size={20} weight="fill" color={onIdentity} />
+              <Stop size={20} weight="fill" color={onAction} />
             ) : (
               <Play size={20} color={subtle} />
             )}

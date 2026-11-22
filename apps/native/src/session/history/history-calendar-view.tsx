@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
-import { useOnIdentityColor, useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useSubtleColor } from "@/platform/theme";
 
 import { DAY_MS, goalHit, monthRows, type History } from "./history-calendar";
 import type { HistoryFormat } from "./history-format";
@@ -74,7 +74,7 @@ export function HistoryCalendar({
                 {day === today && (
                   <View
                     pointerEvents="none"
-                    className={`absolute inset-1 rounded-md border ${count > 0 ? "border-on-identity" : "border-identity"}`}
+                    className={`absolute inset-1 rounded-md border ${count > 0 ? "border-accent-foreground" : "border-identity"}`}
                   />
                 )}
                 {active && (
@@ -84,7 +84,7 @@ export function HistoryCalendar({
                   />
                 )}
                 <Text
-                  className={`font-medium text-numeric-sm tabular-nums ${count > 0 ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-medium text-numeric-sm tabular-nums ${count > 0 ? "text-accent-foreground" : "text-foreground"}`}
                 >
                   {format.day(day)}
                 </Text>
@@ -109,9 +109,7 @@ export function DayFill({ trained }: { trained: boolean }) {
   const fill = useAnimatedStyle(() => ({
     opacity: withTiming(trained ? 1 : 0, { duration: 120, reduceMotion: ReduceMotion.Never }),
   }));
-  return (
-    <Animated.View pointerEvents="none" className="absolute inset-0 bg-identity" style={fill} />
-  );
+  return <Animated.View pointerEvents="none" className="absolute inset-0 bg-accent" style={fill} />;
 }
 
 function MonthGoal({
@@ -126,7 +124,7 @@ function MonthGoal({
   format: HistoryFormat;
 }) {
   const { t } = useTranslation();
-  const onIdentity = useOnIdentityColor();
+  const onAction = useOnActionColor();
   const ratio = t("session__goal_ratio", {
     done: format.integer(count),
     goal: format.integer(goal),
@@ -138,8 +136,8 @@ function MonthGoal({
       className={`w-10 items-center justify-center ${future ? "opacity-45" : ""}`}
     >
       {goalHit(count, goal) ? (
-        <View className="size-7 items-center justify-center rounded-full bg-identity">
-          <Check size={20} weight="regular" color={onIdentity} />
+        <View className="size-7 items-center justify-center rounded-full bg-accent">
+          <Check size={20} weight="regular" color={onAction} />
         </View>
       ) : (
         <Text className="font-normal text-caption tabular-nums text-muted">{ratio}</Text>

@@ -80,7 +80,7 @@ export function RestBar({
         accessibilityValue={{ min: 0, max: view.total, now: view.total - view.remaining }}
         className="h-0.5 bg-default"
       >
-        <View className="h-full bg-identity" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <View className="h-full bg-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
       </View>
       <View className="flex-row items-center gap-2 px-3 py-2">
         <View className="flex-1">

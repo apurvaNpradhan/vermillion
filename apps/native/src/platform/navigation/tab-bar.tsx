@@ -31,11 +31,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { useCSSVariable } from "uniwind";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { haptic } from "@/platform/haptics";
-import { isColorString, useIdentityColor } from "@/platform/theme";
+import { useOnActionColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
 import { FloatingSurface } from "@/platform/ui/floating-surface";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
@@ -75,12 +74,6 @@ const HINT_MS = 1200;
 /** Just past the panel's spring, after which its rows no longer move. */
 const MENU_SETTLE_MS = 420;
 
-/** Text and icon colour on an `identity` fill; falls back to the canvas colour. */
-function useOnIdentityColor(): string | undefined {
-  const value = useCSSVariable("--color-on-identity");
-  return isColorString(value) ? value : undefined;
-}
-
 /**
  * Floating, icon-only tab bar in the manner of Linear's: a pill with the first `directTabCount`
  * tabs (two unless the app says otherwise) and a menu
@@ -102,8 +95,7 @@ export function TabBar({
   const { t } = useTranslation();
   const [foreground, muted, background] = useThemeColor(["foreground", "muted", "background"]);
   const bottom = useTabBarBottom();
-  const identity = useIdentityColor() ?? foreground;
-  const onIdentity = useOnIdentityColor() ?? background;
+  const onAction = useOnActionColor() ?? background;
   const action = useCurrentTabAction();
   const barHidden = useTabBarHidden();
   const keyboard = useReanimatedKeyboardAnimation();
@@ -319,7 +311,7 @@ export function TabBar({
               <View accessibilityRole="tablist" className="flex-1 flex-row">
                 <Animated.View
                   pointerEvents="none"
-                  className="absolute inset-y-0 left-0 rounded-full bg-identity-soft"
+                  className="absolute inset-y-0 left-0 rounded-full bg-default"
                   style={[{ width: TAB_ITEM_WIDTH }, indicatorStyle]}
                 />
                 {direct.map((route, index) => {
@@ -340,7 +332,13 @@ export function TabBar({
                       className="h-full items-center justify-center"
                       style={{ width: TAB_ITEM_WIDTH }}
                     >
-                      {iconOf(route, focused, focused ? identity : muted)}
+                      {iconOf(route, focused, focused ? foreground : muted)}
+                      {focused ? (
+                        <View
+                          pointerEvents="none"
+                          className="absolute bottom-1.5 size-1 rounded-full bg-identity"
+                        />
+                      ) : null}
                     </Pressable>
                   );
                 })}
@@ -359,8 +357,8 @@ export function TabBar({
                   >
                     {menuActive ? (
                       <View className="flex-row items-center gap-0.5">
-                        {iconOf(menuActive, true, identity)}
-                        <CaretUpDown size={20} color={identity} />
+                        {iconOf(menuActive, true, foreground)}
+                        <CaretUpDown size={20} color={foreground} />
                       </View>
                     ) : (
                       <CaretUpDown size={20} color={muted} />
@@ -383,7 +381,7 @@ export function TabBar({
                   header={menuHeader?.(closeMenu)}
                   items={menuItems}
                   highlighted={highlighted}
-                  identity={identity}
+                  identity={foreground}
                   muted={muted}
                   rowsRef={rowsRef}
                   onLayout={(event) => {
@@ -414,10 +412,10 @@ export function TabBar({
                 haptic.tick();
                 action.onPress();
               }}
-              className="items-center justify-center rounded-full bg-identity shadow-overlay active:opacity-90"
+              className="items-center justify-center rounded-full bg-accent shadow-overlay active:opacity-90"
               style={{ width: TAB_BAR_HEIGHT, height: TAB_BAR_HEIGHT }}
             >
-              <action.icon size={24} color={onIdentity} />
+              <action.icon size={24} color={onAction} />
             </Pressable>
           </Animated.View>
         ) : null}
