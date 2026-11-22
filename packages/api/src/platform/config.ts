@@ -10,9 +10,9 @@ export type ApiConfig = {
   appName: string;
   /** Version of the app; the API document reports it. */
   appVersion: string;
-  /** Public origin of the API (`https://patina-api.<domain>` in production). Auth links are built from it. */
+  /** Public origin of the API (`https://sigil-api.<domain>` in production). Auth links are built from it. */
   appUrl: string;
-  /** Public origin of the site and admin (`https://patina.<domain>`); trusted like the API's. */
+  /** Public origin of the site and admin (`https://sigil.<domain>`); trusted like the API's. */
   siteUrl: string;
   /** Lower-cased `ADMIN_EMAILS`. The only source of the admin role; may be empty. */
   adminEmails: string[];

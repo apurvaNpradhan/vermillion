@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Patina (repository: vermillion): a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `patina-api.<domain>`). The old site and admin UI are out of the workspace pending a rebuild. pnpm + Turborepo, TypeScript 7.
+Sigil (repository: vermillion): a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `sigil-api.<domain>`). The old site and admin UI are out of the workspace pending a rebuild. pnpm + Turborepo, TypeScript 7.
 
 Read the guide for the area you touch before editing. Terms are defined in [CONTEXT.md](CONTEXT.md); reasons for decisions are in [docs/adr/](docs/adr/).
 
