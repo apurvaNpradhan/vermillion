@@ -7,8 +7,7 @@ name they were written with.
 
 Patina came with a tortoise mascot and an olive palette: calm, but generic, and it said nothing
 about the work. The new brand is built on one idea: you carve yourself out of the stone, set by set.
-A sigil is the mason's mark a stonemason cut into every block they finished. Nobody has installed a
-release yet, so identifiers can still change freely. The full brand is in
+A sigil is the mason's mark a stonemason cut into every block they finished. The full brand is in
 [the Sigil spec](../design/sigil/SPEC.md).
 
 ## Decision
@@ -18,8 +17,9 @@ release yet, so identifiers can still change freely. The full brand is in
 - **Brand.** Two inks (ink and ivory) and one rare ember, a mason's mark as the logo, and a single
   photograph, Michelangelo's _'Atlas' Prisoner_, as the only imagery. The tortoise and the mascot
   are removed everywhere, and the olive palette goes with them.
-- **Identity.** Scheme `sigil`, bundle id `io.github.apurvanpradhan.sigil` on both platforms and EAS
-  slug `sigil`, all derived from the `name` constant in `app.config.ts`; `easProjectId` is kept.
+- **Identity.** The `name` constant in `app.config.ts` sets the scheme to `sigil` and the bundle id
+  to `io.github.apurvanpradhan.sigil` on both platforms. The existing `easProjectId` is bound to
+  the Expo slug `vermillion`, so `appConfig.easSlug` preserves that project slug for EAS.
 - **Hosts.** `sigil.` (site), `sigil-api.` (API) and `sigil-sync.` (PowerSync) under
   `lostsignal.cloud`. The `patina*` hosts are dropped with no aliases or redirects: only the owner
   used them. `media.` and `dev.` are unchanged.
@@ -31,6 +31,11 @@ release yet, so identifiers can still change freely. The full brand is in
 
 - The new bundle id and scheme are a different app to the OS; the native stack revision is bumped
   so no over-the-air update targets old builds.
+- The rebrand keeps version `0.1.0`. Bump it before tagging the next Sigil release. Beta users
+  must finish syncing in the old app, install Sigil fresh, then sign in to restore their synced
+  data. Obtainium users must re-add the source with the APK filter `^sigil-.*\.apk$`. After
+  publishing, verify that GitHub's `releases/latest` offers the signed Sigil APK.
+  See [First Sigil release](../guides/android-release.md#first-sigil-release).
 - The operator moves DNS, Dokploy domains, server env and the repository variable together
   ([Moving hosts](../deployment.md#moving-hosts)), then removes the `patina*` records.
 - Email sender name, locale strings and docs say Sigil; the theme, icons and website follow the

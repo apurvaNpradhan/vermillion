@@ -159,7 +159,7 @@ Without this, anyone can call the origin directly with a forged `Cf-Connecting-I
 
 ## Cloudflare
 
-1. Add the domain's zone to Cloudflare and create a **proxied** (orange cloud) DNS record `api` that points at the Dokploy server's IP.
+1. Add the domain's zone to Cloudflare and create a **proxied** (orange cloud) DNS record `sigil-api` that points at the Dokploy server's IP.
 2. SSL/TLS mode **Full (strict)**.
 3. Check it with `curl https://sigil-api.<domain>/api/health` (`{"status":"ok"}`).
 4. Optional: a WAF rate limit rule for `/api/auth/*` as a second layer behind the in-process limits.
@@ -197,7 +197,7 @@ Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --fil
 1. Cloudflare dashboard → My Profile → API Tokens → Create Token (custom). Permissions: Account → Workers Scripts → Edit; Zone → Workers Routes → Edit (this also covers Custom Domains). Zone resources: only the zone of `domain`. Account resources: this account. Do not use the global API key.
 2. Copy the account id (dashboard → Workers & Pages overview, right-hand panel).
 3. GitHub → Settings → Secrets: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, either in the `production` environment (the workflow's job uses it, so required reviewers would gate each deploy) or at repository level.
-4. Cloudflare creates the DNS record and certificate for `sigil.<domain>` when it attaches the custom domain. Check for an existing CNAME on that exact hostname before deployment.
+4. Let Cloudflare create the DNS record and certificate for `sigil.<domain>` when it attaches the Worker custom domain. Clear any existing CNAME on that hostname before deployment, since it blocks attachment. See [Cloudflare Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 5. In Actions, run Deploy web on `main`. Verify that `curl -I https://sigil.<domain>/privacy` returns HTTP 200 directly and that an unknown URL returns HTTP 404.
 
 Pushes to `main` that change the website, shared TypeScript or package manager configuration, or the workflow trigger a deploy. To deploy by hand, set the two Cloudflare variables in the shell and run `pnpm --filter web deploy`.
@@ -282,7 +282,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 
 Renaming the hosts (Patina to Sigil, [ADR 0055](adr/0055-rename-to-sigil.md)) or moving to another domain follows one checklist. Do the new side first and the removals last:
 
-1. Cloudflare DNS: add proxied records `sigil`, `sigil-api` and `sigil-sync` (same targets as the old ones). SSL/TLS stays Full (strict).
+1. Add proxied Cloudflare DNS records `sigil-api` and `sigil-sync` pointing at the Dokploy server. Keep SSL/TLS on Full (strict). The Worker custom domain provisions the site record during [website deployment](#website).
 2. Dokploy: change the server application's domain to `sigil-api.<domain>` (port 3000) and the PowerSync `powersync` service's domain to `sigil-sync.<domain>` (port 8080); redeploy both.
 3. Server env on the Dokploy application: `APP_URL=https://sigil-api.<domain>` and
    `SYNC_ENDPOINT_URL=https://sigil-sync.<domain>`. Better Auth derives its trusted origins from
@@ -292,13 +292,12 @@ Renaming the hosts (Patina to Sigil, [ADR 0055](adr/0055-rename-to-sigil.md)) or
 5. Update `EMAIL_FROM` if its display name contains the former brand. Keep the sending address
    on a domain verified in Resend. If the Sentry project was renamed, update `SENTRY_PROJECT` in
    GitHub and EAS.
-6. Update `EXPO_PUBLIC_SERVER_URL=https://sigil-api.<domain>` in GitHub and the EAS
-   **production** environment. Check the API health endpoint, PowerSync readiness and the site's
-   `/terms` and `/privacy` pages before tagging a release.
+6. For the Sigil cutover, update the GitHub repository variable `EXPO_PUBLIC_SERVER_URL` to
+   `https://sigil-api.lostsignal.cloud`. Set the same value in the EAS **production** environment.
+   For a future domain move, use the new `appConfig.urls.api` in both places. Check API health,
+   PowerSync readiness and the site's `/terms` and `/privacy` pages before tagging a release.
 7. Remove the previous site, API and sync DNS records and Dokploy domains after the cutover and
    any overlap needed by older clients.
-
-The EAS slug follows `appConfig.name` (`sigil`). If expo.dev refuses the slug change, run `eas init` again and replace `easProjectId` in `app.config.ts`.
 
 ## Moving to the final domain
 
@@ -306,7 +305,9 @@ No data migration; the hosts change and the app is rebuilt.
 
 1. `app.config.ts`: change `domain` (and `releases` if the repository moves).
 2. DNS: the proxied `sigil-api`, `sigil-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
-3. Coordinate the public site host with the replacement site before switching the URLs used by native and invite emails.
+3. Update the Worker custom-domain route in `apps/web/wrangler.jsonc` in the same commit as the
+   `app.config.ts` domain change. `pnpm --filter web check:host` enforces that the route matches
+   `appConfig.urls.site`.
 4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`; Turnstile widget hostnames.
 5. Google OAuth client: redirect URI and origin on the new API host.
 6. R2: the media bucket's custom domain and its CORS origin.
@@ -317,7 +318,7 @@ No data migration; the hosts change and the app is rebuilt.
 
 A signed Android APK for direct installs is built on GitHub Actions and attached to a GitHub Release when a `v*` tag is pushed: [Android release](guides/android-release.md). Store builds go through EAS:
 
-`apps/native/eas.json` has `development`, `preview` and `production` build profiles, each with a channel for EAS Update. App name, version, scheme and bundle ids come from `app.config.ts`. Run `eas init` once, then put the project id in `easProjectId` (or set `EAS_PROJECT_ID`).
+`apps/native/eas.json` has `development`, `preview` and `production` build profiles, each with a channel for EAS Update. App name, version, scheme and bundle ids come from `app.config.ts`. Keep `easSlug` set to `vermillion` for the linked `easProjectId`. EAS Update uses the project id in its URL.
 
 ```sh
 eas build --profile preview --platform all     # internal testing build

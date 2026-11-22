@@ -10,7 +10,7 @@
 4. The job checks with `apksigner` that the APK is signed by the keystore's certificate, and prints that certificate's SHA-256 fingerprint in the job summary.
 5. On a tag, a second job (the only one with a write token) creates the release and uploads `sigil-<tag>-<abis>.apk` and its `.sha256`.
 
-`EXPO_PUBLIC_SERVER_URL` is baked into the JavaScript bundle at build time. The version name is `version` in the root `app.config.ts`; the version code is the workflow's run number, so each build installs over the previous one.
+`EXPO_PUBLIC_SERVER_URL` is baked into the JavaScript bundle at build time. The workflow checks that its HTTPS origin matches `appConfig.urls.api`. The version name is `version` in the root `app.config.ts`; the version code is the workflow's run number, so each build installs over the previous one with the same package id.
 
 ## One-time setup
 
@@ -55,11 +55,24 @@ A manual run (Actions → Android release → Run workflow) builds the same APK 
 
 To check a download: `sha256sum -c sigil-v1.0.0-arm64-v8a.apk.sha256`.
 
+### First Sigil release
+
+1. The rebrand keeps version `0.1.0`. Bump `version` in `app.config.ts` before tagging the next
+   Sigil release.
+2. After publishing, open the repository's [latest release](https://github.com/apurvaNpradhan/vermillion/releases/latest).
+   Download the `sigil-*.apk` and its `.sha256` file. Verify the checksum and run
+   `apksigner verify --print-certs <apk>`. Compare the signer's SHA-256 fingerprint with the
+   release keystore's fingerprint.
+3. Tell beta users to finish syncing in their current app before switching. The package id
+   changed, so they must install Sigil fresh and sign in to recover their synced data. Obtainium
+   users must re-add the GitHub source with the APK filter `^sigil-.*\.apk$`.
+
 ## When it fails
 
 | Message                                             | Cause                                                                                          |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `EXPO_PUBLIC_SERVER_URL` / `Missing secret`         | A variable or secret from step 3 is not set.                                                   |
+| `EXPO_PUBLIC_SERVER_URL`                            | The GitHub variable must be an HTTPS URL with the origin in `appConfig.urls.api`.              |
+| `Missing secret`                                    | A signing secret from step 3 is missing.                                                       |
 | `Could not read the certificate`                    | Wrong store password or alias, or the base64 value is not the keystore.                        |
 | `app/build.gradle no longer has the expected shape` | An Expo upgrade changed the template; update the plugin's two patterns and its test.           |
 | `The APK is not signed with the release keystore`   | The signing config was not applied. Check the plugin is listed in `apps/native/app.config.ts`. |

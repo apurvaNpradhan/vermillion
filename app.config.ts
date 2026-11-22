@@ -7,7 +7,7 @@
  * see docs/deployment.md, "Moving to the final domain".
  */
 const domain = "lostsignal.cloud";
-/** The product slug: EAS slug, scheme, bundle id suffix and the host prefixes below. */
+/** The product slug used for the scheme, bundle id suffix and host prefixes. */
 const name = "sigil";
 
 export const appConfig = {
@@ -51,6 +51,8 @@ export const appConfig = {
   scheme: name,
   /** The public GitHub repository whose Releases hold the Android builds. */
   releases: { owner: "apurvaNpradhan", repo: "vermillion" },
+  /** Slug of the existing Expo project linked by easProjectId. */
+  easSlug: "vermillion",
   /** Expo project id from `eas init`; links EAS Build and enables EAS Update. */
   easProjectId: "0e4f60c6-c991-403e-9182-6212a8bca424",
 } as const;
