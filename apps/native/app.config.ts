@@ -31,15 +31,18 @@ import { appConfig } from "../../app.config.ts";
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
 // 24: renamed to Patina: new bundle id, scheme and EAS slug again.
 // 25: the Android next-workout-widget module is removed (ADR 0054).
-const NATIVE_STACK_REVISION = 25;
+// 26: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
+const NATIVE_STACK_REVISION = 26;
 
 /**
- * The logo's own colours, for the places the native build needs a literal (icon background, splash
- * and notification accent). These are branding assets, independent of in-app appearance.
+ * The Sigil brand colours, for the places the native build needs a literal (icon background,
+ * splash and notification accent). These are branding assets, independent of in-app appearance
+ * (docs/design/sigil/SPEC.md). `pnpm brand:assets` regenerates the images.
  */
-const LOGO_INK = "#19130F";
-const LOGO_OLIVE = "#869044";
+const BRAND_GROUND = "#0B0A09";
+const BRAND_EMBER = "#E04A2F";
 const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
+const ADAPTIVE_MONOCHROME = "./assets/images/android-icon-monochrome.png";
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release
@@ -74,11 +77,11 @@ const config: ExpoConfig = {
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
-      // The logo's ink; the foreground is the tortoise from the logo kit.
-      backgroundColor: LOGO_INK,
+      // The ground; the foreground is mark A inside the 66dp safe circle.
+      backgroundColor: BRAND_GROUND,
       foregroundImage: ADAPTIVE_FOREGROUND,
-      // Android tints the same silhouette for themed icons.
-      monochromeImage: ADAPTIVE_FOREGROUND,
+      // Android tints the mark for themed icons.
+      monochromeImage: ADAPTIVE_MONOCHROME,
     },
     predictiveBackGestureEnabled: false,
     package: appConfig.bundleIds.android,
@@ -96,9 +99,9 @@ const config: ExpoConfig = {
     [
       "expo-notifications",
       {
-        // A white silhouette of the tortoise (shell cuts and eye transparent); Android tints it.
+        // Mark A in white on transparent; Android tints it.
         icon: "./assets/images/notification-icon.png",
-        color: LOGO_OLIVE,
+        color: BRAND_EMBER,
         sounds: ["./assets/sounds/rest_end.wav"],
       },
     ],
@@ -144,14 +147,14 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        // The tortoise on ink in light and dark alike: the brand, not the appearance.
+        // Mark A2 on the ground in light and dark alike: the brand, not the appearance.
         image: "./assets/images/splash-icon.png",
         imageWidth: 240,
         // The Android splash masks the drawable to a 192dp circle.
         android: { imageWidth: 200 },
         resizeMode: "contain",
-        backgroundColor: LOGO_INK,
-        dark: { image: "./assets/images/splash-icon.png", backgroundColor: LOGO_INK },
+        backgroundColor: BRAND_GROUND,
+        dark: { image: "./assets/images/splash-icon.png", backgroundColor: BRAND_GROUND },
       },
     ],
   ],

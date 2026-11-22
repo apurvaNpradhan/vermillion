@@ -35,6 +35,7 @@
     "catalog:propose": "node scripts/catalog/propose-expansion.ts",
     "catalog:patches": "node scripts/catalog/build-patches.ts",
     "catalog:media": "node scripts/catalog/copy-media.ts",
+    "brand:assets": "node scripts/brand/build-native-assets.mjs && node scripts/brand/grade-hero.mjs",
     "i18n:check": "node ./scripts/i18n/check.mjs",
     "i18n:check:fix": "node ./scripts/i18n/check.mjs --fix",
     "i18n:report": "node ./scripts/i18n/report.mjs",

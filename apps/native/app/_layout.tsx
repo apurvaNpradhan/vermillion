@@ -9,6 +9,8 @@ import { Geist_600SemiBold } from "@expo-google-fonts/geist/600SemiBold";
 import { Geist_700Bold } from "@expo-google-fonts/geist/700Bold";
 import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
+import { EBGaramond_500Medium } from "@expo-google-fonts/eb-garamond/500Medium";
+import { EBGaramond_600SemiBold } from "@expo-google-fonts/eb-garamond/600SemiBold";
 import { useFonts } from "expo-font";
 import { pendingOnboardingSteps } from "@workspace/shared";
 import { useSetupPending } from "@/onboarding";
@@ -54,6 +56,8 @@ function RootStack() {
     Geist_700Bold,
     GeistMono_400Regular,
     GeistMono_500Medium,
+    EBGaramond_500Medium,
+    EBGaramond_600SemiBold,
   });
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).

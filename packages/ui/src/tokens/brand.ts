@@ -92,6 +92,10 @@ export interface TextStyle {
  */
 export const typeScale = {
   "title-display": { size: 42, lineHeight: 48, tracking: -1, weight: 600 },
+  /** EB Garamond: large titles of tab roots, onboarding steps and the session finish title. */
+  "display-lg": { size: 34, lineHeight: 40, tracking: -0.34, weight: 500 },
+  /** EB Garamond: the sign-in wordmark. */
+  "display-wordmark": { size: 64, lineHeight: 68, tracking: -0.64, weight: 500 },
   "title-xl": { size: 28, lineHeight: 34, tracking: -0.3, weight: 600 },
   "title-lg": { size: 22, lineHeight: 28, tracking: -0.2, weight: 600 },
   "title-md": { size: 18, lineHeight: 24, tracking: -0.1, weight: 600 },
@@ -123,6 +127,9 @@ export const brandTokens = {
       bold: "Geist_700Bold",
       mono: "GeistMono_400Regular",
       "mono-medium": "GeistMono_500Medium",
+      /** EB Garamond (OFL), display titles only. */
+      display: "EBGaramond_500Medium",
+      "display-semibold": "EBGaramond_600SemiBold",
     },
   },
 } as const;

@@ -130,7 +130,7 @@ export function FlowStep({
           <View className="gap-2">
             <Text
               accessibilityRole="header"
-              className="font-semibold text-title-xl text-foreground"
+              className="font-display text-display-lg text-foreground"
             >
               {title}
             </Text>

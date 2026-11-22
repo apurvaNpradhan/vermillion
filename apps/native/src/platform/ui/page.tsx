@@ -279,7 +279,11 @@ function PageTitle({
       <Text
         accessibilityRole="header"
         numberOfLines={1}
-        className="font-semibold text-title-xl text-foreground"
+        className={
+          back
+            ? "font-semibold text-title-xl text-foreground"
+            : "font-display text-display-lg text-foreground"
+        }
       >
         {title}
       </Text>
