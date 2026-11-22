@@ -25,7 +25,7 @@ or increased contrast. Match device is the default appearance. The brand spec is
   the built-in `light` and `dark` carry Sigil at standard contrast. Email uses those.
 - `device.theme` stores `{ theme, appearance, contrast }`. Native chrome, status bars and blur
   use `useThemeMode()`.
-- EB Garamond (500, 600) sets only the large titles of tab roots, onboarding step titles, the
+- EB Garamond (500) sets only the large titles of tab roots, onboarding step titles, the
   sign-in wordmark and the session finish title (`font-display`, `text-display-lg`,
   `text-display-wordmark`). Collapsed headers and everything else stay Geist.
 - Brand images (icon, adaptive and notification icons, splash, graded sign-in photo) are generated

@@ -89,6 +89,23 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     expect(ratio("on-warning", "warning-text")).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps the segmented control's labels readable resting and pressed", () => {
+    // platform/ui/segmented-control.tsx: labels stay opaque; the pressed segment is filled with
+    // `surface` at 60% over the `control` track. Unselected labels are `text-muted`, the selected
+    // one `text-primary` on the `surface` pill.
+    const pressed = mixHex(c["surface-control"], c.surface, 0.6);
+    expect(
+      contrastRatio(c["text-muted"], c["surface-control"]),
+      "muted on track",
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(c["text-muted"], pressed), "muted on pressed fill").toBeGreaterThanOrEqual(
+      4.5,
+    );
+    expect(contrastRatio(c["text-primary"], c.surface), "selected label").toBeGreaterThanOrEqual(
+      4.5,
+    );
+  });
+
   it("keeps HeroUI's tinted labels readable in resting and pressed states", () => {
     const pairs = [
       ["accent-soft-text", "action"],

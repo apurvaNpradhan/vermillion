@@ -129,7 +129,6 @@ export const brandTokens = {
       "mono-medium": "GeistMono_500Medium",
       /** EB Garamond (OFL), display titles only. */
       display: "EBGaramond_500Medium",
-      "display-semibold": "EBGaramond_600SemiBold",
     },
   },
 } as const;
