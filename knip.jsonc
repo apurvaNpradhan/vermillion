@@ -1,8 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreExportsUsedInFile": true,
-  // Vendored agent skills ship their own scripts and assets.
-  "ignore": [".agents/**", ".claude/skills/**"],
+  // Vendored agent skills ship their own scripts and assets; docs/design holds reference source.
+  "ignore": [".agents/**", ".claude/skills/**", "docs/design/**"],
   // Public type of the app config, imported by derived tooling later.
   "ignoreIssues": { "app.config.ts": ["types"] },
   "workspaces": {
