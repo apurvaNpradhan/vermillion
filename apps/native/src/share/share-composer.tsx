@@ -64,7 +64,7 @@ export function ShareComposer<Id extends string>({
   const insets = useSafeAreaInsets();
   const ink = useThemeColor("foreground");
   const muted = useThemeColor("muted");
-  const palettes = useCardPalettes();
+  const { palettes, sigil } = useCardPalettes();
   const gate = useCreateImageGate();
   const actions = useShareActions(gate);
   const { choice, update } = useShareChoice(kind, templates, toggles);
@@ -198,6 +198,8 @@ export function ShareComposer<Id extends string>({
                               else nodes.current.delete(item.id);
                             }}
                             palette={palettes(own)}
+                            sigil={sigil}
+                            hasRecords={item.hasRecords}
                             transparent={item.supportsTransparent}
                             photo={own === "photo" && photo ? photo.render() : null}
                           >

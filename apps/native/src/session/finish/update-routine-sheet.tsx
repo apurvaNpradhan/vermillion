@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useIdentityColor, useOnIdentityColor, useSubtleColor } from "@/platform/theme";
+import { useActionColor, useOnActionColor, useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
@@ -153,9 +153,9 @@ function Toggle({
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
-  const identity = useIdentityColor();
+  const action = useActionColor();
   const field = useThemeColor("field");
-  const thumb = useOnIdentityColor();
+  const thumb = useOnActionColor();
   return (
     <Pressable
       accessibilityRole="switch"
@@ -167,7 +167,7 @@ function Toggle({
       <Text className="font-normal flex-1 text-body text-foreground">{label}</Text>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         <Switch
-          trackColor={{ false: field, true: identity }}
+          trackColor={{ false: field, true: action }}
           thumbColor={thumb}
           value={value}
           onValueChange={onChange}

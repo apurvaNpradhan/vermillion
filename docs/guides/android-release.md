@@ -30,7 +30,6 @@
    gh secret set ANDROID_UPLOAD_KEY_ALIAS --body vermillion
    gh secret set ANDROID_UPLOAD_KEY_PASSWORD     # prompts; the store password for PKCS12
    gh variable set EXPO_PUBLIC_SERVER_URL --body https://sigil-api.<domain>
-   # optional: gh variable set EXPO_PUBLIC_TURNSTILE_SITE_KEY --body <site key>
    ```
 
 4. **Keep the certificate's fingerprint.** Nothing uses it today (passkeys and verified app links are withdrawn until the final domain, ADR 0046), but they will need it then. Read it now, or copy it from the first run's job summary:

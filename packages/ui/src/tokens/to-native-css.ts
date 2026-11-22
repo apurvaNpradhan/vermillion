@@ -65,7 +65,8 @@ const shadows = {
   },
 } as const;
 
-const isLightVariant = (variant: NativeVariant) => variant.endsWith("light");
+const isLightVariant = (variant: NativeVariant) =>
+  variant === "light" || variant.endsWith("-light") || variant.endsWith("-light-contrast");
 
 function block(variant: NativeVariant, colors: RoleTokens) {
   const depth = shadows[isLightVariant(variant) ? "light" : "dark"];

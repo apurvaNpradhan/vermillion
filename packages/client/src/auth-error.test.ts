@@ -7,7 +7,6 @@ describe("authErrorKey", () => {
     expect(authErrorKey({ code: "INVALID_OTP" })).toBe("auth__error_code_invalid");
     expect(authErrorKey({ code: "OTP_EXPIRED" })).toBe("auth__error_code_expired");
     expect(authErrorKey({ code: "TOO_MANY_ATTEMPTS" })).toBe("auth__error_code_attempts");
-    expect(authErrorKey({ code: "CAPTCHA_FAILED" })).toBe("errors__captcha_failed");
     expect(authErrorKey({ code: "ACCESS_DENIED" })).toBe("auth__error_oauth_denied");
     expect(authErrorKey({ code: "ACCOUNT_NOT_LINKED" })).toBe("auth__error_account_linking");
     expect(authErrorKey({ code: "UNABLE_TO_LINK_ACCOUNT" })).toBe("auth__error_account_linking");

@@ -597,6 +597,11 @@ function LoadedSession({
                   }
                   previousOf={logging.rowLookups.get(entry.id)?.previousOf ?? logging.previousOf}
                   ghostsFor={logging.rowLookups.get(entry.id)?.ghostsFor ?? logging.ghostsFor}
+                  currentSetId={
+                    entry.sets.some((set) => set.id === logging.currentSetId)
+                      ? logging.currentSetId
+                      : null
+                  }
                   onView={viewExercise}
                   onToggle={toggleBlock}
                   onMenu={onMenu}

@@ -1,4 +1,6 @@
 import { exerciseSuggestion } from "./logging-ghosts";
+import { recordMessage } from "./record-message";
+import { RecordToastIcon } from "./record-toast-icon";
 import {
   SET_FIELDS,
   historyForWorkout,
@@ -19,7 +21,7 @@ import type {
   SessionSetDetail,
   SetPatch,
 } from "@workspace/sync";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 import { stallMemory, useStallVersion } from "@/exercise";
@@ -34,7 +36,14 @@ import { nextRowLookups, shareMapValues, type RowLookups } from "./row-lookups";
 import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 
-import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
+import {
+  blocksOf,
+  firstUnfinished,
+  highlightOf,
+  isBlockDone,
+  nextAfter,
+  type Block,
+} from "./blocks";
 import {
   applyKey,
   displayOfText,
@@ -483,9 +492,19 @@ export function useLoggingState({
         });
       const announce = () => {
         if (recordAlerts) {
+          const message = recordMessage(
+            at.exercise.title,
+            { weightKg: result.values.weight_kg, reps: result.values.reps },
+            unit,
+          );
           toast.show({
-            variant: "success",
-            label: t("session__record_alert", { exercise: at.exercise.title }),
+            icon: createElement(RecordToastIcon),
+            label:
+              message.kind === "weight-reps"
+                ? t("session__record_toast_weight_reps", message)
+                : message.kind === "reps"
+                  ? t("session__record_toast_reps", message)
+                  : t("session__record_toast_plain", message),
           });
         }
       };
@@ -504,6 +523,8 @@ export function useLoggingState({
         void prior.ready.then((bests) => {
           if (bests && isRecord(bests)) {
             sound.play("record");
+            // The Record was not known when the tick landed: its one success haptic is now.
+            if (!strong) haptic.success();
             announce();
           }
         });
@@ -659,6 +680,14 @@ export function useLoggingState({
     [exercises, readOnly, actions, blocks],
   );
 
+  // The open block's next set to log; nothing while reading a finished session.
+  const resolvedOpenBlockId =
+    openBlockId === undefined
+      ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
+      : openBlockId;
+  const openBlock = blocks.find((block) => block.id === resolvedOpenBlockId);
+  const currentSetId = openBlock && !readOnly ? (highlightOf(openBlock)?.setId ?? null) : null;
+
   // Rows are memoized: hand them handlers that keep their identity across data changes.
   const stableOpenCell = useStableHandler(openCell);
   const stableToggleBlock = useStableHandler(toggleBlock);
@@ -673,11 +702,10 @@ export function useLoggingState({
     places,
     // Before the effect settles the first choice, the block it will open is shown open already,
     // so the screen's first frame matches the next one.
-    openBlockId:
-      openBlockId === undefined
-        ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
-        : openBlockId,
+    openBlockId: resolvedOpenBlockId,
     justCollapsedId,
+    /** The set to log next in the open block: the one the grid marks as current. */
+    currentSetId,
     toggleBlock: stableToggleBlock,
     previousOf,
     ghostsFor,

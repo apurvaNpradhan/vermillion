@@ -62,10 +62,7 @@ export function TabBarMenu({
               accessibilityLabel={item.label}
               accessibilityState={{ selected: item.active }}
               onPress={() => onSelect(item.key)}
-              className={cn(
-                "flex-row items-center gap-3 rounded-full px-4",
-                lit && "bg-identity-soft",
-              )}
+              className={cn("flex-row items-center gap-3 rounded-full px-4", lit && "bg-default")}
               style={{ height: MENU_ROW_HEIGHT }}
             >
               {item.icon(lit ? identity : muted)}
@@ -73,7 +70,7 @@ export function TabBarMenu({
                 numberOfLines={1}
                 className={cn(
                   "flex-1 text-body",
-                  lit ? "font-medium text-identity" : "text-foreground",
+                  lit ? "font-medium text-foreground" : "text-foreground",
                 )}
               >
                 {item.label}

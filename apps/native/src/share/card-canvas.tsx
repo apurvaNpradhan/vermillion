@@ -4,6 +4,7 @@ import { PixelRatio, Platform, Text, View } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { appConfig } from "@/platform/app-config";
+import { SigilMark } from "@/platform/ui/sigil-mark";
 
 import { captureDimensions } from "./capture-dimensions";
 import { CARD_HEIGHT, CARD_WIDTH } from "./types";
@@ -14,14 +15,16 @@ export const CARD_PADDING_TOP = 168;
 export const FOOTER_HEIGHT = 168;
 
 /**
- * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat, with a glow,
- * or a photo under a full-card scrim), the card's content, and a footer with the app's wordmark and
+ * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat, with a Classic glow,
+ * or a photo under a full-card scrim), the card's content, and a footer with mark A2, the app's wordmark and
  * a slot reserved for the public link, empty until that link exists (ADR 0042). A transparent
  * canvas (a Sticker) has no background and no footer.
  */
 export function CardCanvas({
   viewRef,
   palette,
+  sigil,
+  hasRecords = false,
   photo = null,
   transparent = false,
   link = null,
@@ -30,6 +33,8 @@ export function CardCanvas({
   /** The frame itself, which the capture targets. */
   viewRef?: Ref<View>;
   palette: CardPalette;
+  sigil: boolean;
+  hasRecords?: boolean;
   /** A full-bleed picture drawn under the scrim, for the Photo background. */
   photo?: ReactNode;
   transparent?: boolean;
@@ -87,12 +92,21 @@ export function CardCanvas({
               justifyContent: "space-between",
             }}
           >
-            <Text
-              className="font-semibold"
-              style={{ fontSize: 36, letterSpacing: 6, color: palette.textSecondary }}
-            >
-              {appConfig.displayName.toLocaleUpperCase()}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
+              {sigil ? (
+                <SigilMark
+                  size={64}
+                  color={palette.text}
+                  emberColor={hasRecords ? palette.record : undefined}
+                />
+              ) : null}
+              <Text
+                className="font-semibold"
+                style={{ fontSize: 36, letterSpacing: 6, color: palette.textSecondary }}
+              >
+                {appConfig.displayName.toLocaleUpperCase()}
+              </Text>
+            </View>
             {/* Reserved for the public link; nothing is drawn until the link exists. */}
             <View style={{ minWidth: 320, alignItems: "flex-end" }}>
               {link ? (

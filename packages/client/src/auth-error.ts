@@ -13,7 +13,6 @@ const KEYS = new Map<string, TranslationKey>([
   ["OTP_EXPIRED", "auth__error_code_expired"],
   ["TOO_MANY_ATTEMPTS", "auth__error_code_attempts"],
   ["INVALID_EMAIL", "auth__error_email_invalid"],
-  ["CAPTCHA_FAILED", "errors__captcha_failed"],
   ["REGISTRATION_CLOSED", "errors__registration_closed"],
   ["DISPOSABLE_EMAIL_NOT_ALLOWED", "errors__disposable_email"],
   ["INVALID_TOKEN", "auth__error_invalid_token"],

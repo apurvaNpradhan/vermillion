@@ -36,6 +36,7 @@ export const SetGrid = memo(function SetGrid({
   inlineTimer,
   entry,
   refusal,
+  currentSetId,
   previousOf,
   ghostsFor,
   onCell,
@@ -66,6 +67,8 @@ export const SetGrid = memo(function SetGrid({
   entry: ActiveEntry | null;
   /** A refused tick, only when it is in this exercise. */
   refusal: Refusal | null;
+  /** The set to log next, when it is in this exercise (from `highlightOf`). */
+  currentSetId: string | null;
   previousOf: (setId: string) => LoggedSet | null;
   ghostsFor: (setId: string) => Ghosts;
   onCell: (setId: string, field: SetField) => void;
@@ -182,6 +185,7 @@ export const SetGrid = memo(function SetGrid({
               effortScale={effortScale}
               entry={entry?.cell.setId === set.id ? entry : null}
               refusal={refusal?.setId === set.id ? refusal : null}
+              current={currentSetId === set.id}
               readOnly={readOnly}
               canRemove={exercise.sets.length > 1}
               canCopyPrevious={

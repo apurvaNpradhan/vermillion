@@ -12,7 +12,7 @@ export function ImportProgress({ label, progress }: { label: string; progress: n
     >
       <Text className="font-normal text-body text-foreground">{label}</Text>
       <View className="h-2 overflow-hidden rounded-full bg-default">
-        <View className="h-2 rounded-full bg-identity" style={{ width: `${percent}%` }} />
+        <View className="h-2 rounded-full bg-accent" style={{ width: `${percent}%` }} />
       </View>
       <Text
         className="font-normal text-caption text-muted"

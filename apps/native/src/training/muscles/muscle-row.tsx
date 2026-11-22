@@ -84,7 +84,7 @@ export function MuscleRow({
         </Text>
       </View>
       <View className="h-2 rounded-full bg-default">
-        <Animated.View className="h-2 rounded-full bg-identity" style={fillStyle} />
+        <Animated.View className="h-2 rounded-full bg-chart" style={fillStyle} />
         {row.range === null ? null : (
           <View
             accessibilityElementsHidden

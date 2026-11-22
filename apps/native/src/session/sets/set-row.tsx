@@ -17,7 +17,7 @@ import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
 import { usePop } from "@/platform/ui/use-pop";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -60,6 +60,8 @@ export type SetRowProps = {
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
+  /** The set to log next: an ember leading bar and number. */
+  current: boolean;
   readOnly: boolean;
   canRemove: boolean;
   canCopyPrevious: boolean;
@@ -91,7 +93,7 @@ function LiveTimer({
   const view = timerView(startedAt, target, now);
   return (
     <Text
-      className="text-center font-semibold text-body text-identity"
+      className="text-center font-semibold text-body text-foreground"
       style={{ fontVariant: ["tabular-nums"] }}
     >
       {formatDuration(view.remaining ?? view.elapsed, format)}
@@ -143,7 +145,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const onIdentity = useOnIdentityColor();
+  const onAction = useOnActionColor();
   const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
@@ -222,10 +224,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
               haptic.tick();
               props.onTimer(set.id);
             }}
-            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
+            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-accent" : "bg-field"}`}
           >
             {running ? (
-              <Stop size={20} weight="fill" color={onIdentity} />
+              <Stop size={20} weight="fill" color={onAction} />
             ) : (
               <Play size={20} color={subtle} />
             )}
@@ -243,6 +245,13 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     <View
       className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
     >
+      {props.current && !ticked ? (
+        <View
+          pointerEvents="none"
+          accessible={false}
+          className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-brand-detail"
+        />
+      ) : null}
       <Pressable
         {...a11y}
         accessibilityRole="button"
@@ -258,7 +267,11 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         hitSlop={4}
         className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
       >
-        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>{badge}</Text>
+        <Text
+          className={`font-semibold text-label ${props.current && !ticked ? "text-identity" : SET_TONES[set.kind].text}`}
+        >
+          {badge}
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -321,7 +334,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
         >
           <Animated.View style={tickPop}>
-            <Check size={20} color={ticked ? onSuccess : subtle} />
+            {ticked ? <Check size={20} color={onSuccess} /> : null}
           </Animated.View>
         </Pressable>
       )}

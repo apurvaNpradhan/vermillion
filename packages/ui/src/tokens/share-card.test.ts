@@ -38,6 +38,30 @@ describe("share card palettes", () => {
     }
     // The graphic marks need 3:1.
     expect(contrast(c.accent, c.ground), "accent on ground").toBeGreaterThanOrEqual(3);
+    expect(contrast(c.record, c.ground), "record on ground").toBeGreaterThanOrEqual(3);
+  });
+
+  it("draws no glow on Sigil cards and keeps Classic's accent glow", () => {
+    for (const appearance of nativeVariantNames) {
+      for (const kind of kinds) {
+        const glow = cardPalette(appearance, kind).glow;
+        if (appearance.startsWith("classic") && kind === "theme") {
+          expect(glow, `${appearance} ${kind}`).toBe(nativeColors[appearance].identity);
+        } else {
+          expect(glow, `${appearance} ${kind}`).toBeNull();
+        }
+      }
+    }
+  });
+
+  it("keeps ember for records on Sigil cards: every other mark is ink", () => {
+    for (const appearance of nativeVariantNames.filter((name) => !name.startsWith("classic"))) {
+      for (const kind of kinds) {
+        const c = cardPalette(appearance, kind);
+        expect(c.accent, `${appearance} ${kind}`).toBe(c.text);
+        expect(c.record, `${appearance} ${kind}`).not.toBe(c.text);
+      }
+    }
   });
 
   it.each(cases.filter((entry) => entry.kind === "theme"))(
@@ -61,10 +85,17 @@ describe("share card palettes", () => {
   it("uses the fixed palette whatever the appearance for Light, Dark, Photo and Sticker", () => {
     for (const kind of ["light", "dark", "photo", "sticker"] as const) {
       expect(cardPalette("light", kind)).toEqual(cardPalette("dark", kind));
-      expect(cardPalette("contrast-dark", kind)).toEqual(cardPalette("dark", kind));
+      expect(cardPalette("classic-dark-contrast", kind)).toEqual(
+        cardPalette("classic-light", kind),
+      );
+      expect(cardPalette("classic-light", kind).record).toBe(
+        cardPalette("classic-light", kind).accent,
+      );
     }
     expect(cardPalette("dark", "light").fill).toBe(nativeColors.light.canvas);
     expect(cardPalette("light", "dark").fill).toBe(nativeColors.dark.canvas);
+    expect(cardPalette("classic-dark", "light").fill).toBe(nativeColors["classic-light"].canvas);
+    expect(cardPalette("classic-light", "dark").fill).toBe(nativeColors["classic-dark"].canvas);
   });
 
   it("protects top headings, exercise rows, stats and footer over a white photo", () => {

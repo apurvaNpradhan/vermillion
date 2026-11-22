@@ -17,7 +17,7 @@ import {
  * Nine steps, 6 to 10 in halves, labelled in the preferred scale (RPE as stored, RIR counted
  * down from it). Tap a step for a single value, tap another for the range between them, tap a
  * range for a single value, tap the single step again to clear. Plain presses, no gestures, so it
- * works inside modal sheets. The selection uses the surface step and the identity ring, never colour alone: the
+ * works inside modal sheets. The selection uses the surface step and the ink ring, never colour alone: the
  * labels stay legible. Screen readers get increment and decrement.
  */
 export function EffortSelector({
@@ -67,7 +67,7 @@ export function EffortSelector({
             accessible={false}
             onPress={() => choose(selectEffort(value, step))}
             className={`flex-1 items-center justify-center ${
-              selected ? "border-y border-identity bg-surface" : ""
+              selected ? "border-y border-foreground bg-surface" : ""
             } ${selected && !before ? "rounded-l-[10px] border-l" : ""} ${
               selected && !after ? "rounded-r-[10px] border-r" : ""
             }`}

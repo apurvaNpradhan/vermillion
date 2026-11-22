@@ -6,7 +6,7 @@ import {
   shiftLightness,
   toOklch,
 } from "../mix";
-import type { RoleTokens } from "../roles";
+import type { RoleName, RoleTokens } from "../roles";
 
 /**
  * The theme engine (ADR 0048). Like Linear's, a theme is a few inputs per scheme: a base colour
@@ -33,6 +33,11 @@ export interface SchemeInput {
     hairline: string;
     action: string;
   }>;
+  /**
+   * Exact values for roles whose derived colour is not the one the theme wants. They apply at
+   * every contrast level except the text and line ladder, which increased contrast re-derives.
+   */
+  override?: Partial<RoleTokens>;
 }
 
 /** A theme's own data colours. Text tones are made readable per scheme; fills keep the hue. */
@@ -107,6 +112,16 @@ const LEVELS = {
   },
 } as const;
 
+/** Roles an override leaves to the engine at increased contrast, so the ladder keeps its 7:1. */
+const LADDER: ReadonlySet<RoleName> = new Set<RoleName>([
+  "text-primary",
+  "text-secondary",
+  "text-muted",
+  "text-disabled",
+  "hairline",
+  "hairline-strong",
+]);
+
 /** The better of the two inks on a fill. */
 function inkOn(fill: string, a: string, b: string): string {
   return contrastRatio(fill, a) >= contrastRatio(fill, b) ? a : b;
@@ -142,7 +157,8 @@ export function deriveScheme(
     level.ink,
   );
   const floating = isLight ? surface : mixHex(surface, control, 0.5);
-  const doneSoft = mixHex(surface, family.success, isLight ? 0.18 : 0.12);
+  const exact = input.override ?? {};
+  const doneSoft = exact["set-done-soft"] ?? mixHex(surface, family.success, isLight ? 0.18 : 0.12);
   const grounds = [canvas, surface];
   // Text also sits on completed-set rows, fields and controls, and floating sheets.
   const textGrounds = [...grounds, doneSoft, control, floating];
@@ -151,7 +167,8 @@ export function deriveScheme(
   const text = (color: string, ratio: number = TEXT) =>
     readableByLightness(color, textGrounds, ratio, toward);
   // The selected-chip fill, tinted by the raw accent so the readable accent can be held to it.
-  const identitySoft = mixHex(surface, input.accent, isLight ? 0.12 : 0.14);
+  const identitySoft =
+    exact["identity-soft"] ?? mixHex(surface, input.accent, isLight ? 0.12 : 0.14);
   const actionSeed = input.pin?.action ?? input.accent;
   const onAccent = input.onAccent ?? inkOn(actionSeed, ink, canvas);
   // Hover and press move the fill away from its own ink, so the label only gains contrast.
@@ -160,7 +177,8 @@ export function deriveScheme(
   // The fill keeps its label readable (darker under a light label, lighter under a dark one);
   // marks and text in the accent stay readable on the page.
   const action = readableByLightness(actionSeed, [onAccent], TEXT, lightLabel ? -1 : 1);
-  const identity = readableByLightness(input.accent, [...grounds, identitySoft], TEXT, toward);
+  const identity =
+    exact.identity ?? readableByLightness(input.accent, [...grounds, identitySoft], TEXT, toward);
   const onIdentity = inkOn(identity, surface, isLight ? ink : canvas);
   const danger = readableByLightness(family.danger, grounds, TEXT, toward);
   // HeroUI's soft fills tint their underlying surface by up to 20% on press.
@@ -174,7 +192,7 @@ export function deriveScheme(
   const warningText = text(family.warning);
   const series = (color: string) => readableByLightness(color, grounds, MARK, toward);
   const [chart2, chart3, chart4, chart5] = family.chart;
-  return {
+  const roles: RoleTokens = {
     canvas,
     surface,
     "surface-control": control,
@@ -239,6 +257,12 @@ export function deriveScheme(
     fat: family.fat,
     "fat-text": text(family.fat),
   };
+  for (const [role, value] of Object.entries(exact)) {
+    // SAFETY: `exact` is a Partial<RoleTokens>, so its keys are role names.
+    const name = role as RoleName;
+    if (value !== undefined && (contrast === "standard" || !LADDER.has(name))) roles[name] = value;
+  }
+  return roles;
 }
 
 /** Every variant of a theme: each scheme at each contrast level. */

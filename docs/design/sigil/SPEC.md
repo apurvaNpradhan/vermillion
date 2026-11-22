@@ -9,7 +9,7 @@ Where it disagrees with an older doc, this file wins.
 - Website manifesto headline **The iron remembers.**, with the small label `NONFINITO` above it (an
   easter egg for Michelangelo's unfinished technique; never explained).
 - Subtitle: "A private log for training — and soon, food." stays.
-- Slug and scheme `sigil` / `sigil://`, bundle id `io.github.apurvanpradhan.sigil`, hosts
+- Scheme `sigil://`, EAS slug `vermillion`, bundle id `io.github.apurvanpradhan.sigil`, hosts
   `sigil.`, `sigil-api.`, `sigil-sync.lostsignal.cloud`. Old `patina*` hosts are dropped, no aliases.
 - Concept: you carve yourself out of the stone, set by set. A mason's mark is a sigil: the mark a
   stonemason cut into each block they finished. No mascot. No tortoise anywhere.
@@ -85,8 +85,8 @@ Rules:
 - Working screens stay flat: no texture, no grain, no borders (depth from surface steps only).
 - Sign-in / welcome: always dark. The graded Atlas photo fills the top ~65% and fades into the ground;
   mark A2 top-left; `Sigil` in EB Garamond (~64dp) bottom-left; "Earn the mark." in Geist muted;
-  email field; ink "Continue with email" button; Terms/Privacy footnote. Credit line available from
-  the screen (e.g. a small "Photo credit" row in About/Settings → Licences).
+  ink Google button when configured, plus "Continue with email", which opens an email form in a
+  sheet. A sent code opens the code screen. Include Terms and Privacy links and a photo credit.
 - Empty states: a hairline construction drawing (circle + golden rectangle + spiral) in `muted`,
   ~170dp, then a mono label with the real count (`0 WORKOUTS`), one plain line ("No workouts logged
   yet."), at most one ink action. Rendered with react-native-svg.

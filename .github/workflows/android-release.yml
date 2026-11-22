@@ -11,7 +11,6 @@ name: Android release
 #
 # Needs (docs/guides/android-release.md):
 #   variable  EXPO_PUBLIC_SERVER_URL            https://sigil-api.<domain>, baked into the app
-#   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
 #   variable  EXPO_PUBLIC_SENTRY_DSN            optional; crash reporting and feedback (docs/guides/sentry.md)
 #   variable  SENTRY_ORG, SENTRY_PROJECT        optional; with the secret below, source maps upload
 #   variable  SENTRY_URL                        optional; https://de.sentry.io for an EU-region org
@@ -48,7 +47,6 @@ jobs:
       contents: read
     env:
       EXPO_PUBLIC_SERVER_URL: ${{ vars.EXPO_PUBLIC_SERVER_URL }}
-      EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       SENTRY_ORG: ${{ vars.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}

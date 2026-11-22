@@ -1,4 +1,5 @@
 import { nativeColors, nativeVariantNames, type NativeVariant } from "@workspace/ui/tokens/brand";
+import { DEFAULT_THEME_ID } from "@workspace/ui/tokens/theme-variants";
 import * as SystemUI from "expo-system-ui";
 import { useSyncExternalStore } from "react";
 import { AppState, Appearance, type ColorValue } from "react-native";
@@ -43,9 +44,12 @@ function applyTheme(choice: ThemeChoice) {
   const variant = resolvedVariant(choice, systemScheme);
   applying = true;
   const followsDevice = choice.appearance === "system";
-  Uniwind.setTheme(followsDevice && !choice.contrast ? "system" : variant);
-  // Custom contrast variants release the OS override. Restore it for explicit Light or Dark.
-  if (choice.contrast && !followsDevice) Appearance.setColorScheme(scheme);
+  // Uniwind's built-in light and dark carry Sigil at standard contrast, so that path follows the OS.
+  const builtIn = followsDevice && !choice.contrast && choice.theme === DEFAULT_THEME_ID;
+  Uniwind.setTheme(builtIn ? "system" : variant);
+  // Custom Uniwind themes reset Appearance, so set it AFTER the theme: forced for an explicit
+  // Light or Dark, released for Match device so the OS keeps reporting its own changes live.
+  if (!builtIn) Appearance.setColorScheme(followsDevice ? "auto" : scheme);
   applying = false;
   void SystemUI.setBackgroundColorAsync(nativeColors[variant].canvas);
 }
@@ -88,10 +92,10 @@ const isNativeVariant = (name: string): name is NativeVariant =>
 /** Light or dark, for native chrome. */
 export function useThemeMode(): "light" | "dark" {
   const variant = useAppliedVariant();
-  return variant.endsWith("dark") ? "dark" : "light";
+  return variant === "dark" || variant.includes("-dark") ? "dark" : "light";
 }
 
-/** The applied Classic scheme and contrast variant. */
+/** The applied Uniwind theme variant (theme, scheme and contrast). */
 export function useAppliedVariant(): NativeVariant {
   const { theme } = useUniwind();
   return isNativeVariant(theme) ? theme : "light";
@@ -109,15 +113,15 @@ export function useOnSetDoneColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
-/** The palette's accent, for marks whose props require a color string. */
-export function useIdentityColor(): string | undefined {
-  const value = useCSSVariable("--color-identity");
+/** Primary action ink (toggles, timers, progress), for props that require a color string. */
+export function useActionColor(): string | undefined {
+  const value = useCSSVariable("--accent");
   return isColorString(value) ? value : undefined;
 }
 
-/** The icon and text colour on an `identity` fill. */
-export function useOnIdentityColor(): string | undefined {
-  const value = useCSSVariable("--color-on-identity");
+/** The icon and text colour on an `action` fill. */
+export function useOnActionColor(): string | undefined {
+  const value = useCSSVariable("--accent-foreground");
   return isColorString(value) ? value : undefined;
 }
 

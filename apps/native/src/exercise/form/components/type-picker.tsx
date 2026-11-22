@@ -55,7 +55,7 @@ export function TypePicker({
               disabled={locked}
               onPress={choice.onPress}
               className={`h-12 flex-row items-center justify-between rounded-xl border active:opacity-70 px-4 ${
-                selected ? "border-identity bg-identity-soft" : "border-transparent bg-surface"
+                selected ? "border-foreground bg-default" : "border-transparent bg-surface"
               } ${locked && !selected ? "opacity-50" : ""}`}
             >
               <Text

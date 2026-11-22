@@ -118,7 +118,7 @@ export function MusclesScreen() {
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
   const dark = useThemeMode() === "dark";
-  const artTint = useMemo(() => muscleArtTint(colors.identity, dark), [colors.identity, dark]);
+  const artTint = useMemo(() => muscleArtTint(colors.chart, dark), [colors.chart, dark]);
   const canPrevious = weeksAgo < MAX_WEEKS_AGO;
   const canNext = weeksAgo > 0;
   const step = (by: -1 | 1) => {

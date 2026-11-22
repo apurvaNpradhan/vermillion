@@ -27,7 +27,7 @@ export type FlowStepAction = {
 /** A quieter action under the primary one, e.g. "Not now". */
 export type FlowStepSecondary = { label: string; onPress: () => void; disabled?: boolean };
 
-/** Segmented dashes: the current step in the identity colour, done steps muted, the rest hairline. */
+/** Segmented dashes: the current step in ink, done steps muted, the rest hairline. */
 function StepDashes({ index, total, label }: FlowPosition & { label: string }) {
   return (
     <View
@@ -42,7 +42,7 @@ function StepDashes({ index, total, label }: FlowPosition & { label: string }) {
           key={step}
           className={cn(
             "h-1 w-8 shrink rounded-full",
-            step === index ? "bg-identity" : step < index ? "bg-muted/60" : "bg-border",
+            step === index ? "bg-accent" : step < index ? "bg-muted/60" : "bg-border",
           )}
         />
       ))}
@@ -64,6 +64,7 @@ export function FlowStep({
   action,
   secondary,
   leading,
+  plainTitle = false,
 }: {
   position: FlowPosition;
   title: string;
@@ -74,6 +75,8 @@ export function FlowStep({
   secondary?: FlowStepSecondary;
   /** Defaults to a close cross on the first step and a back chevron after it. */
   leading?: "back" | "close" | "none";
+  /** Geist title. The serif is for onboarding step titles only. */
+  plainTitle?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -130,7 +133,11 @@ export function FlowStep({
           <View className="gap-2">
             <Text
               accessibilityRole="header"
-              className="font-semibold text-title-xl text-foreground"
+              className={
+                plainTitle
+                  ? "font-semibold text-title-xl text-foreground"
+                  : "font-display text-display-lg text-foreground"
+              }
             >
               {title}
             </Text>

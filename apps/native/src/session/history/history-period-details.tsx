@@ -96,7 +96,7 @@ export function HistoryWeekCalendar({
         const sessions = history.byDay.get(day) ?? [];
         const title = sessions[0]?.title;
         const trained = sessions.length > 0;
-        const tone = trained ? "text-on-identity" : "text-muted";
+        const tone = trained ? "text-accent-foreground" : "text-muted";
         return (
           <View
             key={index}
@@ -116,14 +116,14 @@ export function HistoryWeekCalendar({
             {day === today && (
               <View
                 pointerEvents="none"
-                className={`absolute inset-0 rounded-lg border ${trained ? "border-on-identity" : "border-identity"}`}
+                className={`absolute inset-0 rounded-lg border ${trained ? "border-accent-foreground" : "border-identity"}`}
               />
             )}
             <Text className={`font-normal text-center text-caption ${tone}`}>
               {format.weekdayLetter(day)}
             </Text>
             <Text
-              className={`font-medium text-center text-numeric-md tabular-nums ${trained ? "text-on-identity" : "text-foreground"}`}
+              className={`font-medium text-center text-numeric-md tabular-nums ${trained ? "text-accent-foreground" : "text-foreground"}`}
             >
               {format.day(day)}
             </Text>
@@ -206,7 +206,7 @@ export function HistoryYear({
                           day == null || day > today
                             ? "opacity-0"
                             : history.byDay.has(day)
-                              ? "bg-identity"
+                              ? "bg-accent"
                               : "bg-muted/30";
                         return <View key={colIndex} className={`size-1.5 rounded-full ${tone}`} />;
                       })}

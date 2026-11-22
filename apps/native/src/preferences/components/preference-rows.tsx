@@ -24,7 +24,7 @@ export function PreferenceRows({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   const { preferences, setLocale } = usePreferences();
   const { choice } = useThemeChoice();
-  const appearance = useAppearanceSummary(choice.appearance);
+  const appearance = useAppearanceSummary(choice);
   const [picker, setPicker] = useState<Picker>(null);
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);

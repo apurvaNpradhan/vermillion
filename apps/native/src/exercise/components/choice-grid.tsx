@@ -62,7 +62,7 @@ export function ChoiceGrid<T extends string>({
   );
 }
 
-/** One cell of a choice grid: an icon over a label, ticked by the identity border when selected. */
+/** One cell of a choice grid: an icon over a label, ticked by the ink border when selected. */
 export function ChoiceCell({
   label,
   selected,
@@ -89,7 +89,7 @@ export function ChoiceCell({
           onPress();
         }}
         className={`items-center gap-1.5 rounded-xl border active:opacity-70 px-1 py-2.5 ${
-          selected ? "border-identity bg-identity-soft" : "border-transparent bg-surface"
+          selected ? "border-foreground bg-default" : "border-transparent bg-surface"
         }`}
       >
         {icon}

@@ -31,6 +31,8 @@ export type ShareTemplate<Id extends string> = {
   id: string;
   label: string;
   render: (context: CardContext<Id>) => ReactNode;
+  /** This template displays personal records. */
+  hasRecords?: boolean;
   /**
    * A Sticker: drawn on a transparent canvas with its own solid block, exported as PNG, without
    * the footer and without background swatches.

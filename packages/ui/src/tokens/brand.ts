@@ -1,30 +1,26 @@
 import type { RoleName, RoleTokens } from "./roles";
-import { buildTheme } from "./themes/engine";
-import { graphite } from "./themes/graphite";
+import {
+  DEFAULT_THEME_ID,
+  themeVariantNames,
+  themeVariants,
+  variantName,
+  type ThemeVariant,
+} from "./theme-variants";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
-const {
-  light,
-  dark,
-  "light-contrast": contrastLight,
-  "dark-contrast": contrastDark,
-} = buildTheme(graphite);
+/**
+ * A native Uniwind theme: an app theme variant, or Uniwind's built-in `light` / `dark`, which
+ * carry the default theme (Sigil) at standard contrast and render before the stored choice applies.
+ */
+export type NativeVariant = "light" | "dark" | ThemeVariant;
 
-/** Classic uses the built-in light and dark themes plus two accessibility variants. */
-export const nativeColors = {
-  light,
-  dark,
-  "contrast-light": contrastLight,
-  "contrast-dark": contrastDark,
-} satisfies Record<string, RoleTokens>;
+export const nativeVariantNames: readonly NativeVariant[] = ["light", "dark", ...themeVariantNames];
 
-export type NativeVariant = keyof typeof nativeColors;
-export const nativeVariantNames: readonly NativeVariant[] = [
-  "light",
-  "dark",
-  "contrast-light",
-  "contrast-dark",
-];
+export const nativeColors: Record<NativeVariant, RoleTokens> = {
+  light: themeVariants[variantName(DEFAULT_THEME_ID, "light")],
+  dark: themeVariants[variantName(DEFAULT_THEME_ID, "dark")],
+  ...themeVariants,
+};
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
@@ -96,6 +92,10 @@ export interface TextStyle {
  */
 export const typeScale = {
   "title-display": { size: 42, lineHeight: 48, tracking: -1, weight: 600 },
+  /** EB Garamond: large titles of tab roots, onboarding steps and the session finish title. */
+  "display-lg": { size: 34, lineHeight: 40, tracking: -0.34, weight: 500 },
+  /** EB Garamond: the sign-in wordmark. */
+  "display-wordmark": { size: 64, lineHeight: 68, tracking: -0.64, weight: 500 },
   "title-xl": { size: 28, lineHeight: 34, tracking: -0.3, weight: 600 },
   "title-lg": { size: 22, lineHeight: 28, tracking: -0.2, weight: 600 },
   "title-md": { size: 18, lineHeight: 24, tracking: -0.1, weight: 600 },
@@ -112,7 +112,7 @@ export const typeScale = {
 } as const satisfies Record<string, TextStyle>;
 
 export const brandTokens = {
-  colors: { light, dark },
+  colors: { light: nativeColors.light, dark: nativeColors.dark },
   /** HeroUI Native `--radius`; its scale multiplies it (`rounded-xl` = 12, `rounded-2xl` = 16). */
   nativeRadius: "8px",
   type: typeScale,
@@ -127,6 +127,8 @@ export const brandTokens = {
       bold: "Geist_700Bold",
       mono: "GeistMono_400Regular",
       "mono-medium": "GeistMono_500Medium",
+      /** EB Garamond (OFL), display titles only. */
+      display: "EBGaramond_500Medium",
     },
   },
 } as const;

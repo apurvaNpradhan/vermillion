@@ -9,8 +9,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Classic, following the device, at standard contrast", () => {
-    expect(DEFAULT_THEME).toEqual({ appearance: "system", contrast: false });
+  it("starts on Sigil, following the device, at standard contrast", () => {
+    expect(DEFAULT_THEME).toEqual({ theme: "sigil", appearance: "system", contrast: false });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -18,6 +18,11 @@ describe("device theme selection", () => {
       expect(parseTheme(appearance)).toEqual({ ...DEFAULT_THEME, appearance });
       expect(parseTheme(JSON.stringify({ theme: "chalk", appearance }))).toEqual({
         ...DEFAULT_THEME,
+        appearance,
+      });
+      expect(parseTheme(JSON.stringify({ theme: "classic", appearance }))).toEqual({
+        ...DEFAULT_THEME,
+        theme: "classic",
         appearance,
       });
     }
@@ -48,17 +53,20 @@ describe("device theme selection", () => {
   });
 
   it("round-trips and resolves every appearance and contrast", () => {
-    for (const appearance of APPEARANCES)
-      for (const contrast of [false, true]) {
-        const choice = { appearance, contrast };
-        expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
-        // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
-        for (const os of ["light", "dark", null] as const) {
-          const scheme = appearance === "system" ? (os ?? "light") : appearance;
-          expect(resolvedScheme(choice, os)).toBe(scheme);
-          expect(resolvedVariant(choice, os)).toBe(contrast ? `contrast-${scheme}` : scheme);
+    for (const theme of ["sigil", "classic"] as const)
+      for (const appearance of APPEARANCES)
+        for (const contrast of [false, true]) {
+          const choice = { theme, appearance, contrast };
+          expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
+          // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
+          for (const os of ["light", "dark", null] as const) {
+            const scheme = appearance === "system" ? (os ?? "light") : appearance;
+            expect(resolvedScheme(choice, os)).toBe(scheme);
+            expect(resolvedVariant(choice, os)).toBe(
+              `${theme}-${contrast ? `${scheme}-contrast` : scheme}`,
+            );
+          }
         }
-      }
   });
 
   it("applies, persists and announces each actual change once", () => {
@@ -84,10 +92,10 @@ describe("device theme selection", () => {
 
 describe("retired themes", () => {
   it.each(["patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
-    "drops %s without changing the saved appearance or contrast",
+    "falls back to Sigil for %s without changing the saved appearance or contrast",
     (theme) => {
       const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-      expect(parseTheme(stored)).toEqual({ appearance: "dark", contrast: true });
+      expect(parseTheme(stored)).toEqual({ theme: "sigil", appearance: "dark", contrast: true });
     },
   );
 });

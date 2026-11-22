@@ -20,9 +20,9 @@ The Postgres test template gets the `powersync` publication and the `powersync_r
 
 `packages/api/src/platform/sync/parity.ts` introspects the migrated Postgres (columns, types, nullability, defaults, indexes, publication membership) and compares it with a declared expectation; add each synced table to the expectation in `parity.test.ts`. It also parses `powersync/sync-config.yaml` and checks each stream's explicit columns against the table, the publication, the `user_id = auth.user_id()` and `deleted_at IS NULL` filters and the upload handler registry.
 
-Pure-function unit tests: client-IP resolver, disposable-domain matcher, Turnstile verifier (stub `fetch`), preferences `ui` defaults, return-location sanitiser, boundaries lint rule.
+Pure-function unit tests: client-IP resolver, disposable-domain matcher, preferences `ui` defaults, return-location sanitiser, boundaries lint rule.
 
-There is no browser or end-to-end suite ([ADR 0026](../docs/adr/0026-no-e2e-and-privacy-readiness.md)). Admin tests fake only the network boundary (Turnstile, GitHub Releases, the exercise-media bucket's HEAD) with `fakeNetwork` from `platform/testing/admin.ts`; `createFullAdmin` signs in, enrols and passes the authenticator. Add native e2e (for example Maestro) as its own decision when the app needs it.
+There is no browser or end-to-end suite ([ADR 0026](../docs/adr/0026-no-e2e-and-privacy-readiness.md)). Admin tests fake only the network boundary (GitHub Releases, the exercise-media bucket's HEAD) with `fakeNetwork` from `platform/testing/admin.ts`; `createFullAdmin` signs in, enrols and passes the authenticator. Add native e2e (for example Maestro) as its own decision when the app needs it.
 
 Native has no automated UI test seam in v1. Shared pure helpers and session-cache behavior are tested in `packages/client`.
 

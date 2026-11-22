@@ -40,7 +40,6 @@ const config: ApiConfig = {
   trustedProxies: env.TRUSTED_PROXIES,
   registrationOpen: env.REGISTRATION_OPEN,
   catalogPatchGate: env.CATALOG_PATCH_GATE,
-  turnstileSecret: env.TURNSTILE_SECRET_KEY,
   google: credentials(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET),
   github: credentials(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET),
   openApiReference: !isProduction,
