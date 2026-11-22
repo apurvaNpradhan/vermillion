@@ -53,7 +53,7 @@ export function SwapRow({
               })}
               onPress={() => onOpen(candidate.id)}
               className={`gap-2 rounded-xl border active:opacity-70 p-2 active:bg-default ${
-                selected ? "border-identity bg-default" : "border-transparent bg-surface"
+                selected ? "border-foreground bg-default" : "border-transparent bg-surface"
               }`}
               style={{ width: CARD_WIDTH }}
             >

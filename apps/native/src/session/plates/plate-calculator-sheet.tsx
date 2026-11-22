@@ -58,7 +58,7 @@ export function PlateChip({
     <View
       className={
         selected
-          ? "min-h-11 flex-row items-center rounded-xl border border-identity bg-default"
+          ? "min-h-11 flex-row items-center rounded-xl border border-foreground bg-default"
           : "min-h-11 flex-row items-center rounded-xl border border-transparent bg-surface"
       }
     >

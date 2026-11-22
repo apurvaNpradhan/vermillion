@@ -41,7 +41,7 @@ export function DetailPicker({
               onToggle(detail);
             }}
             className={`min-h-11 justify-center rounded-full border px-4 active:opacity-70 ${
-              selected ? "border-identity bg-identity-soft" : "border-transparent bg-surface"
+              selected ? "border-foreground bg-default" : "border-transparent bg-surface"
             }`}
           >
             <Text

@@ -60,6 +60,8 @@ export type SetRowProps = {
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
+  /** The set to log next: an ember leading bar and number. */
+  current: boolean;
   readOnly: boolean;
   canRemove: boolean;
   canCopyPrevious: boolean;
@@ -91,7 +93,7 @@ function LiveTimer({
   const view = timerView(startedAt, target, now);
   return (
     <Text
-      className="text-center font-semibold text-body text-identity"
+      className="text-center font-semibold text-body text-foreground"
       style={{ fontVariant: ["tabular-nums"] }}
     >
       {formatDuration(view.remaining ?? view.elapsed, format)}
@@ -243,6 +245,13 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     <View
       className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
     >
+      {props.current && !ticked ? (
+        <View
+          pointerEvents="none"
+          accessible={false}
+          className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-brand-detail"
+        />
+      ) : null}
       <Pressable
         {...a11y}
         accessibilityRole="button"
@@ -258,7 +267,11 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
         hitSlop={4}
         className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
       >
-        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>{badge}</Text>
+        <Text
+          className={`font-semibold text-label ${props.current && !ticked ? "text-identity" : SET_TONES[set.kind].text}`}
+        >
+          {badge}
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -321,7 +334,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
         >
           <Animated.View style={tickPop}>
-            <Check size={20} color={ticked ? onSuccess : subtle} />
+            {ticked ? <Check size={20} color={onSuccess} /> : null}
           </Animated.View>
         </Pressable>
       )}

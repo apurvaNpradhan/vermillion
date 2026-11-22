@@ -36,7 +36,14 @@ import { nextRowLookups, shareMapValues, type RowLookups } from "./row-lookups";
 import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 
-import { blocksOf, firstUnfinished, isBlockDone, nextAfter, type Block } from "./blocks";
+import {
+  blocksOf,
+  firstUnfinished,
+  highlightOf,
+  isBlockDone,
+  nextAfter,
+  type Block,
+} from "./blocks";
 import {
   applyKey,
   displayOfText,
@@ -516,6 +523,8 @@ export function useLoggingState({
         void prior.ready.then((bests) => {
           if (bests && isRecord(bests)) {
             sound.play("record");
+            // The Record was not known when the tick landed: its one success haptic is now.
+            if (!strong) haptic.success();
             announce();
           }
         });
@@ -671,6 +680,14 @@ export function useLoggingState({
     [exercises, readOnly, actions, blocks],
   );
 
+  // The open block's next set to log; nothing while reading a finished session.
+  const resolvedOpenBlockId =
+    openBlockId === undefined
+      ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
+      : openBlockId;
+  const openBlock = blocks.find((block) => block.id === resolvedOpenBlockId);
+  const currentSetId = openBlock && !readOnly ? (highlightOf(openBlock)?.setId ?? null) : null;
+
   // Rows are memoized: hand them handlers that keep their identity across data changes.
   const stableOpenCell = useStableHandler(openCell);
   const stableToggleBlock = useStableHandler(toggleBlock);
@@ -685,11 +702,10 @@ export function useLoggingState({
     places,
     // Before the effect settles the first choice, the block it will open is shown open already,
     // so the screen's first frame matches the next one.
-    openBlockId:
-      openBlockId === undefined
-        ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
-        : openBlockId,
+    openBlockId: resolvedOpenBlockId,
     justCollapsedId,
+    /** The set to log next in the open block: the one the grid marks as current. */
+    currentSetId,
     toggleBlock: stableToggleBlock,
     previousOf,
     ghostsFor,

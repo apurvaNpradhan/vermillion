@@ -49,6 +49,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   inlineTimer,
   entry,
   refusal,
+  currentSetId,
   previousOf,
   ghostsFor,
   onView,
@@ -92,6 +93,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   inlineTimer: boolean;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
+  currentSetId: string | null;
   previousOf: (setId: string) => LoggedSet | null;
   ghostsFor: (setId: string) => Ghosts;
   onView: (exerciseId: string) => void;
@@ -153,6 +155,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         inlineTimer={inlineTimer}
         entry={entry}
         refusal={refusal}
+        currentSetId={currentSetId}
         previousOf={previousOf}
         ghostsFor={ghostsFor}
         unit={unit}

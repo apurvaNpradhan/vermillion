@@ -21,12 +21,12 @@ export function FilterPill({
       accessibilityState={{ selected: active }}
       onPress={onPress}
       className={`h-9 flex-row items-center gap-1.5 rounded-full border active:opacity-70 px-3 ${
-        active ? "border-identity bg-default" : "border-transparent bg-surface"
+        active ? "border-foreground bg-default" : "border-transparent bg-surface"
       }`}
     >
       <Text
         numberOfLines={1}
-        className={`text-label font-medium ${active ? "text-foreground" : "text-muted"}`}
+        className={`text-label font-medium ${active ? "text-identity" : "text-muted"}`}
       >
         {label}
       </Text>

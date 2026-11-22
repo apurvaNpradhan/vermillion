@@ -79,12 +79,14 @@ export function WeekStrip({
             accessibilityState={{ disabled: inert, selected: day === selected }}
             disabled={inert}
             onPress={() => onSelect?.(day)}
-            className={`min-h-[68px] flex-1 items-center gap-1 rounded-2xl border py-2 active:bg-default ${day === selected ? "border-identity bg-default" : "border-transparent"} ${dim ? "opacity-40" : ""}`}
+            className={`min-h-[68px] flex-1 items-center gap-1 rounded-2xl border py-2 active:bg-default ${day === selected ? "border-foreground bg-default" : "border-transparent"} ${dim ? "opacity-40" : ""}`}
           >
             <Text numberOfLines={1} className="text-caption font-medium text-muted">
               {labels.weekday(day)}
             </Text>
-            <Text className="font-medium text-numeric-sm tabular-nums text-foreground">
+            <Text
+              className={`font-medium text-numeric-sm tabular-nums ${day === today ? "text-identity" : "text-foreground"}`}
+            >
               {labels.day(day)}
             </Text>
             <View className="h-2 flex-row items-center justify-center gap-1">
@@ -92,7 +94,7 @@ export function WeekStrip({
                 <View key={index} className={`h-1.5 w-1.5 rounded-full ${TONE[tone]}`} />
               ))}
               {mark?.planned ? (
-                <View className="h-1.5 w-1.5 rounded-full border border-identity" />
+                <View className="h-1.5 w-1.5 rounded-full border border-muted" />
               ) : null}
             </View>
           </Pressable>
