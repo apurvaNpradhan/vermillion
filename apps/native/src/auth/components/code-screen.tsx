@@ -18,7 +18,6 @@ import { useEmailCode } from "../use-email-code";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { confirmOnline } from "@/platform/network";
 import { FlowStep } from "./flow-step";
-import { useTurnstile } from "./use-turnstile";
 
 /**
  * Second step of both flows: the emailed code. Submits itself on the last digit; a wrong code clears the cells
@@ -27,7 +26,6 @@ import { useTurnstile } from "./use-turnstile";
 export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const turnstile = useTurnstile();
   const { sendCode, redeemCode } = useEmailCode();
   const countdown = useCountdown(OTP_RESEND_SECONDS);
   const [value, setValue] = useState("");
@@ -77,8 +75,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
       setResending(false);
       return;
     }
-    const error = await sendCode(email, turnstile.headers);
-    turnstile.reset();
+    const error = await sendCode(email);
     setResending(false);
     if (error) {
       setFailure(t(error));
@@ -93,7 +90,7 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
     countdown.remaining > 0
       ? t("auth__code_resend_wait", { seconds: countdown.remaining })
       : t("auth__code_resend_short");
-  const resendDisabled = countdown.remaining > 0 || turnstile.pending || checking || resending;
+  const resendDisabled = countdown.remaining > 0 || checking || resending;
 
   return (
     <FlowStep
@@ -153,7 +150,6 @@ export function CodeScreen({ email, flow }: { email: string; flow: FlowKind }) {
           {resending ? <Spinner size="sm" /> : null}
         </Pressable>
       </View>
-      {turnstile.widget}
     </FlowStep>
   );
 }

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createFullAdmin, fakeNetwork } from "../platform/testing/admin";
+import { createFullAdmin } from "../platform/testing/admin";
 import {
   createTestApp,
   linkIn,
@@ -59,17 +59,6 @@ describe("access requests", () => {
     await expect(anon.access.request({ email: "r9@example.com" })).rejects.toMatchObject({
       code: "TOO_MANY_REQUESTS",
     });
-  });
-
-  it("refuses a bad Turnstile token when the deployment has a secret", async () => {
-    app = await createTestApp({
-      config: { turnstileSecret: "secret" },
-      fetch: fakeNetwork({ turnstile: false }).fetch,
-    });
-    await expect(
-      app.client().access.request({ email: "bot@example.com", turnstileToken: "bad" }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", data: { code: "CAPTCHA_FAILED" } });
-    expect(await app.rows(sql`SELECT id FROM access_invite`)).toEqual([]);
   });
 });
 

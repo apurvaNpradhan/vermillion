@@ -17,7 +17,6 @@ import { useEmailCode } from "../use-email-code";
 import { useRegistrationStatus } from "../use-registration-status";
 import { FlowStep } from "./flow-step";
 import { SocialButtons } from "./social-buttons";
-import { useTurnstile } from "./use-turnstile";
 
 /** A quiet label with breathing room between the sign-in methods. */
 function OrDivider({ label }: { label: string }) {
@@ -35,7 +34,6 @@ function OrDivider({ label }: { label: string }) {
 export function EmailScreen({ flow, initialEmail }: { flow: FlowKind; initialEmail?: string }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const turnstile = useTurnstile();
   const status = useRegistrationStatus();
   const { sendCode } = useEmailCode();
   const [failure, setFailure] = useState<string | null>(null);
@@ -50,8 +48,7 @@ export function EmailScreen({ flow, initialEmail }: { flow: FlowKind; initialEma
       if (!(await confirmOnline())) return;
       setFailure(null);
       const email = value.email.trim();
-      const error = await sendCode(email, turnstile.headers);
-      turnstile.reset();
+      const error = await sendCode(email);
       if (error) {
         setFailure(t(error));
         return;
@@ -70,7 +67,7 @@ export function EmailScreen({ flow, initialEmail }: { flow: FlowKind; initialEma
           action={{
             label: t("auth__continue"),
             onPress: () => void form.handleSubmit(),
-            disabled: email.trim() === "" || turnstile.pending,
+            disabled: email.trim() === "",
             loading: isSubmitting,
           }}
         >
@@ -112,14 +109,9 @@ export function EmailScreen({ flow, initialEmail }: { flow: FlowKind; initialEma
           {hasSocial ? (
             <View className="gap-3 pt-6">
               <OrDivider label={t("auth__or")} />
-              <SocialButtons
-                headers={turnstile.headers}
-                blocked={isSubmitting || turnstile.pending}
-                onDone={turnstile.reset}
-              />
+              <SocialButtons blocked={isSubmitting} />
             </View>
           ) : null}
-          {turnstile.widget}
         </FlowStep>
       )}
     </form.Subscribe>

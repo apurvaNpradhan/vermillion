@@ -38,7 +38,6 @@
   "errors__unknown": "Something went wrong. Try again.",
   "errors__registration_closed": "Sign-up is by invite only, and this address has no invite.",
   "errors__disposable_email": "Email addresses from disposable providers are not allowed.",
-  "errors__captcha_failed": "The security check failed. Please try again.",
   "errors__page_not_found": "Page not found",
   "nav__home": "Home",
   "nav__sign_in": "Sign in",

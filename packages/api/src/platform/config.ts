@@ -24,7 +24,6 @@ export type ApiConfig = {
   /** Comma-separated IPs/CIDRs allowed to set X-Forwarded-For, or "none". */
   trustedProxies: string;
   registrationOpen: boolean;
-  turnstileSecret?: string | undefined;
   google?: { clientId: string; clientSecret: string } | undefined;
   github?: { clientId: string; clientSecret: string } | undefined;
   /** Serve the OpenAPI reference (off in production by default). */

@@ -16,7 +16,7 @@ const prefs = await client.preferences.update({ timezone: "Europe/Berlin" });
 ## Rules
 
 - Call the highest seam: the router client or Better Auth's server API. Do not import an operation to test it.
-- Do not mock our modules, oRPC, Better Auth, Hono or middleware. Replace only the network boundary: the CAPTCHA `fetch` and the email transport (the harness does both).
+- Do not mock our modules, oRPC, Better Auth, Hono or middleware. Replace only the network boundary: the outbound `fetch` (GitHub, media bucket) and the email transport (the harness does both).
 - Assert through the public contract: returned data, error `code` and `status`, rows visible through another procedure, emails in the outbox. Not call counts or internals.
 - For a protected procedure cover the pair: anonymous gets `UNAUTHORIZED`, a signed-in user reaches the handler. For owned data add: another user gets `NOT_FOUND`.
 - Jobs run in-process with zero retry delay and half-second polling; use `waitForEmail` or poll `rows` with a deadline rather than sleeping a fixed time.

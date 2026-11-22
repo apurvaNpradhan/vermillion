@@ -61,7 +61,6 @@ Validated at startup by `packages/env`; the server exits with the failing variab
 | `TRUSTED_PROXIES`                                          | yes in production | Comma-separated CIDRs allowed to set `X-Forwarded-For`; see below.                                                                                                                                                                 |
 | `REGISTRATION_OPEN`                                        | no                | `false` (production, the closed beta): only an address with a live invite, or in `ADMIN_EMAILS`, may create an account; existing accounts still sign in. Default `true`.                                                           |
 | `ADMIN_EMAILS`                                             | for the admin     | Comma-separated addresses that hold the admin role, reconciled on start and every sign-in. The only way to become an admin. Empty: no admin.                                                                                       |
-| `TURNSTILE_SECRET_KEY`                                     | no                | Enables the CAPTCHA before a sign-in code is sent, on social sign-in and on access requests. Pair with the site key on native and on the site. The widget must allow both hostnames (`patina.<domain>` and `patina-api.<domain>`). |
 | `SENTRY_DSN`, `SENTRY_RELEASE`                             | no                | Error reporting to Sentry; off without the DSN. The image build sets the release to the commit. See [Sentry](guides/sentry.md).                                                                                                    |
 | `GOOGLE_CLIENT_ID`/`_SECRET`, `GITHUB_CLIENT_ID`/`_SECRET` | no                | A provider is enabled only when both of its values are set. Production configures Google only ([Google sign-in](#google-sign-in)).                                                                                                 |
 | `RESEND_API_KEY`, `EMAIL_FROM`                             | production        | Without a key emails are printed to the log. `EMAIL_CONSOLE=true` forces that in production (throwaway stacks only).                                                                                                               |
@@ -253,7 +252,7 @@ In this order. Each step names what to create; nothing here is in the repo.
 12. Create the server application: Docker source, `ghcr.io/<owner>/<repo>-server:latest`, registry `ghcr.io` with the user and token of step 8, autodeploy off, domain `patina-api.<domain>` port 3000. Copy its id.
 13. Profile → API/CLI keys: create the API key.
 14. Generate the secrets: `BETTER_AUTH_SECRET` (`openssl rand -hex 32`), `POWERSYNC_REPLICATION_PASSWORD` and `POWERSYNC_STORAGE_PASSWORD` (`openssl rand -hex 24`), `PS_ADMIN_TOKEN` (`openssl rand -hex 32`).
-15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://patina-api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://patina-sync.<domain>`, `REGISTRATION_OPEN=false`, `ADMIN_EMAILS=<your address>`, the four `MEDIA_S3_*` and the `EXERCISE_MEDIA_S3_*` values, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`/`_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
+15. Set the application's environment: `NODE_ENV=production`, `DATABASE_URL` (the `vermillion` role), `APP_URL=https://patina-api.<domain>`, `BETTER_AUTH_SECRET`, `TRUSTED_PROXIES`, `SYNC_ENDPOINT_URL=https://patina-sync.<domain>`, `REGISTRATION_OPEN=false`, `ADMIN_EMAILS=<your address>`, the four `MEDIA_S3_*` and the `EXERCISE_MEDIA_S3_*` values, `GOOGLE_CLIENT_ID`/`_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` (after verifying the sending domain in Resend). ([Environment](#environment))
 16. Run the bootstrap job on the host. ([Sync infrastructure](#sync-infrastructure), step 2)
 17. Approve the waiting deploy job (or run the workflow again). Check `curl https://patina-api.<domain>/api/health` and `/api/ready`.
 18. Traefik: keep Cloudflare's `X-Forwarded-For`, then verify the client IP. ([Trusted proxies](#trusted-proxies-and-the-client-ip))
@@ -269,10 +268,9 @@ In this order. Each step names what to create; nothing here is in the repo.
 22. Keep the keystore's SHA-256 fingerprint (the release job prints it): verified app links and passkeys will need it on the final domain.
 23. Actions → Android release → Run workflow on `main` (fills the Gradle cache, gives a test APK). Then tag `v<version>` to publish the APK on GitHub Releases.
 
-**Turnstile and catalog media**
+**Catalog media**
 
-24. Turnstile: add a managed widget that allows `patina-api.<domain>` and, if serving the existing site, `patina.<domain>`. Put the secret in `TURNSTILE_SECRET_KEY` on the server and the public key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` for the app.
-25. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
+24. R2: create the exercise-media bucket (or reuse the existing catalog bucket), connect the custom domain `media.<domain>`, add the CORS rule above and a token scoped to it; set the `EXERCISE_MEDIA_S3_*` values on the server.
 
 **Google sign-in**
 
@@ -288,7 +286,7 @@ Renaming the hosts (Basalt to Patina, [ADR 0052](adr/0052-rename-to-patina.md)) 
    `SYNC_ENDPOINT_URL=https://patina-sync.<domain>`. Better Auth derives its trusted origins from
    `APP_URL`, the site origin and the native scheme. If `PS_JWKS_URI` uses a retired host, point it
    at the current server's internal Dokploy address.
-4. Turnstile widget hostnames and the Google OAuth redirect URI and origin: new API host. R2 media CORS origin: `https://patina.<domain>`.
+4. The Google OAuth redirect URI and origin: new API host. R2 media CORS origin: `https://patina.<domain>`.
 5. Update `EMAIL_FROM` if its display name contains the former brand. Keep the sending address
    on a domain verified in Resend. If the Sentry project was renamed, update `SENTRY_PROJECT` in
    GitHub and EAS.
@@ -307,7 +305,7 @@ No data migration; the hosts change and the app is rebuilt.
 1. `app.config.ts`: change `domain` (and `releases` if the repository moves).
 2. DNS: the proxied `patina-api`, `patina-sync` and `dokploy` records in the new zone; Dokploy domains of the server and PowerSync.
 3. Coordinate the public site host with the replacement site before switching the URLs used by native and invite emails.
-4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`; Turnstile widget hostnames.
+4. Server env: `APP_URL`, `SYNC_ENDPOINT_URL`.
 5. Google OAuth client: redirect URI and origin on the new API host.
 6. R2: the media bucket's custom domain and its CORS origin.
 7. `apps/native/eas.json` profile URLs, the `EXPO_PUBLIC_SERVER_URL` repository variable and EAS environment values; build and release a new app version, then raise the minimum supported version in the admin once it is out.

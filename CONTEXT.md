@@ -16,11 +16,10 @@ Patina (formerly Cinnabar; the repository is still called vermillion) is a mobil
 - **Locale resolution** — saved preference, then locale cookie, then `Accept-Language` (device locale on native), then `en`.
 - **Registration policy** — `REGISTRATION_OPEN`. True: anyone may sign up (development). False: invite-only, the closed beta; existing accounts and `ADMIN_EMAILS` addresses still sign in.
 - **Invite** — an `access_invite` row in state `invited` with a 14-day expiry. The address is the gate, not a code: a new account may be created only by an address with a live invite, by email code or Google. Redeemed once by the account it created. `expired` is derived, never stored.
-- **Access request** — an address asking to join the beta from the site's form (Turnstile, rate limited, always the same answer); an `access_invite` row in state `requested` until the admin approves it.
+- **Access request** — an address asking to join the beta from the site's form (rate limited, always the same answer); an `access_invite` row in state `requested` until the admin approves it.
 - **Admin** — the owner, an address in `ADMIN_EMAILS` whose session has passed the authenticator (TOTP) step. The `role` column only caches the list. Every admin write leaves one `admin_audit` row. The admin sees no training data.
 - **Minimum supported version** — the `minimum_app_version` setting; builds below it show a blocking update screen. Builds below the latest GitHub release see a dismissible notice.
 - **Disposable email** — an address on a domain from the maintained `disposable-email-domains` list (parent domains included). Rejected when a sign-in code is requested and at email change.
-- **Turnstile** — Cloudflare's CAPTCHA. Active when the secret is set, before a sign-in code is sent and on social sign-in, with no client exempt.
 - **Sign-in code** — the 6-digit one-time code emailed to an address; the only non-social way in. Valid 5 minutes, hashed at rest, 3 guesses, a resend replaces it. Redeeming it creates the account on first use.
 - **Onboarding step** — a required question (today: the name) whose completeness is derived from the profile by `pendingOnboardingSteps`; there is no stored flag. Account first: the person is signed in before being asked.
 - **Trusted proxies** — the CIDRs (`TRUSTED_PROXIES`: Traefik and Cloudflare) from which the server accepts `X-Forwarded-For` when resolving the client IP.

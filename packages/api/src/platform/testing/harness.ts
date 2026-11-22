@@ -55,7 +55,7 @@ type Row = z.infer<typeof rowSchema>;
 
 export type TestAppOptions = {
   config?: Partial<ApiConfig>;
-  /** Replaces the CAPTCHA provider's `fetch`. */
+  /** Replaces `fetch` for outbound calls (GitHub, the media bucket). */
   fetch?: typeof fetch;
   /** Fails the next sends: used to exercise job retries. */
   failEmails?: { remaining: number };

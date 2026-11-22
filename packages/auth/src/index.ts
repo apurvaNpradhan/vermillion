@@ -14,7 +14,6 @@ import {
   SYNC_JWKS_ROTATION_SECONDS,
   SYNC_JWT_AUDIENCE,
   SYNC_JWT_TTL_SECONDS,
-  TURNSTILE_TOKEN_HEADER,
 } from "@workspace/shared";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
@@ -27,14 +26,14 @@ import { isAdminEmail, syncAdminRole } from "./admin-allowlist";
 import { isDisposableEmail } from "./disposable-email";
 import type { AuthEmail } from "./email-jobs";
 import { assertStrongSecret } from "./secret";
-import { verifyTurnstile } from "./turnstile";
+import { createSendCodeLimiter } from "./send-code-limit";
 import { parseUserAgent } from "./user-agent";
 
 export { authEmailSchema, type AuthEmail } from "./email-jobs";
 export { isAdminEmail, parseAdminEmails, reconcileAdminRoles } from "./admin-allowlist";
 export { isDisposableEmail } from "./disposable-email";
 export { assertStrongSecret } from "./secret";
-export { TURNSTILE_ACTION, verifyTurnstile, type TurnstileResult } from "./turnstile";
+export { SEND_CODE_PER_EMAIL } from "./send-code-limit";
 
 type OAuthCredentials = { clientId: string; clientSecret: string };
 
@@ -44,7 +43,7 @@ export type AuthOptions = {
   baseUrl: string;
   /**
    * Public origin of the site (`https://patina.<domain>`). Its Worker forwards `/api/auth` to
-   * the API, so browser requests carry this origin; it is trusted, and its Turnstile hostname too.
+   * the API, so browser requests carry this origin; it is trusted.
    */
   siteUrl: string;
   /** Lower-cased `ADMIN_EMAILS`: the only addresses that hold the admin role. */
@@ -67,7 +66,6 @@ export type AuthOptions = {
   hasLiveInvite: (email: string) => Promise<boolean>;
   /** Runs after an account is created (its invite becomes redeemed). */
   afterUserCreated: (user: { id: string; email: string }) => Promise<void>;
-  turnstileSecret?: string | undefined;
   google?: OAuthCredentials | undefined;
   github?: OAuthCredentials | undefined;
   /** Queues an email. Called off the request path via `runInBackground`. */
@@ -76,8 +74,6 @@ export type AuthOptions = {
   beforeDeleteUser: (user: { id: string }) => Promise<void>;
   /** Tracks promises that must not delay the response (and are drained on shutdown). */
   runInBackground: (promise: Promise<unknown>) => void;
-  /** Replaced in tests; the CAPTCHA provider is a network boundary. */
-  fetch?: typeof fetch;
 };
 
 const SEND_CODE_PATH = "/email-otp/send-verification-otp";
@@ -102,9 +98,6 @@ const TWO_FACTOR_VERIFY_PATHS = new Set([
   "/two-factor/verify-totp",
   "/two-factor/verify-backup-code",
 ]);
-
-/** A code is requested here, so the CAPTCHA runs before one is sent. Social starts at initiation. */
-const CAPTCHA_PATHS = new Set([SEND_CODE_PATH, "/sign-in/social"]);
 
 /**
  * Parts of the email-OTP plugin we do not use. Sign-in codes are the only kind a person can ask
@@ -135,6 +128,7 @@ function requestDetails(request: Request | undefined) {
 
 export function createAuth(options: AuthOptions) {
   const secret = assertStrongSecret(options.secret);
+  const sendCodeLimiter = createSendCodeLimiter();
   const origin = new URL(options.baseUrl);
   const site = new URL(options.siteUrl);
   const secure = origin.protocol === "https:";
@@ -380,21 +374,6 @@ export function createAuth(options: AuthOptions) {
         }
       }),
       before: createAuthMiddleware(async (ctx) => {
-        if (CAPTCHA_PATHS.has(ctx.path)) {
-          const verdict = await verifyTurnstile(
-            ctx.headers?.get(TURNSTILE_TOKEN_HEADER) ?? ctx.body?.turnstileToken,
-            {
-              secret: options.turnstileSecret,
-              hostnames: [origin.hostname, site.hostname],
-              isProduction: options.isProduction,
-              ...(options.fetch ? { fetch: options.fetch } : {}),
-            },
-          );
-          if (!verdict.ok) {
-            throw new APIError("FORBIDDEN", { code: "CAPTCHA_FAILED", message: verdict.reason });
-          }
-        }
-
         if (DISABLED_OTP_PATHS.has(ctx.path)) {
           throw new APIError("NOT_FOUND", { message: "Not found" });
         }
@@ -424,6 +403,9 @@ export function createAuth(options: AuthOptions) {
           }
           // Same answer for every address ...
           assertNotDisposable(email.data);
+          if (!sendCodeLimiter.hit(email.data)) {
+            throw new APIError("TOO_MANY_REQUESTS", { message: "Too many requests." });
+          }
           // ... except while registration is invite-only, when an unknown address without a live
           // invite is refused up front instead of being sent a code that could never be redeemed.
           if (!options.registrationOpen) {

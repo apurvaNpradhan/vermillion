@@ -20,7 +20,7 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Progress:** weekly sessions, sets and volume, an 8-week volume chart, muscles-trained heat map, personal records and progressive-overload suggestions.
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
-- **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
+- **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, rate limiting on sending codes (no CAPTCHA), disposable-email blocking and account deletion.
 - **Appearance:** a Patina theme (ink, ivory and olive) in light and dark, plus four more, with an Increase contrast setting.
 
 ## Screenshots

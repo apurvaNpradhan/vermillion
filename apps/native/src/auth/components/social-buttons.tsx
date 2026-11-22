@@ -23,16 +23,11 @@ const PROVIDER_ICONS = { google: GoogleLogo, github: GithubLogo } as const;
  * Where the screen's one primary action is "Continue with email", they stay secondary.
  */
 export function SocialButtons({
-  headers,
   blocked,
-  onDone,
   pill = false,
 }: {
-  headers: Record<string, string>;
-  /** True while a required CAPTCHA is unsolved. */
+  /** True while another sign-in step is in flight. */
   blocked: boolean;
-  /** Called once the provider flow has finished (the token is spent either way). */
-  onDone: () => void;
   /** Full-width dark primary pills (the welcome screen) instead of secondary buttons. */
   pill?: boolean;
 }) {
@@ -62,10 +57,7 @@ export function SocialButtons({
               setFailure(null);
               // The expo plugin opens the system browser and turns the relative callback into a deep link.
               try {
-                const { error } = await authClient.signIn.social(
-                  { provider, callbackURL: "/" },
-                  { headers },
-                );
+                const { error } = await authClient.signIn.social({ provider, callbackURL: "/" });
                 if (error) {
                   setFailure(t(authErrorKey(error)));
                   return;
@@ -77,7 +69,6 @@ export function SocialButtons({
                 setFailure(t("auth__error_unknown"));
               } finally {
                 setPending(null);
-                onDone();
               }
             }}
           >
