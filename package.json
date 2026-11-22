@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
+    "dev:web": "turbo run dev -F web --",
     "dev:native": "turbo run dev -F native --",
     "dev:server": "turbo run dev -F server --",
     "dev:tunnel": "sh -c 'set -a; [ -f apps/server/.env ] && . ./apps/server/.env; set +a; exec cloudflared tunnel --config \"${VERMILLION_TUNNEL_CONFIG:-$HOME/.cloudflared/vermillion-dev.yml}\" run'",
