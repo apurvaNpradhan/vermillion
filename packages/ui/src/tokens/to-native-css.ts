@@ -56,7 +56,7 @@ const shadows = {
   light: {
     "surface-shadow": "0 0 0 0 transparent inset",
     "field-shadow": "0 0 0 0 transparent inset",
-    "overlay-shadow": "0 10px 28px 0 rgba(23, 43, 54, 0.14)",
+    "overlay-shadow": "0 10px 28px 0 rgba(0, 0, 0, 0.14)",
   },
   dark: {
     "surface-shadow": "0 0 0 0 transparent inset",
@@ -65,8 +65,7 @@ const shadows = {
   },
 } as const;
 
-const isLightVariant = (variant: NativeVariant) =>
-  variant === "light" || variant.endsWith("-light") || variant.endsWith("-light-contrast");
+const isLightVariant = (variant: NativeVariant) => variant.endsWith("light");
 
 function block(variant: NativeVariant, colors: RoleTokens) {
   const depth = shadows[isLightVariant(variant) ? "light" : "dark"];

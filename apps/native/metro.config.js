@@ -1,13 +1,12 @@
 const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 const { withUniwindConfig } = require("uniwind/metro");
 const { wrapWithReanimatedMetroConfig } = require("react-native-reanimated/metro-config");
-const themeVariants = require("./theme-variants");
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getSentryExpoConfig(__dirname);
 
 module.exports = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
-  extraThemes: themeVariants,
+  extraThemes: ["contrast-light", "contrast-dark"],
   cssEntryFile: "./global.css",
   dtsFile: "./uniwind-types.d.ts",
 });

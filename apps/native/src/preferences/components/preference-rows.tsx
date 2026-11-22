@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
-import { AppearanceSheet, useAppearanceSummary } from "@/platform/theme/theme-picker";
+import { AppearanceSheet, useAppearanceSummary } from "@/platform/theme/appearance-sheet";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 
@@ -24,7 +24,7 @@ export function PreferenceRows({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   const { preferences, setLocale } = usePreferences();
   const { choice } = useThemeChoice();
-  const appearance = useAppearanceSummary(choice);
+  const appearance = useAppearanceSummary(choice.appearance);
   const [picker, setPicker] = useState<Picker>(null);
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);

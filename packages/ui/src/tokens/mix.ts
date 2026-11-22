@@ -120,12 +120,6 @@ export function shiftLightness(hex: string, delta: number): string {
   return fromOklch({ ...color, l: Math.min(1, Math.max(0, color.l + delta)) });
 }
 
-/** The smaller angle between two hues, in degrees (0..180). */
-export function hueDistance(a: number, b: number): number {
-  const d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
-
 /**
  * `color` with its OKLCH lightness moved in `direction` (-1 darker, 1 lighter) in small steps
  * until it reaches `ratio` against every ground. Hue and chroma are kept, so a tone stays itself

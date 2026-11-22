@@ -35,7 +35,7 @@ const NATIVE_STACK_REVISION = 25;
 
 /**
  * The logo's own colours, for the places the native build needs a literal (icon background, splash
- * and notification accent). They match the Patina theme's dark canvas and accent.
+ * and notification accent). These are branding assets, independent of in-app appearance.
  */
 const LOGO_INK = "#19130F";
 const LOGO_OLIVE = "#869044";

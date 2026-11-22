@@ -2,23 +2,23 @@
 
 The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; see Implementation for how they reach native and email.
 
-> The web app was removed ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)). Paragraphs marked **Web** and the coss / shadcn mappings are kept as reference for the future marketing site and companion app; they describe no code in this repo.
+> The public site (`apps/web`) uses a fixed monochrome palette. The **Web** and coss / shadcn examples below are references for a future companion app; they do not describe the public site.
 
 ## Native appearance
 
-Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
-Light and Dark at standard or increased contrast
-([ADR 0048](docs/adr/0048-theme-engine-and-nord.md), [ADR 0052](docs/adr/0052-rename-to-patina.md)). Appearance (Match device, Light, Dark), the
-theme and Increase contrast are device settings in Preferences. A saved `nord` falls back to Patina. The signed-out welcome screen is always the Patina dark variant.
+Native uses **Classic**, a monochrome UI with functional data colours. Match device is the default;
+Light, Dark and Increase contrast remain device settings in Preferences. Every screen, including
+the signed-out welcome screen, follows them.
 
-- A theme is a base, an accent and a family of data colours per scheme
-  (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
-  `brand.ts` holds every variant. Email and the site use Patina (the default theme), built by the same engine.
+- Classic is a base, an ink accent and a family of data colours per scheme
+  (`packages/ui/src/tokens/themes/graphite.ts`); the engine derives semantic roles in OKLCH.
+  `nativeColors` in `brand.ts` holds every variant. Email uses the standard light/dark palettes.
 - The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
   theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
   the original red artwork with lighter secondary highlights. The weekly muscle map uses the
   theme accent and keeps the muscle shading.
-- `device.theme` stores `{ theme, appearance, contrast }` locally. Native chrome, status bars,
+- `device.theme` stores `{ appearance, contrast }` locally and ignores previous palette choices.
+  Native chrome, status bars,
   blur and CAPTCHA use `useThemeMode()`.
 
 See the [native themes guide](docs/guides/native-themes.md).

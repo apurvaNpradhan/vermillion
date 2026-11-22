@@ -1,57 +1,27 @@
-# Native themes
+# Native appearance
 
-Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
-Light and Dark at standard or increased contrast
-([ADR 0048](../adr/0048-theme-engine-and-nord.md), [ADR 0052](../adr/0052-rename-to-patina.md)).
-Preferences has an Appearance sheet: Match device / Light / Dark, the theme cards, and an Increase
-contrast switch. A saved `nord` (the retired default) or any other unknown id resolves to Patina.
-The signed-out welcome screen is the one screen fixed to the Patina dark variant; see
-[Fixed theme](#fixed-theme).
+**Classic** is the only native palette. The UI uses neutral surfaces and an ink accent; status,
+set kinds and other training data still use colour where it carries meaning. In Preferences →
+Appearance, choose Match device (the default), Light, or Dark, with optional increased contrast.
+The welcome screen follows the same appearance as the rest of the app.
 
 ## Tokens
 
-A theme is a definition in `packages/ui/src/tokens/themes/` (see `patina.ts`): per scheme a base
-(the canvas), an accent, the ink on the accent and optional pins (surface, control, ink), plus a
-family of data colours. A theme can pin a quieter action fill separately from its accent.
-`themes/engine.ts` derives every role in OKLCH. `theme-variants.ts`
-builds the four variants of every theme (`patina-light`, `patina-dark`, `patina-light-contrast`,
-`patina-dark-contrast`); `brand.ts` exports them as `nativeColors`, with Uniwind's built-in
-`light` and `dark` carrying the default theme (Patina) at standard contrast.
+`packages/ui/src/tokens/themes/graphite.ts` defines Classic's base, accents and data colours.
+The token engine derives semantic roles in OKLCH. `brand.ts` exposes them to native as
+`light`, `dark`, `contrast-light` and `contrast-dark`; transactional email uses the standard
+light and dark tokens. The public site has its own fixed monochrome palette.
 
-After changing a theme run `pnpm --filter @workspace/ui tokens`. The rule tests check layer
-order, 7:1 primary text, 4.5:1 text and labels, 3:1 chart marks, subtle surface tint, accent and
-completion differentiation, and stronger text and lines in increased contrast.
-
-## Adding a theme
-
-1. Add `themes/<id>.ts`, list the id in `themeIds` and register the definition in
-   `definitions`, both in `theme-variants.ts`. A seed that cannot reach a contrast rule makes
-   the build throw.
-2. Add its four variant names to `apps/native/theme-variants.js` (a test compares the lists).
-   Restart Metro with `--clear` and load the app once so Uniwind regenerates its local type declarations.
-3. Add `theme__<id>` to the locale and the label to `THEME_LABELS` in `theme-picker.tsx`.
-
-## Fixed theme
-
-The signed-out welcome screen (`auth/components/welcome-screen.tsx`) is the only screen fixed to a
-theme: it is always Patina dark, ink and ivory as in the logo, whatever the device appearance and
-the saved choice. It wraps its content in Uniwind's `ScopedTheme` with the `patina-dark` variant,
-so classes and `useCSSVariable` inside it resolve against that variant, and sets light status and
-navigation bar icons. The theme is scoped, not applied: leaving the screen restores the device
-theme for the email and code screens and onboarding. There is no Appearance control while signed
-out. Do not fix other screens the same way; a theme choice is the person's.
+After editing the tokens, run `pnpm --filter @workspace/ui tokens` and commit the generated CSS.
+Metro registers the two contrast variants in `apps/native/metro.config.js`. The token tests check
+layer order, text and chart contrast, and stronger text and lines in increased contrast.
 
 ## Storage and device checks
 
-`platform/theme/theme-state.ts` reads `{ theme, appearance, contrast }` from `device.theme`.
-Earlier formats keep their appearance; true black and retired palette fields are dropped.
+`platform/theme/theme-state.ts` reads `{ appearance, contrast }` from `device.theme`. A saved
+palette ID is ignored; the person's Light/Dark and contrast preferences are preserved.
 
-On a device, change the OS appearance with Match device selected, with the app open and after
-backgrounding it. Switch Light, Dark and Increase contrast and restart to check that the choice
-persists. Check status and navigation bars follow the canvas. Sign out with the device in light
-appearance: the welcome screen must stay ink-dark with light status bar icons, and the email screen
-after it must follow the device again.
-
-HeroUI Native's blur and glass defaults guess dark mode with `endsWith("dark")`, which reads
-`patina-dark-contrast` as light. Pass an explicit tint from `useThemeMode()` wherever those
-defaults are used.
+On a device, change the OS appearance with Match device selected, both with the app open and
+while it is in the background. Switch Light, Dark and Increase contrast and restart to check that
+the choices persist. Verify the status and navigation bars, and check that signed-out screens use
+the same appearance. Use `useThemeMode()` when native chrome or effects need an explicit scheme.

@@ -1,12 +1,8 @@
-import { variantName } from "@workspace/ui/tokens/theme-variants";
-import { NavigationBar } from "expo-navigation-bar";
-import { useIsFocused, useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScopedTheme } from "uniwind";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
@@ -20,13 +16,6 @@ import { splitLegal } from "../legal-text";
 const rise = (delay: number) =>
   FadeInDown.duration(200).delay(delay).reduceMotion(ReduceMotion.System);
 
-/**
- * The one screen fixed to a theme: it is always the Patina dark variant (ink and ivory, the logo
- * as drawn) whatever the device appearance. The email and code screens that follow use the
- * device's theme again. See docs/guides/native-themes.md, "Fixed theme".
- */
-const WELCOME_THEME = variantName("patina", "dark");
-
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 
 /**
@@ -35,17 +24,8 @@ const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
  * from returning ones, and neither answer reveals which an address is.
  */
 export function WelcomeScreen() {
-  return (
-    <ScopedTheme theme={WELCOME_THEME}>
-      <Welcome />
-    </ScopedTheme>
-  );
-}
-
-function Welcome() {
   const { t } = useTranslation();
   const router = useRouter();
-  const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { toast } = useAppToast();
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
@@ -61,12 +41,6 @@ function Welcome() {
 
   return (
     <View className="flex-1 bg-background">
-      {focused ? (
-        <>
-          <StatusBar style="light" />
-          {Platform.OS === "android" ? <NavigationBar style="light" /> : null}
-        </>
-      ) : null}
       <View
         className="flex-1 px-6"
         style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}

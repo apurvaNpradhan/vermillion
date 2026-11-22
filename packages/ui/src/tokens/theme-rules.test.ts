@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
-import { hueDistance, mixHex, toOklch } from "./mix";
-import { themeIds, themeVariants } from "./theme-variants";
+import { mixHex, toOklch } from "./mix";
 
 const linear = (hex: string) =>
   [1, 3, 5].map((at) => {
@@ -36,7 +35,7 @@ function oklabL(hex: string) {
 const themes = nativeVariantNames.map((mode) => ({
   mode,
   colors: nativeColors[mode],
-  isLight: mode === "light" || mode.includes("-light"),
+  isLight: mode.endsWith("light"),
 }));
 
 const L = (hex: string) => oklabL(hex);
@@ -171,16 +170,11 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   });
 });
 
-describe.each(themes)("theme identity: $mode", ({ mode, colors: c }) => {
-  it("distinguishes current and completed sets", () => {
-    const accent = toOklch(c.identity);
-    const done = toOklch(c["set-done"]);
-    expect(done.c).toBeGreaterThan(0.04);
-    // Patina's olive and Classic's ink accents sit close to (or without) a hue of their own, so
-    // a completed set is told apart by its checkmark there, not by hue.
-    if (/^(light|dark|patina|graphite)/.test(mode)) return;
-    expect(accent.c, mode).toBeGreaterThan(0.04);
-    expect(hueDistance(accent.h, done.h), mode).toBeGreaterThanOrEqual(60);
+describe.each(themes)("Classic identity: $mode", ({ colors: c }) => {
+  it("keeps the accent near-neutral and retains functional completion colour", () => {
+    expect(toOklch(c.identity).c).toBeLessThan(0.015);
+    expect(c.action).toBe(c.identity);
+    expect(toOklch(c["set-done"]).c).toBeGreaterThan(0.04);
   });
 
   it("keeps every chart series visible on the page", () => {
@@ -204,30 +198,22 @@ describe.each(themes)("theme identity: $mode", ({ mode, colors: c }) => {
   });
 });
 
-const contrastPairs = themeIds.flatMap((theme) =>
-  (["light", "dark"] as const).map((scheme) => ({
-    name: `${theme}-${scheme}`,
-    standard: themeVariants[`${theme}-${scheme}`],
-    increased: themeVariants[`${theme}-${scheme}-contrast`],
-  })),
-);
+const contrastPairs = (["light", "dark"] as const).map((scheme) => ({
+  name: scheme,
+  standard: nativeColors[scheme],
+  increased: nativeColors[`contrast-${scheme}`],
+}));
 
-describe.each(themes.filter(({ isLight }) => !isLight))(
-  "dark palette: $mode",
-  ({ mode, colors }) => {
-    const isGraphite = mode.startsWith("graphite");
-    it("uses a near-black canvas and a quieter primary action", () => {
-      // The built-in dark variant also uses Patina's pinned logo ink.
-      const isPatina = mode === "dark" || mode.startsWith("patina-");
-      expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(isPatina ? 1.2 : 1.1);
-      // Graphite's accent is ink, so its action is the accent itself.
-      if (!isGraphite) expect(oklabL(colors.action)).toBeLessThan(oklabL(colors.identity));
-      // A dark filled button is found by its label (4.5:1, checked in the theme tests), so its fill
-      // only has to stand off the surface.
-      expect(contrastRatio(colors.action, colors.surface)).toBeGreaterThanOrEqual(1.5);
-    });
-  },
-);
+describe.each(
+  themes
+    .values()
+    .filter(({ isLight }) => !isLight)
+    .toArray(),
+)("dark palette: $mode", ({ colors }) => {
+  it("uses a near-black canvas", () => {
+    expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.1);
+  });
+});
 
 describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased }) => {
   it("raises text contrast and holds secondary text to 7:1", () => {
@@ -252,19 +238,17 @@ describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased
   });
 });
 
-describe("patina", () => {
-  it("pins the logo's ink and ivory as canvas and text", () => {
-    expect(themeVariants["patina-light"]).toMatchObject({
-      canvas: "#FDF4E6",
-      surface: "#FFFBF3",
-      "text-primary": "#19130F",
+describe("Classic", () => {
+  it("uses its original canvas, surface and ink in both schemes", () => {
+    expect(nativeColors.light).toMatchObject({
+      canvas: "#F4F2ED",
+      surface: "#FBFAF7",
+      "text-primary": "#191918",
     });
-    expect(themeVariants["patina-dark"]).toMatchObject({
-      canvas: "#19130F",
-      surface: "#221B16",
-      "text-primary": "#FDF4E6",
-      action: "#869044",
-      "on-action": "#19130F",
+    expect(nativeColors.dark).toMatchObject({
+      canvas: "#070707",
+      surface: "#121212",
+      "text-primary": "#EFEEE9",
     });
   });
 });

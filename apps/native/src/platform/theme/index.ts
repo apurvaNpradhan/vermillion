@@ -42,10 +42,10 @@ function applyTheme(choice: ThemeChoice) {
   const scheme = resolvedScheme(choice, systemScheme);
   const variant = resolvedVariant(choice, systemScheme);
   applying = true;
-  Uniwind.setTheme(variant);
-  // Custom Uniwind themes reset Appearance, so set it AFTER the theme: forced for an explicit
-  // Light or Dark, released for Match device so the OS keeps reporting its own changes live.
-  Appearance.setColorScheme(choice.appearance === "system" ? "auto" : scheme);
+  const followsDevice = choice.appearance === "system";
+  Uniwind.setTheme(followsDevice && !choice.contrast ? "system" : variant);
+  // Custom contrast variants release the OS override. Restore it for explicit Light or Dark.
+  if (choice.contrast && !followsDevice) Appearance.setColorScheme(scheme);
   applying = false;
   void SystemUI.setBackgroundColorAsync(nativeColors[variant].canvas);
 }
@@ -88,12 +88,10 @@ const isNativeVariant = (name: string): name is NativeVariant =>
 /** Light or dark, for native chrome. */
 export function useThemeMode(): "light" | "dark" {
   const variant = useAppliedVariant();
-  return variant === "dark" || variant.endsWith("-dark") || variant.endsWith("-dark-contrast")
-    ? "dark"
-    : "light";
+  return variant.endsWith("dark") ? "dark" : "light";
 }
 
-/** The applied Uniwind theme variant (theme, scheme and contrast). */
+/** The applied Classic scheme and contrast variant. */
 export function useAppliedVariant(): NativeVariant {
   const { theme } = useUniwind();
   return isNativeVariant(theme) ? theme : "light";

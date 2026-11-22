@@ -1,30 +1,30 @@
 import type { RoleName, RoleTokens } from "./roles";
-import {
-  patina,
-  buildTheme,
-  DEFAULT_THEME_ID,
-  themeVariantNames,
-  themeVariants,
-  variantName,
-  type ThemeVariant,
-} from "./theme-variants";
+import { buildTheme } from "./themes/engine";
+import { graphite } from "./themes/graphite";
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
-/**
- * A native Uniwind theme: an app theme variant, or Uniwind's built-in `light` / `dark`, which
- * carry the default theme at standard contrast (what renders before the stored choice applies).
- */
-export type NativeVariant = "light" | "dark" | ThemeVariant;
+const {
+  light,
+  dark,
+  "light-contrast": contrastLight,
+  "dark-contrast": contrastDark,
+} = buildTheme(graphite);
 
-export const nativeVariantNames: readonly NativeVariant[] = ["light", "dark", ...themeVariantNames];
+/** Classic uses the built-in light and dark themes plus two accessibility variants. */
+export const nativeColors = {
+  light,
+  dark,
+  "contrast-light": contrastLight,
+  "contrast-dark": contrastDark,
+} satisfies Record<string, RoleTokens>;
 
-export const nativeColors: Record<NativeVariant, RoleTokens> = {
-  light: themeVariants[variantName(DEFAULT_THEME_ID, "light")],
-  dark: themeVariants[variantName(DEFAULT_THEME_ID, "dark")],
-  ...themeVariants,
-};
-
-const { light, dark } = buildTheme(patina);
+export type NativeVariant = keyof typeof nativeColors;
+export const nativeVariantNames: readonly NativeVariant[] = [
+  "light",
+  "dark",
+  "contrast-light",
+  "contrast-dark",
+];
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from

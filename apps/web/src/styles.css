@@ -1,14 +1,13 @@
 @import "@fontsource-variable/geist";
 
-/* Brand colours from the logo kit: ink background, ivory text, olive accent. Local to the site;
-   the app's tokens live in packages/ui and do not carry the logo palette. */
+/* A fixed monochrome palette for the public site, separate from native appearance. */
 :root {
-  --ink: #19130f;
-  --ink-raised: #241c16;
-  --ivory: #fdf4e6;
-  --ivory-muted: #c9bfae;
-  --olive: #869044;
-  --olive-strong: #a3ae5c;
+  --canvas: #070707;
+  --surface: #161616;
+  --foreground: #f0f0f0;
+  --muted: #b3b3b3;
+  --action: #d9d9d9;
+  --action-hover: #fff;
   color-scheme: dark;
 }
 
@@ -17,13 +16,13 @@
 }
 
 html {
-  background: var(--ink);
+  background: var(--canvas);
 }
 
 body {
   margin: 0;
-  background: var(--ink);
-  color: var(--ivory);
+  background: var(--canvas);
+  color: var(--foreground);
   font-family: "Geist Variable", system-ui, sans-serif;
   font-size: 1.0625rem;
   line-height: 1.6;
@@ -31,13 +30,13 @@ body {
 }
 
 a {
-  color: var(--olive-strong);
+  color: var(--action-hover);
   text-underline-offset: 0.2em;
 }
 
 a:focus-visible,
 main:focus-visible {
-  outline: 2px solid var(--olive-strong);
+  outline: 2px solid var(--action-hover);
   outline-offset: 3px;
 }
 
@@ -46,7 +45,7 @@ main:focus-visible {
   inset: 1rem auto auto 1rem;
   z-index: 1;
   padding: 0.5rem 1rem;
-  background: var(--ink);
+  background: var(--canvas);
 }
 
 .skip-link:not(:focus) {
@@ -82,13 +81,19 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--ivory);
+  color: var(--foreground);
   font-weight: 600;
   text-decoration: none;
 }
 
 .brand img {
   border-radius: 8px;
+}
+
+.brand img,
+.hero-logo,
+.shots img {
+  filter: grayscale(1);
 }
 
 .hero {
@@ -109,11 +114,11 @@ h3 {
 .tagline {
   margin: 0.25rem 0 0;
   font-size: 1.5rem;
-  color: var(--olive-strong);
+  color: var(--action-hover);
 }
 
 .lede {
-  color: var(--ivory-muted);
+  color: var(--muted);
   font-size: 1.1875rem;
 }
 
@@ -126,7 +131,7 @@ h3 {
 }
 
 .note {
-  color: var(--ivory-muted);
+  color: var(--muted);
   font-size: 0.9375rem;
 }
 
@@ -134,14 +139,14 @@ h3 {
   display: inline-block;
   padding: 0.8rem 1.6rem;
   border-radius: 999px;
-  background: var(--olive);
-  color: var(--ink);
+  background: var(--action);
+  color: var(--canvas);
   font-weight: 600;
   text-decoration: none;
 }
 
 .button:hover {
-  background: var(--olive-strong);
+  background: var(--action-hover);
 }
 
 .features,
@@ -160,7 +165,7 @@ h3 {
 .features li {
   padding: 1.25rem;
   border-radius: 16px;
-  background: var(--ink-raised);
+  background: var(--surface);
 }
 
 .features h3 {
@@ -170,7 +175,7 @@ h3 {
 
 .features p {
   margin: 0;
-  color: var(--ivory-muted);
+  color: var(--muted);
   font-size: 0.9688rem;
 }
 
@@ -185,7 +190,7 @@ h3 {
   width: 100%;
   height: auto;
   border-radius: 20px;
-  background: var(--ink-raised);
+  background: var(--surface);
 }
 
 .prose h2 {
@@ -198,7 +203,7 @@ h3 {
 }
 
 .meta {
-  color: var(--ivory-muted);
+  color: var(--muted);
   font-size: 0.9375rem;
 }
 
@@ -206,7 +211,7 @@ h3 {
   width: min(64rem, 100% - 2rem);
   margin: 2rem auto 0;
   padding: 2rem 0 3rem;
-  color: var(--ivory-muted);
+  color: var(--muted);
   font-size: 0.9375rem;
 }
 

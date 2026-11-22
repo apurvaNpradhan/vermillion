@@ -1,6 +1,6 @@
 import type { Family } from "./engine";
 
-/** Restrained data colours shared by the graphite-neutral themes. */
+/** Classic's data and status colours, independent of its monochrome UI. */
 export const graphiteDark: Family = {
   success: "#9CB7A1",
   warning: "#EBCB8B",
@@ -25,7 +25,7 @@ export const graphiteLight: Family = {
   chart: ["#6B6862", "#77746E", "#4F4C46", "#827D74"],
 };
 
-/** The graphite neutrals (canvas, surfaces, ink, lines) every graphite-based theme pins. */
+/** Classic's pinned canvas, surfaces, ink and lines. */
 export const graphiteNeutralsLight = {
   base: "#F4F2ED",
   pin: {

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { themeIds } from "@workspace/ui/tokens/theme-variants";
 import {
   APPEARANCES,
   DEFAULT_THEME,
@@ -10,8 +9,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Patina, following the device, at standard contrast", () => {
-    expect(DEFAULT_THEME).toEqual({ theme: "patina", appearance: "system", contrast: false });
+  it("starts on Classic, following the device, at standard contrast", () => {
+    expect(DEFAULT_THEME).toEqual({ appearance: "system", contrast: false });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -48,18 +47,16 @@ describe("device theme selection", () => {
     }
   });
 
-  it.each(themeIds)("round-trips and resolves every appearance and contrast for %s", (theme) => {
+  it("round-trips and resolves every appearance and contrast", () => {
     for (const appearance of APPEARANCES)
       for (const contrast of [false, true]) {
-        const choice = { theme, appearance, contrast } as const;
+        const choice = { appearance, contrast };
         expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
         // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
         for (const os of ["light", "dark", null] as const) {
           const scheme = appearance === "system" ? (os ?? "light") : appearance;
           expect(resolvedScheme(choice, os)).toBe(scheme);
-          expect(resolvedVariant(choice, os)).toBe(
-            contrast ? `${theme}-${scheme}-contrast` : `${theme}-${scheme}`,
-          );
+          expect(resolvedVariant(choice, os)).toBe(contrast ? `contrast-${scheme}` : scheme);
         }
       }
   });
@@ -86,8 +83,11 @@ describe("device theme selection", () => {
 });
 
 describe("retired themes", () => {
-  it.each(["nord", "olive", "cinnabar", "nope"])("falls back to the default for %s", (theme) => {
-    const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-    expect(parseTheme(stored)).toEqual({ theme: "patina", appearance: "dark", contrast: true });
-  });
+  it.each(["patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
+    "drops %s without changing the saved appearance or contrast",
+    (theme) => {
+      const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
+      expect(parseTheme(stored)).toEqual({ appearance: "dark", contrast: true });
+    },
+  );
 });
