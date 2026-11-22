@@ -102,7 +102,7 @@ export function Calendar({
                 onPress={() => onSelect(day)}
                 className={`min-h-11 flex-1 items-center justify-center rounded-lg bg-default active:opacity-70
                   ${active ? "bg-accent" : ""}
-                  ${day === today ? "border border-identity" : ""}
+                  ${day === today ? "border border-brand-detail" : ""}
                   ${disabled ? "opacity-40" : ""}`}
               >
                 <Text

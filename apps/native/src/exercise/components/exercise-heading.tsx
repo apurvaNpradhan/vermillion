@@ -40,7 +40,7 @@ export function ExerciseHeading({
           size={SIZE}
         />
       </View>
-      <Text numberOfLines={2} className="flex-1 font-semibold text-body text-identity">
+      <Text numberOfLines={2} className="flex-1 font-semibold text-body text-foreground">
         {title}
       </Text>
     </Pressable>

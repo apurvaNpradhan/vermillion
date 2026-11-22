@@ -61,7 +61,7 @@ export function EmailSheet({
                   <Button
                     variant="primary"
                     size="lg"
-                    className="h-13 rounded-full"
+                    className="h-auto min-h-13 rounded-full py-3"
                     isDisabled={email.trim() === "" || isSubmitting}
                     accessibilityState={{
                       disabled: email.trim() === "" || isSubmitting,
@@ -70,7 +70,7 @@ export function EmailSheet({
                     onPress={() => void form.handleSubmit()}
                   >
                     {isSubmitting ? <Spinner size="sm" /> : null}
-                    <Button.Label className="text-body-lg font-semibold">
+                    <Button.Label className="shrink text-body-lg font-semibold">
                       {t("auth__send_code")}
                     </Button.Label>
                   </Button>

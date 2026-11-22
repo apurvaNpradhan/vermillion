@@ -57,7 +57,7 @@ export function GoogleButton({
       <Button
         variant="primary"
         size="lg"
-        className="h-13 rounded-full"
+        className="h-auto min-h-13 rounded-full py-3"
         isDisabled={disabled === true || pending}
         accessibilityState={{ disabled: disabled === true || pending, busy: pending }}
         onPress={() => void signIn()}
@@ -67,7 +67,7 @@ export function GoogleButton({
         ) : (
           <GoogleLogo size={20} weight="bold" color={glyphColor} />
         )}
-        <Button.Label className="text-body-lg font-semibold">
+        <Button.Label className="shrink text-body-lg font-semibold">
           {t("auth__provider_google")}
         </Button.Label>
         {readLastLoginMethod() === "google" ? (

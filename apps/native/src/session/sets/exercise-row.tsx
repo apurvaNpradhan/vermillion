@@ -104,7 +104,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
           >
             {place === "first" ? (
-              <Text className="font-semibold text-overline uppercase text-identity">
+              <Text className="font-semibold text-overline uppercase text-foreground">
                 {t("training__superset")}
               </Text>
             ) : null}

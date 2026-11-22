@@ -17,7 +17,7 @@ import { useTrainingPreferences } from "@/training/shared/use-training-preferenc
 const FALLBACK_TYPE = "weight_reps";
 
 /**
- * The left bracket of a superset in the `identity` role: one bar that runs through the run's rows,
+ * The left bracket of a superset in muted ink: one bar that runs through the run's rows,
  * rounded where the run starts and ends.
  */
 export function SupersetBracket({ place }: { place: SupersetPlace }) {
@@ -33,7 +33,7 @@ export function SupersetBracket({ place }: { place: SupersetPlace }) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       pointerEvents="none"
-      className={`absolute left-2.5 w-[3px] bg-identity ${edges}`}
+      className={`absolute left-2.5 w-[3px] bg-muted ${edges}`}
     />
   );
 }
@@ -102,7 +102,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
           {thumbnail(40)}
           <View className="flex-1 gap-0.5">
             {place === "first" ? (
-              <Text className="font-semibold text-overline uppercase text-identity">
+              <Text className="font-semibold text-overline uppercase text-foreground">
                 {t("training__superset")}
               </Text>
             ) : null}

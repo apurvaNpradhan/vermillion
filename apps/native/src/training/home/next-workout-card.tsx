@@ -35,7 +35,7 @@ export function NextWorkoutCard({
       {title === null ? null : (
         <View className="gap-1">
           {eyebrow ? (
-            <Text className="text-caption font-medium text-identity">{eyebrow}</Text>
+            <Text className="text-caption font-medium text-foreground">{eyebrow}</Text>
           ) : null}
           <Text numberOfLines={1} className="text-title-lg font-semibold text-foreground">
             {title}

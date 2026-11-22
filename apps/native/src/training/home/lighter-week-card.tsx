@@ -50,7 +50,7 @@ export function LighterWeekCard({ state }: { state: ReturnType<typeof useHomeTra
           onPress={() => setUi(endLighterWeek(lighterWeeks, new Date()))}
           className="min-h-11 justify-center"
         >
-          <Text className="text-caption font-medium text-identity">{t("lighter__end")}</Text>
+          <Text className="text-caption font-medium text-foreground">{t("lighter__end")}</Text>
         </Pressable>
       </View>
     );

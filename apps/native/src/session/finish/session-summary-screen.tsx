@@ -355,7 +355,7 @@ function FinishFlow({
                   {t("session__stat_duration")}
                 </Text>
                 <Text
-                  className="font-semibold text-title-md text-identity"
+                  className="font-semibold text-title-md text-foreground"
                   style={{ fontVariant: ["tabular-nums"] }}
                 >
                   {formatElapsed(Number(duration))}

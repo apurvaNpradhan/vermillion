@@ -252,7 +252,7 @@ function CalculatorBody({
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
-                <Text className="font-medium text-label text-identity">
+                <Text className="font-medium text-label text-foreground">
                   {t("plates__missing_bar", { name: state.missingBar })}
                 </Text>
               </Pressable>
@@ -348,7 +348,7 @@ function CalculatorBody({
                           className="pl-3"
                           onPress={() => setStack(clearStack())}
                         >
-                          <Text className="font-medium text-body text-identity">
+                          <Text className="font-medium text-body text-foreground">
                             {t("plates__clear")}
                           </Text>
                         </Pressable>

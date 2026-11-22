@@ -31,7 +31,7 @@ export function ProgressionChip({
         onPress={() => setOpen(true)}
         className="min-h-11 max-w-full self-start justify-center pl-3 pr-2 active:opacity-70"
       >
-        <Text className="text-caption font-semibold text-identity">{label}</Text>
+        <Text className="text-caption font-semibold text-foreground">{label}</Text>
       </Pressable>
       <BottomSheet isOpen={open} onOpenChange={setOpen}>
         <BottomSheet.Portal>

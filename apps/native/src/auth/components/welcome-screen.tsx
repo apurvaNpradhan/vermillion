@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -52,8 +52,15 @@ export function WelcomeScreen() {
   const { sheet } = useLocalSearchParams<{ sheet?: string }>();
   const status = useRegistrationStatus();
   const googleAvailable = status?.providers.google === true;
-  const [emailOpen, setEmailOpen] = useState(sheet === "email");
+  const [emailOpen, setEmailOpen] = useState(false);
   const [creditShown, setCreditShown] = useState(false);
+
+  useEffect(() => {
+    if (sheet === "email") {
+      setEmailOpen(true);
+      router.setParams({ sheet: undefined });
+    }
+  }, [router, sheet]);
 
   const variant = welcomeVariant(choice.contrast);
   const ground = themeVariants[variant];
@@ -108,7 +115,11 @@ export function WelcomeScreen() {
         </View>
 
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "flex-end",
+            paddingTop: insets.top + 64,
+          }}
           showsVerticalScrollIndicator={false}
           bounces={false}
           keyboardShouldPersistTaps="handled"
@@ -147,10 +158,10 @@ export function WelcomeScreen() {
               <Button
                 variant={googleAvailable ? "secondary" : "primary"}
                 size="lg"
-                className="h-13 rounded-full"
+                className="h-auto min-h-13 rounded-full py-3"
                 onPress={() => setEmailOpen(true)}
               >
-                <Button.Label className="text-body-lg font-semibold">
+                <Button.Label className="shrink text-body-lg font-semibold">
                   {t("auth__continue_with_email")}
                 </Button.Label>
               </Button>
