@@ -10,7 +10,7 @@ name: Android release
 # plugin writes the signing config that reads the keystore from the environment.
 #
 # Needs (docs/guides/android-release.md):
-#   variable  EXPO_PUBLIC_SERVER_URL            https://patina-api.<domain>, baked into the app
+#   variable  EXPO_PUBLIC_SERVER_URL            https://sigil-api.<domain>, baked into the app
 #   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
 #   variable  EXPO_PUBLIC_SENTRY_DSN            optional; crash reporting and feedback (docs/guides/sentry.md)
 #   variable  SENTRY_ORG, SENTRY_PROJECT        optional; with the secret below, source maps upload
@@ -75,7 +75,7 @@ jobs:
           case "$EXPO_PUBLIC_SERVER_URL" in
             https://*) ;;
             *)
-              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://patina-api.<domain>)."
+              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://sigil-api.<domain>)."
               failed=1
               ;;
           esac
@@ -183,7 +183,7 @@ jobs:
             echo "::error title=Signature::The APK is not signed with the release keystore (signer $signer)."
             exit 1
           fi
-          name="patina-${REF_NAME//\//-}-$ABIS.apk"
+          name="sigil-${REF_NAME//\//-}-$ABIS.apk"
           mkdir -p release
           mv "$built" "release/$name"
           (cd release && sha256sum "$name" > "$name.sha256")
@@ -223,6 +223,6 @@ jobs:
         run: |
           if ! gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "Patina $REF_NAME" --generate-notes
+              --title "Sigil $REF_NAME" --generate-notes
           fi
           gh release upload "$REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber

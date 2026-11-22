@@ -8,13 +8,13 @@
  */
 const domain = "lostsignal.cloud";
 /** The product slug: EAS slug, scheme, bundle id suffix and the host prefixes below. */
-const name = "patina";
+const name = "sigil";
 
 export const appConfig = {
   name,
-  displayName: "Patina",
-  tagline: "Quiet progress.",
-  description: "Patina is a calm, private training log",
+  displayName: "Sigil",
+  tagline: "Earn the mark.",
+  description: "Sigil is a private strength-training log",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",
   /** Contact for support, privacy and deletion requests, and where "Send feedback" in Settings writes to. */

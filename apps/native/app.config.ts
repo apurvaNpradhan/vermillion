@@ -31,7 +31,8 @@ import { appConfig } from "../../app.config.ts";
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
 // 24: renamed to Patina: new bundle id, scheme and EAS slug again.
 // 25: the Android next-workout-widget module is removed (ADR 0054).
-const NATIVE_STACK_REVISION = 25;
+// 26: renamed to Sigil: new bundle id, scheme and EAS slug (ADR 0055).
+const NATIVE_STACK_REVISION = 26;
 
 /**
  * The logo's own colours, for the places the native build needs a literal (icon background, splash

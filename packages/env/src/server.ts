@@ -23,7 +23,7 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     DATABASE_URL: z.string().min(1),
-    /** Public origin of the API (`https://patina-api.<domain>` in production). */
+    /** Public origin of the API (`https://sigil-api.<domain>` in production). */
     APP_URL: z.url(),
     BETTER_AUTH_SECRET: z
       .string()
