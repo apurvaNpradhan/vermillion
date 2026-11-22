@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "patina-web",
+  "name": "sigil-web",
   "compatibility_date": "2026-11-21",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
@@ -10,5 +10,5 @@
   "observability": { "enabled": true },
   // The host must equal the hostname of `appConfig.urls.site` in app.config.ts. `pnpm --filter web
   // check:host` verifies it and the deploy workflow runs it first.
-  "routes": [{ "pattern": "patina.lostsignal.cloud", "custom_domain": true }],
+  "routes": [{ "pattern": "sigil.lostsignal.cloud", "custom_domain": true }],
 }
