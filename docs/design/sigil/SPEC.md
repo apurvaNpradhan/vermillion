@@ -32,27 +32,28 @@ Where it disagrees with an older doc, this file wins.
 
 ## Colour (two inks, one rare ember)
 
-| Role | Dark | Light |
-|---|---|---|
-| ground | `#0B0A09` | `#EFEBE2` |
-| raised (cards, no borders) | `#161412` | `#F7F4EE` |
-| control (inputs, tracks) | `#201E1B` | `#E3DED3` |
-| floating (sheets, toasts) | `#1B1917` | `#F7F4EE` |
-| ink | `#ECE6D8` | `#141210` |
-| ink secondary | `#CFC8BA` | `#3A3631` |
-| muted | `#A39D90` | `#5F5A52` |
-| hairline | `#2B2824` | `#D6CFC2` |
-| ember (mark dot, PR star, current-set bar, today, active-tab dot) | `#E04A2F` | `#B5321A` |
-| ember text | `#F06A4E` | `#B5321A` |
-| ember soft (selected chip ground) | `#321C16` | `#EFDDD5` |
-| done (lichen; completed sets) | `#A9BC9A` | `#4A6541` |
-| done soft (completed row fill) | `#22261E` | `#DCE0D2` |
-| danger (always with an icon and words) | `#F28BA3` | `#83193E` |
-| warning | `#D9B66A` | `#765810` |
-| action fill (primary button) / on-action | `#ECE6D8` / `#0B0A09` | `#141210` / `#F7F4EE` |
-| focus ring | ink | ink |
+| Role                                                              | Dark                  | Light                 |
+| ----------------------------------------------------------------- | --------------------- | --------------------- |
+| ground                                                            | `#0B0A09`             | `#EFEBE2`             |
+| raised (cards, no borders)                                        | `#161412`             | `#F7F4EE`             |
+| control (inputs, tracks)                                          | `#201E1B`             | `#E3DED3`             |
+| floating (sheets, toasts)                                         | `#1B1917`             | `#F7F4EE`             |
+| ink                                                               | `#ECE6D8`             | `#141210`             |
+| ink secondary                                                     | `#CFC8BA`             | `#3A3631`             |
+| muted                                                             | `#A39D90`             | `#5F5A52`             |
+| hairline                                                          | `#2B2824`             | `#D6CFC2`             |
+| ember (mark dot, PR star, current-set bar, today, active-tab dot) | `#E04A2F`             | `#B5321A`             |
+| ember text                                                        | `#F06A4E`             | `#B5321A`             |
+| ember soft (selected chip ground)                                 | `#321C16`             | `#EFDDD5`             |
+| done (lichen; completed sets)                                     | `#A9BC9A`             | `#4A6541`             |
+| done soft (completed row fill)                                    | `#22261E`             | `#DCE0D2`             |
+| danger (always with an icon and words)                            | `#F28BA3`             | `#83193E`             |
+| warning                                                           | `#D9B66A`             | `#765810`             |
+| action fill (primary button) / on-action                          | `#ECE6D8` / `#0B0A09` | `#141210` / `#F7F4EE` |
+| focus ring                                                        | ink                   | ink                   |
 
 Rules:
+
 - Primary buttons, links, toggles, progress rings and rest timers are **ink**, never ember.
 - Ember means "you / now / earned" only: the current set's leading bar and number, a personal record,
   today in the week strip, the active tab's dot, a selected filter chip's text. Nothing else.
@@ -72,7 +73,7 @@ Rules:
 
 ## Imagery
 
-- One photograph: Michelangelo's *'Atlas' Prisoner*, `source/atlas-prisoner-jbu-02.jpg`, graded as a
+- One photograph: Michelangelo's _'Atlas' Prisoner_, `source/atlas-prisoner-jbu-02.jpg`, graded as a
   clean ivory-on-ink duotone (crush blacks, ivory highlights, no dither, no halftone, no grain baked in).
   Credit line required wherever it appears: see `source/CREDITS.md`.
 - No other figures. Empty states use construction drawings, not sculptures.
@@ -98,6 +99,7 @@ Rules:
 ## Website (apps/web)
 
 Mockup reference: React page in the session scratchpad (`mock2`), summarised here.
+
 - Sections: hero (photo right, construction overlay drawing itself once, `Sigil` mast, tagline,
   h1 "A strength log for Android.", lead, Download APK + Add to Obtainium, fact line) → manifesto
   (`NONFINITO` label, "The iron remembers." with "remembers." in ember italic, two paragraphs) →
