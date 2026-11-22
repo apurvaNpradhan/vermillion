@@ -1,4 +1,9 @@
-import type { NativeVariant } from "@workspace/ui/tokens/brand";
+import {
+  DEFAULT_THEME_ID,
+  themeIds,
+  variantName,
+  type ThemeVariant,
+} from "@workspace/ui/tokens/theme-variants";
 import { z } from "zod";
 
 // SAFETY: literal values define the appearance union used at the storage boundary.
@@ -6,20 +11,23 @@ export const APPEARANCES = ["system", "light", "dark"] as const;
 export type AppearanceChoice = (typeof APPEARANCES)[number];
 const appearanceSchema = z.enum(APPEARANCES);
 const selectionSchema = z.object({
+  /** An unknown or retired theme falls back to the default rather than failing the parse. */
+  theme: z.enum(themeIds).catch(DEFAULT_THEME_ID).default(DEFAULT_THEME_ID),
   appearance: appearanceSchema,
   /** Increase contrast: stronger ink, secondary text and lines. */
   contrast: z.boolean().default(false),
 });
 export type ThemeChoice = z.infer<typeof selectionSchema>;
 export const DEFAULT_THEME: ThemeChoice = {
+  theme: DEFAULT_THEME_ID,
   appearance: "system",
   contrast: false,
 };
 export type SystemScheme = "light" | "dark" | null | undefined;
 
 /**
- * Earlier formats keep their appearance and contrast. Zod strips retired fields
- * such as the theme id, palette, accent and true black.
+ * Earlier formats keep their appearance and contrast. Zod strips retired fields such as the
+ * palette, accent and true black, and a theme that no longer exists becomes Sigil.
  */
 export function parseTheme(stored: string | null): ThemeChoice {
   if (!stored) return DEFAULT_THEME;
@@ -43,14 +51,14 @@ export function resolvedScheme(choice: ThemeChoice, systemScheme: SystemScheme):
     : choice.appearance;
 }
 
-/** Classic in the resolved scheme at the chosen contrast. */
-export function resolvedVariant(choice: ThemeChoice, systemScheme: SystemScheme): NativeVariant {
+/** The Uniwind theme to apply: the theme in the resolved scheme at the chosen contrast. */
+export function resolvedVariant(choice: ThemeChoice, systemScheme: SystemScheme): ThemeVariant {
   const scheme = resolvedScheme(choice, systemScheme);
-  return choice.contrast ? `contrast-${scheme}` : scheme;
+  return variantName(choice.theme, choice.contrast ? `${scheme}-contrast` : scheme);
 }
 
 const sameChoice = (a: ThemeChoice, b: ThemeChoice) =>
-  a.appearance === b.appearance && a.contrast === b.contrast;
+  a.theme === b.theme && a.appearance === b.appearance && a.contrast === b.contrast;
 
 /** One device-local selection; apply, persist and notify atomically. */
 export function createThemeStore({

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
 import { mixHex, toOklch } from "./mix";
+import { themeIds, variantName } from "./theme-variants";
 
 const linear = (hex: string) =>
   [1, 3, 5].map((at) => {
@@ -35,7 +36,8 @@ function oklabL(hex: string) {
 const themes = nativeVariantNames.map((mode) => ({
   mode,
   colors: nativeColors[mode],
-  isLight: mode.endsWith("light"),
+  isLight: mode === "light" || mode.includes("-light"),
+  isClassic: mode.startsWith("classic"),
 }));
 
 const L = (hex: string) => oklabL(hex);
@@ -170,13 +172,18 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   });
 });
 
-describe.each(themes)("Classic identity: $mode", ({ colors: c }) => {
-  it("keeps the accent near-neutral and retains functional completion colour", () => {
-    expect(toOklch(c.identity).c).toBeLessThan(0.015);
-    expect(c.action).toBe(c.identity);
-    expect(toOklch(c["set-done"]).c).toBeGreaterThan(0.04);
-  });
+describe.each(themes.filter(({ isClassic }) => isClassic))(
+  "Classic identity: $mode",
+  ({ colors: c }) => {
+    it("keeps the accent near-neutral and retains functional completion colour", () => {
+      expect(toOklch(c.identity).c).toBeLessThan(0.015);
+      expect(c.action).toBe(c.identity);
+      expect(toOklch(c["set-done"]).c).toBeGreaterThan(0.04);
+    });
+  },
+);
 
+describe.each(themes)("chart and surface rules: $mode", ({ colors: c }) => {
   it("keeps every chart series visible on the page", () => {
     for (const role of ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const) {
       for (const bg of ["canvas", "surface"] as const) {
@@ -198,11 +205,13 @@ describe.each(themes)("Classic identity: $mode", ({ colors: c }) => {
   });
 });
 
-const contrastPairs = (["light", "dark"] as const).map((scheme) => ({
-  name: scheme,
-  standard: nativeColors[scheme],
-  increased: nativeColors[`contrast-${scheme}`],
-}));
+const contrastPairs = themeIds.flatMap((theme) =>
+  (["light", "dark"] as const).map((scheme) => ({
+    name: `${theme} ${scheme}`,
+    standard: nativeColors[variantName(theme, scheme)],
+    increased: nativeColors[variantName(theme, `${scheme}-contrast`)],
+  })),
+);
 
 describe.each(
   themes
@@ -238,14 +247,77 @@ describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased
   });
 });
 
+describe("Sigil", () => {
+  it("is the default: the built-in light and dark are Sigil", () => {
+    expect(nativeColors.light).toEqual(nativeColors["sigil-light"]);
+    expect(nativeColors.dark).toEqual(nativeColors["sigil-dark"]);
+  });
+
+  it("uses the spec's ground, raised, ink and ember in both schemes", () => {
+    expect(nativeColors["sigil-dark"]).toMatchObject({
+      canvas: "#0B0A09",
+      surface: "#161412",
+      "surface-control": "#201E1B",
+      "surface-floating": "#1B1917",
+      "text-primary": "#ECE6D8",
+      "text-secondary": "#CFC8BA",
+      "text-muted": "#A39D90",
+      hairline: "#2B2824",
+      identity: "#F06A4E",
+      "identity-soft": "#321C16",
+      action: "#ECE6D8",
+      "on-action": "#0B0A09",
+      "set-done": "#A9BC9A",
+      "set-done-soft": "#22261E",
+      danger: "#F28BA3",
+    });
+    expect(nativeColors["sigil-light"]).toMatchObject({
+      canvas: "#EFEBE2",
+      surface: "#F7F4EE",
+      "surface-control": "#E3DED3",
+      "text-primary": "#141210",
+      "text-secondary": "#3A3631",
+      "text-muted": "#5F5A52",
+      hairline: "#D6CFC2",
+      identity: "#B5321A",
+      "identity-soft": "#EFDDD5",
+      action: "#141210",
+      "on-action": "#F7F4EE",
+      "set-done": "#4A6541",
+      "set-done-soft": "#DCE0D2",
+      danger: "#83193E",
+    });
+  });
+
+  it("keeps ember for identity only: the action, focus ring and charts are ink or neutral", () => {
+    for (const scheme of ["light", "dark"] as const) {
+      const c = nativeColors[`sigil-${scheme}`];
+      expect(c.action).toBe(scheme === "dark" ? "#ECE6D8" : "#141210");
+      expect(c["focus-ring"]).toBe(c["text-primary"]);
+      expect(c["accent-soft-text"]).not.toBe(c.identity);
+      for (const role of [
+        "chart",
+        "chart-1",
+        "chart-2",
+        "chart-3",
+        "chart-4",
+        "chart-5",
+      ] as const) {
+        expect(toOklch(c[role]).h, role).not.toBeCloseTo(toOklch(c.identity).h, -1);
+      }
+      expect(toOklch(c.danger).h).not.toBeCloseTo(toOklch(c.identity).h, -1);
+    }
+  });
+});
+
 describe("Classic", () => {
   it("uses its original canvas, surface and ink in both schemes", () => {
-    expect(nativeColors.light).toMatchObject({
+    expect(nativeColors["classic-light"]).toMatchObject({
       canvas: "#F4F2ED",
       surface: "#FBFAF7",
       "text-primary": "#191918",
     });
-    expect(nativeColors.dark).toMatchObject({
+    expect(nativeColors["classic-dark"]).toMatchObject({
       canvas: "#070707",
       surface: "#121212",
       "text-primary": "#EFEEE9",
