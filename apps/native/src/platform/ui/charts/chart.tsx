@@ -2,34 +2,54 @@
  * Interaction adapted from PanelUI LineChart docs, retrieved 2026-11-10 (unversioned).
  * https://panelui.dev/docs/charts/line-chart — MIT, Copyright (c) 2026 Khalid Abdi.
  * Licence: docs/licenses/panelui-MIT.txt. Changes: Vermillion tokens, native text axes,
- * range chips, SVG bars, and nearest-point scrub with JS notified only on index changes.
+ * range chips, SVG bars, nearest-point scrub with JS notified only on index changes, weekly
+ * aggregation, an accent line over a faint area, a dashed best line and a scrub tooltip.
  */
 import { useThemeColor } from "heroui-native";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
+import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useChartColor } from "@/platform/theme";
 import { Button } from "../button";
 import {
+  aggregateByWeek,
+  dataTicks,
   nearestIndex,
   labelledTicks,
   rangePoints,
   scale,
   ticks,
+  type Aggregate,
   type ChartPoint,
   type ChartRange,
 } from "./scales";
+
+const TOOLTIP_WIDTH = 112;
 
 type Props = {
   showRanges?: boolean;
   secondaryPoints?: readonly ChartPoint[];
   goal?: number | null;
+  /** "data" fits the axis to the values instead of starting at zero. */
   domain?: "data";
+  /** Round steps for the axis when it is not decimal (`TIME_STEPS` for seconds). */
+  tickSteps?: readonly number[];
+  /**
+   * How a week's sessions combine once the range is longer than three months: the best of the
+   * week, the lowest (lower is better) or the total. The chart shows one point per week then,
+   * and one per session over three months.
+   */
+  aggregate?: Aggregate;
+  /** A smaller value is better (pace): the axis runs the other way, so better plots higher. */
+  lowerIsBetter?: boolean;
+  /** A dashed reference line at the best value shown (the PR), the highest or the lowest. */
+  best?: "high" | "low";
   hideDots?: ReadonlySet<string>;
   points: readonly ChartPoint[];
   label: string;
@@ -60,7 +80,11 @@ function Chart({
   footer,
   secondaryPoints = [],
   goal,
-  domain,
+  domain: domainProp,
+  tickSteps,
+  aggregate = "max",
+  lowerIsBetter = false,
+  best,
   hideDots,
 }: Props & { mode: "line" | "bar" }) {
   const { t } = useTranslation();
@@ -71,18 +95,26 @@ function Chart({
   const [active, setActive] = useState(-1);
   const index = useSharedValue(-1);
   const cursor = useSharedValue(0);
-  const data = useMemo(
-    () => (showRanges ? rangePoints(points, range, Date.now()) : points),
-    [points, range, showRanges],
-  );
+  const data = useMemo(() => {
+    if (!showRanges) return points;
+    const inRange = rangePoints(points, range, Date.now());
+    return range === "3M" ? inRange : aggregateByWeek(inRange, aggregate);
+  }, [points, range, showRanges, aggregate]);
+  const domain = lowerIsBetter ? "data" : domainProp;
   const values = [
     ...data.map((p) => p.y),
     ...secondaryPoints.map((p) => p.y),
     ...(goal == null ? [] : [goal]),
   ];
-  const low = domain === "data" ? Math.floor(Math.min(...values) - 0.5) : 0;
-  const grid = ticks(values.map((v) => v - low)).map((v) => v + low);
+  const grid = domain === "data" ? dataTicks(values, tickSteps) : ticks(values);
+  const low = grid[0] ?? 0;
   const max = grid[grid.length - 1] ?? 1;
+  const bestValue =
+    best && data.length > 1
+      ? best === "high"
+        ? Math.max(...data.map((p) => p.y))
+        : Math.min(...data.map((p) => p.y))
+      : null;
   const plotWidth = Math.max(0, width - 16);
   const first = data[0];
   const last = data[data.length - 1];
@@ -91,7 +123,8 @@ function Chart({
       ? ((i + 0.5) / data.length) * plotWidth + 8
       : scale(p.x, [first?.x ?? 0, last?.x ?? 0], plotWidth) + 8,
   );
-  const y = (value: number) => 160 - scale(value, [low, max], 152);
+  const y = (value: number) =>
+    lowerIsBetter ? 8 + scale(value, [low, max], 152) : 160 - scale(value, [low, max], 152);
   const path = data.map((p, i) => `${i === 0 ? "M" : "L"}${positions[i]},${y(p.y)}`).join(" ");
   const pan = Gesture.Pan()
     .activeOffsetX([-8, 8])
@@ -123,6 +156,16 @@ function Chart({
     transform: [{ translateX: cursor.value }],
   }));
   const shown = data[active] ?? last;
+  // Scrubbing ticks once per point it passes over.
+  const scrubbed = useRef(-1);
+  useEffect(() => {
+    if (active >= 0 && scrubbed.current !== active) haptic.tick();
+    scrubbed.current = active;
+  }, [active]);
+  const tooltipLeft = Math.min(
+    Math.max((positions[active] ?? 0) - TOOLTIP_WIDTH / 2, 0),
+    Math.max(0, width - TOOLTIP_WIDTH),
+  );
   return (
     <View className="gap-3">
       {showRanges ? (
@@ -225,6 +268,17 @@ function Chart({
                   {grid.map((tick) => (
                     <Line key={tick} x1={0} x2={width} y1={y(tick)} y2={y(tick)} stroke={border} />
                   ))}
+                  {bestValue !== null ? (
+                    <Line
+                      x1={0}
+                      x2={width}
+                      y1={y(bestValue)}
+                      y2={y(bestValue)}
+                      stroke={ink}
+                      strokeDasharray="4 4"
+                      strokeOpacity={0.6}
+                    />
+                  ) : null}
                   {goal != null ? (
                     <Line
                       x1={0}
@@ -250,6 +304,13 @@ function Chart({
                       strokeWidth={1}
                     />
                   ) : null}
+                  {mode === "line" && data.length > 1 ? (
+                    <Path
+                      d={`${path} L${positions[positions.length - 1]},160 L${positions[0]},160 Z`}
+                      fill={ink}
+                      fillOpacity={0.12}
+                    />
+                  ) : null}
                   {mode === "line" ? (
                     <Path d={path} fill="none" stroke={ink} strokeWidth={2} />
                   ) : null}
@@ -262,12 +323,40 @@ function Chart({
                         width={Math.max(2, (plotWidth / data.length) * 0.6)}
                         height={160 - y(p.y)}
                         fill={ink}
+                        fillOpacity={active >= 0 && active !== i ? 0.45 : 1}
                       />
                     ) : hideDots?.has(p.id) ? null : (
-                      <Circle key={p.id} cx={positions[i]} cy={y(p.y)} r={3} fill={ink} />
+                      <Circle
+                        key={p.id}
+                        cx={positions[i]}
+                        cy={y(p.y)}
+                        r={active === i ? 5 : 3}
+                        fill={ink}
+                      />
                     ),
                   )}
                 </Svg>
+                {active >= 0 && shown ? (
+                  <View
+                    pointerEvents="none"
+                    accessible={false}
+                    className="absolute top-0 items-center rounded-lg bg-surface-floating px-2 py-1"
+                    style={{ left: tooltipLeft, width: TOOLTIP_WIDTH }}
+                  >
+                    <Text
+                      className="font-semibold text-label text-foreground"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
+                      {formatValue(shown.y)}
+                    </Text>
+                    <Text
+                      className="font-normal text-caption text-muted"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
+                      {shown.label}
+                    </Text>
+                  </View>
+                ) : null}
                 <Animated.View
                   pointerEvents="none"
                   className="absolute top-0 h-40 w-px bg-foreground"

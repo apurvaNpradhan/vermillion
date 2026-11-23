@@ -115,6 +115,8 @@ export function ExerciseProgress({
       ) : null}
       <LineChart
         showRanges={false}
+        domain="data"
+        best="high"
         points={points(
           (added ? heaviestAddedLoadSeries : oneRepMaxSeries)(sessions, exerciseId, range, now),
         )}

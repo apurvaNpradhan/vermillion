@@ -4,7 +4,8 @@ import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
-import { workingSetNumber } from "../numbers";
+import { formatClock, workingSetNumber } from "../numbers";
+import { useHumanUnits } from "../use-human-units";
 
 /** Each kind in its data colour; working sets stay muted and numbered. */
 const KIND_TEXT = {
@@ -32,6 +33,7 @@ export function RecentSessions({
   showHeading?: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const { distance } = useHumanUnits();
   const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
   const date = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
@@ -85,18 +87,18 @@ export function RecentSessions({
                       className="font-normal text-body text-foreground"
                       style={{ fontVariant: ["tabular-nums"] }}
                     >
-                      {t(
-                        field === "reps"
-                          ? "exercise__value_reps"
-                          : field === "duration_s"
-                            ? "exercise__value_seconds"
-                            : field === "distance_m"
-                              ? "exercise__value_metres"
-                              : field === "floors"
-                                ? "exercise__value_floors"
-                                : "exercise__value_steps",
-                        { value: number.format(set[field] ?? 0) },
-                      )}
+                      {field === "duration_s"
+                        ? formatClock(set[field] ?? 0)
+                        : field === "distance_m"
+                          ? distance(set[field] ?? 0)
+                          : t(
+                              field === "reps"
+                                ? "exercise__value_reps"
+                                : field === "floors"
+                                  ? "exercise__value_floors"
+                                  : "exercise__value_steps",
+                              { value: number.format(set[field] ?? 0) },
+                            )}
                     </Text>
                   ) : null,
                 )}

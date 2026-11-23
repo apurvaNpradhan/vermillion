@@ -16,6 +16,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { Button } from "@/platform/ui/button";
 import { LineChart, BarChart } from "@/platform/ui/charts/chart";
+import { TIME_STEPS, type Aggregate } from "@/platform/ui/charts/scales";
 import { ExerciseProgress, NextTimeLine } from "./exercise-progress";
 import {
   datedRecords,
@@ -24,7 +25,10 @@ import {
   recordsByYear,
   recordYears,
   type Metric,
+  paceSecondsPerKm,
+  formatClock,
 } from "../numbers";
+import { useHumanUnits } from "../use-human-units";
 
 const LABELS = {
   most_reps: "exercise__metric_most_reps",
@@ -39,6 +43,26 @@ const LABELS = {
   floors: "exercise__metric_floors",
   steps: "exercise__metric_steps",
 } as const;
+
+/** Volume, distance and counts are totals or bests per period, drawn as bars. */
+const BAR_METRICS: ReadonlySet<Metric> = new Set([
+  "set_volume",
+  "session_volume",
+  "longest_distance",
+  "total_reps",
+  "floors",
+  "steps",
+]);
+
+/** How a week of sessions becomes one bar or point: totals add up, bests keep the best. */
+const AGGREGATE: Partial<Record<Metric, Aggregate>> = {
+  session_volume: "sum",
+  total_reps: "sum",
+  floors: "sum",
+  steps: "sum",
+  // Pace is plotted in seconds per kilometre, where lower is faster.
+  best_pace: "min",
+};
 
 function isMetricLabel(key: Metric): key is keyof typeof LABELS {
   return key in LABELS;
@@ -73,6 +97,7 @@ export function ExerciseNumbers({
   const weight = useWeight();
   const sessions = weight.withBodyweight(rawSessions);
   const { t, i18n } = useTranslation();
+  const human = useHumanUnits();
   const metrics = metricsFor(type);
   const [selected, setSelected] = useState<Metric>(metrics[0] ?? "total_reps");
   const metric = metrics.includes(selected) ? selected : (metrics[0] ?? "total_reps");
@@ -92,9 +117,9 @@ export function ExerciseNumbers({
         ? t("exercise__metric_added_load")
         : t(LABELS[isMetricLabel(key) ? key : "total_reps"]);
   const format = (value: number, key: Metric) => {
-    if (key === "longest_duration") return t("exercise__value_seconds", { value: number(value) });
-    if (key === "longest_distance") return t("exercise__value_metres", { value: number(value) });
-    if (key === "best_pace") return t("exercise__value_pace", { value: number(value) });
+    if (key === "longest_duration") return human.duration(value);
+    if (key === "longest_distance") return human.distance(value);
+    if (key === "best_pace") return human.pace(value);
     if (key === "most_reps" || key === "total_reps" || key === "floors" || key === "steps")
       return number(value);
     const added = addsLoad(type) && (key === "heaviest_weight" || key.startsWith("reps_"));
@@ -110,10 +135,15 @@ export function ExerciseNumbers({
       },
     );
   };
-  const points = metricSeries(sessions, exerciseId, metric, bodyweightKg).map((p) => ({
-    ...p,
-    label: date(p.x),
-  }));
+  // Records keep pace as a speed (m/s, higher is faster); the chart plots seconds per kilometre.
+  const points = metricSeries(sessions, exerciseId, metric, bodyweightKg).flatMap((p) => {
+    const y = metric === "best_pace" ? paceSecondsPerKm(p.y) : p.y;
+    return y === null ? [] : [{ ...p, y, label: date(p.x) }];
+  });
+  const formatPoint = (value: number) =>
+    metric === "best_pace"
+      ? t("exercise__value_pace", { value: formatClock(value) })
+      : format(value, metric);
   const years = recordYears(sessions, exerciseId, timezone);
   // A year that no longer has data (a deleted Session) falls back to all time.
   const activeYear = year !== null && years.includes(year) ? year : null;
@@ -124,8 +154,7 @@ export function ExerciseNumbers({
           allTime: null,
         }))
       : recordsByYear(sessions, exerciseId, bodyweightKg, activeYear, timezone);
-  const Chart =
-    metric === "total_reps" || metric === "floors" || metric === "steps" ? BarChart : LineChart;
+  const Chart = BAR_METRICS.has(metric) ? BarChart : LineChart;
   // Volume and the estimated one-rep max of these types need a bodyweight to be right.
   const needsBodyweight =
     bodyweightKg === null &&
@@ -179,7 +208,14 @@ export function ExerciseNumbers({
           <Chart
             points={points}
             label={label(metric)}
-            formatValue={(value) => format(value, metric)}
+            formatValue={formatPoint}
+            aggregate={AGGREGATE[metric] ?? "max"}
+            domain={metric === "longest_duration" || metric === "best_pace" ? "data" : undefined}
+            tickSteps={
+              metric === "longest_duration" || metric === "best_pace" ? TIME_STEPS : undefined
+            }
+            lowerIsBetter={metric === "best_pace"}
+            best={BAR_METRICS.has(metric) ? undefined : metric === "best_pace" ? "low" : "high"}
           />
           {type === "reps_only" || type === "bodyweight_reps" ? (
             <NextTimeLine
