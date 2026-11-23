@@ -22,11 +22,9 @@ export type ShareExerciseSource = {
 export type ShareWorkoutSource = {
   id: string;
   title: string | null;
-  note: string | null;
   exercises: readonly {
     exercise: ShareExerciseSource;
     restSeconds: number | null;
-    note: string | null;
     supersetGroup: string | null;
     sets: readonly PlannedSet[];
   }[];
@@ -65,6 +63,7 @@ function setOf(set: PlannedSet, options: SerializeOptions): PlannedSet {
   return rest;
 }
 
+/** Notes (a Workout's, an exercise's) are private and never part of a snapshot. */
 function workoutOf(source: ShareWorkoutSource, options: SerializeOptions): ShareWorkout {
   // Group ids become small numbers in order of appearance, so no id of the sharer leaks.
   const groups = new Map<string, number>();
@@ -75,7 +74,6 @@ function workoutOf(source: ShareWorkoutSource, options: SerializeOptions): Share
   }
   return {
     title: source.title,
-    note: source.note,
     exercises: source.exercises.map((entry) => {
       let superset: number | null = null;
       // A group of one (its partners were removed) is no Superset.
@@ -87,7 +85,6 @@ function workoutOf(source: ShareWorkoutSource, options: SerializeOptions): Share
       return {
         exercise: exerciseOf(entry.exercise),
         rest_seconds: entry.restSeconds,
-        note: entry.note,
         superset,
         sets: entry.sets.map((set) => setOf(set, options)),
       };

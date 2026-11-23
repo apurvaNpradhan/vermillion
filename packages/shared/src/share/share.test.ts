@@ -37,7 +37,8 @@ function push(id = "w1") {
   return {
     id,
     title: "Push",
-    note: null,
+    // Private notes a stray reader might still attach; they must never reach a snapshot.
+    note: "my private workout note",
     exercises: [
       {
         exercise: bench,
@@ -121,6 +122,16 @@ describe("snapshots", () => {
   it("renumbers supersets and drops groups of one", () => {
     const { workout } = serializeWorkout(push(), { weights: true });
     expect(workout.exercises.map((entry) => entry.superset)).toEqual([0, 0, null]);
+  });
+
+  it("never carries a workout or exercise note", () => {
+    const snapshot = serializeWorkout(push(), { weights: true });
+    const text = JSON.stringify(snapshot);
+    expect(text).not.toContain("slow");
+    expect(text).not.toContain("private workout note");
+    expect(text).not.toContain('"note"');
+    const withNote = { ...snapshot, workout: { ...snapshot.workout, note: "x" } };
+    expect(workoutSnapshotSchema.safeParse(withNote).success).toBe(false);
   });
 
   it("leaves the weights out when asked", () => {

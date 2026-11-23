@@ -24,13 +24,14 @@ export const SHARE_FORMATS = {
 /** The largest snapshot the API stores, in bytes of JSON. Real plans are a few KB. */
 export const SHARE_SNAPSHOT_MAX_BYTES = 512 * 1024;
 
-const { titleMax, noteMax, descriptionMax } = TRAINING_LIMITS;
+const { titleMax, descriptionMax } = TRAINING_LIMITS;
 
 /**
  * An exercise by reference. `catalog_id` names a catalog exercise (the reader maps it to its own
  * copy of the catalog); the rest describes it fully, so a reader that lacks the id, and every
  * Custom exercise (`catalog_id` null), can create it. The web preview shows these names, since a
- * browser has no catalog.
+ * browser has no catalog. Notes are private: a snapshot never carries a Workout's or an exercise's
+ * note, and the strict schemas refuse one.
  */
 export const shareExerciseSchema = z.strictObject({
   catalog_id: z.uuid().nullable(),
@@ -46,7 +47,6 @@ const shareWorkoutExerciseSchema = z
   .strictObject({
     exercise: shareExerciseSchema,
     rest_seconds: z.number().int().min(0).max(REST_SECONDS_MAX).nullable(),
-    note: z.string().max(noteMax).nullable(),
     /** Exercises with the same number are one Superset; null is none. Numbers are local to the Workout. */
     superset: z.number().int().min(0).max(TRAINING_LIMITS.exercisesPerWorkout).nullable(),
     sets: z.array(plannedSetSchema).max(TRAINING_LIMITS.setsPerExercise),
@@ -64,7 +64,6 @@ const shareWorkoutExerciseSchema = z
 /** One Workout's content, in order. */
 export const shareWorkoutSchema = z.strictObject({
   title: z.string().trim().min(1).max(titleMax).nullable(),
-  note: z.string().max(noteMax).nullable(),
   exercises: z.array(shareWorkoutExerciseSchema).max(TRAINING_LIMITS.exercisesPerWorkout),
 });
 export type ShareWorkout = z.infer<typeof shareWorkoutSchema>;

@@ -2,6 +2,7 @@ import {
   programSnapshotSchema,
   serializeProgram,
   serializeWorkout,
+  SYNC_LIMITS,
   workoutSnapshotSchema,
   type ShareSnapshot,
 } from "@workspace/shared";
@@ -10,6 +11,7 @@ import { expect, it } from "vitest";
 import { finishSession, startSession } from "../sessions/session-store";
 import { tickSet } from "../sessions/session-content-store";
 import { pushWorkout, setupSessions, SQUAT } from "../sessions/session-fixtures";
+import type { TrainingDatabase } from "../store-common";
 import {
   addExercises,
   addSlot,
@@ -158,6 +160,140 @@ it("turns a finished session into a workout template of its completed working se
         reps_max: 6,
       });
     }
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+// ---- Big programs, matching and runs ----
+
+const CUSTOM_REF = {
+  catalog_id: null,
+  name: "My fly",
+  equipment: "cable",
+  exercise_type: "weight_reps",
+  primary_muscle: "chest",
+  secondary_muscles: [],
+} as const;
+
+function bigProgram(): ShareSnapshot {
+  const entry = (at: number) => ({
+    exercise:
+      at % 5 === 0
+        ? { ...CUSTOM_REF, name: `Custom ${at}` }
+        : {
+            catalog_id: SQUAT,
+            name: "Squat",
+            equipment: "barbell",
+            exercise_type: "weight_reps",
+            primary_muscle: "quadriceps",
+            secondary_muscles: ["glutes"],
+          },
+    rest_seconds: null,
+    superset: null,
+    sets: [{ kind: "working", reps_min: 5, reps_max: 5, weight_kg: 100 }],
+  });
+  const workoutOf = (title: string) => ({
+    title,
+    exercises: Array.from({ length: 25 }, (_, at) => entry(at)),
+  });
+  return programSnapshotSchema.parse({
+    format: "sigil.program/v1",
+    program: {
+      title: "Big",
+      description: null,
+      planned_weeks: null,
+      sessions_per_week: null,
+      workouts: ["A", "B", "C", "D"].map(workoutOf),
+      rotation: [0, 1, 2, 3],
+    },
+  });
+}
+
+/** The writes of each transaction a database sees, to compare with the upload budget. */
+function watchTransactions(s: Awaited<ReturnType<typeof setupSessions>>) {
+  const counts: number[] = [];
+  const changes = () => Number(s.sqlite.prepare("SELECT total_changes() AS n").get()?.["n"]);
+  const database: TrainingDatabase = {
+    ...s.training,
+    writeTransaction: async (run, options) => {
+      const before = changes();
+      const result = await s.training.writeTransaction(run, options);
+      counts.push(changes() - before);
+      return result;
+    },
+  };
+  return { database, counts };
+}
+
+it("imports a program of about 109 writes in upload-safe transactions", async () => {
+  const s = await setupSessions();
+  try {
+    const { database, counts } = watchTransactions(s);
+    const imported = await importSnapshot(database, bigProgram());
+    expect(imported).toMatchObject({ kind: "program", createdExercises: 5 });
+    expect(counts.reduce((sum, count) => sum + count, 0)).toBeGreaterThan(SYNC_LIMITS.maxOps);
+    expect(Math.max(...counts)).toBeLessThanOrEqual(SYNC_LIMITS.maxOps);
+    expect(s.all("workout")).toHaveLength(4);
+    expect(s.all("workout_exercise")).toHaveLength(100);
+    expect(s.all("program_slot")).toHaveLength(4);
+    const dangling = s.sqlite
+      .prepare(
+        `SELECT 1 FROM workout w WHERE w.program_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM program p WHERE p.id = w.program_id)`,
+      )
+      .all();
+    expect(dangling).toEqual([]);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("matches a custom exercise on name, equipment and type", async () => {
+  const s = await setupSessions();
+  try {
+    s.sqlite
+      .prepare(
+        `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
+           exercise_type, is_full_bodyweight, created_at) VALUES (?, 'owner', 'My fly', 'chest', '[]', 'cable', 'duration', 0, 'now')`,
+      )
+      .run(CUSTOM_ID);
+    const snapshot = workoutSnapshotSchema.parse({
+      format: "sigil.workout/v1",
+      workout: {
+        title: "Flies",
+        exercises: [{ exercise: CUSTOM_REF, rest_seconds: null, superset: null, sets: [] }],
+      },
+    });
+    expect((await previewImportExercises(s.training, snapshot))[0]?.match.kind).toBe("new");
+    expect(await importSnapshot(s.training, snapshot)).toMatchObject({ createdExercises: 1 });
+    expect(await importSnapshot(s.training, snapshot)).toMatchObject({ createdExercises: 0 });
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("never writes a note and leaves open program runs alone", async () => {
+  const { s, programId } = await planned();
+  try {
+    const source = await readProgramShareSource(s.training, programId);
+    if (!source) throw new Error("no source");
+    const text = JSON.stringify(serializeProgram(source, { weights: true }));
+    expect(text).not.toContain("slow");
+    const insert = s.sqlite.prepare(
+      "INSERT INTO program_run (id,user_id,program_id,activated_at,created_at) VALUES (?,?,?,?,?)",
+    );
+    insert.run("run-1", "owner", programId, "2026-01-01T00:00:00.000Z", "now");
+    insert.run("run-2", "owner", programId, "2026-01-02T00:00:00.000Z", "now");
+    await importSnapshot(s.training, serializeProgram(source, { weights: true }));
+    expect(
+      s.sqlite.prepare("SELECT id FROM program_run WHERE finished_at IS NULL").all(),
+    ).toHaveLength(2);
+    const notes = s.sqlite
+      .prepare("SELECT note FROM workout_exercise WHERE note IS NOT NULL")
+      .all();
+    // Only the sharer's own row keeps its note; the imported copies carry none.
+    expect(notes).toHaveLength(1);
   } finally {
     s.sqlite.close();
   }

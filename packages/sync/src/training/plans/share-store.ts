@@ -7,6 +7,7 @@ import {
   plannedSetSchema,
   sessionPlannedSets,
   SET_KINDS,
+  SYNC_LIMITS,
   type PlannedSet,
   type ShareExercise,
   type ShareExerciseSource,
@@ -72,7 +73,6 @@ const EXERCISE_COLUMNS = `e.id AS exercise_id, e.user_id, e.title, e.equipment, 
 
 const planRow = exerciseRow.extend({
   rest_seconds: z.number().nullable(),
-  note: z.string().nullable(),
   superset_group: z.string().nullable(),
   sets: z.string().transform((text) => z.array(plannedSetSchema).catch([]).parse(JSON.parse(text))),
 });
@@ -80,7 +80,6 @@ const planRow = exerciseRow.extend({
 const workoutRow = z.object({
   id: z.string(),
   title: z.string().nullable(),
-  note: z.string().nullable(),
 });
 
 /** The Workouts with these ids as share sources, in the order asked; one that is gone is left out. */
@@ -90,15 +89,14 @@ async function readWorkoutSources(
 ): Promise<Map<string, ShareWorkoutSource>> {
   const found = new Map<string, ShareWorkoutSource>();
   for (const id of new Set(ids)) {
-    const head = await database.getOptional<object>(
-      "SELECT id, title, note FROM workout WHERE id = ?",
-      [id],
-    );
+    const head = await database.getOptional<object>("SELECT id, title FROM workout WHERE id = ?", [
+      id,
+    ]);
     if (!head) continue;
     const parsedHead = workoutRow.parse(head);
     const rows = z.array(planRow).parse(
       await database.getAll(
-        `SELECT ${EXERCISE_COLUMNS}, we.rest_seconds, we.note, we.superset_group, we.sets
+        `SELECT ${EXERCISE_COLUMNS}, we.rest_seconds, we.superset_group, we.sets
          FROM workout_exercise we JOIN exercise e ON e.id = we.exercise_id
          WHERE we.workout_id = ? ORDER BY we.position, we.id`,
         [id],
@@ -107,11 +105,9 @@ async function readWorkoutSources(
     found.set(id, {
       id,
       title: parsedHead.title,
-      note: parsedHead.note,
       exercises: rows.map((row) => ({
         exercise: exerciseSource(row),
         restSeconds: row.rest_seconds,
-        note: row.note,
         supersetGroup: row.superset_group,
         sets: row.sets,
       })),
@@ -191,7 +187,7 @@ const loggedSetRow = z.object({
 /**
  * A finished Session as a Workout template: each exercise's completed non-warm-up sets become its
  * Planned sets (reps and weight as targets). Notes, photos, times and the Session's own ids are
- * not read. Null when the Session is gone.
+ * not read (and no snapshot carries a note). Null when the Session is gone.
  */
 export async function readSessionShareSource(
   database: TrainingDatabase,
@@ -228,7 +224,6 @@ export async function readSessionShareSource(
     entries.push({
       exercise: exerciseSource(row),
       restSeconds: row.rest_seconds,
-      note: null,
       supersetGroup: row.superset_group,
       sets,
     });
@@ -236,7 +231,6 @@ export async function readSessionShareSource(
   return {
     id: sessionId,
     title: sessionHead.parse(head).title,
-    note: null,
     exercises: entries,
   };
 }
@@ -249,34 +243,38 @@ export type ExerciseMatch =
   | { kind: "existing-custom"; id: string }
   | { kind: "new" };
 
-const titleKey = (ref: { name: string; equipment: string }) =>
-  `${ref.name.trim().toLowerCase()}|${ref.equipment}`;
+const titleKey = (ref: { name: string; equipment: string; exerciseType: string }) =>
+  `${ref.name.trim().toLowerCase()}|${ref.equipment}|${ref.exerciseType}`;
 
-/** Every exercise a snapshot names, once each (by catalog id, or by name and equipment). */
+const refKey = (ref: ShareExercise) =>
+  titleKey({ name: ref.name, equipment: ref.equipment, exerciseType: ref.exercise_type });
+
+const exerciseKey = (ref: ShareExercise) => ref.catalog_id ?? `custom:${refKey(ref)}`;
+
+/** Every exercise a snapshot names, once each (by catalog id, or by name, equipment and type). */
 export function snapshotExercises(snapshot: ShareSnapshot): ShareExercise[] {
   const workouts: ShareWorkout[] =
     snapshot.format === "sigil.program/v1" ? snapshot.program.workouts : [snapshot.workout];
   const seen = new Map<string, ShareExercise>();
   for (const entry of workouts.flatMap((item) => item.exercises)) {
     const ref = entry.exercise;
-    seen.set(ref.catalog_id ?? `custom:${titleKey(ref)}`, ref);
+    seen.set(exerciseKey(ref), ref);
   }
   return [...seen.values()];
 }
-
-const exerciseKey = (ref: ShareExercise) => ref.catalog_id ?? `custom:${titleKey(ref)}`;
 
 type LibraryRow = {
   id: string;
   title: string;
   equipment: string;
+  exercise_type: string;
   user_id: string | null;
   retired_at: string | null;
 };
 
 /**
  * Matches each exercise of a snapshot against this device's library. A catalog id this device
- * knows wins; otherwise a Custom exercise of the same name and equipment is reused (importing
+ * knows wins; otherwise a Custom exercise of the same name, equipment and type is reused (importing
  * twice does not duplicate); otherwise a new Custom exercise will be made.
  */
 function matchLibrary(
@@ -288,12 +286,15 @@ function matchLibrary(
   for (const row of library) {
     if (row.user_id === null) catalog.add(row.id);
     else if (row.retired_at === null) {
-      custom.set(titleKey({ name: row.title, equipment: row.equipment }), row.id);
+      custom.set(
+        titleKey({ name: row.title, equipment: row.equipment, exerciseType: row.exercise_type }),
+        row.id,
+      );
     }
   }
   const matches = new Map<string, ExerciseMatch>();
   for (const ref of refs) {
-    const existing = custom.get(titleKey(ref));
+    const existing = custom.get(refKey(ref));
     matches.set(
       exerciseKey(ref),
       ref.catalog_id && catalog.has(ref.catalog_id)
@@ -313,6 +314,7 @@ const libraryRow = z.object({
   id: z.string(),
   title: z.string(),
   equipment: z.string(),
+  exercise_type: z.string(),
   user_id: z.string().nullable(),
   retired_at: z.string().nullable(),
 });
@@ -323,7 +325,11 @@ export async function previewImportExercises(
 ): Promise<ImportExercisePreview[]> {
   const library = z
     .array(libraryRow)
-    .parse(await database.getAll("SELECT id, title, equipment, user_id, retired_at FROM exercise"));
+    .parse(
+      await database.getAll(
+        "SELECT id, title, equipment, exercise_type, user_id, retired_at FROM exercise",
+      ),
+    );
   const refs = snapshotExercises(snapshot);
   const matches = matchLibrary(refs, library);
   return refs.map((ref) => ({
@@ -342,30 +348,14 @@ function allowedSets(ref: ShareExercise, sets: readonly PlannedSet[]): PlannedSe
   );
 }
 
-async function createMissingExercises(
+/** Creates these Custom exercises (one write each) and returns their ids by exercise key. */
+async function createExercises(
   tx: Tx,
   userId: string,
-  matches: Map<string, ExerciseMatch>,
   refs: readonly ShareExercise[],
 ): Promise<Map<string, string>> {
-  const resolved = new Map<string, string>();
-  const missing = refs.filter((ref) => matches.get(exerciseKey(ref))?.kind === "new");
-  if (missing.length > 0) {
-    const [live] = await tx
-      .select({ total: count() })
-      .from(exercise)
-      .where(and(isNotNull(exercise.user_id), isNull(exercise.retired_at)));
-    if ((live?.total ?? 0) + missing.length > CUSTOM_EXERCISE_LIMIT) {
-      throw new Error("Too many custom exercises: archive some first");
-    }
-  }
+  const created = new Map<string, string>();
   for (const ref of refs) {
-    const key = exerciseKey(ref);
-    const match = matches.get(key);
-    if (match && match.kind !== "new") {
-      resolved.set(key, match.id);
-      continue;
-    }
     const id = uuidv7();
     await tx.insert(exercise).values({
       id,
@@ -381,9 +371,9 @@ async function createMissingExercises(
       instructions: null,
       created_at: nowIso(),
     });
-    resolved.set(key, id);
+    created.set(exerciseKey(ref), id);
   }
-  return resolved;
+  return created;
 }
 
 async function insertWorkout(
@@ -400,7 +390,7 @@ async function insertWorkout(
     user_id: userId,
     program_id: programId,
     title: content.title,
-    note: content.note,
+    note: null,
     created_at: created,
   });
   const groups = new Map<number, string>();
@@ -424,7 +414,7 @@ async function insertWorkout(
       exercise_id: exerciseId,
       position: keys[at] ?? "a0",
       rest_seconds: entry.rest_seconds,
-      note: entry.note,
+      note: null,
       superset_group: group,
       sets: allowedSets(entry.exercise, entry.sets),
       created_at: created,
@@ -433,19 +423,40 @@ async function insertWorkout(
   return id;
 }
 
+/** What one import writes to a device: a standalone Workout, or a Program, its Workouts and Rotation. */
 export type ImportedPlan = { kind: "program" | "workout"; id: string; createdExercises: number };
 
+/** Writes per upload transaction; the connector refuses more than `SYNC_LIMITS.maxOps`. */
+const EXERCISES_PER_TRANSACTION = SYNC_LIMITS.maxOps;
+
+function chunked<Item>(items: readonly Item[], size: number): Item[][] {
+  const chunks: Item[][] = [];
+  for (let at = 0; at < items.length; at += size) chunks.push(items.slice(at, at + size));
+  return chunks;
+}
+
 /**
- * Adds a snapshot to this device as new rows, in one transaction: a standalone Workout, or a
- * Program with its Workouts and Rotation. Exercises map by catalog id; the rest become Custom
- * exercises (reusing one of the same name and equipment). Nothing already here is changed.
+ * Adds a snapshot to this device as new rows: a standalone Workout, or a Program with its Workouts
+ * and Rotation. Exercises map by catalog id; the rest become Custom exercises (reusing one of the
+ * same name, equipment and type). Nothing already here is changed, and open Program runs are left
+ * alone.
+ *
+ * A whole Program is more writes than one upload transaction may hold (the connector refuses
+ * more than 100 operations), so it is written in steps, each its own transaction and each valid
+ * on its own: the Custom exercises, then the Program, then one transaction per Workout, then the
+ * Rotation. A failure part-way leaves a Program with fewer Workouts and no Rotation, never a row
+ * that points at something missing; the Custom exercises made are reused by a retry.
  */
-export function importSnapshot(
+export async function importSnapshot(
   database: TrainingDatabase,
   snapshot: ShareSnapshot,
   expectedInstallId?: string,
 ): Promise<ImportedPlan> {
-  return write(database, expectedInstallId, async (tx) => {
+  const step = <T>(run: (tx: Tx) => Promise<T>) =>
+    write(database, expectedInstallId, (tx) => run(tx), { reconcileRuns: false });
+
+  // Step 0: decide and check everything before the first write.
+  const plan = await step(async (tx) => {
     const userId = await ownerOf(tx);
     const refs = snapshotExercises(snapshot);
     const matches = matchLibrary(
@@ -455,26 +466,56 @@ export function importSnapshot(
           id: exercise.id,
           title: exercise.title,
           equipment: exercise.equipment,
+          exercise_type: exercise.exercise_type,
           user_id: exercise.user_id,
           retired_at: exercise.retired_at,
         })
         .from(exercise),
     );
-    const createdExercises = [...matches.values()].filter((match) => match.kind === "new").length;
+    const missing = refs.filter((ref) => matches.get(exerciseKey(ref))?.kind === "new");
+    if (missing.length > 0) {
+      const [live] = await tx
+        .select({ total: count() })
+        .from(exercise)
+        .where(and(isNotNull(exercise.user_id), isNull(exercise.retired_at)));
+      if ((live?.total ?? 0) + missing.length > CUSTOM_EXERCISE_LIMIT) {
+        throw new Error("Too many custom exercises: archive some first");
+      }
+    }
     if (snapshot.format === "sigil.workout/v1") {
       assertRoom(await liveWorkouts(tx), 1, "liveWorkouts");
-      const exerciseIds = await createMissingExercises(tx, userId, matches, refs);
-      const id = await insertWorkout(tx, userId, null, snapshot.workout, exerciseIds);
-      return { kind: "workout" as const, id, createdExercises };
+    } else {
+      assertRoom(await livePrograms(tx), 1, "livePrograms");
+      assertRoom(await liveWorkouts(tx), snapshot.program.workouts.length, "liveWorkouts");
     }
-    const content: ShareProgram = snapshot.program;
-    assertRoom(await livePrograms(tx), 1, "livePrograms");
-    assertRoom(await liveWorkouts(tx), content.workouts.length, "liveWorkouts");
-    const exerciseIds = await createMissingExercises(tx, userId, matches, refs);
-    const programId = uuidv7();
+    return { userId, matches, missing };
+  });
+
+  // Step 1: the Custom exercises, in transactions of at most the operation budget.
+  const exerciseIds = new Map<string, string>();
+  for (const [key, match] of plan.matches) {
+    if (match.kind !== "new") exerciseIds.set(key, match.id);
+  }
+  for (const group of chunked(plan.missing, EXERCISES_PER_TRANSACTION)) {
+    const made = await step((tx) => createExercises(tx, plan.userId, group));
+    for (const [key, id] of made) exerciseIds.set(key, id);
+  }
+  const createdExercises = plan.missing.length;
+
+  if (snapshot.format === "sigil.workout/v1") {
+    const id = await step((tx) =>
+      insertWorkout(tx, plan.userId, null, snapshot.workout, exerciseIds),
+    );
+    return { kind: "workout", id, createdExercises };
+  }
+
+  const content: ShareProgram = snapshot.program;
+  // Step 2: the Program alone, so each Workout can point at it.
+  const programId = uuidv7();
+  await step(async (tx) => {
     await tx.insert(program).values({
       id: programId,
-      user_id: userId,
+      user_id: plan.userId,
       title: content.title,
       description: content.description,
       planned_weeks: content.planned_weeks,
@@ -482,22 +523,28 @@ export function importSnapshot(
       cover_media_id: null,
       created_at: nowIso(),
     });
-    const workoutIds: string[] = [];
-    for (const item of content.workouts) {
-      workoutIds.push(await insertWorkout(tx, userId, programId, item, exerciseIds));
-    }
+  });
+  // Step 3: one transaction per Workout (one write for it, one per exercise).
+  const workoutIds: string[] = [];
+  for (const item of content.workouts) {
+    workoutIds.push(
+      await step((tx) => insertWorkout(tx, plan.userId, programId, item, exerciseIds)),
+    );
+  }
+  // Step 4: the Rotation, which points only at Workouts that now exist.
+  await step(async (tx) => {
     assertRoom(await slotsIn(tx, programId), content.rotation.length, "slotsPerProgram");
     const positions = keysBetween(null, null, content.rotation.length);
     for (const [at, index] of content.rotation.entries()) {
       await tx.insert(programSlot).values({
         id: uuidv7(),
-        user_id: userId,
+        user_id: plan.userId,
         program_id: programId,
         workout_id: index === null ? null : (workoutIds[index] ?? null),
         position: positions[at] ?? "a0",
         created_at: nowIso(),
       });
     }
-    return { kind: "program" as const, id: programId, createdExercises };
   });
+  return { kind: "program", id: programId, createdExercises };
 }
