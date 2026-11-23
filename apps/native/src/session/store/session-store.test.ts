@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { NO_PENDING, previewTick as preview } from "../logging/optimistic";
 import { exercise, session, set, twoExercises } from "./fixtures";
-import { createSessionStore } from "./session-store";
+import { createSessionStore, showsRecord } from "./session-store";
 
 const NOW = "2026-11-21T10:05:00.000Z";
 
@@ -259,5 +259,21 @@ describe("the session store", () => {
       store.getState().toggleExpanded("b");
       expect(store.getState().cell).toBeNull();
     });
+  });
+
+  it("shows a record's chip only for the tick that was found to be one", () => {
+    const store = createSessionStore(twoExercises());
+    previewTick(store, "b2");
+    const ticked = store.getState();
+    expect(showsRecord(ticked, "b2")).toBe(false);
+    ticked.markRecord("b2", NOW);
+    expect(showsRecord(store.getState(), "b2")).toBe(true);
+    expect(showsRecord(store.getState(), "b1")).toBe(false);
+    // The same mark again changes nothing; a mark for another tick of the set does not show.
+    const marked = store.getState().records;
+    store.getState().markRecord("b2", NOW);
+    expect(store.getState().records).toBe(marked);
+    store.getState().markRecord("b2", "2026-11-21T10:06:00.000Z");
+    expect(showsRecord(store.getState(), "b2")).toBe(false);
   });
 });

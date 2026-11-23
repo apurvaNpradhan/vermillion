@@ -3,6 +3,7 @@ import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { NotePencil } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
+import { LayoutAnimationConfig } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { haptic } from "@/platform/haptics";
@@ -61,6 +62,10 @@ export const ExerciseItem = memo(function ExerciseItem({
     }),
   );
   const { exercise, suggestion, stall, unit, place, readOnly, expanded } = data;
+  // Once this row has been seen closed, opening it fades its body in. A row that mounts open (the
+  // screen opening, or the list mounting it while scrolling) shows it at once.
+  const [seenClosed, setSeenClosed] = useState(false);
+  if (!expanded && !seenClosed) setSeenClosed(true);
   const progression = useMemo(
     () => (suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null),
     [suggestion, unit],
@@ -77,32 +82,35 @@ export const ExerciseItem = memo(function ExerciseItem({
         expanded={expanded}
         done={data.done}
         readOnly={readOnly}
+        animateOpen={seenClosed}
         onView={handlers.onView}
         onToggle={handlers.onToggle}
         onMenu={handlers.onMenu}
         onReorder={handlers.onReorder}
       >
         {expanded ? (
-          <>
-            {stall ? (
-              <StalledNote
-                exerciseId={exercise.exerciseId}
-                latestSessionId={stall.latestSessionId}
-                count={stall.count}
-                applied={stall.applied}
+          <LayoutAnimationConfig skipEntering skipExiting>
+            <View className="gap-3">
+              {stall ? (
+                <StalledNote
+                  exerciseId={exercise.exerciseId}
+                  latestSessionId={stall.latestSessionId}
+                  count={stall.count}
+                  applied={stall.applied}
+                />
+              ) : null}
+              <ExerciseBody
+                id={exercise.id}
+                note={exercise.note}
+                restSeconds={exercise.restSeconds}
+                place={place}
+                readOnly={readOnly}
+                onNote={handlers.onNote}
+                onRest={handlers.onRest}
               />
-            ) : null}
-            <ExerciseBody
-              id={exercise.id}
-              note={exercise.note}
-              restSeconds={exercise.restSeconds}
-              place={place}
-              readOnly={readOnly}
-              onNote={handlers.onNote}
-              onRest={handlers.onRest}
-            />
-            <SetGrid exerciseId={exerciseId} handlers={handlers} onAddSet={handlers.onAddSet} />
-          </>
+              <SetGrid exerciseId={exerciseId} handlers={handlers} onAddSet={handlers.onAddSet} />
+            </View>
+          </LayoutAnimationConfig>
         ) : null}
       </ExerciseRow>
     </View>

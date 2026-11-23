@@ -1,20 +1,31 @@
 import type { SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
-import { CaretDown, CaretUp, Check, DotsThreeVertical } from "phosphor-react-native";
+import { CaretDown, Check, DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
+import { BODY_ENTERING, TICK_EASING, TICK_MS } from "@/session/shared/motion";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
+
+const CHEVRON_TRANSITION = {
+  transitionProperty: ["transform"],
+  transitionDuration: TICK_MS,
+  transitionTimingFunction: TICK_EASING,
+} as const;
 
 /**
  * One exercise of the accordion. Collapsed it is the header alone: thumbnail, name, "2/4 · 60 kg × 8"
  * (a solid tick instead of the count when every set is done, with the name dimmed) and a chevron.
  * Open it also shows its pinned note, progression chip and its body (chips, set grid). A superset
- * member carries the bracket.
+ * member carries the bracket. The chevron turns 180 degrees (a CSS transition) and an opening body
+ * fades in; the height is not animated, because the list re-measures an item whose size changes
+ * and the scroll to the next exercise lands on the natural layout.
  */
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
@@ -24,6 +35,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   expanded,
   done,
   readOnly,
+  animateOpen,
   onView,
   onToggle,
   onMenu,
@@ -42,6 +54,8 @@ export const ExerciseRow = memo(function ExerciseRow({
   /** Every set is ticked (and there is one). */
   done: boolean;
   readOnly: boolean;
+  /** The row was closed at some point on this screen, so opening it fades the body in. */
+  animateOpen: boolean;
   onView: (exerciseId: string) => void;
   /** Opens a closed exercise, closes an open one. */
   onToggle: (exerciseId: string) => void;
@@ -54,6 +68,7 @@ export const ExerciseRow = memo(function ExerciseRow({
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
+  const reduced = useReduceMotion();
   const background = useThemeColor("background");
   const info = exercise.exercise;
   const name = exercise.title || t("training__exercise_missing");
@@ -146,7 +161,14 @@ export const ExerciseRow = memo(function ExerciseRow({
           onPress={toggle}
           className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
         >
-          {expanded ? <CaretUp size={20} color={subtle} /> : <CaretDown size={20} color={subtle} />}
+          <Animated.View
+            style={{
+              transform: [{ rotate: expanded ? "180deg" : "0deg" }],
+              ...(reduced ? undefined : CHEVRON_TRANSITION),
+            }}
+          >
+            <CaretDown size={20} color={subtle} />
+          </Animated.View>
         </Pressable>
         {expanded && !readOnly ? (
           <Pressable
@@ -160,7 +182,14 @@ export const ExerciseRow = memo(function ExerciseRow({
           </Pressable>
         ) : null}
       </ReorderTrigger>
-      {expanded ? <View className="gap-3 px-3 pb-4 pt-1">{children}</View> : null}
+      {expanded ? (
+        <Animated.View
+          entering={animateOpen ? BODY_ENTERING : undefined}
+          className="gap-3 px-3 pb-4 pt-1"
+        >
+          {children}
+        </Animated.View>
+      ) : null}
     </ReorderBlock>
   );
 });

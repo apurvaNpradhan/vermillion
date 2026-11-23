@@ -1,6 +1,7 @@
 import { Minus, Plus } from "phosphor-react-native";
 import { useEffect, useRef } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
@@ -8,6 +9,7 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
+import { REST_ENTERING, REST_EXITING } from "@/session/shared/motion";
 import { formatElapsed } from "@/session/timer/clock";
 import { REST_ADJUST_SECONDS, restView } from "./rest-rules";
 import { isRestSurfaceVisible } from "@/session/notifications/rest-notification";
@@ -19,6 +21,7 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
  * The bar at the bottom of the logging screen while a Rest runs: the countdown, −15, +15, Skip
  * and a thin progress line. Times come from the stored start and end, so it is right after the
  * app was backgrounded or killed. When it reaches zero it plays the end haptic and chime and goes away.
+ * It slides up from the bottom while fading in, and back down when the Rest ends or is skipped.
  * It is mounted while the Session holds a Rest and draws nothing once that Rest is over.
  */
 export function RestBar({
@@ -73,7 +76,12 @@ export function RestBar({
     onAdjust(delta);
   };
   return (
-    <View className="bg-background" style={{ paddingBottom: withInset ? bottom : 0 }}>
+    <Animated.View
+      entering={REST_ENTERING}
+      exiting={REST_EXITING}
+      className="bg-background"
+      style={{ paddingBottom: withInset ? bottom : 0 }}
+    >
       <View
         accessibilityRole="progressbar"
         accessibilityLabel={t("session__rest_label")}
@@ -119,6 +127,6 @@ export function RestBar({
           <Button.Label>{t("session__rest_skip")}</Button.Label>
         </Button>
       </View>
-    </View>
+    </Animated.View>
   );
 }

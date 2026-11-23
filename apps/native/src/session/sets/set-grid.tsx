@@ -2,12 +2,15 @@ import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
 import { memo, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 
+import { SET_ENTERING, SET_EXITING } from "@/session/shared/motion";
+import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { SetRowView } from "./set-row";
 
@@ -50,6 +53,7 @@ const SetRowItem = memo(function SetRowItem({
         logEffort: exercise?.logEffort ?? false,
         historyReady: view?.historyReady ?? false,
         current: state.currentSetId === setId,
+        record: showsRecord(state, setId),
         refusal: state.refusal?.setId === setId ? state.refusal : null,
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
@@ -67,37 +71,42 @@ const SetRowItem = memo(function SetRowItem({
   const { set, row, type, cell, raw, fresh } = data;
   const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
   if (!set || !row || !type) return null;
+  // Only a set added while the grid is open enters and one removed fades out: the grid sits in a
+  // LayoutAnimationConfig that skips both for its first render and for the whole grid closing.
   return (
-    <View ref={register} collapsable={false}>
-      <SetRowView
-        editingFinished={data.editingFinished}
-        set={set}
-        type={type}
-        row={row}
-        logEffort={data.logEffort}
-        historyReady={data.historyReady}
-        unit={data.unit}
-        display={data.display}
-        effortScale={data.effortScale}
-        entry={entry}
-        refusal={data.refusal}
-        current={data.current}
-        readOnly={data.readOnly}
-        onCell={handlers.onCell}
-        onTick={handlers.onTick}
-        onKind={handlers.onKind}
-        onEffort={handlers.onEffort}
-        onPrevious={handlers.onPrevious}
-        onCopySets={handlers.onCopySets}
-        onRemove={handlers.onRemoveSet}
-        onTimer={handlers.onTimer}
-      />
-      {row.optional ? (
-        <Text className="font-normal px-3 pb-1 text-caption text-muted">
-          {t("lighter__optional")}
-        </Text>
-      ) : null}
-    </View>
+    <Animated.View entering={SET_ENTERING} exiting={SET_EXITING}>
+      <View ref={register} collapsable={false}>
+        <SetRowView
+          editingFinished={data.editingFinished}
+          set={set}
+          type={type}
+          row={row}
+          logEffort={data.logEffort}
+          historyReady={data.historyReady}
+          unit={data.unit}
+          display={data.display}
+          effortScale={data.effortScale}
+          entry={entry}
+          refusal={data.refusal}
+          current={data.current}
+          record={data.record}
+          readOnly={data.readOnly}
+          onCell={handlers.onCell}
+          onTick={handlers.onTick}
+          onKind={handlers.onKind}
+          onEffort={handlers.onEffort}
+          onPrevious={handlers.onPrevious}
+          onCopySets={handlers.onCopySets}
+          onRemove={handlers.onRemoveSet}
+          onTimer={handlers.onTimer}
+        />
+        {row.optional ? (
+          <Text className="font-normal px-3 pb-1 text-caption text-muted">
+            {t("lighter__optional")}
+          </Text>
+        ) : null}
+      </View>
+    </Animated.View>
   );
 });
 

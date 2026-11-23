@@ -1,5 +1,6 @@
 import { CaretDown, DotsThreeVertical } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
@@ -7,6 +8,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { OfflinePill } from "@/sync";
 
+import { MARKER_ENTERING, MARKER_EXITING } from "@/session/shared/motion";
 import { formatElapsed } from "@/session/timer/clock";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { useActiveSeconds } from "@/session/shared/use-active-seconds";
@@ -39,7 +41,13 @@ function Clock({
         {formatElapsed(seconds)}
       </Text>
       {clock.pausedAt === null ? null : (
-        <Text className="font-medium text-caption text-subtle">{t("session__paused_label")}</Text>
+        <Animated.Text
+          entering={MARKER_ENTERING}
+          exiting={MARKER_EXITING}
+          className="font-medium text-caption text-subtle"
+        >
+          {t("session__paused_label")}
+        </Animated.Text>
       )}
     </View>
   );

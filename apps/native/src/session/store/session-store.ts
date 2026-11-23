@@ -102,6 +102,12 @@ export type SessionState = Base &
     /** The exercises that are open (in memory only: a new screen starts from the first unfinished). */
     expanded: ReadonlySet<string>;
     scrollRequest: ScrollRequest | null;
+    /**
+     * The sets this screen found to be records, each with the `completedAt` it was ticked at: a set
+     * that is unticked and ticked again no longer matches, so its mark ends with the tick.
+     */
+    records: ReadonlyMap<string, string>;
+    markRecord: (setId: string, completedAt: string) => void;
     toggleExpanded: (exerciseId: string) => void;
     advanceAfterTick: (setId: string, completedAt: string) => void;
     setStored: (session: SessionDetail) => void;
@@ -115,6 +121,15 @@ export type SessionState = Base &
   };
 
 export type SessionStore = StoreApi<SessionState>;
+
+/** Whether a set shows its "PR" chip: it is ticked, at the tick that was found to be a record. */
+export function showsRecord(
+  state: Pick<SessionState, "records" | "setsById">,
+  setId: string,
+): boolean {
+  const marked = state.records.get(setId);
+  return marked !== undefined && marked === state.setsById.get(setId)?.completedAt;
+}
 
 export const DEFAULT_INPUTS: DeriveInputs = {
   previous: new Map(),
@@ -353,6 +368,12 @@ export function createSessionStore(
       ...first,
       expanded: initialExpanded(first.blocks),
       scrollRequest: null,
+      records: new Map(),
+      markRecord: (setId, completedAt) => {
+        const records = get().records;
+        if (records.get(setId) !== completedAt)
+          set({ records: new Map(records).set(setId, completedAt) });
+      },
       toggleExpanded: (exerciseId) => {
         const { blocks, expanded } = get();
         const block = blockOf(blocks, exerciseId);
