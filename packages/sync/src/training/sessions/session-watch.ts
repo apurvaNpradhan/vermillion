@@ -190,7 +190,16 @@ export type SessionDetail = {
   exercises: SessionExerciseDetail[];
 };
 
-export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
+/**
+ * One Session with its exercises and sets. The exercise's setting is one join (the setting with
+ * the lowest id per exercise, as before) rather than a subquery per column per set row; the
+ * "last time" note is its own query, {@link SESSION_LAST_NOTES_SQL}, merged by `parseSessionDetail`.
+ */
+export const SESSION_DETAIL_SQL = `WITH first_setting AS (
+    SELECT exercise_id, MIN(id) AS id FROM exercise_setting
+    WHERE exercise_id IN (SELECT exercise_id FROM session_exercise WHERE session_id = ?1)
+    GROUP BY exercise_id)
+  SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.cycle AS cycle, s.title AS title,
     s.title_derived AS title_derived, s.note AS note,
@@ -201,19 +210,8 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
-    (SELECT progression_per_set FROM exercise_setting
-      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
-    (SELECT bar_id FROM exercise_setting
-      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS bar_id,
-    (SELECT auto_warmups FROM exercise_setting
-      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
-    (SELECT note FROM exercise_setting
-      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
-    (SELECT se2.note FROM session_exercise se2
-      JOIN training_session s2 ON s2.id = se2.session_id
-      WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
-        AND s2.started_at < s.started_at
-      ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note,
+    es.progression_per_set AS progression_per_set, es.bar_id AS bar_id,
+    es.auto_warmups AS auto_warmups, es.note AS pinned_note,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -224,10 +222,29 @@ export const SESSION_DETAIL_SQL = `SELECT s.id AS id, s.workout_id AS workout_id
   FROM training_session s
   LEFT JOIN session_exercise se ON se.session_id = s.id
   LEFT JOIN exercise e ON e.id = se.exercise_id
+  LEFT JOIN first_setting fs ON fs.exercise_id = se.exercise_id
+  LEFT JOIN exercise_setting es ON es.id = fs.id
   LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
-  WHERE s.id = ?
+  WHERE s.id = ?1
   ORDER BY se.position, se.id, ss.position, ss.id
   LIMIT ${DETAIL_ROW_LIMIT}`;
+
+/**
+ * The note each exercise of a Session had in its latest earlier finished Session, one row per
+ * exercise. Kept out of {@link SESSION_DETAIL_SQL} so writes only to session_set do not scan finished history.
+ */
+export const SESSION_LAST_NOTES_SQL = `SELECT x.exercise_id AS exercise_id,
+    (SELECT se2.note FROM session_exercise se2
+      JOIN training_session s2 ON s2.id = se2.session_id
+      WHERE se2.exercise_id = x.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
+        AND s2.started_at < s.started_at
+      ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note
+  FROM training_session s
+  JOIN session_exercise x ON x.session_id = s.id
+  WHERE s.id = ?
+  GROUP BY x.exercise_id`;
+
+const lastNoteRowSchema = z.object({ exercise_id: z.string(), last_note: z.string().nullable() });
 
 const detailRowSchema = z.object({
   id: z.string(),
@@ -262,7 +279,6 @@ const detailRowSchema = z.object({
   progression_per_set: flag.nullable(),
   auto_warmups: flag.nullable(),
   pinned_note: z.string().nullable(),
-  last_note: z.string().nullable(),
   warmup_key: z.string().nullable(),
   repeated: flag.nullable(),
   bar_id: z.string().nullable(),
@@ -291,9 +307,22 @@ const detailRowSchema = z.object({
 const nonEmpty = (note: string | null): string | null =>
   note !== null && note.trim() !== "" ? note : null;
 
-/** Builds one Session from the joined rows of {@link SESSION_DETAIL_SQL}; null if there is none. */
-export function parseSessionDetail(rows: readonly object[]): SessionDetail | null {
+/**
+ * Builds one Session from the joined rows of {@link SESSION_DETAIL_SQL}; null if there is none.
+ * `lastNoteRows` are the rows of {@link SESSION_LAST_NOTES_SQL}; without them no exercise has a
+ * "last time" note.
+ */
+export function parseSessionDetail(
+  rows: readonly object[],
+  lastNoteRows: readonly object[] = [],
+): SessionDetail | null {
   const parsed = z.array(detailRowSchema).parse(rows);
+  const lastNotes = new Map(
+    z
+      .array(lastNoteRowSchema)
+      .parse(lastNoteRows)
+      .map((row) => [row.exercise_id, row.last_note]),
+  );
   const first = parsed[0];
   if (first === undefined) return null;
   const exercises: SessionExerciseDetail[] = [];
@@ -320,7 +349,7 @@ export function parseSessionDetail(rows: readonly object[]): SessionDetail | nul
         restSeconds: row.rest_seconds,
         note: row.exercise_note,
         pinnedNote: nonEmpty(row.pinned_note),
-        lastNote: nonEmpty(row.last_note),
+        lastNote: nonEmpty(lastNotes.get(row.exercise_id) ?? null),
         supersetGroup: row.superset_group,
         logEffort: row.log_effort ?? false,
         progressionPerSet: row.progression_per_set ?? false,

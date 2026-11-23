@@ -27,6 +27,7 @@ import {
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   parseActiveSessions,
@@ -422,6 +423,22 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
   };
 }
 
+/** Query rows are flat objects of primitives, so a field-by-field compare says if a result changed. */
+function sameRows(a: QueryResult["array"], b: QueryResult["array"]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index] ?? {};
+    const right = b[index] ?? {};
+    if (left === right) continue;
+    const keys = Object.keys(left);
+    if (keys.length !== Object.keys(right).length) return false;
+    for (const key of keys) {
+      if (!Object.hasOwn(right, key) || !Object.is(left[key], right[key])) return false;
+    }
+  }
+  return true;
+}
+
 function watch(
   database: TrainingDatabase,
   sql: string,
@@ -434,20 +451,22 @@ function watch(
   // A write to any watched table re-runs the query. Most of those leave this result as it was
   // (a tick in the active Session never changes an exercise's finished history), and passing
   // an equal result on re-renders every screen that reads it, so only a changed result is passed.
-  let last: string | null = null;
+  let last: QueryResult["array"] | null = null;
   database.watchWithCallback(
     sql,
     params,
     {
       onResult: (result) => {
         if (controller.signal.aborted) return;
-        const key = JSON.stringify(result.array);
-        if (key === last) return;
-        last = key;
-        onRows(result.array);
+        const rows = result.array;
+        if (last && sameRows(last, rows)) return;
+        last = rows;
+        onRows(rows);
       },
       onError: (error) => {
-        if (!controller.signal.aborted) onError(error);
+        if (controller.signal.aborted) return;
+        last = null;
+        onError(error);
       },
     },
     {
@@ -673,20 +692,63 @@ export function watchActiveSessions(
   );
 }
 
-/** Watches one Session with its exercises and sets in order; `null` when it is gone. */
+/**
+ * Watches one Session with its exercises and sets in order; `null` when it is gone. Two queries
+ * feed it: the Session's rows, and the "last time" notes (which scan finished history and do not
+ * change when a set is written). The Session is passed once both have answered.
+ */
 export function watchSession(
   database: TrainingDatabase,
   id: string,
   handlers: { onSession: (session: SessionDetail | null) => void; onError: (error: Error) => void },
 ): () => void {
-  return watch(
+  let rows: QueryResult["array"] | null = null;
+  let notes: QueryResult["array"] | null = null;
+  let stopped = false;
+  const emit = () => {
+    if (stopped || rows === null || notes === null) return;
+    let session: SessionDetail | null;
+    try {
+      session = parseSessionDetail(rows, notes);
+    } catch {
+      handlers.onError(new Error("Unreadable Session rows"));
+      return;
+    }
+    handlers.onSession(session);
+  };
+  const stopRows = watch(
     database,
     SESSION_DETAIL_SQL,
     [id],
     [...SESSION_TABLES, "exercise", "exercise_setting", "workout"],
-    parsing(parseSessionDetail, { onResult: handlers.onSession, onError: handlers.onError }),
-    handlers.onError,
+    (next) => {
+      rows = next;
+      emit();
+    },
+    (error) => {
+      rows = null;
+      handlers.onError(error);
+    },
   );
+  const stopNotes = watch(
+    database,
+    SESSION_LAST_NOTES_SQL,
+    [id],
+    ["training_session", "session_exercise"],
+    (next) => {
+      notes = next;
+      emit();
+    },
+    (error) => {
+      notes = null;
+      handlers.onError(error);
+    },
+  );
+  return () => {
+    stopped = true;
+    stopRows();
+    stopNotes();
+  };
 }
 
 /**

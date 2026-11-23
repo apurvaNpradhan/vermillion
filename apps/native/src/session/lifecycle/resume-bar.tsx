@@ -1,5 +1,5 @@
 import type { ActiveSession } from "@workspace/sync";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { Barbell, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -84,8 +84,8 @@ function Clock({ startedAt }: { startedAt: string }) {
 function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: () => void }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const state = useSession(session.id);
-  const current = state.status === "ready" ? currentExercise(state.session.exercises) : null;
+  // The Session screen is open over the bar: it already watches the Session, the bar is hidden.
+  const covered = usePathname().startsWith("/session/");
   return (
     <Pressable
       accessibilityRole="button"
@@ -107,12 +107,19 @@ function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: ()
           style={{ fontVariant: ["tabular-nums"] }}
         >
           <Clock startedAt={session.startedAt} />
-          {current ? ` · ${current.title}` : ""}
+          {covered ? null : <CurrentExerciseTitle id={session.id} />}
         </Text>
       </View>
       <CaretUp size={20} color={subtle} />
     </Pressable>
   );
+}
+
+/** The exercise being worked on; the only reader of the Session while the bar is showing. */
+function CurrentExerciseTitle({ id }: { id: string }) {
+  const state = useSession(id);
+  const current = state.status === "ready" ? currentExercise(state.session.exercises) : null;
+  return <>{current ? ` · ${current.title}` : ""}</>;
 }
 
 function ManySessions({ count, onOpen }: { count: number; onOpen: () => void }) {

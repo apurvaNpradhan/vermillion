@@ -36,6 +36,12 @@ const transport: SyncTransport = {
 // Fast Refresh re-evaluates modules; the database and all watches must retain one owner.
 declare global {
   var vermillionLocalData: Promise<LocalData> | undefined;
+  var vermillionOpenedLocalData: LocalData | undefined;
+}
+
+/** The open result is available synchronously once startup settles. */
+export function getOpenedLocalData(): LocalData | null {
+  return globalThis.vermillionOpenedLocalData ?? null;
 }
 
 /**
@@ -83,6 +89,9 @@ export function openLocalData(): Promise<LocalData> {
     } catch {
       return { status: "unavailable", reason: "open-failed" };
     }
-  })();
+  })().then((value) => {
+    globalThis.vermillionOpenedLocalData = value;
+    return value;
+  });
   return globalThis.vermillionLocalData;
 }
