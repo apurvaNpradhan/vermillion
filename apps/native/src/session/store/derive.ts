@@ -14,7 +14,7 @@ import {
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
 
-import { allTicked, doneSummary, progressText } from "../finish/summary";
+import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
 import { exerciseSuggestion } from "../logging/logging-ghosts";
 import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
@@ -68,7 +68,7 @@ export type ExerciseView = {
   stall: StallInfo | null;
   /** "2/4". */
   progress: string;
-  /** The done summary after the progress; empty while sets remain. */
+  /** What the ticked sets logged, after the progress; empty while none is ticked. */
   summary: string;
   /** Previous values of the exercise have loaded, or their lookup failed. */
   historyReady: boolean;
@@ -174,9 +174,13 @@ function buildView(
     suggestion: before && deepEqual(before.suggestion, suggestion) ? before.suggestion : suggestion,
     stall: before && deepEqual(before.stall, stall) ? before.stall : stall,
     progress: progressText(exercise.sets),
-    summary: allTicked(exercise.sets)
-      ? doneSummary(exercise.sets, exercise.type, inputs.unit, inputs.unitName, inputs.display)
-      : "",
+    summary: doneSummary(
+      exercise.sets,
+      exercise.type,
+      inputs.unit,
+      inputs.unitName,
+      inputs.display,
+    ),
     historyReady,
     setIds: sameIds(setIds, before?.setIds) ? (before?.setIds ?? setIds) : setIds,
     rows,
