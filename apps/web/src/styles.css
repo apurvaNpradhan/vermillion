@@ -519,3 +519,55 @@ p {
     padding: 0 1rem;
   }
 }
+
+/* Share link preview (/p/<code>, /w/<code>) */
+.share .actions {
+  margin-bottom: 1rem;
+}
+
+.share-code {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  margin: 0;
+}
+
+.share-code code {
+  font-family: var(--mono);
+  font-size: 1.25rem;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+
+.share-workout {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.share-workout h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.375rem;
+  font-weight: 500;
+}
+
+.share-exercises {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.share-exercises li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.share-exercise-sets {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--muted);
+}

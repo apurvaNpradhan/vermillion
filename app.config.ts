@@ -9,6 +9,8 @@
 const domain = "lostsignal.cloud";
 /** The product slug used for the scheme, bundle id suffix and host prefixes. */
 const name = "sigil";
+/** Typed so a fingerprint can be added without widening the config. */
+const androidCertSha256: readonly string[] = [];
 
 export const appConfig = {
   name,
@@ -49,6 +51,14 @@ export const appConfig = {
     android: `io.github.apurvanpradhan.${name}`,
   },
   scheme: name,
+  /**
+   * Android App Links (ADR 0058): the SHA-256 fingerprints of the certificates the installed APK
+   * is signed with, colon-separated hex (`AA:BB:…`, 32 bytes). The site publishes them at
+   * `/.well-known/assetlinks.json`; until one is set the file is empty and links open in the
+   * browser. Get the release one with `keytool -list -v -keystore <release keystore>`; add the
+   * debug or EAS key as a second entry to verify development builds.
+   */
+  androidCertSha256,
   /** The public GitHub repository whose Releases hold the Android builds. */
   releases: { owner: "apurvaNpradhan", repo: "vermillion" },
   /** Slug of the existing Expo project linked by easProjectId. */
