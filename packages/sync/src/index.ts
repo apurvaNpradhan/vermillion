@@ -351,3 +351,13 @@ export {
   type PreferencesDatabase,
   type PreferencesScope,
 } from "./preferences";
+export {
+  importSnapshot,
+  previewImportExercises,
+  readProgramShareSource,
+  readSessionShareSource,
+  readWorkoutShareSource,
+  type ExerciseMatch,
+  type ImportedPlan,
+  type ImportExercisePreview,
+} from "./training";
