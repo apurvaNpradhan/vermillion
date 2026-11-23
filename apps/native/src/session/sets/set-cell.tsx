@@ -1,9 +1,12 @@
-import { Pressable, View } from "react-native";
-import Animated from "react-native-reanimated";
+import { Pressable, type TextStyle, View } from "react-native";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 
 import { INK_MS } from "@/session/shared/motion";
 
-const INK_TRANSITION = { transitionProperty: ["color"], transitionDuration: INK_MS } as const;
+const INK_TRANSITION: CSSTransitionProperties<TextStyle> = {
+  transitionProperty: ["color"],
+  transitionDuration: INK_MS,
+};
 
 /**
  * One cell of the set grid: a pressable, never a text input (the keypad types into it). It shows

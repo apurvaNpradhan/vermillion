@@ -4,7 +4,7 @@ import { useThemeColor } from "heroui-native";
 import { CaretDown, Check, DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
@@ -13,11 +13,11 @@ import { RecordChip } from "./record-chip";
 import { BODY_ENTERING, TICK_EASING, TICK_MS } from "@/session/shared/motion";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
-const CHEVRON_TRANSITION = {
+const CHEVRON_TRANSITION: CSSTransitionProperties = {
   transitionProperty: ["transform"],
   transitionDuration: TICK_MS,
   transitionTimingFunction: TICK_EASING,
-} as const;
+};
 
 /**
  * One exercise of the accordion. Collapsed it is the header alone: thumbnail, name, "2/4 · 60 kg × 8"

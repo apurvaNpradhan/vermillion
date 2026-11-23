@@ -1,20 +1,20 @@
 import { Check } from "phosphor-react-native";
 import { memo } from "react";
 import { View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 
 import { TICK_EASING, TICK_MS } from "@/session/shared/motion";
 
-const FILL_TRANSITION = {
+const FILL_TRANSITION: CSSTransitionProperties = {
   transitionProperty: ["opacity", "transform"],
   transitionDuration: TICK_MS,
   transitionTimingFunction: TICK_EASING,
-} as const;
+};
 
-const FADE_TRANSITION = {
+const FADE_TRANSITION: CSSTransitionProperties = {
   transitionProperty: ["opacity"],
   transitionDuration: TICK_MS,
-} as const;
+};
 
 /**
  * The tick of a set: an empty check until the set is done, then a solid ink square with the check
