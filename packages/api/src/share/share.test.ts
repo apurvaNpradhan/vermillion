@@ -24,12 +24,10 @@ const squat: ShareExerciseSource = {
 const workout = (id = "w", title = "Legs") => ({
   id,
   title,
-  note: null,
   exercises: [
     {
       exercise: squat,
       restSeconds: 180,
-      note: null,
       supersetGroup: null,
       sets: [{ kind: "working" as const, reps_min: 5, reps_max: 5, weight_kg: 140 }],
     },
@@ -165,6 +163,25 @@ describe("share links", () => {
     await expect(owner.share.create({ snapshot: workoutSnapshot() })).rejects.toMatchObject({
       code: "CONFLICT",
     });
+  });
+
+  it("never lets concurrent creates pass the cap", async () => {
+    const headers = await createSignedInUser(app, "share-race@example.com");
+    const owner = app.client(headers);
+    const user = await app.rows(sql`SELECT id FROM "user" WHERE email = 'share-race@example.com'`);
+    const userId = String(user[0]?.id);
+    await app.services.db.execute(sql`
+      INSERT INTO share_link (id, user_id, code, kind, title, snapshot)
+      SELECT gen_random_uuid(), ${userId}, upper(substr(md5(n::text), 7, 6)), 'workout', 'x', '{}'::jsonb
+      FROM generate_series(1, ${LIVE_LINKS_PER_USER - 1}) AS n`);
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () => owner.share.create({ snapshot: workoutSnapshot() })),
+    );
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const [row] = await app.rows(
+      sql`SELECT count(*)::int AS n FROM share_link WHERE user_id = ${userId} AND revoked_at IS NULL`,
+    );
+    expect(Number(row?.n)).toBe(LIVE_LINKS_PER_USER);
   });
 
   it("removes a user's links with the account", async () => {

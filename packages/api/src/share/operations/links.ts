@@ -41,7 +41,8 @@ export type CreateResult =
 
 /**
  * Stores a snapshot under a fresh code. A taken code is retried with another; the unique index
- * decides, so two requests can never share one.
+ * decides, so two requests can never share one. The live-link cap is enforced under a per-user
+ * advisory lock.
  */
 export async function createLink(
   db: DbExecutor,
@@ -49,24 +50,33 @@ export async function createLink(
   snapshot: ShareSnapshot,
   newCode: () => string = generateShareCode,
 ): Promise<CreateResult> {
-  const [live] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(shareLink)
-    .where(and(eq(shareLink.userId, userId), isNull(shareLink.revokedAt)));
-  if ((live?.total ?? 0) >= LIVE_LINKS_PER_USER) return { status: "limit" };
   const kind = snapshotKind(snapshot);
   const title = snapshotTitle(snapshot);
-  for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
-    const [row] = await db
-      .insert(shareLink)
-      .values({ userId, code: newCode(), kind, title, snapshot })
-      .onConflictDoNothing({ target: shareLink.code })
-      .returning();
-    if (row) {
-      return { status: "created", link: { code: row.code, kind, title, createdAt: row.createdAt } };
+  // Count and insert under one per-user lock, so concurrent creates cannot all pass the cap.
+  return db.transaction(async (tx): Promise<CreateResult> => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`share-links:${userId}`}, 0))`,
+    );
+    const [live] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(shareLink)
+      .where(and(eq(shareLink.userId, userId), isNull(shareLink.revokedAt)));
+    if ((live?.total ?? 0) >= LIVE_LINKS_PER_USER) return { status: "limit" };
+    for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
+      const [row] = await tx
+        .insert(shareLink)
+        .values({ userId, code: newCode(), kind, title, snapshot })
+        .onConflictDoNothing({ target: shareLink.code })
+        .returning();
+      if (row) {
+        return {
+          status: "created",
+          link: { code: row.code, kind, title, createdAt: row.createdAt },
+        };
+      }
     }
-  }
-  return { status: "no-code" };
+    return { status: "no-code" };
+  });
 }
 
 /** The user's live links, newest first. */
