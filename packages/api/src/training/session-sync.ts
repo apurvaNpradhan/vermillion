@@ -4,6 +4,7 @@ import { checkSessionRun } from "./run-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
   EXERCISE_TYPES,
+  PAUSE_AUTO_RESUME_MS,
   exerciseSettingInput,
   gymEquipmentInput,
   importDigestSchema,
@@ -16,10 +17,12 @@ import {
   sessionSetSchema,
   sessionStartAllowed,
   sessionTimesConsistent,
+  settleFinishedPause,
+  shiftForPause,
   type SessionInput,
   type SessionSetInput,
 } from "@workspace/shared";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -114,6 +117,9 @@ const putSession = z.strictObject({
   rest_set_id: sessionInput.shape.rest_set_id.default(null),
   rest_started_at: sessionInput.shape.rest_started_at.default(null),
   rest_ends_at: sessionInput.shape.rest_ends_at.default(null),
+  // Older apps do not send the pause: a Session they write is running.
+  paused_at: sessionInput.shape.paused_at.default(null),
+  paused_ms: sessionInput.shape.paused_ms.default(0),
 });
 const undoImport = z.strictObject({
   import_undo: z
@@ -142,6 +148,8 @@ function sessionRowAsInput(row: SessionRow): SessionInput {
     rest_set_id: row.restSetId,
     rest_started_at: iso(row.restStartedAt),
     rest_ends_at: iso(row.restEndsAt),
+    paused_at: iso(row.pausedAt),
+    paused_ms: row.pausedMs,
   };
 }
 
@@ -162,6 +170,8 @@ function sessionColumns(values: SessionInput) {
     restSetId: values.rest_set_id,
     restStartedAt: date(values.rest_started_at),
     restEndsAt: date(values.rest_ends_at),
+    pausedAt: date(values.paused_at),
+    pausedMs: values.paused_ms,
   };
 }
 
@@ -173,6 +183,31 @@ function checkSessionTimes(values: SessionInput, previousStart: string | null) {
   if (moved && !sessionStartAllowed(values.started_at, now())) {
     throw new SyncRejection("SESSION_DATE_OUT_OF_RANGE");
   }
+}
+
+async function shiftRunningTimers(db: DbExecutor, id: string, pausedAt: Date, spanMs: number) {
+  if (spanMs === 0) return;
+  await db
+    .update(sessionSet)
+    .set({
+      timerStartedAt: sql`${sessionSet.timerStartedAt} + ${spanMs}::bigint * interval '1 millisecond'`,
+      updatedAt: now(),
+    })
+    .from(sessionExercise)
+    .where(
+      and(
+        eq(sessionSet.sessionExerciseId, sessionExercise.id),
+        eq(sessionExercise.sessionId, id),
+        isNull(sessionExercise.deletedAt),
+        isNull(sessionSet.deletedAt),
+        isNull(sessionSet.completedAt),
+        lte(sessionSet.timerStartedAt, pausedAt),
+      ),
+    );
+}
+
+function sameInstant(a: string | null, b: string | null) {
+  return a === b || (a !== null && b !== null && Date.parse(a) === Date.parse(b));
 }
 
 const sessionSyncHandler: SyncTableHandler = {
@@ -220,7 +255,22 @@ const sessionSyncHandler: SyncTableHandler = {
       )
         invalid();
       checkPut(found, restore);
-      const values = accept(sessionInput.safeParse(data));
+      const values = settleFinishedPause(
+        accept(
+          sessionInput.safeParse({
+            ...data,
+            // A restore queued by an older app omits both pause columns.
+            paused_at:
+              op.opData?.paused_at === undefined && found.kind === "own"
+                ? iso(found.row.pausedAt)
+                : data.paused_at,
+            paused_ms:
+              op.opData?.paused_ms === undefined && found.kind === "own"
+                ? found.row.pausedMs
+                : data.paused_ms,
+          }),
+        ),
+      );
       await checkSessionRun(db, userId, values);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
@@ -250,7 +300,91 @@ const sessionSyncHandler: SyncTableHandler = {
     const row = liveRow(found);
     const patch = accept(patchSession.safeParse(op.opData ?? {}));
     const before = sessionRowAsInput(row);
-    const merged = accept(sessionInput.safeParse({ ...before, ...patch }));
+    const expected = op.expect?.paused_at;
+    const samePause = expected !== undefined && sameInstant(expected, before.paused_at);
+    const finishing = patch.finished_at != null && expected !== undefined;
+    if (finishing && before.finished_at !== null) return;
+    const incomingPauseMs = patch.paused_ms ?? op.expect?.paused_ms ?? 0;
+    if (patch.finished_at != null) {
+      if (before.finished_at === null && !samePause) {
+        // A stale finisher cannot clear a newer pause or overwrite accumulated time.
+        patch.paused_at = before.paused_at;
+        patch.paused_ms = before.paused_ms;
+      } else if (patch.paused_ms !== undefined && expected !== undefined) {
+        patch.paused_ms = Math.min(
+          Number.MAX_SAFE_INTEGER,
+          before.paused_ms + Math.max(0, patch.paused_ms - (op.expect?.paused_ms ?? 0)),
+        );
+      }
+    } else if (patch.paused_at === null && expected != null) {
+      // These Rest times were shifted from the device's snapshot. Shift the current Rest instead.
+      delete patch.rest_started_at;
+      delete patch.rest_ends_at;
+      if (samePause && row.pausedAt !== null && before.finished_at === null) {
+        const spanMs = Math.min(
+          PAUSE_AUTO_RESUME_MS,
+          Math.max(0, (patch.paused_ms ?? 0) - (op.expect?.paused_ms ?? 0)),
+        );
+        patch.paused_ms = Math.min(Number.MAX_SAFE_INTEGER, before.paused_ms + spanMs);
+        if (before.rest_started_at !== null && before.rest_ends_at !== null) {
+          const rest = shiftForPause(
+            { startedAt: before.rest_started_at, endsAt: before.rest_ends_at },
+            row.pausedAt.getTime(),
+            spanMs,
+          );
+          patch.rest_started_at = rest.startedAt;
+          patch.rest_ends_at = rest.endsAt;
+        }
+        await shiftRunningTimers(db, id, row.pausedAt, spanMs);
+      } else {
+        delete patch.paused_at;
+        delete patch.paused_ms;
+      }
+    } else if (patch.paused_at != null && expected === null) {
+      // Concurrent pause presses keep the pause already accepted by the server.
+      if (before.paused_at !== null || before.finished_at !== null) delete patch.paused_at;
+      else if (Date.parse(patch.paused_at) < row.startedAt.getTime()) {
+        patch.paused_at = before.started_at;
+      }
+    }
+    if (patch.paused_ms !== undefined)
+      patch.paused_ms = Math.max(before.paused_ms, patch.paused_ms);
+    if (
+      before.finished_at === null &&
+      patch.finished_at === undefined &&
+      patch.started_at !== undefined
+    ) {
+      const pausedAt = patch.paused_at === undefined ? before.paused_at : patch.paused_at;
+      const start = new Date(patch.started_at);
+      // A tick or pause from a different install can have arrived after the edit was queued.
+      const [earlierSet] = await db
+        .select({ id: sessionSet.id })
+        .from(sessionSet)
+        .innerJoin(sessionExercise, eq(sessionSet.sessionExerciseId, sessionExercise.id))
+        .where(
+          and(
+            eq(sessionExercise.sessionId, id),
+            isNull(sessionExercise.deletedAt),
+            isNull(sessionSet.deletedAt),
+            lt(sessionSet.completedAt, start),
+          ),
+        )
+        .limit(1);
+      if (earlierSet || (pausedAt !== null && start.getTime() > Date.parse(pausedAt))) {
+        delete patch.started_at;
+      }
+    }
+    // Older builds and stale finishers may leave the server's pause open.
+    const merged = settleFinishedPause(accept(sessionInput.safeParse({ ...before, ...patch })));
+    if (finishing && merged.finished_at !== null && merged.duration_s !== null) {
+      const base = Date.parse(merged.started_at) + merged.duration_s * 1000;
+      // Keep an explicit duration and its synthetic end in step after reconciling the pause.
+      if (Date.parse(merged.finished_at) === base + incomingPauseMs) {
+        const end = new Date(base + merged.paused_ms);
+        if (!Number.isNaN(end.getTime()) && end.getUTCFullYear() <= 9999)
+          merged.finished_at = end.toISOString();
+      }
+    }
     await checkSessionRun(db, userId, merged);
     checkSessionTimes(merged, before.started_at);
     await db

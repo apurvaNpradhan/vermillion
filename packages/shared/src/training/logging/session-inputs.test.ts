@@ -8,6 +8,7 @@ import {
   sessionInput,
   sessionSetSchema,
   sessionStartAllowed,
+  settleFinishedPause,
   sessionTimesConsistent,
   SET_VALUE_KEYS,
 } from "./session-inputs";
@@ -30,6 +31,8 @@ const session = {
   rest_set_id: null,
   rest_started_at: null,
   rest_ends_at: null,
+  paused_at: null,
+  paused_ms: 0,
 };
 const emptySet = {
   session_exercise_id: id,
@@ -104,6 +107,35 @@ describe("sessionInput", () => {
         rest_ends_at: "2026-01-01T10:07:00.000Z",
       }),
     ).toBe(true);
+  });
+
+  it("holds the pause: a time that is not before the start, and a bounded total", () => {
+    expect(sessionTimesConsistent({ ...session, paused_at: "2026-01-01T10:20:00.000Z" })).toBe(
+      true,
+    );
+    expect(sessionTimesConsistent({ ...session, paused_at: "2026-01-01T09:00:00.000Z" })).toBe(
+      false,
+    );
+    expect(sessionInput.safeParse({ ...session, paused_ms: -1 }).success).toBe(false);
+    expect(sessionInput.safeParse({ ...session, paused_ms: 1.5 }).success).toBe(false);
+    expect(
+      sessionInput.safeParse({ ...session, paused_ms: Number.MAX_SAFE_INTEGER + 1 }).success,
+    ).toBe(false);
+    expect(sessionInput.safeParse({ ...session, paused_ms: 604_800_001 }).success).toBe(true);
+  });
+
+  it("settles a pause still open at the finish into the paused total", () => {
+    const open = {
+      ...session,
+      finished_at: "2026-01-01T11:00:00.000Z",
+      paused_at: "2026-01-01T10:50:00.000Z",
+      paused_ms: 60_000,
+    };
+    expect(settleFinishedPause(open)).toMatchObject({ paused_at: null, paused_ms: 660_000 });
+    const unfinished = { ...open, finished_at: null };
+    expect(settleFinishedPause(unfinished)).toBe(unfinished);
+    const running = { ...session, finished_at: "2026-01-01T11:00:00.000Z" };
+    expect(settleFinishedPause(running)).toBe(running);
   });
 });
 

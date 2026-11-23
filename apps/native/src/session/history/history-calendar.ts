@@ -1,5 +1,6 @@
 import {
   calendarDay,
+  sessionDurationSeconds,
   sessionTotals,
   weekColumn,
   weekStartDay,
@@ -17,6 +18,7 @@ type HistoryVolumeSession = {
   started_at: string;
   finished_at: string | null;
   durationS: number | null;
+  pausedMs?: number | null;
   sets: Parameters<typeof sessionTotals>[0];
 };
 type Bucket<Session> = { sessions: Session[]; totals: Totals };
@@ -81,13 +83,15 @@ export function monthRows(start: number, weekStart: WeekStart) {
 
 function summarizeSession(session: HistoryVolumeSession, bodyweightKg: number | null): Totals {
   const { sets, volume } = sessionTotals(session.sets, bodyweightKg);
-  const seconds =
-    session.durationS ??
-    Math.max(
-      0,
-      (Date.parse(session.finished_at ?? session.started_at) - Date.parse(session.started_at)) /
-        1000,
-    );
+  const seconds = sessionDurationSeconds(
+    {
+      durationS: session.durationS,
+      startedAt: session.started_at,
+      finishedAt: session.finished_at ?? session.started_at,
+      pausedMs: session.pausedMs ?? 0,
+    },
+    0,
+  );
   return { workouts: 1, sets, volume, seconds };
 }
 

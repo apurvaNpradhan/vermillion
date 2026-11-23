@@ -9,6 +9,7 @@ import {
   finishSession,
   leaveSessionSuperset,
   moveSessionExercise,
+  pauseSession,
   readExerciseType,
   removeSessionExercise,
   removeSet,
@@ -17,7 +18,9 @@ import {
   restoreSessionExercise,
   replaceSessionExercise,
   restoreSession,
+  resumeSession,
   setDerivedTitle,
+  setSessionStart,
   setExerciseSetting,
   supersetSessionWithNext,
   takeOver,
@@ -30,6 +33,7 @@ import {
   type SessionExerciseDetail,
   type SessionExercisePatch,
   type SetPatch,
+  type SetStartResult,
   type TickResult,
 } from "@workspace/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -37,6 +41,8 @@ import { useCallback, useMemo } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { cancelRestNotification } from "@/session/notifications/rest-notification";
+import { restNotificationId } from "@/session/rest/rest-schedule";
 import { UNDO_MS, useTrainingWrite } from "@/training";
 import { useLocalData } from "@/sync";
 
@@ -242,6 +248,30 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** Stops the Session's clock, Rest and timers. False when it was not running. */
+  const pause = useCallback(
+    (id: string) =>
+      write(async (db) => {
+        const paused = await pauseSession(db, id, writeScope);
+        if (paused) void cancelRestNotification(restNotificationId(id));
+        return paused;
+      }, false),
+    [write, writeScope],
+  );
+
+  /** Starts the clock again. `atMs` ends a forgotten pause where it ran out. False when not paused. */
+  const resume = useCallback(
+    (id: string, atMs?: number) => write((db) => resumeSession(db, id, writeScope, atMs), false),
+    [write, writeScope],
+  );
+
+  /** Moves the start of the workout; the result says why it was refused, if it was. */
+  const setStart = useCallback(
+    (id: string, startedAt: string) =>
+      write<SetStartResult | null>((db) => setSessionStart(db, id, startedAt, writeScope), null),
+    [write, writeScope],
+  );
+
   /** Discards with Undo. */
   const discard = useCallback(
     async (id: string, title: string) => {
@@ -291,6 +321,9 @@ export function useSessionActions() {
       refreshDerivedTitle,
       takeOver: takeOverSession,
       finish,
+      pause,
+      resume,
+      setStart,
       discard,
     }),
     [
@@ -313,6 +346,9 @@ export function useSessionActions() {
       refreshDerivedTitle,
       takeOverSession,
       finish,
+      pause,
+      resume,
+      setStart,
       discard,
     ],
   );

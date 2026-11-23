@@ -72,6 +72,7 @@ export function DateSheet({
   onOpenChange,
   startedAt,
   now,
+  latest = now,
   language,
   onChange,
 }: {
@@ -79,6 +80,7 @@ export function DateSheet({
   onOpenChange: (open: boolean) => void;
   startedAt: Date;
   now: Date;
+  latest?: Date;
   language: string;
   onChange: (startedAt: Date) => void;
 }) {
@@ -101,7 +103,9 @@ export function DateSheet({
               key={value.getTime()}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              onPress={() => onChange(notAfter(onDay(startedAt, value), now))}
+              onPress={() => {
+                if (!selected) onChange(notAfter(onDay(startedAt, value), latest));
+              }}
               className={
                 selected
                   ? "min-h-11 justify-center rounded-xl border border-foreground bg-default px-3 active:opacity-60"
@@ -128,16 +132,16 @@ export function DateSheet({
           valueText={String(startedAt.getHours()).padStart(2, "0")}
           decrementLabel={t("session__hour_earlier")}
           incrementLabel={t("session__hour_later")}
-          canIncrement={startedAt.getTime() + 3_600_000 <= now.getTime()}
-          onStep={(direction) => onChange(stepStart(startedAt, "hour", direction, now))}
+          canIncrement={startedAt.getTime() + 3_600_000 <= latest.getTime()}
+          onStep={(direction) => onChange(stepStart(startedAt, "hour", direction, latest))}
         />
         <Stepper
           label={t("session__minute")}
           valueText={String(startedAt.getMinutes()).padStart(2, "0")}
           decrementLabel={t("session__minute_earlier")}
           incrementLabel={t("session__minute_later")}
-          canIncrement={startedAt.getTime() + 60_000 <= now.getTime()}
-          onStep={(direction) => onChange(stepStart(startedAt, "minute", direction, now))}
+          canIncrement={startedAt.getTime() + 60_000 <= latest.getTime()}
+          onStep={(direction) => onChange(stepStart(startedAt, "minute", direction, latest))}
         />
       </View>
       <Button onPress={() => onOpenChange(false)}>

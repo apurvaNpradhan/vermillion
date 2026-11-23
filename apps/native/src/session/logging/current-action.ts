@@ -1,6 +1,5 @@
 import {
   SET_FIELDS,
-  sessionTotals,
   type ExerciseType,
   type Ghosts,
   type SetField,
@@ -10,12 +9,11 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
 import { blocksOf, roundsOf } from "./blocks";
-import { elapsedSeconds } from "../timer/clock";
 import { timerTarget } from "../timer/duration-timer";
 import { restView, type RestView } from "../rest/rest-rules";
-import { formatCell, loggedSetsOf, valueOfSet } from "./set-values";
+import { formatCell, valueOfSet } from "./set-values";
 
-/** One value of the current set as the Timer shows it. */
+/** One value of the current set as the notification shows it. */
 export type DisplayValue = {
   field: SetField;
   value: number | null;
@@ -91,7 +89,7 @@ function displayValues(
 }
 
 /**
- * The shared "what now" of a live Session, for the Timer screen and the Android notification.
+ * The shared "what now" of a live Session, for the Android notification.
  * `ghostsFor` gives the Ghost values of a set (from Previous and the plan), `now` is the clock in
  * ms. `restEndedAt` (ms) is when this screen saw a Rest end early (Skip clears the stored Rest, so
  * its end is otherwise lost): work counts from the latest of it, the stored Rest's end and the
@@ -160,51 +158,6 @@ export function currentAction(input: {
     allDone: ordered.length > 0 && pending.length === 0,
     rest: running ? rest : null,
     workStartedAt: new Date(Number.isFinite(started) ? started : now).toISOString(),
-  };
-}
-
-export type SessionStats = {
-  /** In kg: the counted sets' volume (`sessionTotals`). */
-  volumeKg: number;
-  setsDone: number;
-  setsTotal: number;
-  /** Whole seconds since the Session started. */
-  elapsedS: number;
-  /** Mean seconds between one tick and the next, breaks over `BREAK_S` left out; null below two ticks. */
-  averageRestS: number | null;
-};
-
-/** A gap between two ticks longer than this is a break, not a rest. */
-export const BREAK_S = 15 * 60;
-
-/**
- * Totals for the Timer's bottom strip. Rests are not stored, so "average rest" is the average time
- * from one ticked set to the next (the rest plus the set itself), without gaps over a break.
- */
-export function sessionStats(input: {
-  session: SessionDetail;
-  bodyweightKg: number | null;
-  now: number;
-  countWarmups?: boolean;
-}): SessionStats {
-  const { session, bodyweightKg, now, countWarmups = false } = input;
-  const sets = session.exercises.flatMap((exercise) => exercise.sets);
-  const times = sets
-    .flatMap((set) => {
-      const time = set.completedAt === null ? Number.NaN : Date.parse(set.completedAt);
-      return Number.isNaN(time) ? [] : [time];
-    })
-    .sort((a, b) => a - b);
-  const gaps = times.slice(1).flatMap((time, index) => {
-    const gap = (time - (times[index] ?? time)) / 1000;
-    return gap > 0 && gap <= BREAK_S ? [gap] : [];
-  });
-  return {
-    volumeKg: sessionTotals(loggedSetsOf(session, countWarmups), bodyweightKg).volume,
-    setsDone: times.length,
-    setsTotal: sets.length,
-    elapsedS: elapsedSeconds(session.startedAt, now),
-    averageRestS: gaps.length === 0 ? null : gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length,
   };
 }
 

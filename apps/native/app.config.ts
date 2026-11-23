@@ -34,7 +34,7 @@ import { appConfig } from "../../app.config.ts";
 // 26: renamed to Sigil: new bundle id and scheme (ADR 0055).
 // 27: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
 // 28: remove the react-native-webview dependency with Turnstile.
-const NATIVE_STACK_REVISION = 28;
+const NATIVE_STACK_REVISION = 29;
 
 /**
  * The Sigil brand colours, for the places the native build needs a literal (icon background,

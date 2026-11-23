@@ -73,7 +73,6 @@ export function useLoggingState({
   unit,
   display,
   effortScale,
-  inlineTimer,
   bodyweightKg,
   weightIncrementKg,
   lighterWeeks: rawLighterWeeks,
@@ -94,8 +93,6 @@ export function useLoggingState({
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
-  /** The Inline timer preference. */
-  inlineTimer: boolean;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
   lighterWeeks: readonly LighterPeriod[];
@@ -168,8 +165,8 @@ export function useLoggingState({
     store.getState().setInputs(inputs);
   }, [store, inputs]);
   useLayoutEffect(() => {
-    store.getState().setUi({ readOnly, inlineTimer, effortScale, countWarmups });
-  }, [store, readOnly, inlineTimer, effortScale, countWarmups]);
+    store.getState().setUi({ readOnly, effortScale, countWarmups });
+  }, [store, readOnly, effortScale, countWarmups]);
 
   // What this hook's own render reads. The rows read what they draw straight from the store.
   const found = useStore(store, (state) => state.found);
@@ -182,7 +179,7 @@ export function useLoggingState({
   const cell = useStore(store, (state) => state.cell);
   const refusal = useStore(store, (state) => (editor ? null : state.refusal));
   // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
-  // screen without rows (the Timer) follows it here.
+  // screen without rows follows it here.
   const raw = useStore(store, (state) => (editor ? "" : state.raw));
   const fresh = useStore(store, (state) => (editor ? true : state.fresh));
 
@@ -376,12 +373,6 @@ export function useLoggingState({
     if (!next) return closeKeypad();
     openCell(next.setId, next.field);
   }, [next, openCell, closeKeypad]);
-  // The Timer edits one set: Next stays within it and closes after its last field.
-  const nextInSet = next !== null && next.setId === cell?.setId;
-  const onNextInSet = useCallback(() => {
-    if (!next || next.setId !== readEntry()?.cell.setId) return closeKeypad();
-    openCell(next.setId, next.field);
-  }, [next, openCell, closeKeypad, readEntry]);
 
   // ---- Ticking ----
   /**
@@ -576,7 +567,12 @@ export function useLoggingState({
         await actions.updateValues(setId, { timer_started_at: null });
       } else {
         // A stopwatch logs what it counted.
-        const elapsed = timerView(at.set.timerStartedAt, null, Date.now()).elapsed;
+        const pausedAt = state.session.pausedAt;
+        const elapsed = timerView(
+          at.set.timerStartedAt,
+          null,
+          pausedAt === null ? Date.now() : Date.parse(pausedAt),
+        ).elapsed;
         await tickWith(
           setId,
           { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
@@ -607,6 +603,8 @@ export function useLoggingState({
     );
     if (sets.length === 0) return;
     const run = () => {
+      // A paused workout holds its timers; Resume shifts them by the pause.
+      if (store.getState().session.pausedAt !== null) return;
       for (const due of dueTimers(sets, Date.now())) {
         if (firing.current.has(due.id)) continue;
         firing.current.add(due.id);
@@ -696,7 +694,6 @@ export function useLoggingState({
   const stableOnStep = useStableHandler(onStep);
   const stablePutValue = useStableHandler(putValue);
   const stableOnNext = useStableHandler(onNext);
-  const stableOnNextInSet = useStableHandler(onNextInSet);
   const entry = useMemo(() => (cell ? { cell } : null), [cell]);
   return {
     historyReady,
@@ -726,8 +723,6 @@ export function useLoggingState({
         : undefined;
     },
     hasNext: next !== null,
-    hasNextInSet: nextInSet,
-    onNextInSet: stableOnNextInSet,
     stepText,
     openCell: stableOpenCell,
     closeKeypad: stableCloseKeypad,

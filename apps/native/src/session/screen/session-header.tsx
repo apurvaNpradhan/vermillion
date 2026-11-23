@@ -7,32 +7,47 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { OfflinePill } from "@/sync";
 
-import { elapsedSeconds, formatElapsed } from "@/session/timer/clock";
-import { useNow } from "@/session/shared/use-now";
+import { formatElapsed } from "@/session/timer/clock";
+import { useSessionStore } from "@/session/store/session-store-context";
+import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 
-/** The running clock: only this small piece re-renders every second. */
+/**
+ * The time trained: only this small piece re-renders every second, and it stops while the workout
+ * is paused, with a "Paused" marker. It opens the workout clock when pressable.
+ */
 function Clock({
   startedAt,
+  pausedAt,
+  pausedMs,
   frozen,
   onPress,
 }: {
   startedAt: string;
+  pausedAt: string | null;
+  pausedMs: number;
   frozen: boolean;
-  /** Opens the Timer; the clock is plain text without it. */
+  /** Opens the workout clock sheet; the clock is plain text without it. */
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
-  const now = useNow(!frozen);
+  const preview = useSessionStore((state) => state.pending.find((write) => write.clock)?.clock);
+  const clock = preview ?? { startedAt, pausedAt, pausedMs };
+  const seconds = useActiveSeconds(clock, !frozen);
   const text = (
-    <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
-      {formatElapsed(elapsedSeconds(startedAt, now))}
-    </Text>
+    <View className="flex-row items-center gap-1.5">
+      <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
+        {formatElapsed(seconds)}
+      </Text>
+      {clock.pausedAt === null ? null : (
+        <Text className="font-medium text-caption text-subtle">{t("session__paused_label")}</Text>
+      )}
+    </View>
   );
   if (!onPress) return text;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("session__timer_open")}
+      accessibilityLabel={t("session__clock_open")}
       onPress={onPress}
       hitSlop={8}
     >
@@ -51,17 +66,21 @@ export function SessionHeader({
   onMenu,
   title,
   startedAt,
+  pausedAt,
+  pausedMs,
   volume,
   sets,
   readOnly,
   onMinimise,
   onFinish,
-  onOpenTimer,
+  onOpenClock,
 }: {
   finished: boolean;
   onMenu: () => void;
   title: string;
   startedAt: string;
+  pausedAt: string | null;
+  pausedMs: number;
   /** Volume with its unit, "4,250 kg". */
   volume: string;
   sets: number;
@@ -69,8 +88,8 @@ export function SessionHeader({
   readOnly: boolean;
   onMinimise: () => void;
   onFinish: () => void;
-  /** Tapping the clock opens the Timer. */
-  onOpenTimer?: () => void;
+  /** Tapping the clock opens the workout clock sheet. */
+  onOpenClock?: () => void;
 }) {
   const { t } = useTranslation();
   const { top } = useSafeAreaInsets();
@@ -100,8 +119,10 @@ export function SessionHeader({
           {finished ? null : (
             <Clock
               startedAt={startedAt}
+              pausedAt={pausedAt}
+              pausedMs={pausedMs}
               frozen={readOnly}
-              {...(readOnly || !onOpenTimer ? {} : { onPress: onOpenTimer })}
+              {...(readOnly || !onOpenClock ? {} : { onPress: onOpenClock })}
             />
           )}
           <Text className="font-medium text-label text-muted">·</Text>

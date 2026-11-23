@@ -1,4 +1,4 @@
-import { SET_KINDS, type SessionExportRow } from "@workspace/shared";
+import { SET_KINDS, sessionDurationSeconds, type SessionExportRow } from "@workspace/shared";
 import { z } from "zod";
 
 import type { TrainingDatabase } from "../store-common";
@@ -11,7 +11,8 @@ const EXPORT_PAGE = 2000;
  * data export writes. Pages use a total order within one read snapshot.
  */
 export const SESSION_EXPORT_SQL = `SELECT s.id AS session_id, s.title AS title, s.started_at AS started_at,
-    s.note AS session_note, s.duration_s AS session_duration_s, s.finished_at AS finished_at, se.id AS exercise_row, se.exercise_title AS exercise_title,
+    s.note AS session_note, s.duration_s AS session_duration_s, s.paused_ms AS paused_ms,
+    s.finished_at AS finished_at, se.id AS exercise_row, se.exercise_title AS exercise_title,
     se.note AS exercise_note, ss.kind AS kind,
     ss.weight_kg AS weight_kg, ss.reps AS reps, ss.duration_s AS duration_s,
     ss.distance_m AS distance_m, ss.rpe AS rpe
@@ -28,6 +29,7 @@ const exportRowSchema = z.object({
   started_at: z.string(),
   session_note: z.string().nullable(),
   session_duration_s: z.number().nullable(),
+  paused_ms: z.number().nullable(),
   finished_at: z.string().nullable(),
   exercise_row: z.string(),
   exercise_title: z.string().nullable(),
@@ -40,16 +42,25 @@ const exportRowSchema = z.object({
   rpe: z.number().nullable(),
 });
 
-/** The recorded duration, else the time between start and finish. */
+/** The recorded duration, else the time trained between start and finish. */
 function sessionDuration(row: {
   session_duration_s: number | null;
+  paused_ms: number | null;
   started_at: string;
   finished_at: string | null;
 }): number | null {
   if (row.session_duration_s !== null) return row.session_duration_s;
   if (row.finished_at === null) return null;
-  const seconds = (Date.parse(row.finished_at) - Date.parse(row.started_at)) / 1000;
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds) : null;
+  const seconds = sessionDurationSeconds(
+    {
+      durationS: null,
+      startedAt: row.started_at,
+      finishedAt: row.finished_at,
+      pausedMs: row.paused_ms ?? 0,
+    },
+    0,
+  );
+  return Number.isFinite(seconds) ? Math.round(seconds) : null;
 }
 
 /** Reads every page from the same SQLite snapshot, even while sync writes. */

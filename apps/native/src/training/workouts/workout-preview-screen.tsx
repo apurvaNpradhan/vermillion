@@ -2,6 +2,7 @@ import { haptic } from "@/platform/haptics";
 import {
   historyForWorkout,
   isCounted,
+  sessionDurationSeconds,
   sessionTotals,
   stalledSessions,
   KG_PER_LB,
@@ -65,8 +66,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     label: date(s.started_at),
     y:
       metric === "duration"
-        ? (s.durationS ??
-          (Date.parse(s.finished_at ?? s.started_at) - Date.parse(s.started_at)) / 1000)
+        ? sessionDurationSeconds(
+            {
+              durationS: s.durationS,
+              startedAt: s.started_at,
+              finishedAt: s.finished_at ?? s.started_at,
+              pausedMs: s.pausedMs,
+            },
+            0,
+          )
         : metric === "reps"
           ? s.sets.reduce((sum, set) => sum + (isCounted(set) ? (set.reps ?? 0) : 0), 0)
           : sessionTotals(s.sets, history.bodyweightKg).volume /

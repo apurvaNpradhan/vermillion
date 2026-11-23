@@ -38,18 +38,15 @@ export function useSessionKeypadAccessory(logging: Logging, unit: WeightUnit): R
 }
 
 /**
- * The number pad for the cell being edited, or nothing while no cell is open. `withinSet` keeps
- * Next inside the edited set, for a screen that shows only that set.
+ * The number pad for the cell being edited, or nothing while no cell is open.
  */
 export function SessionKeypad({
   logging,
   accessory,
-  withinSet = false,
   motion = true,
 }: {
   logging: Logging;
   accessory: ReactNode;
-  withinSet?: boolean;
   motion?: boolean;
 }) {
   const { t } = useTranslation();
@@ -72,7 +69,7 @@ export function SessionKeypad({
         done: t("session__key_done"),
       }}
       allowPoint={logging.activeField === "weight" || logging.activeField === "distance"}
-      hasNext={withinSet ? logging.hasNextInSet : logging.hasNext}
+      hasNext={logging.hasNext}
       stepText={logging.stepText}
       accessory={
         editLabel ? (
@@ -85,7 +82,7 @@ export function SessionKeypad({
       motion={motion}
       onKey={logging.onKey}
       onStep={logging.onStep}
-      onNext={withinSet ? logging.onNextInSet : logging.onNext}
+      onNext={logging.onNext}
       onDone={logging.closeKeypad}
     />
   );

@@ -105,6 +105,8 @@ async function copyInto(
     rest_set_id: null,
     rest_started_at: null,
     rest_ends_at: null,
+    paused_at: null,
+    paused_ms: 0,
   });
   await tx
     .insert(session)

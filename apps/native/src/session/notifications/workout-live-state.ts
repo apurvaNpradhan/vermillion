@@ -1,9 +1,10 @@
-import { lighterPeriodSchema } from "@workspace/shared";
+import { lighterPeriodSchema, sessionActiveSeconds } from "@workspace/shared";
 import { z } from "zod";
 import type { TFunction } from "i18next";
 import type { Ghosts, WeightUnit } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 import { currentAction, valuesText } from "../logging/current-action";
+import { formatElapsed } from "../timer/clock";
 
 export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),
@@ -26,7 +27,11 @@ export const workoutLivePayloadSchema = liveActionSchema.extend({
   text: z.string(),
   next: z.string(),
   restOver: z.string(),
+  /** The chronometer's base: the start moved on by the paused time, so it shows the time trained. */
   sessionStartedAtMs: z.number(),
+  /** Paused: the clock is stopped and `pausedText` replaces the action line. */
+  paused: z.boolean().default(false),
+  pausedText: z.string().default(""),
   workStartedAtMs: z.number(),
   segments: z.array(z.object({ total: z.number(), done: z.number() })),
   canComplete: z.boolean(),
@@ -55,7 +60,8 @@ export function workoutLiveState(input: {
   const set = current
     ? t("session__live_set", { index: current.index + 1, total: current.total })
     : t("session__live_all_done");
-  const rest = action.phase === "rest";
+  const paused = session.pausedAt !== null;
+  const rest = action.phase === "rest" && !paused;
   const restText = current ? t("session__live_rest", { set }) : t("session__live_rest_last");
   return {
     restSetId: session.rest?.setId ?? null,
@@ -88,7 +94,22 @@ export function workoutLiveState(input: {
       : "",
     restOver: current ? t("session__live_rest_over", { set }) : t("session__live_rest_over_last"),
     restEndsAtMs: rest && session.rest ? Date.parse(session.rest.endsAt) : null,
-    sessionStartedAtMs: Date.parse(session.startedAt),
+    sessionStartedAtMs: Date.parse(session.startedAt) + session.pausedMs,
+    paused,
+    pausedText: paused
+      ? t("session__live_paused", {
+          time: formatElapsed(
+            sessionActiveSeconds(
+              {
+                startedAt: session.startedAt,
+                pausedAt: session.pausedAt,
+                pausedMs: session.pausedMs,
+              },
+              input.now,
+            ),
+          ),
+        })
+      : "",
     workStartedAtMs: Date.parse(action.workStartedAt),
     segments: session.exercises.map((exercise) => ({
       total: exercise.sets.length,

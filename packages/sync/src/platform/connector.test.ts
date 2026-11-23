@@ -66,6 +66,36 @@ it("uploads the completion state PowerSync recorded when a set was deleted", asy
   ]);
 });
 
+it("uploads a resume with its baseline and leaves derived timer shifts to the server", async () => {
+  const fake = setup();
+  await ready(fake);
+  const pausedAt = "2026-11-23T10:00:00.000Z";
+  const session = crudEntry(
+    "PATCH",
+    EXERCISE,
+    { paused_at: null, paused_ms: 9000 },
+    "training_session",
+  );
+  session.previousValues = { paused_at: pausedAt, paused_ms: 5000, finished_at: null };
+  const timer = crudEntry("PATCH", EXERCISE, { timer_started_at: pausedAt }, "session_set");
+  timer.previousValues = { timer_started_at: "2026-11-23T09:59:56.000Z" };
+  const tick = crudEntry("PATCH", EXERCISE, { completed_at: pausedAt }, "session_set");
+  fake.queue([session, ...Array.from({ length: 100 }, () => timer), tick]);
+
+  await fake.connector.uploadData();
+
+  expect(fake.uploads[0]?.ops).toEqual([
+    {
+      op: "PATCH",
+      table: "training_session",
+      id: EXERCISE,
+      opData: { paused_at: null, paused_ms: 9000 },
+      expect: { paused_at: pausedAt, paused_ms: 5000 },
+    },
+    { op: "PATCH", table: "session_set", id: EXERCISE, opData: { completed_at: pausedAt } },
+  ]);
+});
+
 describe("fetchCredentials", () => {
   it("returns the endpoint and token, renewing before the token's own expiry", async () => {
     const fake = setup();

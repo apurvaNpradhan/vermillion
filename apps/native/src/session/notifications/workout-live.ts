@@ -61,7 +61,7 @@ async function snapshotOf(db: TrainingDatabase, session: SessionDetail, options:
     restEndedAt: restEndedAt(session.id),
     unit: options.weightUnit,
     options,
-    url: `${appConfig.scheme}:///session/${session.id}/timer`,
+    url: `${appConfig.scheme}:///session/${session.id}`,
     t: i18n.t.bind(i18n),
   });
   return { session, ghosts, state };
@@ -207,6 +207,7 @@ export function workoutLiveAction(data: { state: string; action: string }) {
           if (!result.ok) await Linking.openURL(current.state.url);
         }
       } else if (
+        session.pausedAt === null &&
         session.rest &&
         session.rest.setId === request.restSetId &&
         Date.parse(session.rest.endsAt) > Date.now()
@@ -226,8 +227,9 @@ export function workoutLiveAction(data: { state: string; action: string }) {
       await installRestNotifications(i18n.t("session__rest_channel"));
       setRestSoundEnabled(options.soundOn);
       await cancelRestNotification(restNotificationId(session.id));
-      if (after.session.rest && Date.parse(after.session.rest.endsAt) > Date.now()) {
-        await scheduleRestNotification(session.id, Date.parse(after.session.rest.endsAt), {
+      const restEndsAt = after.state.restEndsAtMs;
+      if (restEndsAt !== null && restEndsAt > Date.now()) {
+        await scheduleRestNotification(session.id, restEndsAt, {
           title: i18n.t("session__rest_over_title"),
           body: i18n.t("session__rest_over_body", { title: session.title }),
         });

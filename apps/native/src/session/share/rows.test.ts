@@ -67,6 +67,8 @@ const session = (exercises: Entry[]): SessionDetail => ({
   durationS: null,
   deviceId: "d",
   rest: null,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 
@@ -192,19 +194,23 @@ describe("muscles and duration", () => {
     expect(bodyIntensity([], drawn)).toEqual({});
   });
 
-  it("takes the override duration, else start to finish", () => {
-    expect(
-      sessionDuration({ durationS: 1800, startedAt: "2026-11-16T10:00:00Z", finishedAt: null }),
-    ).toBe(1800);
+  it("takes the override duration, else the time trained from start to finish", () => {
+    const base = { pausedMs: 0, startedAt: "2026-11-16T10:00:00Z" };
+    expect(sessionDuration({ ...base, durationS: 1800, finishedAt: null })).toBe(1800);
+    expect(sessionDuration({ ...base, durationS: null, finishedAt: "2026-11-16T11:00:00Z" })).toBe(
+      3600,
+    );
+    expect(sessionDuration({ ...base, durationS: null, finishedAt: null })).toBe(0);
+  });
+
+  it("leaves the paused time out of the duration", () => {
     expect(
       sessionDuration({
         durationS: null,
+        pausedMs: 600_000,
         startedAt: "2026-11-16T10:00:00Z",
         finishedAt: "2026-11-16T11:00:00Z",
       }),
-    ).toBe(3600);
-    expect(
-      sessionDuration({ durationS: null, startedAt: "2026-11-16T10:00:00Z", finishedAt: null }),
-    ).toBe(0);
+    ).toBe(3000);
   });
 });

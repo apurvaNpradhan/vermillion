@@ -157,6 +157,12 @@ export {
   type SessionSetRow,
 } from "./sessions/session-common";
 export {
+  pauseSession,
+  resumeSession,
+  setSessionStart,
+  type SetStartResult,
+} from "./sessions/session-clock-store";
+export {
   adjustRest,
   clearRest,
   discardSession,

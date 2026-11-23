@@ -12,10 +12,10 @@ import { TAB_BAR_HEIGHT, useTabBarBottom } from "@/platform/navigation/tab-bar-m
 import { useSubtleColor } from "@/platform/theme";
 import { FloatingSurface } from "@/platform/ui/floating-surface";
 
-import { elapsedSeconds, formatElapsed } from "@/session/timer/clock";
+import { formatElapsed } from "@/session/timer/clock";
 import { currentExercise } from "./resume";
 import { useActiveSessions } from "./use-active-sessions";
-import { useNow } from "@/session/shared/use-now";
+import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 import { useSession } from "@/session/screen/use-session";
 import { SessionsSheet } from "./sessions-sheet";
 
@@ -76,9 +76,9 @@ function Strip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Clock({ startedAt }: { startedAt: string }) {
-  const now = useNow();
-  return <>{formatElapsed(elapsedSeconds(startedAt, now))}</>;
+function Clock({ session }: { session: ActiveSession }) {
+  const seconds = useActiveSeconds(session);
+  return <>{formatElapsed(seconds)}</>;
 }
 
 function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: () => void }) {
@@ -106,7 +106,7 @@ function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: ()
           className="font-normal text-caption text-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          <Clock startedAt={session.startedAt} />
+          <Clock session={session} />
           {covered ? null : <CurrentExerciseTitle id={session.id} />}
         </Text>
       </View>

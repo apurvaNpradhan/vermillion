@@ -26,18 +26,21 @@ export function RestBar({
   onAdjust,
   onSkip,
   withInset,
+  pausedAt,
 }: {
   rest: { setId: string; startedAt: string; endsAt: string };
   onAdjust: (deltaSeconds: number) => void;
   onSkip: () => void;
   /** Leave room for the bottom safe area (no keypad below). */
   withInset: boolean;
+  /** The workout is paused: the countdown stops where it was. */
+  pausedAt: string | null;
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
-  const now = useNow(true, 250);
-  const view = restView(rest, now);
+  const now = useNow(pausedAt === null, 250);
+  const view = restView(rest, pausedAt === null ? now : Date.parse(pausedAt));
   const { play } = useSoundCues();
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
@@ -53,7 +56,7 @@ export function RestBar({
 
   // The 3-2-1 beeps, once per second left, while this screen is in front.
   const beeped = useRef<string | null>(null);
-  const beepSecond = view.running ? countdownBeepSecond(view.remaining) : null;
+  const beepSecond = pausedAt === null && view.running ? countdownBeepSecond(view.remaining) : null;
   useEffect(() => {
     if (beepSecond === null) return;
     const key = `${rest.endsAt}:${beepSecond}`;

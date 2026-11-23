@@ -66,6 +66,8 @@ import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
 import { SessionHeader } from "./session-header";
+import { ClockSheet } from "@/session/clock/clock-sheet";
+import { firstTickedAt } from "@/session/clock/clock-view";
 import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session-keypad";
 
 const KEEP_AWAKE_TAG = "session";
@@ -84,8 +86,6 @@ export type SessionScreenProps = {
   onGone: () => void;
   /** Finished here: show the summary. */
   onFinished: (id: string) => void;
-  /** Open the full-screen Timer over this screen. */
-  onOpenTimer: () => void;
 };
 
 /**
@@ -145,7 +145,6 @@ const LoadedSession = memo(function LoadedSession({
   store,
   onMinimise,
   onFinished,
-  onOpenTimer,
 }: SessionScreenProps & { store: SessionStore }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
@@ -158,8 +157,6 @@ const LoadedSession = memo(function LoadedSession({
     session,
     actions,
     preferences,
-    setUi,
-    preferencesLoading,
     unit,
     effortScale,
     installId,
@@ -186,9 +183,6 @@ const LoadedSession = memo(function LoadedSession({
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
-  // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
-  // next workout (started or resumed) opens in the view used last.
-  // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
   const { closeKeypad, flushWrites } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
@@ -198,27 +192,6 @@ const LoadedSession = memo(function LoadedSession({
   useEffect(() => {
     if (readOnly) setReordering(false);
   }, [readOnly]);
-  const openingTimer = useRef(false);
-  const openTimer = useCallback(async () => {
-    if (openingTimer.current) return;
-    openingTimer.current = true;
-    closeKeypad();
-    try {
-      await flushWrites();
-      setUi({ sessionView: "timer" });
-      onOpenTimer();
-    } finally {
-      openingTimer.current = false;
-    }
-  }, [closeKeypad, flushWrites, setUi, onOpenTimer]);
-  const openedTimer = useRef(false);
-  const wantsTimer = preferences.ui.sessionView === "timer";
-  useEffect(() => {
-    if (openedTimer.current || preferencesLoading || installId === null) return;
-    openedTimer.current = true;
-    if (wantsTimer && !readOnly && session.finishedAt === null) onOpenTimer();
-  }, [preferencesLoading, installId, wantsTimer, readOnly, session.finishedAt, onOpenTimer]);
-
   // The screen stays awake while it is in front (a preference); a Rest is shown here, so the
   // system banner for it is held back meanwhile.
   const keepAwake = preferences.ui.keepAwake;
@@ -269,6 +242,11 @@ const LoadedSession = memo(function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clockOpen, setClockOpen] = useState(false);
+  const openClock = useCallback(() => {
+    closeKeypad();
+    setClockOpen(true);
+  }, [closeKeypad]);
   const closeSheet = useCallback(() => setSheet(null), []);
 
   const { ticked, unticked } = stats;
@@ -587,12 +565,24 @@ const LoadedSession = memo(function LoadedSession({
         onMenu={() => setSessionMenu(true)}
         title={title}
         startedAt={session.startedAt}
+        pausedAt={session.pausedAt}
+        pausedMs={session.pausedMs}
         volume={volume}
         sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
         onFinish={flow.askFinish}
-        onOpenTimer={openTimer}
+        onOpenClock={openClock}
+      />
+      <ClockSheet
+        isOpen={clockOpen && !readOnly && session.finishedAt === null}
+        onOpenChange={setClockOpen}
+        startedAt={session.startedAt}
+        pausedAt={session.pausedAt}
+        pausedMs={session.pausedMs}
+        firstTickedAt={clockOpen ? firstTickedAt(session) : null}
+        onTogglePause={() => actions.togglePause(session.id)}
+        onSetStart={(startedAt) => actions.setStart(session.id, startedAt)}
       />
       <View
         ref={reveal.viewportRef}
@@ -667,6 +657,7 @@ const LoadedSession = memo(function LoadedSession({
         <RestBar
           rest={session.rest}
           withInset={!logging.entry}
+          pausedAt={session.pausedAt}
           onAdjust={(delta) => void actions.nudgeRest(session.id, delta)}
           onSkip={() => void actions.skipRest(session.id)}
         />

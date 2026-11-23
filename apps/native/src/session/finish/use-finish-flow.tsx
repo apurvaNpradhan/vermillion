@@ -7,8 +7,7 @@ import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
 
 /**
- * Finish and Discard with their bottom sheets, shared by the sets view and the Timer so both ask
- * the same questions. `askFinish` finishes at once when every set is ticked, otherwise asks first;
+ * Finish and Discard with their bottom sheets. `askFinish` finishes at once when every set is ticked, otherwise asks first;
  * a workout with nothing ticked is offered as a discard (an empty finished workout is clutter).
  * Render `sheets` once on the screen.
  */

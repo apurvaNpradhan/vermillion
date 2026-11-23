@@ -91,7 +91,6 @@ export function SessionSettingsSheet({
           </FixedSheetContent>
         </BottomSheet.Portal>
       </BottomSheet>
-      {settings.sheets}
       {training.sheets}
     </>
   );

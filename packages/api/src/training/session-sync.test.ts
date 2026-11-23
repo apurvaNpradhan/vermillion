@@ -585,6 +585,127 @@ describe("session upload handlers", () => {
     );
   });
 
+  it("stores the pause columns, defaulting for apps that do not send them", async () => {
+    const me = await writer("session-pause@example.com");
+    const legacy = uuidv7();
+    expect(await me.send([putSession(legacy)])).toEqual(applied);
+    expect(await stored("training_session", legacy)).toMatchObject({
+      paused_at: null,
+      paused_ms: "0",
+    });
+
+    const paused = uuidv7();
+    const pausedAt = minutesAgo(5);
+    expect(
+      await me.send([putSession(paused, { paused_at: pausedAt, paused_ms: 120_000 })]),
+    ).toEqual(applied);
+    expect(await stored("training_session", paused)).toMatchObject({ paused_ms: String(120_000) });
+    expect(Date.parse(String((await stored("training_session", paused))?.paused_at))).toBe(
+      Date.parse(pausedAt),
+    );
+
+    // Resume is a PATCH of just the two columns; an older app's PATCH leaves the pause alone.
+    expect(
+      await me.send([
+        op("PATCH", "training_session", paused, { paused_at: null, paused_ms: 420_000 }),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("training_session", paused)).toMatchObject({
+      paused_at: null,
+      paused_ms: "420000",
+    });
+    expect(await me.send([op("PATCH", "training_session", paused, { title: "Pull" })])).toEqual(
+      applied,
+    );
+    expect(await stored("training_session", paused)).toMatchObject({
+      title: "Pull",
+      paused_ms: "420000",
+    });
+  });
+
+  it("settles a pause still open when an older app finishes the Session", async () => {
+    const me = await writer("session-pause-settle@example.com");
+    const id = uuidv7();
+    const started = minutesAgo(30);
+    const pausedAt = minutesAgo(10);
+    const finishedAt = minutesAgo(4);
+    expect(
+      await me.send([
+        putSession(id, { started_at: started, paused_at: pausedAt, paused_ms: 60_000 }),
+      ]),
+    ).toEqual(applied);
+    // The older app does not know the pause: it only sets `finished_at`.
+    expect(
+      await me.send([op("PATCH", "training_session", id, { finished_at: finishedAt })]),
+    ).toEqual(applied);
+    expect(await stored("training_session", id)).toMatchObject({
+      paused_at: null,
+      paused_ms: String(60_000 + (Date.parse(finishedAt) - Date.parse(pausedAt))),
+    });
+  });
+
+  it("merges resumes from two installs once and preserves the total on a stale finish", async () => {
+    const client = app.client(await createSignedInUser(app, "session-pause-race@example.com"));
+    const { userId } = await client.sync.credentials();
+    const a = installOf(client, userId);
+    const b = installOf(client, userId);
+    const id = uuidv7(),
+      exercise = uuidv7(),
+      set = uuidv7();
+    const pausedAt = minutesAgo(10);
+    const timer = new Date(Date.parse(pausedAt) - 1000).toISOString();
+    const pausedMs = 700_000_000;
+    expect(
+      await a.send([
+        putSession(id, { paused_at: pausedAt, paused_ms: pausedMs }),
+        putExercise(exercise, id, duration, { exercise_type: "duration" }),
+        putSet(set, exercise, { timer_started_at: timer, target: null }),
+      ]),
+    ).toEqual(applied);
+    const before = { paused_at: pausedAt, paused_ms: pausedMs };
+    const resume = (more: number): SyncOp => ({
+      ...op("PATCH", "training_session", id, { paused_at: null, paused_ms: pausedMs + more }),
+      expect: before,
+    });
+    expect(await a.send([resume(300_000)])).toEqual(applied);
+    expect(await b.send([resume(200_000)])).toEqual(applied);
+    expect(Date.parse(String((await stored("session_set", set))?.timer_started_at))).toBe(
+      Date.parse(timer) + 300_000,
+    );
+    expect(
+      await b.send([
+        {
+          ...op("PATCH", "training_session", id, {
+            finished_at: minutesAgo(1),
+            paused_at: null,
+            paused_ms: pausedMs + 540_000,
+          }),
+          expect: before,
+        },
+      ]),
+    ).toEqual(applied);
+    expect(await stored("training_session", id)).toMatchObject({
+      paused_at: null,
+      paused_ms: String(pausedMs + 300_000),
+    });
+  });
+
+  it("refuses a pause before the start and a paused total out of range", async () => {
+    const me = await writer("session-pause-invalid@example.com");
+    const invalid = rejected("SYNC_INVALID_OP");
+    expect(await me.send([putSession(uuidv7(), { paused_at: minutesAgo(45) })])).toMatchObject(
+      invalid,
+    );
+    expect(await me.send([putSession(uuidv7(), { paused_ms: -1 })])).toMatchObject(invalid);
+    expect(
+      await me.send([putSession(uuidv7(), { paused_ms: Number.MAX_SAFE_INTEGER + 1 })]),
+    ).toMatchObject(invalid);
+    expect(await me.send([putSession(uuidv7(), { paused_ms: 1.5 })])).toMatchObject(invalid);
+    expect(await me.send([putSession(uuidv7(), { paused_at: "yesterday" })])).toMatchObject(
+      invalid,
+    );
+  });
+
   it("accepts import fingerprints and cascades a guarded undo of an untouched workout", async () => {
     const me = await writer("session-import-undo@example.com");
     const id = uuidv7(),

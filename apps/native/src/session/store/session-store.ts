@@ -52,7 +52,6 @@ export type Refusal = { setId: string; fields: readonly SetField[] };
 /** What the rows draw that is not in the Session or its lookups. */
 export type SessionUi = {
   readOnly: boolean;
-  inlineTimer: boolean;
   effortScale: EffortScale;
   countWarmups: boolean;
 };
@@ -135,7 +134,6 @@ export const DEFAULT_INPUTS: DeriveInputs = {
 
 export const DEFAULT_UI: SessionUi = {
   readOnly: false,
-  inlineTimer: true,
   effortScale: "rpe",
   countWarmups: false,
 };

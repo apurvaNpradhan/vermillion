@@ -81,9 +81,46 @@ function columnsFor(
  * can refuse the delete when another device completed the set meanwhile.
  */
 function expectationOf(entry: CrudEntry): Pick<SyncOp, "expect"> {
+  if (entry.op === "PATCH" && entry.table === "training_session") {
+    const data = entry.opData;
+    const previous = entry.previousValues;
+    if (
+      previous &&
+      data &&
+      ("paused_at" in data || (data.finished_at != null && previous.finished_at == null))
+    ) {
+      return {
+        expect: {
+          paused_at: previous.paused_at ?? null,
+          paused_ms: previous.paused_ms ?? 0,
+        },
+      };
+    }
+  }
   if (entry.op !== "DELETE" || entry.table !== "session_set") return {};
   const known = entry.previousValues?.completed_at;
   return known === undefined ? {} : { expect: { completed_at: known } };
+}
+
+/** Resume shifts are materialized locally for offline use and applied in bulk by the server. */
+function serverShiftsTimers(entry: CrudEntry) {
+  return (
+    entry.op === "PATCH" &&
+    entry.table === "training_session" &&
+    entry.opData?.paused_at === null &&
+    entry.opData.finished_at == null &&
+    entry.previousValues?.paused_at != null
+  );
+}
+
+function isTimerShift(entry: CrudEntry) {
+  return (
+    entry.op === "PATCH" &&
+    entry.table === "session_set" &&
+    entry.previousValues?.timer_started_at != null &&
+    entry.opData?.timer_started_at != null &&
+    Object.keys(entry.opData).length === 1
+  );
 }
 
 function toWireOp(entry: CrudEntry, columns: ReadonlySet<string> | undefined): SyncOp | null {
@@ -168,7 +205,9 @@ export function createConnector({
 
       let kept: KeptOp[];
       try {
+        const shiftsTimers = transaction.crud.some(serverShiftsTimers);
         kept = transaction.crud.flatMap((entry, ordinal) => {
+          if (shiftsTimers && isTimerShift(entry)) return [];
           const op = toWireOp(
             entry,
             columnsFor(

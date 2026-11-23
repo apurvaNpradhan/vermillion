@@ -88,7 +88,9 @@ internal object WorkoutNotification {
     }
     manager.createNotificationChannel(channel)
     preferences(context).edit().putString(STATE, state.toString()).apply()
-    val rest = state.getString("phase") == "rest"
+    // Paused: the clock stops, so show the frozen time as text instead of a chronometer, and no Rest runs.
+    val paused = state.optBoolean("paused", false)
+    val rest = !paused && state.getString("phase") == "rest"
     val endsAt = state.optLong("restEndsAtMs")
     val running = rest && endsAt > System.currentTimeMillis()
     val expired = rest && !running
@@ -96,7 +98,9 @@ internal object WorkoutNotification {
       .setSmallIcon(context.resources.getIdentifier("notification_icon", "drawable", context.packageName)
         .takeIf { it != 0 } ?: context.applicationInfo.icon)
       // The action leads: collapsed views show only the title and the header line.
-      .setContentTitle(if (expired) state.getString("restOver") else state.getString("text"))
+      .setContentTitle(
+        if (paused) state.getString("pausedText")
+        else if (expired) state.getString("restOver") else state.getString("text"))
       .setContentText(listOf(state.getString("title"), state.getString("next"))
         .filter { it.isNotEmpty() }.joinToString(" · "))
       .setContentIntent(PendingIntent.getActivity(context, 0,
@@ -106,8 +110,8 @@ internal object WorkoutNotification {
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setCategory(Notification.CATEGORY_WORKOUT)
-      .setShowWhen(!expired)
-      .setUsesChronometer(!expired)
+      .setShowWhen(!expired && !paused)
+      .setUsesChronometer(!expired && !paused)
       .setChronometerCountDown(running)
       .setWhen(if (running) endsAt else state.getLong("sessionStartedAtMs"))
     val segments = state.getJSONArray("segments")

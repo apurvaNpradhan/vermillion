@@ -26,6 +26,7 @@ const session = (id: string, started_at: string, sets: LoggedSet[]): FinishedSes
   id,
   started_at,
   finished_at: started_at,
+  pausedMs: 0,
   durationS: 3600,
   workoutId: null,
   title: "Push",
