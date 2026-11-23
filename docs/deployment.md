@@ -185,7 +185,7 @@ Workflow actions are pinned to commit SHAs and audited with zizmor in CI. When a
 
 ## Website
 
-`apps/web` is a prerendered TanStack Start site on a Cloudflare Worker (`sigil-web`), with the landing page, privacy policy, terms and the account-deletion page ([ADR 0053](adr/0053-public-website-on-workers.md)). It reads no environment variables and needs no database or API.
+`apps/web` is a prerendered TanStack Start site on a Cloudflare Worker (`sigil-web`), with the landing page, privacy policy, terms and the account-deletion page ([ADR 0053](adr/0053-public-website-on-workers.md)). It reads no environment variables. Only the Share link pages (`/p/<code>`, `/w/<code>`) call the API, on the server, at `appConfig.urls.api`; every other page is prerendered.
 
 Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --filter web build` writes `dist/`, and `pnpm --filter web preview` serves the production build the way the Worker does.
 
@@ -200,6 +200,12 @@ Run it locally with `pnpm --filter web dev` (http://localhost:3001). `pnpm --fil
 5. In Actions, run Deploy web on `main`. Verify that `curl -I https://sigil.<domain>/privacy` returns HTTP 200 directly and that an unknown URL returns HTTP 404.
 
 Pushes to `main` that change the website, shared TypeScript or package manager configuration, or the workflow trigger a deploy. To deploy by hand, set the two Cloudflare variables in the shell and run `pnpm --filter web deploy`.
+
+**Android App Links (Share links).** `/.well-known/assetlinks.json` is served by the Worker from `androidCertSha256` in `app.config.ts`, and is `[]` until you set it. It lets Android open `https://sigil.<domain>/p/<code>` and `/w/<code>` in the app ([ADR 0058](adr/0058-share-links.md)).
+
+1. Get the SHA-256 fingerprint of the key the installed APK is signed with: `keytool -list -v -keystore <release keystore>` (the release workflow's keystore), or Play Console → App integrity if Play re-signs. Debug and EAS builds have their own keys; add them as further entries to verify those builds.
+2. Put each fingerprint (`AA:BB:…`, 32 bytes) in the `androidCertSha256` list in `app.config.ts`, commit, and let Deploy web run.
+3. Check `curl -s https://sigil.<domain>/.well-known/assetlinks.json` returns the fingerprints with `application/json`, then install the app and run `adb shell pm get-app-links io.github.apurvanpradhan.sigil`: the site host should read `verified`. The intent filters ship with native stack revision 30, so users need a new build, not an OTA update.
 
 The policy and terms are drafts. Before submitting the site URLs to Google Play, review the open items in [privacy readiness](privacy-readiness.md) and verify that the support inbox accepts and can handle account-deletion requests. The intended URLs are `/privacy` and `/delete-account` on the public website host.
 

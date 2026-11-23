@@ -86,3 +86,6 @@ Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called verm
 - **Template** — one card layout for a kind: Session Summary, Muscles and Photo; the Workout card; Program Overview plus one card per Rotation slot.
 - **Sticker** — a Session's stats block alone as a transparent PNG, to lay over the user's own photo in a story.
 - **Share composer** — the full-screen route that previews a Share card and picks its Template, background and privacy toggles, remembered per kind on the device.
+- **Share link** — a short URL (`/p/<code>` for a Program, `/w/<code>` for a Workout) to a Snapshot. Opens in the app through Android App Links, or a web preview. Needs sign-in to make; the owner can revoke it ([0058](docs/adr/0058-share-links.md)).
+- **Snapshot** — the immutable, versioned JSON copy of a Program or Workout a Share link serves (`sigil.program/v1`, `sigil.workout/v1`). A finished Session becomes a Workout Snapshot (a template), never history.
+- **Code** — the 6 characters of a Share link, from an alphabet without 0, O, 1, I and L; typed into "Enter code".
