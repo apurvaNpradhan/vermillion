@@ -3,9 +3,11 @@ import { z } from "zod";
 import {
   EXERCISE_HISTORY_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   parseFinishedSessions,
   parseSessionDetail,
   readInstallId,
+  type SessionDetail,
   clearRest,
   adjustRest,
   tickSet,
@@ -38,13 +40,12 @@ type Options = z.infer<typeof liveOptionsSchema>;
 let queue = Promise.resolve();
 let held = "";
 
-async function snapshot(sessionId: string, options: Options) {
+/** The notification's state for a Session this device owns and has not finished; null otherwise. */
+async function snapshotOf(session: SessionDetail, installId: string | null, options: Options) {
+  if (session.finishedAt !== null || session.deviceId !== installId) return null;
   const local = await openLocalData();
   if (local.status !== "ready") throw new Error("Local storage unavailable");
   const db = local.database;
-  const installId = await readInstallId(db);
-  const session = parseSessionDetail(await db.getAll(SESSION_DETAIL_SQL, [sessionId]));
-  if (!session || session.finishedAt !== null || session.deviceId !== installId) return null;
   const ghosts = new Map<string, Ghosts>();
   // Only the current set's values are shown or logged, so only its exercise needs its history.
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
@@ -69,18 +70,39 @@ async function snapshot(sessionId: string, options: Options) {
   return { db, session, installId, ghosts, state };
 }
 
+/** A headless action reads the Session itself: no screen is mounted to share one with it. */
+async function snapshot(sessionId: string, options: Options) {
+  const local = await openLocalData();
+  if (local.status !== "ready") throw new Error("Local storage unavailable");
+  const db = local.database;
+  const installId = await readInstallId(db);
+  const session = parseSessionDetail(
+    await db.getAll(SESSION_DETAIL_SQL, [sessionId]),
+    await db.getAll(SESSION_LAST_NOTES_SQL, [sessionId]),
+  );
+  return session ? snapshotOf(session, installId, options) : null;
+}
+
 /** Serialize UI watches and headless actions in the same JS runtime. */
 function enqueue(run: () => Promise<void>) {
   queue = queue.catch(() => undefined).then(run);
   return queue;
 }
-export function refreshWorkoutLive(sessionId: string | null, options: Options) {
+/** The native chip is updated at most this often; the latest state always follows. */
+const LIVE_INTERVAL_MS = 1000;
+let lastRunAt = 0;
+let trailing: ReturnType<typeof setTimeout> | null = null;
+let pending: (() => Promise<void>) | null = null;
+
+function apply(
+  input: { session: SessionDetail; installId: string | null; granted: boolean } | null,
+  options: Options,
+) {
   return enqueue(async () => {
     if (!workoutLive) return;
-    const current =
-      sessionId && (await getNotificationPermission()) === "granted"
-        ? await snapshot(sessionId, options)
-        : null;
+    const current = input?.granted
+      ? await snapshotOf(input.session, input.installId, options)
+      : null;
     if (!current) {
       workoutLive.dismiss();
       held = "";
@@ -92,6 +114,40 @@ export function refreshWorkoutLive(sessionId: string | null, options: Options) {
       held = key;
     }
   });
+}
+
+/**
+ * Shows the Live notification for a Session the screens already watch (`null` dismisses it).
+ * Updates are throttled to one a second with a trailing call, so a burst of set writes costs one
+ * rebuild; dismissing is immediate. `granted` is the cached notification permission.
+ */
+export function refreshWorkoutLive(
+  input: { session: SessionDetail; installId: string | null; granted: boolean } | null,
+  options: Options,
+) {
+  if (!input) {
+    if (trailing) clearTimeout(trailing);
+    trailing = null;
+    pending = null;
+    return apply(null, options);
+  }
+  const run = () => {
+    lastRunAt = Date.now();
+    return apply(input, options);
+  };
+  const wait = LIVE_INTERVAL_MS - (Date.now() - lastRunAt);
+  if (wait <= 0 && !trailing) return run();
+  pending = run;
+  trailing ??= setTimeout(
+    () => {
+      trailing = null;
+      const next = pending;
+      pending = null;
+      void next?.().catch(() => undefined);
+    },
+    Math.max(wait, 0),
+  );
+  return Promise.resolve();
 }
 
 export function workoutLiveAction(data: { state: string; action: string }) {

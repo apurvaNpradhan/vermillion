@@ -8,20 +8,25 @@ import { useNotificationPermission } from "@/platform/notifications/permission-s
 import { refreshWorkoutLive } from "./workout-live";
 import { restSoundOn } from "@/session/settings/rest-sound";
 
-function SessionLive({ id }: { id: string | null }) {
+function SessionLive({ id, installId }: { id: string | null; installId: string }) {
+  // The shared watch: the same parse the Session screen reads, not a query of its own.
   const state = useSession(id ?? "");
   const permission = useNotificationPermission();
   const { preferences } = usePreferences();
   const { weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest } = preferences.ui;
+  const soundOn = restSoundOn({ sounds, soundRest });
+  const session = id && state.status === "ready" ? state.session : null;
+  const loading = id !== null && state.status === "loading";
+  const granted = permission === "granted";
   useEffect(() => {
-    if (id && state.status === "loading") return;
-    void refreshWorkoutLive(id, {
+    if (loading) return;
+    void refreshWorkoutLive(session ? { session, installId, granted } : null, {
       weightUnit,
       weightIncrementKg,
       lighterWeeks,
-      soundOn: restSoundOn({ sounds, soundRest }),
+      soundOn,
     }).catch(() => undefined);
-  }, [id, state, permission, weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest]);
+  }, [loading, session, installId, granted, weightUnit, weightIncrementKg, lighterWeeks, soundOn]);
   // Only on unmount: a changed option must not flash the notification away.
   useEffect(
     () => () => {
@@ -41,6 +46,9 @@ export function WorkoutLiveHost() {
   const installId = useInstallId();
   if (Platform.OS !== "android" || loading || !installId) return null;
   return (
-    <SessionLive id={sessions.find((session) => session.deviceId === installId)?.id ?? null} />
+    <SessionLive
+      id={sessions.find((session) => session.deviceId === installId)?.id ?? null}
+      installId={installId}
+    />
   );
 }

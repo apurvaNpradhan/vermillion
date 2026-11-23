@@ -13,7 +13,7 @@ import { RECENT_QUERY } from "../../exercise/library";
 import { performAgain, plannedFromLogged } from "./session-again-store";
 import { beginSession } from "./session-store";
 import { finishSession, startSession } from "./session-store";
-import { parseSessionDetail, SESSION_DETAIL_SQL } from "./session-watch";
+import { parseSessionDetail, SESSION_DETAIL_SQL, SESSION_LAST_NOTES_SQL } from "./session-watch";
 
 const derivedTitle = "Quadriceps";
 
@@ -102,7 +102,10 @@ describe("performAgain", () => {
     const { s, id } = await finishedLegs();
     await setExerciseSetting(s.training, SQUAT, { note: "Heels down" });
     const copy = await performAgain(s.training, id, derivedTitle);
-    const detail = parseSessionDetail(s.sqlite.prepare(SESSION_DETAIL_SQL).all(copy));
+    const detail = parseSessionDetail(
+      s.sqlite.prepare(SESSION_DETAIL_SQL).all(copy),
+      s.sqlite.prepare(SESSION_LAST_NOTES_SQL).all(copy),
+    );
     expect(detail?.exercises[0]).toMatchObject({ pinnedNote: "Heels down", lastNote: "Belt on" });
     expect(detail?.exercises[1]).toMatchObject({ pinnedNote: null, lastNote: null });
   });

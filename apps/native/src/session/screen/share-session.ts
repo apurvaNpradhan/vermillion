@@ -1,7 +1,29 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
-/** Rows hold plain JSON values written in a fixed key order, so their text compares them. */
-const sameJson = <T>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+/** A field value: a scalar, or a small nested JSON value (a set's target, an exercise's muscles). */
+type Field = string | number | boolean | null | undefined | Field[] | { [key: string]: Field };
+type Row = SessionSetDetail | SessionExerciseDetail | SessionDetail;
+
+const sameField = (a: Field, b: Field) =>
+  Object.is(a, b) ||
+  // Nested values are plain JSON written in a fixed key order, so their text compares them.
+  (a instanceof Object && b instanceof Object && JSON.stringify(a) === JSON.stringify(b));
+
+/**
+ * Every own field except `skip` equal. Rows are built field by field in a fixed order, so the
+ * entries line up; scalars compare directly, without stringifying the row.
+ */
+function sameFields(a: Row, b: Row, skip?: string): boolean {
+  const left = Object.entries<Field>(a).filter(([key]) => key !== skip);
+  const right = Object.entries<Field>(b).filter(([key]) => key !== skip);
+  return (
+    left.length === right.length &&
+    left.every(([key, value], index) => {
+      const other = right[index];
+      return other !== undefined && other[0] === key && sameField(value, other[1]);
+    })
+  );
+}
 
 /** `after` with every element equal to one in `before` (by id) replaced by that element. */
 function shareList<T extends { id: string }>(
@@ -20,7 +42,7 @@ function shareList<T extends { id: string }>(
 }
 
 const shareSet = (old: SessionSetDetail | undefined, next: SessionSetDetail) =>
-  old && sameJson(old, next) ? old : next;
+  old && sameFields(old, next) ? old : next;
 
 function shareExercise(
   old: SessionExerciseDetail | undefined,
@@ -28,7 +50,7 @@ function shareExercise(
 ): SessionExerciseDetail {
   if (!old) return next;
   const sets = shareList(old.sets, next.sets, shareSet);
-  if (sets === old.sets && sameJson({ ...old, sets: [] }, { ...next, sets: [] })) return old;
+  if (sets === old.sets && sameFields(old, next, "sets")) return old;
   return { ...next, sets };
 }
 
@@ -40,10 +62,6 @@ function shareExercise(
 export function shareSession(before: SessionDetail | null, after: SessionDetail): SessionDetail {
   if (!before || before.id !== after.id) return after;
   const exercises = shareList(before.exercises, after.exercises, shareExercise);
-  if (
-    exercises === before.exercises &&
-    sameJson({ ...before, exercises: [] }, { ...after, exercises: [] })
-  )
-    return before;
+  if (exercises === before.exercises && sameFields(before, after, "exercises")) return before;
   return { ...after, exercises };
 }

@@ -17,6 +17,7 @@ import {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   exerciseHistoriesSql,
@@ -653,4 +654,69 @@ it("reads auto warm-ups and the remembered bar for a session exercise, off by de
   expect(detail()?.exercises[0]).toMatchObject({ autoWarmups: false, barId: null });
   await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
   expect(detail()?.exercises[0]?.autoWarmups).toBe(true);
+});
+
+describe("Session detail queries", () => {
+  type Row = Record<string, string | number | null>;
+  /** The per-column subqueries the detail query used before the single setting join. */
+  const LEGACY_COLUMNS = `
+    (SELECT progression_per_set FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT bar_id FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS bar_id,
+    (SELECT auto_warmups FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
+    (SELECT note FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
+    (SELECT se2.note FROM session_exercise se2
+      JOIN training_session s2 ON s2.id = se2.session_id
+      WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
+        AND s2.started_at < s.started_at
+      ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
+  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note"] as const;
+
+  it("returns the same settings and last notes as the correlated subqueries did", async () => {
+    const s = await setupSessions();
+    const earlier = await finishedSquat(s, daysAgo(3), [100, 110]);
+    const [earlierExercise] = s.exercises(earlier).map((row) => String(row["id"]));
+    s.sqlite
+      .prepare("UPDATE session_exercise SET note = ? WHERE id = ?")
+      .run("Belt on", earlierExercise ?? "");
+    await setExerciseSetting(s.training, SQUAT, {
+      note: "Heels down",
+      progression_per_set: true,
+      auto_warmups: true,
+    });
+    const plan = await pushWorkout(s);
+    for (const workoutId of [plan.workoutId, null]) {
+      const id = await startSession(s.training, { workoutId, derivedTitle });
+      if (workoutId === null) await addSessionExercises(s.training, id, [SQUAT, PLANK]);
+      const legacy = s.sqlite
+        .prepare(
+          SESSION_DETAIL_SQL.replace(
+            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.note AS pinned_note,/,
+            `${LEGACY_COLUMNS},`,
+          )
+            .replace(/WITH first_setting AS \([\s\S]*?\)\n  SELECT/, "SELECT")
+            .replace(/  LEFT JOIN first_setting[^\n]*\n  LEFT JOIN exercise_setting[^\n]*\n/, ""),
+        )
+        .all(id) as Row[];
+      const current = s.sqlite.prepare(SESSION_DETAIL_SQL).all(id) as Row[];
+      const notes = new Map(
+        (s.sqlite.prepare(SESSION_LAST_NOTES_SQL).all(id) as Row[]).map((row) => [
+          row["exercise_id"],
+          row["last_note"],
+        ]),
+      );
+      expect(current.length).toBe(legacy.length);
+      expect(current.length).toBeGreaterThan(0);
+      current.forEach((row, index) => {
+        for (const column of COLUMNS) expect(row[column]).toBe(legacy[index]?.[column]);
+        expect(notes.get(row["exercise_id"])).toBe(legacy[index]?.["last_note"]);
+      });
+      // And the merged parse carries the notes through.
+      const detail = parseSessionDetail(current, s.sqlite.prepare(SESSION_LAST_NOTES_SQL).all(id));
+      expect(detail?.exercises[0]).toMatchObject({ pinnedNote: "Heels down", lastNote: "Belt on" });
+    }
+  });
 });
