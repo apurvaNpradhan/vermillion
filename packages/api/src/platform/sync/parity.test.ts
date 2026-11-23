@@ -240,7 +240,7 @@ const expectation: Expectation = {
         rest_started_at: { type: "timestamp with time zone", notNull: false, default: null },
         rest_ends_at: { type: "timestamp with time zone", notNull: false, default: null },
         paused_at: { type: "timestamp with time zone", notNull: false, default: null },
-        paused_ms: { type: "integer", notNull: true, default: "0" },
+        paused_ms: { type: "bigint", notNull: true, default: "0" },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },

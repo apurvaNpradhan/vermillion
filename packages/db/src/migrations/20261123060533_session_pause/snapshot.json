@@ -64,7 +64,7 @@
         "schema": "public",
         "table": "training_session",
         "name": "paused_ms",
-        "type": "integer",
+        "type": "bigint",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
@@ -80,7 +80,7 @@
         "schema": "public",
         "table": "training_session",
         "name": "session_paused_ms_range",
-        "value": "\"paused_ms\" BETWEEN 0 AND 604800000",
+        "value": "\"paused_ms\" BETWEEN 0 AND 9007199254740991",
         "entityType": "checks"
       }
     }

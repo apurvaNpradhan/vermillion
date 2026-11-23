@@ -57,10 +57,16 @@ export const syncOpSchema = z.object({
   opData: z.record(z.string(), syncValueSchema).optional(),
   /**
    * What the writing device last knew of columns it relies on, from PowerSync's previous values
-   * (DELETE only). The server refuses the operation, and so its transaction, when the stored row
-   * differs: a delete queued offline must not erase what another device completed since.
+   * so a queued delete cannot erase a completed set and a clock transition can be merged with
+   * changes from another device.
    */
-  expect: z.strictObject({ completed_at: z.iso.datetime({ offset: true }).nullable() }).optional(),
+  expect: z
+    .strictObject({
+      completed_at: z.iso.datetime({ offset: true }).nullable().optional(),
+      paused_at: z.iso.datetime({ offset: true }).nullable().optional(),
+      paused_ms: z.int().nonnegative().optional(),
+    })
+    .optional(),
 });
 export type SyncOp = z.infer<typeof syncOpSchema>;
 
@@ -190,20 +196,21 @@ const utf8Bytes = (text: string) => new TextEncoder().encode(text).length;
 
 const compareCodeUnits = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
+function canonicalFields(fields: { [key: string]: SyncValue | undefined }): string {
+  const entries = Object.entries(fields)
+    // Object.entries creates a fresh array; sort works on native runtimes without toSorted.
+    .sort(([a], [b]) => compareCodeUnits(a, b))
+    .flatMap(([key, value]) =>
+      value === undefined ? [] : [`${JSON.stringify(key)}:${JSON.stringify(value)}`],
+    );
+  return `{${entries.join(",")}}`;
+}
+
 function canonicalOp(op: SyncOp): string {
   // Keys in code-unit order: expect, id, op, opData, table.
   const parts = [`"id":${JSON.stringify(op.id)}`, `"op":${JSON.stringify(op.op)}`];
-  if (op.expect !== undefined) {
-    parts.unshift(`"expect":${JSON.stringify(op.expect)}`);
-  }
-  if (op.opData !== undefined) {
-    const data = Object.entries(op.opData)
-      // Object.entries creates a fresh array; sort works on native runtimes without toSorted.
-      .sort(([a], [b]) => compareCodeUnits(a, b))
-      .map(([key, value]) => `${JSON.stringify(key)}:${JSON.stringify(value satisfies SyncValue)}`)
-      .join(",");
-    parts.push(`"opData":{${data}}`);
-  }
+  if (op.expect !== undefined) parts.unshift(`"expect":${canonicalFields(op.expect)}`);
+  if (op.opData !== undefined) parts.push(`"opData":${canonicalFields(op.opData)}`);
   parts.push(`"table":${JSON.stringify(op.table)}`);
   return `{${parts.join(",")}}`;
 }

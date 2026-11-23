@@ -641,17 +641,20 @@ export function tickSet(
     if (!current) throw new Error("The set is gone");
     if (current.completed_at !== null) return { ok: true, wrote: false, values: {} };
     const now = Date.now();
+    const parent = await requireSessionExercise(tx, current.session_exercise_id);
     const duration = current.duration_s ?? current.target?.duration_s;
     if (expiresAt !== undefined) {
       const startedAt = Date.parse(current.timer_started_at ?? "");
-      if (duration == null || startedAt + duration * 1000 !== expiresAt || expiresAt > now) {
+      if (
+        duration == null ||
+        startedAt + duration * 1000 !== expiresAt ||
+        expiresAt > now ||
+        (await requireSession(tx, parent.session_id)).paused_at !== null
+      ) {
         return { ok: true, wrote: false, values: {} };
       }
     }
     const completedAt = expiresAt ?? now;
-    const parent = await requireSessionExercise(tx, current.session_exercise_id);
-    // Ticking a set is training: a paused Session resumes first, so its Rest and timers carry on.
-    if (expiresAt === undefined) await resumeIn(tx, parent.session_id, now);
     const result = tickValues(current, ghosts, SET_FIELDS[parent.exercise_type]);
     if (!result.ok) {
       // A countdown with a missing field keeps its elapsed duration and stops in the same write.
@@ -663,6 +666,8 @@ export function tickSet(
       }
       return result;
     }
+    // Only a successful manual tick resumes the workout.
+    if (expiresAt === undefined) await resumeIn(tx, parent.session_id, now);
     const changes = {
       ...result.values,
       completed_at: new Date(completedAt).toISOString(),

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { pauseExpiresAt } from "@workspace/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -17,7 +18,7 @@ const HOUR = 60 * 60 * 1000;
  * When the app comes to the foreground and the active Session's last tick is more than 3 hours
  * old, asks what to do: finish it at the last tick plus its rest, keep going, or discard it.
  * Nothing finishes in the background. A pause left running for 4 hours is ended the same way:
- * when the app opens or comes back, the workout resumes where the pause ran out. Mount once,
+ * at the deadline in the foreground, or where it ran out when the app comes back. Mount once,
  * inside the signed-in app.
  */
 export function ForgottenSessionHost() {
@@ -35,28 +36,47 @@ export function ForgottenSessionHost() {
     owner.current = { installId, resume: actions.resume };
   });
 
-  const resumeExpired = () => {
+  const check = useCallback(() => {
     const { installId: mine, resume } = owner.current;
-    if (mine === null) return;
-    for (const { id, resumeAt } of expiredPauses(latest.current, Date.now(), mine)) {
-      void resume(id, resumeAt);
+    const now = Date.now();
+    if (mine !== null) {
+      for (const { id, resumeAt } of expiredPauses(latest.current, now, mine)) {
+        void resume(id, resumeAt);
+      }
     }
-  };
-  const check = () => {
-    resumeExpired();
-    const found = forgottenSession(latest.current, Date.now(), snoozed.current);
-    setCandidateId((current) => (current === null ? (found?.id ?? null) : current));
-  };
+    const running = latest.current.filter((session) => session.pausedAt === null);
+    const found = forgottenSession(running, now, snoozed.current);
+    setCandidateId((current) =>
+      running.some((session) => session.id === current) ? current : (found?.id ?? null),
+    );
+  }, []);
   // When the app opens or the sessions first load, and every time it comes back to the front.
   useEffect(() => {
-    if (!loading && AppState.currentState === "active") check();
-  }, [loading, sessions]);
+    if (loading) return;
+    const now = Date.now();
+    if (AppState.currentState === "active") check();
+    const next = Math.min(
+      ...sessions.flatMap((session) => {
+        if (session.deviceId !== installId || session.pausedAt === null) return [];
+        const expiry = pauseExpiresAt(session.pausedAt);
+        return expiry > now ? [expiry] : [];
+      }),
+    );
+    if (!Number.isFinite(next)) return;
+    const timer = setTimeout(
+      () => {
+        if (AppState.currentState === "active") check();
+      },
+      next - now + 1,
+    );
+    return () => clearTimeout(timer);
+  }, [check, installId, loading, sessions]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
       if (next === "active") check();
     });
     return () => subscription.remove();
-  }, []);
+  }, [check]);
 
   const candidate = sessions.find((session) => session.id === candidateId) ?? null;
   const dismiss = () => {

@@ -1,6 +1,7 @@
 import {
   backfillEarliestMs,
   checkStartEdit,
+  pauseExpiresAt,
   resumeClock,
   shiftForPause,
   type StartEditProblem,
@@ -20,7 +21,7 @@ import { requireSession } from "./session-common";
  */
 export async function resumeIn(tx: Tx, sessionId: string, atMs: number = Date.now()) {
   const current = await requireSession(tx, sessionId);
-  if (current.paused_at === null) return false;
+  if (current.paused_at === null || current.finished_at !== null) return false;
   const pausedAtMs = Date.parse(current.paused_at);
   const { clock, spanMs } = resumeClock(
     {
@@ -61,7 +62,7 @@ export async function resumeIn(tx: Tx, sessionId: string, atMs: number = Date.no
     for (const set of running) {
       if (set.timerStartedAt === null) continue;
       const started = Date.parse(set.timerStartedAt);
-      if (Number.isNaN(started) || started >= pausedAtMs) continue;
+      if (Number.isNaN(started) || started > pausedAtMs) continue;
       await tx
         .update(sessionSet)
         .set({ timer_started_at: new Date(started + spanMs).toISOString() })
@@ -82,7 +83,12 @@ export function pauseSession(
 ): Promise<boolean> {
   return write(database, expectedInstallId, async (tx) => {
     const current = await requireSession(tx, sessionId);
-    if (current.finished_at !== null || current.paused_at !== null) return false;
+    if (
+      current.finished_at !== null ||
+      current.paused_at !== null ||
+      (expectedInstallId !== undefined && current.device_id !== expectedInstallId)
+    )
+      return false;
     await tx
       .update(session)
       .set({ paused_at: new Date().toISOString() })
@@ -102,7 +108,20 @@ export function resumeSession(
   expectedInstallId?: string,
   atMs?: number,
 ): Promise<boolean> {
-  return write(database, expectedInstallId, (tx) => resumeIn(tx, sessionId, atMs));
+  return write(database, expectedInstallId, async (tx) => {
+    const current = await requireSession(tx, sessionId);
+    if (expectedInstallId !== undefined && current.device_id !== expectedInstallId) return false;
+    if (atMs !== undefined) {
+      // A scheduled expiry can race with a later pause or a transfer to another device.
+      if (
+        current.paused_at === null ||
+        pauseExpiresAt(current.paused_at) !== atMs ||
+        atMs > Date.now()
+      )
+        return false;
+    }
+    return resumeIn(tx, sessionId, atMs);
+  });
 }
 
 export type SetStartResult = { ok: true } | { ok: false; problem: StartEditProblem };

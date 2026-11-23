@@ -1,7 +1,7 @@
 import { markRestEnded } from "@/session/rest/rest-ended";
 import { AppState } from "react-native";
 
-import type { Ghosts } from "@workspace/shared";
+import { pauseClock, resumeClock, type Ghosts } from "@workspace/shared";
 import type { SetPatch } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -85,7 +85,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
               ? pending.filter((write) => write.id !== id)
               : pending,
           );
-      if (!change?.set && !change?.rest) {
+      if (!change?.set && !change?.rest && !change?.clock) {
         drop();
         return;
       }
@@ -202,9 +202,31 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
     [actions.skipRest, addPreview, enqueueWrite, nudges, settle, store],
   );
 
+  const togglePause = useCallback(
+    async (sessionId: string) => {
+      const state = store.getState();
+      if (state.pending.some((write) => write.clock) || state.session.finishedAt !== null) return;
+      const { startedAt, pausedAt, pausedMs } = state.session;
+      const before = { startedAt, pausedAt, pausedMs };
+      const now = Date.now();
+      const clock = pausedAt === null ? pauseClock(before, now) : resumeClock(before, now).clock;
+      const id = Symbol();
+      state.updatePending((pending) => [...pending, { id, clock }]);
+      await enqueueWrite(async () => {
+        await nudges.release();
+        const wrote = await (pausedAt === null
+          ? actions.pause(sessionId)
+          : actions.resume(sessionId));
+        settle(id, wrote ? { clock } : undefined);
+      });
+    },
+    [actions.pause, actions.resume, enqueueWrite, nudges, settle, store],
+  );
+
   const nudgeRest = useCallback(
     (_sessionId: string, deltaSeconds: number) => {
-      nudges.add(store.getState().session.rest, deltaSeconds, Date.now());
+      const { rest, pausedAt } = store.getState().session;
+      nudges.add(rest, deltaSeconds, pausedAt === null ? Date.now() : Date.parse(pausedAt));
     },
     [nudges, store],
   );
@@ -218,7 +240,8 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       nudgeRest,
       updateValues,
       awaitWrites,
+      togglePause,
     }),
-    [actions, tick, untick, skipRest, nudgeRest, updateValues, awaitWrites],
+    [actions, tick, untick, skipRest, nudgeRest, updateValues, awaitWrites, togglePause],
   );
 }

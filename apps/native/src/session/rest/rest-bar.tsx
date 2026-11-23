@@ -56,7 +56,7 @@ export function RestBar({
 
   // The 3-2-1 beeps, once per second left, while this screen is in front.
   const beeped = useRef<string | null>(null);
-  const beepSecond = view.running ? countdownBeepSecond(view.remaining) : null;
+  const beepSecond = pausedAt === null && view.running ? countdownBeepSecond(view.remaining) : null;
   useEffect(() => {
     if (beepSecond === null) return;
     const key = `${rest.endsAt}:${beepSecond}`;

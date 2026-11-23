@@ -95,6 +95,20 @@ describe("pauseSession and resumeSession", () => {
     expect(row(s, t.id)).toMatchObject({ paused_at: null, paused_ms: 4 * 3600_000 });
   });
 
+  it("does not let a queued countdown or a refused tick change a paused workout", async () => {
+    const s = await setupSessions();
+    const { id, work1, hold } = await started(s);
+    await updateSet(s.training, hold, { duration_s: 30, timer_started_at: at(0) });
+    vi.setSystemTime(T0 + 20_000);
+    await pauseSession(s.training, id);
+    vi.setSystemTime(T0 + 40_000);
+    expect(
+      await tickSet(s.training, hold, { duration: 30 }, undefined, null, T0 + 30_000),
+    ).toMatchObject({ ok: true, wrote: false });
+    expect(await tickSet(s.training, work1, {})).toMatchObject({ ok: false });
+    expect(row(s, id)).toMatchObject({ paused_at: at(20) });
+  });
+
   it("does not pause a finished Session", async () => {
     const s = await setupSessions();
     const t = await started(s);

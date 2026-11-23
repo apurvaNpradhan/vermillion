@@ -5,6 +5,7 @@ import {
   type ExerciseType,
   type Ghosts,
   type SetField,
+  type SessionClock,
 } from "@workspace/shared";
 import type { SessionDetail, SessionSetDetail, SetPatch, TickResult } from "@workspace/sync";
 
@@ -38,6 +39,7 @@ export type PendingWrite = {
   saved?: boolean;
   set?: Change<SetChange, SessionSetDetail> & { id: string };
   rest?: Change<RestChange, Rest>;
+  clock?: SessionClock;
 };
 
 export type Pending = readonly PendingWrite[];
@@ -136,9 +138,16 @@ export function settled(pending: Pending, session: SessionDetail): Pending {
     const set =
       write.set && index > (confirmedSets.get(write.set.id) ?? -1) ? write.set : undefined;
     const rest = index > confirmedRest ? write.rest : undefined;
-    if (set === write.set && rest === write.rest) return [write];
+    const clock =
+      write.saved &&
+      write.clock &&
+      (session.finishedAt !== null ||
+        (session.pausedAt === null) === (write.clock.pausedAt === null))
+        ? undefined
+        : write.clock;
+    if (set === write.set && rest === write.rest && clock === write.clock) return [write];
     changed = true;
-    return set || rest || !write.saved ? [{ ...write, set, rest }] : [];
+    return set || rest || clock || !write.saved ? [{ ...write, set, rest, clock }] : [];
   });
   return changed ? next : pending;
 }

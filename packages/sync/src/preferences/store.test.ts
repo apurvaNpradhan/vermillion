@@ -48,11 +48,9 @@ describe("preferences store", () => {
     s.sqlite
       .prepare("UPDATE user_preferences SET ui = ?")
       .run(JSON.stringify({ weightUnit: "lb", sessionView: "timer", inlineTimer: false }));
-    const [row] = s.rows();
-    expect(readPreferencesRow(row as never).ui.weightUnit).toBe("lb");
+    expect((await readPreferences(s.database, "owner")).ui.weightUnit).toBe("lb");
     await savePreferences(s.database, { ui: { keepAwake: false } }, s.scope);
-    const [after] = s.rows();
-    expect(JSON.parse(String((after as { ui: string }).ui))).toEqual({
+    expect((await readPreferences(s.database, "owner")).ui).toMatchObject({
       weightUnit: "lb",
       sessionView: "timer",
       inlineTimer: false,

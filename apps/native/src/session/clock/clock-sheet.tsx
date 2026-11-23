@@ -7,7 +7,8 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 
-import { notAfter, sameDay } from "@/session/lifecycle/save-time";
+import { useSessionStore } from "@/session/store/session-store-context";
+import { sameDay } from "@/session/lifecycle/save-time";
 import { DateSheet } from "@/session/lifecycle/save-time-sheets";
 import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 import { SheetShell } from "@/session/shared/sheet-shell";
@@ -31,8 +32,6 @@ function BigClock({ clock }: { clock: SessionClock }) {
   );
 }
 
-type Pending = { kind: "pause"; at: string } | { kind: "resume" };
-
 /**
  * The workout clock, opened from the header: the time trained (large), when the workout started
  * (tap to change it) and Pause or Resume. Pausing stops the clock, the Rest and running set
@@ -45,8 +44,7 @@ export function ClockSheet({
   pausedAt,
   pausedMs,
   firstTickedAt,
-  onPause,
-  onResume,
+  onTogglePause,
   onSetStart,
 }: {
   isOpen: boolean;
@@ -55,20 +53,15 @@ export function ClockSheet({
   pausedAt: string | null;
   pausedMs: number;
   firstTickedAt: string | null;
-  onPause: () => Promise<boolean>;
-  onResume: () => Promise<boolean>;
+  onTogglePause: () => Promise<void>;
   /** Null when the write failed (already shown to the user). */
   onSetStart: (startedAt: string) => Promise<SetStartResult | null>;
 }) {
   const { t, i18n } = useTranslation();
   const { toast } = useAppToast();
-  // The local database takes a moment to deliver a write back: show Pause and Resume at once.
-  const [pending, setPending] = useState<Pending | null>(null);
-  useEffect(() => setPending(null), [pausedAt]);
-  const shownPausedAt =
-    pending?.kind === "pause" ? pending.at : pending?.kind === "resume" ? null : pausedAt;
-  const clock: SessionClock = { startedAt, pausedAt: shownPausedAt, pausedMs };
-  const paused = shownPausedAt !== null;
+  const preview = useSessionStore((state) => state.pending.find((write) => write.clock)?.clock);
+  const clock = preview ?? { startedAt, pausedAt, pausedMs };
+  const paused = clock.pausedAt !== null;
 
   const [editing, setEditing] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
@@ -87,13 +80,6 @@ export function ClockSheet({
       setDateOpen(false);
     }
   }, [isOpen]);
-
-  const toggle = async () => {
-    const was = paused;
-    setPending(was ? { kind: "resume" } : { kind: "pause", at: new Date().toISOString() });
-    const wrote = await (was ? onResume() : onPause());
-    if (!wrote) setPending(null);
-  };
 
   const openStart = () => {
     setDraft(new Date(startedAt));
@@ -122,13 +108,17 @@ export function ClockSheet({
         time: time.format(started),
       });
   const now = new Date();
-  const upper = new Date(latestStartMs({ nowMs: now.getTime(), firstTickedAt, pausedAt }));
+  const upper = new Date(
+    latestStartMs({ nowMs: now.getTime(), firstTickedAt, pausedAt: clock.pausedAt }),
+  );
 
   return (
     <>
       <SheetShell
         isOpen={isOpen && !editing}
-        onOpenChange={onOpenChange}
+        onOpenChange={(open) => {
+          if (!editing) onOpenChange(open);
+        }}
         title={t("session__clock_title")}
         description={t("session__clock_hint")}
       >
@@ -146,7 +136,11 @@ export function ClockSheet({
         >
           <Text className="font-normal text-body text-foreground">{startedText}</Text>
         </Pressable>
-        <Button variant="primary" onPress={() => void toggle()}>
+        <Button
+          variant="primary"
+          isDisabled={preview !== undefined}
+          onPress={() => void onTogglePause()}
+        >
           <Button.Label>
             {t(paused ? "session__clock_resume" : "session__clock_pause")}
           </Button.Label>
@@ -158,7 +152,8 @@ export function ClockSheet({
         startedAt={draft}
         now={now}
         language={i18n.language}
-        onChange={(date) => setDraft(notAfter(date, upper))}
+        latest={upper}
+        onChange={setDraft}
       />
     </>
   );

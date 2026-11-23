@@ -581,8 +581,7 @@ const LoadedSession = memo(function LoadedSession({
         pausedAt={session.pausedAt}
         pausedMs={session.pausedMs}
         firstTickedAt={clockOpen ? firstTickedAt(session) : null}
-        onPause={() => actions.pause(session.id)}
-        onResume={() => actions.resume(session.id)}
+        onTogglePause={() => actions.togglePause(session.id)}
         onSetStart={(startedAt) => actions.setStart(session.id, startedAt)}
       />
       <View

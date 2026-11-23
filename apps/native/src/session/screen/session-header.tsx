@@ -8,6 +8,7 @@ import { Button } from "@/platform/ui/button";
 import { OfflinePill } from "@/sync";
 
 import { formatElapsed } from "@/session/timer/clock";
+import { useSessionStore } from "@/session/store/session-store-context";
 import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 
 /**
@@ -29,13 +30,15 @@ function Clock({
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
-  const seconds = useActiveSeconds({ startedAt, pausedAt, pausedMs }, !frozen);
+  const preview = useSessionStore((state) => state.pending.find((write) => write.clock)?.clock);
+  const clock = preview ?? { startedAt, pausedAt, pausedMs };
+  const seconds = useActiveSeconds(clock, !frozen);
   const text = (
     <View className="flex-row items-center gap-1.5">
       <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
         {formatElapsed(seconds)}
       </Text>
-      {pausedAt === null ? null : (
+      {clock.pausedAt === null ? null : (
         <Text className="font-medium text-caption text-subtle">{t("session__paused_label")}</Text>
       )}
     </View>

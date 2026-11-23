@@ -41,6 +41,8 @@ import { useCallback, useMemo } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { cancelRestNotification } from "@/session/notifications/rest-notification";
+import { restNotificationId } from "@/session/rest/rest-schedule";
 import { UNDO_MS, useTrainingWrite } from "@/training";
 import { useLocalData } from "@/sync";
 
@@ -248,7 +250,12 @@ export function useSessionActions() {
 
   /** Stops the Session's clock, Rest and timers. False when it was not running. */
   const pause = useCallback(
-    (id: string) => write((db) => pauseSession(db, id, writeScope), false),
+    (id: string) =>
+      write(async (db) => {
+        const paused = await pauseSession(db, id, writeScope);
+        if (paused) void cancelRestNotification(restNotificationId(id));
+        return paused;
+      }, false),
     [write, writeScope],
   );
 

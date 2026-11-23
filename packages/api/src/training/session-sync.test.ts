@@ -591,7 +591,7 @@ describe("session upload handlers", () => {
     expect(await me.send([putSession(legacy)])).toEqual(applied);
     expect(await stored("training_session", legacy)).toMatchObject({
       paused_at: null,
-      paused_ms: 0,
+      paused_ms: "0",
     });
 
     const paused = uuidv7();
@@ -599,7 +599,7 @@ describe("session upload handlers", () => {
     expect(
       await me.send([putSession(paused, { paused_at: pausedAt, paused_ms: 120_000 })]),
     ).toEqual(applied);
-    expect(await stored("training_session", paused)).toMatchObject({ paused_ms: 120_000 });
+    expect(await stored("training_session", paused)).toMatchObject({ paused_ms: String(120_000) });
     expect(Date.parse(String((await stored("training_session", paused))?.paused_at))).toBe(
       Date.parse(pausedAt),
     );
@@ -612,14 +612,14 @@ describe("session upload handlers", () => {
     ).toEqual(applied);
     expect(await stored("training_session", paused)).toMatchObject({
       paused_at: null,
-      paused_ms: 420_000,
+      paused_ms: "420000",
     });
     expect(await me.send([op("PATCH", "training_session", paused, { title: "Pull" })])).toEqual(
       applied,
     );
     expect(await stored("training_session", paused)).toMatchObject({
       title: "Pull",
-      paused_ms: 420_000,
+      paused_ms: "420000",
     });
   });
 
@@ -640,7 +640,53 @@ describe("session upload handlers", () => {
     ).toEqual(applied);
     expect(await stored("training_session", id)).toMatchObject({
       paused_at: null,
-      paused_ms: 60_000 + (Date.parse(finishedAt) - Date.parse(pausedAt)),
+      paused_ms: String(60_000 + (Date.parse(finishedAt) - Date.parse(pausedAt))),
+    });
+  });
+
+  it("merges resumes from two installs once and preserves the total on a stale finish", async () => {
+    const client = app.client(await createSignedInUser(app, "session-pause-race@example.com"));
+    const { userId } = await client.sync.credentials();
+    const a = installOf(client, userId);
+    const b = installOf(client, userId);
+    const id = uuidv7(),
+      exercise = uuidv7(),
+      set = uuidv7();
+    const pausedAt = minutesAgo(10);
+    const timer = new Date(Date.parse(pausedAt) - 1000).toISOString();
+    const pausedMs = 700_000_000;
+    expect(
+      await a.send([
+        putSession(id, { paused_at: pausedAt, paused_ms: pausedMs }),
+        putExercise(exercise, id, duration, { exercise_type: "duration" }),
+        putSet(set, exercise, { timer_started_at: timer, target: null }),
+      ]),
+    ).toEqual(applied);
+    const before = { paused_at: pausedAt, paused_ms: pausedMs };
+    const resume = (more: number): SyncOp => ({
+      ...op("PATCH", "training_session", id, { paused_at: null, paused_ms: pausedMs + more }),
+      expect: before,
+    });
+    expect(await a.send([resume(300_000)])).toEqual(applied);
+    expect(await b.send([resume(200_000)])).toEqual(applied);
+    expect(Date.parse(String((await stored("session_set", set))?.timer_started_at))).toBe(
+      Date.parse(timer) + 300_000,
+    );
+    expect(
+      await b.send([
+        {
+          ...op("PATCH", "training_session", id, {
+            finished_at: minutesAgo(1),
+            paused_at: null,
+            paused_ms: pausedMs + 540_000,
+          }),
+          expect: before,
+        },
+      ]),
+    ).toEqual(applied);
+    expect(await stored("training_session", id)).toMatchObject({
+      paused_at: null,
+      paused_ms: String(pausedMs + 300_000),
     });
   });
 
@@ -651,9 +697,9 @@ describe("session upload handlers", () => {
       invalid,
     );
     expect(await me.send([putSession(uuidv7(), { paused_ms: -1 })])).toMatchObject(invalid);
-    expect(await me.send([putSession(uuidv7(), { paused_ms: 604_800_001 })])).toMatchObject(
-      invalid,
-    );
+    expect(
+      await me.send([putSession(uuidv7(), { paused_ms: Number.MAX_SAFE_INTEGER + 1 })]),
+    ).toMatchObject(invalid);
     expect(await me.send([putSession(uuidv7(), { paused_ms: 1.5 })])).toMatchObject(invalid);
     expect(await me.send([putSession(uuidv7(), { paused_at: "yesterday" })])).toMatchObject(
       invalid,

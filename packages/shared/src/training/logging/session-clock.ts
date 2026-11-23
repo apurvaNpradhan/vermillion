@@ -17,9 +17,6 @@ export type SessionClock = {
 /** A pause left this long is ended for the user: the Session carries on as if resumed. */
 export const PAUSE_AUTO_RESUME_MS = 4 * 60 * 60 * 1000;
 
-/** Most paused time one Session can hold, in milliseconds (fits a 32-bit column). */
-export const PAUSED_MS_MAX = 7 * 24 * 60 * 60 * 1000;
-
 const parse = (value: string) => {
   const time = Date.parse(value);
   return Number.isNaN(time) ? null : time;
@@ -84,12 +81,13 @@ export type Resumed = {
 export function resumeClock(clock: SessionClock, atMs: number): Resumed {
   if (clock.pausedAt === null) return { clock, spanMs: 0 };
   const pausedAt = parse(clock.pausedAt);
-  const spanMs = pausedAt === null ? 0 : Math.max(0, atMs - pausedAt);
+  const spanMs =
+    pausedAt === null ? 0 : Math.min(PAUSE_AUTO_RESUME_MS, Math.max(0, atMs - pausedAt));
   return {
     clock: {
       startedAt: clock.startedAt,
       pausedAt: null,
-      pausedMs: Math.min(PAUSED_MS_MAX, clock.pausedMs + spanMs),
+      pausedMs: Math.min(Number.MAX_SAFE_INTEGER, clock.pausedMs + spanMs),
     },
     spanMs,
   };
@@ -122,7 +120,8 @@ export type TimedSpan = { startedAt: string; endsAt: string };
 export function shiftForPause(span: TimedSpan, pausedAtMs: number, spanMs: number): TimedSpan {
   const end = parse(span.endsAt);
   const start = parse(span.startedAt);
-  if (end === null || start === null || spanMs <= 0 || end <= pausedAtMs) return span;
+  if (end === null || start === null || spanMs <= 0 || start > pausedAtMs || end <= pausedAtMs)
+    return span;
   return {
     startedAt: new Date(start + spanMs).toISOString(),
     endsAt: new Date(end + spanMs).toISOString(),

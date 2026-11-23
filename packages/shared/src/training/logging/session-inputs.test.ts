@@ -118,8 +118,10 @@ describe("sessionInput", () => {
     );
     expect(sessionInput.safeParse({ ...session, paused_ms: -1 }).success).toBe(false);
     expect(sessionInput.safeParse({ ...session, paused_ms: 1.5 }).success).toBe(false);
-    expect(sessionInput.safeParse({ ...session, paused_ms: 604_800_001 }).success).toBe(false);
-    expect(sessionInput.safeParse({ ...session, paused_ms: 604_800_000 }).success).toBe(true);
+    expect(
+      sessionInput.safeParse({ ...session, paused_ms: Number.MAX_SAFE_INTEGER + 1 }).success,
+    ).toBe(false);
+    expect(sessionInput.safeParse({ ...session, paused_ms: 604_800_001 }).success).toBe(true);
   });
 
   it("settles a pause still open at the finish into the paused total", () => {

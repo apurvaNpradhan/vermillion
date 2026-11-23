@@ -7,7 +7,7 @@ import {
   type SetField,
 } from "../../exercise/vocabulary";
 import { positionKey } from "../vocabulary/inputs";
-import { PAUSED_MS_MAX, finishClock } from "./session-clock";
+import { finishClock } from "./session-clock";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
 import {
   EFFORT_STEPS,
@@ -49,7 +49,7 @@ export const sessionInput = z.strictObject({
   /** When the current pause began; null while the Session runs. */
   paused_at: timestamp.nullable(),
   /** Milliseconds of earlier pauses, which the duration leaves out. */
-  paused_ms: z.number().int().min(0).max(PAUSED_MS_MAX),
+  paused_ms: z.int().nonnegative(),
 });
 export type SessionInput = z.infer<typeof sessionInput>;
 

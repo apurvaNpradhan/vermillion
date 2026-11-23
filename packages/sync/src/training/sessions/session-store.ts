@@ -343,7 +343,15 @@ export function finishSession(
     if (input.startedAt !== undefined && !sessionStartAllowed(input.startedAt)) {
       throw new Error("A workout starts within the last 10 years and not in the future");
     }
-    const finishedAt = input.finishedAt ?? nowIso();
+    const end = input.finishedAt ?? nowIso();
+    const pausedMs = finishClock(
+      { startedAt, pausedAt: current.paused_at, pausedMs: current.paused_ms ?? 0 },
+      Date.parse(end),
+    ).pausedMs;
+    const finishedAt =
+      input.finishedAt === undefined && input.durationSeconds != null
+        ? new Date(Date.parse(startedAt) + input.durationSeconds * 1000 + pausedMs).toISOString()
+        : end;
     const edited = input.title !== undefined && input.title !== current.title;
     const parsed = sessionInput.parse({
       workout_id: current.workout_id,
@@ -363,10 +371,7 @@ export function finishSession(
       rest_ends_at: null,
       // Finishing while paused resumes at the finish: the open pause counts as paused.
       paused_at: null,
-      paused_ms: finishClock(
-        { startedAt, pausedAt: current.paused_at, pausedMs: current.paused_ms ?? 0 },
-        Date.parse(finishedAt),
-      ).pausedMs,
+      paused_ms: pausedMs,
     });
     if (!sessionTimesConsistent(parsed)) throw new Error("A workout cannot end before it starts");
 
