@@ -1,34 +1,29 @@
-import { isTargetMuscle, muscleShares, type TargetMuscle } from "@workspace/shared";
+import { isTargetMuscle, type TargetMuscle } from "@workspace/shared";
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
-import { BodyMapPair, isBodyGroup, muscleArtTint, type BodyGroup } from "@/body-map";
-import { haptic } from "@/platform/haptics";
+import {
+  BodyMapPair,
+  BodyRegionIcon,
+  isBodyGroup,
+  muscleArtTint,
+  type BodyGroup,
+} from "@/body-map";
 import { useTranslation } from "@/platform/i18n";
 import { nativeColors } from "@workspace/ui/tokens/brand";
 import { useAppliedVariant, useThemeMode } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { ScrollPage } from "@/platform/ui/page";
-import { PeriodCard } from "@/platform/ui/period-card";
-import { RadarChart } from "@/platform/ui/radar-chart";
-import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-control";
+import { useActiveProgram } from "@/training/programs/use-active-program";
 
 import { bodyIntensity } from "./muscle-bars";
-import { MuscleDistribution } from "./muscle-distribution";
 import { MuscleGoalSheet } from "./muscle-goal-sheet";
 import { groupParts } from "./muscle-parts";
+import { MUSCLE_REGIONS, regionRows } from "./muscle-regions";
 import { MuscleRow } from "./muscle-row";
-import { muscleRadarAxes, radarValue } from "./muscle-axes";
-import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useMuscleVolume } from "./use-muscle-volume";
 
-/** The furthest back the period card goes. */
-const MAX_WEEKS_AGO = 12;
-const DAY_MS = 86_400_000;
-
-type Span = "week" | "four";
-const WEEKS: Record<Span, number> = { week: 1, four: 4 };
 const MAP_LEVELS = ["untrained", "low", "mid", "high"] as const;
 const SAMPLE_INTENSITY = {
   chest: 0.9,
@@ -40,172 +35,50 @@ const SAMPLE_INTENSITY = {
 } satisfies Partial<Record<BodyGroup, number>>;
 
 /**
- * Muscles: a period card (Week, or the average a week over the four whole weeks before it) with a
- * radar of weighted muscle volume in six groups against their targets, the body map tinted from
- * quiet to the accent, and every muscle under it, below target first. A row opens that muscle's
- * goal; the arrows and a swipe step back a week at a time. The card and its controls stay
- * mounted while the next period loads, showing the previous one until it lands.
+ * Muscles: how many muscles are on target, this week's body map (a heat map in the accent), then
+ * every muscle under its movement (Push, Pull, Legs, Core) as this week's sets against the weekly
+ * target, with a marker for the four weeks before. A row opens that muscle's eight weeks as bars,
+ * with its goal. Reached from History.
  */
 export function MusclesScreen() {
-  const { t, i18n } = useTranslation();
-  const [span, setSpan] = useState<Span>("week");
-  const [weeksAgo, setWeeksAgo] = useState(0);
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  const { t } = useTranslation();
   const program = useActiveProgram();
-  const volume = useMuscleVolume(weeksAgo, program.program, WEEKS[span]);
+  const volume = useMuscleVolume(program.program);
   const [chosen, setChosen] = useState<TargetMuscle | null>(null);
   const [showSample, setShowSample] = useState(false);
   const sampleVisible = __DEV__ && showSample;
   const colors = nativeColors[useAppliedVariant()];
-  const options: SegmentedOption<Span>[] = [
-    { value: "week", label: t("muscles__period_week") },
-    { value: "four", label: t("muscles__period_four") },
-  ];
-  const date = (day: number) =>
-    new Intl.DateTimeFormat(i18n.language, {
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    }).format(day);
-  const range = t("muscles__week_range", {
-    start: date(volume.week.start),
-    end: date(volume.week.end - DAY_MS),
-  });
-  // Label and figures come from the period on screen, which lags the chosen one while it loads.
-  const shownFour = volume.weeks > 1;
-  const title = shownFour
-    ? volume.weeksAgo === 0
-      ? t("muscles__last_four")
-      : range
-    : volume.weeksAgo === 0
-      ? t("muscles__this_week")
-      : volume.weeksAgo === 1
-        ? t("muscles__last_week")
-        : range;
   const targets = volume.rows.filter((row) => row.status !== null);
-  const rounded = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(
-    volume.completedSets,
-  );
-  // With no target the headline is the sets actually done, not the weighted volume the radar draws.
-  const headlineText =
-    targets.length > 0
-      ? t("muscles__tile_value", { done: volume.onTarget, total: targets.length })
-      : shownFour
-        ? t("muscles__avg_per_week", { sets: rounded })
-        : t("stats__sets", { count: Math.round(volume.completedSets) });
-  const axes = useMemo(
-    () => muscleRadarAxes(volume.loads, volume.rows),
-    [volume.loads, volume.rows],
-  );
-  const hasTarget = axes.some((axis) => axis.target !== null);
-  const axisName = (key: (typeof axes)[number]["key"]) => t(`muscles__axis_${key}`);
-  const radarAxes = useMemo(
-    () =>
-      axes.map((axis) => ({
-        key: axis.key,
-        label: t(`muscles__axis_${axis.key}`),
-        value: radarValue(axis),
-        target: axis.target,
-      })),
-    [axes, t],
-  );
-  const shares = useMemo(
-    () => muscleShares(volume.loads, volume.detailLoads),
-    [volume.loads, volume.detailLoads],
-  );
   const peak = Math.max(1, ...volume.loads.map((load) => load.sets));
   const intensity: Partial<Record<BodyGroup, number>> = {};
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
   const dark = useThemeMode() === "dark";
   const artTint = useMemo(() => muscleArtTint(colors.chart, dark), [colors.chart, dark]);
-  const canPrevious = weeksAgo < MAX_WEEKS_AGO;
-  const canNext = weeksAgo > 0;
-  const step = (by: -1 | 1) => {
-    // Next (+1) moves toward today, which is fewer weeks ago.
-    const next = Math.min(MAX_WEEKS_AGO, Math.max(0, weeksAgo - by));
-    if (next === weeksAgo) return;
-    haptic.tick();
-    setDirection(by);
-    setWeeksAgo(next);
-  };
+  const regions = useMemo(() => regionRows(volume.rows), [volume.rows]);
   return (
-    <ScrollPage title={t("muscles__title")} back backFallback="/">
-      <SegmentedControl
-        options={options}
-        value={span}
-        accessibilityLabel={t("muscles__period_label")}
-        onChange={(next) => {
-          setDirection(0);
-          setSpan(next);
-        }}
-      />
+    <ScrollPage title={t("muscles__title")} back backFallback="/history">
       {volume.failed ? (
         <Button variant="secondary" onPress={volume.retry}>
           <Button.Label>{t("training__retry")}</Button.Label>
         </Button>
       ) : volume.loading || !program.ready ? null : (
         <FadeIn className="gap-6">
-          <PeriodCard
-            title={title}
-            period={`${span}-${weeksAgo}`}
-            direction={direction}
-            canPrevious={canPrevious}
-            canNext={canNext}
-            previousLabel={t("muscles__previous_week")}
-            nextLabel={t("muscles__next_week")}
-            onMove={step}
-            headline={
-              <Text className="font-medium text-numeric-md tabular-nums text-foreground">
-                {headlineText}
-              </Text>
-            }
-          >
-            <View className="gap-2">
-              <RadarChart
-                axes={radarAxes}
-                accessibilityLabel={t("muscles__radar_label", {
-                  values: axes
-                    .map((axis) => {
-                      const format = new Intl.NumberFormat(i18n.language, {
-                        maximumFractionDigits: 1,
-                      });
-                      return axis.target === null
-                        ? t("muscles__radar_value", {
-                            axis: axisName(axis.key),
-                            sets: format.format(radarValue(axis)),
-                          })
-                        : t("muscles__radar_value_target", {
-                            axis: axisName(axis.key),
-                            sets: format.format(radarValue(axis)),
-                            target: format.format(axis.target),
-                          });
-                    })
-                    .join(", "),
-                })}
-              />
-              <Text className="font-normal text-center text-caption text-muted">
-                {t(hasTarget ? "muscles__radar_caption_target" : "muscles__radar_caption")}
-              </Text>
-            </View>
-          </PeriodCard>
-          <View className="gap-3 rounded-2xl bg-surface p-4">
-            <Text
-              accessibilityRole="header"
-              className="font-semibold text-title-md text-foreground"
-            >
-              {t("muscles__distribution_title")}
-            </Text>
-            <Text className="font-normal text-caption text-muted">
-              {t("muscles__distribution_caption")}
-            </Text>
-            <MuscleDistribution shares={shares} />
-          </View>
           <View className="gap-4 rounded-2xl bg-surface p-4">
             <View className="flex-row flex-wrap items-center justify-between gap-2">
-              <Text className="font-semibold text-title-md text-foreground">
-                {t("muscles__map_title")}
-              </Text>
+              <View className="gap-1">
+                <Text
+                  accessibilityRole="header"
+                  className="font-semibold text-title-md text-foreground"
+                >
+                  {t("muscles__map_title")}
+                </Text>
+                {targets.length > 0 ? (
+                  <Text className="font-normal text-caption tabular-nums text-muted">
+                    {t("muscles__tile_value", { done: volume.onTarget, total: targets.length })}
+                  </Text>
+                ) : null}
+              </View>
               {__DEV__ ? (
                 <Button
                   variant="secondary"
@@ -259,17 +132,34 @@ export function MusclesScreen() {
               {t("muscles__empty")}
             </Text>
           ) : null}
-          <View className="gap-1 rounded-2xl bg-surface py-2">
-            {volume.rows.map((row) => (
-              <MuscleRow
-                key={row.muscle}
-                row={row}
-                peak={peak}
-                parts={groupParts(volume.detailLoads, row.muscle)}
-                onPress={() => setChosen(row.muscle)}
-              />
-            ))}
-          </View>
+          {regions.map((region) => {
+            const definition = MUSCLE_REGIONS.find((candidate) => candidate.key === region.key);
+            return (
+              <View key={region.key} className="gap-1 rounded-2xl bg-surface py-2">
+                <View className="flex-row items-center gap-3 px-3 py-2">
+                  {definition ? (
+                    <BodyRegionIcon groups={definition.icon} view={definition.view} size={32} />
+                  ) : null}
+                  <Text
+                    accessibilityRole="header"
+                    className="font-semibold text-title-md text-foreground"
+                  >
+                    {t(`muscles__region_${region.key}`)}
+                  </Text>
+                </View>
+                {region.rows.map((row) => (
+                  <MuscleRow
+                    key={row.muscle}
+                    row={row}
+                    peak={peak}
+                    average={volume.average(row.muscle)}
+                    parts={groupParts(volume.detailLoads, row.muscle)}
+                    onPress={() => setChosen(row.muscle)}
+                  />
+                ))}
+              </View>
+            );
+          })}
         </FadeIn>
       )}
       {chosen !== null && isTargetMuscle(chosen) ? (
@@ -281,6 +171,8 @@ export function MusclesScreen() {
               ? null
               : (volume.planned.find((row) => row.muscle === chosen)?.sets ?? 0)
           }
+          weeks={volume.trend.weeks}
+          series={volume.trend.sets.get(chosen) ?? []}
           contributions={volume.contributions(chosen)}
           onChange={(goal) => volume.setGoal(chosen, goal)}
           onClose={() => setChosen(null)}

@@ -8,13 +8,15 @@ import {
   type MuscleContribution,
   type MuscleGoal,
   type TargetMuscle,
+  type WeekRange,
 } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { BarChart } from "@/platform/ui/charts/chart";
+import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { Button } from "@/platform/ui/button";
 import { Field } from "@/platform/ui/field";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
@@ -34,13 +36,16 @@ const LEVEL_KEYS = {
 } as const satisfies Record<GoalLevel, string>;
 
 /**
- * Pick a muscle's goal level (Maintain, Grow, Focus or Custom with two number fields) and see the
- * exercises that gave it sets this week. Presets save at once; Custom saves with its button.
+ * One muscle: its last eight weeks as bars (the goal's minimum dashed across them), its goal level
+ * (Maintain, Grow, Focus or Custom with two number fields) and the exercises that gave it sets
+ * this week. Presets save at once; Custom saves with its button.
  */
 export function MuscleGoalSheet({
   muscle,
   goal,
   planned,
+  weeks,
+  series,
   contributions,
   onChange,
   onClose,
@@ -48,6 +53,10 @@ export function MuscleGoalSheet({
   muscle: TargetMuscle;
   goal: MuscleGoal | undefined;
   planned: number | null;
+  /** The eight weeks of the chart, oldest first. */
+  weeks: readonly WeekRange[];
+  /** Weighted sets in each of those weeks. */
+  series: readonly number[];
   contributions: readonly MuscleContribution[];
   onChange: (goal: MuscleGoal | null) => void;
   onClose: () => void;
@@ -59,6 +68,17 @@ export function MuscleGoalSheet({
   const [min, setMin] = useState(String(range.min));
   const [max, setMax] = useState(String(range.max));
   const parsed = customGoal(min, max);
+  const date = new Intl.DateTimeFormat(i18n.language, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const points = weeks.map((week, index) => ({
+    id: String(week.start),
+    x: week.start,
+    y: series[index] ?? 0,
+    label: t("muscles__week_of", { date: date.format(week.start) }),
+  }));
   const preset = picked === null || picked === "custom" ? null : GOAL_RANGES[picked];
   return (
     <BottomSheet
@@ -69,15 +89,18 @@ export function MuscleGoalSheet({
     >
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          backgroundClassName="rounded-t-[28px] bg-overlay"
-          contentContainerClassName="gap-4 px-4 pb-4"
-        >
+        <ScrollableSheetContent>
           {sheet.probe}
           <BottomSheet.Title className="font-semibold text-title-lg">
             {t("muscles__goal_title", { muscle: t(MUSCLE_GROUP_KEYS[muscle]) })}
           </BottomSheet.Title>
+          <BarChart
+            showRanges={false}
+            goal={goal === undefined && planned === null ? null : range.min}
+            points={points}
+            label={t("muscles__chart_label", { muscle: t(MUSCLE_GROUP_KEYS[muscle]) })}
+            formatValue={(value) => t("stats__sets", { count: Math.round(value) })}
+          />
           {planned === null ? null : (
             <SegmentedControl
               accessibilityLabel={t("muscles__goal_label")}
@@ -167,7 +190,7 @@ export function MuscleGoalSheet({
               </Text>
             ) : null}
           </View>
-        </BottomSheet.Content>
+        </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
   );

@@ -16,6 +16,13 @@ describe("barLayout", () => {
     expect(layout.bandEnd).toBeCloseTo(0.5);
   });
 
+  it("places the average marker on the same scale and widens it past the range", () => {
+    expect(barLayout(9, { min: 10, max: 20 }, 9, 10).average).toBeCloseTo(10 / 25);
+    const wide = barLayout(5, { min: 10, max: 20 }, 5, 40);
+    expect(wide.average).toBe(1);
+    expect(wide.fill).toBeCloseTo(5 / 40);
+  });
+
   it("handles an empty muscle", () => {
     expect(barLayout(0, { min: 10, max: 20 }).fill).toBe(0);
   });

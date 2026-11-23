@@ -9,16 +9,18 @@ import {
 const HEADROOM = 1.25;
 
 /**
- * Where a muscle's bar draws, as fractions of the track (0 to 1): the filled value and the quiet
- * band of its range. The track is as long as the biggest of the range's top plus headroom and
- * the sets, so a muscle far above its range still fits.
+ * Where a muscle's bar draws, as fractions of the track (0 to 1): the filled value, the quiet
+ * band of its range and the marker of its four-week average. The track is as long as the biggest
+ * of the range's top plus headroom, the sets and the average, so a muscle far above its range
+ * still fits.
  */
-export function barLayout(sets: number, range: SetRange | null, peak = sets) {
-  const scale = Math.max((range?.max ?? peak) * HEADROOM, sets, 1);
+export function barLayout(sets: number, range: SetRange | null, peak = sets, average = 0) {
+  const scale = Math.max((range?.max ?? peak) * HEADROOM, sets, average, 1);
   return {
     fill: sets / scale,
     bandStart: (range?.min ?? 0) / scale,
     bandEnd: (range?.max ?? 0) / scale,
+    average: average / scale,
   };
 }
 
