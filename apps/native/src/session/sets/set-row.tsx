@@ -53,7 +53,6 @@ export type SetRowProps = {
   historyReady: boolean;
   editingFinished: boolean;
   /** The Inline timer preference: a running timer still shows, but none can be started. */
-  inlineTimer: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
   /** Previous, Ghost values and the labels of the row; the same object while they hold. */
@@ -190,11 +189,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
             />
           ) : undefined}
         </SetCell>
-        {field === "duration" &&
-        !props.editingFinished &&
-        !ticked &&
-        !readOnly &&
-        (props.inlineTimer || running) ? (
+        {field === "duration" && !props.editingFinished && !ticked && !readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(

@@ -1,5 +1,4 @@
 export { SessionScreen } from "./screen/session-screen";
-export { TimerScreen } from "./timer/timer-screen";
 export { SessionSummaryScreen } from "./finish/session-summary-screen";
 export { ResumeBar } from "./lifecycle/resume-bar";
 export { ForgottenSessionHost } from "./lifecycle/forgotten-session-host";

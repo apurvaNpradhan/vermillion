@@ -58,7 +58,6 @@ const SetRowItem = memo(function SetRowItem({
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
-        inlineTimer: state.ui.inlineTimer,
         editingFinished: state.session.finishedAt !== null,
       };
     }),
@@ -72,7 +71,6 @@ const SetRowItem = memo(function SetRowItem({
     <View ref={register} collapsable={false}>
       <SetRowView
         editingFinished={data.editingFinished}
-        inlineTimer={data.inlineTimer}
         set={set}
         type={type}
         row={row}

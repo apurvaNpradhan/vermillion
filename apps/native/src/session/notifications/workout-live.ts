@@ -61,7 +61,7 @@ async function snapshotOf(db: TrainingDatabase, session: SessionDetail, options:
     restEndedAt: restEndedAt(session.id),
     unit: options.weightUnit,
     options,
-    url: `${appConfig.scheme}:///session/${session.id}/timer`,
+    url: `${appConfig.scheme}:///session/${session.id}`,
     t: i18n.t.bind(i18n),
   });
   return { session, ghosts, state };

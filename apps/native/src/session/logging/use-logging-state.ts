@@ -73,7 +73,6 @@ export function useLoggingState({
   unit,
   display,
   effortScale,
-  inlineTimer,
   bodyweightKg,
   weightIncrementKg,
   lighterWeeks: rawLighterWeeks,
@@ -94,8 +93,6 @@ export function useLoggingState({
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
-  /** The Inline timer preference. */
-  inlineTimer: boolean;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
   lighterWeeks: readonly LighterPeriod[];
@@ -168,8 +165,8 @@ export function useLoggingState({
     store.getState().setInputs(inputs);
   }, [store, inputs]);
   useLayoutEffect(() => {
-    store.getState().setUi({ readOnly, inlineTimer, effortScale, countWarmups });
-  }, [store, readOnly, inlineTimer, effortScale, countWarmups]);
+    store.getState().setUi({ readOnly, effortScale, countWarmups });
+  }, [store, readOnly, effortScale, countWarmups]);
 
   // What this hook's own render reads. The rows read what they draw straight from the store.
   const found = useStore(store, (state) => state.found);
@@ -376,12 +373,6 @@ export function useLoggingState({
     if (!next) return closeKeypad();
     openCell(next.setId, next.field);
   }, [next, openCell, closeKeypad]);
-  // The Timer edits one set: Next stays within it and closes after its last field.
-  const nextInSet = next !== null && next.setId === cell?.setId;
-  const onNextInSet = useCallback(() => {
-    if (!next || next.setId !== readEntry()?.cell.setId) return closeKeypad();
-    openCell(next.setId, next.field);
-  }, [next, openCell, closeKeypad, readEntry]);
 
   // ---- Ticking ----
   /**
@@ -696,7 +687,6 @@ export function useLoggingState({
   const stableOnStep = useStableHandler(onStep);
   const stablePutValue = useStableHandler(putValue);
   const stableOnNext = useStableHandler(onNext);
-  const stableOnNextInSet = useStableHandler(onNextInSet);
   const entry = useMemo(() => (cell ? { cell } : null), [cell]);
   return {
     historyReady,
@@ -726,8 +716,6 @@ export function useLoggingState({
         : undefined;
     },
     hasNext: next !== null,
-    hasNextInSet: nextInSet,
-    onNextInSet: stableOnNextInSet,
     stepText,
     openCell: stableOpenCell,
     closeKeypad: stableCloseKeypad,

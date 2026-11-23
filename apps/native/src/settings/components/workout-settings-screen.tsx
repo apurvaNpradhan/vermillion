@@ -78,7 +78,6 @@ export function WorkoutSettingsScreen() {
 
   return (
     <>
-      {sessionSettings.sheets}
       {training.sheets}
       <ScrollPage title={t("settings__workouts_screen")} back backFallback="/settings">
         <ListSection title={t("settings__logging")}>

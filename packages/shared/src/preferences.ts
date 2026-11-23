@@ -66,6 +66,7 @@ const uiFields = {
   soundSets: z.boolean(),
   soundMilestones: z.boolean(),
   systemKeyboard: z.boolean(),
+  /** Deprecated: timed sets always show their start button. Kept so stored values validate. */
   inlineTimer: z.boolean(),
   supersetScroll: z.boolean(),
   recordAlerts: z.boolean(),
@@ -75,6 +76,7 @@ const uiFields = {
   weightUnit: z.enum(WEIGHT_UNITS),
   effortScale: z.enum(EFFORT_SCALES),
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
+  /** Deprecated: no setting reads it any more. Kept so stored values validate. */
   sessionView: z.enum(SESSION_VIEWS),
   weekStart: z.enum(WEEK_STARTS),
   previousSource: z.enum(PREVIOUS_SOURCES),

@@ -30,7 +30,12 @@ export function useFedSessionStore(stored: SessionDetail): SessionStore {
   return store;
 }
 
-/** `useSessionLogging` over a store the screen made itself, so it can share it with its rows. */
+/**
+ * Everything a screen that logs a live Session needs before it draws, over a store the screen made
+ * itself so it can share it with its rows: the Session with ticks and Rest changes shown at once,
+ * who owns it, Previous values, the logging state (ticks, keypad, timers) and whether to ask about
+ * Rest notifications after the first Rest.
+ */
 export function useSessionLoggingIn(store: SessionStore, editor = false) {
   // Ticks and Rest changes show at once; the database's watch catches up a moment later.
   const actions = useOptimisticSession(store, useSessionActions());
@@ -87,7 +92,6 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     unit,
     display,
     effortScale,
-    inlineTimer: preferences.ui.inlineTimer,
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
     lighterWeeks: preferences.ui.lighterWeeks,
@@ -146,14 +150,4 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     askOpen,
     setAskOpen,
   };
-}
-
-/**
- * Everything a screen that logs a live Session needs before it draws: the Session with ticks and
- * Rest changes shown at once, who owns it, Previous values, the logging state (ticks, keypad,
- * timers) and whether to ask about Rest notifications after the first Rest. The Timer uses this
- * form; the sets view makes its store itself and uses `useSessionLoggingIn`.
- */
-export function useSessionLogging(stored: SessionDetail, editor = false) {
-  return useSessionLoggingIn(useFedSessionStore(stored), editor);
 }

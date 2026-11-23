@@ -84,8 +84,6 @@ export type SessionScreenProps = {
   onGone: () => void;
   /** Finished here: show the summary. */
   onFinished: (id: string) => void;
-  /** Open the full-screen Timer over this screen. */
-  onOpenTimer: () => void;
 };
 
 /**
@@ -145,7 +143,6 @@ const LoadedSession = memo(function LoadedSession({
   store,
   onMinimise,
   onFinished,
-  onOpenTimer,
 }: SessionScreenProps & { store: SessionStore }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
@@ -158,8 +155,6 @@ const LoadedSession = memo(function LoadedSession({
     session,
     actions,
     preferences,
-    setUi,
-    preferencesLoading,
     unit,
     effortScale,
     installId,
@@ -186,9 +181,6 @@ const LoadedSession = memo(function LoadedSession({
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
-  // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
-  // next workout (started or resumed) opens in the view used last.
-  // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
   const { closeKeypad, flushWrites } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
@@ -198,27 +190,6 @@ const LoadedSession = memo(function LoadedSession({
   useEffect(() => {
     if (readOnly) setReordering(false);
   }, [readOnly]);
-  const openingTimer = useRef(false);
-  const openTimer = useCallback(async () => {
-    if (openingTimer.current) return;
-    openingTimer.current = true;
-    closeKeypad();
-    try {
-      await flushWrites();
-      setUi({ sessionView: "timer" });
-      onOpenTimer();
-    } finally {
-      openingTimer.current = false;
-    }
-  }, [closeKeypad, flushWrites, setUi, onOpenTimer]);
-  const openedTimer = useRef(false);
-  const wantsTimer = preferences.ui.sessionView === "timer";
-  useEffect(() => {
-    if (openedTimer.current || preferencesLoading || installId === null) return;
-    openedTimer.current = true;
-    if (wantsTimer && !readOnly && session.finishedAt === null) onOpenTimer();
-  }, [preferencesLoading, installId, wantsTimer, readOnly, session.finishedAt, onOpenTimer]);
-
   // The screen stays awake while it is in front (a preference); a Rest is shown here, so the
   // system banner for it is held back meanwhile.
   const keepAwake = preferences.ui.keepAwake;
@@ -592,7 +563,6 @@ const LoadedSession = memo(function LoadedSession({
         readOnly={readOnly}
         onMinimise={onMinimise}
         onFinish={flow.askFinish}
-        onOpenTimer={openTimer}
       />
       <View
         ref={reveal.viewportRef}

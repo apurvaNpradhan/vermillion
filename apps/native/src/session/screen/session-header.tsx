@@ -11,33 +11,12 @@ import { elapsedSeconds, formatElapsed } from "@/session/timer/clock";
 import { useNow } from "@/session/shared/use-now";
 
 /** The running clock: only this small piece re-renders every second. */
-function Clock({
-  startedAt,
-  frozen,
-  onPress,
-}: {
-  startedAt: string;
-  frozen: boolean;
-  /** Opens the Timer; the clock is plain text without it. */
-  onPress?: () => void;
-}) {
-  const { t } = useTranslation();
+function Clock({ startedAt, frozen }: { startedAt: string; frozen: boolean }) {
   const now = useNow(!frozen);
-  const text = (
+  return (
     <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
       {formatElapsed(elapsedSeconds(startedAt, now))}
     </Text>
-  );
-  if (!onPress) return text;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t("session__timer_open")}
-      onPress={onPress}
-      hitSlop={8}
-    >
-      {text}
-    </Pressable>
   );
 }
 
@@ -56,7 +35,6 @@ export function SessionHeader({
   readOnly,
   onMinimise,
   onFinish,
-  onOpenTimer,
 }: {
   finished: boolean;
   onMenu: () => void;
@@ -69,8 +47,6 @@ export function SessionHeader({
   readOnly: boolean;
   onMinimise: () => void;
   onFinish: () => void;
-  /** Tapping the clock opens the Timer. */
-  onOpenTimer?: () => void;
 }) {
   const { t } = useTranslation();
   const { top } = useSafeAreaInsets();
@@ -97,13 +73,7 @@ export function SessionHeader({
           {title}
         </Text>
         <View className="flex-row items-center gap-2">
-          {finished ? null : (
-            <Clock
-              startedAt={startedAt}
-              frozen={readOnly}
-              {...(readOnly || !onOpenTimer ? {} : { onPress: onOpenTimer })}
-            />
-          )}
+          {finished ? null : <Clock startedAt={startedAt} frozen={readOnly} />}
           <Text className="font-medium text-label text-muted">·</Text>
           <Text
             numberOfLines={1}
