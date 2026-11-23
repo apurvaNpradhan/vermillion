@@ -10,8 +10,6 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
-const FALLBACK_TITLE_KEY = "training__exercise_missing";
-
 /**
  * One exercise of the accordion. Collapsed it is the header alone: thumbnail, name, "2/4 · 60 kg × 8"
  * (a solid tick instead of the count when every set is done, with the name dimmed) and a chevron.
@@ -58,7 +56,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   const subtle = useSubtleColor();
   const background = useThemeColor("background");
   const info = exercise.exercise;
-  const name = exercise.title;
+  const name = exercise.title || t("training__exercise_missing");
   const grouped = place !== "none";
   const thumbnail = (size: number) => (
     <ExerciseThumbnail
@@ -70,10 +68,14 @@ export const ExerciseRow = memo(function ExerciseRow({
   );
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
   const doneText = summary === "" ? progress : summary;
-  // A closed header opens on a tap anywhere; an open one views the exercise and closes on its chevron.
-  const press = (id: string) => (expanded ? onView(id) : onToggle(id));
+  const toggle = () => onToggle(exercise.id);
   const toggleLabel = t(expanded ? "session__collapse_exercise" : "session__expand_exercise", {
     title: name,
+  });
+
+  const headerLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
+    title: name,
+    summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
   });
 
   return (
@@ -82,8 +84,11 @@ export const ExerciseRow = memo(function ExerciseRow({
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("session__view_exercise_named", { title: name })}
-          onPress={() => press(exercise.exerciseId)}
+          accessibilityLabel={
+            expanded ? t("session__view_exercise_named", { title: name }) : toggleLabel
+          }
+          accessibilityState={expanded ? undefined : { expanded }}
+          onPress={expanded ? () => onView(exercise.exerciseId) : toggle}
           className={`min-h-[64px] min-w-12 items-center justify-center py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
           {thumbnail(40)}
@@ -91,7 +96,8 @@ export const ExerciseRow = memo(function ExerciseRow({
         <View className="min-h-[64px] min-w-0 flex-1 justify-center">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
+            accessibilityLabel={headerLabel}
+            accessibilityState={{ expanded }}
             accessibilityHint={readOnly ? undefined : t("training__drag_hint")}
             accessibilityActions={
               readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
@@ -99,7 +105,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             onAccessibilityAction={(event) => {
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
             }}
-            onPress={() => press(exercise.exerciseId)}
+            onPress={toggle}
             className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
           >
             {place === "first" ? (
@@ -109,9 +115,9 @@ export const ExerciseRow = memo(function ExerciseRow({
             ) : null}
             <Text
               numberOfLines={2}
-              className={`font-medium text-body text-foreground ${done ? "opacity-70" : ""}`}
+              className={`font-medium text-body ${done ? "text-subtle" : "text-foreground"}`}
             >
-              {name || t(FALLBACK_TITLE_KEY)}
+              {name}
             </Text>
             <View className="flex-row items-center gap-1.5">
               {done ? (
@@ -137,12 +143,12 @@ export const ExerciseRow = memo(function ExerciseRow({
           accessibilityRole="button"
           accessibilityLabel={toggleLabel}
           accessibilityState={{ expanded }}
-          onPress={() => onToggle(exercise.exerciseId)}
+          onPress={toggle}
           className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
         >
           {expanded ? <CaretUp size={20} color={subtle} /> : <CaretDown size={20} color={subtle} />}
         </Pressable>
-        {readOnly ? null : (
+        {expanded && !readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("training__row_menu", { title: name })}
@@ -152,7 +158,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           >
             <DotsThreeVertical size={20} color={subtle} />
           </Pressable>
-        )}
+        ) : null}
       </ReorderTrigger>
       {expanded ? <View className="gap-3 px-3 pb-4 pt-1">{children}</View> : null}
     </ReorderBlock>
@@ -170,7 +176,7 @@ function ExerciseNotes({ pinned, lastTime }: { pinned: string | null; lastTime: 
     <View className="gap-0.5 pt-0.5">
       {pinned === null ? null : <PinnedNote note={pinned} />}
       {lastTime === null ? null : (
-        <Text numberOfLines={2} className="font-normal text-caption text-muted opacity-70">
+        <Text numberOfLines={2} className="font-normal text-caption text-muted">
           {t("session__last_time", { note: lastTime })}
         </Text>
       )}

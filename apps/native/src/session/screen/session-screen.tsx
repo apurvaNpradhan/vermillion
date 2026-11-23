@@ -48,6 +48,8 @@ import {
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { formatVolume } from "@/session/finish/summary";
+import { blockOf } from "@/session/logging/blocks";
+import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
 import { canAddWarmups } from "@/session/warmups/warmup-plan";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
@@ -68,7 +70,7 @@ import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session
 
 const KEEP_AWAKE_TAG = "session";
 
-/** A closed exercise is its header and the gap under it; an open one is about four sets and chips. */
+/** Most rows are closed, with the expanded height measured by LegendList. */
 const ESTIMATED_CLOSED_HEIGHT = 72;
 
 const exerciseKey = (id: string) => id;
@@ -175,10 +177,10 @@ const LoadedSession = memo(function LoadedSession({
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
-  const expanded = useSessionStore((state) => state.expanded);
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
+  const accordionScroll = useAccordionScroll(store, scrollRef);
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
   const [reordering, setReordering] = useState(false);
@@ -470,10 +472,12 @@ const LoadedSession = memo(function LoadedSession({
   const onToggle = useCallback(
     (exerciseId: string) => {
       const state = store.getState();
-      // Closing the exercise the keypad is in saves and closes the keypad first.
+      const editing = state.cell && state.found.get(state.cell.setId);
+      const block = blockOf(state.blocks, exerciseId);
       if (
+        editing &&
         state.expanded.has(exerciseId) &&
-        state.found.get(state.cell?.setId ?? "")?.exercise.id === exerciseId
+        block?.members.some((member) => member.id === editing.exercise.id)
       )
         closeKeypad();
       state.toggleExpanded(exerciseId);
@@ -545,29 +549,6 @@ const LoadedSession = memo(function LoadedSession({
     ({ item }: { item: string }) => <ExerciseItem exerciseId={item} handlers={handlers} />,
     [handlers],
   );
-  // Finishing an exercise opens the next one: bring it into view (animated), once it is laid out.
-  useEffect(() => {
-    let cancel: (() => void) | undefined;
-    let last = store.getState().scrollRequest;
-    const unsubscribe = store.subscribe((state) => {
-      const request = state.scrollRequest;
-      if (request === last) return;
-      last = request;
-      if (!request) return;
-      cancel?.();
-      cancel = afterLayout(() => {
-        void scrollRef.current?.scrollToKey({ key: request.exerciseId, animated: true });
-      });
-    });
-    return () => {
-      unsubscribe();
-      cancel?.();
-    };
-  }, [store]);
-  const itemType = useCallback(
-    (id: string) => (store.getState().expanded.has(id) ? "open" : "closed"),
-    [store],
-  );
   const onScroll = reveal.onScroll;
   const onListScroll = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) =>
@@ -628,8 +609,8 @@ const LoadedSession = memo(function LoadedSession({
           keyExtractor={exerciseKey}
           renderItem={renderItem}
           estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
-          getItemType={itemType}
-          extraData={expanded}
+          onItemSizeChanged={accordionScroll.onItemSizeChanged}
+          onScrollBeginDrag={accordionScroll.cancel}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
           keyboardShouldPersistTaps="handled"

@@ -69,7 +69,7 @@ const SetRowItem = memo(function SetRowItem({
   const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
   if (!set || !row || !type) return null;
   return (
-    <View ref={register} collapsable={false} style={{ opacity: row.optional ? 0.55 : 1 }}>
+    <View ref={register} collapsable={false}>
       <SetRowView
         editingFinished={data.editingFinished}
         inlineTimer={data.inlineTimer}
@@ -122,6 +122,7 @@ export const SetGrid = memo(function SetGrid({
     useShallow((state) => {
       const exercise = state.exercises.get(exerciseId);
       return {
+        title: exercise?.title,
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         setIds: state.views.get(exerciseId)?.setIds,
@@ -195,7 +196,9 @@ export const SetGrid = memo(function SetGrid({
       {readOnly ? null : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("session__add_set")}
+          accessibilityLabel={t("session__add_set_to", {
+            title: layout.title || t("training__exercise_missing"),
+          })}
           onPress={() => onAddSet(exerciseId)}
           className="mt-1 min-h-11 flex-row items-center gap-2 self-start rounded-lg px-3 active:bg-default"
         >

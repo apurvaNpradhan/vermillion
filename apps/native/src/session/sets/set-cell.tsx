@@ -38,8 +38,8 @@ export function SetCell({
       onPress={onPress}
       className="h-10 min-w-0 flex-1 flex-row items-center justify-center rounded-lg px-1 active:bg-default"
     >
-      {children ?? (
-        <View className="items-center">
+      <View className="min-w-0 items-center">
+        {children ?? (
           <Text
             numberOfLines={1}
             className={`font-normal text-center text-body ${empty ? "text-muted" : "text-foreground"}`}
@@ -47,9 +47,9 @@ export function SetCell({
           >
             {empty ? (ghost === "" ? "–" : ghost) : text}
           </Text>
-          <View className={`h-[2px] min-w-6 self-stretch rounded-full ${bar}`} />
-        </View>
-      )}
+        )}
+        <View className={`h-[2px] min-w-6 self-stretch rounded-full ${bar}`} />
+      </View>
     </Pressable>
   );
 }

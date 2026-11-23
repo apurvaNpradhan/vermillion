@@ -163,6 +163,7 @@ const ExerciseBody = memo(function ExerciseBody({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("session__add_note")}
+              accessibilityState={{ expanded: false }}
               onPress={() => {
                 haptic.tick();
                 setNoteOpen(true);
@@ -180,7 +181,7 @@ const ExerciseBody = memo(function ExerciseBody({
           <Text className="font-normal py-2 text-body text-muted">{note}</Text>
         ) : (
           <InlineNote
-            label={t("training__pinned_note")}
+            label={t("session__note_chip")}
             value={note}
             placeholder={t("session__note_placeholder")}
             maxLength={SESSION_LIMITS.noteMax}

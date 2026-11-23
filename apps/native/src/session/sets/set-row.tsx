@@ -8,14 +8,23 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import { Check, Copy, DotsThree, Rows, Play, Stop, Trash } from "phosphor-react-native";
+import {
+  Check,
+  Copy,
+  DotsThree,
+  Rows,
+  Play,
+  Stop,
+  Trash,
+  WarningCircle,
+} from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useThemeColor } from "heroui-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnActionColor, useSubtleColor } from "@/platform/theme";
+import { useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -113,8 +122,8 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const onAction = useOnActionColor();
   const background = useThemeColor("background");
+  const danger = useThemeColor("danger");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   // What is typed since the cell was opened; nothing until the first key.
@@ -200,10 +209,10 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
               haptic.tick();
               props.onTimer(set.id);
             }}
-            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-accent" : "active:bg-default"}`}
+            className="h-10 w-9 items-center justify-center rounded-lg active:bg-default"
           >
             {running ? (
-              <Stop size={20} weight="fill" color={onAction} />
+              <Stop size={20} weight="fill" color={subtle} />
             ) : (
               <Play size={20} color={subtle} />
             )}
@@ -302,13 +311,16 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
             busy: waitingForPrevious && !readOnly,
             disabled: readOnly || waitingForPrevious,
           }}
-          accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
+          accessibilityLabel={t(
+            readOnly ? "session__set_number" : ticked ? "session__untick_set" : "session__tick_set",
+            { number },
+          )}
           accessibilityHint={
             waitingForPrevious && !readOnly ? t("session__set_waiting_for_previous") : undefined
           }
           disabled={readOnly || waitingForPrevious}
           onPress={() => props.onTick(set.id)}
-          className="h-11 w-11 items-center justify-center"
+          className="h-11 w-11 items-center justify-center rounded-lg active:bg-default"
         >
           {waitingForPrevious && !readOnly ? (
             <DotsThree size={20} color={subtle} />
@@ -359,6 +371,18 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       ) : (
         row()
       )}
+      {refusal ? (
+        <View className="flex-row items-center gap-1.5 px-3">
+          <WarningCircle size={16} color={danger} />
+          <Text
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            className="font-normal shrink text-caption text-danger"
+          >
+            {t("session__tick_missing_values")}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 });

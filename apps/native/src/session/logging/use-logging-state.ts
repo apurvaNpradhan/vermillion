@@ -271,8 +271,18 @@ export function useLoggingState({
   /** Writes a cell's value (null clears it); a ticked set must keep its values. */
   const commit = useCallback(
     (target: CellRef, value: number | null) => {
-      const at = store.getState().found.get(target.setId);
+      const state = store.getState();
+      const at = state.found.get(target.setId);
       if (!at || (value === null && at.set.completedAt !== null)) return;
+      const refusal = state.refusal;
+      if (
+        value !== null &&
+        refusal?.setId === target.setId &&
+        refusal.fields.includes(target.field)
+      ) {
+        const fields = refusal.fields.filter((field) => field !== target.field);
+        state.setRefusal(fields.length ? { setId: target.setId, fields } : null);
+      }
       writer.queue({
         setId: target.setId,
         // Typing a duration ends a running timer; the value is now typed.
@@ -422,7 +432,10 @@ export function useLoggingState({
         new Date(expiresAt ?? Date.now()).toISOString(),
       );
       const refuse = (missing: readonly SetField[]) => {
-        store.getState().setRefusal({ setId, fields: missing });
+        const current = store.getState();
+        const exercise = current.found.get(setId)?.exercise;
+        if (exercise && (!editor || current.expanded.has(exercise.id)))
+          current.setRefusal({ setId, fields: missing });
         haptic.alert();
         sound.play("refused");
       };
@@ -617,14 +630,19 @@ export function useLoggingState({
       const source = lookupPrevious(setId);
       const at = store.getState().found.get(setId);
       if (!source || !at || readOnly) return;
-      flush();
-      await actions.updateValues(
-        setId,
-        previousPatch(source, at.exercise.type, at.exercise.logEffort),
+      if (store.getState().cell?.setId === setId) closeKeypad();
+      else void flush();
+      const patch = previousPatch(
+        source,
+        at.exercise.type,
+        at.exercise.logEffort && at.set.kind !== "warmup",
       );
-      store.getState().setRefusal(null);
+      if (Object.keys(patch).length === 0) return;
+      const wrote = await actions.updateValues(setId, patch);
+      const current = store.getState();
+      if (wrote && current.refusal?.setId === setId) current.setRefusal(null);
     },
-    [lookupPrevious, store, readOnly, flush, actions],
+    [lookupPrevious, store, readOnly, closeKeypad, flush, actions],
   );
   const onCopySets = useCallback(
     async (setId: string, mode: "previous" | "remaining") => {

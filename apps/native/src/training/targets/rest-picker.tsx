@@ -153,9 +153,13 @@ export function RestPicker({
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("training__rest_chip_label", {
-          value: value === null ? t("training__rest_off") : formatClock(value),
-        })}
+        accessibilityLabel={t(
+          group ? "session__rest_group_chip_label" : "training__rest_chip_label",
+          {
+            value: value === null ? t("training__rest_off") : formatClock(value),
+          },
+        )}
+        accessibilityState={{ expanded: open }}
         onPress={() => {
           Keyboard.dismiss();
           choose(value ?? 120);
