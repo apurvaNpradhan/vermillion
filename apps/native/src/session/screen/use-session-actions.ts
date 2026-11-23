@@ -33,7 +33,7 @@ import {
   type TickResult,
 } from "@workspace/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
@@ -61,8 +61,9 @@ export function useSessionActions() {
       write<TickResult | null>(
         (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt),
         null,
+        t("session__tick_failed_toast"),
       ),
-    [write, writeScope],
+    [write, writeScope, t],
   );
 
   /**
@@ -90,7 +91,7 @@ export function useSessionActions() {
 
   const updateValues = useCallback(
     (setId: string, patch: SetPatch) =>
-      write((db) => updateSet(db, setId, patch, writeScope), false),
+      write((db) => updateSet(db, setId, patch, writeScope), null),
     [write, writeScope],
   );
 
@@ -268,26 +269,51 @@ export function useSessionActions() {
     [write, writeScope, undoToast, t, media],
   );
 
-  return {
-    tick,
-    nudgeRest,
-    skipRest,
-    untick,
-    updateValues,
-    addExtraSet,
-    replaceWarmups: putWarmups,
-    removeOneSet,
-    addExercises,
-    replaceExercise,
-    removeExercise,
-    moveExercise,
-    updateExercise,
-    setPinnedNote,
-    superset,
-    leaveSuperset,
-    refreshDerivedTitle,
-    takeOver: takeOverSession,
-    finish,
-    discard,
-  };
+  // One object for as long as its writes are the same, so memoized screens keep their handlers.
+  return useMemo(
+    () => ({
+      tick,
+      nudgeRest,
+      skipRest,
+      untick,
+      updateValues,
+      addExtraSet,
+      replaceWarmups: putWarmups,
+      removeOneSet,
+      addExercises,
+      replaceExercise,
+      removeExercise,
+      moveExercise,
+      updateExercise,
+      setPinnedNote,
+      superset,
+      leaveSuperset,
+      refreshDerivedTitle,
+      takeOver: takeOverSession,
+      finish,
+      discard,
+    }),
+    [
+      tick,
+      nudgeRest,
+      skipRest,
+      untick,
+      updateValues,
+      addExtraSet,
+      putWarmups,
+      removeOneSet,
+      addExercises,
+      replaceExercise,
+      removeExercise,
+      moveExercise,
+      updateExercise,
+      setPinnedNote,
+      superset,
+      leaveSuperset,
+      refreshDerivedTitle,
+      takeOverSession,
+      finish,
+      discard,
+    ],
+  );
 }

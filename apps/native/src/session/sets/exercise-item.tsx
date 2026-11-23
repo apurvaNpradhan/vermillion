@@ -1,160 +1,95 @@
-import {
-  SESSION_LIMITS,
-  type EffortScale,
-  type Ghosts,
-  type Progression,
-  type LoggedSet,
-  type SetField,
-  type SupersetPlace,
-} from "@workspace/shared";
+import { SESSION_LIMITS, type SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Text, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 
 import { useTranslation } from "@/platform/i18n";
 import { InlineNote, RestPicker } from "@/training";
-import type { WeightUnit } from "@workspace/shared";
 
 import { StalledNote } from "@/exercise";
-import type { StallInfo } from "@/session/logging/use-logging-state";
+import { useSessionStore } from "@/session/store/session-store-context";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
-import type { ActiveEntry, Refusal } from "./set-row";
-import { SetGrid } from "./set-grid";
+import { SetGrid, type SetHandlers } from "./set-grid";
 
-import type { DisplayUnits } from "@/session/logging/set-values";
-
-/**
- * One expanded exercise. A keystroke updates the grid that holds the edited cell.
- */
-export const ExerciseItem = memo(function ExerciseItem({
-  exercise,
-  suggestion,
-  stall,
-  lighter,
-  place,
-  progress,
-  summary,
-  readOnly,
-  unit,
-  display,
-  effortScale,
-  historyReady,
-  editingFinished,
-  inlineTimer,
-  entry,
-  refusal,
-  currentSetId,
-  previousOf,
-  ghostsFor,
-  onView,
-  onMenu,
-  onAddSet,
-  onReorder,
-  onNote,
-  onRest,
-  onCell,
-  onTick,
-  onKind,
-  onEffort,
-  onPrevious,
-  onCopySets,
-  onRemoveSet,
-  onTimer,
-  registerRow,
-}: {
-  exercise: SessionExerciseDetail;
-  suggestion: Progression | null;
-  /** A stalled lift's note, when it shows. */
-  stall: StallInfo | null;
-  /** A Lighter week is running: about half the sets are optional. */
-  lighter: boolean;
-  place: SupersetPlace;
-  progress: string;
-  summary: string;
-  readOnly: boolean;
-  unit: WeightUnit;
-  display: DisplayUnits;
-  effortScale: EffortScale;
-  historyReady: boolean;
-  editingFinished: boolean;
-  /** Whether duration sets show their start/stop button. */
-  inlineTimer: boolean;
-  entry: ActiveEntry | null;
-  refusal: Refusal | null;
-  currentSetId: string | null;
-  previousOf: (setId: string) => LoggedSet | null;
-  ghostsFor: (setId: string) => Ghosts;
+/** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
+export type ExerciseHandlers = SetHandlers & {
   onView: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
   onReorder: () => void;
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
-  onCell: (setId: string, field: SetField) => void;
-  onTick: (setId: string) => void;
-  onKind: (setId: string) => void;
-  onEffort: (setId: string) => void;
-  onPrevious: (setId: string) => void;
-  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
-  onRemoveSet: (setId: string) => Promise<boolean>;
-  onTimer: (setId: string) => void;
-  registerRow: (setId: string) => (node: View | null) => void;
+  /** The exercise was laid out again (its sets grew or shrank). */
+  onLayout: (exerciseId: string) => void;
+};
+
+/**
+ * One expanded exercise. It reads its header (name, count, summary, suggestion) from the Session's
+ * store, so a tick in it redraws its header; its sets are rows that follow their own set.
+ */
+export const ExerciseItem = memo(function ExerciseItem({
+  exerciseId,
+  handlers,
+}: {
+  exerciseId: string;
+  handlers: ExerciseHandlers;
 }) {
+  const data = useSessionStore(
+    useShallow((state) => {
+      const view = state.views.get(exerciseId);
+      return {
+        exercise: state.exercises.get(exerciseId),
+        suggestion: view?.suggestion ?? null,
+        stall: view?.stall ?? null,
+        progress: view?.progress ?? "",
+        summary: view?.summary ?? "",
+        place: state.places.get(exerciseId) ?? "none",
+        unit: state.inputs.unit,
+        readOnly: state.ui.readOnly,
+      };
+    }),
+  );
+  const { exercise, suggestion, stall, unit, place, readOnly } = data;
+  const progression = useMemo(
+    () => (suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null),
+    [suggestion, unit],
+  );
+  if (!exercise) return null;
   return (
-    <ExerciseRow
-      exercise={exercise}
-      progression={suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null}
-      place={place}
-      progress={progress}
-      summary={summary}
-      readOnly={readOnly}
-      onView={onView}
-      onMenu={onMenu}
-      onReorder={onReorder}
-    >
-      {stall ? (
-        <StalledNote
-          exerciseId={exercise.exerciseId}
-          latestSessionId={stall.latestSessionId}
-          count={stall.count}
-          applied={stall.applied}
-        />
-      ) : null}
-      <ExerciseBody
-        entry={exercise}
-        place={place}
-        readOnly={readOnly}
-        onNote={onNote}
-        onRest={onRest}
-      />
-      <SetGrid
+    <View onLayout={() => handlers.onLayout(exerciseId)}>
+      <ExerciseRow
         exercise={exercise}
-        lighter={lighter}
-        historyReady={historyReady}
-        editingFinished={editingFinished}
-        inlineTimer={inlineTimer}
-        entry={entry}
-        refusal={refusal}
-        currentSetId={currentSetId}
-        previousOf={previousOf}
-        ghostsFor={ghostsFor}
-        unit={unit}
-        display={display}
-        effortScale={effortScale}
+        progression={progression}
+        place={place}
+        progress={data.progress}
+        summary={data.summary}
         readOnly={readOnly}
-        onCell={onCell}
-        onTick={onTick}
-        onKind={onKind}
-        onEffort={onEffort}
-        onPrevious={onPrevious}
-        onCopySets={onCopySets}
-        onRemoveSet={onRemoveSet}
-        onTimer={onTimer}
-        onAddSet={onAddSet}
-        registerRow={registerRow}
-      />
-    </ExerciseRow>
+        onView={handlers.onView}
+        onMenu={handlers.onMenu}
+        onReorder={handlers.onReorder}
+      >
+        {stall ? (
+          <StalledNote
+            exerciseId={exercise.exerciseId}
+            latestSessionId={stall.latestSessionId}
+            count={stall.count}
+            applied={stall.applied}
+          />
+        ) : null}
+        <ExerciseBody
+          id={exercise.id}
+          note={exercise.note}
+          restSeconds={exercise.restSeconds}
+          place={place}
+          readOnly={readOnly}
+          onNote={handlers.onNote}
+          onRest={handlers.onRest}
+        />
+        <SetGrid exerciseId={exerciseId} handlers={handlers} onAddSet={handlers.onAddSet} />
+      </ExerciseRow>
+    </View>
   );
 });
 
@@ -162,14 +97,18 @@ export const ExerciseItem = memo(function ExerciseItem({
  * The note and the rest timer under an open exercise's name: the note is edited in place and saved
  * when the field is left; the rest timer is a link to its picker.
  */
-function ExerciseBody({
-  entry,
+const ExerciseBody = memo(function ExerciseBody({
+  id,
+  note,
+  restSeconds,
   place,
   readOnly,
   onNote,
   onRest,
 }: {
-  entry: SessionExerciseDetail;
+  id: string;
+  note: string | null;
+  restSeconds: number | null;
   place: SupersetPlace;
   readOnly: boolean;
   onNote: (exerciseId: string, note: string | null) => void;
@@ -181,7 +120,7 @@ function ExerciseBody({
   const saveNote = () => {
     const typed = draft.current;
     draft.current = undefined;
-    if (!readOnly && typed !== undefined && typed !== entry.note) onNote(entry.id, typed);
+    if (!readOnly && typed !== undefined && typed !== note) onNote(id, typed);
   };
   const saveOnUnmount = useRef(saveNote);
   saveOnUnmount.current = saveNote;
@@ -190,13 +129,13 @@ function ExerciseBody({
   return (
     <View>
       {readOnly ? (
-        entry.note ? (
-          <Text className="font-normal py-2 text-body text-muted">{entry.note}</Text>
+        note ? (
+          <Text className="font-normal py-2 text-body text-muted">{note}</Text>
         ) : null
       ) : (
         <InlineNote
           label={t("training__pinned_note")}
-          value={entry.note}
+          value={note}
           placeholder={t("session__note_placeholder")}
           maxLength={SESSION_LIMITS.noteMax}
           onText={(text) => {
@@ -208,11 +147,11 @@ function ExerciseBody({
       {showsRest ? (
         <RestPicker
           link
-          value={entry.restSeconds}
+          value={restSeconds}
           group={place === "last"}
-          onChange={(restSeconds) => onRest(entry.id, restSeconds)}
+          onChange={(next) => onRest(id, next)}
         />
       ) : null}
     </View>
   );
-}
+});

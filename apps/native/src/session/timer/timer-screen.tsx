@@ -241,7 +241,7 @@ function LoadedTimer({
     ticked,
     unticked: allSets.length - ticked,
     actions,
-    flush: logging.flushForFinish,
+    flush: logging.flushWrites,
     closeKeypad: logging.closeKeypad,
     onMinimise: onGone,
     onFinished,
@@ -290,29 +290,16 @@ function LoadedTimer({
     if (refusal && refusedField) openCell(refusal.setId, refusedField);
   }, [refusal, refusedField, openCell]);
 
-  // Complete set only ever ticks: a second tap that lands before the screen has moved on to the
-  // next set would otherwise reach the sets view's toggle and untick the set it just ticked.
-  const completing = useRef<string | null>(null);
   const complete = async () => {
-    if (!current || readOnly || completing.current === current.setId) return;
-    if (logging.found.get(current.setId)?.set.completedAt) return;
+    if (!current || readOnly) return;
     // A running stopwatch logs what it counted, even with no value or Ghost to fall back on.
     const stopwatch = current.timer !== null && current.timer.target === null;
     if (current.empty && !stopwatch) {
       edit();
       return;
     }
-    completing.current = current.setId;
-    try {
-      // Everything else ticks like the sets view does.
-      if (stopwatch) await logging.onTimer(current.setId);
-      else await logging.onTick(current.setId);
-    } finally {
-      // The next render has the next set; until then a repeat tap stays ignored.
-      setTimeout(() => {
-        completing.current = null;
-      }, 400);
-    }
+    if (stopwatch) await logging.onTimer(current.setId);
+    else await logging.onTick(current.setId);
   };
   const skipRest = () => {
     haptic.tick();
@@ -328,13 +315,20 @@ function LoadedTimer({
   };
 
   // ---- Leaving ----
-  const close = useCallback(() => {
-    // The sets view has its own keypad; leaving closes this one so no draft outlives the screen.
-    logging.closeKeypad();
-    setUi({ sessionView: "sets" });
-    onClose();
-  }, [logging, setUi, onClose]);
-  const { closeKeypad, activeSetId } = logging;
+  const { closeKeypad, activeSetId, flushWrites } = logging;
+  const closing = useRef(false);
+  const close = useCallback(async () => {
+    if (closing.current) return;
+    closing.current = true;
+    closeKeypad();
+    try {
+      await flushWrites();
+      setUi({ sessionView: "sets" });
+      onClose();
+    } finally {
+      closing.current = false;
+    }
+  }, [closeKeypad, flushWrites, setUi, onClose]);
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener("hardwareBackPress", () => {

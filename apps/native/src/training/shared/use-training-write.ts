@@ -47,15 +47,19 @@ export function useTrainingWrite() {
   const database = local?.status === "ready" ? local.database : null;
 
   const write = useCallback(
-    async <R>(action: (db: TrainingDatabase) => Promise<R>, fallback: R): Promise<R> => {
+    async <R>(
+      action: (db: TrainingDatabase) => Promise<R>,
+      fallback: R,
+      errorLabel?: string,
+    ): Promise<R> => {
       try {
         if (!database) throw new Error("Local storage is not available");
         return await action(database);
       } catch (error) {
         // A local write never needs the network; a connection error is never worth a toast.
-        if (error instanceof Error && isNetworkError(error)) return fallback;
+        if (!errorLabel && error instanceof Error && isNetworkError(error)) return fallback;
         const limit = error instanceof Error ? limitMessage(error) : null;
-        toast.show({ variant: "danger", label: t(limit ?? "errors__unknown") });
+        toast.show({ variant: "danger", label: errorLabel ?? t(limit ?? "errors__unknown") });
         return fallback;
       }
     },

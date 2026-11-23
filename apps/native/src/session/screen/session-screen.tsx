@@ -1,3 +1,4 @@
+import { LegendList, type LegendListRef } from "@legendapp/list/react-native";
 import { InstantSheets } from "@/platform/ui/sheet-motion";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { SessionSettingsSheet } from "@/session/settings/session-settings-sheet";
@@ -6,7 +7,6 @@ import {
   MUSCLE_GROUP_KEYS,
   SESSION_LIMITS,
   derivedWorkoutTitle,
-  sessionTotals,
   type SetKind,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
@@ -28,8 +28,8 @@ import {
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, FlatList, ScrollView, Text, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ExerciseThumbnail, usePickExercises } from "@/exercise";
@@ -47,14 +47,17 @@ import {
   askNotificationPermission,
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
-import { allTicked, doneSummary, formatVolume, progressText } from "@/session/finish/summary";
+import { formatVolume } from "@/session/finish/summary";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
 import { canAddWarmups } from "@/session/warmups/warmup-plan";
+import { useStableHandler } from "@/session/shared/use-stable-handler";
 import { useFinishFlow } from "@/session/finish/use-finish-flow";
-import { useSessionLogging } from "@/session/logging/use-session-logging";
+import { useFedSessionStore, useSessionLoggingIn } from "@/session/logging/use-session-logging";
 import { useSession } from "./use-session";
 import { loggedSetsOf } from "@/session/logging/set-values";
-import { ExerciseItem } from "@/session/sets/exercise-item";
+import { ExerciseItem, type ExerciseHandlers } from "@/session/sets/exercise-item";
+import type { SessionStore } from "@/session/store/session-store";
+import { SessionStoreProvider, useSessionStore } from "@/session/store/session-store-context";
 import { NoteSheet } from "@/session/sets/note-sheet";
 import { SessionEffortSheet } from "@/session/sets/effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
@@ -62,14 +65,13 @@ import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
 import { SessionHeader } from "./session-header";
 import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session-keypad";
-import type { ActiveEntry } from "@/session/sets/set-row";
 
 const KEEP_AWAKE_TAG = "session";
 
-/** The keypad's cell when it sits in this exercise; null for every other exercise. */
-function ownEntry(exercise: SessionExerciseDetail, entry: ActiveEntry | null): ActiveEntry | null {
-  return entry && exercise.sets.some((set) => set.id === entry.cell.setId) ? entry : null;
-}
+/** What an exercise measures before it is drawn: about four sets, a note and the rest chip. */
+const ESTIMATED_EXERCISE_HEIGHT = 420;
+
+const exerciseKey = (id: string) => id;
 
 /** Where the screen sends the user. */
 export type SessionScreenProps = {
@@ -109,7 +111,7 @@ export function SessionScreen(props: SessionScreenProps) {
   }
   return (
     <InstantSheets value>
-      <LoadedSession key={state.session.id} session={state.session} {...props} />
+      <SessionHost key={state.session.id} stored={state.session} {...props} />
     </InstantSheets>
   );
 }
@@ -117,6 +119,16 @@ export function SessionScreen(props: SessionScreenProps) {
 /** The screen's own background while the Session reads from the device (milliseconds). */
 function SessionBlank() {
   return <View className="flex-1 bg-background" />;
+}
+
+/** Makes the store of the open Session and feeds it from the watch. It is the only part that follows each emission. */
+function SessionHost({ stored, ...props }: SessionScreenProps & { stored: SessionDetail }) {
+  const store = useFedSessionStore(stored);
+  return (
+    <SessionStoreProvider store={store}>
+      <LoadedSession store={store} {...props} />
+    </SessionStoreProvider>
+  );
 }
 
 type Sheet =
@@ -127,12 +139,12 @@ type Sheet =
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
 
-function LoadedSession({
-  session: stored,
+const LoadedSession = memo(function LoadedSession({
+  store,
   onMinimise,
   onFinished,
   onOpenTimer,
-}: SessionScreenProps & { session: SessionDetail }) {
+}: SessionScreenProps & { store: SessionStore }) {
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
   const router = useRouter();
@@ -148,7 +160,6 @@ function LoadedSession({
     preferencesLoading,
     unit,
     effortScale,
-    bodyweightKg,
     installId,
     mine,
     hadIt,
@@ -160,18 +171,21 @@ function LoadedSession({
     addWarmups,
     askOpen,
     setAskOpen,
-  } = useSessionLogging(stored, true);
+  } = useSessionLoggingIn(store, true);
+  const stats = useSessionStore((state) => state.stats);
+  const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
-  const scrollRef = useRef<FlatList<SessionExerciseDetail>>(null);
-  const reveal = useRowReveal(scrollRef);
+  const scrollRef = useRef<LegendListRef>(null);
+  const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
+  const reveal = useRowReveal(scrollRef, isEditing);
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
   // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
   // next workout (started or resumed) opens in the view used last.
   // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
-  const { closeKeypad } = logging;
+  const { closeKeypad, flushWrites } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
     closeKeypad();
@@ -180,11 +194,19 @@ function LoadedSession({
   useEffect(() => {
     if (readOnly) setReordering(false);
   }, [readOnly]);
-  const openTimer = useCallback(() => {
+  const openingTimer = useRef(false);
+  const openTimer = useCallback(async () => {
+    if (openingTimer.current) return;
+    openingTimer.current = true;
     closeKeypad();
-    setUi({ sessionView: "timer" });
-    onOpenTimer();
-  }, [closeKeypad, setUi, onOpenTimer]);
+    try {
+      await flushWrites();
+      setUi({ sessionView: "timer" });
+      onOpenTimer();
+    } finally {
+      openingTimer.current = false;
+    }
+  }, [closeKeypad, flushWrites, setUi, onOpenTimer]);
   const openedTimer = useRef(false);
   const wantsTimer = preferences.ui.sessionView === "timer";
   useEffect(() => {
@@ -234,14 +256,8 @@ function LoadedSession({
     refreshDerivedTitle,
   ]);
 
-  const { durationFormat, distanceUnit } = preferences.ui;
-  const display = useMemo(() => ({ durationFormat, distanceUnit }), [durationFormat, distanceUnit]);
-  const totals = useMemo(
-    () => sessionTotals(loggedSetsOf(session, preferences.ui.countWarmups), bodyweightKg),
-    [session, bodyweightKg, preferences.ui.countWarmups],
-  );
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const volume = `${formatVolume(totals.volume, unit, i18n.language)} ${unitName}`;
+  const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
 
   // ---- Sheets and dialogs ----
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -251,17 +267,7 @@ function LoadedSession({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const closeSheet = useCallback(() => setSheet(null), []);
 
-  const { ticked, unticked } = useMemo(() => {
-    let ticked = 0;
-    let unticked = 0;
-    for (const exercise of session.exercises) {
-      for (const set of exercise.sets) {
-        if (set.completedAt === null) unticked += 1;
-        else ticked += 1;
-      }
-    }
-    return { ticked, unticked };
-  }, [session.exercises]);
+  const { ticked, unticked } = stats;
 
   const flow = useFinishFlow({
     session,
@@ -269,7 +275,7 @@ function LoadedSession({
     ticked,
     unticked,
     actions,
-    flush: logging.flushForFinish,
+    flush: flushWrites,
     closeKeypad: logging.closeKeypad,
     onMinimise,
     onFinished,
@@ -291,10 +297,6 @@ function LoadedSession({
   const { reveal: revealRow, hasRow } = reveal;
   const activeSetId = logging.activeSetId;
   const activeExercise = activeSetId ? logging.found.get(activeSetId)?.exercise.id : undefined;
-  const activeIndex = useMemo(
-    () => session.exercises.findIndex((exercise) => exercise.id === activeExercise),
-    [activeExercise, session.exercises],
-  );
   // Back closes the keypad before it minimises the workout.
   useFocusEffect(
     useCallback(() => {
@@ -308,15 +310,24 @@ function LoadedSession({
   );
   useEffect(() => {
     if (!activeSetId) return;
-    return afterLayout(() => {
+    let cancelReveal: (() => void) | undefined;
+    let cancelled = false;
+    const cancelFirst = afterLayout(() => {
       if (hasRow(activeSetId)) {
         revealRow(activeSetId);
         return;
       }
-      if (activeIndex >= 0)
-        scrollRef.current?.scrollToIndex({ index: activeIndex, animated: false });
+      if (!activeExercise) return;
+      void scrollRef.current?.scrollToKey({ key: activeExercise, animated: false }).then(() => {
+        if (!cancelled) cancelReveal = afterLayout(() => revealRow(activeSetId));
+      });
     });
-  }, [activeSetId, activeIndex, hasRow, revealRow]);
+    return () => {
+      cancelled = true;
+      cancelFirst();
+      cancelReveal?.();
+    };
+  }, [activeSetId, activeExercise, hasRow, revealRow]);
 
   // ---- The exercise menu ----
   const menuExercise = sheet?.kind === "menu" ? sheet.exercise : null;
@@ -454,7 +465,75 @@ function LoadedSession({
       void updateExercise(exerciseId, { rest_seconds: restSeconds }),
     [updateExercise],
   );
-  const registerSetRow = reveal.registerRow;
+  const onItemLayout = useCallback(
+    (exerciseId: string) => {
+      const state = store.getState();
+      const setId = state.cell?.setId;
+      if (setId && state.found.get(setId)?.exercise.id === exerciseId) revealRow(setId);
+    },
+    [store, revealRow],
+  );
+  const { onCopySets } = logging;
+  const { registerRow } = reveal;
+  // Rows are memoized and take these as one object: handlers that keep their identity keep the
+  // rows from redrawing when something unrelated on this screen changes.
+  const removeOneSet = useStableHandler(actions.removeOneSet);
+  const stableView = useStableHandler(viewExercise);
+  const stableReorder = useStableHandler(openReorder);
+  const stableAddSet = useStableHandler(onAddSet);
+  const stableNote = useStableHandler(onNote);
+  const stableRest = useStableHandler(onRest);
+  const stableLayout = useStableHandler(onItemLayout);
+  // Everything a row can do, as one object that keeps its identity while these handlers do.
+  const handlers = useMemo<ExerciseHandlers>(
+    () => ({
+      onView: stableView,
+      onMenu,
+      onAddSet: stableAddSet,
+      onReorder: stableReorder,
+      onNote: stableNote,
+      onRest: stableRest,
+      onCell: openCell,
+      onTick,
+      onKind,
+      onEffort,
+      onPrevious,
+      onCopySets,
+      onRemoveSet: removeOneSet,
+      onTimer,
+      registerRow,
+      onLayout: stableLayout,
+    }),
+    [
+      stableView,
+      onMenu,
+      stableAddSet,
+      stableReorder,
+      stableNote,
+      stableRest,
+      openCell,
+      onTick,
+      onKind,
+      onEffort,
+      onPrevious,
+      onCopySets,
+      removeOneSet,
+      onTimer,
+      registerRow,
+      stableLayout,
+    ],
+  );
+  const renderItem = useCallback(
+    ({ item }: { item: string }) => <ExerciseItem exerciseId={item} handlers={handlers} />,
+    [handlers],
+  );
+  const onScroll = reveal.onScroll;
+  const onListScroll = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) =>
+      onScroll(event.nativeEvent.contentOffset.y),
+    [onScroll],
+  );
+  const listContentStyle = useMemo(() => ({ paddingBottom: bottom + 32 }), [bottom]);
   return (
     <View className="flex-1 bg-background">
       <SheetShell
@@ -487,7 +566,7 @@ function LoadedSession({
         title={title}
         startedAt={session.startedAt}
         volume={volume}
-        sets={totals.sets}
+        sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
         onFinish={flow.askFinish}
@@ -501,24 +580,19 @@ function LoadedSession({
           if (activeSetId) revealRow(activeSetId);
         }}
       >
-        <FlatList
+        <LegendList
           ref={scrollRef}
           className="flex-1"
-          data={session.exercises}
-          keyExtractor={(entry) => entry.id}
-          initialNumToRender={3}
-          maxToRenderPerBatch={3}
-          windowSize={5}
+          data={exerciseKeys}
+          keyExtractor={exerciseKey}
+          renderItem={renderItem}
+          estimatedItemSize={ESTIMATED_EXERCISE_HEIGHT}
+          // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
+          recycleItems={false}
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
-          onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
-          contentContainerStyle={{ paddingBottom: bottom + 32 }}
-          onScrollToIndexFailed={({ averageItemLength, index }) => {
-            scrollRef.current?.scrollToOffset({
-              offset: averageItemLength * index,
-              animated: false,
-            });
-          }}
+          onScroll={onListScroll}
+          contentContainerStyle={listContentStyle}
           ListHeaderComponent={
             <View className="gap-3 pb-3">
               {mine || installId === null || session.finishedAt !== null ? null : (
@@ -549,64 +623,6 @@ function LoadedSession({
               )}
             </View>
           }
-          renderItem={({ item: entry }) => (
-            <View
-              onLayout={() => {
-                if (activeSetId && activeExercise === entry.id) {
-                  revealRow(activeSetId);
-                }
-              }}
-            >
-              <ExerciseItem
-                exercise={entry}
-                suggestion={logging.suggestions.get(entry.id) ?? null}
-                stall={logging.stalls.get(entry.id) ?? null}
-                lighter={logging.lighter}
-                place={logging.places.get(entry.id) ?? "none"}
-                progress={progressText(entry.sets)}
-                summary={
-                  allTicked(entry.sets)
-                    ? doneSummary(entry.sets, entry.type, unit, unitName, display)
-                    : ""
-                }
-                readOnly={readOnly}
-                unit={unit}
-                display={display}
-                effortScale={effortScale}
-                historyReady={logging.historyReadyFor(entry.exerciseId)}
-                editingFinished={logging.editingFinished}
-                inlineTimer={preferences.ui.inlineTimer}
-                entry={ownEntry(entry, logging.entry)}
-                refusal={
-                  logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
-                    ? logging.refusal
-                    : null
-                }
-                previousOf={logging.rowLookups.get(entry.id)?.previousOf ?? logging.previousOf}
-                ghostsFor={logging.rowLookups.get(entry.id)?.ghostsFor ?? logging.ghostsFor}
-                currentSetId={
-                  entry.sets.some((set) => set.id === logging.currentSetId)
-                    ? logging.currentSetId
-                    : null
-                }
-                onView={viewExercise}
-                onMenu={onMenu}
-                onAddSet={onAddSet}
-                onReorder={openReorder}
-                onNote={onNote}
-                onRest={onRest}
-                onCell={openCell}
-                onTick={onTick}
-                onKind={onKind}
-                onEffort={onEffort}
-                onPrevious={onPrevious}
-                onCopySets={logging.onCopySets}
-                onRemoveSet={actions.removeOneSet}
-                onTimer={onTimer}
-                registerRow={registerSetRow}
-              />
-            </View>
-          )}
           ListFooterComponent={
             readOnly ? null : (
               <View className="mt-4 px-4">
@@ -778,4 +794,4 @@ function LoadedSession({
       />
     </View>
   );
-}
+});

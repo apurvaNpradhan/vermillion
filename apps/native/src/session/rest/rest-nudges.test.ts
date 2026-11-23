@@ -1,10 +1,15 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { nudged, restFrom } from "../logging/optimistic";
+import { nudged } from "../logging/optimistic";
 import { RestNudges } from "./rest-nudges";
 import { planRestSchedule, restNotificationId } from "./rest-schedule";
 
 const now = Date.parse("2026-01-01T10:00:00Z");
+const restFrom = (setId: string, seconds: number, now: number) => ({
+  setId,
+  startedAt: new Date(now).toISOString(),
+  endsAt: new Date(now + seconds * 1000).toISOString(),
+});
 const rest = restFrom("set", 120, now);
 afterEach(() => vi.useRealTimers());
 
@@ -83,6 +88,27 @@ it("flushes early and serializes taps made during a save", async () => {
   nudges.observe(restFrom("set", 135, now));
   expect(show).toHaveBeenLastCalledWith(restFrom("set", 150, now));
   nudges.observe(restFrom("set", 150, now));
+  expect(show).toHaveBeenLastCalledWith(undefined);
+});
+
+it("releases the preview when the watch echoes a nudge before its save resolves", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  let complete = (_value: { rest: typeof rest }) => {};
+  const show = vi.fn();
+  const nudges = new RestNudges(
+    () =>
+      new Promise<{ rest: typeof rest }>((resolve) => {
+        complete = resolve;
+      }),
+    show,
+  );
+  nudges.add(rest, 15, now);
+  const saving = nudges.flush();
+  const adjusted = restFrom("set", 135, now);
+  nudges.observe(adjusted);
+  complete({ rest: adjusted });
+  await saving;
   expect(show).toHaveBeenLastCalledWith(undefined);
 });
 

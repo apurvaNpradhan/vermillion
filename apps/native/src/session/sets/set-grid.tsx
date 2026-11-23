@@ -1,121 +1,150 @@
-import {
-  SET_FIELDS,
-  addsLoad,
-  optionalSetIndexes,
-  type EffortScale,
-  type Ghosts,
-  type LoggedSet,
-  type SetField,
-  type WeightUnit,
-} from "@workspace/shared";
-import type { SessionExerciseDetail } from "@workspace/sync";
+import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Text, View } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
-import { chipTexts } from "@/training";
 
-import { copySetUpdates } from "@/session/logging/copy-sets";
-import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
+import { useSessionStore } from "@/session/store/session-store-context";
+import { SetRowView } from "./set-row";
 
-import { valueOfSet, type DisplayUnits } from "@/session/logging/set-values";
+/** What the rows of one exercise do; all of them keep their identity. */
+export type SetHandlers = {
+  onCell: (setId: string, field: SetField) => void;
+  onTick: (setId: string) => void;
+  onKind: (setId: string) => void;
+  onEffort: (setId: string) => void;
+  onPrevious: (setId: string) => void;
+  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
+  onRemoveSet: (setId: string) => Promise<boolean>;
+  onTimer: (setId: string) => void;
+  /** Lets the screen scroll a row into view above the keypad. */
+  registerRow: (setId: string) => (node: View | null) => void;
+};
+
+/**
+ * One set: it reads its own set, its lookups, the keypad's draft and the flags it draws from the
+ * Session's store, so a tick or a keystroke redraws this row and no other.
+ */
+const SetRowItem = memo(function SetRowItem({
+  exerciseId,
+  setId,
+  handlers,
+}: {
+  exerciseId: string;
+  setId: string;
+  handlers: SetHandlers;
+}) {
+  const { t } = useTranslation();
+  const data = useSessionStore(
+    useShallow((state) => {
+      const exercise = state.exercises.get(exerciseId);
+      const view = state.views.get(exerciseId);
+      return {
+        set: state.setsById.get(setId),
+        row: view?.rows.get(setId),
+        type: exercise?.type,
+        logEffort: exercise?.logEffort ?? false,
+        historyReady: view?.historyReady ?? false,
+        current: state.currentSetId === setId,
+        refusal: state.refusal?.setId === setId ? state.refusal : null,
+        cell: state.cell?.setId === setId ? state.cell : null,
+        raw: state.cell?.setId === setId ? state.raw : "",
+        fresh: state.cell?.setId === setId ? state.fresh : true,
+        unit: state.inputs.unit,
+        display: state.inputs.display,
+        effortScale: state.ui.effortScale,
+        readOnly: state.ui.readOnly,
+        inlineTimer: state.ui.inlineTimer,
+        editingFinished: state.session.finishedAt !== null,
+      };
+    }),
+  );
+  const { registerRow } = handlers;
+  const register = useMemo(() => registerRow(setId), [registerRow, setId]);
+  const { set, row, type, cell, raw, fresh } = data;
+  const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
+  if (!set || !row || !type) return null;
+  return (
+    <View ref={register} collapsable={false} style={{ opacity: row.optional ? 0.55 : 1 }}>
+      <SetRowView
+        editingFinished={data.editingFinished}
+        inlineTimer={data.inlineTimer}
+        set={set}
+        type={type}
+        row={row}
+        logEffort={data.logEffort}
+        historyReady={data.historyReady}
+        unit={data.unit}
+        display={data.display}
+        effortScale={data.effortScale}
+        entry={entry}
+        refusal={data.refusal}
+        current={data.current}
+        readOnly={data.readOnly}
+        onCell={handlers.onCell}
+        onTick={handlers.onTick}
+        onKind={handlers.onKind}
+        onEffort={handlers.onEffort}
+        onPrevious={handlers.onPrevious}
+        onCopySets={handlers.onCopySets}
+        onRemove={handlers.onRemoveSet}
+        onTimer={handlers.onTimer}
+      />
+      {row.optional ? (
+        <Text className="font-normal px-3 pb-1 text-caption text-muted">
+          {t("lighter__optional")}
+        </Text>
+      ) : null}
+    </View>
+  );
+});
 
 /**
  * The sets of one exercise: a header over the columns, then a row for each set, then "+ Add set".
- * All state lives in the logging hook; a row gets only what it draws.
+ * It redraws when the exercise's columns or its list of sets change; each row follows its own set.
  */
 export const SetGrid = memo(function SetGrid({
-  exercise,
-  lighter,
-  historyReady,
-  editingFinished,
-  inlineTimer,
-  entry,
-  refusal,
-  currentSetId,
-  previousOf,
-  ghostsFor,
-  onCell,
-  onTick,
-  onPrevious,
-  onCopySets,
-  onTimer,
+  exerciseId,
+  handlers,
   onAddSet,
-  unit,
-  display,
-  effortScale,
-  readOnly,
-  onKind,
-  onEffort,
-  onRemoveSet,
-  registerRow,
 }: {
-  exercise: SessionExerciseDetail;
-  /** A Lighter week is running: sets past the first half are optional. */
-  lighter: boolean;
-  /** Previous values of this exercise have loaded. */
-  historyReady: boolean;
-  editingFinished: boolean;
-  inlineTimer: boolean;
-  /** The keypad's cell, only when it is in this exercise. */
-  entry: ActiveEntry | null;
-  /** A refused tick, only when it is in this exercise. */
-  refusal: Refusal | null;
-  /** The set to log next, when it is in this exercise (from `highlightOf`). */
-  currentSetId: string | null;
-  previousOf: (setId: string) => LoggedSet | null;
-  ghostsFor: (setId: string) => Ghosts;
-  onCell: (setId: string, field: SetField) => void;
-  onTick: (setId: string) => void;
-  onPrevious: (setId: string) => void;
-  onCopySets: (setId: string, mode: "previous" | "remaining") => void;
-  onTimer: (setId: string) => void;
+  exerciseId: string;
+  handlers: SetHandlers;
   onAddSet: (exerciseId: string) => void;
-  unit: WeightUnit;
-  display: DisplayUnits;
-  effortScale: EffortScale;
-  readOnly: boolean;
-  onKind: (setId: string) => void;
-  onEffort: (setId: string) => void;
-  onRemoveSet: (setId: string) => Promise<boolean>;
-  /** Lets the screen scroll a row into view above the keypad. */
-  registerRow: (setId: string) => (node: View | null) => void;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const fields: readonly SetField[] = SET_FIELDS[exercise.type];
-  const optional = lighter
-    ? optionalSetIndexes(exercise.sets.map((set) => set.kind))
-    : new Set<number>();
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const showsEffort = exercise.logEffort && fields.includes("reps");
-  let lastUnticked = exercise.sets.length - 1;
-  while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
-  const badges = chipTexts(
-    exercise.sets.map((set) => ({ kind: set.kind })),
-    {
-      working: "",
-      warmup: t("training__chip_warmup"),
-      drop: t("training__chip_drop"),
-      failure: t("training__chip_failure"),
-      top: t("training__chip_top"),
-      backoff: t("training__chip_backoff"),
-      myo: t("training__chip_myo"),
-    },
+  const layout = useSessionStore(
+    useShallow((state) => {
+      const exercise = state.exercises.get(exerciseId);
+      return {
+        type: exercise?.type,
+        logEffort: exercise?.logEffort ?? false,
+        setIds: state.views.get(exerciseId)?.setIds,
+        unit: state.inputs.unit,
+        display: state.inputs.display,
+        effortScale: state.ui.effortScale,
+        readOnly: state.ui.readOnly,
+        editingFinished: state.session.finishedAt !== null,
+      };
+    }),
   );
+  const { type, logEffort, setIds, unit, display, effortScale, readOnly, editingFinished } = layout;
+  if (!type || !setIds) return null;
+  const fields: readonly SetField[] = SET_FIELDS[type];
+  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const showsEffort = logEffort && fields.includes("reps");
   const header = (field: SetField): string => {
     switch (field) {
       case "weight":
-        return t(
-          addsLoad(exercise.type) ? "training__field_added_weight" : "training__field_weight",
-          {
-            unit: unitName,
-          },
-        );
+        return t(addsLoad(type) ? "training__field_added_weight" : "training__field_weight", {
+          unit: unitName,
+        });
       case "reps":
         return t("training__field_reps");
       case "duration":
@@ -160,60 +189,12 @@ export const SetGrid = memo(function SetGrid({
           ) : null}
           {editingFinished ? null : <View className="w-11" />}
         </View>
-        {exercise.sets.map((set, index) => {
-          const previous = previousOf(set.id);
-          const canFill =
-            index < lastUnticked &&
-            (fields.some((field) => valueOfSet(set, field) !== null) ||
-              (showsEffort && set.rpe !== null));
-          return (
-            <View
-              key={set.id}
-              ref={registerRow(set.id)}
-              collapsable={false}
-              style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
-            >
-              <SetRow
-                editingFinished={editingFinished}
-                inlineTimer={inlineTimer}
-                set={set}
-                type={exercise.type}
-                badge={badges[index] ?? String(index + 1)}
-                number={index + 1}
-                logEffort={exercise.logEffort}
-                historyReady={historyReady}
-                previous={previous}
-                ghosts={ghostsFor(set.id)}
-                unit={unit}
-                display={display}
-                effortScale={effortScale}
-                entry={entry?.cell.setId === set.id ? entry : null}
-                refusal={refusal?.setId === set.id ? refusal : null}
-                current={currentSetId === set.id}
-                readOnly={readOnly}
-                canRemove={exercise.sets.length > 1}
-                canCopyPrevious={copySetUpdates(exercise, set.id, "previous", previous).length > 0}
-                canFillRemaining={canFill}
-                onCell={onCell}
-                onTick={onTick}
-                onKind={onKind}
-                onEffort={onEffort}
-                onPrevious={onPrevious}
-                onCopySets={onCopySets}
-                onRemove={onRemoveSet}
-                onTimer={onTimer}
-              />
-              {optional.has(index) && set.completedAt === null ? (
-                <Text className="font-normal px-3 pb-1 text-caption text-muted">
-                  {t("lighter__optional")}
-                </Text>
-              ) : null}
-            </View>
-          );
-        })}
+        {setIds.map((setId) => (
+          <SetRowItem key={setId} exerciseId={exerciseId} setId={setId} handlers={handlers} />
+        ))}
       </View>
       {readOnly ? null : (
-        <Button variant="secondary" onPress={() => onAddSet(exercise.id)}>
+        <Button variant="secondary" onPress={() => onAddSet(exerciseId)}>
           <Plus size={20} color={subtle} />
           <Button.Label>{t("session__add_set")}</Button.Label>
         </Button>

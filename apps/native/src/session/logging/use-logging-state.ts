@@ -1,45 +1,39 @@
-import { exerciseSuggestion } from "./logging-ghosts";
 import { recordMessage } from "./record-message";
 import { RecordToastIcon } from "./record-toast-icon";
 import {
   SET_FIELDS,
-  historyForWorkout,
-  type PreviousSource,
   activeLighterWeek,
-  stalledSessions,
-  supersetPlaces,
+  type PreviousSource,
   type EffortScale,
   type ExerciseBests,
   type Ghosts,
   type SetKind,
+  type SetField,
   type LighterPeriod,
   type WeightUnit,
 } from "@workspace/shared";
-import type {
-  SessionDetail,
-  SessionExerciseDetail,
-  SessionSetDetail,
-  SetPatch,
-} from "@workspace/sync";
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SessionExerciseDetail, SetPatch } from "@workspace/sync";
+import { useIsFocused } from "expo-router";
+import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { AppState } from "react-native";
+import { useStore } from "zustand";
 
 import { stallMemory, useStallVersion } from "@/exercise";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
-import { useCoalescedWriter } from "@/training";
+import { chipTexts, useCoalescedWriter } from "@/training";
 
 import { copySetUpdates } from "./copy-sets";
-import { nextRowLookups, shareMapValues, type RowLookups } from "./row-lookups";
 import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
+import { useStableValue } from "@/session/shared/use-stable-value";
+import type { DeriveInputs } from "@/session/store/derive";
+import type { SessionStore } from "@/session/store/session-store";
 
-import { blocksOf, firstUnfinished, highlightOf, nextAfter, type Block } from "./blocks";
 import {
   applyKey,
-  displayOfText,
   stepOf,
   stepValue,
   textOfValue,
@@ -51,50 +45,38 @@ import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { hasRequiredSetValues, historySettled } from "./history-gate";
+import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
-import {
-  ghostsOf,
-  loggedSetOf,
-  patchFor,
-  previousOfRow,
-  previousPatch,
-  valueOfSet,
-} from "./set-values";
-import type { ActiveEntry, KeypadDraft, Refusal } from "@/session/sets/set-row";
+import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
-  ReturnType<typeof useOptimisticSession>["actions"],
-  "tick" | "untick" | "updateValues" | "addExtraSet" | "readSet" | "editValues" | "awaitCompletions"
+  ReturnType<typeof useOptimisticSession>,
+  "tick" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
 >;
-
-/** Where a set sits: its exercise, its place in it. */
-type Found = { exercise: SessionExerciseDetail; set: SessionSetDetail; index: number };
-
-/** The cell the keypad is editing and what is typed in it; `fresh` means the next key replaces it. */
-type Entry = { cell: CellRef; raw: string; fresh: boolean };
 
 /**
  * Everything the logging screen does that is not drawing: which set to highlight,
  * the keypad's cell and what is typed into it, refused ticks, and the
  * writes. Edits show at once (the draft is the cell's text) and are saved together once typing
- * pauses; moving to another cell, Done and ticking save immediately.
+ * pauses; moving to another cell, Done and ticking save immediately. The Session, its lookups and
+ * the keypad's state live in the Session's store; this holds the handlers, which read the store
+ * when an event fires and so keep their identity.
  */
-/** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
-
 export function useLoggingState({
-  session,
+  store,
   editor,
   previous,
   recordBests,
   historyReady,
   historyFailed,
   unit,
+  display,
   effortScale,
+  inlineTimer,
   bodyweightKg,
   weightIncrementKg,
-  lighterWeeks,
+  lighterWeeks: rawLighterWeeks,
   recordAlerts,
   previousSource,
   countWarmups,
@@ -102,7 +84,7 @@ export function useLoggingState({
   actions,
   onRestStarted,
 }: {
-  session: SessionDetail;
+  store: SessionStore;
   editor: boolean;
   previous: PreviousSets;
   recordBests: ReturnType<typeof createRecordBestsCache> | null;
@@ -110,7 +92,10 @@ export function useLoggingState({
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
   unit: WeightUnit;
+  display: DisplayUnits;
   effortScale: EffortScale;
+  /** The Inline timer preference. */
+  inlineTimer: boolean;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
   lighterWeeks: readonly LighterPeriod[];
@@ -125,160 +110,138 @@ export function useLoggingState({
   /** A Rest just started: the first time, the screen asks about notifications. */
   onRestStarted?: () => void;
 }) {
-  const exercises = session.exercises;
-  const blocks = useMemo(() => blocksOf(exercises), [exercises]);
-  const places = useMemo(() => {
-    const list = supersetPlaces(exercises, (entry) => entry.supersetGroup);
-    return new Map(exercises.map((entry, index) => [entry.id, list[index] ?? "none"] as const));
-  }, [exercises]);
-  const found = useMemo(() => {
-    const map = new Map<string, Found>();
-    for (const exercise of exercises) {
-      exercise.sets.forEach((set, index) => map.set(set.id, { exercise, set, index }));
-    }
-    return map;
-  }, [exercises]);
+  const { t } = useTranslation();
+  const { toast } = useAppToast();
+  const sound = useSoundCues();
 
-  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
-
-  // ---- Previous and Ghost values ----
-  // With "Same workout" (the default) a Session started from a Workout compares with that
-  // Workout's own Sessions first; "Any session" reads them all. Records keep reading the global
-  // `previous`.
-  const workoutId = previousSource === "same_workout" ? session.workoutId : null;
-  const previousByWorkout = useMemo(
-    () =>
-      new Map([...previous].map(([id, sessions]) => [id, historyForWorkout(sessions, workoutId)])),
-    [previous, workoutId],
-  );
-  const previousOf = useCallback(
-    (setId: string) => {
-      const at = found.get(setId);
-      return at
-        ? previousOfRow(previousByWorkout.get(at.exercise.exerciseId), at.exercise.sets, at.index)
-        : null;
-    },
-    [found, previousByWorkout],
-  );
-  // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
+  // ---- Feeding the store: what Previous, Ghost values and the row labels depend on ----
   const stallVersion = useStallVersion();
-  const stallsRef = useRef(new Map<string, StallInfo>());
-  const stalls = useMemo(
-    () =>
-      new Map(
-        exercises.flatMap((exercise): [string, StallInfo][] => {
-          if (session.finishedAt !== null || !exercise.sourceWorkoutExerciseId) return [];
-          const history = previousByWorkout.get(exercise.exerciseId) ?? [];
-          const latestSessionId = history[0]?.id ?? null;
-          const count = stalledSessions(history, exercise.type, { bodyweightKg, lighterWeeks });
-          if (latestSessionId === null || count === 0) return [];
-          const memory = stallMemory(exercise.exerciseId, latestSessionId);
-          return memory.dismissed && !memory.applied
-            ? []
-            : [[exercise.id, { count, latestSessionId, applied: memory.applied }]];
-        }),
-      ),
-    // `stallVersion` changes when a note is dismissed or applied: the memory lives on the device.
-    [exercises, previousByWorkout, session.finishedAt, bodyweightKg, lighterWeeks, stallVersion],
+  const lighterWeeks = useStableValue(rawLighterWeeks);
+  const shownDisplay = useStableValue(display);
+  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
+  const badges = useCallback(
+    (sets: readonly { kind: SetKind }[]) =>
+      chipTexts(sets, {
+        working: "",
+        warmup: t("training__chip_warmup"),
+        drop: t("training__chip_drop"),
+        failure: t("training__chip_failure"),
+        top: t("training__chip_top"),
+        backoff: t("training__chip_backoff"),
+        myo: t("training__chip_myo"),
+      }),
+    [t],
   );
-  // Unchanged notes keep their objects, so a write elsewhere does not redraw every exercise.
-  const sharedStalls = useMemo(() => {
-    stallsRef.current = shareMapValues(stallsRef.current, stalls);
-    return stallsRef.current;
-  }, [stalls]);
-  const suggestionsRef = useRef(new Map<string, ReturnType<typeof exerciseSuggestion> | null>());
-  const suggestions = useMemo(
-    () =>
-      new Map(
-        exercises.map((exercise) => [
-          exercise.id,
-          session.finishedAt !== null || !exercise.sourceWorkoutExerciseId
-            ? null
-            : exerciseSuggestion(exercise, previousByWorkout.get(exercise.exerciseId) ?? [], {
-                weightUnit: unit,
-                weightIncrementKg,
-                lighterWeeks,
-                deload: stalls.get(exercise.id)?.applied === true,
-              }),
-        ]),
-      ),
-    [
-      exercises,
-      previousByWorkout,
-      session.finishedAt,
+  const inputs = useMemo<DeriveInputs>(
+    () => ({
+      previous,
+      historyFailed,
+      previousSource,
       unit,
+      unitName,
+      display: shownDisplay,
       weightIncrementKg,
       lighterWeeks,
-      stalls,
+      lighter,
+      bodyweightKg,
+      stallVersion,
+      stallMemory,
+      chipTexts: badges,
+    }),
+    [
+      previous,
+      historyFailed,
+      previousSource,
+      unit,
+      unitName,
+      shownDisplay,
+      weightIncrementKg,
+      lighterWeeks,
+      lighter,
+      bodyweightKg,
+      stallVersion,
+      badges,
     ],
   );
-  const sharedSuggestions = useMemo(() => {
-    suggestionsRef.current = shareMapValues(suggestionsRef.current, suggestions);
-    return suggestionsRef.current;
-  }, [suggestions]);
+  useLayoutEffect(() => {
+    store.getState().setInputs(inputs);
+  }, [store, inputs]);
+  useLayoutEffect(() => {
+    store.getState().setUi({ readOnly, inlineTimer, effortScale, countWarmups });
+  }, [store, readOnly, inlineTimer, effortScale, countWarmups]);
+
+  // What this hook's own render reads. The rows read what they draw straight from the store.
+  const found = useStore(store, (state) => state.found);
+  const blocks = useStore(store, (state) => state.blocks);
+  const places = useStore(store, (state) => state.places);
+  const views = useStore(store, (state) => state.views);
+  const exercises = useStore(store, (state) => state.session.exercises);
+  const finished = useStore(store, (state) => state.session.finishedAt !== null);
+  const currentSetId = useStore(store, (state) => state.currentSetId);
+  const cell = useStore(store, (state) => state.cell);
+  const refusal = useStore(store, (state) => (editor ? null : state.refusal));
+  // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
+  // screen without rows (the Timer) follows it here.
+  const raw = useStore(store, (state) => (editor ? "" : state.raw));
+  const fresh = useStore(store, (state) => (editor ? true : state.fresh));
+
+  const previousOf = useCallback(
+    (setId: string) => {
+      const at = views.get(found.get(setId)?.exercise.id ?? "")?.rows.get(setId);
+      return at?.previous ?? null;
+    },
+    [views, found],
+  );
+  // Changes with the views: the ramp reads it again when Previous or a suggestion moves.
   const ghostsFor = useCallback(
-    (setId: string): Ghosts => {
-      const at = found.get(setId);
-      if (!at || !previous.has(at.exercise.exerciseId)) return {};
-      return ghostsOf(
-        at.exercise.type,
-        previousOf(setId),
-        at.set.target,
-        at.exercise.logEffort,
-        suggestions.get(at.exercise.id)?.sets[at.index],
-        at.exercise.repeated,
+    (setId: string): Ghosts =>
+      views.get(found.get(setId)?.exercise.id ?? "")?.rows.get(setId)?.ghosts ?? {},
+    [views, found],
+  );
+  const lookupPrevious = useCallback(
+    (setId: string) => {
+      const state = store.getState();
+      return (
+        state.views.get(state.found.get(setId)?.exercise.id ?? "")?.rows.get(setId)?.previous ??
+        null
       );
     },
-    [found, previousOf, previous, suggestions],
+    [store],
   );
-  const lookupsRef = useRef(new Map<string, RowLookups>());
-  const rowLookups = useMemo(() => {
-    lookupsRef.current = nextRowLookups(lookupsRef.current, exercises, previousOf, ghostsFor);
-    return lookupsRef.current;
-  }, [exercises, previousOf, ghostsFor]);
+  const lookupGhosts = useCallback(
+    (setId: string): Ghosts => {
+      const state = store.getState();
+      return (
+        state.views.get(state.found.get(setId)?.exercise.id ?? "")?.rows.get(setId)?.ghosts ?? {}
+      );
+    },
+    [store],
+  );
 
   // ---- The keypad ----
-  const [entry, setEntryState] = useState<Entry | null>(null);
-  // Keys can arrive faster than renders; the ref is the truth between them, so it is
-  // written with every change rather than after the next render.
-  const entryRef = useRef(entry);
-  const [draft] = useState(() => {
-    const listeners = new Set<() => void>();
-    let raw: string | null = null;
-    return {
-      getSnapshot: () => raw,
-      subscribe: (listener: () => void) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-      show: (value: string | null) => {
-        if (value === raw) return;
-        raw = value;
-        for (const listener of listeners) listener();
-      },
-    } satisfies KeypadDraft & { show: (value: string | null) => void };
-  });
   const setEntry = useCallback(
-    (next: Entry | null) => {
-      const sameCell = next !== null && next.cell === entryRef.current?.cell;
-      entryRef.current = next;
-      if (editor) draft.show(sameCell && !next.fresh ? next.raw : null);
-      if (!editor || !sameCell) setEntryState(next);
-    },
-    [draft, editor],
+    (next: { cell: CellRef; raw: string; fresh: boolean } | null) =>
+      store.getState().setEntry(next),
+    [store],
   );
+  const readEntry = useCallback(() => {
+    const { cell: current, raw: text, fresh: isFresh } = store.getState();
+    return current ? { cell: current, raw: text, fresh: isFresh } : null;
+  }, [store]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
-    actions.editValues(patch.setId, patch.values),
+    actions.updateValues(patch.setId, patch.values),
   );
-  const activeSetId = entry?.cell.setId ?? null;
+  const activeSetId = cell?.setId ?? null;
 
   /** Saves what is typed now, for a cell that is about to be left. */
   const { flush } = writer;
-  const { awaitCompletions } = actions;
-  const flushForFinish = useCallback(async () => {
+  const { awaitWrites } = actions;
+  const flushWrites = useCallback(async () => {
     await flush();
-    await awaitCompletions();
-  }, [flush, awaitCompletions]);
+    await awaitWrites();
+    return store.getState().stats;
+  }, [flush, awaitWrites, store]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") void flush();
@@ -290,56 +253,56 @@ export function useLoggingState({
     (setId: string, field: EntryField) => {
       if (readOnly) return;
       flush();
-      const at = found.get(setId);
+      const at = store.getState().found.get(setId);
       if (!at) return;
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(actions.readSet(setId) ?? at.set, field), unit),
+        raw: textOfValue(field, valueOfSet(at.set, field), unit),
         fresh: true,
       });
     },
-    [readOnly, flush, found, unit, actions.readSet],
+    [readOnly, flush, store, unit, actions, setEntry],
   );
   const closeKeypad = useCallback(() => {
     flush();
     setEntry(null);
-  }, [flush]);
+  }, [flush, setEntry]);
 
   /** Writes a cell's value (null clears it); a ticked set must keep its values. */
   const commit = useCallback(
-    (cell: CellRef, value: number | null) => {
-      const at = found.get(cell.setId);
+    (target: CellRef, value: number | null) => {
+      const at = store.getState().found.get(target.setId);
       if (!at || (value === null && at.set.completedAt !== null)) return;
       writer.queue({
-        setId: cell.setId,
+        setId: target.setId,
         // Typing a duration ends a running timer; the value is now typed.
         values: {
-          ...patchFor(cell.field, value),
-          ...(cell.field === "duration" ? { timer_started_at: null } : {}),
+          ...patchFor(target.field, value),
+          ...(target.field === "duration" ? { timer_started_at: null } : {}),
         },
       });
     },
-    [found, writer],
+    [store, writer],
   );
 
   const onKey = useCallback(
     (key: KeypadKey) => {
-      const current = entryRef.current;
+      const current = readEntry();
       if (!current) return;
       const base = current.fresh ? "" : current.raw;
-      const raw =
+      const text =
         current.fresh && key === "backspace" ? "" : applyKey(current.cell.field, base, key, unit);
-      if (raw === current.raw && !current.fresh) return;
-      setEntry({ cell: current.cell, raw, fresh: false });
-      commit(current.cell, valueOfText(current.cell.field, raw, unit));
+      if (text === current.raw && !current.fresh) return;
+      setEntry({ cell: current.cell, raw: text, fresh: false });
+      commit(current.cell, valueOfText(current.cell.field, text, unit));
     },
-    [unit, commit],
+    [unit, commit, readEntry, setEntry],
   );
 
   /** Puts a whole value into the cell being edited (the plate calculator's Use). */
   const putValue = useCallback(
     (value: number) => {
-      const current = entryRef.current;
+      const current = readEntry();
       if (!current) return;
       setEntry({
         cell: current.cell,
@@ -348,90 +311,76 @@ export function useLoggingState({
       });
       commit(current.cell, value);
     },
-    [unit, commit],
+    [unit, commit, readEntry, setEntry],
   );
 
   const onStep = useCallback(
     (direction: 1 | -1) => {
-      const current = entryRef.current;
+      const current = readEntry();
       if (!current) return;
-      const at = found.get(current.cell.setId);
+      const at = store.getState().found.get(current.cell.setId);
       if (!at) return;
       const field = current.cell.field;
       const typed = current.fresh
         ? valueOfSet(at.set, field)
         : valueOfText(field, current.raw, unit);
-      const ghost = ghostsFor(current.cell.setId)[field] ?? null;
-      const next = stepValue(field, typed, ghost, direction, {
+      const ghost = lookupGhosts(current.cell.setId)[field] ?? null;
+      const stepped = stepValue(field, typed, ghost, direction, {
         unit,
         equipment: at.exercise.exercise?.equipment ?? null,
         incrementKg: weightIncrementKg,
       });
-      setEntry({ cell: current.cell, raw: textOfValue(field, next, unit), fresh: false });
-      commit(current.cell, next);
+      setEntry({ cell: current.cell, raw: textOfValue(field, stepped, unit), fresh: false });
+      commit(current.cell, stepped);
     },
-    [found, unit, ghostsFor, commit, weightIncrementKg],
-  );
-
-  const blockOfSet = useCallback(
-    (setId: string): Block<SessionExerciseDetail> | undefined => {
-      const at = found.get(setId);
-      return at
-        ? blocks.find((block) => block.members.some((member) => member.id === at.exercise.id))
-        : undefined;
-    },
-    [found, blocks],
-  );
-
-  const orderOf = useCallback(
-    (block: Block<SessionExerciseDetail>) => cellOrder(block, (member) => SET_FIELDS[member.type]),
-    [],
+    [store, unit, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
   );
 
   const next = useMemo(() => {
-    if (!entry) return null;
-    const block = blockOfSet(entry.cell.setId);
-    return block ? nextCell(orderOf(block), entry.cell) : null;
-  }, [entry, blockOfSet, orderOf]);
+    if (!cell) return null;
+    const at = found.get(cell.setId);
+    const block = at
+      ? blocks.find((entry) => entry.members.some((member) => member.id === at.exercise.id))
+      : undefined;
+    return block
+      ? nextCell(
+          cellOrder(block, (member) => SET_FIELDS[member.type]),
+          cell,
+        )
+      : null;
+  }, [cell, found, blocks]);
 
   const stepText = useMemo(() => {
-    if (!entry) return "";
-    const at = found.get(entry.cell.setId);
+    if (!cell) return "";
+    const at = found.get(cell.setId);
     return String(
-      stepOf(entry.cell.field, {
+      stepOf(cell.field, {
         unit,
         equipment: at?.exercise.exercise?.equipment ?? null,
         incrementKg: weightIncrementKg,
       }),
     );
-  }, [entry, found, unit, weightIncrementKg]);
+  }, [cell, found, unit, weightIncrementKg]);
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
     openCell(next.setId, next.field);
   }, [next, openCell, closeKeypad]);
   // The Timer edits one set: Next stays within it and closes after its last field.
-  const nextInSet = next !== null && next.setId === entry?.cell.setId;
+  const nextInSet = next !== null && next.setId === cell?.setId;
   const onNextInSet = useCallback(() => {
-    if (!next || next.setId !== entryRef.current?.cell.setId) return closeKeypad();
+    if (!next || next.setId !== readEntry()?.cell.setId) return closeKeypad();
     openCell(next.setId, next.field);
-  }, [next, openCell, closeKeypad]);
-
-  // The keypad closes when its set goes away or the Session stops being editable.
-  useEffect(() => {
-    if (entry && (!found.has(entry.cell.setId) || readOnly)) setEntry(null);
-  }, [entry, found, readOnly]);
+  }, [next, openCell, closeKeypad, readEntry]);
 
   // ---- Ticking ----
-  const sound = useSoundCues();
-  const { t } = useTranslation();
-  const { toast } = useAppToast();
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
-
   /**
    * Ticks a set with its Ghost values (`ghosts` replaces them, for a timer that fixes the duration).
-   * A tick that works buzzes (success for a Record, light otherwise) and starts the Rest the
-   * exercise calls for; one that cannot highlights the cells that lack a value. Returns whether it ticked.
+   * The press answers at once: the check shows, the haptic and the tick sound play, before the write
+   * is queued behind the ones in front of it. The Record check waits for the write, since a Record
+   * only counts once the set is saved; a write that fails takes the check back and says so, and
+   * one that cannot be made (a cell lacks a value) highlights the cells that lack one.
+   * Returns whether it ticked.
    */
   const tickWith = useCallback(
     async (
@@ -440,60 +389,99 @@ export function useLoggingState({
       expiresAt?: number,
       savingEdits?: Promise<boolean[]>,
     ): Promise<boolean> => {
+      const state = store.getState();
       const strong = expiresAt !== undefined;
-      const at = found.get(setId);
+      const at = state.found.get(setId);
       if (!at) return false;
       const settled = historySettled({
         loaded: previous.has(at.exercise.exerciseId),
         failed: historyFailed,
       });
-      const latest = actions.readSet(setId) ?? at.set;
+      const latest = at.set;
       if (
         !settled &&
         (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
       )
         return false;
-      const block = blockOfSet(setId);
+      const block = state.blocks.find((entry) =>
+        entry.members.some((member) => member.id === at.exercise.id),
+      );
       // A finished Session being edited has no timers.
       const seconds =
-        block && session.finishedAt === null ? restAfterTick(block, at.exercise.id, setId) : null;
-      if (editor) setFocusedExerciseId(at.exercise.id);
+        block && state.session.finishedAt === null
+          ? restAfterTick(block, at.exercise.id, setId)
+          : null;
+      // Already ticked (a countdown that ends after a manual tick): nothing to do, nothing to play.
+      if (latest.completedAt !== null) return true;
+      const used = settled ? ghosts : {};
+
+      const preview = previewTick(
+        latest,
+        at.exercise.type,
+        used,
+        new Date(expiresAt ?? Date.now()).toISOString(),
+      );
+      const refuse = (missing: readonly SetField[]) => {
+        store.getState().setRefusal({ setId, fields: missing });
+        haptic.alert();
+        sound.play("refused");
+      };
+      if (preview.kind === "refused" && !strong) {
+        refuse(preview.missing);
+        return false;
+      }
+      if (!strong) {
+        haptic.tick();
+        sound.playTick({ record: false, countdown: false });
+      }
       const result = await actions.tick(
         setId,
-        settled ? ghosts : {},
+        used,
         seconds,
+        preview.kind === "ok" ? preview.change : undefined,
         expiresAt,
         savingEdits,
       );
-      if (!result) return false;
-      if (!result.ok) {
-        setRefusal({ setId, fields: result.missing });
-        haptic.alert();
-        sound.play("refused");
+      const settlement = settleTick(result);
+      if (settlement.outcome === "failed") return false;
+      if (result && !result.ok) {
+        refuse(result.missing);
         return false;
       }
-      if (!result.wrote) return true;
+      if (!result || !result.wrote) return true;
+      // The database verifies the exact expiry. Another screen may already have logged it.
+      if (strong) {
+        haptic.success();
+        sound.playTick({ record: false, countdown: true });
+      }
+      if (result.rest && store.getState().session.rest?.startedAt === result.rest.startedAt)
+        onRestStarted?.();
+
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
       const completed = {
         ...loggedSetOf(at.exercise, latest, countWarmups),
         ...result.values,
-        completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
+        completed_at: result.completedAt,
       };
-      const isRecord = (bests: Map<string, ExerciseBests>) =>
-        tickedSetIsRecord({
+      const isRecord = (bests: Map<string, ExerciseBests>) => {
+        const state = store.getState();
+        if (state.setsById.get(setId)?.completedAt !== result.completedAt) return false;
+        return tickedSetIsRecord({
           bests,
-          sets: session.exercises.flatMap((exercise) =>
+          sets: savedSession(state).exercises.flatMap((exercise) =>
             exercise.exerciseId === at.exercise.exerciseId
-              ? exercise.sets.map((set) =>
-                  set.id === setId ? completed : loggedSetOf(exercise, set, countWarmups),
-                )
+              ? exercise.sets.map((set) => loggedSetOf(exercise, set, countWarmups))
               : [],
           ),
           setId,
           bodyweightKg,
         });
-      const announce = () => {
+      };
+      const announceRecord = () => {
+        sound.play("record");
+        // The tick already buzzed; a countdown's one buzz was the success.
+        if (!strong) haptic.success();
         if (recordAlerts) {
           const message = recordMessage(
             at.exercise.title,
@@ -511,69 +499,62 @@ export function useLoggingState({
           });
         }
       };
-      const record = prior?.value ? isRecord(prior.value) : false;
-      if (record || strong) haptic.success();
-      else haptic.tick();
-      if (record) announce();
-      // A countdown that reached zero is the only `strong` tick.
-      sound.playTick({ record, countdown: strong });
-      if (result.rest) onRestStarted?.();
-
-      // The first tick for an exercise can precede its bests. Give immediate tick feedback, then
-      // play the milestone cue and announce a Record if the history still applies when it arrives.
-      if (prior && !prior.value) {
+      // The first tick for an exercise can precede its bests: the Record shows when they arrive,
+      // if the history still applies then.
+      if (prior?.value) {
+        if (isRecord(prior.value)) announceRecord();
+      } else if (prior) {
         void prior.ready.then((bests) => {
-          if (bests && isRecord(bests)) {
-            sound.play("record");
-            // The Record was not known when the tick landed: its one success haptic is now.
-            if (!strong) haptic.success();
-            announce();
-          }
+          if (bests && isRecord(bests)) announceRecord();
         });
       }
       return true;
     },
     [
-      found,
+      store,
       editor,
       historyFailed,
       actions,
-      session,
       previous,
       recordBests,
       bodyweightKg,
       countWarmups,
-      blockOfSet,
       onRestStarted,
       sound,
       recordAlerts,
       toast,
       t,
+      unit,
     ],
   );
 
   const onTick = useCallback(
     async (setId: string) => {
-      const at = actions.readSet(setId);
-      if (!at || readOnly) return;
+      if (readOnly) return;
       const savingEdits = flush();
       setEntry(null);
-      setRefusal(null);
-      if (at.completedAt !== null) {
-        await actions.untick(setId);
+      const state = store.getState();
+      const at = state.found.get(setId);
+      if (!at) return;
+      state.setRefusal(null);
+      if (editor) state.setFocusedExercise(at.exercise.id);
+      if (at.set.completedAt !== null) {
+        if (editor) await actions.untick(setId);
         return;
       }
-      await tickWith(setId, ghostsFor(setId), undefined, savingEdits);
+      await tickWith(setId, lookupGhosts(setId), undefined, savingEdits);
     },
-    [readOnly, flush, actions, ghostsFor, tickWith],
+    [readOnly, flush, actions, lookupGhosts, tickWith, store, setEntry, editor],
   );
 
   // ---- Duration timers ----
   const onTimer = useCallback(
     async (setId: string) => {
-      const at = found.get(setId);
-      if (!at || readOnly || session.finishedAt !== null || at.set.completedAt !== null) return;
-      flush();
+      if (readOnly) return;
+      const savingEdits = flush();
+      const state = store.getState();
+      const at = state.found.get(setId);
+      if (!at || state.session.finishedAt !== null || at.set.completedAt !== null) return;
       setEntry(null);
       if (at.set.timerStartedAt === null) {
         await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
@@ -583,10 +564,15 @@ export function useLoggingState({
       } else {
         // A stopwatch logs what it counted.
         const elapsed = timerView(at.set.timerStartedAt, null, Date.now()).elapsed;
-        await tickWith(setId, { ...ghostsFor(setId), duration: Math.max(1, elapsed) });
+        await tickWith(
+          setId,
+          { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
+          undefined,
+          savingEdits,
+        );
       }
     },
-    [found, readOnly, flush, actions, tickWith, ghostsFor],
+    [store, readOnly, flush, actions, tickWith, lookupGhosts, setEntry],
   );
 
   // A countdown that reaches zero ticks its set by itself, also when the app was in the background
@@ -596,12 +582,13 @@ export function useLoggingState({
   );
   useEffect(() => {
     autoTick.current = async ({ id, duration, expiresAt }) => {
-      await tickWith(id, { ...ghostsFor(id), duration }, expiresAt);
+      await tickWith(id, { ...lookupGhosts(id), duration }, expiresAt, flush());
     };
   });
+  const focused = useIsFocused();
   const firing = useRef(new Set<string>());
   useEffect(() => {
-    if (readOnly || !(historyReady || historyFailed)) return;
+    if (!focused || readOnly || finished || !(historyReady || historyFailed)) return;
     const sets = exercises.flatMap((exercise) =>
       exercise.sets.filter((set) => set.timerStartedAt !== null && timerTarget(set) !== null),
     );
@@ -615,35 +602,35 @@ export function useLoggingState({
     };
     run();
     const timer = setInterval(run, 1000);
-    const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") run();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") run();
     });
     return () => {
       clearInterval(timer);
       subscription.remove();
     };
-  }, [exercises, readOnly, historyReady, historyFailed]);
+  }, [exercises, focused, finished, readOnly, historyReady, historyFailed]);
 
   // ---- Previous, kind, add and remove ----
   const onPrevious = useCallback(
     async (setId: string) => {
-      const source = previousOf(setId);
-      const at = found.get(setId);
+      const source = lookupPrevious(setId);
+      const at = store.getState().found.get(setId);
       if (!source || !at || readOnly) return;
       flush();
       await actions.updateValues(
         setId,
         previousPatch(source, at.exercise.type, at.exercise.logEffort),
       );
-      setRefusal(null);
+      store.getState().setRefusal(null);
     },
-    [previousOf, found, readOnly, flush, actions],
+    [lookupPrevious, store, readOnly, flush, actions],
   );
   const onCopySets = useCallback(
     async (setId: string, mode: "previous" | "remaining") => {
       if (readOnly) return;
       // The flush below saves the keypad's value without waiting, so read it from the draft.
-      const typing = entryRef.current;
+      const typing = readEntry();
       const draft =
         typing && !typing.fresh
           ? {
@@ -653,16 +640,14 @@ export function useLoggingState({
             }
           : null;
       flush();
-      const at = found.get(setId);
+      const at = store.getState().found.get(setId);
       if (!at) return;
-      for (const update of copySetUpdates(at.exercise, setId, mode, previousOf(setId), draft)) {
-        await actions.updateValues(update.id, update.patch);
-      }
-      setRefusal(null);
+      const updates = copySetUpdates(at.exercise, setId, mode, lookupPrevious(setId), draft);
+      await Promise.all(updates.map(({ id, patch }) => actions.updateValues(id, patch)));
+      store.getState().setRefusal(null);
     },
-    [readOnly, flush, found, previousOf, actions, unit],
+    [readOnly, flush, store, lookupPrevious, actions, unit, readEntry],
   );
-  const stableOnCopySets = useStableHandler(onCopySets);
   const onKindSelected = useCallback(
     (setId: string, kind: SetKind) => void actions.updateValues(setId, { kind }),
     [actions],
@@ -670,95 +655,78 @@ export function useLoggingState({
 
   const addSet = useCallback(
     async (exerciseId: string) => {
-      const exercise = exercises.find((candidate) => candidate.id === exerciseId);
+      const exercise: SessionExerciseDetail | undefined = store
+        .getState()
+        .exercises.get(exerciseId);
       if (!exercise || readOnly) return;
       const last = [...exercise.sets].reverse().find((set) => set.kind !== "warmup");
       return actions.addExtraSet(exerciseId, last?.target ?? null);
     },
-    [exercises, readOnly, actions],
+    [store, readOnly, actions],
   );
-
-  const focusedBlock = blocks.find((block) =>
-    block.members.some((member) => member.id === focusedExerciseId),
-  );
-  const nextBlock = focusedExerciseId
-    ? nextAfter(blocks, focusedExerciseId)
-    : firstUnfinished(blocks);
-  const currentSetId =
-    readOnly || session.finishedAt !== null
-      ? null
-      : (focusedBlock && highlightOf(focusedBlock)?.setId) ||
-        (nextBlock && highlightOf(nextBlock)?.setId) ||
-        null;
 
   // Rows are memoized: hand them handlers that keep their identity across data changes.
   const stableOpenCell = useStableHandler(openCell);
   const stableOnTick = useStableHandler(onTick);
   const stableOnTimer = useStableHandler(onTimer);
   const stableOnPrevious = useStableHandler(onPrevious);
+  const stableOnCopySets = useStableHandler(onCopySets);
+  const stableOnKindSelected = useStableHandler(onKindSelected);
+  const stableAddSet = useStableHandler(addSet);
+  const stableCloseKeypad = useStableHandler(closeKeypad);
+  const stableOnKey = useStableHandler(onKey);
+  const stableOnStep = useStableHandler(onStep);
+  const stablePutValue = useStableHandler(putValue);
+  const stableOnNext = useStableHandler(onNext);
+  const stableOnNextInSet = useStableHandler(onNextInSet);
+  const entry = useMemo(() => (cell ? { cell } : null), [cell]);
   return {
-    historyReadyFor: (exerciseId: string) =>
-      historySettled({ loaded: previous.has(exerciseId), failed: historyFailed }),
     historyReady,
     blocks,
     places,
     currentSetId,
     previousOf,
     ghostsFor,
-    /** Per exercise row: Previous and Ghost lookups that keep their identity while unchanged. */
-    rowLookups,
-    suggestions: sharedSuggestions,
-    stalls: sharedStalls,
-    // A Lighter week halves the suggested sets; the rest stay visible but optional.
-    lighter: activeLighterWeek(lighterWeeks, new Date()) !== null,
     unit,
     effortScale,
-    // The cell being edited, as the rows draw it.
-    entry: useMemo<ActiveEntry | null>(
-      () =>
-        entry
-          ? {
-              cell: entry.cell,
-              text: displayOfText(entry.cell.field, entry.raw),
-              draft: editor ? draft : undefined,
-            }
-          : null,
-      [draft, editor, entry],
-    ),
+    /** The cell being edited. What is typed into it is drawn by its row, from the store. */
+    entry,
+    /** A refused tick; only a screen without rows follows it (the rows read it themselves). */
+    refusal,
     activeSetId,
-    activeField: entry?.cell.field ?? null,
+    activeField: cell?.field ?? null,
     /**
      * What is typed in the cell being edited, or undefined when nothing has been typed yet. The
-     * saved set trails it while typing pauses are coalesced into one write.
+     * saved set trails it while typing pauses are coalesced into one write. Only a screen without
+     * rows follows it.
      */
-    typedValue: entry && !entry.fresh ? valueOfText(entry.cell.field, entry.raw, unit) : undefined,
+    typedValue: cell && !fresh ? valueOfText(cell.field, raw, unit) : undefined,
     readTypedValue: () => {
-      const current = entryRef.current;
+      const current = readEntry();
       return current && !current.fresh
         ? valueOfText(current.cell.field, current.raw, unit)
         : undefined;
     },
     hasNext: next !== null,
     hasNextInSet: nextInSet,
-    onNextInSet,
+    onNextInSet: stableOnNextInSet,
     stepText,
     openCell: stableOpenCell,
-    closeKeypad,
-    onKey,
-    onStep,
-    putValue,
-    onNext,
-    refusal,
+    closeKeypad: stableCloseKeypad,
+    onKey: stableOnKey,
+    onStep: stableOnStep,
+    putValue: stablePutValue,
+    onNext: stableOnNext,
     onTick: stableOnTick,
-    editingFinished: session.finishedAt !== null,
+    editingFinished: finished,
     onTimer: stableOnTimer,
     onPrevious: stableOnPrevious,
     onCopySets: stableOnCopySets,
-    onKindSelected,
-    addSet,
+    onKindSelected: stableOnKindSelected,
+    addSet: stableAddSet,
     found,
     flush,
-    flushForFinish,
+    flushWrites,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };

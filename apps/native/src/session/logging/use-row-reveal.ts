@@ -1,22 +1,34 @@
 import { useCallback, useRef, type RefObject } from "react";
-import type { FlatList, View } from "react-native";
+import type { View } from "react-native";
+
+/** What the reveal needs of the list: both FlatList and LegendList have it. */
+type Scroller = { scrollToOffset: (params: { offset: number; animated?: boolean }) => void };
 
 /**
  * Scrolls a set into view above the keypad while it is being edited. Positions are measured in the
  * window, so it does not matter how deeply a row is nested.
  */
-export function useRowReveal<Item>(scrollRef: RefObject<FlatList<Item> | null>) {
+export function useRowReveal(
+  scrollRef: RefObject<Scroller | null>,
+  isActive: (setId: string) => boolean,
+) {
   const viewportRef = useRef<View>(null);
   const offset = useRef(0);
   const rows = useRef(new Map<string, View>());
+  // One callback per row for as long as the screen lives: a new one would detach and attach the
+  // row's ref on every render.
+  const callbacks = useRef(new Map<string, (node: View | null) => void>());
 
-  const registerRow = useCallback(
-    (key: string) => (node: View | null) => {
+  const registerRow = useCallback((key: string) => {
+    const known = callbacks.current.get(key);
+    if (known) return known;
+    const register = (node: View | null) => {
       if (node) rows.current.set(key, node);
       else rows.current.delete(key);
-    },
-    [],
-  );
+    };
+    callbacks.current.set(key, register);
+    return register;
+  }, []);
   const onScroll = useCallback((y: number) => {
     offset.current = y;
   }, []);
@@ -34,6 +46,7 @@ export function useRowReveal<Item>(scrollRef: RefObject<FlatList<Item> | null>) 
       if (!row || !viewport) return;
       viewport.measureInWindow((_vx, vy, _vw, vh) => {
         row.measureInWindow((_rx, ry, _rw, rh) => {
+          if (!isActive(key) || rows.current.get(key) !== row) return;
           const delta = then({ top: ry, bottom: ry + rh }, { top: vy, bottom: vy + vh });
           if (delta !== null && delta !== 0) {
             scrollRef.current?.scrollToOffset({
@@ -44,7 +57,7 @@ export function useRowReveal<Item>(scrollRef: RefObject<FlatList<Item> | null>) 
         });
       });
     },
-    [],
+    [isActive, scrollRef],
   );
 
   /** Moves the row just enough to be fully visible, with a margin. */

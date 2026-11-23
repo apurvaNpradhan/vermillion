@@ -4,8 +4,11 @@ import {
   tickValues,
   type ExerciseType,
   type Ghosts,
+  type SetField,
 } from "@workspace/shared";
-import type { SessionDetail, SessionSetDetail, SetPatch } from "@workspace/sync";
+import type { SessionDetail, SessionSetDetail, SetPatch, TickResult } from "@workspace/sync";
+
+import { deepEqual } from "../store/equal";
 
 /** The parts of a set a tick or untick changes. */
 export type SetChange = Partial<
@@ -20,101 +23,124 @@ export type SetChange = Partial<
     | "steps"
     | "rpe"
     | "timerStartedAt"
+    | "kind"
   >
 >;
 
 type Rest = SessionDetail["rest"];
 
-/**
- * Changes written but not yet back from the local database's watch, which can take most of a second
- * after the write. Each remembers the stored value it was made against (`before`): once the stored
- * value differs, the watch has caught up and the change is dropped.
- */
-type PendingSet = {
-  before: string;
-  change: SetChange;
-  /** A keypad save may echo before the tick. Keep the preview until all its fields arrive. */
-  awaitFields?: boolean;
+export type RestChange = { value: Rest } | { clearFor: string };
+
+type Change<T, Before> = { value: T; before: Before };
+
+export type PendingWrite = {
+  id: symbol;
+  saved?: boolean;
+  set?: Change<SetChange, SessionSetDetail> & { id: string };
+  rest?: Change<RestChange, Rest>;
 };
 
-export type Pending = {
-  sets: ReadonlyMap<string, PendingSet>;
-  rest: { before: string; value: Rest } | null;
-};
+export type Pending = readonly PendingWrite[];
 
-export const NO_PENDING: Pending = { sets: new Map(), rest: null };
+export const NO_PENDING: Pending = [];
 
-/** What identifies a stored set's state for {@link Pending}. */
-export function setKey(set: SessionSetDetail): string {
-  return JSON.stringify([
-    set.completedAt,
-    set.weightKg,
-    set.reps,
-    set.durationS,
-    set.distanceM,
-    set.floors,
-    set.steps,
-    set.rpe,
-    set.timerStartedAt,
-  ]);
+function applyRest(rest: Rest, change: RestChange): Rest {
+  return "value" in change ? change.value : rest?.setId === change.clearFor ? null : rest;
 }
 
-export const restKey = (rest: Rest): string => JSON.stringify(rest);
-
-/** The Session as stored, with the pending changes the watch has not delivered yet on top. */
+/** Projects writes in press order, so removing one write leaves the others in place. */
 export function withPending(session: SessionDetail, pending: Pending): SessionDetail {
-  const rest = pending.rest && pending.rest.before === restKey(session.rest) ? pending.rest : null;
-  if (!rest && pending.sets.size === 0) return session;
-  let changedSets = false;
+  if (pending.length === 0) return session;
+  const patches = new Map<string, SetChange>();
+  let rest = session.rest;
+  for (const write of pending) {
+    if (write.set) {
+      const { id, value } = write.set;
+      patches.set(id, { ...patches.get(id), ...value });
+    }
+    if (write.rest) rest = applyRest(rest, write.rest.value);
+  }
+  if (patches.size === 0) return rest === session.rest ? session : { ...session, rest };
   const exercises = session.exercises.map((exercise) => {
-    let changed = false;
+    if (!exercise.sets.some((set) => patches.has(set.id))) return exercise;
     const sets = exercise.sets.map((set) => {
-      const entry = pending.sets.get(set.id);
-      if (!entry || delivered(entry, set)) return set;
-      changed = true;
-      return { ...set, ...entry.change };
+      const patch = patches.get(set.id);
+      return patch ? { ...set, ...patch } : set;
     });
-    if (!changed) return exercise;
-    changedSets = true;
     return { ...exercise, sets };
   });
-  if (!rest && !changedSets) return session;
-  return {
-    ...session,
-    exercises: changedSets ? exercises : session.exercises,
-    rest: rest ? rest.value : session.rest,
-  };
+  return { ...session, exercises, rest };
 }
 
-/** Drops the pending changes the stored Session has moved past; the same object if none. */
+/** The last committed state, including writes the watch has yet to deliver. */
+export function savedSession({ stored, pending }: { stored: SessionDetail; pending: Pending }) {
+  return withPending(
+    stored,
+    pending.filter((write) => write.saved),
+  );
+}
+
+const matches = (set: SessionSetDetail, patch: SetChange) =>
+  // SAFETY: patch is constructed from the properties of SetChange.
+  (Object.keys(patch) as (keyof SetChange)[]).every((field) => Object.is(set[field], patch[field]));
+
+/**
+ * A watch can skip intermediate writes. Match the latest saved prefix for each affected set and
+ * for Rest. A snapshot equal to the original baseline may predate every write in that prefix.
+ */
 export function settled(pending: Pending, session: SessionDetail): Pending {
-  if (pending === NO_PENDING) return pending;
+  if (!pending.some((write) => write.saved)) return pending;
   const stored = new Map(
     session.exercises.flatMap((exercise) => exercise.sets.map((set) => [set.id, set] as const)),
   );
-  let changed = false;
-  const sets = new Map(pending.sets);
-  for (const [id, entry] of pending.sets) {
-    const set = stored.get(id);
-    if (!set || delivered(entry, set)) {
-      sets.delete(id);
-      changed = true;
-    }
-  }
-  const restGone = pending.rest !== null && pending.rest.before !== restKey(session.rest);
-  if (!changed && !restGone) return pending;
-  return { sets, rest: restGone ? null : pending.rest };
-}
+  const confirmedSets = new Map<string, number>();
+  const setPrefixes = new Map<string, Change<SetChange, SessionSetDetail>>();
+  const blockedSets = new Set<string>();
+  let confirmedRest = -1;
+  let restPrefix: Change<Rest, Rest> | undefined;
+  let restBlocked = false;
 
-function delivered(entry: PendingSet, set: SessionSetDetail): boolean {
-  if (!entry.awaitFields) return entry.before !== setKey(set);
-  // SAFETY: these entries are the own keys of a SetChange, all drawn from SessionSetDetail.
-  const keys = Object.keys(entry.change) as (keyof SetChange)[];
-  return keys.every((key) =>
-    key === "completedAt"
-      ? (set.completedAt === null) === (entry.change.completedAt === null)
-      : set[key] === entry.change[key],
-  );
+  pending.forEach((write, index) => {
+    if (write.set) {
+      const { id, value, before } = write.set;
+      const set = stored.get(id);
+      if (!set) confirmedSets.set(id, index);
+      else if (!write.saved) blockedSets.add(id);
+      else if (!blockedSets.has(id)) {
+        const prefix = setPrefixes.get(id);
+        const merged = { ...prefix?.value, ...value };
+        const baseline = prefix?.before ?? before;
+        setPrefixes.set(id, { value: merged, before: baseline });
+        if (matches(set, merged) && !matches(baseline, merged)) confirmedSets.set(id, index);
+      }
+    }
+    if (write.rest) {
+      if (!write.saved) restBlocked = true;
+      else if (!restBlocked) {
+        const baseline = restPrefix ? restPrefix.before : write.rest.before;
+        const value = applyRest(restPrefix ? restPrefix.value : baseline, write.rest.value);
+        restPrefix = { before: baseline, value };
+        // Nudging a rest keeps its start; the first echo may already include the adjustment.
+        const sameStart =
+          value !== null &&
+          session.rest?.setId === value.setId &&
+          session.rest.startedAt === value.startedAt;
+        if ((sameStart || deepEqual(session.rest, value)) && !deepEqual(baseline, value))
+          confirmedRest = index;
+      }
+    }
+  });
+
+  let changed = false;
+  const next = pending.flatMap((write, index) => {
+    const set =
+      write.set && index > (confirmedSets.get(write.set.id) ?? -1) ? write.set : undefined;
+    const rest = index > confirmedRest ? write.rest : undefined;
+    if (set === write.set && rest === write.rest) return [write];
+    changed = true;
+    return set || rest || !write.saved ? [{ ...write, set, rest }] : [];
+  });
+  return changed ? next : pending;
 }
 
 export function previewValuePatch({
@@ -126,6 +152,7 @@ export function previewValuePatch({
   steps,
   rpe,
   timer_started_at,
+  kind,
 }: SetPatch): SetChange {
   return {
     ...(weight_kg === undefined ? {} : { weightKg: weight_kg }),
@@ -134,23 +161,29 @@ export function previewValuePatch({
     ...(distance_m === undefined ? {} : { distanceM: distance_m }),
     ...(floors === undefined ? {} : { floors }),
     ...(steps === undefined ? {} : { steps }),
+    ...(kind === undefined ? {} : { kind }),
     ...(rpe === undefined ? {} : { rpe }),
     ...(timer_started_at === undefined ? {} : { timerStartedAt: timer_started_at }),
   };
 }
 
+/** What pressing the tick will do, worked out the way the store does it. */
+export type TickPreview =
+  | { kind: "noop" }
+  | { kind: "refused"; missing: SetField[] }
+  | { kind: "ok"; change: SetChange };
+
 /**
- * What a tick will store, worked out the way the store does: empty cells adopt their Ghost values.
- * Null when the store will refuse it (a required cell has no value) or write nothing (already
- * ticked), so nothing is shown ahead of it.
+ * What a tick will store: empty cells adopt their Ghost values. `refused` when a required cell has
+ * no value, `noop` when the set is already ticked; in both nothing is shown ahead of the store.
  */
-export function tickChange(
+export function previewTick(
   set: SessionSetDetail,
   type: ExerciseType,
   ghosts: Ghosts,
   now: string,
-): SetChange | null {
-  if (set.completedAt !== null) return null;
+): TickPreview {
+  if (set.completedAt !== null) return { kind: "noop" };
   const result = tickValues(
     {
       weight_kg: set.weightKg,
@@ -164,28 +197,29 @@ export function tickChange(
     ghosts,
     SET_FIELDS[type],
   );
-  if (!result.ok) return null;
-  const values = result.values;
+  if (!result.ok) return { kind: "refused", missing: result.missing };
   return {
-    completedAt: now,
-    timerStartedAt: null,
-    ...(values.weight_kg === undefined ? {} : { weightKg: values.weight_kg }),
-    ...(values.reps === undefined ? {} : { reps: values.reps }),
-    ...(values.duration_s === undefined ? {} : { durationS: values.duration_s }),
-    ...(values.distance_m === undefined ? {} : { distanceM: values.distance_m }),
-    ...(values.floors === undefined ? {} : { floors: values.floors }),
-    ...(values.steps === undefined ? {} : { steps: values.steps }),
-    ...(values.rpe === undefined ? {} : { rpe: values.rpe }),
+    kind: "ok",
+    change: { ...previewValuePatch(result.values), completedAt: now, timerStartedAt: null },
   };
 }
 
-/** The Rest a tick starts now, as the store will record it. */
-export function restFrom(setId: string, seconds: number, nowMs: number): NonNullable<Rest> {
-  return {
-    setId,
-    startedAt: new Date(nowMs).toISOString(),
-    endsAt: new Date(nowMs + seconds * 1000).toISOString(),
-  };
+/**
+ * What a finished tick write means for the preview shown ahead of it. A failed write (null), a
+ * refusal and a write that changed nothing all take the preview back; a Rest the store did not
+ * start takes back only the Rest.
+ */
+export type TickSettlement = {
+  outcome: "recorded" | "unchanged" | "refused" | "failed";
+  keepSet: boolean;
+  keepRest: boolean;
+};
+
+export function settleTick(result: TickResult | null): TickSettlement {
+  if (result === null) return { outcome: "failed", keepSet: false, keepRest: false };
+  if (!result.ok) return { outcome: "refused", keepSet: false, keepRest: false };
+  if (!result.wrote) return { outcome: "unchanged", keepSet: false, keepRest: false };
+  return { outcome: "recorded", keepSet: true, keepRest: result.rest !== undefined };
 }
 
 /** The running Rest moved by `deltaSeconds`; null once it is pushed to or past now. */

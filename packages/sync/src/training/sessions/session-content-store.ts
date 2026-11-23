@@ -609,7 +609,8 @@ export async function updateSet(
 
 export type TickResult =
   // `rest` is there when the tick also started a Rest.
-  | { ok: true; wrote: boolean; values: Partial<ActualValues>; rest?: RestTimes }
+  | { ok: true; wrote: true; completedAt: string; values: Partial<ActualValues>; rest?: RestTimes }
+  | { ok: true; wrote: false; values: Partial<ActualValues> }
   | { ok: false; missing: SetField[] };
 
 /**
@@ -666,16 +667,22 @@ export function tickSet(
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
     if (restSeconds == null || completedAt + restSeconds * 1000 <= now) {
-      return { ok: true, wrote: true, values: result.values };
+      return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
     }
     if (expiresAt !== undefined) {
       const owner = await requireSession(tx, parent.session_id);
       if (owner.rest_started_at && Date.parse(owner.rest_started_at) > expiresAt) {
-        return { ok: true, wrote: true, values: result.values };
+        return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
       }
     }
     const rest = await writeRest(tx, parent.session_id, id, restSeconds, completedAt);
-    return { ok: true, wrote: true, values: result.values, rest };
+    return {
+      ok: true,
+      wrote: true,
+      completedAt: changes.completed_at,
+      values: result.values,
+      rest,
+    };
   });
 }
 
