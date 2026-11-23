@@ -4,7 +4,7 @@
  * close animation is running).
  */
 export type SwipePhase = "idle" | "dragging" | "open" | "closing";
-export type SwipeEvent =
+type SwipeEvent =
   /** A swipe started on the row. */
   | "drag"
   /** A release settled open. */
@@ -17,6 +17,7 @@ export type SwipeEvent =
   | "reset";
 
 export function swipePhase(phase: SwipePhase, event: SwipeEvent): SwipePhase {
+  "worklet";
   switch (event) {
     case "drag":
       // Dragging an open row keeps it open, so its tap-to-close cover stays until it settles.
@@ -31,4 +32,13 @@ export function swipePhase(phase: SwipePhase, event: SwipeEvent): SwipePhase {
     case "reset":
       return "idle";
   }
+}
+
+export function swipePresentation(
+  phase: SwipePhase,
+  touching: boolean,
+): "hidden" | "actions" | "open" {
+  "worklet";
+  if (phase === "open") return "open";
+  return phase === "idle" && !touching ? "hidden" : "actions";
 }

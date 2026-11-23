@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,18 +15,20 @@ import {
 import { Pressable, Text, View, type AccessibilityActionEvent } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, {
+  cancelAnimation,
   Easing,
   ReduceMotion,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
 import { useSubtleColor } from "@/platform/theme";
 
-import { swipePhase, type SwipeEvent, type SwipePhase } from "./swipe-phase";
+import { swipePhase, swipePresentation, type SwipePhase } from "./swipe-phase";
 import { SWIPE_ACTION_WIDTH, shouldSettleOpen } from "./swipe-threshold";
 
 export type SwipeAction = {
@@ -51,12 +54,33 @@ const SWIPE_START = 16;
 const SCROLL_WINS = 10;
 /** Space between the row and its first action button. */
 const PANEL_GAP = 12;
-/** Snap open and closed: motion-base, no overshoot. */
 const PANEL_PADDING = { paddingLeft: PANEL_GAP - 8 };
+/** Snap open and closed: motion-base, no overshoot. */
 const SNAP = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
 type RowHandle = { close: () => void };
 type Point = { x: number; y: number };
+
+function closeSwipe(
+  translateX: SharedValue<number>,
+  phase: SharedValue<SwipePhase>,
+  motion: boolean,
+) {
+  "worklet";
+  const current = phase.get();
+  if (current === "idle" || current === "closing") return;
+  if (!motion) {
+    translateX.set(0);
+    phase.set(swipePhase(current, "reset"));
+    return;
+  }
+  phase.set(swipePhase(current, "close"));
+  translateX.set(
+    withTiming(0, SNAP, (finished) => {
+      if (finished) phase.set(swipePhase(phase.get(), "rest"));
+    }),
+  );
+}
 
 const SwipeGroupContext = createContext<{
   willOpen: (row: RowHandle) => void;
@@ -147,29 +171,19 @@ export function SwipeRow({
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
-  const [phase, setPhase] = useState<SwipePhase>("idle");
+  const [presentation, setPresentation] = useState<ReturnType<typeof swipePresentation>>("hidden");
+  const phase = useSharedValue<SwipePhase>("idle");
+  const touching = useSharedValue(false);
+  const layerReady = useSharedValue(false);
   const translateX = useSharedValue(0);
   const start = useSharedValue(0);
-  const count = actions.length;
-  const panel = count * SWIPE_ACTION_WIDTH + PANEL_GAP;
-  const send = (event: SwipeEvent) => setPhase((current) => swipePhase(current, event));
-  const rest = () => send("rest");
+  const panel = actions.length * SWIPE_ACTION_WIDTH + PANEL_GAP;
 
   const handle = useMemo<RowHandle>(
     () => ({
-      close: () => {
-        if (motion) {
-          translateX.value = withTiming(0, SNAP, (finished) => {
-            if (finished) scheduleOnRN(rest);
-          });
-          setPhase((current) => swipePhase(current, "close"));
-        } else {
-          translateX.value = 0;
-          setPhase("idle");
-        }
-      },
+      close: () => scheduleOnUI(closeSwipe, translateX, phase, motion),
     }),
-    [motion, translateX],
+    [motion, phase, translateX],
   );
   // A row that unmounts while open (navigation, data change) must not stay registered.
   useEffect(() => () => group?.didClose(handle), [group, handle]);
@@ -177,14 +191,7 @@ export function SwipeRow({
     handle.close();
     group?.didClose(handle);
   };
-  const onOpened = () => {
-    send("open");
-    group?.willOpen(handle);
-  };
-  const onDragStart = () => {
-    send("drag");
-    group?.willOpen(handle);
-  };
+  const onDragStart = () => group?.willOpen(handle);
   const run = (action: SwipeAction) => {
     close();
     action.onPress();
@@ -193,27 +200,54 @@ export function SwipeRow({
   const pan = usePanGesture({
     activeOffsetX: [-SWIPE_START, SWIPE_START],
     failOffsetY: [-SCROLL_WINS, SCROLL_WINS],
+    onBegin: () => touching.set(true),
     onActivate: () => {
-      start.value = translateX.value;
+      cancelAnimation(translateX);
+      start.set(translateX.get());
+      phase.set(swipePhase(phase.get(), "drag"));
       scheduleOnRN(onDragStart);
     },
     onUpdate: (event) => {
-      const next = Math.min(0, start.value + event.translationX);
+      const current = phase.get();
+      if (current === "idle" || current === "closing") return;
+      const next = Math.min(0, start.get() + event.translationX);
       // Resist dragging beyond the buttons; no distance can execute an action.
-      translateX.value = next > -panel ? next : -panel + (next + panel) / 3;
+      translateX.set(next > -panel ? next : -panel + (next + panel) / 3);
     },
     onDeactivate: (event) => {
-      const x = translateX.value;
-      if (shouldSettleOpen(x, event.velocityX, panel)) {
-        translateX.value = motion ? withTiming(-panel, SNAP) : -panel;
-        scheduleOnRN(onOpened);
+      const current = phase.get();
+      if (current === "idle" || current === "closing") return;
+      if (shouldSettleOpen(translateX.get(), event.velocityX, panel)) {
+        translateX.set(motion ? withTiming(-panel, SNAP) : -panel);
+        phase.set(swipePhase(current, "open"));
       } else {
-        scheduleOnRN(close);
+        closeSwipe(translateX, phase, motion);
       }
     },
+    onFinalize: () => touching.set(false),
   });
 
-  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  const syncPresentation = (next: ReturnType<typeof swipePresentation>) => {
+    if (next === "hidden") {
+      // The UI can start a new touch before this notification gets to React.
+      if (swipePresentation(phase.get(), touching.get()) !== "hidden") return;
+      group?.didClose(handle);
+    }
+    setPresentation(next);
+  };
+  useAnimatedReaction(
+    () => swipePresentation(phase.get(), touching.get()),
+    (next, previous) => {
+      if (next !== previous && (previous !== null || next !== "hidden")) {
+        scheduleOnRN(syncPresentation, next);
+      }
+    },
+  );
+
+  // Keep the row over the buttons until the action layer can follow the drag.
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: layerReady.get() ? translateX.get() : 0 }],
+  }));
 
   const a11y: SwipeA11yProps = {
     accessibilityActions: screenReaderActions.map((action) => ({
@@ -237,12 +271,12 @@ export function SwipeRow({
           group?.willOpen(handle);
         }}
       >
-        {phase === "idle" ? null : (
-          <ActionLayer translateX={translateX} actions={actions} onRun={run} />
+        {presentation === "hidden" ? null : (
+          <ActionLayer translateX={translateX} ready={layerReady} actions={actions} onRun={run} />
         )}
         <Animated.View style={rowStyle}>
           {children(a11y)}
-          {phase === "open" ? (
+          {presentation === "open" ? (
             // While open, the first tap on the row closes it instead of opening it.
             <Pressable
               accessibilityElementsHidden
@@ -260,18 +294,24 @@ export function SwipeRow({
 /** The buttons behind a row: mounted only while a swipe is under way, open or closing. */
 function ActionLayer({
   translateX,
+  ready,
   actions,
   onRun,
 }: {
   translateX: SharedValue<number>;
+  ready: SharedValue<boolean>;
   actions: SwipeAction[];
   onRun: (action: SwipeAction) => void;
 }) {
   // The panel follows the drag while the row resists beyond its resting width.
-  const panelStyle = useAnimatedStyle(() => ({
-    width: Math.max(-translateX.value, 0),
-    opacity: translateX.value < 0 ? 1 : 0,
-  }));
+  const panelStyle = useAnimatedStyle(() => {
+    const width = ready.get() ? Math.max(-translateX.get(), 0) : 0;
+    return { width, opacity: width > 0 ? 1 : 0 };
+  });
+  // Reanimated registers the panel's animated style in an effect.
+  useEffect(() => ready.set(true), [ready]);
+  useLayoutEffect(() => () => ready.set(false), [ready]);
+
   const last = actions.length - 1;
   return (
     <Animated.View
