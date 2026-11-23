@@ -27,6 +27,7 @@
   "errors__forbidden": "You are not allowed to do that.",
   "errors__not_found": "We could not find that.",
   "errors__conflict": "That conflicts with the current state.",
+  "errors__gone": "That link was turned off by its owner.",
   "errors__too_many_requests": "Too many requests. Try again in a moment.",
   "errors__bad_gateway": "A service we depend on is not responding.",
   "library__setting_up": "Setting up your library",
@@ -1664,5 +1665,18 @@
   "settings__experience_title": "Experience",
   "settings__experience_hint": "Sets the warm-up ramp. Your own warm-up steps and your programs stay as they are.",
   "settings__place_title": "Where you train",
-  "settings__place_hint": "Chooses the bars and plates a new account starts with. Equipment and programs you already set up stay as they are."
+  "settings__place_hint": "Chooses the bars and plates a new account starts with. Equipment and programs you already set up stay as they are.",
+  "home__jump_today": "Jump to today",
+  "home__position": "Week {{week}} · Day {{day}}",
+  "home__position_of": "Week {{week}} of {{total}} · Day {{day}}",
+  "home__last_duration": "Last time {{duration}}",
+  "home__more_exercises_one": "and {{count}} more exercise",
+  "home__more_exercises_other": "and {{count}} more exercises",
+  "home__this_week": "This week",
+  "home__stalled_title": "{{title}} has stalled",
+  "home__stalled_body": "Open it to see the numbers and try a lighter load.",
+  "home__stalled_hint": "Opens the exercise",
+  "home__records_title_one": "{{count}} record last session",
+  "home__records_title_other": "{{count}} records last session",
+  "home__records_body": "{{title}} · {{set}}"
 }

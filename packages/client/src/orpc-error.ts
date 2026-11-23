@@ -10,6 +10,7 @@ const CODE_KEYS = new Map<string, TranslationKey>([
   ["FORBIDDEN", "errors__forbidden"],
   ["NOT_FOUND", "errors__not_found"],
   ["CONFLICT", "errors__conflict"],
+  ["GONE", "errors__gone"],
   ["TOO_MANY_REQUESTS", "errors__too_many_requests"],
   ["BAD_GATEWAY", "errors__bad_gateway"],
 ]);

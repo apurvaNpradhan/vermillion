@@ -22,6 +22,7 @@ export const CODE_BY_STATUS = new Map<number, ErrorCode>([
   [403, "FORBIDDEN"],
   [404, "NOT_FOUND"],
   [409, "CONFLICT"],
+  [410, "GONE"],
   [422, "BAD_REQUEST"],
   [429, "TOO_MANY_REQUESTS"],
   [502, "BAD_GATEWAY"],
@@ -56,6 +57,7 @@ export const base = os
     FORBIDDEN: {},
     NOT_FOUND: {},
     CONFLICT: {},
+    GONE: {},
     TOO_MANY_REQUESTS: {},
     BAD_GATEWAY: {},
   })
