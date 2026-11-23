@@ -1,5 +1,5 @@
 import { nativeColors, nativeVariantNames, type NativeVariant } from "@workspace/ui/tokens/brand";
-import { DEFAULT_THEME_ID } from "@workspace/ui/tokens/theme-variants";
+import { DEFAULT_ACCENT_ID } from "@workspace/ui/tokens/theme-variants";
 import * as SystemUI from "expo-system-ui";
 import { useSyncExternalStore } from "react";
 import { AppState, Appearance, type ColorValue } from "react-native";
@@ -44,8 +44,8 @@ function applyTheme(choice: ThemeChoice) {
   const variant = resolvedVariant(choice, systemScheme);
   applying = true;
   const followsDevice = choice.appearance === "system";
-  // Uniwind's built-in light and dark carry Sigil at standard contrast, so that path follows the OS.
-  const builtIn = followsDevice && !choice.contrast && choice.theme === DEFAULT_THEME_ID;
+  // Uniwind's built-in light and dark carry the default accent, so that path follows the OS.
+  const builtIn = followsDevice && choice.accent === DEFAULT_ACCENT_ID;
   Uniwind.setTheme(builtIn ? "system" : variant);
   // Custom Uniwind themes reset Appearance, so set it AFTER the theme: forced for an explicit
   // Light or Dark, released for Match device so the OS keeps reporting its own changes live.
@@ -92,10 +92,10 @@ const isNativeVariant = (name: string): name is NativeVariant =>
 /** Light or dark, for native chrome. */
 export function useThemeMode(): "light" | "dark" {
   const variant = useAppliedVariant();
-  return variant === "dark" || variant.includes("-dark") ? "dark" : "light";
+  return variant === "dark" || variant.endsWith("-dark") ? "dark" : "light";
 }
 
-/** The applied Uniwind theme variant (theme, scheme and contrast). */
+/** The applied Uniwind theme variant (accent and scheme). */
 export function useAppliedVariant(): NativeVariant {
   const { theme } = useUniwind();
   return isNativeVariant(theme) ? theme : "light";

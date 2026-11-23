@@ -40,12 +40,16 @@ describe("share card palettes", () => {
     expect(contrast(c.record, c.ground), "record on ground").toBeGreaterThanOrEqual(3);
   });
 
-  it("keeps ember for records on Sigil cards: every other mark is ink", () => {
+  it("marks records with the accent on every card but the accent card, where it is the label", () => {
     for (const appearance of nativeVariantNames) {
       for (const kind of kinds) {
         const c = cardPalette(appearance, kind);
         expect(c.accent, `${appearance} ${kind}`).toBe(c.text);
-        expect(c.record, `${appearance} ${kind}`).not.toBe(c.text);
+        // The accent card marks with its label; so does Mono's own-ink card.
+        const ownInk =
+          kind === "accent" || (kind === "theme" && nativeColors[appearance].action === c.text);
+        if (ownInk) expect(c.record).toBe(c.text);
+        else expect(c.record, `${appearance} ${kind}`).not.toBe(c.text);
       }
     }
   });

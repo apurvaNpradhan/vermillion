@@ -74,7 +74,7 @@ export function HistoryCalendar({
                 {day === today && (
                   <View
                     pointerEvents="none"
-                    className={`absolute inset-1 rounded-md border ${count > 0 ? "border-accent-foreground" : "border-brand-detail"}`}
+                    className={`absolute inset-1 rounded-md border ${count > 0 ? "border-accent-foreground" : "border-accent"}`}
                   />
                 )}
                 {active && (

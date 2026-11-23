@@ -1,6 +1,6 @@
 import type { RoleName, RoleTokens } from "./roles";
 import {
-  DEFAULT_THEME_ID,
+  DEFAULT_ACCENT_ID,
   themeVariantNames,
   themeVariants,
   variantName,
@@ -9,22 +9,22 @@ import {
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
 /**
- * A native Uniwind theme: an app theme variant, or Uniwind's built-in `light` / `dark`, which
- * carry the default theme (Sigil) at standard contrast and render before the stored choice applies.
+ * A native Uniwind theme: an accent in one mode (`teal-dark`), or Uniwind's built-in `light` /
+ * `dark`, which carry the default accent (Lime) and render before the stored choice applies.
  */
 export type NativeVariant = "light" | "dark" | ThemeVariant;
 
 export const nativeVariantNames: readonly NativeVariant[] = ["light", "dark", ...themeVariantNames];
 
 export const nativeColors: Record<NativeVariant, RoleTokens> = {
-  light: themeVariants[variantName(DEFAULT_THEME_ID, "light")],
-  dark: themeVariants[variantName(DEFAULT_THEME_ID, "dark")],
+  light: themeVariants[variantName(DEFAULT_ACCENT_ID, "light")],
+  dark: themeVariants[variantName(DEFAULT_ACCENT_ID, "dark")],
   ...themeVariants,
 };
 
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
- * the theme engine in `themes/`. After changing them run
+ * the palette in `themes/palette.ts`. After changing them run
  * `pnpm --filter @workspace/ui tokens`.
  *
  * Colors are Vermillion roles (`canvas`, `surface`, `text-muted`, `action`, ...), each with a
@@ -32,7 +32,7 @@ export const nativeColors: Record<NativeVariant, RoleTokens> = {
  * (`to-native-css.ts`) maps roles to HeroUI Native names (`--accent`, `--surface`, ...) via
  * `nativeTokenSources`, and the email templates read the roles directly. A brand change never
  * edits per-platform files by hand. `sharedTokenSources` are colors outside HeroUI's vocabulary
- * (secondary text, macros) exposed under one name.
+ * (secondary text, set kinds, plates) exposed under one name.
  */
 
 /**
@@ -52,15 +52,7 @@ export const sharedTokenSources = {
   "set-top": "set-top",
   "set-backoff": "set-backoff",
   "set-myo": "set-myo",
-  "set-done": "set-done",
-  "on-set-done": "on-set-done",
-  "set-done-soft": "set-done-soft",
-  "set-done-soft-foreground": "set-done-soft-foreground",
   subtle: "text-secondary",
-  identity: "identity",
-  "identity-soft": "identity-soft",
-  "on-identity": "on-identity",
-  "brand-detail": "brand-detail",
   "focus-ring": "focus-ring",
   "plate-red": "plate-red",
   "plate-blue": "plate-blue",
@@ -70,12 +62,6 @@ export const sharedTokenSources = {
   "plate-black": "plate-black",
   "on-plate-dark": "on-plate-dark",
   "on-plate-light": "on-plate-light",
-  protein: "protein",
-  "protein-text": "protein-text",
-  carbs: "carbs",
-  "carbs-text": "carbs-text",
-  fat: "fat",
-  "fat-text": "fat-text",
 } as const satisfies Record<string, RoleName>;
 
 /** One text style: size and line height in px, tracking in px, weight. */

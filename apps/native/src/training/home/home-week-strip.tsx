@@ -31,7 +31,7 @@ export function HomeWeekStrip({
     };
   }, [i18n.language, t]);
   const marks = (day: number): WeekStripMarks | undefined => {
-    if (week.trained.has(day)) return { dots: ["success"], label: t("home__day_trained") };
+    if (week.trained.has(day)) return { dots: ["accent"], label: t("home__day_trained") };
     if (day === week.planned) return { planned: true, label: t("home__day_planned") };
     return undefined;
   };

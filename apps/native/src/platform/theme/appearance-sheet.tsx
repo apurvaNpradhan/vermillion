@@ -1,11 +1,15 @@
 import type { TranslationKey } from "@workspace/i18n";
-import { BottomSheet, Switch } from "heroui-native";
+import { nativeColors } from "@workspace/ui/tokens/brand";
+import { accentIds, variantName, type AccentId } from "@workspace/ui/tokens/theme-variants";
+import { BottomSheet } from "heroui-native";
+import { Check } from "phosphor-react-native";
+import { Pressable, Text, View } from "react-native";
 
+import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { ListRow, ListSection } from "@/platform/ui/list";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
-import { useThemeChoice } from "./index";
+import { useThemeChoice, useThemeMode } from "./index";
 import { APPEARANCES, type AppearanceChoice, type ThemeChoice } from "./theme-state";
 
 const APPEARANCE_LABELS = {
@@ -14,12 +18,20 @@ const APPEARANCE_LABELS = {
   dark: "theme__dark",
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
+const ACCENT_LABELS = {
+  lime: "theme__accent_lime",
+  teal: "theme__accent_teal",
+  blueberry: "theme__accent_blueberry",
+  lavender: "theme__accent_lavender",
+  mono: "theme__accent_mono",
+} satisfies Record<AccentId, TranslationKey>;
+
 export function useAppearanceSummary(choice: ThemeChoice): string {
   const { t } = useTranslation();
-  return t(APPEARANCE_LABELS[choice.appearance]);
+  return `${t(APPEARANCE_LABELS[choice.appearance])} · ${t(ACCENT_LABELS[choice.accent])}`;
 }
 
-/** Appearance and contrast apply as soon as they change. */
+/** Mode and accent apply as soon as they change. */
 export function AppearanceSheet({
   isOpen,
   onOpenChange,
@@ -29,6 +41,7 @@ export function AppearanceSheet({
 }) {
   const { t } = useTranslation();
   const { choice, setChoice } = useThemeChoice();
+  const mode = useThemeMode();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
@@ -38,27 +51,53 @@ export function AppearanceSheet({
             {t("settings__appearance_title")}
           </BottomSheet.Title>
           <SegmentedControl
-            accessibilityLabel={t("settings__appearance_title")}
+            accessibilityLabel={t("theme__mode")}
             options={APPEARANCES.map((value) => ({ value, label: t(APPEARANCE_LABELS[value]) }))}
             value={choice.appearance}
             onChange={(appearance) => setChoice({ ...choice, appearance })}
           />
-          <ListSection>
-            <ListRow
-              title={t("theme__contrast")}
-              description={t("theme__contrast_hint")}
-              accessory="none"
-              checked={choice.contrast}
-              onPress={() => setChoice({ ...choice, contrast: !choice.contrast })}
-              trailing={
-                <Switch
-                  accessibilityLabel={t("theme__contrast")}
-                  isSelected={choice.contrast}
-                  onSelectedChange={(contrast) => setChoice({ ...choice, contrast })}
-                />
-              }
-            />
-          </ListSection>
+          <Text className="px-1 pt-2 font-semibold text-overline uppercase text-muted">
+            {t("theme__accent")}
+          </Text>
+          <View
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t("theme__accent")}
+            className="flex-row justify-between px-1"
+          >
+            {accentIds.map((accent) => {
+              const colors = nativeColors[variantName(accent, mode)];
+              const selected = choice.accent === accent;
+              return (
+                <Pressable
+                  key={accent}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(ACCENT_LABELS[accent])}
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    haptic.tick();
+                    setChoice({ ...choice, accent });
+                  }}
+                  className="items-center gap-1.5 active:opacity-70"
+                >
+                  <View
+                    className={`size-11 items-center justify-center rounded-full border-2 ${selected ? "border-foreground" : "border-transparent"}`}
+                  >
+                    <View
+                      className="size-8 items-center justify-center rounded-full"
+                      style={{ backgroundColor: colors.action }}
+                    >
+                      {selected ? (
+                        <Check size={18} weight="bold" color={colors["on-action"]} />
+                      ) : null}
+                    </View>
+                  </View>
+                  <Text className={`text-caption ${selected ? "text-foreground" : "text-muted"}`}>
+                    {t(ACCENT_LABELS[accent])}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </ScrollableSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>

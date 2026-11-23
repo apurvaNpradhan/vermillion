@@ -38,7 +38,7 @@ export function RecordChip({
       accessibilityLiveRegion={inHeader ? "none" : "polite"}
       className={`h-3.5 justify-center rounded-full bg-default px-1 ${inHeader ? "" : "absolute left-1 top-0"}`}
     >
-      <Text className="font-semibold text-overline text-identity">{t("session__record_chip")}</Text>
+      <Text className="font-semibold text-overline text-accent">{t("session__record_chip")}</Text>
     </Animated.View>
   );
 }

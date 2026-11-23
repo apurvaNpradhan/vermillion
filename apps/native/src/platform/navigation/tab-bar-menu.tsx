@@ -23,7 +23,7 @@ export function TabBarMenu({
   header,
   items,
   highlighted,
-  identity,
+  active,
   muted,
   rowsRef,
   onLayout,
@@ -33,7 +33,7 @@ export function TabBarMenu({
   items: MenuItem[];
   /** Row under the finger during a scrub. */
   highlighted: number | null;
-  identity: string;
+  active: string;
   muted: string;
   rowsRef: Ref<View>;
   onLayout: (event: LayoutChangeEvent) => void;
@@ -65,7 +65,7 @@ export function TabBarMenu({
               className={cn("flex-row items-center gap-3 rounded-full px-4", lit && "bg-default")}
               style={{ height: MENU_ROW_HEIGHT }}
             >
-              {item.icon(lit ? identity : muted)}
+              {item.icon(lit ? active : muted)}
               <Text
                 numberOfLines={1}
                 className={cn(

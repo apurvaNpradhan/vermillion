@@ -322,7 +322,7 @@ function CalculatorBody({
                     <Text className="font-normal text-body text-muted">{t("plates__no_load")}</Text>
                   ) : null}
                   {building && over.length > 0 ? (
-                    <Text className="font-normal text-body text-warning">
+                    <Text className="font-normal text-body text-foreground">
                       {t("plates__over_inventory")}
                     </Text>
                   ) : null}

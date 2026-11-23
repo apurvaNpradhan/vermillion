@@ -1,47 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import { nativeColors, nativeVariantNames, roleNames, type RoleName } from "./brand";
-import { mixHex, toOklch } from "./mix";
-import { themeIds, variantName } from "./theme-variants";
+import { contrastRatio, mixHex } from "./mix";
+import { DEFAULT_ACCENT_ID, accentIds, themeVariantNames } from "./theme-variants";
 
-const linear = (hex: string) =>
-  [1, 3, 5].map((at) => {
-    const v = Number.parseInt(hex.slice(at, at + 2), 16) / 255;
-    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  }) as [number, number, number]; // SAFETY: the slice yields exactly three channels
-
-function contrastRatio(a: string, b: string) {
-  const lum = (hex: string) => {
-    const [r, g, bl] = linear(hex);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
-  };
-  const [lo, hi] = [lum(a), lum(b)].sort((x, y) => x - y) as [number, number]; // SAFETY: two items
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** OKLab lightness of a #rrggbb colour. */
-function oklabL(hex: string) {
-  const [r, g, b] = linear(hex);
-  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
-  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
-  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
-  return 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
-}
-
-/**
- * Rules every native variant must satisfy. Layers: in dark, canvas < surface < control with the
- * floating sheet between surface and control; in light, surface is the lightest layer, canvas
- * sits one step below it and control one step below canvas.
- */
+/** Rules every native variant (each accent in each mode) must satisfy. */
 const themes = nativeVariantNames.map((mode) => ({
   mode,
   colors: nativeColors[mode],
-  isLight: mode === "light" || mode.includes("-light"),
+  isLight: mode === "light" || mode.endsWith("-light"),
 }));
 
-const L = (hex: string) => oklabL(hex);
-const MIN_STEP = 0.015;
-const MAX_STEP = 0.08;
+/** `#rrggbb` has no chroma when its three channels are equal. */
+const isNeutral = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((at) => hex.slice(at, at + 2));
+  return r === g && g === b;
+};
 
 describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   const c = colors;
@@ -51,17 +25,30 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     for (const role of roleNames) expect(c[role], role).toBeTruthy();
   });
 
+  it("uses true AMOLED black or pure white for the canvas, with neutral surfaces", () => {
+    expect(c.canvas).toBe(isLight ? "#FFFFFF" : "#000000");
+    for (const role of [
+      "canvas",
+      "surface",
+      "surface-control",
+      "surface-floating",
+      "hairline",
+      "hairline-strong",
+      "text-primary",
+      "text-secondary",
+      "text-muted",
+      "text-disabled",
+    ] as const) {
+      expect(isNeutral(c[role]), role).toBe(true);
+    }
+  });
+
   it("keeps text readable on canvas and surface", () => {
     for (const bg of ["canvas", "surface"] as const) {
       expect(ratio("text-primary", bg), `text-primary on ${bg}`).toBeGreaterThanOrEqual(7);
       for (const role of [
         "text-secondary",
         "text-muted",
-        "success-text",
-        "warning-text",
-        "protein-text",
-        "carbs-text",
-        "fat-text",
         "danger",
         "set-warmup",
         "set-drop",
@@ -74,6 +61,7 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
       }
     }
     expect(ratio("on-action", "action"), "on-action").toBeGreaterThanOrEqual(4.5);
+    expect(ratio("on-danger", "danger"), "on-danger").toBeGreaterThanOrEqual(4.5);
   });
 
   it("keeps text readable on controls, fields and floating sheets", () => {
@@ -84,32 +72,22 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     }
   });
 
-  it("keeps the warning label readable on HeroUI's warning fill", () => {
-    expect(ratio("on-warning", "warning-text")).toBeGreaterThanOrEqual(4.5);
-  });
-
   it("keeps the segmented control's labels readable resting and pressed", () => {
     // platform/ui/segmented-control.tsx: labels stay opaque; the pressed segment is filled with
     // `surface` at 60% over the `control` track. Unselected labels are `text-muted`, the selected
     // one `text-primary` on the `surface` pill.
     const pressed = mixHex(c["surface-control"], c.surface, 0.6);
-    expect(
-      contrastRatio(c["text-muted"], c["surface-control"]),
-      "muted on track",
-    ).toBeGreaterThanOrEqual(4.5);
+    expect(ratio("text-muted", "surface-control"), "muted on track").toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(c["text-muted"], pressed), "muted on pressed fill").toBeGreaterThanOrEqual(
       4.5,
     );
-    expect(contrastRatio(c["text-primary"], c.surface), "selected label").toBeGreaterThanOrEqual(
-      4.5,
-    );
+    expect(ratio("text-primary", "surface"), "selected label").toBeGreaterThanOrEqual(4.5);
   });
 
   it("keeps HeroUI's tinted labels readable in resting and pressed states", () => {
     const pairs = [
       ["accent-soft-text", "action"],
       ["danger-soft-text", "danger"],
-      ["success-soft-text", "success"],
     ] as const;
     for (const [label, fill] of pairs) {
       for (const bg of ["canvas", "surface", "surface-control", "surface-floating"] as const) {
@@ -130,187 +108,120 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     );
   });
 
-  it("keeps completed-set text, badges and checks readable", () => {
-    for (const role of [
-      "set-done-soft-foreground",
-      "text-muted",
-      "text-primary",
-      "set-warmup",
-      "set-drop",
-      "set-failure",
-      "set-top",
-      "set-backoff",
-      "set-myo",
-    ] as const) {
-      expect(ratio(role, "set-done-soft"), role).toBeGreaterThanOrEqual(4.5);
+  it("keeps a completed set row (the accent at 15%) readable", () => {
+    // Completed rows tint the whole row with the accent; the numbers stay at full contrast.
+    for (const ground of [c.canvas, c.surface]) {
+      const row = mixHex(ground, c.action, 0.15);
+      for (const role of [
+        "text-primary",
+        "text-secondary",
+        "text-muted",
+        "set-warmup",
+        "set-drop",
+        "set-failure",
+        "set-top",
+        "set-backoff",
+        "set-myo",
+      ] as const) {
+        expect(contrastRatio(c[role], row), `${role} on a completed row`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
     }
-    expect(ratio("on-set-done", "set-done")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("keeps the accent visible as a mark and readable as text", () => {
+  it("keeps the accent readable as text and visible as a mark", () => {
     for (const bg of ["canvas", "surface"] as const) {
-      expect(ratio("identity", bg), `identity on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio("action", bg), `action on ${bg}`).toBeGreaterThanOrEqual(4.5);
       expect(ratio("chart", bg), `chart on ${bg}`).toBeGreaterThanOrEqual(3);
     }
     expect(ratio("focus-ring", "canvas")).toBeGreaterThanOrEqual(3);
-    // The active-program badge and selected chips put accent text on the soft fill.
-    expect(ratio("identity", "identity-soft")).toBeGreaterThanOrEqual(4.5);
-    expect(ratio("text-primary", "identity-soft")).toBeGreaterThanOrEqual(7);
-  });
-
-  it("keeps on-identity readable on the identity fill", () => {
-    expect(ratio("on-identity", "identity")).toBeGreaterThanOrEqual(4.5);
     expect(ratio("on-action", "action-hover")).toBeGreaterThanOrEqual(4.5);
     expect(ratio("on-action", "action-pressed")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("orders the layers in the documented direction", () => {
-    const [canvas, surface, control, floating] = [
-      L(c.canvas),
-      L(c.surface),
-      L(c["surface-control"]),
-      L(c["surface-floating"]),
-    ] as [number, number, number, number]; // SAFETY: four items
-    const within = (step: number) => {
-      expect(step).toBeGreaterThanOrEqual(MIN_STEP);
-      expect(step).toBeLessThanOrEqual(MAX_STEP);
-    };
-    if (isLight) {
-      within(surface - canvas);
-      within(canvas - control);
-      expect(floating).toBe(surface);
-    } else {
-      within(surface - canvas);
-      within(control - surface);
-      expect(floating).toBeGreaterThan(surface);
-      expect(floating).toBeLessThan(control);
-    }
+  it("makes the primary chart series the accent", () => {
+    expect(c.chart).toBe(c.action);
+    expect(c["chart-1"]).toBe(c.action);
   });
-});
 
-describe.each(themes)("chart and surface rules: $mode", ({ colors: c }) => {
   it("keeps every chart series visible on the page", () => {
-    for (const role of ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const) {
+    for (const role of ["chart-2", "chart-3", "chart-4", "chart-5"] as const) {
       for (const bg of ["canvas", "surface"] as const) {
-        expect(contrastRatio(c[role], c[bg]), `${role} on ${bg}`).toBeGreaterThanOrEqual(3);
+        expect(ratio(role, bg), `${role} on ${bg}`).toBeGreaterThanOrEqual(3);
       }
     }
   });
 
-  it("keeps surfaces neutral", () => {
-    // A tinted neutral: some chroma, never a saturated colour. A light card may sit close to
-    // white, so it only needs a trace of the hue.
-    const floors = { canvas: 0, surface: 0, "surface-control": 0 } as const;
-    // SAFETY: `floors` is a literal object, so its entries are exactly its keys and numbers.
-    for (const [role, floor] of Object.entries(floors) as [keyof typeof floors, number][]) {
-      const { c: chroma } = toOklch(c[role]);
-      expect(chroma, role).toBeGreaterThanOrEqual(floor);
-      expect(chroma, role).toBeLessThan(0.05);
+  it("orders the layers in the documented direction", () => {
+    const lum = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
+    if (isLight) {
+      expect(lum(c.surface)).toBeLessThan(lum(c.canvas));
+      expect(lum(c["surface-control"])).toBeLessThan(lum(c.surface));
+      expect(c["surface-floating"]).toBe(c.canvas);
+    } else {
+      expect(lum(c.surface)).toBeGreaterThan(lum(c.canvas));
+      expect(lum(c["surface-floating"])).toBeGreaterThan(lum(c.surface));
+      expect(lum(c["surface-control"])).toBeGreaterThan(lum(c["surface-floating"]));
     }
   });
 });
 
-const contrastPairs = themeIds.flatMap((theme) =>
-  (["light", "dark"] as const).map((scheme) => ({
-    name: `${theme} ${scheme}`,
-    standard: nativeColors[variantName(theme, scheme)],
-    increased: nativeColors[variantName(theme, `${scheme}-contrast`)],
-  })),
-);
-
-describe.each(
-  themes
-    .values()
-    .filter(({ isLight }) => !isLight)
-    .toArray(),
-)("dark palette: $mode", ({ colors }) => {
-  it("uses a near-black canvas", () => {
-    expect(contrastRatio(colors.canvas, "#000000")).toBeLessThan(1.1);
-  });
-});
-
-describe.each(contrastPairs)("increased contrast: $name", ({ standard, increased }) => {
-  it("raises text contrast and holds secondary text to 7:1", () => {
-    for (const role of ["text-primary", "text-secondary", "text-muted"] as const) {
-      expect(contrastRatio(increased[role], increased.surface)).toBeGreaterThan(
-        contrastRatio(standard[role], standard.surface),
-      );
-    }
-    for (const bg of ["canvas", "surface"] as const) {
-      for (const role of ["text-secondary", "text-muted"] as const) {
-        expect(contrastRatio(increased[role], increased[bg])).toBeGreaterThanOrEqual(7);
-      }
-    }
+describe("accents", () => {
+  it("offers Lime, Teal, Blueberry, Lavender and Mono, in that order, with Lime the default", () => {
+    expect(accentIds).toEqual(["lime", "teal", "blueberry", "lavender", "mono"]);
+    expect(DEFAULT_ACCENT_ID).toBe("lime");
   });
 
-  it("strengthens both line roles", () => {
-    for (const role of ["hairline", "hairline-strong"] as const) {
-      expect(contrastRatio(increased[role], increased.surface)).toBeGreaterThan(
-        contrastRatio(standard[role], standard.surface),
-      );
-    }
-  });
-});
-
-describe("Sigil", () => {
-  it("is the default: the built-in light and dark are Sigil", () => {
-    expect(nativeColors.light).toEqual(nativeColors["sigil-light"]);
-    expect(nativeColors.dark).toEqual(nativeColors["sigil-dark"]);
+  it("defines one variant per accent and mode, and the built-ins are Lime", () => {
+    expect(themeVariantNames).toEqual(
+      accentIds.flatMap((accent) => [`${accent}-light`, `${accent}-dark`]),
+    );
+    expect(nativeColors.light).toEqual(nativeColors["lime-light"]);
+    expect(nativeColors.dark).toEqual(nativeColors["lime-dark"]);
   });
 
-  it("uses the spec's ground, raised, ink and ember in both schemes", () => {
-    expect(nativeColors["sigil-dark"]).toMatchObject({
-      canvas: "#0B0A09",
-      surface: "#161412",
-      "surface-control": "#201E1B",
-      "surface-floating": "#1B1917",
-      "text-primary": "#ECE6D8",
-      "text-secondary": "#CFC8BA",
-      "text-muted": "#A39D90",
-      hairline: "#2B2824",
-      identity: "#F06A4E",
-      "identity-soft": "#321C16",
-      action: "#ECE6D8",
-      "on-action": "#0B0A09",
-      "set-done": "#A9BC9A",
-      "set-done-soft": "#22261E",
-      danger: "#F28BA3",
-    });
-    expect(nativeColors["sigil-light"]).toMatchObject({
-      canvas: "#EFEBE2",
-      surface: "#F7F4EE",
-      "surface-control": "#E3DED3",
-      "text-primary": "#141210",
-      "text-secondary": "#3A3631",
-      "text-muted": "#5F5A52",
-      hairline: "#D6CFC2",
-      identity: "#B5321A",
-      "identity-soft": "#EFDDD5",
-      action: "#141210",
-      "on-action": "#F7F4EE",
-      "set-done": "#4A6541",
-      "set-done-soft": "#DCE0D2",
-      danger: "#83193E",
-    });
+  it("makes Mono white on dark and black on light", () => {
+    expect(nativeColors["mono-dark"].action).toBe("#FFFFFF");
+    expect(nativeColors["mono-light"].action).toBe("#000000");
   });
 
-  it("keeps ember for identity only: the action, focus ring and charts are ink or neutral", () => {
+  it("uses a deeper olive-lime in light mode", () => {
+    expect(contrastRatio(nativeColors["lime-light"].action, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+    expect(nativeColors["lime-light"].action).not.toBe(nativeColors["lime-dark"].action);
+  });
+
+  it("leaves the ground, surfaces and ink the same under every accent", () => {
     for (const scheme of ["light", "dark"] as const) {
-      const c = nativeColors[`sigil-${scheme}`];
-      expect(c.action).toBe(scheme === "dark" ? "#ECE6D8" : "#141210");
-      expect(c["focus-ring"]).toBe(c["text-primary"]);
-      expect(c["accent-soft-text"]).not.toBe(c.identity);
-      for (const role of [
-        "chart",
-        "chart-1",
-        "chart-2",
-        "chart-3",
-        "chart-4",
-        "chart-5",
-      ] as const) {
-        expect(toOklch(c[role]).h, role).not.toBeCloseTo(toOklch(c.identity).h, -1);
+      const base = nativeColors[`lime-${scheme}`];
+      for (const accent of accentIds) {
+        const c = nativeColors[`${accent}-${scheme}`];
+        for (const role of ["canvas", "surface", "text-primary", "danger"] as const) {
+          expect(c[role], `${accent} ${scheme} ${role}`).toBe(base[role]);
+        }
       }
-      expect(toOklch(c.danger).h).not.toBeCloseTo(toOklch(c.identity).h, -1);
+    }
+  });
+});
+
+describe("retired roles", () => {
+  it("has no ember, brand-detail, set-done, success, warning or macro roles", () => {
+    const names: readonly string[] = roleNames;
+    for (const retired of [
+      "identity",
+      "identity-soft",
+      "on-identity",
+      "brand-detail",
+      "set-done",
+      "set-done-soft",
+      "success",
+      "warning",
+      "warning-text",
+      "protein",
+      "carbs",
+      "fat",
+    ]) {
+      expect(names, retired).not.toContain(retired);
     }
   });
 });

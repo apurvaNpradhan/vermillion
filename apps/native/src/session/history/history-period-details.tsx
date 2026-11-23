@@ -116,7 +116,7 @@ export function HistoryWeekCalendar({
             {day === today && (
               <View
                 pointerEvents="none"
-                className={`absolute inset-0 rounded-lg border ${trained ? "border-accent-foreground" : "border-brand-detail"}`}
+                className={`absolute inset-0 rounded-lg border ${trained ? "border-accent-foreground" : "border-accent"}`}
               />
             )}
             <Text className={`font-normal text-center text-caption ${tone}`}>

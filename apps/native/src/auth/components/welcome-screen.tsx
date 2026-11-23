@@ -1,4 +1,4 @@
-import { themeVariants, type ThemeVariant } from "@workspace/ui/tokens/theme-variants";
+import { themeVariants, variantName, type ThemeVariant } from "@workspace/ui/tokens/theme-variants";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,6 +12,7 @@ import { ScopedTheme } from "uniwind";
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
+import type { ThemeChoice } from "@/platform/theme/theme-state";
 import { Button } from "@/platform/ui/button";
 import { SigilMark } from "@/platform/ui/sigil-mark";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -29,9 +30,9 @@ const FADE_SHARE = 0.5;
 /** Room above the wordmark where the scrim fades the photograph out behind the text. */
 const SCRIM_RISE = 72;
 
-/** The welcome screen is always dark Sigil; increased contrast follows the person's preference. */
-export function welcomeVariant(contrast: boolean): ThemeVariant {
-  return contrast ? "sigil-dark-contrast" : "sigil-dark";
+/** The welcome screen is always dark; the accent follows the person's choice. */
+export function welcomeVariant(accent: ThemeChoice["accent"]): ThemeVariant {
+  return variantName(accent, "dark");
 }
 
 /**
@@ -60,7 +61,7 @@ export function WelcomeScreen() {
     }
   }, [router, sheet]);
 
-  const variant = welcomeVariant(choice.contrast);
+  const variant = welcomeVariant(choice.accent);
   const ground = themeVariants[variant];
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
@@ -109,7 +110,7 @@ export function WelcomeScreen() {
           </Svg>
         </View>
         <View pointerEvents="none" style={{ position: "absolute", top: insets.top + 16, left: 24 }}>
-          <SigilMark size={48} color={ground["text-primary"]} emberColor={ground["brand-detail"]} />
+          <SigilMark size={48} color={ground["text-primary"]} emberColor={ground.action} />
         </View>
 
         <ScrollView

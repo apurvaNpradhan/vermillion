@@ -3,13 +3,13 @@
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
  * Keeps the row of seven day columns with a weekday over its number, marks beneath it, a ringed
  * selected day and faded or disabled days. Changes: UTC calendar-day numbers instead of `Date`s, role
- * classes (`success`, `identity`, `muted`) instead of the library's tones, a hollow dot for a
+ * classes (`accent`, `muted`) instead of the library's tones, a hollow dot for a
  * planned day, no scrolling layout, no `tailwind-variants`, and every string from the caller.
  */
 import { Pressable, Text, View } from "react-native";
 
-/** The colour of a mark: done, "you / now", or quiet. */
-export type WeekStripTone = "success" | "identity" | "muted";
+/** The colour of a mark: the accent (done, "you / now"), or quiet. */
+export type WeekStripTone = "accent" | "muted";
 
 export type WeekStripMarks = {
   /** Up to three filled dots, one per kind of thing on the day. */
@@ -21,8 +21,7 @@ export type WeekStripMarks = {
 };
 
 const TONE = {
-  success: "bg-success",
-  identity: "bg-brand-detail",
+  accent: "bg-accent",
   muted: "bg-muted",
 } as const satisfies Record<WeekStripTone, string>;
 
@@ -85,12 +84,12 @@ export function WeekStrip({
               {labels.weekday(day)}
             </Text>
             <Text
-              className={`font-medium text-numeric-sm tabular-nums ${day === today ? "text-identity" : "text-foreground"}`}
+              className={`font-medium text-numeric-sm tabular-nums ${day === today ? "text-accent" : "text-foreground"}`}
             >
               {labels.day(day)}
             </Text>
             <View className="h-2 flex-row items-center justify-center gap-1">
-              {day === today ? <View className="h-1.5 w-1.5 rounded-full bg-brand-detail" /> : null}
+              {day === today ? <View className="h-1.5 w-1.5 rounded-full bg-accent" /> : null}
               {dots.map((tone, index) => (
                 <View key={index} className={`h-1.5 w-1.5 rounded-full ${TONE[tone]}`} />
               ))}

@@ -1,3 +1,4 @@
+import { accentIds } from "@workspace/ui/tokens/theme-variants";
 import { describe, expect, it, vi } from "vitest";
 import {
   APPEARANCES,
@@ -9,8 +10,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Sigil, following the device, at standard contrast", () => {
-    expect(DEFAULT_THEME).toEqual({ theme: "sigil", appearance: "system", contrast: false });
+  it("starts on Lime, following the device", () => {
+    expect(DEFAULT_THEME).toEqual({ appearance: "system", accent: "lime" });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -51,19 +52,16 @@ describe("device theme selection", () => {
     }
   });
 
-  it("round-trips and resolves every appearance and contrast", () => {
-    const theme = DEFAULT_THEME.theme;
+  it("round-trips and resolves every appearance and accent", () => {
     for (const appearance of APPEARANCES)
-      for (const contrast of [false, true]) {
-        const choice = { theme, appearance, contrast };
+      for (const accent of accentIds) {
+        const choice = { appearance, accent };
         expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
         // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
         for (const os of ["light", "dark", null] as const) {
           const scheme = appearance === "system" ? (os ?? "light") : appearance;
           expect(resolvedScheme(choice, os)).toBe(scheme);
-          expect(resolvedVariant(choice, os)).toBe(
-            `${theme}-${contrast ? `${scheme}-contrast` : scheme}`,
-          );
+          expect(resolvedVariant(choice, os)).toBe(`${accent}-${scheme}`);
         }
       }
   });
@@ -78,23 +76,28 @@ describe("device theme selection", () => {
     expect(apply).toHaveBeenCalledWith({ ...DEFAULT_THEME, appearance: "dark" });
     store.set({ ...DEFAULT_THEME, appearance: "dark" });
     expect(write).not.toHaveBeenCalled();
-    const next = { ...DEFAULT_THEME, contrast: true };
+    const next = { appearance: "dark" as const, accent: "teal" as const };
     store.set(next);
     expect(apply).toHaveBeenLastCalledWith(next);
     expect(parseTheme(write.mock.calls[0]?.[0])).toEqual(next);
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
-    store.set({ ...next, contrast: false });
+    store.set({ ...next, accent: "mono" });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("retired themes", () => {
-  it.each(["classic", "patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
-    "falls back to Sigil for %s without changing the saved appearance or contrast",
+  it.each(["sigil", "classic", "patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
+    "migrates the saved theme %s to the default accent and keeps the appearance",
     (theme) => {
       const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-      expect(parseTheme(stored)).toEqual({ theme: "sigil", appearance: "dark", contrast: true });
+      expect(parseTheme(stored)).toEqual({ appearance: "dark", accent: "lime" });
     },
   );
+
+  it("migrates a saved accent that no longer exists", () => {
+    const stored = JSON.stringify({ appearance: "light", accent: "tangerine" });
+    expect(parseTheme(stored)).toEqual({ appearance: "light", accent: "lime" });
+  });
 });

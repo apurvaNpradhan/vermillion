@@ -336,7 +336,7 @@ export function TabBar({
                       {focused ? (
                         <View
                           pointerEvents="none"
-                          className="absolute bottom-1.5 size-1 rounded-full bg-brand-detail"
+                          className="absolute bottom-1.5 size-1 rounded-full bg-accent"
                         />
                       ) : null}
                     </Pressable>
@@ -366,7 +366,7 @@ export function TabBar({
                     {onMenuButton ? (
                       <View
                         pointerEvents="none"
-                        className="absolute bottom-1.5 size-1 rounded-full bg-brand-detail"
+                        className="absolute bottom-1.5 size-1 rounded-full bg-accent"
                       />
                     ) : null}
                   </View>
@@ -387,7 +387,7 @@ export function TabBar({
                   header={menuHeader?.(closeMenu)}
                   items={menuItems}
                   highlighted={highlighted}
-                  identity={foreground}
+                  active={foreground}
                   muted={muted}
                   rowsRef={rowsRef}
                   onLayout={(event) => {

@@ -77,7 +77,7 @@ export function MuscleRow({
         </Text>
         <Text
           className={`font-normal text-body tabular-nums ${
-            row.status === "above" ? "text-warning" : "text-muted"
+            row.status === "above" ? "text-foreground" : "text-muted"
           }`}
         >
           {value}
