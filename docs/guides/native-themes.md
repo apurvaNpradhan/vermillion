@@ -1,19 +1,21 @@
 # Native appearance
 
-Native has two modes and five accents. In Settings → Appearance, choose the mode (System, the
-default, Light or Dark) and the accent (Lime, the default, Teal, Blueberry, Lavender or Mono).
+Native has two modes and six accents. In Settings → Appearance, choose the mode (System, the
+default, Light or Dark) and the accent (Acid, the default, Gold, Ember, Rose, Ice or Mono).
 Dark is true AMOLED black and Light is pure white; the accent is the only hue, used for the primary
 action, the current and completed sets, records, the selected tab and chips and the primary chart
 series. Red is the only status colour. The sign-in screen is always dark.
 
-The redesign spec is [docs/design/redesign-2026-11/SPEC.md](../design/redesign-2026-11/SPEC.md).
+The decision is [ADR 0059](../adr/0059-amoled-neutral-modes-and-accent-split.md); the redesign spec is
+[docs/design/redesign-2026-11/SPEC.md](../design/redesign-2026-11/SPEC.md). The earlier Sigil
+beige/ember theme, its contrast variants and the theme engine no longer exist.
 
 ## Tokens
 
-`packages/ui/src/tokens/themes/palette.ts` holds the neutrals of each mode, the five accents (a
-hand-tuned value per mode and the label colour on it) and the quiet chart and set-kind tones.
-`theme-variants.ts` builds every variant (`lime-light`, `teal-dark`, …); `brand.ts` exposes them as
-`nativeColors`, with the built-in `light` and `dark` carrying Lime. Transactional email uses those.
+`packages/ui/src/tokens/themes/palette.ts` holds the neutrals of each mode, the six accents (a
+hand-tuned fill and text value per mode and the label colour on it) and the quiet chart and set-kind tones.
+`theme-variants.ts` builds every variant (`acid-light`, `ice-dark`, …); `brand.ts` exposes them as
+`nativeColors`, with the built-in `light` and `dark` carrying Acid. Transactional email uses those.
 The public site has its own palette.
 
 After editing the tokens, run `pnpm --filter @workspace/ui tokens` and commit the generated CSS.

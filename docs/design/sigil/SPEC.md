@@ -1,5 +1,9 @@
 # Sigil brand spec
 
+> **Historical.** The colour, type, imagery and tagline decisions below were replaced on 2026-11-23 by
+> [the redesign spec](../redesign-2026-11/SPEC.md) and [ADR 0059](../../adr/0059-amoled-neutral-modes-and-accent-split.md).
+> The name, identifiers and hosts still stand. Do not build from the rest of this file.
+
 The agreed brand for the rename from Patina to Sigil (grilled 2026-11-22). Build from this file.
 Where it disagrees with an older doc, this file wins.
 

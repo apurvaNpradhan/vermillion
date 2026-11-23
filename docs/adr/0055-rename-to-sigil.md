@@ -1,7 +1,10 @@
 # 0055. Rename to Sigil
 
 Status: accepted, 2026-11-22. Supersedes [0052](0052-rename-to-patina.md). Earlier ADRs keep the
-name they were written with.
+name they were written with. The name, identity and hosts stand. The visual brand (ink, ivory and
+ember, the mason's mark imagery, the Atlas photograph and the "Earn the mark." tagline) is amended
+by [the November 2026 redesign spec](../design/redesign-2026-11/SPEC.md) and [0059](0059-amoled-neutral-modes-and-accent-split.md); the tagline is now "Hit your reps.
+The weight goes up."
 
 ## Context
 

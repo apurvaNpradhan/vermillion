@@ -1,6 +1,7 @@
 # 0047. Palettes derived from a few seed colours
 
-Status: amended by [0048](0048-theme-engine-and-nord.md), 2026-11-18. Accepted 2026-11-17. Supersedes [0043](0043-graphite-base-and-accents.md). The
+Status: amended by [0048](0048-theme-engine-and-nord.md), 2026-11-18; superseded by
+[0059](0059-amoled-neutral-modes-and-accent-split.md), 2026-11-24. Accepted 2026-11-17. Supersedes [0043](0043-graphite-base-and-accents.md). The
 colour-only layout rule, device-local storage and contrast requirements of
 [0039](0039-hand-tuned-native-themes.md) remain.
 

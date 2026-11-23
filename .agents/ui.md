@@ -16,9 +16,9 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native has two modes (System, Light, Dark) and five accents (Lime, Teal, Blueberry, Lavender, Mono).
-`packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app (variants such as `teal-dark`;
-the built-in `light` and `dark` are Lime) and standard light/dark `brandTokens.colors` for email.
+Native has two modes (System, Light, Dark) and six accents (Acid, Gold, Ember, Rose, Ice, Mono).
+`packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app (variants such as `ice-dark`;
+the built-in `light` and `dark` are Acid) and standard light/dark `brandTokens.colors` for email.
 The public site has its own palette. Regenerate CSS after editing the native tokens. Layout never
 branches on appearance. Use `useThemeMode()` for native chrome. See the
 [native themes guide](../docs/guides/native-themes.md) and the
@@ -32,7 +32,7 @@ warning, ember (`identity`), `brand-detail` or `set-done` role: a positive state
 warning is neutral text with an icon. Charts take the accent for the primary series (`chart`,
 `chart-1`) and quiet tones for the rest (`chart-2` … `chart-5`). One filled primary action per
 screen; numbers use tabular figures. Geist sets native titles and body text, Geist Mono labels and
-code. Reserve EB Garamond for Nonfinito on the website. Run `pnpm brand:assets` after changing the
+code. Geist is the only family, on the website too. Run `pnpm brand:assets` after changing the
 mark. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text glyphs.
 Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 

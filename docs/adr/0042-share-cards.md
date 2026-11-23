@@ -1,6 +1,6 @@
 # 0042. Share cards: images for Sessions, Workouts and Programs
 
-Status: accepted (2026-11-16); the footer link slot is filled by [0058](0058-share-links.md). Builds on [0038](0038-sessions.md), [0039](0039-hand-tuned-native-themes.md), [0040](0040-user-media.md). Specs: [docs/specs/share/](../specs/share/). Terms: Share card, Template, Sticker, Share composer in [CONTEXT.md](../../CONTEXT.md).
+Status: accepted (2026-11-16); card colours follow the theme of [0059](0059-amoled-neutral-modes-and-accent-split.md); the footer link slot is filled by [0058](0058-share-links.md). Builds on [0038](0038-sessions.md), [0039](0039-hand-tuned-native-themes.md), [0040](0040-user-media.md). Specs: [docs/specs/share/](../specs/share/). Terms: Share card, Template, Sticker, Share composer in [CONTEXT.md](../../CONTEXT.md).
 
 ## Context
 
