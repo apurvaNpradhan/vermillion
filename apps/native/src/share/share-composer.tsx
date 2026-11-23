@@ -22,6 +22,7 @@ import { Button } from "@/platform/ui/button";
 import { useRouter } from "expo-router";
 
 import { captureDimensions } from "./capture-dimensions";
+import { useCardLink, type CardLinkSource } from "./links/use-card-link";
 import { CardCanvas } from "./card-canvas";
 import { useCardPalettes } from "./card-theme";
 import { availableBackgrounds, availableTemplates, effectiveBackground } from "./choice";
@@ -51,6 +52,7 @@ export function ShareComposer<Id extends string>({
   templates,
   toggles,
   photo,
+  linkSource,
 }: {
   kind: ShareKind;
   title: string;
@@ -58,6 +60,8 @@ export function ShareComposer<Id extends string>({
   toggles: readonly ShareToggle<Id>[];
   /** A picture for the Photo background; omitted when the card has none. */
   photo?: SharePhoto<Id>;
+  /** What the card's Share link points at; omitted for cards that have no link. */
+  linkSource?: CardLinkSource<Id>;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -68,6 +72,7 @@ export function ShareComposer<Id extends string>({
   const gate = useCreateImageGate();
   const actions = useShareActions(gate);
   const { choice, update } = useShareChoice(kind, templates, toggles);
+  const cardLink = useCardLink(linkSource, choice.toggles);
   const pages = availableTemplates(templates, choice.toggles);
   const current = pages.find((page) => page.id === choice.template) ?? pages[0];
   const index = current ? pages.indexOf(current) : 0;
@@ -201,6 +206,7 @@ export function ShareComposer<Id extends string>({
                             hasRecords={item.hasRecords}
                             transparent={item.supportsTransparent}
                             photo={own === "photo" && photo ? photo.render() : null}
+                            link={cardLink.link}
                           >
                             {item.render({ palette: palettes(own), toggles: choice.toggles })}
                           </CardCanvas>
@@ -283,6 +289,40 @@ export function ShareComposer<Id extends string>({
               </View>
             ) : null}
 
+            {linkSource ? (
+              <View className="flex-row flex-wrap items-center justify-center gap-2">
+                <Pressable
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: cardLink.enabled }}
+                  accessibilityLabel={t("share__toggle_link")}
+                  onPress={() => {
+                    haptic.tick();
+                    cardLink.setEnabled(!cardLink.enabled);
+                  }}
+                  className="h-9 flex-row items-center gap-1.5 rounded-full border border-transparent bg-default px-3"
+                >
+                  {cardLink.enabled ? <Check size={20} color={ink} /> : null}
+                  <Text
+                    className={`text-label ${cardLink.enabled ? "font-medium text-foreground" : "text-muted"}`}
+                  >
+                    {t("share__toggle_link")}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: cardLink.busy, busy: cardLink.busy }}
+                  disabled={cardLink.busy}
+                  onPress={() => void cardLink.shareLink()}
+                  className="h-9 flex-row items-center gap-1.5 rounded-full bg-default px-3 active:opacity-60"
+                >
+                  {cardLink.busy ? <Spinner size="sm" /> : null}
+                  <Text className="text-label font-medium text-foreground">
+                    {t("share__share_link")}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {actions.denied ? (
               <View className="items-center gap-2">
                 <Text className="font-normal text-center text-caption text-muted">
@@ -302,7 +342,9 @@ export function ShareComposer<Id extends string>({
                   busy: actions.busy === "save-all",
                 }}
                 disabled={actions.busy !== null}
-                onPress={() => void actions.saveAll(whole.map(cardTarget))}
+                onPress={() =>
+                  void cardLink.prepare().then(() => actions.saveAll(whole.map(cardTarget)))
+                }
                 className="min-h-11 flex-row items-center justify-center gap-2 active:opacity-60"
               >
                 {actions.busy === "save-all" ? <Spinner size="sm" /> : null}
@@ -319,7 +361,7 @@ export function ShareComposer<Id extends string>({
               variant="secondary"
               isDisabled={actions.busy !== null}
               accessibilityState={{ busy: actions.busy === "save" }}
-              onPress={() => void actions.save(cardTarget(current))}
+              onPress={() => void cardLink.prepare().then(() => actions.save(cardTarget(current)))}
             >
               {actions.busy === "save" ? <Spinner size="sm" /> : null}
               <Button.Label>{t("share__save")}</Button.Label>
@@ -329,7 +371,7 @@ export function ShareComposer<Id extends string>({
             <Button
               isDisabled={actions.busy !== null}
               accessibilityState={{ busy: actions.busy === "share" }}
-              onPress={() => void actions.share(cardTarget(current))}
+              onPress={() => void cardLink.prepare().then(() => actions.share(cardTarget(current)))}
             >
               {actions.busy === "share" ? <Spinner size="sm" /> : null}
               <Button.Label>{t("share__share")}</Button.Label>

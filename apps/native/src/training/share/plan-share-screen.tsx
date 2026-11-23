@@ -61,6 +61,7 @@ export function WorkoutShareScreen({ id, onClose }: { id: string; onClose: () =>
       title={t("share__title_workout")}
       templates={templates}
       toggles={toggles}
+      linkSource={{ target: { kind: "workout", id }, weights: "weights" }}
     />
   );
 }
@@ -116,6 +117,7 @@ export function ProgramShareScreen({ id, onClose }: { id: string; onClose: () =>
       templates={templates}
       toggles={toggles}
       photo={cover ? { render: () => <ProgramCover mediaId={cover} /> } : undefined}
+      linkSource={{ target: { kind: "program", id }, weights: "weights" }}
     />
   );
 }

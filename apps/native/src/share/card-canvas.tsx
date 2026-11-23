@@ -6,6 +6,7 @@ import Svg, { Rect } from "react-native-svg";
 import { appConfig } from "@/platform/app-config";
 import { SigilMark } from "@/platform/ui/sigil-mark";
 
+import { displayLink, spacedCode } from "./links/link-display";
 import { captureDimensions } from "./capture-dimensions";
 import { CARD_HEIGHT, CARD_WIDTH } from "./types";
 
@@ -16,7 +17,7 @@ export const FOOTER_HEIGHT = 168;
 
 /**
  * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat or a photo under a full-card scrim), the card's content, and a footer with mark A2, the app's wordmark and
- * a slot reserved for the public link, empty until that link exists (ADR 0042). A transparent
+ * the Share link and code when the card has one (ADR 0042, 0058). A transparent
  * canvas (a Sticker) has no background and no footer.
  */
 export function CardCanvas({
@@ -35,8 +36,8 @@ export function CardCanvas({
   /** A full-bleed picture drawn under the scrim, for the Photo background. */
   photo?: ReactNode;
   transparent?: boolean;
-  /** The public link, once there is one. */
-  link?: string | null;
+  /** The Share link and its code, once there is one. */
+  link?: { url: string; code: string } | null;
   children: ReactNode;
 }) {
   const target = captureDimensions(Platform.OS, PixelRatio.get());
@@ -101,12 +102,20 @@ export function CardCanvas({
                 {appConfig.displayName.toLocaleUpperCase()}
               </Text>
             </View>
-            {/* Reserved for the public link; nothing is drawn until the link exists. */}
-            <View style={{ minWidth: 320, alignItems: "flex-end" }}>
+            {/* The Share link and its code; empty when the card has none (ADR 0042, 0058). */}
+            <View style={{ minWidth: 320, alignItems: "flex-end", gap: 4 }}>
               {link ? (
-                <Text className="font-medium" style={{ fontSize: 32, color: palette.textMuted }}>
-                  {link}
-                </Text>
+                <>
+                  <Text className="font-medium" style={{ fontSize: 30, color: palette.textMuted }}>
+                    {displayLink(link.url)}
+                  </Text>
+                  <Text
+                    className="font-semibold"
+                    style={{ fontSize: 34, letterSpacing: 4, color: palette.textSecondary }}
+                  >
+                    {spacedCode(link.code)}
+                  </Text>
+                </>
               ) : null}
             </View>
           </View>

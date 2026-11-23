@@ -34,7 +34,8 @@ import { appConfig } from "../../app.config.ts";
 // 26: renamed to Sigil: new bundle id and scheme (ADR 0055).
 // 27: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
 // 28: remove the react-native-webview dependency with Turnstile.
-const NATIVE_STACK_REVISION = 29;
+// 30: Android App Links for /p/<code> and /w/<code> on the site host (an AndroidManifest change).
+const NATIVE_STACK_REVISION = 30;
 
 /**
  * The Sigil brand colours, for the places the native build needs a literal (icon background,
@@ -62,6 +63,25 @@ const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
  */
 const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE);
 
+/**
+ * Share links (ADR 0058): `https://<site>/p/<code>` and `/w/<code>` open the app when Android has
+ * verified it for the site (`autoVerify` fetches `/.well-known/assetlinks.json`, whose
+ * fingerprints are `androidCertSha256` in app.config.ts). Unverified, the link opens the web
+ * preview in the browser instead.
+ */
+const siteHost = new URL(appConfig.urls.site).host;
+const shareLinkIntentFilters = [
+  {
+    action: "VIEW",
+    autoVerify: true,
+    data: [
+      { scheme: "https", host: siteHost, pathPrefix: "/p/" },
+      { scheme: "https", host: siteHost, pathPrefix: "/w/" },
+    ],
+    category: ["BROWSABLE", "DEFAULT"],
+  },
+];
+
 const config: ExpoConfig = {
   name: appConfig.displayName,
   slug: appConfig.easSlug,
@@ -86,6 +106,7 @@ const config: ExpoConfig = {
       monochromeImage: ADAPTIVE_MONOCHROME,
     },
     predictiveBackGestureEnabled: false,
+    intentFilters: shareLinkIntentFilters,
     package: appConfig.bundleIds.android,
     ...(Number.isInteger(androidVersionCode) && androidVersionCode > 0
       ? { versionCode: androidVersionCode }

@@ -8,6 +8,7 @@ import {
   Copy,
   DotsThreeVertical,
   FloppyDisk,
+  LinkSimple,
   Moon,
   PencilSimple,
   Plus,
@@ -31,6 +32,7 @@ import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { repeatCounts, rotationSummary } from "@/training/rotation/rotation";
 import { useProgram } from "./use-program";
+import { useShareLinkAction } from "@/share";
 import { useProgramActions } from "./use-program-actions";
 import { useProgramMeta } from "./use-program-meta";
 import { useStartWorkout } from "@/training/train/use-start-workout";
@@ -103,6 +105,7 @@ function LoadedProgram({
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useProgramActions();
+  const { shareLink } = useShareLinkAction();
   const active = useActiveRun();
   const isActive = active.run?.program_id === program.id;
   const activationLabel = t(isActive ? "run__stop" : "run__set_active");
@@ -157,6 +160,12 @@ function LoadedProgram({
           pathname: "/share/[kind]/[id]",
           params: { kind: "program", id: program.id },
         }),
+    },
+    {
+      key: "share-link",
+      label: t("share__share_link"),
+      icon: LinkSimple,
+      onPress: () => void shareLink({ kind: "program", id: program.id }),
     },
     {
       key: "duplicate",
