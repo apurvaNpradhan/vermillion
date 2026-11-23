@@ -1173,7 +1173,6 @@
   "home__in_progress": "In progress",
   "home__title": "Today",
   "home__today": "Today",
-  "home__next_day": "Next · Day {{day}} of {{total}}",
   "home__day_trained": "Trained",
   "home__day_planned": "Next workout planned",
   "body__weight_trend": "Weight trend",

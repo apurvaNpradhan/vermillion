@@ -16,6 +16,8 @@ export { useActiveSessions } from "./lifecycle/use-active-sessions";
 export { formatElapsed } from "./timer/clock";
 export { doneSummary } from "./finish/summary";
 
+export { useRecordHistory } from "./history/use-session-history";
+export { sessionRecords } from "./finish/session-records";
 export { usePreviousSets } from "./logging/use-previous-sets";
 export { previewProgression } from "./logging/preview-progression";
 
