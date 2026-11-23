@@ -819,8 +819,6 @@
   "session__chip_off": "off",
   "session__note_chip": "Note",
   "session__add_note": "Add a note",
-  "session__expand_exercise": "Expand {{title}}",
-  "session__collapse_exercise": "Collapse {{title}}",
   "session__view_exercise": "View exercise",
   "session__view_exercise_named": "View {{title}}",
   "session__swap_split_toast": "Completed sets stay on {{title}}",

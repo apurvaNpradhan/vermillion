@@ -11,11 +11,12 @@ import type { SessionSetDetail } from "@workspace/sync";
 import { Copy, DotsThree, Rows, Play, Stop, Trash, WarningCircle } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 import { useThemeColor } from "heroui-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useActionColor, useOnActionColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -35,10 +36,19 @@ import { useNow } from "@/session/shared/use-now";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { RecordChip } from "./record-chip";
 import { SetCell } from "./set-cell";
+import { TICK_MS } from "@/session/shared/motion";
+import { DONE_TINT_ALPHA, withAlpha } from "./row-tint";
 import { TickMark } from "./tick-mark";
 
 /** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
 export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
+
+/** The completed-row tint fades in and out like the tick. */
+const TINT_TRANSITION: CSSTransitionProperties = {
+  transitionProperty: ["backgroundColor"],
+  transitionDuration: TICK_MS,
+  transitionTimingFunction: "ease-out",
+};
 
 /** A refused tick and the cells that lack a value. */
 export type Refusal = { setId: string; fields: readonly SetField[] };
@@ -60,7 +70,7 @@ export type SetRowProps = {
   /** The ticked set beat a record: a "PR" chip pops in beside its number. */
   record: string | null;
   animate: boolean;
-  /** The set to log next: an ember leading bar and number. */
+  /** The set to log next: an accent leading bar and number. */
   current: boolean;
   readOnly: boolean;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
@@ -120,12 +130,17 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const background = useThemeColor("background");
+  const accent = useActionColor();
+  const onAccent = useOnActionColor();
   const danger = useThemeColor("danger");
   const ink = useThemeColor("foreground");
   const faint = useThemeColor("muted");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
+  // The whole row takes the accent at 15%; unticked it is the same colour fully transparent, so
+  // the transition fades the tint instead of passing through grey.
+  const tint = withAlpha(accent, DONE_TINT_ALPHA);
+  const transparent = withAlpha(accent, 0);
   // What is typed since the cell was opened; nothing until the first key.
   const raw = entry && !entry.fresh ? entry.raw : null;
   const activeField = entry?.cell.field;
@@ -226,12 +241,19 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const effortGhost = ghosts.rpe ?? null;
 
   const row = (a11y?: SwipeA11yProps) => (
-    <View className="flex-row items-center gap-1.5 px-1 py-1">
+    <Animated.View
+      className="flex-row items-center gap-1.5 rounded-xl px-1 py-1"
+      style={{
+        backgroundColor: ticked ? tint : transparent,
+        ...TINT_TRANSITION,
+        transitionDuration: props.animate ? TICK_MS : 0,
+      }}
+    >
       {props.current && !ticked ? (
         <View
           pointerEvents="none"
           accessible={false}
-          className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-brand-detail"
+          className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-accent"
         />
       ) : null}
       <RecordChip record={props.record} animate={props.animate} />
@@ -251,7 +273,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"
       >
         <Text
-          className={`font-semibold text-label ${props.current && !ticked ? "text-identity" : SET_TONES[set.kind].text}`}
+          className={`font-semibold text-label ${props.current && !ticked ? "text-accent" : SET_TONES[set.kind].text}`}
         >
           {badge}
         </Text>
@@ -325,16 +347,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           {waitingForPrevious && !readOnly ? (
             <DotsThree size={20} color={subtle} />
           ) : (
-            <TickMark
-              ticked={ticked}
-              animate={props.animate}
-              subtle={subtle}
-              background={background}
-            />
+            <TickMark ticked={ticked} animate={props.animate} subtle={subtle} onAccent={onAccent} />
           )}
         </Pressable>
       )}
-    </View>
+    </Animated.View>
   );
 
   const actions: SwipeAction[] = [];

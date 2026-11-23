@@ -1,31 +1,26 @@
 import type { SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { useThemeColor } from "heroui-native";
-import { CaretDown, Check, DotsThreeVertical } from "phosphor-react-native";
+import { Check, DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
-import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useSubtleColor } from "@/platform/theme";
 import { RecordChip } from "./record-chip";
-import { BODY_ENTERING, TICK_EASING, TICK_MS } from "@/session/shared/motion";
+import { BODY_ENTERING } from "@/session/shared/motion";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
-
-const CHEVRON_TRANSITION: CSSTransitionProperties = {
-  transitionProperty: ["transform"],
-  transitionDuration: TICK_MS,
-  transitionTimingFunction: TICK_EASING,
-};
 
 /**
  * One exercise of the accordion. Collapsed it is the header alone: thumbnail, name, "2/4 · 60 kg × 8"
- * (a solid tick instead of the count when every set is done, with the name dimmed) and a chevron.
- * Open it also shows its pinned note, progression chip and its body (chips, set grid). A superset
- * member carries the bracket. The chevron turns 180 degrees (a CSS transition) and an opening body
- * fades in; the height is not animated, because the list re-measures an item whose size changes
- * and the scroll to the next exercise lands on the natural layout.
+ * (a solid tick instead of the count when every set is done, with the name dimmed) and the
+ * menu. There is no chevron: a tap on the header opens a closed exercise and closes an open one,
+ * a tap on the thumbnail opens the exercise's detail, and the menu (also "View exercise") shows
+ * on every header. Open it also shows its pinned note, progression chip and its body (chips, set
+ * grid). A superset member carries the bracket. An opening body fades in; the height is not
+ * animated, because the list re-measures an item whose size changes and the scroll to the next
+ * exercise lands on the natural layout.
  */
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
@@ -65,7 +60,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   onHeaderLayout: (event: LayoutChangeEvent) => void;
   onBodyLayout: (event: LayoutChangeEvent) => void;
   onView: (exerciseId: string) => void;
-  /** Opens a closed exercise, closes an open one. */
+  /** Opens a closed exercise, closes an open one (the header tap). */
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   /** Long press on the header: open the Reorder view. */
@@ -76,7 +71,7 @@ export const ExerciseRow = memo(function ExerciseRow({
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const background = useThemeColor("background");
+  const onAccent = useOnActionColor();
   const info = exercise.exercise;
   const name = exercise.title || t("training__exercise_missing");
   const grouped = place !== "none";
@@ -91,10 +86,6 @@ export const ExerciseRow = memo(function ExerciseRow({
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
   const doneText = summary === "" ? progress : summary;
   const toggle = () => onToggle(exercise.id);
-  const toggleLabel = t(expanded ? "session__collapse_exercise" : "session__expand_exercise", {
-    title: name,
-  });
-
   const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
     title: name,
     summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
@@ -114,11 +105,8 @@ export const ExerciseRow = memo(function ExerciseRow({
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={
-            expanded ? t("session__view_exercise_named", { title: name }) : toggleLabel
-          }
-          accessibilityState={expanded ? undefined : { expanded }}
-          onPress={expanded ? () => onView(exercise.exerciseId) : toggle}
+          accessibilityLabel={t("session__view_exercise_named", { title: name })}
+          onPress={() => onView(exercise.exerciseId)}
           className={`min-h-[64px] min-w-12 items-center justify-center py-2 ${grouped ? "pl-6" : "pl-4"} active:bg-default`}
         >
           {thumbnail(40)}
@@ -136,7 +124,7 @@ export const ExerciseRow = memo(function ExerciseRow({
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
             }}
             onPress={toggle}
-            className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
+            className="min-h-11 justify-center gap-0.5 py-2 pl-3 pr-1 active:bg-default"
           >
             {place === "first" ? (
               <Text className="font-semibold text-overline uppercase text-foreground">
@@ -151,8 +139,8 @@ export const ExerciseRow = memo(function ExerciseRow({
             </Text>
             <View className="flex-row items-center gap-1.5">
               {done ? (
-                <View className="h-4 w-4 items-center justify-center rounded bg-foreground">
-                  <Check size={12} weight="bold" color={background} />
+                <View className="h-4 w-4 items-center justify-center rounded bg-accent">
+                  <Check size={12} weight="bold" color={onAccent} />
                 </View>
               ) : null}
               <Text
@@ -170,24 +158,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           </Pressable>
           {expanded ? progression : null}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={toggleLabel}
-          accessibilityState={{ expanded }}
-          onPress={toggle}
-          className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
-        >
-          <Animated.View
-            style={{
-              transform: [{ rotate: expanded ? "180deg" : "0deg" }],
-              ...CHEVRON_TRANSITION,
-              transitionDuration: animate ? TICK_MS : 0,
-            }}
-          >
-            <CaretDown size={20} color={subtle} />
-          </Animated.View>
-        </Pressable>
-        {expanded && !readOnly ? (
+        {!readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("training__row_menu", { title: name })}

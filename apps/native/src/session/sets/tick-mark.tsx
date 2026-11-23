@@ -17,8 +17,8 @@ const FADE_TRANSITION: CSSTransitionProperties = {
 };
 
 /**
- * The tick of a set: an empty check until the set is done, then a solid ink square with the check
- * knocked out. Ticking scales the square from 0.85 to 1 while it fades in, and unticking reverses
+ * The tick of a set: an empty check until the set is done, then a solid accent square with the
+ * check knocked out in the on-accent colour. Ticking scales the square from 0.85 to 1 while it fades in, and unticking reverses
  * it. Both layers are always drawn and change through Reanimated CSS transitions, so the change
  * runs on the UI thread with no shared value or state of its own; a row that mounts ticked does
  * not animate. Under Reduce Motion it switches at once.
@@ -27,12 +27,12 @@ export const TickMark = memo(function TickMark({
   ticked,
   animate,
   subtle,
-  background,
+  onAccent,
 }: {
   ticked: boolean;
   animate: boolean;
   subtle: string | undefined;
-  background: string;
+  onAccent: string | undefined;
 }) {
   return (
     <View className="h-7 w-7 items-center justify-center">
@@ -47,7 +47,7 @@ export const TickMark = memo(function TickMark({
         <Check size={22} weight="regular" color={subtle} />
       </Animated.View>
       <Animated.View
-        className="absolute inset-0 items-center justify-center rounded-lg bg-foreground"
+        className="absolute inset-0 items-center justify-center rounded-lg bg-accent"
         style={{
           opacity: ticked ? 1 : 0,
           transform: [{ scale: ticked ? 1 : 0.85 }],
@@ -55,7 +55,7 @@ export const TickMark = memo(function TickMark({
           transitionDuration: animate ? TICK_MS : 0,
         }}
       >
-        <Check size={18} weight="bold" color={background} />
+        <Check size={18} weight="bold" color={onAccent} />
       </Animated.View>
     </View>
   );
