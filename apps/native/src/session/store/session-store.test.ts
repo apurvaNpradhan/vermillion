@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { NO_PENDING, previewTick as preview } from "../logging/optimistic";
 import { exercise, session, set, twoExercises } from "./fixtures";
-import { createSessionStore } from "./session-store";
+import { createSessionStore, showsRecord } from "./session-store";
 
 const NOW = "2026-11-21T10:05:00.000Z";
 
@@ -259,5 +259,47 @@ describe("the session store", () => {
       store.getState().toggleExpanded("b");
       expect(store.getState().cell).toBeNull();
     });
+  });
+
+  it("shows a record chip only for the confirmed tick that earned it", () => {
+    const store = createSessionStore(twoExercises());
+    const state = store.getState;
+    previewTick(store, "b2");
+    state().markRecord("b2", NOW);
+    expect(showsRecord(state(), "b2")).toBe(false);
+
+    state().updatePending(() => NO_PENDING);
+    previewTick(store, "b2", true);
+    const ticked = state().setsById.get("b2");
+    if (!ticked) throw new Error("missing set");
+
+    const untick = {
+      id: Symbol(),
+      saved: false,
+      set: {
+        id: "b2",
+        before: ticked,
+        value: { completedAt: null },
+      },
+    };
+    state().updatePending((pending) => [...pending, untick]);
+    state().markRecord("b2", NOW);
+    expect(showsRecord(state(), "b2")).toBe(false);
+
+    state().updatePending((pending) => pending.filter((write) => write.id !== untick.id));
+    expect(showsRecord(state(), "b2")).toBe(true);
+    expect(showsRecord(state(), "b1")).toBe(false);
+    state().markRecord("b2", "2026-11-21T10:06:00.000Z");
+    expect(showsRecord(state(), "b2")).toBe(true);
+
+    state().setUi({ ...state().ui, recordAlerts: false });
+    expect(showsRecord(state(), "b2")).toBe(false);
+    state().setUi({ ...state().ui, recordAlerts: true });
+    expect(showsRecord(state(), "b2")).toBe(true);
+
+    state().clearRecord("b2");
+    state().updatePending(() => NO_PENDING);
+    previewTick(store, "b2", true);
+    expect(showsRecord(state(), "b2")).toBe(false);
   });
 });

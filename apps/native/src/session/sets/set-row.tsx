@@ -8,16 +8,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import {
-  Check,
-  Copy,
-  DotsThree,
-  Rows,
-  Play,
-  Stop,
-  Trash,
-  WarningCircle,
-} from "phosphor-react-native";
+import { Copy, DotsThree, Rows, Play, Stop, Trash, WarningCircle } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useThemeColor } from "heroui-native";
@@ -42,7 +33,9 @@ import {
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
 import { useSessionStore } from "@/session/store/session-store-context";
+import { RecordChip } from "./record-chip";
 import { SetCell } from "./set-cell";
+import { TickMark } from "./tick-mark";
 
 /** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
 export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
@@ -64,6 +57,9 @@ export type SetRowProps = {
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
+  /** The ticked set beat a record: a "PR" chip pops in beside its number. */
+  record: string | null;
+  animate: boolean;
   /** The set to log next: an ember leading bar and number. */
   current: boolean;
   readOnly: boolean;
@@ -126,6 +122,8 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const subtle = useSubtleColor();
   const background = useThemeColor("background");
   const danger = useThemeColor("danger");
+  const ink = useThemeColor("foreground");
+  const faint = useThemeColor("muted");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   // What is typed since the cell was opened; nothing until the first key.
@@ -178,8 +176,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         <SetCell
           text={text}
           ghost={ghost}
+          animate={props.animate}
           active={editing}
           refused={refused}
+          ink={ink}
+          faint={faint}
           disabled={readOnly}
           label={t("training__cell_label", { number, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
@@ -233,6 +234,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-brand-detail"
         />
       ) : null}
+      <RecordChip record={props.record} animate={props.animate} />
       <Pressable
         {...a11y}
         accessibilityRole="button"
@@ -322,12 +324,13 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         >
           {waitingForPrevious && !readOnly ? (
             <DotsThree size={20} color={subtle} />
-          ) : ticked ? (
-            <View className="h-7 w-7 items-center justify-center rounded-lg bg-foreground">
-              <Check size={18} weight="bold" color={background} />
-            </View>
           ) : (
-            <Check size={22} weight="regular" color={subtle} />
+            <TickMark
+              ticked={ticked}
+              animate={props.animate}
+              subtle={subtle}
+              background={background}
+            />
           )}
         </Pressable>
       )}

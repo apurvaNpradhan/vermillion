@@ -10,7 +10,7 @@ import {
   type SetKind,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
@@ -30,11 +30,13 @@ import {
 } from "phosphor-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, ScrollView, Text, View } from "react-native";
+import { LayoutAnimationConfig, useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ExerciseThumbnail, usePickExercises } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
@@ -128,7 +130,11 @@ function SessionHost({ stored, ...props }: SessionScreenProps & { stored: Sessio
   const store = useFedSessionStore(stored);
   return (
     <SessionStoreProvider store={store}>
-      <LoadedSession store={store} {...props} />
+      <LayoutAnimationConfig skipEntering skipExiting>
+        <View className="flex-1 bg-background" collapsable={false}>
+          <LoadedSession store={store} {...props} />
+        </View>
+      </LayoutAnimationConfig>
     </SessionStoreProvider>
   );
 }
@@ -180,6 +186,29 @@ const LoadedSession = memo(function LoadedSession({
   const accordionScroll = useAccordionScroll(store, scrollRef);
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
+  const reducedMotion = useReduceMotion();
+  const focused = useIsFocused();
+  const animate = focused && !reducedMotion && session.finishedAt === null;
+  const viewport = useAnimatedRef<View>();
+  const revealViewport = reveal.viewportRef;
+  const attachViewport = useCallback(
+    (node: View | null) => {
+      revealViewport.current = node;
+      viewport(node);
+    },
+    [revealViewport, viewport],
+  );
+  const listHeaderHeight = useRef(0);
+  const onListMetrics = useCallback(({ headerSize }: { headerSize: number }) => {
+    listHeaderHeight.current = headerSize;
+  }, []);
+  const isInViewport = useCallback((exerciseId: string, offset: number, height: number) => {
+    const state = scrollRef.current?.getState();
+    const position = state?.positionByKey(exerciseId);
+    if (!state || position === undefined || height <= 0) return false;
+    const top = position + listHeaderHeight.current + offset - state.scroll;
+    return top < state.scrollLength && top + height > 0;
+  }, []);
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
@@ -524,8 +553,16 @@ const LoadedSession = memo(function LoadedSession({
     ],
   );
   const renderItem = useCallback(
-    ({ item }: { item: string }) => <ExerciseItem exerciseId={item} handlers={handlers} />,
-    [handlers],
+    ({ item }: { item: string }) => (
+      <ExerciseItem
+        exerciseId={item}
+        handlers={handlers}
+        animate={animate}
+        viewport={viewport}
+        isInViewport={isInViewport}
+      />
+    ),
+    [animate, handlers, isInViewport, viewport],
   );
   const onScroll = reveal.onScroll;
   const onListScroll = useCallback(
@@ -535,7 +572,7 @@ const LoadedSession = memo(function LoadedSession({
   );
   const listContentStyle = useMemo(() => ({ paddingBottom: bottom + 32 }), [bottom]);
   return (
-    <View className="flex-1 bg-background">
+    <>
       <SheetShell
         isOpen={musclesOpen}
         onOpenChange={setMusclesOpen}
@@ -561,6 +598,7 @@ const LoadedSession = memo(function LoadedSession({
         ) : null}
       </SheetShell>
       <SessionHeader
+        animate={animate}
         finished={session.finishedAt !== null}
         onMenu={() => setSessionMenu(true)}
         title={title}
@@ -585,7 +623,7 @@ const LoadedSession = memo(function LoadedSession({
         onSetStart={(startedAt) => actions.setStart(session.id, startedAt)}
       />
       <View
-        ref={reveal.viewportRef}
+        ref={attachViewport}
         collapsable={false}
         className="flex-1"
         onLayout={() => {
@@ -600,6 +638,7 @@ const LoadedSession = memo(function LoadedSession({
           renderItem={renderItem}
           estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
           onItemSizeChanged={accordionScroll.onItemSizeChanged}
+          onMetricsChange={onListMetrics}
           onScrollBeginDrag={accordionScroll.cancel}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
@@ -655,6 +694,7 @@ const LoadedSession = memo(function LoadedSession({
       </View>
       {session.rest && !readOnly ? (
         <RestBar
+          animate={animate}
           rest={session.rest}
           withInset={!logging.entry}
           pausedAt={session.pausedAt}
@@ -807,6 +847,6 @@ const LoadedSession = memo(function LoadedSession({
           if (confirmRemove) void actions.removeExercise(confirmRemove.id);
         }}
       />
-    </View>
+    </>
   );
 });

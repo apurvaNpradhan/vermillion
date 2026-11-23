@@ -1,5 +1,6 @@
 import { CaretDown, DotsThreeVertical } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
@@ -7,6 +8,7 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { OfflinePill } from "@/sync";
 
+import { MARKER_ENTERING, MARKER_EXITING } from "@/session/shared/motion";
 import { formatElapsed } from "@/session/timer/clock";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { useActiveSeconds } from "@/session/shared/use-active-seconds";
@@ -18,12 +20,14 @@ import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 function Clock({
   startedAt,
   pausedAt,
+  animate,
   pausedMs,
   frozen,
   onPress,
 }: {
   startedAt: string;
   pausedAt: string | null;
+  animate: boolean;
   pausedMs: number;
   frozen: boolean;
   /** Opens the workout clock sheet; the clock is plain text without it. */
@@ -39,7 +43,13 @@ function Clock({
         {formatElapsed(seconds)}
       </Text>
       {clock.pausedAt === null ? null : (
-        <Text className="font-medium text-caption text-subtle">{t("session__paused_label")}</Text>
+        <Animated.Text
+          entering={animate ? MARKER_ENTERING : undefined}
+          exiting={animate ? MARKER_EXITING : undefined}
+          className="font-medium text-caption text-subtle"
+        >
+          {t("session__paused_label")}
+        </Animated.Text>
       )}
     </View>
   );
@@ -67,6 +77,7 @@ export function SessionHeader({
   title,
   startedAt,
   pausedAt,
+  animate,
   pausedMs,
   volume,
   sets,
@@ -80,6 +91,7 @@ export function SessionHeader({
   title: string;
   startedAt: string;
   pausedAt: string | null;
+  animate: boolean;
   pausedMs: number;
   /** Volume with its unit, "4,250 kg". */
   volume: string;
@@ -120,6 +132,7 @@ export function SessionHeader({
             <Clock
               startedAt={startedAt}
               pausedAt={pausedAt}
+              animate={animate}
               pausedMs={pausedMs}
               frozen={readOnly}
               {...(readOnly || !onOpenClock ? {} : { onPress: onOpenClock })}

@@ -1,15 +1,40 @@
 import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
-import { memo, useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { memo, useCallback, useMemo, useRef } from "react";
+import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import Animated, {
+  measure,
+  ReduceMotion,
+  useAnimatedRef,
+  withTiming,
+  type AnimatedRef,
+  type EntryAnimationsValues,
+  type ExitAnimationsValues,
+} from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 
+import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { SetRowView } from "./set-row";
+
+type RegionVisible = (offset: number, height: number) => boolean;
+
+const ENTER_TIMING = { duration: 200, reduceMotion: ReduceMotion.Never };
+const EXIT_TIMING = { duration: 150, reduceMotion: ReduceMotion.Never };
+
+/** Layout animation origins are relative to the native grid, which stays mounted for set edits. */
+function visibleInGrid(viewport: AnimatedRef<View>, grid: AnimatedRef<View>, y: number, h: number) {
+  "worklet";
+  const view = measure(viewport);
+  const parent = measure(grid);
+  if (!view || !parent) return false;
+  const top = parent.pageY + y;
+  return top < view.pageY + view.height && top + h > view.pageY;
+}
 
 /** What the rows of one exercise do; all of them keep their identity. */
 export type SetHandlers = {
@@ -33,11 +58,18 @@ const SetRowItem = memo(function SetRowItem({
   exerciseId,
   setId,
   handlers,
+  isRowRegionVisible,
+  entering,
+  exiting,
 }: {
   exerciseId: string;
   setId: string;
   handlers: SetHandlers;
+  isRowRegionVisible: RegionVisible;
+  entering?: (values: EntryAnimationsValues) => ReturnType<typeof enterSet>;
+  exiting?: (values: ExitAnimationsValues) => ReturnType<typeof exitSet>;
 }) {
+  "use no memo"; // The viewport test samples the list's current scroll position.
   const { t } = useTranslation();
   const data = useSessionStore(
     useShallow((state) => {
@@ -50,6 +82,7 @@ const SetRowItem = memo(function SetRowItem({
         logEffort: exercise?.logEffort ?? false,
         historyReady: view?.historyReady ?? false,
         current: state.currentSetId === setId,
+        record: showsRecord(state, setId) ? (state.setsById.get(setId)?.completedAt ?? null) : null,
         refusal: state.refusal?.setId === setId ? state.refusal : null,
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
@@ -64,11 +97,18 @@ const SetRowItem = memo(function SetRowItem({
   );
   const { registerRow } = handlers;
   const register = useMemo(() => registerRow(setId), [registerRow, setId]);
+  const layout = useRef({ y: 0, height: 0 });
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    layout.current = { y, height };
+  }, []);
   const { set, row, type, cell, raw, fresh } = data;
   const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
   if (!set || !row || !type) return null;
+  // Only a set added while the grid is open enters and one removed fades out: the grid sits in a
+  // LayoutAnimationConfig that skips both for its first render and for the whole grid closing.
   return (
-    <View ref={register} collapsable={false}>
+    <Animated.View ref={register} onLayout={onLayout} entering={entering} exiting={exiting}>
       <SetRowView
         editingFinished={data.editingFinished}
         set={set}
@@ -82,6 +122,10 @@ const SetRowItem = memo(function SetRowItem({
         entry={entry}
         refusal={data.refusal}
         current={data.current}
+        record={data.record}
+        animate={
+          entering !== undefined && isRowRegionVisible(layout.current.y, layout.current.height)
+        }
         readOnly={data.readOnly}
         onCell={handlers.onCell}
         onTick={handlers.onTick}
@@ -97,7 +141,7 @@ const SetRowItem = memo(function SetRowItem({
           {t("lighter__optional")}
         </Text>
       ) : null}
-    </View>
+    </Animated.View>
   );
 });
 
@@ -109,10 +153,16 @@ export const SetGrid = memo(function SetGrid({
   exerciseId,
   handlers,
   onAddSet,
+  animate,
+  viewport,
+  isBodyRegionVisible,
 }: {
   exerciseId: string;
   handlers: SetHandlers;
   onAddSet: (exerciseId: string) => void;
+  animate: boolean;
+  viewport: AnimatedRef<View>;
+  isBodyRegionVisible: RegionVisible;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -131,6 +181,32 @@ export const SetGrid = memo(function SetGrid({
         editingFinished: state.session.finishedAt !== null,
       };
     }),
+  );
+  const grid = useAnimatedRef<View>();
+  const gridTop = useRef<number | null>(null);
+  const onGridLayout = useCallback((event: LayoutChangeEvent) => {
+    gridTop.current = event.nativeEvent.layout.y;
+  }, []);
+  const isRowRegionVisible = useCallback<RegionVisible>(
+    (offset, height) => {
+      const top = gridTop.current;
+      return top !== null && height > 0 && isBodyRegionVisible(top + offset, height);
+    },
+    [isBodyRegionVisible],
+  );
+  const entering = useCallback(
+    (values: EntryAnimationsValues) => {
+      "worklet";
+      return enterSet(visibleInGrid(viewport, grid, values.targetOriginY, values.targetHeight));
+    },
+    [grid, viewport],
+  );
+  const exiting = useCallback(
+    (values: ExitAnimationsValues) => {
+      "worklet";
+      return exitSet(visibleInGrid(viewport, grid, values.currentOriginY, values.currentHeight));
+    },
+    [grid, viewport],
   );
   const { type, logEffort, setIds, unit, display, effortScale, readOnly, editingFinished } = layout;
   if (!type || !setIds) return null;
@@ -160,7 +236,7 @@ export const SetGrid = memo(function SetGrid({
 
   return (
     <SwipeGroup>
-      <View className="gap-1">
+      <View ref={grid} collapsable={false} onLayout={onGridLayout} className="gap-1">
         <View className="flex-row items-center gap-1.5 px-1">
           <Text className="font-normal w-10 text-center text-caption text-muted">
             {t("training__col_set")}
@@ -188,7 +264,15 @@ export const SetGrid = memo(function SetGrid({
           {editingFinished ? null : <View className="w-11" />}
         </View>
         {setIds.map((setId) => (
-          <SetRowItem key={setId} exerciseId={exerciseId} setId={setId} handlers={handlers} />
+          <SetRowItem
+            key={setId}
+            exerciseId={exerciseId}
+            setId={setId}
+            handlers={handlers}
+            isRowRegionVisible={isRowRegionVisible}
+            entering={animate ? entering : undefined}
+            exiting={animate ? exiting : undefined}
+          />
         ))}
       </View>
       {readOnly ? null : (
@@ -207,3 +291,24 @@ export const SetGrid = memo(function SetGrid({
     </SwipeGroup>
   );
 });
+
+function enterSet(visible: boolean) {
+  "worklet";
+  return visible
+    ? {
+        initialValues: { opacity: 0, transform: [{ translateY: -8 }] },
+        animations: {
+          opacity: withTiming(1, ENTER_TIMING),
+          transform: [{ translateY: withTiming(0, ENTER_TIMING) }],
+        },
+      }
+    : { initialValues: { opacity: 1 }, animations: {} };
+}
+
+function exitSet(visible: boolean) {
+  "worklet";
+  return {
+    initialValues: { opacity: 1 },
+    animations: visible ? { opacity: withTiming(0, EXIT_TIMING) } : {},
+  };
+}

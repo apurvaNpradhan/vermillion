@@ -54,6 +54,7 @@ export type SessionUi = {
   readOnly: boolean;
   effortScale: EffortScale;
   countWarmups: boolean;
+  recordAlerts: boolean;
 };
 
 /** The numbers the header shows. */
@@ -102,6 +103,13 @@ export type SessionState = Base &
     /** The exercises that are open (in memory only: a new screen starts from the first unfinished). */
     expanded: ReadonlySet<string>;
     scrollRequest: ScrollRequest | null;
+    /**
+     * The sets this screen found to be records, each with the `completedAt` it was ticked at: a set
+     * that is unticked and ticked again no longer matches, so its mark ends with the tick.
+     */
+    records: ReadonlyMap<string, string>;
+    markRecord: (setId: string, completedAt: string) => void;
+    clearRecord: (setId: string) => void;
     toggleExpanded: (exerciseId: string) => void;
     advanceAfterTick: (setId: string, completedAt: string) => void;
     setStored: (session: SessionDetail) => void;
@@ -115,6 +123,19 @@ export type SessionState = Base &
   };
 
 export type SessionStore = StoreApi<SessionState>;
+
+/** Whether a set shows its "PR" chip: it is ticked, at the tick that was found to be a record. */
+export function showsRecord(
+  state: Pick<SessionState, "records" | "setsById" | "ui">,
+  setId: string,
+): boolean {
+  const marked = state.records.get(setId);
+  return (
+    state.ui.recordAlerts &&
+    marked !== undefined &&
+    marked === state.setsById.get(setId)?.completedAt
+  );
+}
 
 export const DEFAULT_INPUTS: DeriveInputs = {
   previous: new Map(),
@@ -136,6 +157,7 @@ export const DEFAULT_UI: SessionUi = {
   readOnly: false,
   effortScale: "rpe",
   countWarmups: false,
+  recordAlerts: true,
 };
 
 const sameIds = (a: readonly string[], b: readonly string[]) =>
@@ -353,6 +375,25 @@ export function createSessionStore(
       ...first,
       expanded: initialExpanded(first.blocks),
       scrollRequest: null,
+      records: new Map(),
+      markRecord: (setId, completedAt) => {
+        const state = get();
+        if (!state.ui.recordAlerts || state.records.get(setId) === completedAt) return;
+        const saved = savedSession(state);
+        if (
+          saved.exercises.some((entry) =>
+            entry.sets.some((row) => row.id === setId && row.completedAt === completedAt),
+          )
+        ) {
+          set({ records: new Map(state.records).set(setId, completedAt) });
+        }
+      },
+      clearRecord: (setId) => {
+        if (!get().records.has(setId)) return;
+        const records = new Map(get().records);
+        records.delete(setId);
+        set({ records });
+      },
       toggleExpanded: (exerciseId) => {
         const { blocks, expanded } = get();
         const block = blockOf(blocks, exerciseId);

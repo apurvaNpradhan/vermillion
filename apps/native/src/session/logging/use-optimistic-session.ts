@@ -171,6 +171,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
         await nudges.release();
         const writtenRest = savedSession(store.getState()).rest;
         const wrote = await actions.untick(setId);
+        if (wrote) store.getState().clearRecord(setId);
         settle(
           id,
           wrote
