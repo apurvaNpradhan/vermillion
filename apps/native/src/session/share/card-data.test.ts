@@ -86,6 +86,8 @@ const session = (count: number): SessionDetail => ({
   durationS: null,
   deviceId: "d",
   rest: null,
+  pausedAt: null,
+  pausedMs: 0,
   exercises: Array.from({ length: count }, (_, at) => exercise(at + 1)),
 });
 const distribution = [{ id: "x1", primary_muscle: "chest" as const, secondary_muscles: [] }];

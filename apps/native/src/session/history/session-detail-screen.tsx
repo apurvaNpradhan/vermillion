@@ -28,6 +28,7 @@ import { ListRow, ListSection } from "@/platform/ui/list";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { useThemeColor } from "heroui-native";
 import { formatElapsed } from "@/session/timer/clock";
+import { sessionDuration } from "@/session/share/stats";
 import { loggedSetsOf } from "@/session/logging/set-values";
 import { doneSummary, formatVolume } from "@/session/finish/summary";
 import { useSession } from "@/session/screen/use-session";
@@ -136,12 +137,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   items={[
                     {
                       label: t("stats__duration"),
-                      value: formatElapsed(
-                        session.durationS ??
-                          (Date.parse(session.finishedAt ?? session.startedAt) -
-                            Date.parse(session.startedAt)) /
-                            1000,
-                      ),
+                      value: formatElapsed(sessionDuration(session)),
                     },
                     {
                       label: t("stats__volume"),

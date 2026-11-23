@@ -1,23 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  countdownProgress,
-  elapsedSeconds,
-  formatElapsed,
-  remainingSeconds,
-  totalSeconds,
-} from "./clock";
+import { countdownProgress, formatElapsed, remainingSeconds, totalSeconds } from "./clock";
 
 const at = (iso: string) => Date.parse(iso);
 const rest = { startedAt: "2026-01-01T10:00:00.000Z", endsAt: "2026-01-01T10:02:00.000Z" };
 
 describe("elapsed time", () => {
-  it("counts whole seconds from started_at and never goes negative", () => {
-    expect(elapsedSeconds("2026-01-01T10:00:00.000Z", at("2026-01-01T10:00:05.900Z"))).toBe(5);
-    expect(elapsedSeconds("2026-01-01T10:00:00.000Z", at("2026-01-01T09:59:00.000Z"))).toBe(0);
-    expect(elapsedSeconds("nonsense", at("2026-01-01T09:59:00.000Z"))).toBe(0);
-  });
-
   it("formats with tabular minutes and hours", () => {
     expect(formatElapsed(0)).toBe("0:00");
     expect(formatElapsed(5)).toBe("0:05");

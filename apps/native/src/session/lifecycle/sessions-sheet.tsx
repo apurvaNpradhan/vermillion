@@ -4,14 +4,14 @@ import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
-import { elapsedSeconds, formatElapsed } from "@/session/timer/clock";
-import { useNow } from "@/session/shared/use-now";
+import { formatElapsed } from "@/session/timer/clock";
+import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { SheetShell } from "@/session/shared/sheet-shell";
 
-function Elapsed({ startedAt }: { startedAt: string }) {
-  const now = useNow();
-  return <>{formatElapsed(elapsedSeconds(startedAt, now))}</>;
+function Elapsed({ session }: { session: ActiveSession }) {
+  const seconds = useActiveSeconds(session);
+  return <>{formatElapsed(seconds)}</>;
 }
 
 /**
@@ -49,7 +49,7 @@ export function SessionsSheet({
                 className="font-normal text-caption text-muted"
                 style={{ fontVariant: ["tabular-nums"] }}
               >
-                <Elapsed startedAt={session.startedAt} />
+                <Elapsed session={session} />
                 {` · ${t("session__progress_sets", { done: session.tickedSets, total: session.totalSets })}`}
               </Text>
             </View>

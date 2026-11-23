@@ -5,8 +5,10 @@ import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
 import { finishTimeOf, forgottenSession, lastActivity } from "./forgotten";
+import { expiredPauses } from "./pause-expiry";
 import { useActiveSessions } from "./use-active-sessions";
 import { useSessionActions } from "@/session/screen/use-session-actions";
+import { useInstallId } from "@/session/shared/use-install-id";
 import { SheetShell } from "@/session/shared/sheet-shell";
 
 const HOUR = 60 * 60 * 1000;
@@ -14,20 +16,34 @@ const HOUR = 60 * 60 * 1000;
 /**
  * When the app comes to the foreground and the active Session's last tick is more than 3 hours
  * old, asks what to do: finish it at the last tick plus its rest, keep going, or discard it.
- * Nothing finishes in the background. Mount once, inside the signed-in app.
+ * Nothing finishes in the background. A pause left running for 4 hours is ended the same way:
+ * when the app opens or comes back, the workout resumes where the pause ran out. Mount once,
+ * inside the signed-in app.
  */
 export function ForgottenSessionHost() {
   const { t, i18n } = useTranslation();
   const { sessions, loading } = useActiveSessions();
   const actions = useSessionActions();
+  const installId = useInstallId();
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const snoozed = useRef(new Map<string, number>());
   const latest = useRef(sessions);
+  // The foreground listener lives for the whole mount: it reads the newest of these.
+  const owner = useRef({ installId, resume: actions.resume });
   useEffect(() => {
     latest.current = sessions;
+    owner.current = { installId, resume: actions.resume };
   });
 
+  const resumeExpired = () => {
+    const { installId: mine, resume } = owner.current;
+    if (mine === null) return;
+    for (const { id, resumeAt } of expiredPauses(latest.current, Date.now(), mine)) {
+      void resume(id, resumeAt);
+    }
+  };
   const check = () => {
+    resumeExpired();
     const found = forgottenSession(latest.current, Date.now(), snoozed.current);
     setCandidateId((current) => (current === null ? (found?.id ?? null) : current));
   };

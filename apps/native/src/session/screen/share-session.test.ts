@@ -59,6 +59,8 @@ const session = (exercises: SessionExerciseDetail[], title = "Upper"): SessionDe
   durationS: null,
   deviceId: "d1",
   rest: null,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 

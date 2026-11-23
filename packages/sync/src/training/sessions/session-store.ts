@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import {
   REST_SECONDS_MAX,
   cycleState,
+  finishClock,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -141,6 +142,8 @@ async function createSessionIn(
     rest_set_id: null,
     rest_started_at: null,
     rest_ends_at: null,
+    paused_at: null,
+    paused_ms: 0,
   });
   await tx.insert(session).values({
     id: fields.id,
@@ -358,6 +361,12 @@ export function finishSession(
       rest_set_id: null,
       rest_started_at: null,
       rest_ends_at: null,
+      // Finishing while paused resumes at the finish: the open pause counts as paused.
+      paused_at: null,
+      paused_ms: finishClock(
+        { startedAt, pausedAt: current.paused_at, pausedMs: current.paused_ms ?? 0 },
+        Date.parse(finishedAt),
+      ).pausedMs,
     });
     if (!sessionTimesConsistent(parsed)) throw new Error("A workout cannot end before it starts");
 
@@ -551,7 +560,8 @@ export function adjustRest(
   return write(database, expectedInstallId, async (tx) => {
     const current = await requireSession(tx, sessionId);
     if (current.rest_started_at === null || current.rest_ends_at === null) return null;
-    const now = Date.now();
+    // A paused Session's Rest is frozen at the pause: its time left is measured from there.
+    const now = current.paused_at === null ? Date.now() : Date.parse(current.paused_at);
     const end = Math.min(
       Date.parse(current.rest_ends_at) + deltaSeconds * 1000,
       now + REST_SECONDS_MAX * 1000,

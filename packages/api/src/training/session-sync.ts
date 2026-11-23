@@ -16,6 +16,7 @@ import {
   sessionSetSchema,
   sessionStartAllowed,
   sessionTimesConsistent,
+  settleFinishedPause,
   type SessionInput,
   type SessionSetInput,
 } from "@workspace/shared";
@@ -114,6 +115,9 @@ const putSession = z.strictObject({
   rest_set_id: sessionInput.shape.rest_set_id.default(null),
   rest_started_at: sessionInput.shape.rest_started_at.default(null),
   rest_ends_at: sessionInput.shape.rest_ends_at.default(null),
+  // Older apps do not send the pause: a Session they write is running.
+  paused_at: sessionInput.shape.paused_at.default(null),
+  paused_ms: sessionInput.shape.paused_ms.default(0),
 });
 const undoImport = z.strictObject({
   import_undo: z
@@ -142,6 +146,8 @@ function sessionRowAsInput(row: SessionRow): SessionInput {
     rest_set_id: row.restSetId,
     rest_started_at: iso(row.restStartedAt),
     rest_ends_at: iso(row.restEndsAt),
+    paused_at: iso(row.pausedAt),
+    paused_ms: row.pausedMs,
   };
 }
 
@@ -162,6 +168,8 @@ function sessionColumns(values: SessionInput) {
     restSetId: values.rest_set_id,
     restStartedAt: date(values.rest_started_at),
     restEndsAt: date(values.rest_ends_at),
+    pausedAt: date(values.paused_at),
+    pausedMs: values.paused_ms,
   };
 }
 
@@ -220,7 +228,7 @@ const sessionSyncHandler: SyncTableHandler = {
       )
         invalid();
       checkPut(found, restore);
-      const values = accept(sessionInput.safeParse(data));
+      const values = settleFinishedPause(accept(sessionInput.safeParse(data)));
       await checkSessionRun(db, userId, values);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
@@ -250,7 +258,8 @@ const sessionSyncHandler: SyncTableHandler = {
     const row = liveRow(found);
     const patch = accept(patchSession.safeParse(op.opData ?? {}));
     const before = sessionRowAsInput(row);
-    const merged = accept(sessionInput.safeParse({ ...before, ...patch }));
+    // An older app finishing a Session another install paused leaves the pause open: settle it.
+    const merged = settleFinishedPause(accept(sessionInput.safeParse({ ...before, ...patch })));
     await checkSessionRun(db, userId, merged);
     checkSessionTimes(merged, before.started_at);
     await db

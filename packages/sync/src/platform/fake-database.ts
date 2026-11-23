@@ -49,7 +49,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT, import_fingerprint TEXT, import_content TEXT, import_undo TEXT,
         program_id TEXT, run_id TEXT, slot_id TEXT, cycle INTEGER, title TEXT,
         title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
-        device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT,
+        device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT, paused_at TEXT, paused_ms INTEGER,
         created_at TEXT, restore INTEGER);
       CREATE TABLE session_exercise (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT,
         exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,

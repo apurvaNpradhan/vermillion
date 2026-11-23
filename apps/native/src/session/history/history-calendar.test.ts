@@ -21,6 +21,7 @@ const session = (id: string, started_at: string): HistoryOverviewSession => ({
   started_at,
   finished_at: new Date(Date.parse(started_at) + 30 * 60_000).toISOString(),
   durationS: null,
+  pausedMs: 0,
   title: "Strength",
   exerciseTitles: [],
   sets: [],

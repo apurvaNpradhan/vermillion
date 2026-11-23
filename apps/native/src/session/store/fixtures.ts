@@ -62,6 +62,8 @@ export const session = (exercises: SessionExerciseDetail[]): SessionDetail => ({
   durationS: null,
   deviceId: "d1",
   rest: null,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 

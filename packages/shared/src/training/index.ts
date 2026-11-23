@@ -6,6 +6,7 @@ export * from "./plans/planned-sets";
 export * from "./vocabulary/vocabulary";
 export * from "./plans/supersets";
 export * from "./logging/session-inputs";
+export * from "./logging/session-clock";
 export * from "./logging/logged-set";
 export * from "./logging/previous-for";
 export * from "./logging/ghost-for";

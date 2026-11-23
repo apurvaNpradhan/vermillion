@@ -7,6 +7,7 @@ import {
   type SetField,
 } from "../../exercise/vocabulary";
 import { positionKey } from "../vocabulary/inputs";
+import { PAUSED_MS_MAX, finishClock } from "./session-clock";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
 import {
   EFFORT_STEPS,
@@ -45,15 +46,26 @@ export const sessionInput = z.strictObject({
   rest_set_id: reference,
   rest_started_at: timestamp.nullable(),
   rest_ends_at: timestamp.nullable(),
+  /** When the current pause began; null while the Session runs. */
+  paused_at: timestamp.nullable(),
+  /** Milliseconds of earlier pauses, which the duration leaves out. */
+  paused_ms: z.number().int().min(0).max(PAUSED_MS_MAX),
 });
 export type SessionInput = z.infer<typeof sessionInput>;
 
-/** A Session never ends before it starts, and a running Rest has both of its times. */
+/**
+ * A Session never ends before it starts, a pause never begins before it, and a running Rest has
+ * both of its times.
+ */
 export function sessionTimesConsistent(
-  session: Pick<SessionInput, "started_at" | "finished_at" | "rest_started_at" | "rest_ends_at">,
+  session: Pick<
+    SessionInput,
+    "started_at" | "finished_at" | "rest_started_at" | "rest_ends_at" | "paused_at"
+  >,
 ): boolean {
-  const { started_at, finished_at, rest_started_at, rest_ends_at } = session;
+  const { started_at, finished_at, rest_started_at, rest_ends_at, paused_at } = session;
   if (finished_at !== null && Date.parse(finished_at) < Date.parse(started_at)) return false;
+  if (paused_at !== null && Date.parse(paused_at) < Date.parse(started_at)) return false;
   if ((rest_started_at === null) !== (rest_ends_at === null)) return false;
   return (
     rest_started_at === null ||
@@ -63,15 +75,37 @@ export function sessionTimesConsistent(
 }
 
 /**
+ * A finished Session is not paused: a pause still open at the finish (an older app finished the
+ * Session another install had paused) is settled into `paused_ms` as of the finish time.
+ */
+export function settleFinishedPause<
+  T extends Pick<SessionInput, "started_at" | "finished_at" | "paused_at" | "paused_ms">,
+>(session: T): T {
+  if (session.finished_at === null || session.paused_at === null) return session;
+  const settled = finishClock(
+    { startedAt: session.started_at, pausedAt: session.paused_at, pausedMs: session.paused_ms },
+    Date.parse(session.finished_at),
+  );
+  return { ...session, paused_at: null, paused_ms: settled.pausedMs };
+}
+
+/**
  * Whether a Session may start at `value`: not before `backfillYears` ago and not in the future
  * (beyond a small clock-skew grace).
  */
 export function sessionStartAllowed(value: string, now: Date = new Date()): boolean {
   const at = Date.parse(value);
   if (Number.isNaN(at)) return false;
+  return (
+    at >= backfillEarliestMs(now) && at <= now.getTime() + SESSION_LIMITS.futureGraceSeconds * 1000
+  );
+}
+
+/** The earliest start a Session may have: `backfillYears` before `now`, in ms. */
+export function backfillEarliestMs(now: Date = new Date()): number {
   const earliest = new Date(now);
   earliest.setUTCFullYear(earliest.getUTCFullYear() - SESSION_LIMITS.backfillYears);
-  return at >= earliest.getTime() && at <= now.getTime() + SESSION_LIMITS.futureGraceSeconds * 1000;
+  return earliest.getTime();
 }
 
 /** The exercise's title and type are snapshots, so history reads without the library. */

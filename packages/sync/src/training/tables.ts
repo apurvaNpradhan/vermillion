@@ -107,6 +107,10 @@ export const session = sqliteTable(
     rest_set_id: text("rest_set_id"),
     rest_started_at: text("rest_started_at"),
     rest_ends_at: text("rest_ends_at"),
+    /** When the current pause began; null while the Session runs. */
+    paused_at: text("paused_at"),
+    /** Milliseconds of earlier pauses; null on rows from before pausing existed. */
+    paused_ms: integer("paused_ms"),
     /** Set on Sessions written by a history import; Undo import deletes by it. */
     import_batch_id: text("import_batch_id"),
     import_fingerprint: text("import_fingerprint"),

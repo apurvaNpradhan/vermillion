@@ -9,6 +9,7 @@ import {
   workoutSetKinds,
   workoutUpdateEntries,
   withoutGeneratedWarmups,
+  sessionDurationSeconds,
   sessionInput,
   sessionStartAllowed,
   sessionTimesConsistent,
@@ -42,10 +43,18 @@ export function editFinishedSession(
     if (current.finished_at === null) throw new Error("Session is not finished");
     const start = input.startedAt ?? current.started_at;
     if (!sessionStartAllowed(start)) throw new Error("Start outside backfill window");
+    const pausedMs = current.paused_ms ?? 0;
     const duration =
       input.durationSeconds ??
-      current.duration_s ??
-      Math.max(0, (Date.parse(current.finished_at) - Date.parse(current.started_at)) / 1000);
+      sessionDurationSeconds(
+        {
+          durationS: current.duration_s,
+          startedAt: current.started_at,
+          finishedAt: current.finished_at,
+          pausedMs,
+        },
+        0,
+      );
     const parsed = sessionInput.parse({
       workout_id: current.workout_id,
       program_id: current.program_id,
@@ -56,12 +65,15 @@ export function editFinishedSession(
       rest_set_id: null,
       rest_started_at: null,
       rest_ends_at: null,
+      paused_at: null,
+      paused_ms: pausedMs,
       title: input.title ?? current.title,
       title_derived: input.title === undefined ? current.title_derived : false,
       note: input.note === undefined ? current.note : input.note,
       started_at: start,
       duration_s: duration,
-      finished_at: new Date(Date.parse(start) + duration * 1000).toISOString(),
+      // The paused time is part of the span between start and finish, not of the duration.
+      finished_at: new Date(Date.parse(start) + duration * 1000 + pausedMs).toISOString(),
     });
     if (!sessionTimesConsistent(parsed)) throw new Error("Invalid times");
     const entries = await tx

@@ -11,6 +11,8 @@ import { useForm } from "@tanstack/react-form";
 import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
+  finishClock,
+  sessionDurationSeconds,
   workoutStructureKey,
   withWarmupsCounted,
   sessionTotals,
@@ -168,15 +170,18 @@ function FinishFlow({
     title: session.title,
     note: session.note ?? "",
     startedAt: session.startedAt,
-    duration: String(
-      session.durationS ??
-        Math.floor(
-          (Date.parse(session.finishedAt ?? new Date().toISOString()) -
-            Date.parse(session.startedAt)) /
-            1000,
-        ),
-    ),
+    // The time trained, with any pause left out.
+    duration: String(sessionDurationSeconds(session, Date.now())),
   });
+  // The paused time sits between start and finish but is not part of the duration. Finishing while
+  // paused counts the open pause as paused, up to now.
+  const pausedMs =
+    session.finishedAt === null
+      ? finishClock(
+          { startedAt: session.startedAt, pausedAt: session.pausedAt, pausedMs: session.pausedMs },
+          Date.now(),
+        ).pausedMs
+      : session.pausedMs;
   const form = useForm({
     defaultValues: baseline,
     onSubmit: async ({ value }) => {
@@ -204,7 +209,7 @@ function FinishFlow({
         note: value.note || null,
         startedAt: new Date(started).toISOString(),
         durationSeconds: duration,
-        finishedAt: new Date(started + duration * 1000).toISOString(),
+        finishedAt: new Date(started + duration * 1000 + pausedMs).toISOString(),
       };
       const result =
         session.finishedAt === null

@@ -13,7 +13,7 @@ import { timerTarget } from "../timer/duration-timer";
 import { restView, type RestView } from "../rest/rest-rules";
 import { formatCell, valueOfSet } from "./set-values";
 
-/** One value of the current set as the Timer shows it. */
+/** One value of the current set as the notification shows it. */
 export type DisplayValue = {
   field: SetField;
   value: number | null;
@@ -89,7 +89,7 @@ function displayValues(
 }
 
 /**
- * The shared "what now" of a live Session, for the Timer screen and the Android notification.
+ * The shared "what now" of a live Session, for the Android notification.
  * `ghostsFor` gives the Ghost values of a set (from Previous and the plan), `now` is the clock in
  * ms. `restEndedAt` (ms) is when this screen saw a Rest end early (Skip clears the stored Rest, so
  * its end is otherwise lost): work counts from the latest of it, the stored Rest's end and the

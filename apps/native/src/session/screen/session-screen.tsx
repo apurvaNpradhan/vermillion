@@ -66,6 +66,8 @@ import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
 import { SessionHeader } from "./session-header";
+import { ClockSheet } from "@/session/clock/clock-sheet";
+import { firstTickedAt } from "@/session/clock/clock-view";
 import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session-keypad";
 
 const KEEP_AWAKE_TAG = "session";
@@ -240,6 +242,11 @@ const LoadedSession = memo(function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clockOpen, setClockOpen] = useState(false);
+  const openClock = useCallback(() => {
+    closeKeypad();
+    setClockOpen(true);
+  }, [closeKeypad]);
   const closeSheet = useCallback(() => setSheet(null), []);
 
   const { ticked, unticked } = stats;
@@ -558,11 +565,25 @@ const LoadedSession = memo(function LoadedSession({
         onMenu={() => setSessionMenu(true)}
         title={title}
         startedAt={session.startedAt}
+        pausedAt={session.pausedAt}
+        pausedMs={session.pausedMs}
         volume={volume}
         sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
         onFinish={flow.askFinish}
+        onOpenClock={openClock}
+      />
+      <ClockSheet
+        isOpen={clockOpen && !readOnly && session.finishedAt === null}
+        onOpenChange={setClockOpen}
+        startedAt={session.startedAt}
+        pausedAt={session.pausedAt}
+        pausedMs={session.pausedMs}
+        firstTickedAt={clockOpen ? firstTickedAt(session) : null}
+        onPause={() => actions.pause(session.id)}
+        onResume={() => actions.resume(session.id)}
+        onSetStart={(startedAt) => actions.setStart(session.id, startedAt)}
       />
       <View
         ref={reveal.viewportRef}
@@ -637,6 +658,7 @@ const LoadedSession = memo(function LoadedSession({
         <RestBar
           rest={session.rest}
           withInset={!logging.entry}
+          pausedAt={session.pausedAt}
           onAdjust={(delta) => void actions.nudgeRest(session.id, delta)}
           onSkip={() => void actions.skipRest(session.id)}
         />

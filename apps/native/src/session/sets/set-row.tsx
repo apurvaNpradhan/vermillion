@@ -41,6 +41,7 @@ import {
 } from "@/session/logging/set-values";
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
+import { useSessionStore } from "@/session/store/session-store-context";
 import { SetCell } from "./set-cell";
 
 /** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
@@ -87,8 +88,10 @@ function LiveTimer({
   target: number | null;
   format: DisplayUnits["durationFormat"];
 }) {
-  const now = useNow(true, 250);
-  const view = timerView(startedAt, target, now);
+  // A paused workout holds its timers: they show the time at the pause and carry on after Resume.
+  const pausedAt = useSessionStore((state) => state.session.pausedAt);
+  const now = useNow(pausedAt === null, 250);
+  const view = timerView(startedAt, target, pausedAt === null ? now : Date.parse(pausedAt));
   return (
     <Text
       className="text-center font-semibold text-body text-foreground"

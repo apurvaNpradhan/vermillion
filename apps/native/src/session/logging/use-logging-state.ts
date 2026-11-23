@@ -179,7 +179,7 @@ export function useLoggingState({
   const cell = useStore(store, (state) => state.cell);
   const refusal = useStore(store, (state) => (editor ? null : state.refusal));
   // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
-  // screen without rows (the Timer) follows it here.
+  // screen without rows follows it here.
   const raw = useStore(store, (state) => (editor ? "" : state.raw));
   const fresh = useStore(store, (state) => (editor ? true : state.fresh));
 
@@ -567,7 +567,12 @@ export function useLoggingState({
         await actions.updateValues(setId, { timer_started_at: null });
       } else {
         // A stopwatch logs what it counted.
-        const elapsed = timerView(at.set.timerStartedAt, null, Date.now()).elapsed;
+        const pausedAt = state.session.pausedAt;
+        const elapsed = timerView(
+          at.set.timerStartedAt,
+          null,
+          pausedAt === null ? Date.now() : Date.parse(pausedAt),
+        ).elapsed;
         await tickWith(
           setId,
           { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
@@ -598,6 +603,8 @@ export function useLoggingState({
     );
     if (sets.length === 0) return;
     const run = () => {
+      // A paused workout holds its timers; Resume shifts them by the pause.
+      if (store.getState().session.pausedAt !== null) return;
       for (const due of dueTimers(sets, Date.now())) {
         if (firing.current.has(due.id)) continue;
         firing.current.add(due.id);

@@ -93,6 +93,8 @@ export const trainingUploadColumns = {
     "rest_set_id",
     "rest_started_at",
     "rest_ends_at",
+    "paused_at",
+    "paused_ms",
     "import_batch_id",
     "import_fingerprint",
     "import_content",

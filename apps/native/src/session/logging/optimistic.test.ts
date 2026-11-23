@@ -70,6 +70,8 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     durationS: null,
     deviceId: "me",
     rest,
+    pausedAt: null,
+    pausedMs: 0,
     exercises: [exercise],
   };
 };

@@ -53,6 +53,9 @@ export type ActiveSession = {
   restSetId: string | null;
   restStartedAt: string | null;
   restEndsAt: string | null;
+  /** When the current pause began; null while it runs. */
+  pausedAt: string | null;
+  pausedMs: number;
   exerciseCount: number;
   totalSets: number;
   tickedSets: number;
@@ -63,6 +66,7 @@ export type ActiveSession = {
 export const ACTIVE_SESSIONS_SQL = `SELECT s.id AS id, s.workout_id AS workout_id, s.title AS title,
     s.title_derived AS title_derived, s.started_at AS started_at, s.device_id AS device_id,
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
+    s.paused_at AS paused_at, s.paused_ms AS paused_ms,
     COUNT(DISTINCT se.id) AS exercise_count, COUNT(ss.id) AS total_sets,
     COUNT(ss.completed_at) AS ticked_sets, MAX(ss.completed_at) AS last_ticked_at
   FROM training_session s
@@ -83,6 +87,9 @@ const activeRowSchema = z.object({
   rest_set_id: z.string().nullable(),
   rest_started_at: z.string().nullable(),
   rest_ends_at: z.string().nullable(),
+  paused_at: z.string().nullable(),
+  // Null on rows synced before pausing existed.
+  paused_ms: z.number().nullable(),
   exercise_count: z.number(),
   total_sets: z.number(),
   ticked_sets: z.number(),
@@ -103,6 +110,8 @@ export function parseActiveSessions(rows: readonly object[]): ActiveSession[] {
       restSetId: row.rest_set_id,
       restStartedAt: row.rest_started_at,
       restEndsAt: row.rest_ends_at,
+      pausedAt: row.paused_at,
+      pausedMs: row.paused_ms ?? 0,
       exerciseCount: row.exercise_count,
       totalSets: row.total_sets,
       tickedSets: row.ticked_sets,
@@ -187,6 +196,10 @@ export type SessionDetail = {
   durationS: number | null;
   deviceId: string;
   rest: { setId: string; startedAt: string; endsAt: string } | null;
+  /** When the current pause began; null while the Session runs. */
+  pausedAt: string | null;
+  /** Milliseconds of earlier pauses, which the duration leaves out. */
+  pausedMs: number;
   exercises: SessionExerciseDetail[];
 };
 
@@ -206,6 +219,7 @@ export const SESSION_DETAIL_SQL = `WITH first_setting AS (
     (SELECT w.note FROM workout w WHERE w.id = s.workout_id) AS workout_note, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.device_id AS device_id,
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
+    s.paused_at AS paused_at, s.paused_ms AS paused_ms,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
@@ -265,6 +279,8 @@ const detailRowSchema = z.object({
   rest_set_id: z.string().nullable(),
   rest_started_at: z.string().nullable(),
   rest_ends_at: z.string().nullable(),
+  paused_at: z.string().nullable(),
+  paused_ms: z.number().nullable(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   exercise_title: z.string().nullable(),
@@ -410,6 +426,8 @@ export function parseSessionDetail(
       first.rest_set_id !== null && first.rest_started_at !== null && first.rest_ends_at !== null
         ? { setId: first.rest_set_id, startedAt: first.rest_started_at, endsAt: first.rest_ends_at }
         : null,
+    pausedAt: first.paused_at,
+    pausedMs: first.paused_ms ?? 0,
     exercises,
   };
 }
@@ -421,12 +439,15 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
   sets: LoggedSet[];
   title: string;
   durationS: number | null;
+  /** Paused time the duration leaves out. */
+  pausedMs: number;
   workoutId: string | null;
   exerciseTitles?: string[];
 };
 
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
-    s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
+    s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
+    s.workout_id AS workout_id,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -589,6 +610,7 @@ const overviewRow = z.object({
   started_at: z.string(),
   finished_at: z.string(),
   durationS: z.number().nullable(),
+  pausedMs: z.number().nullable(),
   exerciseTitles: jsonText.pipe(z.array(z.string())),
   sets: jsonText.pipe(z.array(overviewSet)),
 });
@@ -597,6 +619,7 @@ export type HistoryOverviewSession = z.output<typeof overviewRow>;
 
 function overviewPageSql(bounded: boolean): string {
   return `SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s AS durationS,
+    s.paused_ms AS pausedMs,
     (SELECT json_group_array(title) FROM (
       SELECT se.exercise_title AS title FROM session_exercise se
       WHERE se.session_id = s.id AND se.exercise_title <> ''
@@ -635,10 +658,10 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
     ? `AND se.exercise_id IN (${Array.from({ length: exerciseCount }, () => "?").join(", ")}) ${BEFORE_SESSION}`
     : "";
   return `SELECT id,
-      json_array(title, started_at, finished_at, duration_s, workout_id,
+      json_array(title, started_at, finished_at, duration_s, paused_ms, workout_id,
         json_group_array(json(payload))) AS signature
     FROM (
-      SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s, s.workout_id,
+      SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s, s.paused_ms, s.workout_id,
         json_array(se.exercise_id, se.exercise_type, se.exercise_title, ss.id, ss.kind,
           CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
           ss.reps, ss.duration_s,
@@ -752,6 +775,7 @@ const finishedRowSchema = z.object({
   started_at: z.string(),
   finished_at: z.string().nullable(),
   duration_s: z.number().nullable(),
+  paused_ms: z.number().nullable().optional(),
   workout_id: z.string().nullable(),
   exercise_id: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
@@ -779,6 +803,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         started_at: row.started_at,
         finished_at: row.finished_at,
         durationS: row.duration_s,
+        pausedMs: row.paused_ms ?? 0,
         workoutId: row.workout_id,
         sets: [],
       };

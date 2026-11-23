@@ -79,6 +79,8 @@ const session = (
   durationS: null,
   deviceId: "d",
   rest,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 const noGhosts = () => ({});
