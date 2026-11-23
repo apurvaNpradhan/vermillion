@@ -6,6 +6,7 @@ import { DEFAULT_ACCENT_ID, accentIds, themeVariantNames } from "./theme-variant
 
 /** Rules every native variant (each accent in each mode) must satisfy. */
 const themes = nativeVariantNames.map((mode) => ({
+  isMono: mode.startsWith("mono"),
   mode,
   colors: nativeColors[mode],
   isLight: mode === "light" || mode.endsWith("-light"),
@@ -17,7 +18,7 @@ const isNeutral = (hex: string) => {
   return r === g && g === b;
 };
 
-describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
+describe.each(themes)("theme rules: $mode", ({ colors, isLight, isMono }) => {
   const c = colors;
   const ratio = (a: RoleName, b: RoleName) => contrastRatio(c[a], c[b]);
 
@@ -108,10 +109,15 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     );
   });
 
-  it("keeps a completed set row (the accent at 15%) readable", () => {
-    // Completed rows tint the whole row with the accent; the numbers stay at full contrast.
-    for (const ground of [c.canvas, c.surface]) {
-      const row = mixHex(ground, c.action, 0.15);
+  it("keeps a completed set row (the fill at 15% to 22%) readable", () => {
+    // Completed rows tint the whole row with the fill; the numbers stay at full contrast.
+    for (const [ground, alpha] of [
+      [c.canvas, 0.15],
+      [c.surface, 0.15],
+      [c.canvas, isLight && !isMono ? 0.22 : 0.16],
+      [c.surface, isLight && !isMono ? 0.22 : 0.16],
+    ] as const) {
+      const row = mixHex(ground, c.action, alpha);
       for (const role of [
         "text-primary",
         "text-secondary",
@@ -130,11 +136,15 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
     }
   });
 
-  it("keeps the accent readable as text and visible as a mark", () => {
+  it("keeps the accent text tone readable and the fill's label readable", () => {
     for (const bg of ["canvas", "surface"] as const) {
-      expect(ratio("action", bg), `action on ${bg}`).toBeGreaterThanOrEqual(4.5);
-      expect(ratio("chart", bg), `chart on ${bg}`).toBeGreaterThanOrEqual(3);
+      expect(ratio("accent-text", bg), `accent-text on ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
+    expect(ratio("on-action", "action"), "on-action on the fill").toBeGreaterThanOrEqual(4.5);
+    expect(c["on-action"]).toBe(c["on-action"].toUpperCase());
+  });
+
+  it("keeps the focus ring visible", () => {
     expect(ratio("focus-ring", "canvas")).toBeGreaterThanOrEqual(3);
     expect(ratio("on-action", "action-hover")).toBeGreaterThanOrEqual(4.5);
     expect(ratio("on-action", "action-pressed")).toBeGreaterThanOrEqual(4.5);
@@ -168,32 +178,60 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
 });
 
 describe("accents", () => {
-  it("offers Lime, Teal, Blueberry, Lavender and Mono, in that order, with Lime the default", () => {
-    expect(accentIds).toEqual(["lime", "teal", "blueberry", "lavender", "mono"]);
-    expect(DEFAULT_ACCENT_ID).toBe("lime");
+  const FILLS = {
+    acid: "#A3FF12",
+    gold: "#FFC83D",
+    ember: "#FF6B3D",
+    rose: "#FF5C8A",
+    ice: "#9BE6FF",
+  } as const;
+  const LIGHT_TEXT = {
+    acid: "#3B7000",
+    gold: "#8A5A00",
+    ember: "#B33A12",
+    rose: "#B8124A",
+    ice: "#0B6A8A",
+  } as const;
+
+  it("offers Acid, Gold, Ember, Rose, Ice and Mono, in that order, with Acid the default", () => {
+    expect(accentIds).toEqual(["acid", "gold", "ember", "rose", "ice", "mono"]);
+    expect(DEFAULT_ACCENT_ID).toBe("acid");
   });
 
-  it("defines one variant per accent and mode, and the built-ins are Lime", () => {
+  it("defines one variant per accent and mode, and the built-ins are Acid", () => {
     expect(themeVariantNames).toEqual(
       accentIds.flatMap((accent) => [`${accent}-light`, `${accent}-dark`]),
     );
-    expect(nativeColors.light).toEqual(nativeColors["lime-light"]);
-    expect(nativeColors.dark).toEqual(nativeColors["lime-dark"]);
+    expect(nativeColors.light).toEqual(nativeColors["acid-light"]);
+    expect(nativeColors.dark).toEqual(nativeColors["acid-dark"]);
   });
 
-  it("makes Mono white on dark and black on light", () => {
+  it.each(Object.keys(FILLS) as (keyof typeof FILLS)[])(
+    "keeps %s's fill bright in both modes and darkens only its light text",
+    (accent) => {
+      for (const scheme of ["light", "dark"] as const) {
+        const c = nativeColors[`${accent}-${scheme}`];
+        expect(c.action, scheme).toBe(FILLS[accent]);
+        expect(c.chart, scheme).toBe(FILLS[accent]);
+        expect(c["on-action"], scheme).toBe("#0A0A0A");
+      }
+      expect(nativeColors[`${accent}-dark`]["accent-text"]).toBe(FILLS[accent]);
+      expect(nativeColors[`${accent}-light`]["accent-text"]).toBe(LIGHT_TEXT[accent]);
+    },
+  );
+
+  it("makes Mono white on dark and black on light, text equal to fill", () => {
     expect(nativeColors["mono-dark"].action).toBe("#FFFFFF");
+    expect(nativeColors["mono-dark"]["accent-text"]).toBe("#FFFFFF");
+    expect(nativeColors["mono-dark"]["on-action"]).toBe("#000000");
     expect(nativeColors["mono-light"].action).toBe("#000000");
-  });
-
-  it("uses a deeper olive-lime in light mode", () => {
-    expect(contrastRatio(nativeColors["lime-light"].action, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
-    expect(nativeColors["lime-light"].action).not.toBe(nativeColors["lime-dark"].action);
+    expect(nativeColors["mono-light"]["accent-text"]).toBe("#000000");
+    expect(nativeColors["mono-light"]["on-action"]).toBe("#FFFFFF");
   });
 
   it("leaves the ground, surfaces and ink the same under every accent", () => {
     for (const scheme of ["light", "dark"] as const) {
-      const base = nativeColors[`lime-${scheme}`];
+      const base = nativeColors[`acid-${scheme}`];
       for (const accent of accentIds) {
         const c = nativeColors[`${accent}-${scheme}`];
         for (const role of ["canvas", "surface", "text-primary", "danger"] as const) {

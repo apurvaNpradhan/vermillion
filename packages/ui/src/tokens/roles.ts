@@ -22,11 +22,13 @@ export const roleNames = [
   "chart-4",
   "chart-5",
   "focus-ring",
-  // The accent: primary action fill, and the mark and text colour for "you / now / earned".
+  // The accent: `action` is the fill (buttons, ticks, marks); `accent-text` is the text tone.
   "action",
   "action-hover",
   "action-pressed",
   "on-action",
+  // The accent as text and icon colour on the canvas; darker than the fill in light mode.
+  "accent-text",
   "accent-soft-text",
   // Danger is the only status colour: destructive actions and errors.
   "danger",

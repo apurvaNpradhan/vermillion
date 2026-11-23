@@ -47,7 +47,7 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
     textSecondary: roles["text-secondary"],
     textMuted: roles["text-muted"],
     accent: roles["text-primary"],
-    record: roles.action,
+    record: roles["accent-text"],
     plate: roles["surface-control"],
     hairline: roles.hairline,
   };

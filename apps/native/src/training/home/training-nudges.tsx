@@ -165,7 +165,7 @@ function RecordsCard({
       }
       className="gap-1 rounded-2xl bg-surface p-4 active:opacity-70"
     >
-      <Text className="font-semibold text-body text-accent">
+      <Text className="font-semibold text-body text-accent-text">
         {t("home__records_title", { count: total })}
       </Text>
       <Text numberOfLines={1} className="font-normal text-caption text-muted">

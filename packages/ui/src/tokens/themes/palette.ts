@@ -2,52 +2,50 @@ import { contrastRatio, mixHex, readable } from "../mix";
 import type { RoleTokens } from "../roles";
 
 /**
- * The Sigil palette (docs/design/redesign-2026-11/SPEC.md): two neutral modes and five accents.
+ * The Sigil palette (docs/design/redesign-2026-11/SPEC.md): two neutral modes and six accents.
  *
  * Dark is true AMOLED (`#000000` ground, near-black raised surfaces, white ink); light is pure
  * white with neutral greys and near-black ink. Neither has a tint. The accent is a separate axis:
- * each one has a hand-tuned value per mode and the label that sits on it. The accent marks the
+ * each one has a bright fill, a text tone and the label that sits on the fill. The accent marks the
  * primary action, the current and completed sets, records, the selected tab and chips, and the
  * primary chart series, and nothing else. Red is the only status colour.
  */
 
-export const accentIds = ["lime", "teal", "blueberry", "lavender", "mono"] as const;
+export const accentIds = ["acid", "gold", "ember", "rose", "ice", "mono"] as const;
 export type AccentId = (typeof accentIds)[number];
 /** The accent a new install starts on; every retired or unknown id falls back to it. */
-export const DEFAULT_ACCENT_ID: AccentId = "lime";
+export const DEFAULT_ACCENT_ID: AccentId = "acid";
 
 export const schemes = ["light", "dark"] as const;
 export type Scheme = (typeof schemes)[number];
 
-/** One accent in one mode: the fill (also the mark and text colour on the page) and its label. */
+/**
+ * One accent in one mode. The fill stays bright in both modes (buttons, ticks, completed-row
+ * tint, selected chips, chart lines, the current-set bar); `text` is the tone for accent-coloured
+ * text and icons on the canvas and darkens in light mode. `onAccent` is the label on the fill.
+ */
 interface AccentValue {
-  accent: string;
+  fill: string;
+  text: string;
   onAccent: string;
 }
 
-/** Hand-tuned so the accent reads as text (4.5:1) on the canvas and its label reads on the fill. */
+const coloured = (fill: string, lightText: string): Record<Scheme, AccentValue> => ({
+  dark: { fill, text: fill, onAccent: "#0A0A0A" },
+  light: { fill, text: lightText, onAccent: "#0A0A0A" },
+});
+
+/** Hand-tuned: the text tone reads at 4.5:1 on the canvas and surface, the label on the fill too. */
 const accents: Record<AccentId, Record<Scheme, AccentValue>> = {
-  lime: {
-    dark: { accent: "#C6F135", onAccent: "#0A0A0A" },
-    // The deeper olive-lime: bright lime cannot reach 4.5:1 on white.
-    light: { accent: "#476400", onAccent: "#FFFFFF" },
-  },
-  teal: {
-    dark: { accent: "#2DD4BF", onAccent: "#0A0A0A" },
-    light: { accent: "#0B6B63", onAccent: "#FFFFFF" },
-  },
-  blueberry: {
-    dark: { accent: "#7C9CFF", onAccent: "#0A0A0A" },
-    light: { accent: "#2F55D4", onAccent: "#FFFFFF" },
-  },
-  lavender: {
-    dark: { accent: "#B9A0FF", onAccent: "#0A0A0A" },
-    light: { accent: "#6038CC", onAccent: "#FFFFFF" },
-  },
-  // White on dark, black on light.
+  acid: coloured("#A3FF12", "#3B7000"),
+  gold: coloured("#FFC83D", "#8A5A00"),
+  ember: coloured("#FF6B3D", "#B33A12"),
+  rose: coloured("#FF5C8A", "#B8124A"),
+  ice: coloured("#9BE6FF", "#0B6A8A"),
+  // White on dark, black on light; the text equals the fill.
   mono: {
-    dark: { accent: "#FFFFFF", onAccent: "#000000" },
-    light: { accent: "#000000", onAccent: "#FFFFFF" },
+    dark: { fill: "#FFFFFF", text: "#FFFFFF", onAccent: "#000000" },
+    light: { fill: "#000000", text: "#000000", onAccent: "#FFFFFF" },
   },
 };
 
@@ -152,7 +150,7 @@ const inkOn = (fill: string, a: string, b: string) =>
 /** Every role of one accent in one mode. */
 export function deriveRoles(accentId: AccentId, scheme: Scheme): RoleTokens {
   const n = neutrals[scheme];
-  const { accent, onAccent } = accents[accentId][scheme];
+  const { fill: accent, text: accentText, onAccent } = accents[accentId][scheme];
   // Hover and press move the fill away from its label, so the label only gains contrast.
   const away = inkOn(onAccent, n.ink, n.canvas);
   const [chart2, chart3, chart4, chart5] = series[scheme];
@@ -190,6 +188,7 @@ export function deriveRoles(accentId: AccentId, scheme: Scheme): RoleTokens {
     "action-hover": mixHex(accent, away, 0.08),
     "action-pressed": mixHex(accent, away, 0.16),
     "on-action": onAccent,
+    "accent-text": accentText,
     "accent-soft-text": softText(accent),
     danger: danger[scheme],
     "on-danger": inkOn(danger[scheme], "#FFFFFF", "#111214"),

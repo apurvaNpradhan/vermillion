@@ -1,6 +1,6 @@
 # 0053. The public website returns: TanStack Start on Cloudflare Workers, public pages only
 
-Status: accepted (2026-11-21). Amends [0033](0033-mobile-first-api-host.md) and [0046](0046-site-admin-closed-beta-and-rename.md); the old site and admin stay removed (tag `pre-web-removal`).
+Status: accepted (2026-11-21); the site's palette and type now follow [0059](0059-amoled-neutral-modes-and-accent-split.md). Amends [0033](0033-mobile-first-api-host.md) and [0046](0046-site-admin-closed-beta-and-rename.md); the old site and admin stay removed (tag `pre-web-removal`).
 
 ## Context
 

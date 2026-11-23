@@ -12,7 +12,7 @@ describe.each(["light", "dark"] as const)("site colours (%s)", (scheme) => {
   const grounds = { canvas: c.canvas, surface: c.surface, control: c.control };
 
   it.each(Object.entries(grounds))("text reads on the %s", (_name, ground) => {
-    for (const text of [c.ink, c.secondary, c.muted, c.accent, c.danger]) {
+    for (const text of [c.ink, c.secondary, c.muted, c["accent-text"], c.danger]) {
       expect(contrastRatio(text, ground)).toBeGreaterThanOrEqual(AA);
     }
   });
@@ -25,7 +25,7 @@ describe.each(["light", "dark"] as const)("site colours (%s)", (scheme) => {
 
   it("the hover link colour reads on the canvas and surface", () => {
     for (const ground of [c.canvas, c.surface]) {
-      expect(contrastRatio(c["accent-hover"], ground)).toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(c["accent-text-hover"], ground)).toBeGreaterThanOrEqual(AA);
     }
   });
 });

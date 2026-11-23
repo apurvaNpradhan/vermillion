@@ -1,8 +1,8 @@
-import { useThemeColor } from "heroui-native";
 import { Check } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
+import { useAccentTextColor } from "@/platform/theme";
 
 type Choice<T extends string> = { value: T; label: string; hint?: string };
 
@@ -21,7 +21,7 @@ export function ChoiceList<T extends string>({
   onChange: (value: T) => void;
   accessibilityLabel: string;
 }) {
-  const identity = useThemeColor("accent");
+  const identity = useAccentTextColor();
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} className="gap-2">
       {choices.map((choice) => {

@@ -84,7 +84,7 @@ export function WeekStrip({
               {labels.weekday(day)}
             </Text>
             <Text
-              className={`font-medium text-numeric-sm tabular-nums ${day === today ? "text-accent" : "text-foreground"}`}
+              className={`font-medium text-numeric-sm tabular-nums ${day === today ? "text-accent-text" : "text-foreground"}`}
             >
               {labels.day(day)}
             </Text>

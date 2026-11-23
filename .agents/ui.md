@@ -24,9 +24,9 @@ branches on appearance. Use `useThemeMode()` for native chrome. See the
 [native themes guide](../docs/guides/native-themes.md) and the
 [redesign spec](../docs/design/redesign-2026-11/SPEC.md).
 
-Rules: the accent (`bg-accent`, `text-accent`, `text-accent-foreground`, `useActionColor()`) marks
+Rules: the accent marks
 the primary action, the current and completed sets, records and PRs, the selected tab and chips,
-and the primary chart series, and nothing else; never a large surface. Red (`danger`) is the only
+and the primary chart series, and nothing else; never a large surface. The fill (`bg-accent`, `text-accent-foreground` on it, `useActionColor()`) stays bright in both modes; accent-coloured text and icons on the canvas use the text tone (`text-accent-text`, `useAccentTextColor()`), never `text-accent`. Red (`danger`) is the only
 status colour, for destructive actions and errors, with an icon and words. There is no success,
 warning, ember (`identity`), `brand-detail` or `set-done` role: a positive state is the accent and a
 warning is neutral text with an icon. Charts take the accent for the primary series (`chart`,

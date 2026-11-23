@@ -34,18 +34,18 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-text);
   text-underline-offset: 0.2em;
 }
 
 a:hover {
-  color: var(--accent-hover);
+  color: var(--accent-text-hover);
 }
 
 a:focus-visible,
 button:focus-visible,
 main:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-text);
   outline-offset: 3px;
 }
 
@@ -190,7 +190,7 @@ p {
 }
 
 .mark-ember {
-  fill: var(--accent);
+  fill: var(--accent-text);
 }
 
 /* Hero */

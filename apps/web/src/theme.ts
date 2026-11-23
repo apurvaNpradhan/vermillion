@@ -1,5 +1,6 @@
 // A relative path, not `@workspace/ui/...`: vite.config.ts is loaded by Node, which would not
 // resolve the palette's extensionless imports through the package, while a relative file is bundled.
+import { mixHex } from "../../../packages/ui/src/tokens/mix.ts";
 import {
   deriveRoles,
   DEFAULT_ACCENT_ID,
@@ -21,8 +22,11 @@ export function webColors(scheme: Scheme) {
     ink: roles["text-primary"],
     secondary: roles["text-secondary"],
     muted: roles["text-muted"],
-    // One value per mode: it is the fill and also the text and mark colour on the canvas.
+    // The fill (primary button) is bright in both modes; `accent-text` is the tone for links and
+    // marks on the canvas and darkens in light mode.
     accent: roles.action,
+    "accent-text": roles["accent-text"],
+    "accent-text-hover": mixHex(roles["accent-text"], roles["text-primary"], 0.25),
     "accent-hover": roles["action-hover"],
     "accent-pressed": roles["action-pressed"],
     "on-accent": roles["on-action"],

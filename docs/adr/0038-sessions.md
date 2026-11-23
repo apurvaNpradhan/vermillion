@@ -1,6 +1,6 @@
 # 0038. Sessions: live logging, timers, records and history
 
-Status: accepted (2026-11-10). Builds on [0036](0036-training-plans.md) and [0037](0037-session-storage-and-training-entry.md). Specs: [docs/specs/sessions/](../specs/sessions/). Terms: Session, Logged set, Ghost value, Previous, Tick, Rest, Take over, Record, Gym equipment, Run and Cycle in [CONTEXT.md](../../CONTEXT.md).
+Status: accepted (2026-11-10); the rest-end sound is now a generated marimba cue (see [0059](0059-amoled-neutral-modes-and-accent-split.md), `tools/sounds`), not the uisfx file named below. Builds on [0036](0036-training-plans.md) and [0037](0037-session-storage-and-training-entry.md). Specs: [docs/specs/sessions/](../specs/sessions/). Terms: Session, Logged set, Ghost value, Previous, Tick, Rest, Take over, Record, Gym equipment, Run and Cycle in [CONTEXT.md](../../CONTEXT.md).
 
 ## Context
 

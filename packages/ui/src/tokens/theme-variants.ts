@@ -10,7 +10,7 @@ import {
 
 export { DEFAULT_ACCENT_ID, accentIds, schemes, type AccentId, type Scheme };
 
-/** A Uniwind theme name: one accent in one mode (`teal-dark`). */
+/** A Uniwind theme name: one accent in one mode (`ember-dark`). */
 export type ThemeVariant = `${AccentId}-${Scheme}`;
 
 export function variantName(accent: AccentId, scheme: Scheme): ThemeVariant {

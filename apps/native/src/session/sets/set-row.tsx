@@ -273,7 +273,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"
       >
         <Text
-          className={`font-semibold text-label ${props.current && !ticked ? "text-accent" : SET_TONES[set.kind].text}`}
+          className={`font-semibold text-label ${props.current && !ticked ? "text-accent-text" : SET_TONES[set.kind].text}`}
         >
           {badge}
         </Text>

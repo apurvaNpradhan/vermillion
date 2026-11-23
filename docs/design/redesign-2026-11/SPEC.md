@@ -25,9 +25,12 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
   - **Light = pure white**: background `#FFFFFF`, cards ≈`#F5F5F5`, neutral greys, near-black ink.
 - Setting: **System / Light / Dark**, default **System**.
 - **Accents** (Todoist-style picker in **Settings → Appearance**, next to the mode control), in this order:
-  **Lime (default), Teal, Blueberry, Lavender, Mono**. Mono = white on dark / black on light.
-  Each accent has a hand-tuned value for light and for dark (and an "on-accent" foreground) so
-  contrast passes in both (Lime in light mode is a deeper olive-lime). No Tangerine, no Vermillion.
+  **Acid (default), Gold, Ember, Rose, Ice, Mono**. Mono = white on dark / black on light.
+  Each accent has a **fill** that stays bright in both modes (buttons, ticks, completed-row tint,
+  selected chips, chart lines, the current-set bar), a **text tone** for accent text and icons on
+  the canvas (the fill in dark mode, a deeper tone in light mode) and an "on-accent" label (`#0A0A0A`;
+  Mono is `#000`/`#FFF`). Contrast passes in both modes. Retired ids (Lime, Teal, Blueberry,
+  Lavender) migrate to Acid. No Tangerine, no Vermillion.
 - **Accent is used only for**: primary buttons, the current/active set, completed set rows,
   records/PRs, selected tab and chips, primary chart series. Never large surfaces.
 - **Semantic colours**: keep **red (danger)** for destructive actions and errors only.
@@ -148,7 +151,7 @@ how-to/instructions collapsed at the bottom.
   - Close: H2 **Your next session already knows the weight.** + `Download for Android`.
   - Page title: **Sigil — the strength log that progresses for you**
 - `app.config.ts`: `tagline` → **Hit your reps. The weight goes up.** (replace "Earn the mark." everywhere).
-- Site uses the new AMOLED black + Lime accent.
+- Site uses the new AMOLED black + Acid accent.
 
 ---
 

@@ -10,8 +10,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Lime, following the device", () => {
-    expect(DEFAULT_THEME).toEqual({ appearance: "system", accent: "lime" });
+  it("starts on Acid, following the device", () => {
+    expect(DEFAULT_THEME).toEqual({ appearance: "system", accent: "acid" });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -76,7 +76,7 @@ describe("device theme selection", () => {
     expect(apply).toHaveBeenCalledWith({ ...DEFAULT_THEME, appearance: "dark" });
     store.set({ ...DEFAULT_THEME, appearance: "dark" });
     expect(write).not.toHaveBeenCalled();
-    const next = { appearance: "dark" as const, accent: "teal" as const };
+    const next = { appearance: "dark" as const, accent: "ember" as const };
     store.set(next);
     expect(apply).toHaveBeenLastCalledWith(next);
     expect(parseTheme(write.mock.calls[0]?.[0])).toEqual(next);
@@ -92,12 +92,24 @@ describe("retired themes", () => {
     "migrates the saved theme %s to the default accent and keeps the appearance",
     (theme) => {
       const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-      expect(parseTheme(stored)).toEqual({ appearance: "dark", accent: "lime" });
+      expect(parseTheme(stored)).toEqual({ appearance: "dark", accent: "acid" });
     },
   );
 
-  it("migrates a saved accent that no longer exists", () => {
-    const stored = JSON.stringify({ appearance: "light", accent: "tangerine" });
-    expect(parseTheme(stored)).toEqual({ appearance: "light", accent: "lime" });
+  it.each(["lime", "teal", "blueberry", "lavender", "tangerine"])(
+    "migrates the retired or unknown accent %s to Acid",
+    (accent) => {
+      const stored = JSON.stringify({ appearance: "light", accent });
+      expect(parseTheme(stored)).toEqual({ appearance: "light", accent: "acid" });
+    },
+  );
+
+  it("keeps every current accent", () => {
+    for (const accent of ["acid", "gold", "ember", "rose", "ice", "mono"]) {
+      expect(parseTheme(JSON.stringify({ appearance: "dark", accent }))).toEqual({
+        appearance: "dark",
+        accent,
+      });
+    }
   });
 });

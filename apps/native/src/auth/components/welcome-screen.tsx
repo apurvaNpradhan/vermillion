@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
-import { useActionColor, useOnActionColor } from "@/platform/theme";
+import { useAccentTextColor, useOnActionColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SigilMark } from "@/platform/ui/sigil-mark";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -33,7 +33,7 @@ export function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useAppToast();
-  const accent = useActionColor();
+  const accent = useAccentTextColor();
   const onAccent = useOnActionColor();
   const ink = useThemeColor("foreground");
   const { sheet } = useLocalSearchParams<{ sheet?: string }>();

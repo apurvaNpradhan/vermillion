@@ -26,7 +26,7 @@ export function FilterPill({
     >
       <Text
         numberOfLines={1}
-        className={`text-label font-medium ${active ? "text-accent" : "text-muted"}`}
+        className={`text-label font-medium ${active ? "text-accent-text" : "text-muted"}`}
       >
         {label}
       </Text>

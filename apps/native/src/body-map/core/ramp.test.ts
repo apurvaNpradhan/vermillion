@@ -30,7 +30,10 @@ describe("muscle artwork tint", () => {
   });
 
   it.each(nativeVariantNames)("keeps four distinct legend shades in %s", (variant) => {
-    const { legend } = muscleArtTint(nativeColors[variant].chart, variant.includes("dark"));
+    const { legend } = muscleArtTint(
+      nativeColors[variant]["accent-text"],
+      variant.includes("dark"),
+    );
     expect(contrastRatio(legend.untrained, legend.low)).toBeGreaterThan(1.25);
     expect(contrastRatio(legend.low, legend.mid)).toBeGreaterThan(1.25);
     expect(contrastRatio(legend.mid, legend.high)).toBeGreaterThan(1.25);

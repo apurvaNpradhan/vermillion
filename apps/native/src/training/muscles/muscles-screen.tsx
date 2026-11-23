@@ -54,7 +54,7 @@ export function MusclesScreen() {
   for (const [muscle, value] of bodyIntensity(volume.loads, volume.rows))
     if (isBodyGroup(muscle)) intensity[muscle] = value;
   const dark = useThemeMode() === "dark";
-  const artTint = useMemo(() => muscleArtTint(colors.chart, dark), [colors.chart, dark]);
+  const artTint = useMemo(() => muscleArtTint(colors["accent-text"], dark), [colors, dark]);
   const regions = useMemo(() => regionRows(volume.rows), [volume.rows]);
   return (
     <ScrollPage title={t("muscles__title")} back backFallback="/history">

@@ -113,6 +113,12 @@ export function useActionColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
+/** The accent as text or icon colour on the canvas (darker than the fill in light mode). */
+export function useAccentTextColor(): string | undefined {
+  const value = useCSSVariable("--color-accent-text");
+  return isColorString(value) ? value : undefined;
+}
+
 /** The icon and text colour on an `action` fill. */
 export function useOnActionColor(): string | undefined {
   const value = useCSSVariable("--accent-foreground");

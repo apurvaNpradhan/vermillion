@@ -6,16 +6,16 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native has two modes and five accents. The mode is **System** (the default), **Light** or **Dark**; the accent is **Lime** (the default), **Teal**, **Blueberry**, **Lavender** or **Mono**. Both are chosen in Settings → Appearance. The redesign spec is
+Native has two modes and six accents. The mode is **System** (the default), **Light** or **Dark**; the accent is **Acid** (the default), **Gold**, **Ember**, **Rose**, **Ice** or **Mono**. Both are chosen in Settings → Appearance. The redesign spec is
 [docs/design/redesign-2026-11/SPEC.md](docs/design/redesign-2026-11/SPEC.md); where this file disagrees with it, the spec wins.
 
 - **Dark is true AMOLED**: canvas `#000000`, near-black raised surfaces (`#0A0A0A` cards, `#141414`
   floating sheets, `#1C1C1C` controls), hairline borders, neutral (untinted) greys, white ink.
   **Light is pure white**: canvas `#FFFFFF`, cards `#F5F5F5`, neutral greys, near-black ink.
   Both have the same structure and live in `packages/ui/src/tokens/themes/palette.ts`.
-- **The accent** is the only hue in the interface. Each accent has a hand-tuned value for light and
-  for dark and a label colour for text on it (`on-action`), so contrast passes in both; Lime is a
-  deeper olive-lime in light mode. Mono is white on dark and black on light. It is used for
+- **The accent** is the only hue in the interface. Each accent has a **fill** (`action`) that stays bright
+  in both modes, a **text tone** (`accent-text`) that darkens in light mode, and a label colour for
+  the fill (`on-action`). Mono is white on dark and black on light, its text equal to its fill. It is used for
   primary buttons, the current set, completed set rows, records and PRs, the selected tab and
   chips, and the primary chart series. Never large surfaces.
 - **Red (`danger`) is the only status colour**, for destructive actions and errors, always with an
@@ -24,9 +24,9 @@ Native has two modes and five accents. The mode is **System** (the default), **L
   alias the accent and neutral text so its components keep working. The ember, `brand-detail`,
   lichen (`set-done`) and macro roles are gone.
 - Saved theme ids from earlier versions (`sigil`, `classic`, `patina`, `oxide`, `slate`, `mulberry`,
-  unknown), and the removed contrast setting, migrate to the default accent; the saved mode is kept.
-  `nativeColors` in `brand.ts` holds every variant (`teal-dark`, `lime-light`, …); the built-in
-  `light` and `dark` carry Lime. Email uses those.
+  unknown), the retired accents (Lime, Teal, Blueberry, Lavender) and the removed contrast setting, migrate to the default accent; the saved mode is kept.
+  `nativeColors` in `brand.ts` holds every variant (`ember-dark`, `acid-light`, …); the built-in
+  `light` and `dark` carry Acid. Email uses those.
 - `device.theme` stores `{ appearance, accent }`. Native chrome, status bars and blur use
   `useThemeMode()`.
 - Geist sets native text, including large titles and the sign-in wordmark. Geist Mono sets labels
@@ -58,8 +58,8 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 | Area     | Rule                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Modes    | System (default), Light (pure white) or Dark (AMOLED black)                                |
-| Accent   | Lime (default), Teal, Blueberry, Lavender or Mono                                          |
-| Action   | The accent fills the one primary button                                                    |
+| Accent   | Acid (default), Gold, Ember, Rose, Ice or Mono                                             |
+| Action   | The accent fill is the one primary button; accent text uses `accent-text`                  |
 | Color    | Accent = you / now / done; `chart-1` is the accent, `chart-2`…`5` are quiet; danger is red |
 | Surfaces | Four steps, spaced for phone screens                                                       |
 | Depth    | No shadows except floating layers and the button keycap edge                               |
@@ -75,7 +75,7 @@ Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 20
 | #   | Decision          | Choice                                                                                                | Why                                                                                                 |
 | --- | ----------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | 1   | Primary platform  | Phone-first native, web later                                                                         | Sets and meals are logged in the moment, on a phone                                                 |
-| 2   | Color modes       | System / Light (pure white) / Dark (AMOLED black), plus five accents, role-based tokens               | Bright gyms and a true-black dark mode for OLED; one accent axis instead of whole themes (Nov 2026) |
+| 2   | Color modes       | System / Light (pure white) / Dark (AMOLED black), plus six accents, role-based tokens               | Bright gyms and a true-black dark mode for OLED; one accent axis instead of whole themes (Nov 2026) |
 | 3   | Primary action    | The accent fill with its own label colour (`on-action`)                                               | One loud thing per screen, in the person's colour                                                   |
 | 4   | Status colors     | Red for danger only; no success, warning or macro colours                                             | The accent already means "good"; warnings are neutral text and an icon (Nov 2026)                   |
 | 5   | Number typeface   | Geist for numbers                                                                                     | `tnum` aligns digits across tables and timers                                                       |
@@ -118,19 +118,22 @@ The neutrals are the same under every accent; the accent changes only `action` a
 
 ### Accent
 
-The accent is a role pair, `action` (the fill, and also the mark and text colour on the page) and `on-action` (the label on the fill). Each value is hand-tuned per mode so `action` reads as text (4.5:1) on `canvas` and `surface`.
+The accent has a **fill** and a **text tone**. `action` is the fill (primary buttons, ticks, the completed-row tint, selected chips, chart lines, the current-set bar); it stays bright in both modes. `accent-text` is the accent as text or icon colour on the canvas (links, the current set number, small labels, a check icon); it darkens in light mode so it reads at 4.5:1 on `canvas` and `surface`. `on-action` is the label on the fill (4.5:1). Never put `action` text on the canvas: use `text-accent-text` (HeroUI: `--accent` is the fill, `--color-accent-text` the tone).
 
-| Accent         | Dark `action` | Light `action` | `on-action` (dark / light) |
-| -------------- | ------------- | -------------- | -------------------------- |
-| Lime (default) | `#C6F135`     | `#476400`      | `#0A0A0A` / `#FFFFFF`      |
-| Teal           | `#2DD4BF`     | `#0B6B63`      | `#0A0A0A` / `#FFFFFF`      |
-| Blueberry      | `#7C9CFF`     | `#2F55D4`      | `#0A0A0A` / `#FFFFFF`      |
-| Lavender       | `#B9A0FF`     | `#6038CC`      | `#0A0A0A` / `#FFFFFF`      |
-| Mono           | `#FFFFFF`     | `#000000`      | `#000000` / `#FFFFFF`      |
+| Accent         | Fill (both modes)     | `accent-text` dark | `accent-text` light | `on-action`           |
+| -------------- | --------------------- | ------------------ | ------------------- | --------------------- |
+| Acid (default) | `#A3FF12`             | `#A3FF12`          | `#3B7000`           | `#0A0A0A`             |
+| Gold           | `#FFC83D`             | `#FFC83D`          | `#8A5A00`           | `#0A0A0A`             |
+| Ember          | `#FF6B3D`             | `#FF6B3D`          | `#B33A12`           | `#0A0A0A`             |
+| Rose           | `#FF5C8A`             | `#FF5C8A`          | `#B8124A`           | `#0A0A0A`             |
+| Ice            | `#9BE6FF`             | `#9BE6FF`          | `#0B6A8A`           | `#0A0A0A`             |
+| Mono           | `#FFFFFF` / `#000000` | `#FFFFFF`          | `#000000`           | `#000000` / `#FFFFFF` |
+
+Ember and Rose sit near red: destructive actions always carry an icon and words, never colour alone.
 
 `action-hover` and `action-pressed` move the fill away from its label, and `accent-soft-text` is the accent moved toward the ink until it is readable on HeroUI's 20% soft fill. `focus-ring` is `text-primary`.
 
-The accent is used only for primary buttons, the current set, completed set rows (the whole row tinted at 15%, with the check filled), records and PRs, the selected tab and chips, and the primary chart series. Never a large surface.
+The accent is used only for primary buttons, the current set, completed set rows (the whole row tinted with the fill at 15%, with the check filled), records and PRs, the selected tab and chips, and the primary chart series. Never a large surface.
 
 ### Status
 
@@ -555,7 +558,8 @@ Product code uses semantic utilities only; never a hex value or a `gray-*` class
 | `text-secondary`               | `text-subtle`                            | `text-subtle`                          |
 | `text-muted`                   | `text-muted-foreground`                  | `text-muted`                           |
 | `action` / `on-action`         | `bg-primary` / `text-primary-foreground` | `bg-accent` / `text-accent-foreground` |
-| the accent as text or a mark   | `text-primary`                           | `text-accent`, `bg-accent`             |
+| the accent as text or an icon  | `text-primary`                           | `text-accent-text`                     |
+| the accent as a fill or mark   | `bg-primary`                             | `bg-accent`                            |
 | `chart` / `chart-1`…`5`        | `bg-chart`, `bg-chart-1`…                | `bg-chart`, `bg-chart-1`…              |
 | `danger`                       | `text-destructive-foreground`            | `text-danger`                          |
 

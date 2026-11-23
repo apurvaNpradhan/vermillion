@@ -31,7 +31,7 @@ function MonthActivity({
   weekStart: WeekStart;
   days: History["byDay"];
 }) {
-  const ink = useCSSVariable("--accent");
+  const ink = useCSSVariable("--color-accent-text");
   const muted = useCSSVariable("--muted");
   let trained = "";
   let rest = "";

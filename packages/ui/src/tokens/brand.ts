@@ -9,8 +9,8 @@ import {
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
 /**
- * A native Uniwind theme: an accent in one mode (`teal-dark`), or Uniwind's built-in `light` /
- * `dark`, which carry the default accent (Lime) and render before the stored choice applies.
+ * A native Uniwind theme: an accent in one mode (`ember-dark`), or Uniwind's built-in `light` /
+ * `dark`, which carry the default accent (Acid) and render before the stored choice applies.
  */
 export type NativeVariant = "light" | "dark" | ThemeVariant;
 
@@ -46,6 +46,7 @@ export const sharedTokenSources = {
   "chart-3": "chart-3",
   "chart-4": "chart-4",
   "chart-5": "chart-5",
+  "accent-text": "accent-text",
   "set-warmup": "set-warmup",
   "set-drop": "set-drop",
   "set-failure": "set-failure",
