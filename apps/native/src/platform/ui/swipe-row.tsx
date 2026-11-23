@@ -19,11 +19,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { useSubtleColor } from "@/platform/theme";
 
+import { swipePhase, type SwipeEvent, type SwipePhase } from "./swipe-phase";
 import { SWIPE_ACTION_WIDTH, shouldSettleOpen } from "./swipe-threshold";
 
 export type SwipeAction = {
@@ -50,6 +52,7 @@ const SCROLL_WINS = 10;
 /** Space between the row and its first action button. */
 const PANEL_GAP = 12;
 /** Snap open and closed: motion-base, no overshoot. */
+const PANEL_PADDING = { paddingLeft: PANEL_GAP - 8 };
 const SNAP = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
 type RowHandle = { close: () => void };
@@ -144,17 +147,26 @@ export function SwipeRow({
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
-  const [isOpen, setIsOpen] = useState(false);
+  const [phase, setPhase] = useState<SwipePhase>("idle");
   const translateX = useSharedValue(0);
   const start = useSharedValue(0);
   const count = actions.length;
   const panel = count * SWIPE_ACTION_WIDTH + PANEL_GAP;
+  const send = (event: SwipeEvent) => setPhase((current) => swipePhase(current, event));
+  const rest = () => send("rest");
 
   const handle = useMemo<RowHandle>(
     () => ({
       close: () => {
-        translateX.value = motion ? withTiming(0, SNAP) : 0;
-        setIsOpen(false);
+        if (motion) {
+          translateX.value = withTiming(0, SNAP, (finished) => {
+            if (finished) scheduleOnRN(rest);
+          });
+          setPhase((current) => swipePhase(current, "close"));
+        } else {
+          translateX.value = 0;
+          setPhase("idle");
+        }
       },
     }),
     [motion, translateX],
@@ -166,10 +178,13 @@ export function SwipeRow({
     group?.didClose(handle);
   };
   const onOpened = () => {
-    setIsOpen(true);
+    send("open");
     group?.willOpen(handle);
   };
-  const onDragStart = () => group?.willOpen(handle);
+  const onDragStart = () => {
+    send("drag");
+    group?.willOpen(handle);
+  };
   const run = (action: SwipeAction) => {
     close();
     action.onPress();
@@ -193,18 +208,12 @@ export function SwipeRow({
         translateX.value = motion ? withTiming(-panel, SNAP) : -panel;
         scheduleOnRN(onOpened);
       } else {
-        translateX.value = motion ? withTiming(0, SNAP) : 0;
         scheduleOnRN(close);
       }
     },
   });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  // The panel follows the drag while the row resists beyond its resting width.
-  const panelStyle = useAnimatedStyle(() => ({
-    width: Math.max(-translateX.value, 0),
-    opacity: translateX.value < 0 ? 1 : 0,
-  }));
 
   const a11y: SwipeA11yProps = {
     accessibilityActions: screenReaderActions.map((action) => ({
@@ -228,22 +237,12 @@ export function SwipeRow({
           group?.willOpen(handle);
         }}
       >
-        <Animated.View
-          className="absolute inset-y-0 right-0 flex-row justify-end overflow-hidden"
-          style={[{ paddingLeft: PANEL_GAP - 8 }, panelStyle]}
-        >
-          {actions.map((action, index) => (
-            <SwipeButton
-              key={action.key}
-              action={action}
-              grows={index === count - 1}
-              onPress={() => run(action)}
-            />
-          ))}
-        </Animated.View>
+        {phase === "idle" ? null : (
+          <ActionLayer translateX={translateX} actions={actions} onRun={run} />
+        )}
         <Animated.View style={rowStyle}>
           {children(a11y)}
-          {isOpen ? (
+          {phase === "open" ? (
             // While open, the first tap on the row closes it instead of opening it.
             <Pressable
               accessibilityElementsHidden
@@ -255,6 +254,39 @@ export function SwipeRow({
         </Animated.View>
       </View>
     </GestureDetector>
+  );
+}
+
+/** The buttons behind a row: mounted only while a swipe is under way, open or closing. */
+function ActionLayer({
+  translateX,
+  actions,
+  onRun,
+}: {
+  translateX: SharedValue<number>;
+  actions: SwipeAction[];
+  onRun: (action: SwipeAction) => void;
+}) {
+  // The panel follows the drag while the row resists beyond its resting width.
+  const panelStyle = useAnimatedStyle(() => ({
+    width: Math.max(-translateX.value, 0),
+    opacity: translateX.value < 0 ? 1 : 0,
+  }));
+  const last = actions.length - 1;
+  return (
+    <Animated.View
+      className="absolute inset-y-0 right-0 flex-row justify-end overflow-hidden"
+      style={[PANEL_PADDING, panelStyle]}
+    >
+      {actions.map((action, index) => (
+        <SwipeButton
+          key={action.key}
+          action={action}
+          grows={index === last}
+          onPress={() => onRun(action)}
+        />
+      ))}
+    </Animated.View>
   );
 }
 
