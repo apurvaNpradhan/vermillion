@@ -201,6 +201,13 @@ function sameView(a: ExerciseView, b: ExerciseView): boolean {
   );
 }
 
+function sameSettings(a: DeriveInputs, b: DeriveInputs): boolean {
+  if (a === b) return true;
+  const { previous: _a, chipTexts, stallMemory, ...settings } = a;
+  const { previous: _b, chipTexts: otherChips, stallMemory: otherStall, ...other } = b;
+  return chipTexts === otherChips && stallMemory === otherStall && deepEqual(settings, other);
+}
+
 /**
  * The views of every exercise, rebuilding only an exercise whose sets, history or inputs changed
  * since `cache`. A tick therefore recomputes one exercise, not the Session.
@@ -218,12 +225,12 @@ export function deriveExercises(
     if (
       old &&
       old.exercise === exercise &&
-      old.history === raw &&
-      old.inputs === inputs &&
+      sameSettings(old.inputs, inputs) &&
+      (old.history === raw || deepEqual(old.history, raw)) &&
       old.finished === context.finished &&
       old.workoutId === context.workoutId
     ) {
-      next.set(exercise.id, old);
+      next.set(exercise.id, old.inputs === inputs ? old : { ...old, inputs, history: raw });
       continue;
     }
     next.set(exercise.id, {

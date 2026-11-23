@@ -60,8 +60,6 @@ type Derived = {
   exercises: ReadonlyMap<string, SessionExerciseDetail>;
   views: ReadonlyMap<string, ExerciseView>;
   setsById: ReadonlyMap<string, SessionSetDetail>;
-  /** The sets as stored (without pending changes), with their exercise's type. */
-  storedSets: ReadonlyMap<string, { set: SessionSetDetail; type: SessionExerciseDetail["type"] }>;
   found: ReadonlyMap<string, Found>;
   places: ReadonlyMap<string, SupersetPlace>;
   blocks: readonly Block<SessionExerciseDetail>[];
@@ -164,15 +162,6 @@ function compute(base: Base, prev: (Base & Derived) | null): Derived {
           );
         })();
   const blocks = prev && !exercisesChanged ? prev.blocks : blocksOf(session.exercises);
-  const storedSets =
-    prev && prev.stored === base.stored
-      ? prev.storedSets
-      : new Map(
-          base.stored.exercises.flatMap((exercise) =>
-            exercise.sets.map((set) => [set.id, { set, type: exercise.type }] as const),
-          ),
-        );
-
   const stats = (() => {
     if (
       prev &&
@@ -197,20 +186,27 @@ function compute(base: Base, prev: (Base & Derived) | null): Derived {
     return prev && deepEqual(prev.stats, next) ? prev.stats : next;
   })();
 
-  const cache = deriveExercises(
-    session.exercises,
-    base.inputs,
-    { finished: session.finishedAt !== null, workoutId: session.workoutId },
-    prev?.cache ?? new Map(),
-  );
-  const nextViews = new Map([...cache].map(([id, entry]) => [id, entry.view] as const));
-  // The same map while every exercise kept its view, so a reader that depends on it holds still.
+  const finished = session.finishedAt !== null;
+  const cache =
+    prev &&
+    !exercisesChanged &&
+    prev.inputs === base.inputs &&
+    (prev.session.finishedAt !== null) === finished &&
+    prev.session.workoutId === session.workoutId
+      ? prev.cache
+      : deriveExercises(
+          session.exercises,
+          base.inputs,
+          { finished, workoutId: session.workoutId },
+          prev?.cache ?? new Map(),
+        );
   const views =
     prev &&
-    prev.views.size === nextViews.size &&
-    [...nextViews].every(([id, view]) => prev.views.get(id) === view)
+    (cache === prev.cache ||
+      (prev.views.size === cache.size &&
+        [...cache].every(([id, entry]) => prev.views.get(id) === entry.view)))
       ? prev.views
-      : nextViews;
+      : new Map([...cache].map(([id, entry]) => [id, entry.view] as const));
 
   const focusedBlock = blocks.find((block) =>
     block.members.some((member) => member.id === base.focusedExerciseId),
@@ -231,7 +227,6 @@ function compute(base: Base, prev: (Base & Derived) | null): Derived {
     exercises,
     views,
     setsById,
-    storedSets,
     found,
     places,
     blocks,
@@ -288,7 +283,7 @@ export function createSessionStore(
       },
       updatePending: (update) => {
         const next = update(get().pending);
-        if (next !== get().pending) apply({ pending: next });
+        if (next !== get().pending) apply({ pending: settled(next, get().stored) });
       },
       setRestTarget: (rest) => {
         if (get().restTarget !== rest) apply({ restTarget: rest });

@@ -177,14 +177,15 @@ const LoadedSession = memo(function LoadedSession({
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
-  const reveal = useRowReveal(scrollRef);
+  const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
+  const reveal = useRowReveal(scrollRef, isEditing);
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
   // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
   // next workout (started or resumed) opens in the view used last.
   // Each screen has its own keypad: the draft here is saved and closed before the Timer edits.
-  const { closeKeypad } = logging;
+  const { closeKeypad, flushWrites } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
     closeKeypad();
@@ -193,11 +194,19 @@ const LoadedSession = memo(function LoadedSession({
   useEffect(() => {
     if (readOnly) setReordering(false);
   }, [readOnly]);
-  const openTimer = useCallback(() => {
+  const openingTimer = useRef(false);
+  const openTimer = useCallback(async () => {
+    if (openingTimer.current) return;
+    openingTimer.current = true;
     closeKeypad();
-    setUi({ sessionView: "timer" });
-    onOpenTimer();
-  }, [closeKeypad, setUi, onOpenTimer]);
+    try {
+      await flushWrites();
+      setUi({ sessionView: "timer" });
+      onOpenTimer();
+    } finally {
+      openingTimer.current = false;
+    }
+  }, [closeKeypad, flushWrites, setUi, onOpenTimer]);
   const openedTimer = useRef(false);
   const wantsTimer = preferences.ui.sessionView === "timer";
   useEffect(() => {
@@ -266,7 +275,7 @@ const LoadedSession = memo(function LoadedSession({
     ticked,
     unticked,
     actions,
-    flush: logging.flushForFinish,
+    flush: flushWrites,
     closeKeypad: logging.closeKeypad,
     onMinimise,
     onFinished,
@@ -288,10 +297,6 @@ const LoadedSession = memo(function LoadedSession({
   const { reveal: revealRow, hasRow } = reveal;
   const activeSetId = logging.activeSetId;
   const activeExercise = activeSetId ? logging.found.get(activeSetId)?.exercise.id : undefined;
-  const activeIndex = useMemo(
-    () => session.exercises.findIndex((exercise) => exercise.id === activeExercise),
-    [activeExercise, session.exercises],
-  );
   // Back closes the keypad before it minimises the workout.
   useFocusEffect(
     useCallback(() => {
@@ -305,15 +310,24 @@ const LoadedSession = memo(function LoadedSession({
   );
   useEffect(() => {
     if (!activeSetId) return;
-    return afterLayout(() => {
+    let cancelReveal: (() => void) | undefined;
+    let cancelled = false;
+    const cancelFirst = afterLayout(() => {
       if (hasRow(activeSetId)) {
         revealRow(activeSetId);
         return;
       }
-      if (activeIndex >= 0)
-        scrollRef.current?.scrollToIndex({ index: activeIndex, animated: false });
+      if (!activeExercise) return;
+      void scrollRef.current?.scrollToKey({ key: activeExercise, animated: false }).then(() => {
+        if (!cancelled) cancelReveal = afterLayout(() => revealRow(activeSetId));
+      });
     });
-  }, [activeSetId, activeIndex, hasRow, revealRow]);
+    return () => {
+      cancelled = true;
+      cancelFirst();
+      cancelReveal?.();
+    };
+  }, [activeSetId, activeExercise, hasRow, revealRow]);
 
   // ---- The exercise menu ----
   const menuExercise = sheet?.kind === "menu" ? sheet.exercise : null;

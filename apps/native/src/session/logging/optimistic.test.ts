@@ -5,14 +5,10 @@ import {
   NO_PENDING,
   nudged,
   previewTick,
-  restFrom,
-  restKey,
-  setKey,
   settled,
   settleTick,
-  tickChange,
   withPending,
-  type Pending,
+  type PendingWrite,
 } from "./optimistic";
 
 const NOW = "2026-01-01T10:00:00.000Z";
@@ -78,79 +74,113 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
   };
 };
 
-describe("tickChange", () => {
-  it("adopts Ghost values into empty cells, as the store does", () => {
-    expect(tickChange(set({ reps: 6 }), "weight_reps", { weight: 60, reps: 8 }, NOW)).toEqual({
-      completedAt: NOW,
-      timerStartedAt: null,
-      weightKg: 60,
-    });
-  });
-
-  it("shows nothing for a tick the store refuses or ignores", () => {
-    expect(tickChange(set(), "weight_reps", { weight: 60 }, NOW)).toBeNull();
-    expect(tickChange(set({ completedAt: NOW }), "weight_reps", {}, NOW)).toBeNull();
-  });
-});
-
-describe("withPending and settled", () => {
-  const stored = session([set()]);
-  const pending: Pending = {
-    sets: new Map([
-      ["set-1", { before: setKey(set()), change: { completedAt: NOW, weightKg: 60, reps: 8 } }],
-    ]),
-    rest: { before: restKey(null), value: restFrom("set-1", 90, Date.parse(NOW)) },
+describe("pending writes", () => {
+  const later = "2026-01-01T10:00:01.000Z";
+  const rest = { setId: "set-1", startedAt: NOW, endsAt: "2026-01-01T10:01:30.000Z" };
+  const before = set({ weightKg: 60, reps: 8 });
+  const ticked = { ...before, completedAt: NOW };
+  const stored = session([before]);
+  const tick: PendingWrite = {
+    id: Symbol(),
+    set: { id: before.id, before, value: { completedAt: NOW } },
+  };
+  const savedTick = { ...tick, saved: true, rest: { before: null, value: { value: rest } } };
+  const untick: PendingWrite = {
+    id: Symbol(),
+    set: { id: before.id, before: ticked, value: { completedAt: null } },
+    rest: { before: rest, value: { clearFor: before.id } },
+  };
+  const edit: PendingWrite = {
+    id: Symbol(),
+    set: { id: before.id, before: ticked, value: { reps: 9 } },
   };
 
-  it("shows pending changes over the stored Session", () => {
-    const shown = withPending(stored, pending);
-    expect(shown.exercises[0]?.sets[0]).toMatchObject({ completedAt: NOW, weightKg: 60, reps: 8 });
-    expect(shown.rest).toEqual({
-      setId: "set-1",
-      startedAt: NOW,
-      endsAt: "2026-01-01T10:01:30.000Z",
-    });
+  it("shows a tick right away and starts rest only when its write succeeds", () => {
+    expect(withPending(stored, [tick]).exercises[0]?.sets[0]?.completedAt).toBe(NOW);
+    expect(withPending(stored, [tick]).rest).toBeNull();
+    expect(withPending(stored, [savedTick]).rest).toEqual(rest);
     expect(withPending(stored, NO_PENDING)).toBe(stored);
   });
 
-  it("keeps a completion preview through an earlier keypad-write snapshot", () => {
-    const pendingAfterTyping: Pending = {
-      sets: new Map([
-        [
-          "set-1",
-          {
-            before: setKey(set()),
-            change: { completedAt: NOW, weightKg: 60, reps: 8 },
-            awaitFields: true,
-          },
-        ],
-      ]),
-      rest: null,
-    };
-    const keyed = session([set({ weightKg: 60, reps: 8 })]);
-    expect(settled(pendingAfterTyping, keyed)).toBe(pendingAfterTyping);
-    expect(withPending(keyed, pendingAfterTyping).exercises[0]?.sets[0]?.completedAt).toBe(NOW);
-
-    const committed = session([
-      set({ weightKg: 60, reps: 8, completedAt: "2026-01-01T10:00:01.000Z" }),
+  it("accepts the exact tick echo after settlement or when it arrived before settlement", () => {
+    const delivered = session([ticked], rest);
+    expect(settled([tick], delivered)).toEqual([tick]);
+    expect(settled([savedTick], delivered)).toEqual([]);
+    expect(settled([savedTick], session([{ ...ticked, completedAt: later }], rest))).toMatchObject([
+      { set: { value: { completedAt: NOW } }, rest: undefined },
     ]);
-    expect(settled(pendingAfterTyping, committed).sets.size).toBe(0);
-    expect(withPending(committed, pendingAfterTyping)).toBe(committed);
   });
 
-  it("drops a change once the stored value moves on, and keeps the rest", () => {
-    const delivered = session([set({ completedAt: NOW, weightKg: 60, reps: 8 })]);
-    const left = settled(pending, delivered);
-    expect(left.sets.size).toBe(0);
-    expect(left.rest).toBe(pending.rest);
-    // A change made against an older value is never shown over a newer one.
-    expect(withPending(delivered, pending).exercises[0]?.sets[0]?.completedAt).toBe(NOW);
-    expect(settled(NO_PENDING, delivered)).toBe(NO_PENDING);
+  it("keeps the later untick through a late tick echo, even when the stored baseline is unticked", () => {
+    const savedUntick = { ...untick, saved: true };
+    const pending = [savedTick, savedUntick];
+    expect(settled(pending, stored)).toBe(pending);
+    const echoedTick = session([ticked], rest);
+    const remaining = settled(pending, echoedTick);
+    expect(remaining).toEqual([savedUntick]);
+    expect(withPending(echoedTick, remaining).exercises[0]?.sets[0]?.completedAt).toBeNull();
+    expect(withPending(echoedTick, remaining).rest).toBeNull();
+    expect(settled(remaining, stored)).toEqual([]);
+  });
+
+  it("keeps a retick through an echo for a prior completion of the same set", () => {
+    const retick: PendingWrite = {
+      ...tick,
+      saved: true,
+      id: Symbol(),
+      set: { id: before.id, before, value: { completedAt: later } },
+    };
+    const pending = [savedTick, { ...untick, saved: true }, retick];
+    const remaining = settled(pending, session([ticked], rest));
+    expect(remaining).toEqual(pending.slice(1));
+    expect(settled(remaining, session([{ ...ticked, completedAt: later }]))).toEqual([]);
+  });
+
+  it("settles overlapping edits when the watch only returns their final values", () => {
+    const savedEdit = { ...edit, saved: true };
+    const laterEdit: PendingWrite = {
+      id: Symbol(),
+      set: { id: before.id, before: { ...ticked, reps: 9 }, value: { reps: 10 } },
+      saved: true,
+    };
+    expect(
+      settled([savedTick, savedEdit, laterEdit], session([{ ...ticked, reps: 10 }], rest)),
+    ).toEqual([]);
+  });
+
+  it("does not drop a tick on the earlier keypad echo", () => {
+    const typed = { ...before, reps: 9 };
+    const savedEdit = { ...edit, saved: true };
+    const pending = [savedEdit, savedTick];
+    const keyed = session([typed]);
+    const remaining = settled(pending, keyed);
+    expect(remaining).toEqual([savedTick]);
+    expect(withPending(keyed, remaining).exercises[0]?.sets[0]).toMatchObject({
+      reps: 9,
+      completedAt: NOW,
+    });
+  });
+
+  it("rolls back each failed write without reverting a different write", () => {
+    expect(withPending(stored, [tick, edit]).exercises[0]?.sets[0]).toMatchObject({
+      reps: 9,
+      completedAt: NOW,
+    });
+    expect(withPending(stored, [edit]).exercises[0]?.sets[0]).toMatchObject({
+      reps: 9,
+      completedAt: null,
+    });
+    expect(withPending(stored, [savedTick]).exercises[0]?.sets[0]).toMatchObject({
+      reps: 8,
+      completedAt: NOW,
+    });
+    expect(withPending(stored, [savedTick, untick]).rest).toBeNull();
+    expect(withPending(stored, [savedTick]).rest).toEqual(rest);
   });
 });
 
 describe("nudged", () => {
-  const rest = restFrom("set-1", 60, Date.parse(NOW));
+  const rest = { setId: "set-1", startedAt: NOW, endsAt: "2026-01-01T10:01:00.000Z" };
 
   it("caps the actual end time at 600 seconds from now", () => {
     expect(nudged(rest, 1000, Date.parse(NOW))?.endsAt).toBe("2026-01-01T10:10:00.000Z");
@@ -191,6 +221,7 @@ describe("settleTick", () => {
       settleTick({
         ok: true,
         wrote: true,
+        completedAt: NOW,
         values: {},
         rest: { startedAt: NOW, endsAt: NOW },
       }),
@@ -198,7 +229,7 @@ describe("settleTick", () => {
   });
 
   it("takes back only the Rest the store did not start", () => {
-    expect(settleTick({ ok: true, wrote: true, values: {} })).toEqual({
+    expect(settleTick({ ok: true, wrote: true, completedAt: NOW, values: {} })).toEqual({
       outcome: "recorded",
       keepSet: true,
       keepRest: false,

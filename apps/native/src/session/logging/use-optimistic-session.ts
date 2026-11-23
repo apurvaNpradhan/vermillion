@@ -2,25 +2,17 @@ import { markRestEnded } from "@/session/rest/rest-ended";
 import { AppState } from "react-native";
 
 import type { Ghosts } from "@workspace/shared";
-import type { SessionDetail, SetPatch } from "@workspace/sync";
+import type { SetPatch } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  previewValuePatch,
-  restFrom,
-  restKey,
-  setKey,
-  settleTick,
-  tickChange,
-  type SetChange,
-} from "./optimistic";
+import { previewValuePatch, savedSession, type PendingWrite, type SetChange } from "./optimistic";
 import { RestNudges } from "@/session/rest/rest-nudges";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
 import type { SessionStore } from "@/session/store/session-store";
 
 type Actions = ReturnType<typeof useSessionActions>;
 
-/** A change the watch never confirms (a write that failed quietly) stops showing after this. */
+/** Bound the lifetime of saved overlays if the watch skips their final value. */
 const PENDING_MS = 5000;
 
 /**
@@ -30,16 +22,15 @@ const PENDING_MS = 5000;
  * actions to use in place of `actions`. A write that fails takes its change back.
  */
 export function useOptimisticSession(store: SessionStore, actions: Actions) {
-  const completionTail = useRef(Promise.resolve());
-  const enqueueCompletion = useCallback(<T>(write: () => Promise<T>): Promise<T> => {
-    const result = completionTail.current.then(write);
-    completionTail.current = result.then(
+  const writeTail = useRef(Promise.resolve());
+  const enqueueWrite = useCallback(<T>(write: () => Promise<T>): Promise<T> => {
+    const result = writeTail.current.then(write);
+    writeTail.current = result.then(
       () => undefined,
       () => undefined,
     );
     return result;
   }, []);
-  const awaitCompletions = useCallback(() => completionTail.current, []);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const [nudges] = useState(
@@ -49,6 +40,10 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
         (rest) => store.getState().setRestTarget(rest),
       ),
   );
+  const awaitWrites = useCallback(async () => {
+    await writeTail.current;
+    await nudges.flush();
+  }, [nudges]);
   useEffect(() => {
     nudges.observe(store.getState().stored.rest);
     return store.subscribe((state, before) => {
@@ -66,141 +61,133 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
     };
   }, [nudges]);
 
-  const readSet = useCallback(
-    (setId: string) => {
+  const addPreview = useCallback(
+    (setId: string | null, change?: SetChange, rest?: PendingWrite["rest"]) => {
       const state = store.getState();
-      const at = state.storedSets.get(setId);
-      if (!at) return null;
-      const change = state.pending.sets.get(setId)?.change;
-      return change ? { ...at.set, ...change } : at.set;
+      const before = setId === null ? undefined : state.setsById.get(setId);
+      const id = Symbol();
+      const set =
+        setId !== null && before && change ? { id: setId, before, value: change } : undefined;
+      state.updatePending((pending) => [...pending, { id, set, rest }]);
+      return { id, set };
     },
     [store],
   );
 
-  const putSet = useCallback(
-    (setId: string, change: SetChange, awaitFields = false) => {
-      const state = store.getState();
-      const at = state.storedSets.get(setId);
-      if (!at) return () => undefined;
-      const previous = state.pending.sets.get(setId);
-      const entry = {
-        before: setKey(at.set),
-        change: { ...previous?.change, ...change },
-        awaitFields: awaitFields || previous?.awaitFields,
-      };
-      state.updatePending((current) => ({
-        ...current,
-        sets: new Map(current.sets).set(setId, entry),
-      }));
-      const drop = () =>
-        store.getState().updatePending((current) => {
-          if (current.sets.get(setId) !== entry) return current;
-          const sets = new Map(current.sets);
-          sets.delete(setId);
-          return { ...current, sets };
-        });
-      setTimeout(drop, PENDING_MS);
-      return drop;
-    },
-    [store],
-  );
-
-  const editValues = useCallback(
-    async (setId: string, patch: SetPatch) => {
-      const undo = putSet(setId, previewValuePatch(patch), true);
-      const wrote = await actions.updateValues(setId, patch);
-      if (!wrote) undo();
-      return wrote;
-    },
-    [actions.updateValues, putSet],
-  );
-
-  const putRest = useCallback(
-    (value: SessionDetail["rest"]) => {
-      const state = store.getState();
-      const entry = { before: restKey(state.stored.rest), value };
-      state.updatePending((current) => ({ ...current, rest: entry }));
+  const settle = useCallback(
+    (id: symbol, change?: Omit<PendingWrite, "id" | "saved">) => {
       const drop = () =>
         store
           .getState()
-          .updatePending((current) =>
-            current.rest === entry ? { ...current, rest: null } : current,
+          .updatePending((pending) =>
+            pending.some((write) => write.id === id)
+              ? pending.filter((write) => write.id !== id)
+              : pending,
           );
-      setTimeout(drop, PENDING_MS);
-      return drop;
+      if (!change?.set && !change?.rest) {
+        drop();
+        return;
+      }
+      store
+        .getState()
+        .updatePending((pending) =>
+          pending.map((write) => (write.id === id ? { ...change, id, saved: true } : write)),
+        );
+      if (store.getState().pending.some((write) => write.id === id)) setTimeout(drop, PENDING_MS);
     },
     [store],
   );
 
-  /**
-   * Shows the tick at once and writes it behind the earlier writes. The preview goes up before the
-   * first await, so a caller can give its feedback in the same turn as the press; the result says
-   * whether the write held (`null` when it failed), and the preview is taken back when it did not.
-   */
+  const updateValues = useCallback(
+    (setId: string, patch: SetPatch) => {
+      const value = previewValuePatch(patch);
+      const { id, set } = addPreview(setId, value);
+      return enqueueWrite(async () => {
+        const wrote = await actions.updateValues(setId, patch);
+        settle(id, wrote ? { set } : undefined);
+        // A patch that was already saved is safe to tick; a failed patch is not.
+        return wrote !== null;
+      });
+    },
+    [actions.updateValues, addPreview, enqueueWrite, settle],
+  );
+
   const tick = useCallback(
-    async (
+    (
       setId: string,
       ghosts: Ghosts,
-      restSeconds: number | null = null,
+      restSeconds: number | null,
+      change: SetChange | undefined,
       expiresAt?: number,
       savingEdits?: Promise<boolean[]>,
     ) => {
-      const set = readSet(setId);
-      const at = store.getState().storedSets.get(setId);
-      const now = Date.now();
-      const change =
-        at && set && expiresAt === undefined
-          ? tickChange(set, at.type, ghosts, new Date(now).toISOString())
-          : null;
-      const undoSet = change ? putSet(setId, change, true) : () => undefined;
-      const undoRest =
-        change && restSeconds !== null
-          ? putRest(restFrom(setId, restSeconds, now))
-          : () => undefined;
-      const result = await enqueueCompletion(async () => {
+      const { id, set } = addPreview(setId, change);
+      return enqueueWrite(async () => {
+        if (savingEdits && (await savingEdits).includes(false)) {
+          settle(id);
+          return null;
+        }
         await nudges.release();
-        if (savingEdits) await savingEdits;
-        return actions.tick(setId, ghosts, restSeconds, expiresAt);
+        const before = savedSession(store.getState()).rest;
+        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt);
+        if (!result?.ok || !result.wrote) {
+          settle(id);
+          return result;
+        }
+        settle(id, {
+          set: set && {
+            ...set,
+            value: {
+              ...previewValuePatch(result.values),
+              completedAt: result.completedAt,
+              timerStartedAt: null,
+            },
+          },
+          rest: result.rest && { before, value: { value: { setId, ...result.rest } } },
+        });
+        return result;
       });
-      const settlement = settleTick(result);
-      if (!settlement.keepSet) undoSet();
-      if (!settlement.keepRest) undoRest();
-      return result;
     },
-    [actions, enqueueCompletion, nudges, putSet, putRest, readSet, store],
+    [actions.tick, addPreview, enqueueWrite, nudges, settle, store],
   );
 
   const untick = useCallback(
-    async (setId: string) => {
-      const undoSet = putSet(setId, { completedAt: null }, true);
-      const state = store.getState();
-      const rest = state.pending.rest ? state.pending.rest.value : state.stored.rest;
-      const undoRest = rest?.setId === setId ? putRest(null) : () => undefined;
-      const wrote = await enqueueCompletion(async () => {
+    (setId: string) => {
+      const rest = { before: store.getState().session.rest, value: { clearFor: setId } };
+      const { id, set } = addPreview(setId, { completedAt: null }, rest);
+      return enqueueWrite(async () => {
         await nudges.release();
-        return actions.untick(setId);
+        const writtenRest = savedSession(store.getState()).rest;
+        const wrote = await actions.untick(setId);
+        settle(
+          id,
+          wrote
+            ? {
+                set,
+                rest: writtenRest?.setId === setId ? { ...rest, before: writtenRest } : undefined,
+              }
+            : undefined,
+        );
+        return wrote;
       });
-      if (!wrote) {
-        undoSet();
-        undoRest();
-      }
-      return wrote;
     },
-    [actions, enqueueCompletion, nudges, putSet, putRest, store],
+    [actions.untick, addPreview, enqueueWrite, nudges, settle, store],
   );
 
   const skipRest = useCallback(
-    async (sessionId: string) => {
-      const undo = putRest(null);
-      const skipped = await enqueueCompletion(async () => {
+    (sessionId: string) => {
+      const rest = { before: store.getState().session.rest, value: { value: null } };
+      const { id } = addPreview(null, undefined, rest);
+      return enqueueWrite(async () => {
         await nudges.release();
-        return actions.skipRest(sessionId);
+        const before = savedSession(store.getState()).rest;
+        const skipped = await actions.skipRest(sessionId);
+        settle(id, skipped ? { rest: { ...rest, before } } : undefined);
+        if (skipped) markRestEnded(sessionId);
+        return skipped;
       });
-      if (!skipped) undo();
-      else markRestEnded(sessionId);
-      return skipped;
     },
-    [actions, enqueueCompletion, nudges, putRest],
+    [actions.skipRest, addPreview, enqueueWrite, nudges, settle, store],
   );
 
   const nudgeRest = useCallback(
@@ -217,10 +204,9 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       untick,
       skipRest,
       nudgeRest,
-      readSet,
-      editValues,
-      awaitCompletions,
+      updateValues,
+      awaitWrites,
     }),
-    [actions, tick, untick, skipRest, nudgeRest, readSet, editValues, awaitCompletions],
+    [actions, tick, untick, skipRest, nudgeRest, updateValues, awaitWrites],
   );
 }

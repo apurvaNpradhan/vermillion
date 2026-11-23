@@ -1,26 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_PENDING, restFrom, setKey, tickChange } from "../logging/optimistic";
+import { NO_PENDING, previewTick as preview } from "../logging/optimistic";
 import { exercise, session, set, twoExercises } from "./fixtures";
 import { createSessionStore } from "./session-store";
 
 const NOW = "2026-11-21T10:05:00.000Z";
 
 /** What `useOptimisticSession` does for a tick, on the store alone. */
-function previewTick(store: ReturnType<typeof createSessionStore>, setId: string) {
+function previewTick(store: ReturnType<typeof createSessionStore>, setId: string, saved = false) {
   const state = store.getState();
-  const at = state.storedSets.get(setId);
-  if (!at) throw new Error("unknown set");
-  const change = tickChange(at.set, at.type, { weight: 60, reps: 8 }, NOW);
-  if (!change) throw new Error("refused");
-  state.updatePending((current) => ({
+  const at = state.found.get(setId);
+  if (!at) throw new Error("missing set");
+  const result = preview(at.set, at.exercise.type, { weight: 60, reps: 8 }, NOW);
+  if (result.kind !== "ok") throw new Error("refused");
+  state.updatePending((current) => [
     ...current,
-    sets: new Map(current.sets).set(setId, {
-      before: setKey(at.set),
-      change,
-      awaitFields: true,
-    }),
-  }));
+    { id: Symbol(), saved, set: { id: setId, before: at.set, value: result.change } },
+  ]);
 }
 
 describe("the session store", () => {
@@ -43,7 +39,7 @@ describe("the session store", () => {
   it("keeps the shown Session when the watch delivers what is already shown", () => {
     const stored = twoExercises();
     const store = createSessionStore(stored);
-    previewTick(store, "b2");
+    previewTick(store, "b2", true);
     const shown = store.getState().session;
     const delivered = session([
       stored.exercises[0] ?? exercise("a", []),
@@ -56,7 +52,7 @@ describe("the session store", () => {
     store.getState().setStored(delivered);
     const after = store.getState();
     // The pending change is spent, and the Session is the object it was.
-    expect(after.pending.sets.size).toBe(0);
+    expect(after.pending.length).toBe(0);
     expect(after.session).toBe(shown);
     expect(after.views.get("b")).toBeDefined();
   });
@@ -71,11 +67,13 @@ describe("the session store", () => {
 
   it("shows a pending Rest and a Rest target over the stored one", () => {
     const store = createSessionStore(twoExercises());
-    const rest = restFrom("a1", 90, Date.parse(NOW));
-    store.getState().updatePending((current) => ({
-      ...current,
-      rest: { before: JSON.stringify(null), value: rest },
-    }));
+    const rest = { setId: "a1", startedAt: NOW, endsAt: "2026-11-21T10:06:30.000Z" };
+    store
+      .getState()
+      .updatePending((current) => [
+        ...current,
+        { id: Symbol(), saved: true, rest: { before: null, value: { value: rest } } },
+      ]);
     expect(store.getState().session.rest).toEqual(rest);
     store.getState().setRestTarget(null);
     expect(store.getState().session.rest).toBeNull();

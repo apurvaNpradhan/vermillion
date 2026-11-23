@@ -79,6 +79,20 @@ describe("deriveExercises", () => {
     expect(after?.rows.get("b2")).toBe(before?.rows.get("b2"));
   });
 
+  it("rebuilds views only for exercises whose history changed", () => {
+    const before = inputs({ previous: new Map([["lib-b", []]]) });
+    const first = deriveExercises([a, b], before, context, new Map());
+    const after = inputs({
+      previous: new Map([
+        ["lib-a", []],
+        ["lib-b", []],
+      ]),
+    });
+    const second = deriveExercises([a, b], after, context, first);
+    expect(second.get("b")?.view).toBe(first.get("b")?.view);
+    expect(second.get("a")?.view.historyReady).toBe(true);
+  });
+
   it("rebuilds every exercise when the inputs change", () => {
     const first = deriveExercises([a, b], inputs(), context, new Map());
     const second = deriveExercises([a, b], inputs({ unit: "lb" }), context, first);

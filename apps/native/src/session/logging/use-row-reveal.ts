@@ -8,7 +8,10 @@ type Scroller = { scrollToOffset: (params: { offset: number; animated?: boolean 
  * Scrolls a set into view above the keypad while it is being edited. Positions are measured in the
  * window, so it does not matter how deeply a row is nested.
  */
-export function useRowReveal(scrollRef: RefObject<Scroller | null>) {
+export function useRowReveal(
+  scrollRef: RefObject<Scroller | null>,
+  isActive: (setId: string) => boolean,
+) {
   const viewportRef = useRef<View>(null);
   const offset = useRef(0);
   const rows = useRef(new Map<string, View>());
@@ -43,6 +46,7 @@ export function useRowReveal(scrollRef: RefObject<Scroller | null>) {
       if (!row || !viewport) return;
       viewport.measureInWindow((_vx, vy, _vw, vh) => {
         row.measureInWindow((_rx, ry, _rw, rh) => {
+          if (!isActive(key) || rows.current.get(key) !== row) return;
           const delta = then({ top: ry, bottom: ry + rh }, { top: vy, bottom: vy + vh });
           if (delta !== null && delta !== 0) {
             scrollRef.current?.scrollToOffset({
@@ -53,7 +57,7 @@ export function useRowReveal(scrollRef: RefObject<Scroller | null>) {
         });
       });
     },
-    [],
+    [isActive, scrollRef],
   );
 
   /** Moves the row just enough to be fully visible, with a margin. */

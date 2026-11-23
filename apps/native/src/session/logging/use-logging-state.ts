@@ -8,10 +8,12 @@ import {
   type ExerciseBests,
   type Ghosts,
   type SetKind,
+  type SetField,
   type LighterPeriod,
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail, SetPatch } from "@workspace/sync";
+import { useIsFocused } from "expo-router";
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { AppState } from "react-native";
 import { useStore } from "zustand";
@@ -43,14 +45,14 @@ import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { hasRequiredSetValues, historySettled } from "./history-gate";
-import { previewTick, settleTick } from "./optimistic";
+import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
 import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
   ReturnType<typeof useOptimisticSession>,
-  "tick" | "untick" | "updateValues" | "addExtraSet" | "readSet" | "editValues" | "awaitCompletions"
+  "tick" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
 >;
 
 /**
@@ -117,6 +119,20 @@ export function useLoggingState({
   const lighterWeeks = useStableValue(rawLighterWeeks);
   const shownDisplay = useStableValue(display);
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
+  const badges = useCallback(
+    (sets: readonly { kind: SetKind }[]) =>
+      chipTexts(sets, {
+        working: "",
+        warmup: t("training__chip_warmup"),
+        drop: t("training__chip_drop"),
+        failure: t("training__chip_failure"),
+        top: t("training__chip_top"),
+        backoff: t("training__chip_backoff"),
+        myo: t("training__chip_myo"),
+      }),
+    [t],
+  );
   const inputs = useMemo<DeriveInputs>(
     () => ({
       previous,
@@ -127,20 +143,11 @@ export function useLoggingState({
       display: shownDisplay,
       weightIncrementKg,
       lighterWeeks,
-      lighter: activeLighterWeek(lighterWeeks, new Date()) !== null,
+      lighter,
       bodyweightKg,
       stallVersion,
       stallMemory,
-      chipTexts: (sets) =>
-        chipTexts(sets, {
-          working: "",
-          warmup: t("training__chip_warmup"),
-          drop: t("training__chip_drop"),
-          failure: t("training__chip_failure"),
-          top: t("training__chip_top"),
-          backoff: t("training__chip_backoff"),
-          myo: t("training__chip_myo"),
-        }),
+      chipTexts: badges,
     }),
     [
       previous,
@@ -151,9 +158,10 @@ export function useLoggingState({
       shownDisplay,
       weightIncrementKg,
       lighterWeeks,
+      lighter,
       bodyweightKg,
       stallVersion,
-      t,
+      badges,
     ],
   );
   useLayoutEffect(() => {
@@ -222,17 +230,18 @@ export function useLoggingState({
     return current ? { cell: current, raw: text, fresh: isFresh } : null;
   }, [store]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
-    actions.editValues(patch.setId, patch.values),
+    actions.updateValues(patch.setId, patch.values),
   );
   const activeSetId = cell?.setId ?? null;
 
   /** Saves what is typed now, for a cell that is about to be left. */
   const { flush } = writer;
-  const { awaitCompletions } = actions;
-  const flushForFinish = useCallback(async () => {
+  const { awaitWrites } = actions;
+  const flushWrites = useCallback(async () => {
     await flush();
-    await awaitCompletions();
-  }, [flush, awaitCompletions]);
+    await awaitWrites();
+    return store.getState().stats;
+  }, [flush, awaitWrites, store]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") void flush();
@@ -248,7 +257,7 @@ export function useLoggingState({
       if (!at) return;
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(actions.readSet(setId) ?? at.set, field), unit),
+        raw: textOfValue(field, valueOfSet(at.set, field), unit),
         fresh: true,
       });
     },
@@ -388,7 +397,7 @@ export function useLoggingState({
         loaded: previous.has(at.exercise.exerciseId),
         failed: historyFailed,
       });
-      const latest = actions.readSet(setId) ?? at.set;
+      const latest = at.set;
       if (
         !settled &&
         (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
@@ -402,63 +411,73 @@ export function useLoggingState({
         block && state.session.finishedAt === null
           ? restAfterTick(block, at.exercise.id, setId)
           : null;
-      if (editor) state.setFocusedExercise(at.exercise.id);
       // Already ticked (a countdown that ends after a manual tick): nothing to do, nothing to play.
       if (latest.completedAt !== null) return true;
       const used = settled ? ghosts : {};
 
-      // What the press does is known without the database: refuse here, or answer at once.
-      if (!strong) {
-        const preview = previewTick(latest, at.exercise.type, used, new Date().toISOString());
-        if (preview.kind === "refused") {
-          state.setRefusal({ setId, fields: preview.missing });
-          haptic.alert();
-          sound.play("refused");
-          return false;
-        }
-      }
-      if (strong) haptic.success();
-      else haptic.tick();
-      // A countdown that reached zero is the only `strong` tick.
-      sound.playTick({ record: false, countdown: strong });
-
-      const result = await actions.tick(setId, used, seconds, expiresAt, savingEdits);
-      const settlement = settleTick(result);
-      if (settlement.outcome === "failed") {
-        toast.show({ variant: "danger", label: t("session__tick_failed_toast") });
-        return false;
-      }
-      if (result && !result.ok) {
-        store.getState().setRefusal({ setId, fields: result.missing });
+      const preview = previewTick(
+        latest,
+        at.exercise.type,
+        used,
+        new Date(expiresAt ?? Date.now()).toISOString(),
+      );
+      const refuse = (missing: readonly SetField[]) => {
+        store.getState().setRefusal({ setId, fields: missing });
         haptic.alert();
         sound.play("refused");
+      };
+      if (preview.kind === "refused" && !strong) {
+        refuse(preview.missing);
+        return false;
+      }
+      if (!strong) {
+        haptic.tick();
+        sound.playTick({ record: false, countdown: false });
+      }
+      const result = await actions.tick(
+        setId,
+        used,
+        seconds,
+        preview.kind === "ok" ? preview.change : undefined,
+        expiresAt,
+        savingEdits,
+      );
+      const settlement = settleTick(result);
+      if (settlement.outcome === "failed") return false;
+      if (result && !result.ok) {
+        refuse(result.missing);
         return false;
       }
       if (!result || !result.wrote) return true;
-      if (result.rest) onRestStarted?.();
+      // The database verifies the exact expiry. Another screen may already have logged it.
+      if (strong) {
+        haptic.success();
+        sound.playTick({ record: false, countdown: true });
+      }
+      if (result.rest && store.getState().session.rest?.startedAt === result.rest.startedAt)
+        onRestStarted?.();
 
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
       const completed = {
         ...loggedSetOf(at.exercise, latest, countWarmups),
         ...result.values,
-        completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
+        completed_at: result.completedAt,
       };
-      const isRecord = (bests: Map<string, ExerciseBests>) =>
-        tickedSetIsRecord({
+      const isRecord = (bests: Map<string, ExerciseBests>) => {
+        const state = store.getState();
+        if (state.setsById.get(setId)?.completedAt !== result.completedAt) return false;
+        return tickedSetIsRecord({
           bests,
-          sets: store
-            .getState()
-            .session.exercises.flatMap((exercise) =>
-              exercise.exerciseId === at.exercise.exerciseId
-                ? exercise.sets.map((set) =>
-                    set.id === setId ? completed : loggedSetOf(exercise, set, countWarmups),
-                  )
-                : [],
-            ),
+          sets: savedSession(state).exercises.flatMap((exercise) =>
+            exercise.exerciseId === at.exercise.exerciseId
+              ? exercise.sets.map((set) => loggedSetOf(exercise, set, countWarmups))
+              : [],
+          ),
           setId,
           bodyweightKg,
         });
+      };
       const announceRecord = () => {
         sound.play("record");
         // The tick already buzzed; a countdown's one buzz was the success.
@@ -511,28 +530,31 @@ export function useLoggingState({
 
   const onTick = useCallback(
     async (setId: string) => {
-      const at = actions.readSet(setId);
-      if (!at || readOnly) return;
+      if (readOnly) return;
       const savingEdits = flush();
       setEntry(null);
-      store.getState().setRefusal(null);
-      if (at.completedAt !== null) {
-        await actions.untick(setId);
+      const state = store.getState();
+      const at = state.found.get(setId);
+      if (!at) return;
+      state.setRefusal(null);
+      if (editor) state.setFocusedExercise(at.exercise.id);
+      if (at.set.completedAt !== null) {
+        if (editor) await actions.untick(setId);
         return;
       }
       await tickWith(setId, lookupGhosts(setId), undefined, savingEdits);
     },
-    [readOnly, flush, actions, lookupGhosts, tickWith, store, setEntry],
+    [readOnly, flush, actions, lookupGhosts, tickWith, store, setEntry, editor],
   );
 
   // ---- Duration timers ----
   const onTimer = useCallback(
     async (setId: string) => {
+      if (readOnly) return;
+      const savingEdits = flush();
       const state = store.getState();
       const at = state.found.get(setId);
-      if (!at || readOnly || state.session.finishedAt !== null || at.set.completedAt !== null)
-        return;
-      flush();
+      if (!at || state.session.finishedAt !== null || at.set.completedAt !== null) return;
       setEntry(null);
       if (at.set.timerStartedAt === null) {
         await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
@@ -542,7 +564,12 @@ export function useLoggingState({
       } else {
         // A stopwatch logs what it counted.
         const elapsed = timerView(at.set.timerStartedAt, null, Date.now()).elapsed;
-        await tickWith(setId, { ...lookupGhosts(setId), duration: Math.max(1, elapsed) });
+        await tickWith(
+          setId,
+          { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
+          undefined,
+          savingEdits,
+        );
       }
     },
     [store, readOnly, flush, actions, tickWith, lookupGhosts, setEntry],
@@ -555,12 +582,13 @@ export function useLoggingState({
   );
   useEffect(() => {
     autoTick.current = async ({ id, duration, expiresAt }) => {
-      await tickWith(id, { ...lookupGhosts(id), duration }, expiresAt);
+      await tickWith(id, { ...lookupGhosts(id), duration }, expiresAt, flush());
     };
   });
+  const focused = useIsFocused();
   const firing = useRef(new Set<string>());
   useEffect(() => {
-    if (readOnly || !(historyReady || historyFailed)) return;
+    if (!focused || readOnly || finished || !(historyReady || historyFailed)) return;
     const sets = exercises.flatMap((exercise) =>
       exercise.sets.filter((set) => set.timerStartedAt !== null && timerTarget(set) !== null),
     );
@@ -581,7 +609,7 @@ export function useLoggingState({
       clearInterval(timer);
       subscription.remove();
     };
-  }, [exercises, readOnly, historyReady, historyFailed]);
+  }, [exercises, focused, finished, readOnly, historyReady, historyFailed]);
 
   // ---- Previous, kind, add and remove ----
   const onPrevious = useCallback(
@@ -614,9 +642,8 @@ export function useLoggingState({
       flush();
       const at = store.getState().found.get(setId);
       if (!at) return;
-      for (const update of copySetUpdates(at.exercise, setId, mode, lookupPrevious(setId), draft)) {
-        await actions.updateValues(update.id, update.patch);
-      }
+      const updates = copySetUpdates(at.exercise, setId, mode, lookupPrevious(setId), draft);
+      await Promise.all(updates.map(({ id, patch }) => actions.updateValues(id, patch)));
       store.getState().setRefusal(null);
     },
     [readOnly, flush, store, lookupPrevious, actions, unit, readEntry],
@@ -699,7 +726,7 @@ export function useLoggingState({
     addSet: stableAddSet,
     found,
     flush,
-    flushForFinish,
+    flushWrites,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };

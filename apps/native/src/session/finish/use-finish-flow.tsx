@@ -28,8 +28,8 @@ export function useFinishFlow({
   ticked: number;
   unticked: number;
   actions: Pick<ReturnType<typeof useSessionActions>, "discard">;
-  /** Saves what is typed in the keypad's cell. */
-  flush: () => Promise<void>;
+  /** Waits for the keypad and completion writes, then reads the latest counts. */
+  flush: () => Promise<{ ticked: number; unticked: number }>;
   closeKeypad: () => void;
   /** The Session is gone (discarded): leave the screen. */
   onMinimise: () => void;
@@ -41,8 +41,8 @@ export function useFinishFlow({
   const [confirmFinish, setConfirmFinish] = useState(false);
 
   const finish = async () => {
-    await flush();
-    if (ticked === 0 && session.finishedAt === null) {
+    const saved = await flush();
+    if (saved.ticked === 0 && session.finishedAt === null) {
       // Nothing was logged: a finished empty Session would only be clutter, so it is discarded.
       if (await actions.discard(session.id, title)) onMinimise();
       return;
@@ -50,10 +50,10 @@ export function useFinishFlow({
     onFinished(session.id);
   };
 
-  const askFinish = () => {
-    void flush();
-    if (ticked === 0 || unticked > 0) setConfirmFinish(true);
-    else void finish();
+  const askFinish = async () => {
+    const saved = await flush();
+    if (saved.ticked === 0 || saved.unticked > 0) setConfirmFinish(true);
+    else onFinished(session.id);
   };
 
   const sheets = (

@@ -1,6 +1,7 @@
 import type { SessionDetail } from "@workspace/sync";
 
-import { nudged, restKey } from "../logging/optimistic";
+import { nudged } from "../logging/optimistic";
+import { deepEqual } from "../store/equal";
 
 type Rest = SessionDetail["rest"];
 type Saved = Pick<NonNullable<Rest>, "startedAt" | "endsAt"> | null;
@@ -10,6 +11,7 @@ export class RestNudges {
   // undefined follows the watch; null previews an ended rest.
   private target: Rest | undefined;
   private base: Rest = null;
+  private observed: Rest | undefined;
   private delta = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | undefined;
@@ -20,7 +22,13 @@ export class RestNudges {
   ) {}
 
   observe(rest: Rest) {
-    if (!this.saving && this.delta === 0 && restKey(rest) === restKey(this.target ?? null)) {
+    this.observed = rest;
+    if (
+      this.target !== undefined &&
+      !this.saving &&
+      this.delta === 0 &&
+      deepEqual(rest, this.target)
+    ) {
       this.target = undefined;
       this.show(undefined);
     }
@@ -69,12 +77,15 @@ export class RestNudges {
       await this.saving;
     } finally {
       this.saving = undefined;
+      if (this.observed !== undefined) this.observe(this.observed);
     }
   }
 
   /** Flush before a different action replaces or clears this rest. */
   async release() {
-    await this.flush();
+    do {
+      await this.flush();
+    } while (this.delta !== 0);
     this.target = undefined;
     this.show(undefined);
   }

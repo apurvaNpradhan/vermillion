@@ -61,8 +61,9 @@ export function useSessionActions() {
       write<TickResult | null>(
         (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt),
         null,
+        t("session__tick_failed_toast"),
       ),
-    [write, writeScope],
+    [write, writeScope, t],
   );
 
   /**
@@ -90,7 +91,7 @@ export function useSessionActions() {
 
   const updateValues = useCallback(
     (setId: string, patch: SetPatch) =>
-      write((db) => updateSet(db, setId, patch, writeScope), false),
+      write((db) => updateSet(db, setId, patch, writeScope), null),
     [write, writeScope],
   );
 
