@@ -1,7 +1,7 @@
 import type { UiPreferences } from "@workspace/shared";
 
 /**
- * The Rest-end chime (uisfx "zen" notification, MIT: see assets/sounds/CREDITS.md). Android
+ * The Rest-end chime (generated in-repo, see assets/sounds/CREDITS.md and tools/sounds/). Android
  * resolves a raw resource by this name, without the extension; iOS looks the file up in the
  * bundle with it. Both are registered by the expo-notifications plugin in app.config.ts.
  */
