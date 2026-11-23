@@ -293,17 +293,23 @@ export function ShareComposer<Id extends string>({
               <View className="flex-row flex-wrap items-center justify-center gap-2">
                 <Pressable
                   accessibilityRole="switch"
-                  accessibilityState={{ checked: cardLink.enabled }}
+                  accessibilityState={{
+                    checked: cardLink.enabled && cardLink.allowed,
+                    disabled: !cardLink.allowed,
+                  }}
                   accessibilityLabel={t("share__toggle_link")}
+                  disabled={!cardLink.allowed}
                   onPress={() => {
                     haptic.tick();
                     cardLink.setEnabled(!cardLink.enabled);
                   }}
-                  className="h-9 flex-row items-center gap-1.5 rounded-full border border-transparent bg-default px-3"
+                  className={`h-9 flex-row items-center gap-1.5 rounded-full border border-transparent bg-default px-3 ${
+                    cardLink.allowed ? "" : "opacity-40"
+                  }`}
                 >
-                  {cardLink.enabled ? <Check size={20} color={ink} /> : null}
+                  {cardLink.enabled && cardLink.allowed ? <Check size={20} color={ink} /> : null}
                   <Text
-                    className={`text-label ${cardLink.enabled ? "font-medium text-foreground" : "text-muted"}`}
+                    className={`text-label ${cardLink.enabled && cardLink.allowed ? "font-medium text-foreground" : "text-muted"}`}
                   >
                     {t("share__toggle_link")}
                   </Text>
@@ -311,15 +317,22 @@ export function ShareComposer<Id extends string>({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: cardLink.busy, busy: cardLink.busy }}
-                  disabled={cardLink.busy}
+                  disabled={cardLink.busy || !cardLink.allowed}
                   onPress={() => void cardLink.shareLink()}
-                  className="h-9 flex-row items-center gap-1.5 rounded-full bg-default px-3 active:opacity-60"
+                  className={`h-9 flex-row items-center gap-1.5 rounded-full bg-default px-3 active:opacity-60 ${
+                    cardLink.allowed ? "" : "opacity-40"
+                  }`}
                 >
                   {cardLink.busy ? <Spinner size="sm" /> : null}
                   <Text className="text-label font-medium text-foreground">
                     {t("share__share_link")}
                   </Text>
                 </Pressable>
+                {cardLink.allowed ? null : (
+                  <Text className="w-full text-center text-caption text-muted">
+                    {t("share__link_needs_exercises")}
+                  </Text>
+                )}
               </View>
             ) : null}
 
@@ -342,9 +355,7 @@ export function ShareComposer<Id extends string>({
                   busy: actions.busy === "save-all",
                 }}
                 disabled={actions.busy !== null}
-                onPress={() =>
-                  void cardLink.prepare().then(() => actions.saveAll(whole.map(cardTarget)))
-                }
+                onPress={() => void actions.saveAll(whole.map(cardTarget))}
                 className="min-h-11 flex-row items-center justify-center gap-2 active:opacity-60"
               >
                 {actions.busy === "save-all" ? <Spinner size="sm" /> : null}
@@ -361,7 +372,7 @@ export function ShareComposer<Id extends string>({
               variant="secondary"
               isDisabled={actions.busy !== null}
               accessibilityState={{ busy: actions.busy === "save" }}
-              onPress={() => void cardLink.prepare().then(() => actions.save(cardTarget(current)))}
+              onPress={() => void actions.save(cardTarget(current))}
             >
               {actions.busy === "save" ? <Spinner size="sm" /> : null}
               <Button.Label>{t("share__save")}</Button.Label>

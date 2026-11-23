@@ -1662,6 +1662,7 @@
   "share__share_link": "Share link",
   "share__link_message": "{{url}}",
   "share__link_nothing": "There is nothing to share yet.",
+  "share__link_needs_exercises": "Turn on Show exercises to add a link.",
   "share__link_offline": "Making a link needs a connection.",
   "share__link_limit": "You have too many active links. Turn some off in Settings.",
   "share__link_failed": "Couldn't make the link. Try again.",

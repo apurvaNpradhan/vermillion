@@ -73,7 +73,15 @@ function WorkoutBlock({
   );
 }
 
-function Found({ snapshot, onClose }: { snapshot: Snapshot; onClose: () => void }) {
+function Found({
+  snapshot,
+  recheck,
+  onClose,
+}: {
+  snapshot: Snapshot;
+  recheck: () => Promise<boolean>;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const { toast } = useAppToast();
@@ -81,7 +89,7 @@ function Found({ snapshot, onClose }: { snapshot: Snapshot; onClose: () => void 
   const matches = plan.exercises ?? [];
   const summary = summariseImport(snapshot, matches);
   const keyOf = (exercise: ShareExercise) =>
-    `${exercise.catalog_id ?? ""}|${exercise.name}|${exercise.equipment}`;
+    `${exercise.catalog_id ?? ""}|${exercise.name}|${exercise.equipment}|${exercise.exercise_type}`;
   const created = new Set(
     matches.flatMap((item) => (item.match.kind === "new" ? [keyOf(item.exercise)] : [])),
   );
@@ -95,6 +103,8 @@ function Found({ snapshot, onClose }: { snapshot: Snapshot; onClose: () => void 
         : null) ?? t("training__workout");
 
   const add = async () => {
+    // A link turned off since the preview opened must not be added; the screen then says so.
+    if (!(await recheck())) return;
     const added = await plan.add();
     if (!added) return;
     haptic.success();
@@ -188,7 +198,8 @@ function Found({ snapshot, onClose }: { snapshot: Snapshot; onClose: () => void 
 export function ImportPreviewScreen({ code, onClose }: { code: string; onClose: () => void }) {
   const { t } = useTranslation();
   const preview = useSharePreview(code);
-  if (preview.status === "found") return <Found snapshot={preview.snapshot} onClose={onClose} />;
+  if (preview.status === "found")
+    return <Found snapshot={preview.snapshot} recheck={preview.recheck} onClose={onClose} />;
   const copy = {
     loading: ["share__import_loading", "share__import_loading_hint"],
     missing: ["share__import_missing", "share__import_missing_hint"],
