@@ -61,6 +61,8 @@ type Props = {
   readout?: (point: ChartPoint) => string;
   /** Rendered under the chart, below its date axis (metric chips). */
   footer?: ReactNode;
+  /** Chips that share the range chips' row, before them (the metric to draw). */
+  leading?: ReactNode;
 };
 
 export function LineChart(props: Props) {
@@ -78,6 +80,7 @@ function Chart({
   showRanges = true,
   readout,
   footer,
+  leading,
   secondaryPoints = [],
   goal,
   domain: domainProp,
@@ -168,34 +171,37 @@ function Chart({
   );
   return (
     <View className="gap-3">
-      {showRanges ? (
+      {showRanges || leading ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2"
+          contentContainerClassName="items-center gap-2"
         >
-          {(["3M", "1Y", "All"] satisfies ChartRange[]).map((value) => (
-            <Button
-              key={value}
-              size="sm"
-              variant={range === value ? "primary" : "tertiary"}
-              accessibilityState={{ selected: range === value }}
-              onPress={() => {
-                setRange(value);
-                setActive(-1);
-              }}
-            >
-              <Button.Label>
-                {t(
-                  value === "3M"
-                    ? "charts__three_months"
-                    : value === "1Y"
-                      ? "charts__one_year"
-                      : "charts__all",
-                )}
-              </Button.Label>
-            </Button>
-          ))}
+          {leading}
+          {showRanges
+            ? (["3M", "1Y", "All"] satisfies ChartRange[]).map((value) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={range === value ? "primary" : "tertiary"}
+                  accessibilityState={{ selected: range === value }}
+                  onPress={() => {
+                    setRange(value);
+                    setActive(-1);
+                  }}
+                >
+                  <Button.Label>
+                    {t(
+                      value === "3M"
+                        ? "charts__three_months"
+                        : value === "1Y"
+                          ? "charts__one_year"
+                          : "charts__all",
+                    )}
+                  </Button.Label>
+                </Button>
+              ))
+            : null}
         </ScrollView>
       ) : null}
       <Text

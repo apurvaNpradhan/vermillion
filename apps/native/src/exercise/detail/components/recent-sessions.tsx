@@ -2,7 +2,6 @@ import type { FinishedSession } from "@workspace/sync";
 import { KG_PER_LB, SET_KIND_KEYS, type SetKind, type WeightUnit } from "@workspace/shared";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
-import { Button } from "@/platform/ui/button";
 
 import { formatClock, workingSetNumber } from "../numbers";
 import { useHumanUnits } from "../use-human-units";
@@ -18,19 +17,15 @@ const KIND_TEXT = {
   myo: "text-set-myo",
 } as const satisfies Record<SetKind, string>;
 
-/** Ticked warm-ups remain visible here; they never contribute to the numbers above. */
+/** Every set of each session, for the full history. Ticked warm-ups show; they never count. */
 export function RecentSessions({
   sessions,
   unit,
   timezone,
-  onSeeAll,
-  showHeading = true,
 }: {
   sessions: readonly FinishedSession[];
   unit: WeightUnit;
   timezone: string | null;
-  onSeeAll?: () => void;
-  showHeading?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const { distance } = useHumanUnits();
@@ -41,18 +36,6 @@ export function RecentSessions({
   });
   return (
     <View className="gap-3">
-      {showHeading ? (
-        <View className="flex-row items-center justify-between">
-          <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
-            {t("exercise__recent")}
-          </Text>
-          {onSeeAll ? (
-            <Button variant="tertiary" size="sm" onPress={onSeeAll}>
-              <Button.Label>{t("exercise__see_all")}</Button.Label>
-            </Button>
-          ) : null}
-        </View>
-      ) : null}
       {sessions.map((session) => (
         <View key={session.id} className="gap-2 pb-3 pt-1">
           <Text className="text-body font-semibold text-foreground">{session.title}</Text>

@@ -2,9 +2,9 @@
 
 Public surface: `index.ts`. Each folder is one feature; hooks, components, pure logic and tests live together.
 
-- `home/`: the Home tab, the week strip, next workout, Lighter week card and last-done dates. Start at `home-screen.tsx`.
+- `home/`: the Home tab: the swipeable week strip, the next-workout hero, This week and the contextual cards (Lighter week, a stalled lift, last session's records). Start at `home-screen.tsx`.
 - `train/`: the Train tab workout list, its rows and starting a workout. Start at `train-screen.tsx`.
-- `muscles/`: weekly muscle volume against goals: the Muscles screen, its goal sheet. Start at `muscles-screen.tsx`.
+- `muscles/`: this week's sets against each muscle's target with the four-week average, the eight-week chart and goal sheet, the heat map body. Reached from History. Start at `muscles-screen.tsx`.
 - `programs/`: Program library, run, details, cover and meta. Start at `program-screen.tsx`.
 - `rotation/`: rotation slots, their rows and adding workouts to a Program. Start at `rotation.ts`.
 - `workouts/`: Workout preview, editor, exercise rows, notes and muscle coverage. Start at `workout-editor.tsx`.

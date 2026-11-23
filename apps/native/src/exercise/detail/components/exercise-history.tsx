@@ -31,12 +31,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
           extraData={extraData}
           renderItem={({ item }) => (
             <View className="px-4 pb-4">
-              <RecentSessions
-                sessions={[item]}
-                unit={weightUnit}
-                timezone={timeZone}
-                showHeading={false}
-              />
+              <RecentSessions sessions={[item]} unit={weightUnit} timezone={timeZone} />
             </View>
           )}
           ListHeaderComponent={<View className="px-4 pb-4">{header}</View>}

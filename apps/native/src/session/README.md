@@ -13,8 +13,8 @@ Public surface: `index.ts`. Each folder is one feature; hooks, components, pure 
 - `warmups/`: automatic warm-up ramps and "Add warm-ups". Start at `use-auto-warmups.ts`; the ramp itself is `warmupRamp` in `packages/shared`.
 - `plates/`: the plate calculator and equipment management. Start at `plate-calculator-sheet.tsx`.
 - `finish/`: finish flow, summary screen, records and the routine update sheet. Start at `use-finish-flow.tsx`.
-- `history/`: history list, calendar, detail and logging a past session. Start at `history-screen.tsx`.
+- `history/`: the week strip with its month calendar, the week-grouped list, session detail and logging a past session. Start at `history-screen.tsx`.
 - `settings/`: session settings sheet and sound cues. Start at `use-session-settings.tsx`.
-- `report/`: the month and year report (History's Report button, Home's card, its share cards). Start at `period-report.ts`.
+- `report/`: the Reports screen (month, year and all-time summaries, opened from History's header) and the month and year report with its share cards. Start at `period-report.ts`.
 - `share/`: the Session share cards and composer. Start at `session-share-screen.tsx`.
 - `shared/`: small helpers two or more features use (sheet shell, install id, clock hook).

@@ -21,7 +21,7 @@ import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
-import { lastDoneLabel } from "@/training/home/last-done";
+import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
 import { useWorkout } from "./use-workout";
 import { usePreferences } from "@/preferences";
