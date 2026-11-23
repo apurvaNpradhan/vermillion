@@ -107,12 +107,6 @@ export function useSubtleColor(): string | undefined {
   return isColorString(value) ? value : undefined;
 }
 
-/** The check on a completed set's tick. */
-export function useOnSetDoneColor(): string | undefined {
-  const value = useCSSVariable("--color-on-set-done");
-  return isColorString(value) ? value : undefined;
-}
-
 /** Primary action ink (toggles, timers, progress), for props that require a color string. */
 export function useActionColor(): string | undefined {
   const value = useCSSVariable("--accent");

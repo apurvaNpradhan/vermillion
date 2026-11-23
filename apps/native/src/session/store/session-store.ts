@@ -8,6 +8,13 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
+import {
+  afterChange,
+  expandedForCell,
+  expandedWith,
+  expandedWithout,
+  initialExpanded,
+} from "../logging/accordion";
 import { blocksOf, firstUnfinished, highlightOf, nextAfter, type Block } from "../logging/blocks";
 import type { CellRef } from "../logging/keypad-entry";
 import { NO_PENDING, settled, withPending, type Pending } from "../logging/optimistic";
@@ -71,10 +78,18 @@ type Derived = {
 /** The keypad: the cell being edited and what is typed in it. `fresh` means the next key replaces it. */
 export type EntryState = { cell: CellRef | null; raw: string; fresh: boolean };
 
+/** A request to scroll an exercise into view; a new `nonce` is a new request. */
+export type ScrollRequest = { exerciseId: string; nonce: number };
+
 export type SessionState = Base &
   Derived &
   EntryState & {
     refusal: Refusal | null;
+    /** The exercises that are open (in memory only: a new screen starts from the first unfinished). */
+    expanded: ReadonlySet<string>;
+    scrollRequest: ScrollRequest | null;
+    toggleExpanded: (exerciseId: string) => void;
+    expand: (exerciseIds: readonly string[]) => void;
     setStored: (session: SessionDetail) => void;
     updatePending: (update: (current: Pending) => Pending) => void;
     setRestTarget: (rest: SessionDetail["rest"] | undefined) => void;
@@ -257,22 +272,58 @@ export function createSessionStore(
     focusedExerciseId: null,
   };
   return createStore<SessionState>()((set, get) => {
+    const first = compute(base, null);
     /** Applies a change to the inputs and recomputes what depends on them. */
     const apply = (patch: Partial<Base>) => {
       const before = get();
       const next: Base = { ...before, ...patch };
       const derived = compute(next, before);
+      const accordion =
+        derived.blocks === before.blocks
+          ? { expanded: before.expanded, reveal: null }
+          : afterChange(before.blocks, derived.blocks, before.expanded);
+      const cellExercise =
+        before.cell === null ? undefined : derived.found.get(before.cell.setId)?.exercise.id;
+      // The keypad closes with its row: a set that is gone, a read-only Session, a closed exercise.
       const closes =
-        before.cell !== null && (!derived.found.has(before.cell.setId) || next.ui.readOnly);
+        before.cell !== null &&
+        (cellExercise === undefined || next.ui.readOnly || !accordion.expanded.has(cellExercise));
       set({
         ...patch,
         ...derived,
+        expanded: accordion.expanded,
+        ...(accordion.reveal === null
+          ? {}
+          : {
+              scrollRequest: {
+                exerciseId: accordion.reveal,
+                nonce: (before.scrollRequest?.nonce ?? 0) + 1,
+              },
+            }),
         ...(closes ? { cell: null, raw: "", fresh: true } : {}),
       });
     };
     return {
       ...base,
-      ...compute(base, null),
+      ...first,
+      expanded: initialExpanded(first.blocks),
+      scrollRequest: null,
+      toggleExpanded: (exerciseId) => {
+        const open = get().expanded;
+        if (open.has(exerciseId)) {
+          const cell = get().cell;
+          const closesCell =
+            cell !== null && get().found.get(cell.setId)?.exercise.id === exerciseId;
+          set({
+            expanded: expandedWithout(open, [exerciseId]),
+            ...(closesCell ? { cell: null, raw: "", fresh: true } : {}),
+          });
+        } else set({ expanded: expandedWith(open, [exerciseId]) });
+      },
+      expand: (exerciseIds) => {
+        const next = expandedWith(get().expanded, exerciseIds);
+        if (next !== get().expanded) set({ expanded: next });
+      },
       cell: null,
       raw: "",
       fresh: true,
@@ -298,13 +349,33 @@ export function createSessionStore(
       setFocusedExercise: (exerciseId) => {
         if (get().focusedExerciseId !== exerciseId) apply({ focusedExerciseId: exerciseId });
       },
+      // A cell in a closed exercise has no row yet: open the exercise with it.
       setEntry: (next) =>
         set(
           next
-            ? { cell: next.cell, raw: next.raw, fresh: next.fresh }
+            ? {
+                cell: next.cell,
+                raw: next.raw,
+                fresh: next.fresh,
+                expanded: expandedForCell(
+                  get().expanded,
+                  get().found.get(next.cell.setId)?.exercise.id,
+                ),
+              }
             : { cell: null, raw: "", fresh: true },
         ),
-      setRefusal: (refusal) => set({ refusal }),
+      setRefusal: (refusal) =>
+        set({
+          refusal,
+          ...(refusal
+            ? {
+                expanded: expandedForCell(
+                  get().expanded,
+                  get().found.get(refusal.setId)?.exercise.id,
+                ),
+              }
+            : {}),
+        }),
     };
   });
 }

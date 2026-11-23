@@ -11,10 +11,11 @@ import type { SessionSetDetail } from "@workspace/sync";
 import { Check, Copy, DotsThree, Rows, Play, Stop, Trash } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useThemeColor } from "heroui-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnActionColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -113,7 +114,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const onAction = useOnActionColor();
-  const onSuccess = useOnSetDoneColor();
+  const background = useThemeColor("background");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
   // What is typed since the cell was opened; nothing until the first key.
@@ -164,7 +165,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
     return (
       <View key={field} className={`min-w-0 flex-row gap-1 ${grow(field)}`}>
         <SetCell
-          done={ticked}
           text={text}
           ghost={ghost}
           active={editing}
@@ -200,7 +200,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
               haptic.tick();
               props.onTimer(set.id);
             }}
-            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-accent" : "bg-field"}`}
+            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-accent" : "active:bg-default"}`}
           >
             {running ? (
               <Stop size={20} weight="fill" color={onAction} />
@@ -218,9 +218,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const effortGhost = ghosts.rpe ?? null;
 
   const row = (a11y?: SwipeA11yProps) => (
-    <View
-      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
-    >
+    <View className="flex-row items-center gap-1.5 px-1 py-1">
       {props.current && !ticked ? (
         <View
           pointerEvents="none"
@@ -241,7 +239,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           props.onKind(set.id);
         }}
         hitSlop={4}
-        className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
+        className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"
       >
         <Text
           className={`font-semibold text-label ${props.current && !ticked ? "text-identity" : SET_TONES[set.kind].text}`}
@@ -286,10 +284,10 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           })}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
-          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
+          className="h-10 w-11 items-center justify-center rounded-lg active:bg-default"
         >
           <Text
-            className={`font-normal text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
+            className={`font-normal text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
@@ -310,17 +308,16 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           }
           disabled={readOnly || waitingForPrevious}
           onPress={() => props.onTick(set.id)}
-          hitSlop={4}
-          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-border bg-field active:bg-default"}`}
+          className="h-11 w-11 items-center justify-center"
         >
           {waitingForPrevious && !readOnly ? (
             <DotsThree size={20} color={subtle} />
+          ) : ticked ? (
+            <View className="h-7 w-7 items-center justify-center rounded-lg bg-foreground">
+              <Check size={18} weight="bold" color={background} />
+            </View>
           ) : (
-            <Check
-              size={20}
-              weight={ticked ? "bold" : "regular"}
-              color={ticked ? onSuccess : subtle}
-            />
+            <Check size={22} weight="regular" color={subtle} />
           )}
         </Pressable>
       )}

@@ -146,6 +146,13 @@ describe("Previous cell", () => {
     });
     expect(previousPatch(previous, "duration", true)).toEqual({ duration_s: 30 });
   });
+
+  it("copies distance and duration together, and nothing when Previous has no value", () => {
+    expect(
+      previousPatch({ distance_m: 1000, duration_s: 300 }, "distance_duration", false),
+    ).toEqual({ distance_m: 1000, duration_s: 300 });
+    expect(previousPatch({ weight_kg: null, reps: null }, "weight_reps", false)).toEqual({});
+  });
 });
 
 describe("loggedSetsOf", () => {

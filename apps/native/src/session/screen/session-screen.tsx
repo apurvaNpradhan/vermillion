@@ -68,8 +68,8 @@ import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session
 
 const KEEP_AWAKE_TAG = "session";
 
-/** What an exercise measures before it is drawn: about four sets, a note and the rest chip. */
-const ESTIMATED_EXERCISE_HEIGHT = 420;
+/** A closed exercise is its header and the gap under it; an open one is about four sets and chips. */
+const ESTIMATED_CLOSED_HEIGHT = 72;
 
 const exerciseKey = (id: string) => id;
 
@@ -174,6 +174,8 @@ const LoadedSession = memo(function LoadedSession({
   } = useSessionLoggingIn(store, true);
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
+  // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
+  const expanded = useSessionStore((state) => state.expanded);
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
@@ -465,6 +467,19 @@ const LoadedSession = memo(function LoadedSession({
       void updateExercise(exerciseId, { rest_seconds: restSeconds }),
     [updateExercise],
   );
+  const onToggle = useCallback(
+    (exerciseId: string) => {
+      const state = store.getState();
+      // Closing the exercise the keypad is in saves and closes the keypad first.
+      if (
+        state.expanded.has(exerciseId) &&
+        state.found.get(state.cell?.setId ?? "")?.exercise.id === exerciseId
+      )
+        closeKeypad();
+      state.toggleExpanded(exerciseId);
+    },
+    [store, closeKeypad],
+  );
   const onItemLayout = useCallback(
     (exerciseId: string) => {
       const state = store.getState();
@@ -479,6 +494,7 @@ const LoadedSession = memo(function LoadedSession({
   // rows from redrawing when something unrelated on this screen changes.
   const removeOneSet = useStableHandler(actions.removeOneSet);
   const stableView = useStableHandler(viewExercise);
+  const stableToggle = useStableHandler(onToggle);
   const stableReorder = useStableHandler(openReorder);
   const stableAddSet = useStableHandler(onAddSet);
   const stableNote = useStableHandler(onNote);
@@ -488,6 +504,7 @@ const LoadedSession = memo(function LoadedSession({
   const handlers = useMemo<ExerciseHandlers>(
     () => ({
       onView: stableView,
+      onToggle: stableToggle,
       onMenu,
       onAddSet: stableAddSet,
       onReorder: stableReorder,
@@ -506,6 +523,7 @@ const LoadedSession = memo(function LoadedSession({
     }),
     [
       stableView,
+      stableToggle,
       onMenu,
       stableAddSet,
       stableReorder,
@@ -526,6 +544,29 @@ const LoadedSession = memo(function LoadedSession({
   const renderItem = useCallback(
     ({ item }: { item: string }) => <ExerciseItem exerciseId={item} handlers={handlers} />,
     [handlers],
+  );
+  // Finishing an exercise opens the next one: bring it into view (animated), once it is laid out.
+  useEffect(() => {
+    let cancel: (() => void) | undefined;
+    let last = store.getState().scrollRequest;
+    const unsubscribe = store.subscribe((state) => {
+      const request = state.scrollRequest;
+      if (request === last) return;
+      last = request;
+      if (!request) return;
+      cancel?.();
+      cancel = afterLayout(() => {
+        void scrollRef.current?.scrollToKey({ key: request.exerciseId, animated: true });
+      });
+    });
+    return () => {
+      unsubscribe();
+      cancel?.();
+    };
+  }, [store]);
+  const itemType = useCallback(
+    (id: string) => (store.getState().expanded.has(id) ? "open" : "closed"),
+    [store],
   );
   const onScroll = reveal.onScroll;
   const onListScroll = useCallback(
@@ -586,7 +627,9 @@ const LoadedSession = memo(function LoadedSession({
           data={exerciseKeys}
           keyExtractor={exerciseKey}
           renderItem={renderItem}
-          estimatedItemSize={ESTIMATED_EXERCISE_HEIGHT}
+          estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
+          getItemType={itemType}
+          extraData={expanded}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
           keyboardShouldPersistTaps="handled"
@@ -612,7 +655,7 @@ const LoadedSession = memo(function LoadedSession({
                 </View>
               ) : null}
               {session.workoutNote === null ? null : (
-                <View className="mx-4 mt-3 gap-0.5 rounded-xl bg-surface p-3">
+                <View className="mx-4 mt-3 gap-0.5 py-1">
                   <Text className="text-overline font-semibold uppercase text-muted">
                     {t("session__workout_note")}
                   </Text>

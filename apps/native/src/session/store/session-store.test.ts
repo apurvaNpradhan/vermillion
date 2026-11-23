@@ -125,4 +125,35 @@ describe("the session store", () => {
     store.getState().setFocusedExercise("b");
     expect(store.getState().stats).toBe(before);
   });
+  describe("the accordion", () => {
+    it("starts with the first unfinished exercise open", () => {
+      const store = createSessionStore(twoExercises());
+      expect([...store.getState().expanded]).toEqual(["a"]);
+    });
+
+    it("closes an exercise when its last set is ticked, opens the next and asks to scroll to it", () => {
+      const store = createSessionStore(twoExercises());
+      previewTick(store, "a1");
+      expect([...store.getState().expanded]).toEqual(["a"]);
+      previewTick(store, "a2");
+      expect([...store.getState().expanded]).toEqual(["b"]);
+      expect(store.getState().scrollRequest).toEqual({ exerciseId: "b", nonce: 1 });
+    });
+
+    it("lets the user open several exercises and close one", () => {
+      const store = createSessionStore(twoExercises());
+      store.getState().toggleExpanded("b");
+      expect([...store.getState().expanded].toSorted()).toEqual(["a", "b"]);
+      store.getState().toggleExpanded("a");
+      expect([...store.getState().expanded]).toEqual(["b"]);
+    });
+
+    it("opens the exercise of a cell the keypad targets, and closes the keypad with its exercise", () => {
+      const store = createSessionStore(twoExercises());
+      store.getState().setEntry({ cell: { setId: "b2", field: "weight" }, raw: "", fresh: true });
+      expect(store.getState().expanded.has("b")).toBe(true);
+      store.getState().toggleExpanded("b");
+      expect(store.getState().cell).toBeNull();
+    });
+  });
 });

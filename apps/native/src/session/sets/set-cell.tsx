@@ -1,13 +1,12 @@
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 /**
  * One cell of the set grid: a pressable, never a text input (the keypad types into it). It shows
- * the value, or a muted Ghost value when empty, or a dash. While being edited it has the focus
- * ring. A refused tick gives the cell a danger outline.
+ * the value in full ink, or the Ghost value in faint ink when empty, or a dash. There is no box:
+ * the cell being edited has a 2px accent underline, and a refused tick underlines the cell in danger.
  */
 export function SetCell({
   text,
-  done = false,
   ghost,
   active,
   refused,
@@ -18,7 +17,6 @@ export function SetCell({
 }: {
   /** The value as text; empty when the cell has none. */
   text: string;
-  done?: boolean;
   /** The Ghost value as text, shown muted when `text` is empty. */
   ghost: string;
   active: boolean;
@@ -30,7 +28,7 @@ export function SetCell({
   children?: React.ReactNode;
 }) {
   const empty = text === "";
-  const border = refused ? "border-danger" : active ? "border-focus-ring" : "border-transparent";
+  const bar = refused ? "bg-danger" : active ? "bg-accent" : "bg-transparent";
   return (
     <Pressable
       accessibilityRole="button"
@@ -38,16 +36,19 @@ export function SetCell({
       accessibilityValue={{ text: empty ? (ghost === "" ? undefined : ghost) : text }}
       disabled={disabled}
       onPress={onPress}
-      className={`h-10 min-w-0 flex-1 flex-row items-center justify-center rounded-lg border px-1 active:bg-default ${border} ${done ? "bg-transparent" : active ? "bg-default" : "bg-field"}`}
+      className="h-10 min-w-0 flex-1 flex-row items-center justify-center rounded-lg px-1 active:bg-default"
     >
       {children ?? (
-        <Text
-          numberOfLines={1}
-          className={`font-normal text-center text-body ${empty ? "text-muted" : done ? "text-set-done-soft-foreground" : "text-foreground"}`}
-          style={{ fontVariant: ["tabular-nums"] }}
-        >
-          {empty ? (ghost === "" ? "–" : ghost) : text}
-        </Text>
+        <View className="items-center">
+          <Text
+            numberOfLines={1}
+            className={`font-normal text-center text-body ${empty ? "text-muted" : "text-foreground"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {empty ? (ghost === "" ? "–" : ghost) : text}
+          </Text>
+          <View className={`h-[2px] min-w-6 self-stretch rounded-full ${bar}`} />
+        </View>
       )}
     </Pressable>
   );
