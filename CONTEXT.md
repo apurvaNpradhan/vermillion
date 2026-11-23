@@ -70,9 +70,9 @@ Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called verm
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam; the site's Worker routing and admin gate are unit tested.
 - **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `sigil-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
 - **Brand tokens** — `packages/ui/src/tokens/brand.ts`, the one place colors, radius and fonts are defined; mapped to native by generated CSS and read directly by the email templates.
-- **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark use Sigil, as in email.
-- **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.
-- **Identity / on-identity** — the accent roles: `identity` (focus, checks, selection, active tab, compose fill) and `on-identity` for the icon or text on it. The primary action stays neutral.
+- **Theme** — the native app's colour scheme: a mode (System, Light or Dark) and an accent, colour-only, never layout. Dark is AMOLED black and Light is pure white, as in email.
+- **Theme setting** — Settings → Appearance, which sets `device.theme` (`{ appearance: "system" | "light" | "dark", accent }`). System follows the OS; Light and Dark force the colour scheme for native chrome.
+- **Accent** — Lime (default), Teal, Blueberry, Lavender or Mono: the only hue in the interface, with `action` / `on-action` roles for the fill and the label on it. It marks the primary action, the current and completed sets, records, the selected tab and chips, and the primary chart series. Red (`danger`) is the only status colour.
 - **Media** — a user's uploaded image: a synced `media` row (made on the device) plus a full-size and a thumbnail object in the private user bucket. Rows point at media, never the reverse. Files reach R2 through presigned URLs and PowerSync's attachment queue ([0040](docs/adr/0040-user-media.md)).
 - **Media reference** — the column or child row that says where Media shows: `program.cover_media_id`, `exercise.image_media_id`, `ui.avatarMediaId`, `session_photo`, `progress_photo`.
 - **Catalog media** — exercise thumbnails and videos in the public bucket, named by keys on catalog rows and written only by the server or the admin site.
