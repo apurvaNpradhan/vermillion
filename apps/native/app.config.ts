@@ -35,15 +35,17 @@ import { appConfig } from "../../app.config.ts";
 // 27: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
 // 28: remove the react-native-webview dependency with Turnstile.
 // 30: Android App Links for /p/<code> and /w/<code> on the site host (an AndroidManifest change).
-const NATIVE_STACK_REVISION = 30;
+// 31: AMOLED black and Acid brand images (icon, adaptive, notification, splash).
+const NATIVE_STACK_REVISION = 31;
 
 /**
- * The Sigil brand colours, for the places the native build needs a literal (icon background,
- * splash and notification accent). These are branding assets, independent of in-app appearance
+ * The Sigil brand colours (AMOLED black, white, Acid), for the places the native build needs a
+ * literal (icon background, splash and notification accent). These are branding assets, independent of in-app appearance
  * (docs/design/sigil/SPEC.md). `pnpm brand:assets` regenerates the images.
  */
-const BRAND_GROUND = "#0B0A09";
-const BRAND_EMBER = "#E04A2F";
+const BRAND_BLACK = "#000000";
+const BRAND_WHITE = "#FFFFFF";
+const BRAND_ACID = "#A3FF12";
 const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
 const ADAPTIVE_MONOCHROME = "./assets/images/android-icon-monochrome.png";
 
@@ -99,8 +101,8 @@ const config: ExpoConfig = {
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
-      // The ground; the foreground is mark A inside the 66dp safe circle.
-      backgroundColor: BRAND_GROUND,
+      // Black; the foreground is the mark and Acid dot inside the 66dp safe circle.
+      backgroundColor: BRAND_BLACK,
       foregroundImage: ADAPTIVE_FOREGROUND,
       // Android tints the mark for themed icons.
       monochromeImage: ADAPTIVE_MONOCHROME,
@@ -122,9 +124,9 @@ const config: ExpoConfig = {
     [
       "expo-notifications",
       {
-        // Mark A in white on transparent; Android tints it.
+        // The mark in white on transparent; Android tints it.
         icon: "./assets/images/notification-icon.png",
-        color: BRAND_EMBER,
+        color: BRAND_ACID,
         sounds: ["./assets/sounds/rest_end.wav"],
       },
     ],
@@ -170,14 +172,14 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        // Mark A2 on the ground in light and dark alike: the brand, not the appearance.
-        image: "./assets/images/splash-icon.png",
+        // Light: black mark on white. Dark: white mark on black.
+        image: "./assets/images/splash-icon-light.png",
         imageWidth: 240,
         // The Android splash masks the drawable to a 192dp circle.
         android: { imageWidth: 200 },
         resizeMode: "contain",
-        backgroundColor: BRAND_GROUND,
-        dark: { image: "./assets/images/splash-icon.png", backgroundColor: BRAND_GROUND },
+        backgroundColor: BRAND_WHITE,
+        dark: { image: "./assets/images/splash-icon.png", backgroundColor: BRAND_BLACK },
       },
     ],
   ],
