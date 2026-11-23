@@ -4,8 +4,9 @@ import {
   tickValues,
   type ExerciseType,
   type Ghosts,
+  type SetField,
 } from "@workspace/shared";
-import type { SessionDetail, SessionSetDetail, SetPatch } from "@workspace/sync";
+import type { SessionDetail, SessionSetDetail, SetPatch, TickResult } from "@workspace/sync";
 
 /** The parts of a set a tick or untick changes. */
 export type SetChange = Partial<
@@ -139,18 +140,23 @@ export function previewValuePatch({
   };
 }
 
+/** What pressing the tick will do, worked out the way the store does it. */
+export type TickPreview =
+  | { kind: "noop" }
+  | { kind: "refused"; missing: SetField[] }
+  | { kind: "ok"; change: SetChange };
+
 /**
- * What a tick will store, worked out the way the store does: empty cells adopt their Ghost values.
- * Null when the store will refuse it (a required cell has no value) or write nothing (already
- * ticked), so nothing is shown ahead of it.
+ * What a tick will store: empty cells adopt their Ghost values. `refused` when a required cell has
+ * no value, `noop` when the set is already ticked; in both nothing is shown ahead of the store.
  */
-export function tickChange(
+export function previewTick(
   set: SessionSetDetail,
   type: ExerciseType,
   ghosts: Ghosts,
   now: string,
-): SetChange | null {
-  if (set.completedAt !== null) return null;
+): TickPreview {
+  if (set.completedAt !== null) return { kind: "noop" };
   const result = tickValues(
     {
       weight_kg: set.weightKg,
@@ -164,19 +170,51 @@ export function tickChange(
     ghosts,
     SET_FIELDS[type],
   );
-  if (!result.ok) return null;
+  if (!result.ok) return { kind: "refused", missing: result.missing };
   const values = result.values;
   return {
-    completedAt: now,
-    timerStartedAt: null,
-    ...(values.weight_kg === undefined ? {} : { weightKg: values.weight_kg }),
-    ...(values.reps === undefined ? {} : { reps: values.reps }),
-    ...(values.duration_s === undefined ? {} : { durationS: values.duration_s }),
-    ...(values.distance_m === undefined ? {} : { distanceM: values.distance_m }),
-    ...(values.floors === undefined ? {} : { floors: values.floors }),
-    ...(values.steps === undefined ? {} : { steps: values.steps }),
-    ...(values.rpe === undefined ? {} : { rpe: values.rpe }),
+    kind: "ok",
+    change: {
+      completedAt: now,
+      timerStartedAt: null,
+      ...(values.weight_kg === undefined ? {} : { weightKg: values.weight_kg }),
+      ...(values.reps === undefined ? {} : { reps: values.reps }),
+      ...(values.duration_s === undefined ? {} : { durationS: values.duration_s }),
+      ...(values.distance_m === undefined ? {} : { distanceM: values.distance_m }),
+      ...(values.floors === undefined ? {} : { floors: values.floors }),
+      ...(values.steps === undefined ? {} : { steps: values.steps }),
+      ...(values.rpe === undefined ? {} : { rpe: values.rpe }),
+    },
   };
+}
+
+/** The change a tick shows ahead of the store; null when the store will refuse or write nothing. */
+export function tickChange(
+  set: SessionSetDetail,
+  type: ExerciseType,
+  ghosts: Ghosts,
+  now: string,
+): SetChange | null {
+  const preview = previewTick(set, type, ghosts, now);
+  return preview.kind === "ok" ? preview.change : null;
+}
+
+/**
+ * What a finished tick write means for the preview shown ahead of it. A failed write (null), a
+ * refusal and a write that changed nothing all take the preview back; a Rest the store did not
+ * start takes back only the Rest.
+ */
+export type TickSettlement = {
+  outcome: "recorded" | "unchanged" | "refused" | "failed";
+  keepSet: boolean;
+  keepRest: boolean;
+};
+
+export function settleTick(result: TickResult | null): TickSettlement {
+  if (result === null) return { outcome: "failed", keepSet: false, keepRest: false };
+  if (!result.ok) return { outcome: "refused", keepSet: false, keepRest: false };
+  if (!result.wrote) return { outcome: "unchanged", keepSet: false, keepRest: false };
+  return { outcome: "recorded", keepSet: true, keepRest: result.rest !== undefined };
 }
 
 /** The Rest a tick starts now, as the store will record it. */

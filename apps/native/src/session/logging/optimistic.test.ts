@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import {
   NO_PENDING,
   nudged,
+  previewTick,
   restFrom,
   restKey,
   setKey,
   settled,
+  settleTick,
   tickChange,
   withPending,
   type Pending,
@@ -158,5 +160,65 @@ describe("nudged", () => {
     expect(nudged(rest, 15, Date.parse(NOW))?.endsAt).toBe("2026-01-01T10:01:15.000Z");
     expect(nudged(rest, -60, Date.parse(NOW))).toBeNull();
     expect(nudged(null, 15, Date.parse(NOW))).toBeNull();
+  });
+});
+
+describe("previewTick", () => {
+  it("shows the tick with the Ghost values the store will adopt", () => {
+    expect(previewTick(set({ reps: 6 }), "weight_reps", { weight: 60, reps: 8 }, NOW)).toEqual({
+      kind: "ok",
+      change: { completedAt: NOW, timerStartedAt: null, weightKg: 60 },
+    });
+  });
+
+  it("refuses with the cells that lack a value, before anything is written", () => {
+    expect(previewTick(set(), "weight_reps", { weight: 60 }, NOW)).toEqual({
+      kind: "refused",
+      missing: ["reps"],
+    });
+  });
+
+  it("does nothing for a set that is already ticked", () => {
+    expect(previewTick(set({ completedAt: NOW }), "weight_reps", {}, NOW)).toEqual({
+      kind: "noop",
+    });
+  });
+});
+
+describe("settleTick", () => {
+  it("keeps the tick and its Rest when the write held and started one", () => {
+    expect(
+      settleTick({
+        ok: true,
+        wrote: true,
+        values: {},
+        rest: { startedAt: NOW, endsAt: NOW },
+      }),
+    ).toEqual({ outcome: "recorded", keepSet: true, keepRest: true });
+  });
+
+  it("takes back only the Rest the store did not start", () => {
+    expect(settleTick({ ok: true, wrote: true, values: {} })).toEqual({
+      outcome: "recorded",
+      keepSet: true,
+      keepRest: false,
+    });
+  });
+
+  it("takes everything back when the write failed", () => {
+    expect(settleTick(null)).toEqual({ outcome: "failed", keepSet: false, keepRest: false });
+  });
+
+  it("takes everything back for a refusal or a write that changed nothing", () => {
+    expect(settleTick({ ok: false, missing: ["reps"] })).toEqual({
+      outcome: "refused",
+      keepSet: false,
+      keepRest: false,
+    });
+    expect(settleTick({ ok: true, wrote: false, values: {} })).toEqual({
+      outcome: "unchanged",
+      keepSet: false,
+      keepRest: false,
+    });
   });
 });

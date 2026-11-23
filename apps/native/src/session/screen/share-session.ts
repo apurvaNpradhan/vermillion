@@ -1,7 +1,6 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
-/** Rows hold plain JSON values written in a fixed key order, so their text compares them. */
-const sameJson = <T>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+import { deepEqual } from "../store/equal";
 
 /** `after` with every element equal to one in `before` (by id) replaced by that element. */
 function shareList<T extends { id: string }>(
@@ -20,7 +19,7 @@ function shareList<T extends { id: string }>(
 }
 
 const shareSet = (old: SessionSetDetail | undefined, next: SessionSetDetail) =>
-  old && sameJson(old, next) ? old : next;
+  old && deepEqual(old, next) ? old : next;
 
 function shareExercise(
   old: SessionExerciseDetail | undefined,
@@ -28,7 +27,7 @@ function shareExercise(
 ): SessionExerciseDetail {
   if (!old) return next;
   const sets = shareList(old.sets, next.sets, shareSet);
-  if (sets === old.sets && sameJson({ ...old, sets: [] }, { ...next, sets: [] })) return old;
+  if (sets === old.sets && deepEqual({ ...old, sets: [] }, { ...next, sets: [] })) return old;
   return { ...next, sets };
 }
 
@@ -42,7 +41,7 @@ export function shareSession(before: SessionDetail | null, after: SessionDetail)
   const exercises = shareList(before.exercises, after.exercises, shareExercise);
   if (
     exercises === before.exercises &&
-    sameJson({ ...before, exercises: [] }, { ...after, exercises: [] })
+    deepEqual({ ...before, exercises: [] }, { ...after, exercises: [] })
   )
     return before;
   return { ...after, exercises };

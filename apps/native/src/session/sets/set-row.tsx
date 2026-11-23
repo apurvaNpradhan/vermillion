@@ -4,20 +4,19 @@ import {
   SET_KIND_KEYS,
   type EffortScale,
   type ExerciseType,
-  type Ghosts,
-  type LoggedSet,
   type SetField,
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
 import { Check, Copy, DotsThree, Rows, Play, Stop, Trash } from "phosphor-react-native";
-import { memo, useSyncExternalStore } from "react";
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useOnActionColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
+import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
 
 import { hasRequiredSetValues } from "@/session/logging/history-gate";
@@ -34,17 +33,8 @@ import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
 import { SetCell } from "./set-cell";
 
-/** The cell being edited and what is typed into it, as the row shows it. */
-export type KeypadDraft = {
-  getSnapshot: () => string | null;
-  subscribe: (listener: () => void) => () => void;
-};
-export type ActiveEntry = { cell: CellRef; text: string; draft?: KeypadDraft };
-
-const noDraft: KeypadDraft = {
-  getSnapshot: () => null,
-  subscribe: () => () => undefined,
-};
+/** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
+export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
 
 /** A refused tick and the cells that lack a value. */
 export type Refusal = { setId: string; fields: readonly SetField[] };
@@ -56,13 +46,9 @@ export type SetRowProps = {
   inlineTimer: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
-  /** Number or letter on the badge. */
-  badge: string;
-  /** The row's place among the exercise's sets, for screen readers (1-based). */
-  number: number;
+  /** Previous, Ghost values and the labels of the row; the same object while they hold. */
+  row: RowView;
   logEffort: boolean;
-  previous: LoggedSet | null;
-  ghosts: Ghosts;
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
@@ -71,9 +57,6 @@ export type SetRowProps = {
   /** The set to log next: an ember leading bar and number. */
   current: boolean;
   readOnly: boolean;
-  canRemove: boolean;
-  canCopyPrevious: boolean;
-  canFillRemaining: boolean;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
@@ -114,40 +97,18 @@ const grow = (field: SetField) => (field === "reps" ? "flex-[1.2]" : "flex-1");
  * of the exercise's type, effort when the exercise logs it, and the tick. Cells are pressables
  * that open the keypad. Warm-ups record no effort.
  */
-/** Props rebuilt on every database change even when their values did not change. */
-const COMPARED_BY_VALUE = new Set<keyof SetRowProps>(["set", "ghosts", "previous"]);
-
-/**
- * A row redraws only when something it draws changed. Every database change parses the Session
- * again, so the set, its Ghost values and Previous are new objects; they are compared by value.
- */
-function sameRowProps(before: SetRowProps, after: SetRowProps): boolean {
-  // SAFETY: both objects are SetRowProps, so their own keys are SetRowProps keys.
-  const keys = Object.keys(after) as (keyof SetRowProps)[];
-  if (keys.length !== Object.keys(before).length) return false;
-  return keys.every(
-    (key) =>
-      Object.is(before[key], after[key]) ||
-      (COMPARED_BY_VALUE.has(key) && JSON.stringify(before[key]) === JSON.stringify(after[key])),
-  );
-}
-
-export const SetRow = memo(function SetRow(props: SetRowProps) {
+export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const {
     set,
     type,
-    badge,
-    number,
+    row: { badge, number, previous, ghosts, canRemove },
     logEffort,
-    previous,
-    ghosts,
     unit,
     display,
     effortScale,
     entry,
     refusal,
     readOnly,
-    canRemove,
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -155,8 +116,8 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
-  const { subscribe, getSnapshot } = entry?.draft ?? noDraft;
-  const raw = useSyncExternalStore(subscribe, getSnapshot);
+  // What is typed since the cell was opened; nothing until the first key.
+  const raw = entry && !entry.fresh ? entry.raw : null;
   const activeField = entry?.cell.field;
   const draftValue = activeField && raw !== null ? valueOfText(activeField, raw, unit) : undefined;
   const waitingForPrevious =
@@ -194,9 +155,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     const stored = valueOfSet(set, field);
     const editing = entry?.cell.setId === set.id && entry.cell.field === field;
     const text = editing
-      ? raw === null
-        ? entry.text
-        : displayOfText(field, raw)
+      ? displayOfText(field, entry.raw)
       : formatCell(field, stored, unit, undefined, display);
     const ghost = formatCell(field, ghosts[field] ?? null, unit, undefined, display);
     const refused = refusal?.setId === set.id && refusal.fields.includes(field);
@@ -369,7 +328,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   );
 
   const actions: SwipeAction[] = [];
-  if (props.canCopyPrevious)
+  if (props.row.canCopyPrevious)
     actions.push({
       key: "copy",
       label: t("session__copy_previous"),
@@ -377,7 +336,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       iconOnly: true,
       onPress: () => props.onCopySets(set.id, "previous"),
     });
-  if (props.canFillRemaining)
+  if (props.row.canFillRemaining)
     actions.push({
       key: "fill",
       label: t("session__fill_remaining"),
@@ -405,4 +364,4 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       )}
     </View>
   );
-}, sameRowProps);
+});
