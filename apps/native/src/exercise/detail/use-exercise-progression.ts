@@ -13,7 +13,7 @@ import {
   watchLatestExercisePlan,
 } from "@workspace/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { usePreferences } from "@/preferences";
+import { usePreference } from "@/preferences";
 
 export function useExerciseProgressionMode(exerciseId: string) {
   const subscribe = useCallback(
@@ -55,12 +55,12 @@ export function useExerciseProgression(
     [exerciseId],
   );
   const plan = useLocalWatch(subscribe);
-  const { preferences } = usePreferences();
+  const lighterWeeks = usePreference((preferences) => preferences.ui.lighterWeeks);
   const sets = plan.value;
   const suggestion = sets
     ? suggestNext(sets, sessions, type, equipment, settings, {
         now: new Date(),
-        lighterWeeks: preferences.ui.lighterWeeks,
+        lighterWeeks,
       })
     : null;
   return { sets, suggestion };

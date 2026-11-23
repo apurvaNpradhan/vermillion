@@ -23,7 +23,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { useLocalData, useSyncStatus } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
   defaultBar,
@@ -43,9 +43,11 @@ export function useEquipment(enabled = true) {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const local = useLocalData();
-  const { snapshot } = useSyncStatus();
+  const writeScope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
+  const hasSynced = useSyncValue((snapshot) => snapshot?.hasSynced === true);
+  const indicator = useSyncValue((snapshot) => snapshot?.indicator ?? null);
   const database = local?.status === "ready" ? local.database : null;
-  const scope = snapshot?.writeScope ?? "";
+  const scope = writeScope ?? "";
   const { preferences, isLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const subscribe = useCallback(
@@ -72,7 +74,6 @@ export function useEquipment(enabled = true) {
     },
     [database, toast, t],
   );
-  const hasSynced = snapshot?.hasSynced === true;
   const loaded = state.value !== undefined;
   const rowCount = state.value?.length ?? 0;
   // The first sync may deliver the account's own kit, so the default kit goes in only after it,
@@ -82,7 +83,7 @@ export function useEquipment(enabled = true) {
     if (
       !canSeedEquipment({
         hasSynced,
-        scope: snapshot?.writeScope ?? null,
+        scope: writeScope,
         loaded,
         rowCount,
         alreadySeeded: seededScopes.has(scope),
@@ -93,7 +94,7 @@ export function useEquipment(enabled = true) {
     void run((db) => seedEquipment(db, scope)).then((done) => {
       if (done === null) seededScopes.delete(scope);
     });
-  }, [enabled, database, isLoading, hasSynced, snapshot?.writeScope, loaded, rowCount, scope, run]);
+  }, [enabled, database, isLoading, hasSynced, writeScope, loaded, rowCount, scope, run]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
     run((db) => upsertEquipment(db, [item], scope));
   const edit = (id: string, patch: EquipmentPatch) =>
@@ -133,7 +134,7 @@ export function useEquipment(enabled = true) {
     rows: state.value ?? [],
     unit,
     hasSynced,
-    indicator: snapshot?.indicator ?? null,
+    indicator,
     save,
     edit,
     toggle,
