@@ -5,6 +5,7 @@ import type { Ghosts } from "@workspace/shared";
 import type { SetPatch } from "@workspace/sync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { blockOf, highlightOf } from "./blocks";
 import { previewValuePatch, savedSession, type PendingWrite, type SetChange } from "./optimistic";
 import { RestNudges } from "@/session/rest/rest-nudges";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
@@ -121,6 +122,11 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       expiresAt?: number,
       savingEdits?: Promise<boolean[]>,
     ) => {
+      const state = store.getState();
+      const at = state.found.get(setId);
+      const block = at && blockOf(state.blocks, at.exercise.id);
+      const finishesBlock =
+        at && block && state.expanded.has(at.exercise.id) && !highlightOf(block, setId);
       const { id, set } = addPreview(setId, change);
       return enqueueWrite(async () => {
         if (savingEdits && (await savingEdits).includes(false)) {
@@ -145,6 +151,12 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
           },
           rest: result.rest && { before, value: { value: { setId, ...result.rest } } },
         });
+        const current = store.getState();
+        if (
+          finishesBlock &&
+          current.found.get(setId)?.exercise.exerciseId === at.exercise.exerciseId
+        )
+          current.advanceAfterTick(setId, result.completedAt);
         return result;
       });
     },

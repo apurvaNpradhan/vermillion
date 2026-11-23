@@ -8,9 +8,30 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import { blocksOf, firstUnfinished, highlightOf, nextAfter, type Block } from "../logging/blocks";
+import {
+  expandedWith,
+  expandedWithout,
+  initialExpanded,
+  memberIds,
+  reconcileExpanded,
+} from "../logging/accordion";
+import {
+  blockOf,
+  blocksOf,
+  firstUnfinished,
+  highlightOf,
+  isBlockDone,
+  nextAfter,
+  type Block,
+} from "../logging/blocks";
 import type { CellRef } from "../logging/keypad-entry";
-import { NO_PENDING, settled, withPending, type Pending } from "../logging/optimistic";
+import {
+  NO_PENDING,
+  savedSession,
+  settled,
+  withPending,
+  type Pending,
+} from "../logging/optimistic";
 import { loggedSetsOf } from "../logging/set-values";
 import { shareSession } from "../screen/share-session";
 
@@ -54,6 +75,7 @@ type Base = {
 };
 
 type Derived = {
+  focusedExerciseId: string | null;
   /** The Session as shown: the stored one with the changes the database has not echoed yet. */
   session: SessionDetail;
   exerciseIds: readonly string[];
@@ -71,10 +93,18 @@ type Derived = {
 /** The keypad: the cell being edited and what is typed in it. `fresh` means the next key replaces it. */
 export type EntryState = { cell: CellRef | null; raw: string; fresh: boolean };
 
+/** A request to scroll an exercise into view; a new `nonce` is a new request. */
+export type ScrollRequest = { exerciseId: string; nonce: number };
+
 export type SessionState = Base &
   Derived &
   EntryState & {
     refusal: Refusal | null;
+    /** The exercises that are open (in memory only: a new screen starts from the first unfinished). */
+    expanded: ReadonlySet<string>;
+    scrollRequest: ScrollRequest | null;
+    toggleExpanded: (exerciseId: string) => void;
+    advanceAfterTick: (setId: string, completedAt: string) => void;
     setStored: (session: SessionDetail) => void;
     updatePending: (update: (current: Pending) => Pending) => void;
     setRestTarget: (rest: SessionDetail["rest"] | undefined) => void;
@@ -208,20 +238,26 @@ function compute(base: Base, prev: (Base & Derived) | null): Derived {
       ? prev.views
       : new Map([...cache].map(([id, entry]) => [id, entry.view] as const));
 
-  const focusedBlock = blocks.find((block) =>
-    block.members.some((member) => member.id === base.focusedExerciseId),
-  );
-  const nextBlock = base.focusedExerciseId
-    ? nextAfter(blocks, base.focusedExerciseId)
+  const focus = base.focusedExerciseId;
+  const focusedExerciseId =
+    focus !== null &&
+    exercises.has(focus) &&
+    exercises.get(focus)?.exerciseId === prev?.exercises.get(focus)?.exerciseId
+      ? focus
+      : null;
+  const focusedBlock = focusedExerciseId ? blockOf(blocks, focusedExerciseId) : undefined;
+  const nextBlock = focusedExerciseId
+    ? nextAfter(blocks, focusedExerciseId)
     : firstUnfinished(blocks);
   const currentSetId =
-    base.ui.readOnly || session.finishedAt !== null
+    base.ui.readOnly || finished
       ? null
       : (focusedBlock && highlightOf(focusedBlock)?.setId) ||
         (nextBlock && highlightOf(nextBlock)?.setId) ||
         null;
 
   return {
+    focusedExerciseId,
     session,
     exerciseIds,
     exercises,
@@ -257,22 +293,110 @@ export function createSessionStore(
     focusedExerciseId: null,
   };
   return createStore<SessionState>()((set, get) => {
+    const first = compute(base, null);
     /** Applies a change to the inputs and recomputes what depends on them. */
     const apply = (patch: Partial<Base>) => {
       const before = get();
       const next: Base = { ...before, ...patch };
       const derived = compute(next, before);
-      const closes =
-        before.cell !== null && (!derived.found.has(before.cell.setId) || next.ui.readOnly);
+      const sameExercise = (id: string) => {
+        const current = derived.exercises.get(id);
+        return current !== undefined && current.exerciseId === before.exercises.get(id)?.exerciseId;
+      };
+      const expanded =
+        derived.exerciseIds === before.exerciseIds &&
+        derived.session.exercises.every(
+          (entry) => entry.supersetGroup === before.exercises.get(entry.id)?.supersetGroup,
+        )
+          ? before.expanded
+          : reconcileExpanded(before.blocks, derived.blocks, before.expanded);
+      const canShowSet = (setId: string) => {
+        const exercise = derived.found.get(setId)?.exercise;
+        return (
+          exercise !== undefined &&
+          exercise.id === before.found.get(setId)?.exercise.id &&
+          sameExercise(exercise.id) &&
+          expanded.has(exercise.id)
+        );
+      };
+      const closes = before.cell !== null && (next.ui.readOnly || !canShowSet(before.cell.setId));
+      const clearRefusal =
+        before.refusal !== null && (next.ui.readOnly || !canShowSet(before.refusal.setId));
+      const scroll = before.scrollRequest;
       set({
         ...patch,
         ...derived,
+        expanded,
+        ...(scroll && (!expanded.has(scroll.exerciseId) || !sameExercise(scroll.exerciseId))
+          ? { scrollRequest: null }
+          : {}),
         ...(closes ? { cell: null, raw: "", fresh: true } : {}),
+        ...(clearRefusal ? { refusal: null } : {}),
+      });
+    };
+    const updateExpanded = (
+      expanded: ReadonlySet<string>,
+      patch?: Pick<SessionState, "focusedExerciseId" | "currentSetId" | "scrollRequest">,
+    ) => {
+      const state = get();
+      const isHidden = (setId: string) => !expanded.has(state.found.get(setId)?.exercise.id ?? "");
+      set({
+        expanded,
+        ...(state.cell && isHidden(state.cell.setId) ? { cell: null, raw: "", fresh: true } : {}),
+        ...(state.refusal && isHidden(state.refusal.setId) ? { refusal: null } : {}),
+        ...(state.scrollRequest && !expanded.has(state.scrollRequest.exerciseId)
+          ? { scrollRequest: null }
+          : {}),
+        ...patch,
       });
     };
     return {
       ...base,
-      ...compute(base, null),
+      ...first,
+      expanded: initialExpanded(first.blocks),
+      scrollRequest: null,
+      toggleExpanded: (exerciseId) => {
+        const { blocks, expanded } = get();
+        const block = blockOf(blocks, exerciseId);
+        if (!block) return;
+        const ids = memberIds(block);
+        updateExpanded(
+          expanded.has(exerciseId) ? expandedWithout(expanded, ids) : expandedWith(expanded, ids),
+        );
+      },
+      advanceAfterTick: (setId, completedAt) => {
+        const state = get();
+        const at = state.found.get(setId);
+        if (
+          !at ||
+          at.set.completedAt !== completedAt ||
+          state.ui.readOnly ||
+          state.session.finishedAt !== null ||
+          !state.expanded.has(at.exercise.id)
+        )
+          return;
+        const block = blockOf(state.blocks, at.exercise.id);
+        if (!block || !isBlockDone(block)) return;
+        // Other ticks can still be in the write queue. Advance only when all sets are saved.
+        const savedBlock = blockOf(blocksOf(savedSession(state).exercises), at.exercise.id);
+        if (!savedBlock || !isBlockDone(savedBlock)) return;
+        const target = nextAfter(state.blocks, block.id);
+        const closed = expandedWithout(state.expanded, memberIds(block));
+        const current = target && highlightOf(target);
+        updateExpanded(
+          target ? expandedWith(closed, memberIds(target)) : closed,
+          target && current
+            ? {
+                focusedExerciseId: current.exerciseId,
+                currentSetId: current.setId,
+                scrollRequest: {
+                  exerciseId: target.id,
+                  nonce: (state.scrollRequest?.nonce ?? 0) + 1,
+                },
+              }
+            : undefined,
+        );
+      },
       cell: null,
       raw: "",
       fresh: true,
@@ -298,12 +422,17 @@ export function createSessionStore(
       setFocusedExercise: (exerciseId) => {
         if (get().focusedExerciseId !== exerciseId) apply({ focusedExerciseId: exerciseId });
       },
-      setEntry: (next) =>
-        set(
-          next
-            ? { cell: next.cell, raw: next.raw, fresh: next.fresh }
-            : { cell: null, raw: "", fresh: true },
-        ),
+      setEntry: (next) => {
+        if (!next) {
+          set({ cell: null, raw: "", fresh: true });
+          return;
+        }
+        const state = get();
+        const at = state.found.get(next.cell.setId);
+        const block = at && blockOf(state.blocks, at.exercise.id);
+        if (!block || state.ui.readOnly) return;
+        set({ ...next, expanded: expandedWith(state.expanded, memberIds(block)) });
+      },
       setRefusal: (refusal) => set({ refusal }),
     };
   });

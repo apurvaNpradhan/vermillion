@@ -48,6 +48,8 @@ import {
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { formatVolume } from "@/session/finish/summary";
+import { blockOf } from "@/session/logging/blocks";
+import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
 import { canAddWarmups } from "@/session/warmups/warmup-plan";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
@@ -68,8 +70,8 @@ import { SessionKeypad, useSessionKeypadAccessory } from "@/session/sets/session
 
 const KEEP_AWAKE_TAG = "session";
 
-/** What an exercise measures before it is drawn: about four sets, a note and the rest chip. */
-const ESTIMATED_EXERCISE_HEIGHT = 420;
+/** Most rows are closed, with the expanded height measured by LegendList. */
+const ESTIMATED_CLOSED_HEIGHT = 72;
 
 const exerciseKey = (id: string) => id;
 
@@ -174,9 +176,11 @@ const LoadedSession = memo(function LoadedSession({
   } = useSessionLoggingIn(store, true);
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
+  // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
+  const accordionScroll = useAccordionScroll(store, scrollRef);
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
   const [reordering, setReordering] = useState(false);
@@ -465,6 +469,21 @@ const LoadedSession = memo(function LoadedSession({
       void updateExercise(exerciseId, { rest_seconds: restSeconds }),
     [updateExercise],
   );
+  const onToggle = useCallback(
+    (exerciseId: string) => {
+      const state = store.getState();
+      const editing = state.cell && state.found.get(state.cell.setId);
+      const block = blockOf(state.blocks, exerciseId);
+      if (
+        editing &&
+        state.expanded.has(exerciseId) &&
+        block?.members.some((member) => member.id === editing.exercise.id)
+      )
+        closeKeypad();
+      state.toggleExpanded(exerciseId);
+    },
+    [store, closeKeypad],
+  );
   const onItemLayout = useCallback(
     (exerciseId: string) => {
       const state = store.getState();
@@ -479,6 +498,7 @@ const LoadedSession = memo(function LoadedSession({
   // rows from redrawing when something unrelated on this screen changes.
   const removeOneSet = useStableHandler(actions.removeOneSet);
   const stableView = useStableHandler(viewExercise);
+  const stableToggle = useStableHandler(onToggle);
   const stableReorder = useStableHandler(openReorder);
   const stableAddSet = useStableHandler(onAddSet);
   const stableNote = useStableHandler(onNote);
@@ -488,6 +508,7 @@ const LoadedSession = memo(function LoadedSession({
   const handlers = useMemo<ExerciseHandlers>(
     () => ({
       onView: stableView,
+      onToggle: stableToggle,
       onMenu,
       onAddSet: stableAddSet,
       onReorder: stableReorder,
@@ -506,6 +527,7 @@ const LoadedSession = memo(function LoadedSession({
     }),
     [
       stableView,
+      stableToggle,
       onMenu,
       stableAddSet,
       stableReorder,
@@ -586,7 +608,9 @@ const LoadedSession = memo(function LoadedSession({
           data={exerciseKeys}
           keyExtractor={exerciseKey}
           renderItem={renderItem}
-          estimatedItemSize={ESTIMATED_EXERCISE_HEIGHT}
+          estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
+          onItemSizeChanged={accordionScroll.onItemSizeChanged}
+          onScrollBeginDrag={accordionScroll.cancel}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
           keyboardShouldPersistTaps="handled"
@@ -612,7 +636,7 @@ const LoadedSession = memo(function LoadedSession({
                 </View>
               ) : null}
               {session.workoutNote === null ? null : (
-                <View className="mx-4 mt-3 gap-0.5 rounded-xl bg-surface p-3">
+                <View className="mx-4 mt-3 gap-0.5 py-1">
                   <Text className="text-overline font-semibold uppercase text-muted">
                     {t("session__workout_note")}
                   </Text>

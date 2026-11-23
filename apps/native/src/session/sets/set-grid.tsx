@@ -1,12 +1,11 @@
 import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
 import { memo, useMemo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
-import { Button } from "@/platform/ui/button";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 
 import { useSessionStore } from "@/session/store/session-store-context";
@@ -70,7 +69,7 @@ const SetRowItem = memo(function SetRowItem({
   const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
   if (!set || !row || !type) return null;
   return (
-    <View ref={register} collapsable={false} style={{ opacity: row.optional ? 0.55 : 1 }}>
+    <View ref={register} collapsable={false}>
       <SetRowView
         editingFinished={data.editingFinished}
         inlineTimer={data.inlineTimer}
@@ -105,7 +104,7 @@ const SetRowItem = memo(function SetRowItem({
 });
 
 /**
- * The sets of one exercise: a header over the columns, then a row for each set, then "+ Add set".
+ * The sets of one exercise: a header over the columns, then a row for each set, then the "Add set" text button.
  * It redraws when the exercise's columns or its list of sets change; each row follows its own set.
  */
 export const SetGrid = memo(function SetGrid({
@@ -123,6 +122,7 @@ export const SetGrid = memo(function SetGrid({
     useShallow((state) => {
       const exercise = state.exercises.get(exerciseId);
       return {
+        title: exercise?.title,
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         setIds: state.views.get(exerciseId)?.setIds,
@@ -163,7 +163,7 @@ export const SetGrid = memo(function SetGrid({
   return (
     <SwipeGroup>
       <View className="gap-1">
-        <View className="flex-row items-center gap-1.5 border border-transparent px-1">
+        <View className="flex-row items-center gap-1.5 px-1">
           <Text className="font-normal w-10 text-center text-caption text-muted">
             {t("training__col_set")}
           </Text>
@@ -194,10 +194,17 @@ export const SetGrid = memo(function SetGrid({
         ))}
       </View>
       {readOnly ? null : (
-        <Button variant="secondary" onPress={() => onAddSet(exerciseId)}>
-          <Plus size={20} color={subtle} />
-          <Button.Label>{t("session__add_set")}</Button.Label>
-        </Button>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("session__add_set_to", {
+            title: layout.title || t("training__exercise_missing"),
+          })}
+          onPress={() => onAddSet(exerciseId)}
+          className="mt-1 min-h-11 flex-row items-center gap-2 self-start rounded-lg px-3 active:bg-default"
+        >
+          <Plus size={18} color={subtle} />
+          <Text className="font-medium text-label text-muted">{t("session__add_set")}</Text>
+        </Pressable>
       )}
     </SwipeGroup>
   );

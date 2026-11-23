@@ -70,7 +70,7 @@ export function RestBar({
     onAdjust(delta);
   };
   return (
-    <View className="bg-surface" style={{ paddingBottom: withInset ? bottom : 0 }}>
+    <View className="bg-background" style={{ paddingBottom: withInset ? bottom : 0 }}>
       <View
         accessibilityRole="progressbar"
         accessibilityLabel={t("session__rest_label")}
@@ -94,7 +94,7 @@ export function RestBar({
           accessibilityRole="button"
           accessibilityLabel={t("session__rest_minus", { seconds: REST_ADJUST_SECONDS })}
           onPress={() => adjust(-REST_ADJUST_SECONDS)}
-          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
+          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl px-2 active:bg-default"
         >
           <Minus size={20} color={foreground} />
           <Text className="font-medium text-label tabular-nums text-foreground">
@@ -105,14 +105,14 @@ export function RestBar({
           accessibilityRole="button"
           accessibilityLabel={t("session__rest_plus", { seconds: REST_ADJUST_SECONDS })}
           onPress={() => adjust(REST_ADJUST_SECONDS)}
-          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
+          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl px-2 active:bg-default"
         >
           <Plus size={20} color={foreground} />
           <Text className="font-medium text-label tabular-nums text-foreground">
             {REST_ADJUST_SECONDS}
           </Text>
         </Pressable>
-        <Button variant="secondary" onPress={onSkip}>
+        <Button variant="ghost" onPress={onSkip}>
           <Button.Label>{t("session__rest_skip")}</Button.Label>
         </Button>
       </View>

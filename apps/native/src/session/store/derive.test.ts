@@ -18,6 +18,13 @@ describe("deriveExercises", () => {
     const open = deriveExercises([a], inputs(), context, new Map()).get("a");
     expect(open?.view.progress).toBe("0/2");
     expect(open?.view.summary).toBe("");
+    const part = exercise("p", [
+      set("p1", { weightKg: 9, reps: 10, completedAt: "2026-11-21T10:05:00.000Z" }),
+      set("p2"),
+    ]);
+    const partial = deriveExercises([part], inputs(), context, new Map()).get("p");
+    expect(partial?.view.progress).toBe("1/2");
+    expect(partial?.view.summary).toBe("9 kg × 10");
     const done = exercise("d", [
       set("d1", { weightKg: 60, reps: 8, completedAt: "2026-11-21T10:05:00.000Z" }),
     ]);
