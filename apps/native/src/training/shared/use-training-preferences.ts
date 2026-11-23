@@ -1,8 +1,16 @@
-import { usePreferences } from "@/preferences";
+import { shallow } from "zustand/shallow";
+
+import { usePreference } from "@/preferences";
 
 /** The preferences the training screens format with: weight unit, effort scale, default rest. */
 export function useTrainingPreferences() {
-  const { preferences } = usePreferences();
-  const { weightUnit, weightIncrementKg, effortScale, defaultRestSeconds } = preferences.ui;
-  return { weightUnit, weightIncrementKg, effortScale, defaultRestSeconds };
+  return usePreference(
+    ({ ui }) => ({
+      weightUnit: ui.weightUnit,
+      weightIncrementKg: ui.weightIncrementKg,
+      effortScale: ui.effortScale,
+      defaultRestSeconds: ui.defaultRestSeconds,
+    }),
+    shallow,
+  );
 }

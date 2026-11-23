@@ -10,7 +10,7 @@ import {
 import { useCallback, useState } from "react";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { usePreferences } from "@/preferences";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useProgram } from "./use-program";
 import { useTrainingWrite } from "@/training/shared/use-training-write";
 
@@ -68,7 +68,7 @@ export function useActiveRun() {
 
 export function useActiveProgram() {
   const { write, writeScope } = useTrainingWrite();
-  const { timeZone } = usePreferences();
+  const timeZone = useDeviceTimeZone();
   const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;

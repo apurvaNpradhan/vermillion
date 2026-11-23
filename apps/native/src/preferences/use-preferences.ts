@@ -21,7 +21,14 @@ import { useSession } from "@/auth";
 import { useLocalData, useSyncValue } from "@/sync";
 
 import { preferencesAccess, type PreferencesAccess } from "./preferences-access";
-import { preferencesSnapshot, publishPreferences, subscribePreferences } from "./preferences-store";
+import {
+  memoSelector,
+  type PreferencesState,
+  type SelectorCache,
+  preferencesSnapshot,
+  publishPreferences,
+  subscribePreferences,
+} from "./preferences-store";
 
 const EMPTY: Preferences = { locale: null, timezone: null, ui: DEFAULT_UI_PREFERENCES };
 const NO_DATABASE = { value: undefined, failed: false } as const;
@@ -36,7 +43,7 @@ const never = () => () => undefined;
  * The preferences read from the device's database, or `undefined` before it has answered. Only
  * for the Device owner (`preferencesAccess`): another account's session reads nothing.
  */
-function useLocalPreferences() {
+function useLocalPreferencesGate() {
   const local = useLocalData();
   const { session } = useSession();
   const owner = useSyncValue((snapshot) => (snapshot ? phaseOwner(snapshot.phase) : null));
@@ -45,6 +52,12 @@ function useLocalPreferences() {
   const blockedPhase = useSyncValue((snapshot) => snapshot?.phase.kind === "blocked");
   const access = preferencesAccess({ sessionUser, owner, installId, blocked: blockedPhase });
   const database: PreferencesDatabase | null = local?.status === "ready" ? local.database : null;
+  const blocked = blockedPhase || (sessionUser !== null && owner !== null && sessionUser !== owner);
+  return { local, database, access, blocked };
+}
+
+function useLocalPreferences() {
+  const { local, database, access, blocked } = useLocalPreferencesGate();
   const gated = database && access ? { database, access } : null;
   const state = useSyncExternalStore(
     useCallback(
@@ -56,7 +69,6 @@ function useLocalPreferences() {
     ),
     () => (gated ? preferencesSnapshot(gated.database, gated.access) : NO_DATABASE),
   );
-  const blocked = blockedPhase || (sessionUser !== null && owner !== null && sessionUser !== owner);
   return {
     database,
     access,
@@ -64,6 +76,37 @@ function useLocalPreferences() {
     lifecycle: local?.status === "ready" ? local.lifecycle : null,
     unavailable: local?.status === "unavailable" || blocked,
   };
+}
+
+/**
+ * One value read from the preferences, re-rendering only when it changes by `isEqual` (default
+ * `Object.is`). Use it where a component needs a field or two: the preferences row is replaced
+ * on every change to any setting, and `usePreferences` hands everyone the whole object. A
+ * selector that builds an object needs an `isEqual` (`shallow` from zustand does for flat ones).
+ */
+export function usePreference<T>(
+  select: (preferences: Preferences) => T,
+  isEqual?: (a: T, b: T) => boolean,
+): T {
+  const { database, access } = useLocalPreferencesGate();
+  const [cache] = useState<{ current: SelectorCache<PreferencesState, T> }>(() => ({
+    current: null,
+  }));
+  const selectState = memoSelector(
+    (current: PreferencesState) => select(current.value ?? EMPTY),
+    isEqual,
+    cache,
+  );
+  return useSyncExternalStore(
+    useCallback(
+      (listener: () => void) =>
+        database && access ? subscribePreferences(database, access, listener) : never(),
+      // The cache entry, not the object, is what must stay stable.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [database, access?.key],
+    ),
+    () => selectState(database && access ? preferencesSnapshot(database, access) : NO_DATABASE),
+  );
 }
 
 /**

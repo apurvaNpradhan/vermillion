@@ -1,6 +1,6 @@
 import { Pressable, Text } from "react-native";
 
-import { useEditorKeypad } from "./editor-keypad";
+import { useCellText, useEditorKeypad } from "./editor-keypad";
 
 /**
  * A number cell of the Workout editor's set table when the custom keypad types into it. It is a
@@ -22,9 +22,11 @@ export function EditorCellButton({
   placeholder: string;
 }) {
   const keypad = useEditorKeypad();
+  // Null unless this cell is the one being typed into: a keystroke re-renders only that cell.
+  const typed = useCellText(keypad, cellKey);
   if (!keypad) return null;
-  const active = keypad.activeKey === cellKey;
-  const shown = active ? keypad.text : text;
+  const active = typed !== null;
+  const shown = typed ?? text;
   return (
     <Pressable
       ref={keypad.registerNode(cellKey)}
