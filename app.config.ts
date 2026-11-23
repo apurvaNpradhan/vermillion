@@ -10,7 +10,12 @@ const domain = "lostsignal.cloud";
 /** The product slug used for the scheme, bundle id suffix and host prefixes. */
 const name = "sigil";
 /** Typed so a fingerprint can be added without widening the config. */
-const androidCertSha256: readonly string[] = [];
+const androidCertSha256: readonly string[] = [
+  // Release key (GitHub Android release workflow; CN=Patina, the keystore predates the rename).
+  "F8:E7:70:D9:83:DB:B2:26:6F:D9:17:4E:8E:2D:78:AB:61:94:7A:AD:FF:D8:01:A5:77:AE:13:9D:78:2D:60:E9",
+  // Local debug key (development builds installed with `expo run:android`).
+  "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C",
+];
 
 export const appConfig = {
   name,
