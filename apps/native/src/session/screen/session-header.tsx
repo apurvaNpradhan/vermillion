@@ -20,12 +20,14 @@ import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 function Clock({
   startedAt,
   pausedAt,
+  animate,
   pausedMs,
   frozen,
   onPress,
 }: {
   startedAt: string;
   pausedAt: string | null;
+  animate: boolean;
   pausedMs: number;
   frozen: boolean;
   /** Opens the workout clock sheet; the clock is plain text without it. */
@@ -42,8 +44,8 @@ function Clock({
       </Text>
       {clock.pausedAt === null ? null : (
         <Animated.Text
-          entering={MARKER_ENTERING}
-          exiting={MARKER_EXITING}
+          entering={animate ? MARKER_ENTERING : undefined}
+          exiting={animate ? MARKER_EXITING : undefined}
           className="font-medium text-caption text-subtle"
         >
           {t("session__paused_label")}
@@ -75,6 +77,7 @@ export function SessionHeader({
   title,
   startedAt,
   pausedAt,
+  animate,
   pausedMs,
   volume,
   sets,
@@ -88,6 +91,7 @@ export function SessionHeader({
   title: string;
   startedAt: string;
   pausedAt: string | null;
+  animate: boolean;
   pausedMs: number;
   /** Volume with its unit, "4,250 kg". */
   volume: string;
@@ -128,6 +132,7 @@ export function SessionHeader({
             <Clock
               startedAt={startedAt}
               pausedAt={pausedAt}
+              animate={animate}
               pausedMs={pausedMs}
               frozen={readOnly}
               {...(readOnly || !onOpenClock ? {} : { onPress: onOpenClock })}

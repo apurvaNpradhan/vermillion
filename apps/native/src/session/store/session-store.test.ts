@@ -261,19 +261,45 @@ describe("the session store", () => {
     });
   });
 
-  it("shows a record's chip only for the tick that was found to be one", () => {
+  it("shows a record chip only for the confirmed tick that earned it", () => {
     const store = createSessionStore(twoExercises());
+    const state = store.getState;
     previewTick(store, "b2");
-    const ticked = store.getState();
-    expect(showsRecord(ticked, "b2")).toBe(false);
-    ticked.markRecord("b2", NOW);
-    expect(showsRecord(store.getState(), "b2")).toBe(true);
-    expect(showsRecord(store.getState(), "b1")).toBe(false);
-    // The same mark again changes nothing; a mark for another tick of the set does not show.
-    const marked = store.getState().records;
-    store.getState().markRecord("b2", NOW);
-    expect(store.getState().records).toBe(marked);
-    store.getState().markRecord("b2", "2026-11-21T10:06:00.000Z");
-    expect(showsRecord(store.getState(), "b2")).toBe(false);
+    state().markRecord("b2", NOW);
+    expect(showsRecord(state(), "b2")).toBe(false);
+
+    state().updatePending(() => NO_PENDING);
+    previewTick(store, "b2", true);
+    const ticked = state().setsById.get("b2");
+    if (!ticked) throw new Error("missing set");
+
+    const untick = {
+      id: Symbol(),
+      saved: false,
+      set: {
+        id: "b2",
+        before: ticked,
+        value: { completedAt: null },
+      },
+    };
+    state().updatePending((pending) => [...pending, untick]);
+    state().markRecord("b2", NOW);
+    expect(showsRecord(state(), "b2")).toBe(false);
+
+    state().updatePending((pending) => pending.filter((write) => write.id !== untick.id));
+    expect(showsRecord(state(), "b2")).toBe(true);
+    expect(showsRecord(state(), "b1")).toBe(false);
+    state().markRecord("b2", "2026-11-21T10:06:00.000Z");
+    expect(showsRecord(state(), "b2")).toBe(true);
+
+    state().setUi({ ...state().ui, recordAlerts: false });
+    expect(showsRecord(state(), "b2")).toBe(false);
+    state().setUi({ ...state().ui, recordAlerts: true });
+    expect(showsRecord(state(), "b2")).toBe(true);
+
+    state().clearRecord("b2");
+    state().updatePending(() => NO_PENDING);
+    previewTick(store, "b2", true);
+    expect(showsRecord(state(), "b2")).toBe(false);
   });
 });

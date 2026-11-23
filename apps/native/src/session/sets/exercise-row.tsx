@@ -3,13 +3,13 @@ import type { SessionExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
 import { CaretDown, Check, DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
-import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
+import { RecordChip } from "./record-chip";
 import { BODY_ENTERING, TICK_EASING, TICK_MS } from "@/session/shared/motion";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
@@ -36,6 +36,10 @@ export const ExerciseRow = memo(function ExerciseRow({
   done,
   readOnly,
   animateOpen,
+  animate,
+  record,
+  onHeaderLayout,
+  onBodyLayout,
   onView,
   onToggle,
   onMenu,
@@ -56,6 +60,10 @@ export const ExerciseRow = memo(function ExerciseRow({
   readOnly: boolean;
   /** The row was closed at some point on this screen, so opening it fades the body in. */
   animateOpen: boolean;
+  animate: boolean;
+  record: string | null;
+  onHeaderLayout: (event: LayoutChangeEvent) => void;
+  onBodyLayout: (event: LayoutChangeEvent) => void;
   onView: (exerciseId: string) => void;
   /** Opens a closed exercise, closes an open one. */
   onToggle: (exerciseId: string) => void;
@@ -68,7 +76,6 @@ export const ExerciseRow = memo(function ExerciseRow({
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const reduced = useReduceMotion();
   const background = useThemeColor("background");
   const info = exercise.exercise;
   const name = exercise.title || t("training__exercise_missing");
@@ -88,14 +95,22 @@ export const ExerciseRow = memo(function ExerciseRow({
     title: name,
   });
 
-  const headerLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
+  const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
     title: name,
     summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
   });
 
+  const headerLabel =
+    !expanded && record
+      ? t("session__exercise_header_record", { exercise: exerciseLabel })
+      : exerciseLabel;
+
   return (
     <ReorderBlock onReorder={onReorder} enabled={!readOnly} motion={false}>
-      <ReorderTrigger className="min-h-[64px] flex-row items-center bg-background">
+      <ReorderTrigger
+        onLayout={onHeaderLayout}
+        className="min-h-[64px] flex-row items-center bg-background"
+      >
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
@@ -147,6 +162,7 @@ export const ExerciseRow = memo(function ExerciseRow({
               >
                 {done ? doneText : subtitle}
               </Text>
+              <RecordChip record={record} animate={animate} inHeader hidden={expanded} />
             </View>
             {expanded ? (
               <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
@@ -164,7 +180,8 @@ export const ExerciseRow = memo(function ExerciseRow({
           <Animated.View
             style={{
               transform: [{ rotate: expanded ? "180deg" : "0deg" }],
-              ...(reduced ? undefined : CHEVRON_TRANSITION),
+              ...CHEVRON_TRANSITION,
+              transitionDuration: animate ? TICK_MS : 0,
             }}
           >
             <CaretDown size={20} color={subtle} />
@@ -184,8 +201,9 @@ export const ExerciseRow = memo(function ExerciseRow({
       </ReorderTrigger>
       {expanded ? (
         <Animated.View
-          entering={animateOpen ? BODY_ENTERING : undefined}
-          className="gap-3 px-3 pb-4 pt-1"
+          entering={animate && animateOpen ? BODY_ENTERING : undefined}
+          onLayout={onBodyLayout}
+          className="gap-3 px-3 pb-4"
         >
           {children}
         </Animated.View>

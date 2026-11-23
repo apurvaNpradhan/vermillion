@@ -58,7 +58,8 @@ export type SetRowProps = {
   entry: ActiveEntry | null;
   refusal: Refusal | null;
   /** The ticked set beat a record: a "PR" chip pops in beside its number. */
-  record: boolean;
+  record: string | null;
+  animate: boolean;
   /** The set to log next: an ember leading bar and number. */
   current: boolean;
   readOnly: boolean;
@@ -175,6 +176,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         <SetCell
           text={text}
           ghost={ghost}
+          animate={props.animate}
           active={editing}
           refused={refused}
           ink={ink}
@@ -232,7 +234,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-brand-detail"
         />
       ) : null}
-      {ticked && props.record ? <RecordChip /> : null}
+      <RecordChip record={props.record} animate={props.animate} />
       <Pressable
         {...a11y}
         accessibilityRole="button"
@@ -323,7 +325,12 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           {waitingForPrevious && !readOnly ? (
             <DotsThree size={20} color={subtle} />
           ) : (
-            <TickMark ticked={ticked} subtle={subtle} background={background} />
+            <TickMark
+              ticked={ticked}
+              animate={props.animate}
+              subtle={subtle}
+              background={background}
+            />
           )}
         </Pressable>
       )}

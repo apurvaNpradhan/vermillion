@@ -161,8 +161,8 @@ export function useLoggingState({
     store.getState().setInputs(inputs);
   }, [store, inputs]);
   useLayoutEffect(() => {
-    store.getState().setUi({ readOnly, effortScale, countWarmups });
-  }, [store, readOnly, effortScale, countWarmups]);
+    store.getState().setUi({ readOnly, effortScale, countWarmups, recordAlerts });
+  }, [store, readOnly, effortScale, countWarmups, recordAlerts]);
 
   // What this hook's own render reads. The rows read what they draw straight from the store.
   const found = useStore(store, (state) => state.found);
@@ -461,13 +461,20 @@ export function useLoggingState({
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
       const isRecord = (bests: Map<string, ExerciseBests>) => {
         const state = store.getState();
-        if (state.setsById.get(setId)?.completedAt !== result.completedAt) return false;
+        const saved = savedSession(state);
+        const exercises = saved.exercises.filter(
+          (exercise) => exercise.exerciseId === at.exercise.exerciseId,
+        );
+        if (
+          !exercises.some((exercise) =>
+            exercise.sets.some((set) => set.id === setId && set.completedAt === result.completedAt),
+          )
+        )
+          return false;
         return tickedSetIsRecord({
           bests,
-          sets: savedSession(state).exercises.flatMap((exercise) =>
-            exercise.exerciseId === at.exercise.exerciseId
-              ? exercise.sets.map((set) => loggedSetOf(exercise, set, countWarmups))
-              : [],
+          sets: exercises.flatMap((exercise) =>
+            exercise.sets.map((set) => loggedSetOf(exercise, set, countWarmups)),
           ),
           setId,
           bodyweightKg,
@@ -477,8 +484,7 @@ export function useLoggingState({
         sound.play("record");
         // The tick already buzzed; a countdown's one buzz was the success.
         if (!strong) haptic.success();
-        // The row shows a "PR" chip (it is what the on-screen alert is); the sound is separate.
-        if (recordAlerts) store.getState().markRecord(setId, result.completedAt);
+        store.getState().markRecord(setId, result.completedAt);
       };
       // The first tick for an exercise can precede its bests: the Record shows when they arrive,
       // if the history still applies then.
@@ -502,7 +508,6 @@ export function useLoggingState({
       countWarmups,
       onRestStarted,
       sound,
-      recordAlerts,
     ],
   );
 

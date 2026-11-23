@@ -1,9 +1,9 @@
 import { SESSION_LIMITS, type SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NotePencil } from "phosphor-react-native";
-import { Pressable, Text, View } from "react-native";
-import { LayoutAnimationConfig } from "react-native-reanimated";
+import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { LayoutAnimationConfig, type AnimatedRef } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { haptic } from "@/platform/haptics";
@@ -13,6 +13,7 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
+import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
@@ -40,15 +41,33 @@ export type ExerciseHandlers = SetHandlers & {
 export const ExerciseItem = memo(function ExerciseItem({
   exerciseId,
   handlers,
+  animate,
+  viewport,
+  isInViewport,
 }: {
   exerciseId: string;
   handlers: ExerciseHandlers;
+  animate: boolean;
+  viewport: AnimatedRef<View>;
+  isInViewport: (exerciseId: string, offset: number, height: number) => boolean;
 }) {
+  "use no memo"; // The viewport test samples the list's current scroll position.
   const data = useSessionStore(
     useShallow((state) => {
       const view = state.views.get(exerciseId);
+      const exercise = state.exercises.get(exerciseId);
+      let record: string | null = null;
+      if (state.records.size > 0 && exercise) {
+        for (const set of exercise.sets) {
+          if (showsRecord(state, set.id)) {
+            const mark = `${set.completedAt}:${set.id}`;
+            if (record === null || mark > record) record = mark;
+          }
+        }
+      }
       return {
-        exercise: state.exercises.get(exerciseId),
+        exercise,
+        record,
         suggestion: view?.suggestion ?? null,
         stall: view?.stall ?? null,
         progress: view?.progress ?? "",
@@ -57,7 +76,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         unit: state.inputs.unit,
         readOnly: state.ui.readOnly,
         expanded: state.expanded.has(exerciseId),
-        done: allTicked(state.exercises.get(exerciseId)?.sets ?? []),
+        done: allTicked(exercise?.sets ?? []),
       };
     }),
   );
@@ -66,6 +85,21 @@ export const ExerciseItem = memo(function ExerciseItem({
   // screen opening, or the list mounting it while scrolling) shows it at once.
   const [seenClosed, setSeenClosed] = useState(false);
   if (!expanded && !seenClosed) setSeenClosed(true);
+  const bodyTop = useRef<number | null>(null);
+  const headerHeight = useRef(0);
+  const onHeaderLayout = useCallback((event: LayoutChangeEvent) => {
+    headerHeight.current = event.nativeEvent.layout.height;
+  }, []);
+  const onBodyLayout = useCallback((event: LayoutChangeEvent) => {
+    bodyTop.current = event.nativeEvent.layout.y;
+  }, []);
+  const isBodyRegionVisible = useCallback(
+    (offset: number, height: number) => {
+      const top = bodyTop.current;
+      return top !== null && isInViewport(exerciseId, top + offset, height);
+    },
+    [exerciseId, isInViewport],
+  );
   const progression = useMemo(
     () => (suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null),
     [suggestion, unit],
@@ -82,7 +116,11 @@ export const ExerciseItem = memo(function ExerciseItem({
         expanded={expanded}
         done={data.done}
         readOnly={readOnly}
+        animate={animate && isInViewport(exerciseId, 0, headerHeight.current)}
         animateOpen={seenClosed}
+        record={data.record}
+        onHeaderLayout={onHeaderLayout}
+        onBodyLayout={onBodyLayout}
         onView={handlers.onView}
         onToggle={handlers.onToggle}
         onMenu={handlers.onMenu}
@@ -90,7 +128,7 @@ export const ExerciseItem = memo(function ExerciseItem({
       >
         {expanded ? (
           <LayoutAnimationConfig skipEntering skipExiting>
-            <View className="gap-3">
+            <View className="gap-3 pt-1" collapsable={false}>
               {stall ? (
                 <StalledNote
                   exerciseId={exercise.exerciseId}
@@ -108,7 +146,14 @@ export const ExerciseItem = memo(function ExerciseItem({
                 onNote={handlers.onNote}
                 onRest={handlers.onRest}
               />
-              <SetGrid exerciseId={exerciseId} handlers={handlers} onAddSet={handlers.onAddSet} />
+              <SetGrid
+                exerciseId={exerciseId}
+                handlers={handlers}
+                onAddSet={handlers.onAddSet}
+                animate={animate}
+                viewport={viewport}
+                isBodyRegionVisible={isBodyRegionVisible}
+              />
             </View>
           </LayoutAnimationConfig>
         ) : null}

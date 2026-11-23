@@ -1,7 +1,6 @@
 import { Pressable, View } from "react-native";
 import Animated from "react-native-reanimated";
 
-import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { INK_MS } from "@/session/shared/motion";
 
 const INK_TRANSITION = { transitionProperty: ["color"], transitionDuration: INK_MS } as const;
@@ -16,6 +15,7 @@ const INK_TRANSITION = { transitionProperty: ["color"], transitionDuration: INK_
 export function SetCell({
   text,
   ghost,
+  animate,
   active,
   refused,
   ink,
@@ -29,6 +29,7 @@ export function SetCell({
   text: string;
   /** The Ghost value as text, shown muted when `text` is empty. */
   ghost: string;
+  animate: boolean;
   active: boolean;
   refused: boolean;
   /** The theme's full and faint ink, as colors (a transition needs the value, not a class). */
@@ -41,7 +42,6 @@ export function SetCell({
   children?: React.ReactNode;
 }) {
   const empty = text === "";
-  const reduced = useReduceMotion();
   const bar = refused ? "bg-danger" : active ? "bg-accent" : "bg-transparent";
   return (
     <Pressable
@@ -60,7 +60,8 @@ export function SetCell({
             style={{
               fontVariant: ["tabular-nums"],
               color: empty ? faint : ink,
-              ...(reduced ? undefined : INK_TRANSITION),
+              ...INK_TRANSITION,
+              transitionDuration: animate ? INK_MS : 0,
             }}
           >
             {empty ? (ghost === "" ? "–" : ghost) : text}

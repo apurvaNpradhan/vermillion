@@ -26,11 +26,13 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
  */
 export function RestBar({
   rest,
+  animate,
   onAdjust,
   onSkip,
   withInset,
   pausedAt,
 }: {
+  animate: boolean;
   rest: { setId: string; startedAt: string; endsAt: string };
   onAdjust: (deltaSeconds: number) => void;
   onSkip: () => void;
@@ -77,8 +79,8 @@ export function RestBar({
   };
   return (
     <Animated.View
-      entering={REST_ENTERING}
-      exiting={REST_EXITING}
+      entering={animate ? REST_ENTERING : undefined}
+      exiting={animate ? REST_EXITING : undefined}
       className="bg-background"
       style={{ paddingBottom: withInset ? bottom : 0 }}
     >
