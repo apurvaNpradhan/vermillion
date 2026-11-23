@@ -3,7 +3,7 @@
 All sounds are original: synthesised in this repository by `tools/sounds/generate.py` (Python,
 numpy, ffmpeg) with no samples and no third-party material. They are owned outright and need no
 attribution. Re-run `python3 tools/sounds/generate.py` to rebuild them; the shipped set is the
-"bell" timbre (a "marimba" alternative is kept in `tools/sounds/audition/`). Everything is in C
+"marimba" timbre (a "bell" alternative is kept in `tools/sounds/audition/`). Everything is in C
 major, and tick → progress step → finish rises as a phrase.
 
 | File                    | Used for                                       | Notes                     |

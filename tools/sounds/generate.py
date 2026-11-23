@@ -4,7 +4,7 @@
 Usage:  python3 tools/sounds/generate.py            (from the repo root)
 
 Needs python3 + numpy and ffmpeg (libmp3lame). Output is deterministic (fixed seed).
-  - bell set     -> apps/native/assets/sounds/   (the active set; same filenames as before)
+  - marimba set  -> apps/native/assets/sounds/   (the active set; same filenames as before)
   - both sets    -> tools/sounds/audition/{bell,marimba}/ plus audition/index.html
 See tools/sounds/README.md.
 """
@@ -210,7 +210,7 @@ def audition_html():
 <style>body{{font:16px system-ui;max-width:640px;margin:2rem auto;padding:0 1rem}}
 td{{padding:.5rem .75rem;border-bottom:1px solid #8884}}button{{font-size:1rem;padding:.4rem .8rem}}</style>
 <h1>Sigil sounds: bell vs marimba</h1>
-<p>Both sets are in C major. The bell set is the shipped one.</p>
+<p>Both sets are in C major. The marimba set is the shipped one.</p>
 <p>Phrase (tick → step → finish): {" ".join(f'<button onclick="phrase(\'{v}\')">▶ {v}</button>' for v in ("bell", "marimba"))}</p>
 <table>{rows}</table>
 <script>
@@ -226,7 +226,7 @@ def main():
     sets = {"bell": build(bell_note), "marimba": build(marimba_note)}
     for variant, cues in sets.items():
         export(cues, AUDITION_DIR / variant)
-    export(sets["bell"], ACTIVE_DIR)  # the shipped set
+    export(sets["marimba"], ACTIVE_DIR)  # the shipped set
     (AUDITION_DIR / "index.html").write_text(audition_html(), encoding="utf-8")
     for variant, cues in sets.items():
         for name, x in cues.items():
