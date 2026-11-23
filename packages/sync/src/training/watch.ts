@@ -433,7 +433,7 @@ function sameRows(a: QueryResult["array"], b: QueryResult["array"]): boolean {
     const keys = Object.keys(left);
     if (keys.length !== Object.keys(right).length) return false;
     for (const key of keys) {
-      if (!Object.is(left[key], right[key])) return false;
+      if (!Object.hasOwn(right, key) || !Object.is(left[key], right[key])) return false;
     }
   }
   return true;
@@ -464,7 +464,9 @@ function watch(
         onRows(rows);
       },
       onError: (error) => {
-        if (!controller.signal.aborted) onError(error);
+        if (controller.signal.aborted) return;
+        last = null;
+        onError(error);
       },
     },
     {
@@ -723,7 +725,10 @@ export function watchSession(
       rows = next;
       emit();
     },
-    handlers.onError,
+    (error) => {
+      rows = null;
+      handlers.onError(error);
+    },
   );
   const stopNotes = watch(
     database,
@@ -734,7 +739,10 @@ export function watchSession(
       notes = next;
       emit();
     },
-    handlers.onError,
+    (error) => {
+      notes = null;
+      handlers.onError(error);
+    },
   );
   return () => {
     stopped = true;

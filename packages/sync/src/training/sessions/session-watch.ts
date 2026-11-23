@@ -196,7 +196,9 @@ export type SessionDetail = {
  * "last time" note is its own query, {@link SESSION_LAST_NOTES_SQL}, merged by `parseSessionDetail`.
  */
 export const SESSION_DETAIL_SQL = `WITH first_setting AS (
-    SELECT exercise_id, MIN(id) AS id FROM exercise_setting GROUP BY exercise_id)
+    SELECT exercise_id, MIN(id) AS id FROM exercise_setting
+    WHERE exercise_id IN (SELECT exercise_id FROM session_exercise WHERE session_id = ?1)
+    GROUP BY exercise_id)
   SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.cycle AS cycle, s.title AS title,
@@ -223,14 +225,13 @@ export const SESSION_DETAIL_SQL = `WITH first_setting AS (
   LEFT JOIN first_setting fs ON fs.exercise_id = se.exercise_id
   LEFT JOIN exercise_setting es ON es.id = fs.id
   LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
-  WHERE s.id = ?
+  WHERE s.id = ?1
   ORDER BY se.position, se.id, ss.position, ss.id
   LIMIT ${DETAIL_ROW_LIMIT}`;
 
 /**
  * The note each exercise of a Session had in its latest earlier finished Session, one row per
- * exercise. Kept out of {@link SESSION_DETAIL_SQL}: it scans finished history and only changes
- * when a Session's exercises do, not on every set write.
+ * exercise. Kept out of {@link SESSION_DETAIL_SQL} so writes only to session_set do not scan finished history.
  */
 export const SESSION_LAST_NOTES_SQL = `SELECT x.exercise_id AS exercise_id,
     (SELECT se2.note FROM session_exercise se2

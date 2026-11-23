@@ -1,3 +1,4 @@
+import { watchSession } from "../index";
 import {
   ghostFor,
   previousFor,
@@ -675,6 +676,33 @@ describe("Session detail queries", () => {
       ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
   const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note"] as const;
 
+  it("updates a running Session when its earlier finished exercise note is edited", async () => {
+    const s = await setupSessions();
+    const earlier = await finishedSquat(s, daysAgo(3), [100]);
+    const active = await startSession(s.training, { workoutId: null, derivedTitle });
+    await addSessionExercises(s.training, active, [SQUAT, SQUAT]);
+    const notes: Array<Array<string | null>> = [];
+    const stop = watchSession(s.training, active, {
+      onSession: (session) =>
+        notes.push(session?.exercises.map((exercise) => exercise.lastNote) ?? []),
+      onError: (error) => {
+        throw error;
+      },
+    });
+    try {
+      s.sqlite
+        .prepare("UPDATE session_exercise SET note = ? WHERE session_id = ?")
+        .run("Belt on", earlier);
+      s.notifyTable("session_exercise");
+      expect(notes).toEqual([
+        [null, null],
+        ["Belt on", "Belt on"],
+      ]);
+    } finally {
+      stop();
+    }
+  });
+
   it("returns the same settings and last notes as the correlated subqueries did", async () => {
     const s = await setupSessions();
     const earlier = await finishedSquat(s, daysAgo(3), [100, 110]);
@@ -687,6 +715,10 @@ describe("Session detail queries", () => {
       progression_per_set: true,
       auto_warmups: true,
     });
+    // The local replica can briefly hold duplicate settings, for example after offline writes.
+    s.sqlite
+      .prepare("INSERT INTO exercise_setting (id, user_id, exercise_id, note) VALUES (?, ?, ?, ?)")
+      .run("z-duplicate", "owner", SQUAT, "Different note");
     const plan = await pushWorkout(s);
     for (const workoutId of [plan.workoutId, null]) {
       const id = await startSession(s.training, { workoutId, derivedTitle });

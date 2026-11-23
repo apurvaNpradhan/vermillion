@@ -46,6 +46,34 @@ describe("createSharedWatch", () => {
     expect(watch.snapshot(database, "b").value).toBeUndefined();
   });
 
+  it("gives late subscribers the current snapshot and releases state with the last listener", () => {
+    const { watch, feeds, database } = setup();
+    const listener = () => undefined;
+    const off1 = watch.subscribe(database, "a", listener);
+    feeds[0]?.emit(7);
+    const off2 = watch.subscribe(database, "a", listener);
+    expect(watch.snapshot(database, "a").value).toBe(7);
+    off1();
+    off1();
+    expect(feeds[0]?.stopped).toBe(false);
+    off2();
+    feeds[0]?.emit(9);
+    expect(watch.snapshot(database, "a").value).toBeUndefined();
+    expect(feeds[0]?.stopped).toBe(true);
+  });
+
+  it("skips a listener removed during an emission", () => {
+    const { watch, feeds, database } = setup();
+    const seen: number[] = [];
+    let off2 = () => {};
+    const off1 = watch.subscribe(database, "a", () => off2());
+    off2 = watch.subscribe(database, "a", () => seen.push(2));
+    feeds[0]?.emit(7);
+    expect(seen).toEqual([]);
+    off1();
+    expect(feeds[0]?.stopped).toBe(true);
+  });
+
   it("reports a failure and restarts on retry", () => {
     const { watch, feeds, database } = setup();
     watch.subscribe(database, "a", () => undefined);

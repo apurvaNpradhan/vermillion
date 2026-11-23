@@ -1,21 +1,13 @@
-/**
- * One watch per local database and key, shared by every hook that reads it: a Session screen, the
- * Resume bar and the Live notification all read the same Session, and each running its own query
- * and parse made every set write cost several times over. The watch runs while anything listens;
- * the last value stays for a while after the last listener leaves, so a screen that mounts reads
- * it at once, and is then dropped.
- */
+/** One watch per local database and key, shared while at least one subscriber is listening. */
 export type SharedWatchState<T> = { value: T | undefined; failed: boolean };
 
 type Entry<T> = {
   state: SharedWatchState<T>;
   listeners: Set<() => void>;
   stop: (() => void) | null;
-  evict: ReturnType<typeof setTimeout> | null;
 };
 
-const KEEP_MS = 30_000;
-const UNKNOWN = { value: undefined, failed: false };
+const EMPTY = { value: undefined, failed: false };
 
 export function createSharedWatch<Database extends object, T>(options: {
   start: (
@@ -29,58 +21,64 @@ export function createSharedWatch<Database extends object, T>(options: {
 }) {
   const entries = new WeakMap<Database, Map<string, Entry<T>>>();
 
-  function entryFor(database: Database, key: string): Entry<T> {
-    const byKey = entries.get(database) ?? new Map<string, Entry<T>>();
-    entries.set(database, byKey);
-    const existing = byKey.get(key);
-    if (existing) return existing;
-    const created: Entry<T> = { state: UNKNOWN, listeners: new Set(), stop: null, evict: null };
-    byKey.set(key, created);
-    return created;
-  }
-
   function publish(entry: Entry<T>, state: SharedWatchState<T>) {
     entry.state = state;
-    entry.listeners.forEach((listener) => listener());
+    const listeners = [...entry.listeners];
+    for (const listener of listeners) {
+      if (entry.state !== state) return;
+      if (entry.listeners.has(listener)) listener();
+    }
   }
 
   function run(database: Database, key: string, entry: Entry<T>) {
-    entry.stop = options.start(
+    let current = true;
+    let stop: (() => void) | undefined;
+    const cancel = () => {
+      current = false;
+      stop?.();
+    };
+    // Register cancellation before start, which may emit synchronously.
+    entry.stop = cancel;
+    stop = options.start(
       database,
       key,
       (value) => {
+        if (!current) return;
         const shared = options.share ? options.share(entry.state.value, value) : value;
         if (entry.state.value === shared && !entry.state.failed) return;
         publish(entry, { value: shared, failed: false });
       },
-      () => publish(entry, { value: entry.state.value, failed: true }),
+      () => {
+        if (current && !entry.state.failed) publish(entry, { value: undefined, failed: true });
+      },
     );
+    if (!current) stop();
   }
 
   return {
     subscribe(database: Database, key: string, listener: () => void) {
-      const entry = entryFor(database, key);
-      if (entry.evict) clearTimeout(entry.evict);
-      entry.evict = null;
-      entry.listeners.add(listener);
+      const byKey = entries.get(database) ?? new Map<string, Entry<T>>();
+      entries.set(database, byKey);
+      const entry = byKey.get(key) ?? { state: EMPTY, listeners: new Set(), stop: null };
+      byKey.set(key, entry);
+      const notify = () => listener();
+      entry.listeners.add(notify);
       if (!entry.stop) run(database, key, entry);
       return () => {
-        entry.listeners.delete(listener);
-        if (entry.listeners.size > 0) return;
+        if (!entry.listeners.delete(notify) || entry.listeners.size > 0) return;
+        byKey.delete(key);
         entry.stop?.();
-        entry.stop = null;
-        entry.evict = setTimeout(() => entries.get(database)?.delete(key), KEEP_MS);
       };
     },
     snapshot(database: Database, key: string): SharedWatchState<T> {
-      return entryFor(database, key).state;
+      return entries.get(database)?.get(key)?.state ?? EMPTY;
     },
     /** Starts the watch again after it failed. */
     retry(database: Database, key: string) {
-      const entry = entryFor(database, key);
+      const entry = entries.get(database)?.get(key);
+      if (!entry?.state.failed) return;
       entry.stop?.();
-      entry.stop = null;
-      publish(entry, UNKNOWN);
+      publish(entry, EMPTY);
       if (entry.listeners.size > 0) run(database, key, entry);
     },
   };

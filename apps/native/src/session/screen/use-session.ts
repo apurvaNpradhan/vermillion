@@ -28,18 +28,19 @@ const LOADING = { value: undefined, failed: false };
 const NOTHING = () => undefined;
 
 /** One Session with its exercises and sets, live from the local database. */
-export function useSession(id: string): SessionState {
+export function useSession(id: string | null): SessionState {
   const local = useLocalData();
   const database = local?.status === "ready" ? local.database : null;
   const subscribe = useCallback(
-    (listener: () => void) => (database ? sessions.subscribe(database, id, listener) : NOTHING),
+    (listener: () => void) =>
+      database && id ? sessions.subscribe(database, id, listener) : NOTHING,
     [database, id],
   );
   const state = useSyncExternalStore(subscribe, () =>
-    database ? sessions.snapshot(database, id) : LOADING,
+    database && id ? sessions.snapshot(database, id) : LOADING,
   );
   const retry = useCallback(() => {
-    if (database) sessions.retry(database, id);
+    if (database && id) sessions.retry(database, id);
   }, [database, id]);
   const unavailable = local?.status === "unavailable";
   return useMemo((): SessionState => {

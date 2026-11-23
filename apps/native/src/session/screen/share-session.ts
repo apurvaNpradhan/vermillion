@@ -1,26 +1,25 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
 /** A field value: a scalar, or a small nested JSON value (a set's target, an exercise's muscles). */
-type Field = string | number | boolean | null | undefined | Field[] | { [key: string]: Field };
-type Row = SessionSetDetail | SessionExerciseDetail | SessionDetail;
+type Field = string | number | boolean | null | undefined | Fields;
+type Fields = Field[] | { [key: string]: Field };
 
-const sameField = (a: Field, b: Field) =>
-  Object.is(a, b) ||
-  // Nested values are plain JSON written in a fixed key order, so their text compares them.
-  (a instanceof Object && b instanceof Object && JSON.stringify(a) === JSON.stringify(b));
+function sameField(a: Field, b: Field): boolean {
+  if (Object.is(a, b)) return true;
+  return a instanceof Object && b instanceof Object && sameFields(a, b);
+}
 
-/**
- * Every own field except `skip` equal. Rows are built field by field in a fixed order, so the
- * entries line up; scalars compare directly, without stringifying the row.
- */
-function sameFields(a: Row, b: Row, skip?: string): boolean {
-  const left = Object.entries<Field>(a).filter(([key]) => key !== skip);
-  const right = Object.entries<Field>(b).filter(([key]) => key !== skip);
+/** Compares every field except the child collection, whose objects are shared separately. */
+function sameFields(a: Fields, b: Fields, skip?: string): boolean {
+  const left = Object.entries<Field>(a);
+  const right = Object.entries<Field>(b);
   return (
     left.length === right.length &&
     left.every(([key, value], index) => {
       const other = right[index];
-      return other !== undefined && other[0] === key && sameField(value, other[1]);
+      return (
+        other !== undefined && other[0] === key && (key === skip || sameField(value, other[1]))
+      );
     })
   );
 }
