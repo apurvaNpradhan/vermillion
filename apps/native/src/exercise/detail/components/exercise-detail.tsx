@@ -308,6 +308,7 @@ function LoadedDetail({
                   bodyweightKg={preferences.ui.bodyweightKg}
                   unit={preferences.ui.weightUnit}
                   timezone={timeZone}
+                  weekStart={preferences.ui.weekStart}
                 />
                 <View className="px-4">
                   <RecentTopSets

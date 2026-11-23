@@ -53,6 +53,7 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
     history: enriched,
     bodyweightOn,
     ready: !state.loading && !state.failed,
+    loading: state.loading,
     failed: state.failed,
     retry: state.retry,
   };

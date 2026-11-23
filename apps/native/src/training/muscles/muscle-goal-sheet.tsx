@@ -64,7 +64,9 @@ export function MuscleGoalSheet({
   const { t, i18n } = useTranslation();
   const sheet = useSheetPresent();
   const [picked, setPicked] = useState<GoalLevel | null>(goal?.level ?? null);
-  const range = goalRange(goal, planned === null ? null : 0) ?? GOAL_RANGES.maintain;
+  // The target the muscle's row uses: its goal, else the program-planned sets, else none.
+  const resolved = goalRange(goal, planned);
+  const range = resolved ?? GOAL_RANGES.maintain;
   const [min, setMin] = useState(String(range.min));
   const [max, setMax] = useState(String(range.max));
   const parsed = customGoal(min, max);
@@ -96,10 +98,12 @@ export function MuscleGoalSheet({
           </BottomSheet.Title>
           <BarChart
             showRanges={false}
-            goal={goal === undefined && planned === null ? null : range.min}
+            goal={resolved?.min ?? null}
             points={points}
             label={t("muscles__chart_label", { muscle: t(MUSCLE_GROUP_KEYS[muscle]) })}
-            formatValue={(value) => t("stats__sets", { count: Math.round(value) })}
+            formatValue={(value) =>
+              t("muscles__row_volume", { sets: formatSets(value, i18n.language) })
+            }
           />
           {planned === null ? null : (
             <SegmentedControl

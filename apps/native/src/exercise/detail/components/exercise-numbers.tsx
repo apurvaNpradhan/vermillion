@@ -1,5 +1,11 @@
 import { useWeight } from "@/body";
-import { addsLoad, SET_FIELDS, type Equipment, type WeightUnit } from "@workspace/shared";
+import {
+  addsLoad,
+  SET_FIELDS,
+  type Equipment,
+  type WeekStart,
+  type WeightUnit,
+} from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { Text, View } from "react-native";
 
@@ -61,6 +67,7 @@ export function ExerciseNumbers({
   bodyweightKg,
   unit,
   timezone,
+  weekStart,
   equipment,
   weightIncrementKg,
   progressionPerSet,
@@ -71,6 +78,7 @@ export function ExerciseNumbers({
   bodyweightKg: number | null;
   unit: WeightUnit;
   timezone: string | null;
+  weekStart: WeekStart;
   equipment: Equipment;
   weightIncrementKg: number | null;
   progressionPerSet: boolean;
@@ -124,6 +132,10 @@ export function ExerciseNumbers({
         ) : null}
         <Chart
           points={points}
+          week={{
+            timezone: timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+            weekStart,
+          }}
           label={label(metric)}
           formatValue={formatPoint}
           aggregate={AGGREGATE[metric] ?? "max"}

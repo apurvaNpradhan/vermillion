@@ -104,6 +104,22 @@ describe("aggregateByWeek", () => {
     expect(aggregateByWeek(points, "min").map((p) => p.y)).toEqual([5, 4]);
   });
 
+  it("buckets by the account's time zone and first day of the week", () => {
+    // Mon 2026-11-09 03:00 UTC is still Sunday evening in Los Angeles: the same week as Friday.
+    const at = (iso: string, y: number) => ({ id: iso, x: Date.parse(iso), y, label: iso });
+    const points = [at("2026-11-06T12:00:00Z", 1), at("2026-11-09T03:00:00Z", 2)];
+    expect(aggregateByWeek(points, "sum")).toHaveLength(2);
+    expect(
+      aggregateByWeek(points, "sum", { timezone: "America/Los_Angeles", weekStart: "monday" }).map(
+        (p) => p.y,
+      ),
+    ).toEqual([3]);
+    // A Sunday-start week in UTC splits the same two points.
+    expect(
+      aggregateByWeek(points, "sum", { timezone: "UTC", weekStart: "sunday" }).map((p) => p.y),
+    ).toEqual([1, 2]);
+  });
+
   it("handles no points", () => {
     expect(aggregateByWeek([], "max")).toEqual([]);
   });

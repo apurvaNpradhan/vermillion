@@ -1,3 +1,5 @@
+import { weekRange, type WeekStart } from "@workspace/shared";
+
 export type ChartPoint = { id: string; x: number; y: number; label: string };
 export type ChartRange = "3M" | "1Y" | "All";
 
@@ -115,16 +117,26 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** 1970-01-01 was a Thursday, so Monday weeks start 4 days after the epoch. */
 const MONDAY_OFFSET_MS = 4 * 24 * 60 * 60 * 1000;
 
+/** The account's week: its time zone and the day it starts on, as History groups by. */
+export type ChartWeek = { timezone: string; weekStart: WeekStart };
+
 /**
- * One point per UTC (Monday-start) week instead of one per session: the best of the week (highest or lowest), or the
+ * One point per week instead of one per session: the best of the week (highest or lowest), or the
  * total for totals such as reps and volume. The week keeps the date and id of its last session.
- * Points must be in time order; the result is too.
+ * Weeks follow `week` (the account's time zone and preferred first day, the same helper History
+ * uses); without it they are UTC Monday weeks. Points must be in time order; the result is too.
  */
-export function aggregateByWeek(points: readonly ChartPoint[], how: Aggregate): ChartPoint[] {
+export function aggregateByWeek(
+  points: readonly ChartPoint[],
+  how: Aggregate,
+  week?: ChartWeek,
+): ChartPoint[] {
   const weeks = new Map<number, ChartPoint>();
   for (const point of points) {
-    const week = Math.floor((point.x - MONDAY_OFFSET_MS) / WEEK_MS);
-    const before = weeks.get(week);
+    const key = week
+      ? weekRange(new Date(point.x), week.timezone, week.weekStart).start
+      : Math.floor((point.x - MONDAY_OFFSET_MS) / WEEK_MS);
+    const before = weeks.get(key);
     const y =
       before === undefined
         ? point.y
@@ -133,7 +145,7 @@ export function aggregateByWeek(points: readonly ChartPoint[], how: Aggregate): 
           : how === "min"
             ? Math.min(before.y, point.y)
             : Math.max(before.y, point.y);
-    weeks.set(week, { ...point, y });
+    weeks.set(key, { ...point, y });
   }
   return [...weeks.values()];
 }

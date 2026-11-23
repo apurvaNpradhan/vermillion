@@ -7,7 +7,7 @@ import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { useActiveSessions, usePreviousSets, useStartSession } from "@/session";
 import { usePreferences } from "@/preferences";
-import { calendarDay, sessionGoal } from "@workspace/shared";
+import { calendarDay, historyForWorkout, sessionGoal } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { homeWeek, lastWorkoutSession, sessionMinutes, weekSummary } from "./home-stats";
@@ -60,7 +60,8 @@ export function TrainingHome() {
     active.loading ||
     !programState.ready ||
     recency.loading ||
-    !previous.ready ||
+    // A failed history watch is not fatal: the card shows without the previous sets.
+    previous.loading ||
     (workoutId !== null && workout.status === "loading");
   const failed = state.failed || weight.failed;
   const retry = () => {
@@ -107,7 +108,12 @@ export function TrainingHome() {
     workout.status === "ready"
       ? workout.workout.exercises.flatMap((entry) => {
           if (!entry.exercise) return [];
-          const sets = previous.history.get(entry.exerciseId)?.[0]?.sets ?? [];
+          // The same source as the workout preview: "Same workout" looks only at this workout.
+          const sets =
+            historyForWorkout(
+              previous.history.get(entry.exerciseId) ?? [],
+              preferences.ui.previousSource === "same_workout" ? workoutId : null,
+            )[0]?.sets ?? [];
           const top = topSet(sets, entry.exerciseId, entry.exercise.exerciseType);
           return [
             {

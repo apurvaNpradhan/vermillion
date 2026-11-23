@@ -192,6 +192,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
             </View>
             {!history.loading && !history.failed && sessions.length ? (
               <LineChart
+                week={{ timezone: history.timezone, weekStart: history.weekStart }}
                 points={points}
                 label={label}
                 formatValue={metric === "duration" ? formatElapsed : number}

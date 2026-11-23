@@ -28,6 +28,7 @@ import {
   type Aggregate,
   type ChartPoint,
   type ChartRange,
+  type ChartWeek,
 } from "./scales";
 
 const TOOLTIP_WIDTH = 112;
@@ -46,6 +47,8 @@ type Props = {
    * and one per session over three months.
    */
   aggregate?: Aggregate;
+  /** The account's week (time zone and first day) the weekly points follow; UTC Monday if omitted. */
+  week?: ChartWeek;
   /** A smaller value is better (pace): the axis runs the other way, so better plots higher. */
   lowerIsBetter?: boolean;
   /** A dashed reference line at the best value shown (the PR), the highest or the lowest. */
@@ -86,6 +89,7 @@ function Chart({
   domain: domainProp,
   tickSteps,
   aggregate = "max",
+  week,
   lowerIsBetter = false,
   best,
   hideDots,
@@ -98,11 +102,19 @@ function Chart({
   const [active, setActive] = useState(-1);
   const index = useSharedValue(-1);
   const cursor = useSharedValue(0);
+  const weekTimezone = week?.timezone;
+  const weekStart = week?.weekStart;
   const data = useMemo(() => {
     if (!showRanges) return points;
     const inRange = rangePoints(points, range, Date.now());
-    return range === "3M" ? inRange : aggregateByWeek(inRange, aggregate);
-  }, [points, range, showRanges, aggregate]);
+    return range === "3M"
+      ? inRange
+      : aggregateByWeek(
+          inRange,
+          aggregate,
+          weekTimezone && weekStart ? { timezone: weekTimezone, weekStart } : undefined,
+        );
+  }, [points, range, showRanges, aggregate, weekTimezone, weekStart]);
   const domain = lowerIsBetter ? "data" : domainProp;
   const values = [
     ...data.map((p) => p.y),
