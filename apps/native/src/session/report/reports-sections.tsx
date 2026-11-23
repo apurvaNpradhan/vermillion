@@ -8,139 +8,17 @@ import { isColorString } from "@/platform/theme";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 
 import {
-  DAY_MS,
-  WEEK_MS,
-  emptyTotals,
   goalStreaks,
   monthRows,
   monthlyWorkouts,
   shiftPeriod,
   yearGoal,
   type History,
-  type Totals,
-} from "./history-calendar";
-import { DayFill } from "./history-calendar-view";
-import type { HistoryFormat } from "./history-format";
+} from "@/session/history/history-calendar";
+import type { HistoryFormat } from "@/session/history/history-format";
 
 const BAR_STEP = 32;
 const BAR_HEIGHT = 76;
-
-export function HistoryWeek({
-  start,
-  history,
-  goal,
-  format,
-}: {
-  start: number;
-  history: History;
-  goal: number | null;
-  format: HistoryFormat;
-}) {
-  const { t } = useTranslation();
-  const totals = history.byWeek.get(start)?.totals ?? emptyTotals;
-  const previous = history.byWeek.get(start - WEEK_MS)?.totals ?? emptyTotals;
-  const vs = (difference: number) =>
-    t("session__vs_previous_week", { value: format.delta(difference) });
-  const minutes = (stats: Totals) => Math.round(stats.seconds / 60);
-  const volume = (stats: Totals) => format.volumeValue(stats.volume);
-
-  return (
-    <View className="gap-2">
-      {goal !== null ? (
-        <Text className="font-normal text-caption text-muted">
-          {t("session__goal_accessible", { count: totals.workouts, goal })}
-        </Text>
-      ) : null}
-      <StatTiles
-        items={[
-          {
-            label: t("stats__sets"),
-            value: format.integer(totals.sets),
-            detail: vs(totals.sets - previous.sets),
-          },
-          {
-            label: t("stats__volume"),
-            value: t("home__volume_value", {
-              value: format.decimal(volume(totals)),
-              unit: t(format.volumeUnit),
-            }),
-            detail: vs(volume(totals) - volume(previous)),
-          },
-          {
-            label: t("stats__duration"),
-            value: t("session__duration_min", { value: format.integer(minutes(totals)) }),
-            detail: vs(minutes(totals) - minutes(previous)),
-          },
-        ]}
-      />
-    </View>
-  );
-}
-
-export function HistoryWeekCalendar({
-  start,
-  today,
-  history,
-  format,
-}: {
-  start: number;
-  today: number;
-  history: History;
-  format: HistoryFormat;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View className="flex-row gap-1">
-      {Array.from({ length: 7 }, (_, index) => {
-        const day = start + index * DAY_MS;
-        const sessions = history.byDay.get(day) ?? [];
-        const title = sessions[0]?.title;
-        const trained = sessions.length > 0;
-        const tone = trained ? "text-accent-foreground" : "text-muted";
-        return (
-          <View
-            key={index}
-            accessible
-            accessibilityLabel={
-              title
-                ? t("session__calendar_day_title", {
-                    date: format.full(day),
-                    count: sessions.length,
-                    title,
-                  })
-                : format.full(day)
-            }
-            className={`min-h-28 flex-1 overflow-hidden rounded-lg bg-default px-0.5 py-2 ${day > today ? "opacity-45" : ""}`}
-          >
-            <DayFill trained={trained} />
-            {day === today && (
-              <View
-                pointerEvents="none"
-                className={`absolute inset-0 rounded-lg border ${trained ? "border-accent-foreground" : "border-accent"}`}
-              />
-            )}
-            <Text className={`font-normal text-center text-caption ${tone}`}>
-              {format.weekdayLetter(day)}
-            </Text>
-            <Text
-              className={`font-medium text-center text-numeric-md tabular-nums ${trained ? "text-accent-foreground" : "text-foreground"}`}
-            >
-              {format.day(day)}
-            </Text>
-            {title && (
-              <Text
-                numberOfLines={2}
-                className={`font-semibold mt-auto text-center text-overline ${tone}`}
-              >
-                {title}
-              </Text>
-            )}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
 
 function MonthActivity({
   month,
@@ -173,7 +51,7 @@ function MonthActivity({
   );
 }
 
-export function HistoryYear({
+export function ReportsYear({
   start,
   today,
   currentWeek,
@@ -248,7 +126,7 @@ export function HistoryYear({
   );
 }
 
-export function HistoryAll({
+export function ReportsAll({
   history,
   today,
   currentWeek,

@@ -5,7 +5,6 @@ import { useActiveProgram } from "@/training";
 import {
   bodyweightLookup,
   dailyWeights,
-  fromZonedParts,
   sessionGoal,
   type WeekStart,
   withWarmupsCounted,
@@ -35,52 +34,18 @@ export function useHistorySettings() {
   };
 }
 
-/**
- * The History for a visible period. A `window` (local days, see `historyWindow`) reads only the
- * Sessions of that range, so Week, Month and Year never wait for the whole log; `null` reads all
- * of it (the All period).
- */
-export function useSessionHistory(
-  window: { from: number; to: number } | null,
-  timezone: string,
-  weekStart: WeekStart,
-  focused: boolean,
-) {
+/** The whole History: every finished Session, with its per-day, week, month and year buckets. */
+export function useSessionHistory(timezone: string, weekStart: WeekStart, focused: boolean) {
   const { preferences } = usePreferences();
   const weight = useWeight();
   const { bodyweightKg, countWarmups } = preferences.ui;
-  const from = window?.from;
-  const to = window?.to;
   const subscribe = useCallback(
     (
       database: Parameters<typeof watchHistoryOverview>[0],
       onValue: (sessions: HistoryOverviewSession[]) => void,
       onError: () => void,
-    ) => {
-      if (!focused) return idle();
-      if (from === undefined || to === undefined) {
-        return watchHistoryOverview(database, { onSessions: onValue, onError });
-      }
-      const day = (stamp: number) => {
-        const date = new Date(stamp);
-        return fromZonedParts(
-          {
-            year: date.getUTCFullYear(),
-            month: date.getUTCMonth() + 1,
-            day: date.getUTCDate(),
-            hour: 0,
-            minute: 0,
-          },
-          timezone,
-        );
-      };
-      return watchHistoryOverview(
-        database,
-        { onSessions: onValue, onError },
-        { from: day(from), to: day(to) },
-      );
-    },
-    [focused, from, to, timezone],
+    ) => (focused ? watchHistoryOverview(database, { onSessions: onValue, onError }) : idle()),
+    [focused],
   );
   const state = useLocalWatch(subscribe);
   const { entries } = weight;

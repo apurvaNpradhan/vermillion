@@ -6,17 +6,13 @@ import {
   ArrowClockwise,
   Barbell,
   CalendarPlus,
+  ChartBar,
   ClockCounterClockwise,
   Eye,
 } from "phosphor-react-native";
-import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
-import Animated, {
-  FadeIn,
-  ReduceMotion,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
@@ -24,38 +20,18 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
-import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-control";
-
-import {
-  emptyTotals,
-  historyWindow,
-  periodStart,
-  shiftPeriod,
-  type Period,
-} from "./history-calendar";
-import { historyListItems } from "./history";
-import { HistoryCalendar } from "./history-calendar-view";
-import { historyFormat } from "./history-format";
-import {
-  HistoryAll,
-  HistoryWeek,
-  HistoryWeekCalendar,
-  HistoryYear,
-} from "./history-period-details";
-import { HistoryRow, WeekHeading } from "./history-rows";
-import { NumberFlow } from "@/platform/ui/number-flow";
-import { PeriodCard } from "@/platform/ui/period-card";
 import { useStartSession } from "@/session/lifecycle/use-start-session";
 
-import { ReportCard } from "../report/report-card";
-import { reportKey } from "../report/report-period";
+import { emptyTotals, periodStart, shiftPeriod, WEEK_MS } from "./history-calendar";
+import { historyListItems, itemIndexForDay } from "./history";
+import { historyFormat } from "./history-format";
+import { HistoryRow, WeekHeading } from "./history-rows";
+import { HistoryWeekStrip } from "./history-week-strip";
 import { useHistorySettings, useSessionHistory } from "./use-session-history";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { ANCHORED } from "@/platform/navigation/anchored";
 
-type Selection = { period: Period; anchor: number | null; direction: -1 | 0 | 1 };
 const HISTORY_LIST_PAGE = 120;
-const EMPTY_SESSIONS: readonly HistoryOverviewSession[] = [];
 
 function useToday(timezone: string) {
   const [now, setNow] = useState(() => new Date());
@@ -76,6 +52,12 @@ function useToday(timezone: string) {
   return calendarDay(now, timezone);
 }
 
+/**
+ * History: the Home week strip on top (a pull down opens the month calendar), then every
+ * workout in one list grouped by week, each week headed by its totals. A tap on a day jumps the
+ * list to it; a long press on a workout offers Perform again and Open details. Month and year
+ * summaries live on Reports, opened from the header next to Muscles and Log past.
+ */
 export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -86,103 +68,63 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
   const day = initialDay !== null && initialDay <= today ? initialDay : null;
-  const [selection, setSelection] = useState<Selection>({
-    period: "month",
-    anchor: day,
-    direction: 0,
-  });
+  const [anchor, setAnchor] = useState(day ?? today);
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState(day);
   const list = useRef<ComponentRef<typeof AnimatedLegendList>>(null);
-  const { period, anchor, direction } = selection;
-  const latest = periodStart(period, today, weekStart);
-  const start = Math.min(latest, periodStart(period, anchor ?? today, weekStart));
   const focused = useIsFocused();
-  const readWindow = historyWindow(period, start, weekStart);
-  const { history, loading, failed, retry } = useSessionHistory(
-    readWindow,
-    timezone,
-    weekStart,
-    focused,
-  );
-  const currentWeek = periodStart("week", today, weekStart);
+  const { history, loading, failed, retry } = useSessionHistory(timezone, weekStart, focused);
   const format = useMemo(
     () => historyFormat(i18n.language, weightUnit),
     [i18n.language, weightUnit],
   );
-  const options: SegmentedOption<Period>[] = [
-    { value: "week", label: t("session__period_week") },
-    { value: "month", label: t("session__period_month") },
-    { value: "year", label: t("session__period_year") },
-    { value: "all", label: t("session__period_all") },
-  ];
-  const canNext = period !== "all" && start < latest;
-  const canPrevious = period !== "all";
-  const move = (step: -1 | 1) => {
-    if (step === 1 ? !canNext : !canPrevious) return;
-    const next = shiftPeriod(period, start, step);
-    setSelected(null);
-    resetScroll();
-    setSelection({ period, anchor: next === latest ? null : next, direction: step });
-  };
-  const drillDown = (next: "month" | "year", at: number) => {
-    setSelected(null);
-    resetScroll();
-    setSelection({
-      period: next,
-      anchor: at === periodStart(next, today, weekStart) ? null : at,
-      direction: 0,
-    });
-  };
-
-  const bucket =
-    period === "week"
-      ? history.byWeek.get(start)
-      : period === "month"
-        ? history.byMonth.get(start)
-        : history.byYear.get(start);
-  const count = period === "all" ? history.totals.workouts : (bucket?.totals.workouts ?? 0);
-  const activeDay =
-    period === "month" &&
-    selected !== null &&
-    selected >= start &&
-    selected < shiftPeriod("month", start, 1)
-      ? selected
-      : null;
-  const sessions =
-    activeDay !== null
-      ? (history.byDay.get(activeDay) ?? EMPTY_SESSIONS)
-      : period === "all"
-        ? history.sessions
-        : (bucket?.sessions ?? EMPTY_SESSIONS);
   const items = useMemo(
-    () =>
-      historyListItems(
-        sessions,
-        activeDay === null && period !== "week",
-        history.bySession,
-        weekStart,
-      ),
-    [sessions, activeDay, period, history.bySession, weekStart],
+    () => historyListItems(history.sessions, history.bySession, weekStart),
+    [history.sessions, history.bySession, weekStart],
   );
-  const listKey = `${period}:${start}:${activeDay ?? ""}`;
-  const [page, setPage] = useState({ key: listKey, size: HISTORY_LIST_PAGE });
-  const pageSize = page.key === listKey ? page.size : HISTORY_LIST_PAGE;
+  const [pageSize, setPageSize] = useState(HISTORY_LIST_PAGE);
   const visibleItems = useMemo(() => items.slice(0, pageSize), [items, pageSize]);
-  const resetScroll = () => void list.current?.scrollToOffset({ offset: 0, animated: false });
-  const openLog = () => router.push("/history/log-past");
-  const selectDay = (next: number | null) => {
-    setSelected(next);
-    resetScroll();
-  };
   const ready = !loading && !failed;
-  const periodTitle =
-    period === "all"
-      ? t("session__all_time")
-      : period === "week"
-        ? t("session__week", { date: format.medium(start) })
-        : period === "month"
-          ? format.monthYear(start)
-          : format.year(start);
+  const openLog = () => router.push("/history/log-past");
+
+  const jumpTo = useCallback(
+    (target: number) => {
+      const index = itemIndexForDay(items, history.bySession, target);
+      if (index < 0) return;
+      setPageSize((size) => Math.max(size, index + 40));
+      // The list grows first when the day is past its first page, then scrolls.
+      requestAnimationFrame(() => void list.current?.scrollToIndex({ index, animated: true }));
+    },
+    [items, history.bySession],
+  );
+  // A link to one day (`?day=`) opens with the list at it, once it has loaded.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!ready || opened.current || day === null) return;
+    opened.current = true;
+    jumpTo(day);
+  }, [ready, day, jumpTo]);
+
+  const move = (step: -1 | 1) => {
+    const next = expanded
+      ? shiftPeriod("month", periodStart("month", anchor, weekStart), step)
+      : periodStart("week", anchor, weekStart) + step * WEEK_MS;
+    setDirection(step);
+    setAnchor(Math.min(next, today));
+    setSelected(null);
+  };
+  const jumpToToday = () => {
+    setDirection(anchor === today ? 0 : 1);
+    setAnchor(today);
+    setSelected(null);
+    void list.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+  const select = (next: number | null) => {
+    setDirection(0);
+    setSelected(next);
+    if (next !== null) jumpTo(next);
+  };
 
   const entryOpacity = useAnimatedStyle(() => ({
     opacity: withTiming(ready ? 1 : 0, {
@@ -190,18 +132,6 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
       reduceMotion: ReduceMotion.Never,
     }),
   }));
-  const calendar = (
-    <HistoryCalendar
-      month={start}
-      today={today}
-      selected={activeDay}
-      history={history}
-      goal={goal}
-      weekStart={weekStart}
-      format={format}
-      onSelect={selectDay}
-    />
-  );
 
   return (
     <>
@@ -217,6 +147,14 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               onPress={() => router.push("/muscles", ANCHORED)}
             >
               <Barbell size={24} weight="regular" color={subtle} />
+            </Button>
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("report__reports_open")}
+              onPress={() => router.push("/history/reports", ANCHORED)}
+            >
+              <ChartBar size={24} weight="regular" color={subtle} />
             </Button>
             <Button
               isIconOnly
@@ -241,7 +179,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
             data={ready ? visibleItems : []}
             onEndReached={
               ready && pageSize < items.length
-                ? () => setPage({ key: listKey, size: pageSize + HISTORY_LIST_PAGE })
+                ? () => setPageSize((size) => size + HISTORY_LIST_PAGE)
                 : undefined
             }
             onEndReachedThreshold={1}
@@ -251,130 +189,22 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
             ListHeaderComponent={
               <View className="gap-3 pb-2">
                 {header}
-                <ReportCard />
-                <SegmentedControl
-                  options={options}
-                  value={period}
-                  accessibilityLabel={t("session__history_period")}
-                  onChange={(next) => {
-                    setSelected(null);
-                    resetScroll();
-                    setSelection({ period: next, anchor, direction: 0 });
-                  }}
+                <HistoryWeekStrip
+                  anchor={anchor}
+                  today={today}
+                  selected={selected}
+                  expanded={expanded}
+                  direction={direction}
+                  history={history}
+                  goal={goal}
+                  weekStart={weekStart}
+                  format={format}
+                  onSelect={select}
+                  onMove={move}
+                  onJump={jumpToToday}
+                  onExpandedChange={setExpanded}
                 />
-                {ready && (
-                  <Animated.View
-                    entering={FadeIn.duration(reduced ? 120 : 150).reduceMotion(ReduceMotion.Never)}
-                  >
-                    <PeriodCard
-                      title={periodTitle}
-                      headline={
-                        <View
-                          accessible
-                          accessibilityLabel={t("session__workout_count", {
-                            count,
-                            value: format.integer(count),
-                          })}
-                          className="flex-row flex-wrap items-baseline gap-1"
-                        >
-                          {period === "week" || activeDay !== null ? (
-                            <Text className="text-title-md font-semibold tabular-nums text-foreground">
-                              {format.integer(count)}
-                            </Text>
-                          ) : (
-                            <NumberFlow value={count} locale={format.locale} />
-                          )}
-                          <Text className="font-normal text-body text-muted">
-                            {t("session__workout_unit", { count })}
-                          </Text>
-                        </View>
-                      }
-                      period={start}
-                      previousLabel={t("session__period_previous")}
-                      nextLabel={t("session__period_next")}
-                      direction={direction}
-                      canPrevious={canPrevious}
-                      canNext={canNext}
-                      onMove={move}
-                    >
-                      {period === "month" && activeDay === null ? calendar : null}
-                      {period === "week" && (
-                        <HistoryWeek start={start} history={history} goal={goal} format={format} />
-                      )}
-                      {period === "year" && (
-                        <HistoryYear
-                          start={start}
-                          today={today}
-                          currentWeek={currentWeek}
-                          history={history}
-                          goal={goal}
-                          weekStart={weekStart}
-                          format={format}
-                          onMonth={(month) => drillDown("month", month)}
-                        />
-                      )}
-                      {period === "all" && (
-                        <HistoryAll
-                          history={history}
-                          today={today}
-                          currentWeek={currentWeek}
-                          goal={goal}
-                          weekStart={weekStart}
-                          format={format}
-                          onYear={(year) => drillDown("year", year)}
-                        />
-                      )}
-                    </PeriodCard>
-                  </Animated.View>
-                )}
-                {ready &&
-                activeDay === null &&
-                count > 0 &&
-                (period === "month" || period === "year") ? (
-                  <Button
-                    variant="secondary"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/history/report/[key]",
-                        params: { key: reportKey({ kind: period, start }) },
-                      })
-                    }
-                  >
-                    <Button.Label>
-                      {t(period === "month" ? "report__open_month" : "report__open_year")}
-                    </Button.Label>
-                  </Button>
-                ) : null}
-                {ready && activeDay !== null ? (
-                  <View className="flex-row flex-wrap items-center justify-between gap-2">
-                    <Text
-                      accessibilityRole="header"
-                      className="flex-1 text-title-md font-semibold text-foreground"
-                    >
-                      {format.full(activeDay)}
-                    </Text>
-                    <Button variant="ghost" onPress={() => selectDay(null)}>
-                      <Button.Label>{t("session__history_clear_day")}</Button.Label>
-                    </Button>
-                  </View>
-                ) : null}
               </View>
-            }
-            ListFooterComponent={
-              ready && (activeDay !== null || period === "week") ? (
-                <View className="mt-4 rounded-xl bg-surface p-3">
-                  {activeDay !== null ? (
-                    calendar
-                  ) : (
-                    <HistoryWeekCalendar
-                      start={start}
-                      today={today}
-                      history={history}
-                      format={format}
-                    />
-                  )}
-                </View>
-              ) : null
             }
             ListEmptyComponent={
               failed ? (
@@ -386,16 +216,8 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                   icon={ClockCounterClockwise}
                   drawing
                   label={t("empty__workouts", { count: 0 })}
-                  title={
-                    activeDay !== null
-                      ? t("session__history_empty_day")
-                      : t("session__history_empty_period")
-                  }
-                  action={
-                    activeDay === null
-                      ? { label: t("session__log_past"), onPress: openLog }
-                      : undefined
-                  }
+                  title={t("session__history_empty")}
+                  action={{ label: t("session__log_past"), onPress: openLog }}
                 />
               ) : (
                 <View className="items-center gap-2 py-6" accessibilityLiveRegion="polite">
@@ -417,7 +239,6 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                   <HistoryRow
                     session={item.session}
                     stats={history.bySession.get(item.id)}
-                    compact={activeDay !== null}
                     format={format}
                     timezone={timezone}
                     onPress={() =>

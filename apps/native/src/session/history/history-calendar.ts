@@ -53,17 +53,6 @@ export function shiftPeriod(period: Period, start: number, delta: number): numbe
   }
 }
 
-/** The visible window and any adjacent days needed to complete the calendar's weeks. */
-export function historyWindow(period: Period, start: number, weekStart: WeekStart) {
-  if (period === "all") return null;
-  if (period === "week") return { from: start - WEEK_MS, to: start + WEEK_MS };
-  const end = shiftPeriod(period, start, 1);
-  return {
-    from: weekStartDay(start, weekStart),
-    to: weekStartDay(end - DAY_MS, weekStart) + WEEK_MS,
-  };
-}
-
 /** Week-aligned rows with padding outside the month. All dates are UTC calendar days. */
 export function monthRows(start: number, weekStart: WeekStart) {
   const lead = weekColumn(new Date(start).getUTCDay(), weekStart);

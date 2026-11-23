@@ -7,7 +7,6 @@ import {
   buildHistory,
   goalHit,
   goalStreaks,
-  historyWindow,
   monthRows,
   monthlyWorkouts,
   periodStart,
@@ -146,26 +145,5 @@ describe("weeks on goal", () => {
     expect(
       yearGoal(new Map([[sundaySplit, 2]]), 2, previousYear, "sunday", sundaySplit).reached,
     ).toBe(1);
-  });
-});
-
-describe("the period read window", () => {
-  it("reads the visible period and the surrounding days needed to complete its weeks", () => {
-    expect(historyWindow("week", day("2026-03-02"), "monday")).toEqual({
-      from: day("2026-02-23"),
-      to: day("2026-03-09"),
-    });
-    expect(historyWindow("month", day("2026-03-01"), "monday")).toEqual({
-      from: day("2026-02-23"),
-      to: day("2026-04-06"),
-    });
-    expect(historyWindow("year", day("2026-01-01"), "monday")).toEqual({
-      from: day("2025-12-29"),
-      to: day("2027-01-04"),
-    });
-  });
-
-  it("reads everything for All", () => {
-    expect(historyWindow("all", day("2026-03-01"), "monday")).toBeNull();
   });
 });

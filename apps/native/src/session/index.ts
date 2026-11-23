@@ -8,6 +8,7 @@ export { useSessionSettings } from "./settings/use-session-settings";
 export { HistoryScreen } from "./history/history-screen";
 export { SessionShareScreen } from "./share/session-share-screen";
 export { ReportScreen } from "./report/report-screen";
+export { ReportsScreen } from "./report/reports-screen";
 export { ReportShareScreen } from "./report/report-share-screen";
 export { parseReportKey } from "./report/report-period";
 export { SessionDetailScreen } from "./history/session-detail-screen";
