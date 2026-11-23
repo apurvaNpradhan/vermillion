@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Pressable, Text } from "react-native";
 
 import { useCellText, useEditorKeypad } from "./editor-keypad";
@@ -7,7 +8,7 @@ import { useCellText, useEditorKeypad } from "./editor-keypad";
  * pressable that shows the value, never a text input: the keypad owns the typing, so there is no
  * caret or selection to keep right, and a screen reader hears a button with its label and value.
  */
-export function EditorCellButton({
+export const EditorCellButton = memo(function EditorCellButton({
   tableId,
   cellKey,
   label,
@@ -49,4 +50,4 @@ export function EditorCellButton({
       </Text>
     </Pressable>
   );
-}
+});

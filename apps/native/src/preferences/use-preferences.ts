@@ -13,7 +13,9 @@ import {
   type UiPreferencesPatch,
   type UpdatePreferences,
 } from "@workspace/shared";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { resolveDeviceLocale, useLocale, useTranslation } from "@/platform/i18n";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
@@ -21,23 +23,13 @@ import { useSession } from "@/auth";
 import { useLocalData, useSyncValue } from "@/sync";
 
 import { preferencesAccess, type PreferencesAccess } from "./preferences-access";
-import {
-  memoSelector,
-  type PreferencesState,
-  type SelectorCache,
-  preferencesSnapshot,
-  publishPreferences,
-  subscribePreferences,
-} from "./preferences-store";
+import { preferencesStore, publishPreferences } from "./preferences-store";
 
 const EMPTY: Preferences = { locale: null, timezone: null, ui: DEFAULT_UI_PREFERENCES };
-const NO_DATABASE = { value: undefined, failed: false } as const;
 /** Reads the row just written and publishes it, so no reader sees the snapshot from before. */
 async function showSaved(database: PreferencesDatabase, access: PreferencesAccess) {
   publishPreferences(database, access, await readPreferences(database, access.owner));
 }
-
-const never = () => () => undefined;
 
 /**
  * The preferences read from the device's database, or `undefined` before it has answered. Only
@@ -58,17 +50,7 @@ function useLocalPreferencesGate() {
 
 function useLocalPreferences() {
   const { local, database, access, blocked } = useLocalPreferencesGate();
-  const gated = database && access ? { database, access } : null;
-  const state = useSyncExternalStore(
-    useCallback(
-      (listener: () => void) =>
-        gated ? subscribePreferences(gated.database, gated.access, listener) : never(),
-      // The cache entry, not the object, is what must stay stable.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [gated?.database, gated?.access.key],
-    ),
-    () => (gated ? preferencesSnapshot(gated.database, gated.access) : NO_DATABASE),
-  );
+  const state = useStore(preferencesStore(database, access));
   return {
     database,
     access,
@@ -89,23 +71,10 @@ export function usePreference<T>(
   isEqual?: (a: T, b: T) => boolean,
 ): T {
   const { database, access } = useLocalPreferencesGate();
-  const [cache] = useState<{ current: SelectorCache<PreferencesState, T> }>(() => ({
-    current: null,
-  }));
-  const selectState = memoSelector(
-    (current: PreferencesState) => select(current.value ?? EMPTY),
+  return useStoreWithEqualityFn(
+    preferencesStore(database, access),
+    (state) => select(state.value ?? EMPTY),
     isEqual,
-    cache,
-  );
-  return useSyncExternalStore(
-    useCallback(
-      (listener: () => void) =>
-        database && access ? subscribePreferences(database, access, listener) : never(),
-      // The cache entry, not the object, is what must stay stable.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [database, access?.key],
-    ),
-    () => selectState(database && access ? preferencesSnapshot(database, access) : NO_DATABASE),
   );
 }
 

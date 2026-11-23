@@ -1,4 +1,5 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
+import { useMemo } from "react";
 import { Text, View } from "react-native";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { usePreference } from "@/preferences";
@@ -15,6 +16,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
   const history = useExerciseHistory(id);
   const weightUnit = usePreference((preferences) => preferences.ui.weightUnit);
   const timeZone = useDeviceTimeZone();
+  const extraData = useMemo(() => ({ weightUnit, timeZone }), [weightUnit, timeZone]);
   return (
     <Page title={t("exercise__history_title")} back>
       {({ header, contentContainerStyle, ...scroll }) => (
@@ -26,7 +28,7 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
           data={history.sessions}
           keyExtractor={(session) => session.id}
           estimatedItemSize={220}
-          extraData={weightUnit}
+          extraData={extraData}
           renderItem={({ item }) => (
             <View className="px-4 pb-4">
               <RecentSessions

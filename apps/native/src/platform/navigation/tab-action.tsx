@@ -6,11 +6,9 @@ import { createTabActionStore, type TabAction, type TabActionStore } from "./tab
 
 export type { TabAction } from "./tab-action-store";
 
-/**
- * The store of the tab navigator that wraps the screen. Outside a provider hooks read an inert
- * store of their own, so a screen can still render alone.
- */
-const TabActionContext = createContext<TabActionStore>(createTabActionStore());
+const TabActionContext = createContext<TabActionStore | null>(null);
+// Standalone screens read idle values, and writes require a navigator store.
+const idleStore = createTabActionStore();
 
 /** Holds the focused tab's action; wraps the tab navigator so its tab bar can read it. */
 export function TabActionProvider({ children }: { children: ReactNode }) {
@@ -20,33 +18,35 @@ export function TabActionProvider({ children }: { children: ReactNode }) {
 
 /** The height pages must leave above the tab pill for what floats over it. */
 export function useReservedAboveBar() {
-  return useStore(useContext(TabActionContext), (state) => state.reserved);
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.reserved);
 }
 
 /** Reserves `height` above the tab pill while mounted (0 reserves nothing). */
 export function useReserveAboveBar(height: number) {
-  const { setReserved } = useContext(TabActionContext).getState();
+  const store = useContext(TabActionContext);
   useEffect(() => {
+    if (!store) return;
+    const { setReserved } = store.getState();
     setReserved(height);
     return () => setReserved(0);
-  }, [height, setReserved]);
+  }, [height, store]);
 }
 
 export function useCurrentTabAction() {
-  return useStore(useContext(TabActionContext), (state) => state.action);
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.action);
 }
 
 export function useTabBarHidden() {
-  return useStore(useContext(TabActionContext), (state) => state.barHidden);
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.barHidden);
 }
 
 /** Hides the tab bar while `hidden` is true, for a layer that takes over the screen. */
 export function useHideTabBar(hidden: boolean) {
-  const { holdBarHidden } = useContext(TabActionContext).getState();
+  const store = useContext(TabActionContext);
   useEffect(() => {
     if (!hidden) return;
-    return holdBarHidden();
-  }, [hidden, holdBarHidden]);
+    return store?.getState().holdBarHidden();
+  }, [hidden, store]);
 }
 
 /**
@@ -54,11 +54,13 @@ export function useHideTabBar(hidden: boolean) {
  * object: a new one each render re-registers it.
  */
 export function useTabAction(action: TabAction) {
-  const { setAction } = useContext(TabActionContext).getState();
+  const store = useContext(TabActionContext);
   useFocusEffect(
     useCallback(() => {
+      if (!store) return;
+      const { setAction } = store.getState();
       setAction(action);
       return () => setAction(null);
-    }, [action, setAction]),
+    }, [action, store]),
   );
 }

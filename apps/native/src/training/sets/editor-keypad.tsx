@@ -108,8 +108,9 @@ export function EditorKeypadProvider({
   const dock = useRef<View>(null);
   const scrollRef = useRef(scroll);
   scrollRef.current = scroll;
-  const isOpen = useStore(store, (state) => state.active !== null);
-  useHideTabBar(isOpen);
+  const hasActiveCell = useStore(store, (state) => state.active !== null);
+  const showDock = hasActiveCell && !systemKeyboard;
+  useHideTabBar(showDock);
 
   const cellOf = useCallback((current: ActiveCell): EditorCell | undefined => {
     // The newest cell of the table: its value callback closes over the newest sets.
@@ -212,7 +213,7 @@ export function EditorKeypadProvider({
       <View className="flex-1">
         <View className="flex-1">{children}</View>
         <View ref={dock} collapsable={false}>
-          {isOpen && !systemKeyboard ? (
+          {showDock ? (
             <KeypadDock
               store={store}
               labels={{

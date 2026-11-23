@@ -19,10 +19,12 @@ session and editor screens, and selectors fix it where context cannot.
   (the preferences store is), but it never replaces the watch or holds data the database owns.
 - **Scope a store to its provider when the state is per instance.** The provider creates it with
   `createStore` (`useState(createX)`) and the context holds the store, not its value, so the
-  context value never changes and only selectors re-render. Module-level stores are for state
-  that is truly one per app run.
-- A selector returns a primitive, or an object with an equality (`shallow`). Cells and screens
-  select the least they need, such as `activeKey === myKey ? text : null`.
+  context value stays stable and only changed selections trigger store-driven renders.
+  Module-level stores are for state shared across the app.
+- A selector returns a primitive or an existing reference. Use an equality function such as
+  `shallow` with `usePreference` when picking several fields into a new object. Cells select the
+  text of the active cell or null. The edited table can still render when an accepted key changes
+  its saved draft. Its unchanged cell buttons skip that render.
 - Keep the **tiny `useSyncExternalStore` stores** (signed-out, network, theme, permissions, crash
   reports, setup state). They have one reader shape and no fan-out problem; moving them is churn.
 - For the sync snapshot use `useSyncValue(selector)`, not a store: one lifecycle already owns it.
@@ -31,5 +33,5 @@ session and editor screens, and selectors fix it where context cannot.
 
 - `usePreference(selector, isEqual?)` reads part of the preferences; `usePreferences()` still
   returns the whole object for code that needs all of it or the setters.
-- Store logic is plain functions over `createStore`, so it is unit tested without rendering.
+- The keypad and tab action stores are unit tested without rendering.
 - Two ways to share state exist (zustand and `useSyncExternalStore`); the rule above says which.
