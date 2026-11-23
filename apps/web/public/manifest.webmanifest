@@ -1,7 +1,7 @@
 {
-  "name": "Sigil: Strength Log",
+  "name": "Sigil | Programs, workouts and progress",
   "short_name": "Sigil",
-  "description": "Earn the mark. Sigil is a strength log for Android. Plan programs, log every set offline and keep your personal records.",
+  "description": "Earn the mark. Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

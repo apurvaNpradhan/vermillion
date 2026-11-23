@@ -11,7 +11,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import {
   addToStack,
   clearStack,
@@ -111,11 +111,13 @@ export function PlateCalculatorSheet({
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
   const state = usePlates(targetKg, exerciseId, isOpen, equipment);
   return (
     <BottomSheet
+      animation={animation}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();

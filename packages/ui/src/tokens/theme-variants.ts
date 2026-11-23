@@ -1,16 +1,15 @@
 import type { RoleTokens } from "./roles";
 import { buildTheme } from "./themes/engine";
-import { classic } from "./themes/classic";
 import { sigil } from "./themes/sigil";
 
 // SAFETY: the literal list defines the complete app theme union.
-export const themeIds = ["sigil", "classic"] as const;
+export const themeIds = ["sigil"] as const;
 /** An app theme the person can pick. */
 export type ThemeId = (typeof themeIds)[number];
 /** The app's default theme; every retired or unknown id falls back to it. */
 export const DEFAULT_THEME_ID: ThemeId = "sigil";
 
-const definitions = { sigil, classic } as const;
+const roles = buildTheme(sigil);
 
 // SAFETY: the literal list defines the complete variant-suffix union.
 export const variantSuffixes = ["light", "dark", "light-contrast", "dark-contrast"] as const;
@@ -25,19 +24,10 @@ export function variantName(theme: ThemeId, suffix: VariantSuffix): ThemeVariant
 /** Every app theme variant's roles, keyed by variant name. */
 // SAFETY: the entries cover every ThemeId × VariantSuffix pair exactly once.
 export const themeVariants = Object.fromEntries(
-  themeIds.flatMap((id) => {
-    const built = buildTheme(definitions[id]);
-    return variantSuffixes.map((suffix) => [variantName(id, suffix), built[suffix]]);
-  }),
+  variantSuffixes.map((suffix) => [variantName(DEFAULT_THEME_ID, suffix), roles[suffix]]),
 ) as Record<ThemeVariant, RoleTokens>;
 
 /** Every variant name, in a stable order (the Uniwind theme list). */
-export const themeVariantNames = themeIds.flatMap((id) =>
-  variantSuffixes.map((suffix) => variantName(id, suffix)),
+export const themeVariantNames = variantSuffixes.map((suffix) =>
+  variantName(DEFAULT_THEME_ID, suffix),
 );
-
-/** The theme a variant name belongs to. */
-export function themeOf(variant: NativeVariantName): ThemeId {
-  return variant.startsWith("classic") ? "classic" : "sigil";
-}
-type NativeVariantName = "light" | "dark" | ThemeVariant;

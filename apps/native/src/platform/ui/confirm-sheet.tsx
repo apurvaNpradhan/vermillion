@@ -1,3 +1,4 @@
+import { useSheetAnimation } from "./sheet-motion";
 import { BottomSheet } from "heroui-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -37,8 +38,9 @@ export function ConfirmSheet({
   extraLabel?: string;
   onExtra?: () => void;
 }) {
+  const animation = useSheetAnimation();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent

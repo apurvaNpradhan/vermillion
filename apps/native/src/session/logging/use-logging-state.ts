@@ -36,14 +36,7 @@ import { nextRowLookups, shareMapValues, type RowLookups } from "./row-lookups";
 import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 
-import {
-  blocksOf,
-  firstUnfinished,
-  highlightOf,
-  isBlockDone,
-  nextAfter,
-  type Block,
-} from "./blocks";
+import { blocksOf, firstUnfinished, highlightOf, nextAfter, type Block } from "./blocks";
 import {
   applyKey,
   displayOfText,
@@ -55,24 +48,24 @@ import {
 } from "@/platform/ui/keypad-entry";
 import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
-import type { useSessionActions } from "@/session/screen/use-session-actions";
+import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
-import { historySettled } from "./history-gate";
+import { hasRequiredSetValues, historySettled } from "./history-gate";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
 import {
   ghostsOf,
-  loggedSetsOf,
+  loggedSetOf,
   patchFor,
   previousOfRow,
   previousPatch,
   valueOfSet,
 } from "./set-values";
-import type { ActiveEntry, Refusal } from "@/session/sets/set-row";
+import type { ActiveEntry, KeypadDraft, Refusal } from "@/session/sets/set-row";
 
 type Actions = Pick<
-  ReturnType<typeof useSessionActions>,
-  "tick" | "untick" | "updateValues" | "addExtraSet"
+  ReturnType<typeof useOptimisticSession>["actions"],
+  "tick" | "untick" | "updateValues" | "addExtraSet" | "readSet" | "editValues" | "awaitCompletions"
 >;
 
 /** Where a set sits: its exercise, its place in it. */
@@ -82,8 +75,8 @@ type Found = { exercise: SessionExerciseDetail; set: SessionSetDetail; index: nu
 type Entry = { cell: CellRef; raw: string; fresh: boolean };
 
 /**
- * Everything the logging screen does that is not drawing: which block of the accordion is open
- * and where it goes next, the keypad's cell and what is typed into it, refused ticks, and the
+ * Everything the logging screen does that is not drawing: which set to highlight,
+ * the keypad's cell and what is typed into it, refused ticks, and the
  * writes. Edits show at once (the draft is the cell's text) and are saved together once typing
  * pauses; moving to another cell, Done and ticking save immediately.
  */
@@ -92,6 +85,7 @@ export type StallInfo = { count: number; latestSessionId: string; applied: boole
 
 export function useLoggingState({
   session,
+  editor,
   previous,
   recordBests,
   historyReady,
@@ -109,6 +103,7 @@ export function useLoggingState({
   onRestStarted,
 }: {
   session: SessionDetail;
+  editor: boolean;
   previous: PreviousSets;
   recordBests: ReturnType<typeof createRecordBestsCache> | null;
   historyReady: boolean;
@@ -144,45 +139,7 @@ export function useLoggingState({
     return map;
   }, [exercises]);
 
-  // ---- The accordion ----
-  const [openBlockId, setOpenBlockId] = useState<string | null | undefined>(undefined);
-  const [justCollapsedId, setJustCollapsedId] = useState<string | null>(null);
-  const watched = useRef<{ id: string; done: boolean } | null>(null);
-  useEffect(() => {
-    if (openBlockId === undefined) {
-      setOpenBlockId(firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null);
-      return;
-    }
-    if (openBlockId === null) return;
-    const open = blocks.find((block) => block.id === openBlockId);
-    if (!open) {
-      setOpenBlockId(firstUnfinished(blocks)?.id ?? null);
-      return;
-    }
-    const done = isBlockDone(open);
-    const before = watched.current;
-    watched.current = { id: open.id, done };
-    // Ticking the last set of the open block collapses it and opens the next one that is not done.
-    if (before?.id === open.id && !before.done && done) {
-      const next = nextAfter(blocks, open.id);
-      setJustCollapsedId(open.members.at(-1)?.id ?? null);
-      setOpenBlockId(next?.id ?? null);
-    }
-  }, [blocks, openBlockId]);
-
-  const toggleBlock = useCallback(
-    (exerciseId: string) => {
-      const block = blocks.find((candidate) =>
-        candidate.members.some((member) => member.id === exerciseId),
-      );
-      if (!block) return;
-      setOpenBlockId((current) => (current === block.id ? null : block.id));
-      setJustCollapsedId((current) =>
-        block.members.some((member) => member.id === current) ? null : current,
-      );
-    },
-    [blocks],
-  );
+  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
 
   // ---- Previous and Ghost values ----
   // With "Same workout" (the default) a Session started from a Workout compares with that
@@ -285,17 +242,49 @@ export function useLoggingState({
   // Keys can arrive faster than renders; the ref is the truth between them, so it is
   // written with every change rather than after the next render.
   const entryRef = useRef(entry);
-  const setEntry = useCallback((next: Entry | null) => {
-    entryRef.current = next;
-    setEntryState(next);
-  }, []);
+  const [draft] = useState(() => {
+    const listeners = new Set<() => void>();
+    let raw: string | null = null;
+    return {
+      getSnapshot: () => raw,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      show: (value: string | null) => {
+        if (value === raw) return;
+        raw = value;
+        for (const listener of listeners) listener();
+      },
+    } satisfies KeypadDraft & { show: (value: string | null) => void };
+  });
+  const setEntry = useCallback(
+    (next: Entry | null) => {
+      const sameCell = next !== null && next.cell === entryRef.current?.cell;
+      entryRef.current = next;
+      if (editor) draft.show(sameCell && !next.fresh ? next.raw : null);
+      if (!editor || !sameCell) setEntryState(next);
+    },
+    [draft, editor],
+  );
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
-    actions.updateValues(patch.setId, patch.values),
+    actions.editValues(patch.setId, patch.values),
   );
   const activeSetId = entry?.cell.setId ?? null;
 
   /** Saves what is typed now, for a cell that is about to be left. */
-  const flush = useCallback(() => writer.flush(), [writer]);
+  const { flush } = writer;
+  const { awaitCompletions } = actions;
+  const flushForFinish = useCallback(async () => {
+    await flush();
+    await awaitCompletions();
+  }, [flush, awaitCompletions]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") void flush();
+    });
+    return () => subscription.remove();
+  }, [flush]);
 
   const openCell = useCallback(
     (setId: string, field: EntryField) => {
@@ -305,11 +294,11 @@ export function useLoggingState({
       if (!at) return;
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(at.set, field), unit),
+        raw: textOfValue(field, valueOfSet(actions.readSet(setId) ?? at.set, field), unit),
         fresh: true,
       });
     },
-    [readOnly, flush, found, unit],
+    [readOnly, flush, found, unit, actions.readSet],
   );
   const closeKeypad = useCallback(() => {
     flush();
@@ -437,35 +426,48 @@ export function useLoggingState({
   const sound = useSoundCues();
   const { t } = useTranslation();
   const { toast } = useAppToast();
-  /** The last set that was ticked, so the screen can follow a superset to its next exercise. */
-  const [tickEvent, setTickEvent] = useState<{ setId: string; nonce: number } | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const refusals = useRef(0);
 
   /**
    * Ticks a set with its Ghost values (`ghosts` replaces them, for a timer that fixes the duration).
    * A tick that works buzzes (success for a Record, light otherwise) and starts the Rest the
-   * exercise calls for; one that cannot shakes the cells that lack a value. Returns whether it ticked.
+   * exercise calls for; one that cannot highlights the cells that lack a value. Returns whether it ticked.
    */
   const tickWith = useCallback(
-    async (setId: string, ghosts: Ghosts, expiresAt?: number): Promise<boolean> => {
+    async (
+      setId: string,
+      ghosts: Ghosts,
+      expiresAt?: number,
+      savingEdits?: Promise<boolean[]>,
+    ): Promise<boolean> => {
       const strong = expiresAt !== undefined;
       const at = found.get(setId);
+      if (!at) return false;
+      const settled = historySettled({
+        loaded: previous.has(at.exercise.exerciseId),
+        failed: historyFailed,
+      });
+      const latest = actions.readSet(setId) ?? at.set;
       if (
-        !at ||
-        !historySettled({ loaded: previous.has(at.exercise.exerciseId), failed: historyFailed })
-      ) {
+        !settled &&
+        (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
+      )
         return false;
-      }
       const block = blockOfSet(setId);
       // A finished Session being edited has no timers.
       const seconds =
         block && session.finishedAt === null ? restAfterTick(block, at.exercise.id, setId) : null;
-      const result = await actions.tick(setId, ghosts, seconds, expiresAt);
+      if (editor) setFocusedExerciseId(at.exercise.id);
+      const result = await actions.tick(
+        setId,
+        settled ? ghosts : {},
+        seconds,
+        expiresAt,
+        savingEdits,
+      );
       if (!result) return false;
       if (!result.ok) {
-        refusals.current += 1;
-        setRefusal({ setId, fields: result.missing, nonce: refusals.current });
+        setRefusal({ setId, fields: result.missing });
         haptic.alert();
         sound.play("refused");
         return false;
@@ -473,20 +475,21 @@ export function useLoggingState({
       if (!result.wrote) return true;
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
+      const completed = {
+        ...loggedSetOf(at.exercise, latest, countWarmups),
+        ...result.values,
+        completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
+      };
       const isRecord = (bests: Map<string, ExerciseBests>) =>
         tickedSetIsRecord({
           bests,
-          sets: loggedSetsOf(session, countWarmups)
-            .filter((set) => set.exercise_id === at.exercise.exerciseId)
-            .map((set) =>
-              set.id === setId
-                ? {
-                    ...set,
-                    ...result.values,
-                    completed_at: new Date(expiresAt ?? Date.now()).toISOString(),
-                  }
-                : set,
-            ),
+          sets: session.exercises.flatMap((exercise) =>
+            exercise.exerciseId === at.exercise.exerciseId
+              ? exercise.sets.map((set) =>
+                  set.id === setId ? completed : loggedSetOf(exercise, set, countWarmups),
+                )
+              : [],
+          ),
           setId,
           bodyweightKg,
         });
@@ -494,7 +497,7 @@ export function useLoggingState({
         if (recordAlerts) {
           const message = recordMessage(
             at.exercise.title,
-            { weightKg: result.values.weight_kg, reps: result.values.reps },
+            { weightKg: completed.weight_kg, reps: completed.reps },
             unit,
           );
           toast.show({
@@ -512,7 +515,6 @@ export function useLoggingState({
       if (record || strong) haptic.success();
       else haptic.tick();
       if (record) announce();
-      setTickEvent((before) => ({ setId, nonce: (before?.nonce ?? 0) + 1 }));
       // A countdown that reached zero is the only `strong` tick.
       sound.playTick({ record, countdown: strong });
       if (result.rest) onRestStarted?.();
@@ -533,6 +535,7 @@ export function useLoggingState({
     },
     [
       found,
+      editor,
       historyFailed,
       actions,
       session,
@@ -551,18 +554,18 @@ export function useLoggingState({
 
   const onTick = useCallback(
     async (setId: string) => {
-      const at = found.get(setId);
+      const at = actions.readSet(setId);
       if (!at || readOnly) return;
-      flush();
+      const savingEdits = flush();
       setEntry(null);
       setRefusal(null);
-      if (at.set.completedAt !== null) {
+      if (at.completedAt !== null) {
         await actions.untick(setId);
         return;
       }
-      await tickWith(setId, ghostsFor(setId));
+      await tickWith(setId, ghostsFor(setId), undefined, savingEdits);
     },
-    [found, readOnly, flush, actions, ghostsFor, tickWith],
+    [readOnly, flush, actions, ghostsFor, tickWith],
   );
 
   // ---- Duration timers ----
@@ -599,8 +602,11 @@ export function useLoggingState({
   const firing = useRef(new Set<string>());
   useEffect(() => {
     if (readOnly || !(historyReady || historyFailed)) return;
+    const sets = exercises.flatMap((exercise) =>
+      exercise.sets.filter((set) => set.timerStartedAt !== null && timerTarget(set) !== null),
+    );
+    if (sets.length === 0) return;
     const run = () => {
-      const sets = exercises.flatMap((exercise) => exercise.sets);
       for (const due of dueTimers(sets, Date.now())) {
         if (firing.current.has(due.id)) continue;
         firing.current.add(due.id);
@@ -667,30 +673,26 @@ export function useLoggingState({
       const exercise = exercises.find((candidate) => candidate.id === exerciseId);
       if (!exercise || readOnly) return;
       const last = [...exercise.sets].reverse().find((set) => set.kind !== "warmup");
-      const added = await actions.addExtraSet(exerciseId, last?.target ?? null);
-      if (added) {
-        const block = blocks.find((candidate) =>
-          candidate.members.some((member) => member.id === exerciseId),
-        );
-        if (block) setOpenBlockId(block.id);
-        setJustCollapsedId(null);
-      }
-      return added;
+      return actions.addExtraSet(exerciseId, last?.target ?? null);
     },
-    [exercises, readOnly, actions, blocks],
+    [exercises, readOnly, actions],
   );
 
-  // The open block's next set to log; nothing while reading a finished session.
-  const resolvedOpenBlockId =
-    openBlockId === undefined
-      ? (firstUnfinished(blocks)?.id ?? blocks[0]?.id ?? null)
-      : openBlockId;
-  const openBlock = blocks.find((block) => block.id === resolvedOpenBlockId);
-  const currentSetId = openBlock && !readOnly ? (highlightOf(openBlock)?.setId ?? null) : null;
+  const focusedBlock = blocks.find((block) =>
+    block.members.some((member) => member.id === focusedExerciseId),
+  );
+  const nextBlock = focusedExerciseId
+    ? nextAfter(blocks, focusedExerciseId)
+    : firstUnfinished(blocks);
+  const currentSetId =
+    readOnly || session.finishedAt !== null
+      ? null
+      : (focusedBlock && highlightOf(focusedBlock)?.setId) ||
+        (nextBlock && highlightOf(nextBlock)?.setId) ||
+        null;
 
   // Rows are memoized: hand them handlers that keep their identity across data changes.
   const stableOpenCell = useStableHandler(openCell);
-  const stableToggleBlock = useStableHandler(toggleBlock);
   const stableOnTick = useStableHandler(onTick);
   const stableOnTimer = useStableHandler(onTimer);
   const stableOnPrevious = useStableHandler(onPrevious);
@@ -700,13 +702,7 @@ export function useLoggingState({
     historyReady,
     blocks,
     places,
-    // Before the effect settles the first choice, the block it will open is shown open already,
-    // so the screen's first frame matches the next one.
-    openBlockId: resolvedOpenBlockId,
-    justCollapsedId,
-    /** The set to log next in the open block: the one the grid marks as current. */
     currentSetId,
-    toggleBlock: stableToggleBlock,
     previousOf,
     ghostsFor,
     /** Per exercise row: Previous and Ghost lookups that keep their identity while unchanged. */
@@ -724,9 +720,10 @@ export function useLoggingState({
           ? {
               cell: entry.cell,
               text: displayOfText(entry.cell.field, entry.raw),
+              draft: editor ? draft : undefined,
             }
           : null,
-      [entry],
+      [draft, editor, entry],
     ),
     activeSetId,
     activeField: entry?.cell.field ?? null,
@@ -735,6 +732,12 @@ export function useLoggingState({
      * saved set trails it while typing pauses are coalesced into one write.
      */
     typedValue: entry && !entry.fresh ? valueOfText(entry.cell.field, entry.raw, unit) : undefined,
+    readTypedValue: () => {
+      const current = entryRef.current;
+      return current && !current.fresh
+        ? valueOfText(current.cell.field, current.raw, unit)
+        : undefined;
+    },
     hasNext: next !== null,
     hasNextInSet: nextInSet,
     onNextInSet,
@@ -749,13 +752,13 @@ export function useLoggingState({
     onTick: stableOnTick,
     editingFinished: session.finishedAt !== null,
     onTimer: stableOnTimer,
-    tickEvent,
     onPrevious: stableOnPrevious,
     onCopySets: stableOnCopySets,
     onKindSelected,
     addSet,
     found,
     flush,
+    flushForFinish,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };

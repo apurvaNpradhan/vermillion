@@ -32,7 +32,7 @@ import {
   parseSessionDetail,
 } from "./session-watch";
 import { setExerciseSetting, upsertEquipment } from "./equipment-store";
-import { readRecordHistory } from "../watch";
+import { readRecordHistory, watchHistoryOverview } from "../watch";
 
 const derivedTitle = "Quadriceps";
 const DAY = 86_400_000;
@@ -301,6 +301,59 @@ describe("the History reader", () => {
     ]);
     expect((await readFinishedHistoryPages(read)).map((row) => row.id)).toEqual([recent, mid, old]);
   });
+
+  it("reads over 4,000 imported workouts and keeps the range end exclusive", async () => {
+    const s = await setupSessions();
+    s.sqlite.exec(`WITH RECURSIVE batch(n) AS (
+      VALUES (1) UNION ALL SELECT n + 1 FROM batch WHERE n < 4200
+    )
+    INSERT INTO training_session (id, user_id, title, started_at, finished_at, created_at)
+    SELECT printf('import-%04d', n), 'owner', 'Imported',
+      strftime('%Y-%m-%dT%H:%M:%fZ', '2024-01-01', n || ' hours'),
+      strftime('%Y-%m-%dT%H:%M:%fZ', '2024-01-01', (n + 1) || ' hours'), 'now'
+    FROM batch;
+    INSERT INTO session_exercise (
+      id, user_id, session_id, exercise_id, exercise_title, exercise_type, position, created_at
+    ) SELECT 'e-' || id, 'owner', id, '${SQUAT}', 'Squat', 'weight_reps', 'a0', 'now'
+      FROM training_session;
+    WITH RECURSIVE sets(n) AS (VALUES (1) UNION ALL SELECT n + 1 FROM sets WHERE n < 12)
+    INSERT INTO session_set (
+      id, user_id, session_exercise_id, position, kind, weight_kg, reps, completed_at, created_at
+    ) SELECT se.id || '-' || n, 'owner', se.id, printf('a%02d', n), 'working', 100, 5,
+      s.finished_at, 'now' FROM session_exercise se JOIN training_session s ON s.id = se.session_id
+      CROSS JOIN sets;
+    `);
+    const { read } = readerOf(s);
+    const year = createFinishedHistoryReader({
+      from: "2024-01-01T00:00:00.000Z",
+      to: "2024-06-24T00:00:00.000Z",
+    });
+    const all = createFinishedHistoryReader();
+    const sessions = await all.refresh(read);
+    expect(sessions).toHaveLength(4200);
+    expect(sessions?.[0]?.sets).toHaveLength(12);
+    expect(await year.refresh(read)).toHaveLength(4199);
+    expect(await all.refresh(read)).toBeNull();
+    const overview = new Promise<number>((resolve, reject) => {
+      const stop = watchHistoryOverview(s.training, {
+        onSessions: (rows) => {
+          stop();
+          resolve(rows.length);
+        },
+        onError: (error) => {
+          stop();
+          reject(error);
+        },
+      });
+    });
+    const exercise = await s.training.getAll<{ session_id: string }>(EXERCISE_HISTORY_SQL, [
+      SQUAT,
+      SQUAT,
+    ]);
+    expect(s.sqlite.isTransaction).toBe(false);
+    expect(exercise[0]?.session_id).toBe("import-4200");
+    expect(await overview).toBe(4200);
+  }, 20_000);
 
   it("ignores ticks in an unfinished Session and reloads only a changed finished one", async () => {
     const s = await setupSessions();
@@ -574,7 +627,7 @@ it("pages beyond 500 Sessions and includes the oldest exercise best in Record co
     const ids: string[] = [];
     while (true) {
       const page = parseFinishedSessions(
-        s.sqlite.prepare(sessionsPageSql()).all(cursor.startedAt, cursor.startedAt, cursor.id, 50),
+        s.sqlite.prepare(sessionsPageSql()).all(cursor.startedAt, cursor.id, 50),
       );
       ids.push(...page.map((session) => session.id));
       const last = page.at(-1);

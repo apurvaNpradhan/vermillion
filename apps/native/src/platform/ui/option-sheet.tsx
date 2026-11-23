@@ -1,3 +1,4 @@
+import { useSheetAnimation } from "./sheet-motion";
 import { BottomSheet } from "heroui-native";
 import { View } from "react-native";
 
@@ -30,8 +31,9 @@ export function OptionSheet<T extends string>({
   value: T | null;
   onSelect: (value: T) => void;
 }) {
+  const animation = useSheetAnimation();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>

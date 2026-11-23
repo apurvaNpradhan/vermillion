@@ -10,18 +10,18 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import { Check, Copy, Rows, Play, Stop, Trash } from "phosphor-react-native";
-import { memo } from "react";
+import { Check, Copy, DotsThree, Rows, Play, Stop, Trash } from "phosphor-react-native";
+import { memo, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useOnActionColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
-import { usePop } from "@/platform/ui/use-pop";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import { SET_TONES, formatEffortRange } from "@/training";
 
+import { hasRequiredSetValues } from "@/session/logging/history-gate";
+import { displayOfText, valueOfText } from "@/platform/ui/keypad-entry";
 import type { CellRef } from "@/session/logging/keypad-entry";
 import {
   formatCell,
@@ -33,13 +33,21 @@ import {
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
 import { SetCell } from "./set-cell";
-import { useSetRowMotion } from "./set-row-motion";
 
 /** The cell being edited and what is typed into it, as the row shows it. */
-export type ActiveEntry = { cell: CellRef; text: string };
+export type KeypadDraft = {
+  getSnapshot: () => string | null;
+  subscribe: (listener: () => void) => () => void;
+};
+export type ActiveEntry = { cell: CellRef; text: string; draft?: KeypadDraft };
 
-/** A refused tick: which cells lack a value, and a counter so a repeat shakes again. */
-export type Refusal = { setId: string; fields: readonly SetField[]; nonce: number };
+const noDraft: KeypadDraft = {
+  getSnapshot: () => null,
+  subscribe: () => () => undefined,
+};
+
+/** A refused tick and the cells that lack a value. */
+export type Refusal = { setId: string; fields: readonly SetField[] };
 
 export type SetRowProps = {
   historyReady: boolean;
@@ -73,8 +81,6 @@ export type SetRowProps = {
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onRemove: (setId: string) => Promise<boolean>;
-  added: boolean;
-  onAddedShown: (setId: string) => void;
   /** Starts, cancels or stops (and ticks) the set's duration timer. */
   onTimer: (setId: string) => void;
 };
@@ -149,8 +155,16 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const onSuccess = useOnSetDoneColor();
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
-  const tickPop = usePop(ticked);
-  const motion = useSetRowMotion(set.id, props.added, props.onAddedShown, props.onRemove);
+  const { subscribe, getSnapshot } = entry?.draft ?? noDraft;
+  const raw = useSyncExternalStore(subscribe, getSnapshot);
+  const activeField = entry?.cell.field;
+  const draftValue = activeField && raw !== null ? valueOfText(activeField, raw, unit) : undefined;
+  const waitingForPrevious =
+    !ticked &&
+    !props.historyReady &&
+    !hasRequiredSetValues(type, (field) =>
+      activeField === field && draftValue !== undefined ? draftValue : valueOfSet(set, field),
+    );
   const hasEffortColumn = logEffort && fields.includes("reps");
   const previousText = previous ? previousLabel(previous, type, unit, display) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -179,7 +193,11 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const cell = (field: SetField) => {
     const stored = valueOfSet(set, field);
     const editing = entry?.cell.setId === set.id && entry.cell.field === field;
-    const text = editing ? entry.text : formatCell(field, stored, unit, undefined, display);
+    const text = editing
+      ? raw === null
+        ? entry.text
+        : displayOfText(field, raw)
+      : formatCell(field, stored, unit, undefined, display);
     const ghost = formatCell(field, ghosts[field] ?? null, unit, undefined, display);
     const refused = refusal?.setId === set.id && refusal.fields.includes(field);
     const running = field === "duration" && set.timerStartedAt !== null && !ticked;
@@ -192,7 +210,6 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           ghost={ghost}
           active={editing}
           refused={refused}
-          refusedNonce={refusal?.nonce ?? 0}
           disabled={readOnly}
           label={t("training__cell_label", { number, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
@@ -325,17 +342,27 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           accessibilityRole="checkbox"
           accessibilityState={{
             checked: ticked,
-            disabled: readOnly || (!ticked && !props.historyReady),
+            busy: waitingForPrevious && !readOnly,
+            disabled: readOnly || waitingForPrevious,
           }}
           accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
-          disabled={readOnly || (!ticked && !props.historyReady)}
+          accessibilityHint={
+            waitingForPrevious && !readOnly ? t("session__set_waiting_for_previous") : undefined
+          }
+          disabled={readOnly || waitingForPrevious}
           onPress={() => props.onTick(set.id)}
           hitSlop={4}
-          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
+          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-border bg-field active:bg-default"}`}
         >
-          <Animated.View style={tickPop}>
-            {ticked ? <Check size={20} color={onSuccess} /> : null}
-          </Animated.View>
+          {waitingForPrevious && !readOnly ? (
+            <DotsThree size={20} color={subtle} />
+          ) : (
+            <Check
+              size={20}
+              weight={ticked ? "bold" : "regular"}
+              color={ticked ? onSuccess : subtle}
+            />
+          )}
         </Pressable>
       )}
     </View>
@@ -365,15 +392,17 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       icon: Trash,
       tone: "danger",
       iconOnly: true,
-      onPress: motion.remove,
+      onPress: () => void props.onRemove(set.id),
     });
   return (
-    <Animated.View style={motion.style} exiting={motion.exiting}>
+    <View>
       {!readOnly && actions.length > 0 ? (
-        <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
+        <SwipeRow actions={actions} motion={false}>
+          {(a11y) => row(a11y)}
+        </SwipeRow>
       ) : (
         row()
       )}
-    </Animated.View>
+    </View>
   );
 }, sameRowProps);

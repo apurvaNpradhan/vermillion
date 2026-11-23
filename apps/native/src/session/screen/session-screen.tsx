@@ -1,3 +1,4 @@
+import { InstantSheets } from "@/platform/ui/sheet-motion";
 import { MuscleDistribution } from "@/platform/ui/muscle-distribution";
 import { SessionSettingsSheet } from "@/session/settings/session-settings-sheet";
 import { SheetShell } from "@/session/shared/sheet-shell";
@@ -28,7 +29,7 @@ import {
   WarningCircle,
 } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, ScrollView, Text, View } from "react-native";
+import { BackHandler, FlatList, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ExerciseThumbnail, usePickExercises } from "@/exercise";
@@ -38,7 +39,6 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
-import { FadeIn } from "@/platform/ui/fade-in";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { CompactRow, ReorderView, SetTypeSheet, supportsWarmups } from "@/training";
 
@@ -48,13 +48,8 @@ import {
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { allTicked, doneSummary, formatVolume, progressText } from "@/session/finish/summary";
-import { restBelongsTo } from "@/session/rest/rest-rules";
-import { useRestRunning } from "@/session/rest/use-rest-running";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
-import { blockOf, nextSupersetExercise } from "@/session/logging/blocks";
-import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { canAddWarmups } from "@/session/warmups/warmup-plan";
-import { useWarmCount } from "./use-warm-count";
 import { useFinishFlow } from "@/session/finish/use-finish-flow";
 import { useSessionLogging } from "@/session/logging/use-session-logging";
 import { useSession } from "./use-session";
@@ -90,7 +85,7 @@ export type SessionScreenProps = {
 };
 
 /**
- * The logging screen of one Session: an accordion of exercises with one block open, the set
+ * The logging screen of one Session: a windowed list of expanded exercises, the set
  * grid, the custom keypad, and the header with the clock and totals. A Session another device
  * owns is read-only here until taken over. Everything comes through the module hooks.
  */
@@ -112,7 +107,11 @@ export function SessionScreen(props: SessionScreenProps) {
       </View>
     );
   }
-  return <LoadedSession key={state.session.id} session={state.session} {...props} />;
+  return (
+    <InstantSheets value>
+      <LoadedSession key={state.session.id} session={state.session} {...props} />
+    </InstantSheets>
+  );
 }
 
 /** The screen's own background while the Session reads from the device (milliseconds). */
@@ -155,21 +154,19 @@ function LoadedSession({
     hadIt,
     readOnly,
     exerciseIds,
-    historyReady,
     historyFailed,
     retryHistory,
     logging,
     addWarmups,
     askOpen,
     setAskOpen,
-  } = useSessionLogging(stored);
+  } = useSessionLogging(stored, true);
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<SessionExerciseDetail>>(null);
   const reveal = useRowReveal(scrollRef);
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
-  const restRunning = useRestRunning(session.rest);
 
   // The Timer is the other way to log: the clock opens it and the choice is remembered, so the
   // next workout (started or resumed) opens in the view used last.
@@ -252,12 +249,19 @@ function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [addedSetIds, setAddedSetIds] = useState<ReadonlySet<string>>(() => new Set());
   const closeSheet = useCallback(() => setSheet(null), []);
 
-  const allSets = session.exercises.flatMap((entry) => entry.sets);
-  const ticked = allSets.filter((set) => set.completedAt !== null).length;
-  const unticked = allSets.length - ticked;
+  const { ticked, unticked } = useMemo(() => {
+    let ticked = 0;
+    let unticked = 0;
+    for (const exercise of session.exercises) {
+      for (const set of exercise.sets) {
+        if (set.completedAt === null) unticked += 1;
+        else ticked += 1;
+      }
+    }
+    return { ticked, unticked };
+  }, [session.exercises]);
 
   const flow = useFinishFlow({
     session,
@@ -265,7 +269,7 @@ function LoadedSession({
     ticked,
     unticked,
     actions,
-    flush: logging.flush,
+    flush: logging.flushForFinish,
     closeKeypad: logging.closeKeypad,
     onMinimise,
     onFinished,
@@ -284,32 +288,13 @@ function LoadedSession({
     else await actions.replaceExercise(entry, next, "session");
   };
 
-  // Scroll the open block to the top, and the edited row above the keypad.
-  const { alignTop, reveal: revealRow } = reveal;
-  const openFirst = logging.blocks.find((block) => block.id === logging.openBlockId)?.members[0]
-    ?.id;
-  useEffect(() => {
-    if (!openFirst) return;
-    // After the next layout pass, not a fixed delay.
-    return afterLayout(() => alignTop(`ex:${openFirst}`));
-  }, [openFirst, alignTop]);
-  // Smart superset scrolling: after a tick, bring the next member that still has an open set to
-  // the top. Reduce Motion turns the scroll's animation off.
-  const { tickEvent, found: foundSets, blocks: loggingBlocks } = logging;
-  const supersetScroll = preferences.ui.supersetScroll;
-  const reduceMotion = useReduceMotion();
-  const followed = useRef(0);
-  useEffect(() => {
-    if (!tickEvent || tickEvent.nonce === followed.current) return;
-    followed.current = tickEvent.nonce;
-    if (!supersetScroll) return;
-    const at = foundSets.get(tickEvent.setId);
-    const block = at ? blockOf(loggingBlocks, at.exercise.id) : undefined;
-    const next = block ? nextSupersetExercise(block, tickEvent.setId) : null;
-    if (!next) return;
-    return afterLayout(() => alignTop(`ex:${next.id}`, !reduceMotion));
-  }, [tickEvent, supersetScroll, foundSets, loggingBlocks, alignTop, reduceMotion]);
+  const { reveal: revealRow, hasRow } = reveal;
   const activeSetId = logging.activeSetId;
+  const activeExercise = activeSetId ? logging.found.get(activeSetId)?.exercise.id : undefined;
+  const activeIndex = useMemo(
+    () => session.exercises.findIndex((exercise) => exercise.id === activeExercise),
+    [activeExercise, session.exercises],
+  );
   // Back closes the keypad before it minimises the workout.
   useFocusEffect(
     useCallback(() => {
@@ -323,9 +308,15 @@ function LoadedSession({
   );
   useEffect(() => {
     if (!activeSetId) return;
-    const timer = setTimeout(() => revealRow(activeSetId), 90);
-    return () => clearTimeout(timer);
-  }, [activeSetId, revealRow]);
+    return afterLayout(() => {
+      if (hasRow(activeSetId)) {
+        revealRow(activeSetId);
+        return;
+      }
+      if (activeIndex >= 0)
+        scrollRef.current?.scrollToIndex({ index: activeIndex, animated: false });
+    });
+  }, [activeSetId, activeIndex, hasRow, revealRow]);
 
   // ---- The exercise menu ----
   const menuExercise = sheet?.kind === "menu" ? sheet.exercise : null;
@@ -451,21 +442,8 @@ function LoadedSession({
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
   }, []);
-  const { toggleBlock, addSet, openCell, onTick, onPrevious, onTimer } = logging;
-  const onAddSet = useCallback(
-    async (exerciseId: string) => {
-      const id = await addSet(exerciseId);
-      if (id) setAddedSetIds((ids) => new Set([...ids, id]));
-    },
-    [addSet],
-  );
-  const onAddedSetShown = useCallback((id: string) => {
-    setAddedSetIds((ids) => {
-      const next = new Set(ids);
-      next.delete(id);
-      return next;
-    });
-  }, []);
+  const { addSet, openCell, onTick, onPrevious, onTimer } = logging;
+  const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
   const { updateExercise } = actions;
   const onNote = useCallback(
     (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
@@ -477,44 +455,31 @@ function LoadedSession({
     [updateExercise],
   );
   const registerSetRow = reveal.registerRow;
-  // The open block's exercises, and those whose closed body is already built.
-  const openIds = useMemo(() => {
-    const open = logging.blocks.find((block) => block.id === logging.openBlockId);
-    return new Set(open?.members.map((member) => member.id));
-  }, [logging.blocks, logging.openBlockId]);
-  const warmCount = useWarmCount(session.exercises.length);
-  const warmIds = useMemo(
-    () => new Set(session.exercises.slice(0, warmCount).map((entry) => entry.id)),
-    [session.exercises, warmCount],
-  );
-
-  // One ready state: the screen draws once it knows whose Session this is and the exercises'
-  // Previous values, instead of drawing read-only and empty first and filling in.
-  if (installId === null || !(historyReady || historyFailed)) return <SessionBlank />;
-
   return (
-    <FadeIn className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
       <SheetShell
         isOpen={musclesOpen}
         onOpenChange={setMusclesOpen}
         title={t("exercise__muscle_distribution")}
       >
-        <ScrollView>
-          <MuscleDistribution
-            sets={loggedSetsOf(session, preferences.ui.countWarmups)}
-            exercises={session.exercises.flatMap((entry) =>
-              entry.exercise
-                ? [
-                    {
-                      id: entry.exerciseId,
-                      primary_muscle: entry.exercise.primaryMuscle,
-                      secondary_muscles: entry.exercise.secondaryMuscles,
-                    },
-                  ]
-                : [],
-            )}
-          />
-        </ScrollView>
+        {musclesOpen ? (
+          <ScrollView>
+            <MuscleDistribution
+              sets={loggedSetsOf(session, preferences.ui.countWarmups)}
+              exercises={session.exercises.flatMap((entry) =>
+                entry.exercise
+                  ? [
+                      {
+                        id: entry.exerciseId,
+                        primary_muscle: entry.exercise.primaryMuscle,
+                        secondary_muscles: entry.exercise.secondaryMuscles,
+                      },
+                    ]
+                  : [],
+              )}
+            />
+          </ScrollView>
+        ) : null}
       </SheetShell>
       <SessionHeader
         finished={session.finishedAt !== null}
@@ -528,115 +493,135 @@ function LoadedSession({
         onFinish={flow.askFinish}
         onOpenTimer={openTimer}
       />
-      <View ref={reveal.viewportRef} collapsable={false} className="flex-1">
-        <ScrollView
+      <View
+        ref={reveal.viewportRef}
+        collapsable={false}
+        className="flex-1"
+        onLayout={() => {
+          if (activeSetId) revealRow(activeSetId);
+        }}
+      >
+        <FlatList
           ref={scrollRef}
           className="flex-1"
+          data={session.exercises}
+          keyExtractor={(entry) => entry.id}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
           onScroll={(event) => reveal.onScroll(event.nativeEvent.contentOffset.y)}
           contentContainerStyle={{ paddingBottom: bottom + 32 }}
-        >
-          {mine || installId === null || session.finishedAt !== null ? null : (
-            <OwnershipBanner
-              lost={hadIt.current}
-              onTakeOver={() => void actions.takeOver(session.id)}
-            />
-          )}
-          {historyFailed ? (
-            <View className="gap-2 p-4">
-              <Text accessibilityRole="alert" className="font-normal text-body text-muted">
-                {t("session__previous_failed")}
-              </Text>
-              <Button variant="secondary" onPress={retryHistory}>
-                <Button.Label>{t("training__retry")}</Button.Label>
-              </Button>
-            </View>
-          ) : null}
-          {session.workoutNote === null ? null : (
-            <View className="mx-4 mt-3 gap-0.5 rounded-xl bg-surface p-3">
-              <Text className="text-overline font-semibold uppercase text-muted">
-                {t("session__workout_note")}
-              </Text>
-              <Text className="font-normal text-body text-foreground">{session.workoutNote}</Text>
-            </View>
-          )}
-          <View className="mt-3">
-            {session.exercises.map((entry) => (
-              <View key={entry.id} ref={reveal.registerRow(`ex:${entry.id}`)} collapsable={false}>
-                <ExerciseItem
-                  exercise={entry}
-                  suggestion={logging.suggestions.get(entry.id) ?? null}
-                  stall={logging.stalls.get(entry.id) ?? null}
-                  lighter={logging.lighter}
-                  place={logging.places.get(entry.id) ?? "none"}
-                  open={openIds.has(entry.id)}
-                  warm={warmIds.has(entry.id)}
-                  progress={progressText(entry.sets)}
-                  summary={
-                    allTicked(entry.sets)
-                      ? doneSummary(entry.sets, entry.type, unit, unitName, display)
-                      : ""
-                  }
-                  showAddSet={
-                    logging.justCollapsedId === entry.id &&
-                    restBelongsTo(session.rest, entry, restRunning)
-                  }
-                  readOnly={readOnly}
-                  unit={unit}
-                  display={display}
-                  effortScale={effortScale}
-                  historyReady={logging.historyReadyFor(entry.exerciseId)}
-                  editingFinished={logging.editingFinished}
-                  inlineTimer={preferences.ui.inlineTimer}
-                  entry={ownEntry(entry, logging.entry)}
-                  refusal={
-                    logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
-                      ? logging.refusal
-                      : null
-                  }
-                  previousOf={logging.rowLookups.get(entry.id)?.previousOf ?? logging.previousOf}
-                  ghostsFor={logging.rowLookups.get(entry.id)?.ghostsFor ?? logging.ghostsFor}
-                  currentSetId={
-                    entry.sets.some((set) => set.id === logging.currentSetId)
-                      ? logging.currentSetId
-                      : null
-                  }
-                  onView={viewExercise}
-                  onToggle={toggleBlock}
-                  onMenu={onMenu}
-                  onAddSet={onAddSet}
-                  onReorder={openReorder}
-                  onNote={onNote}
-                  onRest={onRest}
-                  onCell={openCell}
-                  onTick={onTick}
-                  onKind={onKind}
-                  onEffort={onEffort}
-                  onPrevious={onPrevious}
-                  onCopySets={logging.onCopySets}
-                  onRemoveSet={actions.removeOneSet}
-                  addedSetIds={addedSetIds}
-                  onAddedSetShown={onAddedSetShown}
-                  onTimer={onTimer}
-                  registerRow={registerSetRow}
+          onScrollToIndexFailed={({ averageItemLength, index }) => {
+            scrollRef.current?.scrollToOffset({
+              offset: averageItemLength * index,
+              animated: false,
+            });
+          }}
+          ListHeaderComponent={
+            <View className="gap-3 pb-3">
+              {mine || installId === null || session.finishedAt !== null ? null : (
+                <OwnershipBanner
+                  lost={hadIt.current}
+                  onTakeOver={() => void actions.takeOver(session.id)}
                 />
-              </View>
-            ))}
-          </View>
-          {readOnly ? null : (
-            <View className="mt-4 px-4">
-              <Button
-                variant={session.exercises.length === 0 ? "primary" : "secondary"}
-                isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
-                onPress={() => void addExercises()}
-              >
-                <Plus size={20} color={foreground} />
-                <Button.Label>{t("training__add_exercises")}</Button.Label>
-              </Button>
+              )}
+              {historyFailed ? (
+                <View className="gap-2 p-4">
+                  <Text accessibilityRole="alert" className="font-normal text-body text-muted">
+                    {t("session__previous_failed")}
+                  </Text>
+                  <Button variant="secondary" onPress={retryHistory}>
+                    <Button.Label>{t("training__retry")}</Button.Label>
+                  </Button>
+                </View>
+              ) : null}
+              {session.workoutNote === null ? null : (
+                <View className="mx-4 mt-3 gap-0.5 rounded-xl bg-surface p-3">
+                  <Text className="text-overline font-semibold uppercase text-muted">
+                    {t("session__workout_note")}
+                  </Text>
+                  <Text className="font-normal text-body text-foreground">
+                    {session.workoutNote}
+                  </Text>
+                </View>
+              )}
+            </View>
+          }
+          renderItem={({ item: entry }) => (
+            <View
+              onLayout={() => {
+                if (activeSetId && activeExercise === entry.id) {
+                  revealRow(activeSetId);
+                }
+              }}
+            >
+              <ExerciseItem
+                exercise={entry}
+                suggestion={logging.suggestions.get(entry.id) ?? null}
+                stall={logging.stalls.get(entry.id) ?? null}
+                lighter={logging.lighter}
+                place={logging.places.get(entry.id) ?? "none"}
+                progress={progressText(entry.sets)}
+                summary={
+                  allTicked(entry.sets)
+                    ? doneSummary(entry.sets, entry.type, unit, unitName, display)
+                    : ""
+                }
+                readOnly={readOnly}
+                unit={unit}
+                display={display}
+                effortScale={effortScale}
+                historyReady={logging.historyReadyFor(entry.exerciseId)}
+                editingFinished={logging.editingFinished}
+                inlineTimer={preferences.ui.inlineTimer}
+                entry={ownEntry(entry, logging.entry)}
+                refusal={
+                  logging.refusal && entry.sets.some((set) => set.id === logging.refusal?.setId)
+                    ? logging.refusal
+                    : null
+                }
+                previousOf={logging.rowLookups.get(entry.id)?.previousOf ?? logging.previousOf}
+                ghostsFor={logging.rowLookups.get(entry.id)?.ghostsFor ?? logging.ghostsFor}
+                currentSetId={
+                  entry.sets.some((set) => set.id === logging.currentSetId)
+                    ? logging.currentSetId
+                    : null
+                }
+                onView={viewExercise}
+                onMenu={onMenu}
+                onAddSet={onAddSet}
+                onReorder={openReorder}
+                onNote={onNote}
+                onRest={onRest}
+                onCell={openCell}
+                onTick={onTick}
+                onKind={onKind}
+                onEffort={onEffort}
+                onPrevious={onPrevious}
+                onCopySets={logging.onCopySets}
+                onRemoveSet={actions.removeOneSet}
+                onTimer={onTimer}
+                registerRow={registerSetRow}
+              />
             </View>
           )}
-        </ScrollView>
+          ListFooterComponent={
+            readOnly ? null : (
+              <View className="mt-4 px-4">
+                <Button
+                  variant={session.exercises.length === 0 ? "primary" : "secondary"}
+                  isDisabled={session.exercises.length >= SESSION_LIMITS.exercisesPerSession}
+                  onPress={() => void addExercises()}
+                >
+                  <Plus size={20} color={foreground} />
+                  <Button.Label>{t("training__add_exercises")}</Button.Label>
+                </Button>
+              </View>
+            )
+          }
+        />
       </View>
       {session.rest && !readOnly ? (
         <RestBar
@@ -646,8 +631,9 @@ function LoadedSession({
           onSkip={() => void actions.skipRest(session.id)}
         />
       ) : null}
-      <SessionKeypad logging={logging} accessory={accessory} />
+      <SessionKeypad logging={logging} accessory={accessory} motion={false} />
       <ReorderView
+        motion={false}
         visible={reordering && !readOnly}
         onClose={() => setReordering(false)}
         items={session.exercises}
@@ -790,6 +776,6 @@ function LoadedSession({
           if (confirmRemove) void actions.removeExercise(confirmRemove.id);
         }}
       />
-    </FadeIn>
+    </View>
   );
 }

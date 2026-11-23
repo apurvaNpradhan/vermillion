@@ -36,10 +36,17 @@ const FAILURE_KEYS = {
 
 /**
  * Import history: choose a Strong or Hevy CSV, check what it would add and match its exercise
- * names, import, and undo. The last import's receipt stays here until it is undone. Settings'
- * "Your data" page hosts it: `header` is drawn above the import while nothing is being imported.
+ * names, import, and undo. Import and Export share the same page header.
  */
-export function ImportHistoryScreen({ title, header }: { title: string; header?: ReactNode }) {
+export function ImportHistoryScreen({
+  title,
+  navigation,
+  exportPane,
+}: {
+  title: string;
+  navigation: ReactNode;
+  exportPane: ReactNode | null;
+}) {
   const { t, i18n } = useTranslation();
   const flow = useHistoryImport();
   const [matching, setMatching] = useState<string | null>(null);
@@ -108,9 +115,10 @@ export function ImportHistoryScreen({ title, header }: { title: string; header?:
         }
       />
       <ScrollPage back={!writing} title={title} backFallback="/settings">
-        {step.kind === "idle" || step.kind === "failed" ? (
+        {step.kind === "idle" || step.kind === "failed" ? navigation : null}
+        {exportPane}
+        {exportPane === null && (step.kind === "idle" || step.kind === "failed") ? (
           <>
-            {header}
             {step.kind === "failed" ? <FormError message={t(FAILURE_KEYS[step.reason])} /> : null}
             <ListSection title={t("import__title")}>
               <View className="gap-3">

@@ -1,6 +1,6 @@
 import type { WeekStart } from "@workspace/shared";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Rect } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
 import { useTranslation } from "@/platform/i18n";
@@ -142,6 +142,37 @@ export function HistoryWeekCalendar({
   );
 }
 
+function MonthActivity({
+  month,
+  today,
+  weekStart,
+  days,
+}: {
+  month: number;
+  today: number;
+  weekStart: WeekStart;
+  days: History["byDay"];
+}) {
+  const ink = useCSSVariable("--accent");
+  const muted = useCSSVariable("--muted");
+  let trained = "";
+  let rest = "";
+  monthRows(month, weekStart).forEach((week, row) => {
+    week.days.forEach((day, column) => {
+      if (day === null || day > today) return;
+      const dot = `M${column * 8} ${row * 8 + 3}a3 3 0 1 0 6 0a3 3 0 1 0 -6 0z`;
+      if (days.has(day)) trained += dot;
+      else rest += dot;
+    });
+  });
+  return (
+    <Svg width={54} height={46} accessible={false}>
+      <Path d={rest} fill={isColorString(muted) ? muted : undefined} opacity={0.3} />
+      <Path d={trained} fill={isColorString(ink) ? ink : undefined} />
+    </Svg>
+  );
+}
+
 export function HistoryYear({
   start,
   today,
@@ -178,7 +209,6 @@ export function HistoryYear({
         <View key={row} className="flex-row gap-2">
           {Array.from({ length: 3 }, (_, column) => {
             const month = shiftPeriod("month", start, row * 3 + column);
-            const days = monthRows(month, weekStart);
             const count = history.byMonth.get(month)?.totals.workouts ?? 0;
             const disabled = month > today;
             return (
@@ -197,22 +227,12 @@ export function HistoryYear({
                 <Text className="text-label font-medium text-foreground">
                   {format.shortMonth(month)}
                 </Text>
-                <View className="gap-0.5">
-                  {Array.from({ length: 6 }, (_, rowIndex) => (
-                    <View key={rowIndex} className="flex-row gap-0.5">
-                      {Array.from({ length: 7 }, (_, colIndex) => {
-                        const day = days[rowIndex]?.days[colIndex];
-                        const tone =
-                          day == null || day > today
-                            ? "opacity-0"
-                            : history.byDay.has(day)
-                              ? "bg-accent"
-                              : "bg-muted/30";
-                        return <View key={colIndex} className={`size-1.5 rounded-full ${tone}`} />;
-                      })}
-                    </View>
-                  ))}
-                </View>
+                <MonthActivity
+                  month={month}
+                  today={today}
+                  weekStart={weekStart}
+                  days={history.byDay}
+                />
                 <Text
                   numberOfLines={1}
                   className="font-normal text-caption tabular-nums text-muted"

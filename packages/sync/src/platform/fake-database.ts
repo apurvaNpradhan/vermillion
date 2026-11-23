@@ -55,11 +55,14 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,
         source_workout_exercise_id TEXT, workout_swap_fragment INTEGER, position TEXT, rest_seconds INTEGER, note TEXT,
         superset_group TEXT, log_effort INTEGER, warmup_key TEXT, repeated INTEGER, created_at TEXT, restore INTEGER);
+      CREATE INDEX session_started_at_idx ON training_session (started_at);
+      CREATE INDEX session_exercise_order_idx ON session_exercise (session_id, position);
       CREATE TABLE session_photo (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT, media_id TEXT, position REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,
         position TEXT, kind TEXT, weight_kg REAL, reps INTEGER, duration_s INTEGER,
         distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,
         timer_started_at TEXT, target TEXT, generated_warmup INTEGER, created_at TEXT, restore INTEGER);
+      CREATE INDEX session_set_order_idx ON session_set (session_exercise_id, position);
       CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER, seed TEXT);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
@@ -158,6 +161,14 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       };
     },
     registerListener: () => () => undefined,
+    onChangeWithCallback: (
+      handler: { onChange: () => void },
+      options: { tables: string[]; signal?: AbortSignal },
+    ) => {
+      tableWatchers.push((table) => {
+        if (!options.signal?.aborted && options.tables.includes(table)) handler.onChange();
+      });
+    },
     watchWithCallback: (
       sql: string,
       params: Param[],

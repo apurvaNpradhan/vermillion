@@ -1,7 +1,6 @@
 import { Minus, Plus } from "phosphor-react-native";
 import { useEffect, useRef } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
@@ -11,7 +10,6 @@ import { Button } from "@/platform/ui/button";
 
 import { formatElapsed } from "@/session/timer/clock";
 import { REST_ADJUST_SECONDS, restView } from "./rest-rules";
-import { useRestPulse } from "./use-rest-pulse";
 import { isRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import { useNow } from "@/session/shared/use-now";
 import { countdownBeepSecond } from "@/session/settings/sound-rules";
@@ -40,7 +38,6 @@ export function RestBar({
   const foreground = useThemeColor("foreground");
   const now = useNow(true, 250);
   const view = restView(rest, now);
-  const pulse = useRestPulse(rest.endsAt, view.remaining);
   const { play } = useSoundCues();
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
@@ -85,13 +82,13 @@ export function RestBar({
       <View className="flex-row items-center gap-2 px-3 py-2">
         <View className="flex-1">
           <Text className="font-normal text-caption text-muted">{t("session__rest_label")}</Text>
-          <Animated.Text
+          <Text
             accessibilityLiveRegion="none"
             className="font-semibold text-numeric-md text-foreground"
-            style={[{ fontVariant: ["tabular-nums"] }, pulse]}
+            style={{ fontVariant: ["tabular-nums"] }}
           >
             {formatElapsed(view.remaining)}
-          </Animated.Text>
+          </Text>
         </View>
         <Pressable
           accessibilityRole="button"

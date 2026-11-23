@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListSection, ListRow } from "@/platform/ui/list";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import { useTrainingPreferenceRows } from "@/training";
 
 import { useSessionSettings } from "./use-session-settings";
@@ -26,6 +26,7 @@ export function SessionSettingsSheet({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
@@ -47,7 +48,7 @@ export function SessionSettingsSheet({
   });
   return (
     <>
-      <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+      <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <FixedSheetContent

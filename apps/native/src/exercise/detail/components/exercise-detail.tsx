@@ -475,11 +475,6 @@ function breakdownRows(
   }));
 }
 
-/**
- * Primary and secondary as two labelled blocks, each group a row with its parts beneath, so
- * a long list reads as a list instead of a pile of chips. The dots echo the map: primary full,
- * secondary lighter. Tapping a group on the map narrows this to that group.
- */
 function MuscleBreakdown({
   primary,
   secondary,
@@ -503,47 +498,43 @@ function MuscleBreakdown({
     secondaryDetail,
     taken,
   );
-  const blocks = [
-    { key: "primary", label: t("exercise__muscle_primary"), rows: primaryRows, soft: false },
-    { key: "secondary", label: t("exercise__muscle_secondary"), rows: secondaryRows, soft: true },
-  ] as const;
+  const rows = [...primaryRows, ...secondaryRows];
+  const shown = tapped ? rows.filter((row) => row.group === tapped) : rows;
+  const browse = tapped !== null && shown.length > 0 ? onBrowse : undefined;
   return (
-    <View className="gap-4">
-      {blocks.map(({ key, label, rows, soft }) => {
-        const shown = tapped ? rows.filter((row) => row.group === tapped) : rows;
-        if (shown.length === 0) return null;
-        return (
-          <View key={key} className="gap-2">
-            <View className="flex-row items-center gap-2">
-              <View className={`size-2.5 rounded-full bg-danger ${soft ? "opacity-45" : ""}`} />
-              <Text accessibilityRole="header" className="font-normal text-caption text-muted">
-                {label}
-              </Text>
-            </View>
-            {shown.map(({ group, parts }) => (
-              <View key={group} className="flex-row items-center justify-between gap-3">
-                <View className="flex-1">
-                  <Text className="font-medium text-body text-foreground">
-                    {t(MUSCLE_GROUP_KEYS[group])}
+    <View className="gap-2">
+      <View className="rounded-xl bg-surface px-3 py-1">
+        {shown.map(({ group, parts }) => {
+          const isPrimary = taken.has(group);
+          return (
+            <View key={group} className="flex-row items-start gap-3 py-2">
+              <View
+                className={`mt-1.5 size-2.5 rounded-full bg-danger ${isPrimary ? "" : "opacity-45"}`}
+              />
+              <View className="flex-1">
+                <Text className="font-medium text-body text-foreground">
+                  {t(MUSCLE_GROUP_KEYS[group])}
+                </Text>
+                {parts.length > 0 ? (
+                  <Text className="font-normal text-caption text-muted">
+                    {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
                   </Text>
-                  {parts.length > 0 ? (
-                    <Text className="font-normal text-caption text-muted">
-                      {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
-                    </Text>
-                  ) : null}
-                </View>
-                {onBrowse && tapped !== null && isBodyGroup(group) ? (
-                  <Button variant="secondary" size="sm" onPress={() => onBrowse(group)}>
-                    <Button.Label>
-                      {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[group]) })}
-                    </Button.Label>
-                  </Button>
                 ) : null}
               </View>
-            ))}
-          </View>
-        );
-      })}
+              <Text className="shrink text-right font-normal text-caption text-muted">
+                {t(isPrimary ? "exercise__muscle_primary" : "exercise__muscle_secondary")}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      {browse && tapped !== null ? (
+        <Button variant="secondary" size="sm" onPress={() => browse(tapped)}>
+          <Button.Label>
+            {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[tapped]) })}
+          </Button.Label>
+        </Button>
+      ) : null}
     </View>
   );
 }

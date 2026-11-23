@@ -1,19 +1,33 @@
-import type { WeekStart } from "@workspace/shared";
-import type { FinishedSession } from "@workspace/sync";
+import { weekStartDay, type WeekStart } from "@workspace/shared";
+import type { HistoryOverviewSession } from "@workspace/sync";
 
-import { weekStartKey } from "@workspace/shared";
+import type { History } from "./history-calendar";
 
-export function groupSessionWeeks(
-  sessions: readonly FinishedSession[],
-  timezone: string,
+export type HistoryItem =
+  | { kind: "week"; id: string; sessions: readonly HistoryOverviewSession[] }
+  | { kind: "session"; id: string; session: HistoryOverviewSession };
+
+export function historyListItems(
+  sessions: readonly HistoryOverviewSession[],
+  groupByWeek: boolean,
+  stats: History["bySession"],
   weekStart: WeekStart,
-) {
-  const weeks = new Map<string, FinishedSession[]>();
-  for (const session of [...sessions].sort((a, b) => b.started_at.localeCompare(a.started_at))) {
-    const key = weekStartKey(session.started_at, timezone, weekStart);
-    const group = weeks.get(key) ?? [];
-    group.push(session);
-    weeks.set(key, group);
+): HistoryItem[] {
+  const items: HistoryItem[] = [];
+  const weeks = new Map<number, HistoryOverviewSession[]>();
+  for (const session of sessions) {
+    const day = stats.get(session.id)?.day;
+    if (groupByWeek && day !== undefined) {
+      const week = weekStartDay(day, weekStart);
+      let entries = weeks.get(week);
+      if (entries === undefined) {
+        entries = [];
+        weeks.set(week, entries);
+        items.push({ kind: "week", id: String(week), sessions: entries });
+      }
+      entries.push(session);
+    }
+    items.push({ kind: "session", id: session.id, session });
   }
-  return [...weeks].map(([week, sessions]) => ({ week, sessions }));
+  return items;
 }

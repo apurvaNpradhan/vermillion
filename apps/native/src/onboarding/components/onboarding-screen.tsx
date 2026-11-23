@@ -17,7 +17,7 @@ import { confirmOnline } from "@/platform/network";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
 import { FormError } from "@/platform/ui/form-error";
 
-import { beginSetup, finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
+import { finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
 import { BodyStep } from "./body-step";
 import { DaysStep } from "./days-step";
@@ -27,7 +27,7 @@ import { RemindersStep } from "./reminders-step";
 import { UnitsStep } from "./units-step";
 
 /** The required step: there is no skip. Saving it starts the setup steps that follow. */
-function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) {
+function NameStep({ onSaved }: { onSaved: () => void }) {
   const { t } = useTranslation();
   const { saveName } = useSaveName();
   const [failure, setFailure] = useState<string | null>(null);
@@ -44,8 +44,6 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
       if (!(await confirmOnline())) return;
       setFailure(null);
       try {
-        // Marked before the save: the refreshed session must not open the app in between.
-        beginSetup(userId);
         await saveName(value.name.trim());
         haptic.confirm();
         onSaved();
@@ -137,7 +135,7 @@ function AccountSetup({ userId, hasName }: { userId: string; hasName: boolean })
   };
   switch (step) {
     case "name":
-      return <NameStep userId={userId} onSaved={advance} />;
+      return <NameStep onSaved={advance} />;
     case "units":
       return <UnitsStep onDone={advance} />;
     case "body":

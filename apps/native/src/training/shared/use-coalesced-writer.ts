@@ -19,18 +19,20 @@ export function useCoalescedWriter<Patch extends object>(
   });
   const pending = useRef<Patch | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inflight = useRef(0);
+  const inflight = useRef(new Set<Promise<boolean>>());
 
   const flush = useCallback(() => {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
     const patch = pending.current;
     pending.current = null;
-    if (patch === null) return;
-    inflight.current += 1;
-    void writeRef.current(patch).finally(() => {
-      inflight.current -= 1;
-    });
+    if (patch !== null) {
+      const writes = inflight.current;
+      const result = writeRef.current(patch);
+      writes.add(result);
+      void result.finally(() => writes.delete(result));
+    }
+    if (inflight.current.size > 0) return Promise.all(inflight.current);
   }, []);
 
   const queue = useCallback(
@@ -42,7 +44,7 @@ export function useCoalescedWriter<Patch extends object>(
     [flush, delay],
   );
 
-  useEffect(() => flush, [flush]);
-  const busy = useCallback(() => pending.current !== null || inflight.current > 0, []);
+  useEffect(() => () => void flush(), [flush]);
+  const busy = useCallback(() => pending.current !== null || inflight.current.size > 0, []);
   return { queue, flush, busy };
 }

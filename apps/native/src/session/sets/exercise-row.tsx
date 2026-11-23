@@ -1,6 +1,6 @@
 import type { SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { DotsThreeVertical, Plus } from "phosphor-react-native";
+import { DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -9,7 +9,6 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
-const HIDDEN = { display: "none" } as const;
 const FALLBACK_TITLE_KEY = "training__exercise_missing";
 
 /**
@@ -19,36 +18,26 @@ const FALLBACK_TITLE_KEY = "training__exercise_missing";
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
   place,
-  open,
   progress,
   summary,
-  showAddSet,
   readOnly,
-  warm,
   onView,
-  onToggle,
   onMenu,
-  onAddSet,
   onReorder,
   children,
   progression,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
-  open: boolean;
   /** "2/4". */
   progress: string;
   /** The done summary after the progress; empty while sets remain. */
   summary: string;
   /** "+ Add set" on this collapsed row: it was just finished and is resting. */
-  showAddSet: boolean;
   readOnly: boolean;
   /** Build the body while closed (hidden), so opening it only flips visibility. */
-  warm: boolean;
   onView: (exerciseId: string) => void;
-  onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
-  onAddSet: (exerciseId: string) => void;
   /** Long press on the header: open the Reorder view. */
   onReorder: () => void;
   /** The open body: note, rest chip, set grid. */
@@ -71,10 +60,8 @@ export const ExerciseRow = memo(function ExerciseRow({
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
 
   return (
-    <ReorderBlock onReorder={onReorder} enabled={!readOnly}>
-      <ReorderTrigger
-        className={`min-h-[64px] flex-row items-center ${open ? "bg-background" : "bg-surface"}`}
-      >
+    <ReorderBlock onReorder={onReorder} enabled={!readOnly} motion={false}>
+      <ReorderTrigger className="min-h-[64px] flex-row items-center bg-background">
         <SupersetBracket place={place} />
         <Pressable
           accessibilityRole="button"
@@ -87,20 +74,15 @@ export const ExerciseRow = memo(function ExerciseRow({
         <View className="min-h-[64px] min-w-0 flex-1 justify-center">
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
             accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
-            accessibilityHint={
-              readOnly
-                ? t("training__row_open_hint")
-                : `${t("training__row_open_hint")}. ${t("training__drag_hint")}`
-            }
+            accessibilityHint={readOnly ? undefined : t("training__drag_hint")}
             accessibilityActions={
               readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
             }
             onAccessibilityAction={(event) => {
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
             }}
-            onPress={() => onToggle(exercise.id)}
+            onPress={() => onView(exercise.exerciseId)}
             className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
           >
             {place === "first" ? (
@@ -118,27 +100,10 @@ export const ExerciseRow = memo(function ExerciseRow({
             >
               {subtitle}
             </Text>
-            <ExerciseNotes
-              pinned={exercise.pinnedNote}
-              lastTime={open ? exercise.lastNote : null}
-            />
+            <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
           </Pressable>
           {progression}
         </View>
-        {showAddSet && !open && !readOnly ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("session__add_set_to", { title: name })}
-            onPress={() => onAddSet(exercise.id)}
-            hitSlop={4}
-            className="h-9 flex-row items-center gap-1 rounded-full bg-default px-3 active:bg-field"
-          >
-            <Plus size={20} color={subtle} />
-            <Text className="font-medium text-caption text-foreground">
-              {t("session__add_set")}
-            </Text>
-          </Pressable>
-        ) : null}
         {readOnly ? null : (
           <Pressable
             accessibilityRole="button"
@@ -151,16 +116,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           </Pressable>
         )}
       </ReorderTrigger>
-      {open || warm ? (
-        <View
-          className="gap-3 bg-default/30 px-3 py-4"
-          style={open ? undefined : HIDDEN}
-          accessibilityElementsHidden={!open}
-          importantForAccessibility={open ? "auto" : "no-hide-descendants"}
-        >
-          {children}
-        </View>
-      ) : null}
+      <View className="gap-3 bg-default/30 px-3 py-4">{children}</View>
     </ReorderBlock>
   );
 });

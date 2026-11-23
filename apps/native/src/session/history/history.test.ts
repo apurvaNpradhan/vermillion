@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { weekStartKey } from "@workspace/shared";
-import { groupSessionWeeks } from "./history";
+import { historyListItems } from "./history";
 describe("ISO weeks in the account zone", () => {
   it("puts a UTC Monday into the previous week west of UTC", () => {
     expect(weekStartKey("2026-01-05T00:30:00Z", "America/Los_Angeles", "monday")).toBe(
@@ -18,6 +18,6 @@ describe("ISO weeks in the account zone", () => {
   });
   it("handles year boundaries and empty history", () => {
     expect(weekStartKey("2027-01-01T12:00:00Z", "UTC", "monday")).toBe("2026-12-28");
-    expect(groupSessionWeeks([], "UTC", "monday")).toEqual([]);
+    expect(historyListItems([], true, new Map(), "monday")).toEqual([]);
   });
 });

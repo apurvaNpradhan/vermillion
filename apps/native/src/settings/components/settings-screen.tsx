@@ -2,15 +2,7 @@ import { AvatarPicker } from "@/account";
 import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
-import {
-  Barbell,
-  ChatCircleText,
-  Database,
-  Image as ImageIcon,
-  Info,
-  SignOut,
-  Trash,
-} from "phosphor-react-native";
+import { Barbell, ChatCircleText, Database, Info, SignOut, Trash } from "phosphor-react-native";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 
@@ -27,7 +19,6 @@ import { PreferenceRows } from "@/preferences";
 import { useTrainingPreferenceRows } from "@/training";
 import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
-import { PHOTO_CREDIT_URL } from "@/platform/photo-credit";
 import { CrashReportsRow } from "./crash-reports-row";
 import { FeedbackSheet } from "./feedback-sheet";
 
@@ -105,13 +96,6 @@ export function SettingsScreen() {
               name: appConfig.displayName,
               version: appConfig.version,
             })}
-          />
-          <ListRow
-            icon={ImageIcon}
-            title={t("settings__photo_credit")}
-            description={t("settings__photo_credit_line")}
-            accessory="none"
-            onPress={() => void Linking.openURL(PHOTO_CREDIT_URL)}
           />
         </ListSection>
         <ListSection title={t("settings__section_data")}>

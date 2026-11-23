@@ -5,7 +5,7 @@ import {
   type ExerciseType,
   type Ghosts,
 } from "@workspace/shared";
-import type { SessionDetail, SessionSetDetail } from "@workspace/sync";
+import type { SessionDetail, SessionSetDetail, SetPatch } from "@workspace/sync";
 
 /** The parts of a set a tick or untick changes. */
 export type SetChange = Partial<
@@ -30,8 +30,15 @@ type Rest = SessionDetail["rest"];
  * after the write. Each remembers the stored value it was made against (`before`): once the stored
  * value differs, the watch has caught up and the change is dropped.
  */
+type PendingSet = {
+  before: string;
+  change: SetChange;
+  /** A keypad save may echo before the tick. Keep the preview until all its fields arrive. */
+  awaitFields?: boolean;
+};
+
 export type Pending = {
-  sets: ReadonlyMap<string, { before: string; change: SetChange }>;
+  sets: ReadonlyMap<string, PendingSet>;
   rest: { before: string; value: Rest } | null;
 };
 
@@ -57,12 +64,13 @@ export const restKey = (rest: Rest): string => JSON.stringify(rest);
 /** The Session as stored, with the pending changes the watch has not delivered yet on top. */
 export function withPending(session: SessionDetail, pending: Pending): SessionDetail {
   const rest = pending.rest && pending.rest.before === restKey(session.rest) ? pending.rest : null;
+  if (!rest && pending.sets.size === 0) return session;
   let changedSets = false;
   const exercises = session.exercises.map((exercise) => {
     let changed = false;
     const sets = exercise.sets.map((set) => {
       const entry = pending.sets.get(set.id);
-      if (!entry || entry.before !== setKey(set)) return set;
+      if (!entry || delivered(entry, set)) return set;
       changed = true;
       return { ...set, ...entry.change };
     });
@@ -80,6 +88,7 @@ export function withPending(session: SessionDetail, pending: Pending): SessionDe
 
 /** Drops the pending changes the stored Session has moved past; the same object if none. */
 export function settled(pending: Pending, session: SessionDetail): Pending {
+  if (pending === NO_PENDING) return pending;
   const stored = new Map(
     session.exercises.flatMap((exercise) => exercise.sets.map((set) => [set.id, set] as const)),
   );
@@ -87,7 +96,7 @@ export function settled(pending: Pending, session: SessionDetail): Pending {
   const sets = new Map(pending.sets);
   for (const [id, entry] of pending.sets) {
     const set = stored.get(id);
-    if (!set || setKey(set) !== entry.before) {
+    if (!set || delivered(entry, set)) {
       sets.delete(id);
       changed = true;
     }
@@ -95,6 +104,39 @@ export function settled(pending: Pending, session: SessionDetail): Pending {
   const restGone = pending.rest !== null && pending.rest.before !== restKey(session.rest);
   if (!changed && !restGone) return pending;
   return { sets, rest: restGone ? null : pending.rest };
+}
+
+function delivered(entry: PendingSet, set: SessionSetDetail): boolean {
+  if (!entry.awaitFields) return entry.before !== setKey(set);
+  // SAFETY: these entries are the own keys of a SetChange, all drawn from SessionSetDetail.
+  const keys = Object.keys(entry.change) as (keyof SetChange)[];
+  return keys.every((key) =>
+    key === "completedAt"
+      ? (set.completedAt === null) === (entry.change.completedAt === null)
+      : set[key] === entry.change[key],
+  );
+}
+
+export function previewValuePatch({
+  weight_kg,
+  reps,
+  duration_s,
+  distance_m,
+  floors,
+  steps,
+  rpe,
+  timer_started_at,
+}: SetPatch): SetChange {
+  return {
+    ...(weight_kg === undefined ? {} : { weightKg: weight_kg }),
+    ...(reps === undefined ? {} : { reps }),
+    ...(duration_s === undefined ? {} : { durationS: duration_s }),
+    ...(distance_m === undefined ? {} : { distanceM: distance_m }),
+    ...(floors === undefined ? {} : { floors }),
+    ...(steps === undefined ? {} : { steps }),
+    ...(rpe === undefined ? {} : { rpe }),
+    ...(timer_started_at === undefined ? {} : { timerStartedAt: timer_started_at }),
+  };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { useSheetAnimation } from "./sheet-motion";
 import { BottomSheet } from "heroui-native";
 import { View } from "react-native";
 
@@ -23,8 +24,9 @@ export function ActionSheet({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const animation = useSheetAnimation();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
@@ -45,7 +47,11 @@ export function ActionSheet({
                   onOpenChange(false);
                   // After the sheet is gone, so an action that opens another sheet does not
                   // animate in while this one is still leaving.
-                  setTimeout(action.onPress, CLOSE_MS);
+                  if (animation) {
+                    requestAnimationFrame(() => requestAnimationFrame(action.onPress));
+                  } else {
+                    setTimeout(action.onPress, CLOSE_MS);
+                  }
                 }}
               />
             ))}

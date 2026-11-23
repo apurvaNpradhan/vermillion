@@ -37,7 +37,6 @@ const themes = nativeVariantNames.map((mode) => ({
   mode,
   colors: nativeColors[mode],
   isLight: mode === "light" || mode.includes("-light"),
-  isClassic: mode.startsWith("classic"),
 }));
 
 const L = (hex: string) => oklabL(hex);
@@ -189,17 +188,6 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight }) => {
   });
 });
 
-describe.each(themes.filter(({ isClassic }) => isClassic))(
-  "Classic identity: $mode",
-  ({ colors: c }) => {
-    it("keeps the accent near-neutral and retains functional completion colour", () => {
-      expect(toOklch(c.identity).c).toBeLessThan(0.015);
-      expect(c.action).toBe(c.identity);
-      expect(toOklch(c["set-done"]).c).toBeGreaterThan(0.04);
-    });
-  },
-);
-
 describe.each(themes)("chart and surface rules: $mode", ({ colors: c }) => {
   it("keeps every chart series visible on the page", () => {
     for (const role of ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const) {
@@ -324,21 +312,6 @@ describe("Sigil", () => {
       }
       expect(toOklch(c.danger).h).not.toBeCloseTo(toOklch(c.identity).h, -1);
     }
-  });
-});
-
-describe("Classic", () => {
-  it("uses its original canvas, surface and ink in both schemes", () => {
-    expect(nativeColors["classic-light"]).toMatchObject({
-      canvas: "#F4F2ED",
-      surface: "#FBFAF7",
-      "text-primary": "#191918",
-    });
-    expect(nativeColors["classic-dark"]).toMatchObject({
-      canvas: "#070707",
-      surface: "#121212",
-      "text-primary": "#EFEEE9",
-    });
   });
 });
 

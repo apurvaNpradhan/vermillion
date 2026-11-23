@@ -6,8 +6,7 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native ships two themes, **Sigil** (the default) and **Classic**, each in light and dark at standard
-or increased contrast. Match device is the default appearance. The brand spec is
+Native uses **Sigil** in light and dark at standard or increased contrast. Match device is the default appearance. The brand spec is
 [docs/design/sigil/SPEC.md](docs/design/sigil/SPEC.md); where this file disagrees with it, the spec wins.
 
 - **Sigil** is two inks and one rare ember (`packages/ui/src/tokens/themes/sigil.ts`): ground
@@ -18,16 +17,13 @@ or increased contrast. Match device is the default appearance. The brand spec is
   `set-done-soft`). Danger is a cooler rose, never ember, always with an icon and words. Charts use
   lichen, sand and stones, never ember. The engine's `override` input pins the spec's exact values;
   `accent-soft-text` stays tied to the ink action so pressed pairs keep AA.
-- **Classic** is a base, an ink accent and a family of data colours per scheme
-  (`themes/classic.ts`). Its identity is near-neutral.
-- Saved theme ids that no longer exist (`patina`, `oxide`, `slate`, `mulberry`, unknown) fall back to
-  Sigil. `nativeColors` in `brand.ts` holds every variant (`sigil-dark`, `classic-light-contrast`, …);
+- Saved theme ids that no longer exist (`classic`, `patina`, `oxide`, `slate`, `mulberry`, unknown) fall back to
+  Sigil. `nativeColors` in `brand.ts` holds every variant (`sigil-dark`, `sigil-light-contrast`, …);
   the built-in `light` and `dark` carry Sigil at standard contrast. Email uses those.
 - `device.theme` stores `{ theme, appearance, contrast }`. Native chrome, status bars and blur
   use `useThemeMode()`.
-- EB Garamond (500) sets only the large titles of tab roots, onboarding step titles, the
-  sign-in wordmark and the session finish title (`font-display`, `text-display-lg`,
-  `text-display-wordmark`). Collapsed headers and everything else stay Geist.
+- Geist sets native text, including large titles and the sign-in wordmark. Geist Mono is available
+  for labels and code.
 - Brand images (icon, adaptive and notification icons, splash, graded sign-in photo) are generated
   by `pnpm brand:assets`. Sign-in is always dark. Empty states draw the hairline construction
   drawing (`ConstructionDrawing`) with a mono count label, one plain line and at most one action.

@@ -3,11 +3,9 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { EQUIPMENT, EQUIPMENT_KEYS, type MuscleGroup } from "@workspace/shared";
 import { LIBRARY_SHOW, type LibraryFilters, type LibraryShow } from "@workspace/sync";
 import { BottomSheet, Switch } from "heroui-native";
-import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BodyMapPair, UNDRAWN } from "@/body-map";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -15,10 +13,8 @@ import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 import { ChoiceCell, ChoiceGrid, EquipmentIcon } from "../../components/choice-grid";
-import { MuscleRegions, MuscleRows } from "../../components/muscle-rows";
+import { MuscleRegions } from "../../components/muscle-rows";
 import { toggled, withoutFacets } from "../filter-state";
-
-type MuscleView = "body" | "list";
 
 /** All library filters in one sheet. */
 export function FilterSheet({
@@ -37,7 +33,6 @@ export function FilterSheet({
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
-  const [muscleView, setMuscleView] = useState<MuscleView>("list");
   const toggleMuscle = (muscle: MuscleGroup) =>
     onChange({ ...filters, muscles: toggled(filters.muscles, muscle) });
 
@@ -81,41 +76,10 @@ export function FilterSheet({
           >
             <View>
               <SectionTitle>{t("exercise__section_muscle")}</SectionTitle>
-              <View className="mb-4">
-                <SegmentedControl<MuscleView>
-                  options={[
-                    { value: "body", label: t("exercise__view_body") },
-                    { value: "list", label: t("exercise__view_list") },
-                  ]}
-                  value={muscleView}
-                  onChange={setMuscleView}
-                  accessibilityLabel={t("exercise__view_group")}
-                />
-              </View>
-              {muscleView === "body" ? (
-                <View className="gap-4">
-                  <BodyMapPair
-                    selected={filters.muscles}
-                    onPressGroup={(muscle) => {
-                      haptic.tick();
-                      toggleMuscle(muscle);
-                    }}
-                  />
-                  <Text className="font-normal text-center text-caption text-muted">
-                    {t("exercise__body_hint")}
-                  </Text>
-                  <MuscleRows
-                    muscles={UNDRAWN}
-                    isSelected={(muscle) => filters.muscles.includes(muscle)}
-                    onPress={toggleMuscle}
-                  />
-                </View>
-              ) : (
-                <MuscleRegions
-                  isSelected={(muscle) => filters.muscles.includes(muscle)}
-                  onPress={toggleMuscle}
-                />
-              )}
+              <MuscleRegions
+                isSelected={(muscle) => filters.muscles.includes(muscle)}
+                onPress={toggleMuscle}
+              />
               <View className="mt-4 flex-row items-center justify-between gap-4">
                 <Text className="font-normal flex-1 text-body text-foreground">
                   {t("exercise__include_secondary")}

@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 import { SET_TONES } from "./set-tones";
 
@@ -49,11 +49,12 @@ export function SetTypeSheet({
   title?: string;
   workingAllowed?: boolean;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const subtle = useSubtleColor();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <FixedSheetContent

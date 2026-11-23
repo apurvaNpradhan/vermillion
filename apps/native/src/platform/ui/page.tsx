@@ -76,6 +76,7 @@ export function Page({
   actions,
   pinned,
   hero,
+  stickyTitle = false,
   children,
 }: {
   title: string;
@@ -86,6 +87,8 @@ export function Page({
   backFallback?: Href;
   /** Icon buttons on the right of the header row, in a floating capsule. */
   actions?: ReactNode;
+  /** Keeps the large root title in the header while the content scrolls. */
+  stickyTitle?: boolean;
   /**
    * Content that sits in the page under the large title (`header` already reserves `height`
    * for it) and, once the page scrolls, stays pinned under the compact bar.
@@ -134,29 +137,35 @@ export function Page({
           scrollEventThrottle: 16,
           // Without a back button the large title shares the header row with the actions.
           contentContainerStyle: {
-            paddingTop: hero ? 0 : back ? height : rowTop,
+            paddingTop: hero ? 0 : back || stickyTitle ? height : rowTop,
             paddingBottom: clearance,
           },
           header: hero ? (
             <></>
           ) : (
             <>
-              <PageTitle
-                title={title}
-                overline={overline}
-                scrollY={scrollY}
-                back={back}
-                collapse={collapse}
-              />
+              {!stickyTitle ? (
+                <PageTitle
+                  title={title}
+                  overline={overline}
+                  scrollY={scrollY}
+                  back={back}
+                  collapse={collapse}
+                />
+              ) : null}
               {pinned ? <View style={{ height: pinned.height }} /> : null}
             </>
           ),
         })}
       </View>
       {hero ? <HeroScrim scrollY={scrollY} height={top + HERO_SCRIM} collapse={collapse} /> : null}
-      <PageBar scrollY={scrollY} height={height} collapse={collapse} />
+      <PageBar scrollY={scrollY} height={height} collapse={collapse} sticky={stickyTitle} />
       {pinned ? (
-        <PinnedLayer scrollY={scrollY} restTop={rowTop + ROW_HEIGHT} stuckTop={height}>
+        <PinnedLayer
+          scrollY={scrollY}
+          restTop={stickyTitle ? height : rowTop + ROW_HEIGHT}
+          stuckTop={height}
+        >
           {pinned.children}
         </PinnedLayer>
       ) : null}
@@ -186,14 +195,30 @@ export function Page({
             </FloatingSurface>
           ) : null}
         </View>
-        <CompactTitle
-          title={title}
-          scrollY={scrollY}
-          collapse={collapse}
-          left={back ? SIDE + BUTTON + BUTTON_GAP : SIDE}
-          right={(actions ? ACTIONS_CLEARANCE : SIDE) + (offline ? PILL_CLEARANCE : 0)}
-          onPress={() => scrollToTop(target.current)}
-        />
+        {stickyTitle ? (
+          <View
+            pointerEvents="none"
+            className="absolute inset-y-0 left-4 justify-center"
+            style={{ right: (actions ? ACTIONS_CLEARANCE : SIDE) + (offline ? PILL_CLEARANCE : 0) }}
+          >
+            <Text
+              accessibilityRole="header"
+              numberOfLines={1}
+              className="font-semibold text-display-lg text-foreground"
+            >
+              {title}
+            </Text>
+          </View>
+        ) : (
+          <CompactTitle
+            title={title}
+            scrollY={scrollY}
+            collapse={collapse}
+            left={back ? SIDE + BUTTON + BUTTON_GAP : SIDE}
+            right={(actions ? ACTIONS_CLEARANCE : SIDE) + (offline ? PILL_CLEARANCE : 0)}
+            onPress={() => scrollToTop(target.current)}
+          />
+        )}
       </View>
     </View>
   );
@@ -282,7 +307,7 @@ function PageTitle({
         className={
           back
             ? "font-semibold text-title-xl text-foreground"
-            : "font-display text-display-lg text-foreground"
+            : "font-semibold text-display-lg text-foreground"
         }
       >
         {title}
@@ -340,14 +365,16 @@ function PageBar({
   scrollY,
   height,
   collapse,
+  sticky,
 }: {
   scrollY: SharedValue<number>;
   height: number;
+  sticky: boolean;
   collapse: readonly [number, number];
 }) {
   const background = useThemeColor("background");
   const style = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, collapse, [0, 1], Extrapolation.CLAMP),
+    opacity: sticky ? 1 : interpolate(scrollY.value, collapse, [0, 1], Extrapolation.CLAMP),
   }));
   return (
     <Animated.View

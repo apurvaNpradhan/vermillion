@@ -1,7 +1,7 @@
-import { GLOW_ALPHA, PHOTO_SCRIM_ALPHA, type CardPalette } from "@workspace/ui/tokens/share-card";
+import { PHOTO_SCRIM_ALPHA, type CardPalette } from "@workspace/ui/tokens/share-card";
 import type { ReactNode, Ref } from "react";
 import { PixelRatio, Platform, Text, View } from "react-native";
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 
 import { appConfig } from "@/platform/app-config";
 import { SigilMark } from "@/platform/ui/sigil-mark";
@@ -15,15 +15,13 @@ export const CARD_PADDING_TOP = 168;
 export const FOOTER_HEIGHT = 168;
 
 /**
- * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat, with a Classic glow,
- * or a photo under a full-card scrim), the card's content, and a footer with mark A2, the app's wordmark and
+ * The fixed 1080 × 1920 frame every Share card is drawn in: the background (flat or a photo under a full-card scrim), the card's content, and a footer with mark A2, the app's wordmark and
  * a slot reserved for the public link, empty until that link exists (ADR 0042). A transparent
  * canvas (a Sticker) has no background and no footer.
  */
 export function CardCanvas({
   viewRef,
   palette,
-  sigil,
   hasRecords = false,
   photo = null,
   transparent = false,
@@ -33,7 +31,6 @@ export function CardCanvas({
   /** The frame itself, which the capture targets. */
   viewRef?: Ref<View>;
   palette: CardPalette;
-  sigil: boolean;
   hasRecords?: boolean;
   /** A full-bleed picture drawn under the scrim, for the Photo background. */
   photo?: ReactNode;
@@ -64,7 +61,6 @@ export function CardCanvas({
         }}
       >
         {photo ? <View style={{ position: "absolute", inset: 0 }}>{photo}</View> : null}
-        {palette.glow ? <Glow color={palette.glow} /> : null}
         {palette.scrim && photo ? <Scrim color={palette.scrim} /> : null}
         <View
           style={{
@@ -93,13 +89,11 @@ export function CardCanvas({
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
-              {sigil ? (
-                <SigilMark
-                  size={64}
-                  color={palette.text}
-                  emberColor={hasRecords ? palette.record : undefined}
-                />
-              ) : null}
+              <SigilMark
+                size={64}
+                color={palette.text}
+                emberColor={hasRecords ? palette.record : undefined}
+              />
               <Text
                 className="font-semibold"
                 style={{ fontSize: 36, letterSpacing: 6, color: palette.textSecondary }}
@@ -119,25 +113,6 @@ export function CardCanvas({
         )}
       </View>
     </View>
-  );
-}
-
-function Glow({ color }: { color: string }) {
-  return (
-    <Svg
-      width={CARD_WIDTH}
-      height={CARD_HEIGHT * 0.6}
-      style={{ position: "absolute", top: 0, left: 0 }}
-      pointerEvents="none"
-    >
-      <Defs>
-        <RadialGradient id="glow" cx="50%" cy="0%" rx="95%" ry="80%" fx="50%" fy="0%">
-          <Stop offset="0" stopColor={color} stopOpacity={GLOW_ALPHA} />
-          <Stop offset="1" stopColor={color} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Rect x={0} y={0} width="100%" height="100%" fill="url(#glow)" />
-    </Svg>
   );
 }
 

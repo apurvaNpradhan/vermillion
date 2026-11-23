@@ -21,7 +21,7 @@ Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called verm
 - **Minimum supported version** — the `minimum_app_version` setting; builds below it show a blocking update screen. Builds below the latest GitHub release see a dismissible notice.
 - **Disposable email** — an address on a domain from the maintained `disposable-email-domains` list (parent domains included). Rejected when a sign-in code is requested and at email change.
 - **Sign-in code** — the 6-digit one-time code emailed to an address; the only non-social way in. Valid 5 minutes, hashed at rest, 3 guesses, a resend replaces it. Redeeming it creates the account on first use.
-- **Onboarding step** — a required question (today: the name) whose completeness is derived from the profile by `pendingOnboardingSteps`; there is no stored flag. Account first: the person is signed in before being asked.
+- **Onboarding step** — a question during account setup after sign-in. The name is required when the profile is missing it. Native also offers setup questions and stores progress and completion per account on the device.
 - **Trusted proxies** — the CIDRs (`TRUSTED_PROXIES`: Traefik and Cloudflare) from which the server accepts `X-Forwarded-For` when resolving the client IP.
 - **Trusted origin** — the API's own origin (`APP_URL`) plus the site's origin (its Worker forwards `/rpc` and `/api`); state-changing browser requests from any other `Origin` are rejected. Native requests carry no `Origin` and bring their own credentials.
 - **Job** — a Postgres-backed (pg-boss) unit of background work run inside the server process. Defined by queue name, zod payload (ids only), handler and retry settings.
@@ -70,7 +70,7 @@ Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called verm
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam; the site's Worker routing and admin gate are unit tested.
 - **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `sigil-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
 - **Brand tokens** — `packages/ui/src/tokens/brand.ts`, the one place colors, radius and fonts are defined; mapped to native by generated CSS and read directly by the email templates.
-- **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark are Classic, as in email ([0031](docs/adr/0031-native-themes-colour-only-oklch.md), amended: named themes sunset).
+- **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark use Sigil, as in email.
 - **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.
 - **Identity / on-identity** — the accent roles: `identity` (focus, checks, selection, active tab, compose fill) and `on-identity` for the icon or text on it. The primary action stays neutral.
 - **Media** — a user's uploaded image: a synced `media` row (made on the device) plus a full-size and a thumbnail object in the private user bucket. Rows point at media, never the reverse. Files reach R2 through presigned URLs and PowerSync's attachment queue ([0040](docs/adr/0040-user-media.md)).

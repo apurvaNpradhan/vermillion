@@ -4,14 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { ScopedTheme } from "uniwind";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
-import { PHOTO_CREDIT_URL } from "@/platform/photo-credit";
 import { useThemeChoice } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SigilMark } from "@/platform/ui/sigil-mark";
@@ -53,7 +52,6 @@ export function WelcomeScreen() {
   const status = useRegistrationStatus();
   const googleAvailable = status?.providers.google === true;
   const [emailOpen, setEmailOpen] = useState(false);
-  const [creditShown, setCreditShown] = useState(false);
 
   useEffect(() => {
     if (sheet === "email") {
@@ -145,7 +143,7 @@ export function WelcomeScreen() {
               <View className="gap-1 pb-3">
                 <Text
                   accessibilityRole="header"
-                  className="font-display text-display-wordmark text-foreground"
+                  className="font-semibold text-display-wordmark text-foreground"
                 >
                   {appConfig.displayName}
                 </Text>
@@ -189,26 +187,6 @@ export function WelcomeScreen() {
                     );
                   })}
                 </Text>
-                {creditShown ? (
-                  <Text
-                    accessibilityRole="link"
-                    className="font-normal text-center text-caption text-muted underline"
-                    onPress={() => void openPage(PHOTO_CREDIT_URL)}
-                  >
-                    {t("settings__photo_credit_line")}
-                  </Text>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    hitSlop={8}
-                    onPress={() => setCreditShown(true)}
-                    className="items-center"
-                  >
-                    <Text className="font-normal text-center text-caption text-muted">
-                      {t("auth__photo_credit")}
-                    </Text>
-                  </Pressable>
-                )}
               </View>
             </View>
           </View>

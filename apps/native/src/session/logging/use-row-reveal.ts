@@ -1,12 +1,11 @@
 import { useCallback, useRef, type RefObject } from "react";
-import type { ScrollView, View } from "react-native";
+import type { FlatList, View } from "react-native";
 
 /**
- * Scrolls rows of a ScrollView into view: above the keypad when a cell is being edited, to the top
- * when the accordion opens another exercise. Rows register by key; positions are measured in the
+ * Scrolls a set into view above the keypad while it is being edited. Positions are measured in the
  * window, so it does not matter how deeply a row is nested.
  */
-export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
+export function useRowReveal<Item>(scrollRef: RefObject<FlatList<Item> | null>) {
   const viewportRef = useRef<View>(null);
   const offset = useRef(0);
   const rows = useRef(new Map<string, View>());
@@ -29,7 +28,6 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
         row: { top: number; bottom: number },
         view: { top: number; bottom: number },
       ) => number | null,
-      animated = true,
     ) => {
       const row = rows.current.get(key);
       const viewport = viewportRef.current;
@@ -38,7 +36,10 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
         row.measureInWindow((_rx, ry, _rw, rh) => {
           const delta = then({ top: ry, bottom: ry + rh }, { top: vy, bottom: vy + vh });
           if (delta !== null && delta !== 0) {
-            scrollRef.current?.scrollTo({ y: Math.max(0, offset.current + delta), animated });
+            scrollRef.current?.scrollToOffset({
+              offset: Math.max(0, offset.current + delta),
+              animated: false,
+            });
           }
         });
       });
@@ -57,13 +58,8 @@ export function useRowReveal(scrollRef: RefObject<ScrollView | null>) {
     [measure],
   );
 
-  /** Puts the row at the top of the viewport. */
-  const alignTop = useCallback(
-    (key: string, animated = true) => measure(key, (row, view) => row.top - view.top - 8, animated),
-    [measure],
-  );
-
-  return { scrollRef, viewportRef, registerRow, onScroll, reveal, alignTop };
+  const hasRow = useCallback((key: string) => rows.current.has(key), []);
+  return { viewportRef, registerRow, onScroll, reveal, hasRow };
 }
 
 /** Runs `run` after the next two frames, when the layout of the current render is committed. */

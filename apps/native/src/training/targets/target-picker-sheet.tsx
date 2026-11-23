@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 export function TargetPickerSheet({
   isOpen,
@@ -25,11 +25,13 @@ export function TargetPickerSheet({
   onDone: () => void;
   disabled?: boolean;
 }) {
+  const animation = useSheetAnimation();
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((state) => state.height);
   const { t } = useTranslation();
   return (
     <BottomSheet
+      animation={animation}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) Keyboard.dismiss();

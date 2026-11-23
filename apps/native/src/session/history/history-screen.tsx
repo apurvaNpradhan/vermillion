@@ -1,7 +1,7 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
-import { calendarDay, type WeekStart } from "@workspace/shared";
-import type { FinishedSession } from "@workspace/sync";
-import { useFocusEffect, useRouter } from "expo-router";
+import { calendarDay } from "@workspace/shared";
+import type { HistoryOverviewSession } from "@workspace/sync";
+import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import {
   ArrowClockwise,
   Barbell,
@@ -10,7 +10,7 @@ import {
   Eye,
 } from "phosphor-react-native";
 import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import Animated, {
   FadeIn,
   ReduceMotion,
@@ -26,7 +26,6 @@ import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
 import { SegmentedControl, type SegmentedOption } from "@/platform/ui/segmented-control";
 
-import { groupSessionWeeks } from "./history";
 import {
   emptyTotals,
   historyWindow,
@@ -34,6 +33,7 @@ import {
   shiftPeriod,
   type Period,
 } from "./history-calendar";
+import { historyListItems } from "./history";
 import { HistoryCalendar } from "./history-calendar-view";
 import { historyFormat } from "./history-format";
 import {
@@ -53,12 +53,9 @@ import { useHistorySettings, useSessionHistory } from "./use-session-history";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { ANCHORED } from "@/platform/navigation/anchored";
 
-type HistoryItem =
-  | { kind: "week"; id: string; sessions: readonly FinishedSession[] }
-  | { kind: "session"; id: string; session: FinishedSession };
-
 type Selection = { period: Period; anchor: number | null; direction: -1 | 0 | 1 };
-const EMPTY_SESSIONS: readonly FinishedSession[] = [];
+const HISTORY_LIST_PAGE = 120;
+const EMPTY_SESSIONS: readonly HistoryOverviewSession[] = [];
 
 function useToday(timezone: string) {
   const [now, setNow] = useState(() => new Date());
@@ -85,7 +82,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const subtle = useSubtleColor();
   const reduced = useReduceMotion();
   const { startAgain, sheet: startSheet } = useStartSession();
-  const [menuSession, setMenuSession] = useState<FinishedSession | null>(null);
+  const [menuSession, setMenuSession] = useState<HistoryOverviewSession | null>(null);
   const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
   const day = initialDay !== null && initialDay <= today ? initialDay : null;
@@ -99,8 +96,14 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const { period, anchor, direction } = selection;
   const latest = periodStart(period, today, weekStart);
   const start = Math.min(latest, periodStart(period, anchor ?? today, weekStart));
+  const focused = useIsFocused();
   const readWindow = historyWindow(period, start, weekStart);
-  const { history, loading, failed, retry } = useSessionHistory(readWindow, timezone, weekStart);
+  const { history, loading, failed, retry } = useSessionHistory(
+    readWindow,
+    timezone,
+    weekStart,
+    focused,
+  );
   const currentWeek = periodStart("week", today, weekStart);
   const format = useMemo(
     () => historyFormat(i18n.language, weightUnit),
@@ -118,10 +121,12 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
     if (step === 1 ? !canNext : !canPrevious) return;
     const next = shiftPeriod(period, start, step);
     setSelected(null);
+    resetScroll();
     setSelection({ period, anchor: next === latest ? null : next, direction: step });
   };
   const drillDown = (next: "month" | "year", at: number) => {
     setSelected(null);
+    resetScroll();
     setSelection({
       period: next,
       anchor: at === periodStart(next, today, weekStart) ? null : at,
@@ -150,13 +155,24 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
         ? history.sessions
         : (bucket?.sessions ?? EMPTY_SESSIONS);
   const items = useMemo(
-    () => listItems(sessions, activeDay === null && period !== "week", timezone, weekStart),
-    [sessions, activeDay, period, timezone, weekStart],
+    () =>
+      historyListItems(
+        sessions,
+        activeDay === null && period !== "week",
+        history.bySession,
+        weekStart,
+      ),
+    [sessions, activeDay, period, history.bySession, weekStart],
   );
+  const listKey = `${period}:${start}:${activeDay ?? ""}`;
+  const [page, setPage] = useState({ key: listKey, size: HISTORY_LIST_PAGE });
+  const pageSize = page.key === listKey ? page.size : HISTORY_LIST_PAGE;
+  const visibleItems = useMemo(() => items.slice(0, pageSize), [items, pageSize]);
+  const resetScroll = () => void list.current?.scrollToOffset({ offset: 0, animated: false });
   const openLog = () => router.push("/history/log-past");
   const selectDay = (next: number | null) => {
     setSelected(next);
-    void list.current?.scrollToOffset({ offset: 0, animated: false });
+    resetScroll();
   };
   const ready = !loading && !failed;
   const periodTitle =
@@ -213,13 +229,22 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
           </>
         }
       >
-        {({ header, contentContainerStyle, ...scroll }) => (
+        {({ header, contentContainerStyle, ref: attachScrollTarget, ...scroll }) => (
           <AnimatedLegendList
             {...scroll}
-            ref={list}
+            ref={(node) => {
+              list.current = node;
+              attachScrollTarget(node);
+            }}
             recycleItems={false}
             maintainVisibleContentPosition={false}
-            data={ready ? items : []}
+            data={ready ? visibleItems : []}
+            onEndReached={
+              ready && pageSize < items.length
+                ? () => setPage({ key: listKey, size: pageSize + HISTORY_LIST_PAGE })
+                : undefined
+            }
+            onEndReachedThreshold={1}
             keyExtractor={(item) => `${item.kind}-${item.id}`}
             estimatedItemSize={95}
             contentContainerStyle={{ ...contentContainerStyle, paddingHorizontal: 16 }}
@@ -233,6 +258,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                   accessibilityLabel={t("session__history_period")}
                   onChange={(next) => {
                     setSelected(null);
+                    resetScroll();
                     setSelection({ period: next, anchor, direction: 0 });
                   }}
                 />
@@ -371,13 +397,18 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                       : undefined
                   }
                 />
-              ) : null
+              ) : (
+                <View className="items-center gap-2 py-6" accessibilityLiveRegion="polite">
+                  <ActivityIndicator color={subtle} />
+                  <Text className="text-caption text-muted">{t("session__history_loading")}</Text>
+                </View>
+              )
             }
             renderItem={({ item }) => (
               <Animated.View style={entryOpacity}>
                 {item.kind === "week" ? (
                   <WeekHeading
-                    day={Date.parse(item.id)}
+                    day={Number(item.id)}
                     sessions={item.sessions}
                     totalsFor={(id) => history.bySession.get(id)?.totals ?? emptyTotals}
                     format={format}
@@ -428,22 +459,5 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
       />
       {startSheet}
     </>
-  );
-}
-
-function listItems(
-  sessions: readonly FinishedSession[],
-  groupByWeek: boolean,
-  timezone: string,
-  weekStart: WeekStart,
-): HistoryItem[] {
-  const rows = (entries: readonly FinishedSession[]) =>
-    entries.map((session): HistoryItem => ({ kind: "session", id: session.id, session }));
-  if (!groupByWeek) return rows(sessions);
-  return groupSessionWeeks(sessions, timezone, weekStart).flatMap(
-    ({ week, sessions }): HistoryItem[] => [
-      { kind: "week", id: week, sessions },
-      ...rows(sessions),
-    ],
   );
 }

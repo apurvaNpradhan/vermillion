@@ -9,10 +9,9 @@ import { Geist_600SemiBold } from "@expo-google-fonts/geist/600SemiBold";
 import { Geist_700Bold } from "@expo-google-fonts/geist/700Bold";
 import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
-import { EBGaramond_500Medium } from "@expo-google-fonts/eb-garamond/500Medium";
 import { useFonts } from "expo-font";
 import { pendingOnboardingSteps } from "@workspace/shared";
-import { useSetupPending } from "@/onboarding";
+import { useNeedsSetup } from "@/onboarding";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack, useSegments } from "expo-router";
 import { NavigationBar } from "expo-navigation-bar";
@@ -55,11 +54,10 @@ function RootStack() {
     Geist_700Bold,
     GeistMono_400Regular,
     GeistMono_500Medium,
-    EBGaramond_500Medium,
   });
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).
-  const setupPending = useSetupPending(session?.user.id ?? "");
+  const needsSetup = useNeedsSetup(session?.user.id ?? "");
   // A sign-in the server confirmed ends an explicit sign-out (stored-session.ts), nothing else.
 
   // A device that holds a user's data opens without waiting for the session (ADR 0021).
@@ -69,7 +67,7 @@ function RootStack() {
         isPending: sessionPending,
         hasSession: Boolean(session),
         needsOnboarding: session
-          ? pendingOnboardingSteps(session.user).length > 0 || setupPending
+          ? pendingOnboardingSteps(session.user).length > 0 || needsSetup
           : false,
       },
       owner,
@@ -104,8 +102,7 @@ function RootStack() {
             name="session"
             options={{
               presentation: "modal",
-              animation: "slide_from_bottom",
-              animationDuration: 220,
+              animation: "none",
             }}
           />
           <Stack.Screen

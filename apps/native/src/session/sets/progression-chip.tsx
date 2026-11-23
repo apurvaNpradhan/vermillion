@@ -8,7 +8,7 @@ import {
   progressionLabelKey,
   progressionReasonKey,
 } from "@/platform/ui/progression-reason";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 export function ProgressionChip({
   suggestion,
@@ -17,6 +17,7 @@ export function ProgressionChip({
   suggestion: Progression;
   unit: WeightUnit;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   if (suggestion.reason === "same_as_last") return null;
@@ -33,7 +34,7 @@ export function ProgressionChip({
       >
         <Text className="text-caption font-semibold text-foreground">{label}</Text>
       </Pressable>
-      <BottomSheet isOpen={open} onOpenChange={setOpen}>
+      <BottomSheet animation={animation} isOpen={open} onOpenChange={setOpen}>
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content

@@ -102,7 +102,5 @@ export function Enhance({
   );
 }
 
-export const CircularText = lazy(() => import("../vendor/react-bits/CircularText.tsx"));
 export const Noise = lazy(() => import("../vendor/react-bits/Noise.tsx"));
-export const SplitText = lazy(() => import("../vendor/react-bits/SplitText.tsx"));
-export const SpotlightCard = lazy(() => import("../vendor/react-bits/SpotlightCard.tsx"));
+export const TechText = lazy(() => import("../vendor/react-bits/TechText.tsx"));

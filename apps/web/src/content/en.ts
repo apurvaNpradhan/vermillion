@@ -11,34 +11,19 @@ const githubUrl = `https://github.com/${owner}/${repo}`;
 export const site = {
   name: appConfig.displayName,
   tagline: appConfig.tagline,
-  title: `${appConfig.displayName}: Strength Log`,
-  description: `${appConfig.displayName} is a strength log for Android. Plan programs, log every set offline and keep your personal records.`,
+  title: `${appConfig.displayName} | Programs, workouts and progress`,
+  description:
+    "Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
   url: appConfig.urls.site,
   version: appConfig.version,
   supportEmail: appConfig.supportEmail,
   githubUrl,
-  subtitle: appConfig.subtitle,
   /** The latest GitHub release; its APK is listed under Assets. */
   latestReleaseUrl: `${githubUrl}/releases/latest`,
-  /**
-   * Obtainium's documented redirect page: it opens the app's Add App screen with this repository
-   * filled in, and offers to install Obtainium when the app does not answer.
-   */
-  obtainiumAddUrl: `https://apps.obtainium.imranr.dev/redirect?r=${encodeURIComponent(`obtainium://add/${githubUrl}`)}`,
 };
 
-/** The one photograph on the site and its required credit (CC BY-SA 3.0). */
 export const photo = {
   alt: "Michelangelo's unfinished 'Atlas' Prisoner: a torso emerging from a block of marble.",
-  work: "Michelangelo, 'Atlas' Prisoner",
-  byline: "Photo: Jörg Bittner Unna,",
-  license: "CC BY-SA 3.0",
-  changes: "graded and cropped.",
-  /** The same credit as one line, for places without links (the social preview image). */
-  credit: "Michelangelo, 'Atlas' Prisoner. Photo: Jörg Bittner Unna, CC BY-SA 3.0, edited.",
-  sourceUrl:
-    "https://commons.wikimedia.org/wiki/File:%27Atlas_Slave%27_by_Michelangelo_-_JBU_02.jpg",
-  licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
 };
 
 export const en = {
@@ -51,28 +36,21 @@ export const en = {
   termsLink: "Terms",
   deletionLink: "Delete account",
   github: "GitHub",
-  download: "Download",
-  downloadRelease: "Download for Android",
+  downloadNav: "Android APK",
+  downloadRelease: "Get the Android APK",
   licensesLink: "Licences",
-  addToObtainium: "Add to Obtainium",
-  heroKicker: "Strength log",
   heroPlatform: `Android · v${site.version}`,
-  heroTitle: "A strength log for Android.",
-  heroLead: "Plan programs, log every set offline, and see what you lifted last time.",
-  heroFacts: "Works offline · Imports Strong and Hevy · Exports CSV",
+  heroTitle: "Your program moves when you lift.",
+  heroLead:
+    "Finish a workout and Sigil lines up the next one. Your last weights and reps are there when you start.",
   manifestoLabel: "Nonfinito",
-  manifestoTitle: "The iron",
-  manifestoAccent: "remembers.",
+  manifestoTitle: "The log",
+  manifestoAccent: "is yours.",
   manifesto: [
-    "Every set you finish is written down. The weight, the reps, the rest you took. Some days the bar moves less than you hoped. It still counts.",
-    `Weeks pass and the numbers stack. A heavier single. One more rep. When you beat your best, ${site.name} marks it, so you don't have to keep count.`,
+    "The work was yours before it was in this app. Bring over the workouts you logged in Strong or Hevy and start with your own numbers.",
+    "Sets save on the phone as you go, even in a gym with no signal. If you take your training elsewhere, export your finished workouts as a CSV.",
   ],
-  featuresTitle: "What it does in the gym.",
-  featuresLead: "Four things, done properly. No feed, no coach, no streaks.",
-  installTitle: "Install it from GitHub.",
-  installLead: "Not on iPhone yet.",
-  photoCaption: "Unfinished, c. 1530",
-  closeSeal: `${appConfig.displayName.toUpperCase()} · STRENGTH LOG · EARN THE MARK · `,
+  featuresTitle: "From the next workout to the next plate.",
   screensTitle: "Screens.",
   screensLead: "The app as it is today, on a real phone with a real training log.",
   notFoundTitle: "Page not found",
@@ -87,24 +65,23 @@ export const en = {
 
 export const features = [
   {
-    label: "Programs",
-    title: "A rotation that queues the next workout.",
-    body: "Targets for every exercise, and progression that moves the weight when you hit them.",
+    label: "Program rotation",
+    title: "Miss Tuesday. Keep your place.",
+    body: "Build the rotation you want, including rest days. Sigil suggests the next workout based on what you actually trained.",
+    screenshot: "program",
+    alt: "A Push Pull Legs program with its workout order",
   },
   {
-    label: "Live log",
-    title: "Every set, as you lift it.",
-    body: "Rest timer, last time's numbers in each field, and a plate calculator.",
+    label: "Set logging",
+    title: "See last time at a glance.",
+    body: "Previous weights and reps sit beside the current set. Between sets, use the rest timer and work out what goes on the bar.",
+    screenshot: "live-session",
+    alt: "A bench press workout with completed sets and a running rest timer",
   },
   {
-    label: "Records",
-    title: "Personal records, marked when you set them.",
-    body: "History and charts show the climb, exercise by exercise.",
-  },
-  {
-    label: "Offline",
-    title: "Saves on the phone first.",
-    body: "A basement gym with no signal is fine. Import from Strong or Hevy; export to CSV.",
+    label: "Progression",
+    title: "See what changed before you lift.",
+    body: "Compare today’s suggested sets with your last session. Look up the exercise’s records and check how often its muscles have been trained.",
   },
 ];
 
@@ -112,10 +89,4 @@ export const screenshots = [
   { src: "/screenshots/live-session.webp", alt: "A workout in progress with a rest timer" },
   { src: "/screenshots/program.webp", alt: "A training program with three workouts" },
   { src: "/screenshots/exercises.webp", alt: "The exercise library with search and filters" },
-];
-
-export const obtainiumSteps = [
-  "Install Obtainium from GitHub or F-Droid.",
-  `Tap Add to Obtainium, or choose Add app in Obtainium and paste ${githubUrl}.`,
-  "Obtainium checks for each new release.",
 ];

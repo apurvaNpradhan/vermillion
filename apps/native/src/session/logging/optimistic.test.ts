@@ -111,6 +111,31 @@ describe("withPending and settled", () => {
     expect(withPending(stored, NO_PENDING)).toBe(stored);
   });
 
+  it("keeps a completion preview through an earlier keypad-write snapshot", () => {
+    const pendingAfterTyping: Pending = {
+      sets: new Map([
+        [
+          "set-1",
+          {
+            before: setKey(set()),
+            change: { completedAt: NOW, weightKg: 60, reps: 8 },
+            awaitFields: true,
+          },
+        ],
+      ]),
+      rest: null,
+    };
+    const keyed = session([set({ weightKg: 60, reps: 8 })]);
+    expect(settled(pendingAfterTyping, keyed)).toBe(pendingAfterTyping);
+    expect(withPending(keyed, pendingAfterTyping).exercises[0]?.sets[0]?.completedAt).toBe(NOW);
+
+    const committed = session([
+      set({ weightKg: 60, reps: 8, completedAt: "2026-01-01T10:00:01.000Z" }),
+    ]);
+    expect(settled(pendingAfterTyping, committed).sets.size).toBe(0);
+    expect(withPending(committed, pendingAfterTyping)).toBe(committed);
+  });
+
   it("drops a change once the stored value moves on, and keeps the rest", () => {
     const delivered = session([set({ completedAt: NOW, weightKg: 60, reps: 8 })]);
     const left = settled(pending, delivered);

@@ -133,10 +133,12 @@ function SwipeDismissSurface({ children }: { children: ReactNode }) {
  */
 export function SwipeRow({
   actions,
+  motion = true,
   screenReaderActions = actions,
   children,
 }: {
   actions: SwipeAction[];
+  motion?: boolean;
   /** What screen readers can run: more than the swipe shows, when the row has a menu. */
   screenReaderActions?: SwipeAction[];
   children: (a11y: SwipeA11yProps) => ReactNode;
@@ -151,11 +153,11 @@ export function SwipeRow({
   const handle = useMemo<RowHandle>(
     () => ({
       close: () => {
-        translateX.value = withTiming(0, SNAP);
+        translateX.value = motion ? withTiming(0, SNAP) : 0;
         setIsOpen(false);
       },
     }),
-    [translateX],
+    [motion, translateX],
   );
   // A row that unmounts while open (navigation, data change) must not stay registered.
   useEffect(() => () => group?.didClose(handle), [group, handle]);
@@ -188,10 +190,10 @@ export function SwipeRow({
     onDeactivate: (event) => {
       const x = translateX.value;
       if (shouldSettleOpen(x, event.velocityX, panel)) {
-        translateX.value = withTiming(-panel, SNAP);
+        translateX.value = motion ? withTiming(-panel, SNAP) : -panel;
         scheduleOnRN(onOpened);
       } else {
-        translateX.value = withTiming(0, SNAP);
+        translateX.value = motion ? withTiming(0, SNAP) : 0;
         scheduleOnRN(close);
       }
     },

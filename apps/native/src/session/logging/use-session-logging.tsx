@@ -22,7 +22,7 @@ import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
  * timers) and whether to ask about Rest notifications after the first Rest. The sets view and the
  * Timer both use it, so they log the same way.
  */
-export function useSessionLogging(stored: SessionDetail) {
+export function useSessionLogging(stored: SessionDetail, editor = false) {
   // Ticks and Rest changes show at once; the database's watch catches up a moment later.
   const { session, actions } = useOptimisticSession(stored, useSessionActions());
   const { preferences, setUi, isLoading: preferencesLoading } = usePreferences();
@@ -38,7 +38,7 @@ export function useSessionLogging(stored: SessionDetail) {
   useEffect(() => {
     if (mine) hadIt.current = true;
   }, [mine]);
-  const readOnly = session.finishedAt === null && !mine;
+  const readOnly = (editor && installId === null) || (session.finishedAt === null && !mine);
 
   const exerciseIds = useMemo(
     () => session.exercises.map((entry) => entry.exerciseId),
@@ -67,6 +67,7 @@ export function useSessionLogging(stored: SessionDetail) {
   }, [permission]);
   const logging = useLoggingState({
     session,
+    editor,
     previous,
     recordBests,
     historyReady,

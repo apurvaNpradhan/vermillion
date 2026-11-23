@@ -40,10 +40,9 @@ export function isCounted(
 }
 
 /** Marks every warm-up of `sessions` as counted (or not), for the stats that read them. */
-export function withWarmupsCounted<Session extends { sets: readonly LoggedSet[] }>(
-  sessions: readonly Session[],
-  counted: boolean,
-): Session[] {
+export function withWarmupsCounted<
+  Session extends { sets: readonly Pick<LoggedSet, "kind" | "warmup_counted">[] },
+>(sessions: readonly Session[], counted: boolean): Session[] {
   if (!counted) return [...sessions];
   return sessions.map((session) => ({
     ...session,

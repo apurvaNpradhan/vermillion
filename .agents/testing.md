@@ -33,4 +33,4 @@ Before a native release, smoke-test on a device:
 - Sign in with a provider, sign out and restart: the provider must retain its last-used marker.
 - On a non-English device (including one with a previously saved German preference), the app and emails must use English after restart; no language picker is shown.
 - Request deletion from native only, with no browser cookies; the email must open the in-app confirmation, and confirming must revoke every session and remove account data.
-- Sign in with a code on a new address: the name question appears once, and after answering it the app opens; killing the app on that screen and reopening it asks again.
+- Sign in with a code on a new address: after saving the name, verify that units, body, experience, training days, training place and reminders follow, and Home opens only after the last step is completed or skipped. Relaunch during the name step and again partway through setup to check that the app resumes at the unfinished step.

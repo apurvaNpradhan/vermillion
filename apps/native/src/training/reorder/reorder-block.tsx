@@ -22,7 +22,7 @@ const LONG_PRESS = 380;
 const OPEN_DELAY = 140;
 const EASE = { duration: 160, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
-type Block = { pressed: SharedValue<number>; enabled: boolean; onReorder: () => void };
+type Block = { pressed: SharedValue<number> | null; enabled: boolean; onReorder: () => void };
 const BlockContext = createContext<Block | null>(null);
 
 /**
@@ -35,10 +35,12 @@ export function ReorderBlock({
   children,
   onReorder,
   enabled = true,
+  motion = true,
 }: {
   children: ReactNode;
   onReorder: () => void;
   enabled?: boolean;
+  motion?: boolean;
 }) {
   const pressed = useSharedValue(0);
   const reduced = useReduceMotion();
@@ -46,6 +48,9 @@ export function ReorderBlock({
     transform: [{ scale: reduced ? 1 : 1 - 0.012 * pressed.value }],
   }));
   const tint = useAnimatedStyle(() => ({ opacity: pressed.value }));
+  if (!motion) {
+    return <BlockContext value={{ pressed: null, enabled, onReorder }}>{children}</BlockContext>;
+  }
   return (
     <BlockContext value={{ pressed, enabled, onReorder }}>
       <Animated.View style={lift}>
@@ -82,6 +87,10 @@ export function ReorderTrigger(props: ViewProps) {
     if (!onReorder.current) return;
     haptic.confirm();
     if (timer.current) clearTimeout(timer.current);
+    if (block?.pressed === null) {
+      onReorder.current();
+      return;
+    }
     timer.current = setTimeout(() => onReorder.current?.(), OPEN_DELAY);
   };
   const pressed = block?.pressed;

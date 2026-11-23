@@ -319,7 +319,7 @@ function FinishFlow({
                 value={field.state.value}
                 onChangeText={field.handleChange}
                 maxLength={TRAINING_LIMITS.titleMax}
-                className="font-display text-display-lg text-foreground"
+                className="font-semibold text-display-lg text-foreground"
                 style={inputStyle}
               />
             )}

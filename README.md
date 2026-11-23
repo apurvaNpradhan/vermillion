@@ -21,7 +21,7 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
 - **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, rate limiting on sending codes, disposable-email blocking and account deletion.
-- **Appearance:** Sigil and Classic themes in light and dark, with an Increase contrast setting.
+- **Appearance:** Sigil in light and dark, with an Increase contrast setting.
 
 ## Screenshots
 
@@ -103,3 +103,7 @@ The previous public site and admin UI are removed. `apps/web` is the new public 
 ## License
 
 No license is granted yet: set one before publishing a fork. Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Photo credit
+
+The Sigil sign-in and website photograph is an edited crop and colour grade of [Michelangelo’s Atlas Prisoner](https://commons.wikimedia.org/wiki/File:%27Atlas_Slave%27_by_Michelangelo_-_JBU_02.jpg) by Jörg Bittner Unna, licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).

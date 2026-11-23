@@ -22,7 +22,7 @@ import { chipTexts } from "@/training";
 import { copySetUpdates } from "@/session/logging/copy-sets";
 import { SetRow, type ActiveEntry, type Refusal } from "./set-row";
 
-import type { DisplayUnits } from "@/session/logging/set-values";
+import { valueOfSet, type DisplayUnits } from "@/session/logging/set-values";
 
 /**
  * The sets of one exercise: a header over the columns, then a row for each set, then "+ Add set".
@@ -52,8 +52,6 @@ export const SetGrid = memo(function SetGrid({
   onKind,
   onEffort,
   onRemoveSet,
-  addedSetIds,
-  onAddedSetShown,
   registerRow,
 }: {
   exercise: SessionExerciseDetail;
@@ -84,8 +82,6 @@ export const SetGrid = memo(function SetGrid({
   onKind: (setId: string) => void;
   onEffort: (setId: string) => void;
   onRemoveSet: (setId: string) => Promise<boolean>;
-  addedSetIds: ReadonlySet<string>;
-  onAddedSetShown: (setId: string) => void;
   /** Lets the screen scroll a row into view above the keypad. */
   registerRow: (setId: string) => (node: View | null) => void;
 }) {
@@ -97,6 +93,8 @@ export const SetGrid = memo(function SetGrid({
     : new Set<number>();
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const showsEffort = exercise.logEffort && fields.includes("reps");
+  let lastUnticked = exercise.sets.length - 1;
+  while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
   const badges = chipTexts(
     exercise.sets.map((set) => ({ kind: set.kind })),
     {
@@ -162,54 +160,57 @@ export const SetGrid = memo(function SetGrid({
           ) : null}
           {editingFinished ? null : <View className="w-11" />}
         </View>
-        {exercise.sets.map((set, index) => (
-          <View
-            key={set.id}
-            ref={registerRow(set.id)}
-            collapsable={false}
-            style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
-          >
-            <SetRow
-              editingFinished={editingFinished}
-              inlineTimer={inlineTimer}
-              set={set}
-              type={exercise.type}
-              badge={badges[index] ?? String(index + 1)}
-              number={index + 1}
-              logEffort={exercise.logEffort}
-              historyReady={historyReady}
-              previous={previousOf(set.id)}
-              ghosts={ghostsFor(set.id)}
-              unit={unit}
-              display={display}
-              effortScale={effortScale}
-              entry={entry?.cell.setId === set.id ? entry : null}
-              refusal={refusal?.setId === set.id ? refusal : null}
-              current={currentSetId === set.id}
-              readOnly={readOnly}
-              canRemove={exercise.sets.length > 1}
-              canCopyPrevious={
-                copySetUpdates(exercise, set.id, "previous", previousOf(set.id)).length > 0
-              }
-              canFillRemaining={copySetUpdates(exercise, set.id, "remaining", null).length > 0}
-              onCell={onCell}
-              onTick={onTick}
-              onKind={onKind}
-              onEffort={onEffort}
-              onPrevious={onPrevious}
-              onCopySets={onCopySets}
-              onRemove={onRemoveSet}
-              added={addedSetIds.has(set.id)}
-              onAddedShown={onAddedSetShown}
-              onTimer={onTimer}
-            />
-            {optional.has(index) && set.completedAt === null ? (
-              <Text className="font-normal px-3 pb-1 text-caption text-muted">
-                {t("lighter__optional")}
-              </Text>
-            ) : null}
-          </View>
-        ))}
+        {exercise.sets.map((set, index) => {
+          const previous = previousOf(set.id);
+          const canFill =
+            index < lastUnticked &&
+            (fields.some((field) => valueOfSet(set, field) !== null) ||
+              (showsEffort && set.rpe !== null));
+          return (
+            <View
+              key={set.id}
+              ref={registerRow(set.id)}
+              collapsable={false}
+              style={{ opacity: optional.has(index) && set.completedAt === null ? 0.55 : 1 }}
+            >
+              <SetRow
+                editingFinished={editingFinished}
+                inlineTimer={inlineTimer}
+                set={set}
+                type={exercise.type}
+                badge={badges[index] ?? String(index + 1)}
+                number={index + 1}
+                logEffort={exercise.logEffort}
+                historyReady={historyReady}
+                previous={previous}
+                ghosts={ghostsFor(set.id)}
+                unit={unit}
+                display={display}
+                effortScale={effortScale}
+                entry={entry?.cell.setId === set.id ? entry : null}
+                refusal={refusal?.setId === set.id ? refusal : null}
+                current={currentSetId === set.id}
+                readOnly={readOnly}
+                canRemove={exercise.sets.length > 1}
+                canCopyPrevious={copySetUpdates(exercise, set.id, "previous", previous).length > 0}
+                canFillRemaining={canFill}
+                onCell={onCell}
+                onTick={onTick}
+                onKind={onKind}
+                onEffort={onEffort}
+                onPrevious={onPrevious}
+                onCopySets={onCopySets}
+                onRemove={onRemoveSet}
+                onTimer={onTimer}
+              />
+              {optional.has(index) && set.completedAt === null ? (
+                <Text className="font-normal px-3 pb-1 text-caption text-muted">
+                  {t("lighter__optional")}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
       </View>
       {readOnly ? null : (
         <Button variant="secondary" onPress={() => onAddSet(exercise.id)}>

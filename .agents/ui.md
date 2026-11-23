@@ -16,7 +16,7 @@ In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native ships two themes, Sigil (default) and Classic, each in light and dark at standard or
+Native uses Sigil in light and dark at standard or
 increased contrast. `packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app (variants
 such as `sigil-dark`; the built-in `light` and `dark` are Sigil) and standard light/dark
 `brandTokens.colors` for email. The public site has its own palette.
@@ -28,12 +28,10 @@ Rules: in Sigil the primary action, focus ring, toggles, progress and timers are
 `text-accent-foreground`, `useActionColor()`), never `identity`. Ember (`identity`) means "you / now /
 earned" only: the current set, a personal record, today, the active tab's dot, a selected chip's
 text. Completed sets are lichen (`set-done`); danger is the rose, with an icon and words. Never use
-ember for charts, errors or decoration. Classic's `identity` is near-neutral, so the same classes
-work in both. Data and status take the theme's family (`set-*`, `success`, `chart-1` … `chart-5`);
+ember for charts, errors or decoration. Data and status take the theme's family (`set-*`, `success`, `chart-1` … `chart-5`);
 one filled primary action per screen;
-numbers use tabular figures. EB Garamond (`font-display`, `text-display-lg`) is only for the large titles of tab roots,
-onboarding step titles, the sign-in wordmark and the session finish title; collapsed headers and
-all other text are Geist. Run `pnpm brand:assets` after changing the mark or the hero photo.
+numbers use tabular figures. Geist sets native titles and body text. Reserve EB Garamond for
+Nonfinito on the website. Run `pnpm brand:assets` after changing the mark or the hero photo.
 Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text
 glyphs. Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 

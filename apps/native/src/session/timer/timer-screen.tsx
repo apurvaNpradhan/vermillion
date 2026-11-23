@@ -241,7 +241,7 @@ function LoadedTimer({
     ticked,
     unticked: allSets.length - ticked,
     actions,
-    flush: logging.flush,
+    flush: logging.flushForFinish,
     closeKeypad: logging.closeKeypad,
     onMinimise: onGone,
     onFinished,

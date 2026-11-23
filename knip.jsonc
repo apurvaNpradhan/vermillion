@@ -35,6 +35,7 @@
         "@fontsource-variable/geist",
         "@fontsource-variable/geist-mono",
         "@fontsource-variable/eb-garamond",
+        "@fontsource/barlow-condensed",
       ],
     },
     "packages/api": {

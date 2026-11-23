@@ -4,13 +4,4 @@
  * (`themeVariantNames`); `theme-variants.test.ts` keeps the two lists equal. Restart Metro with
  * `--clear` after changing it.
  */
-module.exports = [
-  "sigil-light",
-  "sigil-dark",
-  "sigil-light-contrast",
-  "sigil-dark-contrast",
-  "classic-light",
-  "classic-dark",
-  "classic-light-contrast",
-  "classic-dark-contrast",
-];
+module.exports = ["sigil-light", "sigil-dark", "sigil-light-contrast", "sigil-dark-contrast"];

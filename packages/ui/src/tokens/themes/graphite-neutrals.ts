@@ -1,6 +1,6 @@
 import type { Family } from "./engine";
 
-/** Classic's data and status colours, independent of its monochrome UI. */
+/** Base data and status colours used by Sigil. */
 export const graphiteDark: Family = {
   success: "#9CB7A1",
   warning: "#EBCB8B",
@@ -24,26 +24,3 @@ export const graphiteLight: Family = {
   danger: "#A52F2F",
   chart: ["#6B6862", "#77746E", "#4F4C46", "#827D74"],
 };
-
-/** Classic's pinned canvas, surfaces, ink and lines. */
-export const graphiteNeutralsLight = {
-  base: "#F4F2ED",
-  pin: {
-    surface: "#FBFAF7",
-    control: "#EAE7E0",
-    ink: "#191918",
-    muted: "#5E5C56",
-    hairline: "#D4D0C7",
-  },
-} as const;
-
-export const graphiteNeutralsDark = {
-  base: "#070707",
-  pin: {
-    surface: "#121212",
-    control: "#1C1C1C",
-    ink: "#EFEEE9",
-    muted: "#AAA8A2",
-    hairline: "#2B2B2B",
-  },
-} as const;

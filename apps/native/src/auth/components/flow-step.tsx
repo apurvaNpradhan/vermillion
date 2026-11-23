@@ -75,7 +75,7 @@ export function FlowStep({
   secondary?: FlowStepSecondary;
   /** Defaults to a close cross on the first step and a back chevron after it. */
   leading?: "back" | "close" | "none";
-  /** Geist title. The serif is for onboarding step titles only. */
+  /** Use the smaller title for sign-in steps. */
   plainTitle?: boolean;
 }) {
   const { t } = useTranslation();
@@ -136,7 +136,7 @@ export function FlowStep({
               className={
                 plainTitle
                   ? "font-semibold text-title-xl text-foreground"
-                  : "font-display text-display-lg text-foreground"
+                  : "font-semibold text-display-lg text-foreground"
               }
             >
               {title}

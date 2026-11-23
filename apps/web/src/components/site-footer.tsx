@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
-import { en, photo, site } from "../content/en.ts";
+import { en, site } from "../content/en.ts";
 
 export function SiteFooter() {
   return (
@@ -16,21 +16,6 @@ export function SiteFooter() {
           </a>
           <a href="/licenses/react-bits.txt">{en.licensesLink}</a>
         </nav>
-        <div className="footer-notes">
-          <p>
-            {site.name}. {site.tagline} {site.subtitle}
-          </p>
-          <p>
-            <a href={photo.sourceUrl} rel="noreferrer">
-              {photo.work}
-            </a>
-            . {photo.byline}{" "}
-            <a href={photo.licenseUrl} rel="license noreferrer">
-              {photo.license}
-            </a>
-            , {photo.changes}
-          </p>
-        </div>
       </div>
     </footer>
   );

@@ -23,10 +23,12 @@ export function useSessionKeypadAccessory(logging: Logging, unit: WeightUnit): R
                 setId: at.set.id,
                 field: logging.activeField,
                 unit,
-                currentKg:
-                  logging.typedValue !== undefined
-                    ? logging.typedValue
-                    : (at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null),
+                readCurrentKg: () => {
+                  const typed = logging.readTypedValue();
+                  return typed !== undefined
+                    ? typed
+                    : (at.set.weightKg ?? logging.ghostsFor(at.set.id).weight ?? null);
+                },
                 putKg: logging.putValue,
               }
             : null;
@@ -43,10 +45,12 @@ export function SessionKeypad({
   logging,
   accessory,
   withinSet = false,
+  motion = true,
 }: {
   logging: Logging;
   accessory: ReactNode;
   withinSet?: boolean;
+  motion?: boolean;
 }) {
   const { t } = useTranslation();
   const { systemKeyboard } = usePreferences().preferences.ui;
@@ -78,6 +82,7 @@ export function SessionKeypad({
         )
       }
       systemKeyboard={systemKeyboard}
+      motion={motion}
       onKey={logging.onKey}
       onStep={logging.onStep}
       onNext={withinSet ? logging.onNextInSet : logging.onNext}

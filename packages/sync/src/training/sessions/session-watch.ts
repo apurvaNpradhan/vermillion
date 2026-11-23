@@ -507,29 +507,34 @@ export function parseSessionSetCounts(rows: readonly object[]): SessionSetCount[
 export function sessionsPageSql(bounded = false): string {
   return SESSIONS_BETWEEN_SQL.replace(
     "s2.started_at >= ? AND s2.started_at < ?",
-    `(s2.started_at < ? OR (s2.started_at = ? AND s2.id < ?))${
-      bounded ? " AND s2.started_at >= ?" : ""
+    `(s2.started_at, s2.id) < (?, ?)${
+      bounded ? " AND s2.started_at >= ? AND s2.started_at < ?" : ""
     }`,
   ).replace(`LIMIT ${SESSION_READ_LIMIT}`, "LIMIT ?");
 }
 
 /**
  * Read the History in bounded cursor pages: all of it, or only the Sessions that started in
- * `range`. Call inside one SQLite read transaction so a backdated insert or edit cannot move a
- * Session across a cursor between pages.
+ * `range`. Use a transaction for a stable snapshot, or rerun the scan when a watched table
+ * changes. A backdated insert or edit can otherwise move a Session across the cursor.
  */
-export async function readFinishedHistoryPages(
-  read: (sql: string, parameters: string[]) => Promise<readonly object[]>,
+export function readFinishedHistoryPages(read: Reader, range?: HistoryRange) {
+  return readSessionPages(read, sessionsPageSql(range !== undefined), parseFinishedSessions, range);
+}
+
+async function readSessionPages<Row extends { id: string; started_at: string }>(
+  read: Reader,
+  sql: string,
+  parse: (rows: readonly object[]) => Row[],
   range?: HistoryRange,
-) {
+): Promise<Row[]> {
   const pageSize = 200;
-  const sessions: FinishedSession[] = [];
-  const sql = sessionsPageSql(range !== undefined);
+  const sessions: Row[] = [];
   let startedAt = range?.to ?? "9999-01-01T00:00:00.000Z";
   let id = "~";
   while (true) {
-    const page = parseFinishedSessions(
-      await read(sql, [startedAt, startedAt, id, ...(range ? [range.from] : []), String(pageSize)]),
+    const page = parse(
+      await read(sql, [startedAt, id, ...(range ? [range.from, range.to] : []), String(pageSize)]),
     );
     sessions.push(...page);
     const last = page.at(-1);
@@ -539,29 +544,72 @@ export async function readFinishedHistoryPages(
   }
 }
 
+const overviewSet = z
+  .tuple([z.enum(EXERCISE_TYPES), kind, z.string(), z.number().nullable(), z.number().nullable()])
+  .transform(([exercise_type, kind, completed_at, weight_kg, reps]) => ({
+    exercise_type,
+    kind,
+    completed_at,
+    weight_kg,
+    reps,
+  }));
+
+const overviewRow = z.object({
+  id: z.string(),
+  title: z.string(),
+  started_at: z.string(),
+  finished_at: z.string(),
+  durationS: z.number().nullable(),
+  exerciseTitles: jsonText.pipe(z.array(z.string())),
+  sets: jsonText.pipe(z.array(overviewSet)),
+});
+
+export type HistoryOverviewSession = z.output<typeof overviewRow>;
+
+function overviewPageSql(bounded: boolean): string {
+  return `SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s AS durationS,
+    (SELECT json_group_array(title) FROM (
+      SELECT se.exercise_title AS title FROM session_exercise se
+      WHERE se.session_id = s.id AND se.exercise_title <> ''
+      GROUP BY se.exercise_title ORDER BY MIN(se.position), MIN(se.id) LIMIT 3
+    )) AS exerciseTitles,
+    (SELECT json_group_array(json_array(
+      se.exercise_type, ss.kind, ss.completed_at, ss.weight_kg, ss.reps
+    ))
+      FROM session_exercise se JOIN session_set ss ON ss.session_exercise_id = se.id
+      WHERE se.session_id = s.id AND ss.completed_at IS NOT NULL
+    ) AS sets
+    FROM training_session s
+    WHERE s.finished_at IS NOT NULL AND (s.started_at, s.id) < (?, ?)
+      ${bounded ? "AND s.started_at >= ? AND s.started_at < ?" : ""}
+    ORDER BY s.started_at DESC, s.id DESC LIMIT ?`;
+}
+
+/** The calendar needs one compact row per workout, with only the fields used in its totals. */
+export function readHistoryOverviewPages(read: Reader, range?: HistoryRange) {
+  return readSessionPages(
+    read,
+    overviewPageSql(range !== undefined),
+    (rows) => z.array(overviewRow).parse(rows),
+    range,
+  );
+}
+
 const BEFORE_SESSION = "AND (s.started_at < ? OR (s.started_at = ? AND s.id < ?))";
 
-// Mix eight Unicode code points per SQLite recursion step. The small coefficients keep the
-// arithmetic in signed 64-bit integers, even at the largest Unicode code point.
-const HASH_COEFFICIENTS = [
-  73856093, 19349663, 83492791, 297121507, 15485863, 32452843, 49979687, 86028121,
-];
-const HASH_CHUNK = HASH_COEFFICIENTS.map(
-  (coefficient, index) => `COALESCE(unicode(substr(tail, ${index + 1}, 1)), 0) * ${coefficient}`,
-).join(" + ");
-
 /**
- * One fixed-size fingerprint per finished Session. Hash each display row in SQLite, then fold
- * the row hashes with their ordinal so a reorder or a same-total edit changes the digest.
+ * Compare the ordered values used by the finished-session view. SQLite builds one value per
+ * Session in a single pass instead of recursively hashing each chunk of every set.
  */
 export function finishedFingerprintSql(bounded = false, exerciseCount = 0): string {
   const exerciseFilter = exerciseCount
     ? `AND se.exercise_id IN (${Array.from({ length: exerciseCount }, () => "?").join(", ")}) ${BEFORE_SESSION}`
     : "";
-  return `WITH RECURSIVE
-    display_rows AS (
-      SELECT s.id,
-        ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY se.position, se.id, ss.position, ss.id) AS ordinal,
+  return `SELECT id,
+      json_array(title, started_at, finished_at, duration_s, workout_id,
+        json_group_array(json(payload))) AS signature
+    FROM (
+      SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s, s.workout_id,
         json_array(se.exercise_id, se.exercise_type, se.exercise_title, ss.id, ss.kind,
           CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
           ss.reps, ss.duration_s,
@@ -573,24 +621,10 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
       LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
       WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
         ${exerciseFilter}
-    ),
-    hashes(id, ordinal, tail, hash) AS (
-      SELECT id, ordinal, payload, 0 FROM display_rows
-      UNION ALL
-      SELECT id, ordinal, substr(tail, ${HASH_COEFFICIENTS.length + 1}),
-        (hash * 262139 + ${HASH_CHUNK}) & 17592186044415
-      FROM hashes WHERE tail <> ''
-    ),
-    digests AS (
-      SELECT id, COUNT(*) AS rows, SUM(hash) AS content,
-        SUM((hash * ordinal) & 17592186044415) AS display_order
-      FROM hashes WHERE tail = '' GROUP BY id
+      ORDER BY s.id, se.position, se.id, ss.position, ss.id
     )
-    SELECT s.id AS id, s.title AS title, s.started_at AS started_at,
-      s.finished_at AS finished_at, s.duration_s AS duration_s, s.workout_id AS workout_id,
-      d.rows, printf('%llx-%llx', d.content, d.display_order) AS digest
-    FROM digests d JOIN training_session s ON s.id = d.id
-    ORDER BY s.id`;
+    GROUP BY id
+    ORDER BY id`;
 }
 
 /** The finished Sessions with these ids (at most {@link IDS_PER_READ}), with their ticked sets. */
@@ -605,7 +639,7 @@ export function finishedByIdsSql(count: number): string {
 }
 
 const IDS_PER_READ = 100;
-const fingerprintRowSchema = z.object({ id: z.string() }).loose();
+const fingerprintRowSchema = z.object({ id: z.string(), signature: z.string() });
 
 type Reader = (sql: string, parameters: string[]) => Promise<readonly object[]>;
 
@@ -633,7 +667,7 @@ export function createFinishedHistoryReader(range?: HistoryRange) {
         z
           .array(fingerprintRowSchema)
           .parse(rows)
-          .map((row) => [row.id, JSON.stringify(row)] as const),
+          .map((row) => [row.id, row.signature] as const),
       );
       if (fingerprints === null) {
         for (const session of await readFinishedHistoryPages(read, range)) {

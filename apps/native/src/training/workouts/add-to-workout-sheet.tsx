@@ -3,7 +3,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Plus } from "phosphor-react-native";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
@@ -13,14 +13,11 @@ import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { displayTitle } from "./derived-title";
 import { useStartWorkout } from "@/training/train/use-start-workout";
 import { useWorkoutActions } from "./use-workout-actions";
+import type { WorkoutSummary } from "@workspace/sync";
+import { usePrograms } from "@/training/programs/use-programs";
 import { useWorkouts } from "@/training/train/use-workouts";
-import { isFirstSync } from "@/training/train/train-status";
+import { combineStatus, isFirstSync } from "@/training/train/train-status";
 
-/**
- * "Add to workout" from an exercise's detail screen: the standalone Workouts, each one a tap
- * away, and "New workout with this exercise". A Workout that already holds the exercise is
- * greyed out.
- */
 export function AddToWorkoutSheet({
   exerciseId,
   isOpen,
@@ -30,10 +27,21 @@ export function AddToWorkoutSheet({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useAppToast();
   const { bottom } = useSafeAreaInsets();
-  const { status, workouts } = useWorkouts();
+  const workoutList = useWorkouts(true);
+  const programList = usePrograms();
+  const status = combineStatus(workoutList.status, programList.status);
+  const { workouts } = workoutList;
+  const groups = new Map<string | null, WorkoutSummary[]>();
+  for (const workout of workouts) {
+    const group = groups.get(workout.programId) ?? [];
+    group.push(workout);
+    groups.set(workout.programId, group);
+  }
+  const standalone = groups.get(null) ?? [];
+
   const actions = useWorkoutActions();
   const { withExercises } = useStartWorkout();
 
@@ -42,6 +50,36 @@ export function AddToWorkoutSheet({
     if (await actions.append(id, [exerciseId])) {
       toast.show({ label: t("training__added_toast", { title }) });
     }
+  };
+
+  const integer = new Intl.NumberFormat(i18n.language);
+  const row = (workout: WorkoutSummary, days: readonly number[] = []) => {
+    const title = displayTitle(
+      workout.title,
+      workout.exercises.flatMap((entry) =>
+        entry.primaryMuscle === null ? [] : [entry.primaryMuscle],
+      ),
+      (key) => t(key),
+    );
+    const has = workout.exercises.some((entry) => entry.exerciseId === exerciseId);
+    return (
+      <ListRow
+        key={workout.id}
+        title={title}
+        description={
+          days.length > 0
+            ? t("training__picker_days", {
+                count: days.length,
+                days: days.map(integer.format).join(", "),
+              })
+            : undefined
+        }
+        value={has ? t("training__already_in") : undefined}
+        accessory="none"
+        disabled={has}
+        onPress={() => void add(workout.id, title)}
+      />
+    );
   };
 
   return (
@@ -76,30 +114,52 @@ export function AddToWorkoutSheet({
               />
             </ListSection>
             {status === "list" ? (
-              <ListSection title={t("training__workouts")}>
-                {workouts.map((workout) => {
-                  const title = displayTitle(
-                    workout.title,
-                    workout.exercises.flatMap((entry) =>
-                      entry.primaryMuscle === null ? [] : [entry.primaryMuscle],
-                    ),
-                    (key) => t(key),
-                  );
-                  const has = workout.exercises.some((entry) => entry.exerciseId === exerciseId);
+              <>
+                {standalone.length > 0 ? (
+                  <ListSection title={t("training__standalone_workouts")}>
+                    {standalone.map((workout) => row(workout))}
+                  </ListSection>
+                ) : null}
+                {programList.programs.map((program) => {
+                  const entries = groups.get(program.id);
+                  if (!entries?.length) return null;
+                  const daysByWorkout = new Map<string, number[]>();
+                  program.slots.forEach(({ workoutId }, index) => {
+                    if (workoutId === null) return;
+                    const days = daysByWorkout.get(workoutId) ?? [];
+                    days.push(index + 1);
+                    daysByWorkout.set(workoutId, days);
+                  });
+                  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+                  const scheduled = [...daysByWorkout].flatMap(([id, days]) => {
+                    const entry = byId.get(id);
+                    byId.delete(id);
+                    return entry ? [row(entry, days)] : [];
+                  });
                   return (
-                    <ListRow
-                      key={workout.id}
-                      title={title}
-                      value={has ? t("training__already_in") : undefined}
-                      accessory="none"
-                      disabled={has}
-                      onPress={() => void add(workout.id, title)}
-                    />
+                    <ListSection key={program.id} title={program.title}>
+                      {scheduled}
+                      {[...byId.values()].map((entry) => row(entry))}
+                    </ListSection>
                   );
                 })}
+              </>
+            ) : null}
+            {status === "error" ? (
+              <ListSection>
+                <ListRow
+                  title={t("training__retry")}
+                  onPress={() => {
+                    workoutList.retry();
+                    programList.retry();
+                  }}
+                />
               </ListSection>
             ) : null}
-            {status === "empty" || isFirstSync(status) ? (
+            {status === "loading" ? <ActivityIndicator /> : null}
+            {(status === "list" && workouts.length === 0) ||
+            status === "empty" ||
+            isFirstSync(status) ? (
               <Text className="font-normal px-1 text-center text-caption text-muted">
                 {t("training__add_to_empty")}
               </Text>

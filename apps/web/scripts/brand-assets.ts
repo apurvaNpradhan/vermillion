@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 
-import { photo, site } from "../src/content/en.ts";
+import { site } from "../src/content/en.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../..");
@@ -166,15 +166,10 @@ async function main() {
     .replace('fill="currentColor"', `fill="rgb(${IVORY.r},${IVORY.g},${IVORY.b})"`)
     .replace(/#E04A2F/g, EMBER)
     .replace("<svg ", '<svg width="260" height="260" ');
-  // CC BY-SA requires the credit to travel with the image, so it is set into the card itself.
-  const credit = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
-    <text x="60" y="600" font-family="sans-serif" font-size="14" fill="rgb(${IVORY.r},${IVORY.g},${IVORY.b})" fill-opacity="0.8">${photo.credit} creativecommons.org/licenses/by-sa/3.0</text>
-  </svg>`;
   await sharp({ create: { width: 1200, height: 630, channels: 3, background: INK } })
     .composite([
       { input: ogPhoto, left: 640, top: 0 },
       { input: Buffer.from(brandMark), left: 150, top: 185 },
-      { input: Buffer.from(credit), left: 0, top: 0 },
     ])
     .png()
     .toFile(path.join(pub, "brand/og.png"));

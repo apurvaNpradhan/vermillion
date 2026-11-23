@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { nativeColors, nativeVariantNames } from "./brand";
 import {
   CARD_BACKGROUNDS,
-  GLOW_ALPHA,
   PHOTO_SCRIM_ALPHA,
   cardPalette,
   mixHex,
@@ -41,21 +40,8 @@ describe("share card palettes", () => {
     expect(contrast(c.record, c.ground), "record on ground").toBeGreaterThanOrEqual(3);
   });
 
-  it("draws no glow on Sigil cards and keeps Classic's accent glow", () => {
-    for (const appearance of nativeVariantNames) {
-      for (const kind of kinds) {
-        const glow = cardPalette(appearance, kind).glow;
-        if (appearance.startsWith("classic") && kind === "theme") {
-          expect(glow, `${appearance} ${kind}`).toBe(nativeColors[appearance].identity);
-        } else {
-          expect(glow, `${appearance} ${kind}`).toBeNull();
-        }
-      }
-    }
-  });
-
   it("keeps ember for records on Sigil cards: every other mark is ink", () => {
-    for (const appearance of nativeVariantNames.filter((name) => !name.startsWith("classic"))) {
+    for (const appearance of nativeVariantNames) {
       for (const kind of kinds) {
         const c = cardPalette(appearance, kind);
         expect(c.accent, `${appearance} ${kind}`).toBe(c.text);
@@ -63,17 +49,6 @@ describe("share card palettes", () => {
       }
     }
   });
-
-  it.each(cases.filter((entry) => entry.kind === "theme"))(
-    "keeps text AA under the accent glow on $name",
-    ({ appearance }) => {
-      const c = cardPalette(appearance, "theme");
-      const lit = mixHex(c.ground, c.glow ?? c.ground, GLOW_ALPHA);
-      for (const role of ["text", "textSecondary", "textMuted"] as const) {
-        expect(contrast(c[role], lit), `${role} on the glow`).toBeGreaterThanOrEqual(4.5);
-      }
-    },
-  );
 
   it("keeps the thumbnail plate readable behind its letter", () => {
     for (const { appearance, kind } of cases) {
@@ -85,17 +60,9 @@ describe("share card palettes", () => {
   it("uses the fixed palette whatever the appearance for Light, Dark, Photo and Sticker", () => {
     for (const kind of ["light", "dark", "photo", "sticker"] as const) {
       expect(cardPalette("light", kind)).toEqual(cardPalette("dark", kind));
-      expect(cardPalette("classic-dark-contrast", kind)).toEqual(
-        cardPalette("classic-light", kind),
-      );
-      expect(cardPalette("classic-light", kind).record).toBe(
-        cardPalette("classic-light", kind).accent,
-      );
     }
     expect(cardPalette("dark", "light").fill).toBe(nativeColors.light.canvas);
     expect(cardPalette("light", "dark").fill).toBe(nativeColors.dark.canvas);
-    expect(cardPalette("classic-dark", "light").fill).toBe(nativeColors["classic-light"].canvas);
-    expect(cardPalette("classic-light", "dark").fill).toBe(nativeColors["classic-dark"].canvas);
   });
 
   it("protects top headings, exercise rows, stats and footer over a white photo", () => {

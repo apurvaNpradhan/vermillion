@@ -1,4 +1,4 @@
-import type { FinishedSession } from "@workspace/sync";
+import type { HistoryOverviewSession } from "@workspace/sync";
 import { CaretRight } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -17,7 +17,7 @@ export function WeekHeading({
   format,
 }: {
   day: number;
-  sessions: readonly FinishedSession[];
+  sessions: readonly HistoryOverviewSession[];
   totalsFor: (id: string) => Totals;
   format: HistoryFormat;
 }) {
@@ -58,7 +58,7 @@ export function HistoryRow({
   onPress,
   onLongPress,
 }: {
-  session: FinishedSession;
+  session: HistoryOverviewSession;
   stats: { day: number; totals: Totals } | undefined;
   compact: boolean;
   format: HistoryFormat;

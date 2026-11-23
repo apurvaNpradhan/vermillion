@@ -1,4 +1,4 @@
-import type { FinishedSession } from "@workspace/sync";
+import type { HistoryOverviewSession } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,13 +16,13 @@ import {
 } from "./history-calendar";
 
 const day = (key: string) => Date.parse(key);
-const session = (id: string, started_at: string): FinishedSession => ({
+const session = (id: string, started_at: string): HistoryOverviewSession => ({
   id,
   started_at,
   finished_at: new Date(Date.parse(started_at) + 30 * 60_000).toISOString(),
   durationS: null,
-  workoutId: null,
   title: "Strength",
+  exerciseTitles: [],
   sets: [],
 });
 
@@ -79,15 +79,14 @@ describe("history totals", () => {
   it("sums counted sets, bodyweight volume and both forms of elapsed time", () => {
     const first = session("first", "2025-12-30T12:00:00Z");
     const second = session("second", "2026-02-01T12:00:00Z");
-    const set: FinishedSession["sets"][number] = {
-      id: "set",
-      exercise_id: "pull-up",
+    const set: HistoryOverviewSession["sets"][number] = {
+      weight_kg: null,
       exercise_type: "bodyweight_reps",
       kind: "working",
       completed_at: first.finished_at,
       reps: 5,
     };
-    first.sets.push(set, { ...set, id: "warmup", kind: "warmup" });
+    first.sets.push(set, { ...set, kind: "warmup" });
     second.durationS = 3600;
     const history = buildHistory([second, first], "UTC", "monday", () => 80);
 
@@ -150,14 +149,19 @@ describe("weeks on goal", () => {
 });
 
 describe("the period read window", () => {
-  it("covers the year of the period plus a week each side, and is shared by its periods", () => {
-    const window = historyWindow("month", day("2026-03-01"), "monday");
-    expect(window).toEqual(historyWindow("week", day("2026-11-16"), "monday"));
-    expect(window).toEqual(historyWindow("year", day("2026-01-01"), "monday"));
-    expect(window && window.from <= day("2025-12-22")).toBe(true);
-    expect(window && window.to >= day("2027-01-11")).toBe(true);
-    expect(window?.from).toBeLessThan(day("2026-01-01"));
-    expect(historyWindow("month", day("2025-03-01"), "monday")).not.toEqual(window);
+  it("reads the visible period and the surrounding days needed to complete its weeks", () => {
+    expect(historyWindow("week", day("2026-03-02"), "monday")).toEqual({
+      from: day("2026-02-23"),
+      to: day("2026-03-09"),
+    });
+    expect(historyWindow("month", day("2026-03-01"), "monday")).toEqual({
+      from: day("2026-02-23"),
+      to: day("2026-04-06"),
+    });
+    expect(historyWindow("year", day("2026-01-01"), "monday")).toEqual({
+      from: day("2025-12-29"),
+      to: day("2027-01-04"),
+    });
   });
 
   it("reads everything for All", () => {

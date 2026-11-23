@@ -3,7 +3,6 @@ import type { SessionStore } from "@workspace/client/session";
 import * as SecureStore from "expo-secure-store";
 
 import { appConfig } from "@/platform/app-config";
-import { clearOnboardingProgress } from "@/platform/onboarding-progress";
 import { deviceStorage } from "@/platform/storage";
 
 import { decodeSessionSnapshot, encodeSessionSnapshot } from "./session-snapshot";
@@ -23,10 +22,6 @@ export const storedSession: SessionStore = {
     return decodeSessionSnapshot(deviceStorage.get(KEY));
   },
   write(session) {
-    const previous = decodeSessionSnapshot(deviceStorage.get(KEY));
-    if (previous && previous.user.id !== session?.user.id) {
-      clearOnboardingProgress(previous.user.id);
-    }
     if (!session) {
       deviceStorage.set(KEY, null);
       return;

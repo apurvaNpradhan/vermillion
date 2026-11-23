@@ -1,6 +1,5 @@
 import { Switch } from "heroui-native";
 import {
-  ArrowsDownUp,
   Bell,
   CheckCircle,
   Hourglass,
@@ -54,7 +53,6 @@ export function useSessionSettings(): SessionSettings {
     sessionView,
     systemKeyboard,
     inlineTimer,
-    supersetScroll,
     recordAlerts,
   } = preferences.ui;
 
@@ -75,14 +73,6 @@ export function useSessionSettings(): SessionSettings {
       hint: t("session__setting_inline_timer_hint"),
       on: inlineTimer,
       patch: (on: boolean) => ({ inlineTimer: on }),
-    },
-    {
-      key: "supersetScroll",
-      icon: ArrowsDownUp,
-      title: t("session__setting_superset_scroll"),
-      hint: t("session__setting_superset_scroll_hint"),
-      on: supersetScroll,
-      patch: (on: boolean) => ({ supersetScroll: on }),
     },
     {
       key: "recordAlerts",

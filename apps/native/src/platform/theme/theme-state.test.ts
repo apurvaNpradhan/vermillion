@@ -22,7 +22,6 @@ describe("device theme selection", () => {
       });
       expect(parseTheme(JSON.stringify({ theme: "classic", appearance }))).toEqual({
         ...DEFAULT_THEME,
-        theme: "classic",
         appearance,
       });
     }
@@ -53,20 +52,20 @@ describe("device theme selection", () => {
   });
 
   it("round-trips and resolves every appearance and contrast", () => {
-    for (const theme of ["sigil", "classic"] as const)
-      for (const appearance of APPEARANCES)
-        for (const contrast of [false, true]) {
-          const choice = { theme, appearance, contrast };
-          expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
-          // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
-          for (const os of ["light", "dark", null] as const) {
-            const scheme = appearance === "system" ? (os ?? "light") : appearance;
-            expect(resolvedScheme(choice, os)).toBe(scheme);
-            expect(resolvedVariant(choice, os)).toBe(
-              `${theme}-${contrast ? `${scheme}-contrast` : scheme}`,
-            );
-          }
+    const theme = DEFAULT_THEME.theme;
+    for (const appearance of APPEARANCES)
+      for (const contrast of [false, true]) {
+        const choice = { theme, appearance, contrast };
+        expect(parseTheme(JSON.stringify(choice))).toEqual(choice);
+        // SAFETY: this fixed test matrix contains only supported OS schemes and the null fallback.
+        for (const os of ["light", "dark", null] as const) {
+          const scheme = appearance === "system" ? (os ?? "light") : appearance;
+          expect(resolvedScheme(choice, os)).toBe(scheme);
+          expect(resolvedVariant(choice, os)).toBe(
+            `${theme}-${contrast ? `${scheme}-contrast` : scheme}`,
+          );
         }
+      }
   });
 
   it("applies, persists and announces each actual change once", () => {
@@ -91,7 +90,7 @@ describe("device theme selection", () => {
 });
 
 describe("retired themes", () => {
-  it.each(["patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
+  it.each(["classic", "patina", "graphite", "oxide", "slate", "mulberry", "nord"])(
     "falls back to Sigil for %s without changing the saved appearance or contrast",
     (theme) => {
       const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });

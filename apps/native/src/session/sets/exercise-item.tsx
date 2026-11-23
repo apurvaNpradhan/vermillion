@@ -8,7 +8,7 @@ import {
   type SupersetPlace,
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { memo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -25,9 +25,7 @@ import { SetGrid } from "./set-grid";
 import type { DisplayUnits } from "@/session/logging/set-values";
 
 /**
- * One exercise of the accordion with its body. Memoized on what it draws, so opening another
- * exercise re-renders only the two rows whose `open` changed, and a keystroke only the grid that
- * holds the keypad's cell.
+ * One expanded exercise. A keystroke updates the grid that holds the edited cell.
  */
 export const ExerciseItem = memo(function ExerciseItem({
   exercise,
@@ -35,11 +33,8 @@ export const ExerciseItem = memo(function ExerciseItem({
   stall,
   lighter,
   place,
-  open,
-  warm,
   progress,
   summary,
-  showAddSet,
   readOnly,
   unit,
   display,
@@ -53,7 +48,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   previousOf,
   ghostsFor,
   onView,
-  onToggle,
   onMenu,
   onAddSet,
   onReorder,
@@ -66,8 +60,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   onPrevious,
   onCopySets,
   onRemoveSet,
-  addedSetIds,
-  onAddedSetShown,
   onTimer,
   registerRow,
 }: {
@@ -78,11 +70,8 @@ export const ExerciseItem = memo(function ExerciseItem({
   /** A Lighter week is running: about half the sets are optional. */
   lighter: boolean;
   place: SupersetPlace;
-  open: boolean;
-  warm: boolean;
   progress: string;
   summary: string;
-  showAddSet: boolean;
   readOnly: boolean;
   unit: WeightUnit;
   display: DisplayUnits;
@@ -97,7 +86,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   previousOf: (setId: string) => LoggedSet | null;
   ghostsFor: (setId: string) => Ghosts;
   onView: (exerciseId: string) => void;
-  onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
   onReorder: () => void;
@@ -110,8 +98,6 @@ export const ExerciseItem = memo(function ExerciseItem({
   onPrevious: (setId: string) => void;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onRemoveSet: (setId: string) => Promise<boolean>;
-  addedSetIds: ReadonlySet<string>;
-  onAddedSetShown: (setId: string) => void;
   onTimer: (setId: string) => void;
   registerRow: (setId: string) => (node: View | null) => void;
 }) {
@@ -120,16 +106,11 @@ export const ExerciseItem = memo(function ExerciseItem({
       exercise={exercise}
       progression={suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null}
       place={place}
-      open={open}
-      warm={warm}
       progress={progress}
       summary={summary}
-      showAddSet={showAddSet}
       readOnly={readOnly}
       onView={onView}
-      onToggle={onToggle}
       onMenu={onMenu}
-      onAddSet={onAddSet}
       onReorder={onReorder}
     >
       {stall ? (
@@ -169,8 +150,6 @@ export const ExerciseItem = memo(function ExerciseItem({
         onPrevious={onPrevious}
         onCopySets={onCopySets}
         onRemoveSet={onRemoveSet}
-        addedSetIds={addedSetIds}
-        onAddedSetShown={onAddedSetShown}
         onTimer={onTimer}
         onAddSet={onAddSet}
         registerRow={registerRow}
@@ -199,6 +178,14 @@ function ExerciseBody({
   const { t } = useTranslation();
   // What was typed since the field was last left; undefined when nothing was typed.
   const draft = useRef<string | null | undefined>(undefined);
+  const saveNote = () => {
+    const typed = draft.current;
+    draft.current = undefined;
+    if (!readOnly && typed !== undefined && typed !== entry.note) onNote(entry.id, typed);
+  };
+  const saveOnUnmount = useRef(saveNote);
+  saveOnUnmount.current = saveNote;
+  useEffect(() => () => saveOnUnmount.current(), []);
   const showsRest = !readOnly && place !== "first" && place !== "middle";
   return (
     <View>
@@ -215,11 +202,7 @@ function ExerciseBody({
           onText={(text) => {
             draft.current = text;
           }}
-          onDone={() => {
-            const typed = draft.current;
-            draft.current = undefined;
-            if (typed !== undefined && typed !== entry.note) onNote(entry.id, typed);
-          }}
+          onDone={saveNote}
         />
       )}
       {showsRest ? (

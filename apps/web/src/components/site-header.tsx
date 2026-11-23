@@ -21,7 +21,7 @@ export function SiteHeader() {
           {en.github}
         </a>
         <a href={site.latestReleaseUrl} rel="noreferrer" className="button">
-          {en.download}
+          {en.downloadNav}
         </a>
       </nav>
     </header>

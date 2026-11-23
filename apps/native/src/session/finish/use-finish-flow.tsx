@@ -29,7 +29,7 @@ export function useFinishFlow({
   unticked: number;
   actions: Pick<ReturnType<typeof useSessionActions>, "discard">;
   /** Saves what is typed in the keypad's cell. */
-  flush: () => void;
+  flush: () => Promise<void>;
   closeKeypad: () => void;
   /** The Session is gone (discarded): leave the screen. */
   onMinimise: () => void;
@@ -41,7 +41,7 @@ export function useFinishFlow({
   const [confirmFinish, setConfirmFinish] = useState(false);
 
   const finish = async () => {
-    flush();
+    await flush();
     if (ticked === 0 && session.finishedAt === null) {
       // Nothing was logged: a finished empty Session would only be clutter, so it is discarded.
       if (await actions.discard(session.id, title)) onMinimise();
@@ -51,7 +51,7 @@ export function useFinishFlow({
   };
 
   const askFinish = () => {
-    flush();
+    void flush();
     if (ticked === 0 || unticked > 0) setConfirmFinish(true);
     else void finish();
   };

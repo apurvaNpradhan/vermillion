@@ -5,7 +5,6 @@ import {
   hasActiveFilters,
   type LibraryFilters,
   type LibraryRow,
-  type LibrarySort,
 } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -13,17 +12,14 @@ import { ScrollView, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useTabAction } from "@/platform/navigation/tab-action";
-import { deviceStorage } from "@/platform/storage";
 import { Button } from "@/platform/ui/button";
 import { LibrarySetup } from "@/platform/ui/library-setup";
 import { Page } from "@/platform/ui/page";
 import { SearchBar } from "@/platform/ui/search-bar";
-import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
 import { toggled, withoutFacets } from "../filter-state";
-import { SORT_KEY, parseSort } from "../sort-preference";
 import { useExerciseLibrary } from "../use-exercise-library";
 import { ExerciseRow } from "./exercise-row";
 import { FilterChips, type FilterChip } from "./filter-chips";
@@ -40,8 +36,7 @@ import {
 const ESTIMATED_ROW_HEIGHT = 72;
 /**
  * Search field (44), gap (8), filter row (44) and the pinned layer's bottom padding (8), plus 8
- * so the count and sort row below clears the opaque layer (measured on a device: at 104 the top
- * of the sort control was covered).
+ * so the results start below the opaque layer.
  */
 const PINNED_HEIGHT = 112;
 
@@ -87,7 +82,7 @@ type ExerciseLibraryProps = {
 };
 
 /**
- * The exercise library: search, one filter control, removable chips, a sort toggle and a
+ * The exercise library: search, one filter control, removable chips, and a
  * virtualised list of rows, under the page header. The search and filter control stay pinned under the
  * compact bar. Everything is read from the local database through `useExerciseLibrary`.
  */
@@ -107,10 +102,7 @@ export function ExerciseLibrary({
   browseMuscle,
 }: ExerciseLibraryProps) {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<LibraryFilters>(() => ({
-    ...DEFAULT_LIBRARY_FILTERS,
-    sort: parseSort(deviceStorage.get(SORT_KEY)),
-  }));
+  const [filters, setFilters] = useState<LibraryFilters>(DEFAULT_LIBRARY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const browsedMuscle = browseMuscle?.muscle;
   const browsedAt = browseMuscle?.at;
@@ -126,10 +118,6 @@ export function ExerciseLibrary({
   const query = filters.search.trim();
   const searching = query !== "";
 
-  const setSort = useCallback((sort: LibrarySort) => {
-    deviceStorage.set(SORT_KEY, sort);
-    setFilters((current) => ({ ...current, sort }));
-  }, []);
   const chips = useMemo<FilterChip[]>(() => {
     const change = (next: Partial<LibraryFilters>) =>
       setFilters((current) => ({ ...current, ...next }));
@@ -245,6 +233,7 @@ export function ExerciseLibrary({
       {onCreate && mode === "browse" ? <NewExerciseAction onCreate={onCreate} /> : null}
       <Page
         title={title ?? t("exercise__title")}
+        stickyTitle={mode === "browse"}
         actions={headerActions}
         pinned={{
           height: PINNED_HEIGHT,
@@ -256,24 +245,32 @@ export function ExerciseLibrary({
                 placeholder={t("exercise__search_placeholder")}
                 clearLabel={t("exercise__search_clear")}
               />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerClassName="h-11 flex-row items-center gap-2"
-              >
-                <FilterPill
-                  label={t("exercise__filters_title")}
-                  active={hasActiveFilters(filters)}
-                  onPress={() => setFiltersOpen(true)}
-                />
-                <FilterChips chips={chips} />
-                {chips.length > 0 ? (
-                  <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
-                    <Button.Label>{t("exercise__clear_filters")}</Button.Label>
-                  </Button>
+              <View className="flex-row items-center gap-2">
+                <ScrollView
+                  className="min-w-0 flex-1"
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerClassName="h-11 flex-row items-center gap-2"
+                >
+                  <FilterPill
+                    label={t("exercise__filters_title")}
+                    active={hasActiveFilters(filters)}
+                    onPress={() => setFiltersOpen(true)}
+                  />
+                  <FilterChips chips={chips} />
+                  {chips.length > 0 ? (
+                    <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
+                      <Button.Label>{t("exercise__clear_filters")}</Button.Label>
+                    </Button>
+                  ) : null}
+                </ScrollView>
+                {library.total !== null && status === "ready" ? (
+                  <Text className="max-w-[45%] text-right font-normal text-caption tabular-nums text-muted">
+                    {t("exercise__count", { count: library.total })}
+                  </Text>
                 ) : null}
-              </ScrollView>
+              </View>
             </View>
           ),
         }}
@@ -308,26 +305,6 @@ export function ExerciseLibrary({
                   <SyncBanner />
                   <RejectedExercises />
                   {listHeader}
-                  <View className="flex-row items-center justify-between gap-3">
-                    <Text className="font-normal flex-1 text-caption text-muted">
-                      {library.total === null || status !== "ready"
-                        ? ""
-                        : t("exercise__count", { count: library.total })}
-                    </Text>
-                    {searching ? null : (
-                      <View className="w-44">
-                        <SegmentedControl<LibrarySort>
-                          options={[
-                            { value: "az", label: t("exercise__sort_az") },
-                            { value: "popular", label: t("exercise__sort_popular") },
-                          ]}
-                          value={filters.sort}
-                          onChange={setSort}
-                          accessibilityLabel={t("exercise__sort_group")}
-                        />
-                      </View>
-                    )}
-                  </View>
                 </View>
               </View>
             }

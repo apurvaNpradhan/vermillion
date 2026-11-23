@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 
 import { useReduceMotion } from "./use-reduce-motion";
@@ -37,4 +38,11 @@ const DIALOG_MOTION = {
  */
 export function useDialogMotion() {
   return useReduceMotion() ? REDUCED_DIALOG : DIALOG_MOTION;
+}
+
+/** A screen can opt its sheets out of motion without changing shared callers. */
+export const InstantSheets = createContext(false);
+
+export function useSheetAnimation(): "disable-all" | undefined {
+  return useContext(InstantSheets) ? "disable-all" : undefined;
 }

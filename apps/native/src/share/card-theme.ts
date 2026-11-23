@@ -13,7 +13,6 @@ export function useCardPalettes() {
   return useMemo(
     () => ({
       palettes: (kind: CardPaletteKind): CardPalette => cardPalette(mode, kind),
-      sigil: !mode.startsWith("classic"),
     }),
     [mode],
   );

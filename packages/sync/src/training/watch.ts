@@ -21,6 +21,8 @@ import {
   exerciseRecordsSql,
   sessionsPageSql,
   createFinishedHistoryReader,
+  readHistoryOverviewPages,
+  type HistoryOverviewSession,
   finishedFingerprintSql,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
@@ -77,9 +79,10 @@ export type WorkoutDetail = {
   exercises: WorkoutExerciseDetail[];
 };
 
-/** One standalone Workout in the Train list, with what its tile, name and estimate need. */
+/** One Workout in the Train list, with what its tile, name and estimate need. */
 export type WorkoutSummary = {
   id: string;
+  programId: string | null;
   title: string | null;
   createdAt: string;
   exercises: {
@@ -145,6 +148,7 @@ const secondaryText = jsonText
 
 const listRowSchema = z.object({
   id: z.string(),
+  program_id: z.string().nullable(),
   title: z.string().nullable(),
   created_at: z.string(),
   sets: setsText.nullable(),
@@ -160,7 +164,7 @@ const listRowSchema = z.object({
 
 const workoutListSql = (
   includeProgramWorkouts: boolean,
-) => `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
+) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM workout w
@@ -177,7 +181,13 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
   for (const row of parsed) {
     let current = result.at(-1);
     if (current?.id !== row.id) {
-      current = { id: row.id, title: row.title, createdAt: row.created_at, exercises: [] };
+      current = {
+        id: row.id,
+        programId: row.program_id,
+        title: row.title,
+        createdAt: row.created_at,
+        exercises: [],
+      };
       result.push(current);
     }
     if (row.exercise_row !== null && row.exercise_id !== null) {
@@ -806,7 +816,10 @@ export function watchFinishedHistory(
       do {
         pending = false;
         const sessions = await database.readTransaction((tx) =>
-          reader.refresh((sql, parameters) => tx.getAll(sql, parameters)),
+          reader.refresh((sql, parameters) => {
+            if (controller.signal.aborted) throw new Error("History watch stopped");
+            return tx.getAll(sql, parameters);
+          }),
         );
         if (controller.signal.aborted) return;
         if (sessions) handlers.onSessions(sessions);
@@ -822,6 +835,51 @@ export function watchFinishedHistory(
   database.onChangeWithCallback(
     { onChange: () => void read() },
     { signal: controller.signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+  );
+  void read();
+  return () => controller.abort();
+}
+
+/**
+ * Reads the History screen in bounded SQL calls, releasing the database read lock between
+ * pages so an all-time scan cannot queue the other tabs behind a single long transaction.
+ */
+export function watchHistoryOverview(
+  database: TrainingDatabase,
+  handlers: {
+    onSessions: (sessions: HistoryOverviewSession[]) => void;
+    onError: (error: Error) => void;
+  },
+  range?: HistoryRange,
+): () => void {
+  const controller = new AbortController();
+  const { signal } = controller;
+  let pending = false;
+  let reading = false;
+  const read = async () => {
+    pending = true;
+    if (reading) return;
+    reading = true;
+    try {
+      do {
+        pending = false;
+        const sessions = await readHistoryOverviewPages((sql, parameters) => {
+          if (signal.aborted) throw new Error("History watch stopped");
+          return database.getAll(sql, parameters);
+        }, range);
+        // A table change during the scan can shift a session across the cursor. Let the
+        // next pass replace that result before publishing it.
+        if (!pending && !signal.aborted) handlers.onSessions(sessions);
+      } while (pending && !signal.aborted);
+    } catch {
+      if (!signal.aborted) handlers.onError(new Error("The local workouts could not be read"));
+    } finally {
+      reading = false;
+    }
+  };
+  database.onChangeWithCallback(
+    { onChange: () => void read() },
+    { signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
   );
   void read();
   return () => controller.abort();
@@ -931,7 +989,7 @@ export function watchSessionPage(
   return watch(
     database,
     sessionsPageSql(),
-    [cursor.startedAt, cursor.startedAt, cursor.id, String(Math.min(500, Math.max(1, limit)))],
+    [cursor.startedAt, cursor.id, String(Math.min(500, Math.max(1, limit)))],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,
