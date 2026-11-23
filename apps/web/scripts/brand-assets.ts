@@ -11,16 +11,18 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 import { site } from "../src/content/en.ts";
+import { webColors } from "../src/theme.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../..");
 const design = path.join(root, "docs/design/sigil");
 const pub = path.join(here, "../public");
 
-const INK = { r: 0, g: 0, b: 0 };
-const IVORY = { r: 255, g: 255, b: 255 };
-/** The site's Lime accent (--accent in styles.css). */
-const ACCENT = "#C6F432";
+// Brand images are dark: the dark canvas, the dark ink and the accent, all from palette.ts.
+const dark = webColors("dark");
+const CANVAS = dark.canvas;
+const INK = dark.ink;
+const ACCENT = dark.accent;
 
 /** The mark (A) in ivory on a rounded ink tile. `scale` is the mark's share of the tile. */
 async function markTile(size: number, scale: number, radius: number) {
@@ -29,8 +31,8 @@ async function markTile(size: number, scale: number, radius: number) {
   const m = size * scale;
   const offset = (size - m) / 2;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-    <rect width="${size}" height="${size}" rx="${radius}" fill="rgb(${INK.r},${INK.g},${INK.b})"/>
-    <svg x="${offset}" y="${offset}" width="${m}" height="${m}" viewBox="0 0 48 48" color="rgb(${IVORY.r},${IVORY.g},${IVORY.b})" fill="currentColor">${inner}</svg>
+    <rect width="${size}" height="${size}" rx="${radius}" fill="${CANVAS}"/>
+    <svg x="${offset}" y="${offset}" width="${m}" height="${m}" viewBox="0 0 48 48" color="${INK}" fill="currentColor">${inner}</svg>
   </svg>`;
   return sharp(Buffer.from(svg)).png();
 }
@@ -71,8 +73,8 @@ async function manifest() {
     start_url: "/",
     scope: "/",
     display: "browser",
-    background_color: "#000000",
-    theme_color: "#000000",
+    background_color: CANVAS,
+    theme_color: CANVAS,
     icons: [
       icon(192, "any", "icon"),
       icon(512, "any", "icon"),
@@ -93,10 +95,12 @@ async function main() {
   await writeFile(path.join(pub, "brand/mark.svg"), mark);
   await writeFile(
     path.join(pub, "brand/mark-ember.svg"),
-    (await readFile(path.join(design, "mark-ember.svg"), "utf8")).replace(/#E04A2F/gi, ACCENT),
+    (await readFile(path.join(design, "mark-ember.svg"), "utf8"))
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/#E04A2F/gi, ACCENT),
   );
   const markPaths = mark.replace(/<svg[^>]*>/, "").replace("</svg>", "");
-  const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#000000"/><svg x="7" y="7" width="50" height="50" viewBox="0 0 48 48" fill="#FFFFFF">${markPaths}</svg></svg>\n`;
+  const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${CANVAS}"/><svg x="7" y="7" width="50" height="50" viewBox="0 0 48 48" fill="${INK}">${markPaths}</svg></svg>\n`;
   await writeFile(path.join(pub, "favicon.svg"), faviconSvg);
 
   const favicons = await Promise.all(
@@ -117,11 +121,11 @@ async function main() {
 
   // Social preview: black ground, the brand mark with its accent dot, and the wordmark.
   const brandMark = (await readFile(path.join(design, "mark-ember.svg"), "utf8"))
-    .replace('fill="currentColor"', `fill="rgb(${IVORY.r},${IVORY.g},${IVORY.b})"`)
+    .replace('fill="currentColor"', `fill="${INK}"`)
     .replace(/#E04A2F/gi, ACCENT)
     .replace("<svg ", '<svg width="260" height="260" ');
-  const wordmark = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="260"><text x="0" y="205" font-family="Arial, sans-serif" font-weight="700" font-size="220" letter-spacing="-9" fill="#FFFFFF">${site.name.toUpperCase()}</text></svg>`;
-  await sharp({ create: { width: 1200, height: 630, channels: 3, background: INK } })
+  const wordmark = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="260"><text x="0" y="205" font-family="Arial, sans-serif" font-weight="700" font-size="220" letter-spacing="-9" fill="${INK}">${site.name.toUpperCase()}</text></svg>`;
+  await sharp({ create: { width: 1200, height: 630, channels: 3, background: CANVAS } })
     .composite([
       { input: Buffer.from(brandMark), left: 140, top: 185 },
       { input: Buffer.from(wordmark), left: 440, top: 185 },

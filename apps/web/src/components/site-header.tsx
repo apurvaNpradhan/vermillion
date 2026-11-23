@@ -20,7 +20,7 @@ export function SiteHeader() {
         <a href={site.githubUrl} rel="noreferrer" className="nav-link">
           {en.github}
         </a>
-        <a href={site.latestReleaseUrl} rel="noreferrer" className="button">
+        <a href={site.latestReleaseUrl} rel="noreferrer" className="button quiet">
           {en.downloadNav}
         </a>
       </nav>

@@ -3,6 +3,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { SiteFooter } from "../components/site-footer.tsx";
 import { SiteHeader } from "../components/site-header.tsx";
 import { en, site } from "../content/en.ts";
+import { webColors } from "../theme.ts";
 import styles from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -11,7 +12,16 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: `${en.notFoundTitle} | ${site.name}` },
-      { name: "theme-color", content: "#000000" },
+      {
+        name: "theme-color",
+        media: "(prefers-color-scheme: light)",
+        content: webColors("light").canvas,
+      },
+      {
+        name: "theme-color",
+        media: "(prefers-color-scheme: dark)",
+        content: webColors("dark").canvas,
+      },
     ],
     links: [
       { rel: "stylesheet", href: styles },

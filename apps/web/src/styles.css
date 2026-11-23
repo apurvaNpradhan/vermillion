@@ -2,26 +2,15 @@
 @import "@fontsource-variable/geist-mono";
 
 /*
- * Site palette (docs/design/redesign-2026-11/SPEC.md, P4): AMOLED black, neutral greys, white ink
- * and one Lime accent. The accent marks only what the app marks: the mark's dot and the headline's
- * completed state, never large surfaces.
+ * Site palette: derived from packages/ui/src/tokens/themes/palette.ts (the default accent) by the
+ * sigil-theme Vite plugin, light by default and dark under prefers-color-scheme. The roles match
+ * the app: canvas, surface, control, hairlines, ink, secondary, muted. The accent marks the
+ * primary button, links, focus and small marks, never large surfaces. Red is danger only.
  */
+/* @sigil-theme */
 :root {
-  --ground: #000000;
-  --ground-deep: #000000;
-  --raised: #141414;
-  --ink: #ffffff;
-  --ink-2: #d4d4d4;
-  --muted: #a3a3a3;
-  --hairline: #262626;
-  --accent: #c6f432;
-  --paper: #ffffff;
-  --lamp: #0a0a0a;
-  --lamp-muted: #525252;
-  --paper-rule: #d4d4d4;
   --sans: "Geist Variable", system-ui, sans-serif;
   --mono: "Geist Mono Variable", ui-monospace, monospace;
-  color-scheme: dark;
 }
 
 * {
@@ -29,29 +18,34 @@
 }
 
 html {
-  background: var(--ground);
+  background: var(--canvas);
 }
 
 body {
   margin: 0;
-  background: var(--ground);
+  background: var(--canvas);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 1.0625rem;
   line-height: 1.6;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
 a {
-  color: var(--ink);
+  color: var(--accent);
   text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--accent-hover);
 }
 
 a:focus-visible,
 button:focus-visible,
 main:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -60,7 +54,10 @@ main:focus-visible {
   inset: 1rem auto auto 1rem;
   z-index: 80;
   padding: 0.5rem 1rem;
-  background: var(--ground);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0.5rem;
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 .skip-link:not(:focus) {
@@ -99,16 +96,34 @@ p {
   min-height: 2.875rem;
   padding: 0 1.375rem;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--ground);
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
   transition: transform 0.15s ease;
 }
 
+.button:hover {
+  background: var(--accent-hover);
+  color: var(--on-accent);
+}
+
 .button:active {
+  background: var(--accent-pressed);
   transform: scale(0.97);
+}
+
+/* The header's button: the page's one loud button stays in the hero and the close. */
+.button.quiet {
+  background: var(--control);
+  color: var(--ink);
+}
+
+.button.quiet:hover,
+.button.quiet:active {
+  background: var(--hairline-strong);
+  color: var(--ink);
 }
 
 .actions {
@@ -122,7 +137,7 @@ p {
 .lead {
   margin-top: 0.875rem;
   max-width: 44ch;
-  color: var(--ink-2);
+  color: var(--secondary);
   font-size: 1.0625rem;
   line-height: 1.5;
 }
@@ -145,6 +160,10 @@ p {
   text-decoration: none;
 }
 
+.lockup:hover {
+  color: var(--ink);
+}
+
 .lockup span {
   font-family: var(--sans);
   font-size: 1.25rem;
@@ -161,12 +180,13 @@ p {
 }
 
 .nav-link {
-  color: var(--ink-2);
+  color: var(--secondary);
   text-decoration: none;
 }
 
 .nav-link:hover {
   color: var(--ink);
+  text-decoration: underline;
 }
 
 .mark-ember {
@@ -196,10 +216,10 @@ p {
 .device {
   padding: 0.5rem;
   border-radius: 2.25rem;
-  background: #0a0a0a;
+  background: var(--surface);
   box-shadow:
-    0 0 0 1px #2a2a2a,
-    0 0 0 0.375rem #000;
+    0 0 0 1px var(--hairline-strong),
+    0 0 0 0.375rem var(--canvas);
 }
 
 .device img {
@@ -278,15 +298,16 @@ p {
 .progression-body {
   margin-top: 3rem;
   max-width: 40ch;
-  color: var(--ink-2);
+  color: var(--secondary);
   font-size: clamp(1.25rem, 2vw, 1.625rem);
   line-height: 1.4;
 }
 
 /* Product stories */
 .features {
-  background: var(--paper);
-  color: var(--lamp);
+  background: var(--surface);
+  border-block: 1px solid var(--hairline);
+  color: var(--ink);
   padding-block: clamp(3.5rem, 8vw, 7rem);
 }
 
@@ -297,7 +318,7 @@ p {
 
 .features-lead {
   margin: 1rem 0 2.5rem;
-  color: var(--lamp-muted);
+  color: var(--secondary);
   font-size: 1.1875rem;
 }
 
@@ -313,7 +334,7 @@ p {
   align-items: center;
   gap: clamp(1.5rem, 6vw, 6rem);
   padding-block: clamp(2rem, 5vw, 4rem);
-  border-top: 1px solid var(--paper-rule);
+  border-top: 1px solid var(--hairline);
 }
 
 .feature-copy {
@@ -322,8 +343,8 @@ p {
   max-width: 38ch;
 }
 
-.feature-copy .label {
-  color: var(--lamp-muted);
+.feature-copy p:last-child {
+  color: var(--secondary);
 }
 
 .feature-copy h3 {
@@ -336,7 +357,7 @@ p {
   width: min(100%, 15rem);
   height: auto;
   border-radius: 1.125rem;
-  box-shadow: 0 0 0 1px var(--paper-rule);
+  box-shadow: 0 0 0 1px var(--hairline-strong);
 }
 
 /* Install */
@@ -351,7 +372,7 @@ p {
 .install-steps {
   margin: 1.5rem 0 0;
   padding-left: 1.25rem;
-  color: var(--ink-2);
+  color: var(--secondary);
 }
 
 /* Close */
@@ -375,7 +396,7 @@ p {
 .site-footer {
   padding: 1.75rem 0;
   border-top: 1px solid var(--hairline);
-  background: var(--ground-deep);
+  background: var(--canvas);
   color: var(--muted);
   font-size: 0.8125rem;
 }
@@ -394,11 +415,12 @@ p {
 }
 
 .site-footer a {
-  color: var(--ink-2);
+  color: var(--secondary);
   text-decoration: none;
 }
 
 .site-footer a:hover {
+  color: var(--ink);
   text-decoration: underline;
 }
 
@@ -423,7 +445,7 @@ p {
 
 .lede {
   margin-top: 1rem;
-  color: var(--ink-2);
+  color: var(--secondary);
   font-size: 1.1875rem;
 }
 
@@ -442,7 +464,7 @@ p {
 .prose ul,
 .prose ol {
   margin: 1rem 0 0;
-  color: var(--ink-2);
+  color: var(--secondary);
 }
 
 .prose li + li {
