@@ -1,13 +1,13 @@
 {
-  "name": "Sigil | Programs, workouts and progress",
+  "name": "Sigil — the strength log that progresses for you",
   "short_name": "Sigil",
-  "description": "Earn the mark. Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
+  "description": "Hit your reps. The weight goes up. Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "browser",
-  "background_color": "#0B0A09",
-  "theme_color": "#0B0A09",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/icons/icon-192.png",

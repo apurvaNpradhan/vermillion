@@ -13,7 +13,7 @@ const name = "sigil";
 export const appConfig = {
   name,
   displayName: "Sigil",
-  tagline: "Earn the mark.",
+  tagline: "Hit your reps. The weight goes up.",
   description: "Sigil is a private strength-training log",
   /** Longer line for store listings and the site. */
   subtitle: "A private log for training — and soon, food.",

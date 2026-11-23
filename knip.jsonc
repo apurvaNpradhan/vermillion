@@ -31,12 +31,7 @@
     },
     "apps/web": {
       // Loaded by CSS (`@import` in styles.css), not by an import statement.
-      "ignoreDependencies": [
-        "@fontsource-variable/geist",
-        "@fontsource-variable/geist-mono",
-        "@fontsource-variable/eb-garamond",
-        "@fontsource/barlow-condensed",
-      ],
+      "ignoreDependencies": ["@fontsource-variable/geist", "@fontsource-variable/geist-mono"],
     },
     "packages/api": {
       // Declaration files of the router name types from @orpc/shared (TS2883 without it).

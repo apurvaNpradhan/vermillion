@@ -11,7 +11,7 @@ const githubUrl = `https://github.com/${owner}/${repo}`;
 export const site = {
   name: appConfig.displayName,
   tagline: appConfig.tagline,
-  title: `${appConfig.displayName} | Programs, workouts and progress`,
+  title: `${appConfig.displayName} — the strength log that progresses for you`,
   description:
     "Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
   url: appConfig.urls.site,
@@ -22,9 +22,8 @@ export const site = {
   latestReleaseUrl: `${githubUrl}/releases/latest`,
 };
 
-export const photo = {
-  alt: "Michelangelo's unfinished 'Atlas' Prisoner: a torso emerging from a block of marble.",
-};
+/** Alt text for the social preview image. */
+export const ogAlt = "Sigil, the strength log that progresses for you.";
 
 export const en = {
   skipToContent: "Skip to content",
@@ -37,20 +36,30 @@ export const en = {
   deletionLink: "Delete account",
   github: "GitHub",
   downloadNav: "Android APK",
-  downloadRelease: "Get the Android APK",
-  licensesLink: "Licences",
-  heroPlatform: `Android · v${site.version}`,
-  heroTitle: "Your program moves when you lift.",
+  heroOverline: "STRENGTH LOG · ANDROID",
+  heroTitle: "Hit your reps. The weight goes up.",
   heroLead:
-    "Finish a workout and Sigil lines up the next one. Your last weights and reps are there when you start.",
-  manifestoLabel: "Nonfinito",
-  manifestoTitle: "The log",
-  manifestoAccent: "is yours.",
-  manifesto: [
-    "The work was yours before it was in this app. Bring over the workouts you logged in Strong or Hevy and start with your own numbers.",
-    "Sets save on the phone as you go, even in a gym with no signal. If you take your training elsewhere, export your finished workouts as a CSV.",
+    "Sigil runs your program. It lines up the next workout, sets a target for every exercise, and adds weight when you hit it. If you stall, it eases off.",
+  download: "Download for Android",
+  heroFacts: ["Works offline"],
+  heroScreenAlt:
+    "A workout in progress: two completed sets of bench press and a running rest timer.",
+  progressionLabel: "PROGRESSION",
+  progressionTitle: "You lift. Sigil does the math.",
+  // Checked against packages/shared/src/training/progress: a rep range fills first, then the
+  // load rises by ~2.5% (never below 2.5 kg on a barbell); three sessions with under 1% gain is a stall.
+  progression:
+    "Each exercise has a target. Hit the top of your rep range and next time asks for more weight: about 2.5% of the load, never less than 2.5 kg on a barbell. Go three sessions without progress and Sigil flags the stall and suggests 90% of your last weight. No spreadsheet. No guessing.",
+  featuresTitle: "Everything else stays out of the way.",
+  featuresLead: "Four things, done properly. No feed. No coach.",
+  installTitle: "On Android, through GitHub.",
+  installLead: "Not on iPhone yet.",
+  installSteps: [
+    "Open the latest release on GitHub.",
+    "Download the APK listed under Assets.",
+    "Open it on your phone and allow the install.",
   ],
-  featuresTitle: "From the next workout to the next plate.",
+  closeTitle: "Your next session already knows the weight.",
   screensTitle: "Screens.",
   screensLead: "The app as it is today, on a real phone with a real training log.",
   notFoundTitle: "Page not found",
@@ -65,23 +74,28 @@ export const en = {
 
 export const features = [
   {
-    label: "Program rotation",
-    title: "Miss Tuesday. Keep your place.",
-    body: "Build the rotation you want, including rest days. Sigil suggests the next workout based on what you actually trained.",
+    label: "Programs",
+    title: "Your next workout is always ready.",
+    body: "Build a rotation once. Sigil queues each day in order and remembers where you left off.",
     screenshot: "program",
     alt: "A Push Pull Legs program with its workout order",
   },
   {
-    label: "Set logging",
-    title: "See last time at a glance.",
-    body: "Previous weights and reps sit beside the current set. Between sets, use the rest timer and work out what goes on the bar.",
+    label: "Live log",
+    title: "Last time's numbers, already filled in.",
+    body: "Tick a set and the rest timer starts. Plate math and warm-ups are built in.",
     screenshot: "live-session",
     alt: "A bench press workout with completed sets and a running rest timer",
   },
   {
-    label: "Progression",
-    title: "See what changed before you lift.",
-    body: "Compare today’s suggested sets with your last session. Look up the exercise’s records and check how often its muscles have been trained.",
+    label: "Records",
+    title: "Records flagged the moment you set them.",
+    body: "Every exercise gets a chart, so you can watch the numbers climb.",
+  },
+  {
+    label: "Offline",
+    title: "Works in a basement.",
+    body: "Everything saves on your phone first and syncs once you have signal. Bring your history from Strong or Hevy.",
   },
 ];
 

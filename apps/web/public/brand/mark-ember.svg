@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><!-- Sigil brand mark (A2): mason's mark + one ember dot. 48px and up only. Mark = ink, dot = ember (#E04A2F on dark, #B5321A on light). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><!-- Sigil brand mark (A2): mason's mark + one ember dot. 48px and up only. Mark = ink, dot = ember (#C6F432 on dark, #B5321A on light). -->
 <g fill="currentColor">
 <path d="M22.4 6.8 L25.6 6.8 L25.2 42.5 L22.8 42.5 Z"/>
 <path d="M24 5 L37.2 14.6 L35.6 16.6 L24 8.2 L12.4 16.6 L10.8 14.6 Z"/>
 <path d="M15.2 27.1 L32.8 27.1 L32.2 29.6 L15.8 29.6 Z"/>
 </g>
-<circle cx="36.5" cy="37" r="3.6" fill="#E04A2F"/>
+<circle cx="36.5" cy="37" r="3.6" fill="#C6F432"/>
 </svg>

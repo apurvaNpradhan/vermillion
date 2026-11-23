@@ -14,7 +14,6 @@ export function SiteFooter() {
           <a href={site.githubUrl} rel="noreferrer">
             {en.github}
           </a>
-          <a href="/licenses/react-bits.txt">{en.licensesLink}</a>
         </nav>
       </div>
     </footer>

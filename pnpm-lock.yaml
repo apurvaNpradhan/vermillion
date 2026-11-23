@@ -546,17 +546,11 @@ importers:
 
   apps/web:
     dependencies:
-      '@fontsource-variable/eb-garamond':
-        specifier: 5.3.0
-        version: 5.3.0
       '@fontsource-variable/geist':
         specifier: 5.3.0
         version: 5.3.0
       '@fontsource-variable/geist-mono':
         specifier: 5.3.0
-        version: 5.3.0
-      '@fontsource/barlow-condensed':
-        specifier: ^5.3.0
         version: 5.3.0
       '@tanstack/react-router':
         specifier: 1.170.46
@@ -2025,17 +2019,11 @@ packages:
     resolution: {integrity: sha512-EbxYllZ7/ozONVZd425cm4XnolfW+AmSFT5aP7Jdno6oc3WrYQcHz2CO20z/2rwWwYgztmV2PXvYH+BQ8YFjqg==}
     hasBin: true
 
-  '@fontsource-variable/eb-garamond@5.3.0':
-    resolution: {integrity: sha512-656OJsA9Vv24yhqRZFEzXnzS2AYgKdEILLgHJYLzzXndgcWFKfSXFqzbRI5/6Yk1Yt7UfWrUeppE5nRQPQMwlQ==}
-
   '@fontsource-variable/geist-mono@5.3.0':
     resolution: {integrity: sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw==}
 
   '@fontsource-variable/geist@5.3.0':
     resolution: {integrity: sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA==}
-
-  '@fontsource/barlow-condensed@5.3.0':
-    resolution: {integrity: sha512-RA7MmIx0v3eQ6Gcf74qLVLOwLB0GpPOzx+eU9iG/AmCnSJGcIWYeU8y6CEMGZ210MGwGg5CZhzLkkvyZdTTk1g==}
 
   '@formatjs/bigdecimal@0.2.10':
     resolution: {integrity: sha512-npIs6UARNOg5amJY5UOVsd6HUQQfzYjet0sa0SWIqzsnVhxLSpaIx2DjoIVrr/vqmjURjvroeW6dItjfy3Uf8A==}
@@ -9406,13 +9394,9 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.3.2
 
-  '@fontsource-variable/eb-garamond@5.3.0': {}
-
   '@fontsource-variable/geist-mono@5.3.0': {}
 
   '@fontsource-variable/geist@5.3.0': {}
-
-  '@fontsource/barlow-condensed@5.3.0': {}
 
   '@formatjs/bigdecimal@0.2.10': {}
 

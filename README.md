@@ -1,6 +1,6 @@
 # Sigil
 
-> Earn the mark. A private log for training — and soon, food.
+> Hit your reps. The weight goes up. A private log for training — and soon, food.
 
 **An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
