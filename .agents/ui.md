@@ -33,7 +33,7 @@ warning is neutral text with an icon. Charts take the accent for the primary ser
 `chart-1`) and quiet tones for the rest (`chart-2` … `chart-5`). One filled primary action per
 screen; numbers use tabular figures. Geist sets native titles and body text, Geist Mono labels and
 code. Reserve EB Garamond for Nonfinito on the website. Run `pnpm brand:assets` after changing the
-mark or the hero photo. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text glyphs.
+mark. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text glyphs.
 Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 
 Native groups use spacing, rounded corners and canvas/surface/default fills, with no row dividers or card outlines. Keep outlines only for fields and selected chips, swatches or option tiles; preserve diagram strokes and progress tracks. When removing a line, review row padding and group gaps, and keep a visible pressed state.
