@@ -52,7 +52,9 @@ export function useSlideSwipe({
   const pan = usePanGesture({
     enabled: canPrevious || canNext || onVertical !== undefined,
     activeOffsetX: [-20, 20],
-    ...(onVertical ? { activeOffsetY: [-20, 20] } : { failOffsetY: [-12, 12] }),
+    // No spread here: the worklets Babel plugin rejects SpreadElement in gesture hook configs.
+    activeOffsetY: onVertical ? [-20, 20] : undefined,
+    failOffsetY: onVertical ? undefined : [-12, 12],
     onDeactivate: (event) => {
       if (event.canceled) return;
       if (Math.abs(event.translationY) > Math.abs(event.translationX)) {
