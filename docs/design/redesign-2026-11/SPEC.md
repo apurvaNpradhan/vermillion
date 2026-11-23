@@ -15,6 +15,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
 ## P1 — Foundations
 
 ### Theme system (replace, do not keep alongside)
+
 - Remove the existing colour-scheme system: the Sigil beige/ember palette (`packages/ui/src/tokens/themes/sigil.ts`),
   theme variants (`sigil-light`, `sigil-dark-contrast`, …), the contrast setting, and any tokens
   that only existed for them. Saved theme ids that no longer exist migrate to the new default.
@@ -37,10 +38,12 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
 - Token pipeline stays (`packages/ui/src/tokens`, `pnpm --filter @workspace/ui tokens`); regenerate.
 
 ### Type
+
 - **Geist + Geist Mono everywhere** (app already uses them). Tabular figures for weights, reps,
   durations and any numeric column.
 
 ### Session editor (`apps/native/src/session/sets/exercise-row.tsx`, `set-row.tsx`, `tick-mark.tsx`)
+
 - Keep the accordion behaviour (`src/session/logging/accordion.ts`). **Remove the chevron (`CaretDown`) trigger.**
   - Tap the header → toggle expand/collapse (both directions).
   - Tap the thumbnail → open exercise detail. "View exercise" also in the ⋮ menu.
@@ -49,6 +52,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
   checkbox filled with accent, numbers stay full contrast. Short tint fade-in + light haptic on tick.
 
 ### Charts (`apps/native/src/platform/ui/charts/` — keep the PanelUI-derived component, no new library)
+
 - Aggregate per session or per week (not every raw point); ≤3–4 y gridlines.
 - One accent line + faint area fill; dashed best/PR reference line.
 - Tap-and-drag scrub with tooltip.
@@ -61,6 +65,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
 ## P2 — Screens
 
 ### Home (`src/training/home/*`)
+
 - **Week strip** stays; swipe to change weeks. Remove the ‹ Today › buttons; tapping the month label jumps to today.
 - **Hero: Next workout card** — program position ("Week 3 · Day 2"), exercise list with last time's
   top set each, last session's duration, big **Start**. Reuse/absorb `active-program-card.tsx`.
@@ -71,6 +76,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
 - Past-day selection in the strip still shows that day's sessions.
 
 ### History (`src/session/history/*`)
+
 - Top: the **same week strip as Home**; pull down to expand into a month calendar; tap a day to jump.
 - One list of sessions grouped by week; each week heading carries a summary
   ("4 sessions · 62 sets · 14.2 t").
@@ -80,6 +86,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
 - Keep long-press menu (Perform again / Open details).
 
 ### Muscles (`src/training/muscles/*`, reached only from the History header — not a tab)
+
 - Each muscle row: **this week's sets vs weekly target** as a progress bar ("8 / 12 sets"),
   with a small marker for the 4-week average ("avg 10"). Tap a muscle → 8-week bar chart.
 - **Cut the radar chart.** Merge the distribution card into the rows.
@@ -88,6 +95,7 @@ Order: P1 must land before P2 and P3. P4 (landing) and Audio are independent.
   in `src/body-map/assets/interim/` (owner accepted the licence risk; leave its README warning).
 
 ### Exercise detail (`src/exercise/detail/*`)
+
 Top to bottom: media header + small muscle map → pinned note → **3 stat tiles** (best set; e1RM or
 best distance/pace; last time) → one row of metric chips + range chips (3M · 1Y · All) → improved chart
 → **records as a 2-column grid** with human units → recent sessions (top set only) with "See all" →
@@ -125,13 +133,13 @@ how-to/instructions collapsed at the bottom.
 - Copy (all in `apps/web/src/content/en.ts`):
   - Overline: `STRENGTH LOG · ANDROID`
   - H1: **Hit your reps. The weight goes up.**
-  - Lead: *Sigil runs your program. It lines up the next workout, sets a target for every exercise, and adds weight when you hit it. If you stall, it eases off.*
+  - Lead: _Sigil runs your program. It lines up the next workout, sets a target for every exercise, and adds weight when you hit it. If you stall, it eases off._
   - One button: `Download for Android` (remove the Obtainium button from the hero).
   - Facts row: `Works offline` only.
   - Progression section (replaces manifesto): label `PROGRESSION`, H2 **You lift. Sigil does the math.**,
-    body *Each exercise has a target. Hit it and next time asks for a little more: another 2.5 kg or one more rep. Miss it a few times running and Sigil flags the stall and suggests a lighter week. No spreadsheet. No guessing.*
+    body _Each exercise has a target. Hit it and next time asks for a little more: another 2.5 kg or one more rep. Miss it a few times running and Sigil flags the stall and suggests a lighter week. No spreadsheet. No guessing._
     — **verify "2.5 kg" and the stall wording against the progression code** and adjust numbers to match reality.
-  - Features: H2 **Everything else stays out of the way.**, lead *Four things, done properly. No feed. No coach.*
+  - Features: H2 **Everything else stays out of the way.**, lead _Four things, done properly. No feed. No coach._
     - Programs: "Your next workout is always ready." / "Build a rotation once. Sigil queues each day in order and remembers where you left off."
     - Live log: "Last time's numbers, already filled in." / "Tick a set and the rest timer starts. Plate math and warm-ups are built in."
     - Records: "Records flagged the moment you set them." / "Every exercise gets a chart, so you can watch the numbers climb."
@@ -157,7 +165,9 @@ how-to/instructions collapsed at the bottom.
 ---
 
 ## Reference only
+
 `docs/research/competitor-features.md` — competitor feature list. Not a roadmap change.
 
 ## Review
+
 A Codex review runs once, after all phases are done — not per phase.

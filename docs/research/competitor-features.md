@@ -11,31 +11,31 @@ overlap, the earlier document has the detail.
 
 ✓ = has it · ~ = partial · — = not advertised. Sigil cells are from code, not a feature page.
 
-| Feature                                    | Sigil                                    | Hevy | Strong | Fitbod | Liftosaur | Boostcamp | JEFIT | Alpha | Lyfta |
-| ------------------------------------------ | ---------------------------------------- | ---- | ------ | ------ | --------- | --------- | ----- | ----- | ----- |
-| Workouts, Programs, Rotation, supersets    | ✓                                        | ✓    | ✓      | ~      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Previous/Ghost values, set kinds, RPE/RIR  | ✓                                        | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Rest timer, notification, per-set timer    | ✓                                        | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Warm-up and plate calculators              | ✓                                        | ✓    | ✓      | —      | ✓         | ✓         | —     | ✓     | ~     |
-| Records, live record on tick               | ✓                                        | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Auto progression, stalls, deload           | ✓ (reps then load, Lighter week)         | —    | —      | ✓      | ✓         | ~         | ✓     | ✓     | —     |
-| Weekly muscle volume and goals             | ✓                                        | ✓    | ~      | ✓      | ✓         | ✓         | ✓     | ~     | ~     |
-| Monthly and yearly reports, streak         | ✓                                        | ✓    | —      | ✓      | —         | ✓         | —     | ✓     | —     |
-| Body weight, measurements, progress photos | ✓ (trend weight, comparison)             | ✓    | ✓      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Share cards                                | ✓                                        | ✓    | ✓      | ✓      | —         | —         | —     | ✓     | ✓     |
-| CSV import / export                        | ✓ (Strong, Hevy in; Strong CSV out)      | ✓    | ✓      | —      | ✓         | —         | —     | ✓     | ✓     |
-| Android ongoing workout notification       | ✓                                        | ✓    | —      | —      | —         | —         | —     | ✓     | —     |
-| Bundled program library                    | —                                        | ✓    | —      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| %1RM / training max / AMRAP sets           | —                                        | —    | —      | —      | ✓         | ✓         | —     | —     | —     |
-| Week-by-week targets (periodization)       | —                                        | —    | —      | —      | ✓         | —         | ✓     | ✓     | —     |
-| Equipment / gym profiles                   | ~ (bars and plates only)                 | —    | —      | ✓      | —         | ~         | ✓     | ✓     | —     |
-| Health Connect / Apple Health              | —                                        | ✓    | ✓      | ✓      | —         | —         | —     | ✓     | —     |
-| Home-screen widget                         | — (removed, ADR 0054)                    | ✓    | —      | —      | —         | —         | —     | —     | —     |
-| Watch logging (Wear OS / Apple Watch)      | —                                        | ✓    | ✓ (AW) | ✓      | —         | —         | ✓     | —     | ✓     |
-| Plan share links / import                  | — (cards only)                           | ✓    | ✓      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
-| Routine folders                            | —                                        | ✓    | ✓      | —      | —         | —         | —     | —     | —     |
-| Workout / plan generator                   | —                                        | ✓    | —      | ✓      | —         | ✓         | ✓     | ✓     | ✓     |
-| Social feed, leaderboards, coach           | —                                        | ✓    | —      | —      | ~         | —         | ~     | —     | ✓     |
+| Feature                                    | Sigil                               | Hevy | Strong | Fitbod | Liftosaur | Boostcamp | JEFIT | Alpha | Lyfta |
+| ------------------------------------------ | ----------------------------------- | ---- | ------ | ------ | --------- | --------- | ----- | ----- | ----- |
+| Workouts, Programs, Rotation, supersets    | ✓                                   | ✓    | ✓      | ~      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Previous/Ghost values, set kinds, RPE/RIR  | ✓                                   | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Rest timer, notification, per-set timer    | ✓                                   | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Warm-up and plate calculators              | ✓                                   | ✓    | ✓      | —      | ✓         | ✓         | —     | ✓     | ~     |
+| Records, live record on tick               | ✓                                   | ✓    | ✓      | ✓      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Auto progression, stalls, deload           | ✓ (reps then load, Lighter week)    | —    | —      | ✓      | ✓         | ~         | ✓     | ✓     | —     |
+| Weekly muscle volume and goals             | ✓                                   | ✓    | ~      | ✓      | ✓         | ✓         | ✓     | ~     | ~     |
+| Monthly and yearly reports, streak         | ✓                                   | ✓    | —      | ✓      | —         | ✓         | —     | ✓     | —     |
+| Body weight, measurements, progress photos | ✓ (trend weight, comparison)        | ✓    | ✓      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Share cards                                | ✓                                   | ✓    | ✓      | ✓      | —         | —         | —     | ✓     | ✓     |
+| CSV import / export                        | ✓ (Strong, Hevy in; Strong CSV out) | ✓    | ✓      | —      | ✓         | —         | —     | ✓     | ✓     |
+| Android ongoing workout notification       | ✓                                   | ✓    | —      | —      | —         | —         | —     | ✓     | —     |
+| Bundled program library                    | —                                   | ✓    | —      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| %1RM / training max / AMRAP sets           | —                                   | —    | —      | —      | ✓         | ✓         | —     | —     | —     |
+| Week-by-week targets (periodization)       | —                                   | —    | —      | —      | ✓         | —         | ✓     | ✓     | —     |
+| Equipment / gym profiles                   | ~ (bars and plates only)            | —    | —      | ✓      | —         | ~         | ✓     | ✓     | —     |
+| Health Connect / Apple Health              | —                                   | ✓    | ✓      | ✓      | —         | —         | —     | ✓     | —     |
+| Home-screen widget                         | — (removed, ADR 0054)               | ✓    | —      | —      | —         | —         | —     | —     | —     |
+| Watch logging (Wear OS / Apple Watch)      | —                                   | ✓    | ✓ (AW) | ✓      | —         | —         | ✓     | —     | ✓     |
+| Plan share links / import                  | — (cards only)                      | ✓    | ✓      | —      | ✓         | ✓         | ✓     | ✓     | ✓     |
+| Routine folders                            | —                                   | ✓    | ✓      | —      | —         | —         | —     | —     | —     |
+| Workout / plan generator                   | —                                   | ✓    | —      | ✓      | —         | ✓         | ✓     | ✓     | ✓     |
+| Social feed, leaderboards, coach           | —                                   | ✓    | —      | —      | ~         | —         | ~     | —     | ✓     |
 
 Sigil already matches or beats most competitors on the core logging loop. Its progression, stall
 detection, Lighter week and trend-weight body tracking go further than Hevy or Strong. The gaps
