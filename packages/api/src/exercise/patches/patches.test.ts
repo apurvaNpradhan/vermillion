@@ -95,6 +95,39 @@ describe("Catalog patches (seam 1)", () => {
     return String(found?.id);
   };
 
+  it("applies every committed patch to the seed with nothing skipped, and 0004 lands its rows", async () => {
+    const files = bundledPatches();
+    const outcomes = await applyCatalogPatches(db(), { gate: false, files });
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(files.map(() => "applied"));
+    for (const outcome of outcomes) {
+      expect(outcome.skippedChanges).toEqual([]);
+      expect(outcome.skippedFills).toEqual([]);
+    }
+    const gaps = outcomes.find((outcome) => outcome.file === "0004-gaps-and-staples.json");
+    expect(gaps).toMatchObject({ inserted: 47, filled: 4, changed: 0 });
+
+    const leaning = await row("019c5c2e-9543-78c7-b4b9-8693bb3c9736");
+    expect(leaning).toMatchObject({ title: "Leaning Lateral Raise (Cable)", equipment: "cable" });
+    const aliased = await app.rows(
+      sql`SELECT title FROM exercise WHERE user_id IS NULL AND aka IN
+            ('Larsen Press', 'KAS Glute Bridge', 'Reverse Pec Deck', 'Bayesian Curl')
+          ORDER BY title`,
+    );
+    expect(aliased.map((entry) => entry.title)).toEqual([
+      "Behind the Back Curl (Cable)",
+      "Feet Up Bench Press (Barbell)",
+      "Partial Glute Bridge (Barbell)",
+      "Rear Delt Reverse Fly (Machine)",
+    ]);
+    // The three cable raises the round named were already retagged by patch 0001.
+    const cableRaises = await app.rows(
+      sql`SELECT equipment FROM exercise WHERE id IN
+            ('e32f1b8f-9fa0-59a7-ae86-213fe78cfc08', 'd37cf088-d067-5c32-848c-ea9ea940982d',
+             '9f7009c6-ce24-5bbb-97fc-7aaefe91a844')`,
+    );
+    expect(cableRaises.map((entry) => entry.equipment)).toEqual(["cable", "cable", "cable"]);
+  });
+
   it("inserts rows, fills only empty fields and applies a change whose from still matches", async () => {
     const filled = await pick(sql`primary_muscle = 'shoulders'`);
     const kept = await pick(sql`primary_muscle = 'chest'`);
