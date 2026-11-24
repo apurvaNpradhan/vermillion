@@ -267,7 +267,7 @@ function FinishFlow({
   );
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: top }}>
-      <View className="h-14 flex-row items-center gap-3 px-2">
+      <View className="h-14 flex-row items-center gap-3 pl-2 pr-4">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(

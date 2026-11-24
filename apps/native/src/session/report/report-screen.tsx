@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useAccentTextColor, useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { ScrollPage } from "@/platform/ui/page";
@@ -97,7 +97,7 @@ function TopList({ rows }: { rows: { id: string; title: string; value: string }[
 
 function ReportBody({ report, labels }: { report: PeriodReport; labels: ReportLabels }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
+  const accent = useAccentTextColor();
   const view = buildReportView(report, labels);
   return (
     <FadeIn className="gap-6">
@@ -115,7 +115,7 @@ function ReportBody({ report, labels }: { report: PeriodReport; labels: ReportLa
         <View className="gap-3 rounded-2xl bg-surface p-4">
           {view.records ? (
             <View className="flex-row items-center gap-3">
-              <Medal size={20} weight="fill" color={subtle} />
+              <Medal size={20} weight="fill" color={accent} />
               <Text className="font-normal flex-1 text-body text-foreground">{view.records}</Text>
             </View>
           ) : null}

@@ -27,6 +27,7 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { useThemeColor } from "heroui-native";
+import { useAccentTextColor } from "@/platform/theme";
 import { formatElapsed } from "@/session/timer/clock";
 import { sessionDuration } from "@/session/share/stats";
 import { loggedSetsOf } from "@/session/logging/set-values";
@@ -41,6 +42,7 @@ import { ANCHORED } from "@/platform/navigation/anchored";
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const ink = useThemeColor("foreground");
+  const accentText = useAccentTextColor();
   const router = useRouter();
   const state = useSession(id);
   const session = state.status === "ready" ? state.session : null;
@@ -246,7 +248,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                               accessibilityLabel={t("session__record_badge")}
                               className="pl-2"
                             >
-                              <Medal color={ink} size={20} weight="fill" />
+                              <Medal color={accentText} size={20} weight="fill" />
                             </View>
                           ) : null
                         }
