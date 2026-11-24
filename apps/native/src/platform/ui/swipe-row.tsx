@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,6 +29,7 @@ import { useSubtleColor } from "@/platform/theme";
 
 import { swipePhase, swipePresentation, type SwipePhase } from "./swipe-phase";
 import { SWIPE_ACTION_WIDTH, shouldSettleOpen } from "./swipe-threshold";
+import { rowToClose, shouldCloseOnTouchCancel, type TouchPoint } from "./swipe-touch";
 
 export type SwipeAction = {
   key: string;
@@ -52,14 +52,18 @@ export type SwipeA11yProps = {
 const SWIPE_START = 16;
 /** Vertical travel that hands the touch to the list's scroll instead. */
 const SCROLL_WINS = 10;
+/** Vertical travel before the pan gives up; looser than a scroll so a diagonal swipe survives. */
+const PAN_FAIL_Y = 20;
 /** Space between the row and its first action button. */
 const PANEL_GAP = 12;
 const PANEL_PADDING = { paddingLeft: PANEL_GAP - 8 };
+/** Until the animated style registers, the panel is zero-width and invisible. */
+const HIDDEN_PANEL = { width: 0, opacity: 0 };
 /** Snap open and closed: motion-base, no overshoot. */
 const SNAP = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
 type RowHandle = { close: () => void };
-type Point = { x: number; y: number };
+type Point = TouchPoint;
 
 function closeSwipe(
   translateX: SharedValue<number>,
@@ -86,6 +90,9 @@ const SwipeGroupContext = createContext<{
   willOpen: (row: RowHandle) => void;
   didClose: (row: RowHandle) => void;
   closeOpen: () => void;
+  /** The row whose pan is active: it must never be closed by its own touch events. */
+  setDragging: (row: RowHandle | null) => void;
+  isDragging: () => boolean;
   /** Where the current touch began, so a cancelled touch can tell a scroll from a swipe. */
   touchStart: { current: Point };
 } | null>(null);
@@ -95,6 +102,7 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
   const parent = useContext(SwipeGroupContext);
   const open = useRef<RowHandle | null>(null);
   const touchStart = useRef<Point>({ x: 0, y: 0 });
+  const dragging = useRef<RowHandle | null>(null);
   const willOpen = useCallback((row: RowHandle) => {
     if (open.current && open.current !== row) open.current.close();
     open.current = row;
@@ -103,11 +111,19 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
     if (open.current === row) open.current = null;
   }, []);
   const closeOpen = useCallback(() => {
-    open.current?.close();
+    const row = rowToClose(open.current, dragging.current);
+    if (row === null) return;
+    row.close();
     open.current = null;
   }, []);
+  const setDragging = useCallback((row: RowHandle | null) => {
+    dragging.current = row;
+  }, []);
+  const isDragging = useCallback(() => dragging.current !== null, []);
   return (
-    <SwipeGroupContext value={parent ?? { willOpen, didClose, closeOpen, touchStart }}>
+    <SwipeGroupContext
+      value={parent ?? { willOpen, didClose, closeOpen, setDragging, isDragging, touchStart }}
+    >
       {children}
     </SwipeGroupContext>
   );
@@ -139,14 +155,19 @@ function SwipeDismissSurface({ children }: { children: ReactNode }) {
         return false;
       }}
       // A native scroll can take the touch before any move reaches JS (Android): the touch is
-      // cancelled instead. A mostly vertical cancel is a scroll; a horizontal one is a row's own
-      // swipe taking over, which must not close it.
+      // cancelled instead. A mostly vertical cancel is a scroll; a row's own pan cancels the touch
+      // too (Android reports it at 0,0), which must not close that row.
       onTouchCancel={(event) => {
         if (!group) return;
-        const start = group.touchStart.current;
-        const dx = Math.abs(event.nativeEvent.pageX - start.x);
-        const dy = Math.abs(event.nativeEvent.pageY - start.y);
-        if (dy >= dx) group.closeOpen();
+        if (
+          shouldCloseOnTouchCancel(
+            group.touchStart.current,
+            pointOf(event.nativeEvent),
+            group.isDragging(),
+          )
+        ) {
+          group.closeOpen();
+        }
       }}
     >
       {children}
@@ -174,7 +195,6 @@ export function SwipeRow({
   const [presentation, setPresentation] = useState<ReturnType<typeof swipePresentation>>("hidden");
   const phase = useSharedValue<SwipePhase>("idle");
   const touching = useSharedValue(false);
-  const layerReady = useSharedValue(false);
   const translateX = useSharedValue(0);
   const start = useSharedValue(0);
   const panel = actions.length * SWIPE_ACTION_WIDTH + PANEL_GAP;
@@ -191,7 +211,11 @@ export function SwipeRow({
     handle.close();
     group?.didClose(handle);
   };
-  const onDragStart = () => group?.willOpen(handle);
+  const onDragStart = () => {
+    group?.willOpen(handle);
+    group?.setDragging(handle);
+  };
+  const onDragEnd = () => group?.setDragging(null);
   const run = (action: SwipeAction) => {
     close();
     action.onPress();
@@ -199,7 +223,7 @@ export function SwipeRow({
 
   const pan = usePanGesture({
     activeOffsetX: [-SWIPE_START, SWIPE_START],
-    failOffsetY: [-SCROLL_WINS, SCROLL_WINS],
+    failOffsetY: [-PAN_FAIL_Y, PAN_FAIL_Y],
     onBegin: () => touching.set(true),
     onActivate: () => {
       cancelAnimation(translateX);
@@ -209,14 +233,20 @@ export function SwipeRow({
     },
     onUpdate: (event) => {
       const current = phase.get();
-      if (current === "idle" || current === "closing") return;
+      if (current === "idle") return;
+      // Grabbed while a close was animating: the finger takes over from where the row is.
+      if (current === "closing") {
+        cancelAnimation(translateX);
+        start.set(translateX.get() - event.translationX);
+        phase.set(swipePhase(current, "drag"));
+      }
       const next = Math.min(0, start.get() + event.translationX);
       // Resist dragging beyond the buttons; no distance can execute an action.
       translateX.set(next > -panel ? next : -panel + (next + panel) / 3);
     },
     onDeactivate: (event) => {
       const current = phase.get();
-      if (current === "idle" || current === "closing") return;
+      if (current === "idle") return;
       if (shouldSettleOpen(translateX.get(), event.velocityX, panel)) {
         translateX.set(motion ? withTiming(-panel, SNAP) : -panel);
         phase.set(swipePhase(current, "open"));
@@ -224,7 +254,10 @@ export function SwipeRow({
         closeSwipe(translateX, phase, motion);
       }
     },
-    onFinalize: () => touching.set(false),
+    onFinalize: () => {
+      touching.set(false);
+      scheduleOnRN(onDragEnd);
+    },
   });
 
   const syncPresentation = (next: ReturnType<typeof swipePresentation>) => {
@@ -244,10 +277,9 @@ export function SwipeRow({
     },
   );
 
-  // Keep the row over the buttons until the action layer can follow the drag.
-  const rowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: layerReady.get() ? translateX.get() : 0 }],
-  }));
+  // The row follows the finger on the UI thread; the action layer stays invisible until its own
+  // animated style is registered, so the row never waits on a JS state update.
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.get() }] }));
 
   const a11y: SwipeA11yProps = {
     accessibilityActions: screenReaderActions.map((action) => ({
@@ -272,7 +304,7 @@ export function SwipeRow({
         }}
       >
         {presentation === "hidden" ? null : (
-          <ActionLayer translateX={translateX} ready={layerReady} actions={actions} onRun={run} />
+          <ActionLayer translateX={translateX} actions={actions} onRun={run} />
         )}
         <Animated.View style={rowStyle}>
           {children(a11y)}
@@ -294,29 +326,23 @@ export function SwipeRow({
 /** The buttons behind a row: mounted only while a swipe is under way, open or closing. */
 function ActionLayer({
   translateX,
-  ready,
   actions,
   onRun,
 }: {
   translateX: SharedValue<number>;
-  ready: SharedValue<boolean>;
   actions: SwipeAction[];
   onRun: (action: SwipeAction) => void;
 }) {
   // The panel follows the drag while the row resists beyond its resting width.
   const panelStyle = useAnimatedStyle(() => {
-    const width = ready.get() ? Math.max(-translateX.get(), 0) : 0;
+    const width = Math.max(-translateX.get(), 0);
     return { width, opacity: width > 0 ? 1 : 0 };
   });
-  // Reanimated registers the panel's animated style in an effect.
-  useEffect(() => ready.set(true), [ready]);
-  useLayoutEffect(() => () => ready.set(false), [ready]);
-
   const last = actions.length - 1;
   return (
     <Animated.View
       className="absolute inset-y-0 right-0 flex-row justify-end overflow-hidden"
-      style={[PANEL_PADDING, panelStyle]}
+      style={[PANEL_PADDING, HIDDEN_PANEL, panelStyle]}
     >
       {actions.map((action, index) => (
         <SwipeButton
