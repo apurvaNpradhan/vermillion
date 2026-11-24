@@ -38,10 +38,9 @@ export function ThisWeekRow({
   const volume = (kg: number) => (unit === "kg" ? kg / 1000 : kg / KG_PER_LB);
   // Last week up to this point; with nothing in it there is nothing fair to compare.
   const compare = previous.sessions > 0;
-  const vs = (difference: number) =>
-    compare
-      ? t("session__vs_previous_week", { value: format.delta.format(difference) })
-      : undefined;
+  // Just the signed change under each number; one caption below says what it is measured against,
+  // so the three tiles stay on one row.
+  const vs = (difference: number) => (compare ? format.delta.format(difference) : undefined);
   return (
     <View className="gap-3 rounded-2xl bg-surface p-4">
       <Text accessibilityRole="header" className="text-title-md font-semibold text-foreground">
@@ -70,10 +69,18 @@ export function ThisWeekRow({
               value: format.decimal.format(volume(current.volumeKg)),
               unit: unit === "kg" ? t("session__volume_tonnes") : t("training__unit_lb"),
             }),
-            detail: vs(volume(current.volumeKg) - volume(previous.volumeKg)),
+            detail: compare
+              ? t("home__volume_value", {
+                  value: format.delta.format(volume(current.volumeKg) - volume(previous.volumeKg)),
+                  unit: unit === "kg" ? t("session__volume_tonnes") : t("training__unit_lb"),
+                })
+              : undefined,
           },
         ]}
       />
+      {compare ? (
+        <Text className="font-normal text-caption text-muted">{t("home__this_week_compare")}</Text>
+      ) : null}
     </View>
   );
 }

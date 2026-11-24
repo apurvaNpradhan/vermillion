@@ -8,7 +8,7 @@
  */
 import { Pressable, Text, View } from "react-native";
 
-/** The colour of a mark: the accent (done, "you / now"), or quiet. */
+/** The colour of a mark: the accent text tone (done, "you / now"; a fill would wash out on white), or quiet. */
 export type WeekStripTone = "accent" | "muted";
 
 export type WeekStripMarks = {
@@ -21,7 +21,7 @@ export type WeekStripMarks = {
 };
 
 const TONE = {
-  accent: "bg-accent",
+  accent: "bg-accent-text",
   muted: "bg-muted",
 } as const satisfies Record<WeekStripTone, string>;
 
@@ -89,7 +89,7 @@ export function WeekStrip({
               {labels.day(day)}
             </Text>
             <View className="h-2 flex-row items-center justify-center gap-1">
-              {day === today ? <View className="h-1.5 w-1.5 rounded-full bg-accent" /> : null}
+              {day === today ? <View className="h-1.5 w-1.5 rounded-full bg-accent-text" /> : null}
               {dots.map((tone, index) => (
                 <View key={index} className={`h-1.5 w-1.5 rounded-full ${TONE[tone]}`} />
               ))}
