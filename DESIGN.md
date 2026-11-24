@@ -24,7 +24,7 @@ Native has two modes and six accents. The mode is **System** (the default), **Li
   alias the accent and neutral text so its components keep working. The ember, `brand-detail`,
   lichen (`set-done`) and macro roles are gone.
 - Saved theme ids from earlier versions (`sigil`, `classic`, `patina`, `oxide`, `slate`, `mulberry`,
-  unknown), the retired accents (Lime, Teal, Blueberry, Lavender) and the removed contrast setting, migrate to the default accent; the saved mode is kept.
+  unknown), the retired accents (Acid, Teal, Blueberry, Lavender) and the removed contrast setting, migrate to the default accent; the saved mode is kept.
   `nativeColors` in `brand.ts` holds every variant (`ember-dark`, `lime-light`, …); the built-in
   `light` and `dark` carry Lime. Email uses those.
 - `device.theme` stores `{ appearance, accent }`. Native chrome, status bars and blur use
