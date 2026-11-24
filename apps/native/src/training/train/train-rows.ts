@@ -1,86 +1,58 @@
-/** One row of the Train list: a Program heading, the "other" heading, or a Workout. */
-export type TrainRow<Workout extends { id: string }> =
-  | { kind: "program"; id: string; title: string; active: boolean }
-  | { kind: "other" }
-  | { kind: "workout"; key: string; workout: Workout; owned: boolean };
+/** Search and sort appear once there are more standalone Workouts than this. */
+export const WORKOUT_TOOLS_AFTER = 8;
+
+/** How the standalone Workouts are ordered: last done first, or by name. */
+export type WorkoutSort = "recent" | "name";
+
+/** Whether the Workouts list is long enough to offer search and sort. */
+export const showWorkoutTools = (count: number) => count > WORKOUT_TOOLS_AFTER;
+
+const fold = (text: string) => text.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 
 /**
- * The Train list, grouped so two Workouts with the same name are never side by side without their
- * Program: each Program is a heading with its Workouts beneath in Rotation order (a Workout that
- * fills several Slots appears once), the active Program first. Workouts no Program owns follow
- * under "other"; when there are no Programs they are listed with no heading at all.
+ * The standalone Workouts of the Train page, searched and sorted. A search matches the name and
+ * the exercises (every word must match somewhere). "Recent" puts the last done first, then the
+ * ones never done by when they were made; "name" is alphabetical. Ties fall back to the id, so
+ * the order never flickers.
  */
-export function trainRows<Workout extends { id: string }>(input: {
+export function listWorkouts<
+  Workout extends {
+    id: string;
+    createdAt: string;
+    exercises: readonly { title: string | null }[];
+  },
+>(input: {
   workouts: readonly Workout[];
-  /** Every Program with its Workout ids in Rotation order; repeats and empty Slots allowed. */
-  programs: readonly { id: string; title: string; workoutIds: readonly (string | null)[] }[];
-  /** The Program being run, or null. */
-  activeProgramId: string | null;
-}): TrainRow<Workout>[] {
-  const byId = new Map(input.workouts.map((workout) => [workout.id, workout]));
-  const owned = new Set<string>();
-  const programs = [...input.programs].sort(
-    (a, b) => Number(b.id === input.activeProgramId) - Number(a.id === input.activeProgramId),
-  );
-  const rows: TrainRow<Workout>[] = [];
-  for (const program of programs) {
-    const seen = new Set<string>();
-    const workouts = program.workoutIds.flatMap((id) => {
-      const workout = id === null || seen.has(id) ? undefined : byId.get(id);
-      if (!workout) return [];
-      seen.add(workout.id);
-      owned.add(workout.id);
-      return [workout];
-    });
-    if (workouts.length === 0) continue;
-    rows.push({
-      kind: "program",
-      id: program.id,
-      title: program.title,
-      active: program.id === input.activeProgramId,
-    });
-    for (const workout of workouts) {
-      rows.push({ kind: "workout", key: `${program.id}:${workout.id}`, workout, owned: true });
-    }
+  query: string;
+  sort: WorkoutSort;
+  /** Workout id to when it was last done (ISO), for Workouts done lately. */
+  lastDone: ReadonlyMap<string, string>;
+  /** The name shown for a Workout (its title, or the one derived from its muscles). */
+  nameOf: (workout: Workout) => string;
+}): Workout[] {
+  const words = fold(input.query).split(/\s+/).filter(Boolean);
+  const matches = (workout: Workout) => {
+    if (words.length === 0) return true;
+    const haystack = fold(
+      [input.nameOf(workout), ...workout.exercises.map((exercise) => exercise.title ?? "")].join(
+        " ",
+      ),
+    );
+    return words.every((word) => haystack.includes(word));
+  };
+  const found = input.workouts.filter(matches);
+  if (input.sort === "name") {
+    return [...found].sort(
+      (a, b) =>
+        fold(input.nameOf(a)).localeCompare(fold(input.nameOf(b))) || a.id.localeCompare(b.id),
+    );
   }
-  const other = input.workouts.filter((workout) => !owned.has(workout.id));
-  if (other.length > 0 && rows.length > 0) rows.push({ kind: "other" });
-  for (const workout of other) {
-    rows.push({ kind: "workout", key: workout.id, workout, owned: false });
-  }
-  return rows;
-}
-
-/** A row of the Train screen: a plan row, or the "Other workouts" toggle between the groups. */
-export type TrainListItem<Workout extends { id: string }> =
-  | Exclude<TrainRow<Workout>, { kind: "other" }>
-  | { kind: "more"; count: number; expanded: boolean };
-
-const listed = <Workout extends { id: string }>(
-  row: TrainRow<Workout>,
-): row is Exclude<TrainRow<Workout>, { kind: "other" }> => row.kind !== "other";
-
-/**
- * What the Train screen lists. The active Program's Workouts come first, with no heading (its card
- * above them is the heading); everything else sits behind one "Other workouts" toggle, collapsed
- * unless `expanded`, with the other Programs' headings kept inside it. With no active Program there
- * is nothing to prefer, so every row is listed as it is, without the toggle.
- */
-export function trainList<Workout extends { id: string }>(
-  rows: readonly TrainRow<Workout>[],
-  expanded: boolean,
-): TrainListItem<Workout>[] {
-  if (!rows.some((row) => row.kind === "program" && row.active)) {
-    return rows.filter(listed);
-  }
-  const inActive = rows.slice(1).findIndex((row) => row.kind !== "workout" || !row.owned);
-  const split = inActive === -1 ? rows.length : inActive + 1;
-  const first = rows.slice(1, split).filter(listed);
-  const rest = rows.slice(split).filter(listed);
-  const count = rest.filter((row) => row.kind === "workout").length;
-  return [
-    ...first,
-    ...(count === 0 ? [] : [{ kind: "more" as const, count, expanded }]),
-    ...(expanded ? rest : []),
-  ];
+  const stamp = (workout: Workout) => input.lastDone.get(workout.id) ?? null;
+  return [...found].sort((a, b) => {
+    const left = stamp(a);
+    const right = stamp(b);
+    if (left !== null && right !== null && left !== right) return right.localeCompare(left);
+    if ((left === null) !== (right === null)) return left === null ? 1 : -1;
+    return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+  });
 }

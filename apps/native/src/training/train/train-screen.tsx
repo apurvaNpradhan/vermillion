@@ -1,80 +1,88 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { useSubtleColor } from "@/platform/theme";
-import {
-  Barbell,
-  CaretDown,
-  CaretRight,
-  CaretUp,
-  Hash,
-  ListNumbers,
-  Plus,
-} from "phosphor-react-native";
+import { Barbell, Hash, ListNumbers, Lightning, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { lastDoneLabel } from "@/platform/last-done";
+import { useSubtleColor } from "@/platform/theme";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Page } from "@/platform/ui/page";
+import { SearchBar } from "@/platform/ui/search-bar";
+import { SectionHeader } from "@/platform/ui/section-header";
+import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { useActiveSessions, useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
-
-import { lastDoneLabel } from "@/platform/last-done";
-import { combineStatus, isFirstSync } from "./train-status";
+import { RunEndOffer } from "@/training/home/active-program-card";
 import { useLastDone } from "@/training/home/use-last-done";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useProgramLibrary } from "@/training/programs/use-program-library";
-import { useStartWorkout } from "./use-start-workout";
+import { displayTitle } from "@/training/workouts/derived-title";
 import { useWorkoutActions } from "@/training/workouts/use-workout-actions";
-import { useWorkouts } from "./use-workouts";
-import { trainList, trainRows, type TrainListItem } from "./train-rows";
-import { RunEndOffer } from "@/training/home/active-program-card";
+
+import { ProgramGrid } from "./program-grid";
+import { RunHero } from "./run-hero";
+import { combineStatus, isFirstSync } from "./train-status";
+import { listWorkouts, showWorkoutTools, type WorkoutSort } from "./train-rows";
 import { TrainingListState } from "./training-list-state";
-import { ProgramCard } from "./program-card";
+import { useStartWorkout } from "./use-start-workout";
+import { useWorkouts } from "./use-workouts";
 import { WorkoutRow } from "./workout-row";
 
-type Row = TrainListItem<WorkoutSummary>;
-const NO_ROWS: Row[] = [];
-const rowKey = (row: Row) =>
-  row.kind === "workout" ? row.key : row.kind === "program" ? `program-${row.id}` : row.kind;
+const NO_ROWS: WorkoutSummary[] = [];
+const rowKey = (workout: WorkoutSummary) => workout.id;
 
 /**
- * Train: the active program as a card with its rotation and Start, its workouts as rows (swipe for
- * Start and Edit) with when each was last done, and everything else folded behind "Other
- * workouts". Programs sit behind the header button; Create and Start empty are two quiet buttons
- * under the card, and the empty state offers Start empty too.
+ * Train, top to bottom: the Resume card while a Session is in progress, the active Run (cover,
+ * week, cycle strip, Start next), the Programs as a grid of cover cards, then the standalone
+ * Workouts as a list that gains search and sort once there are more than eight. Create and Start
+ * empty sit in the header. A Program's own Workouts are not listed here: they live in the Program.
  */
 export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const subtle = useSubtleColor();
   const { sessions } = useActiveSessions();
   const resume = sessions[0];
-  const workoutList = useWorkouts(true);
+  const workoutList = useWorkouts(false);
   const active = useActiveProgram();
   const programList = useProgramLibrary(active);
-  const [showOther, setShowOther] = useState(false);
   const { workouts } = workoutList;
   const { programs } = programList;
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<WorkoutSort>("recent");
+  const { lastDone, timezone } = useLastDone();
+  const tools = showWorkoutTools(workouts.length);
+  const nameOf = useCallback(
+    (workout: WorkoutSummary) =>
+      displayTitle(
+        workout.title,
+        workout.exercises.flatMap((entry) =>
+          entry.primaryMuscle === null ? [] : [entry.primaryMuscle],
+        ),
+        (key) => t(key),
+      ),
+    [t],
+  );
   const rows = useMemo(
     () =>
-      trainList(
-        trainRows({
-          workouts,
-          programs: programs.map((program) => ({
-            id: program.id,
-            title: program.title,
-            workoutIds: program.slots.map((slot) => slot.workoutId),
-          })),
-          activeProgramId: active.program?.id ?? null,
-        }),
-        showOther,
-      ),
-    [workouts, active.program?.id, programs, showOther],
+      listWorkouts({
+        workouts,
+        // Without the tools the list is short and unfiltered; a stale query never hides rows.
+        query: tools ? query : "",
+        sort: tools ? sort : "recent",
+        lastDone,
+        nameOf,
+      }),
+    [workouts, tools, query, sort, lastDone, nameOf],
   );
+
   // One ready state: the active program, programs and workouts all come from the local database,
   // and nothing is drawn until every one of them has answered, so the screen appears at once.
   const combined = combineStatus(workoutList.status, programList.status);
@@ -86,12 +94,10 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { fromPicker } = useStartWorkout();
   const actions = useWorkoutActions();
   const [newOpen, setNewOpen] = useState(false);
-  const { lastDone, timezone } = useLastDone();
   const { start, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
   const enterCode = useCallback(() => router.push("/import"), [router]);
-  const subtle = useSubtleColor();
   const newActions = useMemo(
     () => [
       { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
@@ -127,55 +133,11 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     [router],
   );
   const renderRow = useCallback(
-    ({ item }: { item: Row }) => {
-      if (item.kind === "more") {
-        const Caret = item.expanded ? CaretUp : CaretDown;
-        return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: item.expanded }}
-            accessibilityLabel={t("training__other_workouts_toggle", { count: item.count })}
-            accessibilityHint={t(item.expanded ? "training__hide_other" : "training__show_other")}
-            onPress={() => setShowOther((current) => !current)}
-            className="min-h-12 flex-row items-center gap-2 px-4 pt-4 active:opacity-70"
-          >
-            <Text
-              accessibilityRole="header"
-              numberOfLines={1}
-              className="shrink font-semibold text-title-md text-foreground"
-            >
-              {t("training__other_workouts")}
-            </Text>
-            <Text className="font-normal text-body tabular-nums text-muted">{item.count}</Text>
-            <View className="flex-1" />
-            <Caret size={20} weight="regular" color={subtle} />
-          </Pressable>
-        );
-      }
-      if (item.kind === "program") {
-        return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={item.title}
-            onPress={() => openProgram(item.id)}
-            className="flex-row items-center gap-2 px-4 pb-1 pt-7 active:opacity-70"
-          >
-            <Text
-              accessibilityRole="header"
-              numberOfLines={1}
-              className="shrink font-semibold text-title-md text-foreground"
-            >
-              {item.title}
-            </Text>
-            <View className="flex-1" />
-            <CaretRight size={20} weight="regular" color={subtle} />
-          </Pressable>
-        );
-      }
-      const at = lastDone.get(item.workout.id);
+    ({ item }: { item: WorkoutSummary }) => {
+      const at = lastDone.get(item.id);
       return (
         <WorkoutRow
-          workout={item.workout}
+          workout={item}
           lastDone={
             at
               ? t("workout__last_done", {
@@ -188,39 +150,38 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
           onEdit={edit}
           onShare={share}
           onDuplicate={duplicate}
-          onDelete={item.owned ? undefined : remove}
+          onDelete={remove}
         />
       );
     },
-    [
-      open,
-      startWorkout,
-      edit,
-      share,
-      duplicate,
-      remove,
-      lastDone,
-      openProgram,
-      subtle,
-      t,
-      i18n.language,
-      timezone,
-    ],
+    [open, startWorkout, edit, share, duplicate, remove, lastDone, t, i18n.language, timezone],
   );
 
+  const ready = status === "list" || status === "empty";
   return (
     <SwipeGroup>
+      <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={t("training__title")}
         actions={
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("training__programs")}
-            onPress={() => router.push("/train/programs")}
-          >
-            <ListNumbers size={24} weight="regular" color={subtle} />
-          </Button>
+          <View className="flex-row">
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("training__create")}
+              onPress={() => setNewOpen(true)}
+            >
+              <Plus size={24} weight="regular" color={subtle} />
+            </Button>
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("home__start_empty")}
+              onPress={onStartEmpty}
+            >
+              <Lightning size={24} weight="regular" color={subtle} />
+            </Button>
+          </View>
         }
       >
         {({ header, contentContainerStyle, ...scroll }) => (
@@ -235,52 +196,82 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             extraData={renderRow}
             renderItem={renderRow}
             ListHeaderComponent={
-              <View className="gap-4 px-4 pb-1">
-                {header}
-                {resume ? (
-                  <View className="flex-row flex-wrap items-center gap-3 rounded-xl bg-surface p-3.5">
-                    <View className="min-w-0 flex-1 gap-0.5">
-                      <Text className="text-title-md font-semibold text-foreground">
-                        {resume.title}
-                      </Text>
-                      <Text className="font-normal text-caption text-muted">
-                        {t("home__in_progress")}
-                      </Text>
+              <View className="gap-6 px-4 pb-1">
+                <View className="gap-4">
+                  {header}
+                  {resume ? (
+                    <View className="flex-row flex-wrap items-center gap-3 rounded-xl bg-surface p-3.5">
+                      <View className="min-w-0 flex-1 gap-0.5">
+                        <Text className="text-title-md font-semibold text-foreground">
+                          {resume.title}
+                        </Text>
+                        <Text className="font-normal text-caption text-muted">
+                          {t("home__in_progress")}
+                        </Text>
+                      </View>
+                      <Button
+                        accessibilityLabel={t("session__resume_label", { title: resume.title })}
+                        onPress={() =>
+                          router.push({ pathname: "/session/[id]", params: { id: resume.id } })
+                        }
+                      >
+                        <Button.Label>{t("session__resume")}</Button.Label>
+                      </Button>
                     </View>
-                    <Button
-                      accessibilityLabel={t("session__resume_label", { title: resume.title })}
-                      onPress={() =>
-                        router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-                      }
-                    >
-                      <Button.Label>{t("session__resume")}</Button.Label>
-                    </Button>
-                  </View>
-                ) : null}
-                <SyncBanner />
-                <TrainingListState status={status} onRetry={retry} />
-                {status === "list" || status === "empty" ? (
-                  <>
-                    <ProgramCard
+                  ) : null}
+                  <SyncBanner />
+                  <TrainingListState status={status} onRetry={retry} />
+                  {ready ? (
+                    <RunHero
                       state={active}
                       onOpen={openProgram}
                       onStart={startWorkout}
                       startSecondary={resume !== undefined}
                     />
-                    <View className="flex-row gap-3">
-                      <Button
-                        variant="secondary"
-                        className="flex-1"
-                        onPress={() => setNewOpen(true)}
-                      >
-                        <Plus size={20} weight="regular" color={subtle} />
-                        <Button.Label>{t("training__create")}</Button.Label>
-                      </Button>
-                      <Button variant="secondary" className="flex-1" onPress={onStartEmpty}>
-                        <Button.Label>{t("home__start_empty")}</Button.Label>
-                      </Button>
-                    </View>
-                  </>
+                  ) : null}
+                </View>
+                {ready && programs.length > 0 ? (
+                  <View className="gap-1">
+                    <SectionHeader
+                      title={t("training__programs")}
+                      actionLabel={t("exercise__see_all")}
+                      actionAccessibilityLabel={t("training__see_all_programs")}
+                      onAction={() => router.push("/train/programs")}
+                    />
+                    <ProgramGrid
+                      programs={programs}
+                      activeId={programList.activeId}
+                      onActivate={programList.activate}
+                      onStop={programList.stop}
+                      onOpen={openProgram}
+                      onDuplicate={programList.duplicate}
+                      onDelete={programList.remove}
+                    />
+                  </View>
+                ) : null}
+                {ready && (workouts.length > 0 || programs.length > 0) ? (
+                  <View className="gap-2">
+                    <SectionHeader title={t("training__workouts_title")} />
+                    {tools ? (
+                      <View className="gap-3">
+                        <SearchBar
+                          value={query}
+                          onChangeText={setQuery}
+                          placeholder={t("training__search_workouts")}
+                          clearLabel={t("exercise__search_clear")}
+                        />
+                        <SegmentedControl
+                          accessibilityLabel={t("training__sort_workouts")}
+                          value={sort}
+                          onChange={setSort}
+                          options={[
+                            { value: "recent", label: t("training__sort_recent") },
+                            { value: "name", label: t("training__sort_name") },
+                          ]}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
                 ) : null}
               </View>
             }
@@ -296,13 +287,16 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                 ) : status === "list" ? (
                   isFirstSync(workoutList.status) ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
-                  ) : (
+                  ) : tools && query.trim() !== "" ? (
                     <EmptyState
                       icon={Barbell}
-                      label={t("empty__workouts", { count: 0 })}
-                      title={t("training__no_workouts")}
+                      title={t("training__no_workouts_match", { query: query.trim() })}
                     />
-                  )
+                  ) : workouts.length === 0 ? (
+                    <Text className="font-normal text-body text-muted">
+                      {t("training__no_standalone_workouts")}
+                    </Text>
+                  ) : null
                 ) : null}
               </View>
             }
