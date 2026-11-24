@@ -50,24 +50,29 @@ export function useSwapCandidates(exercise: ExerciseDetail | null): LibraryRow[]
   const [found, setFound] = useState<{ key: string; rows: LibraryRow[] } | null>(null);
   const id = exercise?.id;
   const primaryMuscle = exercise?.primaryMuscle;
-  const equipment = exercise?.equipment;
+  const exerciseType = exercise?.exerciseType;
   const primaryDetail = exercise?.primaryDetail;
   const detailKey = primaryDetail?.join(",") ?? "";
-  const key = `${id}|${primaryMuscle}|${equipment}|${detailKey}`;
+  const key = `${id}|${primaryMuscle}|${exerciseType}|${detailKey}`;
 
   useEffect(() => {
-    if (!database || id === undefined || primaryMuscle === undefined || equipment === undefined) {
+    if (
+      !database ||
+      id === undefined ||
+      primaryMuscle === undefined ||
+      exerciseType === undefined
+    ) {
       return;
     }
     return watchSwapCandidates(
       database,
-      { id, primaryMuscle, equipment, primaryDetail },
+      { id, primaryMuscle, exerciseType, primaryDetail },
       {
         onRows: (rows) => setFound({ key, rows }),
         onError: () => setFound({ key, rows: [] }),
       },
     );
-  }, [database, id, primaryMuscle, equipment, primaryDetail, key]);
+  }, [database, id, primaryMuscle, exerciseType, primaryDetail, key]);
 
   return found?.key === key ? found.rows : NO_ROWS;
 }
