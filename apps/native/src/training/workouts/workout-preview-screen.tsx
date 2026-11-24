@@ -211,7 +211,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                       <Button
                         key={value}
                         size="sm"
-                        variant={metric === value ? "secondary" : "tertiary"}
+                        variant={metric === value ? "primary" : "tertiary"}
                         accessibilityState={{ selected: metric === value }}
                         onPress={() => {
                           if (metric !== value) haptic.tick();

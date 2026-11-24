@@ -160,7 +160,7 @@ export function CompareScreen() {
           <Button
             key={value}
             size="sm"
-            variant={value === pose ? "secondary" : "tertiary"}
+            variant={value === pose ? "primary" : "tertiary"}
             accessibilityLabel={t("body__pose_filter", { pose: t(poseLabels[value]) })}
             accessibilityState={{ selected: value === pose }}
             onPress={() => {

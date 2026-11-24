@@ -145,7 +145,7 @@ export function PhotosScreen() {
                       <Button
                         key={value ?? "all"}
                         size="sm"
-                        variant={selected ? "secondary" : "tertiary"}
+                        variant={selected ? "primary" : "tertiary"}
                         accessibilityLabel={t("body__pose_filter", { pose: name })}
                         accessibilityState={{ selected }}
                         onPress={() => setPose(value)}
