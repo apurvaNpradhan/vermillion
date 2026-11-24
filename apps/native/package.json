@@ -32,6 +32,7 @@
     "@workspace/client": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/i18n": "workspace:*",
+    "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "@workspace/sync": "workspace:*",
     "@workspace/ui": "workspace:*",

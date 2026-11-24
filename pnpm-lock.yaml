@@ -319,6 +319,9 @@ importers:
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@workspace/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@workspace/shared':
         specifier: workspace:*
         version: link:../../packages/shared
