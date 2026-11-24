@@ -6,7 +6,7 @@ The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; 
 
 ## Native appearance
 
-Native has two modes and six accents. The mode is **System** (the default), **Light** or **Dark**; the accent is **Acid** (the default), **Gold**, **Ember**, **Rose**, **Ice** or **Mono**. Both are chosen in Settings → Appearance. The redesign spec is
+Native has two modes and six accents. The mode is **System** (the default), **Light** or **Dark**; the accent is **Lime** (the default), **Gold**, **Ember**, **Rose**, **Ice** or **Mono**. Both are chosen in Settings → Appearance. The redesign spec is
 [docs/design/redesign-2026-11/SPEC.md](docs/design/redesign-2026-11/SPEC.md); where this file disagrees with it, the spec wins.
 
 - **Dark is true AMOLED**: canvas `#000000`, near-black raised surfaces (`#0A0A0A` cards, `#141414`
@@ -25,8 +25,8 @@ Native has two modes and six accents. The mode is **System** (the default), **Li
   lichen (`set-done`) and macro roles are gone.
 - Saved theme ids from earlier versions (`sigil`, `classic`, `patina`, `oxide`, `slate`, `mulberry`,
   unknown), the retired accents (Lime, Teal, Blueberry, Lavender) and the removed contrast setting, migrate to the default accent; the saved mode is kept.
-  `nativeColors` in `brand.ts` holds every variant (`ember-dark`, `acid-light`, …); the built-in
-  `light` and `dark` carry Acid. Email uses those.
+  `nativeColors` in `brand.ts` holds every variant (`ember-dark`, `lime-light`, …); the built-in
+  `light` and `dark` carry Lime. Email uses those.
 - `device.theme` stores `{ appearance, accent }`. Native chrome, status bars and blur use
   `useThemeMode()`.
 - Geist sets native text, including large titles and the sign-in wordmark. Geist Mono sets labels
@@ -58,7 +58,7 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 | Area     | Rule                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Modes    | System (default), Light (pure white) or Dark (AMOLED black)                                |
-| Accent   | Acid (default), Gold, Ember, Rose, Ice or Mono                                             |
+| Accent   | Lime (default), Gold, Ember, Rose, Ice or Mono                                             |
 | Action   | The accent fill is the one primary button; accent text uses `accent-text`                  |
 | Color    | Accent = you / now / done; `chart-1` is the accent, `chart-2`…`5` are quiet; danger is red |
 | Surfaces | Four steps, spaced for phone screens                                                       |
@@ -122,7 +122,7 @@ The accent has a **fill** and a **text tone**. `action` is the fill (primary but
 
 | Accent         | Fill (both modes)     | `accent-text` dark | `accent-text` light | `on-action`           |
 | -------------- | --------------------- | ------------------ | ------------------- | --------------------- |
-| Acid (default) | `#A3FF12`             | `#A3FF12`          | `#3B7000`           | `#0A0A0A`             |
+| Lime (default) | `#C6F135`             | `#C6F135`          | `#4A6A00`           | `#0A0A0A`             |
 | Gold           | `#FFC83D`             | `#FFC83D`          | `#8A5A00`           | `#0A0A0A`             |
 | Ember          | `#FF6B3D`             | `#FF6B3D`          | `#B33A12`           | `#0A0A0A`             |
 | Rose           | `#FF5C8A`             | `#FF5C8A`          | `#B8124A`           | `#0A0A0A`             |
