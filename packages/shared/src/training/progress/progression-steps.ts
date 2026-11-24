@@ -1,12 +1,14 @@
 import type { Equipment } from "../../exercise/vocabulary";
 import { KG_PER_LB, formatWeight, parseWeight } from "../vocabulary/format";
 import type { WeightUnit } from "../vocabulary/vocabulary";
+import type { LoadGrid, LoadRange } from "./load-grid";
 
 /**
  * The smallest load change that equipment can make, in the display unit: a barbell with the
- * smallest plates adds 2.5 kg (5 lb) a side pair, a dumbbell rack steps by 1 kg (2.5 lb), a
- * kettlebell by 2 kg (5 lb). Plates held in the hand, the EZ and trap bars and the Smith machine step like a barbell. Everything else (machines, cables,
- * bands, suspension, no equipment) has fine adjustment, so 1 kg (2.5 lb).
+ * smallest plates adds 2.5 kg (5 lb) a side pair, a kettlebell steps by 2 kg (5 lb). Plates held
+ * in the hand, the EZ and trap bars and the Smith machine step like a barbell. Everything else
+ * (machines, cables, bands, suspension, no equipment) has fine adjustment, so 1 kg (2.5 lb). A
+ * dumbbell rack is the exception, see {@link DUMBBELL_STEPS}.
  */
 const SMALLEST_STEP = {
   barbell: { kg: 2.5, lb: 5 },
@@ -24,45 +26,131 @@ const SMALLEST_STEP = {
   other: { kg: 1, lb: 2.5 },
 } as const satisfies Record<Equipment, Record<WeightUnit, number>>;
 
+/**
+ * A dumbbell rack steps finely up to a light weight, then by a plate-sized jump: 1 kg up to 10 kg
+ * and 2.5 kg above it; 2.5 lb up to 25 lb and 5 lb above it. `upTo` is in the unit.
+ */
+const DUMBBELL_STEPS = {
+  kg: { fine: 1, coarse: 2.5, upTo: 10 },
+  lb: { fine: 2.5, coarse: 5, upTo: 25 },
+} as const satisfies Record<WeightUnit, { fine: number; coarse: number; upTo: number }>;
+
 /** An automatic increment is this share of the set's load, before rounding to a step. */
 const INCREMENT_SHARE = 0.025;
+const EPS = 1e-4;
 
 const inUnit = (kg: number, unit: WeightUnit) => (unit === "kg" ? kg : kg / KG_PER_LB);
 const toKg = (value: number, unit: WeightUnit) => (unit === "kg" ? value : value * KG_PER_LB);
 
-/** A weight as typing it would store it, so a suggestion ticked as a Ghost matches a typed one. */
-export const loadable = (kg: number, unit: WeightUnit) =>
-  parseWeight(formatWeight(kg, unit), unit) ?? kg;
+/** The default step of `equipment` for a load of `loadKg`, in the display unit. */
+function defaultStep(equipment: Equipment, unit: WeightUnit, loadKg: number): number {
+  if (equipment !== "dumbbell") return SMALLEST_STEP[equipment][unit];
+  const steps = DUMBBELL_STEPS[unit];
+  return inUnit(loadKg, unit) < steps.upTo - EPS ? steps.fine : steps.coarse;
+}
 
 /**
- * The increment for a set at `loadKg`, in kilograms: a manual setting always wins; otherwise
- * about 2.5% of the load, rounded to the nearest loadable step of the equipment in the user's
- * unit and never below the smallest step.
+ * The loads of `equipment` when no gym setting or kit says otherwise, as ranges in kilograms: one
+ * range from the smallest step up, two for a dumbbell rack. A loaded barbell starts at its bar and
+ * steps by its smallest pair of plates.
+ */
+export function defaultRangesFor(
+  equipment: Equipment,
+  unit: WeightUnit,
+  bar: { weightKg: number; stepKg: number } | null = null,
+): LoadRange[] {
+  if (equipment === "barbell" && bar)
+    return [{ min: bar.weightKg + bar.stepKg, max: null, step: bar.stepKg }];
+  if (equipment === "dumbbell") {
+    const steps = DUMBBELL_STEPS[unit];
+    const fine = toKg(steps.fine, unit);
+    const coarse = toKg(steps.coarse, unit);
+    const boundary = toKg(steps.upTo, unit);
+    return [
+      { min: fine, max: boundary, step: fine },
+      { min: boundary + coarse, max: null, step: coarse },
+    ];
+  }
+  const step = toKg(SMALLEST_STEP[equipment][unit], unit);
+  return [{ min: step, max: null, step }];
+}
+
+/**
+ * A weight as typing it would store it, so a suggestion ticked as a Ghost matches a typed one;
+ * with a gym's `grid`, the nearest load that gym can make.
+ */
+export function loadable(kg: number, unit: WeightUnit, grid: LoadGrid | null = null) {
+  const snapped = grid ? grid.nearest(kg) : kg;
+  return parseWeight(formatWeight(snapped, unit), unit) ?? snapped;
+}
+
+/**
+ * The increment for a set at `loadKg`, in kilograms. A gym's own ranges for the exercise set the
+ * step; else a manual setting always wins; otherwise the step is the loaded bar's, or the
+ * equipment's. Automatically it is about 2.5% of the load, rounded to a multiple of the step
+ * and never below it.
  */
 export function incrementFor(
   loadKg: number | null,
   equipment: Equipment,
   settings: { weightUnit: WeightUnit; weightIncrementKg: number | null },
+  grid: LoadGrid | null = null,
 ): number {
+  const load = loadKg ?? 0;
+  if (grid?.source === "gym") return automatic(load, grid.stepAt(load));
   if (settings.weightIncrementKg !== null) return settings.weightIncrementKg;
+  if (grid) return automatic(load, grid.stepAt(load));
   const unit = settings.weightUnit;
-  const step = SMALLEST_STEP[equipment][unit];
-  const raw = inUnit(loadKg ?? 0, unit) * INCREMENT_SHARE;
+  const step = defaultStep(equipment, unit, load);
+  const raw = inUnit(load, unit) * INCREMENT_SHARE;
   return toKg(Math.max(step, Math.round(raw / step) * step), unit);
 }
 
+/** 2.5% of the load in whole steps of `stepKg`, at least one. */
+const automatic = (loadKg: number, stepKg: number) =>
+  Math.max(stepKg, Math.round((loadKg * INCREMENT_SHARE) / stepKg) * stepKg);
+
 /**
- * `factor` of a load (0.9 for 90%), rounded to the equipment's step and always below the load when
- * the load is more than one step, so a light lift still gets lighter. Zero stays zero.
+ * The load `addedKg` above `loadKg`, as the gym can make it. Without a grid it is the sum, as a
+ * typed weight. With one it is the nearest load the grid has, at least one step up, and never
+ * above the cap: when the next load would pass the cap (or the grid has no more), the cap itself.
+ * Null when the load is already at the cap, or there is no higher load.
+ */
+export function addLoad(
+  loadKg: number,
+  addedKg: number,
+  unit: WeightUnit,
+  grid: LoadGrid | null = null,
+): number | null {
+  if (!grid) return loadable(loadKg + addedKg, unit);
+  const cap = grid.capKg;
+  if (cap !== null && loadKg >= cap - EPS) return null;
+  let next: number | null = grid.nearest(loadKg + addedKg);
+  if (next <= loadKg + EPS) next = grid.above(loadKg);
+  if (cap !== null && (next === null || next > cap + EPS)) next = cap;
+  return next === null ? null : loadable(next, unit, null);
+}
+
+/**
+ * `factor` of a load (0.9 for 90%), rounded to the equipment's step (or the gym's grid) and
+ * always below the load when the load is more than one step, so a light lift still gets lighter.
+ * Never above the grid's cap. Zero stays zero.
  */
 export function lightenLoad(
   loadKg: number,
   factor: number,
   equipment: Equipment,
   unit: WeightUnit,
+  grid: LoadGrid | null = null,
 ): number {
   if (loadKg <= 0) return loadable(loadKg, unit);
-  const step = SMALLEST_STEP[equipment][unit];
+  if (grid) {
+    let lighter = grid.nearest(loadKg * factor);
+    if (lighter >= loadKg - EPS) lighter = grid.below(loadKg) ?? lighter;
+    if (grid.capKg !== null) lighter = Math.min(lighter, grid.capKg);
+    return loadable(Math.max(lighter, 0), unit);
+  }
+  const step = defaultStep(equipment, unit, loadKg);
   const load = inUnit(loadKg, unit);
   let lighter = Math.round((load * factor) / step) * step;
   if (lighter >= load && load > step) lighter = load - step;

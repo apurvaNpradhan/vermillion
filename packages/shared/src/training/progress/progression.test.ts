@@ -330,8 +330,9 @@ describe("increment sized to the lift", () => {
     expect(inc(140, "barbell")).toBe(2.5);
     expect(inc(200, "barbell")).toBe(5);
     expect(inc(300, "barbell")).toBe(7.5);
-    expect(inc(20, "dumbbell")).toBe(1);
-    expect(inc(60, "dumbbell")).toBe(2);
+    expect(inc(5, "dumbbell")).toBe(1);
+    expect(inc(20, "dumbbell")).toBe(2.5);
+    expect(inc(60, "dumbbell")).toBe(2.5);
     expect(inc(100, "machine")).toBe(3);
     expect(inc(40, "kettlebell")).toBe(2);
     expect(inc(null, "barbell")).toBe(2.5);
@@ -339,7 +340,8 @@ describe("increment sized to the lift", () => {
 
   it("uses plate steps for pounds and survives the display round trip", () => {
     expect(inc(140 * KG_PER_LB, "barbell", "lb")).toBeCloseTo(5 * KG_PER_LB, 6);
-    expect(inc(45 * KG_PER_LB, "dumbbell", "lb")).toBeCloseTo(2.5 * KG_PER_LB, 6);
+    expect(inc(15 * KG_PER_LB, "dumbbell", "lb")).toBeCloseTo(2.5 * KG_PER_LB, 6);
+    expect(inc(45 * KG_PER_LB, "dumbbell", "lb")).toBeCloseTo(5 * KG_PER_LB, 6);
     const next = suggestNext(
       plan,
       [session([logged(12, 100 * KG_PER_LB), logged(12, 100 * KG_PER_LB)])],
@@ -348,7 +350,7 @@ describe("increment sized to the lift", () => {
       { weightUnit: "lb", weightIncrementKg: null },
       { now: NOW },
     );
-    expect(next?.sets[0]?.weightKg).toBe(parseWeight("102.5", "lb"));
+    expect(next?.sets[0]?.weightKg).toBe(parseWeight("105", "lb"));
   });
 
   it("a manual increment always wins", () => {
