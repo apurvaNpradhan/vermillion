@@ -1,64 +1,26 @@
+import { addBreadcrumb } from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { authErrorKey } from "@workspace/client/auth-error";
-import { log } from "@workspace/logger/client";
-import * as WebBrowser from "expo-web-browser";
 import { Chip, Spinner } from "heroui-native";
 import { GoogleLogo } from "phosphor-react-native";
-import { useState } from "react";
-import { AppState, View } from "react-native";
+import { useLayoutEffect, useRef, useState } from "react";
+import { View } from "react-native";
 
-import { authClient } from "@/platform/auth-client";
+import { signInWithGoogle } from "@/platform/auth-client";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { FormError } from "@/platform/ui/form-error";
 
 import { readLastLoginMethod, rememberLoginMethod } from "../last-login-method";
 import { refreshSession } from "../session";
-import { settleWithin } from "../settle";
 
-/** The whole browser flow, from tap to a settled answer. */
-const SIGN_IN_TIMEOUT_MS = 120_000;
-/** The session lookup after the browser returns. */
-const REFRESH_TIMEOUT_MS = 15_000;
-/** After the app is back in the foreground, how long the deep link gets to finish the flow. */
-const RETURN_GRACE_MS = 2_000;
+type GoogleAttempt = { controller: AbortController; retryable: boolean };
 
-/** Resolves when the app has left the foreground and then come back, plus a short grace. */
-function appReturned() {
-  let left = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let stop = () => {};
-  const returned = new Promise<void>((resolve) => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state !== "active") {
-        left = true;
-        clearTimeout(timer);
-      } else if (left) {
-        timer = setTimeout(resolve, RETURN_GRACE_MS);
-      }
-    });
-    stop = () => {
-      clearTimeout(timer);
-      subscription.remove();
-    };
-  });
-  return { returned, stop };
+function breadcrumb(message: "start" | "returned" | "cancelled" | "error" | "success") {
+  addBreadcrumb({ category: "auth.google", message });
 }
 
-/** Closes an auth session left over from a flow that never finished (a no-op elsewhere). */
-function dismissLeftoverAuthSession() {
-  try {
-    WebBrowser.dismissAuthSession();
-  } catch (error) {
-    log.warn({ action: "google_dismiss_failed", name: error instanceof Error ? error.name : "?" });
-  }
-}
-
-/**
- * "Continue with Google": the ink-filled button of the welcome screen, shown only when the server
- * has Google configured. The Expo plugin opens the system browser and turns the relative callback
- * into a deep link; a cancelled flow records nothing.
- */
+/** Opens Google sign-in and refreshes the app session once the browser callback is saved. */
 export function GoogleButton({
   glyphColor,
   disabled,
@@ -72,49 +34,53 @@ export function GoogleButton({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const owner = useRef<GoogleAttempt | null>(null);
+  useLayoutEffect(
+    () => () => {
+      const attempt = owner.current;
+      owner.current = null;
+      attempt?.controller.abort();
+    },
+    [],
+  );
+
   async function signIn() {
-    if (pending) return;
+    const previous = owner.current;
+    if (disabled || (previous && !previous.retryable)) return;
+    const attempt = { controller: new AbortController(), retryable: false };
+    owner.current = attempt;
+    previous?.controller.abort();
     setPending(true);
     setFailure(null);
-    dismissLeftoverAuthSession();
-    const foreground = appReturned();
+
     try {
-      log.info({ action: "google_sign_in_start" });
-      const browser = await settleWithin(
-        authClient.signIn.social({ provider: "google", callbackURL: "/" }),
-        foreground.returned,
-        SIGN_IN_TIMEOUT_MS,
-      );
-      if (browser.status !== "done") {
-        // The flow never reported back (cancelled on Android): see whether it finished anyway.
-        log.warn({ action: "google_sign_in_abandoned", reason: browser.status });
-        dismissLeftoverAuthSession();
-      } else if (browser.value.error) {
-        log.warn({ action: "google_sign_in_error", status: browser.value.error.status });
-        setFailure(t(authErrorKey(browser.value.error)));
-        return;
-      }
-      // Record only a completed login, not a cancelled browser/provider flow.
-      const lookup = await settleWithin(
-        refreshSession(queryClient),
-        new Promise<void>(() => {}),
-        REFRESH_TIMEOUT_MS,
-      );
-      if (lookup.status === "done" && lookup.value) {
-        log.info({ action: "google_sign_in_done" });
-        rememberLoginMethod("google");
-      } else {
-        log.info({ action: "google_sign_in_no_session", reason: lookup.status });
-      }
-    } catch (error) {
-      log.error({
-        action: "google_sign_in_failed",
-        name: error instanceof Error ? error.name : "?",
+      breadcrumb("start");
+      const result = await signInWithGoogle(attempt.controller.signal, (retryable) => {
+        if (owner.current !== attempt) return;
+        attempt.retryable = retryable;
+        setPending(!retryable);
+        if (retryable) breadcrumb("returned");
       });
+      if (owner.current !== attempt) return;
+      if (result.error) {
+        breadcrumb("error");
+        setFailure(t(authErrorKey(result.error)));
+      } else if (result.signedIn) {
+        breadcrumb("success");
+        rememberLoginMethod("google");
+        await refreshSession(queryClient);
+      } else {
+        breadcrumb("cancelled");
+      }
+    } catch {
+      if (owner.current !== attempt) return;
+      breadcrumb("error");
       setFailure(t("auth__error_unknown"));
     } finally {
-      foreground.stop();
-      setPending(false);
+      if (owner.current === attempt) {
+        owner.current = null;
+        setPending(false);
+      }
     }
   }
 

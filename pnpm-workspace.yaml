@@ -51,4 +51,5 @@ minimumReleaseAgeExclude:
   - "@oxlint/binding-win32-x64-msvc@1.92.0"
   - oxlint@1.92.0
 patchedDependencies:
+  "@better-auth/expo@1.7.18": patches/@better-auth__expo@1.7.18.patch
   "@gorhom/bottom-sheet@5.2.14": patches/@gorhom__bottom-sheet@5.2.14.patch
