@@ -4,6 +4,38 @@ Agreed 2026-11-24 in a grilling session. Covers three bug fixes, the Train/Progr
 restructure, Run cycle visibility, Gyms with load caps, week phases, equipment-aware swaps,
 catalog additions, and an engine review afterwards. Terms follow [CONTEXT.md](../../../CONTEXT.md).
 
+## Sigil's own take
+
+Owner direction (2026-11-24): Sigil is not a Hevy or Lyfta clone. Competitor research shows what
+exists; Sigil's choices follow its own brand ([SPEC](../../design/sigil/SPEC.md)): quiet,
+stoic, ink first, ember only for "you / earned", hairline construction, plain words, no hype.
+
+- **Voice.** Short, factual, second person, no exclamation marks, no emoji, no streak guilt.
+  Notifications state a fact ("Upper A is next."), never nag ("Don't break your streak!").
+- **No gamification.** No confetti, badges, streak flames or social prompts. Records are marked
+  with the ember, quietly.
+- **Run as a ledger.** The cycle strip is a row of marks: done = struck (filled ink mark),
+  skipped = hollow mark with a hairline slash, next = ember dot, rest = a short hairline. It reads
+  like a mason's tally, not a progress bar.
+- **Phases as a shape.** The Program's week strip is a small block chart: each week a hairline
+  block whose height shows its intensity (Deload low, Test tallest), so the block's shape is
+  visible at a glance; the current week carries the ember dot.
+- **Covers in two inks.** Program and Workout covers render in the app's duotone treatment
+  (ink/ivory) by default with a toggle for the original photo, so a grid of user photos looks
+  like one set, not a camera roll.
+- **Program grid.** Cards are hairline-framed with the serif title (large titles allow the
+  serif); meta in small technical labels (days, weeks, phase). No gradients, no shadows.
+- **Caps in plain words.** At a machine's max the set row shows a small "Max · reps now" label;
+  past the rep ceiling "Max reached · add a set or go single-arm". No modal, no alarm colour.
+- **Pinned, not favourited.** Exercises are "Pinned" (Sigil already pins notes); pinned
+  exercises lead the picker.
+- **Body map first.** The exercise library opens with the monochrome body map as its filter;
+  search sits above it.
+- **Your record.** Export is framed as ownership: "Your record", files named
+  `sigil-record-YYYY-MM-DD.json` / `.csv`.
+- **Notifications grouped by meaning:** Training, Body, Records. Every one is off by default
+  except those the user already turned on.
+
 ## Order
 
 1. Bugs: keyboard on launch, Google retry, swipe.
