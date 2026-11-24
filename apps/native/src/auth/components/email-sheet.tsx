@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { BottomSheet, Spinner } from "heroui-native";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { View, type TextInput } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -12,9 +12,6 @@ import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
 import { submitEmail } from "../send-code";
 import { useEmailCode } from "../use-email-code";
-
-/** Let the sheet's slide-in finish before the keyboard rises over it. */
-const FOCUS_DELAY_MS = 350;
 
 /**
  * The welcome screen's email step, as a bottom sheet: the field, its validation and the one
@@ -37,13 +34,23 @@ export function EmailSheet({
   const [error, setError] = useState<string | undefined>(undefined);
   const input = useRef<TextInput>(null);
 
-  // The closed sheet stays mounted (invisible), so `autoFocus` would raise the keyboard over the
-  // welcome animation; focus only once the sheet has been opened.
-  useEffect(() => {
-    if (!isOpen) return;
-    const timer = setTimeout(() => input.current?.focus(), FOCUS_DELAY_MS);
-    return () => clearTimeout(timer);
+  const focusPending = useRef(false);
+
+  function cancelFocus() {
+    focusPending.current = false;
+    input.current?.blur();
+  }
+
+  useLayoutEffect(() => {
+    focusPending.current = isOpen;
+    if (!isOpen) input.current?.blur();
   }, [isOpen]);
+
+  function focusAtDetent(index: number) {
+    if (index < 0 || !focusPending.current) return;
+    focusPending.current = false;
+    input.current?.focus();
+  }
 
   const form = useForm({
     defaultValues: { email: "" },
@@ -57,10 +64,20 @@ export function EmailSheet({
   });
 
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) cancelFocus();
+        onOpenChange(open);
+      }}
+    >
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent
+          onChange={focusAtDetent}
+          onAnimate={(_from, to) => {
+            if (to < 0) cancelFocus();
+          }}
           footer={
             <form.Subscribe selector={(state) => [state.isSubmitting, state.values.email] as const}>
               {([isSubmitting, email]) => (
