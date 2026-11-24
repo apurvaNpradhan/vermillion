@@ -27,6 +27,14 @@ import { preferencesStore, publishPreferences } from "./preferences-store";
 
 const EMPTY: Preferences = { locale: null, timezone: null, ui: DEFAULT_UI_PREFERENCES };
 /** Reads the row just written and publishes it, so no reader sees the snapshot from before. */
+/** A save found no usable local database or access (blocked by another owner, or still opening). */
+class StorageUnavailableError extends Error {
+  constructor() {
+    super("Storage unavailable");
+    this.name = "StorageUnavailableError";
+  }
+}
+
 async function showSaved(database: PreferencesDatabase, access: PreferencesAccess) {
   publishPreferences(database, access, await readPreferences(database, access.owner));
 }
@@ -95,7 +103,7 @@ export function usePreferences() {
 
   const save = useCallback(
     async (patch: UpdatePreferences) => {
-      if (!database || !access) throw new Error("Storage unavailable");
+      if (!database || !access) throw new StorageUnavailableError();
       setSaving((count) => count + 1);
       try {
         // The screen's own user (or the owner while signed out) must still own the device when

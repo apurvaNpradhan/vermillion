@@ -1,5 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
 
 import {
@@ -15,8 +17,10 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { confirmOnline } from "@/platform/network";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { OtherAccountNotice, useSyncValue } from "@/sync";
 import { FormError } from "@/platform/ui/form-error";
 
+import { setupGate } from "../setup-gate";
 import { finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
 import { BodyStep } from "./body-step";
@@ -101,13 +105,28 @@ function NameStep({ onSaved }: { onSaved: () => void }) {
  */
 export function OnboardingScreen() {
   const { session } = useSession();
+  const lockReason = useSyncValue((snapshot) => snapshot?.lockReason ?? null);
   if (!session) return null;
+  if (setupGate(lockReason) === "owner-choice") return <OwnerChoice />;
   return (
     <AccountSetup
       key={session.user.id}
       userId={session.user.id}
       hasName={(session.user.name ?? "").trim() !== ""}
     />
+  );
+}
+
+/** Before step 1 on a device another account's data holds: the same choice Home offers. */
+function OwnerChoice() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      className="flex-1 justify-center bg-background px-4"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
+      <OtherAccountNotice />
+    </View>
   );
 }
 

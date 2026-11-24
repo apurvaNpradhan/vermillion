@@ -10,6 +10,8 @@ import { FormError } from "@/platform/ui/form-error";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { usePreferences } from "@/preferences";
 
+import { prefsFailureOf, type PrefsFailure } from "../prefs-failure";
+
 const TRAINING_DAY_CHOICES = [1, 2, 3, 4, 5, 6, 7];
 
 /**
@@ -23,14 +25,14 @@ export function DaysStep({ onDone }: { onDone: () => void }) {
   const [days, setDays] = useState<number | null>(null);
   const [weekStart, setWeekStart] = useState<WeekStart | null>(null);
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<PrefsFailure | null>(null);
 
   const changedWeekStart = weekStart !== null && weekStart !== preferences.ui.weekStart;
   const canSave = days !== null || changedWeekStart;
   const save = async () => {
     if (!canSave) return;
     setPending(true);
-    setFailed(false);
+    setFailure(null);
     try {
       await setUiAsync({
         ...(days === null ? {} : { sessionsPerWeek: days }),
@@ -38,8 +40,8 @@ export function DaysStep({ onDone }: { onDone: () => void }) {
       });
       haptic.confirm();
       onDone();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(error instanceof Error ? prefsFailureOf(error) : "onboarding__prefs_failed");
     } finally {
       setPending(false);
     }
@@ -59,7 +61,7 @@ export function DaysStep({ onDone }: { onDone: () => void }) {
       }}
       secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: pending }}
     >
-      <FormError message={failed ? t("onboarding__prefs_failed") : null} />
+      <FormError message={failure ? t(failure) : null} />
       <View className="gap-2">
         <Text className="text-label font-medium text-muted">{t("onboarding__days_label")}</Text>
         <View

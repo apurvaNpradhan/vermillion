@@ -240,6 +240,7 @@
   "onboarding__continue": "Continue",
   "onboarding__skip": "Skip",
   "onboarding__prefs_failed": "We could not save that. Check your connection and try again, or skip for now.",
+  "onboarding__prefs_unavailable": "We cannot save to this device right now. Finish switching accounts on this device, or wait for it to open, then try again.",
   "onboarding__units_title": "Which units do you use?",
   "onboarding__units_body": "We picked these from your region. You can change them any time in settings.",
   "onboarding__units_weight": "Weight",
