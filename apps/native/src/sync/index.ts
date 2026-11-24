@@ -2,6 +2,7 @@ export { confirmAccountDeleted, rememberDeletionRequest } from "./account-deleti
 export { useSignOutConfirmation } from "./sign-out-confirmation";
 export { OfflinePill } from "./offline-pill";
 export { useOfflineIndicator } from "./use-offline-indicator";
+export { OtherAccountNotice } from "./other-account-notice";
 export { SyncBanner } from "./sync-banner";
 export { SyncStatusLine } from "./sync-status-line";
 export { SyncProvider } from "./sync-provider";

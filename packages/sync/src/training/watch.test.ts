@@ -32,6 +32,8 @@ import {
   readProgramPlan,
   readWorkoutDetail,
   watchSession,
+  watchWorkouts,
+  type WorkoutSummary,
 } from "./watch";
 
 const SQUAT = "0192f0a0-0000-7000-8000-000000000001";
@@ -76,6 +78,41 @@ describe("workout reads", () => {
     expect(rows[0]?.exercises[0]?.thumbnailKey).toBeNull();
     expect(rows[0]?.exercises.map((entry) => entry.secondaryMuscles)).toEqual([["glutes"], []]);
     expect(rows[1]?.exercises).toEqual([]);
+  });
+
+  it("finds a Program workout by ownership and adds an exercise to that workout", async () => {
+    const { training, detail } = await setup();
+    const programId = await createProgram(training, {
+      title: "Three days",
+      description: null,
+      planned_weeks: null,
+    });
+    const standalone = await createWorkout(training, { title: "Push" });
+    const programWorkout = await createWorkout(training, { title: "Push", program_id: programId });
+    await addSlot(training, programId, programWorkout);
+
+    let rows: WorkoutSummary[] = [];
+    const stop = watchWorkouts(
+      training,
+      {
+        onWorkouts: (workouts) => {
+          rows = workouts;
+        },
+        onError: (error) => {
+          throw error;
+        },
+      },
+      { includeProgramWorkouts: true },
+    );
+    try {
+      expect(rows.find((workout) => workout.id === standalone)?.programId).toBeNull();
+      expect(rows.find((workout) => workout.id === programWorkout)?.programId).toBe(programId);
+      await addExercises(training, programWorkout, [SQUAT]);
+      expect(detail(programWorkout)?.exercises.map((entry) => entry.exerciseId)).toEqual([SQUAT]);
+      expect(detail(standalone)?.exercises).toEqual([]);
+    } finally {
+      stop();
+    }
   });
 
   it("reads one Workout with ordered exercises, moves and sets included", async () => {

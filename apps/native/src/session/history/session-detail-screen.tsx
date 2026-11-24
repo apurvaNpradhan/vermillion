@@ -1,6 +1,6 @@
 import { SessionPhotos } from "@/session/screen/session-photos";
 import { useWeight } from "@/body";
-import { recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
+import { recordCount, recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
@@ -27,7 +27,9 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { StatTiles } from "@/platform/ui/stat-tiles";
 import { useThemeColor } from "heroui-native";
+import { useAccentTextColor } from "@/platform/theme";
 import { formatElapsed } from "@/session/timer/clock";
+import { sessionDuration } from "@/session/share/stats";
 import { loggedSetsOf } from "@/session/logging/set-values";
 import { doneSummary, formatVolume } from "@/session/finish/summary";
 import { useSession } from "@/session/screen/use-session";
@@ -40,6 +42,7 @@ import { ANCHORED } from "@/platform/navigation/anchored";
 export function SessionDetailScreen({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const ink = useThemeColor("foreground");
+  const accentText = useAccentTextColor();
   const router = useRouter();
   const state = useSession(id);
   const session = state.status === "ready" ? state.session : null;
@@ -136,12 +139,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   items={[
                     {
                       label: t("stats__duration"),
-                      value: formatElapsed(
-                        session.durationS ??
-                          (Date.parse(session.finishedAt ?? session.startedAt) -
-                            Date.parse(session.startedAt)) /
-                            1000,
-                      ),
+                      value: formatElapsed(sessionDuration(session)),
                     },
                     {
                       label: t("stats__volume"),
@@ -154,8 +152,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     {
                       label: t("stats__records"),
                       value: String(
-                        session.exercises.flatMap((e) => e.sets).filter((s) => flags.has(s.id))
-                          .length,
+                        recordCount(flags, loggedSetsOf(session, preferences.ui.countWarmups)),
                       ),
                     },
                   ]}
@@ -250,7 +247,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                               accessibilityLabel={t("session__record_badge")}
                               className="pl-2"
                             >
-                              <Medal color={ink} size={20} weight="fill" />
+                              <Medal color={accentText} size={20} weight="fill" />
                             </View>
                           ) : null
                         }

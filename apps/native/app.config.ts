@@ -31,15 +31,23 @@ import { appConfig } from "../../app.config.ts";
 // 23: @sentry/react-native (crash reporting, in-app feedback) and its Expo config plugin.
 // 24: renamed to Patina: new bundle id, scheme and EAS slug again.
 // 25: the Android next-workout-widget module is removed (ADR 0054).
-const NATIVE_STACK_REVISION = 25;
+// 26: renamed to Sigil: new bundle id and scheme (ADR 0055).
+// 27: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
+// 28: remove the react-native-webview dependency with Turnstile.
+// 30: Android App Links for /p/<code> and /w/<code> on the site host (an AndroidManifest change).
+// 31: AMOLED black and Lime brand images (icon, adaptive, notification, splash).
+const NATIVE_STACK_REVISION = 31;
 
 /**
- * The logo's own colours, for the places the native build needs a literal (icon background, splash
- * and notification accent). They match the Patina theme's dark canvas and accent.
+ * The Sigil brand colours (AMOLED black, white, Lime), for the places the native build needs a
+ * literal (icon background, splash and notification accent). These are branding assets, independent of in-app appearance
+ * (docs/design/sigil/SPEC.md). `pnpm brand:assets` regenerates the images.
  */
-const LOGO_INK = "#19130F";
-const LOGO_OLIVE = "#869044";
+const BRAND_BLACK = "#000000";
+const BRAND_WHITE = "#FFFFFF";
+const BRAND_LIME = "#C6F135";
 const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
+const ADAPTIVE_MONOCHROME = "./assets/images/android-icon-monochrome.png";
 
 /**
  * Source map upload is on only when the build has a Sentry auth token (the Android release
@@ -57,9 +65,28 @@ const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
  */
 const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE);
 
+/**
+ * Share links (ADR 0058): `https://<site>/p/<code>` and `/w/<code>` open the app when Android has
+ * verified it for the site (`autoVerify` fetches `/.well-known/assetlinks.json`, whose
+ * fingerprints are `androidCertSha256` in app.config.ts). Unverified, the link opens the web
+ * preview in the browser instead.
+ */
+const siteHost = new URL(appConfig.urls.site).host;
+const shareLinkIntentFilters = [
+  {
+    action: "VIEW",
+    autoVerify: true,
+    data: [
+      { scheme: "https", host: siteHost, pathPrefix: "/p/" },
+      { scheme: "https", host: siteHost, pathPrefix: "/w/" },
+    ],
+    category: ["BROWSABLE", "DEFAULT"],
+  },
+];
+
 const config: ExpoConfig = {
   name: appConfig.displayName,
-  slug: appConfig.name,
+  slug: appConfig.easSlug,
   version: appConfig.version,
   orientation: "portrait",
   icon: "./assets/images/icon.png",
@@ -74,13 +101,14 @@ const config: ExpoConfig = {
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
-      // The logo's ink; the foreground is the tortoise from the logo kit.
-      backgroundColor: LOGO_INK,
+      // Black; the foreground is the mark and Lime dot inside the 66dp safe circle.
+      backgroundColor: BRAND_BLACK,
       foregroundImage: ADAPTIVE_FOREGROUND,
-      // Android tints the same silhouette for themed icons.
-      monochromeImage: ADAPTIVE_FOREGROUND,
+      // Android tints the mark for themed icons.
+      monochromeImage: ADAPTIVE_MONOCHROME,
     },
     predictiveBackGestureEnabled: false,
+    intentFilters: shareLinkIntentFilters,
     package: appConfig.bundleIds.android,
     ...(Number.isInteger(androidVersionCode) && androidVersionCode > 0
       ? { versionCode: androidVersionCode }
@@ -96,9 +124,9 @@ const config: ExpoConfig = {
     [
       "expo-notifications",
       {
-        // A white silhouette of the tortoise (shell cuts and eye transparent); Android tints it.
+        // The mark in white on transparent; Android tints it.
         icon: "./assets/images/notification-icon.png",
-        color: LOGO_OLIVE,
+        color: BRAND_LIME,
         sounds: ["./assets/sounds/rest_end.wav"],
       },
     ],
@@ -144,14 +172,14 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        // The tortoise on ink in light and dark alike: the brand, not the appearance.
-        image: "./assets/images/splash-icon.png",
+        // Light: black mark on white. Dark: white mark on black.
+        image: "./assets/images/splash-icon-light.png",
         imageWidth: 240,
         // The Android splash masks the drawable to a 192dp circle.
         android: { imageWidth: 200 },
         resizeMode: "contain",
-        backgroundColor: LOGO_INK,
-        dark: { image: "./assets/images/splash-icon.png", backgroundColor: LOGO_INK },
+        backgroundColor: BRAND_WHITE,
+        dark: { image: "./assets/images/splash-icon.png", backgroundColor: BRAND_BLACK },
       },
     ],
   ],

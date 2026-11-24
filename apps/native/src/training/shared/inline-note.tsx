@@ -13,6 +13,7 @@ export function InlineNote({
   label,
   maxLength,
   onDone,
+  autoFocus = false,
 }: {
   value: string | null;
   onText: (text: string | null) => void;
@@ -21,6 +22,8 @@ export function InlineNote({
   maxLength: number;
   /** Called when the field loses focus, for callers that save once editing ends. */
   onDone?: () => void;
+  /** Focus the field when it appears (a note that was just opened). */
+  autoFocus?: boolean;
 }) {
   const [text, setText] = useState(value ?? "");
   const [focused, setFocused] = useState(false);
@@ -31,6 +34,7 @@ export function InlineNote({
     <TextInput
       value={text}
       multiline
+      autoFocus={autoFocus}
       scrollEnabled={false}
       maxLength={maxLength}
       accessibilityLabel={label}

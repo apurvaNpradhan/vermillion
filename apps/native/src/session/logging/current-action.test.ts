@@ -7,7 +7,6 @@ import { restAfterTick } from "../rest/rest-rules";
 import {
   currentAction,
   orderedSets,
-  sessionStats,
   valueParts,
   valuesText,
   type DisplayValue,
@@ -80,6 +79,8 @@ const session = (
   durationS: null,
   deviceId: "d",
   rest,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 const noGhosts = () => ({});
@@ -304,42 +305,6 @@ describe("currentAction: phase and work start", () => {
       now: T0 + 130_000,
     });
     expect(action.workStartedAt).toBe(at(100));
-  });
-});
-
-describe("sessionStats", () => {
-  it("counts volume, sets done, elapsed and the average gap between ticks", () => {
-    const s = session([
-      exercise("a", [
-        set("a1", { weightKg: 100, reps: 5, completedAt: at(60) }),
-        set("a2", { weightKg: 100, reps: 5, completedAt: at(180) }),
-        set("a3", { weightKg: 100, reps: 5, completedAt: at(360) }),
-        set("a4"),
-      ]),
-    ]);
-    const stats = sessionStats({ session: s, bodyweightKg: null, now: T0 + 400_000 });
-    expect(stats).toEqual({
-      volumeKg: 1500,
-      setsDone: 3,
-      setsTotal: 4,
-      elapsedS: 400,
-      averageRestS: 150,
-    });
-  });
-
-  it("leaves a break out of the average and has none below two ticks", () => {
-    const s = session([
-      exercise("a", [
-        set("a1", { weightKg: 50, reps: 5, completedAt: at(60) }),
-        set("a2", { weightKg: 50, reps: 5, completedAt: at(120) }),
-        set("a3", { weightKg: 50, reps: 5, completedAt: at(120 + 3600) }),
-      ]),
-    ]);
-    expect(sessionStats({ session: s, bodyweightKg: null, now: T0 + 4000_000 }).averageRestS).toBe(
-      60,
-    );
-    const one = session([exercise("a", [set("a1", { completedAt: at(60) })])]);
-    expect(sessionStats({ session: one, bodyweightKg: null, now: T0 }).averageRestS).toBeNull();
   });
 });
 

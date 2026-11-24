@@ -153,10 +153,32 @@ export function recordFlags(
   return flags;
 }
 
-/** Counts record flags on these sets, one per record kind. */
+/** One exercise's distinct record kinds in a set of sets, in the order they first appeared. */
+export type ExerciseRecordEntry = { exerciseId: string; keys: RecordKey[] };
+
+/**
+ * A summary's Records: one entry per exercise with each record kind once, however many sets
+ * beat or tied the earlier best. Per-set flags stay as they are for live chips.
+ */
+export function recordEntries(
+  flags: ReadonlyMap<string, readonly RecordKey[]>,
+  sets: readonly { id: string; exercise_id: string }[],
+): ExerciseRecordEntry[] {
+  const entries = new Map<string, ExerciseRecordEntry>();
+  for (const set of sets) {
+    const keys = flags.get(set.id);
+    if (!keys || keys.length === 0) continue;
+    const entry = entries.get(set.exercise_id) ?? { exerciseId: set.exercise_id, keys: [] };
+    for (const key of keys) if (!entry.keys.includes(key)) entry.keys.push(key);
+    entries.set(set.exercise_id, entry);
+  }
+  return [...entries.values()];
+}
+
+/** Counts a Session's Records: each (exercise, record kind) once. */
 export function recordCount(
   flags: ReadonlyMap<string, readonly RecordKey[]>,
-  sets: readonly { id: string }[],
+  sets: readonly { id: string; exercise_id: string }[],
 ): number {
-  return sets.reduce((count, set) => count + (flags.get(set.id)?.length ?? 0), 0);
+  return recordEntries(flags, sets).reduce((count, entry) => count + entry.keys.length, 0);
 }

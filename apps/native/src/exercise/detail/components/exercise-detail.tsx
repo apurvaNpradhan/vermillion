@@ -30,7 +30,7 @@ import Animated from "react-native-reanimated";
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
 import { usePreferences } from "@/preferences";
 import { ExerciseNumbers } from "./exercise-numbers";
-import { RecentSessions } from "./recent-sessions";
+import { RecentTopSets } from "./recent-top-sets";
 import { appConfig } from "@/platform/app-config";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
@@ -250,17 +250,20 @@ function LoadedDetail({
                   {t("exercise__aka", { aka: exercise.aka })}
                 </Text>
               ) : null}
-              <View className="flex-row flex-wrap gap-2">
-                <InfoChip label={t(MUSCLE_GROUP_KEYS[exercise.primaryMuscle])} />
-                <InfoChip label={t(EQUIPMENT_KEYS[exercise.equipment])} />
-                <InfoChip
-                  label={t("exercise__logged_as", {
-                    type: t(EXERCISE_TYPE_KEYS[exercise.exerciseType]),
-                  })}
-                />
-                {exercise.isFullBodyweight ? (
-                  <InfoChip label={t("exercise__full_bodyweight")} />
-                ) : null}
+              <View className="flex-row items-center gap-4">
+                <View className="min-w-0 flex-1 flex-row flex-wrap gap-2">
+                  <InfoChip label={t(MUSCLE_GROUP_KEYS[exercise.primaryMuscle])} />
+                  <InfoChip label={t(EQUIPMENT_KEYS[exercise.equipment])} />
+                  <InfoChip
+                    label={t("exercise__logged_as", {
+                      type: t(EXERCISE_TYPE_KEYS[exercise.exerciseType]),
+                    })}
+                  />
+                  {exercise.isFullBodyweight ? (
+                    <InfoChip label={t("exercise__full_bodyweight")} />
+                  ) : null}
+                </View>
+                <MiniMuscleMap exercise={exercise} />
               </View>
               {exercise.isArchived ? (
                 <Notice
@@ -293,6 +296,38 @@ function LoadedDetail({
                 </ListSection>
               </View>
             ) : null}
+            {hasHistory ? (
+              <>
+                <ExerciseNumbers
+                  sessions={history.sessions}
+                  exerciseId={exercise.id}
+                  type={exercise.exerciseType}
+                  equipment={exercise.equipment}
+                  weightIncrementKg={preferences.ui.weightIncrementKg}
+                  progressionPerSet={perSet}
+                  bodyweightKg={preferences.ui.bodyweightKg}
+                  unit={preferences.ui.weightUnit}
+                  timezone={timeZone}
+                  weekStart={preferences.ui.weekStart}
+                />
+                <View className="px-4">
+                  <RecentTopSets
+                    sessions={history.sessions.slice(0, 3)}
+                    exerciseId={exercise.id}
+                    type={exercise.exerciseType}
+                    unit={preferences.ui.weightUnit}
+                    timezone={timeZone}
+                    onSeeAll={onSeeHistory}
+                  />
+                </View>
+              </>
+            ) : history.status === "loading" ? null : (
+              <Text className="font-normal px-4 text-body text-muted">
+                {t(
+                  history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
+                )}
+              </Text>
+            )}
             {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
               <View className="px-4">
                 <ListSection title={t("exercise__settings")}>
@@ -318,47 +353,9 @@ function LoadedDetail({
                 </ListSection>
               </View>
             ) : null}
-            {hasHistory ? (
-              <>
-                <ExerciseNumbers
-                  sessions={history.sessions}
-                  exerciseId={exercise.id}
-                  type={exercise.exerciseType}
-                  equipment={exercise.equipment}
-                  weightIncrementKg={preferences.ui.weightIncrementKg}
-                  progressionPerSet={perSet}
-                  bodyweightKg={preferences.ui.bodyweightKg}
-                  weekStart={preferences.ui.weekStart}
-                  unit={preferences.ui.weightUnit}
-                  timezone={timeZone}
-                />
-                <View className="px-4">
-                  <RecentSessions
-                    sessions={history.sessions.slice(0, 3)}
-                    unit={preferences.ui.weightUnit}
-                    timezone={timeZone}
-                    onSeeAll={onSeeHistory}
-                  />
-                </View>
-              </>
-            ) : history.status === "loading" ? null : (
-              <Text className="font-normal px-4 text-body text-muted">
-                {t(
-                  history.status === "error" ? "exercise__load_failed" : "exercise__numbers_empty",
-                )}
-              </Text>
-            )}
-            {/* Closed once there is history to look at; open for a new exercise, so it still teaches itself. */}
-            {steps.length > 0 ? (
-              <FormSection key={`form-${hasHistory}`} steps={steps} defaultOpen={!hasHistory} />
-            ) : null}
-            <MuscleSection
-              key={`muscles-${hasHistory}`}
-              exercise={exercise}
-              defaultOpen={!hasHistory}
-              onBrowseGroup={onBrowseGroup}
-            />
             <SwapRow candidates={swaps} onOpen={onOpenExercise} />
+            <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
+            {steps.length > 0 ? <FormSection steps={steps} /> : null}
           </Animated.ScrollView>
         )}
       </Page>
@@ -376,6 +373,25 @@ function LoadedDetail({
         onSave={(note) => void setPinnedNote(exercise.id, note).catch(() => undefined)}
       />
     </>
+  );
+}
+
+/** A small, quiet body map at the top: the muscles the exercise works, front and back. */
+function MiniMuscleMap({ exercise }: { exercise: ExerciseDetail }) {
+  const secondary = useMemo(
+    () => exercise.secondaryMuscles.filter((group) => group !== exercise.primaryMuscle),
+    [exercise.secondaryMuscles, exercise.primaryMuscle],
+  );
+  const primary = useMemo(() => [exercise.primaryMuscle], [exercise.primaryMuscle]);
+  const details = useMemo(
+    () => [...exercise.primaryDetail, ...exercise.secondaryDetail],
+    [exercise.primaryDetail, exercise.secondaryDetail],
+  );
+  if (!primary.some(isBodyGroup) && !secondary.some(isBodyGroup)) return null;
+  return (
+    <View className="w-24">
+      <BodyMapPair primary={primary} secondary={secondary} details={details} gap={4} />
+    </View>
   );
 }
 
@@ -405,11 +421,9 @@ function InfoChip({ label }: { label: string }) {
 /** The body map with the exercise's groups; tapping a group names it and offers to browse it. */
 function MuscleSection({
   exercise,
-  defaultOpen,
   onBrowseGroup,
 }: {
   exercise: ExerciseDetail;
-  defaultOpen: boolean;
   onBrowseGroup?: (group: MuscleGroup) => void;
 }) {
   const { t } = useTranslation();
@@ -428,7 +442,7 @@ function MuscleSection({
   const drawn = primary.some(isBodyGroup) || secondary.some(isBodyGroup);
 
   return (
-    <CollapsibleSection title={t("exercise__muscles_title")} defaultOpen={defaultOpen}>
+    <CollapsibleSection title={t("exercise__muscles_title")}>
       {drawn ? (
         <BodyMapPair
           primary={primary}
@@ -475,11 +489,6 @@ function breakdownRows(
   }));
 }
 
-/**
- * Primary and secondary as two labelled blocks, each group a row with its parts beneath, so
- * a long list reads as a list instead of a pile of chips. The dots echo the map: primary full,
- * secondary lighter. Tapping a group on the map narrows this to that group.
- */
 function MuscleBreakdown({
   primary,
   secondary,
@@ -503,63 +512,51 @@ function MuscleBreakdown({
     secondaryDetail,
     taken,
   );
-  const blocks = [
-    { key: "primary", label: t("exercise__muscle_primary"), rows: primaryRows, soft: false },
-    { key: "secondary", label: t("exercise__muscle_secondary"), rows: secondaryRows, soft: true },
-  ] as const;
+  const rows = [...primaryRows, ...secondaryRows];
+  const shown = tapped ? rows.filter((row) => row.group === tapped) : rows;
+  const browse = tapped !== null && shown.length > 0 ? onBrowse : undefined;
   return (
-    <View className="gap-4">
-      {blocks.map(({ key, label, rows, soft }) => {
-        const shown = tapped ? rows.filter((row) => row.group === tapped) : rows;
-        if (shown.length === 0) return null;
-        return (
-          <View key={key} className="gap-2">
-            <View className="flex-row items-center gap-2">
-              <View className={`size-2.5 rounded-full bg-danger ${soft ? "opacity-45" : ""}`} />
-              <Text accessibilityRole="header" className="font-normal text-caption text-muted">
-                {label}
-              </Text>
-            </View>
-            {shown.map(({ group, parts }) => (
-              <View key={group} className="flex-row items-center justify-between gap-3">
-                <View className="flex-1">
-                  <Text className="font-medium text-body text-foreground">
-                    {t(MUSCLE_GROUP_KEYS[group])}
+    <View className="gap-2">
+      <View className="rounded-xl bg-surface px-3 py-1">
+        {shown.map(({ group, parts }) => {
+          const isPrimary = taken.has(group);
+          return (
+            <View key={group} className="flex-row items-start gap-3 py-2">
+              <View
+                className={`mt-1.5 size-2.5 rounded-full bg-danger ${isPrimary ? "" : "opacity-45"}`}
+              />
+              <View className="flex-1">
+                <Text className="font-medium text-body text-foreground">
+                  {t(MUSCLE_GROUP_KEYS[group])}
+                </Text>
+                {parts.length > 0 ? (
+                  <Text className="font-normal text-caption text-muted">
+                    {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
                   </Text>
-                  {parts.length > 0 ? (
-                    <Text className="font-normal text-caption text-muted">
-                      {parts.map((part) => t(MUSCLE_DETAIL_KEYS[part])).join(" · ")}
-                    </Text>
-                  ) : null}
-                </View>
-                {onBrowse && tapped !== null && isBodyGroup(group) ? (
-                  <Button variant="secondary" size="sm" onPress={() => onBrowse(group)}>
-                    <Button.Label>
-                      {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[group]) })}
-                    </Button.Label>
-                  </Button>
                 ) : null}
               </View>
-            ))}
-          </View>
-        );
-      })}
+              <Text className="shrink text-right font-normal text-caption text-muted">
+                {t(isPrimary ? "exercise__muscle_primary" : "exercise__muscle_secondary")}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      {browse && tapped !== null ? (
+        <Button variant="secondary" size="sm" onPress={() => browse(tapped)}>
+          <Button.Label>
+            {t("exercise__browse_group", { group: t(MUSCLE_GROUP_KEYS[tapped]) })}
+          </Button.Label>
+        </Button>
+      ) : null}
     </View>
   );
 }
 
-/** A titled section that opens and closes; the title row is the toggle. */
-function CollapsibleSection({
-  title,
-  defaultOpen,
-  children,
-}: {
-  title: string;
-  defaultOpen: boolean;
-  children: ReactNode;
-}) {
+/** A titled section, closed at first, that opens and closes; the title row is the toggle. */
+function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
   const subtle = useThemeColor("muted");
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   return (
     <View className="gap-3 px-4">
       <Pressable
@@ -583,11 +580,11 @@ function CollapsibleSection({
   );
 }
 
-/** The numbered instructions. */
-function FormSection({ steps, defaultOpen }: { steps: readonly string[]; defaultOpen: boolean }) {
+/** The numbered instructions, closed until asked for. */
+function FormSection({ steps }: { steps: readonly string[] }) {
   const { t } = useTranslation();
   return (
-    <CollapsibleSection title={t("exercise__form_title")} defaultOpen={defaultOpen}>
+    <CollapsibleSection title={t("exercise__form_title")}>
       {steps.map((step, index) => (
         <View
           key={`${index}-${step}`}

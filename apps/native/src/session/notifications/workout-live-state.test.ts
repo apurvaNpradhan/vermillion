@@ -71,6 +71,8 @@ const session = (
   durationS: null,
   deviceId: "d",
   rest,
+  pausedAt: null,
+  pausedMs: 0,
   exercises,
 });
 
@@ -83,11 +85,11 @@ const state = (s: SessionDetail, now = T0 + 60_000, restEndedAt: number | null =
     ghostsFor: () => ({ weight: 80, reps: 8 }),
     unit: "kg",
     options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
-    url: "patina:///session/s/timer",
+    url: "sigil:///session/s",
     t,
   });
 describe("workout live notification", () => {
-  it("shows the same current set and values as the Timer, with stable native clock timestamps", () => {
+  it("shows the current set and its values, with stable native clock timestamps", () => {
     const s = session([exercise("a", [set("1"), set("2")])]);
     expect(state(s)).toMatchObject({
       phase: "work",
@@ -97,6 +99,29 @@ describe("workout live notification", () => {
       canComplete: true,
     });
     expect(state(s, T0 + 61_000)).toEqual(state(s));
+  });
+  it("moves the chronometer base by the paused time so it shows the time trained", () => {
+    const s = { ...session([exercise("a", [set("1")])]), pausedMs: 90_000 };
+    expect(state(s)).toMatchObject({ sessionStartedAtMs: T0 + 90_000, paused: false });
+  });
+  it("freezes while paused: a paused text with the time trained, and no countdown", () => {
+    const s = {
+      ...session([exercise("a", [set("1", { completedAt: at(30) }), set("2")])], {
+        setId: "1",
+        startedAt: at(30),
+        endsAt: at(400),
+      }),
+      pausedAt: at(120),
+      pausedMs: 20_000,
+    };
+    const paused = state(s, T0 + 900_000);
+    expect(paused).toMatchObject({
+      paused: true,
+      pausedText: "Paused · 1:40",
+      phase: "work",
+      restEndsAtMs: null,
+    });
+    expect(state(s, T0 + 901_000)).toEqual(paused);
   });
   it("carries the countdown deadline and exercise segment progress without per-second changes", () => {
     const s = session([exercise("a", [set("1", { completedAt: at(30) }), set("2")])], {
@@ -136,13 +161,13 @@ describe("workout live notification", () => {
       text: "All sets done",
     });
   });
-  it("opens the Timer for incomplete values and carries nullable fields across the native JSON boundary", () => {
+  it("opens the Session for incomplete values and carries nullable fields across the native JSON boundary", () => {
     const result = workoutLiveState({
       session: session([exercise("a", [set("1", { reps: 8 })])]),
       now: T0 + 60_000,
       ghostsFor: () => ({}),
       unit: "kg",
-      url: "patina:///session/s/timer",
+      url: "sigil:///session/s",
       t,
       options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
     });

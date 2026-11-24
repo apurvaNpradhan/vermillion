@@ -29,7 +29,7 @@ export function SectionHeader({
           onPress={onAction}
           className="min-h-11 justify-center active:opacity-60"
         >
-          <Text className="font-medium text-body text-identity">{actionLabel}</Text>
+          <Text className="font-medium text-body text-foreground">{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>

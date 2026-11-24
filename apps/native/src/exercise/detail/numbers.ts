@@ -114,3 +114,48 @@ export function recordsByYear(
     allTime: allTime.get(record.key) ?? record.value,
   }));
 }
+
+/** A duration as a clock: "0:45", "40:00", "1:05:00". Never a bare number of seconds. */
+export function formatClock(totalSeconds: number): string {
+  const whole = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const seconds = String(whole % 60).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+    : `${minutes}:${seconds}`;
+}
+
+/** A distance split into its number and unit: "7.0" km, or "850" m below 1 km. */
+export interface HumanDistance {
+  value: string;
+  unit: "km" | "m";
+}
+
+/** A distance in metres as a number and a unit, in the locale's decimal separator. */
+export function humanDistance(metres: number, locale?: string): HumanDistance {
+  if (Math.abs(Math.round(metres)) < 1000) {
+    return {
+      value: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(metres)),
+      unit: "m",
+    };
+  }
+  return {
+    value: new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(metres / 1000),
+    unit: "km",
+  };
+}
+
+/** Seconds per kilometre at a speed in metres per second; null when there is no speed. */
+export function paceSecondsPerKm(metresPerSecond: number): number | null {
+  return metresPerSecond > 0 && Number.isFinite(metresPerSecond) ? 1000 / metresPerSecond : null;
+}
+
+/** The pace at a speed in metres per second as "5:43" (per kilometre); "–" without a speed. */
+export function formatPace(metresPerSecond: number): string {
+  const seconds = paceSecondsPerKm(metresPerSecond);
+  return seconds === null ? "–" : formatClock(seconds);
+}

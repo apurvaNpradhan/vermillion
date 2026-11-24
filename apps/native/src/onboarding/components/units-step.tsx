@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { usePreferences } from "@/preferences";
 
 import { defaultUnits, type Units } from "../default-units";
+import { prefsFailureOf, type PrefsFailure } from "../prefs-failure";
 
 /**
  * Kilograms or pounds, centimetres or inches, already set to what the phone's region uses, so
@@ -21,17 +22,17 @@ export function UnitsStep({ onDone }: { onDone: () => void }) {
   const { setUiAsync } = usePreferences();
   const [units, setUnits] = useState<Units>(() => defaultUnits(getLocales()[0] ?? {}));
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<PrefsFailure | null>(null);
 
   const save = async () => {
     setPending(true);
-    setFailed(false);
+    setFailure(null);
     try {
       await setUiAsync(units);
       haptic.confirm();
       onDone();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(error instanceof Error ? prefsFailureOf(error) : "onboarding__prefs_failed");
     } finally {
       setPending(false);
     }
@@ -44,9 +45,9 @@ export function UnitsStep({ onDone }: { onDone: () => void }) {
       title={t("onboarding__units_title")}
       subtitle={t("onboarding__units_body")}
       action={{ label: t("onboarding__continue"), onPress: () => void save(), loading: pending }}
-      secondary={failed ? { label: t("onboarding__skip"), onPress: onDone } : undefined}
+      secondary={failure ? { label: t("onboarding__skip"), onPress: onDone } : undefined}
     >
-      <FormError message={failed ? t("onboarding__prefs_failed") : null} />
+      <FormError message={failure ? t(failure) : null} />
       <View className="gap-2">
         <Text className="text-label font-medium text-muted">{t("onboarding__units_weight")}</Text>
         <SegmentedControl

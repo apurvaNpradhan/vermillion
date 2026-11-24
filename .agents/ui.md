@@ -10,24 +10,31 @@ Text inputs are `Field` (`@/platform/ui/field`), not HeroUI's `TextField`/`Input
 
 HeroUI Native is the base. When it lacks a component, copy it from PanelUI (MIT; Uniwind) or, for Reanimated-only pieces, Reacticx (MIT) into `apps/native/src/platform/ui/`. Never add either as a dependency; no Skia. Restyle to role tokens, swap icons to Phosphor, take every string through props, put pure logic in a tested sibling file, and start the file with a comment naming the source, version, MIT licence and the changes. Port only when a screen uses it in the same change.
 
-In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState` (`mascot` swaps its icon for the `Mascot`), `Mascot` (the tortoise from the logo, never animated), `NumberFlow`, `StatTile`, `WeekStrip`, `RadarChart` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
+In `platform/ui`: `OtpInput`, `Field`, `SearchBar`, `Skeleton`/`SkeletonList`, `EmptyState` (a muted Phosphor icon, `label` adds the mono count), `SigilMark` (mark A, or A2 with `emberColor`, the accent dot), `NumberFlow`, `StatTile`, `WeekStrip` and `HeatmapChart` (PanelUI ports; geometry and bucketing in `*-math.ts`), `SwipeWeekStrip` (the month label and swipe of Home and History), `PeriodCard`, `PinnedAction` (a primary button above the tab bar), `Compare` (a seam over two pictures), `ImageViewer` (full screen, zoom, swipe; generic over items, used through `MediaViewer`), plus `Button`, `Card`, `Page`/`ScrollPage`, `ListSection`/`ListRow`, `OptionSheet`, `ActionSheet`, `SwipeRow`, `FloatingSurface`, `FormError`, `Notice`.
 
 ## Tokens
 
 All color, radius, type and font come from `packages/ui/src/tokens/brand.ts` (Vermillion roles mapped to HeroUI Native's names; `packages/ui` holds tokens only). Use semantic classes (`bg-background`, `text-muted`, `text-title-xl`), never raw hex. After editing the file run `pnpm --filter @workspace/ui tokens` and commit the generated CSS. The design system, its rules and the role-to-class table are in [DESIGN.md](../DESIGN.md).
 
-Native ships five themes (Patina is the default) in light and dark at standard or increased contrast.
-`packages/ui/src/tokens/brand.ts` exports `nativeColors` (every variant) for the app and
-`brandTokens.colors` (Patina) for the site and email; both come from the theme engine in
-`tokens/themes/` (ADR 0048). Regenerate CSS after editing. Layout never branches on appearance.
-Use `useThemeMode()` for native chrome. See the
-[native themes guide](../docs/guides/native-themes.md).
+Native has two modes (System, Light, Dark) and six accents (Lime, Gold, Ember, Rose, Ice, Mono).
+`packages/ui/src/tokens/brand.ts` exports `nativeColors` for the app (variants such as `ice-dark`;
+the built-in `light` and `dark` are Lime) and standard light/dark `brandTokens.colors` for email.
+The public site has its own palette. Regenerate CSS after editing the native tokens. Layout never
+branches on appearance. Use `useThemeMode()` for native chrome. See the
+[native themes guide](../docs/guides/native-themes.md) and the
+[redesign spec](../docs/design/redesign-2026-11/SPEC.md).
 
-Rules: the accent (`identity`, `action`) means "you / now" (active tab, current set, today, the
-primary button, the active program, selected chips, goal progress); data and status take the
-theme's family (`set-*`, `success`, `chart-1` … `chart-5`); one filled primary action per screen;
-numbers use tabular figures. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text
-glyphs. Confirmations use `ConfirmationDialog`, never `Alert.alert`.
+Rules: the accent marks
+the primary action, the current and completed sets, records and PRs, the selected tab and chips,
+and the primary chart series, and nothing else; never a large surface. The fill (`bg-accent`, `text-accent-foreground` on it, `useActionColor()`) stays bright in both modes; accent-coloured text and icons on the canvas use the text tone (`text-accent-text`, `useAccentTextColor()`), never `text-accent`. Red (`danger`) is the only
+status colour, for destructive actions and errors, with an icon and words. There is no success,
+warning, ember (`identity`), `brand-detail` or `set-done` role: a positive state is the accent and a
+warning is neutral text with an icon. Charts take the accent for the primary series (`chart`,
+`chart-1`) and quiet tones for the rest (`chart-2` … `chart-5`). One filled primary action per
+screen; numbers use tabular figures. Geist sets native titles and body text, Geist Mono labels and
+code. Geist is the only family, on the website too. Run `pnpm brand:assets` after changing the
+mark. Icons: Phosphor, Regular or Fill (selected), 20 or 24, never text glyphs.
+Confirmations use `ConfirmationDialog`, never `Alert.alert`.
 
 Native groups use spacing, rounded corners and canvas/surface/default fills, with no row dividers or card outlines. Keep outlines only for fields and selected chips, swatches or option tiles; preserve diagram strokes and progress tracks. When removing a line, review row padding and group gaps, and keep a visible pressed state.
 

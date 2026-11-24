@@ -1,6 +1,6 @@
 import type { UiPreferences } from "@workspace/shared";
 
-/** The cues the app plays (zen pack, see assets/sounds/CREDITS.md). Unticking is silent. */
+/** The cues the app plays (generated in-repo, see assets/sounds/CREDITS.md). Unticking is silent. */
 export const SOUND_CUES = [
   "tick",
   "refused",

@@ -54,7 +54,7 @@ export function MetricScreen({ metric }: { metric: BodyMetric }) {
               <Button
                 key={item.key}
                 size="sm"
-                variant={range === index ? "secondary" : "tertiary"}
+                variant={range === index ? "primary" : "tertiary"}
                 accessibilityState={{ selected: range === index }}
                 onPress={() => setRange(index)}
               >

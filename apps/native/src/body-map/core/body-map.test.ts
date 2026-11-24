@@ -12,7 +12,7 @@ import {
   type LayerName,
 } from "./group-layers";
 import { BODY_GROUPS, BODY_VIEWS, UNDRAWN, isBodyGroup } from "./groups";
-import { ICON_FRAMING, iconFrame } from "./icon-framing";
+import { ICON_FRAMING, iconFrame, regionFrame } from "./icon-framing";
 import { groupAt, groupBounds } from "./hit-test";
 import { HIT_MASKS } from "./hit-masks.generated";
 import { SECONDARY_ALPHA, clampIntensity, groupAlphas } from "./intensity";
@@ -194,5 +194,25 @@ describe("group icon framing", () => {
       expect(cx, group).toBeCloseTo(50, 0);
       expect(cy, group).toBeCloseTo(50, 0);
     }
+  });
+});
+
+describe("region icon framing", () => {
+  it("centres the box that holds all of a region's groups in the disc", () => {
+    const groups = ["chest", "shoulders", "triceps"] as const;
+    const frame = regionFrame(groups, "front", 100);
+    const boxes = groups.flatMap((group) => groupBounds(group, "front") ?? []);
+    expect(frame).toBeDefined();
+    if (!frame) return;
+    const x0 = Math.min(...boxes.map((box) => box.x0));
+    const x1 = Math.max(...boxes.map((box) => box.x1));
+    const y0 = Math.min(...boxes.map((box) => box.y0));
+    const y1 = Math.max(...boxes.map((box) => box.y1));
+    expect(frame.left + ((x0 + x1) / 2) * frame.bodyWidth).toBeCloseTo(50, 0);
+    expect(frame.top + ((y0 + y1) / 2) * frame.bodyHeight).toBeCloseTo(50, 0);
+  });
+
+  it("has nothing to frame when no group is drawn in the view", () => {
+    expect(regionFrame(["glutes"], "front", 100)).toBeUndefined();
   });
 });

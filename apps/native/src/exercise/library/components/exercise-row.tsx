@@ -114,11 +114,13 @@ export const ExerciseRow = memo(function ExerciseRow({
       {mode === "pick" ? (
         <View
           className={`size-7 items-center justify-center rounded-full border ${
-            selected ? "border-identity bg-identity" : "border-transparent bg-default"
+            selected ? "border-accent bg-accent" : "border-transparent bg-default"
           }`}
         >
           {selected ? (
-            <Text className="font-semibold text-caption text-on-identity">{selectedOrder}</Text>
+            <Text className="font-semibold text-caption text-accent-foreground">
+              {selectedOrder}
+            </Text>
           ) : null}
         </View>
       ) : onPress ? (

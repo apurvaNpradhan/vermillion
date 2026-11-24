@@ -1,5 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
 
 import {
@@ -15,9 +17,11 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { confirmOnline } from "@/platform/network";
 import { NeedsConnection } from "@/platform/ui/needs-connection";
+import { OtherAccountNotice, useSyncValue } from "@/sync";
 import { FormError } from "@/platform/ui/form-error";
 
-import { beginSetup, finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
+import { setupGate } from "../setup-gate";
+import { finishSetup, saveSetupStep, savedSetupStep } from "../setup-state";
 import { useSaveName } from "../use-onboarding";
 import { BodyStep } from "./body-step";
 import { DaysStep } from "./days-step";
@@ -27,7 +31,7 @@ import { RemindersStep } from "./reminders-step";
 import { UnitsStep } from "./units-step";
 
 /** The required step: there is no skip. Saving it starts the setup steps that follow. */
-function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) {
+function NameStep({ onSaved }: { onSaved: () => void }) {
   const { t } = useTranslation();
   const { saveName } = useSaveName();
   const [failure, setFailure] = useState<string | null>(null);
@@ -44,8 +48,6 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
       if (!(await confirmOnline())) return;
       setFailure(null);
       try {
-        // Marked before the save: the refreshed session must not open the app in between.
-        beginSetup(userId);
         await saveName(value.name.trim());
         haptic.confirm();
         onSaved();
@@ -103,13 +105,28 @@ function NameStep({ userId, onSaved }: { userId: string; onSaved: () => void }) 
  */
 export function OnboardingScreen() {
   const { session } = useSession();
+  const lockReason = useSyncValue((snapshot) => snapshot?.lockReason ?? null);
   if (!session) return null;
+  if (setupGate(lockReason) === "owner-choice") return <OwnerChoice />;
   return (
     <AccountSetup
       key={session.user.id}
       userId={session.user.id}
       hasName={(session.user.name ?? "").trim() !== ""}
     />
+  );
+}
+
+/** Before step 1 on a device another account's data holds: the same choice Home offers. */
+function OwnerChoice() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      className="flex-1 justify-center bg-background px-4"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
+      <OtherAccountNotice />
+    </View>
   );
 }
 
@@ -137,7 +154,7 @@ function AccountSetup({ userId, hasName }: { userId: string; hasName: boolean })
   };
   switch (step) {
     case "name":
-      return <NameStep userId={userId} onSaved={advance} />;
+      return <NameStep onSaved={advance} />;
     case "units":
       return <UnitsStep onDone={advance} />;
     case "body":

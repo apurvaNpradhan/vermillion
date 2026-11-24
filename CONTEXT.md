@@ -1,6 +1,6 @@
-# Patina context
+# Sigil context
 
-Patina (formerly Cinnabar; the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `patina-api.<domain>`). The old public site and admin UI were removed from the workspace for a rebuild; the API and its contract with the existing site remain.
+Sigil (formerly Patina, Basalt and Cinnabar; the repository is still called vermillion) is a mobile-first monorepo for an app with personal accounts: a native app (Expo), an API server (Hono and oRPC on Dokploy, at `sigil-api.<domain>`). The old public site and admin UI were removed from the workspace for a rebuild; the API and its contract with the existing site remain.
 
 ## Glossary
 
@@ -16,13 +16,12 @@ Patina (formerly Cinnabar; the repository is still called vermillion) is a mobil
 - **Locale resolution** — saved preference, then locale cookie, then `Accept-Language` (device locale on native), then `en`.
 - **Registration policy** — `REGISTRATION_OPEN`. True: anyone may sign up (development). False: invite-only, the closed beta; existing accounts and `ADMIN_EMAILS` addresses still sign in.
 - **Invite** — an `access_invite` row in state `invited` with a 14-day expiry. The address is the gate, not a code: a new account may be created only by an address with a live invite, by email code or Google. Redeemed once by the account it created. `expired` is derived, never stored.
-- **Access request** — an address asking to join the beta from the site's form (Turnstile, rate limited, always the same answer); an `access_invite` row in state `requested` until the admin approves it.
+- **Access request** — an address asking to join the beta from the site's form (rate limited, always the same answer); an `access_invite` row in state `requested` until the admin approves it.
 - **Admin** — the owner, an address in `ADMIN_EMAILS` whose session has passed the authenticator (TOTP) step. The `role` column only caches the list. Every admin write leaves one `admin_audit` row. The admin sees no training data.
 - **Minimum supported version** — the `minimum_app_version` setting; builds below it show a blocking update screen. Builds below the latest GitHub release see a dismissible notice.
 - **Disposable email** — an address on a domain from the maintained `disposable-email-domains` list (parent domains included). Rejected when a sign-in code is requested and at email change.
-- **Turnstile** — Cloudflare's CAPTCHA. Active when the secret is set, before a sign-in code is sent and on social sign-in, with no client exempt.
 - **Sign-in code** — the 6-digit one-time code emailed to an address; the only non-social way in. Valid 5 minutes, hashed at rest, 3 guesses, a resend replaces it. Redeeming it creates the account on first use.
-- **Onboarding step** — a required question (today: the name) whose completeness is derived from the profile by `pendingOnboardingSteps`; there is no stored flag. Account first: the person is signed in before being asked.
+- **Onboarding step** — a question during account setup after sign-in. The name is required when the profile is missing it. Native also offers setup questions and stores progress and completion per account on the device.
 - **Trusted proxies** — the CIDRs (`TRUSTED_PROXIES`: Traefik and Cloudflare) from which the server accepts `X-Forwarded-For` when resolving the client IP.
 - **Trusted origin** — the API's own origin (`APP_URL`) plus the site's origin (its Worker forwards `/rpc` and `/api`); state-changing browser requests from any other `Origin` are rejected. Native requests carry no `Origin` and bring their own credentials.
 - **Job** — a Postgres-backed (pg-boss) unit of background work run inside the server process. Defined by queue name, zod payload (ids only), handler and retry settings.
@@ -69,11 +68,11 @@ Patina (formerly Cinnabar; the repository is still called vermillion) is a mobil
 - **Gym equipment** — a user's bars and plates (seeded kit plus custom items, with plate counts) used by the plate calculator. Not part of the exercise equipment taxonomy.
 - **Replay identity** — the durable identity (account, install, transaction, request digest) an upload carries so the server returns the same outcome after a lost response instead of re-applying it ([0018](docs/adr/0018-upload-protocol.md)).
 - **Seam 1** — the API router called in-process against a clone of a migrated template database on the Docker Postgres. There is no browser seam; the site's Worker routing and admin gate are unit tested.
-- **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `patina-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
+- **Origin** — the Dokploy server (Traefik, then the server container) behind the proxied `sigil-api.<domain>` record. Firewalled to Cloudflare's IP ranges.
 - **Brand tokens** — `packages/ui/src/tokens/brand.ts`, the one place colors, radius and fonts are defined; mapped to native by generated CSS and read directly by the email templates.
-- **Theme** — the native app's colour scheme: System, Light or Dark, colour-only, never layout. Light and Dark are Classic, as in email ([0031](docs/adr/0031-native-themes-colour-only-oklch.md), amended: named themes sunset).
-- **Theme setting** — Settings → Preferences → Theme, a select that sets `device.theme` (`"system" | "light" | "dark"`). System follows the OS; Light and Dark force the colour scheme for native chrome.
-- **Identity / on-identity** — the accent roles: `identity` (focus, checks, selection, active tab, compose fill) and `on-identity` for the icon or text on it. The primary action stays neutral.
+- **Theme** — the native app's colour scheme: a mode (System, Light or Dark) and an accent, colour-only, never layout. Dark is AMOLED black and Light is pure white, as in email.
+- **Theme setting** — Settings → Appearance, which sets `device.theme` (`{ appearance: "system" | "light" | "dark", accent }`). System follows the OS; Light and Dark force the colour scheme for native chrome.
+- **Accent** — Lime (default), Gold, Ember, Rose, Ice or Mono: the only hue in the interface, with `action` / `on-action` roles for the fill and the label on it. It marks the primary action, the current and completed sets, records, the selected tab and chips, and the primary chart series. Red (`danger`) is the only status colour.
 - **Media** — a user's uploaded image: a synced `media` row (made on the device) plus a full-size and a thumbnail object in the private user bucket. Rows point at media, never the reverse. Files reach R2 through presigned URLs and PowerSync's attachment queue ([0040](docs/adr/0040-user-media.md)).
 - **Media reference** — the column or child row that says where Media shows: `program.cover_media_id`, `exercise.image_media_id`, `ui.avatarMediaId`, `session_photo`, `progress_photo`.
 - **Catalog media** — exercise thumbnails and videos in the public bucket, named by keys on catalog rows and written only by the server or the admin site.
@@ -87,3 +86,6 @@ Patina (formerly Cinnabar; the repository is still called vermillion) is a mobil
 - **Template** — one card layout for a kind: Session Summary, Muscles and Photo; the Workout card; Program Overview plus one card per Rotation slot.
 - **Sticker** — a Session's stats block alone as a transparent PNG, to lay over the user's own photo in a story.
 - **Share composer** — the full-screen route that previews a Share card and picks its Template, background and privacy toggles, remembered per kind on the device.
+- **Share link** — a short URL (`/p/<code>` for a Program, `/w/<code>` for a Workout) to a Snapshot. Opens in the app through Android App Links, or a web preview. Needs sign-in to make; the owner can revoke it ([0058](docs/adr/0058-share-links.md)).
+- **Snapshot** — the immutable, versioned JSON copy of a Program or Workout a Share link serves (`sigil.program/v1`, `sigil.workout/v1`). A finished Session becomes a Workout Snapshot (a template), never history.
+- **Code** — the 6 characters of a Share link, from an alphabet without 0, O, 1, I and L; typed into "Enter code".

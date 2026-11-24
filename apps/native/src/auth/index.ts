@@ -1,5 +1,4 @@
 export { CodeScreen } from "./components/code-screen";
-export { EmailScreen } from "./components/email-screen";
 export { FlowStep } from "./components/flow-step";
 export { WelcomeScreen } from "./components/welcome-screen";
 export {

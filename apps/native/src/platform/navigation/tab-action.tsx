@@ -1,90 +1,52 @@
 import { useFocusEffect } from "expo-router";
-import type { IconProps } from "phosphor-react-native";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ComponentType,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useStore } from "zustand";
 
-import { createTabBarHolds } from "./tab-bar-holds";
+import { createTabActionStore, type TabAction, type TabActionStore } from "./tab-action-store";
 
-/** The round button beside the tab pill: the open tab's main action, such as "New exercise". */
-export type TabAction = {
-  icon: ComponentType<IconProps>;
-  label: string;
-  onPress: () => void;
-};
+export type { TabAction } from "./tab-action-store";
 
-type TabActionContextValue = {
-  action: TabAction | null;
-  setAction: (action: TabAction | null) => void;
-  /** A screen covers the tab bar with its own layer (a composer). */
-  barHidden: boolean;
-  /** Hides the bar until the returned release function is called (reference-counted). */
-  holdBarHidden: () => () => void;
-  /** Height of what sits above the pill (the Resume bar), so pages scroll clear of it. */
-  reserved: number;
-  setReserved: (height: number) => void;
-};
-
-const TabActionContext = createContext<TabActionContextValue>({
-  action: null,
-  setAction: () => undefined,
-  barHidden: false,
-  holdBarHidden: () => () => undefined,
-  reserved: 0,
-  setReserved: () => undefined,
-});
+const TabActionContext = createContext<TabActionStore | null>(null);
+// Standalone screens read idle values, and writes require a navigator store.
+const idleStore = createTabActionStore();
 
 /** Holds the focused tab's action; wraps the tab navigator so its tab bar can read it. */
 export function TabActionProvider({ children }: { children: ReactNode }) {
-  const [action, setAction] = useState<TabAction | null>(null);
-  const [barHidden, setBarHidden] = useState(false);
-  const [holds] = useState(() => createTabBarHolds(setBarHidden));
-  const [reserved, setReserved] = useState(0);
-  const holdBarHidden = holds.hold;
-  return (
-    <TabActionContext
-      value={{ action, setAction, barHidden, holdBarHidden, reserved, setReserved }}
-    >
-      {children}
-    </TabActionContext>
-  );
+  const [store] = useState(createTabActionStore);
+  return <TabActionContext value={store}>{children}</TabActionContext>;
 }
 
 /** The height pages must leave above the tab pill for what floats over it. */
 export function useReservedAboveBar() {
-  return useContext(TabActionContext).reserved;
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.reserved);
 }
 
 /** Reserves `height` above the tab pill while mounted (0 reserves nothing). */
 export function useReserveAboveBar(height: number) {
-  const { setReserved } = useContext(TabActionContext);
+  const store = useContext(TabActionContext);
   useEffect(() => {
+    if (!store) return;
+    const { setReserved } = store.getState();
     setReserved(height);
     return () => setReserved(0);
-  }, [height, setReserved]);
+  }, [height, store]);
 }
 
 export function useCurrentTabAction() {
-  return useContext(TabActionContext).action;
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.action);
 }
 
 export function useTabBarHidden() {
-  return useContext(TabActionContext).barHidden;
+  return useStore(useContext(TabActionContext) ?? idleStore, (state) => state.barHidden);
 }
 
 /** Hides the tab bar while `hidden` is true, for a layer that takes over the screen. */
 export function useHideTabBar(hidden: boolean) {
-  const { holdBarHidden } = useContext(TabActionContext);
+  const store = useContext(TabActionContext);
   useEffect(() => {
     if (!hidden) return;
-    return holdBarHidden();
-  }, [hidden, holdBarHidden]);
+    return store?.getState().holdBarHidden();
+  }, [hidden, store]);
 }
 
 /**
@@ -92,11 +54,13 @@ export function useHideTabBar(hidden: boolean) {
  * object: a new one each render re-registers it.
  */
 export function useTabAction(action: TabAction) {
-  const { setAction } = useContext(TabActionContext);
+  const store = useContext(TabActionContext);
   useFocusEffect(
     useCallback(() => {
+      if (!store) return;
+      const { setAction } = store.getState();
       setAction(action);
       return () => setAction(null);
-    }, [action, setAction]),
+    }, [action, store]),
   );
 }

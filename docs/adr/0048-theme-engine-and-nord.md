@@ -1,6 +1,7 @@
 # 0048. A Linear-style theme engine, with Nord as the default
 
-Status: accepted, 2026-11-18. Amends [0047](0047-seeded-palettes.md): seeds stay, but the inputs,
+Status: superseded by [0059](0059-amoled-neutral-modes-and-accent-split.md), 2026-11-24 (the theme engine, Nord and
+the contrast setting are removed; see the redesign spec). Accepted 2026-11-18. Amends [0047](0047-seeded-palettes.md): seeds stay, but the inputs,
 the colour space and the shipped themes change. The colour-only layout rule and device-local
 storage of [0039](0039-hand-tuned-native-themes.md) remain.
 

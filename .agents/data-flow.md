@@ -18,6 +18,10 @@ const { page, loadMore } = useExerciseLibrary(filters);
 // bad: component queries the local database or calls orpc.preferences.get.queryOptions() itself
 ```
 
+## Local UI state
+
+Per-screen and editor UI state, and shared state many components read in slices, live in zustand stores read through selectors; stores are scoped to their provider when the state is per instance. PowerSync watches stay the source of truth for synced data: a store may be fed by one, never replace it. See [ADR 0057](../docs/adr/0057-zustand-for-local-ui-and-fan-out-state.md). `usePreference(selector)` reads part of the preferences; `useSyncValue(selector)` part of the sync state.
+
 ## Errors and sessions
 
 - `@workspace/client` maps oRPC errors to translated messages (`errorMessage`) and detects an expired session (`isUnauthorized`). The query client's `onError` toasts, or clears the session and sends the user to sign-in on `UNAUTHORIZED`.

@@ -1,4 +1,5 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
@@ -9,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListSection, ListRow } from "@/platform/ui/list";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import { useTrainingPreferenceRows } from "@/training";
 
 import { useSessionSettings } from "./use-session-settings";
@@ -19,13 +20,14 @@ import { useSessionSettings } from "./use-session-settings";
  * Settings (sounds, unit, effort scale, default rest, Rest notifications, keep awake, equipment),
  * editing the same account preferences.
  */
-export function SessionSettingsSheet({
+function SessionSettingsSheetBody({
   isOpen,
   onOpenChange,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
@@ -47,7 +49,7 @@ export function SessionSettingsSheet({
   });
   return (
     <>
-      <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+      <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <FixedSheetContent
@@ -90,8 +92,9 @@ export function SessionSettingsSheet({
           </FixedSheetContent>
         </BottomSheet.Portal>
       </BottomSheet>
-      {settings.sheets}
       {training.sheets}
     </>
   );
 }
+
+export const SessionSettingsSheet = mountOnOpen(SessionSettingsSheetBody);

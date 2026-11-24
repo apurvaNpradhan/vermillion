@@ -1,30 +1,28 @@
-import { useEffect } from "react";
-import { Pressable, Text } from "react-native";
-import Animated, {
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import { Pressable, type TextStyle, View } from "react-native";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 
-/** The distance and speed of the shake that refuses a tick. */
-const SHAKE = 6;
-const SHAKE_MS = 60;
+import { INK_MS } from "@/session/shared/motion";
+
+const INK_TRANSITION: CSSTransitionProperties<TextStyle> = {
+  transitionProperty: ["color"],
+  transitionDuration: INK_MS,
+};
 
 /**
  * One cell of the set grid: a pressable, never a text input (the keypad types into it). It shows
- * the value, or a muted Ghost value when empty, or a dash. While being edited it has the focus
- * ring; when a tick was refused for it, a danger outline and a shake (`refusedNonce` changes on
- * each refusal, so it shakes again).
+ * the value in full ink, or the Ghost value in faint ink when empty, or a dash. A Ghost value that
+ * becomes the value (the set was ticked) cross-fades from faint to full ink through a Reanimated CSS
+ * transition on the UI thread; a cell that mounts with its value does not animate. There is no box:
+ * the cell being edited has a 2px accent underline, and a refused tick underlines the cell in danger.
  */
 export function SetCell({
   text,
-  done = false,
   ghost,
+  animate,
   active,
   refused,
-  refusedNonce,
+  ink,
+  faint,
   label,
   onPress,
   disabled,
@@ -32,53 +30,48 @@ export function SetCell({
 }: {
   /** The value as text; empty when the cell has none. */
   text: string;
-  done?: boolean;
   /** The Ghost value as text, shown muted when `text` is empty. */
   ghost: string;
+  animate: boolean;
   active: boolean;
   refused: boolean;
-  refusedNonce: number;
+  /** The theme's full and faint ink, as colors (a transition needs the value, not a class). */
+  ink: string;
+  faint: string;
   label: string;
   onPress: () => void;
   disabled?: boolean;
   /** Replaces the text, for a cell that shows something live (a running timer). */
   children?: React.ReactNode;
 }) {
-  const offset = useSharedValue(0);
-  useEffect(() => {
-    if (!refused || refusedNonce === 0) return;
-    offset.value = withSequence(
-      withTiming(-SHAKE, { duration: SHAKE_MS, reduceMotion: ReduceMotion.System }),
-      withTiming(SHAKE, { duration: SHAKE_MS, reduceMotion: ReduceMotion.System }),
-      withTiming(-SHAKE, { duration: SHAKE_MS, reduceMotion: ReduceMotion.System }),
-      withTiming(0, { duration: SHAKE_MS, reduceMotion: ReduceMotion.System }),
-    );
-    // Only a new refusal shakes the cell.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refusedNonce]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: offset.value }] }));
   const empty = text === "";
-  const border = refused ? "border-danger" : active ? "border-focus-ring" : "border-transparent";
+  const bar = refused ? "bg-danger" : active ? "bg-accent" : "bg-transparent";
   return (
-    <Animated.View className="min-w-0 flex-1" style={style}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityValue={{ text: empty ? (ghost === "" ? undefined : ghost) : text }}
-        disabled={disabled}
-        onPress={onPress}
-        className={`h-10 flex-row items-center justify-center rounded-lg border px-1 ${border} ${done ? "bg-transparent" : active ? "bg-default" : "bg-field"}`}
-      >
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityValue={{ text: empty ? (ghost === "" ? undefined : ghost) : text }}
+      disabled={disabled}
+      onPress={onPress}
+      className="h-10 min-w-0 flex-1 flex-row items-center justify-center rounded-lg px-1 active:bg-default"
+    >
+      <View className="min-w-0 items-center">
         {children ?? (
-          <Text
+          <Animated.Text
             numberOfLines={1}
-            className={`font-normal text-center text-body ${empty ? "text-muted" : done ? "text-set-done-soft-foreground" : "text-foreground"}`}
-            style={{ fontVariant: ["tabular-nums"] }}
+            className="font-normal text-center text-body"
+            style={{
+              fontVariant: ["tabular-nums"],
+              color: empty ? faint : ink,
+              ...INK_TRANSITION,
+              transitionDuration: animate ? INK_MS : 0,
+            }}
           >
             {empty ? (ghost === "" ? "–" : ghost) : text}
-          </Text>
+          </Animated.Text>
         )}
-      </Pressable>
-    </Animated.View>
+        <View className={`h-[2px] min-w-6 self-stretch rounded-full ${bar}`} />
+      </View>
+    </Pressable>
   );
 }

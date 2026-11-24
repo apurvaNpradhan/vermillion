@@ -4,8 +4,6 @@ import { useCallback } from "react";
 
 import { authClient } from "@/platform/auth-client";
 
-type Headers = Record<string, string>;
-
 /** A call that threw: "needs a connection" when offline, else the generic auth message. */
 function thrownKey(caught: Error | null | undefined) {
   return isNetworkError(caught) ? "errors__offline" : "auth__error_unknown";
@@ -14,12 +12,9 @@ function thrownKey(caught: Error | null | undefined) {
 /** Asking for and redeeming sign-in codes. Every result is a translation key or null. */
 export function useEmailCode() {
   /** Sends a code. The answer is the same for known and unknown addresses. */
-  const sendCode = useCallback(async (email: string, headers: Headers) => {
+  const sendCode = useCallback(async (email: string) => {
     try {
-      const { error } = await authClient.emailOtp.sendVerificationOtp(
-        { email, type: "sign-in" },
-        { headers },
-      );
+      const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
       return error ? authErrorKey(error) : null;
     } catch (caught) {
       return thrownKey(caught instanceof Error ? caught : null);

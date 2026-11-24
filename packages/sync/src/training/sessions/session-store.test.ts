@@ -187,8 +187,13 @@ describe("tickSet and untickSet", () => {
       exercises: s.all("session_exercise"),
     };
     const result = await tickSet(s.training, t.work1, { weight: 100, reps: 5, rpe: 8 });
-    expect(result).toEqual({ ok: true, wrote: true, values: { weight_kg: 100, reps: 5 } });
     const ticked = s.one("session_set", t.work1);
+    expect(result).toEqual({
+      ok: true,
+      wrote: true,
+      completedAt: ticked?.["completed_at"],
+      values: { weight_kg: 100, reps: 5 },
+    });
     expect(ticked).toMatchObject({ weight_kg: 100, reps: 5, rpe: null });
     expect(ticked?.["completed_at"]).toEqual(expect.any(String));
     // Nothing else changed: not another set, not the Session, not the exercises.
@@ -519,7 +524,8 @@ describe("Rest", () => {
     expect(refused.ok).toBe(false);
     expect(s.one("training_session", t.id)).toMatchObject({ rest_set_id: null });
     const ticked = await tickSet(s.training, t.work1, { weight: 100, reps: 5 }, undefined, 90);
-    if (!ticked.ok) throw new Error("expected a tick");
+    if (!ticked.ok || !ticked.wrote) throw new Error("expected a tick");
+    expect(s.one("session_set", t.work1)).toMatchObject({ completed_at: ticked.completedAt });
     expect(Date.parse(ticked.rest?.endsAt ?? "") - Date.parse(ticked.rest?.startedAt ?? "")).toBe(
       90_000,
     );
@@ -541,6 +547,7 @@ describe("Rest", () => {
     expect(await tickSet(s.training, setId, { duration: 30 }, undefined, 90, expiresAt)).toEqual({
       ok: true,
       wrote: true,
+      completedAt: new Date(expiresAt).toISOString(),
       values: {},
     });
     expect(s.one("session_set", setId)).toMatchObject({

@@ -1,16 +1,16 @@
-# Patina
+# Sigil
 
-> Quiet progress. A private log for training — and soon, food.
+> Hit your reps. The weight goes up. A private log for training — and soon, food.
 
 **An offline-first strength-training app for Android and iOS.** Build programs, log workouts live with rest timers and plate math, browse a 450+ exercise library with a muscle body map, and keep everything in sync across devices, even with no signal in the gym.
 
 Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the server, with local-first sync through PowerSync. (The repository keeps its old name, vermillion.)
 
 <p align="center">
-  <img src="docs/screenshots/01-home.png" width="24%" alt="Home dashboard" />
+  <img src="docs/screenshots/01-home.png" width="24%" alt="Home with the next workout and this week's numbers" />
   <img src="docs/screenshots/07-live-session-rest-timer.png" width="24%" alt="Live session with rest timer" />
   <img src="docs/screenshots/04-program-detail.png" width="24%" alt="Program detail" />
-  <img src="docs/screenshots/09-exercise-detail.png" width="24%" alt="Exercise detail" />
+  <img src="docs/screenshots/09-exercise-detail.png" width="24%" alt="Exercise detail with progress chart and records" />
 </p>
 
 ## Features
@@ -20,18 +20,21 @@ Built with Expo / React Native on the client and Hono + oRPC + PostgreSQL on the
 - **Progress:** weekly sessions, sets and volume, an 8-week volume chart, muscles-trained heat map, personal records and progressive-overload suggestions.
 - **Exercise library:** 450+ exercises with images, how-to steps, muscle and equipment filters, plus custom exercises.
 - **Offline-first:** every screen reads from a local SQLite database synced with PowerSync; writes queue while offline and upload when back online, with a review screen for rejected writes.
-- **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, Turnstile CAPTCHA, rate limiting, disposable-email blocking and account deletion.
-- **Appearance:** a Patina theme (ink, ivory and olive) in light and dark, plus four more, with an Increase contrast setting.
+- **Accounts:** passwordless email-code sign-in, Google OAuth, an invite-only closed beta, rate limiting on sending codes, disposable-email blocking and account deletion.
+- **Appearance:** AMOLED black and pure white (System, Light or Dark) with a choice of accent: Lime, Gold, Ember, Rose, Ice or Mono.
 
 ## Screenshots
 
-|                               Home                                |                         Home (Frost theme)                         |                                   Train                                   |                              Program                               |
-| :---------------------------------------------------------------: | :----------------------------------------------------------------: | :-----------------------------------------------------------------------: | :----------------------------------------------------------------: |
-|      <img src="docs/screenshots/01-home.png" width="200" />       | <img src="docs/screenshots/02-home-frost-theme.png" width="200" /> |          <img src="docs/screenshots/03-train.png" width="200" />          |  <img src="docs/screenshots/04-program-detail.png" width="200" />  |
-|                            **Workout**                            |                         **Workout editor**                         |                             **Live session**                              |                        **Exercise library**                        |
-| <img src="docs/screenshots/05-workout-detail.png" width="200" />  |  <img src="docs/screenshots/06-workout-editor.png" width="200" />  | <img src="docs/screenshots/07-live-session-rest-timer.png" width="200" /> | <img src="docs/screenshots/08-exercise-library.png" width="200" /> |
-|                        **Exercise detail**                        |                             **Themes**                             |                               **Settings**                                |                                                                    |
-| <img src="docs/screenshots/09-exercise-detail.png" width="200" /> |   <img src="docs/screenshots/10-theme-picker.png" width="200" />   |        <img src="docs/screenshots/11-settings.png" width="200" />         |                                                                    |
+|                                                                                                                    |                                                                                                                              |                                                                                                                                                 |                                                                                                                             |
+| :----------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------: |
+|                                                      **Home**                                                      |                                                       **Home (light)**                                                       |                                                                    **Train**                                                                    |                                                         **Program**                                                         |
+|        <img src="docs/screenshots/01-home.png" width="200" alt="Home in dark mode with the Lime accent" />         |         <img src="docs/screenshots/02-home-light.png" width="200" alt="Home in light mode with the Ember accent" />          |                  <img src="docs/screenshots/03-train.png" width="200" alt="Train tab with the active program and workouts" />                   |        <img src="docs/screenshots/04-program-detail.png" width="200" alt="Program detail with its workout order" />         |
+|                                                    **Workout**                                                     |                                                      **Workout editor**                                                      |                                                                **Live session**                                                                 |                                                  **Live session (light)**                                                   |
+| <img src="docs/screenshots/05-workout-detail.png" width="200" alt="Workout preview with last session's numbers" /> | <img src="docs/screenshots/06-workout-editor.png" width="200" alt="Workout editor with the muscles trained on a body map" /> | <img src="docs/screenshots/07-live-session-rest-timer.png" width="200" alt="Live session with two completed sets and the rest timer running" /> | <img src="docs/screenshots/14-live-session-light.png" width="200" alt="Live session in light mode with the Ember accent" /> |
+|                                                **Exercise library**                                                |                                                     **Exercise detail**                                                      |                                                                   **History**                                                                   |                                                         **Muscles**                                                         |
+|             <img src="docs/screenshots/08-exercise-library.png" width="200" alt="Exercise library" />              |   <img src="docs/screenshots/09-exercise-detail.png" width="200" alt="Exercise detail with progress chart and records" />    |                             <img src="docs/screenshots/12-history.png" width="200" alt="History grouped by week" />                             |         <img src="docs/screenshots/13-muscles.png" width="200" alt="Muscle map and weekly sets per muscle group" />         |
+|                                                   **Appearance**                                                   |                                                         **Settings**                                                         |                                                                                                                                                 |                                                                                                                             |
+|  <img src="docs/screenshots/10-appearance.png" width="200" alt="Appearance sheet with mode and accent picker" />   |                          <img src="docs/screenshots/11-settings.png" width="200" alt="Settings" />                           |                                                                                                                                                 |                                                                                                                             |
 
 ## Tech stack
 
@@ -103,3 +106,7 @@ The previous public site and admin UI are removed. `apps/web` is the new public 
 ## License
 
 No license is granted yet: set one before publishing a fork. Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Photo credit
+
+The retired Sigil sign-in and website photograph was an edited crop and colour grade of [Michelangelo’s Atlas Prisoner](https://commons.wikimedia.org/wiki/File:%27Atlas_Slave%27_by_Michelangelo_-_JBU_02.jpg) by Jörg Bittner Unna, licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Only its archived source remains, in `docs/design/sigil/source/`; the app and site no longer show it.

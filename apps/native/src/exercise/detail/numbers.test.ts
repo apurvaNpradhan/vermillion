@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { LoggedSet, SessionHistory } from "@workspace/shared";
 import {
   datedRecords,
+  formatClock,
+  formatPace,
+  humanDistance,
+  paceSecondsPerKm,
   metricSeries,
   metricsFor,
   recordsByYear,
@@ -130,5 +134,34 @@ describe("records by year", () => {
     const edge = [session("edge", [set], "2026-01-01T02:00:00Z")];
     expect(recordYears(edge, "ex", "America/Los_Angeles")).toEqual([2025]);
     expect(recordYears(edge, "ex", "UTC")).toEqual([2026]);
+  });
+});
+
+describe("human units", () => {
+  it("writes durations as clocks", () => {
+    expect(formatClock(0)).toBe("0:00");
+    expect(formatClock(45)).toBe("0:45");
+    expect(formatClock(2400)).toBe("40:00");
+    expect(formatClock(3900)).toBe("1:05:00");
+    expect(formatClock(3599.6)).toBe("1:00:00");
+  });
+
+  it("writes distances in kilometres, or metres under one kilometre", () => {
+    expect(humanDistance(7000, "en")).toEqual({ value: "7.0", unit: "km" });
+    expect(humanDistance(7249, "en")).toEqual({ value: "7.2", unit: "km" });
+    expect(humanDistance(1000, "en")).toEqual({ value: "1.0", unit: "km" });
+    expect(humanDistance(850, "en")).toEqual({ value: "850", unit: "m" });
+    expect(humanDistance(999.6, "en")).toEqual({ value: "1.0", unit: "km" });
+    expect(humanDistance(999.4, "en")).toEqual({ value: "999", unit: "m" });
+    expect(humanDistance(7249, "de")).toEqual({ value: "7,2", unit: "km" });
+  });
+
+  it("writes pace per kilometre, not metres per second", () => {
+    // 1000 m in 343 s is 5:43 /km.
+    expect(formatPace(1000 / 343)).toBe("5:43");
+    expect(formatPace(1000 / 300)).toBe("5:00");
+    expect(paceSecondsPerKm(2.5)).toBe(400);
+    expect(formatPace(0)).toBe("–");
+    expect(paceSecondsPerKm(Number.NaN)).toBeNull();
   });
 });

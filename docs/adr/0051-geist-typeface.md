@@ -1,6 +1,8 @@
 # 0051. Geist as the app typeface
 
-Status: accepted, 2026-11-20. Builds on [0048](0048-theme-engine-and-nord.md).
+Status: accepted, 2026-11-20. Builds on [0048](0048-theme-engine-and-nord.md). Amended by
+[0059](0059-amoled-neutral-modes-and-accent-split.md): Geist and Geist Mono are the only typefaces
+everywhere, including the website (EB Garamond is removed).
 
 ## Context
 

@@ -16,7 +16,7 @@ export type KeypadCell = {
   field: SetField;
   unit: WeightUnit;
   /** The weight the cell shows now: its value, else its Ghost value. */
-  currentKg: number | null;
+  readCurrentKg: () => number | null;
   /** Puts a weight into the cell (the calculator's Use). */
   putKg: (weightKg: number) => void;
 };
@@ -42,7 +42,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
         accessibilityRole="button"
         accessibilityLabel={t("plates__title")}
         onPress={() => {
-          setOpenedKg(cell.currentKg ?? 0);
+          setOpenedKg(cell.readCurrentKg() ?? 0);
           setOpen(true);
         }}
         className="min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3 active:bg-field"

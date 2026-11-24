@@ -1,6 +1,6 @@
 # 0038. Sessions: live logging, timers, records and history
 
-Status: accepted (2026-11-10). Builds on [0036](0036-training-plans.md) and [0037](0037-session-storage-and-training-entry.md). Specs: [docs/specs/sessions/](../specs/sessions/). Terms: Session, Logged set, Ghost value, Previous, Tick, Rest, Take over, Record, Gym equipment, Run and Cycle in [CONTEXT.md](../../CONTEXT.md).
+Status: accepted (2026-11-10); the rest-end sound is now a generated marimba cue (see [0059](0059-amoled-neutral-modes-and-accent-split.md), `tools/sounds`), not the uisfx file named below. Builds on [0036](0036-training-plans.md) and [0037](0037-session-storage-and-training-entry.md). Specs: [docs/specs/sessions/](../specs/sessions/). Terms: Session, Logged set, Ghost value, Previous, Tick, Rest, Take over, Record, Gym equipment, Run and Cycle in [CONTEXT.md](../../CONTEXT.md).
 
 ## Context
 
@@ -20,8 +20,8 @@ ADR 0037 fixed the storage constraints. This ADR fixes the behavior and the rema
 
 ### Logging screen
 
-- **Accordion, one exercise open.** Collapsed rows read "2/4" or "4/4 · 60 kg × 8, 8, 7, 6". The session opens on the first unfinished exercise. Ticking an exercise's last set collapses it and opens the next. Any row can be opened out of order. This is the editor's accordion, so planning and training look alike.
-- **Supersets** open as one block. Ticking a member's set moves the highlight to the next member's matching set. Rest starts after the last member of the round, matching 0036's "rest lives on the last member".
+- **Expanded exercise sections (amended 2026-11-22).** The live editor shows each set grid without an extra tap. The list renders a window of exercises so long workouts do not mount every grid at once. The next set is highlighted in logging order. Ticking leaves the viewport in place, including at the end of an exercise. Workout planning still uses its accordion.
+- **Supersets** follow rounds across their grouped exercises. Ticking a member's set moves the highlight to the next member's matching set. Rest starts after the last member of the round, matching 0036's "rest lives on the last member".
 - **In-session edits** use the editor's rules: replace (same type keeps the sets), add to or leave a superset, pinned note, remove, reorder by grip, add exercises in pick mode, and change the set kind from the badge. The source plan is not touched until Finish.
 - **Header**: a collapse chevron, the elapsed time, live volume and set counts, a body icon for muscle distribution, and Finish. There is no separate clock or stopwatch tool.
 
@@ -31,7 +31,7 @@ ADR 0037 fixed the storage constraints. This ADR fixes the behavior and the rema
 - A **Ghost value** fills each empty cell.
   - Weight, duration and distance ghosts are the Previous value, else the planned target.
   - The reps ghost is the Previous reps when they fall inside the planned range, else the range's lower bound.
-- **Ticking adopts the ghosts** into empty cells, so one tap logs "same as last time". A tick is refused only when a required field (`SET_FIELDS`) has neither a value nor a ghost. The row shakes and highlights the field. An empty or invalid completed set therefore cannot exist, and there is no invalid-sets dialog.
+- **Ticking adopts the ghosts** into empty cells, so one tap logs "same as last time". A tick is refused only when a required field (`SET_FIELDS`) has neither a value nor a ghost. The editor highlights the field. While Previous loads, the editor can tick sets with every required value entered. Sets that depend on a ghost wait for the lookup. An empty or invalid completed set therefore cannot exist, and there is no invalid-sets dialog.
 - Unticked sets are dropped at Finish. The confirmation states how many.
 - After a replace, Previous and the ghosts come from the new exercise's own history. Untouched sets that aren't ticked get fresh ghosts.
 - **Effort** shows as a column only when the plan has an effort target or the user turns it on for that exercise. It is never required, its ghost is the planned effort, and it displays as RPE or RIR by preference.

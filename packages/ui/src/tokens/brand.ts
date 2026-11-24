@@ -1,8 +1,6 @@
 import type { RoleName, RoleTokens } from "./roles";
 import {
-  patina,
-  buildTheme,
-  DEFAULT_THEME_ID,
+  DEFAULT_ACCENT_ID,
   themeVariantNames,
   themeVariants,
   variantName,
@@ -11,24 +9,22 @@ import {
 export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
 /**
- * A native Uniwind theme: an app theme variant, or Uniwind's built-in `light` / `dark`, which
- * carry the default theme at standard contrast (what renders before the stored choice applies).
+ * A native Uniwind theme: an accent in one mode (`ember-dark`), or Uniwind's built-in `light` /
+ * `dark`, which carry the default accent (Lime) and render before the stored choice applies.
  */
 export type NativeVariant = "light" | "dark" | ThemeVariant;
 
 export const nativeVariantNames: readonly NativeVariant[] = ["light", "dark", ...themeVariantNames];
 
 export const nativeColors: Record<NativeVariant, RoleTokens> = {
-  light: themeVariants[variantName(DEFAULT_THEME_ID, "light")],
-  dark: themeVariants[variantName(DEFAULT_THEME_ID, "dark")],
+  light: themeVariants[variantName(DEFAULT_ACCENT_ID, "light")],
+  dark: themeVariants[variantName(DEFAULT_ACCENT_ID, "dark")],
   ...themeVariants,
 };
 
-const { light, dark } = buildTheme(patina);
-
 /**
  * Brand tokens: the one place colors, radius, type and fonts are defined. The colours come from
- * the theme engine in `themes/`. After changing them run
+ * the palette in `themes/palette.ts`. After changing them run
  * `pnpm --filter @workspace/ui tokens`.
  *
  * Colors are Vermillion roles (`canvas`, `surface`, `text-muted`, `action`, ...), each with a
@@ -36,7 +32,7 @@ const { light, dark } = buildTheme(patina);
  * (`to-native-css.ts`) maps roles to HeroUI Native names (`--accent`, `--surface`, ...) via
  * `nativeTokenSources`, and the email templates read the roles directly. A brand change never
  * edits per-platform files by hand. `sharedTokenSources` are colors outside HeroUI's vocabulary
- * (secondary text, macros) exposed under one name.
+ * (secondary text, set kinds, plates) exposed under one name.
  */
 
 /**
@@ -50,21 +46,14 @@ export const sharedTokenSources = {
   "chart-3": "chart-3",
   "chart-4": "chart-4",
   "chart-5": "chart-5",
+  "accent-text": "accent-text",
   "set-warmup": "set-warmup",
   "set-drop": "set-drop",
   "set-failure": "set-failure",
   "set-top": "set-top",
   "set-backoff": "set-backoff",
   "set-myo": "set-myo",
-  "set-done": "set-done",
-  "on-set-done": "on-set-done",
-  "set-done-soft": "set-done-soft",
-  "set-done-soft-foreground": "set-done-soft-foreground",
   subtle: "text-secondary",
-  identity: "identity",
-  "identity-soft": "identity-soft",
-  "on-identity": "on-identity",
-  "brand-detail": "brand-detail",
   "focus-ring": "focus-ring",
   "plate-red": "plate-red",
   "plate-blue": "plate-blue",
@@ -74,12 +63,6 @@ export const sharedTokenSources = {
   "plate-black": "plate-black",
   "on-plate-dark": "on-plate-dark",
   "on-plate-light": "on-plate-light",
-  protein: "protein",
-  "protein-text": "protein-text",
-  carbs: "carbs",
-  "carbs-text": "carbs-text",
-  fat: "fat",
-  "fat-text": "fat-text",
 } as const satisfies Record<string, RoleName>;
 
 /** One text style: size and line height in px, tracking in px, weight. */
@@ -96,6 +79,10 @@ export interface TextStyle {
  */
 export const typeScale = {
   "title-display": { size: 42, lineHeight: 48, tracking: -1, weight: 600 },
+  /** Large titles of tab roots, onboarding steps and the session finish title. */
+  "display-lg": { size: 34, lineHeight: 40, tracking: -0.34, weight: 500 },
+  /** The sign-in wordmark. */
+  "display-wordmark": { size: 64, lineHeight: 68, tracking: -0.64, weight: 500 },
   "title-xl": { size: 28, lineHeight: 34, tracking: -0.3, weight: 600 },
   "title-lg": { size: 22, lineHeight: 28, tracking: -0.2, weight: 600 },
   "title-md": { size: 18, lineHeight: 24, tracking: -0.1, weight: 600 },
@@ -112,7 +99,7 @@ export const typeScale = {
 } as const satisfies Record<string, TextStyle>;
 
 export const brandTokens = {
-  colors: { light, dark },
+  colors: { light: nativeColors.light, dark: nativeColors.dark },
   /** HeroUI Native `--radius`; its scale multiplies it (`rounded-xl` = 12, `rounded-2xl` = 16). */
   nativeRadius: "8px",
   type: typeScale,

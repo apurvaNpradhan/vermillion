@@ -1,7 +1,7 @@
 import { watchSessionPage, type FinishedSession, type TrainingDatabase } from "@workspace/sync";
 
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { usePreferences } from "@/preferences";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 
 /** How many recent sessions the Train list looks through for when each workout was last done. */
 const RECENT_SESSIONS = 80;
@@ -22,7 +22,7 @@ const subscribe = (
  */
 export function useLastDone() {
   const recent = useLocalWatch(subscribe);
-  const { timeZone } = usePreferences();
+  const timeZone = useDeviceTimeZone();
   const timezone = timeZone;
   const lastDone = new Map<string, string>();
   for (const session of recent.value ?? []) {

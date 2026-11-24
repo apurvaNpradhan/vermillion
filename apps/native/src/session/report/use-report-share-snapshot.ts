@@ -1,4 +1,4 @@
-import { useSyncStatus, useSyncValue } from "@/sync";
+import { useLocalData, useSyncValue } from "@/sync";
 
 import type { PeriodReport } from "./period-report";
 import { findReportForShare, rememberReportForShare } from "./report-share-snapshot";
@@ -9,9 +9,10 @@ export function usePrepareReportShare() {
 }
 
 export function useReportShareSnapshot(key: string, id: string | undefined) {
-  const { status, snapshot } = useSyncStatus();
+  const loading = useLocalData() === null;
+  const scope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   return {
-    pending: id !== undefined && status === "loading",
-    report: findReportForShare(snapshot?.writeScope ?? null, key, id),
+    pending: id !== undefined && loading,
+    report: findReportForShare(scope, key, id),
   };
 }

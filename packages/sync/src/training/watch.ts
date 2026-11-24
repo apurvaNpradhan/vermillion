@@ -21,10 +21,13 @@ import {
   exerciseRecordsSql,
   sessionsPageSql,
   createFinishedHistoryReader,
+  readHistoryOverviewPages,
+  type HistoryOverviewSession,
   finishedFingerprintSql,
   parseExerciseHistories,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   parseActiveSessions,
@@ -77,9 +80,10 @@ export type WorkoutDetail = {
   exercises: WorkoutExerciseDetail[];
 };
 
-/** One standalone Workout in the Train list, with what its tile, name and estimate need. */
+/** One Workout in the Train list, with what its tile, name and estimate need. */
 export type WorkoutSummary = {
   id: string;
+  programId: string | null;
   title: string | null;
   createdAt: string;
   exercises: {
@@ -145,6 +149,7 @@ const secondaryText = jsonText
 
 const listRowSchema = z.object({
   id: z.string(),
+  program_id: z.string().nullable(),
   title: z.string().nullable(),
   created_at: z.string(),
   sets: setsText.nullable(),
@@ -160,7 +165,7 @@ const listRowSchema = z.object({
 
 const workoutListSql = (
   includeProgramWorkouts: boolean,
-) => `SELECT w.id AS id, w.title AS title, w.created_at AS created_at,
+) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title, w.created_at AS created_at,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM workout w
@@ -177,7 +182,13 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
   for (const row of parsed) {
     let current = result.at(-1);
     if (current?.id !== row.id) {
-      current = { id: row.id, title: row.title, createdAt: row.created_at, exercises: [] };
+      current = {
+        id: row.id,
+        programId: row.program_id,
+        title: row.title,
+        createdAt: row.created_at,
+        exercises: [],
+      };
       result.push(current);
     }
     if (row.exercise_row !== null && row.exercise_id !== null) {
@@ -412,6 +423,22 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
   };
 }
 
+/** Query rows are flat objects of primitives, so a field-by-field compare says if a result changed. */
+function sameRows(a: QueryResult["array"], b: QueryResult["array"]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index] ?? {};
+    const right = b[index] ?? {};
+    if (left === right) continue;
+    const keys = Object.keys(left);
+    if (keys.length !== Object.keys(right).length) return false;
+    for (const key of keys) {
+      if (!Object.hasOwn(right, key) || !Object.is(left[key], right[key])) return false;
+    }
+  }
+  return true;
+}
+
 function watch(
   database: TrainingDatabase,
   sql: string,
@@ -424,20 +451,22 @@ function watch(
   // A write to any watched table re-runs the query. Most of those leave this result as it was
   // (a tick in the active Session never changes an exercise's finished history), and passing
   // an equal result on re-renders every screen that reads it, so only a changed result is passed.
-  let last: string | null = null;
+  let last: QueryResult["array"] | null = null;
   database.watchWithCallback(
     sql,
     params,
     {
       onResult: (result) => {
         if (controller.signal.aborted) return;
-        const key = JSON.stringify(result.array);
-        if (key === last) return;
-        last = key;
-        onRows(result.array);
+        const rows = result.array;
+        if (last && sameRows(last, rows)) return;
+        last = rows;
+        onRows(rows);
       },
       onError: (error) => {
-        if (!controller.signal.aborted) onError(error);
+        if (controller.signal.aborted) return;
+        last = null;
+        onError(error);
       },
     },
     {
@@ -663,20 +692,63 @@ export function watchActiveSessions(
   );
 }
 
-/** Watches one Session with its exercises and sets in order; `null` when it is gone. */
+/**
+ * Watches one Session with its exercises and sets in order; `null` when it is gone. Two queries
+ * feed it: the Session's rows, and the "last time" notes (which scan finished history and do not
+ * change when a set is written). The Session is passed once both have answered.
+ */
 export function watchSession(
   database: TrainingDatabase,
   id: string,
   handlers: { onSession: (session: SessionDetail | null) => void; onError: (error: Error) => void },
 ): () => void {
-  return watch(
+  let rows: QueryResult["array"] | null = null;
+  let notes: QueryResult["array"] | null = null;
+  let stopped = false;
+  const emit = () => {
+    if (stopped || rows === null || notes === null) return;
+    let session: SessionDetail | null;
+    try {
+      session = parseSessionDetail(rows, notes);
+    } catch {
+      handlers.onError(new Error("Unreadable Session rows"));
+      return;
+    }
+    handlers.onSession(session);
+  };
+  const stopRows = watch(
     database,
     SESSION_DETAIL_SQL,
     [id],
     [...SESSION_TABLES, "exercise", "exercise_setting", "workout"],
-    parsing(parseSessionDetail, { onResult: handlers.onSession, onError: handlers.onError }),
-    handlers.onError,
+    (next) => {
+      rows = next;
+      emit();
+    },
+    (error) => {
+      rows = null;
+      handlers.onError(error);
+    },
   );
+  const stopNotes = watch(
+    database,
+    SESSION_LAST_NOTES_SQL,
+    [id],
+    ["training_session", "session_exercise"],
+    (next) => {
+      notes = next;
+      emit();
+    },
+    (error) => {
+      notes = null;
+      handlers.onError(error);
+    },
+  );
+  return () => {
+    stopped = true;
+    stopRows();
+    stopNotes();
+  };
 }
 
 /**
@@ -806,7 +878,10 @@ export function watchFinishedHistory(
       do {
         pending = false;
         const sessions = await database.readTransaction((tx) =>
-          reader.refresh((sql, parameters) => tx.getAll(sql, parameters)),
+          reader.refresh((sql, parameters) => {
+            if (controller.signal.aborted) throw new Error("History watch stopped");
+            return tx.getAll(sql, parameters);
+          }),
         );
         if (controller.signal.aborted) return;
         if (sessions) handlers.onSessions(sessions);
@@ -822,6 +897,51 @@ export function watchFinishedHistory(
   database.onChangeWithCallback(
     { onChange: () => void read() },
     { signal: controller.signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+  );
+  void read();
+  return () => controller.abort();
+}
+
+/**
+ * Reads the History screen in bounded SQL calls, releasing the database read lock between
+ * pages so an all-time scan cannot queue the other tabs behind a single long transaction.
+ */
+export function watchHistoryOverview(
+  database: TrainingDatabase,
+  handlers: {
+    onSessions: (sessions: HistoryOverviewSession[]) => void;
+    onError: (error: Error) => void;
+  },
+  range?: HistoryRange,
+): () => void {
+  const controller = new AbortController();
+  const { signal } = controller;
+  let pending = false;
+  let reading = false;
+  const read = async () => {
+    pending = true;
+    if (reading) return;
+    reading = true;
+    try {
+      do {
+        pending = false;
+        const sessions = await readHistoryOverviewPages((sql, parameters) => {
+          if (signal.aborted) throw new Error("History watch stopped");
+          return database.getAll(sql, parameters);
+        }, range);
+        // A table change during the scan can shift a session across the cursor. Let the
+        // next pass replace that result before publishing it.
+        if (!pending && !signal.aborted) handlers.onSessions(sessions);
+      } while (pending && !signal.aborted);
+    } catch {
+      if (!signal.aborted) handlers.onError(new Error("The local workouts could not be read"));
+    } finally {
+      reading = false;
+    }
+  };
+  database.onChangeWithCallback(
+    { onChange: () => void read() },
+    { signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
   );
   void read();
   return () => controller.abort();
@@ -931,7 +1051,7 @@ export function watchSessionPage(
   return watch(
     database,
     sessionsPageSql(),
-    [cursor.startedAt, cursor.startedAt, cursor.id, String(Math.min(500, Math.max(1, limit)))],
+    [cursor.startedAt, cursor.id, String(Math.min(500, Math.max(1, limit)))],
     SESSION_TABLES,
     parsing(parseFinishedSessions, { onResult: handlers.onSessions, onError: handlers.onError }),
     handlers.onError,

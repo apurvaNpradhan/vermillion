@@ -18,6 +18,7 @@ export function SessionShareScreen({ id, onClose }: { id: string; onClose: () =>
         templates={share.templates}
         toggles={share.toggles}
         photo={share.photo}
+        linkSource={{ target: { kind: "session", id }, weights: "weights", requires: "exercises" }}
       />
     );
   }

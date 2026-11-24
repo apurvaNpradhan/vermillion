@@ -65,7 +65,7 @@ export function SegmentedControl<T extends string>({
             haptic.tick();
             onChange(option.value);
           }}
-          className="flex-1 items-center justify-center rounded-[10px] active:opacity-60"
+          className="flex-1 items-center justify-center rounded-[10px] active:bg-surface/60"
         >
           <Text
             className={`text-body font-medium ${option.value === value ? "text-foreground" : "text-muted"}`}

@@ -1,4 +1,4 @@
-import type { FinishedSession } from "@workspace/sync";
+import type { HistoryOverviewSession } from "@workspace/sync";
 import { CaretRight } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -17,7 +17,7 @@ export function WeekHeading({
   format,
 }: {
   day: number;
-  sessions: readonly FinishedSession[];
+  sessions: readonly HistoryOverviewSession[];
   totalsFor: (id: string) => Totals;
   format: HistoryFormat;
 }) {
@@ -52,15 +52,13 @@ export function WeekHeading({
 export function HistoryRow({
   session,
   stats,
-  compact,
   format,
   timezone,
   onPress,
   onLongPress,
 }: {
-  session: FinishedSession;
+  session: HistoryOverviewSession;
   stats: { day: number; totals: Totals } | undefined;
-  compact: boolean;
   format: HistoryFormat;
   timezone: string;
   onPress: () => void;
@@ -83,37 +81,16 @@ export function HistoryRow({
       accessibilityHint={onLongPress ? t("session__history_row_hint") : undefined}
       className="my-1 min-h-11 flex-row items-center gap-3 rounded-xl bg-surface p-3 active:bg-default"
     >
-      {compact && stats && (
-        <View className="min-w-11">
-          <Text className="text-overline font-semibold uppercase text-muted">
-            {format.weekday(stats.day)}
-          </Text>
-          <Text className="text-numeric-lg font-semibold tabular-nums text-foreground">
-            {format.day(stats.day)}
-          </Text>
-        </View>
-      )}
       <View className="min-w-0 flex-1 gap-1">
         <Text className="font-semibold text-title-md text-foreground">{session.title}</Text>
-        {!compact && <SessionPhotos sessionId={session.id} readOnly localOnly />}
+        <SessionPhotos sessionId={session.id} readOnly localOnly />
         <Text className="font-normal text-caption tabular-nums text-muted">
-          {compact
-            ? t("session__compact_history_row", {
-                sets: t("stats__sets", { count: totals.sets }),
-                volume: t("home__volume_value", {
-                  value: format.decimal(format.volumeValue(totals.volume)),
-                  unit: t(format.volumeUnit),
-                }),
-                duration: t("session__duration_min", {
-                  value: format.integer(Math.round(totals.seconds / 60)),
-                }),
-              })
-            : t("session__history_row", {
-                date: date.format(new Date(session.started_at)),
-                duration: formatElapsed(totals.seconds),
-              })}
+          {t("session__history_row", {
+            date: date.format(new Date(session.started_at)),
+            duration: formatElapsed(totals.seconds),
+          })}
         </Text>
-        {!compact && session.exerciseTitles?.length ? (
+        {session.exerciseTitles?.length ? (
           <Text className="font-normal text-caption text-muted">
             {session.exerciseTitles.join(" · ")}
           </Text>

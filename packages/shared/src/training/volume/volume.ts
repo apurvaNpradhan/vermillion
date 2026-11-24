@@ -36,7 +36,9 @@ export function effectiveWeight(
  * Effective weight times reps. 0 without reps or without a weight, so bodyweight exercises add
  * reps but no volume until a bodyweight is known. Does not look at the kind or the tick.
  */
-export function setVolume(set: LoggedSet, bodyweightKg: number | null = null): number {
+type VolumeSet = Pick<LoggedSet, "exercise_type" | "weight_kg" | "reps" | "bodyweight_kg">;
+
+export function setVolume(set: VolumeSet, bodyweightKg: number | null = null): number {
   const weight = effectiveWeight(
     set.exercise_type,
     set.weight_kg,
@@ -49,7 +51,7 @@ export type SessionTotals = { volume: number; sets: number; reps: number };
 
 /** Volume, set count and reps over the Counted sets: warm-ups and unticked sets are excluded. */
 export function sessionTotals(
-  sets: readonly LoggedSet[],
+  sets: readonly (VolumeSet & Parameters<typeof isCounted>[0])[],
   bodyweightKg: number | null = null,
 ): SessionTotals {
   const totals: SessionTotals = { volume: 0, sets: 0, reps: 0 };

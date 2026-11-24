@@ -10,9 +10,9 @@ export type ApiConfig = {
   appName: string;
   /** Version of the app; the API document reports it. */
   appVersion: string;
-  /** Public origin of the API (`https://patina-api.<domain>` in production). Auth links are built from it. */
+  /** Public origin of the API (`https://sigil-api.<domain>` in production). Auth links are built from it. */
   appUrl: string;
-  /** Public origin of the site and admin (`https://patina.<domain>`); trusted like the API's. */
+  /** Public origin of the site and admin (`https://sigil.<domain>`); trusted like the API's. */
   siteUrl: string;
   /** Lower-cased `ADMIN_EMAILS`. The only source of the admin role; may be empty. */
   adminEmails: string[];
@@ -24,7 +24,6 @@ export type ApiConfig = {
   /** Comma-separated IPs/CIDRs allowed to set X-Forwarded-For, or "none". */
   trustedProxies: string;
   registrationOpen: boolean;
-  turnstileSecret?: string | undefined;
   google?: { clientId: string; clientSecret: string } | undefined;
   github?: { clientId: string; clientSecret: string } | undefined;
   /** Serve the OpenAPI reference (off in production by default). */

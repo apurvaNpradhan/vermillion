@@ -8,14 +8,22 @@ const START_WEEKDAY = { monday: 1, sunday: 0, saturday: 6 } as const satisfies R
   number
 >;
 
+let dayFormatter: { timezone: string; format: Intl.DateTimeFormat } | undefined;
+
 /** The calendar day of an instant in `timezone`, as UTC midnight, so days subtract exactly. */
 export function calendarDay(instant: Date | string, timezone: string): number {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(instant));
+  if (dayFormatter?.timezone !== timezone) {
+    dayFormatter = {
+      timezone,
+      format: new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }),
+    };
+  }
+  const parts = dayFormatter.format.formatToParts(new Date(instant));
   const part = (kind: string) => Number(parts.find((item) => item.type === kind)?.value);
   return Date.UTC(part("year"), part("month") - 1, part("day"));
 }

@@ -192,22 +192,30 @@ export function valueOfSet(
 }
 
 /** The sets of a Session as Logged sets, for the totals in the header. */
+export function loggedSetOf(
+  exercise: SessionDetail["exercises"][number],
+  set: SessionSetDetail,
+  countWarmups: boolean,
+): LoggedSet {
+  return {
+    ...(countWarmups ? { warmup_counted: true } : {}),
+    id: set.id,
+    exercise_id: exercise.exerciseId,
+    exercise_type: exercise.type,
+    kind: set.kind,
+    completed_at: set.completedAt,
+    weight_kg: set.weightKg,
+    reps: set.reps,
+    duration_s: set.durationS,
+    distance_m: set.distanceM,
+    floors: set.floors,
+    steps: set.steps,
+    rpe: set.rpe,
+  };
+}
+
 export function loggedSetsOf(detail: SessionDetail, countWarmups = false): LoggedSet[] {
   return detail.exercises.flatMap((exercise) =>
-    exercise.sets.map((set): LoggedSet => ({
-      ...(countWarmups ? { warmup_counted: true } : {}),
-      id: set.id,
-      exercise_id: exercise.exerciseId,
-      exercise_type: exercise.type,
-      kind: set.kind,
-      completed_at: set.completedAt,
-      weight_kg: set.weightKg,
-      reps: set.reps,
-      duration_s: set.durationS,
-      distance_m: set.distanceM,
-      floors: set.floors,
-      steps: set.steps,
-      rpe: set.rpe,
-    })),
+    exercise.sets.map((set) => loggedSetOf(exercise, set, countWarmups)),
   );
 }

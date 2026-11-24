@@ -67,7 +67,8 @@ export function RestNotificationHost() {
           sessions: sessions.map((session) => ({
             id: session.id,
             title: session.title,
-            restEndsAt: session.restEndsAt,
+            // A paused workout holds its Rest: nothing fires until Resume moves the end.
+            restEndsAt: session.pausedAt === null ? session.restEndsAt : null,
             owned: session.deviceId === installId,
           })),
           scheduledIds: await scheduledRestIds(),

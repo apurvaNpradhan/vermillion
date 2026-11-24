@@ -9,11 +9,11 @@ import {
 } from "@workspace/sync";
 import { useCallback, useState } from "react";
 
-import { useSyncStatus } from "@/sync";
+import { useSyncValue } from "@/sync";
 
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 
-import { libraryStatus, type LibraryStatus } from "./library-status";
+import { catalogState, libraryStatus, type LibraryStatus } from "./library-status";
 
 const NO_RECENT: LibraryRow[] = [];
 
@@ -31,7 +31,7 @@ function subscribeRecent(
  * about itself (`status`). Components never query directly.
  */
 export function useExerciseLibrary(filters: LibraryFilters) {
-  const { snapshot } = useSyncStatus();
+  const catalog = useSyncValue(catalogState);
   const { search, muscles, includeSecondary, equipment, show, sort } = filters;
   // The same filters give the same key, so a new object per render does not restart the watch.
   const key = JSON.stringify({ search, muscles, includeSecondary, equipment, show, sort });
@@ -91,7 +91,7 @@ export function useExerciseLibrary(filters: LibraryFilters) {
   );
   const status: LibraryStatus = libraryStatus({
     failed: state.failed,
-    snapshot,
+    catalog,
     show,
   });
 

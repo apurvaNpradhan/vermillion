@@ -23,7 +23,7 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     DATABASE_URL: z.string().min(1),
-    /** Public origin of the API (`https://patina-api.<domain>` in production). */
+    /** Public origin of the API (`https://sigil-api.<domain>` in production). */
     APP_URL: z.url(),
     BETTER_AUTH_SECRET: z
       .string()
@@ -41,7 +41,6 @@ export const env = createEnv({
      * way to become an admin. Empty means no admin.
      */
     ADMIN_EMAILS: z.string().default(""),
-    TURNSTILE_SECRET_KEY: z.string().optional(),
     /** Sentry DSN of the server project; error reporting runs only when set. */
     SENTRY_DSN: z.url().optional(),
     /** Release name for Sentry events (the image build sets it to the commit); defaults to the version. */

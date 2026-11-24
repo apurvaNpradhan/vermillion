@@ -11,7 +11,7 @@ import { slotTitle } from "@/training/rotation/rotation-row";
 
 /**
  * Train's top card: the active Program, its Rotation as chips (trained ones checked, the next one
- * in the accent) and one Start for the next Workout. Tapping the heading opens the Program.
+ * outlined in ink) and one Start for the next Workout. Tapping the heading opens the Program.
  */
 export function ProgramCard({
   state,
@@ -51,7 +51,7 @@ export function ProgramCard({
       >
         <ProgramTile title={program.title} size={44} coverMediaId={program.coverMediaId} />
         <View className="flex-1">
-          <Text className="text-caption font-medium text-identity">{t("run__active")}</Text>
+          <Text className="text-caption font-medium text-muted">{t("run__active")}</Text>
           <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
             {program.title}
           </Text>
@@ -69,12 +69,8 @@ export function ProgramCard({
           const trained = progress.trained.has(slot.id);
           const isNext = progress.next?.id === slot.id;
           const title = rest ? t("training__rest_day") : slotTitle(slot, t);
-          const tone = isNext ? "bg-identity" : "bg-default";
-          const ink = isNext
-            ? "text-on-identity"
-            : trained || rest
-              ? "text-muted"
-              : "text-foreground";
+          const outline = isNext ? "border-foreground" : "border-transparent";
+          const ink = (trained || rest) && !isNext ? "text-muted" : "text-foreground";
           return (
             <View
               key={slot.id}
@@ -83,7 +79,7 @@ export function ProgramCard({
                 title,
                 state: t(trained ? "run__trained" : isNext ? "run__up_next" : "run__untrained"),
               })}
-              className={`h-9 flex-row items-center gap-1 rounded-full px-3 ${tone}`}
+              className={`h-9 flex-row items-center gap-1 rounded-full border bg-default px-3 ${outline}`}
             >
               {rest ? <Moon size={20} weight="regular" color={subtle} /> : null}
               {trained ? <Check size={20} weight="regular" color={subtle} /> : null}

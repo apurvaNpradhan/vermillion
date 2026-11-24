@@ -11,6 +11,7 @@ import { useForm } from "@tanstack/react-form";
 import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
+  sessionDurationSeconds,
   workoutStructureKey,
   withWarmupsCounted,
   sessionTotals,
@@ -31,6 +32,7 @@ import { useWorkout } from "@/training";
 import { formatElapsed } from "@/session/timer/clock";
 import { formatCell, loggedSetsOf } from "@/session/logging/set-values";
 import { volumeInUnit } from "./summary";
+import { summarizeTargets } from "./target-summary";
 import { useSession } from "@/session/screen/use-session";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "./use-finish-session";
@@ -168,14 +170,8 @@ function FinishFlow({
     title: session.title,
     note: session.note ?? "",
     startedAt: session.startedAt,
-    duration: String(
-      session.durationS ??
-        Math.floor(
-          (Date.parse(session.finishedAt ?? new Date().toISOString()) -
-            Date.parse(session.startedAt)) /
-            1000,
-        ),
-    ),
+    // The time trained, with any pause left out.
+    duration: String(sessionDurationSeconds(session, Date.now())),
   });
   const form = useForm({
     defaultValues: baseline,
@@ -204,7 +200,6 @@ function FinishFlow({
         note: value.note || null,
         startedAt: new Date(started).toISOString(),
         durationSeconds: duration,
-        finishedAt: new Date(started + duration * 1000).toISOString(),
       };
       const result =
         session.finishedAt === null
@@ -241,16 +236,20 @@ function FinishFlow({
       after: change.afterSets?.map((kind) => t(SET_KIND_KEYS[kind])).join(", "),
     }),
   );
-  const weightText = (weight: number | null) =>
-    weight === null ? t("session__no_target") : formatCell("weight", weight, unit);
-  const targetLines = diff.targets.map((change) =>
-    t("session__diff_weight", {
-      exercise: names(change.exerciseId),
-      before: change.before.map(weightText).join(", "),
-      after: change.after.map(weightText).join(", "),
-      unit: unitLabel,
-    }),
-  );
+  const targetLines = diff.targets.map((change) => {
+    const summary = summarizeTargets(change.before, change.after, (weight) =>
+      formatCell("weight", weight, unit),
+    );
+    const exercise = names(change.exerciseId);
+    return summary.kind === "same"
+      ? t("session__diff_weight_same", {
+          exercise,
+          weight: summary.weight,
+          unit: unitLabel,
+          count: summary.count,
+        })
+      : t("session__diff_weight_each", { exercise, weights: summary.weights, unit: unitLabel });
+  });
   const applyUpdate = async (update: RoutineUpdate) => {
     setBusy(true);
     const ok =
@@ -273,7 +272,7 @@ function FinishFlow({
   );
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: top }}>
-      <View className="h-14 flex-row items-center gap-3 px-2">
+      <View className="h-14 flex-row items-center gap-3 pl-2 pr-4">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(
@@ -319,7 +318,7 @@ function FinishFlow({
                 value={field.state.value}
                 onChangeText={field.handleChange}
                 maxLength={TRAINING_LIMITS.titleMax}
-                className="font-semibold text-title-lg text-foreground"
+                className="font-semibold text-display-lg text-foreground"
                 style={inputStyle}
               />
             )}
@@ -355,7 +354,7 @@ function FinishFlow({
                   {t("session__stat_duration")}
                 </Text>
                 <Text
-                  className="font-semibold text-title-md text-identity"
+                  className="font-semibold text-title-md text-foreground"
                   style={{ fontVariant: ["tabular-nums"] }}
                 >
                   {formatElapsed(Number(duration))}
@@ -407,19 +406,13 @@ function FinishFlow({
             >
               {t("session__stat_records")}
             </Text>
-            {session.exercises.flatMap((entry) =>
-              entry.sets.flatMap((set) =>
-                records.flags.has(set.id)
-                  ? [
-                      <SessionRecord
-                        key={set.id}
-                        exercise={entry.title}
-                        records={records.flags.get(set.id) ?? []}
-                      />,
-                    ]
-                  : [],
-              ),
-            )}
+            {records.entries.map((entry) => (
+              <SessionRecord
+                key={entry.exerciseId}
+                exercise={names(entry.exerciseId)}
+                records={entry.keys}
+              />
+            ))}
           </View>
         ) : null}
         <View className="px-4">

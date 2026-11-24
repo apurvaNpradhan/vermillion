@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ScreensRouteImport } from './routes/screens'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as DotwellKnownAssetlinksDotjsonRouteImport } from './routes/[.]well-known/assetlinks[.]json'
+import { Route as PCodeRouteImport } from './routes/p.$code'
+import { Route as WCodeRouteImport } from './routes/w.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +33,30 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScreensRoute = ScreensRouteImport.update({
+  id: '/screens',
+  path: '/screens',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownAssetlinksDotjsonRoute =
+  DotwellKnownAssetlinksDotjsonRouteImport.update({
+    id: '/.well-known/assetlinks.json',
+    path: '/.well-known/assetlinks.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PCodeRoute = PCodeRouteImport.update({
+  id: '/p/$code',
+  path: '/p/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WCodeRoute = WCodeRouteImport.update({
+  id: '/w/$code',
+  path: '/w/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +64,75 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/delete-account': typeof DeleteAccountRoute
   '/privacy': typeof PrivacyRoute
+  '/screens': typeof ScreensRoute
   '/terms': typeof TermsRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
+  '/p/$code': typeof PCodeRoute
+  '/w/$code': typeof WCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/delete-account': typeof DeleteAccountRoute
   '/privacy': typeof PrivacyRoute
+  '/screens': typeof ScreensRoute
   '/terms': typeof TermsRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
+  '/p/$code': typeof PCodeRoute
+  '/w/$code': typeof WCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/delete-account': typeof DeleteAccountRoute
   '/privacy': typeof PrivacyRoute
+  '/screens': typeof ScreensRoute
   '/terms': typeof TermsRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
+  '/p/$code': typeof PCodeRoute
+  '/w/$code': typeof WCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/delete-account' | '/privacy' | '/terms'
+  fullPaths:
+    | '/'
+    | '/delete-account'
+    | '/privacy'
+    | '/screens'
+    | '/terms'
+    | '/.well-known/assetlinks.json'
+    | '/p/$code'
+    | '/w/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/delete-account' | '/privacy' | '/terms'
-  id: '__root__' | '/' | '/delete-account' | '/privacy' | '/terms'
+  to:
+    | '/'
+    | '/delete-account'
+    | '/privacy'
+    | '/screens'
+    | '/terms'
+    | '/.well-known/assetlinks.json'
+    | '/p/$code'
+    | '/w/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/delete-account'
+    | '/privacy'
+    | '/screens'
+    | '/terms'
+    | '/.well-known/assetlinks.json'
+    | '/p/$code'
+    | '/w/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DeleteAccountRoute: typeof DeleteAccountRoute
   PrivacyRoute: typeof PrivacyRoute
+  ScreensRoute: typeof ScreensRoute
   TermsRoute: typeof TermsRoute
+  DotwellKnownAssetlinksDotjsonRoute: typeof DotwellKnownAssetlinksDotjsonRoute
+  PCodeRoute: typeof PCodeRoute
+  WCodeRoute: typeof WCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +158,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/screens': {
+      id: '/screens'
+      path: '/screens'
+      fullPath: '/screens'
+      preLoaderRoute: typeof ScreensRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/assetlinks.json': {
+      id: '/.well-known/assetlinks.json'
+      path: '/.well-known/assetlinks.json'
+      fullPath: '/.well-known/assetlinks.json'
+      preLoaderRoute: typeof DotwellKnownAssetlinksDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$code': {
+      id: '/p/$code'
+      path: '/p/$code'
+      fullPath: '/p/$code'
+      preLoaderRoute: typeof PCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/w/$code': {
+      id: '/w/$code'
+      path: '/w/$code'
+      fullPath: '/w/$code'
+      preLoaderRoute: typeof WCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +200,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DeleteAccountRoute: DeleteAccountRoute,
   PrivacyRoute: PrivacyRoute,
+  ScreensRoute: ScreensRoute,
   TermsRoute: TermsRoute,
+  DotwellKnownAssetlinksDotjsonRoute: DotwellKnownAssetlinksDotjsonRoute,
+  PCodeRoute: PCodeRoute,
+  WCodeRoute: WCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

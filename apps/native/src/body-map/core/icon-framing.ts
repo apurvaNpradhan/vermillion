@@ -1,6 +1,6 @@
 import { BODY_ASPECT } from "./body-canvas";
 import { PREFERRED_VIEW } from "./group-layers";
-import type { BodyGroup } from "./groups";
+import type { BodyGroup, BodyView } from "./groups";
 import { groupBounds } from "./hit-test";
 
 /**
@@ -47,13 +47,14 @@ export type IconFrame = {
   top: number;
 };
 
-/** Where to place the whole body canvas so the group sits centred and sized in a disc. */
-export function iconFrame(group: BodyGroup, size: number): IconFrame | undefined {
-  const view = PREFERRED_VIEW[group];
-  const bounds = groupBounds(group, view);
-  if (!bounds) return undefined;
-  const tuning: { zoom?: number; dx?: number; dy?: number } = ICON_FRAMING[group];
+type Bounds = { x0: number; y0: number; x1: number; y1: number };
 
+/** Frame a box of the canvas (fractions) so its extent fills `FILL` of a disc `size` wide. */
+function frameBounds(
+  bounds: Bounds,
+  size: number,
+  tuning: { zoom?: number; dx?: number; dy?: number },
+) {
   const width = (bounds.x1 - bounds.x0) * BODY_ASPECT;
   const height = bounds.y1 - bounds.y0;
   const extent =
@@ -68,4 +69,32 @@ export function iconFrame(group: BodyGroup, size: number): IconFrame | undefined
   const centreY =
     ((bounds.y0 + bounds.y1) / 2 + (tuning.dy ?? 0) * (bounds.y1 - bounds.y0)) * bodyHeight;
   return { bodyWidth, bodyHeight, left: size / 2 - centreX, top: size / 2 - centreY };
+}
+
+/** Where to place the whole body canvas so the group sits centred and sized in a disc. */
+export function iconFrame(group: BodyGroup, size: number): IconFrame | undefined {
+  const bounds = groupBounds(group, PREFERRED_VIEW[group]);
+  if (!bounds) return undefined;
+  const tuning: { zoom?: number; dx?: number; dy?: number } = ICON_FRAMING[group];
+  return frameBounds(bounds, size, tuning);
+}
+
+/** The same for several groups at once: the box that holds all of them in one view. */
+export function regionFrame(
+  groups: readonly BodyGroup[],
+  view: BodyView,
+  size: number,
+): IconFrame | undefined {
+  const boxes = groups.flatMap((group) => groupBounds(group, view) ?? []);
+  if (boxes.length === 0) return undefined;
+  return frameBounds(
+    {
+      x0: Math.min(...boxes.map((box) => box.x0)),
+      y0: Math.min(...boxes.map((box) => box.y0)),
+      x1: Math.max(...boxes.map((box) => box.x1)),
+      y1: Math.max(...boxes.map((box) => box.y1)),
+    },
+    size,
+    {},
+  );
 }

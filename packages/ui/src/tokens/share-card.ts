@@ -4,8 +4,9 @@ import { mixHex } from "./mix";
 export { mixHex };
 
 /**
- * Share card colours (ADR 0042): derived from the accent's roles, never hand-picked. The native
+ * Share card colours (ADR 0042): derived from the theme's roles, never hand-picked. The native
  * Share composer renders cards with these and `share-card.test.ts` holds every pair to AA.
+ * Cards use two inks. The accent (`record`) marks personal records only.
  */
 
 /** The backgrounds a card offers. Photo only exists when the card has a picture. */
@@ -15,16 +16,12 @@ export type CardBackground = (typeof CARD_BACKGROUNDS)[number];
 /** A background, or the Sticker's own transparent canvas with a solid block. */
 export type CardPaletteKind = CardBackground | "sticker";
 
-/** How strongly the theme background's accent glow tints the top of the card (0..1). */
-export const GLOW_ALPHA = 0.12;
 /** The photo scrim's opacity across the entire card, including the headings at y=168. */
 export const PHOTO_SCRIM_ALPHA = 0.9;
 
 export interface CardPalette {
   /** The card's flat colour; null on a photo or a transparent canvas. */
   fill: string | null;
-  /** The accent of the soft glow at the top (theme background only). */
-  glow: string | null;
   /** The photo scrim's colour (photo background only). */
   scrim: string | null;
   /** The solid colour the text sits on: the fill, the sticker block, or the scrim over white. */
@@ -32,8 +29,10 @@ export interface CardPalette {
   text: string;
   textSecondary: string;
   textMuted: string;
-  /** Marks (the Record medal, rules): a graphic, not text. */
+  /** Marks (rules, bars): a graphic, not text. In Sigil this is ink. */
   accent: string;
+  /** The personal-record mark and the footer mark's dot: the accent. A graphic, not text. */
+  record: string;
   /** Round thumbnails, letter avatars and bars. */
   plate: string;
   hairline: string;
@@ -42,13 +41,13 @@ export interface CardPalette {
 function neutral(roles: RoleTokens, fill: string): CardPalette {
   return {
     fill,
-    glow: null,
     scrim: null,
     ground: fill,
     text: roles["text-primary"],
     textSecondary: roles["text-secondary"],
     textMuted: roles["text-muted"],
-    accent: roles.identity,
+    accent: roles["text-primary"],
+    record: roles["accent-text"],
     plate: roles["surface-control"],
     hairline: roles.hairline,
   };
@@ -59,40 +58,36 @@ function neutral(roles: RoleTokens, fill: string): CardPalette {
  * the Theme and Accent backgrounds follow; Light, Dark, Photo and the Sticker use that fixed palette.
  */
 export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): CardPalette {
+  const { light, dark } = nativeColors;
   switch (kind) {
     case "theme": {
       const roles = nativeColors[appearance];
-      return {
-        ...neutral(roles, roles.surface),
-        glow: roles.identity,
-        // The glow lightens or tints the top of the card, so muted text leans on the stronger tone.
-        textMuted: mixHex(roles["text-muted"], roles["text-secondary"], 0.6),
-      };
+      return neutral(roles, roles.surface);
     }
     case "light":
-      return neutral(nativeColors.light, nativeColors.light.canvas);
+      return neutral(light, light.canvas);
     case "dark":
-      return neutral(nativeColors.dark, nativeColors.dark.canvas);
+      return neutral(dark, dark.canvas);
     case "accent": {
       const roles = nativeColors[appearance];
-      const fill = roles.identity;
-      const ink = roles["on-identity"];
+      // The accent card is filled with the accent; its marks take the label colour on it.
+      const fill = roles.action;
+      const ink = roles["on-action"];
       return {
         fill,
-        glow: null,
         scrim: null,
         ground: fill,
         text: ink,
-        // Use size to distinguish text roles on the accent fill.
         textSecondary: ink,
         textMuted: ink,
         accent: ink,
+        record: ink,
         plate: mixHex(fill, ink, 0.12),
         hairline: mixHex(fill, ink, 0.3),
       };
     }
     case "photo": {
-      const roles = nativeColors.dark;
+      const roles = dark;
       return {
         ...neutral(roles, roles.canvas),
         fill: null,
@@ -102,8 +97,12 @@ export function cardPalette(appearance: NativeVariant, kind: CardPaletteKind): C
       };
     }
     case "sticker": {
-      const roles = nativeColors.dark;
-      return { ...neutral(roles, roles.surface), fill: null, plate: roles["surface-control"] };
+      const roles = dark;
+      return {
+        ...neutral(roles, roles.surface),
+        fill: null,
+        plate: roles["surface-control"],
+      };
     }
   }
 }

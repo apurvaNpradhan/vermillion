@@ -58,7 +58,7 @@ SOFTWARE.
 
 ## PanelUI
 
-The native Calendar, WeekStrip, RadarChart and HeatmapChart and their helpers were derived from [PanelUI](https://github.com/panel-ui/PanelUI) 1.4.0.
+The native Calendar, WeekStrip and HeatmapChart and their helpers were derived from [PanelUI](https://github.com/panel-ui/PanelUI) 1.4.0.
 
 ```text
 MIT License

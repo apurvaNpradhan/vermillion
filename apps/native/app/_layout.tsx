@@ -11,9 +11,9 @@ import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
 import { useFonts } from "expo-font";
 import { pendingOnboardingSteps } from "@workspace/shared";
-import { useSetupPending } from "@/onboarding";
+import { useNeedsSetup } from "@/onboarding";
 import * as SplashScreen from "expo-splash-screen";
-import { Stack } from "expo-router";
+import { Stack, useSegments } from "expo-router";
 import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
@@ -57,7 +57,7 @@ function RootStack() {
   });
   const signedOut = useSignedOut();
   // A new account stays in onboarding until the steps after its name are done (or skipped).
-  const setupPending = useSetupPending(session?.user.id ?? "");
+  const needsSetup = useNeedsSetup(session?.user.id ?? "");
   // A sign-in the server confirmed ends an explicit sign-out (stored-session.ts), nothing else.
 
   // A device that holds a user's data opens without waiting for the session (ADR 0021).
@@ -67,7 +67,7 @@ function RootStack() {
         isPending: sessionPending,
         hasSession: Boolean(session),
         needsOnboarding: session
-          ? pendingOnboardingSteps(session.user).length > 0 || setupPending
+          ? pendingOnboardingSteps(session.user).length > 0 || needsSetup
           : false,
       },
       owner,
@@ -102,8 +102,7 @@ function RootStack() {
             name="session"
             options={{
               presentation: "modal",
-              animation: "slide_from_bottom",
-              animationDuration: 220,
+              animation: "none",
             }}
           />
           <Stack.Screen
@@ -114,6 +113,17 @@ function RootStack() {
               animationDuration: 220,
             }}
           />
+          {/* Share links: the preview and code entry, and the App Link paths that open them. */}
+          <Stack.Screen
+            name="import"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+              animationDuration: 220,
+            }}
+          />
+          <Stack.Screen name="p/[code]" />
+          <Stack.Screen name="w/[code]" />
           <Stack.Screen
             name="exercise-view"
             options={{
@@ -139,7 +149,10 @@ function RootStack() {
 
 function ThemedStatusBar() {
   const mode = useThemeMode();
-  const style = mode === "dark" ? "light" : "dark";
+  const segments = useSegments();
+  // The welcome screen (the auth group's index) is always dark: light bars over it.
+  const onWelcome = segments[0] === "(auth)" && segments.length === 1;
+  const style = mode === "dark" || onWelcome ? "light" : "dark";
   return (
     <>
       <StatusBar style={style} />

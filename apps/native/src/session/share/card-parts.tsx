@@ -84,7 +84,7 @@ export function RecordsChip({ text, palette }: { text: string; palette: CardPale
         backgroundColor: palette.plate,
       }}
     >
-      <Medal size={42} color={palette.accent} weight="fill" />
+      <Medal size={42} color={palette.record} weight="fill" />
       <CardText size={36} weight="semibold" color={palette.text}>
         {text}
       </CardText>
@@ -124,7 +124,7 @@ export function ExerciseRows({
             </CardText>
           </View>
           {item.record ? (
-            <Medal size={metrics.thumb * 0.5} color={palette.accent} weight="fill" />
+            <Medal size={metrics.thumb * 0.5} color={palette.record} weight="fill" />
           ) : null}
         </View>
       ))}

@@ -15,7 +15,7 @@ Email one-time codes only, no passwords ([ADR 0029](../docs/adr/0029-email-otp-a
 - Codes are 6 digits, expire in 5 minutes, are stored hashed, burn after 3 wrong guesses, and a resend rotates the code. Constants live in `@workspace/shared` (`OTP_*`); the email copy and the clients read them.
 - Only the `sign-in` code type can be requested; the plugin's verify-email, check and password-reset endpoints answer 404.
 - Email-sending and auth endpoints have their own stricter rate limits.
-- Turnstile (when `TURNSTILE_SECRET_KEY` is set) guards sending a code, social sign-in and access requests; the verifier fails closed and checks the action and that the hostname is the API's or the site's. No client is exempt, native included.
+- No CAPTCHA ([ADR 0056](../docs/adr/0056-remove-captcha.md)). Abuse is held back by the stricter limits on sending codes (per IP in Better Auth's rate limiter, per address in `send-code-limit.ts`), disposable-domain rejection and invite-only registration; access requests are limited per IP and per address.
 - Disposable domains are rejected when a code is requested and at email change.
 - **Closed beta.** With `REGISTRATION_OPEN=false` a new account needs a live invite for its verified address (or the address in `ADMIN_EMAILS`). One check, in the `user.create.before` hook, covers email codes and Google; `after` redeems the invite. Existing accounts are unaffected.
 - **Admins** are `ADMIN_EMAILS` only: the `role` column is reconciled on start and every sign-in (`session.create.before`). There is no Better Auth admin plugin. Admin procedures use the `admin` builder in `packages/api/src/admin` (role re-read from the database, allowlist, two-factor enrolled and passed on this session).

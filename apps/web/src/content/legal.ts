@@ -44,7 +44,6 @@ export const privacy: LegalDocument = {
         "We use Resend to send account emails, including sign-in codes, sign-in notices and deletion links. Resend receives your email address and the message, which can include the time, IP address, browser and operating system associated with the request.",
         "Cloudflare also sits in front of our servers and this website, so your requests pass through it.",
         "If you use a third-party sign-in provider such as Google, that provider processes the sign-in under its own privacy policy.",
-        "When enabled, Cloudflare Turnstile uses device and network signals to check requests such as sending a sign-in code or starting a third-party sign-in. The server sends the challenge token to Cloudflare for verification.",
         "GitHub handles visits to our release page and any Android downloads from GitHub Releases.",
         "Authorized administrators can see account details, sign-in information, the last reported app version, account restrictions and record counts in their account view.",
       ],

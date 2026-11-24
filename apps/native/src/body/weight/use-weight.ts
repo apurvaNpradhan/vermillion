@@ -24,21 +24,26 @@ export function useWeight() {
   const { preferences, isLoading, hasPreferences, timeZone } = usePreferences();
   const entries = state.value ?? EMPTY;
   const daily = useMemo(() => dailyWeights(entries), [entries]);
-  const series = trendSeries(daily);
+  const series = useMemo(() => trendSeries(daily), [daily]);
   const zone = timeZone;
-  const localDate = useCallback(
-    (date: string) => {
-      const parts = new Intl.DateTimeFormat("en-CA", {
+  const formatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-CA", {
         timeZone: zone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-      }).formatToParts(new Date(date));
+      }),
+    [zone],
+  );
+  const localDate = useCallback(
+    (date: string) => {
+      const parts = formatter.formatToParts(new Date(date));
       return ["year", "month", "day"]
         .map((key) => parts.find((p) => p.type === key)?.value)
         .join("-");
     },
-    [zone],
+    [formatter],
   );
   const today = localDate(new Date().toISOString());
   const months = new Map<string, WatchedMeasurement[]>();

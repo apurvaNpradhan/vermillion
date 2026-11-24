@@ -1,10 +1,11 @@
 import { uuidv7 } from "@workspace/db/columns";
 import { user } from "@workspace/db/schema/auth";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { SEND_CODE_PER_EMAIL } from "@workspace/auth";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
 
-/** Asking for a sign-in code is where registration, disposable and CAPTCHA rules apply. */
+/** Asking for a sign-in code is where registration, disposable and rate-limit rules apply. */
 const requestCode = (app: TestApp, email: string, headers?: Headers) =>
   app.services.auth.api.sendVerificationOTP({
     body: { email, type: "sign-in" },
@@ -70,56 +71,24 @@ describe("registration policy", () => {
     ).rejects.toMatchObject({ body: { code: "DISPOSABLE_EMAIL_NOT_ALLOWED" } });
   });
 
-  describe("CAPTCHA", () => {
-    type SiteverifyReply = { success: boolean; action: string; hostname: string };
-    const answer = (payload: SiteverifyReply) =>
-      vi.fn(async () => new Response(JSON.stringify(payload)));
-    const good = { success: true, action: "auth", hostname: "localhost" };
-
-    it("is not required when no secret is configured", async () => {
+  describe("abuse protections (no CAPTCHA, ADR 0056)", () => {
+    it("sends a code with no challenge token, native clients included", async () => {
       const app = await create();
-      await expect(requestCode(app, "nocaptcha@example.com")).resolves.toBeDefined();
-    });
-
-    it("is required before a code is sent once a secret is configured", async () => {
-      const fetch = answer(good);
-      const app = await create({ config: { turnstileSecret: "secret" }, fetch });
-      const token = new Headers({ "x-turnstile-token": "good-token" });
-      await expect(requestCode(app, "captcha@example.com", token)).resolves.toBeDefined();
-      await expect(requestCode(app, "nobody@example.com")).rejects.toMatchObject({
-        statusCode: 403,
-        body: { code: "CAPTCHA_FAILED" },
+      const native = new Headers({ "user-agent": "okhttp/4", "expo-origin": "sigil://" });
+      await expect(requestCode(app, "native@example.com", native)).resolves.toEqual({
+        success: true,
       });
-      expect(app.outbox.some((m) => m.to === "nobody@example.com")).toBe(false);
     });
 
-    it.each([
-      { success: true, action: "other", hostname: "localhost" },
-      { success: true, action: "auth", hostname: "evil.example" },
-      { success: false, action: "auth", hostname: "localhost" },
-    ])("rejects a token the provider does not vouch for: %j", async (payload) => {
-      const app = await create({ config: { turnstileSecret: "secret" }, fetch: answer(payload) });
-      await expect(
-        requestCode(app, "bad-token@example.com", new Headers({ "x-turnstile-token": "t" })),
-      ).rejects.toMatchObject({ body: { code: "CAPTCHA_FAILED" } });
-    });
-
-    it("fails closed when the provider cannot be reached", async () => {
-      const fetch = vi.fn(async () => {
-        throw new Error("network down");
+    it("limits how often one address can be sent a code, in any letter case", async () => {
+      const app = await create();
+      for (let index = 0; index < SEND_CODE_PER_EMAIL.max; index += 1) {
+        await requestCode(app, "flooded@example.com");
+      }
+      await expect(requestCode(app, "Flooded@Example.com")).rejects.toMatchObject({
+        statusCode: 429,
       });
-      const app = await create({ config: { turnstileSecret: "secret" }, fetch });
-      await expect(
-        requestCode(app, "down@example.com", new Headers({ "x-turnstile-token": "t" })),
-      ).rejects.toMatchObject({ body: { code: "CAPTCHA_FAILED" } });
-    });
-
-    it("exempts no client: a native app without a token is refused too", async () => {
-      const app = await create({ config: { turnstileSecret: "secret" }, fetch: answer(good) });
-      const native = new Headers({ "user-agent": "okhttp/4", "expo-origin": "patina://" });
-      await expect(requestCode(app, "native@example.com", native)).rejects.toMatchObject({
-        body: { code: "CAPTCHA_FAILED" },
-      });
+      await expect(requestCode(app, "someone-else@example.com")).resolves.toBeDefined();
     });
   });
 });

@@ -2,7 +2,17 @@ import { AvatarPicker } from "@/account";
 import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
-import { Barbell, ChatCircleText, Database, Info, SignOut, Trash } from "phosphor-react-native";
+import {
+  Barbell,
+  ChatCircleText,
+  Database,
+  Hash,
+  Info,
+  ListChecks,
+  LinkSimple,
+  SignOut,
+  Trash,
+} from "phosphor-react-native";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 
@@ -66,6 +76,7 @@ export function SettingsScreen() {
           <WeightPreferenceRow />
           <HidePhotosRow />
           <ListRow
+            icon={ListChecks}
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
           />
@@ -96,6 +107,20 @@ export function SettingsScreen() {
               name: appConfig.displayName,
               version: appConfig.version,
             })}
+          />
+        </ListSection>
+        <ListSection title={t("settings__section_sharing")}>
+          <ListRow
+            icon={Hash}
+            title={t("share__enter_code_title")}
+            description={t("settings__enter_code_hint")}
+            onPress={() => router.push("/import")}
+          />
+          <ListRow
+            icon={LinkSimple}
+            title={t("share__links_title")}
+            description={t("settings__shared_links_hint")}
+            onPress={() => router.push("/settings/shared-links")}
           />
         </ListSection>
         <ListSection title={t("settings__section_data")}>

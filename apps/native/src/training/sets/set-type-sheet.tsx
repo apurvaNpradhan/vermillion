@@ -1,4 +1,5 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { SET_KINDS, SET_KIND_KEYS, type SetKind } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
@@ -8,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 import { SET_TONES } from "./set-tones";
 
@@ -31,7 +32,7 @@ const BADGES = {
   myo: "training__chip_myo",
 } as const;
 
-export function SetTypeSheet({
+function SetTypeSheetBody({
   isOpen,
   onOpenChange,
   value,
@@ -49,11 +50,12 @@ export function SetTypeSheet({
   title?: string;
   workingAllowed?: boolean;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const subtle = useSubtleColor();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <FixedSheetContent
@@ -110,3 +112,5 @@ export function SetTypeSheet({
     </BottomSheet>
   );
 }
+
+export const SetTypeSheet = mountOnOpen(SetTypeSheetBody);

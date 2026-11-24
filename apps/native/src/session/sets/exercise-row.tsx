@@ -1,64 +1,79 @@
 import type { SupersetPlace } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { DotsThreeVertical, Plus } from "phosphor-react-native";
+import { Check, DotsThreeVertical } from "phosphor-react-native";
 import { memo, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { ExerciseThumbnail, PinnedNote } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useOnActionColor, useSubtleColor } from "@/platform/theme";
+import { RecordChip } from "./record-chip";
+import { BODY_ENTERING } from "@/session/shared/motion";
 import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
 
-const HIDDEN = { display: "none" } as const;
-const FALLBACK_TITLE_KEY = "training__exercise_missing";
-
 /**
- * One exercise of the accordion. Collapsed it reads "2/4" or "4/4 · 60 kg × 8, 8, 7, 6". Open it shows its pinned note and its body (rest chip, set
- * grid). A superset member carries the bracket, and the whole block opens together.
+ * One exercise of the accordion. Collapsed it is the header alone: thumbnail, name, "2/4 · 60 kg × 8"
+ * (a solid tick instead of the count when every set is done, with the name dimmed) and the
+ * menu. There is no chevron: a tap on the header opens a closed exercise and closes an open one,
+ * a tap on the thumbnail opens the exercise's detail, and the menu (also "View exercise") shows
+ * on every header. Open it also shows its pinned note, progression chip and its body (chips, set
+ * grid). A superset member carries the bracket. An opening body fades in; the height is not
+ * animated, because the list re-measures an item whose size changes and the scroll to the next
+ * exercise lands on the natural layout.
  */
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
   place,
-  open,
   progress,
   summary,
-  showAddSet,
+  expanded,
+  done,
   readOnly,
-  warm,
+  animateOpen,
+  animate,
+  record,
+  onHeaderLayout,
+  onBodyLayout,
   onView,
   onToggle,
   onMenu,
-  onAddSet,
   onReorder,
   children,
   progression,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
-  open: boolean;
   /** "2/4". */
   progress: string;
   /** The done summary after the progress; empty while sets remain. */
   summary: string;
-  /** "+ Add set" on this collapsed row: it was just finished and is resting. */
-  showAddSet: boolean;
+  /** The body is shown; a closed exercise renders no sets, chips or notes. */
+  expanded: boolean;
+  /** Every set is ticked (and there is one). */
+  done: boolean;
   readOnly: boolean;
-  /** Build the body while closed (hidden), so opening it only flips visibility. */
-  warm: boolean;
+  /** The row was closed at some point on this screen, so opening it fades the body in. */
+  animateOpen: boolean;
+  animate: boolean;
+  record: string | null;
+  onHeaderLayout: (event: LayoutChangeEvent) => void;
+  onBodyLayout: (event: LayoutChangeEvent) => void;
   onView: (exerciseId: string) => void;
+  /** Opens a closed exercise, closes an open one (the header tap). */
   onToggle: (exerciseId: string) => void;
   onMenu: (exercise: SessionExerciseDetail) => void;
-  onAddSet: (exerciseId: string) => void;
   /** Long press on the header: open the Reorder view. */
   onReorder: () => void;
-  /** The open body: note, rest chip, set grid. */
-  children: ReactNode;
+  /** The open body: chips, note, set grid. Not built while closed. */
+  children?: ReactNode;
   progression?: ReactNode;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
+  const onAccent = useOnActionColor();
   const info = exercise.exercise;
-  const name = exercise.title;
+  const name = exercise.title || t("training__exercise_missing");
   const grouped = place !== "none";
   const thumbnail = (size: number) => (
     <ExerciseThumbnail
@@ -69,11 +84,23 @@ export const ExerciseRow = memo(function ExerciseRow({
     />
   );
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
+  const doneText = summary === "" ? progress : summary;
+  const toggle = () => onToggle(exercise.id);
+  const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
+    title: name,
+    summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
+  });
+
+  const headerLabel =
+    !expanded && record
+      ? t("session__exercise_header_record", { exercise: exerciseLabel })
+      : exerciseLabel;
 
   return (
-    <ReorderBlock onReorder={onReorder} enabled={!readOnly}>
+    <ReorderBlock onReorder={onReorder} enabled={!readOnly} motion={false}>
       <ReorderTrigger
-        className={`min-h-[64px] flex-row items-center ${open ? "bg-background" : "bg-surface"}`}
+        onLayout={onHeaderLayout}
+        className="min-h-[64px] flex-row items-center bg-background"
       >
         <SupersetBracket place={place} />
         <Pressable
@@ -87,79 +114,70 @@ export const ExerciseRow = memo(function ExerciseRow({
         <View className="min-h-[64px] min-w-0 flex-1 justify-center">
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            accessibilityLabel={`${grouped ? `${t("training__superset_label")}, ` : ""}${name}, ${subtitle}`}
-            accessibilityHint={
-              readOnly
-                ? t("training__row_open_hint")
-                : `${t("training__row_open_hint")}. ${t("training__drag_hint")}`
-            }
+            accessibilityLabel={headerLabel}
+            accessibilityState={{ expanded }}
+            accessibilityHint={readOnly ? undefined : t("training__drag_hint")}
             accessibilityActions={
               readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
             }
             onAccessibilityAction={(event) => {
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
             }}
-            onPress={() => onToggle(exercise.id)}
-            className="min-h-11 justify-center gap-0.5 py-2 pl-3 active:bg-default"
+            onPress={toggle}
+            className="min-h-11 justify-center gap-0.5 py-2 pl-3 pr-1 active:bg-default"
           >
             {place === "first" ? (
-              <Text className="font-semibold text-overline uppercase text-identity">
+              <Text className="font-semibold text-overline uppercase text-foreground">
                 {t("training__superset")}
               </Text>
             ) : null}
-            <Text numberOfLines={2} className="font-medium text-body text-foreground">
-              {name || t(FALLBACK_TITLE_KEY)}
-            </Text>
             <Text
-              numberOfLines={1}
-              className="font-normal text-caption text-muted"
-              style={{ fontVariant: ["tabular-nums"] }}
+              numberOfLines={2}
+              className={`font-medium text-body ${done ? "text-subtle" : "text-foreground"}`}
             >
-              {subtitle}
+              {name}
             </Text>
-            <ExerciseNotes
-              pinned={exercise.pinnedNote}
-              lastTime={open ? exercise.lastNote : null}
-            />
+            <View className="flex-row items-center gap-1.5">
+              {done ? (
+                <View className="h-4 w-4 items-center justify-center rounded bg-accent">
+                  <Check size={12} weight="bold" color={onAccent} />
+                </View>
+              ) : null}
+              <Text
+                numberOfLines={1}
+                className="font-normal min-w-0 flex-shrink text-caption text-muted"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
+                {done ? doneText : subtitle}
+              </Text>
+              <RecordChip record={record} animate={animate} inHeader hidden={expanded} />
+            </View>
+            {expanded ? (
+              <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
+            ) : null}
           </Pressable>
-          {progression}
+          {expanded ? progression : null}
         </View>
-        {showAddSet && !open && !readOnly ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("session__add_set_to", { title: name })}
-            onPress={() => onAddSet(exercise.id)}
-            hitSlop={4}
-            className="h-9 flex-row items-center gap-1 rounded-full bg-default px-3 active:bg-field"
-          >
-            <Plus size={20} color={subtle} />
-            <Text className="font-medium text-caption text-foreground">
-              {t("session__add_set")}
-            </Text>
-          </Pressable>
-        ) : null}
-        {readOnly ? null : (
+        {!readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("training__row_menu", { title: name })}
             onPress={() => onMenu(exercise)}
             hitSlop={4}
-            className="h-12 w-12 items-center justify-center"
+            className="h-11 w-11 items-center justify-center"
           >
             <DotsThreeVertical size={20} color={subtle} />
           </Pressable>
-        )}
+        ) : null}
       </ReorderTrigger>
-      {open || warm ? (
-        <View
-          className="gap-3 bg-default/30 px-3 py-4"
-          style={open ? undefined : HIDDEN}
-          accessibilityElementsHidden={!open}
-          importantForAccessibility={open ? "auto" : "no-hide-descendants"}
+      {expanded ? (
+        <Animated.View
+          entering={animate && animateOpen ? BODY_ENTERING : undefined}
+          onLayout={onBodyLayout}
+          className="gap-3 px-3 pb-4"
         >
           {children}
-        </View>
+        </Animated.View>
       ) : null}
     </ReorderBlock>
   );
@@ -176,7 +194,7 @@ function ExerciseNotes({ pinned, lastTime }: { pinned: string | null; lastTime: 
     <View className="gap-0.5 pt-0.5">
       {pinned === null ? null : <PinnedNote note={pinned} />}
       {lastTime === null ? null : (
-        <Text numberOfLines={2} className="font-normal text-caption text-muted opacity-70">
+        <Text numberOfLines={2} className="font-normal text-caption text-muted">
           {t("session__last_time", { note: lastTime })}
         </Text>
       )}

@@ -8,7 +8,12 @@ import { useMemo } from "react";
 import { useAppliedVariant } from "@/platform/theme";
 
 /** A palette function for several backgrounds at once (the swatch row). */
-export function useCardPalettes(): (kind: CardPaletteKind) => CardPalette {
+export function useCardPalettes() {
   const mode = useAppliedVariant();
-  return useMemo(() => (kind) => cardPalette(mode, kind), [mode]);
+  return useMemo(
+    () => ({
+      palettes: (kind: CardPaletteKind): CardPalette => cardPalette(mode, kind),
+    }),
+    [mode],
+  );
 }

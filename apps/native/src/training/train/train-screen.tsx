@@ -2,7 +2,15 @@ import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useSubtleColor } from "@/platform/theme";
-import { Barbell, CaretDown, CaretRight, CaretUp, ListNumbers, Plus } from "phosphor-react-native";
+import {
+  Barbell,
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  Hash,
+  ListNumbers,
+  Plus,
+} from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -15,7 +23,7 @@ import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { useActiveSessions, useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
 
-import { lastDoneLabel } from "@/training/home/last-done";
+import { lastDoneLabel } from "@/platform/last-done";
 import { combineStatus, isFirstSync } from "./train-status";
 import { useLastDone } from "@/training/home/use-last-done";
 import { useActiveProgram } from "@/training/programs/use-active-program";
@@ -82,13 +90,15 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { start, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
+  const enterCode = useCallback(() => router.push("/import"), [router]);
   const subtle = useSubtleColor();
   const newActions = useMemo(
     () => [
       { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
       { key: "program", label: t("training__new_program"), icon: ListNumbers, onPress: newProgram },
+      { key: "code", label: t("share__enter_code_title"), icon: Hash, onPress: enterCode },
     ],
-    [t, newWorkout, newProgram],
+    [t, newWorkout, newProgram, enterCode],
   );
   const edit = useCallback(
     (id: string) => router.push({ pathname: "/train/workout/[id]/edit", params: { id } }),
@@ -249,7 +259,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                 ) : null}
                 <SyncBanner />
                 <TrainingListState status={status} onRetry={retry} />
-                {status === "list" ? (
+                {status === "list" || status === "empty" ? (
                   <>
                     <ProgramCard
                       state={active}
@@ -277,25 +287,21 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             ListEmptyComponent={
               <View className="px-4">
                 {status === "empty" ? (
-                  <View className="items-center gap-2">
-                    <EmptyState icon={Barbell} mascot title={t("training__empty_plans")} />
-                    <View className="flex-row flex-wrap justify-center gap-3">
-                      <Button variant="secondary" onPress={newWorkout}>
-                        <Button.Label>{t("training__new_workout")}</Button.Label>
-                      </Button>
-                      <Button variant="secondary" onPress={newProgram}>
-                        <Button.Label>{t("training__new_program")}</Button.Label>
-                      </Button>
-                      <Button variant="secondary" onPress={onStartEmpty}>
-                        <Button.Label>{t("home__start_empty")}</Button.Label>
-                      </Button>
-                    </View>
-                  </View>
+                  <EmptyState
+                    icon={Barbell}
+                    label={t("empty__workouts", { count: 0 })}
+                    title={t("training__no_workouts")}
+                    action={{ label: t("training__new_workout"), onPress: newWorkout }}
+                  />
                 ) : status === "list" ? (
                   isFirstSync(workoutList.status) ? (
                     <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
                   ) : (
-                    <EmptyState icon={Barbell} mascot title={t("training__no_workouts")} />
+                    <EmptyState
+                      icon={Barbell}
+                      label={t("empty__workouts", { count: 0 })}
+                      title={t("training__no_workouts")}
+                    />
                   )
                 ) : null}
               </View>

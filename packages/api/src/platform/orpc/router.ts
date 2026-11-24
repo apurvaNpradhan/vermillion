@@ -8,6 +8,7 @@ import { adminReleasesRouter, releaseRouter } from "../../release/index";
 import { authRouter } from "../../auth/index";
 import { mediaRouter } from "../../media/index";
 import { preferencesRouter } from "../../preferences/index";
+import { shareRouter } from "../../share/index";
 import { syncRouter } from "../sync/procedures";
 
 /** The app router. A vertical adds its router here. */
@@ -25,6 +26,7 @@ export const appRouter = {
   media: mediaRouter,
   preferences: preferencesRouter,
   release: releaseRouter,
+  share: shareRouter,
   sync: syncRouter,
 };
 

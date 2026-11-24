@@ -1,10 +1,3 @@
-/** Whole seconds since `startedAt`; never negative, so a clock set back shows 0:00 rather than a minus. */
-export function elapsedSeconds(startedAt: string, now: number): number {
-  const start = Date.parse(startedAt);
-  if (Number.isNaN(start)) return 0;
-  return Math.max(0, Math.floor((now - start) / 1000));
-}
-
 /** "0:05", "12:30", "1:02:03": minutes and seconds, with hours once there are any. */
 export function formatElapsed(totalSeconds: number): string {
   const whole = Math.max(0, Math.floor(totalSeconds));

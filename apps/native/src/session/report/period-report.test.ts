@@ -45,6 +45,7 @@ const session = (
   id,
   started_at,
   finished_at: started_at,
+  pausedMs: 0,
   durationS,
   workoutId: null,
   title: "Strength",

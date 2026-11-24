@@ -1,6 +1,7 @@
 import { useWeight } from "@/body";
 import type { SessionDetail } from "@workspace/sync";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
 
 import { usePreferences } from "@/preferences";
 
@@ -9,6 +10,7 @@ import {
   notificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { useInstallId } from "@/session/shared/use-install-id";
+import { createSessionStore, type SessionStore } from "@/session/store/session-store";
 import { useLoggingState } from "./use-logging-state";
 import { useOptimisticSession } from "./use-optimistic-session";
 import { useRecordBests } from "./use-record-bests";
@@ -17,14 +19,27 @@ import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
 
 /**
- * Everything a screen that logs a live Session needs before it draws: the Session with ticks and
- * Rest changes shown at once, who owns it, Previous values, the logging state (ticks, keypad,
- * timers) and whether to ask about Rest notifications after the first Rest. The sets view and the
- * Timer both use it, so they log the same way.
+ * The store of one live Session, made with its screen and fed by the database's watch. Changes the
+ * watch brings that the store already shows (the pending tick, once saved) leave it as it was.
  */
-export function useSessionLogging(stored: SessionDetail) {
+export function useFedSessionStore(stored: SessionDetail): SessionStore {
+  const [store] = useState(() => createSessionStore(stored));
+  useLayoutEffect(() => {
+    store.getState().setStored(stored);
+  }, [store, stored]);
+  return store;
+}
+
+/**
+ * Everything a screen that logs a live Session needs before it draws, over a store the screen made
+ * itself so it can share it with its rows: the Session with ticks and Rest changes shown at once,
+ * who owns it, Previous values, the logging state (ticks, keypad, timers) and whether to ask about
+ * Rest notifications after the first Rest.
+ */
+export function useSessionLoggingIn(store: SessionStore, editor = false) {
   // Ticks and Rest changes show at once; the database's watch catches up a moment later.
-  const { session, actions } = useOptimisticSession(stored, useSessionActions());
+  const actions = useOptimisticSession(store, useSessionActions());
+  const session = useStore(store, (state) => state.session);
   const { preferences, setUi, isLoading: preferencesLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
   const effortScale = preferences.ui.effortScale;
@@ -38,9 +53,9 @@ export function useSessionLogging(stored: SessionDetail) {
   useEffect(() => {
     if (mine) hadIt.current = true;
   }, [mine]);
-  const readOnly = session.finishedAt === null && !mine;
+  const readOnly = (editor && installId === null) || (session.finishedAt === null && !mine);
 
-  const exerciseIds = useMemo(
+  const libraryIds = useMemo(
     () => session.exercises.map((entry) => entry.exerciseId),
     [session.exercises],
   );
@@ -49,12 +64,12 @@ export function useSessionLogging(stored: SessionDetail) {
     ready: historyReady,
     failed: historyFailed,
     retry: retryHistory,
-  } = usePreviousSets(exerciseIds);
+  } = usePreviousSets(libraryIds);
 
   const { recordAlerts, sounds, soundMilestones } = preferences.ui;
   const recordBests = useRecordBests(
     session,
-    exerciseIds,
+    libraryIds,
     !readOnly && (recordAlerts || (sounds && soundMilestones)),
     weight.withBodyweight,
   );
@@ -65,13 +80,17 @@ export function useSessionLogging(stored: SessionDetail) {
   const onRestStarted = useCallback(() => {
     if (permission === "undetermined" && !notificationPermissionAsked()) setAskOpen(true);
   }, [permission]);
+  const { durationFormat, distanceUnit } = preferences.ui;
+  const display = useMemo(() => ({ durationFormat, distanceUnit }), [durationFormat, distanceUnit]);
   const logging = useLoggingState({
-    session,
+    store,
+    editor,
     previous,
     recordBests,
     historyReady,
     historyFailed,
     unit,
+    display,
     effortScale,
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
@@ -122,7 +141,8 @@ export function useSessionLogging(stored: SessionDetail) {
     mine,
     hadIt,
     readOnly,
-    exerciseIds,
+    /** The library ids of the Session's exercises (what the picker excludes). */
+    exerciseIds: libraryIds,
     historyReady,
     historyFailed,
     retryHistory,

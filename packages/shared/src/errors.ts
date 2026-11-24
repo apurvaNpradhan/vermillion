@@ -5,6 +5,7 @@ export const ERROR_CODES = [
   "FORBIDDEN",
   "NOT_FOUND",
   "CONFLICT",
+  "GONE",
   "TOO_MANY_REQUESTS",
   "BAD_GATEWAY",
 ] as const;
@@ -17,6 +18,7 @@ export const HTTP_STATUS_BY_CODE = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  GONE: 410,
   TOO_MANY_REQUESTS: 429,
   BAD_GATEWAY: 502,
 } as const satisfies Record<ErrorCode, number>;

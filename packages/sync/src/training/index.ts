@@ -94,6 +94,7 @@ export {
   watchSessionSetCounts,
   watchSessionPage,
   watchFinishedHistory,
+  watchHistoryOverview,
   watchRecordHistory,
   watchRecordHistoryChanges,
   readRecordHistory,
@@ -116,6 +117,7 @@ export {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_READ_LIMIT,
   parseActiveSessions,
   parseEquipment,
@@ -124,6 +126,7 @@ export {
   type ActiveSession,
   type EquipmentRow,
   type FinishedSession,
+  type HistoryOverviewSession,
   type HistoryRange,
   type SessionSetCount,
   type SessionDetail,
@@ -153,6 +156,12 @@ export {
   type SessionRow,
   type SessionSetRow,
 } from "./sessions/session-common";
+export {
+  pauseSession,
+  resumeSession,
+  setSessionStart,
+  type SetStartResult,
+} from "./sessions/session-clock-store";
 export {
   adjustRest,
   clearRest,
@@ -225,3 +234,13 @@ export {
   releaseSessionPhotos,
 } from "./sessions/photo-store";
 export { watchSessionPhotos, type SessionPhoto } from "./sessions/photo-watch";
+export {
+  importSnapshot,
+  previewImportExercises,
+  readProgramShareSource,
+  readSessionShareSource,
+  readWorkoutShareSource,
+  type ExerciseMatch,
+  type ImportedPlan,
+  type ImportExercisePreview,
+} from "./plans/share-store";

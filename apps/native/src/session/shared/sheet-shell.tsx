@@ -1,12 +1,13 @@
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 /** The frame the Session's small sheets share: a title, an optional line under it, then content. */
-export function SheetShell({
+function SheetShellBody({
   isOpen,
   onOpenChange,
   title,
@@ -19,9 +20,10 @@ export function SheetShell({
   description?: string;
   children: ReactNode;
 }) {
+  const animation = useSheetAnimation();
   const { bottom } = useSafeAreaInsets();
   return (
-    <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
@@ -44,3 +46,5 @@ export function SheetShell({
     </BottomSheet>
   );
 }
+
+export const SheetShell = mountOnOpen(SheetShellBody);

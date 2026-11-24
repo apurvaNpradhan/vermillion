@@ -143,6 +143,10 @@ export {
   workoutExercise,
   SessionLimitError,
   adjustRest,
+  pauseSession,
+  resumeSession,
+  setSessionStart,
+  type SetStartResult,
   beginSession,
   clearRest,
   discardSession,
@@ -194,6 +198,7 @@ export {
   SESSION_EXPORT_SQL,
   watchSessionPage,
   watchFinishedHistory,
+  watchHistoryOverview,
   watchRecordHistory,
   watchRecordHistoryChanges,
   readRecordHistory,
@@ -206,6 +211,7 @@ export {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_READ_LIMIT,
 } from "./training";
 export type {
@@ -215,6 +221,7 @@ export type {
   EquipmentRow,
   ExerciseSettingPatch,
   FinishedSession,
+  HistoryOverviewSession,
   SessionSetCount,
   FinishInput,
   HistoryRange,
@@ -344,3 +351,13 @@ export {
   type PreferencesDatabase,
   type PreferencesScope,
 } from "./preferences";
+export {
+  importSnapshot,
+  previewImportExercises,
+  readProgramShareSource,
+  readSessionShareSource,
+  readWorkoutShareSource,
+  type ExerciseMatch,
+  type ImportedPlan,
+  type ImportExercisePreview,
+} from "./training";

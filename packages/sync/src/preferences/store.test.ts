@@ -41,6 +41,23 @@ describe("preferences store", () => {
     expect(readPreferencesRow(row as never).ui.lengthUnit).toBe("in");
   });
 
+  it("keeps the deprecated Timer view and inline timer values instead of dropping every preference", async () => {
+    const s = await setup();
+    await savePreferences(s.database, { ui: { weightUnit: "lb" } }, s.scope);
+    // An older app wrote the Timer view; storing it must not make the whole row unreadable.
+    s.sqlite
+      .prepare("UPDATE user_preferences SET ui = ?")
+      .run(JSON.stringify({ weightUnit: "lb", sessionView: "timer", inlineTimer: false }));
+    expect((await readPreferences(s.database, "owner")).ui.weightUnit).toBe("lb");
+    await savePreferences(s.database, { ui: { keepAwake: false } }, s.scope);
+    expect((await readPreferences(s.database, "owner")).ui).toMatchObject({
+      weightUnit: "lb",
+      sessionView: "timer",
+      inlineTimer: false,
+      keepAwake: false,
+    });
+  });
+
   it("merges ui key by key and keeps what it does not know", async () => {
     const s = await setup();
     await savePreferences(s.database, { ui: { weightUnit: "lb" } }, s.scope);

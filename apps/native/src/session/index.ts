@@ -1,5 +1,4 @@
 export { SessionScreen } from "./screen/session-screen";
-export { TimerScreen } from "./timer/timer-screen";
 export { SessionSummaryScreen } from "./finish/session-summary-screen";
 export { ResumeBar } from "./lifecycle/resume-bar";
 export { ForgottenSessionHost } from "./lifecycle/forgotten-session-host";
@@ -9,6 +8,7 @@ export { useSessionSettings } from "./settings/use-session-settings";
 export { HistoryScreen } from "./history/history-screen";
 export { SessionShareScreen } from "./share/session-share-screen";
 export { ReportScreen } from "./report/report-screen";
+export { ReportsScreen } from "./report/reports-screen";
 export { ReportShareScreen } from "./report/report-share-screen";
 export { parseReportKey } from "./report/report-period";
 export { SessionDetailScreen } from "./history/session-detail-screen";
@@ -17,6 +17,8 @@ export { useActiveSessions } from "./lifecycle/use-active-sessions";
 export { formatElapsed } from "./timer/clock";
 export { doneSummary } from "./finish/summary";
 
+export { useRecordHistory } from "./history/use-session-history";
+export { sessionRecords } from "./finish/session-records";
 export { usePreviousSets } from "./logging/use-previous-sets";
 export { previewProgression } from "./logging/preview-progression";
 

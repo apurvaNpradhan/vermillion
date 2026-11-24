@@ -9,9 +9,9 @@ import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
+import { REST_ENTERING, REST_EXITING } from "@/session/shared/motion";
 import { formatElapsed } from "@/session/timer/clock";
 import { REST_ADJUST_SECONDS, restView } from "./rest-rules";
-import { useRestPulse } from "./use-rest-pulse";
 import { isRestSurfaceVisible } from "@/session/notifications/rest-notification";
 import { useNow } from "@/session/shared/use-now";
 import { countdownBeepSecond } from "@/session/settings/sound-rules";
@@ -21,26 +21,31 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
  * The bar at the bottom of the logging screen while a Rest runs: the countdown, −15, +15, Skip
  * and a thin progress line. Times come from the stored start and end, so it is right after the
  * app was backgrounded or killed. When it reaches zero it plays the end haptic and chime and goes away.
+ * It slides up from the bottom while fading in, and back down when the Rest ends or is skipped.
  * It is mounted while the Session holds a Rest and draws nothing once that Rest is over.
  */
 export function RestBar({
   rest,
+  animate,
   onAdjust,
   onSkip,
   withInset,
+  pausedAt,
 }: {
+  animate: boolean;
   rest: { setId: string; startedAt: string; endsAt: string };
   onAdjust: (deltaSeconds: number) => void;
   onSkip: () => void;
   /** Leave room for the bottom safe area (no keypad below). */
   withInset: boolean;
+  /** The workout is paused: the countdown stops where it was. */
+  pausedAt: string | null;
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
-  const now = useNow(true, 250);
-  const view = restView(rest, now);
-  const pulse = useRestPulse(rest.endsAt, view.remaining);
+  const now = useNow(pausedAt === null, 250);
+  const view = restView(rest, pausedAt === null ? now : Date.parse(pausedAt));
   const { play } = useSoundCues();
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
@@ -56,7 +61,7 @@ export function RestBar({
 
   // The 3-2-1 beeps, once per second left, while this screen is in front.
   const beeped = useRef<string | null>(null);
-  const beepSecond = view.running ? countdownBeepSecond(view.remaining) : null;
+  const beepSecond = pausedAt === null && view.running ? countdownBeepSecond(view.remaining) : null;
   useEffect(() => {
     if (beepSecond === null) return;
     const key = `${rest.endsAt}:${beepSecond}`;
@@ -73,31 +78,36 @@ export function RestBar({
     onAdjust(delta);
   };
   return (
-    <View className="bg-surface" style={{ paddingBottom: withInset ? bottom : 0 }}>
+    <Animated.View
+      entering={animate ? REST_ENTERING : undefined}
+      exiting={animate ? REST_EXITING : undefined}
+      className="bg-background"
+      style={{ paddingBottom: withInset ? bottom : 0 }}
+    >
       <View
         accessibilityRole="progressbar"
         accessibilityLabel={t("session__rest_label")}
         accessibilityValue={{ min: 0, max: view.total, now: view.total - view.remaining }}
         className="h-0.5 bg-default"
       >
-        <View className="h-full bg-identity" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <View className="h-full bg-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
       </View>
       <View className="flex-row items-center gap-2 px-3 py-2">
         <View className="flex-1">
           <Text className="font-normal text-caption text-muted">{t("session__rest_label")}</Text>
-          <Animated.Text
+          <Text
             accessibilityLiveRegion="none"
             className="font-semibold text-numeric-md text-foreground"
-            style={[{ fontVariant: ["tabular-nums"] }, pulse]}
+            style={{ fontVariant: ["tabular-nums"] }}
           >
             {formatElapsed(view.remaining)}
-          </Animated.Text>
+          </Text>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("session__rest_minus", { seconds: REST_ADJUST_SECONDS })}
           onPress={() => adjust(-REST_ADJUST_SECONDS)}
-          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
+          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl px-2 active:bg-default"
         >
           <Minus size={20} color={foreground} />
           <Text className="font-medium text-label tabular-nums text-foreground">
@@ -108,17 +118,17 @@ export function RestBar({
           accessibilityRole="button"
           accessibilityLabel={t("session__rest_plus", { seconds: REST_ADJUST_SECONDS })}
           onPress={() => adjust(REST_ADJUST_SECONDS)}
-          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl bg-default px-2 active:bg-field"
+          className="h-11 min-w-14 flex-row items-center justify-center gap-0.5 rounded-xl px-2 active:bg-default"
         >
           <Plus size={20} color={foreground} />
           <Text className="font-medium text-label tabular-nums text-foreground">
             {REST_ADJUST_SECONDS}
           </Text>
         </Pressable>
-        <Button variant="secondary" onPress={onSkip}>
+        <Button variant="ghost" onPress={onSkip}>
           <Button.Label>{t("session__rest_skip")}</Button.Label>
         </Button>
       </View>
-    </View>
+    </Animated.View>
   );
 }

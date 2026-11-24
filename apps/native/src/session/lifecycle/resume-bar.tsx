@@ -1,5 +1,5 @@
 import type { ActiveSession } from "@workspace/sync";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { Barbell, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -12,10 +12,10 @@ import { TAB_BAR_HEIGHT, useTabBarBottom } from "@/platform/navigation/tab-bar-m
 import { useSubtleColor } from "@/platform/theme";
 import { FloatingSurface } from "@/platform/ui/floating-surface";
 
-import { elapsedSeconds, formatElapsed } from "@/session/timer/clock";
+import { formatElapsed } from "@/session/timer/clock";
 import { currentExercise } from "./resume";
 import { useActiveSessions } from "./use-active-sessions";
-import { useNow } from "@/session/shared/use-now";
+import { useActiveSeconds } from "@/session/shared/use-active-seconds";
 import { useSession } from "@/session/screen/use-session";
 import { SessionsSheet } from "./sessions-sheet";
 
@@ -76,16 +76,16 @@ function Strip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Clock({ startedAt }: { startedAt: string }) {
-  const now = useNow();
-  return <>{formatElapsed(elapsedSeconds(startedAt, now))}</>;
+function Clock({ session }: { session: ActiveSession }) {
+  const seconds = useActiveSeconds(session);
+  return <>{formatElapsed(seconds)}</>;
 }
 
 function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: () => void }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const state = useSession(session.id);
-  const current = state.status === "ready" ? currentExercise(state.session.exercises) : null;
+  // The Session screen is open over the bar: it already watches the Session, the bar is hidden.
+  const covered = usePathname().startsWith("/session/");
   return (
     <Pressable
       accessibilityRole="button"
@@ -106,13 +106,20 @@ function SingleSession({ session, onOpen }: { session: ActiveSession; onOpen: ()
           className="font-normal text-caption text-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          <Clock startedAt={session.startedAt} />
-          {current ? ` · ${current.title}` : ""}
+          <Clock session={session} />
+          {covered ? null : <CurrentExerciseTitle id={session.id} />}
         </Text>
       </View>
       <CaretUp size={20} color={subtle} />
     </Pressable>
   );
+}
+
+/** The exercise being worked on; the only reader of the Session while the bar is showing. */
+function CurrentExerciseTitle({ id }: { id: string }) {
+  const state = useSession(id);
+  const current = state.status === "ready" ? currentExercise(state.session.exercises) : null;
+  return <>{current ? ` · ${current.title}` : ""}</>;
 }
 
 function ManySessions({ count, onOpen }: { count: number; onOpen: () => void }) {

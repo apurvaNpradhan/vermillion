@@ -53,6 +53,7 @@ function ReportShare({ report }: { report: PeriodReport }) {
     {
       id: "summary",
       label: t("share__template_summary"),
+      hasRecords: data.view.records !== null,
       supportsTransparent: false,
       render: (context) => <ReportSummaryCard data={data} context={context} />,
     },

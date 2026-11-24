@@ -5,21 +5,19 @@ import { useActiveProgram } from "@/training";
 import {
   bodyweightLookup,
   dailyWeights,
-  fromZonedParts,
   sessionGoal,
   type WeekStart,
   withWarmupsCounted,
 } from "@workspace/shared";
-import { watchFinishedHistory, watchRecordHistory, type FinishedSession } from "@workspace/sync";
+import {
+  watchHistoryOverview,
+  watchRecordHistory,
+  type FinishedSession,
+  type HistoryOverviewSession,
+} from "@workspace/sync";
 import { useCallback, useMemo } from "react";
 
 import { buildHistory } from "./history-calendar";
-
-const subscribeAll = (
-  database: Parameters<typeof watchFinishedHistory>[0],
-  onValue: (sessions: FinishedSession[]) => void,
-  onError: () => void,
-) => watchFinishedHistory(database, { onSessions: onValue, onError });
 
 const idle = () => () => undefined;
 
@@ -36,52 +34,20 @@ export function useHistorySettings() {
   };
 }
 
-/**
- * The History for a visible period. A `window` (local days, see `historyWindow`) reads only the
- * Sessions of that range, so Week, Month and Year never wait for the whole log; `null` reads all
- * of it (the All period).
- */
-export function useSessionHistory(
-  window: { from: number; to: number } | null,
-  timezone: string,
-  weekStart: WeekStart,
-) {
+/** The whole History: every finished Session, with its per-day, week, month and year buckets. */
+export function useSessionHistory(timezone: string, weekStart: WeekStart, focused: boolean) {
   const { preferences } = usePreferences();
   const weight = useWeight();
   const { bodyweightKg, countWarmups } = preferences.ui;
-  const from = window?.from;
-  const to = window?.to;
-  const subscribeRange = useCallback(
+  const subscribe = useCallback(
     (
-      database: Parameters<typeof watchFinishedHistory>[0],
-      onValue: (sessions: FinishedSession[]) => void,
+      database: Parameters<typeof watchHistoryOverview>[0],
+      onValue: (sessions: HistoryOverviewSession[]) => void,
       onError: () => void,
-    ) => {
-      if (from === undefined || to === undefined) return idle();
-      const day = (stamp: number) => {
-        const date = new Date(stamp);
-        return fromZonedParts(
-          {
-            year: date.getUTCFullYear(),
-            month: date.getUTCMonth() + 1,
-            day: date.getUTCDate(),
-            hour: 0,
-            minute: 0,
-          },
-          timezone,
-        );
-      };
-      return watchFinishedHistory(
-        database,
-        { onSessions: onValue, onError },
-        { from: day(from), to: day(to) },
-      );
-    },
-    [from, to, timezone],
+    ) => (focused ? watchHistoryOverview(database, { onSessions: onValue, onError }) : idle()),
+    [focused],
   );
-  const ranged = useLocalWatch(subscribeRange);
-  const all = useLocalWatch(window === null ? subscribeAll : idle);
-  const state = window === null ? all : ranged;
+  const state = useLocalWatch(subscribe);
   const { entries } = weight;
   const history = useMemo(() => {
     // The same rule as session detail (`bodyweightOn`): measured weight through the day, resolved

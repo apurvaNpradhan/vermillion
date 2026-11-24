@@ -1,3 +1,4 @@
+import { watchSession } from "../index";
 import {
   ghostFor,
   previousFor,
@@ -17,6 +18,7 @@ import {
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
+  SESSION_LAST_NOTES_SQL,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   exerciseHistoriesSql,
@@ -32,7 +34,7 @@ import {
   parseSessionDetail,
 } from "./session-watch";
 import { setExerciseSetting, upsertEquipment } from "./equipment-store";
-import { readRecordHistory } from "../watch";
+import { readRecordHistory, watchHistoryOverview } from "../watch";
 
 const derivedTitle = "Quadriceps";
 const DAY = 86_400_000;
@@ -301,6 +303,59 @@ describe("the History reader", () => {
     ]);
     expect((await readFinishedHistoryPages(read)).map((row) => row.id)).toEqual([recent, mid, old]);
   });
+
+  it("reads over 4,000 imported workouts and keeps the range end exclusive", async () => {
+    const s = await setupSessions();
+    s.sqlite.exec(`WITH RECURSIVE batch(n) AS (
+      VALUES (1) UNION ALL SELECT n + 1 FROM batch WHERE n < 4200
+    )
+    INSERT INTO training_session (id, user_id, title, started_at, finished_at, created_at)
+    SELECT printf('import-%04d', n), 'owner', 'Imported',
+      strftime('%Y-%m-%dT%H:%M:%fZ', '2024-01-01', n || ' hours'),
+      strftime('%Y-%m-%dT%H:%M:%fZ', '2024-01-01', (n + 1) || ' hours'), 'now'
+    FROM batch;
+    INSERT INTO session_exercise (
+      id, user_id, session_id, exercise_id, exercise_title, exercise_type, position, created_at
+    ) SELECT 'e-' || id, 'owner', id, '${SQUAT}', 'Squat', 'weight_reps', 'a0', 'now'
+      FROM training_session;
+    WITH RECURSIVE sets(n) AS (VALUES (1) UNION ALL SELECT n + 1 FROM sets WHERE n < 12)
+    INSERT INTO session_set (
+      id, user_id, session_exercise_id, position, kind, weight_kg, reps, completed_at, created_at
+    ) SELECT se.id || '-' || n, 'owner', se.id, printf('a%02d', n), 'working', 100, 5,
+      s.finished_at, 'now' FROM session_exercise se JOIN training_session s ON s.id = se.session_id
+      CROSS JOIN sets;
+    `);
+    const { read } = readerOf(s);
+    const year = createFinishedHistoryReader({
+      from: "2024-01-01T00:00:00.000Z",
+      to: "2024-06-24T00:00:00.000Z",
+    });
+    const all = createFinishedHistoryReader();
+    const sessions = await all.refresh(read);
+    expect(sessions).toHaveLength(4200);
+    expect(sessions?.[0]?.sets).toHaveLength(12);
+    expect(await year.refresh(read)).toHaveLength(4199);
+    expect(await all.refresh(read)).toBeNull();
+    const overview = new Promise<number>((resolve, reject) => {
+      const stop = watchHistoryOverview(s.training, {
+        onSessions: (rows) => {
+          stop();
+          resolve(rows.length);
+        },
+        onError: (error) => {
+          stop();
+          reject(error);
+        },
+      });
+    });
+    const exercise = await s.training.getAll<{ session_id: string }>(EXERCISE_HISTORY_SQL, [
+      SQUAT,
+      SQUAT,
+    ]);
+    expect(s.sqlite.isTransaction).toBe(false);
+    expect(exercise[0]?.session_id).toBe("import-4200");
+    expect(await overview).toBe(4200);
+  }, 20_000);
 
   it("ignores ticks in an unfinished Session and reloads only a changed finished one", async () => {
     const s = await setupSessions();
@@ -574,7 +629,7 @@ it("pages beyond 500 Sessions and includes the oldest exercise best in Record co
     const ids: string[] = [];
     while (true) {
       const page = parseFinishedSessions(
-        s.sqlite.prepare(sessionsPageSql()).all(cursor.startedAt, cursor.startedAt, cursor.id, 50),
+        s.sqlite.prepare(sessionsPageSql()).all(cursor.startedAt, cursor.id, 50),
       );
       ids.push(...page.map((session) => session.id));
       const last = page.at(-1);
@@ -600,4 +655,100 @@ it("reads auto warm-ups and the remembered bar for a session exercise, off by de
   expect(detail()?.exercises[0]).toMatchObject({ autoWarmups: false, barId: null });
   await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
   expect(detail()?.exercises[0]?.autoWarmups).toBe(true);
+});
+
+describe("Session detail queries", () => {
+  type Row = Record<string, string | number | null>;
+  /** The per-column subqueries the detail query used before the single setting join. */
+  const LEGACY_COLUMNS = `
+    (SELECT progression_per_set FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT bar_id FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS bar_id,
+    (SELECT auto_warmups FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
+    (SELECT note FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
+    (SELECT se2.note FROM session_exercise se2
+      JOIN training_session s2 ON s2.id = se2.session_id
+      WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
+        AND s2.started_at < s.started_at
+      ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
+  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note"] as const;
+
+  it("updates a running Session when its earlier finished exercise note is edited", async () => {
+    const s = await setupSessions();
+    const earlier = await finishedSquat(s, daysAgo(3), [100]);
+    const active = await startSession(s.training, { workoutId: null, derivedTitle });
+    await addSessionExercises(s.training, active, [SQUAT, SQUAT]);
+    const notes: Array<Array<string | null>> = [];
+    const stop = watchSession(s.training, active, {
+      onSession: (session) =>
+        notes.push(session?.exercises.map((exercise) => exercise.lastNote) ?? []),
+      onError: (error) => {
+        throw error;
+      },
+    });
+    try {
+      s.sqlite
+        .prepare("UPDATE session_exercise SET note = ? WHERE session_id = ?")
+        .run("Belt on", earlier);
+      s.notifyTable("session_exercise");
+      expect(notes).toEqual([
+        [null, null],
+        ["Belt on", "Belt on"],
+      ]);
+    } finally {
+      stop();
+    }
+  });
+
+  it("returns the same settings and last notes as the correlated subqueries did", async () => {
+    const s = await setupSessions();
+    const earlier = await finishedSquat(s, daysAgo(3), [100, 110]);
+    const [earlierExercise] = s.exercises(earlier).map((row) => String(row["id"]));
+    s.sqlite
+      .prepare("UPDATE session_exercise SET note = ? WHERE id = ?")
+      .run("Belt on", earlierExercise ?? "");
+    await setExerciseSetting(s.training, SQUAT, {
+      note: "Heels down",
+      progression_per_set: true,
+      auto_warmups: true,
+    });
+    // The local replica can briefly hold duplicate settings, for example after offline writes.
+    s.sqlite
+      .prepare("INSERT INTO exercise_setting (id, user_id, exercise_id, note) VALUES (?, ?, ?, ?)")
+      .run("z-duplicate", "owner", SQUAT, "Different note");
+    const plan = await pushWorkout(s);
+    for (const workoutId of [plan.workoutId, null]) {
+      const id = await startSession(s.training, { workoutId, derivedTitle });
+      if (workoutId === null) await addSessionExercises(s.training, id, [SQUAT, PLANK]);
+      const legacy = s.sqlite
+        .prepare(
+          SESSION_DETAIL_SQL.replace(
+            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.note AS pinned_note,/,
+            `${LEGACY_COLUMNS},`,
+          )
+            .replace(/WITH first_setting AS \([\s\S]*?\)\n  SELECT/, "SELECT")
+            .replace(/  LEFT JOIN first_setting[^\n]*\n  LEFT JOIN exercise_setting[^\n]*\n/, ""),
+        )
+        .all(id) as Row[];
+      const current = s.sqlite.prepare(SESSION_DETAIL_SQL).all(id) as Row[];
+      const notes = new Map(
+        (s.sqlite.prepare(SESSION_LAST_NOTES_SQL).all(id) as Row[]).map((row) => [
+          row["exercise_id"],
+          row["last_note"],
+        ]),
+      );
+      expect(current.length).toBe(legacy.length);
+      expect(current.length).toBeGreaterThan(0);
+      current.forEach((row, index) => {
+        for (const column of COLUMNS) expect(row[column]).toBe(legacy[index]?.[column]);
+        expect(notes.get(row["exercise_id"])).toBe(legacy[index]?.["last_note"]);
+      });
+      // And the merged parse carries the notes through.
+      const detail = parseSessionDetail(current, s.sqlite.prepare(SESSION_LAST_NOTES_SQL).all(id));
+      expect(detail?.exercises[0]).toMatchObject({ pinnedNote: "Heels down", lastNote: "Belt on" });
+    }
+  });
 });

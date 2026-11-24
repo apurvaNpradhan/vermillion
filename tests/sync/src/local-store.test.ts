@@ -15,8 +15,10 @@ import {
   createWorkout,
   deleteProgram,
   ensureInstallId,
+  pauseSession,
   powerSyncSchema,
   replaceSessionExercise,
+  resumeSession,
   seedEquipment,
   startSession,
   updateCustomExercise,
@@ -63,6 +65,25 @@ const input = (title: string): CustomExerciseInput => ({
 });
 
 describe("Drizzle writes reach the upload queue", () => {
+  it("keeps the previous clock values in a PowerSync resume patch", async () => {
+    const installId = await ensureInstallId(database);
+    const id = await startSession(database, { workoutId: null, derivedTitle: "Clock" });
+    expect(await pauseSession(database, id, installId)).toBe(true);
+    expect(await resumeSession(database, id, installId)).toBe(true);
+
+    const sessions = (await database.getCrudBatch(10))?.crud.filter(
+      (entry) => entry.table === "training_session",
+    );
+    const pause = sessions?.[1];
+    const resume = sessions?.[2];
+    expect(pause?.opData?.paused_at).toEqual(expect.any(String));
+    expect(resume?.opData).toMatchObject({ paused_at: null });
+    expect(resume?.previousValues).toMatchObject({
+      paused_at: pause?.opData?.paused_at,
+      paused_ms: 0,
+    });
+  });
+
   it("queues a PUT with every column and a PATCH with only the changed ones", async () => {
     const id = await createCustomExercise(database, input("First"));
     expect(await updateCustomExercise(database, id, { title: "First" })).toBe(false);
@@ -142,8 +163,14 @@ describe("Drizzle writes reach the upload queue", () => {
       (entry) => entry.op === "DELETE",
     );
     expect(deletes).toEqual([
-      expect.objectContaining({ id: "unticked", previousValues: { completed_at: null } }),
-      expect.objectContaining({ id: "ticked", previousValues: { completed_at: completedAt } }),
+      expect.objectContaining({
+        id: "unticked",
+        previousValues: expect.objectContaining({ completed_at: null }),
+      }),
+      expect.objectContaining({
+        id: "ticked",
+        previousValues: expect.objectContaining({ completed_at: completedAt }),
+      }),
     ]);
   });
 

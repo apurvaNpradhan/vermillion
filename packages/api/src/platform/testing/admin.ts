@@ -48,21 +48,16 @@ export async function createFullAdmin(
 }
 
 /**
- * The network boundary of the admin tests: Turnstile, GitHub Releases and the exercise-media
+ * The network boundary of the admin tests: GitHub Releases and the exercise-media
  * bucket's HEAD check. `objects` lists the keys the fake bucket holds.
  */
 export function fakeNetwork(options: {
   objects?: Set<string>;
   release?: { tag: string; publishedAt: string } | null | "fail";
-  turnstile?: boolean;
 }) {
   const calls = { github: 0 };
   const fetch: typeof globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
-    if (url.hostname === "challenges.cloudflare.com") {
-      const ok = options.turnstile ?? true;
-      return Response.json({ success: ok, action: "auth", hostname: "localhost" });
-    }
     if (url.hostname === "api.github.com") {
       calls.github += 1;
       const release = options.release;
@@ -70,12 +65,12 @@ export function fakeNetwork(options: {
       if (!release) return new Response("{}", { status: 404 });
       return Response.json({
         tag_name: release.tag,
-        html_url: "https://github.com/example/patina/releases/tag/" + release.tag,
+        html_url: "https://github.com/example/sigil/releases/tag/" + release.tag,
         published_at: release.publishedAt,
         assets: [
           {
-            name: `patina-${release.tag}-arm64-v8a.apk`,
-            browser_download_url: `https://github.com/example/patina/releases/download/${release.tag}/app.apk`,
+            name: `sigil-${release.tag}-arm64-v8a.apk`,
+            browser_download_url: `https://github.com/example/sigil/releases/download/${release.tag}/app.apk`,
           },
         ],
       });

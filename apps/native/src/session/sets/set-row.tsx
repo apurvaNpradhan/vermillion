@@ -4,24 +4,25 @@ import {
   SET_KIND_KEYS,
   type EffortScale,
   type ExerciseType,
-  type Ghosts,
-  type LoggedSet,
   type SetField,
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import { Check, Copy, Rows, Play, Stop, Trash } from "phosphor-react-native";
+import { Copy, DotsThree, Rows, Play, Stop, Trash, WarningCircle } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
+import { useThemeColor } from "heroui-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useOnIdentityColor, useOnSetDoneColor, useSubtleColor } from "@/platform/theme";
-import { usePop } from "@/platform/ui/use-pop";
+import { useActionColor, useOnActionColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
+import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
 
+import { hasRequiredSetValues } from "@/session/logging/history-gate";
+import { displayOfText, valueOfText } from "@/platform/ui/keypad-entry";
 import type { CellRef } from "@/session/logging/keypad-entry";
 import {
   formatCell,
@@ -32,38 +33,46 @@ import {
 } from "@/session/logging/set-values";
 import { timerTarget, timerView } from "@/session/timer/duration-timer";
 import { useNow } from "@/session/shared/use-now";
+import { useSessionStore } from "@/session/store/session-store-context";
+import { RecordChip } from "./record-chip";
 import { SetCell } from "./set-cell";
-import { useSetRowMotion } from "./set-row-motion";
+import { TICK_MS } from "@/session/shared/motion";
+import { DONE_TINT_ALPHA, withAlpha } from "./row-tint";
+import { TickMark } from "./tick-mark";
 
-/** The cell being edited and what is typed into it, as the row shows it. */
-export type ActiveEntry = { cell: CellRef; text: string };
+/** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
+export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
 
-/** A refused tick: which cells lack a value, and a counter so a repeat shakes again. */
-export type Refusal = { setId: string; fields: readonly SetField[]; nonce: number };
+/** The completed-row tint fades in and out like the tick. */
+const TINT_TRANSITION: CSSTransitionProperties = {
+  transitionProperty: ["backgroundColor"],
+  transitionDuration: TICK_MS,
+  transitionTimingFunction: "ease-out",
+};
+
+/** A refused tick and the cells that lack a value. */
+export type Refusal = { setId: string; fields: readonly SetField[] };
 
 export type SetRowProps = {
   historyReady: boolean;
   editingFinished: boolean;
   /** The Inline timer preference: a running timer still shows, but none can be started. */
-  inlineTimer: boolean;
   set: SessionSetDetail;
   type: ExerciseType;
-  /** Number or letter on the badge. */
-  badge: string;
-  /** The row's place among the exercise's sets, for screen readers (1-based). */
-  number: number;
+  /** Previous, Ghost values and the labels of the row; the same object while they hold. */
+  row: RowView;
   logEffort: boolean;
-  previous: LoggedSet | null;
-  ghosts: Ghosts;
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
   entry: ActiveEntry | null;
   refusal: Refusal | null;
+  /** The ticked set beat a record: a "PR" chip pops in beside its number. */
+  record: string | null;
+  animate: boolean;
+  /** The set to log next: an accent leading bar and number. */
+  current: boolean;
   readOnly: boolean;
-  canRemove: boolean;
-  canCopyPrevious: boolean;
-  canFillRemaining: boolean;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
@@ -71,8 +80,6 @@ export type SetRowProps = {
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onRemove: (setId: string) => Promise<boolean>;
-  added: boolean;
-  onAddedShown: (setId: string) => void;
   /** Starts, cancels or stops (and ticks) the set's duration timer. */
   onTimer: (setId: string) => void;
 };
@@ -87,11 +94,13 @@ function LiveTimer({
   target: number | null;
   format: DisplayUnits["durationFormat"];
 }) {
-  const now = useNow(true, 250);
-  const view = timerView(startedAt, target, now);
+  // A paused workout holds its timers: they show the time at the pause and carry on after Resume.
+  const pausedAt = useSessionStore((state) => state.session.pausedAt);
+  const now = useNow(pausedAt === null, 250);
+  const view = timerView(startedAt, target, pausedAt === null ? now : Date.parse(pausedAt));
   return (
     <Text
-      className="text-center font-semibold text-body text-identity"
+      className="text-center font-semibold text-body text-foreground"
       style={{ fontVariant: ["tabular-nums"] }}
     >
       {formatDuration(view.remaining ?? view.elapsed, format)}
@@ -106,49 +115,42 @@ const grow = (field: SetField) => (field === "reps" ? "flex-[1.2]" : "flex-1");
  * of the exercise's type, effort when the exercise logs it, and the tick. Cells are pressables
  * that open the keypad. Warm-ups record no effort.
  */
-/** Props rebuilt on every database change even when their values did not change. */
-const COMPARED_BY_VALUE = new Set<keyof SetRowProps>(["set", "ghosts", "previous"]);
-
-/**
- * A row redraws only when something it draws changed. Every database change parses the Session
- * again, so the set, its Ghost values and Previous are new objects; they are compared by value.
- */
-function sameRowProps(before: SetRowProps, after: SetRowProps): boolean {
-  // SAFETY: both objects are SetRowProps, so their own keys are SetRowProps keys.
-  const keys = Object.keys(after) as (keyof SetRowProps)[];
-  if (keys.length !== Object.keys(before).length) return false;
-  return keys.every(
-    (key) =>
-      Object.is(before[key], after[key]) ||
-      (COMPARED_BY_VALUE.has(key) && JSON.stringify(before[key]) === JSON.stringify(after[key])),
-  );
-}
-
-export const SetRow = memo(function SetRow(props: SetRowProps) {
+export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const {
     set,
     type,
-    badge,
-    number,
+    row: { badge, number, previous, ghosts, canRemove },
     logEffort,
-    previous,
-    ghosts,
     unit,
     display,
     effortScale,
     entry,
     refusal,
     readOnly,
-    canRemove,
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const onIdentity = useOnIdentityColor();
-  const onSuccess = useOnSetDoneColor();
+  const accent = useActionColor();
+  const onAccent = useOnActionColor();
+  const danger = useThemeColor("danger");
+  const ink = useThemeColor("foreground");
+  const faint = useThemeColor("muted");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
-  const tickPop = usePop(ticked);
-  const motion = useSetRowMotion(set.id, props.added, props.onAddedShown, props.onRemove);
+  // The whole row takes the accent at 15%; unticked it is the same colour fully transparent, so
+  // the transition fades the tint instead of passing through grey.
+  const tint = withAlpha(accent, DONE_TINT_ALPHA);
+  const transparent = withAlpha(accent, 0);
+  // What is typed since the cell was opened; nothing until the first key.
+  const raw = entry && !entry.fresh ? entry.raw : null;
+  const activeField = entry?.cell.field;
+  const draftValue = activeField && raw !== null ? valueOfText(activeField, raw, unit) : undefined;
+  const waitingForPrevious =
+    !ticked &&
+    !props.historyReady &&
+    !hasRequiredSetValues(type, (field) =>
+      activeField === field && draftValue !== undefined ? draftValue : valueOfSet(set, field),
+    );
   const hasEffortColumn = logEffort && fields.includes("reps");
   const previousText = previous ? previousLabel(previous, type, unit, display) : null;
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -177,7 +179,9 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const cell = (field: SetField) => {
     const stored = valueOfSet(set, field);
     const editing = entry?.cell.setId === set.id && entry.cell.field === field;
-    const text = editing ? entry.text : formatCell(field, stored, unit, undefined, display);
+    const text = editing
+      ? displayOfText(field, entry.raw)
+      : formatCell(field, stored, unit, undefined, display);
     const ghost = formatCell(field, ghosts[field] ?? null, unit, undefined, display);
     const refused = refusal?.setId === set.id && refusal.fields.includes(field);
     const running = field === "duration" && set.timerStartedAt !== null && !ticked;
@@ -185,12 +189,13 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
     return (
       <View key={field} className={`min-w-0 flex-row gap-1 ${grow(field)}`}>
         <SetCell
-          done={ticked}
           text={text}
           ghost={ghost}
+          animate={props.animate}
           active={editing}
           refused={refused}
-          refusedNonce={refusal?.nonce ?? 0}
+          ink={ink}
+          faint={faint}
           disabled={readOnly}
           label={t("training__cell_label", { number, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
@@ -203,11 +208,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
             />
           ) : undefined}
         </SetCell>
-        {field === "duration" &&
-        !props.editingFinished &&
-        !ticked &&
-        !readOnly &&
-        (props.inlineTimer || running) ? (
+        {field === "duration" && !props.editingFinished && !ticked && !readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(
@@ -222,10 +223,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
               haptic.tick();
               props.onTimer(set.id);
             }}
-            className={`h-10 w-9 items-center justify-center rounded-lg ${running ? "bg-identity" : "bg-field"}`}
+            className="h-10 w-9 items-center justify-center rounded-lg active:bg-default"
           >
             {running ? (
-              <Stop size={20} weight="fill" color={onIdentity} />
+              <Stop size={20} weight="fill" color={subtle} />
             ) : (
               <Play size={20} color={subtle} />
             )}
@@ -240,9 +241,22 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
   const effortGhost = ghosts.rpe ?? null;
 
   const row = (a11y?: SwipeA11yProps) => (
-    <View
-      className={`flex-row items-center gap-1.5 rounded-xl border px-1 py-1 ${ticked ? "border-transparent bg-set-done-soft" : "border-transparent"}`}
+    <Animated.View
+      className="flex-row items-center gap-1.5 rounded-xl px-1 py-1"
+      style={{
+        backgroundColor: ticked ? tint : transparent,
+        ...TINT_TRANSITION,
+        transitionDuration: props.animate ? TICK_MS : 0,
+      }}
     >
+      {props.current && !ticked ? (
+        <View
+          pointerEvents="none"
+          accessible={false}
+          className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-accent"
+        />
+      ) : null}
+      <RecordChip record={props.record} animate={props.animate} />
       <Pressable
         {...a11y}
         accessibilityRole="button"
@@ -256,9 +270,13 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           props.onKind(set.id);
         }}
         hitSlop={4}
-        className={`h-10 w-10 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : SET_TONES[set.kind].background}`}
+        className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"
       >
-        <Text className={`font-semibold text-label ${SET_TONES[set.kind].text}`}>{badge}</Text>
+        <Text
+          className={`font-semibold text-label ${props.current && !ticked ? "text-accent-text" : SET_TONES[set.kind].text}`}
+        >
+          {badge}
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -297,10 +315,10 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           })}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
-          className={`h-10 w-11 items-center justify-center rounded-lg ${ticked ? "bg-transparent" : "bg-field"} active:bg-default`}
+          className="h-10 w-11 items-center justify-center rounded-lg active:bg-default"
         >
           <Text
-            className={`font-normal text-body ${effortValue === null ? "text-muted" : ticked ? "text-set-done-soft-foreground" : "text-foreground"}`}
+            className={`font-normal text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
             {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
@@ -312,24 +330,32 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
           accessibilityRole="checkbox"
           accessibilityState={{
             checked: ticked,
-            disabled: readOnly || (!ticked && !props.historyReady),
+            busy: waitingForPrevious && !readOnly,
+            disabled: readOnly || waitingForPrevious,
           }}
-          accessibilityLabel={t(ticked ? "session__untick_set" : "session__tick_set", { number })}
-          disabled={readOnly || (!ticked && !props.historyReady)}
+          accessibilityLabel={t(
+            readOnly ? "session__set_number" : ticked ? "session__untick_set" : "session__tick_set",
+            { number },
+          )}
+          accessibilityHint={
+            waitingForPrevious && !readOnly ? t("session__set_waiting_for_previous") : undefined
+          }
+          disabled={readOnly || waitingForPrevious}
           onPress={() => props.onTick(set.id)}
-          hitSlop={4}
-          className={`h-10 w-11 items-center justify-center rounded-lg border ${ticked ? "border-transparent bg-set-done" : "border-transparent bg-field"}`}
+          className="h-11 w-11 items-center justify-center rounded-lg active:bg-default"
         >
-          <Animated.View style={tickPop}>
-            <Check size={20} color={ticked ? onSuccess : subtle} />
-          </Animated.View>
+          {waitingForPrevious && !readOnly ? (
+            <DotsThree size={20} color={subtle} />
+          ) : (
+            <TickMark ticked={ticked} animate={props.animate} subtle={subtle} onAccent={onAccent} />
+          )}
         </Pressable>
       )}
-    </View>
+    </Animated.View>
   );
 
   const actions: SwipeAction[] = [];
-  if (props.canCopyPrevious)
+  if (props.row.canCopyPrevious)
     actions.push({
       key: "copy",
       label: t("session__copy_previous"),
@@ -337,7 +363,7 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       iconOnly: true,
       onPress: () => props.onCopySets(set.id, "previous"),
     });
-  if (props.canFillRemaining)
+  if (props.row.canFillRemaining)
     actions.push({
       key: "fill",
       label: t("session__fill_remaining"),
@@ -352,15 +378,29 @@ export const SetRow = memo(function SetRow(props: SetRowProps) {
       icon: Trash,
       tone: "danger",
       iconOnly: true,
-      onPress: motion.remove,
+      onPress: () => void props.onRemove(set.id),
     });
   return (
-    <Animated.View style={motion.style} exiting={motion.exiting}>
+    <View>
       {!readOnly && actions.length > 0 ? (
-        <SwipeRow actions={actions}>{(a11y) => row(a11y)}</SwipeRow>
+        <SwipeRow actions={actions} motion={false}>
+          {(a11y) => row(a11y)}
+        </SwipeRow>
       ) : (
         row()
       )}
-    </Animated.View>
+      {refusal ? (
+        <View className="flex-row items-center gap-1.5 px-3">
+          <WarningCircle size={16} color={danger} />
+          <Text
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            className="font-normal shrink text-caption text-danger"
+          >
+            {t("session__tick_missing_values")}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
-}, sameRowProps);
+});

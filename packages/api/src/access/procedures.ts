@@ -1,6 +1,6 @@
 import { openapi } from "@orpc/openapi";
 import { ORPCError } from "@orpc/server";
-import { isDisposableEmail, verifyTurnstile } from "@workspace/auth";
+import { isDisposableEmail } from "@workspace/auth";
 import { user } from "@workspace/db/schema/auth";
 import {
   CLIENT_IP_HEADER,
@@ -41,8 +41,8 @@ function limited(services: Services, key: string, max: number) {
 
 /**
  * Asks to join the beta. The answer is the same whether the address was unknown, already asked,
- * was invited or has an account, so the form reveals nothing. Needs a Turnstile token when the
- * deployment has a secret.
+ * was invited or has an account, so the form reveals nothing. Rate limited per IP and per
+ * address; there is no CAPTCHA (ADR 0056).
  */
 const request = accessApi
   .meta(
@@ -54,28 +54,13 @@ const request = accessApi
         "Always answers the same for a valid address. Rate limited per IP and per address.",
     }),
   )
-  .input(z.object({ email: z.email().max(320), turnstileToken: z.string().max(2048).optional() }))
+  .input(z.object({ email: z.email().max(320) }))
   .output(z.object({ received: z.literal(true) }))
   .handler(async ({ context, input, errors }) => {
     const { services } = context;
     const ip = context.headers.get(CLIENT_IP_HEADER) ?? "unknown";
     if (limited(services, `ip:${ip}`, REQUEST_LIMITS.perIp)) {
       throw errors.TOO_MANY_REQUESTS({ message: "Too many requests" });
-    }
-    const verdict = await verifyTurnstile(input.turnstileToken, {
-      secret: services.config.turnstileSecret,
-      hostnames: [
-        new URL(services.config.siteUrl).hostname,
-        new URL(services.config.appUrl).hostname,
-      ],
-      isProduction: services.config.isProduction,
-      ...(services.fetch ? { fetch: services.fetch } : {}),
-    });
-    if (!verdict.ok) {
-      throw new ORPCError("FORBIDDEN", {
-        message: verdict.reason,
-        data: { code: "CAPTCHA_FAILED" },
-      });
     }
     const email = normalizeEmail(input.email);
     if (isDisposableEmail(email)) {

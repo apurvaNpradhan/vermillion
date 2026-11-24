@@ -2,24 +2,38 @@
 
 The Vermillion design system. Tokens live in `packages/ui/src/tokens/brand.ts`; see Implementation for how they reach native and email.
 
-> The web app was removed ([ADR 0033](docs/adr/0033-mobile-first-api-host.md)). Paragraphs marked **Web** and the coss / shadcn mappings are kept as reference for the future marketing site and companion app; they describe no code in this repo.
+> The public site (`apps/web`) uses a fixed monochrome palette. The **Web** and coss / shadcn examples below are references for a future companion app; they do not describe the public site.
 
 ## Native appearance
 
-Native offers **Patina** (the default, from the logo: ink, ivory and olive), **Classic** (id `graphite`), **Oxide**, **Slate** and **Mulberry**, each in
-Light and Dark at standard or increased contrast
-([ADR 0048](docs/adr/0048-theme-engine-and-nord.md), [ADR 0052](docs/adr/0052-rename-to-patina.md)). Appearance (Match device, Light, Dark), the
-theme and Increase contrast are device settings in Preferences. A saved `nord` falls back to Patina. The signed-out welcome screen is always the Patina dark variant.
+Native has two modes and six accents. The mode is **System** (the default), **Light** or **Dark**; the accent is **Lime** (the default), **Gold**, **Ember**, **Rose**, **Ice** or **Mono**. Both are chosen in Settings → Appearance. The redesign spec is
+[docs/design/redesign-2026-11/SPEC.md](docs/design/redesign-2026-11/SPEC.md); where this file disagrees with it, the spec wins.
 
-- A theme is a base, an accent and a family of data colours per scheme
-  (`packages/ui/src/tokens/themes/`); the engine derives every role in OKLCH. `nativeColors` in
-  `brand.ts` holds every variant. Email and the site use Patina (the default theme), built by the same engine.
-- The accent means "you / now". Status, set kinds and charts (`chart-1` … `chart-5`) come from the
-  theme's family; completed sets use its success colour and a checkmark. Exercise muscle maps use
-  the original red artwork with lighter secondary highlights. The weekly muscle map uses the
-  theme accent and keeps the muscle shading.
-- `device.theme` stores `{ theme, appearance, contrast }` locally. Native chrome, status bars,
-  blur and CAPTCHA use `useThemeMode()`.
+- **Dark is true AMOLED**: canvas `#000000`, near-black raised surfaces (`#0A0A0A` cards, `#141414`
+  floating sheets, `#1C1C1C` controls), hairline borders, neutral (untinted) greys, white ink.
+  **Light is pure white**: canvas `#FFFFFF`, cards `#F5F5F5`, neutral greys, near-black ink.
+  Both have the same structure and live in `packages/ui/src/tokens/themes/palette.ts`.
+- **The accent** is the only hue in the interface. Each accent has a **fill** (`action`) that stays bright
+  in both modes, a **text tone** (`accent-text`) that darkens in light mode, and a label colour for
+  the fill (`on-action`). Mono is white on dark and black on light, its text equal to its fill. It is used for
+  primary buttons, the current set, completed set rows, records and PRs, the selected tab and
+  chips, and the primary chart series. Never large surfaces.
+- **Red (`danger`) is the only status colour**, for destructive actions and errors, always with an
+  icon and words. There is no success colour (a positive state is the accent) and no warning
+  colour (a warning is neutral text with an icon). HeroUI's `success` and `warning` variables
+  alias the accent and neutral text so its components keep working. The ember, `brand-detail`,
+  lichen (`set-done`) and macro roles are gone.
+- Saved theme ids from earlier versions (`sigil`, `classic`, `patina`, `oxide`, `slate`, `mulberry`,
+  unknown), the retired accents (Acid, Teal, Blueberry, Lavender) and the removed contrast setting, migrate to the default accent; the saved mode is kept.
+  `nativeColors` in `brand.ts` holds every variant (`ember-dark`, `lime-light`, …); the built-in
+  `light` and `dark` carry Lime. Email uses those.
+- `device.theme` stores `{ appearance, accent }`. Native chrome, status bars and blur use
+  `useThemeMode()`.
+- Geist sets native text, including large titles and the sign-in wordmark. Geist Mono sets labels
+  and code. Weights, reps, durations and every numeric column use tabular figures.
+- Brand images (icon, adaptive and notification icons, splash, graded sign-in photo) are generated
+  by `pnpm brand:assets`. Sign-in is always dark. Empty states show a muted Phosphor icon
+  with a mono count label, one plain line and at most one action.
 
 See the [native themes guide](docs/guides/native-themes.md).
 
@@ -31,8 +45,8 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 
 ### Principles
 
-1. **Numbers are the headline.** Weight, reps, calories and macros get the biggest type on screen, set in tabular figures.
-2. **Color is meaning, never decoration.** Tinted neutrals carry the interface; the accent marks what is yours or current and fills the primary action. Status, set kinds, macros and chart series come from the theme's family. Everything else is neutral.
+1. **Numbers are the headline.** Weight, reps and durations get the biggest type on screen, set in tabular figures.
+2. **Color is meaning, never decoration.** Neutrals carry the interface; the accent marks what is yours or current, fills the primary action and tints completed sets. Red is the only status colour. Set kinds and secondary chart series take quiet categorical tones; category shares (muscles) use the accent for the largest and greys for the rest. Everything else is neutral.
 3. **One loud thing per screen.** At most one filled primary button (the accent) in any view.
 4. **Quiet surfaces, clear groups.** Depth comes from surface steps, rounded corners and spacing. Only floating layers add shadows.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
@@ -41,102 +55,108 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 
 ### Foundations at a glance
 
-| Area     | Rule                                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------ |
-| Modes    | Light and dark (Match device), standard or increased contrast                                    |
-| Action   | The accent fills the one primary button                                                          |
-| Color    | Accent = you / now; `chart-1` is the accent, `chart-2`…`5` and status come from the theme family |
-| Surfaces | Four steps, spaced for phone screens                                                             |
-| Depth    | No shadows except floating layers and the button keycap edge                                     |
-| Controls | 44pt Standard, 56–64pt Active                                                                    |
-| Type     | Geist, Geist Mono for code, `tnum`, numeric display tier up to 72pt                              |
-| Radius   | 4/8/12/16/28                                                                                     |
-| Motion   | Full motion and haptic token sets                                                                |
+| Area     | Rule                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------ |
+| Modes    | System (default), Light (pure white) or Dark (AMOLED black)                                |
+| Accent   | Lime (default), Gold, Ember, Rose, Ice or Mono                                             |
+| Action   | The accent fill is the one primary button; accent text uses `accent-text`                  |
+| Color    | Accent = you / now / done; `chart-1` is the accent, `chart-2`…`5` are quiet; danger is red |
+| Surfaces | Four steps, spaced for phone screens                                                       |
+| Depth    | No shadows except floating layers and the button keycap edge                               |
+| Controls | 44pt Standard, 56–64pt Active                                                              |
+| Type     | Geist, Geist Mono for code, `tnum`, numeric display tier up to 72pt                        |
+| Radius   | 4/8/12/16/28                                                                               |
+| Motion   | Full motion and haptic token sets                                                          |
 
 ## Decision log
 
 Fourteen decisions; the first twelve settled in the grilling session on 8 Nov 2026, the rest the same day. Change one only by updating this table and every section it touches.
 
-| #   | Decision          | Choice                                                                                                | Why                                                                              |
-| --- | ----------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | Primary platform  | Phone-first native, web later                                                                         | Sets and meals are logged in the moment, on a phone                              |
-| 2   | Color modes       | Dark default + light mode, role-based tokens                                                          | Bright gyms and kitchens; light mode costs a week, not a month                   |
-| 3   | Primary action    | Muted fill with light text in dark, deep fill with light text in light                                | A clear primary action with a subdued fill                                       |
-| 4   | Macro colors      | Protein blue, carbs amber, fat orchid; calories neutral                                               | Color-blind safe, avoids red-orange, green reserved for goal hit                 |
-| 5   | Number typeface   | Geist for numbers                                                                                     | `tnum` aligns digits across tables and timers                                    |
-| 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                       |
-| 7   | Radius            | 4 / 8 / 12 / 16 / 28 + full                                                                           | Precise corners, one step softer for phones                                      |
-| 8   | Depth             | No shadows except floating layers                                                                     | Filled cards; sheets need separation in light mode                               |
-| 9   | Motion            | Fast and functional, expressive only for celebrations                                                 | No bounce on repeated actions; PRs feel earned                                   |
-| 10  | Icons             | Phosphor (Regular / Bold / Fill)                                                                      | Weights map onto Standard, Active and selected states                            |
-| 11  | Charts            | Clean and minimal, color = meaning                                                                    | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue |
-| 12  | Stack             | Expo + HeroUI Native; web deferred                                                                    | One token source, a native adapter and the email templates (see Implementation)  |
-| 13  | Navigation shell  | Floating icon-only tab pill that morphs into a menu panel, collapsing page header (ADR 0028, amended) | Linear-like and thumb-first; the tab count can grow to five without a redesign   |
-| 14  | Native components | HeroUI Native base; missing parts copied in from PanelUI / Reacticx (ADR 0030)                        | No second icon set or peer-dependency tree; every copy restyled to tokens        |
+| #   | Decision          | Choice                                                                                                | Why                                                                                                 |
+| --- | ----------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1   | Primary platform  | Phone-first native, web later                                                                         | Sets and meals are logged in the moment, on a phone                                                 |
+| 2   | Color modes       | System / Light (pure white) / Dark (AMOLED black), plus six accents, role-based tokens                | Bright gyms and a true-black dark mode for OLED; one accent axis instead of whole themes (Nov 2026) |
+| 3   | Primary action    | The accent fill with its own label colour (`on-action`)                                               | One loud thing per screen, in the person's colour                                                   |
+| 4   | Status colors     | Red for danger only; no success, warning or macro colours                                             | The accent already means "good"; warnings are neutral text and an icon (Nov 2026)                   |
+| 5   | Number typeface   | Geist for numbers                                                                                     | `tnum` aligns digits across tables and timers                                                       |
+| 6   | Density           | Two densities: Standard + Active                                                                      | Mid-workout use needs bigger targets than planning screens                                          |
+| 7   | Radius            | 4 / 8 / 12 / 16 / 28 + full                                                                           | Precise corners, one step softer for phones                                                         |
+| 8   | Depth             | No shadows except floating layers                                                                     | Filled cards; sheets need separation in light mode                                                  |
+| 9   | Motion            | Fast and functional, expressive only for celebrations                                                 | No bounce on repeated actions; PRs feel earned                                                      |
+| 10  | Icons             | Phosphor (Regular / Bold / Fill)                                                                      | Weights map onto Standard, Active and selected states                                               |
+| 11  | Charts            | Clean and minimal, color = meaning                                                                    | Smoothed weight trend, highlight PRs and today with weight and labels, not a hue                    |
+| 12  | Stack             | Expo + HeroUI Native; web deferred                                                                    | One token source, a native adapter and the email templates (see Implementation)                     |
+| 13  | Navigation shell  | Floating icon-only tab pill that morphs into a menu panel, collapsing page header (ADR 0028, amended) | Linear-like and thumb-first; the tab count can grow to five without a redesign                      |
+| 14  | Native components | HeroUI Native base; missing parts copied in from PanelUI / Reacticx (ADR 0030)                        | No second icon set or peer-dependency tree; every copy restyled to tokens                           |
 
 ## Color
 
-Every color is a role with a dark and a light value; components never reference a hex. All text pairs below were checked against WCAG 2.1: 4.5:1 for text, 3:1 for icons and graphics.
+Every color is a role with a dark and a light value; components never reference a hex. All text pairs below are held to WCAG 2.1 by `theme-rules.test.ts` on every accent in both modes: 4.5:1 for text, 3:1 for icons and graphics.
 
-The primary button uses a contrasting neutral. Saturated colors indicate data and status.
+The neutrals are the same under every accent; the accent changes only `action` and what is derived from it.
 
 ### Surfaces and lines
 
 | Role               | Dark      | Light     | Use                                                   |
 | ------------------ | --------- | --------- | ----------------------------------------------------- |
-| `canvas`           | `#07080A` | `#F4F4F6` | Screen background                                     |
-| `surface`          | `#111214` | `#FFFFFF` | Cards                                                 |
-| `surface-control`  | `#1C1D20` | `#ECECEF` | Inputs, steppers, inactive chips, ring and bar tracks |
-| `surface-floating` | `#18191C` | `#FFFFFF` | Sheets, toasts, floating timer bar                    |
-| `hairline`         | `#26282B` | `#E2E2E6` | Input and selected-option outlines                    |
-| `hairline-strong`  | `#393B3F` | `#C9C9CF` | Focused inputs and selected options                   |
+| `canvas`           | `#000000` | `#FFFFFF` | Screen background (true AMOLED black, pure white)     |
+| `surface`          | `#0A0A0A` | `#F5F5F5` | Cards                                                 |
+| `surface-control`  | `#1C1C1C` | `#EBEBEB` | Inputs, steppers, inactive chips, ring and bar tracks |
+| `surface-floating` | `#141414` | `#FFFFFF` | Sheets, toasts, floating timer bar                    |
+| `hairline`         | `#1F1F1F` | `#E5E5E5` | Hairline borders, input and selected-option outlines  |
+| `hairline-strong`  | `#383838` | `#C8C8C8` | Focused inputs and selected options                   |
 | `backdrop`         | black 60% | black 30% | Dimming behind sheets and dialogs                     |
 
 ### Text
 
-| Role             | Dark      | Light     | Contrast on `surface` (dark / light)           |
+| Role             | Dark      | Light     | Use                                            |
 | ---------------- | --------- | --------- | ---------------------------------------------- |
-| `text-primary`   | `#F4F4F6` | `#111214` | 17.1 / 18.6                                    |
-| `text-secondary` | `#CDCDCF` | `#3C3D42` | 11.8 / 10.8                                    |
-| `text-muted`     | `#9C9C9F` | `#65666C` | 6.9 / 5.7                                      |
-| `text-disabled`  | `#6A6B6E` | `#A3A4AA` | Decorative only, never sole carrier of meaning |
-| `text-on-accent` | (removed) | (removed) | Use `on-action`                                |
+| `text-primary`   | `#FFFFFF` | `#0A0A0A` | Titles, numbers, ink                           |
+| `text-secondary` | `#D4D4D4` | `#404040` | Body copy                                      |
+| `text-muted`     | `#A1A1A1` | `#545454` | Hints, units, metadata                         |
+| `text-disabled`  | `#5C5C5C` | `#A3A3A3` | Decorative only, never sole carrier of meaning |
 
-### Primary action
+### Accent
 
-| Role             | Dark      | Light     | Use                                        |
-| ---------------- | --------- | --------- | ------------------------------------------ |
-| `action`         | `#E6E6E6` | `#111214` | Primary button fill, selected switch track |
-| `on-action`      | `#2F3031` | `#FFFFFF` | Label on the primary button                |
-| `action-hover`   | `#FFFFFF` | `#2A2B2F` | Hovered primary                            |
-| `action-pressed` | `#CDCECE` | `#000000` | Pressed primary                            |
+The accent has a **fill** and a **text tone**. `action` is the fill (primary buttons, ticks, the completed-row tint, selected chips, chart lines, the current-set bar); it stays bright in both modes. `accent-text` is the accent as text or icon colour on the canvas (links, the current set number, small labels, a check icon); it darkens in light mode so it reads at 4.5:1 on `canvas` and `surface`. `on-action` is the label on the fill (4.5:1). Never put `action` text on the canvas: use `text-accent-text` (HeroUI: `--accent` is the fill, `--color-accent-text` the tone).
+
+| Accent         | Fill (both modes)     | `accent-text` dark | `accent-text` light | `on-action`           |
+| -------------- | --------------------- | ------------------ | ------------------- | --------------------- |
+| Lime (default) | `#C6F135`             | `#C6F135`          | `#4A6A00`           | `#0A0A0A`             |
+| Gold           | `#FFC83D`             | `#FFC83D`          | `#8A5A00`           | `#0A0A0A`             |
+| Ember          | `#FF6B3D`             | `#FF6B3D`          | `#B33A12`           | `#0A0A0A`             |
+| Rose           | `#FF5C8A`             | `#FF5C8A`          | `#B8124A`           | `#0A0A0A`             |
+| Ice            | `#9BE6FF`             | `#9BE6FF`          | `#0B6A8A`           | `#0A0A0A`             |
+| Mono           | `#FFFFFF` / `#000000` | `#FFFFFF`          | `#000000`           | `#000000` / `#FFFFFF` |
+
+Ember and Rose sit near red: destructive actions always carry an icon and words, never colour alone.
+
+`action-hover` and `action-pressed` move the fill away from its label, and `accent-soft-text` is the accent moved toward the ink until it is readable on HeroUI's 20% soft fill. `focus-ring` is `text-primary`.
+
+The accent is used only for primary buttons, the current set, completed set rows (the whole row tinted with the fill at 15%, with the check filled), records and PRs, the selected tab and chips, and the primary chart series. Never a large surface.
 
 ### Status
 
-| Role      | Dark                         | Light                          | Rule                                                                                 |
-| --------- | ---------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
-| `danger`  | `#FF5C7A`                    | `#D21F4B`                      | Rose; always icon + words                                                            |
-| `success` | `#59D499`                    | text `#177A4B`, fill `#2FB872` | Goal hit, completed set, saved                                                       |
-| `warning` | `#FFC533`                    | `#8F6200`                      | Shares the carbs hue, so always with a warning icon and never inside a macro display |
-| `info`    | `text-secondary` + info icon | same                           | No color: blue belongs to protein                                                    |
+| Role     | Dark      | Light     | Rule                                                               |
+| -------- | --------- | --------- | ------------------------------------------------------------------ |
+| `danger` | `#FF5A5F` | `#C62828` | Destructive actions and errors only; always icon + words           |
+| (none)   |           |           | No success colour: a positive state is the accent                  |
+| (none)   |           |           | No warning colour: a warning is `text-secondary` text plus an icon |
 
-### Macros (data colors)
+HeroUI still reads `--success` and `--warning`; they alias the accent and `text-secondary` so its Alerts and Toasts keep working. Do not use them to mean anything else.
 
-| Macro    | Dark fill + text | Light fill (rings, bars) | Light text     | Soft tint   |
-| -------- | ---------------- | ------------------------ | -------------- | ----------- |
-| Protein  | `#57C1FF`        | `#1A86CC`                | `#0B6FA8`      | fill at 15% |
-| Carbs    | `#FFC533`        | `#BF8500`                | `#8F6200`      | fill at 15% |
-| Fat      | `#D98BC4`        | `#B0509B`                | `#94407F`      | fill at 15% |
-| Calories | `text-primary`   | `text-primary`           | `text-primary` | none        |
+### Data colors
 
-Light-mode carbs fill reaches only 2.7:1 against its track, because amber can't get darker and stay amber. That is acceptable only because every ring and bar is paired with its number ("142 / 180 g"). Never show a macro graphic without its value.
+- **Charts:** `chart` and `chart-1` are the accent. `chart-2`…`chart-5` are quiet categorical tones (steel, sand, sage, mauve) for secondary series, each 3:1 against `canvas` and `surface`.
+- **Set kinds:** `set-warmup`, `set-drop`, `set-failure`, `set-top`, `set-backoff` and `set-myo` colour a small tag and stay readable (4.5:1) on `canvas`, `surface` and a completed row.
+- **Plates:** `plate-*` are physical objects, the same in every theme.
 
 ### Color rules
 
 - One filled primary (`action`) button per screen, at most. No other hue marks an action.
-- Macro colors appear only next to that macro's data; order is always P, C, F.
-- Going over a macro target is never shown in `danger`. Use a small marker and "+12 g" in `text-secondary`.
-- `success` green marks a hit goal with a check; the macro keeps its own color.
+- Danger is red, never the accent, and never the only signal.
+- Numbers on a completed set row stay at full contrast; only the row tint and the check carry the accent.
+- A Mono accent keeps the same rules: its tint is a grey, so the check and the primary button carry the meaning.
 
 ## Typography
 
@@ -168,13 +188,13 @@ Button labels in Active mode use `body-strong` at 17pt.
 
 Use `tnum` throughout the numeric tier.
 
-| Token          | Size / line | Weight | Tracking | Use                                |
-| -------------- | ----------- | ------ | -------- | ---------------------------------- |
-| `numeric-hero` | 72 / 76     | 600    | -1.5     | Rest timer, calories remaining     |
-| `numeric-xl`   | 48 / 52     | 600    | -1.0     | Current set weight × reps          |
-| `numeric-lg`   | 32 / 36     | 600    | -0.5     | Daily totals, body weight          |
-| `numeric-md`   | 20 / 24     | 500    | -0.2     | Macro values in cards, set history |
-| `numeric-sm`   | 15 / 20     | 500    | 0        | Table cells, chart axis labels     |
+| Token          | Size / line | Weight | Tracking | Use                            |
+| -------------- | ----------- | ------ | -------- | ------------------------------ |
+| `numeric-hero` | 72 / 76     | 600    | -1.5     | Rest timer, calories remaining |
+| `numeric-xl`   | 48 / 52     | 600    | -1.0     | Current set weight × reps      |
+| `numeric-lg`   | 32 / 36     | 600    | -0.5     | Daily totals, body weight      |
+| `numeric-md`   | 20 / 24     | 500    | -0.2     | Values in cards, set history   |
+| `numeric-sm`   | 15 / 20     | 500    | 0        | Table cells, chart axis labels |
 
 ### Unit rule
 
@@ -209,8 +229,8 @@ These map one-to-one onto Tailwind's spacing utilities (`p-4` = 16), which both 
 ### Layout
 
 - **Screen padding:** 16pt sides; respect safe areas top and bottom on every screen, sheet and toast.
-- **Tab bar:** a floating, icon-only pill, a fixed 56pt tall, 8pt above the bottom safe area, on level 3 depth with no outline (floating surfaces rely on the layer step and shadow). It holds the direct tabs (the tab bar's `directTabCount`; Vermillion sets one, Home) and a menu slot that shows `CaretUpDown`, or, while a menu screen is open, that screen's icon. The active tab is a capsule: `identity-soft` fill with an `identity` Fill icon. Tap the menu slot, or press and slide up to pick a row (a `haptic-tick` per row): the pill morphs into a panel with the same left edge, widening up to the compose button. The panel lists every tab route (up to five in all: today Home, Exercises, Settings; later Today, Train, Eat, Progress, You) under the account header. No dim backdrop. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
-- **Tab action:** the open tab's one main action (New exercise) is a 56pt round `identity` button with an `on-identity` icon to the right of the pill, inside thumb reach; tabs without one show nothing there.
+- **Tab bar:** a floating, icon-only pill, a fixed 56pt tall, 8pt above the bottom safe area, on level 3 depth with no outline (floating surfaces rely on the layer step and shadow). It holds the direct tabs (the tab bar's `directTabCount`; Vermillion sets one, Home) and a menu slot that shows `CaretUpDown`, or, while a menu screen is open, that screen's icon. The active tab is a capsule: `surface-control` fill with a `text-primary` Fill icon, and a small accent dot beneath. Tap the menu slot, or press and slide up to pick a row (a `haptic-tick` per row): the pill morphs into a panel with the same left edge, widening up to the compose button. The panel lists every tab route (up to five in all: today Home, Exercises, Settings; later Today, Train, Eat, Progress, You) under the account header. No dim backdrop. Content fades into the canvas under the bar. The bar hides while the keyboard is up.
+- **Tab action:** the open tab's one main action (New exercise) is a 56pt round `action` (accent) button with an `on-action` icon to the right of the pill, inside thumb reach; tabs without one show nothing there.
 - **Page header:** a `title-xl` title, left-aligned at the top of the content, scrolls away; an opaque `canvas` band fades in with a compact, left-aligned title (`body`, 600) beside the back button and a soft ~30pt gradient edge into the content (no blur at the top). Content under the floating tab bar melts into the canvas through one eased SVG gradient owned by the tab bar (no blur library: the native blur view crashed Android release builds). Tap the title to scroll to the top. Pushed pages add a round back button; page actions sit in a floating capsule on the right.
 - **Live workout bar:** while a session runs, a floating bar sits above the tab bar on every screen showing elapsed time and the rest timer, on `surface-floating` with `text-primary`.
 - **Reach:** primary actions live in the bottom half of the screen, inside thumb reach; destructive actions never sit where the thumb rests.
@@ -286,12 +306,12 @@ On React Native these run through Reanimated, which HeroUI Native already uses; 
 
 ### Haptic tokens (`expo-haptics`)
 
-| Token            | Expo call                                 | Use                                             |
-| ---------------- | ----------------------------------------- | ----------------------------------------------- |
-| `haptic-tick`    | `selectionAsync()`                        | +/- weight and reps, picker scroll, chip select |
-| `haptic-confirm` | `impactAsync(Medium)`                     | Set logged, meal logged, item saved             |
-| `haptic-success` | `notificationAsync(Success)`              | Workout finished, macro goal hit, PR            |
-| `haptic-alert`   | `notificationAsync(Warning)`, repeated 3× | Rest timer finished                             |
+| Token            | Expo call                                 | Use                                                                         |
+| ---------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
+| `haptic-tick`    | `selectionAsync()`                        | Ticking a set, +/- weight and reps, picker scroll, chip select, chart scrub |
+| `haptic-confirm` | `impactAsync(Medium)`                     | Set logged, meal logged, item saved                                         |
+| `haptic-success` | `notificationAsync(Success)`              | Workout finished, PR                                                        |
+| `haptic-alert`   | `notificationAsync(Warning)`, repeated 3× | Rest timer finished                                                         |
 
 ### Motion rules
 
@@ -327,7 +347,6 @@ Phosphor Icons everywhere: `phosphor-react-native` on native, `@phosphor-icons/r
 
 - Default `text-secondary`; inactive tabs `text-muted`; selected tab `text-primary` + Fill weight.
 - The primary button's icon takes `on-action`.
-- Macro icons may take their macro color, only next to that macro's value.
 
 ### Core icon map
 
@@ -358,20 +377,25 @@ Exercise demonstrations and muscle-group body maps are out of scope for the icon
 
 ## Data visualization
 
-Charts are minimal and color carries meaning: the `chart` role for ordinary series and macro colors for macros; PRs and today stand out by brightness, not hue.
+Charts are minimal and color carries meaning: the primary series is the accent (`chart`) and secondary series are quiet tones; PRs and today stand out by brightness, not hue. Red is never a chart color.
 
-| Chart                | Spec                                                                                                                                         |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Calorie ring         | Track `surface-control`, fill `text-primary`, 14pt stroke, round caps, starts at 12 o'clock; centre shows calories remaining in `numeric-lg` |
-| Macro rings or bars  | Track `surface-control`, fill macro color, 8pt stroke (rings) or 6pt (bars); value + target always shown beside it                           |
-| Over target          | Ring stays full; a 2pt tick marks the overflow, label "+12 g" in `text-secondary`; never `danger`                                            |
-| Goal hit             | Small `success` check beside the value; ring keeps its macro color                                                                           |
-| Trend line           | 2pt `text-primary` line, area fill `text-primary` at 6%; latest point a 6pt dot                                                              |
-| Body weight          | Daily weigh-ins as 4pt dots in `text-muted`; 7-day moving average as the 2pt line                                                            |
-| PR markers           | 8pt `text-primary` dot with `Trophy` on tap                                                                                                  |
-| Weekly bars          | Past days `surface-control`, today `text-primary`, goal as dashed 1pt `hairline-strong` line; `radius-xs` on bar tops                        |
-| Grid and axes        | Horizontal gridlines only, 1px `hairline`; no chart border; labels `numeric-sm` in `text-muted`                                              |
-| Empty or sparse data | Below 3 points, show the values as a list plus "Log 2 more to see a trend"                                                                   |
+| Chart                | Spec                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Calorie ring         | Track `surface-control`, fill `text-primary`, 14pt stroke, round caps, starts at 12 o'clock; centre shows calories remaining in `numeric-lg`                                                  |
+| Rings or bars        | Track `surface-control`, fill the accent, 8pt stroke (rings) or 6pt (bars); value + target always shown beside it                                                                             |
+| Over target          | Ring stays full; a 2pt tick marks the overflow, label "+12 g" in `text-secondary`; never `danger`                                                                                             |
+| Goal hit             | Small accent check beside the value                                                                                                                                                           |
+| Line series          | 2pt accent line over a faint accent area (12%); a dashed `text-primary` reference line at the best value (the PR); latest point a 3pt dot                                                     |
+| Body weight          | Daily weigh-ins as 4pt dots in `text-muted`; 7-day moving average as the 2pt line                                                                                                             |
+| PR markers           | 8pt `text-primary` dot with `Trophy` on tap                                                                                                                                                   |
+| Bars                 | Volume, distance and counts: accent bars, `radius-xs` tops; the scrubbed bar stays full, the rest dim; goal as dashed 1pt `hairline-strong`                                                   |
+| Share bars           | Muscle shares (Muscles screen, Monthly report): the biggest bar is the accent fill, the rest neutral greys (`text-primary` at 70%, 52%, 38%, then 28%) ranked by size, never a hue per muscle |
+| Grid and axes        | At most four horizontal gridlines, 1px `hairline`; no chart border; labels `numeric-sm` in `text-muted`                                                                                       |
+| Aggregation          | One point per session over three months, one per week over a year or all time (best of the week, or the total for volume and counts)                                                          |
+| Scrub                | Tap and drag shows a cursor line and a floating tooltip with the value and date, with a `haptic-tick` per point                                                                               |
+| Line or bars         | Lines for e1RM, duration and pace; bars for volume, distance and counts. Pace plots seconds per kilometre with faster drawn higher                                                            |
+| Human units          | Durations `40:00` / `1:05:00`; distance `7.0 km`, `850 m` under 1 km; pace `5:43 /km`; never metres per second or bare seconds                                                                |
+| Empty or sparse data | Below 3 points, show the values as a list plus "Log 2 more to see a trend"                                                                                                                    |
 
 ### Libraries
 
@@ -412,30 +436,30 @@ Shape: `radius-sm` (8) corners, `label`-size text (14 / 500, +0.2 tracking), 16p
 | Dialog            | `Dialog`              | `Dialog`, `Alert Dialog` | Destructive confirms only                                                         |
 | Toast             | `Toast`               | `Toast`                  | `surface-floating`; "Set logged · Undo"                                           |
 | Toggle            | `Switch`              | `Switch`                 | On = `text-primary` track                                                         |
-| Checkbox          | `Checkbox`            | `Checkbox`               | Set complete check = `success`                                                    |
+| Checkbox          | `Checkbox`            | `Checkbox`               | Set complete check = filled with the accent (`bg-accent`, `on-action` tick)       |
 
 ### Custom fitness components
 
-| Component          | Anatomy                                                                              | Key rules                                                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SetRow`           | Set number · previous (muted) · weight · reps · RPE (optional) · check               | Live row: `surface-control` bg + 3pt `text-primary` leading edge; done row: `text-muted` with `success` check; swipe left to delete with undo                                                     |
-| `NumberStepper`    | − button · value (`numeric-md`/`numeric-xl`) + unit · + button                       | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                                                                                  |
-| `RestTimer`        | Ring · `numeric-hero` countdown · −15s / +15s / Skip                                 | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                                                                              |
-| `LiveWorkoutBar`   | Exercise name · elapsed · rest countdown                                             | Floating above tab bar on every screen while a session runs; tap to return                                                                                                                        |
-| `MacroSummary`     | Calorie ring + three macro bars (P, C, F) with value / target                        | Fixed order P, C, F; values always visible                                                                                                                                                        |
-| `MealSlotCard`     | Slot name · kcal total · food rows · Add                                             | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                                                                                 |
-| `FoodRow`          | Name · serving · kcal · P/C/F mini values                                            | Tap to edit serving; macro letters in macro text colors                                                                                                                                           |
-| `ExerciseCard`     | Name · muscle tag · set rows · Add set                                               | Collapses to one summary line when done                                                                                                                                                           |
-| `PRBadge`          | `Trophy` + "PR" in `text-primary` on `surface-control`                               | Triggers `motion-celebrate` once when first earned                                                                                                                                                |
-| `OtpInput`         | One cell per digit (56pt tall, `radius-lg`, `surface-control`) over one hidden input | Digits in `numeric-md`; focus = `hairline-strong` border, error = `danger` border plus a message; autofill and paste fill every cell, the last digit submits                                      |
-| `SearchBar`        | 44pt `surface-control` field · magnifier · clear button                              | Shown only when there is something to search; filters the local list as you type; no results is an `EmptyState`, not a blank list                                                                 |
-| `SegmentedControl` | `surface-control` track · `surface` pill on the selected option                      | Two to four options in one view (theme); pill slides in `motion-fast`; `haptic-tick` on change; use `Chip`s for filters, `ListRow` pickers beyond four options                                    |
-| `Skeleton`         | `surface-control` blocks shaped like the content, pulsing opacity                    | First load only (the list's rows, 48pt); still under Reduce Motion; never for a spinner-length wait or for errors                                                                                 |
-| `NumberFlow`       | Tabular digits that roll to a new value                                              | `motion-slow`; Reduce Motion swaps digits; the value sets the text style (`numeric-*`), the unit is separate                                                                                      |
-| `StatTile`         | `overline` label · `numeric-lg` value + unit · change vs last period                 | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                       |
-| `EmptyState`       | Phosphor icon (48pt, `text-muted`) · one line · one primary action                   | Never more than one sentence                                                                                                                                                                      |
-| `SwipeRow`         | Row content · actions revealed on a left swipe                                       | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet |
-| `ListSection`      | `overline` label · `surface` card of padded rows without dividers                    | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                  |
+| Component          | Anatomy                                                                              | Key rules                                                                                                                                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SetRow`           | Set number · previous (muted) · weight · reps · RPE (optional) · check               | Live row: 3pt accent leading edge and accent set number; done row: the whole row tinted with the accent at 15% (rounded, full width), check filled with the accent, numbers at full contrast; the tint fades in over 180ms (instant under Reduce Motion) with a `haptic-tick`; swipe left to delete with undo |
+| `NumberStepper`    | − button · value (`numeric-md`/`numeric-xl`) + unit · + button                       | Tap value to type; long-press +/− repeats; `haptic-tick` per step; increments from user settings (2.5 kg / 5 lb)                                                                                                                                                                                              |
+| `RestTimer`        | Ring · `numeric-hero` countdown · −15s / +15s / Skip                                 | Lives in the live workout bar when collapsed; `haptic-alert` at zero                                                                                                                                                                                                                                          |
+| `LiveWorkoutBar`   | Exercise name · elapsed · rest countdown                                             | Floating above tab bar on every screen while a session runs; tap to return                                                                                                                                                                                                                                    |
+| `MacroSummary`     | Calorie ring + three macro bars (P, C, F) with value / target                        | Fixed order P, C, F; values always visible                                                                                                                                                                                                                                                                    |
+| `MealSlotCard`     | Slot name · kcal total · food rows · Add                                             | Breakfast, Lunch, Dinner, Snacks; empty state is a single Add row                                                                                                                                                                                                                                             |
+| `FoodRow`          | Name · serving · kcal · P/C/F mini values                                            | Tap to edit serving; macro letters in macro text colors                                                                                                                                                                                                                                                       |
+| `ExerciseCard`     | Name · muscle tag · set rows · Add set                                               | Accordion: tap the header to open or close (there is no chevron); tap the thumbnail for exercise detail; the ⋮ menu (with "View exercise") shows on every header; collapses to one summary line when done                                                                                                     |
+| `PRBadge`          | `Trophy` + "PR" in `text-primary` on `surface-control`                               | Triggers `motion-celebrate` once when first earned                                                                                                                                                                                                                                                            |
+| `OtpInput`         | One cell per digit (56pt tall, `radius-lg`, `surface-control`) over one hidden input | Digits in `numeric-md`; focus = `hairline-strong` border, error = `danger` border plus a message; autofill and paste fill every cell, the last digit submits                                                                                                                                                  |
+| `SearchBar`        | 44pt `surface-control` field · magnifier · clear button                              | Shown only when there is something to search; filters the local list as you type; no results is an `EmptyState`, not a blank list                                                                                                                                                                             |
+| `SegmentedControl` | `surface-control` track · `surface` pill on the selected option                      | Two to four options in one view (theme); pill slides in `motion-fast`; `haptic-tick` on change; use `Chip`s for filters, `ListRow` pickers beyond four options                                                                                                                                                |
+| `Skeleton`         | `surface-control` blocks shaped like the content, pulsing opacity                    | First load only (the list's rows, 48pt); still under Reduce Motion; never for a spinner-length wait or for errors                                                                                                                                                                                             |
+| `NumberFlow`       | Tabular digits that roll to a new value                                              | `motion-slow`; Reduce Motion swaps digits; the value sets the text style (`numeric-*`), the unit is separate                                                                                                                                                                                                  |
+| `StatTile`         | `overline` label · `numeric-lg` value + unit · change vs last period                 | Change shown neutral: "−0.8 kg" in `text-secondary`, no red/green judgement                                                                                                                                                                                                                                   |
+| `EmptyState`       | Phosphor icon (48pt, `text-muted`) · one line · one primary action                   | Never more than one sentence                                                                                                                                                                                                                                                                                  |
+| `SwipeRow`         | Row content · actions revealed on a left swipe                                       | Outermost action fires on a full swipe, with a `haptic-tick` at the threshold; destructive actions are rose on a 15% rose tint; the same actions are screen-reader actions and a long-press sheet                                                                                                             |
+| `ListSection`      | `overline` label · `surface` card of padded rows without dividers                    | Settings and pickers; rows show their current value in `text-muted` and a chevron, check or nothing on the right                                                                                                                                                                                              |
 
 ### Accessibility (all components)
 
@@ -460,6 +484,8 @@ Four core flows and the onboarding flow, each built only from the components abo
 Rules: one tap to log a set that matches the plan; nothing in the flow needs typing; undo is always offered by toast instead of confirm dialogs.
 
 ### Food and macro logging (Standard mode)
+
+> Deferred. The redesign removed the macro colours; macro graphics will be neutral or accent until nutrition is designed again.
 
 1. Eat tab opens on `MacroSummary` (calories remaining as the hero number) and the day's `MealSlotCard`s.
 2. Add food (primary) opens a sheet with search, Recent, Saved meals and Barcode.
@@ -522,20 +548,21 @@ Product code uses semantic utilities only; never a hex value or a `gray-*` class
 
 ### Utilities by role
 
-| Role                           | Web class                                     | Native class                           |
-| ------------------------------ | --------------------------------------------- | -------------------------------------- |
-| `canvas`                       | `bg-background`                               | `bg-background`                        |
-| `surface`                      | `bg-card`                                     | `bg-surface`                           |
-| `surface-control`              | `bg-muted`, `bg-secondary`, `bg-accent`       | `bg-default`, `bg-field`               |
-| `surface-floating`             | `bg-popover`                                  | `bg-overlay`                           |
-| `hairline` / `hairline-strong` | `border-border` / `border-ring`               | `border-border` / `border-separator`   |
-| `text-primary`                 | `text-foreground`                             | `text-foreground`                      |
-| `text-secondary`               | `text-subtle`                                 | `text-subtle`                          |
-| `text-muted`                   | `text-muted-foreground`                       | `text-muted`                           |
-| `action` / `on-action`         | `bg-primary` / `text-primary-foreground`      | `bg-accent` / `text-accent-foreground` |
-| `protein*`, `carbs*`, `fat*`   | same name (`bg-protein`, `text-protein-text`) | same name                              |
-| `danger`                       | `text-destructive-foreground`                 | `text-danger`                          |
-| `success` / `success-text`     | `bg-success` / `text-success-foreground`      | `bg-success`                           |
+| Role                           | Web class                                | Native class                           |
+| ------------------------------ | ---------------------------------------- | -------------------------------------- |
+| `canvas`                       | `bg-background`                          | `bg-background`                        |
+| `surface`                      | `bg-card`                                | `bg-surface`                           |
+| `surface-control`              | `bg-muted`, `bg-secondary`, `bg-accent`  | `bg-default`, `bg-field`               |
+| `surface-floating`             | `bg-popover`                             | `bg-overlay`                           |
+| `hairline` / `hairline-strong` | `border-border` / `border-ring`          | `border-border` / `border-separator`   |
+| `text-primary`                 | `text-foreground`                        | `text-foreground`                      |
+| `text-secondary`               | `text-subtle`                            | `text-subtle`                          |
+| `text-muted`                   | `text-muted-foreground`                  | `text-muted`                           |
+| `action` / `on-action`         | `bg-primary` / `text-primary-foreground` | `bg-accent` / `text-accent-foreground` |
+| the accent as text or an icon  | `text-primary`                           | `text-accent-text`                     |
+| the accent as a fill or mark   | `bg-primary`                             | `bg-accent`                            |
+| `chart` / `chart-1`…`5`        | `bg-chart`, `bg-chart-1`…                | `bg-chart`, `bg-chart-1`…              |
+| `danger`                       | `text-destructive-foreground`            | `text-danger`                          |
 
 Text styles: `text-title-xl`, `text-title-lg`, `text-title-md`, `text-body-lg`, `text-body`, `text-label`, `text-caption`, `text-overline` and `text-numeric-{hero,xl,lg,md,sm}`. On web the class carries the weight; on native the weight picks the Geist face, so every Text and TextInput carries a face: `font-normal` (body, caption), `font-medium` (label) or `font-semibold` (titles, numeric). Text without one falls back to the system font. Pair every numeric style with `numeric` (web) or `tabular-nums` (native).
 
@@ -601,5 +628,5 @@ The token layer is complete; what remains is verification on device and a few sy
 1. Token package and both adapters
 2. Buttons, inputs, cards, chips, sheets, toasts restyled in HeroUI Native
 3. `NumberStepper`, `SetRow`, `RestTimer`, `LiveWorkoutBar` (the Active-mode core)
-4. `MacroSummary`, `MealSlotCard`, `FoodRow`
+4. `MacroSummary`, `MealSlotCard`, `FoodRow` (macro colours were removed in the Nov 2026 redesign; these need a new treatment before they are built)
 5. Charts, then the web dashboard on coss ui

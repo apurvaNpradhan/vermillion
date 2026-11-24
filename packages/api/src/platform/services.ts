@@ -26,7 +26,7 @@ export type Services = {
   exerciseMediaStore: ObjectStore;
   /** The latest GitHub release, cached in memory. */
   releases: ReleaseLookup;
-  /** Replaces `fetch` for outbound calls (CAPTCHA, GitHub, the media HEAD check) in tests. */
+  /** Replaces `fetch` for outbound calls (GitHub, the media HEAD check) in tests. */
   fetch?: typeof fetch | undefined;
   background: BackgroundTasks;
   rateLimiter: RateLimiter;
@@ -42,7 +42,7 @@ export type CreateServicesOptions = {
   emailTransport: EmailTransport;
   /** pg-boss connection and queue tuning. */
   jobs: Pick<JobsOptions, "boss" | "defaults">;
-  /** Replaces `fetch` for outbound calls: the CAPTCHA provider, GitHub, the media bucket (tests). */
+  /** Replaces `fetch` for outbound calls: GitHub, the media bucket (tests). */
   fetch?: typeof fetch;
 };
 
@@ -68,10 +68,8 @@ export function createServices(options: CreateServicesOptions): Services {
     registrationOpen: config.registrationOpen,
     hasLiveInvite: (email) => hasLiveInvite(db, email),
     afterUserCreated: (user) => redeemInvite(db, user),
-    turnstileSecret: config.turnstileSecret,
     google: config.google,
     github: config.github,
-    ...(options.fetch ? { fetch: options.fetch } : {}),
     queueEmail: (email) => queueEmail(lateServices(), email),
     beforeDeleteUser: (user) => deleteAccountData(lateServices(), user.id),
     runInBackground: (promise) => background.run(promise),

@@ -1,6 +1,7 @@
 # 0013. One brand-token file for web and native
 
-Status: accepted (2026-11-06).
+Status: accepted (2026-11-06). The one-file rule stands; the roles it defines are amended by
+[0059](0059-amoled-neutral-modes-and-accent-split.md).
 
 ## Context
 

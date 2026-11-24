@@ -9,6 +9,7 @@ import {
   finishSession,
   leaveSessionSuperset,
   moveSessionExercise,
+  pauseSession,
   readExerciseType,
   removeSessionExercise,
   removeSet,
@@ -17,7 +18,9 @@ import {
   restoreSessionExercise,
   replaceSessionExercise,
   restoreSession,
+  resumeSession,
   setDerivedTitle,
+  setSessionStart,
   setExerciseSetting,
   supersetSessionWithNext,
   takeOver,
@@ -30,13 +33,16 @@ import {
   type SessionExerciseDetail,
   type SessionExercisePatch,
   type SetPatch,
+  type SetStartResult,
   type TickResult,
 } from "@workspace/sync";
 import { useAppToast } from "@/platform/ui/use-app-toast";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { cancelRestNotification } from "@/session/notifications/rest-notification";
+import { restNotificationId } from "@/session/rest/rest-schedule";
 import { UNDO_MS, useTrainingWrite } from "@/training";
 import { useLocalData } from "@/sync";
 
@@ -61,8 +67,9 @@ export function useSessionActions() {
       write<TickResult | null>(
         (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt),
         null,
+        t("session__tick_failed_toast"),
       ),
-    [write, writeScope],
+    [write, writeScope, t],
   );
 
   /**
@@ -90,7 +97,7 @@ export function useSessionActions() {
 
   const updateValues = useCallback(
     (setId: string, patch: SetPatch) =>
-      write((db) => updateSet(db, setId, patch, writeScope), false),
+      write((db) => updateSet(db, setId, patch, writeScope), null),
     [write, writeScope],
   );
 
@@ -241,6 +248,30 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** Stops the Session's clock, Rest and timers. False when it was not running. */
+  const pause = useCallback(
+    (id: string) =>
+      write(async (db) => {
+        const paused = await pauseSession(db, id, writeScope);
+        if (paused) void cancelRestNotification(restNotificationId(id));
+        return paused;
+      }, false),
+    [write, writeScope],
+  );
+
+  /** Starts the clock again. `atMs` ends a forgotten pause where it ran out. False when not paused. */
+  const resume = useCallback(
+    (id: string, atMs?: number) => write((db) => resumeSession(db, id, writeScope, atMs), false),
+    [write, writeScope],
+  );
+
+  /** Moves the start of the workout; the result says why it was refused, if it was. */
+  const setStart = useCallback(
+    (id: string, startedAt: string) =>
+      write<SetStartResult | null>((db) => setSessionStart(db, id, startedAt, writeScope), null),
+    [write, writeScope],
+  );
+
   /** Discards with Undo. */
   const discard = useCallback(
     async (id: string, title: string) => {
@@ -268,26 +299,57 @@ export function useSessionActions() {
     [write, writeScope, undoToast, t, media],
   );
 
-  return {
-    tick,
-    nudgeRest,
-    skipRest,
-    untick,
-    updateValues,
-    addExtraSet,
-    replaceWarmups: putWarmups,
-    removeOneSet,
-    addExercises,
-    replaceExercise,
-    removeExercise,
-    moveExercise,
-    updateExercise,
-    setPinnedNote,
-    superset,
-    leaveSuperset,
-    refreshDerivedTitle,
-    takeOver: takeOverSession,
-    finish,
-    discard,
-  };
+  // One object for as long as its writes are the same, so memoized screens keep their handlers.
+  return useMemo(
+    () => ({
+      tick,
+      nudgeRest,
+      skipRest,
+      untick,
+      updateValues,
+      addExtraSet,
+      replaceWarmups: putWarmups,
+      removeOneSet,
+      addExercises,
+      replaceExercise,
+      removeExercise,
+      moveExercise,
+      updateExercise,
+      setPinnedNote,
+      superset,
+      leaveSuperset,
+      refreshDerivedTitle,
+      takeOver: takeOverSession,
+      finish,
+      pause,
+      resume,
+      setStart,
+      discard,
+    }),
+    [
+      tick,
+      nudgeRest,
+      skipRest,
+      untick,
+      updateValues,
+      addExtraSet,
+      putWarmups,
+      removeOneSet,
+      addExercises,
+      replaceExercise,
+      removeExercise,
+      moveExercise,
+      updateExercise,
+      setPinnedNote,
+      superset,
+      leaveSuperset,
+      refreshDerivedTitle,
+      takeOverSession,
+      finish,
+      pause,
+      resume,
+      setStart,
+      discard,
+    ],
+  );
 }

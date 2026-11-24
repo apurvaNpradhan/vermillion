@@ -96,9 +96,11 @@ type ContentProps<T extends ReorderItem> = {
 /** A fixed-height list with touch and accessibility actions that write the order on drop. */
 export function ReorderView<T extends ReorderItem>({
   visible,
+  motion = true,
   ...props
-}: ContentProps<T> & { visible: boolean }) {
-  const reduced = useReduceMotion();
+}: ContentProps<T> & { visible: boolean; motion?: boolean }) {
+  const systemReduced = useReduceMotion();
+  const reduced = !motion || systemReduced;
   const close = useRef<(() => void) | null>(null);
   // A different set of rows invalidates gestures and queued callbacks for the old list.
   const membership = visible ? JSON.stringify(props.items.map((item) => item.id).sort()) : "";

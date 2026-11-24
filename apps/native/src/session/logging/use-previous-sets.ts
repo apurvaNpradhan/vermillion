@@ -1,7 +1,7 @@
 import { useWeight } from "@/body";
 import { useSyncValue } from "@/sync";
 import { watchExerciseHistories, type FinishedSession } from "@workspace/sync";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 
@@ -27,14 +27,14 @@ export function watchHistories(
 
 /** Previous for every exercise of a Session, live; empty until the histories have loaded. */
 export function usePreviousSets(exerciseIds: readonly string[]) {
-  const key = [...new Set(exerciseIds)].sort().join("|");
+  const key = useMemo(() => [...new Set(exerciseIds)].sort().join("|"), [exerciseIds]);
   const subscribe = useCallback(
     (database: Database, onValue: (history: PreviousSets) => void, onError: () => void) =>
       watchHistories(database, key === "" ? [] : key.split("|"), onValue, onError),
     [key],
   );
   const state = useLocalWatch(subscribe);
-  const weight = useWeight();
+  const { withBodyweight, bodyweightOn } = useWeight();
   const scope = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   const cached = useRef<{ scope: string; history: PreviousSets } | null>(null);
   useEffect(() => {
@@ -45,10 +45,15 @@ export function usePreviousSets(exerciseIds: readonly string[]) {
   const history = state.failed
     ? EMPTY
     : (state.value ?? (scope && cached.current?.scope === scope ? cached.current.history : EMPTY));
+  const enriched = useMemo(
+    () => new Map([...history].map(([id, sessions]) => [id, withBodyweight(sessions)])),
+    [history, withBodyweight],
+  );
   return {
-    history: new Map([...history].map(([id, sessions]) => [id, weight.withBodyweight(sessions)])),
-    bodyweightOn: weight.bodyweightOn,
+    history: enriched,
+    bodyweightOn,
     ready: !state.loading && !state.failed,
+    loading: state.loading,
     failed: state.failed,
     retry: state.retry,
   };

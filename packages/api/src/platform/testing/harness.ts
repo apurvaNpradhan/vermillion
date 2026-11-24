@@ -12,10 +12,10 @@ import { createServices } from "../services";
 import { cloneDatabase, dropDatabase, urlForDatabase } from "./postgres";
 
 const baseConfig: ApiConfig = {
-  appName: "Patina",
+  appName: "Sigil",
   appVersion: "1.0.0",
   appUrl: "http://localhost:3000",
-  appScheme: "patina",
+  appScheme: "sigil",
   siteUrl: "http://localhost:3001",
   adminEmails: [],
   nativePort: 8081,
@@ -42,7 +42,7 @@ const baseConfig: ApiConfig = {
     publicUrl: "http://127.0.0.1:9000/vermillion-exercise-media",
   },
   catalogPatchGate: false,
-  releases: { owner: "example", repo: "patina" },
+  releases: { owner: "example", repo: "sigil" },
   sync: { slotLag: { warnBytes: 1024 ** 3, criticalBytes: 3 * 1024 ** 3 } },
 };
 
@@ -55,7 +55,7 @@ type Row = z.infer<typeof rowSchema>;
 
 export type TestAppOptions = {
   config?: Partial<ApiConfig>;
-  /** Replaces the CAPTCHA provider's `fetch`. */
+  /** Replaces `fetch` for outbound calls (GitHub, the media bucket). */
   fetch?: typeof fetch;
   /** Fails the next sends: used to exercise job retries. */
   failEmails?: { remaining: number };

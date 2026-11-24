@@ -1,14 +1,12 @@
+import { sessionDurationSeconds } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 
-/** The Session's duration in seconds: the user's override, else start to finish. */
+/** The Session's duration in seconds: the user's override, else the time trained from start to finish. */
 export function sessionDuration(
-  session: Pick<SessionDetail, "durationS" | "startedAt" | "finishedAt">,
+  session: Pick<SessionDetail, "durationS" | "startedAt" | "finishedAt" | "pausedMs">,
 ): number {
-  return (
-    session.durationS ??
-    Math.max(
-      0,
-      (Date.parse(session.finishedAt ?? session.startedAt) - Date.parse(session.startedAt)) / 1000,
-    )
+  return sessionDurationSeconds(
+    { ...session, finishedAt: session.finishedAt ?? session.startedAt },
+    0,
   );
 }

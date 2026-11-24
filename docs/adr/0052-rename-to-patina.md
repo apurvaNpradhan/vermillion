@@ -1,6 +1,6 @@
 # 0052. Rename to Patina
 
-Status: accepted, 2026-11-21. Supersedes [0051](0051-rename-to-basalt.md). Earlier ADRs keep the
+Status: superseded by [0055](0055-rename-to-sigil.md), 2026-11-22. Supersedes [0051](0051-rename-to-basalt.md). Earlier ADRs keep the
 name they were written with.
 
 ## Context

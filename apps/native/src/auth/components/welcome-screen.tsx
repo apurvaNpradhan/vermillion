@@ -1,122 +1,150 @@
-import { variantName } from "@workspace/ui/tokens/theme-variants";
-import { NavigationBar } from "expo-navigation-bar";
-import { useIsFocused, useRouter } from "expo-router";
+import { useThemeColor } from "heroui-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
-import { Platform, Text, View } from "react-native";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import { useEffect, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScopedTheme } from "uniwind";
 
 import { appConfig } from "@/platform/app-config";
 import { useTranslation } from "@/platform/i18n";
+import { useAccentTextColor, useOnActionColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
-import { Mascot } from "@/platform/ui/mascot";
+import { SigilMark } from "@/platform/ui/sigil-mark";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 
 import { splitLegal } from "../legal-text";
-
-// motion-base: a gentle rise, staggered by a beat; Reduce Motion skips it.
-const rise = (delay: number) =>
-  FadeInDown.duration(200).delay(delay).reduceMotion(ReduceMotion.System);
-
-/**
- * The one screen fixed to a theme: it is always the Patina dark variant (ink and ivory, the logo
- * as drawn) whatever the device appearance. The email and code screens that follow use the
- * device's theme again. See docs/guides/native-themes.md, "Fixed theme".
- */
-const WELCOME_THEME = variantName("patina", "dark");
+import { useRegistrationStatus } from "../use-registration-status";
+import { EmailSheet } from "./email-sheet";
+import { GoogleButton } from "./google-button";
+import { LiveLogVignette } from "./live-log-vignette";
 
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 
 /**
- * The tortoise, the wordmark and tagline, one way in (email) and the legal line. Account creation
- * and sign-in share the email step: the emailed code and the session guard tell new accounts
- * from returning ones, and neither answer reveals which an address is.
+ * The first screen of a signed-out app: mark A2 top-left, a looping vignette of the live log, and
+ * at the bottom the wordmark, the tagline and the two ways in (Google, email). The email field is
+ * not here: "Continue with email" opens a sheet, and a sent code opens the code screen. It follows
+ * the app's mode and accent. The content scrolls, pinned to the bottom, so a large font or a short
+ * screen never clips the buttons.
  */
 export function WelcomeScreen() {
-  return (
-    <ScopedTheme theme={WELCOME_THEME}>
-      <Welcome />
-    </ScopedTheme>
-  );
-}
-
-function Welcome() {
   const { t } = useTranslation();
   const router = useRouter();
-  const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { toast } = useAppToast();
+  const accent = useAccentTextColor();
+  const onAccent = useOnActionColor();
+  const ink = useThemeColor("foreground");
+  const { sheet } = useLocalSearchParams<{ sheet?: string }>();
+  const status = useRegistrationStatus();
+  const googleAvailable = status?.providers.google === true;
+  const [emailOpen, setEmailOpen] = useState(false);
+
+  useEffect(() => {
+    if (sheet === "email") {
+      setEmailOpen(true);
+      router.setParams({ sheet: undefined });
+    }
+  }, [router, sheet]);
+
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
 
-  async function openLegal(kind: keyof typeof LEGAL_PATHS) {
+  async function openPage(url: string) {
     try {
-      await WebBrowser.openBrowserAsync(`${appConfig.urls.site}${LEGAL_PATHS[kind]}`);
+      await WebBrowser.openBrowserAsync(url);
     } catch {
       toast.show({ label: t("auth__legal_open_failed") });
     }
   }
 
   return (
-    <View className="flex-1 bg-background">
-      {focused ? (
-        <>
-          <StatusBar style="light" />
-          {Platform.OS === "android" ? <NavigationBar style="light" /> : null}
-        </>
-      ) : null}
-      <View
-        className="flex-1 px-6"
-        style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
-      >
-        <Animated.View entering={rise(0)} className="flex-1 items-center justify-center gap-8">
-          <Mascot size={176} tone="brand" />
-          <View className="items-center gap-1">
-            <Text
-              accessibilityRole="header"
-              className="font-semibold text-title-display text-foreground"
-            >
-              {appConfig.displayName}
-            </Text>
-            <Text className="font-normal text-body-lg text-muted">
-              {t("auth__welcome_tagline")}
-            </Text>
+    <>
+      <View className="flex-1 bg-background">
+        <StatusBar style="auto" />
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "space-between",
+            paddingTop: insets.top + 16,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="px-6 pb-6" accessible={false}>
+            <SigilMark size={48} color={ink} emberColor={accent} />
           </View>
-        </Animated.View>
-
-        <Animated.View entering={rise(80)} className="mx-auto w-full max-w-md">
-          <Button
-            variant="primary"
-            size="lg"
-            className="h-14 rounded-full"
-            onPress={() => router.push({ pathname: "/email", params: { flow: "sign-in" } })}
-          >
-            <Button.Label className="text-body-lg font-semibold">
-              {t("auth__continue_with_email")}
-            </Button.Label>
-          </Button>
-        </Animated.View>
-
-        <Animated.View entering={rise(140)} className="pt-5">
-          <Text className="font-normal text-center text-caption text-muted">
-            {legal.map((part, index) => {
-              if (part.kind === "text") return part.text;
-              return (
+          <View>
+            <View
+              className="mx-auto w-full max-w-md gap-3 px-6"
+              style={{ paddingTop: 0, paddingBottom: insets.bottom + 16 }}
+            >
+              <View className="pb-4">
+                <LiveLogVignette />
+              </View>
+              <View className="gap-1 pb-3">
                 <Text
-                  key={`${part.kind}-${index}`}
-                  accessibilityRole="link"
-                  className="font-medium text-foreground underline"
-                  onPress={() => void openLegal(part.kind)}
+                  accessibilityRole="header"
+                  className="font-semibold text-display-wordmark text-foreground"
                 >
-                  {legalLabels[part.kind]}
+                  {appConfig.displayName}
                 </Text>
-              );
-            })}
-          </Text>
-        </Animated.View>
+                <Text className="font-normal text-body-lg text-muted">
+                  {t("auth__welcome_tagline")}
+                </Text>
+              </View>
+
+              {googleAvailable ? <GoogleButton glyphColor={onAccent ?? ink} /> : null}
+              <Button
+                variant={googleAvailable ? "secondary" : "primary"}
+                size="lg"
+                className="h-auto min-h-13 rounded-full py-3"
+                onPress={() => setEmailOpen(true)}
+              >
+                <Button.Label className="shrink text-body-lg font-semibold">
+                  {t("auth__continue_with_email")}
+                </Button.Label>
+              </Button>
+
+              <View className="gap-2 pt-3">
+                {status && !status.open ? (
+                  <Text className="font-normal text-center text-caption text-muted">
+                    {status.mode === "invite" ? t("auth__invite_only_line") : t("auth__closed")}
+                  </Text>
+                ) : null}
+                <Text className="font-normal text-center text-caption text-muted">
+                  {legal.map((part, index) => {
+                    if (part.kind === "text") return part.text;
+                    return (
+                      <Text
+                        key={`${part.kind}-${index}`}
+                        accessibilityRole="link"
+                        className="font-medium text-foreground underline"
+                        onPress={() =>
+                          void openPage(`${appConfig.urls.site}${LEGAL_PATHS[part.kind]}`)
+                        }
+                      >
+                        {legalLabels[part.kind]}
+                      </Text>
+                    );
+                  })}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+
+        <EmailSheet
+          isOpen={emailOpen}
+          onOpenChange={setEmailOpen}
+          onSent={(email) => {
+            setEmailOpen(false);
+            router.push({ pathname: "/code", params: { email, flow: "sign-in" } });
+          }}
+        />
       </View>
-    </View>
+    </>
   );
 }

@@ -93,6 +93,7 @@
     "**/.expo/**",
     "**/.wrangler/**",
     "apps/web/src/routeTree.gen.ts",
+    "apps/web/src/vendor/react-bits/**",
     "repos/**",
     "tools/oxlint/anti-slop/**",
     ".agents/**",

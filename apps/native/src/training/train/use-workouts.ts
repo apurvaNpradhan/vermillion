@@ -1,12 +1,12 @@
 import { watchWorkouts, type WorkoutSummary } from "@workspace/sync";
 import { useCallback } from "react";
 import { useIsOnline } from "@/platform/network";
-import { useSyncStatus } from "@/sync";
+import { useSyncValue } from "@/sync";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
-import { trainStatus } from "./train-status";
+import { firstSyncWait, trainStatus } from "./train-status";
 const NONE: WorkoutSummary[] = [];
 export function useWorkouts(includeProgramWorkouts = false) {
-  const { snapshot } = useSyncStatus();
+  const wait = useSyncValue(firstSyncWait);
   const online = useIsOnline();
   const subscribe = useCallback(
     (
@@ -25,7 +25,7 @@ export function useWorkouts(includeProgramWorkouts = false) {
       failed: state.failed,
       loading: state.loading,
       count: workouts.length,
-      snapshot,
+      wait,
       online,
     }),
   };

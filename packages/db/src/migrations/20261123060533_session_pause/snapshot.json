@@ -1,0 +1,88 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "a95a4113-d685-4957-a936-c15b1d676a9f",
+  "prevIds": ["d07a1203-587c-437a-9a5f-1aae8118a70e"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "paused_at"],
+      "writes": [
+        "s|col|public.training_session.paused_at",
+        "n|col|public.training_session.paused_at",
+        "e|col|public.training_session.paused_at"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "paused_ms"],
+      "writes": [
+        "s|col|public.training_session.paused_ms",
+        "n|col|public.training_session.paused_ms",
+        "e|col|public.training_session.paused_ms"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "training_session"],
+      "writes": [
+        "s|ck|public.training_session.session_paused_ms_range",
+        "n|ck|public.training_session.session_paused_ms_range",
+        "e|ck|public.training_session.session_paused_ms_range",
+        "n|con|public.training_session.session_paused_ms_range"
+      ],
+      "reads": [
+        "n|tbl|public.training_session",
+        "n|sch|public",
+        "n|col|public.training_session.paused_ms"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "paused_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "paused_ms",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "session_paused_ms_range",
+        "value": "\"paused_ms\" BETWEEN 0 AND 9007199254740991",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

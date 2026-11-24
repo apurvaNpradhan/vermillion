@@ -10,8 +10,7 @@ name: Android release
 # plugin writes the signing config that reads the keystore from the environment.
 #
 # Needs (docs/guides/android-release.md):
-#   variable  EXPO_PUBLIC_SERVER_URL            https://patina-api.<domain>, baked into the app
-#   variable  EXPO_PUBLIC_TURNSTILE_SITE_KEY    optional
+#   variable  EXPO_PUBLIC_SERVER_URL            https://sigil-api.<domain>, baked into the app
 #   variable  EXPO_PUBLIC_SENTRY_DSN            optional; crash reporting and feedback (docs/guides/sentry.md)
 #   variable  SENTRY_ORG, SENTRY_PROJECT        optional; with the secret below, source maps upload
 #   variable  SENTRY_URL                        optional; https://de.sentry.io for an EU-region org
@@ -48,7 +47,6 @@ jobs:
       contents: read
     env:
       EXPO_PUBLIC_SERVER_URL: ${{ vars.EXPO_PUBLIC_SERVER_URL }}
-      EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       SENTRY_ORG: ${{ vars.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
@@ -63,6 +61,18 @@ jobs:
         with:
           persist-credentials: false
 
+      # Caches. zizmor flags any cache in a workflow that publishes (cache-poisoning). They are
+      # kept on purpose, to keep a release build near 15 minutes: a tag run can restore only
+      # caches written on the default branch, so poisoning one takes a commit on main, which
+      # could change this build directly. The pnpm store is also checked against the lockfile's
+      # integrity hashes on install. To build with no cache, set `package-manager-cache: false`
+      # here and `cache-disabled: true` on setup-gradle.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Check the configuration
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
@@ -72,13 +82,20 @@ jobs:
         run: |
           echo "KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
           failed=0
-          case "$EXPO_PUBLIC_SERVER_URL" in
-            https://*) ;;
-            *)
-              echo "::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to the deployed API (https://patina-api.<domain>)."
-              failed=1
-              ;;
-          esac
+          if ! node --input-type=module - "$EXPO_PUBLIC_SERVER_URL" <<'JS'
+          import { appConfig } from "./app.config.ts";
+
+          const url = URL.parse(process.argv[2]);
+          if (url?.protocol !== "https:" || url.origin !== appConfig.urls.api) {
+            console.error(
+              `::error title=EXPO_PUBLIC_SERVER_URL::Set the repository variable EXPO_PUBLIC_SERVER_URL to ${appConfig.urls.api}.`,
+            );
+            process.exitCode = 1;
+          }
+          JS
+          then
+            failed=1
+          fi
           [ -n "$KEYSTORE_BASE64" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_KEYSTORE_BASE64 is not set."; failed=1; }
           [ -n "$STORE_PASSWORD" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_STORE_PASSWORD is not set."; failed=1; }
           [ -n "$KEY_ALIAS" ] || { echo "::error title=Missing secret::ANDROID_UPLOAD_KEY_ALIAS is not set."; failed=1; }
@@ -91,17 +108,6 @@ jobs:
           fi
           exit "$failed"
 
-      # Caches. zizmor flags any cache in a workflow that publishes (cache-poisoning). They are
-      # kept on purpose, to keep a release build near 15 minutes: a tag run can restore only
-      # caches written on the default branch, so poisoning one takes a commit on main, which
-      # could change this build directly. The pnpm store is also checked against the lockfile's
-      # integrity hashes on install. To build with no cache, set `package-manager-cache: false`
-      # here and `cache-disabled: true` on setup-gradle.
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 # zizmor: ignore[cache-poisoning]
-        with:
-          node-version: 24
-          cache: pnpm
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
@@ -183,7 +189,7 @@ jobs:
             echo "::error title=Signature::The APK is not signed with the release keystore (signer $signer)."
             exit 1
           fi
-          name="patina-${REF_NAME//\//-}-$ABIS.apk"
+          name="sigil-${REF_NAME//\//-}-$ABIS.apk"
           mkdir -p release
           mv "$built" "release/$name"
           (cd release && sha256sum "$name" > "$name.sha256")
@@ -223,6 +229,6 @@ jobs:
         run: |
           if ! gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "Patina $REF_NAME" --generate-notes
+              --title "Sigil $REF_NAME" --generate-notes
           fi
           gh release upload "$REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --clobber

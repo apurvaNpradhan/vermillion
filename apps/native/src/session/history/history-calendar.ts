@@ -1,18 +1,27 @@
 import {
   calendarDay,
+  sessionDurationSeconds,
   sessionTotals,
   weekColumn,
   weekStartDay,
   type WeekStart,
 } from "@workspace/shared";
-import type { FinishedSession } from "@workspace/sync";
+import type { HistoryOverviewSession } from "@workspace/sync";
 
 export const DAY_MS = 86_400_000;
 export const WEEK_MS = 7 * DAY_MS;
 
 export type Period = "week" | "month" | "year" | "all";
 export type Totals = { workouts: number; sets: number; volume: number; seconds: number };
-type Bucket = { sessions: FinishedSession[]; totals: Totals };
+type HistoryVolumeSession = {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  durationS: number | null;
+  pausedMs?: number | null;
+  sets: Parameters<typeof sessionTotals>[0];
+};
+type Bucket<Session> = { sessions: Session[]; totals: Totals };
 
 export const emptyTotals: Totals = { workouts: 0, sets: 0, volume: 0, seconds: 0 };
 
@@ -44,21 +53,6 @@ export function shiftPeriod(period: Period, start: number, delta: number): numbe
   }
 }
 
-/**
- * The local days (UTC-midnight stamps, `[from, to)`) a visible period reads: its whole year plus
- * a week either side, so week counts at the edges and the previous week are complete. Moving
- * between weeks, months and years of one year therefore needs no new read. `null` for All, which
- * reads everything.
- */
-export function historyWindow(period: Period, start: number, weekStart: WeekStart) {
-  if (period === "all") return null;
-  const year = new Date(start).getUTCFullYear();
-  return {
-    from: weekStartDay(Date.UTC(year, 0, 1), weekStart) - WEEK_MS,
-    to: weekStartDay(Date.UTC(year, 11, 31), weekStart) + 2 * WEEK_MS,
-  };
-}
-
 /** Week-aligned rows with padding outside the month. All dates are UTC calendar days. */
 export function monthRows(start: number, weekStart: WeekStart) {
   const lead = weekColumn(new Date(start).getUTCDay(), weekStart);
@@ -76,15 +70,17 @@ export function monthRows(start: number, weekStart: WeekStart) {
   });
 }
 
-function summarizeSession(session: FinishedSession, bodyweightKg: number | null): Totals {
+function summarizeSession(session: HistoryVolumeSession, bodyweightKg: number | null): Totals {
   const { sets, volume } = sessionTotals(session.sets, bodyweightKg);
-  const seconds =
-    session.durationS ??
-    Math.max(
-      0,
-      (Date.parse(session.finished_at ?? session.started_at) - Date.parse(session.started_at)) /
-        1000,
-    );
+  const seconds = sessionDurationSeconds(
+    {
+      durationS: session.durationS,
+      startedAt: session.started_at,
+      finishedAt: session.finished_at ?? session.started_at,
+      pausedMs: session.pausedMs ?? 0,
+    },
+    0,
+  );
   return { workouts: 1, sets, volume, seconds };
 }
 
@@ -95,24 +91,24 @@ function addTotals(target: Totals, source: Totals) {
   target.seconds += source.seconds;
 }
 
-export function buildHistory(
-  sessions: readonly FinishedSession[],
+export function buildHistory<Session extends HistoryVolumeSession>(
+  sessions: readonly Session[],
   timezone: string,
   weekStart: WeekStart,
   bodyweightOn: (day: number) => number | null,
 ) {
-  const byDay = new Map<number, FinishedSession[]>();
-  const byWeek = new Map<number, Bucket>();
-  const byMonth = new Map<number, Bucket>();
-  const byYear = new Map<number, Bucket>();
+  const byDay = new Map<number, Session[]>();
+  const byWeek = new Map<number, Bucket<Session>>();
+  const byMonth = new Map<number, Bucket<Session>>();
+  const byYear = new Map<number, Bucket<Session>>();
   const weekCounts = new Map<number, number>();
   const bySession = new Map<string, { day: number; totals: Totals }>();
   const totals = { ...emptyTotals };
   let firstDay: number | null = null;
   const addToBucket = (
-    buckets: Map<number, Bucket>,
+    buckets: Map<number, Bucket<Session>>,
     key: number,
-    row: FinishedSession,
+    row: Session,
     stats: Totals,
   ) => {
     const bucket = buckets.get(key) ?? { sessions: [], totals: { ...emptyTotals } };
@@ -140,7 +136,7 @@ export function buildHistory(
   return { sessions, byDay, byWeek, byMonth, byYear, bySession, weekCounts, totals, firstDay };
 }
 
-export type History = ReturnType<typeof buildHistory>;
+export type History = ReturnType<typeof buildHistory<HistoryOverviewSession>>;
 
 export function goalHit(count: number, goal: number | null) {
   return goal !== null && goal > 0 && count >= goal;

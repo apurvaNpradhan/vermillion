@@ -10,6 +10,7 @@ import { FormError } from "@/platform/ui/form-error";
 import { usePreferences } from "@/preferences";
 
 import { parseBody, type BodyDraft, type BodyField } from "../body-input";
+import { prefsFailureOf, type PrefsFailure } from "../prefs-failure";
 
 const EMPTY: BodyDraft = { heightCm: "", feet: "", inches: "", weight: "" };
 
@@ -22,12 +23,12 @@ export function BodyStep({ onDone }: { onDone: () => void }) {
   const { preferences, setUiAsync } = usePreferences();
   const { weightUnit, lengthUnit } = preferences.ui;
   const [invalid, setInvalid] = useState<readonly BodyField[]>([]);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<PrefsFailure | null>(null);
 
   const form = useForm({
     defaultValues: EMPTY,
     onSubmit: async ({ value }) => {
-      setFailed(false);
+      setFailure(null);
       const parsed = parseBody(value, { weightUnit, lengthUnit });
       setInvalid(parsed.ok ? [] : parsed.invalid);
       if (!parsed.ok) return;
@@ -40,8 +41,8 @@ export function BodyStep({ onDone }: { onDone: () => void }) {
         });
         haptic.confirm();
         onDone();
-      } catch {
-        setFailed(true);
+      } catch (error) {
+        setFailure(error instanceof Error ? prefsFailureOf(error) : "onboarding__prefs_failed");
       }
     },
   });
@@ -63,7 +64,7 @@ export function BodyStep({ onDone }: { onDone: () => void }) {
           }}
           secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: isSubmitting }}
         >
-          <FormError message={failed ? t("onboarding__prefs_failed") : null} />
+          <FormError message={failure ? t(failure) : null} />
           {lengthUnit === "cm" ? (
             <form.Field name="heightCm">
               {(field) => (

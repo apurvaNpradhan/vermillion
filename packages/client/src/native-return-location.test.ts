@@ -37,6 +37,34 @@ describe("native return destinations", () => {
       params: { token: "abc" },
     });
   });
+  it("returns a Share link opened signed out to its import preview", () => {
+    const site = "sigil.lostsignal.cloud";
+    expect(nativeReturnLocation(`https://${site}/p/k7qm2x`, "app", site)).toEqual({
+      pathname: "/p/[code]",
+      params: { code: "K7QM2X" },
+    });
+    expect(nativeReturnLocation(`https://${site}/w/K7QM2X/`, "app", site)).toEqual({
+      pathname: "/w/[code]",
+      params: { code: "K7QM2X" },
+    });
+    expect(captureNativeReturnLocation(null, `https://${site}/p/K7QM2X`, "app", site)).toEqual({
+      pathname: "/p/[code]",
+      params: { code: "K7QM2X" },
+    });
+  });
+  it.each([
+    "https://evil.example/p/K7QM2X",
+    "https://sigil.lostsignal.cloud/p/short",
+    "https://sigil.lostsignal.cloud/x/K7QM2X",
+    "https://sigil.lostsignal.cloud/p/K7QM2X/more",
+    "https://user@sigil.lostsignal.cloud/p/K7QM2X",
+    "http://sigil.lostsignal.cloud/p/K7QM2X",
+  ])("rejects the Share link %s", (value) => {
+    expect(nativeReturnLocation(value, "app", "sigil.lostsignal.cloud")).toBeNull();
+  });
+  it("accepts no site link when no site host is given", () => {
+    expect(nativeReturnLocation("https://sigil.lostsignal.cloud/p/K7QM2X", "app")).toBeNull();
+  });
   it.each([
     "https://evil.example/exercises",
     "other://exercises",

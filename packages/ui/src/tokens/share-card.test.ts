@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { nativeColors, nativeVariantNames } from "./brand";
 import {
   CARD_BACKGROUNDS,
-  GLOW_ALPHA,
   PHOTO_SCRIM_ALPHA,
   cardPalette,
   mixHex,
@@ -38,18 +37,22 @@ describe("share card palettes", () => {
     }
     // The graphic marks need 3:1.
     expect(contrast(c.accent, c.ground), "accent on ground").toBeGreaterThanOrEqual(3);
+    expect(contrast(c.record, c.ground), "record on ground").toBeGreaterThanOrEqual(3);
   });
 
-  it.each(cases.filter((entry) => entry.kind === "theme"))(
-    "keeps text AA under the accent glow on $name",
-    ({ appearance }) => {
-      const c = cardPalette(appearance, "theme");
-      const lit = mixHex(c.ground, c.glow ?? c.ground, GLOW_ALPHA);
-      for (const role of ["text", "textSecondary", "textMuted"] as const) {
-        expect(contrast(c[role], lit), `${role} on the glow`).toBeGreaterThanOrEqual(4.5);
+  it("marks records with the accent on every card but the accent card, where it is the label", () => {
+    for (const appearance of nativeVariantNames) {
+      for (const kind of kinds) {
+        const c = cardPalette(appearance, kind);
+        expect(c.accent, `${appearance} ${kind}`).toBe(c.text);
+        // The accent card marks with its label; so does Mono's own-ink card.
+        const ownInk =
+          kind === "accent" || (kind === "theme" && nativeColors[appearance].action === c.text);
+        if (ownInk) expect(c.record).toBe(c.text);
+        else expect(c.record, `${appearance} ${kind}`).not.toBe(c.text);
       }
-    },
-  );
+    }
+  });
 
   it("keeps the thumbnail plate readable behind its letter", () => {
     for (const { appearance, kind } of cases) {
@@ -61,7 +64,6 @@ describe("share card palettes", () => {
   it("uses the fixed palette whatever the appearance for Light, Dark, Photo and Sticker", () => {
     for (const kind of ["light", "dark", "photo", "sticker"] as const) {
       expect(cardPalette("light", kind)).toEqual(cardPalette("dark", kind));
-      expect(cardPalette("patina-dark-contrast", kind)).toEqual(cardPalette("dark", kind));
     }
     expect(cardPalette("dark", "light").fill).toBe(nativeColors.light.canvas);
     expect(cardPalette("light", "dark").fill).toBe(nativeColors.dark.canvas);

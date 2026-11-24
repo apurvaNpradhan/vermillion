@@ -21,7 +21,10 @@ export function rirToRpe(rir: number): number {
 export const WEIGHT_UNITS = ["kg", "lb"] as const;
 export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 
-/** How a live workout opens: the sets view, or the full-screen Timer. */
+/**
+ * Deprecated: the full-screen Timer is gone and every workout opens on its sets. "timer" stays a
+ * valid value so stored preferences and older apps' writes still validate; nothing reads it.
+ */
 export const SESSION_VIEWS = ["sets", "timer"] as const;
 export type SessionView = (typeof SESSION_VIEWS)[number];
 

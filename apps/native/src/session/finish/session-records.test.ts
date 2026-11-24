@@ -26,6 +26,7 @@ const session = (id: string, started_at: string, sets: LoggedSet[]): FinishedSes
   id,
   started_at,
   finished_at: started_at,
+  pausedMs: 0,
   durationS: 3600,
   workoutId: null,
   title: "Push",
@@ -62,5 +63,22 @@ describe("sessionRecords", () => {
       0,
     );
     expect(report.records).toBe(summed);
+  });
+
+  it("counts three sets beating the best as one entry per record kind", () => {
+    const before = session("before", "2026-11-01T10:00:00Z", [lift(85, 6)]);
+    const push = session("push", "2026-11-10T10:00:00Z", [
+      lift(87.5, 6),
+      lift(87.5, 6),
+      lift(87.5, 6),
+    ]);
+    const result = sessionRecords({ history: [before, push], session: push, bodyweightKg: null });
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]?.keys).toEqual(
+      expect.arrayContaining(["heaviest_weight", "estimated_one_rep_max", "reps_6", "set_volume"]),
+    );
+    expect(result.total).toBe(5);
+    // Each set still carries its own record flags for the live chips.
+    expect(result.flags.size).toBe(3);
   });
 });

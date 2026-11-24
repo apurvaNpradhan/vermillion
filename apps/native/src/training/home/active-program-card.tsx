@@ -72,7 +72,7 @@ export function ActiveProgramCard({
                   : trained
                     ? "h-10 w-10 items-center justify-center rounded-full bg-foreground"
                     : next
-                      ? "h-10 w-10 items-center justify-center rounded-full border-2 border-identity bg-identity-soft"
+                      ? "h-10 w-10 items-center justify-center rounded-full border-2 border-foreground bg-default"
                       : "h-10 w-10 items-center justify-center rounded-full bg-default"
               }
             >

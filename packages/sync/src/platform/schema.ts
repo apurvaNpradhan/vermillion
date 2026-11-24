@@ -59,13 +59,20 @@ export const powerSyncSchema = new DrizzleAppSchema({
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },
   program_slot: { tableDefinition: programSlot },
-  training_session: { tableDefinition: session },
+  training_session: {
+    tableDefinition: session,
+    options: {
+      trackPrevious: { columns: ["paused_at", "paused_ms", "finished_at"], onlyWhenChanged: false },
+    },
+  },
   session_exercise: { tableDefinition: sessionExercise },
   session_photo: { tableDefinition: sessionPhoto },
   session_set: {
     tableDefinition: sessionSet,
     // A DELETE reports the completion the device knew, for the server's conflict check.
-    options: { trackPrevious: { columns: ["completed_at"], onlyWhenChanged: false } },
+    options: {
+      trackPrevious: { columns: ["completed_at", "timer_started_at"], onlyWhenChanged: false },
+    },
   },
   gym_equipment: { tableDefinition: gymEquipment },
   exercise_setting: { tableDefinition: exerciseSetting },

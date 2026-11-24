@@ -1,43 +1,31 @@
 import type { RoleTokens } from "./roles";
-import { buildTheme } from "./themes/engine";
-import { graphite } from "./themes/graphite";
-import { mulberry } from "./themes/mulberry";
-import { patina } from "./themes/patina";
-import { oxide } from "./themes/oxide";
-import { slate } from "./themes/slate";
+import {
+  DEFAULT_ACCENT_ID,
+  accentIds,
+  deriveRoles,
+  schemes,
+  type AccentId,
+  type Scheme,
+} from "./themes/palette";
 
-export { buildTheme } from "./themes/engine";
-export { patina } from "./themes/patina";
+export { DEFAULT_ACCENT_ID, accentIds, schemes, type AccentId, type Scheme };
 
-// SAFETY: the literal list defines the complete app theme union.
-export const themeIds = ["patina", "graphite", "oxide", "slate", "mulberry"] as const;
-/** An app theme the person can pick. */
-export type ThemeId = (typeof themeIds)[number];
-/** The app's default theme. */
-export const DEFAULT_THEME_ID: ThemeId = "patina";
+/** A Uniwind theme name: one accent in one mode (`ember-dark`). */
+export type ThemeVariant = `${AccentId}-${Scheme}`;
 
-const definitions = { patina, graphite, oxide, slate, mulberry } as const;
-
-// SAFETY: the literal list defines the complete variant-suffix union.
-export const variantSuffixes = ["light", "dark", "light-contrast", "dark-contrast"] as const;
-export type VariantSuffix = (typeof variantSuffixes)[number];
-/** A Uniwind theme name: one theme in one scheme at one contrast level (`patina-dark-contrast`). */
-export type ThemeVariant = `${ThemeId}-${VariantSuffix}`;
-
-export function variantName(theme: ThemeId, suffix: VariantSuffix): ThemeVariant {
-  return `${theme}-${suffix}`;
+export function variantName(accent: AccentId, scheme: Scheme): ThemeVariant {
+  return `${accent}-${scheme}`;
 }
 
-/** Every app theme variant's roles, keyed by variant name. */
-// SAFETY: the entries cover every ThemeId × VariantSuffix pair exactly once.
-export const themeVariants = Object.fromEntries(
-  themeIds.flatMap((id) => {
-    const built = buildTheme(definitions[id]);
-    return variantSuffixes.map((suffix) => [variantName(id, suffix), built[suffix]]);
-  }),
-) as Record<ThemeVariant, RoleTokens>;
-
 /** Every variant name, in a stable order (the Uniwind theme list). */
-export const themeVariantNames = themeIds.flatMap((id) =>
-  variantSuffixes.map((suffix) => variantName(id, suffix)),
+export const themeVariantNames: readonly ThemeVariant[] = accentIds.flatMap((accent) =>
+  schemes.map((scheme) => variantName(accent, scheme)),
 );
+
+/** Every app theme variant's roles, keyed by variant name. */
+// SAFETY: the entries cover every AccentId × Scheme pair exactly once.
+export const themeVariants = Object.fromEntries(
+  accentIds.flatMap((accent) =>
+    schemes.map((scheme) => [variantName(accent, scheme), deriveRoles(accent, scheme)] as const),
+  ),
+) as Record<ThemeVariant, RoleTokens>;

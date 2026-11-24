@@ -168,11 +168,11 @@ describe("library query: muscle details", () => {
 
 describe("library query", () => {
   it("lists live exercises A-Z, case-insensitively, with id as the tie-break", async () => {
-    expect(await ids({})).toEqual(["a5", "a6", "a1", "a2", "c1", "a4", "a3"]);
+    expect(await ids({ sort: "az" })).toEqual(["a5", "a6", "a1", "a2", "c1", "a4", "a3"]);
   });
 
   it("orders Popular by rank, then title", async () => {
-    expect(await ids({ sort: "popular" })).toEqual(["a4", "a1", "a3", "a2", "a6", "a5", "c1"]);
+    expect(await ids({})).toEqual(["a4", "a1", "a3", "a2", "a6", "a5", "c1"]);
   });
 
   it("AND-s search words over title, aka and search terms", async () => {
@@ -221,15 +221,15 @@ describe("library query", () => {
     expect(await ids({ muscles: ["triceps"], includeSecondary: true })).toEqual(["a1", "a3"]);
     expect(await ids({ muscles: ["triceps"], includeSecondary: false })).toEqual(["a3"]);
     expect(await ids({ muscles: ["glutes", "shoulders"], includeSecondary: true })).toEqual([
+      "a4",
       "a1",
       "a2",
-      "a4",
     ]);
   });
 
   it("filters by equipment", async () => {
-    expect(await ids({ equipment: ["barbell"] })).toEqual(["a1", "c1", "a4"]);
-    expect(await ids({ equipment: ["barbell", "other"] })).toEqual(["a6", "a1", "c1", "a4"]);
+    expect(await ids({ equipment: ["barbell"] })).toEqual(["a4", "a1", "c1"]);
+    expect(await ids({ equipment: ["barbell", "other"] })).toEqual(["a4", "a1", "a6", "c1"]);
   });
 
   it("combines facets with AND", async () => {
@@ -251,7 +251,7 @@ describe("library query", () => {
   });
 
   it("bounds the window", async () => {
-    expect(await ids({}, 3)).toEqual(["a5", "a6", "a1"]);
+    expect(await ids({}, 3)).toEqual(["a4", "a1", "a3"]);
   });
 
   it("counts what the list would hold without the window", async () => {

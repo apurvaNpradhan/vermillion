@@ -1,20 +1,13 @@
 import { CaretLeft, CaretRight } from "phosphor-react-native";
-import { useLayoutEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Text, View } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 
 import { useSubtleColor } from "@/platform/theme";
 
 import { Button } from "./button";
-import { useReduceMotion } from "./use-reduce-motion";
+import { useSlideSwipe } from "./use-slide-swipe";
 
 /**
  * A card for one period of time, in the shape of History's: an overline title, a headline, previous
@@ -47,33 +40,7 @@ export function PeriodCard({
   children: ReactNode;
 }) {
   const subtle = useSubtleColor();
-  const reduced = useReduceMotion();
-  const offset = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  useLayoutEffect(() => {
-    if (direction === 0) return;
-    if (reduced) {
-      opacity.set(0);
-      opacity.set(withTiming(1, { duration: 120, reduceMotion: ReduceMotion.Never }));
-    } else {
-      offset.set(direction * 48);
-      offset.set(withTiming(0, { duration: 170, easing: Easing.out(Easing.cubic) }));
-    }
-  }, [period, direction, reduced, offset, opacity]);
-  const slide = useAnimatedStyle(() => ({
-    opacity: opacity.get(),
-    transform: [{ translateX: offset.get() }],
-  }));
-  const pan = usePanGesture({
-    enabled: canPrevious || canNext,
-    activeOffsetX: [-20, 20],
-    failOffsetY: [-12, 12],
-    onDeactivate: (event) => {
-      if (event.canceled) return;
-      if (event.translationX <= -40 && canNext) scheduleOnRN(onMove, 1);
-      if (event.translationX >= 40 && canPrevious) scheduleOnRN(onMove, -1);
-    },
-  });
+  const { pan, slide } = useSlideSwipe({ period, direction, canPrevious, canNext, onMove });
   return (
     <GestureDetector gesture={pan}>
       <View className="gap-2 overflow-hidden rounded-xl bg-surface p-3">

@@ -1,23 +1,61 @@
-import { useEffect, useState } from "react";
-import { AccessibilityInfo } from "react-native";
+import { useSyncExternalStore } from "react";
+import { AccessibilityInfo, AppState } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 
-/**
- * Whether the system's Reduce Motion setting is on. Unlike Reanimated's `useReducedMotion`, which
- * reads the setting once at start-up, this follows changes while the app is open. Every motion
- * helper uses it, so one switch in system settings reaches them all.
- */
+let reduced: boolean | undefined;
+let stop: (() => void) | undefined;
+const listeners = new Set<() => void>();
+
+/** The mounted consumers share one system listener and one foreground refresh. */
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  stop ??= start();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      stop?.();
+      stop = undefined;
+      // The OS setting can change with no mounted consumers. Wait for the next refresh.
+      reduced = true;
+    }
+  };
+}
+
+function start() {
+  let active = true;
+  let revision = 0;
+  const set = (next: boolean) => {
+    if (!active) return;
+    revision += 1;
+    if (next === reduced) return;
+    reduced = next;
+    listeners.forEach((listener) => listener());
+  };
+  const refresh = () => {
+    const request = ++revision;
+    void AccessibilityInfo.isReduceMotionEnabled().then(
+      (next) => {
+        if (active && request === revision) set(next);
+      },
+      () => {},
+    );
+  };
+  const accessibility = AccessibilityInfo.addEventListener("reduceMotionChanged", set);
+  const appState = AppState.addEventListener("change", (state) => {
+    if (state === "active") refresh();
+  });
+  refresh();
+  return () => {
+    active = false;
+    accessibility.remove();
+    appState.remove();
+  };
+}
+
+const read = () => reduced;
+
+/** Use Reanimated's synchronous startup value until the first native query resolves. */
 export function useReduceMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (active) setReduced(enabled);
-    });
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
-  return reduced;
+  const initial = useReducedMotion();
+  return useSyncExternalStore(subscribe, read, read) ?? initial;
 }

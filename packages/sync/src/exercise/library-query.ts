@@ -30,7 +30,7 @@ export const DEFAULT_LIBRARY_FILTERS = {
   includeSecondary: false,
   equipment: [],
   show: "all",
-  sort: "az",
+  sort: "popular",
 } as const satisfies LibraryFilters;
 
 export type LibraryParam = string | number;

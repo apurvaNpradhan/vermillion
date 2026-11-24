@@ -9,6 +9,7 @@ import { FormError } from "@/platform/ui/form-error";
 import { usePreferences } from "@/preferences";
 
 import { ChoiceList } from "./choice-list";
+import { prefsFailureOf, type PrefsFailure } from "../prefs-failure";
 
 /**
  * Where the person trains. It only chooses the first bars and plates the calculator is seeded
@@ -19,18 +20,18 @@ export function PlaceStep({ onDone }: { onDone: () => void }) {
   const { setUiAsync } = usePreferences();
   const [place, setPlace] = useState<TrainingPlace | null>(null);
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<PrefsFailure | null>(null);
 
   const save = async () => {
     if (place === null) return;
     setPending(true);
-    setFailed(false);
+    setFailure(null);
     try {
       await setUiAsync({ trainingPlace: place });
       haptic.confirm();
       onDone();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(error instanceof Error ? prefsFailureOf(error) : "onboarding__prefs_failed");
     } finally {
       setPending(false);
     }
@@ -50,7 +51,7 @@ export function PlaceStep({ onDone }: { onDone: () => void }) {
       }}
       secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: pending }}
     >
-      <FormError message={failed ? t("onboarding__prefs_failed") : null} />
+      <FormError message={failure ? t(failure) : null} />
       <ChoiceList
         accessibilityLabel={t("onboarding__place_title")}
         value={place}

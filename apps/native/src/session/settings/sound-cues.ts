@@ -2,7 +2,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-aud
 
 import type { SoundCue } from "./sound-rules";
 
-/** The zen pack files (assets/sounds/CREDITS.md). Metro resolves each `require` to an asset id. */
+/** The generated marimba cues (assets/sounds/CREDITS.md, tools/sounds/). Metro resolves each `require` to an asset id. */
 const SOURCES = {
   tick: require("../../../assets/sounds/cue_check.mp3"),
   refused: require("../../../assets/sounds/cue_error.mp3"),

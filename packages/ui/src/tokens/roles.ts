@@ -13,43 +13,28 @@ export const roleNames = [
   "text-secondary",
   "text-muted",
   "text-disabled",
-  // Charts: `chart` is the single-series mark (the accent); chart-1..5 are the theme's series
-  // colours, chart-1 being the accent.
+  // Charts: `chart` is the single-series mark (the accent); chart-1..5 are the series colours,
+  // chart-1 being the accent.
   "chart",
   "chart-1",
   "chart-2",
   "chart-3",
   "chart-4",
   "chart-5",
-  // Identity (selection and marks) takes the accent.
-  "identity",
-  "identity-soft",
-  /** Icon and label color on an `identity` fill. */
-  "on-identity",
-  "brand-detail",
   "focus-ring",
-  // Primary action: the accent fill.
+  // The accent: `action` is the fill (buttons, ticks, marks); `accent-text` is the text tone.
   "action",
   "action-hover",
   "action-pressed",
   "on-action",
+  // The accent as text and icon colour on the canvas; darker than the fill in light mode.
+  "accent-text",
   "accent-soft-text",
-  // Status. `*-text` is the readable text tone; `on-*` is text placed on the status fill.
+  // Danger is the only status colour: destructive actions and errors.
   "danger",
   "on-danger",
   "danger-soft-text",
-  "success",
-  "success-text",
-  "on-success",
-  "success-soft-text",
-  "warning",
-  "warning-text",
-  "on-warning",
-  // A completed set: a light green row and a green tick.
-  "set-done",
-  "on-set-done",
-  "set-done-soft",
-  "set-done-soft-foreground",
+  // Set kinds.
   "set-warmup",
   "set-drop",
   "set-failure",
@@ -64,13 +49,6 @@ export const roleNames = [
   "plate-black",
   "on-plate-dark",
   "on-plate-light",
-  // Macros (data colors): fill for rings and bars, `*-text` for values.
-  "protein",
-  "protein-text",
-  "carbs",
-  "carbs-text",
-  "fat",
-  "fat-text",
 ] as const;
 
 export type RoleName = (typeof roleNames)[number];

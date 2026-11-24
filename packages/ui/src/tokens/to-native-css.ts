@@ -36,11 +36,13 @@ export const nativeTokenSources = {
   "field-foreground": "text-primary",
   "field-placeholder": "text-muted",
   "field-border": "surface-control",
-  success: "success",
-  "success-foreground": "on-success",
-  "success-soft-foreground": "success-soft-text",
-  warning: "warning-text",
-  "warning-foreground": "on-warning",
+  // No success colour: a positive state is the accent. No warning colour: a warning is neutral
+  // text with an icon. HeroUI still reads both names, so they alias the accent and the ink.
+  success: "action",
+  "success-foreground": "on-action",
+  "success-soft-foreground": "accent-soft-text",
+  warning: "text-secondary",
+  "warning-foreground": "canvas",
   danger: "danger",
   "danger-foreground": "on-danger",
   "danger-soft-foreground": "danger-soft-text",
@@ -56,7 +58,7 @@ const shadows = {
   light: {
     "surface-shadow": "0 0 0 0 transparent inset",
     "field-shadow": "0 0 0 0 transparent inset",
-    "overlay-shadow": "0 10px 28px 0 rgba(23, 43, 54, 0.14)",
+    "overlay-shadow": "0 10px 28px 0 rgba(0, 0, 0, 0.14)",
   },
   dark: {
     "surface-shadow": "0 0 0 0 transparent inset",
@@ -66,7 +68,7 @@ const shadows = {
 } as const;
 
 const isLightVariant = (variant: NativeVariant) =>
-  variant === "light" || variant.endsWith("-light") || variant.endsWith("-light-contrast");
+  variant === "light" || variant.endsWith("-light");
 
 function block(variant: NativeVariant, colors: RoleTokens) {
   const depth = shadows[isLightVariant(variant) ? "light" : "dark"];

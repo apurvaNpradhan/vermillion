@@ -1,23 +1,19 @@
 import { Switch } from "heroui-native";
 import {
-  ArrowsDownUp,
   Bell,
   CheckCircle,
-  Hourglass,
   Keyboard,
-  ListChecks,
   Medal,
   SpeakerHigh,
   Sun,
   Timer,
   Trophy,
 } from "phosphor-react-native";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Linking } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
-import { OptionSheet } from "@/platform/ui/option-sheet";
 import { usePreferences } from "@/preferences";
 
 import {
@@ -26,13 +22,11 @@ import {
 } from "@/platform/notifications/permission-store";
 
 /**
- * The session settings, as rows and the sheets they open. `soundRows` go in a "Sounds" section,
- * `rows` in the Training section, and `sheets` render beside them. Settings and the Session's own
+ * The session settings, as rows. `soundRows` go in a "Sounds" section,
+ * `rows` in the Training section. Settings and the Session's own
  * settings sheet use the same rows, so they behave the same.
  */
-export type SessionSettings = { soundRows: ReactNode[]; rows: ReactNode[]; sheets: ReactNode };
-
-type Picker = "view" | null;
+export type SessionSettings = { soundRows: ReactNode[]; rows: ReactNode[] };
 
 /**
  * The session rows of Settings: the Sounds (a master switch, and the Rest, set and milestone
@@ -44,19 +38,8 @@ export function useSessionSettings(): SessionSettings {
   const { t } = useTranslation();
   const { preferences, setUi } = usePreferences();
   const permission = useNotificationPermission();
-  const [picker, setPicker] = useState<Picker>(null);
-  const {
-    keepAwake,
-    sounds,
-    soundRest,
-    soundSets,
-    soundMilestones,
-    sessionView,
-    systemKeyboard,
-    inlineTimer,
-    supersetScroll,
-    recordAlerts,
-  } = preferences.ui;
+  const { keepAwake, sounds, soundRest, soundSets, soundMilestones, systemKeyboard, recordAlerts } =
+    preferences.ui;
 
   // The logging controls: one switch each, the same in Settings and in the Session's sheet.
   const controls = [
@@ -67,22 +50,6 @@ export function useSessionSettings(): SessionSettings {
       hint: t("session__setting_system_keyboard_hint"),
       on: systemKeyboard,
       patch: (on: boolean) => ({ systemKeyboard: on }),
-    },
-    {
-      key: "inlineTimer",
-      icon: Hourglass,
-      title: t("session__setting_inline_timer"),
-      hint: t("session__setting_inline_timer_hint"),
-      on: inlineTimer,
-      patch: (on: boolean) => ({ inlineTimer: on }),
-    },
-    {
-      key: "supersetScroll",
-      icon: ArrowsDownUp,
-      title: t("session__setting_superset_scroll"),
-      hint: t("session__setting_superset_scroll_hint"),
-      on: supersetScroll,
-      patch: (on: boolean) => ({ supersetScroll: on }),
     },
     {
       key: "recordAlerts",
@@ -186,13 +153,6 @@ export function useSessionSettings(): SessionSettings {
   ];
   const rows = [
     <ListRow
-      key="session-view"
-      icon={ListChecks}
-      title={t("session__setting_view")}
-      value={t(sessionView === "timer" ? "session__view_timer" : "session__view_sets")}
-      onPress={() => setPicker("view")}
-    />,
-    <ListRow
       key="rest-notifications"
       icon={Bell}
       title={t("session__setting_rest_notifications")}
@@ -226,24 +186,5 @@ export function useSessionSettings(): SessionSettings {
     ...controlRows,
   ];
 
-  const onOpenChange = (open: boolean) => {
-    if (!open) setPicker(null);
-  };
-  const sheets = (
-    <>
-      <OptionSheet
-        isOpen={picker === "view"}
-        onOpenChange={onOpenChange}
-        title={t("session__setting_view")}
-        description={t("session__setting_view_hint")}
-        options={[
-          { value: "sets", label: t("session__view_sets") },
-          { value: "timer", label: t("session__view_timer") },
-        ]}
-        value={sessionView}
-        onSelect={(value) => setUi({ sessionView: value })}
-      />
-    </>
-  );
-  return { soundRows, rows, sheets };
+  return { soundRows, rows };
 }

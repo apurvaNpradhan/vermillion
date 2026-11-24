@@ -1,16 +1,16 @@
 import { Text, View } from "react-native";
-import { CaretLeft, CaretRight } from "phosphor-react-native";
-import { useSubtleColor } from "@/platform/theme";
+import { topSet, useTopSetText } from "@/exercise";
 import { useWeight, WeightTrendCard } from "@/body";
 import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
-import { useActiveSessions, useStartSession } from "@/session";
-import { calendarDay } from "@workspace/shared";
+import { useActiveSessions, usePreviousSets, useStartSession } from "@/session";
+import { usePreferences } from "@/preferences";
+import { calendarDay, historyForWorkout, sessionGoal } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { homeWeek } from "./home-stats";
+import { homeWeek, lastWorkoutSession, sessionMinutes, weekSummary } from "./home-stats";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useHomeTraining } from "./use-home-training";
 import { useWorkout } from "@/training/workouts/use-workout";
@@ -18,13 +18,15 @@ import { estimateMinutes } from "@/training/workouts/estimate";
 import { useWorkoutRecency } from "@/training/train/use-workout-recency";
 import { slotTitle } from "@/training/rotation/rotation-row";
 import { HomeWeekStrip } from "./home-week-strip";
-import { LighterWeekCard } from "./lighter-week-card";
-import { NextWorkoutCard } from "./next-workout-card";
+import { TrainingNudges } from "./training-nudges";
+import { NextWorkoutCard, type NextWorkoutExercise } from "./next-workout-card";
+import { ThisWeekRow } from "./this-week-row";
 import { ANCHORED } from "@/platform/navigation/anchored";
 
 /**
- * Home, in three blocks: the week strip, the next workout and the body (weight trend). The Lighter
- * week card joins them only when a deload is suggested. The yearly report lives on History.
+ * Home: the week strip, the next workout as the hero, this week's totals, and contextual cards
+ * (Lighter week, a stalled lift, the last session's records) and the weight trend only when they
+ * apply. The yearly report lives on Reports, reached from History.
  */
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
@@ -32,7 +34,7 @@ export function TrainingHome() {
   const { start, sheet } = useStartSession();
   const [weeksAgo, setWeeksAgo] = useState(0);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const subtle = useSubtleColor();
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const state = useHomeTraining(undefined, weeksAgo);
   const weight = useWeight();
   const active = useActiveSessions();
@@ -45,6 +47,12 @@ export function TrainingHome() {
   const recent = recency.value?.[0];
   const workoutId = next?.workoutId ?? recent?.id ?? null;
   const workout = useWorkout(workoutId ?? "");
+  const { preferences } = usePreferences();
+  const unit = preferences.ui.weightUnit;
+  const topSetText = useTopSetText(unit);
+  const exerciseIds =
+    workout.status === "ready" ? workout.workout.exercises.map((e) => e.exerciseId) : [];
+  const previous = usePreviousSets(exerciseIds);
   // One ready state for the whole screen: every part appears together.
   const loading =
     state.loading ||
@@ -52,6 +60,8 @@ export function TrainingHome() {
     active.loading ||
     !programState.ready ||
     recency.loading ||
+    // A failed history watch is not fatal: the card shows without the previous sets.
+    previous.loading ||
     (workoutId !== null && workout.status === "loading");
   const failed = state.failed || weight.failed;
   const retry = () => {
@@ -88,8 +98,42 @@ export function TrainingHome() {
   const eyebrow = resume
     ? null
     : next
-      ? t("home__next_day", { day: nextIndex + 1, total: slots.length })
+      ? t(programState.program?.plannedWeeks ? "home__position_of" : "home__position", {
+          week: programState.week,
+          total: programState.program?.plannedWeeks,
+          day: nextIndex + 1,
+        })
       : t("home__next_workout");
+  const heroExercises: NextWorkoutExercise[] =
+    workout.status === "ready"
+      ? workout.workout.exercises.flatMap((entry) => {
+          if (!entry.exercise) return [];
+          // The same source as the workout preview: "Same workout" looks only at this workout.
+          const sets =
+            historyForWorkout(
+              previous.history.get(entry.exerciseId) ?? [],
+              preferences.ui.previousSource === "same_workout" ? workoutId : null,
+            )[0]?.sets ?? [];
+          const top = topSet(sets, entry.exerciseId, entry.exercise.exerciseType);
+          return [
+            {
+              id: entry.id,
+              title: entry.exercise.title,
+              lastTopSet: top ? topSetText(top, entry.exercise.exerciseType) : null,
+            },
+          ];
+        })
+      : [];
+  const lastSession = lastWorkoutSession(state.sessions, workoutId);
+  const lastDuration =
+    lastSession === null
+      ? null
+      : t("home__last_duration", {
+          duration: t("session__duration_min", { value: sessionMinutes(lastSession) }),
+        });
+  const summary = weekSummary(state.sessions, now, state.timezone, state.weekStart);
+  const goal = sessionGoal(programState.program, state.sessionsPerWeek);
+  const hasWeight = weight.days.some((day) => day.logged);
 
   // ---- Week strip ----
   const week = homeWeek(state.sessions, now, state.timezone, state.weekStart, hasWorkout, weeksAgo);
@@ -100,43 +144,30 @@ export function TrainingHome() {
   );
   const moveWeek = (step: -1 | 1) => {
     const next = Math.max(0, weeksAgo - step);
+    if (next === weeksAgo) return;
+    setDirection(step);
     setWeeksAgo(next);
     setSelectedDay(next === 0 ? null : selected + step * 7 * 86_400_000);
   };
 
   return (
     <FadeIn className="gap-6">
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("muscles__previous_week")}
-            onPress={() => moveWeek(-1)}
-          >
-            <CaretLeft size={20} color={subtle} />
-          </Button>
-          <Button
-            variant="ghost"
-            onPress={() => {
-              setWeeksAgo(0);
-              setSelectedDay(null);
-            }}
-          >
-            <Button.Label>{t("home__today")}</Button.Label>
-          </Button>
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("muscles__next_week")}
-            isDisabled={weeksAgo === 0}
-            onPress={() => moveWeek(1)}
-          >
-            <CaretRight size={20} color={subtle} />
-          </Button>
-        </View>
-        <HomeWeekStrip week={week} selected={selected} onSelect={setSelectedDay} />
-      </View>
+      <HomeWeekStrip
+        week={week}
+        selected={selected}
+        direction={direction}
+        canNext={weeksAgo > 0}
+        onSelect={(day) => {
+          setDirection(0);
+          setSelectedDay(day);
+        }}
+        onMove={moveWeek}
+        onJump={() => {
+          setDirection(weeksAgo > 0 ? 1 : 0);
+          setWeeksAgo(0);
+          setSelectedDay(null);
+        }}
+      />
       {viewingPast ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           <Text className="font-semibold text-title-md text-foreground">
@@ -167,6 +198,8 @@ export function TrainingHome() {
           eyebrow={eyebrow}
           title={hasWorkout ? title : null}
           meta={meta}
+          exercises={heroExercises}
+          lastDuration={lastDuration}
           resuming={resume !== undefined}
           onStart={() =>
             resume
@@ -176,8 +209,9 @@ export function TrainingHome() {
           onStartEmpty={() => void start(null)}
         />
       )}
-      <LighterWeekCard state={state} />
-      <WeightTrendCard weight={weight} />
+      <ThisWeekRow current={summary.current} previous={summary.previous} goal={goal} unit={unit} />
+      <TrainingNudges state={state} />
+      {hasWeight ? <WeightTrendCard weight={weight} /> : null}
       {sheet}
     </FadeIn>
   );

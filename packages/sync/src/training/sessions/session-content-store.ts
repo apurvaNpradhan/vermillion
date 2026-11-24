@@ -25,6 +25,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { resumeIn } from "./session-clock-store";
 import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
   applySessionSupersetChanges,
@@ -592,6 +593,8 @@ export async function updateSet(
     const parent = await requireSessionExercise(tx, current.session_exercise_id);
     checkedSet(current, parent.exercise_type, changes);
     const owner = await requireSession(tx, parent.session_id);
+    // Starting a timed set is training: a paused Session resumes first.
+    if (changes.timer_started_at) await resumeIn(tx, parent.session_id);
     const filled = tickValues({ ...current, ...changes }, {}, SET_FIELDS[parent.exercise_type]);
     await tx
       .update(sessionSet)
@@ -609,7 +612,8 @@ export async function updateSet(
 
 export type TickResult =
   // `rest` is there when the tick also started a Rest.
-  | { ok: true; wrote: boolean; values: Partial<ActualValues>; rest?: RestTimes }
+  | { ok: true; wrote: true; completedAt: string; values: Partial<ActualValues>; rest?: RestTimes }
+  | { ok: true; wrote: false; values: Partial<ActualValues> }
   | { ok: false; missing: SetField[] };
 
 /**
@@ -637,15 +641,20 @@ export function tickSet(
     if (!current) throw new Error("The set is gone");
     if (current.completed_at !== null) return { ok: true, wrote: false, values: {} };
     const now = Date.now();
+    const parent = await requireSessionExercise(tx, current.session_exercise_id);
     const duration = current.duration_s ?? current.target?.duration_s;
     if (expiresAt !== undefined) {
       const startedAt = Date.parse(current.timer_started_at ?? "");
-      if (duration == null || startedAt + duration * 1000 !== expiresAt || expiresAt > now) {
+      if (
+        duration == null ||
+        startedAt + duration * 1000 !== expiresAt ||
+        expiresAt > now ||
+        (await requireSession(tx, parent.session_id)).paused_at !== null
+      ) {
         return { ok: true, wrote: false, values: {} };
       }
     }
     const completedAt = expiresAt ?? now;
-    const parent = await requireSessionExercise(tx, current.session_exercise_id);
     const result = tickValues(current, ghosts, SET_FIELDS[parent.exercise_type]);
     if (!result.ok) {
       // A countdown with a missing field keeps its elapsed duration and stops in the same write.
@@ -657,6 +666,8 @@ export function tickSet(
       }
       return result;
     }
+    // Only a successful manual tick resumes the workout.
+    if (expiresAt === undefined) await resumeIn(tx, parent.session_id, now);
     const changes = {
       ...result.values,
       completed_at: new Date(completedAt).toISOString(),
@@ -666,16 +677,22 @@ export function tickSet(
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
     if (restSeconds == null || completedAt + restSeconds * 1000 <= now) {
-      return { ok: true, wrote: true, values: result.values };
+      return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
     }
     if (expiresAt !== undefined) {
       const owner = await requireSession(tx, parent.session_id);
       if (owner.rest_started_at && Date.parse(owner.rest_started_at) > expiresAt) {
-        return { ok: true, wrote: true, values: result.values };
+        return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
       }
     }
     const rest = await writeRest(tx, parent.session_id, id, restSeconds, completedAt);
-    return { ok: true, wrote: true, values: result.values, rest };
+    return {
+      ok: true,
+      wrote: true,
+      completedAt: changes.completed_at,
+      values: result.values,
+      rest,
+    };
   });
 }
 

@@ -87,7 +87,7 @@ export type RoundSet<E extends BlockExercise> = {
 
 /**
  * The block's sets as rounds, in the order they are logged: the one ordering the guided
- * logging, the set highlight, the Timer screen, the notification and the rest timer share.
+ * logging, the set highlight, the notification and the rest timer share.
  * A lone exercise is top to bottom, a set per round. A superset goes by rounds (A1, B1, A2,
  * B2 …) in member order, warm-up rounds first and then work rounds: a member's warm-ups pair
  * with other members' warm-ups, never with their work sets (A warm-up, A work + B work). A

@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { useThemeChoice } from "@/platform/theme";
-import { AppearanceSheet, useAppearanceSummary } from "@/platform/theme/theme-picker";
+import { AppearanceSheet, useAppearanceSummary } from "@/platform/theme/appearance-sheet";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 

@@ -1,6 +1,8 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useRouter } from "expo-router";
 import { BottomSheet } from "heroui-native";
+
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { Minus } from "phosphor-react-native";
 import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -11,7 +13,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
-import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
+import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import {
   addToStack,
   clearStack,
@@ -58,7 +60,7 @@ export function PlateChip({
     <View
       className={
         selected
-          ? "min-h-11 flex-row items-center rounded-xl border border-identity bg-default"
+          ? "min-h-11 flex-row items-center rounded-xl border border-foreground bg-default"
           : "min-h-11 flex-row items-center rounded-xl border border-transparent bg-surface"
       }
     >
@@ -93,7 +95,7 @@ export function PlateChip({
  * The plate calculator for one exercise's bar. It stays mounted and `isOpen` opens it, but its
  * body is rendered only while open, and closed sheets disable inventory watches and solving.
  */
-export function PlateCalculatorSheet({
+function PlateCalculatorSheetBody({
   isOpen,
   targetKg,
   exerciseId,
@@ -111,11 +113,13 @@ export function PlateCalculatorSheet({
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
+  const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
   const state = usePlates(targetKg, exerciseId, isOpen, equipment);
   return (
     <BottomSheet
+      animation={animation}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -141,6 +145,8 @@ export function PlateCalculatorSheet({
     </BottomSheet>
   );
 }
+
+export const PlateCalculatorSheet = mountOnOpen(PlateCalculatorSheetBody);
 
 type Mode = "calculate" | "build";
 
@@ -252,7 +258,7 @@ function CalculatorBody({
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
-                <Text className="font-medium text-label text-identity">
+                <Text className="font-medium text-label text-foreground">
                   {t("plates__missing_bar", { name: state.missingBar })}
                 </Text>
               </Pressable>
@@ -320,7 +326,7 @@ function CalculatorBody({
                     <Text className="font-normal text-body text-muted">{t("plates__no_load")}</Text>
                   ) : null}
                   {building && over.length > 0 ? (
-                    <Text className="font-normal text-body text-warning">
+                    <Text className="font-normal text-body text-foreground">
                       {t("plates__over_inventory")}
                     </Text>
                   ) : null}
@@ -348,7 +354,7 @@ function CalculatorBody({
                           className="pl-3"
                           onPress={() => setStack(clearStack())}
                         >
-                          <Text className="font-medium text-body text-identity">
+                          <Text className="font-medium text-body text-foreground">
                             {t("plates__clear")}
                           </Text>
                         </Pressable>

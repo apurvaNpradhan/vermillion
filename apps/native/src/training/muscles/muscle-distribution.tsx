@@ -1,11 +1,8 @@
 import { MUSCLE_DETAIL_KEYS, MUSCLE_GROUP_KEYS, type MuscleShares } from "@workspace/shared";
-import { nativeColors } from "@workspace/ui/tokens/brand";
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { useCSSVariable } from "uniwind";
 
 import { useTranslation } from "@/platform/i18n";
-import { isColorString, useAppliedVariant } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 
 import {
@@ -19,31 +16,11 @@ import {
 /** How many bars the compact version keeps. */
 const COMPACT_LIMIT = 5;
 
-/** The five theme chart colours; the role tokens stand in until the CSS variables resolve. */
-function useChartTones() {
-  const roles = nativeColors[useAppliedVariant()];
-  const [one, two, three, four, five] = useCSSVariable([
-    "--color-chart-1",
-    "--color-chart-2",
-    "--color-chart-3",
-    "--color-chart-4",
-    "--color-chart-5",
-  ]);
-  const pick = (value: typeof one, fallback: string) => (isColorString(value) ? value : fallback);
-  return {
-    1: pick(one, roles["chart-1"]),
-    2: pick(two, roles["chart-2"]),
-    3: pick(three, roles["chart-3"]),
-    4: pick(four, roles["chart-4"]),
-    5: pick(five, roles["chart-5"]),
-  } as const;
-}
-
 /**
  * The share of sets per muscle as a horizontal bar list, biggest first, each with its percentage.
  * The full version offers a Muscles / Details switch (Details only when the period names any
- * detail); the compact one is the top five groups, for the report. A group keeps one chart
- * colour, and its details wear it too.
+ * detail); the compact one is the top five groups, for the report. The biggest bar takes the
+ * accent and the rest are neutral greys by size, so no colour implies good or bad.
  */
 export function MuscleDistribution({
   shares,
@@ -53,7 +30,6 @@ export function MuscleDistribution({
   compact?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const tones = useChartTones();
   const [mode, setMode] = useState<"groups" | "details">("groups");
   const detailed = !compact && mode === "details" && hasDetails(shares);
   const rows = detailed
@@ -118,10 +94,10 @@ export function MuscleDistribution({
             </View>
             <View className="h-2 overflow-hidden rounded-full bg-default">
               <View
-                className="h-2 rounded-full"
+                className={`h-2 rounded-full ${row.fill.kind === "accent" ? "bg-accent" : "bg-foreground"}`}
                 style={{
                   width: `${top > 0 ? (row.share / top) * 100 : 0}%`,
-                  backgroundColor: tones[row.tone],
+                  opacity: row.fill.kind === "neutral" ? row.fill.opacity : 1,
                 }}
               />
             </View>

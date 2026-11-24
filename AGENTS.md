@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Patina (repository: vermillion): a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `patina-api.<domain>`). The old site and admin UI are out of the workspace pending a rebuild. pnpm + Turborepo, TypeScript 7.
+Sigil (repository: vermillion): a mobile-first monorepo for an app with personal accounts. Native (Expo) and an API (Hono + oRPC on Dokploy, at `sigil-api.<domain>`). The old site and admin UI are out of the workspace pending a rebuild. pnpm + Turborepo, TypeScript 7.
 
 Read the guide for the area you touch before editing. Terms are defined in [CONTEXT.md](CONTEXT.md); reasons for decisions are in [docs/adr/](docs/adr/).
 
@@ -51,7 +51,7 @@ Run lint, typecheck, knip, test and i18n:check before saying a change is done.
 | [orpc-testing](.agents/orpc-testing.md) | Seam 1: the router in-process on cloned Docker Postgres       |
 | [testing](.agents/testing.md)           | Unit tests and the test seams                                 |
 | [database](.agents/database.md)         | Tables, ids, timestamps, migrations                           |
-| [auth](.agents/auth.md)                 | Better Auth, hardening, CAPTCHA, passkeys                     |
+| [auth](.agents/auth.md)                 | Better Auth, hardening, abuse limits, passkeys                |
 | [environment](.agents/environment.md)   | `packages/env`, public vs secret values                       |
 | [i18n](.agents/i18n.md)                 | Keys, locale resolution, checks                               |
 | [ui](.agents/ui.md)                     | HeroUI Native, tokens                                         |

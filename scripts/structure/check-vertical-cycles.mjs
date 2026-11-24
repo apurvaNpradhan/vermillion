@@ -19,7 +19,7 @@
 // The scan is textual (no parser dependency) and relies on the repo's formatting: a top-level
 // statement starts in column 0. See .agents/verticals.md.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, posix, resolve } from "node:path";
 
 const TREE = "apps/native/src";
@@ -313,9 +313,13 @@ export function findCycles(graph) {
 }
 
 function main() {
-  const files = execFileSync("git", ["ls-files", "--", TREE], { cwd: root, encoding: "utf8" })
-    .split("\n")
-    .filter((file) => SOURCE.test(file) && !TEST.test(file));
+  const files = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", TREE],
+    { cwd: root, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter((file) => SOURCE.test(file) && !TEST.test(file) && existsSync(resolve(root, file)));
 
   /** "from -> to" => files of `from` that import `to`. */
   const edges = new Map();

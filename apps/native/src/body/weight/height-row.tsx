@@ -3,7 +3,7 @@ import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text } from "react-native";
 import { changedCanonical, cmToIn, formatBodyValue, inToCm } from "@workspace/shared";
-import { usePreferences } from "@/preferences";
+import { usePreference, usePreferences } from "@/preferences";
 import { useTranslation } from "@/platform/i18n";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { ListRow } from "@/platform/ui/list";
@@ -114,11 +114,10 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
   );
 }
 export function HeightRow() {
-  const { preferences } = usePreferences();
+  const cm = usePreference((preferences) => preferences.ui.heightCm);
+  const unit = usePreference((preferences) => preferences.ui.lengthUnit);
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const cm = preferences.ui.heightCm;
-  const unit = preferences.ui.lengthUnit;
   return (
     <>
       <ListRow

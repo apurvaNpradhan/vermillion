@@ -101,12 +101,12 @@ export function Calendar({
                 disabled={disabled}
                 onPress={() => onSelect(day)}
                 className={`min-h-11 flex-1 items-center justify-center rounded-lg bg-default active:opacity-70
-                  ${active ? "bg-identity" : ""}
-                  ${day === today ? "border border-identity" : ""}
+                  ${active ? "bg-accent" : ""}
+                  ${day === today ? "border border-accent" : ""}
                   ${disabled ? "opacity-40" : ""}`}
               >
                 <Text
-                  className={`font-medium text-numeric-sm tabular-nums ${active ? "text-on-identity" : "text-foreground"}`}
+                  className={`font-medium text-numeric-sm tabular-nums ${active ? "text-accent-foreground" : "text-foreground"}`}
                 >
                   {labels.day(day)}
                 </Text>

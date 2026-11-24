@@ -14,6 +14,7 @@ import { FormError } from "@/platform/ui/form-error";
 import { usePreferences } from "@/preferences";
 
 import { ChoiceList } from "./choice-list";
+import { prefsFailureOf, type PrefsFailure } from "../prefs-failure";
 
 /**
  * How long the person has lifted. It only picks the starting warm-up ramp (see
@@ -24,18 +25,18 @@ export function ExperienceStep({ onDone }: { onDone: () => void }) {
   const { setUiAsync } = usePreferences();
   const [experience, setExperience] = useState<TrainingExperience | null>(null);
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<PrefsFailure | null>(null);
 
   const save = async () => {
     if (experience === null) return;
     setPending(true);
-    setFailed(false);
+    setFailure(null);
     try {
       await setUiAsync({ trainingExperience: experience });
       haptic.confirm();
       onDone();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailure(error instanceof Error ? prefsFailureOf(error) : "onboarding__prefs_failed");
     } finally {
       setPending(false);
     }
@@ -55,7 +56,7 @@ export function ExperienceStep({ onDone }: { onDone: () => void }) {
       }}
       secondary={{ label: t("onboarding__skip"), onPress: onDone, disabled: pending }}
     >
-      <FormError message={failed ? t("onboarding__prefs_failed") : null} />
+      <FormError message={failure ? t(failure) : null} />
       <ChoiceList
         accessibilityLabel={t("onboarding__experience_title")}
         value={experience}

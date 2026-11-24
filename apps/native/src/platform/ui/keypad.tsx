@@ -65,6 +65,7 @@ export function Keypad({
   stepText,
   accessory,
   systemKeyboard = false,
+  motion: animate = true,
 }: {
   labels: KeypadLabels;
   onKey: (key: KeypadKey) => void;
@@ -80,6 +81,7 @@ export function Keypad({
   accessory?: ReactNode;
   /** Use the phone's own number keyboard instead of the digit keys. */
   systemKeyboard?: boolean;
+  motion?: boolean;
 }) {
   const { bottom } = useSafeAreaInsets();
   const motion = useKeypadMotion();
@@ -150,7 +152,10 @@ export function Keypad({
   if (systemKeyboard) {
     return (
       <KeyboardAvoidingView behavior="padding">
-        <Animated.View {...motion} className="gap-2 bg-surface px-3 pb-2 pt-3">
+        <Animated.View
+          {...(animate ? motion : undefined)}
+          className="gap-2 bg-surface px-3 pb-2 pt-3"
+        >
           {hidden}
           {accessory ? <View className="flex-row items-center gap-2">{accessory}</View> : null}
           <View className="flex-row gap-2">
@@ -170,7 +175,7 @@ export function Keypad({
 
   return (
     <Animated.View
-      {...motion}
+      {...(animate ? motion : undefined)}
       className="gap-2 bg-surface px-3 pt-3"
       style={{ paddingBottom: bottom + 8 }}
     >

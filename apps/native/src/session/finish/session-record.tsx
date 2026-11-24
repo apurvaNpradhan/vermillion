@@ -1,7 +1,7 @@
 import type { RecordKey } from "@workspace/shared";
 import { Medal } from "phosphor-react-native";
 import { Text, View } from "react-native";
-import { useSubtleColor } from "@/platform/theme";
+import { useAccentTextColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
 // Safety: fixed translation keys retain their literal types.
 const KEYS = {
@@ -26,10 +26,10 @@ export function SessionRecord({
   records: readonly RecordKey[];
 }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
+  const accent = useAccentTextColor();
   return (
     <View className="flex-row items-start gap-3 py-2">
-      <Medal size={20} color={subtle} weight="fill" />
+      <Medal size={20} color={accent} weight="fill" />
       <View className="flex-1 gap-0.5">
         <Text className="font-normal text-body text-foreground">{exercise}</Text>
         <Text className="font-normal text-caption text-muted">

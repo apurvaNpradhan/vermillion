@@ -73,7 +73,7 @@ export function MuscleDistribution({
               setShowAll(true);
             }}
           >
-            <Text className="font-medium text-body text-identity">
+            <Text className="font-medium text-body text-foreground">
               {t("session__show_more_muscles", { count: shares.length - 3 })}
             </Text>
           </Pressable>

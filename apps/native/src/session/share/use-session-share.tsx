@@ -1,9 +1,10 @@
 import { useWeight } from "@/body";
-import { MUSCLE_GROUP_KEYS, recordFlags, withWarmupsCounted } from "@workspace/shared";
+import { MUSCLE_GROUP_KEYS, recordCount, recordFlags, withWarmupsCounted } from "@workspace/shared";
 import type { ShareTemplate, ShareToggle, SharePhoto } from "@/share";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
 
+import { loggedSetsOf } from "@/session/logging/set-values";
 import { formatVolume } from "@/session/finish/summary";
 import { buildCardData, type SessionCardLabels, type SessionToggleId } from "./card-data";
 import { MusclesCard, PhotoCard, SessionPhotoLayer, StickerCard, SummaryCard } from "./cards";
@@ -106,10 +107,12 @@ export function useSessionShare(id: string): SessionShare {
       toggles,
       labels,
     });
+  const hasRecords = recordCount(flagged, loggedSetsOf(session, preferences.ui.countWarmups)) > 0;
   const templates: ShareTemplate<SessionToggleId>[] = [
     {
       id: "summary",
       label: t("share__template_summary"),
+      hasRecords,
       supportsTransparent: false,
       render: (context) => <SummaryCard data={dataFor(context.toggles)} context={context} />,
     },
@@ -124,6 +127,7 @@ export function useSessionShare(id: string): SessionShare {
           {
             id: "photo",
             label: t("share__template_photo"),
+            hasRecords,
             supportsTransparent: false,
             requires: "photo" as const,
             fixedBackground: "photo" as const,

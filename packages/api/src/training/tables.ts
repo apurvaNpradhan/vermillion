@@ -14,6 +14,7 @@ import {
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   doublePrecision,
@@ -230,6 +231,10 @@ export const session = pgTable(
     restSetId: uuid("rest_set_id"),
     restStartedAt: timestamptz("rest_started_at"),
     restEndsAt: timestamptz("rest_ends_at"),
+    /** When the current pause began; null while the Session runs. */
+    pausedAt: timestamptz("paused_at"),
+    /** Milliseconds of earlier pauses, which the duration leaves out. */
+    pausedMs: bigint("paused_ms", { mode: "number" }).notNull().default(0),
     /** The history import that wrote the Session, so Undo import removes exactly its Sessions. */
     importBatchId: uuid("import_batch_id"),
     importFingerprint: text("import_fingerprint"),
@@ -249,6 +254,7 @@ export const session = pgTable(
       sql`char_length(${table.title}) BETWEEN ${raw(SESSION_LIMITS.titleMin)} AND ${raw(SESSION_LIMITS.titleMax)}`,
     ),
     check("session_note_length", sql`char_length(${table.note}) <= ${raw(SESSION_LIMITS.noteMax)}`),
+    check("session_paused_ms_range", sql`${table.pausedMs} BETWEEN 0 AND 9007199254740991`),
     check(
       "session_duration_range",
       sql`${table.durationS} BETWEEN 0 AND ${raw(SESSION_LIMITS.durationMaxSeconds)}`,
