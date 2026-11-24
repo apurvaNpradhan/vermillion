@@ -1,5 +1,7 @@
 import {
+  historyForGym,
   suggestNext,
+  type LoadGrid,
   type Equipment,
   type ExerciseType,
   type LighterPeriod,
@@ -17,6 +19,10 @@ export type SuggestionSettings = {
   lighterWeeks?: readonly LighterPeriod[];
   /** The stalled-lift deload was applied to this exercise. */
   deload?: boolean;
+  /** The gym trained at: machine, cable and Smith exercises read this gym's history first. */
+  gymId?: string | null;
+  /** The loads and cap of this gym for the exercise; null is the equipment default. */
+  grid?: LoadGrid | null;
 };
 
 export function plannedSuggestion(
@@ -28,11 +34,11 @@ export function plannedSuggestion(
 ) {
   return suggestNext(
     sets,
-    history,
+    historyForGym(history, settings.gymId ?? null, exercise.equipment),
     exercise.type,
     exercise.equipment,
     { ...settings, progressionPerSet: exercise.progressionPerSet },
-    { now, lighterWeeks: settings.lighterWeeks, deload: settings.deload },
+    { now, lighterWeeks: settings.lighterWeeks, deload: settings.deload, grid: settings.grid },
   );
 }
 

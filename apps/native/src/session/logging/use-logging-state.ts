@@ -45,6 +45,7 @@ import { hasRequiredSetValues, historySettled } from "./history-gate";
 import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
+import type { GymLoads } from "@/gym";
 import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
@@ -72,6 +73,7 @@ export function useLoggingState({
   effortScale,
   bodyweightKg,
   weightIncrementKg,
+  gym,
   lighterWeeks: rawLighterWeeks,
   recordAlerts,
   previousSource,
@@ -92,6 +94,7 @@ export function useLoggingState({
   effortScale: EffortScale;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
+  gym: GymLoads;
   lighterWeeks: readonly LighterPeriod[];
   /** Whether a new Record shows its on-screen alert (its sound is the milestone sound's). */
   recordAlerts: boolean;
@@ -135,6 +138,7 @@ export function useLoggingState({
       unitName,
       display: shownDisplay,
       weightIncrementKg,
+      gym,
       lighterWeeks,
       lighter,
       bodyweightKg,
@@ -150,6 +154,7 @@ export function useLoggingState({
       unitName,
       shownDisplay,
       weightIncrementKg,
+      gym,
       lighterWeeks,
       lighter,
       bodyweightKg,

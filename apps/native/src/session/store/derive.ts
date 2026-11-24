@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  historyForGym,
   historyForWorkout,
   optionalSetIndexes,
   stalledSessions,
@@ -13,6 +14,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
+import type { GymLoads } from "@/gym";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
@@ -34,6 +36,8 @@ export type DeriveInputs = {
   unitName: string;
   display: DisplayUnits;
   weightIncrementKg: number | null;
+  /** The active gym: its loads and caps, and which gym's history leads. */
+  gym: GymLoads;
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
@@ -93,7 +97,14 @@ export function historyOf(
   workoutId: string | null,
 ): readonly FinishedSession[] | undefined {
   const all = inputs.previous.get(exercise.exerciseId);
-  return all && historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null);
+  return (
+    all &&
+    historyForGym(
+      historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null),
+      inputs.gym.gymId,
+      exercise.exercise?.equipment ?? "other",
+    )
+  );
 }
 
 function buildView(
@@ -129,6 +140,8 @@ function buildView(
       : exerciseSuggestion(exercise, history ?? [], {
           weightUnit: inputs.unit,
           weightIncrementKg: inputs.weightIncrementKg,
+          gymId: inputs.gym.gymId,
+          grid: inputs.gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other"),
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,
         });
@@ -207,9 +220,20 @@ function sameView(a: ExerciseView, b: ExerciseView): boolean {
 
 function sameSettings(a: DeriveInputs, b: DeriveInputs): boolean {
   if (a === b) return true;
-  const { previous: _a, chipTexts, stallMemory, ...settings } = a;
-  const { previous: _b, chipTexts: otherChips, stallMemory: otherStall, ...other } = b;
-  return chipTexts === otherChips && stallMemory === otherStall && deepEqual(settings, other);
+  const { previous: _a, chipTexts, stallMemory, gym, ...settings } = a;
+  const {
+    previous: _b,
+    chipTexts: otherChips,
+    stallMemory: otherStall,
+    gym: otherGym,
+    ...other
+  } = b;
+  return (
+    chipTexts === otherChips &&
+    stallMemory === otherStall &&
+    gym === otherGym &&
+    deepEqual(settings, other)
+  );
 }
 
 /**
