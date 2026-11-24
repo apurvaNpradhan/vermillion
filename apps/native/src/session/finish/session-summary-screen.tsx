@@ -32,6 +32,7 @@ import { useWorkout } from "@/training";
 import { formatElapsed } from "@/session/timer/clock";
 import { formatCell, loggedSetsOf } from "@/session/logging/set-values";
 import { volumeInUnit } from "./summary";
+import { summarizeTargets } from "./target-summary";
 import { useSession } from "@/session/screen/use-session";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useFinishSession } from "./use-finish-session";
@@ -235,16 +236,20 @@ function FinishFlow({
       after: change.afterSets?.map((kind) => t(SET_KIND_KEYS[kind])).join(", "),
     }),
   );
-  const weightText = (weight: number | null) =>
-    weight === null ? t("session__no_target") : formatCell("weight", weight, unit);
-  const targetLines = diff.targets.map((change) =>
-    t("session__diff_weight", {
-      exercise: names(change.exerciseId),
-      before: change.before.map(weightText).join(", "),
-      after: change.after.map(weightText).join(", "),
-      unit: unitLabel,
-    }),
-  );
+  const targetLines = diff.targets.map((change) => {
+    const summary = summarizeTargets(change.before, change.after, (weight) =>
+      formatCell("weight", weight, unit),
+    );
+    const exercise = names(change.exerciseId);
+    return summary.kind === "same"
+      ? t("session__diff_weight_same", {
+          exercise,
+          weight: summary.weight,
+          unit: unitLabel,
+          count: summary.count,
+        })
+      : t("session__diff_weight_each", { exercise, weights: summary.weights, unit: unitLabel });
+  });
   const applyUpdate = async (update: RoutineUpdate) => {
     setBusy(true);
     const ok =
