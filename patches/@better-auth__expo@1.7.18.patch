@@ -1,0 +1,82 @@
+diff --git a/dist/client.d.ts b/dist/client.d.ts
+index 64f8bb4847420f8155e623e8dff0703503fcf649..d9ea182634751e7b8d4acdf7fd385dd7b79a8b0c 100644
+--- a/dist/client.d.ts
++++ b/dist/client.d.ts
+@@ -77,6 +77,16 @@ interface ExpoClientOptions {
+    * ```
+    */
+   webBrowserOptions?: import("expo-web-browser").AuthSessionOpenOptions;
++  /** Opens the browser while leaving the proxy and cookie exchange to the Expo plugin. */
++  openAuthSession?: (
++    url: string,
++    returnUrl: string,
++    options: import("expo-web-browser").AuthSessionOpenOptions | undefined,
++    signal: AbortSignal | undefined,
++  ) => {
++    result: Promise<import("expo-web-browser").WebBrowserAuthSessionResult>;
++    onCookieStored: () => void;
++  } | undefined;
+ }
+ export declare function getSetCookie(header: string, prevCookie?: string | undefined): string;
+ export declare function getCookie(cookie: string | null): string;
+diff --git a/dist/client.js b/dist/client.js
+index 2a4186bb6c8587be530ebc0088f94d3dd519589a..7f2548f2091c8ef84c2b30c982d3f294eb2d01c9 100644
+--- a/dist/client.js
++++ b/dist/client.js
+@@ -656,28 +656,40 @@ getCookie: async () => {
+ 				if (context.data?.redirect && (isSignInRequest || isLinkSocialRequest) && !context.request?.body.includes("idToken")) {
+ 					const to = JSON.parse(context.request.body)?.callbackURL;
+ 					const signInURL = context.data?.url;
+-					let Browser = void 0;
+-					try {
+-						Browser = await import("expo-web-browser");
+-					} catch {
+-						try {
+-							Browser = __require("expo-web-browser");
+-						} catch (error) {
+-							throw new Error("\"expo-web-browser\" is not installed as a dependency!", { cause: error });
+-						}
+-					}
+-					if (Platform.OS === "android") try {
+-						Browser.dismissAuthSession();
+-					} catch {}
+ 					const oauthStateValue = getOAuthStateValue(await storage.getItemAsync(cookieName), cookiePrefix);
+ 					const params = new URLSearchParams({ authorizationURL: signInURL });
+ 					if (oauthStateValue) params.append("oauthState", oauthStateValue);
+ 					const proxyURL = `${context.request.baseURL}/expo-authorization-proxy?${params.toString()}`;
+-					const result = await Browser.openAuthSessionAsync(proxyURL, to, opts?.webBrowserOptions);
+-					if (result.type !== "success") return;
++					const signal = context.request.signal;
++					if (signal?.aborted) return;
++					const owned = opts.openAuthSession?.(proxyURL, to, opts.webBrowserOptions, signal);
++					let result;
++					if (owned) {
++						result = await owned.result;
++					} else {
++						let Browser = void 0;
++						try {
++							Browser = await import("expo-web-browser");
++						} catch {
++							try {
++								Browser = __require("expo-web-browser");
++							} catch (error) {
++								throw new Error("\"expo-web-browser\" is not installed as a dependency!", { cause: error });
++							}
++						}
++						if (Platform.OS === "android") try {
++							Browser.dismissAuthSession();
++						} catch {}
++						result = await Browser.openAuthSessionAsync(proxyURL, to, opts?.webBrowserOptions);
++					}
++					if (signal?.aborted || result.type !== "success") return;
+ 					const cookie = new URL(result.url).searchParams.get("cookie");
+ 					if (!cookie) return;
+-					if (await storage.updateItemAsync(cookieName, (currentValue) => getSetCookie(cookie, currentValue ?? void 0))) store?.notify("$sessionSignal");
++					const saved = await storage.updateItemAsync(cookieName, (currentValue) => signal?.aborted ? currentValue ?? "{}" : getSetCookie(cookie, currentValue ?? void 0));
++					if (saved && !signal?.aborted) {
++						owned?.onCookieStored();
++						store?.notify("$sessionSignal");
++					}
+ 				}
+ 			} },
+ 			async init(url, options) {

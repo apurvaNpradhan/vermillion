@@ -41,7 +41,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
-import type { SwipeAction } from "@/platform/ui/swipe-row";
+import { useDismissSwipeRows, type SwipeAction } from "@/platform/ui/swipe-row";
 import { CompactRow, ReorderView, SetTypeSheet, supportsWarmups } from "@/training";
 
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
@@ -183,6 +183,7 @@ const LoadedSession = memo(function LoadedSession({
   const { toast } = useAppToast();
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
+  const dismissSwipeRows = useDismissSwipeRows();
   const accordionScroll = useAccordionScroll(store, scrollRef);
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
@@ -639,7 +640,10 @@ const LoadedSession = memo(function LoadedSession({
           estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
           onItemSizeChanged={accordionScroll.onItemSizeChanged}
           onMetricsChange={onListMetrics}
-          onScrollBeginDrag={accordionScroll.cancel}
+          onScrollBeginDrag={() => {
+            accordionScroll.cancel();
+            dismissSwipeRows();
+          }}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
           keyboardShouldPersistTaps="handled"

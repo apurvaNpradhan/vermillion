@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
+import { useDismissSwipeRows } from "@/platform/ui/swipe-row";
 import { EditorKeypadProvider } from "@/training/sets/editor-keypad";
 
 /** The page of a modal sheet route: a close button, a centred title and keyboard-aware content. */
@@ -26,6 +27,7 @@ export function SheetFrame({
   const foreground = useThemeColor("foreground");
   const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const offset = useRef(0);
+  const dismissSwipeRows = useDismissSwipeRows();
   return (
     <View className="flex-1 bg-background">
       <EditorKeypadProvider
@@ -39,6 +41,7 @@ export function SheetFrame({
           onScroll={(event) => {
             offset.current = event.nativeEvent.contentOffset.y;
           }}
+          onScrollBeginDrag={dismissSwipeRows}
           scrollEventThrottle={16}
           className="flex-1"
           contentContainerClassName="gap-6 px-4"
