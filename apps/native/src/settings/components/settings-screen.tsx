@@ -8,6 +8,7 @@ import {
   Database,
   Hash,
   Info,
+  ListChecks,
   LinkSimple,
   SignOut,
   Trash,
@@ -75,6 +76,7 @@ export function SettingsScreen() {
           <WeightPreferenceRow />
           <HidePhotosRow />
           <ListRow
+            icon={ListChecks}
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
           />

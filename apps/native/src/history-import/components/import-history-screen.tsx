@@ -121,7 +121,7 @@ export function ImportHistoryScreen({
           <>
             {step.kind === "failed" ? <FormError message={t(FAILURE_KEYS[step.reason])} /> : null}
             <ListSection title={t("import__title")}>
-              <View className="gap-3">
+              <View className="gap-3 p-4">
                 <Text className="font-normal text-body text-muted">{t("import__intro")}</Text>
                 <Button
                   variant="primary"

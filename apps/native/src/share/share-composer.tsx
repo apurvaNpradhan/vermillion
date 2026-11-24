@@ -427,7 +427,7 @@ function Swatch({
         style={{ width: 36, height: 36 }}
       >
         <View
-          className={`items-center justify-center rounded-full ${fill ? "" : "bg-default"}`}
+          className={`items-center justify-center rounded-full ${fill ? "border border-foreground/20" : "bg-default"}`}
           style={{ width: 26, height: 26, backgroundColor: fill ?? undefined }}
         >
           {dot ? (

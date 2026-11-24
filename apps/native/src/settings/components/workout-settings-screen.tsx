@@ -14,7 +14,16 @@ import {
   type TrainingPlace,
 } from "@workspace/shared";
 import { Switch } from "heroui-native";
-import { Clock, Flame, House, MapPin, Rows, Timer as TimerIcon, User } from "phosphor-react-native";
+import {
+  Clock,
+  Flame,
+  House,
+  MapPin,
+  Rows,
+  Timer as TimerIcon,
+  User,
+  Broadcast,
+} from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { useRouter } from "expo-router";
@@ -149,6 +158,7 @@ export function WorkoutSettingsScreen() {
           {sessionSettings.rows}
           {Platform.OS === "android" ? (
             <ListRow
+              icon={Broadcast}
               title={t("session__live_setting")}
               value={t(
                 promotion === "unsupported"
