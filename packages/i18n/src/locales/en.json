@@ -928,7 +928,7 @@
   "session__goal_ratio": "{{done}}/{{goal}}",
   "session__goal_accessible": "{{count}} of {{goal}} workouts this week",
   "session__year_goal": "{{done}}/{{total}} weeks on goal",
-  "session__vs_previous_week": "{{value}} vs last week",
+  "session__vs_previous_week": "{{value}} vs this time last week",
   "session__history_period_summary": "{{period}}, {{workouts}}",
   "session__open_history_year": "Opens this year in History",
   "session__history_year_summary": "{{period}}, {{workouts}}. By month: {{months}}",

@@ -9,7 +9,7 @@ import type { WeekTotals } from "./home-stats";
 
 /**
  * "This week": sessions done against the goal, sets and volume, with the change on last week
- * under each once last week has anything to compare.
+ * under each once last week, up to the same point, has anything to compare.
  */
 export function ThisWeekRow({
   current,
@@ -36,6 +36,7 @@ export function ThisWeekRow({
   );
   // Tonnes for kilograms, pounds otherwise: the same units History used for its weekly volume.
   const volume = (kg: number) => (unit === "kg" ? kg / 1000 : kg / KG_PER_LB);
+  // Last week up to this point; with nothing in it there is nothing fair to compare.
   const compare = previous.sessions > 0;
   const vs = (difference: number) =>
     compare

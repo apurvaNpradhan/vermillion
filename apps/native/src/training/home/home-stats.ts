@@ -60,9 +60,42 @@ function totalsOf(sessions: readonly SummarySession[]): WeekTotals {
   return { sessions: sessions.length, sets, volumeKg };
 }
 
-export type WeekSummary = { current: WeekTotals; previous: WeekTotals };
+export type WeekSummary = {
+  current: WeekTotals;
+  /** Last week from its start to the same weekday and time of day as `now`. */
+  previous: WeekTotals;
+};
 
-/** This week's sessions, Counted sets and volume next to last week's, for the "This week" row. */
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Milliseconds since local midnight of an instant in `timezone` (wall clock, so DST-proof). */
+function timeOfDayMs(instant: Date | string, timezone: string): number {
+  let format = timeFormatters.get(timezone);
+  if (format === undefined) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hourCycle: "h23",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    timeFormatters.set(timezone, format);
+  }
+  const parts = format.formatToParts(new Date(instant));
+  const part = (kind: string) => Number(parts.find((item) => item.type === kind)?.value);
+  return ((part("hour") * 60 + part("minute")) * 60 + part("second")) * 1000;
+}
+
+/** An instant on the user's local wall-clock timeline: its calendar day plus the time of day. */
+function localMs(instant: Date | string, timezone: string): number {
+  return calendarDay(instant, timezone) + timeOfDayMs(instant, timezone);
+}
+
+/**
+ * This week's sessions, Counted sets and volume next to last week's up to the same point: the
+ * same weekday and time of day (in the user's zone, from their week start), so a Tuesday is not
+ * measured against a whole last week. A session counts by when it started.
+ */
 export function weekSummary(
   sessions: readonly SummarySession[],
   now: Date,
@@ -70,9 +103,16 @@ export function weekSummary(
   weekStart: WeekStart,
 ): WeekSummary {
   const week = weekRange(now, timezone, weekStart);
+  const elapsed = localMs(now, timezone) - week.start;
+  const previousStart = shiftWeek(week, 1).start;
   return {
     current: totalsOf(sessionsInRange(sessions, week, timezone)),
-    previous: totalsOf(sessionsInRange(sessions, shiftWeek(week, 1), timezone)),
+    previous: totalsOf(
+      sessions.filter((session) => {
+        const at = localMs(session.started_at, timezone);
+        return at >= previousStart && at <= previousStart + elapsed;
+      }),
+    ),
   };
 }
 
