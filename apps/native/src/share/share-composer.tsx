@@ -240,7 +240,10 @@ export function ShareComposer<Id extends string>({
             </View>
 
             {showSwatches ? (
-              <View className="flex-row justify-center gap-5" accessibilityRole="radiogroup">
+              <View
+                className="flex-row flex-wrap justify-center gap-x-4 gap-y-1"
+                accessibilityRole="radiogroup"
+              >
                 {offered.map((option) => (
                   <Swatch
                     key={option}
@@ -417,7 +420,9 @@ function Swatch({
       accessibilityState={{ selected }}
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-11 items-center gap-1"
+      // Never narrower than its label: the session composer adds a fifth (Photo) swatch, and a row
+      // squeezed by flex clipped the selected, medium-weight label ("Accent" to "Accen").
+      className="min-h-11 min-w-14 shrink-0 items-center gap-1"
       testID={`share-swatch-${option}`}
     >
       <View
@@ -436,7 +441,10 @@ function Swatch({
           {icon}
         </View>
       </View>
-      <Text className={`text-caption ${selected ? "font-medium text-foreground" : "text-muted"}`}>
+      <Text
+        numberOfLines={1}
+        className={`shrink-0 text-caption ${selected ? "font-medium text-foreground" : "text-muted"}`}
+      >
         {label}
       </Text>
     </Pressable>
