@@ -108,16 +108,25 @@ export const features = [
     label: "Records",
     title: "Records flagged the moment you set them.",
     body: "Every exercise gets a chart, so you can watch the numbers climb.",
+    screenshot: "exercise-detail",
+    alt: "A bench press chart of estimated one-rep max with a grid of personal records",
   },
   {
     label: "Offline",
     title: "Works in a basement.",
     body: "Everything saves on your phone first and syncs once you have signal. Bring your history from Strong or Hevy.",
+    screenshot: "history",
+    alt: "Training history grouped by week with imported workouts",
   },
 ];
 
 export const screenshots = [
   { src: "/screenshots/live-session.webp", alt: "A workout in progress with a rest timer" },
-  { src: "/screenshots/program.webp", alt: "A training program with three workouts" },
+  { src: "/screenshots/program.webp", alt: "A Push Pull Legs program with four workouts" },
   { src: "/screenshots/exercises.webp", alt: "The exercise library with search and filters" },
+  {
+    src: "/screenshots/exercise-detail.webp",
+    alt: "An exercise's progress chart and personal records",
+  },
+  { src: "/screenshots/history.webp", alt: "Training history grouped by week" },
 ];
