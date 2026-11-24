@@ -947,15 +947,19 @@ export function watchHistoryOverview(
   return () => controller.abort();
 }
 
-/** Watches the user's bars and plates: bars first, heavier first. */
+/**
+ * Watches the bars and plates of one gym: bars first, heavier first. `unassigned` includes the
+ * rows that predate gyms, which belong to the default gym (and to no gym before the first sync).
+ */
 export function watchEquipment(
   database: TrainingDatabase,
   handlers: { onEquipment: (items: EquipmentRow[]) => void; onError: (error: Error) => void },
+  gym: { gymId: string | null; unassigned: boolean },
 ): () => void {
   return watch(
     database,
     EQUIPMENT_SQL,
-    [],
+    [gym.gymId ?? "", gym.unassigned ? "1" : "0"],
     ["gym_equipment"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
     handlers.onError,

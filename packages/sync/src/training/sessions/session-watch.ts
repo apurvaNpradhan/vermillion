@@ -448,7 +448,7 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
 
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
-    s.workout_id AS workout_id,
+    s.workout_id AS workout_id, s.gym_id AS gym_id,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -778,6 +778,7 @@ const finishedRowSchema = z.object({
   duration_s: z.number().nullable(),
   paused_ms: z.number().nullable().optional(),
   workout_id: z.string().nullable(),
+  gym_id: z.string().nullable().optional(),
   exercise_id: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   set_id: z.string().nullable(),
@@ -806,6 +807,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         durationS: row.duration_s,
         pausedMs: row.paused_ms ?? 0,
         workoutId: row.workout_id,
+        gymId: row.gym_id ?? null,
         sets: [],
       };
       result.push(current);
@@ -857,7 +859,12 @@ export type EquipmentRow = {
   enabled: boolean;
 };
 
+/**
+ * The kit of one gym. Two placeholders: the gym id, and "1" when rows with no gym (written before
+ * gyms existed) belong to it too, which they do for the default gym.
+ */
 export const EQUIPMENT_SQL = `SELECT id, kind, weight_kg, unit, label, count, enabled FROM gym_equipment
+  WHERE gym_id = ? OR (gym_id IS NULL AND ? = '1')
   ORDER BY kind, weight_kg DESC, id LIMIT ${EQUIPMENT_LIMIT}`;
 
 /** The bar an exercise remembers; one placeholder, the exercise id. */

@@ -82,6 +82,7 @@ export const trainingUploadColumns = {
     "program_id",
     "run_id",
     "slot_id",
+    "gym_id",
     "cycle",
     "title",
     "title_derived",
@@ -134,7 +135,10 @@ export const trainingUploadColumns = {
     "generated_warmup",
     "restore",
   ]),
+  gym: new Set(["name", "restore"]),
+  gym_exercise_setting: new Set(["gym_id", "exercise_id", "load_ranges", "setup_note", "restore"]),
   gym_equipment: new Set([
+    "gym_id",
     "kind",
     "weight_kg",
     "unit",

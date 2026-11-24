@@ -4,6 +4,7 @@ import { BODY_METRICS, DEFAULT_TRACKED_METRICS } from "./body";
 import { localeSchema } from "./locale";
 import {
   DEFAULT_REST_SECONDS,
+  MAX_WEIGHT_KG,
   DEFAULT_WEEK_START,
   EFFORT_SCALES,
   TRAINING_LIMITS,
@@ -49,6 +50,20 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const reminderTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const weighInReminder = z.object({ enabled: z.boolean(), time: reminderTime });
 const checkInReminder = weighInReminder.extend({ weekday: z.number().int().min(1).max(7) });
+
+/**
+ * What the "Is this the max on this machine?" prompt remembers per gym and exercise (`key` is
+ * `<gym id>:<exercise id>`): the weight the user keeps lowering the suggestion to, how many
+ * Sessions did, the last of them, and whether the question was answered or dismissed for good.
+ */
+export const capPromptSchema = z.object({
+  key: z.string().max(80),
+  kg: z.number().min(0).max(MAX_WEIGHT_KG),
+  count: z.number().int().min(0).max(1000),
+  sessionId: z.string().max(40).nullable(),
+  dismissed: z.boolean(),
+});
+export type CapPrompt = z.infer<typeof capPromptSchema>;
 
 const uiFields = {
   weighInReminder,
@@ -97,6 +112,8 @@ const uiFields = {
     .nullable(),
   trainingExperience: z.enum(TRAINING_EXPERIENCES).nullable(),
   trainingPlace: z.enum(TRAINING_PLACES).nullable(),
+  activeGymId: z.uuid().nullable(),
+  capPrompts: z.array(capPromptSchema).max(100),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -154,6 +171,9 @@ export const uiPreferencesSchema = z
     // first bars and plates); null means never answered.
     trainingExperience: uiFields.trainingExperience.default(null).catch(null),
     trainingPlace: uiFields.trainingPlace.default(null).catch(null),
+    // The gym the user trains at now; an unknown or deleted id reads as the first gym.
+    activeGymId: uiFields.activeGymId.default(null).catch(null),
+    capPrompts: uiFields.capPrompts.default([]),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

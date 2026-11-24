@@ -228,6 +228,7 @@ const expectation: Expectation = {
         program_id: { type: "uuid", notNull: false, default: null },
         run_id: { type: "uuid", notNull: false, default: null },
         slot_id: { type: "uuid", notNull: false, default: null },
+        gym_id: { type: "uuid", notNull: false, default: null },
         cycle: { type: "integer", notNull: false, default: null },
         title: { type: "text", notNull: true, default: null },
         title_derived: { type: "boolean", notNull: true, default: "true" },
@@ -321,6 +322,7 @@ const expectation: Expectation = {
         label: { type: "text", notNull: false, default: null },
         count: { type: "integer", notNull: false, default: null },
         enabled: { type: "boolean", notNull: true, default: "true" },
+        gym_id: { type: "uuid", notNull: false, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
@@ -328,6 +330,41 @@ const expectation: Expectation = {
       indexes: {
         gym_equipment_user_id_live_idx:
           "CREATE INDEX gym_equipment_user_id_live_idx ON public.gym_equipment USING btree (user_id) WHERE (deleted_at IS NULL)",
+        gym_equipment_gym_id_live_idx:
+          "CREATE INDEX gym_equipment_gym_id_live_idx ON public.gym_equipment USING btree (gym_id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    gym: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        name: { type: "text", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        gym_user_id_live_idx:
+          "CREATE INDEX gym_user_id_live_idx ON public.gym USING btree (user_id, created_at, id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    gym_exercise_setting: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        gym_id: { type: "uuid", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        load_ranges: { type: "jsonb", notNull: true, default: "'[]'::jsonb" },
+        setup_note: { type: "text", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        gym_exercise_setting_user_id_live_idx:
+          "CREATE INDEX gym_exercise_setting_user_id_live_idx ON public.gym_exercise_setting USING btree (user_id) WHERE (deleted_at IS NULL)",
+        gym_exercise_setting_live_idx:
+          "CREATE UNIQUE INDEX gym_exercise_setting_live_idx ON public.gym_exercise_setting USING btree (user_id, gym_id, exercise_id) WHERE (deleted_at IS NULL)",
       },
     },
     exercise_setting: {
@@ -414,10 +451,12 @@ const expectation: Expectation = {
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
       "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
-      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms)",
+      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id)",
       "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment)",
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at, generated_warmup)",
-      "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
+      "gym(id, user_id, name, created_at, updated_at, deleted_at)",
+      "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at, gym_id)",
+      "gym_exercise_setting(id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at, updated_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at, progression_per_set, auto_warmups, note)",
       "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
       "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
@@ -471,7 +510,9 @@ describe("server schema parity", () => {
         .sort(),
     ).toEqual([
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "program",
       "program_run",
       "program_slot",

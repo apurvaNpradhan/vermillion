@@ -73,7 +73,7 @@ describe("a cap on the load", () => {
 
   it("at the cap keeps adding reps past the range's top", () => {
     const next = suggest([logged(12, 91), logged(12, 91)], { grid: rangeGrid(stack) });
-    expect(next?.reason).toBe("add_rep");
+    expect(next?.reason).toBe("cap_reps");
     expect(weights(next)).toEqual([91, 91]);
     expect(reps(next)).toEqual([13, 13]);
   });
@@ -95,7 +95,7 @@ describe("a cap on the load", () => {
         settings,
         { now: NOW, grid: rangeGrid(stack) },
       );
-    expect(run(extended - 1)).toMatchObject({ reason: "add_rep", sets: [{ reps: extended }] });
+    expect(run(extended - 1)).toMatchObject({ reason: "cap_reps", sets: [{ reps: extended }] });
     expect(run(extended)).toMatchObject({
       reason: "cap_hint",
       sets: [{ weightKg: 91, reps: extended }],

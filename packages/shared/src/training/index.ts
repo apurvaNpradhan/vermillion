@@ -24,6 +24,7 @@ export { activeRun, cycleState, runWeek } from "./plans/cycle";
 
 export * from "./progress/progression";
 export * from "./progress/load-grid";
+export * from "./progress/gym-history";
 export { addLoad, defaultRangesFor, lightenLoad, loadable } from "./progress/progression-steps";
 export * from "./progress/lighter-week";
 export * from "./progress/stalled-lift";

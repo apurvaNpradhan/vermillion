@@ -60,6 +60,7 @@ function buildRows(
     program_id: null,
     run_id: null,
     slot_id: null,
+    gym_id: null,
     cycle: null,
     title: planned.title,
     title_derived: false,

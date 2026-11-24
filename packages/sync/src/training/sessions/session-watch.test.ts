@@ -587,7 +587,7 @@ describe("gym equipment", () => {
       { kind: "plate", weight_kg: 20, unit: "kg", label: null, count: 2, enabled: true },
     ] as const;
     await upsertEquipment(s.training, kit);
-    const items = parseEquipment(s.sqlite.prepare(EQUIPMENT_SQL).all());
+    const items = parseEquipment(s.sqlite.prepare(EQUIPMENT_SQL).all("", "1"));
     expect(items.map((item) => [item.kind, item.weightKg])).toEqual([
       ["bar", 20],
       ["bar", 15],

@@ -31,7 +31,9 @@ export const PROGRESSION_REASONS = [
   "deload",
   /** The last load was above this gym's cap, so the cap is suggested. */
   "capped",
-  /** At the cap and past the extended rep ceiling: add a set or try single-arm. */
+  /** At the cap with reps still to gain: the load stays, the reps climb. */
+  "cap_reps",
+  /** At the cap and past the extended rep ceiling: add a set or go single-arm. */
   "cap_hint",
 ] as const;
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
@@ -118,11 +120,20 @@ function missedRange(slots: readonly Slot[], sets: readonly LoggedSet[]): boolea
   });
 }
 
-type Outcome = "capped" | "add_weight" | "add_rep" | "cap_hint" | "hold" | "hold_effort" | "same";
+type Outcome =
+  | "capped"
+  | "add_weight"
+  | "add_rep"
+  | "cap_reps"
+  | "cap_hint"
+  | "hold"
+  | "hold_effort"
+  | "same";
 const OUTCOME_ORDER = [
   "capped",
   "add_weight",
   "add_rep",
+  "cap_reps",
   "hold_effort",
   "cap_hint",
   "hold",
@@ -130,6 +141,7 @@ const OUTCOME_ORDER = [
 ] as const;
 const REASON_OF = {
   capped: "capped",
+  cap_reps: "cap_reps",
   cap_hint: "cap_hint",
   add_weight: "add_weight",
   add_rep: "add_rep",
@@ -276,7 +288,7 @@ export function suggestNext(
         // The load cannot rise: reps keep growing to the extended ceiling, then a hint.
         if (before.reps >= extended) outcome = "cap_hint";
         else {
-          outcome = "add_rep";
+          outcome = "cap_reps";
           next = { ...same, reps: before.reps + 1 };
         }
       } else if (before.reps >= max) {

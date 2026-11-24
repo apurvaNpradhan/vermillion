@@ -1,6 +1,8 @@
 export {
   exerciseSetting,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   program,
   programSlot,
   session,
@@ -55,6 +57,23 @@ export {
   type WorkoutPatch,
   type WorkoutRow,
 } from "./store";
+export {
+  activeGymIdOf,
+  createGym,
+  defaultGymIdOf,
+  deleteGym,
+  renameGym,
+  setGymExerciseSetting,
+  setSessionGym,
+  type GymExerciseSettingPatch,
+} from "./gyms/gym-store";
+export {
+  watchGymExerciseSettings,
+  watchGyms,
+  watchSessionGym,
+  type GymExerciseSettingRow,
+  type GymRow,
+} from "./gyms/gym-watch";
 export {
   byPosition,
   keyAfterLast,

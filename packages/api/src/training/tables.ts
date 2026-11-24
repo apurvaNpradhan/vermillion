@@ -3,6 +3,8 @@ import { user } from "@workspace/db/schema/auth";
 import {
   EFFORT_STEPS,
   EXERCISE_TYPES,
+  GYM_LIMITS,
+  LOAD_RANGES_MAX,
   MAX_WEIGHT_KG,
   POSITION_KEY_MAX,
   REST_SECONDS_MAX,
@@ -10,6 +12,7 @@ import {
   SET_KINDS,
   TRAINING_LIMITS,
   WEIGHT_UNITS,
+  type LoadRange,
   type PlannedSet,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
@@ -217,6 +220,8 @@ export const session = pgTable(
     programId: uuid("program_id"),
     runId: uuid("run_id"),
     slotId: uuid("slot_id"),
+    /** The gym trained at; null is any gym. A plain reference: deleting a gym nulls it. */
+    gymId: uuid("gym_id"),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     /** True until the user renames the Session: the title is then recomputed from its muscles. */
@@ -387,14 +392,41 @@ export const sessionSet = pgTable(
 );
 
 /**
- * One bar or plate of the user's kit for the plate calculator (ADR 0038). `unit` is the kit it
- * belongs to; the weight is always kilograms. `count` null means unlimited.
+ * A place the user trains. Every user has at least one: the server creates "My gym" when the
+ * account first syncs, and the last gym cannot be deleted.
+ */
+export const gym = pgTable(
+  "gym",
+  {
+    id: id(),
+    userId: owner(),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (table) => [
+    index("gym_user_id_live_idx")
+      .on(table.userId, table.createdAt, table.id)
+      .where(sql`${table.deletedAt} IS NULL`),
+    check(
+      "gym_name_length",
+      sql`char_length(${table.name}) BETWEEN 1 AND ${raw(GYM_LIMITS.nameMax)}`,
+    ),
+  ],
+);
+
+/**
+ * One bar, plate or (later) rack or stack of a gym's kit for the plate calculator (ADR 0038).
+ * `unit` is the kit it belongs to; the weight is always kilograms. `count` null means unlimited.
+ * `gym_id` is null on rows written before gyms existed; the server fills the default gym in.
  */
 export const gymEquipment = pgTable(
   "gym_equipment",
   {
     id: id(),
     userId: owner(),
+    gymId: uuid("gym_id").references(() => gym.id),
     kind: text("kind").notNull(),
     weightKg: doublePrecision("weight_kg").notNull(),
     unit: text("unit").notNull(),
@@ -409,7 +441,13 @@ export const gymEquipment = pgTable(
     index("gym_equipment_user_id_live_idx")
       .on(table.userId)
       .where(sql`${table.deletedAt} IS NULL`),
-    check("gym_equipment_kind_known", sql`${table.kind} IN ('bar','plate')`),
+    index("gym_equipment_gym_id_live_idx")
+      .on(table.gymId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    check(
+      "gym_equipment_kind_known",
+      sql`${table.kind} IN ('bar','plate','dumbbell_rack','stack','add_on')`,
+    ),
     check("gym_equipment_weight_range", sql`${table.weightKg} BETWEEN 0 AND ${raw(MAX_WEIGHT_KG)}`),
     check("gym_equipment_unit_known", sql`${table.unit} IN (${literals(WEIGHT_UNITS)})`),
     check("gym_equipment_label_length", sql`char_length(${table.label}) BETWEEN 1 AND 100`),
@@ -445,6 +483,48 @@ export const exerciseSetting = pgTable(
     check(
       "exercise_setting_note_length",
       sql`char_length(${table.note}) <= ${raw(SESSION_LIMITS.noteMax)}`,
+    ),
+  ],
+);
+
+/**
+ * What one gym says about one exercise: `load_ranges` (`[{min,max,step}]` in kilograms, the last
+ * `max` being the cap) and a setup note. One live row per gym and exercise.
+ */
+export const gymExerciseSetting = pgTable(
+  "gym_exercise_setting",
+  {
+    id: id(),
+    userId: owner(),
+    gymId: uuid("gym_id")
+      .notNull()
+      .references(() => gym.id),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercise.id),
+    loadRanges: jsonb("load_ranges")
+      .$type<LoadRange[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    setupNote: text("setup_note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (table) => [
+    index("gym_exercise_setting_user_id_live_idx")
+      .on(table.userId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    uniqueIndex("gym_exercise_setting_live_idx")
+      .on(table.userId, table.gymId, table.exerciseId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    check(
+      "gym_exercise_setting_ranges_shape",
+      sql`jsonb_typeof(${table.loadRanges}) = 'array' AND jsonb_array_length(${table.loadRanges}) <= ${raw(LOAD_RANGES_MAX)}`,
+    ),
+    check(
+      "gym_exercise_setting_note_length",
+      sql`char_length(${table.setupNote}) <= ${raw(SESSION_LIMITS.noteMax)}`,
     ),
   ],
 );

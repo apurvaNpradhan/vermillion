@@ -13,6 +13,7 @@ import {
   type TrainingDatabase,
 } from "../store-common";
 import { readPreferencesRow, userPreferences } from "../../preferences";
+import { activeGymIdOf } from "../gyms/gym-store";
 import { exerciseSetting, gymEquipment } from "../tables";
 
 const equipmentItem = gymEquipmentInput.safeExtend({ id: z.uuid().optional() });
@@ -28,6 +29,7 @@ export async function upsertEquipment(
   database: TrainingDatabase,
   items: readonly EquipmentItem[],
   expectedInstallId?: string,
+  gymId: string | null = null,
 ): Promise<string[]> {
   const parsed = items.map((item) => equipmentItem.parse(item));
   return write(database, expectedInstallId, async (tx) => {
@@ -44,7 +46,7 @@ export async function upsertEquipment(
       if (!current) {
         await tx
           .insert(gymEquipment)
-          .values({ id, user_id: userId, created_at: nowIso(), ...values });
+          .values({ id, user_id: userId, gym_id: gymId, created_at: nowIso(), ...values });
         continue;
       }
       const changes = changedFields(current, values);
@@ -120,12 +122,14 @@ export async function seedEquipment(database: TrainingDatabase, scope: string) {
       .orderBy(desc(userPreferences.id))
       .limit(1);
     const { weightUnit, trainingPlace } = readPreferencesRow(row).ui;
+    const gymId = await activeGymIdOf(tx);
     const seed = uuidv7();
     await tx.insert(gymEquipment).values(
       defaultGymKit(weightUnit, trainingPlace).map((item, index) => ({
         ...item,
         id: index === 0 ? seed : uuidv7(),
         user_id: userId,
+        gym_id: gymId,
         created_at: nowIso(),
         seed,
       })),

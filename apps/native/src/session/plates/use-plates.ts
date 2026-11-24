@@ -23,6 +23,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
+import { useGyms } from "@/gym";
 import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
@@ -50,15 +51,21 @@ export function useEquipment(enabled = true) {
   const scope = writeScope ?? "";
   const { preferences, isLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
+  const { activeGymId, defaultGymId } = useGyms();
+  const unassigned = activeGymId === null || activeGymId === defaultGymId;
   const subscribe = useCallback(
     (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) => {
       if (!enabled) {
         onValue([]);
         return () => undefined;
       }
-      return watchEquipment(db, { onEquipment: onValue, onError });
+      return watchEquipment(
+        db,
+        { onEquipment: onValue, onError },
+        { gymId: activeGymId, unassigned },
+      );
     },
-    [enabled],
+    [enabled, activeGymId, unassigned],
   );
   const state = useLocalWatch(subscribe);
   const run = useCallback(
@@ -79,7 +86,7 @@ export function useEquipment(enabled = true) {
   // The first sync may deliver the account's own kit, so the default kit goes in only after it,
   // into an inventory that loaded empty, and once per write scope.
   useEffect(() => {
-    if (!enabled || !database || isLoading) return;
+    if (!enabled || !database || isLoading || (hasSynced && activeGymId === null)) return;
     if (
       !canSeedEquipment({
         hasSynced,
@@ -94,9 +101,20 @@ export function useEquipment(enabled = true) {
     void run((db) => seedEquipment(db, scope)).then((done) => {
       if (done === null) seededScopes.delete(scope);
     });
-  }, [enabled, database, isLoading, hasSynced, writeScope, loaded, rowCount, scope, run]);
+  }, [
+    enabled,
+    database,
+    isLoading,
+    hasSynced,
+    writeScope,
+    loaded,
+    rowCount,
+    scope,
+    run,
+    activeGymId,
+  ]);
   const save = (item: GymEquipmentInput & { id?: string }) =>
-    run((db) => upsertEquipment(db, [item], scope));
+    run((db) => upsertEquipment(db, [item], scope, activeGymId));
   const edit = (id: string, patch: EquipmentPatch) =>
     run((db) => updateEquipment(db, id, patch, scope));
   const toggle = (item: EquipmentRow) =>
@@ -114,7 +132,7 @@ export function useEquipment(enabled = true) {
     const items = missingKitItems(state.value ?? [], kitUnit);
     return items.length === 0
       ? Promise.resolve([])
-      : run((db) => upsertEquipment(db, items, scope));
+      : run((db) => upsertEquipment(db, items, scope, activeGymId));
   };
   const remove = async (item: EquipmentRow) => {
     const deleted = await run((db) => deleteEquipment(db, item.id, scope));

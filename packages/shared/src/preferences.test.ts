@@ -53,6 +53,8 @@ describe("ui preferences schema", () => {
       muscleGoals: {},
       deloadUntil: null,
       lighterWeeks: [],
+      activeGymId: null,
+      capPrompts: [],
       deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
