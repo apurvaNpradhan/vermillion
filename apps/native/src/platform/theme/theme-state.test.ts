@@ -10,8 +10,8 @@ import {
 } from "./theme-state";
 
 describe("device theme selection", () => {
-  it("starts on Acid, following the device", () => {
-    expect(DEFAULT_THEME).toEqual({ appearance: "system", accent: "acid" });
+  it("starts on Lime, following the device", () => {
+    expect(DEFAULT_THEME).toEqual({ appearance: "system", accent: "lime" });
   });
 
   it("keeps the appearance of earlier formats", () => {
@@ -92,20 +92,20 @@ describe("retired themes", () => {
     "migrates the saved theme %s to the default accent and keeps the appearance",
     (theme) => {
       const stored = JSON.stringify({ theme, appearance: "dark", contrast: true });
-      expect(parseTheme(stored)).toEqual({ appearance: "dark", accent: "acid" });
+      expect(parseTheme(stored)).toEqual({ appearance: "dark", accent: "lime" });
     },
   );
 
-  it.each(["lime", "teal", "blueberry", "lavender", "tangerine"])(
-    "migrates the retired or unknown accent %s to Acid",
+  it.each(["acid", "teal", "blueberry", "lavender", "tangerine"])(
+    "migrates the retired or unknown accent %s to Lime",
     (accent) => {
       const stored = JSON.stringify({ appearance: "light", accent });
-      expect(parseTheme(stored)).toEqual({ appearance: "light", accent: "acid" });
+      expect(parseTheme(stored)).toEqual({ appearance: "light", accent: "lime" });
     },
   );
 
   it("keeps every current accent", () => {
-    for (const accent of ["acid", "gold", "ember", "rose", "ice", "mono"]) {
+    for (const accent of ["lime", "gold", "ember", "rose", "ice", "mono"]) {
       expect(parseTheme(JSON.stringify({ appearance: "dark", accent }))).toEqual({
         appearance: "dark",
         accent,

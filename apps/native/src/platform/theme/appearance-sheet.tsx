@@ -19,7 +19,7 @@ const APPEARANCE_LABELS = {
 } satisfies Record<AppearanceChoice, TranslationKey>;
 
 const ACCENT_LABELS = {
-  acid: "theme__accent_acid",
+  lime: "theme__accent_lime",
   gold: "theme__accent_gold",
   ember: "theme__accent_ember",
   rose: "theme__accent_rose",

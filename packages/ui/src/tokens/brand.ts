@@ -10,7 +10,7 @@ export { roleNames, type RoleName, type RoleTokens } from "./roles";
 
 /**
  * A native Uniwind theme: an accent in one mode (`ember-dark`), or Uniwind's built-in `light` /
- * `dark`, which carry the default accent (Acid) and render before the stored choice applies.
+ * `dark`, which carry the default accent (Lime) and render before the stored choice applies.
  */
 export type NativeVariant = "light" | "dark" | ThemeVariant;
 

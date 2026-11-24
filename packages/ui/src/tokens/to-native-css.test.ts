@@ -32,7 +32,7 @@ describe("native brand tokens", () => {
 
   it("exposes the accent text tone as its own variable", () => {
     const css = toNativeCss();
-    expect(css).toContain(`--accent-text: ${nativeColors["acid-light"]["accent-text"]};`);
+    expect(css).toContain(`--accent-text: ${nativeColors["lime-light"]["accent-text"]};`);
     expect(css).toContain("--color-accent-text: var(--accent-text);");
   });
 

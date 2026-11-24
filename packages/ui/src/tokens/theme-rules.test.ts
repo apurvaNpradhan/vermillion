@@ -179,31 +179,31 @@ describe.each(themes)("theme rules: $mode", ({ colors, isLight, isMono }) => {
 
 describe("accents", () => {
   const FILLS = {
-    acid: "#A3FF12",
+    lime: "#C6F135",
     gold: "#FFC83D",
     ember: "#FF6B3D",
     rose: "#FF5C8A",
     ice: "#9BE6FF",
   } as const;
   const LIGHT_TEXT = {
-    acid: "#3B7000",
+    lime: "#4A6A00",
     gold: "#8A5A00",
     ember: "#B33A12",
     rose: "#B8124A",
     ice: "#0B6A8A",
   } as const;
 
-  it("offers Acid, Gold, Ember, Rose, Ice and Mono, in that order, with Acid the default", () => {
-    expect(accentIds).toEqual(["acid", "gold", "ember", "rose", "ice", "mono"]);
-    expect(DEFAULT_ACCENT_ID).toBe("acid");
+  it("offers Lime, Gold, Ember, Rose, Ice and Mono, in that order, with Lime the default", () => {
+    expect(accentIds).toEqual(["lime", "gold", "ember", "rose", "ice", "mono"]);
+    expect(DEFAULT_ACCENT_ID).toBe("lime");
   });
 
-  it("defines one variant per accent and mode, and the built-ins are Acid", () => {
+  it("defines one variant per accent and mode, and the built-ins are Lime", () => {
     expect(themeVariantNames).toEqual(
       accentIds.flatMap((accent) => [`${accent}-light`, `${accent}-dark`]),
     );
-    expect(nativeColors.light).toEqual(nativeColors["acid-light"]);
-    expect(nativeColors.dark).toEqual(nativeColors["acid-dark"]);
+    expect(nativeColors.light).toEqual(nativeColors["lime-light"]);
+    expect(nativeColors.dark).toEqual(nativeColors["lime-dark"]);
   });
 
   it.each(Object.keys(FILLS) as (keyof typeof FILLS)[])(
@@ -231,7 +231,7 @@ describe("accents", () => {
 
   it("leaves the ground, surfaces and ink the same under every accent", () => {
     for (const scheme of ["light", "dark"] as const) {
-      const base = nativeColors[`acid-${scheme}`];
+      const base = nativeColors[`lime-${scheme}`];
       for (const accent of accentIds) {
         const c = nativeColors[`${accent}-${scheme}`];
         for (const role of ["canvas", "surface", "text-primary", "danger"] as const) {

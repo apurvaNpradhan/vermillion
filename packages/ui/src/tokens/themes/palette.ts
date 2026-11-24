@@ -11,10 +11,10 @@ import type { RoleTokens } from "../roles";
  * primary chart series, and nothing else. Red is the only status colour.
  */
 
-export const accentIds = ["acid", "gold", "ember", "rose", "ice", "mono"] as const;
+export const accentIds = ["lime", "gold", "ember", "rose", "ice", "mono"] as const;
 export type AccentId = (typeof accentIds)[number];
 /** The accent a new install starts on; every retired or unknown id falls back to it. */
-export const DEFAULT_ACCENT_ID: AccentId = "acid";
+export const DEFAULT_ACCENT_ID: AccentId = "lime";
 
 export const schemes = ["light", "dark"] as const;
 export type Scheme = (typeof schemes)[number];
@@ -37,7 +37,7 @@ const coloured = (fill: string, lightText: string): Record<Scheme, AccentValue> 
 
 /** Hand-tuned: the text tone reads at 4.5:1 on the canvas and surface, the label on the fill too. */
 const accents: Record<AccentId, Record<Scheme, AccentValue>> = {
-  acid: coloured("#A3FF12", "#3B7000"),
+  lime: coloured("#C6F135", "#4A6A00"),
   gold: coloured("#FFC83D", "#8A5A00"),
   ember: coloured("#FF6B3D", "#B33A12"),
   rose: coloured("#FF5C8A", "#B8124A"),

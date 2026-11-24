@@ -35,17 +35,17 @@ import { appConfig } from "../../app.config.ts";
 // 27: Sigil brand images (icon, adaptive and notification icons, splash) and the EB Garamond fonts.
 // 28: remove the react-native-webview dependency with Turnstile.
 // 30: Android App Links for /p/<code> and /w/<code> on the site host (an AndroidManifest change).
-// 31: AMOLED black and Acid brand images (icon, adaptive, notification, splash).
+// 31: AMOLED black and Lime brand images (icon, adaptive, notification, splash).
 const NATIVE_STACK_REVISION = 31;
 
 /**
- * The Sigil brand colours (AMOLED black, white, Acid), for the places the native build needs a
+ * The Sigil brand colours (AMOLED black, white, Lime), for the places the native build needs a
  * literal (icon background, splash and notification accent). These are branding assets, independent of in-app appearance
  * (docs/design/sigil/SPEC.md). `pnpm brand:assets` regenerates the images.
  */
 const BRAND_BLACK = "#000000";
 const BRAND_WHITE = "#FFFFFF";
-const BRAND_ACID = "#A3FF12";
+const BRAND_LIME = "#C6F135";
 const ADAPTIVE_FOREGROUND = "./assets/images/android-icon-foreground.png";
 const ADAPTIVE_MONOCHROME = "./assets/images/android-icon-monochrome.png";
 
@@ -101,7 +101,7 @@ const config: ExpoConfig = {
   android: {
     permissions: ["android.permission.POST_PROMOTED_NOTIFICATIONS"],
     adaptiveIcon: {
-      // Black; the foreground is the mark and Acid dot inside the 66dp safe circle.
+      // Black; the foreground is the mark and Lime dot inside the 66dp safe circle.
       backgroundColor: BRAND_BLACK,
       foregroundImage: ADAPTIVE_FOREGROUND,
       // Android tints the mark for themed icons.
@@ -126,7 +126,7 @@ const config: ExpoConfig = {
       {
         // The mark in white on transparent; Android tints it.
         icon: "./assets/images/notification-icon.png",
-        color: BRAND_ACID,
+        color: BRAND_LIME,
         sounds: ["./assets/sounds/rest_end.wav"],
       },
     ],

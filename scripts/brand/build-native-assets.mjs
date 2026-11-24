@@ -1,6 +1,6 @@
 // Regenerates the native app's brand images from docs/design/sigil/mark.svg (the Sigil mark) plus
-// the Acid dot: app icon, Android adaptive icon layers, splash (dark and light), notification icon.
-// Run `pnpm brand:assets`. Palette: AMOLED black, pure white, one Acid accent
+// the Lime dot: app icon, Android adaptive icon layers, splash (dark and light), notification icon.
+// Run `pnpm brand:assets`. Palette: AMOLED black, pure white, one Lime accent
 // (docs/design/redesign-2026-11/SPEC.md). Android legacy and round launcher icons per density are
 // derived from icon.png and the adaptive layers by `expo prebuild`.
 import { readFileSync } from "node:fs";
@@ -12,9 +12,9 @@ const out = (name) => fileURLToPath(new URL(`apps/native/assets/images/${name}`,
 
 const BLACK = "#000000";
 const WHITE = "#FFFFFF";
-const ACID = "#A3FF12";
+const LIME = "#C6F135";
 
-/** The mark's own box in its 48-unit viewBox: mark A, and A2 with its Acid dot. */
+/** The mark's own box in its 48-unit viewBox: mark A, and A2 with its Lime dot. */
 const BOX_A = { x: 10.8, y: 5, w: 26.4, h: 37.5 };
 const BOX_A2 = { x: 10.8, y: 5, w: 29.3, h: 37.6 };
 
@@ -26,8 +26,8 @@ const paths = (file) =>
   ].map((match) => match[1]);
 const markPaths = paths("mark.svg");
 
-/** An SVG of the mark centred on a square canvas, `height` px tall (`dot` adds the Acid dot). */
-function markSvg({ size, height, ink, dot = false, dotInk = ACID, background = null }) {
+/** An SVG of the mark centred on a square canvas, `height` px tall (`dot` adds the Lime dot). */
+function markSvg({ size, height, ink, dot = false, dotInk = LIME, background = null }) {
   const box = dot ? BOX_A2 : BOX_A;
   const scale = height / box.h;
   const cx = box.x + box.w / 2;
@@ -48,7 +48,7 @@ async function png(name, svg, size) {
   console.log(`wrote ${name} (${size}px)`);
 }
 
-// App icon: black with the white mark and Acid dot at about 58% of the icon.
+// App icon: black with the white mark and Lime dot at about 58% of the icon.
 await png(
   "icon.png",
   markSvg({ size: 1024, height: 594, ink: WHITE, dot: true, background: BLACK }),

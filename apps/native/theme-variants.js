@@ -1,11 +1,11 @@
 /**
  * The Uniwind themes Metro registers beyond the built-in light and dark (which carry the default
- * accent, Acid). Generated names from `@workspace/ui/tokens/theme-variants` (`themeVariantNames`);
+ * accent, Lime). Generated names from `@workspace/ui/tokens/theme-variants` (`themeVariantNames`);
  * `theme-variants.test.ts` keeps the two lists equal. Restart Metro with `--clear` after changing it.
  */
 module.exports = [
-  "acid-light",
-  "acid-dark",
+  "lime-light",
+  "lime-dark",
   "gold-light",
   "gold-dark",
   "ember-light",

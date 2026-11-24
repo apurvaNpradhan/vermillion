@@ -20,14 +20,14 @@ the brand leaned on a statue, EB Garamond and "Earn the mark.". The owner approv
 - **Neutral modes.** Dark is true AMOLED: background `#000000`, near-black raised surfaces,
   hairline borders, untinted greys, white ink. Light is pure white with near-black ink. The setting
   is System, Light or Dark, with System the default. There is no contrast setting and no theme
-  engine; saved theme ids that no longer exist fall back to the default accent and keep the saved
+  engine; saved theme ids that no longer exist fall back to the default accent (Lime) and keep the saved
   appearance.
 - **One accent, split into fill and text.** The accent is the only hue. Each accent has a
   hand-tuned value per mode for fills (`action`, with its on-colour for the label) and a separate
   one for text and marks (`accent`), so contrast passes in both modes. It marks the primary action,
   the current and completed sets, records, the selected tab and chips, and the primary chart series;
   never a large surface.
-- **The accents** are Acid (the default), Gold, Ember, Rose, Ice and Mono (white on dark, black on
+- **The accents** are Lime (the default), Gold, Ember, Rose, Ice and Mono (white on dark, black on
   light), picked in Settings → Appearance.
 - **No success or warning colour.** Red (`danger`) is used only for destructive actions and errors,
   with an icon and words. A positive state is the accent; a warning (a stall, a lighter week) is
