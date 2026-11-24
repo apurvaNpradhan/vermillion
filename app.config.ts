@@ -11,8 +11,8 @@ const domain = "lostsignal.cloud";
 const name = "sigil";
 /** Typed so a fingerprint can be added without widening the config. */
 const androidCertSha256: readonly string[] = [
-  // Release key (GitHub Android release workflow; CN=Patina, the keystore predates the rename).
-  "F8:E7:70:D9:83:DB:B2:26:6F:D9:17:4E:8E:2D:78:AB:61:94:7A:AD:FF:D8:01:A5:77:AE:13:9D:78:2D:60:E9",
+  // Release key (GitHub Android release workflow, alias `sigil`, CN=Sigil).
+  "48:72:4B:A7:36:C6:42:4D:90:5D:59:CF:14:C5:64:20:4B:82:4D:B6:2A:2F:DC:D1:B7:77:61:53:5F:9B:E7:61",
   // Local debug key (development builds installed with `expo run:android`).
   "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C",
 ];

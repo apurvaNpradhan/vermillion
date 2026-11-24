@@ -18,16 +18,16 @@
 2. **Create the release keystore.** Keep a copy and its passwords outside the repo, for example in a password manager. If it is lost, installed apps cannot be updated, only reinstalled, and every passkey origin changes.
 
    ```sh
-   keytool -genkeypair -v -storetype PKCS12 -keystore vermillion-release.keystore \
-     -alias vermillion -keyalg RSA -keysize 2048 -validity 10000
+   keytool -genkeypair -v -storetype PKCS12 -keystore sigil-release.keystore \
+     -alias sigil -keyalg RSA -keysize 2048 -validity 10000
    ```
 
 3. **Add the secrets and the variable** (repository Settings → Secrets and variables → Actions):
 
    ```sh
-   base64 -w0 vermillion-release.keystore | gh secret set ANDROID_UPLOAD_KEYSTORE_BASE64
+   base64 -w0 sigil-release.keystore | gh secret set ANDROID_UPLOAD_KEYSTORE_BASE64
    gh secret set ANDROID_UPLOAD_STORE_PASSWORD   # prompts
-   gh secret set ANDROID_UPLOAD_KEY_ALIAS --body vermillion
+   gh secret set ANDROID_UPLOAD_KEY_ALIAS --body sigil
    gh secret set ANDROID_UPLOAD_KEY_PASSWORD     # prompts; the store password for PKCS12
    gh variable set EXPO_PUBLIC_SERVER_URL --body https://sigil-api.<domain>
    ```
@@ -35,7 +35,7 @@
 4. **Keep the certificate's fingerprint.** Nothing uses it today (passkeys and verified app links are withdrawn until the final domain, ADR 0046), but they will need it then. Read it now, or copy it from the first run's job summary:
 
    ```sh
-   keytool -list -v -keystore vermillion-release.keystore -alias vermillion | grep SHA256
+   keytool -list -v -keystore sigil-release.keystore -alias sigil | grep SHA256
    ```
 
    Several certificates are comma-separated (this keystore, the EAS keystore, the Play app signing key).
