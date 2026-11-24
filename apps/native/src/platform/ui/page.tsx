@@ -19,6 +19,7 @@ import { useTabBarClearance } from "@/platform/navigation/tab-bar-metrics";
 import { OfflinePill, useOfflineIndicator } from "@/sync";
 
 import { FloatingSurface } from "./floating-surface";
+import { useDismissSwipeRows } from "./swipe-row";
 
 const ROW_HEIGHT = 44;
 const ROW_PADDING = 8;
@@ -46,6 +47,7 @@ export type PageScroll = {
   ref: (node: ScrollTarget | null) => void;
   onScroll: ReturnType<typeof useAnimatedScrollHandler>;
   scrollEventThrottle: number;
+  onScrollBeginDrag: () => void;
   /** Clears the header above and the tab bar below; merge into the content container style. */
   contentContainerStyle: { paddingTop: number; paddingBottom: number };
   /** The large title; render it first in the scrolling content. */
@@ -113,6 +115,7 @@ export function Page({
   const scrollY = useSharedValue(0);
   const target = useRef<ScrollTarget | null>(null);
   useScrollToTop(target);
+  const dismissSwipeRows = useDismissSwipeRows();
 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -135,6 +138,7 @@ export function Page({
           },
           onScroll,
           scrollEventThrottle: 16,
+          onScrollBeginDrag: dismissSwipeRows,
           // Without a back button the large title shares the header row with the actions.
           contentContainerStyle: {
             paddingTop: hero ? 0 : back || stickyTitle ? height : rowTop,
