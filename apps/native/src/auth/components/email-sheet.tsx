@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { BottomSheet, Spinner } from "heroui-native";
-import { useState } from "react";
-import { View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, type TextInput } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { confirmOnline } from "@/platform/network";
@@ -12,6 +12,9 @@ import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
 import { submitEmail } from "../send-code";
 import { useEmailCode } from "../use-email-code";
+
+/** Let the sheet's slide-in finish before the keyboard rises over it. */
+const FOCUS_DELAY_MS = 350;
 
 /**
  * The welcome screen's email step, as a bottom sheet: the field, its validation and the one
@@ -32,6 +35,15 @@ export function EmailSheet({
   const { t } = useTranslation();
   const { sendCode } = useEmailCode();
   const [error, setError] = useState<string | undefined>(undefined);
+  const input = useRef<TextInput>(null);
+
+  // The closed sheet stays mounted (invisible), so `autoFocus` would raise the keyboard over the
+  // welcome animation; focus only once the sheet has been opened.
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => input.current?.focus(), FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
   const form = useForm({
     defaultValues: { email: "" },
@@ -83,6 +95,7 @@ export function EmailSheet({
           <form.Field name="email">
             {(field) => (
               <Field
+                ref={input}
                 accessibilityLabel={t("auth__email")}
                 placeholder={t("auth__email_placeholder")}
                 keyboardType="email-address"
@@ -91,7 +104,6 @@ export function EmailSheet({
                 autoCorrect={false}
                 textContentType="emailAddress"
                 returnKeyType="send"
-                autoFocus
                 value={field.state.value}
                 onChangeText={(next) => {
                   if (error) setError(undefined);
