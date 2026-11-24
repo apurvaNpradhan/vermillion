@@ -14,17 +14,17 @@ stoic, ink first, ember only for "you / earned", hairline construction, plain wo
   Notifications state a fact ("Upper A is next."), never nag ("Don't break your streak!").
 - **No gamification.** No confetti, badges, streak flames or social prompts. Records are marked
   with the ember, quietly.
-- **Run as a ledger.** The cycle strip is a row of marks: done = struck (filled ink mark),
+- **Run as a ledger.** The cycle strip is a row of marks: done = filled ink mark,
   skipped = hollow mark with a hairline slash, next = ember dot, rest = a short hairline. It reads
   like a mason's tally, not a progress bar.
-- **Phases as a shape.** The Program's week strip is a small block chart: each week a hairline
+- **Phases as a shape.** The Program's week strip is a small block chart: each week a flat
   block whose height shows its intensity (Deload low, Test tallest), so the block's shape is
   visible at a glance; the current week carries the ember dot.
-- **Covers in two inks.** Program and Workout covers render in the app's duotone treatment
-  (ink/ivory) by default with a toggle for the original photo, so a grid of user photos looks
-  like one set, not a camera roll.
-- **Program grid.** Cards are hairline-framed with the serif title (large titles allow the
-  serif); meta in small technical labels (days, weeks, phase). No gradients, no shadows.
+- **Covers.** Program and Workout covers show the original photo for now. A two-ink (ink/ivory)
+  treatment is a later brand task; it needs an image pipeline the app does not have yet.
+- **Program grid.** Flat surfaces with no borders, gradients or shadows (the UI guide's
+  no-borders rule); Geist titles (serif stays on brand surfaces); meta in small technical labels
+  (days, weeks, phase).
 - **Caps in plain words.** At a machine's max the set row shows a small "Max · reps now" label;
   past the rep ceiling "Max reached · add a set or go single-arm". No modal, no alarm colour.
 - **Pinned, not favourited.** Exercises are "Pinned" (Sigil already pins notes); pinned
