@@ -55,8 +55,10 @@ const DESCRIPTION_LINES = 4;
 /** Where the Program screen sends the user. */
 export type ProgramScreenProps = {
   id: string;
-  /** Open the Workout editor (slice 2) for a Workout of this Program. */
+  /** Open the read-first Workout preview for a Workout of this Program. */
   onOpenWorkout: (workoutId: string) => void;
+  /** Open the Workout editor directly for a Workout of this Program. */
+  onEditWorkout: (workoutId: string) => void;
   /** Open the details sheet. */
   onOpenDetails: () => void;
   /** The Program was deleted: leave the screen. */
@@ -98,6 +100,7 @@ export function ProgramScreen(props: ProgramScreenProps) {
 function LoadedProgram({
   program,
   onOpenWorkout,
+  onEditWorkout,
   onOpenDetails,
   onClosed,
   onOpenCopy,
@@ -207,7 +210,7 @@ function LoadedProgram({
         key: "edit",
         label: t("training__edit_workout"),
         icon: PencilSimple,
-        onPress: () => onOpenWorkout(workoutId),
+        onPress: () => onEditWorkout(workoutId),
       },
       {
         key: "duplicate",

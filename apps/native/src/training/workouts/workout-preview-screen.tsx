@@ -8,7 +8,7 @@ import {
   KG_PER_LB,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { Note, ShareNetwork, Timer } from "phosphor-react-native";
+import { Note, PencilSimple, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
@@ -24,6 +24,9 @@ import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
 import { useWorkout } from "./use-workout";
+import { displayTitle } from "./derived-title";
+import { RenameWorkoutSheet } from "./rename-workout-sheet";
+import { useWorkoutActions } from "./use-workout-actions";
 import { usePreferences } from "@/preferences";
 import { formatClock } from "@/training/targets/rest";
 import { plannedColumns, plannedRows } from "@/training/sets/set-text-rows";
@@ -48,6 +51,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const stallVersion = useStallVersion();
   const { start, sheet } = useStartSession();
   const [metric, setMetric] = useState<"volume" | "reps" | "duration">("volume");
+  const [renaming, setRenaming] = useState(false);
+  const actions = useWorkoutActions();
   const sessions = history.sessions.filter((s) => s.workoutId === id);
   const last = sessions[0];
   const date = (value: string) =>
@@ -94,6 +99,13 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       })
     : t("workout__never_done");
   const ready = state.status === "ready" ? state.workout : null;
+  const shownTitle = ready
+    ? displayTitle(
+        ready.title,
+        ready.exercises.flatMap((entry) => (entry.exercise ? [entry.exercise.primaryMuscle] : [])),
+        (key) => t(key),
+      )
+    : t("training__workout");
   const now = new Date();
   const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
   const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
@@ -139,19 +151,33 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     <>
       <ScrollPage
         back
-        title={ready ? (ready.title ?? t("training__workout")) : t("training__workout")}
+        title={shownTitle}
+        onTitlePress={ready ? () => setRenaming(true) : undefined}
+        titleHint={t("training__rename_hint")}
         actions={
           ready ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("share__share")}
-              className="h-11 w-11 items-center justify-center"
-              onPress={() =>
-                router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
-              }
-            >
-              <ShareNetwork size={24} color={foreground} />
-            </Pressable>
+            <View className="flex-row">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("training__edit_workout")}
+                className="h-11 w-11 items-center justify-center"
+                onPress={() =>
+                  router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
+                }
+              >
+                <PencilSimple size={24} color={foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("share__share")}
+                className="h-11 w-11 items-center justify-center"
+                onPress={() =>
+                  router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
+                }
+              >
+                <ShareNetwork size={24} color={foreground} />
+              </Pressable>
+            </View>
           ) : undefined
         }
       >
@@ -302,10 +328,23 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         </Text>
                       </View>
                     ) : null}
-                    <SetTextTable
-                      headers={columns.map((column) => columnHeader(column, unit, scale))}
-                      rows={rows}
-                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={entry.exercise?.title ?? t("training__workout")}
+                      accessibilityHint={t("training__edit_sets_hint")}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/train/workout/[id]/[entry]",
+                          params: { id, entry: entry.id },
+                        })
+                      }
+                      className="active:opacity-70"
+                    >
+                      <SetTextTable
+                        headers={columns.map((column) => columnHeader(column, unit, scale))}
+                        rows={rows}
+                      />
+                    </Pressable>
                     {sets.length ? (
                       <Text className="font-normal px-1 text-caption text-muted">
                         {t("workout__previous", {
@@ -335,6 +374,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         )}
       </ScrollPage>
       {sheet}
+      {ready ? (
+        <RenameWorkoutSheet
+          isOpen={renaming}
+          onOpenChange={setRenaming}
+          value={ready.title}
+          placeholder={shownTitle}
+          onSave={(next) => void actions.update(id, { title: next })}
+        />
+      ) : null}
     </>
   );
 }

@@ -19,7 +19,7 @@ import {
   WarningCircle,
 } from "phosphor-react-native";
 import { useMemo, useState } from "react";
-import { Keyboard, Pressable, Text, View, type ScrollView } from "react-native";
+import { Pressable, Text, View, type ScrollView } from "react-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import Animated, { useAnimatedRef, useScrollOffset } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -110,7 +110,6 @@ function LoadedEditor({
   const programActions = useProgramActions();
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingDetails, setEditingDetails] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [programSheet, setProgramSheet] = useState(false);
   const pickExercises = usePickExercises("train");
@@ -339,32 +338,15 @@ function LoadedEditor({
             >
               <View className="px-4">{header}</View>
               <View className="gap-3 px-4">
-                {editingDetails ? (
-                  <>
-                    <SavedTextField
-                      label={t("training__name_label")}
-                      value={workout.title}
-                      onText={(next) => writer.queue({ title: next })}
-                      placeholder={title}
-                      maxLength={TRAINING_LIMITS.titleMax}
-                      returnKeyType="next"
-                    />
-                    <WorkoutNote
-                      value={workout.note}
-                      onText={(next) => writer.queue({ note: next })}
-                    />
-                    <Button
-                      variant="secondary"
-                      onPress={() => {
-                        writer.flush();
-                        Keyboard.dismiss();
-                        setEditingDetails(false);
-                      }}
-                    >
-                      <Button.Label>{t("training__effort_done")}</Button.Label>
-                    </Button>
-                  </>
-                ) : null}
+                <SavedTextField
+                  label={t("training__name_label")}
+                  value={workout.title}
+                  onText={(next) => writer.queue({ title: next })}
+                  placeholder={title}
+                  maxLength={TRAINING_LIMITS.titleMax}
+                  returnKeyType="next"
+                />
+                <WorkoutNote value={workout.note} onText={(next) => writer.queue({ note: next })} />
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -384,9 +366,6 @@ function LoadedEditor({
               </Pressable>
               {showMore ? (
                 <View className="gap-3 px-4">
-                  {workout.note && !editingDetails ? (
-                    <Text className="font-normal text-body text-muted">{workout.note}</Text>
-                  ) : null}
                   <View className="flex-row items-center gap-4">
                     <BodyMapPair
                       primary={muscles.primary}
@@ -487,12 +466,6 @@ function LoadedEditor({
               writer.flush();
               onStart(workout.id);
             },
-          },
-          {
-            key: "rename",
-            label: t("training__edit_details"),
-            icon: PencilSimple,
-            onPress: () => setEditingDetails(true),
           },
           ...menu,
         ]}
