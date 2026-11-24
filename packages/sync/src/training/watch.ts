@@ -77,6 +77,8 @@ export type WorkoutDetail = {
   programId: string | null;
   title: string | null;
   note: string | null;
+  /** The cover's media (ADR 0040), or null. */
+  coverMediaId: string | null;
   exercises: WorkoutExerciseDetail[];
 };
 
@@ -86,6 +88,8 @@ export type WorkoutSummary = {
   programId: string | null;
   title: string | null;
   createdAt: string;
+  /** The cover's media (ADR 0040), or null. */
+  coverMediaId: string | null;
   exercises: {
     exerciseId: string;
     primaryMuscle: MuscleGroup | null;
@@ -117,6 +121,7 @@ export type ProgramSlotDetail = {
   workoutId: string | null;
   workout: {
     title: string | null;
+    coverMediaId: string | null;
     exercises: WorkoutSummary["exercises"];
   } | null;
 };
@@ -151,6 +156,7 @@ const listRowSchema = z.object({
   id: z.string(),
   program_id: z.string().nullable(),
   title: z.string().nullable(),
+  cover_media_id: z.string().nullable().optional(),
   created_at: z.string(),
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
@@ -166,6 +172,7 @@ const listRowSchema = z.object({
 const workoutListSql = (
   includeProgramWorkouts: boolean,
 ) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title, w.created_at AS created_at,
+    w.cover_media_id AS cover_media_id,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM workout w
@@ -187,6 +194,7 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
         programId: row.program_id,
         title: row.title,
         createdAt: row.created_at,
+        coverMediaId: row.cover_media_id ?? null,
         exercises: [],
       };
       result.push(current);
@@ -212,6 +220,7 @@ const detailRowSchema = z.object({
   program_id: z.string().nullable(),
   title: z.string().nullable(),
   note: z.string().nullable(),
+  cover_media_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   position: z.string().nullable(),
@@ -232,7 +241,7 @@ const detailRowSchema = z.object({
 });
 
 export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
-    w.note AS note, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
+    w.note AS note, w.cover_media_id AS cover_media_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
@@ -289,6 +298,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
     programId: first.program_id,
     title: first.title,
     note: first.note,
+    coverMediaId: first.cover_media_id ?? null,
     exercises,
   };
 }
@@ -346,6 +356,7 @@ const programDetailRowSchema = z.object({
   slot_workout_id: z.string().nullable(),
   workout_row: z.string().nullable(),
   workout_title: z.string().nullable(),
+  workout_cover_media_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   sets: setsText.nullable(),
@@ -361,7 +372,7 @@ export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.descri
     p.planned_weeks AS planned_weeks, p.sessions_per_week AS sessions_per_week,
     p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
-    we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
+    w.cover_media_id AS workout_cover_media_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM program p
@@ -390,7 +401,14 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
         id: row.slot_id,
         position: row.slot_position,
         workoutId: row.slot_workout_id,
-        workout: row.slot_workout_id === null ? null : { title: row.workout_title, exercises: [] },
+        workout:
+          row.slot_workout_id === null
+            ? null
+            : {
+                title: row.workout_title,
+                coverMediaId: row.workout_cover_media_id ?? null,
+                exercises: [],
+              },
       };
       slots.push(current);
     }

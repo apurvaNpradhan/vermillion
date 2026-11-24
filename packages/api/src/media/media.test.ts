@@ -602,6 +602,77 @@ describe("user media", () => {
     });
   });
 
+  describe("workout covers", () => {
+    const putWorkout = (id: string, extra: Record<string, string | number | null> = {}) =>
+      op("PUT", "workout", id, { program_id: null, title: "Push", note: null, ...extra });
+    const coverOf = async (workoutId: string) =>
+      (await app.rows(sql`SELECT cover_media_id FROM workout WHERE id = ${workoutId}`))[0]
+        ?.cover_media_id;
+
+    it("points a Workout at its own workout-cover media, on create and on patch", async () => {
+      const me = await writer("workout-cover-own@example.com");
+      const first = await newMedia(me, { kind: "workout_cover" });
+      const second = await newMedia(me, { kind: "workout_cover" });
+      const workoutId = uuidv7();
+      expect(await me.send([putWorkout(workoutId, { cover_media_id: first })])).toEqual(applied);
+      expect(await coverOf(workoutId)).toBe(first);
+      expect(
+        await me.send([
+          op("PATCH", "workout", workoutId, { cover_media_id: second }),
+          op("DELETE", "media", first),
+        ]),
+      ).toEqual(applied);
+      expect(await coverOf(workoutId)).toBe(second);
+      expect(await me.send([op("PATCH", "workout", workoutId, { cover_media_id: null })])).toEqual(
+        applied,
+      );
+      expect(await coverOf(workoutId)).toBeNull();
+    });
+
+    it("refuses a cover that is missing, another user's, deleted or of another kind", async () => {
+      const me = await writer("workout-cover-refused@example.com");
+      const other = await writer("workout-cover-refused-other@example.com");
+      const workoutId = uuidv7();
+      await me.send([putWorkout(workoutId)]);
+      const foreign = await newMedia(other, { kind: "workout_cover" });
+      const programCover = await newMedia(me);
+      const gone = await newMedia(me, { kind: "workout_cover" });
+      await me.send([op("DELETE", "media", gone)]);
+      for (const cover of [uuidv7(), foreign, programCover, gone]) {
+        expect(
+          await me.send([op("PATCH", "workout", workoutId, { cover_media_id: cover })]),
+        ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+        expect(await me.send([putWorkout(uuidv7(), { cover_media_id: cover })])).toMatchObject(
+          rejected("MEDIA_REFERENCE_INVALID"),
+        );
+      }
+      expect(await coverOf(workoutId)).toBeNull();
+      // A Program may not point at a workout cover either.
+      const workoutCover = await newMedia(me, { kind: "workout_cover" });
+      const programId = uuidv7();
+      expect(
+        await me.send([
+          op("PUT", "program", programId, {
+            title: "P",
+            description: null,
+            planned_weeks: null,
+            cover_media_id: workoutCover,
+          }),
+        ]),
+      ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+    });
+
+    it("lets two Workouts share one cover, as a copy does", async () => {
+      const me = await writer("workout-cover-shared@example.com");
+      const media = await newMedia(me, { kind: "workout_cover" });
+      const a = uuidv7();
+      const b = uuidv7();
+      expect(await me.send([putWorkout(a, { cover_media_id: media })])).toEqual(applied);
+      expect(await me.send([putWorkout(b, { cover_media_id: media })])).toEqual(applied);
+      expect(await coverOf(b)).toBe(media);
+    });
+  });
+
   describe("purging objects", () => {
     const completedRuns = async () =>
       Number(

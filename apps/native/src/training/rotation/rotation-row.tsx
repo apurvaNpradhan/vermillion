@@ -8,7 +8,7 @@ import { Pressable, Text, View, type AccessibilityActionEvent } from "react-nati
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 
-import { PlanInitialTile } from "@/training/shared/plan-initial-tile";
+import { WorkoutTile } from "@/training/shared/workout-tile";
 import { displayTitle } from "@/training/workouts/derived-title";
 import { estimateMinutes } from "@/training/workouts/estimate";
 
@@ -131,7 +131,12 @@ export const RotationRow = memo(function RotationRow({
           >
             {number}
           </Text>
-          <PlanInitialTile title={title} size={TILE} />
+          <WorkoutTile
+            title={title}
+            size={TILE}
+            coverMediaId={workout.coverMediaId}
+            exercises={workout.exercises}
+          />
           <View className="flex-1 gap-0.5">
             <Text numberOfLines={2} className="font-medium text-body text-foreground">
               {title}

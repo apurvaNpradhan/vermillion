@@ -97,6 +97,8 @@ export const workout = pgTable(
     programId: uuid("program_id").references(() => program.id, { onDelete: "cascade" }),
     title: text("title"),
     note: text("note"),
+    /** The cover's `media` row (kind `workout_cover`); no foreign key, as for a Program cover. */
+    coverMediaId: uuid("cover_media_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

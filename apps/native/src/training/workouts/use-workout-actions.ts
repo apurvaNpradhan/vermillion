@@ -10,6 +10,7 @@ import {
   replaceExercise,
   restoreWorkout,
   restoreWorkoutExercise,
+  releaseWorkoutCover,
   removeFromSuperset,
   supersetWithNext,
   updateWorkout,
@@ -25,7 +26,8 @@ import { useCallback } from "react";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 
-import { useTrainingWrite } from "@/training/shared/use-training-write";
+import { UNDO_MS, useTrainingWrite } from "@/training/shared/use-training-write";
+import { useLocalData } from "@/sync";
 
 /** The suffix of a duplicate's title, kept inside the title limit. */
 const COPY_SUFFIX = " (copy)";
@@ -44,6 +46,8 @@ export function useWorkoutActions() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const { write, writeScope, training, undoToast } = useTrainingWrite();
+  const local = useLocalData();
+  const media = local?.status === "ready" ? local.media : null;
 
   /**
    * A new Workout holding `exerciseIds` in order, standalone or owned by `programId` (then it
@@ -90,9 +94,22 @@ export function useWorkoutActions() {
       undoToast(t("training__deleted_toast", { title }), () => {
         void write((db) => restoreWorkout(db, deleted, writeScope), false);
       });
+      // The photo stays through the Undo window, then goes unless the Workout came back or a
+      // copy of it still shows the same photo.
+      const coverMediaId = deleted.workout.cover_media_id;
+      if (coverMediaId !== null) {
+        setTimeout(() => {
+          void write(async (db) => {
+            if (await releaseWorkoutCover(db, id, coverMediaId, writeScope)) {
+              await media?.discard(coverMediaId);
+            }
+            return true;
+          }, false);
+        }, UNDO_MS + 500);
+      }
       return true;
     },
-    [write, writeScope, undoToast, t],
+    [write, writeScope, undoToast, t, media],
   );
 
   /** Copies a Workout; `title` is its title, null when derived (the copy then stays derived). */

@@ -50,6 +50,7 @@ import { SavedTextField } from "@/training/targets/saved-text-field";
 import { EditorKeypadProvider } from "@/training/sets/editor-keypad";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
 import { WorkoutNote } from "./workout-note";
+import { WorkoutCoverSection } from "./workout-cover-section";
 
 /** Where the editor sends the user. */
 export type WorkoutEditorProps = {
@@ -338,6 +339,7 @@ function LoadedEditor({
             >
               <View className="px-4">{header}</View>
               <View className="gap-3 px-4">
+                <WorkoutCoverSection workout={workout} title={title} />
                 <SavedTextField
                   label={t("training__name_label")}
                   value={workout.title}

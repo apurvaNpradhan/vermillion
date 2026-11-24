@@ -25,6 +25,7 @@ import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
 import { useWorkout } from "./use-workout";
 import { displayTitle } from "./derived-title";
+import { WorkoutTile } from "@/training/shared/workout-tile";
 import { RenameWorkoutSheet } from "./rename-workout-sheet";
 import { useWorkoutActions } from "./use-workout-actions";
 import { usePreferences } from "@/preferences";
@@ -190,20 +191,34 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         ) : (
           <View className="gap-8">
             <View className="gap-4">
-              {history.failed ? (
-                <Button variant="secondary" onPress={history.retry}>
-                  {t("training__retry")}
-                </Button>
-              ) : (
-                <Text className="font-normal text-body text-muted">
-                  {history.loading
-                    ? null
-                    : t("workout__subtitle", {
-                        exercises: t("workout__exercise_count", { count: ready.exercises.length }),
-                        last: lastText,
-                      })}
-                </Text>
-              )}
+              <View className="flex-row items-center gap-3">
+                <WorkoutTile
+                  title={shownTitle}
+                  size={56}
+                  coverMediaId={ready.coverMediaId}
+                  exercises={ready.exercises.flatMap((entry) =>
+                    entry.exercise ? [entry.exercise] : [],
+                  )}
+                />
+                <View className="flex-1">
+                  {history.failed ? (
+                    <Button variant="secondary" onPress={history.retry}>
+                      {t("training__retry")}
+                    </Button>
+                  ) : (
+                    <Text className="font-normal text-body text-muted">
+                      {history.loading
+                        ? null
+                        : t("workout__subtitle", {
+                            exercises: t("workout__exercise_count", {
+                              count: ready.exercises.length,
+                            }),
+                            last: lastText,
+                          })}
+                    </Text>
+                  )}
+                </View>
+              </View>
               <Button onPress={() => void start(id)}>
                 <Button.Label>{t("session__start")}</Button.Label>
               </Button>

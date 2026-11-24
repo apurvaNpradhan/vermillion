@@ -10,6 +10,7 @@ import {
   removeFromRotation,
   restoreFromRotation,
   releaseProgramCover,
+  releaseWorkoutCover,
   restoreProgram,
   updateProgram,
   updateWorkout,
@@ -75,6 +76,22 @@ export function useProgramActions() {
           void write(async (db) => {
             if (await releaseProgramCover(db, id, coverMediaId, writeScope)) {
               await media?.discard(coverMediaId);
+            }
+            return true;
+          }, false);
+        }, UNDO_MS + 500);
+      }
+      // The Program's Workouts take their covers with them, the same way.
+      const covered = deleted.workouts.flatMap((row) =>
+        row.cover_media_id === null ? [] : [{ id: row.id, mediaId: row.cover_media_id }],
+      );
+      if (covered.length > 0) {
+        setTimeout(() => {
+          void write(async (db) => {
+            for (const cover of covered) {
+              if (await releaseWorkoutCover(db, cover.id, cover.mediaId, writeScope)) {
+                await media?.discard(cover.mediaId);
+              }
             }
             return true;
           }, false);

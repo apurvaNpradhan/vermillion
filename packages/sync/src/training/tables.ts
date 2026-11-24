@@ -32,6 +32,7 @@ export const workout = sqliteTable(
     program_id: text("program_id"),
     title: text("title"),
     note: text("note"),
+    cover_media_id: text("cover_media_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },

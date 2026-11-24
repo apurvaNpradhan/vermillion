@@ -64,7 +64,7 @@ export const trainingUploadColumns = {
     "cover_media_id",
     "restore",
   ]),
-  workout: new Set(["program_id", "title", "note", "restore"]),
+  workout: new Set(["program_id", "title", "note", "cover_media_id", "restore"]),
   workout_exercise: new Set([
     "workout_id",
     "exercise_id",
