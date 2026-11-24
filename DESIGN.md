@@ -46,7 +46,7 @@ Platforms: iOS and Android via React Native + Expo + HeroUI Native. A web compan
 ### Principles
 
 1. **Numbers are the headline.** Weight, reps and durations get the biggest type on screen, set in tabular figures.
-2. **Color is meaning, never decoration.** Neutrals carry the interface; the accent marks what is yours or current, fills the primary action and tints completed sets. Red is the only status colour. Set kinds and secondary chart series take quiet categorical tones. Everything else is neutral.
+2. **Color is meaning, never decoration.** Neutrals carry the interface; the accent marks what is yours or current, fills the primary action and tints completed sets. Red is the only status colour. Set kinds and secondary chart series take quiet categorical tones; category shares (muscles) use the accent for the largest and greys for the rest. Everything else is neutral.
 3. **One loud thing per screen.** At most one filled primary button (the accent) in any view.
 4. **Quiet surfaces, clear groups.** Depth comes from surface steps, rounded corners and spacing. Only floating layers add shadows.
 5. **Designed for the gym, not the desk.** Active mode gives 56–64pt targets, giant numbers and haptic confirmation for the moments your hands are busy.
@@ -379,22 +379,23 @@ Exercise demonstrations and muscle-group body maps are out of scope for the icon
 
 Charts are minimal and color carries meaning: the primary series is the accent (`chart`) and secondary series are quiet tones; PRs and today stand out by brightness, not hue. Red is never a chart color.
 
-| Chart                | Spec                                                                                                                                         |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Calorie ring         | Track `surface-control`, fill `text-primary`, 14pt stroke, round caps, starts at 12 o'clock; centre shows calories remaining in `numeric-lg` |
-| Rings or bars        | Track `surface-control`, fill the accent, 8pt stroke (rings) or 6pt (bars); value + target always shown beside it                            |
-| Over target          | Ring stays full; a 2pt tick marks the overflow, label "+12 g" in `text-secondary`; never `danger`                                            |
-| Goal hit             | Small accent check beside the value                                                                                                          |
-| Line series          | 2pt accent line over a faint accent area (12%); a dashed `text-primary` reference line at the best value (the PR); latest point a 3pt dot    |
-| Body weight          | Daily weigh-ins as 4pt dots in `text-muted`; 7-day moving average as the 2pt line                                                            |
-| PR markers           | 8pt `text-primary` dot with `Trophy` on tap                                                                                                  |
-| Bars                 | Volume, distance and counts: accent bars, `radius-xs` tops; the scrubbed bar stays full, the rest dim; goal as dashed 1pt `hairline-strong`  |
-| Grid and axes        | At most four horizontal gridlines, 1px `hairline`; no chart border; labels `numeric-sm` in `text-muted`                                      |
-| Aggregation          | One point per session over three months, one per week over a year or all time (best of the week, or the total for volume and counts)         |
-| Scrub                | Tap and drag shows a cursor line and a floating tooltip with the value and date, with a `haptic-tick` per point                              |
-| Line or bars         | Lines for e1RM, duration and pace; bars for volume, distance and counts. Pace plots seconds per kilometre with faster drawn higher           |
-| Human units          | Durations `40:00` / `1:05:00`; distance `7.0 km`, `850 m` under 1 km; pace `5:43 /km`; never metres per second or bare seconds               |
-| Empty or sparse data | Below 3 points, show the values as a list plus "Log 2 more to see a trend"                                                                   |
+| Chart                | Spec                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Calorie ring         | Track `surface-control`, fill `text-primary`, 14pt stroke, round caps, starts at 12 o'clock; centre shows calories remaining in `numeric-lg`                                                  |
+| Rings or bars        | Track `surface-control`, fill the accent, 8pt stroke (rings) or 6pt (bars); value + target always shown beside it                                                                             |
+| Over target          | Ring stays full; a 2pt tick marks the overflow, label "+12 g" in `text-secondary`; never `danger`                                                                                             |
+| Goal hit             | Small accent check beside the value                                                                                                                                                           |
+| Line series          | 2pt accent line over a faint accent area (12%); a dashed `text-primary` reference line at the best value (the PR); latest point a 3pt dot                                                     |
+| Body weight          | Daily weigh-ins as 4pt dots in `text-muted`; 7-day moving average as the 2pt line                                                                                                             |
+| PR markers           | 8pt `text-primary` dot with `Trophy` on tap                                                                                                                                                   |
+| Bars                 | Volume, distance and counts: accent bars, `radius-xs` tops; the scrubbed bar stays full, the rest dim; goal as dashed 1pt `hairline-strong`                                                   |
+| Share bars           | Muscle shares (Muscles screen, Monthly report): the biggest bar is the accent fill, the rest neutral greys (`text-primary` at 70%, 52%, 38%, then 28%) ranked by size, never a hue per muscle |
+| Grid and axes        | At most four horizontal gridlines, 1px `hairline`; no chart border; labels `numeric-sm` in `text-muted`                                                                                       |
+| Aggregation          | One point per session over three months, one per week over a year or all time (best of the week, or the total for volume and counts)                                                          |
+| Scrub                | Tap and drag shows a cursor line and a floating tooltip with the value and date, with a `haptic-tick` per point                                                                               |
+| Line or bars         | Lines for e1RM, duration and pace; bars for volume, distance and counts. Pace plots seconds per kilometre with faster drawn higher                                                            |
+| Human units          | Durations `40:00` / `1:05:00`; distance `7.0 km`, `850 m` under 1 km; pace `5:43 /km`; never metres per second or bare seconds                                                                |
+| Empty or sparse data | Below 3 points, show the values as a list plus "Log 2 more to see a trend"                                                                                                                    |
 
 ### Libraries
 

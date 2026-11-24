@@ -1,9 +1,4 @@
-import {
-  MUSCLE_GROUPS,
-  type MuscleDetail,
-  type MuscleGroup,
-  type MuscleShares,
-} from "@workspace/shared";
+import { type MuscleDetail, type MuscleGroup, type MuscleShares } from "@workspace/shared";
 
 /** A bar of the distribution list. `detail` is set on a detail row, which also names its group. */
 export type ShareRow = {
@@ -16,15 +11,24 @@ export type ShareRow = {
   share: number;
   /** The whole percent shown, rounded so the whole distribution adds up to 100. */
   percent: number;
-  /** Which of the five chart tokens colours it (1 to 5). */
-  tone: 1 | 2 | 3 | 4 | 5;
+  /** How the bar is filled: by its place in the list, never by which muscle it is. */
+  fill: BarFill;
 };
 
-const TONES = [1, 2, 3, 4, 5] as const;
+/** The biggest bar takes the accent; the rest are the foreground at a fading opacity. */
+export type BarFill = { kind: "accent" } | { kind: "neutral"; opacity: number };
 
-/** A group keeps one chart colour everywhere; its details wear it too. */
-export function toneOf(muscle: MuscleGroup): ShareRow["tone"] {
-  return TONES[Math.max(0, MUSCLE_GROUPS.indexOf(muscle)) % TONES.length] ?? 1;
+/**
+ * Opacity of the foreground over the track for ranks 1, 2, 3 and 4+. Each step is visibly
+ * lighter than the last on the dark and the light track, and no colour implies good or bad.
+ */
+const NEUTRAL_STEPS = [0.7, 0.52, 0.38, 0.28] as const;
+
+/** The fill of the bar at `rank` (0 is the biggest): accent first, then ever quieter greys. */
+export function fillOf(rank: number): BarFill {
+  if (rank <= 0) return { kind: "accent" };
+  const step = NEUTRAL_STEPS[Math.min(rank, NEUTRAL_STEPS.length) - 1] ?? NEUTRAL_STEPS[0];
+  return { kind: "neutral", opacity: step };
 }
 
 /** Allocate whole percentage points by largest remainder, with row order breaking ties. */
@@ -58,7 +62,7 @@ export function groupRows(shares: MuscleShares, limit?: number): ShareRow[] {
     sets: group.sets,
     share: group.share,
     percent: percents[index] ?? 0,
-    tone: toneOf(group.muscle),
+    fill: fillOf(index),
   }));
 }
 
@@ -78,7 +82,7 @@ export function detailRows(shares: MuscleShares, limit?: number): ShareRow[] {
     sets: part.sets,
     share: part.share,
     percent: percents[index] ?? 0,
-    tone: toneOf(part.muscle),
+    fill: fillOf(index),
   }));
 }
 

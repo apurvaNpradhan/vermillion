@@ -1,7 +1,7 @@
 import { muscleShares } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
-import { detailRows, formatPercent, groupRows, hasDetails, toneOf } from "./muscle-share-rows";
+import { detailRows, formatPercent, groupRows, fillOf, hasDetails } from "./muscle-share-rows";
 
 const shares = muscleShares(
   [
@@ -23,11 +23,28 @@ describe("muscle share rows", () => {
     expect(groupRows(shares, 1)).toHaveLength(1);
   });
 
-  it("colours a detail like its group", () => {
+  it("names a detail row after its group", () => {
     const [row] = detailRows(shares);
     expect(row?.detail).toBe("upper_chest");
-    expect(row?.tone).toBe(toneOf("chest"));
+    expect(row?.muscle).toBe("chest");
     expect(hasDetails(shares)).toBe(true);
+  });
+
+  it("fills the biggest bar with the accent and the rest with greys by size", () => {
+    expect(groupRows(shares).map((row) => row.fill)).toEqual([
+      { kind: "accent" },
+      { kind: "neutral", opacity: 0.7 },
+    ]);
+    expect(detailRows(shares)[0]?.fill).toEqual({ kind: "accent" });
+  });
+
+  it("steps the greys down, never repeating a colour for the accent, and floors the tail", () => {
+    const opacities = [1, 2, 3, 4, 5, 9].map((rank) => {
+      const fill = fillOf(rank);
+      return fill.kind === "neutral" ? fill.opacity : -1;
+    });
+    expect(opacities).toEqual([0.7, 0.52, 0.38, 0.28, 0.28, 0.28]);
+    expect(fillOf(0)).toEqual({ kind: "accent" });
   });
 
   it("formats a whole percent", () => {
