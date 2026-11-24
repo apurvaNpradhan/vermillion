@@ -1,6 +1,8 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useRouter } from "expo-router";
 import { BottomSheet } from "heroui-native";
+
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { Minus } from "phosphor-react-native";
 import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -93,7 +95,7 @@ export function PlateChip({
  * The plate calculator for one exercise's bar. It stays mounted and `isOpen` opens it, but its
  * body is rendered only while open, and closed sheets disable inventory watches and solving.
  */
-export function PlateCalculatorSheet({
+function PlateCalculatorSheetBody({
   isOpen,
   targetKg,
   exerciseId,
@@ -143,6 +145,8 @@ export function PlateCalculatorSheet({
     </BottomSheet>
   );
 }
+
+export const PlateCalculatorSheet = mountOnOpen(PlateCalculatorSheetBody);
 
 type Mode = "calculate" | "build";
 

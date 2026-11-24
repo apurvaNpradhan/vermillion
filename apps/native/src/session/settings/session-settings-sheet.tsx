@@ -1,4 +1,5 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
@@ -19,7 +20,7 @@ import { useSessionSettings } from "./use-session-settings";
  * Settings (sounds, unit, effort scale, default rest, Rest notifications, keep awake, equipment),
  * editing the same account preferences.
  */
-export function SessionSettingsSheet({
+function SessionSettingsSheetBody({
   isOpen,
   onOpenChange,
 }: {
@@ -95,3 +96,5 @@ export function SessionSettingsSheet({
     </>
   );
 }
+
+export const SessionSettingsSheet = mountOnOpen(SessionSettingsSheetBody);

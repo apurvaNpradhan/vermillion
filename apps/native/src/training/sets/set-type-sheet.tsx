@@ -1,4 +1,5 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { SET_KINDS, SET_KIND_KEYS, type SetKind } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
@@ -31,7 +32,7 @@ const BADGES = {
   myo: "training__chip_myo",
 } as const;
 
-export function SetTypeSheet({
+function SetTypeSheetBody({
   isOpen,
   onOpenChange,
   value,
@@ -111,3 +112,5 @@ export function SetTypeSheet({
     </BottomSheet>
   );
 }
+
+export const SetTypeSheet = mountOnOpen(SetTypeSheetBody);

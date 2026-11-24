@@ -1,4 +1,5 @@
 import { useSheetAnimation } from "./sheet-motion";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
 import { View } from "react-native";
 
@@ -13,7 +14,7 @@ const CLOSE_MS = 200;
  * A sheet of actions for one item, opened by a long press: the same actions as its swipe, with
  * room for labels. Picking one closes the sheet first.
  */
-export function ActionSheet({
+function ActionSheetBody({
   title,
   actions,
   isOpen,
@@ -61,3 +62,5 @@ export function ActionSheet({
     </BottomSheet>
   );
 }
+
+export const ActionSheet = mountOnOpen(ActionSheetBody);

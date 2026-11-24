@@ -1,3 +1,4 @@
+import { useMountOnOpen } from "./mount-on-open";
 import { useSheetAnimation } from "./sheet-motion";
 import { BottomSheet } from "heroui-native";
 import { View } from "react-native";
@@ -32,8 +33,10 @@ export function OptionSheet<T extends string>({
   onSelect: (value: T) => void;
 }) {
   const animation = useSheetAnimation();
+  const sheet = useMountOnOpen(isOpen);
+  if (!sheet.mounted) return null;
   return (
-    <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
+    <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>

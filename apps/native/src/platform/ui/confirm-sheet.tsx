@@ -1,4 +1,5 @@
 import { useSheetAnimation } from "./sheet-motion";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -11,7 +12,7 @@ import { ScrollableSheetContent } from "./scrollable-sheet-content";
  * and an optional red text action below them is the more destructive way out. Dismissing the
  * sheet never runs the confirmed action.
  */
-export function ConfirmSheet({
+function ConfirmSheetBody({
   isOpen,
   onOpenChange,
   title,
@@ -90,3 +91,5 @@ export function ConfirmSheet({
     </BottomSheet>
   );
 }
+
+export const ConfirmSheet = mountOnOpen(ConfirmSheetBody);
