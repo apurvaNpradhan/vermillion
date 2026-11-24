@@ -406,19 +406,13 @@ function FinishFlow({
             >
               {t("session__stat_records")}
             </Text>
-            {session.exercises.flatMap((entry) =>
-              entry.sets.flatMap((set) =>
-                records.flags.has(set.id)
-                  ? [
-                      <SessionRecord
-                        key={set.id}
-                        exercise={entry.title}
-                        records={records.flags.get(set.id) ?? []}
-                      />,
-                    ]
-                  : [],
-              ),
-            )}
+            {records.entries.map((entry) => (
+              <SessionRecord
+                key={entry.exerciseId}
+                exercise={names(entry.exerciseId)}
+                records={entry.keys}
+              />
+            ))}
           </View>
         ) : null}
         <View className="px-4">

@@ -1,5 +1,6 @@
 import {
   isCounted,
+  recordCount,
   muscleDistribution,
   type recordFlags,
   sessionTotals,
@@ -79,9 +80,7 @@ export function buildCardData(input: {
   const countWarmups = input.countWarmups ?? false;
   const sets = loggedSetsOf(session, countWarmups);
   const totals = sessionTotals(sets, bodyweightKg);
-  const records = sets
-    .filter(isCounted)
-    .reduce((count, set) => count + (flagged.get(set.id)?.length ?? 0), 0);
+  const records = recordCount(flagged, sets.filter(isCounted));
   const rows = shareRows(session, flagged, toggles.weights, countWarmups);
   const { shown, more } = compactRows(rows);
   const loads = muscleDistribution(sets, input.distribution);

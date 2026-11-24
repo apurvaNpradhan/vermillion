@@ -1,6 +1,6 @@
 import { SessionPhotos } from "@/session/screen/session-photos";
 import { useWeight } from "@/body";
-import { recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
+import { recordCount, recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
@@ -152,8 +152,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                     {
                       label: t("stats__records"),
                       value: String(
-                        session.exercises.flatMap((e) => e.sets).filter((s) => flags.has(s.id))
-                          .length,
+                        recordCount(flags, loggedSetsOf(session, preferences.ui.countWarmups)),
                       ),
                     },
                   ]}

@@ -210,7 +210,9 @@ export function buildPeriodReport(input: {
   const recordWindow = windowed.filter(
     (session) => Date.parse(session.started_at) >= recordsBefore,
   );
-  const records = recordCount(recordFlags(recordWindow, null, earlierRecords), currentSets);
+  const recordSets = recordFlags(recordWindow, null, earlierRecords);
+  // Each Session counts its own Records once per exercise and kind.
+  const records = inPeriod.reduce((sum, session) => sum + recordCount(recordSets, session.sets), 0);
   const range = { start: period.start, end };
   const top = topExercises(inPeriod, exercises);
   return {

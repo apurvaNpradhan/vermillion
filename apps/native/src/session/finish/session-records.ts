@@ -1,4 +1,4 @@
-import { recordCount, recordFlags, type SessionHistory } from "@workspace/shared";
+import { recordCount, recordEntries, recordFlags, type SessionHistory } from "@workspace/shared";
 
 /** Records on this session’s sets, measured against the history of its exercises. */
 export function sessionRecords(input: {
@@ -14,5 +14,9 @@ export function sessionRecords(input: {
     return at < started || (at === started && item.id < session.id);
   });
   const flags = recordFlags([session], bodyweightKg, earlier);
-  return { flags, total: recordCount(flags, session.sets) };
+  return {
+    flags,
+    entries: recordEntries(flags, session.sets),
+    total: recordCount(flags, session.sets),
+  };
 }
