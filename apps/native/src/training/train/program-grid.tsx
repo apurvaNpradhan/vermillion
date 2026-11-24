@@ -78,15 +78,18 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
         accessibilityHint={t("training__program_card_hint")}
         onPress={() => onOpen(program.id)}
         onLongPress={() => setMenu(true)}
-        className="gap-2 active:opacity-70"
+        className="gap-2 rounded-xl border border-separator p-2 active:opacity-70"
         style={{ width }}
       >
-        <ProgramTile title={program.title} size={width} coverMediaId={program.coverMediaId} />
-        <View className="gap-0.5">
-          <Text numberOfLines={1} className="font-semibold text-body text-foreground">
+        {/* TODO: render the cover in the ink/ivory duotone by default (with a toggle for the
+            original) once the app has a duotone image treatment; originals are shown until then. */}
+        <ProgramTile title={program.title} size={width - 18} coverMediaId={program.coverMediaId} />
+        <View className="gap-1 px-0.5 pb-0.5">
+          {/* TODO: the serif title of the brand direction; the app loads Geist only today. */}
+          <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
             {program.title}
           </Text>
-          <Text numberOfLines={1} className="font-normal text-caption text-muted">
+          <Text numberOfLines={1} className="font-mono text-overline uppercase text-muted">
             {line}
           </Text>
         </View>

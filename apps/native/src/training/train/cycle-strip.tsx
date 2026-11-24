@@ -1,10 +1,7 @@
-import { Check, Minus } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, View } from "react-native";
-import { useThemeColor } from "heroui-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
 
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { slotTitle } from "@/training/rotation/rotation-row";
@@ -19,8 +16,8 @@ const STATE_KEYS = {
 } as const;
 
 /**
- * One dot per Slot of the Rotation for the current Cycle: done (the accent), skipped (a dash),
- * next (ringed), still to do, and Rest (a small quiet dot). Tapping a Workout dot calls
+ * One dot per Slot of the Rotation for the current Cycle: done (a filled ink mark), skipped (a
+ * hollow mark with a slash), next (the accent dot), still to do (hollow) and Rest (a short hairline). Tapping a Workout dot calls
  * `onSelect`; Rest dots do nothing.
  */
 export const CycleStrip = memo(function CycleStrip({
@@ -37,8 +34,6 @@ export const CycleStrip = memo(function CycleStrip({
   onSelect: (slot: ProgramSlotDetail) => void;
 }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
-  const onAction = useThemeColor("accent-foreground");
   return (
     <View className="flex-row flex-wrap items-center">
       {slots.map((slot, index) => {
@@ -48,21 +43,26 @@ export const CycleStrip = memo(function CycleStrip({
           title: `${index + 1}. ${title}`,
           state: t(STATE_KEYS[state]),
         });
+        // A mason's tally: struck (filled ink), skipped (hollow with a hairline slash), next (the
+        // accent dot), still to do (hollow) and Rest (a short hairline).
         const dot =
           state === "rest" ? (
-            <View className="h-2 w-2 rounded-full bg-default" />
+            <View className="h-px w-3 bg-muted" />
           ) : state === "done" ? (
-            <View className="h-5 w-5 items-center justify-center rounded-full bg-accent">
-              <Check size={12} weight="bold" color={onAction} />
-            </View>
+            <View className="h-3.5 w-3.5 rounded-sm bg-foreground" />
           ) : state === "skipped" ? (
-            <View className="h-5 w-5 items-center justify-center rounded-full bg-default">
-              <Minus size={12} weight="bold" color={subtle} />
+            <View className="h-3.5 w-3.5 items-center justify-center overflow-hidden rounded-sm border border-foreground">
+              <View
+                className="absolute h-px bg-foreground"
+                style={{ width: 20, transform: [{ rotate: "-45deg" }] }}
+              />
             </View>
           ) : state === "next" ? (
-            <View className="h-5 w-5 rounded-full border-2 border-foreground bg-default" />
+            <View className="h-3.5 w-3.5 items-center justify-center">
+              <View className="h-2.5 w-2.5 rounded-full bg-accent" />
+            </View>
           ) : (
-            <View className="h-5 w-5 rounded-full bg-default" />
+            <View className="h-3.5 w-3.5 rounded-sm border border-separator" />
           );
         if (state === "rest") {
           return (
