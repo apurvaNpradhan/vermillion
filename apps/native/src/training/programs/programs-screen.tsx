@@ -53,7 +53,7 @@ export function ProgramsScreen() {
         back
         actions={
           <Button
-            variant="primary"
+            variant={status === "empty" ? "secondary" : "primary"}
             className="rounded-full"
             onPress={() => router.push("/train/new-program")}
           >
@@ -84,7 +84,6 @@ export function ProgramsScreen() {
               status === "empty" ? (
                 <EmptyState
                   icon={ListNumbers}
-                  drawing
                   label={t("empty__programs", { count: 0 })}
                   title={t("training__no_programs")}
                   action={{

@@ -32,8 +32,8 @@ Native has two modes and six accents. The mode is **System** (the default), **Li
 - Geist sets native text, including large titles and the sign-in wordmark. Geist Mono sets labels
   and code. Weights, reps, durations and every numeric column use tabular figures.
 - Brand images (icon, adaptive and notification icons, splash, graded sign-in photo) are generated
-  by `pnpm brand:assets`. Sign-in is always dark. Empty states draw the hairline construction
-  drawing (`ConstructionDrawing`) with a mono count label, one plain line and at most one action.
+  by `pnpm brand:assets`. Sign-in is always dark. Empty states show a muted Phosphor icon
+  with a mono count label, one plain line and at most one action.
 
 See the [native themes guide](docs/guides/native-themes.md).
 

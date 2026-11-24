@@ -289,7 +289,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                 {status === "empty" ? (
                   <EmptyState
                     icon={Barbell}
-                    drawing
                     label={t("empty__workouts", { count: 0 })}
                     title={t("training__no_workouts")}
                     action={{ label: t("training__new_workout"), onPress: newWorkout }}
@@ -300,7 +299,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                   ) : (
                     <EmptyState
                       icon={Barbell}
-                      drawing
                       label={t("empty__workouts", { count: 0 })}
                       title={t("training__no_workouts")}
                     />

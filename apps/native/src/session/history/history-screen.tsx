@@ -214,7 +214,6 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               ) : ready ? (
                 <EmptyState
                   icon={ClockCounterClockwise}
-                  drawing
                   label={t("empty__workouts", { count: 0 })}
                   title={t("session__history_empty")}
                   action={{ label: t("session__log_past"), onPress: openLog }}
