@@ -208,9 +208,10 @@ export type SessionDetail = {
  * the lowest id per exercise, as before) rather than a subquery per column per set row; the
  * "last time" note is its own query, {@link SESSION_LAST_NOTES_SQL}, merged by `parseSessionDetail`.
  */
-export const SESSION_DETAIL_SQL = `WITH first_setting AS (
+export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
+  first_setting AS (
     SELECT exercise_id, MIN(id) AS id FROM exercise_setting
-    WHERE exercise_id IN (SELECT exercise_id FROM session_exercise WHERE session_id = ?1)
+    WHERE exercise_id IN (SELECT exercise_id FROM session_exercise WHERE session_id = (SELECT session_id FROM params))
     GROUP BY exercise_id)
   SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
@@ -239,7 +240,7 @@ export const SESSION_DETAIL_SQL = `WITH first_setting AS (
   LEFT JOIN first_setting fs ON fs.exercise_id = se.exercise_id
   LEFT JOIN exercise_setting es ON es.id = fs.id
   LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
-  WHERE s.id = ?1
+  WHERE s.id = (SELECT session_id FROM params)
   ORDER BY se.position, se.id, ss.position, ss.id
   LIMIT ${DETAIL_ROW_LIMIT}`;
 
