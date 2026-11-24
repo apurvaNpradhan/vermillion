@@ -51,6 +51,7 @@ export {
   removeFromRotation,
   restoreFromRotation,
 } from "./plans/slot-store";
+export { skipSlot, unskipSlot } from "./plans/skip-store";
 export {
   setProgramCover,
   setProgramCoverToNewMedia,

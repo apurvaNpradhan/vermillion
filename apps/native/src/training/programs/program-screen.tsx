@@ -1,6 +1,6 @@
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
-import { useActiveRun } from "./use-active-program";
+import { runProgress, useActiveRun } from "./use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -116,6 +116,11 @@ function LoadedProgram({
     if (isActive) void active.stop();
     else active.activate(program.id);
   };
+  // Slots done or skipped in the current Cycle, marked on the rotation rows of the active Program.
+  const cycle = useMemo(
+    () => (isActive ? runProgress(active.runs, active.run?.id ?? null, program.slots) : null),
+    [isActive, active.runs, active.run?.id, program.slots],
+  );
   const { fromPicker } = useStartWorkout();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -331,6 +336,13 @@ function LoadedProgram({
                       number={numbers.get(slot.id) ?? 0}
                       title={slotTitle(slot, (key) => t(key))}
                       repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                      cycleState={
+                        cycle?.skipped.has(slot.id)
+                          ? "skipped"
+                          : cycle?.trained.has(slot.id)
+                            ? "done"
+                            : null
+                      }
                       onReorder={() => setReordering(true)}
                       onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
                       onMenu={setSlotMenu}

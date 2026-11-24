@@ -63,3 +63,82 @@ it("resolves conflicting activations deterministically on both devices", () => {
   expect(activeRun([b, { ...a, activated_at: b.activated_at }])).toEqual(b);
   expect(activeRun([{ ...b, finished_at: "2026-01-03" }, a])).toEqual(a);
 });
+
+describe("cycle state with skips", () => {
+  it("counts a skipped slot as done for its cycle and moves next past it", () => {
+    const state = cycleState(slots, [done("1", "upper")], [{ slotId: "b", cycle: 1 }]);
+    expect([...state.trained].sort()).toEqual(["a", "b"]);
+    expect([...state.skipped]).toEqual(["b"]);
+    expect(state.next?.id).toBe("c");
+    expect(state.complete).toBe(false);
+  });
+
+  it("completes the cycle when every other slot is trained, with no new session", () => {
+    const state = cycleState(
+      slots,
+      [done("1", "upper"), done("2", "upper")],
+      [{ slotId: "b", cycle: 1 }],
+    );
+    expect(state.complete).toBe(true);
+    expect(state.cycle).toBe(2);
+    expect(state.trained.size).toBe(0);
+    expect(state.skipped.size).toBe(0);
+    expect(state.next?.id).toBe("a");
+  });
+
+  it("skips only the cycle it was made for", () => {
+    const skips = [{ slotId: "a", cycle: 1 }];
+    // Cycle 1 completes (a skipped, b and c trained), so cycle 2 starts with a untrained.
+    const next = cycleState(slots, [done("1", "lower"), done("2", "upper")], skips);
+    expect(next.cycle).toBe(2);
+    expect(next.next?.id).toBe("a");
+    // A skip of cycle 2 is not applied while cycle 1 is the one in progress.
+    const other = cycleState(slots, [], [{ slotId: "a", cycle: 2 }]);
+    expect(other.cycle).toBe(1);
+    expect(other.skipped.size).toBe(0);
+    expect(other.next?.id).toBe("a");
+  });
+
+  it("applies a skip of a later cycle when a session of that cycle moves the run there", () => {
+    const state = cycleState(
+      slots,
+      [done("1", "upper"), done("2", "lower"), done("3", "upper"), done("4", "upper", 2)],
+      [{ slotId: "b", cycle: 2 }],
+    );
+    expect(state.cycle).toBe(2);
+    expect([...state.trained].sort()).toEqual(["a", "b"]);
+    expect([...state.skipped]).toEqual(["b"]);
+    expect(state.next?.id).toBe("c");
+  });
+
+  it("trains a workout into its next slot when its first slot was skipped", () => {
+    // `upper` fills a and c: skipping a leaves c for the next upper session.
+    const state = cycleState(slots, [done("1", "upper")], [{ slotId: "a", cycle: 1 }]);
+    expect([...state.trained].sort()).toEqual(["a", "c"]);
+    expect(state.next?.id).toBe("b");
+  });
+
+  it("ignores skips of rest, of unknown slots and duplicates", () => {
+    const state = cycleState(
+      slots,
+      [],
+      [
+        { slotId: "rest", cycle: 1 },
+        { slotId: "gone", cycle: 1 },
+        { slotId: "a", cycle: 1 },
+        { slotId: "a", cycle: 1 },
+      ],
+    );
+    expect([...state.trained]).toEqual(["a"]);
+    expect(state.next?.id).toBe("b");
+  });
+
+  it("is unchanged without skips", () => {
+    const sessions = [done("1", "lower"), done("2", "upper")];
+    const plain = cycleState(slots, sessions);
+    const empty = cycleState(slots, sessions, []);
+    expect([...empty.trained]).toEqual([...plain.trained]);
+    expect(empty.next?.id).toBe(plain.next?.id);
+    expect(empty.skipped.size).toBe(0);
+  });
+});

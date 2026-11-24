@@ -1,7 +1,7 @@
 import { ReorderBlock, ReorderTrigger } from "@/training/reorder/reorder-block";
 import type { TranslationKey } from "@workspace/i18n";
 import type { ProgramSlotDetail } from "@workspace/sync";
-import { DotsThreeVertical, Moon } from "phosphor-react-native";
+import { Check, DotsThreeVertical, Minus, Moon } from "phosphor-react-native";
 import { memo } from "react";
 import { Pressable, Text, View, type AccessibilityActionEvent } from "react-native";
 
@@ -33,6 +33,7 @@ export const RotationRow = memo(function RotationRow({
   number,
   title,
   repeats,
+  cycleState,
   onReorder,
   onOpen,
   onMenu,
@@ -44,6 +45,8 @@ export const RotationRow = memo(function RotationRow({
   title: string;
   /** How many Slots the Workout fills; 1 shows no badge. */
   repeats: number;
+  /** For the active Program: done or skipped for the current Cycle; null otherwise. */
+  cycleState?: "done" | "skipped" | null;
   /** Long press on the row: open the Reorder view. */
   onReorder: () => void;
   onOpen: (slot: ProgramSlotDetail) => void;
@@ -119,6 +122,10 @@ export const RotationRow = memo(function RotationRow({
           accessibilityRole="button"
           accessibilityLabel={`${t("training__slot_label", { number, title })}, ${meta}${
             repeats > 1 ? `, ${t("training__repeat_badge_label", { count: repeats })}` : ""
+          }${
+            cycleState
+              ? `, ${t(cycleState === "done" ? "run__done_this_cycle" : "run__skipped_this_cycle")}`
+              : ""
           }`}
           accessibilityHint={`${t("training__slot_open_hint")}. ${t("training__drag_hint")}`}
           {...reorderActions}
@@ -145,6 +152,19 @@ export const RotationRow = memo(function RotationRow({
               {meta}
             </Text>
           </View>
+          {cycleState ? (
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              className="h-6 w-6 items-center justify-center rounded-full bg-default"
+            >
+              {cycleState === "done" ? (
+                <Check size={16} weight="bold" color={subtle} />
+              ) : (
+                <Minus size={16} weight="bold" color={subtle} />
+              )}
+            </View>
+          ) : null}
           {repeats > 1 ? (
             <View
               accessibilityElementsHidden

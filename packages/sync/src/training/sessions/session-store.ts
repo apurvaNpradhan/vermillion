@@ -12,7 +12,7 @@ import {
 } from "@workspace/shared";
 import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { programRun, programSlot } from "../tables";
+import { programRun, programSlot, programSlotSkip } from "../tables";
 import { hasCountedSetSql } from "../plans/run-store";
 import { keysAfterLast } from "../position";
 import { performAgainIn } from "./session-again-store";
@@ -115,9 +115,16 @@ async function createSessionIn(
     : [];
   // Out of order is fine: the cycle and slot come from the run's Sessions up to this start.
   const history = active ? runSessions.filter((item) => item.startedAt <= fields.startedAt) : [];
+  const skips = active
+    ? await tx
+        .select({ slotId: programSlotSkip.slot_id, cycle: programSlotSkip.cycle })
+        .from(programSlotSkip)
+        .where(eq(programSlotSkip.run_id, active.id))
+    : [];
   const progress = cycleState(
     slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
     history,
+    skips,
   );
   const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
   if (active && (!active.started_at || fields.startedAt < active.started_at))

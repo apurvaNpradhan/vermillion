@@ -116,6 +116,8 @@ export {
   releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
+  skipSlot,
+  unskipSlot,
   setWorkoutCover,
   setWorkoutCoverToNewMedia,
   releaseWorkoutCover,
@@ -296,7 +298,7 @@ export {
   readRuns,
   reconcileRuns,
 } from "./training";
-export { programRun } from "./training";
+export { programRun, programSlotSkip } from "./training";
 
 export {
   bodyMeasurement,

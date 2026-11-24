@@ -35,6 +35,8 @@ export {
   releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
+  skipSlot,
+  unskipSlot,
   setWorkoutCover,
   setWorkoutCoverToNewMedia,
   releaseWorkoutCover,
@@ -228,7 +230,7 @@ export {
   readRuns,
   reconcileRuns,
 } from "./plans/run-store";
-export { programRun } from "./tables";
+export { programRun, programSlotSkip } from "./tables";
 
 export {
   addSessionPhoto,

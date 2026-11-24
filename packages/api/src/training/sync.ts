@@ -1,4 +1,5 @@
 import { runSyncHandler } from "./run-sync";
+import { programSlotSkipSyncHandler } from "./skip-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
   plannedSetsSchema,
@@ -500,6 +501,7 @@ const programSlotSyncHandler: SyncTableHandler = {
  */
 export const trainingSyncHandlers: readonly SyncTableHandler[] = [
   runSyncHandler,
+  programSlotSkipSyncHandler,
   programSyncHandler,
   workoutSyncHandler,
   workoutExerciseSyncHandler,

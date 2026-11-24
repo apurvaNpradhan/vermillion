@@ -72,6 +72,25 @@ const expectation: Expectation = {
       },
     },
 
+    program_slot_skip: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        run_id: { type: "uuid", notNull: true, default: null },
+        slot_id: { type: "uuid", notNull: true, default: null },
+        cycle: { type: "integer", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        program_slot_skip_user_id_live_idx:
+          "CREATE INDEX program_slot_skip_user_id_live_idx ON public.program_slot_skip USING btree (user_id) WHERE (deleted_at IS NULL)",
+        program_slot_skip_run_idx:
+          "CREATE INDEX program_slot_skip_run_idx ON public.program_slot_skip USING btree (run_id, cycle)",
+      },
+    },
+
     session_photo: {
       columns: {
         id: { type: "uuid", notNull: true, default: null },
@@ -415,6 +434,7 @@ const expectation: Expectation = {
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
       "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
+      "program_slot_skip(id, user_id, run_id, slot_id, cycle, created_at, updated_at, deleted_at)",
       "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms)",
       "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment)",
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at, generated_warmup)",
@@ -476,6 +496,7 @@ describe("server schema parity", () => {
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "session_exercise",
       "session_photo",
       "session_set",

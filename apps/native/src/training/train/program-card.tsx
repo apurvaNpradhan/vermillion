@@ -1,5 +1,5 @@
 import { useThemeColor } from "heroui-native";
-import { Check, Moon, Play } from "phosphor-react-native";
+import { Play } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -8,6 +8,8 @@ import { Button } from "@/platform/ui/button";
 import { ProgramTile } from "@/training/programs/program-row";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
 import { slotTitle } from "@/training/rotation/rotation-row";
+import { CycleStrip } from "./cycle-strip";
+import { useSlotDay } from "./use-slot-day";
 
 /**
  * Train's top card: the active Program, its Rotation as chips (trained ones checked, the next one
@@ -28,6 +30,12 @@ export function ProgramCard({
   const subtle = useSubtleColor();
   const onAction = useThemeColor("accent-foreground");
   const { program, run, progress, week } = state;
+  const day = useSlotDay({
+    progress,
+    onStart,
+    onSkip: (slotId, title) => void state.skip(slotId, title),
+    onUnskip: state.unskip,
+  });
   if (!program || !run) return null;
   const next = program.slots.find((slot) => slot.id === progress.next?.id);
   const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
@@ -60,37 +68,8 @@ export function ProgramCard({
           </Text>
         </View>
       </Pressable>
-      <View
-        className="flex-row flex-wrap gap-2"
-        accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}
-      >
-        {program.slots.map((slot) => {
-          const rest = slot.workoutId === null;
-          const trained = progress.trained.has(slot.id);
-          const isNext = progress.next?.id === slot.id;
-          const title = rest ? t("training__rest_day") : slotTitle(slot, t);
-          const outline = isNext ? "border-foreground" : "border-transparent";
-          const ink = (trained || rest) && !isNext ? "text-muted" : "text-foreground";
-          return (
-            <View
-              key={slot.id}
-              accessible
-              accessibilityLabel={t("training__chip_state", {
-                title,
-                state: t(trained ? "run__trained" : isNext ? "run__up_next" : "run__untrained"),
-              })}
-              className={`h-9 flex-row items-center gap-1 rounded-full border bg-default px-3 ${outline}`}
-            >
-              {rest ? <Moon size={20} weight="regular" color={subtle} /> : null}
-              {trained ? <Check size={20} weight="regular" color={subtle} /> : null}
-              {rest ? null : (
-                <Text numberOfLines={1} className={`max-w-32 text-label font-medium ${ink}`}>
-                  {title}
-                </Text>
-              )}
-            </View>
-          );
-        })}
+      <View accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}>
+        <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
       </View>
       {next?.workoutId && nextTitle ? (
         <Button
@@ -103,6 +82,7 @@ export function ProgramCard({
           <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>
         </Button>
       ) : null}
+      {day.sheet}
     </View>
   );
 }

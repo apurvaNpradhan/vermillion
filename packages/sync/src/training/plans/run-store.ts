@@ -108,6 +108,11 @@ export const hasCountedSetSql = `EXISTS (
   WHERE e.session_id = training_session.id AND s.completed_at IS NOT NULL AND s.kind <> 'warmup'
 )`;
 
+const skipSchema = z.object({
+  runId: z.string(),
+  slotId: z.string(),
+  cycle: z.number().int(),
+});
 const progressSchema = z.object({
   id: z.string(),
   runId: z.string().nullable(),
@@ -122,6 +127,8 @@ export function watchRunState(
   onValue: (value: {
     runs: z.infer<typeof runSchema>[];
     sessions: z.infer<typeof progressSchema>[];
+    /** Slots skipped for a Cycle, for `cycleState`. */
+    skips: z.infer<typeof skipSchema>[];
   }) => void,
   onError: () => void,
 ) {
@@ -140,10 +147,18 @@ export function watchRunState(
                     finished_at AS finishedAt, ${hasCountedSetSql} AS hasCountedSet
              FROM training_session WHERE run_id IS NOT NULL ORDER BY started_at, id LIMIT 10000`,
           ),
+          database.getAll(
+            `SELECT run_id AS runId, slot_id AS slotId, cycle
+             FROM program_slot_skip ORDER BY run_id, cycle, slot_id LIMIT 10000`,
+          ),
         ])
-          .then(([runs, sessions]) => {
+          .then(([runs, sessions, skips]) => {
             if (!controller.signal.aborted)
-              onValue({ runs, sessions: z.array(progressSchema).parse(sessions) });
+              onValue({
+                runs,
+                sessions: z.array(progressSchema).parse(sessions),
+                skips: z.array(skipSchema).parse(skips),
+              });
           })
           .catch(onError);
       },
@@ -151,7 +166,13 @@ export function watchRunState(
     },
     {
       signal: controller.signal,
-      tables: ["program_run", "training_session", "session_exercise", "session_set"],
+      tables: [
+        "program_run",
+        "program_slot_skip",
+        "training_session",
+        "session_exercise",
+        "session_set",
+      ],
       throttleMs: 150,
     },
   );

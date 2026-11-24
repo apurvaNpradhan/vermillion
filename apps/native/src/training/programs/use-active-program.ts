@@ -4,7 +4,9 @@ import {
   finishRun,
   keepGoing,
   runAgain,
+  skipSlot,
   stopProgram,
+  unskipSlot,
   watchRunState,
 } from "@workspace/sync";
 import { useCallback, useState } from "react";
@@ -66,14 +68,35 @@ export function useActiveRun() {
   };
 }
 
+/** The Cycle state of `slots` for the Run `runId`, from what `useActiveRun` watched. */
+export function runProgress(
+  runs: ReturnType<typeof useActiveRun>["runs"],
+  runId: string | null,
+  slots: readonly { id: string; workoutId: string | null }[],
+) {
+  const value = runs.value;
+  return cycleState(
+    slots,
+    value?.sessions.filter((session) => session.runId === runId) ?? [],
+    value?.skips.filter((skip) => skip.runId === runId) ?? [],
+  );
+}
+
 export function useActiveProgram() {
-  const { write, writeScope } = useTrainingWrite();
+  const { t } = useTranslation();
+  const { write, writeScope, undoToast } = useTrainingWrite();
   const timeZone = useDeviceTimeZone();
   const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;
-  const sessions = runs.value?.sessions.flatMap((s) => (s.runId === run?.id ? [s] : [])) ?? [];
-  const progress = cycleState(program?.slots ?? [], sessions);
+  const progress = runProgress(runs, run?.id ?? null, program?.slots ?? []);
+  const unskip = (slotId: string) =>
+    run
+      ? write(
+          (db) => unskipSlot(db, { runId: run.id, slotId, cycle: progress.cycle }, writeScope),
+          false,
+        )
+      : false;
   const week = runWeek(run?.started_at ?? null, new Date(), timeZone);
   return {
     run,
@@ -87,6 +110,21 @@ export function useActiveProgram() {
     activate,
     stop,
     confirmationProps,
+    /** Takes a skip of the current Cycle back. */
+    unskip,
+    /** Leaves a Slot out of the current Cycle (it counts as done for it) and offers Undo. */
+    skip: async (slotId: string, title: string) => {
+      if (!run) return;
+      const cycle = progress.cycle;
+      const id = await write(
+        (db) => skipSlot(db, { runId: run.id, slotId, cycle }, writeScope),
+        null,
+      );
+      if (id === null) return;
+      undoToast(t("run__skipped_toast", { title }), () => {
+        void write((db) => unskipSlot(db, { runId: run.id, slotId, cycle }, writeScope), false);
+      });
+    },
     finish: () => run && write((db) => finishRun(db, run.id, writeScope), undefined),
     keep: () => run && write((db) => keepGoing(db, run.id, writeScope), undefined),
     again: () => run && write((db) => runAgain(db, run.id, run.program_id, writeScope), null),

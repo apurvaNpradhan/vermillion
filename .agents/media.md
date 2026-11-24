@@ -4,7 +4,7 @@ User images (covers, progress photos, later avatars and Session photos) live in 
 
 ## Layout
 
-- `packages/shared/src/media.ts`: kinds, variants, limits, `mediaObjectKey`, attachment ids, sizing maths.
+- `packages/shared/src/media.ts`: kinds (`program_cover`, `workout_cover`, ...), variants, limits, `mediaObjectKey`, attachment ids, sizing maths.
 - `packages/api/src/media/`: `tables.ts` (`media`), `storage.ts` (`ObjectStore` on `aws4fetch`), `procedures.ts` (`media.uploadUrl`, `media.downloadUrl`), `sync.ts` (upload handler), `reference.ts` (`assertMediaReference` for other verticals' rows), `purge.ts` (hourly `media.purge-objects`), `operations/`.
 - `packages/sync/src/media/`: client `media` table, the local-only `attachments` table (owned by PowerSync's `AttachmentQueue`), `createMedia` / `deleteMedia`, and the transaction helpers (`insertMedia`, `removeMedia`) that reference stores use.
 - `apps/native/src/media/`: `process-image.ts` (re-encode), `pick-image.ts` (library or camera), `attachment-queue.ts`, `local-storage.ts` and `remote-storage.ts` (the queue's adapters), `use-media-image.ts`, `MediaImage` (optional `height` and `blurRadius`), `MediaViewer` (full screen over media ids, built on `platform/ui/image-viewer`).

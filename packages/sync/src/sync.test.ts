@@ -90,6 +90,7 @@ describe("powerSyncSchema", () => {
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "progress_photo",
       "rejected_writes",
       "session_exercise",
@@ -109,6 +110,7 @@ describe("powerSyncSchema", () => {
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "progress_photo",
       "session_exercise",
       "session_photo",
@@ -174,7 +176,9 @@ describe("powerSyncSchema", () => {
       expect(names.filter((name) => !writeOnly.includes(name)).sort(), table).toEqual(
         listed.sort(),
       );
-      if (table !== "program_run") expect(names, table).toEqual(expect.arrayContaining(writeOnly));
+      // Runs and Slot skips are never restored by Undo, so they carry no marker.
+      if (table !== "program_run" && table !== "program_slot_skip")
+        expect(names, table).toEqual(expect.arrayContaining(writeOnly));
     }
     expect(checked.sort()).toEqual([
       "exercise_setting",
@@ -182,6 +186,7 @@ describe("powerSyncSchema", () => {
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "session_exercise",
       "session_photo",
       "session_set",

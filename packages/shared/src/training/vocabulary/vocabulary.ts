@@ -76,6 +76,10 @@ export const TRAINING_LIMITS = {
   /** Live Programs and Workouts (standalone and owned) one account may hold. */
   livePrograms: 100,
   liveWorkouts: 500,
+  /** Live Slot skips one Run may hold (one per Slot and Cycle). */
+  skipsPerRun: 1000,
+  /** The highest Cycle a skip may name. */
+  cycleMax: 10_000,
 } as const;
 
 /**

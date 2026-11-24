@@ -244,6 +244,20 @@ export const programRun = sqliteTable(
   ],
 );
 
+/** A Slot left out of one Cycle of a Run; counts as done for that Cycle (`cycleState`). */
+export const programSlotSkip = sqliteTable(
+  "program_slot_skip",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    run_id: text("run_id").notNull(),
+    slot_id: text("slot_id").notNull(),
+    cycle: integer("cycle").notNull(),
+    created_at: text("created_at").notNull(),
+  },
+  (table) => [index("program_slot_skip_run_idx").on(table.run_id, table.cycle)],
+);
+
 export const sessionPhoto = sqliteTable(
   "session_photo",
   {
