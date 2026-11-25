@@ -37,6 +37,10 @@ Deleting a gym uploads one write, the gym row: its kit and settings can number m
 
 From the first release, every `gym_exercise_setting` row requires the UUIDv5 id from `gymExerciseSettingId({ userId, gymId, exerciseId })` in `packages/shared`. Two devices that create the setting offline make the same row, so a later PATCH or DELETE from either finds it. Its PUT is an upsert (it revives a deleted row too, and merges into a live one: a non-empty range list or note replaces the stored one, clearing is a PATCH). `exercise_setting` has the same pre-existing two-device race (one row per exercise, random ids) and is left as is.
 
+## Phases
+
+`program.phase_plan`, `program_run.inserted_deloads`, `workout.main_entry_id` and `training_session.phase` ride the `my_training` stream. The two JSON columns travel as text like `workout_exercise.sets`; handlers parse them with the shared zod schemas (`phasePlanSchema`, `insertedDeloadsSchema`) and refuse anything else as `SYNC_INVALID_OP`. A Run PATCH of `inserted_deloads` is a union with the stored weeks, so two devices that each insert a Deload offline both keep theirs. `main_entry_id` is a plain reference (the exercise is written after the Workout, so it cannot be checked); a stale id reads as the first exercise. A PATCH never resets fields it does not carry: zod applies `.default()` inside `.partial()`, so a patch schema must not reuse a schema with defaults.
+
 ## Commands
 
 ```sh

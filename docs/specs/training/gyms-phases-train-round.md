@@ -196,6 +196,23 @@ The main lift is the Workout's first exercise unless changed per Workout.
   ("Deload: sets halved, −10% load"); the Workout preview shows this week's adjusted targets.
 - Workouts stay unchanged; phases adjust targets at read time.
 
+Built (slice 4), decisions made while building:
+
+- Storage: `program.phase_plan` (one JSON column: `pattern`, `overrides` by Program week,
+  `modifiers` edits, `test_top`), `program_run.inserted_deloads` (JSON array of Run weeks),
+  `workout.main_entry_id` (nullable plain reference; simpler than a flag on `workout_exercise`
+  because one write moves it and it cannot have two main lifts), `training_session.phase`.
+- A Session copies its Workout with the phase already applied (sets, effort, planned loads);
+  the Workout's own rows and the position-keyed diff snapshot are untouched. A Test or Deload
+  Session never offers to update its Workout.
+- Loads in Build and Push stay with the engine. In a Deload the engine suggests the phase's load
+  share of the last baseline load, snapped down to the Session gym's grid (`phaseLoad`).
+- Effort shifts act on effort targets that exist; a Workout with none shows no change in Push.
+- A Test main lift is `top` with 1 rep (heavy single) or `failure` with the planned reps
+  (AMRAP), at the heaviest planned load; with no planned load the ghost comes from Previous.
+- "Insert deload" on a Program with no plan makes the rest of that Run Build, so it still works.
+- The Run's length is the planned weeks plus its inserted Deloads.
+
 ## 5. Gym equipment and swaps
 
 - A gym gains available equipment (tick list of the 13 types, default all) and an optional
