@@ -196,12 +196,12 @@ describe("double progression", () => {
     ]);
   });
 
-  it("holds after two sessions that missed the range, even on different working sets", () => {
+  it("resets straight sets after two misses, even on different working sets", () => {
     expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])).toMatchObject({
-      reason: "hold_missed",
+      reason: "reset",
       sets: [
-        { weightKg: 80, reps: 7 },
-        { weightKg: 80, reps: 12 },
+        { weightKg: 75, reps: 8 },
+        { weightKg: 75, reps: 8 },
       ],
     });
     // Only one session missed: sets can still add reps.
@@ -343,9 +343,9 @@ describe("effort-aware progression", () => {
     expect(suggest([logged(12), logged(12)])?.sets[0]).toEqual({ weightKg: 82.5, reps: 8 });
   });
 
-  it("holds after missing the minimum at a grind on two sessions running", () => {
+  it("resets after missing the minimum at a grind on two sessions running", () => {
     const grind = (reps: number) => logged(reps, 80, { rpe: 10 });
-    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("hold_missed");
+    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("reset");
   });
 
   it("does not hold when the missed sessions were not hard", () => {
@@ -653,5 +653,34 @@ it.each([
       { now: NOW },
     );
     expect(result?.sets[0]?.weightKg).toBe(parseWeight(String(expected), override));
+  },
+);
+
+it.each([
+  { weightUnit: "kg", before: 60, expected: 55, step: 2.5 },
+  { weightUnit: "lb", before: 135, expected: 125, step: 5 },
+] as const)(
+  "floors the e1RM reset to the $weightUnit grid",
+  ({ weightUnit, before, expected, step }) => {
+    const toKg = (amount: number) => (weightUnit === "kg" ? amount : amount * KG_PER_LB);
+    const grid = loadGridOf({
+      equipment: "machine",
+      unit: weightUnit,
+      ranges: [{ min: 0, max: null, step: toKg(step) }],
+    });
+    const misses = [
+      session([logged(6, toKg(before), { rpe: 10 })]),
+      session([logged(6, toKg(before))]),
+    ];
+    const result = suggestNext(
+      plan.slice(0, 1),
+      misses,
+      "weight_reps",
+      "machine",
+      { weightUnit, weightIncrementKg: null },
+      { now: NOW, grid },
+    );
+    expect(result).toMatchObject({ reason: "reset", sets: [{ reps: 8 }] });
+    expect(result?.sets[0]?.weightKg).toBeCloseTo(toKg(expected), 5);
   },
 );

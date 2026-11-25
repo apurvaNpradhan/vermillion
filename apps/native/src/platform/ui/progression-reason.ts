@@ -17,6 +17,8 @@ export function progressionLabelKey({ reason, limit }: SetOutcome) {
       return "progress__label_add_weight";
     case "add_rep":
       return "progress__label_add_rep";
+    case "reset":
+      return "progress__label_reset";
     case "hold_missed":
       return "progress__label_hold_missed";
     case "hold_together":
@@ -52,6 +54,8 @@ export function progressionReasonKey({ reason, loadFactor, limit }: SetOutcome) 
       return "progress__reason_add_weight";
     case "add_rep":
       return "progress__reason_add_rep";
+    case "reset":
+      return "progress__reason_reset";
     case "hold_missed":
       return "progress__reason_hold_missed";
     case "hold_together":

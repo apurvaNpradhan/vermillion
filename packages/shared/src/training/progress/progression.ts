@@ -3,6 +3,7 @@ import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { isBaselinePhase, type Phase } from "../phases/phases";
 import { weightAtMost } from "../vocabulary/format";
+import { estimatedOneRepMax } from "../volume/volume";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
   LIGHTER_WEEK_LOAD,
@@ -26,6 +27,7 @@ export type SuggestedSet = { weightKg: number | null; reps: number | null };
 export const PROGRESSION_REASONS = [
   "add_weight",
   "add_rep",
+  "reset",
   "hold_missed",
   "hold_together",
   "hold_effort",
@@ -155,16 +157,16 @@ function slotsOf(planned: readonly PlannedSet[]): Slot[] {
   });
 }
 
-/** Whether the Session missed a planned range minimum at a grind (or with no effort logged). */
-function missedRange(slots: readonly Slot[], sets: readonly LoggedSet[]): boolean {
-  return slots.some(({ target, ordinal }) => {
-    const set = counterpart(sets, target.kind, ordinal);
-    return (
-      target.reps_min !== undefined &&
+/** The actual set at each missed range minimum. New slots are not misses. */
+function rangeMisses(slots: readonly Slot[], sets: readonly LoggedSet[]) {
+  return slots.flatMap(({ target, ordinal, index }) => {
+    const set = sets.filter(({ kind }) => kind === target.kind)[ordinal];
+    return target.reps_min !== undefined &&
       set?.reps != null &&
       set.reps < target.reps_min &&
       (set.rpe == null || set.rpe >= GRIND_RPE)
-    );
+      ? [{ index, set, minimum: target.reps_min, reps: set.reps }]
+      : [];
   });
 }
 
@@ -174,12 +176,14 @@ type Outcome =
   | "add_rep"
   | "cap_reps"
   | "cap_hint"
+  | "reset"
   | "hold_missed"
   | "hold_together"
   | "hold_effort"
   | "same";
 const OUTCOME_ORDER = [
   "capped",
+  "reset",
   "add_weight",
   "add_rep",
   "cap_reps",
@@ -196,6 +200,7 @@ const REASON_OF = {
   add_weight: "add_weight",
   add_rep: "add_rep",
   hold_effort: "hold_effort",
+  reset: "reset",
   hold_missed: "hold_missed",
   hold_together: "hold_together",
   same: "same_as_last",
@@ -208,7 +213,7 @@ const REASON_OF = {
  * for every working set to reach the ceiling before adding load. Top and back-off sets progress
  * independently.
  * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
- * minimum on two Sessions running holds, a break lowers the load and a Lighter week or the
+ * minimum on two Sessions running resets the load, a break lowers the load and a Lighter week or the
  * stalled-lift deload suggests 90%. Warm-ups, Lighter-week Sessions and Test or Deload phase
  * Sessions are never a baseline.
  */
@@ -309,8 +314,26 @@ export function suggestNext(
   }
 
   const older = baselines[1];
+  const misses = rangeMisses(slots, last.sets);
   const held =
-    older !== undefined && missedRange(slots, last.sets) && missedRange(slots, older.sets);
+    misses.length > 0 && older !== undefined && rangeMisses(slots, older.sets).length > 0;
+  const resets = new Map<number, number>();
+  const workingResets = new Map<number, number>();
+  if (held && loaded) {
+    for (const { index, set, minimum, reps } of misses) {
+      const weight = set.weight_kg;
+      const max = estimatedOneRepMax(weight ?? 0, reps);
+      if (max === null || weight == null || minimum >= 37) continue;
+      // Invert Brzycki at the target reps, then floor to a load that can be made.
+      const ratio = (max * (37 - minimum)) / 36 / weight;
+      const reset = lightenLoad(weight, ratio, equipment, unit, grid, "down");
+      if (reset >= weight) continue;
+      resets.set(index, reset);
+      if (set.kind === "working" && !settings.progressionPerSet) {
+        workingResets.set(weight, Math.min(reset, workingResets.get(weight) ?? reset));
+      }
+    }
+  }
   // Without a weight to add, a rep range grows past its top only when every set topped it.
   const allTopped = slots.every(({ target, ordinal }) => {
     const before = counterpart(last.sets, target.kind, ordinal);
@@ -347,12 +370,19 @@ export function suggestNext(
     const before = counterpart(last.sets, target.kind, ordinal);
     if (!before) continue;
     const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
+    const reset =
+      target.kind === "working" && !settings.progressionPerSet && same.weightKg !== null
+        ? workingResets.get(same.weightKg)
+        : resets.get(index);
     let outcome: Outcome = "same";
     let next = same;
     if (cap !== null && before.weight_kg != null && before.weight_kg > cap) {
       // Last time's load is more than this gym has: the cap is the most the lifter can load.
       outcome = "capped";
       next = { ...same, weightKg: cap };
+    } else if (reset !== undefined && target.reps_min !== undefined) {
+      outcome = "reset";
+      next = { weightKg: reset, reps: target.reps_min };
     } else if (held) outcome = "hold_missed";
     else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {

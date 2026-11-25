@@ -1511,6 +1511,8 @@
   "muscles__open": "Muscles",
   "progress__label_add_weight": "Add {{value}} {{unit}}",
   "progress__label_add_rep": "One more rep",
+  "progress__label_reset": "Reset the load",
+  "progress__reason_reset": "The last two sessions had sets below target. Start lighter to reach the bottom of the range.",
   "progress__label_hold_missed": "Hold after two misses",
   "progress__label_hold_together": "Keep the same load",
   "progress__label_mixed": "Targets by set",
