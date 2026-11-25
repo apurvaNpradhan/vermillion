@@ -485,7 +485,7 @@ const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS start
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
     s.workout_id AS workout_id, s.gym_id AS gym_id, s.phase AS phase,
     se.id AS session_exercise_id, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.stall_deload AS stall_deload,
+    se.stall_deload AS stall_deload, se.prescription AS prescription,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -835,8 +835,24 @@ const finishedRowSchema = z.object({
   rpe: z.number().nullable(),
   target: targetText.optional(),
   stall_deload: flag.nullable().optional(),
+  prescription: jsonText.pipe(prescriptionSchema).nullable().optional().catch(null),
   completed_at: z.string().nullable(),
 });
+
+/** What the snapshot offered for one set, before any same-day adjustment; null without one. */
+function suggestedOf(
+  snapshot: Prescription | null | undefined,
+  exerciseId: string,
+  setId: string,
+): LoggedSet["suggested"] {
+  const saved = prescriptionFor(snapshot, exerciseId)?.sets.find(({ id }) => id === setId);
+  return saved
+    ? {
+        weight_kg: saved.unadjustedWeightKg ?? saved.ghosts.weight ?? null,
+        reps: saved.ghosts.reps ?? null,
+      }
+    : null;
+}
 
 /** Groups the rows of {@link EXERCISE_HISTORY_SQL} or {@link SESSIONS_BETWEEN_SQL} by Session, in row order. */
 export function parseFinishedSessions(rows: readonly object[]): FinishedSession[] {
@@ -890,6 +906,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         rpe: row.rpe,
         target: row.target ?? null,
         stall_deload: row.stall_deload === true,
+        suggested: suggestedOf(row.prescription, row.exercise_id, row.set_id),
       };
       current.sets.push(set);
     }

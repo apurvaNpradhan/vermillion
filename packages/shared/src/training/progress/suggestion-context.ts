@@ -17,7 +17,7 @@ import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 import { historyForGym } from "./gym-history";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
-import { stalledSessions, wasStallDeload } from "./stalled-lift";
+import { missedSuggestions, stalledSessions, wasStallDeload } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
 export type SuggestionSettings = {
@@ -44,7 +44,13 @@ export type SuggestionSettings = {
 };
 
 /** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
+export type StallInfo = {
+  count: number;
+  latestSessionId: string;
+  applied: boolean;
+  /** The lift gained as far as the numbers go, but the suggestion was missed every time. */
+  missed?: boolean;
+};
 
 /** A finished Session of an exercise, as a suggestion reads it. */
 export type ContextSession = SessionHistory & { workoutId: string | null };
@@ -138,10 +144,19 @@ export function suggestionContext(
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
     });
-    if (latestSessionId !== null && (count > 0 || place.stallDeload)) {
+    const missed = missedSuggestions(sessions, {
+      lighterWeeks: account.lighterWeeks,
+      sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
+    });
+    if (latestSessionId !== null && (count > 0 || missed > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)
-        stall = { count, latestSessionId, applied: place.stallDeload === true };
+        stall = {
+          count: Math.max(count, missed),
+          latestSessionId,
+          applied: place.stallDeload === true,
+          ...(count === 0 && missed > 0 ? { missed: true } : {}),
+        };
     }
   }
   const unit = resolveExerciseUnit(account.unit, place.unitOverride ?? null);

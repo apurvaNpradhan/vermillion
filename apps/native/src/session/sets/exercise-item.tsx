@@ -182,6 +182,7 @@ export const ExerciseItem = memo(function ExerciseItem({
                   exerciseId={exercise.exerciseId}
                   latestSessionId={stall.latestSessionId}
                   count={stall.count}
+                  missed={stall.missed}
                   applied={stall.applied}
                   onApply={
                     readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)

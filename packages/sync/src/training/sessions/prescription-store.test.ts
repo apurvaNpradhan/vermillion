@@ -9,6 +9,7 @@ import {
 import { pushWorkout, setupSessions, SQUAT, type Sessions } from "./session-fixtures";
 import { capturePrescription, undoSessionAdjustment } from "./prescription-store";
 import { tickSet, updateSet } from "./session-content-store";
+import { EXERCISE_HISTORY_SQL, parseFinishedSessions } from "./session-watch";
 import { finishSession, startSession } from "./session-store";
 
 const loads: AdjustmentLoads = {
@@ -135,5 +136,31 @@ describe("prescription snapshots", () => {
       await logged(s, t.work2, 4);
       expect(stored(s, t.entry).adjustment).toBeUndefined();
     });
+  });
+
+  it("hands history what was suggested before any adjustment, and nothing without a snapshot", async () => {
+    const s = await setupSessions();
+    const t = await started(s);
+    await capturePrescription(s.training, t.entry, t.draft);
+    await logged(s, t.work1, 5);
+    await tickSet(s.training, t.work2, {}, undefined, null, undefined, null, loads);
+    await finishSession(s.training, t.id);
+    const [session] = parseFinishedSessions(
+      s.sqlite.prepare(EXERCISE_HISTORY_SQL).all(SQUAT, SQUAT),
+    );
+    const bySet = new Map(session?.sets.map((set) => [set.id, set]));
+    expect(bySet.get(t.work1)?.suggested).toEqual({ weight_kg: 100, reps: 8 });
+    // The second set was lowered to 97.5 and logged there; it was offered 100.
+    expect(bySet.get(t.work2)?.weight_kg).toBeLessThan(100);
+    expect(bySet.get(t.work2)?.suggested).toEqual({ weight_kg: 100, reps: 8 });
+
+    const bare = await setupSessions();
+    const u = await started(bare);
+    await tickSet(bare.training, u.work1, { weight: 100, reps: 8 });
+    await finishSession(bare.training, u.id);
+    const [plain] = parseFinishedSessions(
+      bare.sqlite.prepare(EXERCISE_HISTORY_SQL).all(SQUAT, SQUAT),
+    );
+    expect(plain?.sets.find((set) => set.id === u.work1)?.suggested).toBeNull();
   });
 });

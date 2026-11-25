@@ -16,17 +16,22 @@ export function StalledNote({
   latestSessionId,
   count,
   applied,
+  missed = false,
   onApply,
 }: {
   exerciseId: string;
   latestSessionId: string;
   count: number;
   applied: boolean;
+  /** The suggestion was missed every time, rather than the numbers standing still. */
+  missed?: boolean;
   onApply?: (applied: boolean) => void;
 }) {
   const { t } = useTranslation();
   const muted = useThemeColor("muted");
-  const note = applied ? t("stall__applied_with_undo") : t("stall__note", { count });
+  const note = applied
+    ? t("stall__applied_with_undo")
+    : t(missed ? "stall__note_missed" : "stall__note", { count });
   return (
     <View className="min-h-11 flex-row items-center justify-between gap-2">
       {onApply ? (

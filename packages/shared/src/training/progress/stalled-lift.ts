@@ -9,6 +9,8 @@ import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 const DAY_MS = 86_400_000;
 /** The most recent Sessions that must show no gain for a lift to count as stalled. */
 export const STALL_SESSIONS = 3;
+/** The most recent Sessions that must all miss their suggestion for a lift to count as stalled. */
+export const MISSED_SESSIONS = 3;
 /** The recent best has to beat the Session before by this much, or the lift has stalled. */
 const MIN_GAIN = 1.01;
 /** A gap this long between Sessions is a break, not a stall. */
@@ -215,4 +217,52 @@ function improvedOn(recent: StallPerformance, before: StallPerformance): boolean
     if ((recent.repsByLoad.get(load) ?? 0) > reps) return true;
   }
   return false;
+}
+
+/** A set that fell short of what was suggested: less load, or fewer reps. */
+function fellShort(set: LoggedSet): boolean {
+  const { suggested } = set;
+  if (!suggested) return false;
+  const lighter =
+    suggested.weight_kg !== null &&
+    set.weight_kg != null &&
+    loadIdentity(set.weight_kg) < loadIdentity(suggested.weight_kg);
+  const fewer = suggested.reps !== null && set.reps != null && set.reps < suggested.reps;
+  return lighter || fewer;
+}
+
+/**
+ * Whether a Session missed what was suggested for it: more than half of its Counted working sets
+ * that have a suggestion ended with less load or fewer reps. Null when it has no snapshot to
+ * compare with (an older Session): that says nothing, and ends a run of misses.
+ */
+function missedSuggestion(session: StallSession): boolean | null {
+  const worked = session.sets.filter(
+    (set) => isCounted(set) && set.kind === "working" && set.suggested,
+  );
+  if (worked.length === 0) return null;
+  return worked.filter(fellShort).length * 2 > worked.length;
+}
+
+/**
+ * How many Sessions in a row the suggestion was not met, 0 until it has been missed
+ * {@link MISSED_SESSIONS} times. Reads the prescription snapshot of each Session, newest first,
+ * same scope as {@link stalledSessions}: it stops at an applied stall deload, skips a Test or
+ * Deload Session and a Lighter week, and ends at a Session that met the suggestion or has none.
+ */
+export function missedSuggestions(
+  history: readonly StallSession[],
+  options: { lighterWeeks?: readonly LighterPeriod[]; sinceDeload?: string } = {},
+): number {
+  const lastDeload = history.findIndex(wasStallDeload);
+  const since = lastDeload < 0 ? history : history.slice(0, lastDeload);
+  const opened = options.sinceDeload ? Date.parse(options.sinceDeload) : -Infinity;
+  const episode = since.filter((session) => Date.parse(session.started_at) > opened);
+  let missed = 0;
+  for (const session of outsideLighterWeeks(episode, options.lighterWeeks ?? [])) {
+    if (!isBaselinePhase(session.phase)) continue;
+    if (missedSuggestion(session) !== true) break;
+    missed += 1;
+  }
+  return missed >= MISSED_SESSIONS ? missed : 0;
 }
