@@ -1,5 +1,7 @@
 import {
   MUSCLE_DETAIL_KEYS,
+  MUSCLE_GROUP_KEYS,
+  MUSCLE_GROUPS,
   detailsOf,
   groupOf,
   type MuscleDetail,
@@ -7,7 +9,7 @@ import {
 } from "@workspace/shared";
 import { nativeColors } from "@workspace/ui/tokens/brand";
 import { memo, useCallback, useMemo } from "react";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { BODY_GROUPS, BodyMapPair, muscleArtTint, type BodyGroup } from "@/body-map";
 import { useTranslation } from "@/platform/i18n";
@@ -46,18 +48,30 @@ export const BodyMapFilter = memo(function BodyMapFilter({
         details={detail === null ? undefined : [detail]}
         onPressGroup={onPressGroup}
       />
+      <ScrollView
+        horizontal
+        className="w-full"
+        contentContainerClassName="gap-2 pb-2"
+        keyboardShouldPersistTaps="handled"
+      >
+        {MUSCLE_GROUPS.map((group) => (
+          <MuscleChip
+            key={group}
+            label={t(MUSCLE_GROUP_KEYS[group])}
+            selected={muscles.includes(group)}
+            onPress={() => onSelect([group], null)}
+          />
+        ))}
+      </ScrollView>
       {details.length > 0 ? (
         <View className="flex-row flex-wrap justify-center gap-2">
           {details.map((part) => (
-            <Button
+            <MuscleChip
               key={part}
-              size="sm"
-              variant={detail === part ? "secondary" : "ghost"}
-              accessibilityState={{ selected: detail === part }}
+              label={t(MUSCLE_DETAIL_KEYS[part])}
+              selected={detail === part}
               onPress={() => onSelect([groupOf(part)], detail === part ? null : part)}
-            >
-              <Button.Label>{t(MUSCLE_DETAIL_KEYS[part])}</Button.Label>
-            </Button>
+            />
           ))}
         </View>
       ) : null}
@@ -69,3 +83,29 @@ export const BodyMapFilter = memo(function BodyMapFilter({
     </View>
   );
 });
+
+function MuscleChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      variant="secondary"
+      className={
+        selected ? "min-h-11 min-w-11 rounded-full bg-accent" : "min-h-11 min-w-11 rounded-full"
+      }
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+    >
+      <Button.Label className={selected ? "text-accent-foreground" : "text-foreground"}>
+        {label}
+      </Button.Label>
+    </Button>
+  );
+}

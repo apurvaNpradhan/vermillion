@@ -69,14 +69,16 @@ export function BodyMap({
           return [];
         }
         const name = t(MUSCLE_GROUP_KEYS[group]);
-        const label = primary?.includes(group)
-          ? t("bodymap__group_primary", { name })
-          : secondary?.includes(group)
-            ? t("bodymap__group_secondary", { name })
-            : name;
-        return [{ name: group, label }];
+        const chosen = selected?.includes(group) ?? false;
+        let label = name;
+        if (chosen) label = t("bodymap__group_selected", { name });
+        else if (primary?.includes(group)) label = t("bodymap__group_primary", { name });
+        else if (!onPressGroup && secondary?.includes(group)) {
+          label = t("bodymap__group_secondary", { name });
+        }
+        return [{ name: group, label, chosen }];
       }),
-    [alphas, onPressGroup, primary, secondary, t, view],
+    [alphas, onPressGroup, primary, secondary, selected, t, view],
   );
 
   const onPress = (event: GestureResponderEvent) => {
@@ -101,6 +103,9 @@ export function BodyMap({
           : `${viewLabel}. ${t("bodymap__none")}`
       }
       accessibilityHint={onPressGroup ? t("bodymap__hint") : undefined}
+      accessibilityState={
+        onPressGroup ? { selected: actions.some((action) => action.chosen) } : undefined
+      }
       accessibilityActions={onPressGroup ? actions : undefined}
       onAccessibilityAction={(event) => {
         const action = actions.find((candidate) => candidate.name === event.nativeEvent.actionName);

@@ -59,7 +59,7 @@ type ExerciseLibraryProps = {
   title?: string;
   /** Icon buttons for the header capsule (the picker's close and New buttons). */
   headerActions?: ReactNode;
-  /** Content above the list, under the search (the picker's "Swap for" suggestions). */
+  /** The picker's swap suggestions, hidden by search, Pinned or a muscle filter. */
   listHeader?: ReactNode;
   /** Pick: selected ids with their 1-based position in the selection. */
   selectedOrder?: ReadonlyMap<string, number>;
@@ -129,6 +129,12 @@ export function ExerciseLibrary({
   const library = useExerciseLibrary(filters);
   const query = filters.search.trim();
   const searching = query !== "";
+  const showRecent = !searching && !hasActiveFilters(filters);
+  const showSwapSuggestions =
+    !searching &&
+    !filters.pinnedOnly &&
+    filters.muscles.length === 0 &&
+    filters.primaryDetail === null;
 
   const chips = useMemo<FilterChip[]>(() => {
     const change = (next: Partial<LibraryFilters>) =>
@@ -173,7 +179,7 @@ export function ExerciseLibrary({
       key: `all-${exercise.id}`,
       exercise,
     }));
-    if (searching || hasActiveFilters(filters)) return rows;
+    if (!showRecent) return rows;
     const recent =
       mode === "pick" ? library.recent.filter((exercise) => !exercise.isPinned) : library.recent;
     if (recent.length === 0) return rows;
@@ -193,7 +199,7 @@ export function ExerciseLibrary({
         : []),
       ...rows.slice(pinnedCount),
     ];
-  }, [library.rows, library.recent, library.hasMore, mode, searching, filters, t]);
+  }, [library.rows, library.recent, library.hasMore, mode, showRecent, t]);
 
   const onRowPress = mode === "pick" ? onToggle : onOpen;
   // Only the Custom and Archived views swipe: "All" mixes in the read-only catalog.
@@ -363,7 +369,7 @@ export function ExerciseLibrary({
                       onSelect={selectMapMuscle}
                     />
                   ) : null}
-                  {listHeader}
+                  {showSwapSuggestions ? listHeader : null}
                 </View>
               </View>
             }
