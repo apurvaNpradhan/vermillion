@@ -5,13 +5,13 @@ import { buildCardData, type SessionCardLabels } from "./card-data";
 
 const labels: SessionCardLabels = {
   unit: "kg",
-  unitLabel: "kg",
+  unitLabel: (unit) => unit,
   reps: (n) => `${n} reps`,
   distance: (m) => `${m} m`,
   floors: (n) => `${n} floors`,
   steps: (n) => `${n} steps`,
   repRange: (min, max) => `${min}–${max} reps`,
-  weightReps: (weight, reps) => `${weight} kg × ${reps}`,
+  weightReps: (weight, reps, unit) => `${weight} ${unit} × ${reps}`,
   date: () => "Monday 16 November · Evening",
   statLabel: (id) => id,
   volume: (kg) => ({ value: String(kg), unit: "kg" }),
@@ -110,6 +110,15 @@ describe("session card data", () => {
       { id: "sets", label: "sets", value: "2" },
     ]);
     expect(data.exercises?.items[0]?.summary).toBe("2 sets · best 100 kg × 5");
+  });
+
+  it("uses an exercise override for the best set and the account unit for total volume", () => {
+    const mixed = session(2);
+    mixed.exercises[0] = { ...exercise(1), unit: "lb" };
+    const data = buildCardData({ ...base, session: mixed, toggles: on });
+    expect(data.exercises?.items[0]?.summary).toBe("2 sets · best 220.5 lb × 5");
+    expect(data.exercises?.items[1]?.summary).toBe("2 sets · best 100 kg × 5");
+    expect(data.stats.find((stat) => stat.id === "volume")?.unit).toBe("kg");
   });
 
   it("hides volume and weights when Show weights is off", () => {

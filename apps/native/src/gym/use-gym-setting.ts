@@ -35,6 +35,7 @@ export function useGymSetting(exerciseId: string, gymId?: string | null) {
   return {
     ready,
     maxKg,
+    dumbbellMaxKg: gym?.dumbbellMaxKg ?? null,
     stepKg,
     note: setting?.setupNote ?? null,
     save,

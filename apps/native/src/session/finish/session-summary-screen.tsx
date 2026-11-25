@@ -19,6 +19,7 @@ import {
   SESSION_LIMITS,
   TRAINING_LIMITS,
   SET_KIND_KEYS,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 import { useCallback, useRef, useState, type ReactNode } from "react";
@@ -242,18 +243,27 @@ function FinishFlow({
     }),
   );
   const targetLines = diff.targets.map((change) => {
+    const exerciseUnit = resolveExerciseUnit(
+      unit,
+      session.exercises.find((entry) => entry.exerciseId === change.exerciseId)?.unit,
+    );
+    const exerciseUnitLabel = t(exerciseUnit === "kg" ? "training__unit_kg" : "training__unit_lb");
     const summary = summarizeTargets(change.before, change.after, (weight) =>
-      formatCell("weight", weight, unit),
+      formatCell("weight", weight, exerciseUnit),
     );
     const exercise = names(change.exerciseId);
     return summary.kind === "same"
       ? t("session__diff_weight_same", {
           exercise,
           weight: summary.weight,
-          unit: unitLabel,
+          unit: exerciseUnitLabel,
           count: summary.count,
         })
-      : t("session__diff_weight_each", { exercise, weights: summary.weights, unit: unitLabel });
+      : t("session__diff_weight_each", {
+          exercise,
+          weights: summary.weights,
+          unit: exerciseUnitLabel,
+        });
   });
   const applyUpdate = async (update: RoutineUpdate) => {
     setBusy(true);

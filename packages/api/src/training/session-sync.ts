@@ -845,6 +845,7 @@ const putSetting = z.strictObject({
   restore: restoreMarker,
   exercise_id: exerciseSettingInput.shape.exercise_id,
   bar_id: exerciseSettingInput.shape.bar_id.default(null),
+  unit: exerciseSettingInput.shape.unit,
   log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
   auto_warmups: wireBoolean.optional(),
@@ -855,6 +856,7 @@ const putSetting = z.strictObject({
 const patchSetting = z
   .strictObject({
     bar_id: exerciseSettingInput.shape.bar_id,
+    unit: exerciseSettingInput.shape.unit,
     log_effort: wireBoolean,
     progression_per_set: wireBoolean,
     auto_warmups: wireBoolean,
@@ -898,6 +900,7 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       await assertOwnBar(db, userId, values.bar_id);
       const fields = {
         barId: values.bar_id,
+        ...(data.unit !== undefined ? { unit: values.unit } : {}),
         logEffort: values.log_effort,
         ...(data.progression_per_set !== undefined
           ? { progressionPerSet: values.progression_per_set }
@@ -934,6 +937,7 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       .update(exerciseSetting)
       .set({
         ...(patch.bar_id !== undefined ? { barId: patch.bar_id } : {}),
+        ...(patch.unit !== undefined ? { unit: patch.unit } : {}),
         ...(patch.log_effort !== undefined ? { logEffort: patch.log_effort } : {}),
         ...(patch.progression_per_set !== undefined
           ? { progressionPerSet: patch.progression_per_set }

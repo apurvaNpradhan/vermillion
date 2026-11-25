@@ -1,4 +1,4 @@
-import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
+import { SET_FIELDS, addsLoad, type SetField, resolveExerciseUnit } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
 import { memo, useCallback, useMemo, useRef } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
@@ -89,7 +89,7 @@ const SetRowItem = memo(function SetRowItem({
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
         fresh: state.cell?.setId === setId ? state.fresh : true,
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
@@ -177,7 +177,7 @@ export const SetGrid = memo(function SetGrid({
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         setIds: state.views.get(exerciseId)?.setIds,
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,

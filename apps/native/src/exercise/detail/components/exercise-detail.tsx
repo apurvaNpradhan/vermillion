@@ -8,6 +8,8 @@ import {
   MUSCLE_GROUP_KEYS,
   type MuscleDetail,
   type MuscleGroup,
+  SET_FIELDS,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
 import { Switch, useThemeColor } from "heroui-native";
@@ -30,6 +32,8 @@ import Animated from "react-native-reanimated";
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
 import { usePreferences } from "@/preferences";
 import { ExerciseNumbers } from "./exercise-numbers";
+import { ExerciseUnitSheet, useExerciseUnitOptions } from "./exercise-unit-sheet";
+import { useExerciseUnit } from "../use-exercise-unit";
 import { RecentTopSets } from "./recent-top-sets";
 import { appConfig } from "@/platform/app-config";
 import { haptic } from "@/platform/haptics";
@@ -125,7 +129,7 @@ function LoadedDetail({
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
-  const { setProgressionPerSet, setAutoWarmups, setPinnedNote, setExercisePinned } =
+  const { setUnit, setProgressionPerSet, setAutoWarmups, setPinnedNote, setExercisePinned } =
     useExerciseActions();
   const pinned = useExerciseNote(exercise.id);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -138,6 +142,17 @@ function LoadedDetail({
       exercise.exerciseType === "bodyweight_weighted_reps");
   const perSet = mode.value ?? false;
   const { preferences, timeZone } = usePreferences();
+  const preferredUnit = preferences.ui.weightUnit;
+  const unitSetting = useExerciseUnit(exercise.id);
+  const override = unitSetting.value ?? null;
+  const unit = resolveExerciseUnit(preferredUnit, override);
+  const unitLabels = useExerciseUnitOptions(preferredUnit);
+  const [unitOpen, setUnitOpen] = useState(false);
+  const canSetUnit =
+    !exercise.isArchived &&
+    SET_FIELDS[exercise.exerciseType].some((field) => field === "weight") &&
+    !unitSetting.loading &&
+    !unitSetting.failed;
   const hasHistory = history.status === "ready" && history.sessions.length > 0;
   const gymId = useSessionGym(sessionId ?? null);
   const swaps = useSwapCandidates(exercise, gymId);
@@ -331,8 +346,9 @@ function LoadedDetail({
                   gymId={gymId}
                   weightIncrementKg={preferences.ui.weightIncrementKg}
                   progressionPerSet={perSet}
+                  unitOverride={override}
                   bodyweightKg={preferences.ui.bodyweightKg}
-                  unit={preferences.ui.weightUnit}
+                  unit={unit}
                   timezone={timeZone}
                   weekStart={preferences.ui.weekStart}
                 />
@@ -341,7 +357,7 @@ function LoadedDetail({
                     sessions={history.sessions.slice(0, 3)}
                     exerciseId={exercise.id}
                     type={exercise.exerciseType}
-                    unit={preferences.ui.weightUnit}
+                    unit={unit}
                     timezone={timeZone}
                     onSeeAll={onSeeHistory}
                   />
@@ -354,29 +370,47 @@ function LoadedDetail({
                 )}
               </Text>
             )}
-            {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
+            {canSetUnit || (canSetWarmups && !autoWarmups.loading && !autoWarmups.failed) ? (
               <View className="px-4">
                 <ListSection title={t("exercise__settings")}>
-                  <ListRow
-                    icon={FireSimple}
-                    title={t("exercise__auto_warmups")}
-                    description={t("exercise__auto_warmups_hint")}
-                    accessory="none"
-                    checked={warmupsOn}
-                    onPress={() =>
-                      void setAutoWarmups(exercise.id, !warmupsOn).catch(() => undefined)
-                    }
-                    trailing={
-                      <Switch
-                        accessibilityLabel={t("exercise__auto_warmups")}
-                        isSelected={warmupsOn}
-                        onSelectedChange={(on) =>
-                          void setAutoWarmups(exercise.id, on).catch(() => undefined)
-                        }
-                      />
-                    }
-                  />
+                  {canSetUnit ? (
+                    <ListRow
+                      title={t("exercise__unit")}
+                      value={unitLabels[override ?? "default"]}
+                      onPress={() => setUnitOpen(true)}
+                    />
+                  ) : null}
+                  {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
+                    <ListRow
+                      icon={FireSimple}
+                      title={t("exercise__auto_warmups")}
+                      description={t("exercise__auto_warmups_hint")}
+                      accessory="none"
+                      checked={warmupsOn}
+                      onPress={() =>
+                        void setAutoWarmups(exercise.id, !warmupsOn).catch(() => undefined)
+                      }
+                      trailing={
+                        <Switch
+                          accessibilityLabel={t("exercise__auto_warmups")}
+                          isSelected={warmupsOn}
+                          onSelectedChange={(on) =>
+                            void setAutoWarmups(exercise.id, on).catch(() => undefined)
+                          }
+                        />
+                      }
+                    />
+                  ) : null}
                 </ListSection>
+                <ExerciseUnitSheet
+                  isOpen={unitOpen}
+                  onOpenChange={setUnitOpen}
+                  preferred={preferredUnit}
+                  unit={override}
+                  onSelect={(next) => {
+                    if (next !== override) void setUnit(exercise.id, next).catch(() => undefined);
+                  }}
+                />
               </View>
             ) : null}
             {!exercise.isArchived &&
@@ -388,7 +422,7 @@ function LoadedDetail({
                   title={exercise.title}
                   equipment={exercise.equipment}
                   gymId={gymId}
-                  unit={preferences.ui.weightUnit}
+                  unit={unit}
                 />
               </View>
             ) : null}

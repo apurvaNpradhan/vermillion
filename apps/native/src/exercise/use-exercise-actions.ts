@@ -1,4 +1,4 @@
-import type { CustomExerciseInput } from "@workspace/shared";
+import type { CustomExerciseInput, WeightUnit } from "@workspace/shared";
 import {
   archiveExercise,
   createCustomExercise,
@@ -92,6 +92,12 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
+  const setUnit = useCallback(
+    (id: string, unit: WeightUnit | null) =>
+      write((db) => setExerciseSetting(db, id, { unit }, writeScope)),
+    [write, writeScope],
+  );
+
   const setAutoWarmups = useCallback(
     (id: string, on: boolean) =>
       write((db) => setExerciseSetting(db, id, { auto_warmups: on }, writeScope)),
@@ -124,6 +130,7 @@ export function useExerciseActions() {
     restore,
     setProgressionPerSet,
     setAutoWarmups,
+    setUnit,
     setPinnedNote,
     setExercisePinned,
   };

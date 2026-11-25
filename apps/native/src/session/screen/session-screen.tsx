@@ -9,6 +9,8 @@ import {
   derivedWorkoutTitle,
   snapshotModifiers,
   type SetKind,
+  resolveExerciseUnit,
+  SET_FIELDS,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
@@ -35,7 +37,13 @@ import { BackHandler, ScrollView, Text, View } from "react-native";
 import { LayoutAnimationConfig, useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ExerciseThumbnail, usePickExercises } from "@/exercise";
+import {
+  ExerciseThumbnail,
+  ExerciseUnitSheet,
+  useExerciseActions,
+  useExerciseUnitOptions,
+  usePickExercises,
+} from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
 import { ActionSheet } from "@/platform/ui/action-sheet";
@@ -148,6 +156,7 @@ type Sheet =
   | { kind: "note"; exercise: SessionExerciseDetail }
   | { kind: "pinned"; exercise: SessionExerciseDetail }
   | { kind: "limits"; exercise: SessionExerciseDetail }
+  | { kind: "unit"; exercise: SessionExerciseDetail }
   | { kind: "swap"; exercise: SessionExerciseDetail; next: string }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
@@ -271,6 +280,8 @@ const LoadedSession = memo(function LoadedSession({
     refreshDerivedTitle,
   ]);
 
+  const { setUnit } = useExerciseActions();
+  const unitLabels = useExerciseUnitOptions(unit);
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
   // The banner reads the modifiers the Session started with, not the Program's plan now.
@@ -433,6 +444,18 @@ const LoadedSession = memo(function LoadedSession({
               },
             ]
           : []),
+        ...(SET_FIELDS[menuExercise.type].some((field) => field === "weight")
+          ? [
+              {
+                key: "unit",
+                label: t("session__exercise_unit", {
+                  unit: unitLabels[menuExercise.unit ?? "default"],
+                }),
+                icon: Gauge,
+                onPress: () => setSheet({ kind: "unit", exercise: menuExercise }),
+              },
+            ]
+          : []),
         {
           key: "effort",
           label: t(menuExercise.logEffort ? "session__effort_off" : "session__effort_on"),
@@ -490,8 +513,12 @@ const LoadedSession = memo(function LoadedSession({
   const noteExercise = sheet?.kind === "note" ? sheet.exercise : null;
   const pinnedExercise = sheet?.kind === "pinned" ? sheet.exercise : null;
   const limitsExercise = sheet?.kind === "limits" ? sheet.exercise : null;
+  const unitExercise =
+    sheet?.kind === "unit"
+      ? session.exercises.find((entry) => entry.id === sheet.exercise.id)
+      : undefined;
 
-  const accessory = useSessionKeypadAccessory(logging, unit, sessionGymId);
+  const accessory = useSessionKeypadAccessory(logging, sessionGymId);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
@@ -866,6 +893,20 @@ const LoadedSession = memo(function LoadedSession({
           if (pinnedExercise) void actions.setPinnedNote(pinnedExercise.exerciseId, note);
         }}
       />
+      <ExerciseUnitSheet
+        isOpen={unitExercise !== undefined}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "unit") closeSheet();
+        }}
+        preferred={unit}
+        unit={unitExercise?.unit ?? null}
+        onSelect={(next) => {
+          if (!readOnly && unitExercise && next !== (unitExercise.unit ?? null)) {
+            logging.closeKeypad();
+            void setUnit(unitExercise.exerciseId, next).catch(() => undefined);
+          }
+        }}
+      />
       <LoadLimitsSheet
         isOpen={limitsExercise !== null}
         onOpenChange={(open) => {
@@ -874,7 +915,7 @@ const LoadedSession = memo(function LoadedSession({
         exerciseId={limitsExercise?.exerciseId ?? ""}
         title={limitsExercise?.title ?? ""}
         equipment={limitsExercise?.exercise?.equipment ?? "other"}
-        unit={unit}
+        unit={resolveExerciseUnit(unit, limitsExercise?.unit)}
         gymId={sessionGymId}
       />
       <SetTypeSheet

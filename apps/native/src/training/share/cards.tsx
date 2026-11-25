@@ -1,3 +1,4 @@
+import { resolveExerciseUnit } from "@workspace/shared";
 import { View } from "react-native";
 import type { MuscleLoad } from "@workspace/shared";
 import type { WorkoutDetail, ProgramPlan } from "@workspace/sync";
@@ -112,7 +113,7 @@ export function WorkoutCard({
           const summary = summariseWorking(
             entry.sets,
             entry.exercise?.exerciseType ?? "weight_reps",
-            prefs,
+            { ...prefs, weightUnit: resolveExerciseUnit(prefs.weightUnit, entry.unit) },
             labels,
           );
           const detail = [summary.text, toggles.weights ? summary.weight : null, summary.effort]

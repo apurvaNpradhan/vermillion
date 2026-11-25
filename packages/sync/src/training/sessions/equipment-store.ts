@@ -62,6 +62,7 @@ export async function upsertEquipment(
 // omitted, or changing the bar would silently switch the other settings off.
 const settingPatch = z.strictObject({
   bar_id: exerciseSettingInput.shape.bar_id.optional(),
+  unit: exerciseSettingInput.shape.unit,
   log_effort: z.boolean().optional(),
   progression_per_set: z.boolean().optional(),
   auto_warmups: z.boolean().optional(),

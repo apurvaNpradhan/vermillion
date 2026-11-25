@@ -2,6 +2,7 @@ import {
   DEFAULT_WARMUP_STEPS,
   capOnlyOf,
   rangeGrid,
+  loadGridOf,
   type LoadRange,
   hasWarmupRamp,
   type Equipment,
@@ -54,7 +55,7 @@ const equipmentOf = (exercise: Pick<SessionExerciseDetail, "exercise">): Equipme
  * plates or the global step. The key changes when a range, cap or fallback input changes.
  */
 export function warmupLoading(
-  exercise: Pick<SessionExerciseDetail, "barId" | "exercise">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "exercise" | "unit">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
@@ -64,11 +65,15 @@ export function warmupLoading(
   if (grid) return { loading: { bar: null, grid }, key: JSON.stringify(ranges) };
   const capKg = capOnlyOf(ranges);
   const equipment = equipmentOf(exercise);
-  const bar = defaultBar(enabledBars(rows), exercise.barId, unit);
+  const bar = defaultBar(enabledBars(rows), exercise.barId, unit, equipment, exercise.unit != null);
   const plates = bar ? platesForBar(rows, bar) : [];
   const barKey = equipment === "barbell" ? loadInputKey(bar, plates) : "-";
   return {
     loading: {
+      grid:
+        equipment === "dumbbell" && weightIncrementKg === null
+          ? loadGridOf({ equipment, unit, ranges })
+          : null,
       bar: bar ? { weightKg: bar.weightKg, plates } : null,
       stepKg: weightIncrementKg,
       capKg,
@@ -79,7 +84,7 @@ export function warmupLoading(
 
 /** The ramp as the Planned sets a warm-up row carries: its Ghost weight and reps. */
 export function rampTargets(
-  exercise: Pick<SessionExerciseDetail, "type" | "exercise" | "barId">,
+  exercise: Pick<SessionExerciseDetail, "type" | "exercise" | "barId" | "unit">,
   workingKg: number,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
@@ -135,7 +140,7 @@ export function shouldAutoWarmup(
  */
 export function rampKey(
   workingKg: number,
-  exercise: Pick<SessionExerciseDetail, "barId" | "type" | "exercise">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "type" | "exercise" | "unit">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,

@@ -7,6 +7,7 @@ import {
   type PlannedSet,
   type SessionHistory,
   type IncrementSettings,
+  type WeightUnit,
 } from "@workspace/shared";
 import {
   watchExerciseAutoWarmups,
@@ -48,6 +49,7 @@ export function useExerciseProgression(
   sessions: readonly SessionHistory[],
   settings: IncrementSettings,
   gymId?: string | null,
+  unitOverride?: WeightUnit | null,
 ) {
   const subscribe = useCallback(
     (
@@ -66,7 +68,7 @@ export function useExerciseProgression(
         now: new Date(),
         baselineHistory: historyForGym(sessions, gym.gymId, equipment),
         lighterWeeks,
-        grid: gym.gridFor(exerciseId, equipment),
+        grid: gym.gridFor(exerciseId, equipment, unitOverride),
       })
     : null;
   return { sets, suggestion };

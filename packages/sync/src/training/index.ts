@@ -111,6 +111,7 @@ export {
   watchEquipment,
   watchExerciseBar,
   watchExerciseBars,
+  watchExerciseUnit,
   watchExerciseProgressionMode,
   watchExerciseAutoWarmups,
   watchExerciseNote,

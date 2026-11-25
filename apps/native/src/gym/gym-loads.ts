@@ -13,7 +13,11 @@ export type GymLoads = {
   /** The gym these loads are of; null before the first sync has delivered one. */
   gymId: string | null;
   /** The loads the gym can make for an exercise; null is the equipment's default step. */
-  gridFor: (exerciseId: string, equipment: Equipment) => LoadGrid | null;
+  gridFor: (
+    exerciseId: string,
+    equipment: Equipment,
+    override?: WeightUnit | null,
+  ) => LoadGrid | null;
   /** The gym's own setting of an exercise (ranges and setup note), if any. */
   settingFor: (exerciseId: string) => GymExerciseSettingRow | undefined;
   /**
@@ -25,15 +29,6 @@ export type GymLoads = {
   unavailableEquipment: readonly Equipment[];
   /** Whether the gym has the equipment; bodyweight is always there. */
   hasEquipment: (equipment: Equipment) => boolean;
-};
-
-export const NO_GYM_LOADS: GymLoads = {
-  gymId: null,
-  gridFor: () => null,
-  settingFor: () => undefined,
-  rangesFor: () => [],
-  unavailableEquipment: [],
-  hasEquipment: () => true,
 };
 
 /**

@@ -2,6 +2,7 @@ import {
   baselineSessions,
   historyForGym,
   suggestNext,
+  weightAtMost,
   type Ghosts,
   type LoadGrid,
   type Equipment,
@@ -82,10 +83,10 @@ export function exerciseSuggestion(
         settings,
       );
 }
-export function capGhostWeight(ghosts: Ghosts, capKg: number | null): Ghosts {
-  return capKg !== null && ghosts.weight != null && ghosts.weight > capKg
-    ? { ...ghosts, weight: capKg }
-    : ghosts;
+export function capGhostWeight(ghosts: Ghosts, capKg: number | null, unit: WeightUnit): Ghosts {
+  if (capKg === null || ghosts.weight == null) return ghosts;
+  const cap = weightAtMost(capKg, unit, capKg);
+  return ghosts.weight > cap ? { ...ghosts, weight: cap } : ghosts;
 }
 
 export function loggingGhosts(
@@ -113,6 +114,7 @@ export function loggingGhosts(
           exercise.repeated,
         ),
         settings.grid?.capKg ?? null,
+        settings.weightUnit,
       )
     : {};
 }

@@ -4,7 +4,9 @@ import {
   historyForGym,
   historyForWorkout,
   optionalSetIndexes,
+  resolveExerciseUnit,
   stalledSessions,
+  weightAtMost,
   type Ghosts,
   type LighterPeriod,
   type LoggedSet,
@@ -34,7 +36,7 @@ export type DeriveInputs = {
   historyFailed: boolean;
   previousSource: PreviousSource;
   unit: WeightUnit;
-  unitName: string;
+  unitNames: Readonly<Record<WeightUnit, string>>;
   display: DisplayUnits;
   weightIncrementKg: number | null;
   /** The active gym supplies equipment, load steps and caps. */
@@ -128,13 +130,14 @@ function buildView(
         stall = { count, latestSessionId, applied: memory.applied };
     }
   }
-  const grid = inputs.gym.gridFor(exercise.exerciseId, equipment);
+  const unit = resolveExerciseUnit(inputs.unit, exercise.unit);
+  const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
       : exerciseSuggestion(exercise, rawHistory ?? [], {
           baselineHistory: baseline,
-          weightUnit: inputs.unit,
+          weightUnit: unit,
           weightIncrementKg: inputs.weightIncrementKg,
           gymId: inputs.sessionGymId ?? null,
           grid,
@@ -170,7 +173,7 @@ function buildView(
       : {};
     const row: RowView = {
       previous,
-      ghosts: capGhostWeight(ghosts, capKg),
+      ghosts: capGhostWeight(ghosts, capKg, unit),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -180,7 +183,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
-      capKg,
+      capKg: capKg === null ? null : weightAtMost(capKg, unit, capKg),
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
@@ -193,8 +196,8 @@ function buildView(
     summary: doneSummary(
       exercise.sets,
       exercise.type,
-      inputs.unit,
-      inputs.unitName,
+      unit,
+      inputs.unitNames[unit],
       inputs.display,
     ),
     historyReady,

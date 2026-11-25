@@ -3,6 +3,8 @@ import {
   EQUIPMENT,
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
+  WEIGHT_UNITS,
+  type WeightUnit,
   plannedSetSchema,
   type Equipment,
   type ExerciseType,
@@ -72,6 +74,7 @@ export type WorkoutExerciseDetail = {
   supersetGroup: string | null;
   /** The exercise's pinned note (one per exercise, shown wherever it appears). */
   pinnedNote: string | null;
+  unit?: WeightUnit | null;
   sets: PlannedSet[];
   exercise: WorkoutExerciseInfo | null;
 };
@@ -243,6 +246,7 @@ const detailRowSchema = z.object({
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   progression_per_set: z.number().nullable(),
+  unit: z.enum(WEIGHT_UNITS).nullable(),
   pinned_note: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
   image_media_id: z.string().nullable().optional(),
@@ -257,6 +261,8 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
     e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT unit FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS unit,
     (SELECT note FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS pinned_note
   FROM workout w
@@ -282,6 +288,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
       note: row.exercise_note,
       supersetGroup: row.superset_group,
       pinnedNote: row.pinned_note,
+      unit: row.unit,
       sets: row.sets ?? [],
       exercise:
         row.exercise_title !== null &&
@@ -611,7 +618,7 @@ export function watchProgramPlan(
   };
   database.onChangeWithCallback(
     { onChange: read },
-    { signal: controller.signal, tables: PROGRAM_TABLES },
+    { signal: controller.signal, tables: [...PROGRAM_TABLES, "exercise_setting"] },
   );
   read();
   return () => controller.abort();
@@ -1026,6 +1033,26 @@ export function watchExerciseBars(
     [],
     ["exercise_setting"],
     parsing(parseExerciseBars, { onResult: handlers.onBars, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches one exercise's weight unit override. */
+export function watchExerciseUnit(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onUnit: (unit: WeightUnit | null) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ unit: z.enum(WEIGHT_UNITS).nullable() }));
+  return watch(
+    database,
+    "SELECT unit FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => schema.parse(rows)[0]?.unit ?? null, {
+      onResult: handlers.onUnit,
+      onError: handlers.onError,
+    }),
     handlers.onError,
   );
 }

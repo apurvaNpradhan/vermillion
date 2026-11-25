@@ -1,4 +1,4 @@
-import { isCounted } from "@workspace/shared";
+import { isCounted, type WeightUnit } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 
 import { rowDetail, type RowDetail } from "./best-set";
@@ -7,6 +7,7 @@ import { rowDetail, type RowDetail } from "./best-set";
 export type ShareRow = {
   id: string;
   title: string;
+  unit: WeightUnit | null;
   thumbnailKey: string | null;
   imageMediaId: string | null;
   /** Counted sets: ticked, no warm-ups unless they are counted. */
@@ -36,6 +37,7 @@ export function shareRows(
       {
         id: entry.id,
         title: entry.title,
+        unit: entry.unit ?? null,
         thumbnailKey: entry.exercise?.thumbnailKey ?? null,
         imageMediaId: entry.exercise?.imageMediaId ?? null,
         sets: counted.length,

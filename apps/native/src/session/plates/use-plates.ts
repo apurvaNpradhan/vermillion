@@ -4,6 +4,8 @@ import {
   type Equipment,
   type GymEquipmentInput,
   type WeightUnit,
+  barsInUnit,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import {
   deleteEquipment,
@@ -183,6 +185,7 @@ export function usePlates(
   equipmentKind?: Equipment,
   /** The Session's gym: its kit and its cap. None (or null) is the gym trained at. */
   gymId?: string | null,
+  unitOverride?: WeightUnit | null,
 ) {
   const equipment = useEquipment(enabled, gymId ?? undefined, true);
   const { run, scope } = equipment;
@@ -202,13 +205,17 @@ export function usePlates(
     [exerciseId, enabled],
   );
   const remembered = useLocalWatch(subscribe);
-  const bars = useMemo(() => enabledBars(equipment.rows), [equipment.rows]);
+  const preferred = resolveExerciseUnit(equipment.unit, unitOverride);
+  const bars = useMemo(() => {
+    const enabled = enabledBars(equipment.rows);
+    return unitOverride == null ? enabled : barsInUnit(enabled, preferred);
+  }, [equipment.rows, preferred, unitOverride]);
   const bar = defaultBar(
     bars,
     selected?.exerciseId === exerciseId && selected.scope === scope
       ? selected.id
       : remembered.value,
-    equipment.unit,
+    preferred,
     equipmentKind,
   );
   const plates = bar ? platesForBar(equipment.rows, bar) : [];
@@ -250,8 +257,10 @@ export function usePlates(
     bar,
     /** The "EZ" or "Trap" bar this exercise opens on, when the kit has no such bar. */
     missingBar: missingBarLabel(bars, equipmentKind),
-    /** The unit the calculator works in: the bar's own. */
-    barUnit: bar?.unit ?? equipment.unit,
+    /** The unit of the physical plates, which must match the bar. */
+    barUnit: bar?.unit ?? preferred,
+    /** Loads are shown in the exercise unit, including when the kit is in another unit. */
+    displayUnit: preferred,
     plates,
     target,
     cap,

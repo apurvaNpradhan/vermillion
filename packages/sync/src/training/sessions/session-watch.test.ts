@@ -669,12 +669,14 @@ describe("Session detail queries", () => {
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
     (SELECT note FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
+    (SELECT unit FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS unit,
     (SELECT se2.note FROM session_exercise se2
       JOIN training_session s2 ON s2.id = se2.session_id
       WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
         AND s2.started_at < s.started_at
       ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
-  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note"] as const;
+  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note", "unit"] as const;
 
   it("updates a running Session when its earlier finished exercise note is edited", async () => {
     const s = await setupSessions();
@@ -714,6 +716,7 @@ describe("Session detail queries", () => {
       note: "Heels down",
       progression_per_set: true,
       auto_warmups: true,
+      unit: "lb",
     });
     // The local replica can briefly hold duplicate settings, for example after offline writes.
     s.sqlite
@@ -726,7 +729,7 @@ describe("Session detail queries", () => {
       const legacy = s.sqlite
         .prepare(
           SESSION_DETAIL_SQL.replace(
-            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.note AS pinned_note,/,
+            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.unit AS unit,/,
             `${LEGACY_COLUMNS},`,
           )
             .replace(/WITH first_setting AS \([\s\S]*?\)\n  SELECT/, "SELECT")

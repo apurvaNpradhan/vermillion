@@ -30,12 +30,14 @@ const PLATE_INK: Record<PlateRole, string> = {
 export function BarDiagram({
   platesPerSide,
   unit,
+  displayUnit = unit,
   label,
   onPlatePress,
   plateLabel,
 }: {
   platesPerSide: readonly LoadPlate[];
   unit: WeightUnit;
+  displayUnit?: WeightUnit;
   /** Read by screen readers instead of the drawing. */
   label: string;
   /** Makes each plate a button, with the screen-reader name the callback's caller gives it. */
@@ -43,7 +45,7 @@ export function BarDiagram({
   plateLabel?: (weightKg: number) => string;
 }) {
   const [width, setWidth] = useState(320);
-  const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, unit), width);
+  const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, displayUnit), width);
   const middle = layout.height / 2;
   return (
     <View
@@ -108,7 +110,7 @@ export function BarDiagram({
                   transform: [{ rotate: "-90deg" }],
                 }}
               >
-                {formatWeight(plate.weightKg, unit)}
+                {formatWeight(plate.weightKg, displayUnit)}
               </Text>
             ) : null}
           </Pressable>

@@ -147,7 +147,8 @@ export function EditorKeypadProvider({
       const current = store.getState().active;
       if (current?.tableId !== tableId) return;
       const { key } = current.entry.cell;
-      if (!cells.some((cell) => cell.key === key)) {
+      const cell = cells.find((item) => item.key === key);
+      if (!cell || (cell.field === "weight" && cell.unit !== current.entry.cell.unit)) {
         setCurrent(null);
         return;
       }
@@ -258,11 +259,15 @@ function KeypadDock({
     const cell = state.active?.entry.cell;
     if (!cell) return "";
     return String(
-      stepOf(cell.field, {
-        unit: cell.unit,
-        equipment: cell.equipment,
-        incrementKg: cell.incrementKg,
-      }),
+      stepOf(
+        cell.field,
+        {
+          unit: cell.unit,
+          equipment: cell.equipment,
+          incrementKg: cell.incrementKg,
+        },
+        cell.field === "weight" && cell.equipment === "dumbbell" ? (cell.value ?? null) : null,
+      ),
     );
   });
   if (field === null) return null;

@@ -72,6 +72,7 @@ export function ExerciseNumbers({
   gymId,
   weightIncrementKg,
   progressionPerSet,
+  unitOverride,
 }: {
   sessions: FinishedSession[];
   exerciseId: string;
@@ -84,6 +85,7 @@ export function ExerciseNumbers({
   gymId?: string | null;
   weightIncrementKg: number | null;
   progressionPerSet: boolean;
+  unitOverride: WeightUnit | null;
 }) {
   const weight = useWeight();
   const sessions = weight.withBodyweight(rawSessions);
@@ -173,6 +175,7 @@ export function ExerciseNumbers({
             type={type}
             equipment={equipment}
             settings={settings}
+            unitOverride={unitOverride}
             gymId={gymId}
           />
         ) : null}

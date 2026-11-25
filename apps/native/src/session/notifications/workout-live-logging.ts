@@ -1,4 +1,10 @@
-import { historyForWorkout, type Ghosts, type PreviousSource } from "@workspace/shared";
+import {
+  historyForWorkout,
+  resolveExerciseUnit,
+  snapshotModifiers,
+  type Ghosts,
+  type PreviousSource,
+} from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
   parseFinishedSessions,
@@ -31,12 +37,17 @@ export async function workoutLiveGhosts(
   );
   const settings: SuggestionSettings = {
     ...options,
+    weightUnit: resolveExerciseUnit(options.weightUnit, exercise.unit),
     gymId: sessionGymId,
+    phaseLoad:
+      session.phase === null
+        ? undefined
+        : snapshotModifiers(session.phase, session.phaseModifiers).modifiers.load,
     baselineHistory: historyForWorkout(
       history,
       options.previousSource === "same_workout" ? session.workoutId : null,
     ),
-    grid: gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other"),
+    grid: gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other", exercise.unit),
   };
   ghosts.set(first.set.id, loggingGhosts(exercise, first.index, history, settings));
   return ghosts;

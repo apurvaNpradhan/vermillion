@@ -10,6 +10,7 @@ import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek } from "../plans/cycle";
 import { lightenLoad } from "../progress/progression-steps";
 import type { LoadGrid } from "../progress/load-grid";
+import { formatWeight, parseWeight, weightAtMost } from "../vocabulary/format";
 import {
   EFFORT_STEPS,
   TRAINING_LIMITS,
@@ -364,7 +365,14 @@ export function applyPhase(
       // Capped, then snapped down onto the gym's grid so the seed is a load the gym can make.
       const capped = capKg === null ? top.weight_kg : Math.min(top.weight_kg, capKg);
       const grid = options.grid && options.grid.source !== "cap" ? options.grid : null;
-      top.weight_kg = grid ? (grid.below(capped + EPS) ?? capped) : capped;
+      const nearest = grid?.nearest(capped);
+      const snapped =
+        nearest !== undefined && nearest <= capped ? nearest : (grid?.below(capped) ?? capped);
+      const shownKg = capKg === null ? null : parseWeight(formatWeight(snapped, unit), unit);
+      top.weight_kg =
+        capKg !== null && shownKg !== null && shownKg > capKg
+          ? weightAtMost(snapped, unit, capKg)
+          : snapped;
     }
     kept = top ? [top] : [];
   } else {

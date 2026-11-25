@@ -142,7 +142,7 @@ export const DEFAULT_INPUTS: DeriveInputs = {
   historyFailed: false,
   previousSource: "same_workout",
   unit: "kg",
-  unitName: "kg",
+  unitNames: { kg: "kg", lb: "lb" },
   display: { durationFormat: "clock", distanceUnit: "m" },
   weightIncrementKg: null,
   gym: {

@@ -4,7 +4,6 @@ import { Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
 import { usePreferences } from "@/preferences";
-import type { WeightUnit } from "@workspace/shared";
 
 import { useKeypadAccessory } from "./keypad-accessory";
 import type { useLoggingState } from "@/session/logging/use-logging-state";
@@ -12,11 +11,7 @@ import type { useLoggingState } from "@/session/logging/use-logging-state";
 type Logging = ReturnType<typeof useLoggingState>;
 
 /** What sits above the keypad's keys for the cell being edited (the plate calculator chip). */
-export function useSessionKeypadAccessory(
-  logging: Logging,
-  unit: WeightUnit,
-  gymId: string | null,
-): ReactNode {
+export function useSessionKeypadAccessory(logging: Logging, gymId: string | null): ReactNode {
   const cell =
     logging.entry && logging.activeField
       ? (() => {
@@ -26,7 +21,6 @@ export function useSessionKeypadAccessory(
                 exercise: at.exercise,
                 setId: at.set.id,
                 field: logging.activeField,
-                unit,
                 gymId,
                 readCurrentKg: () => {
                   const typed = logging.readTypedValue();

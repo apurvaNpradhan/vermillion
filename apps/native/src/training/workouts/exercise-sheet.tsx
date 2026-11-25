@@ -195,6 +195,7 @@ function LoadedSheet({
       )}
 
       <DetailedTargets
+        unit={entry.unit}
         sets={draft.sets}
         type={type}
         equipment={info?.equipment ?? null}

@@ -8,7 +8,13 @@ import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatWeight, type Equipment, type LoadPlate, type WeightUnit } from "@workspace/shared";
+import {
+  formatWeight,
+  weightAtMost,
+  type Equipment,
+  type LoadPlate,
+  type WeightUnit,
+} from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
@@ -102,6 +108,7 @@ function PlateCalculatorSheetBody({
   exerciseId,
   equipment,
   gymId,
+  unitOverride,
   onUse,
   onClose,
 }: {
@@ -114,13 +121,14 @@ function PlateCalculatorSheetBody({
   equipment?: Equipment;
   /** The Session's gym, whose kit and cap the calculator uses; none is the gym trained at. */
   gymId?: string | null;
+  unitOverride?: WeightUnit | null;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId, unitOverride);
   return (
     <BottomSheet
       animation={animation}
@@ -167,9 +175,11 @@ function CalculatorBody({
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const label = useEquipmentLabel();
-  const unit = state.barUnit;
+  const unit = state.displayUnit;
   const weight = (kg: number, own: WeightUnit = unit) =>
     t("plates__weight", { weight: formatWeight(kg, own), unit: own });
+  const cappedWeight = (kg: number) =>
+    weight(state.cap === null ? kg : weightAtMost(kg, unit, state.cap));
   const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
   const [mode, setMode] = useState<Mode>("calculate");
   const [stack, setStack] = useState<LoadPlate[]>([]);
@@ -222,7 +232,7 @@ function CalculatorBody({
     indicator: state.indicator,
   });
   const unitPlates = state.rows.flatMap((p) =>
-    p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
+    p.kind === "plate" && p.unit === state.barUnit && p.enabled ? [p] : [],
   );
   const over = overInventory(stack, state.plates);
   const loaded = !state.failed && !state.loading;
@@ -273,7 +283,9 @@ function CalculatorBody({
             ) : !barFits ? (
               <View className="gap-1">
                 <Text className="text-caption text-muted">
-                  {state.cap === null ? null : t("gym__plate_cap", { weight: weight(state.cap) })}
+                  {state.cap === null
+                    ? null
+                    : t("gym__plate_cap", { weight: cappedWeight(state.cap) })}
                 </Text>
                 <Text className="text-body text-muted">{t("gym__plate_bar_above_cap")}</Text>
               </View>
@@ -294,7 +306,7 @@ function CalculatorBody({
                       <PlateChip
                         key={option.side}
                         label={t("plates__option", {
-                          weight: weight(option.load.totalKg),
+                          weight: cappedWeight(option.load.totalKg),
                           difference: difference(option.differenceKg),
                         })}
                         selected={option.side === choice?.side}
@@ -306,16 +318,16 @@ function CalculatorBody({
                 <View className="gap-1">
                   {state.cap !== null ? (
                     <Text className="text-caption text-muted">
-                      {t("gym__plate_cap", { weight: weight(state.cap) })}
+                      {t("gym__plate_cap", { weight: cappedWeight(state.cap) })}
                     </Text>
                   ) : null}
                   {!building && hasTarget(state.target) ? (
                     <Text className="font-medium text-label text-muted tabular-nums">
-                      {t("plates__target", { weight: weight(state.target) })}
+                      {t("plates__target", { weight: cappedWeight(state.target) })}
                     </Text>
                   ) : null}
                   <Text className="font-semibold text-title-lg text-foreground tabular-nums">
-                    {t("plates__total", { weight: weight(totalKg) })}
+                    {t("plates__total", { weight: cappedWeight(totalKg) })}
                     {!building && choice && choice.differenceKg === 0
                       ? ` · ${t("plates__exact")}`
                       : null}
@@ -350,7 +362,8 @@ function CalculatorBody({
                 </View>
                 <BarDiagram
                   platesPerSide={platesPerSide}
-                  unit={unit}
+                  unit={state.barUnit}
+                  displayUnit={unit}
                   label={sideText}
                   onPlatePress={
                     building ? (index) => setStack(removeFromStack(stack, index)) : undefined
@@ -429,7 +442,7 @@ function CalculatorBody({
       {loaded && state.bar && canUse ? (
         <View className="bg-overlay px-4 pt-3" style={{ paddingBottom: bottom + 12 }}>
           <Button variant="primary" onPress={() => void use()}>
-            {t("plates__use", { weight: weight(totalKg) })}
+            {t("plates__use", { weight: cappedWeight(totalKg) })}
           </Button>
         </View>
       ) : null}

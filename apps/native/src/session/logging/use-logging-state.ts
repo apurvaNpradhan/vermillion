@@ -1,6 +1,7 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
+  resolveExerciseUnit,
   snapshotModifiers,
   type PreviousSource,
   type EffortScale,
@@ -127,7 +128,10 @@ export function useLoggingState({
   const stallVersion = useStallVersion();
   const lighterWeeks = useStableValue(rawLighterWeeks);
   const shownDisplay = useStableValue(display);
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const unitNames = useMemo(
+    () => ({ kg: t("training__unit_kg"), lb: t("training__unit_lb") }),
+    [t],
+  );
   const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
   // How much of the last load this Session's phase asks for (0.9 in a Deload, 1 otherwise).
   const phaseLoad = useStore(store, (state) =>
@@ -154,7 +158,7 @@ export function useLoggingState({
       historyFailed,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       display: shownDisplay,
       weightIncrementKg,
       gym,
@@ -172,7 +176,7 @@ export function useLoggingState({
       historyFailed,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       shownDisplay,
       weightIncrementKg,
       gym,
@@ -247,16 +251,34 @@ export function useLoggingState({
     [store],
   );
   const readEntry = useCallback(() => {
-    const { cell: current, raw: text, fresh: isFresh } = store.getState();
-    return current ? { cell: current, raw: text, fresh: isFresh } : null;
-  }, [store]);
+    const { cell: current, raw: text, fresh: isFresh, found } = store.getState();
+    if (!current) return null;
+    return {
+      cell: current,
+      raw: text,
+      fresh: isFresh,
+      unit: resolveExerciseUnit(unit, found.get(current.setId)?.exercise.unit),
+    };
+  }, [store, unit]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
     actions.updateValues(patch.setId, patch.values),
   );
   const activeSetId = cell?.setId ?? null;
+  const activeExercise = activeSetId === null ? undefined : found.get(activeSetId)?.exercise;
+  const activeUnit = resolveExerciseUnit(unit, activeExercise?.unit);
+  const priorEntry = useRef<{ cell: CellRef | null; unit: WeightUnit }>({ cell: null, unit });
 
   /** Saves what is typed now, for a cell that is about to be left. */
   const { flush } = writer;
+  useLayoutEffect(() => {
+    const last = priorEntry.current;
+    priorEntry.current = { cell, unit: activeUnit };
+    // The queued write already holds kilograms. Close the old unit's draft if sync changes it.
+    if (cell?.field === "weight" && cell === last.cell && activeUnit !== last.unit) {
+      void flush();
+      setEntry(null);
+    }
+  }, [cell, activeUnit, flush, setEntry]);
   const { awaitWrites } = actions;
   const flushWrites = useCallback(async () => {
     await flush();
@@ -278,7 +300,11 @@ export function useLoggingState({
       if (!at) return;
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(at.set, field), unit),
+        raw: textOfValue(
+          field,
+          valueOfSet(at.set, field),
+          resolveExerciseUnit(unit, at.exercise.unit),
+        ),
         fresh: true,
       });
     },
@@ -322,12 +348,14 @@ export function useLoggingState({
       if (!current) return;
       const base = current.fresh ? "" : current.raw;
       const text =
-        current.fresh && key === "backspace" ? "" : applyKey(current.cell.field, base, key, unit);
+        current.fresh && key === "backspace"
+          ? ""
+          : applyKey(current.cell.field, base, key, current.unit);
       if (text === current.raw && !current.fresh) return;
       setEntry({ cell: current.cell, raw: text, fresh: false });
-      commit(current.cell, valueOfText(current.cell.field, text, unit));
+      commit(current.cell, valueOfText(current.cell.field, text, current.unit));
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   /** Puts a whole value into the cell being edited (the plate calculator's Use). */
@@ -337,12 +365,12 @@ export function useLoggingState({
       if (!current) return;
       setEntry({
         cell: current.cell,
-        raw: textOfValue(current.cell.field, value, unit),
+        raw: textOfValue(current.cell.field, value, current.unit),
         fresh: false,
       });
       commit(current.cell, value);
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   const onStep = useCallback(
@@ -354,17 +382,23 @@ export function useLoggingState({
       const field = current.cell.field;
       const typed = current.fresh
         ? valueOfSet(at.set, field)
-        : valueOfText(field, current.raw, unit);
+        : valueOfText(field, current.raw, current.unit);
       const ghost = lookupGhosts(current.cell.setId)[field] ?? null;
+      const equipment = at.exercise.exercise?.equipment ?? "other";
       const stepped = stepValue(field, typed, ghost, direction, {
-        unit,
-        equipment: at.exercise.exercise?.equipment ?? null,
+        unit: current.unit,
+        equipment,
+        grid: gym.gridFor(at.exercise.exerciseId, equipment, at.exercise.unit),
         incrementKg: weightIncrementKg,
       });
-      setEntry({ cell: current.cell, raw: textOfValue(field, stepped, unit), fresh: false });
+      setEntry({
+        cell: current.cell,
+        raw: textOfValue(field, stepped, current.unit),
+        fresh: false,
+      });
       commit(current.cell, stepped);
     },
-    [store, unit, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
+    [store, gym, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
   );
 
   const next = useMemo(() => {
@@ -384,14 +418,18 @@ export function useLoggingState({
   const stepText = useMemo(() => {
     if (!cell) return "";
     const at = found.get(cell.setId);
+    const exercise = at?.exercise;
+    const equipment = exercise?.exercise?.equipment ?? "other";
+    const grid = exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null;
+    const currentKg = at?.set.weightKg ?? ghostsFor(cell.setId).weight ?? null;
     return String(
-      stepOf(cell.field, {
-        unit,
-        equipment: at?.exercise.exercise?.equipment ?? null,
-        incrementKg: weightIncrementKg,
-      }),
+      stepOf(
+        cell.field,
+        { unit: activeUnit, equipment, grid, incrementKg: weightIncrementKg },
+        grid || equipment === "dumbbell" ? currentKg : null,
+      ),
     );
-  }, [cell, found, unit, weightIncrementKg]);
+  }, [cell, found, activeUnit, gym, weightIncrementKg, ghostsFor]);
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
@@ -676,7 +714,7 @@ export function useLoggingState({
           ? {
               setId: typing.cell.setId,
               field: typing.cell.field,
-              value: valueOfText(typing.cell.field, typing.raw, unit),
+              value: valueOfText(typing.cell.field, typing.raw, typing.unit),
             }
           : null;
       flush();
@@ -686,7 +724,7 @@ export function useLoggingState({
       await Promise.all(updates.map(({ id, patch }) => actions.updateValues(id, patch)));
       store.getState().setRefusal(null);
     },
-    [readOnly, flush, store, lookupPrevious, actions, unit, readEntry],
+    [readOnly, flush, store, lookupPrevious, actions, readEntry],
   );
   const onKindSelected = useCallback(
     (setId: string, kind: SetKind) => void actions.updateValues(setId, { kind }),
@@ -739,11 +777,11 @@ export function useLoggingState({
      * saved set trails it while typing pauses are coalesced into one write. Only a screen without
      * rows follows it.
      */
-    typedValue: cell && !fresh ? valueOfText(cell.field, raw, unit) : undefined,
+    typedValue: cell && !fresh ? valueOfText(cell.field, raw, activeUnit) : undefined,
     readTypedValue: () => {
       const current = readEntry();
       return current && !current.fresh
-        ? valueOfText(current.cell.field, current.raw, unit)
+        ? valueOfText(current.cell.field, current.raw, current.unit)
         : undefined;
     },
     hasNext: next !== null,

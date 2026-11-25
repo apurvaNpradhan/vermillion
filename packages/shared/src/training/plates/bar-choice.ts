@@ -28,6 +28,15 @@ export function enabledBars<Row extends KitRow>(rows: readonly Row[]): Row[] {
   return rows.filter((row) => row.kind === "bar" && row.enabled);
 }
 
+/** With a unit override, use matching bars if the gym has any. */
+export function barsInUnit<Row extends KitRow>(
+  bars: readonly Row[],
+  unit: WeightUnit,
+): readonly Row[] {
+  const matching = bars.filter((bar) => bar.unit === unit);
+  return matching.length ? matching : bars;
+}
+
 /** The plates the solver may use for a bar: enabled, and in the bar's own unit. */
 export function platesForBar(rows: readonly KitRow[], bar: Pick<KitRow, "unit">): LoadPlate[] {
   return rows.flatMap((row) =>
@@ -82,7 +91,9 @@ export function defaultBar<Row extends KitRow>(
   rememberedId: string | null | undefined,
   preferred: WeightUnit,
   equipment?: Equipment | null,
+  preferMatchingUnit = false,
 ): Row | undefined {
+  if (preferMatchingUnit) bars = barsInUnit(bars, preferred);
   const remembered = rememberedId ? bars.find((bar) => bar.id === rememberedId) : undefined;
   if (remembered) return remembered;
   const labelled = labelledBar(bars, equipment, preferred);

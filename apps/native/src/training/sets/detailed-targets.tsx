@@ -1,4 +1,6 @@
 import {
+  resolveExerciseUnit,
+  type WeightUnit,
   type Equipment,
   type ExerciseType,
   type PlannedSet,
@@ -29,6 +31,7 @@ export function DetailedTargets({
   sets,
   type,
   equipment = null,
+  unit,
   animateRows = true,
   onSets,
 }: {
@@ -36,6 +39,7 @@ export function DetailedTargets({
   type: ExerciseType;
   /** The exercise's equipment, for the keypad's step. */
   equipment?: Equipment | null;
+  unit?: WeightUnit | null;
   animateRows?: boolean;
   onSets: (sets: PlannedSet[]) => void;
 }) {
@@ -67,7 +71,7 @@ export function DetailedTargets({
         sets={sets}
         ids={ids}
         chips={chipTexts(sets, letters)}
-        weightUnit={preferences.weightUnit}
+        weightUnit={resolveExerciseUnit(preferences.weightUnit, unit)}
         weightIncrementKg={preferences.weightIncrementKg}
         equipment={equipment}
         animateRows={animateRows}

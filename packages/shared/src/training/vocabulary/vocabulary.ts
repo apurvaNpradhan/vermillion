@@ -21,6 +21,14 @@ export function rirToRpe(rir: number): number {
 export const WEIGHT_UNITS = ["kg", "lb"] as const;
 export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 
+/** Exercises follow the account preference until they have a unit of their own. */
+export function resolveExerciseUnit(
+  preferred: WeightUnit,
+  override: WeightUnit | null | undefined,
+): WeightUnit {
+  return override ?? preferred;
+}
+
 /**
  * Deprecated: the full-screen Timer is gone and every workout opens on its sets. "timer" stays a
  * valid value so stored preferences and older apps' writes still validate; nothing reads it.

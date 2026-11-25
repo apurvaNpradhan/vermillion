@@ -1,6 +1,6 @@
 import type { Equipment } from "../../exercise/vocabulary";
 import { defaultBar, enabledBars, platesForBar, type KitRow } from "../plates/bar-choice";
-import type { WeightUnit } from "../vocabulary/vocabulary";
+import { resolveExerciseUnit, type WeightUnit } from "../vocabulary/vocabulary";
 import { gymRangesFor, loadGridOf, type LoadGrid, type LoadRange } from "./load-grid";
 
 /**
@@ -28,18 +28,23 @@ export function gymGridsOf(input: {
     rangesFor: (exerciseId: string, equipment: Equipment) =>
       gymRangesFor({ equipment, ranges: byExercise.get(exerciseId)?.loadRanges, dumbbellMaxKg }),
     /** The loads the gym can make for an exercise; null is the equipment's default step. */
-    gridFor(exerciseId: string, equipment: Equipment): LoadGrid | null {
-      const key = `${exerciseId}|${equipment}`;
+    gridFor(
+      exerciseId: string,
+      equipment: Equipment,
+      override?: WeightUnit | null,
+    ): LoadGrid | null {
+      const unit = resolveExerciseUnit(input.unit, override);
+      const key = `${exerciseId}|${equipment}|${override ?? ""}`;
       if (!grids.has(key)) {
         const bar =
           equipment === "barbell"
-            ? defaultBar(bars, input.bars?.get(exerciseId), input.unit, equipment)
+            ? defaultBar(bars, input.bars?.get(exerciseId), unit, equipment, override != null)
             : undefined;
         grids.set(
           key,
           loadGridOf({
             equipment,
-            unit: input.unit,
+            unit,
             ranges: byExercise.get(exerciseId)?.loadRanges,
             dumbbellMaxKg,
             bar,

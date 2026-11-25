@@ -10,7 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
-import { useExercise, useTopSetText } from "@/exercise";
+import { useExercise, useExerciseUnit, useTopSetText } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
@@ -166,17 +166,17 @@ function RecordsCard({
   const { preferences } = usePreferences();
   const history = useRecordHistory(session.sets.map((set) => set.exercise_id));
   const topSetText = useTopSetText(preferences.ui.weightUnit);
-  if (history.loading || history.failed) return null;
   const { total, flags } = sessionRecords({
     history: history.sessions,
     session,
     bodyweightKg: preferences.ui.bodyweightKg,
   });
-  if (total === 0) return null;
   // The set that carries the most records is the one worth naming.
   const flagged = session.sets
     .filter((set) => (flags.get(set.id)?.length ?? 0) > 0)
     .sort((a, b) => (flags.get(b.id)?.length ?? 0) - (flags.get(a.id)?.length ?? 0))[0];
+  const exerciseUnit = useExerciseUnit(flagged?.exercise_id ?? "");
+  if (history.loading || history.failed || total === 0) return null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -192,7 +192,7 @@ function RecordsCard({
         {flagged
           ? t("home__records_body", {
               title: session.title,
-              set: topSetText(flagged, flagged.exercise_type),
+              set: topSetText(flagged, flagged.exercise_type, exerciseUnit.value ?? undefined),
             })
           : session.title}
       </Text>

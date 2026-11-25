@@ -4,7 +4,11 @@
  */
 import {
   KG_PER_LB,
+  addLoad,
   incrementFor,
+  loadGridOf,
+  weightAtMost,
+  type LoadGrid,
   type Equipment,
   MAX_WEIGHT_KG,
   SESSION_LIMITS,
@@ -165,6 +169,7 @@ export type StepContext = {
   equipment: Equipment | null;
   /** The user's manual weight increment in kg; null is "Auto by equipment". */
   incrementKg: number | null;
+  grid?: LoadGrid | null;
 };
 
 /**
@@ -172,13 +177,22 @@ export type StepContext = {
  * equipment's smallest loadable step (the same rule the progression suggestions use), shown in the
  * user's unit; the rest are fixed.
  */
-export function stepOf(field: EntryField, context: StepContext): number {
+export function stepOf(
+  field: EntryField,
+  context: StepContext,
+  loadKg: number | null = null,
+): number {
   switch (field) {
     case "weight": {
-      const kg = incrementFor(null, context.equipment ?? "other", {
-        weightUnit: context.unit,
-        weightIncrementKg: context.incrementKg,
-      });
+      const kg = incrementFor(
+        loadKg,
+        context.equipment ?? "other",
+        {
+          weightUnit: context.unit,
+          weightIncrementKg: context.incrementKg,
+        },
+        context.grid,
+      );
       return Number((context.unit === "kg" ? kg : kg / KG_PER_LB).toFixed(2));
     }
     case "reps":
@@ -223,12 +237,51 @@ export function stepValue(
   context: StepContext,
 ): number {
   const start = current ?? ghost ?? 0;
-  const step = stepOf(field, context);
+  const step = stepOf(
+    field,
+    context,
+    field === "weight" && (context.grid || context.equipment === "dumbbell") ? start : null,
+  );
   let next: number;
   if (field === "weight") {
+    const grid =
+      context.grid ??
+      (context.equipment === "dumbbell"
+        ? loadGridOf({ equipment: "dumbbell", unit: context.unit })
+        : null);
+    const cap = Math.min(grid?.capKg ?? MAX_WEIGHT_KG, MAX_WEIGHT_KG);
+    if (grid && (grid.source === "gym" || context.incrementKg === null)) {
+      // A typed pound weight is rounded to grams. Walk down from its matching rack point.
+      const nearestToStart = direction === -1 ? grid.nearest(start) : start;
+      const atGridPoint =
+        formatWeight(nearestToStart, context.unit) === formatWeight(start, context.unit);
+      const below = direction === -1 ? grid.below(atGridPoint ? nearestToStart : start) : null;
+      const stepKg = incrementFor(
+        below ?? start,
+        context.equipment ?? "other",
+        {
+          weightUnit: context.unit,
+          weightIncrementKg: context.incrementKg,
+        },
+        grid,
+      );
+      if (direction === 1) {
+        const next = addLoad(start, stepKg, context.unit, grid) ?? start;
+        return next > cap ? weightAtMost(next, context.unit, cap) : next;
+      }
+      if (grid.source !== "cap") {
+        const nearest = grid.nearest(Math.max(0, start - stepKg));
+        const lighter = nearest < start ? nearest : (below ?? 0);
+        return weightAtMost(lighter, context.unit, Math.min(cap, start));
+      }
+    }
     const shown = context.unit === "kg" ? start : start / KG_PER_LB;
     const stepped = Math.round((shown + direction * step) / step) * step;
-    next = parseWeight(String(Number(Math.max(0, stepped).toFixed(2))), context.unit) ?? 0;
+    next = weightAtMost(
+      Math.max(0, context.unit === "kg" ? stepped : stepped * KG_PER_LB),
+      context.unit,
+      cap,
+    );
   } else {
     next = start + direction * step;
   }

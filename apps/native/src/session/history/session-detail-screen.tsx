@@ -1,6 +1,12 @@
 import { SessionPhotos } from "@/session/screen/session-photos";
 import { useWeight } from "@/body";
-import { recordCount, recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
+import {
+  recordCount,
+  recordFlags,
+  sessionTotals,
+  withWarmupsCounted,
+  resolveExerciseUnit,
+} from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
@@ -185,6 +191,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   onAction={() => router.push({ pathname: "/session/[id]", params: { id } })}
                 />
                 {session.exercises.map((entry) => {
+                  const exerciseUnit = resolveExerciseUnit(unit, entry.unit);
+                  const exerciseUnitLabel = t(
+                    exerciseUnit === "kg" ? "training__unit_kg" : "training__unit_lb",
+                  );
                   const chips = chipTexts(entry.sets, {
                     working: "",
                     warmup: t("training__chip_warmup"),
@@ -202,8 +212,8 @@ export function SessionDetailScreen({ id }: { id: string }) {
                       doneSummary(
                         [{ ...set, kind: "working" }],
                         entry.type,
-                        unit,
-                        unitLabel,
+                        exerciseUnit,
+                        exerciseUnitLabel,
                         display,
                       ),
                       set.rpe === null

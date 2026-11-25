@@ -3,6 +3,7 @@ import {
   PREVIOUS_SOURCES,
   lighterPeriodSchema,
   sessionActiveSeconds,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import { z } from "zod";
 import type { TFunction } from "i18next";
@@ -64,6 +65,8 @@ export function workoutLiveState(input: {
   const { session, t } = input;
   const action = currentAction(input);
   const current = action.current;
+  const exercise = session.exercises.find((entry) => entry.id === current?.exerciseRowId);
+  const unit = resolveExerciseUnit(input.unit, exercise?.unit);
   const set = current
     ? t("session__live_set", { index: current.index + 1, total: current.total })
     : t("session__live_all_done");
@@ -85,8 +88,8 @@ export function workoutLiveState(input: {
             set,
             values: valuesText(
               current.values,
-              input.unit,
-              t(input.unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
+              unit,
+              t(unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
               current.type,
             ),
           })

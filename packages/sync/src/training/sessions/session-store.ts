@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import {
   REST_SECONDS_MAX,
   applyPhase,
+  resolveExerciseUnit,
   cycleState,
   finishClock,
   mainEntryOf,
@@ -236,9 +237,10 @@ async function createSessionIn(
   for (const entry of planned) {
     const info = await exerciseInfoOf(tx, entry.exercise_id);
     const [setting] = await tx
-      .select({ log_effort: exerciseSetting.log_effort })
+      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
       .from(exerciseSetting)
       .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
+      .orderBy(asc(exerciseSetting.id))
       .limit(1);
     const sessionExerciseId = uuidv7();
     // Phases adjust the targets as the Session copies them; the Workout stays as planned.
@@ -249,8 +251,8 @@ async function createSessionIn(
             isMainLift,
             type: info.exercise_type,
             equipment: info.equipment,
-            unit: loads.unit,
-            grid: loads.gridFor(entry.exercise_id, info.equipment),
+            unit: resolveExerciseUnit(loads.unit, setting?.unit),
+            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
             modifiers: phase.modifiers,
             testTop: phase.testTop,
             // A Test week's top set starts from what the lifter last did, not the stale plan.
