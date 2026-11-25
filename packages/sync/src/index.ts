@@ -69,6 +69,7 @@ export {
   type WireValue,
 } from "./platform/row-conversion";
 export { SYNCED_TABLE_NAMES, drizzleSchema, powerSyncSchema } from "./platform/schema";
+export { BACKUP_TABLE_NAMES, readBackupTables, type BackupTables } from "./platform/backup";
 export {
   REJECTED_PAYLOAD_MAX_BYTES,
   deviceOwner,
@@ -195,6 +196,8 @@ export {
   watchSessionsBetween,
   watchSessionSetCounts,
   readSessionExportRows,
+  readSessionStarts,
+  watchSessionStarts,
   SESSION_EXPORT_SQL,
   watchSessionPage,
   watchFinishedHistory,
@@ -216,6 +219,7 @@ export {
 } from "./training";
 export type {
   ActiveSession,
+  SessionStart,
   DeletedSession,
   EquipmentItem,
   EquipmentRow,
@@ -320,6 +324,8 @@ export {
   watchMetric,
   watchLatestByMetric,
   watchWeighInDays,
+  readBodyExportRows,
+  type BodyExportRow,
   type MeasurementRow,
   type WatchedMeasurement,
 } from "./body";

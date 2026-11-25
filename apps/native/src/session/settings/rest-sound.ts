@@ -15,6 +15,9 @@ export const REST_SOUND_FILE = "rest_end.wav";
  */
 export const REST_CHANNEL_WITH_SOUND = "rest-timer-sound-v2";
 export const REST_CHANNEL_SILENT = "rest-timer-silent";
+/** The same two without the vibration, for people who turned the Rest buzz off. */
+export const REST_CHANNEL_WITH_SOUND_STILL = "rest-timer-sound-still";
+export const REST_CHANNEL_SILENT_STILL = "rest-timer-silent-still";
 export const RETIRED_REST_CHANNELS: readonly string[] = ["rest-timer", "rest-timer-sound"];
 
 /** Whether the Rest notification carries the chime: the master switch and the Rest group are on. */
@@ -22,8 +25,9 @@ export function restSoundOn(prefs: Pick<UiPreferences, "sounds" | "soundRest">):
   return prefs.sounds && prefs.soundRest;
 }
 
-export function restChannelId(soundOn: boolean): string {
-  return soundOn ? REST_CHANNEL_WITH_SOUND : REST_CHANNEL_SILENT;
+export function restChannelId(soundOn: boolean, vibrate = true): string {
+  if (vibrate) return soundOn ? REST_CHANNEL_WITH_SOUND : REST_CHANNEL_SILENT;
+  return soundOn ? REST_CHANNEL_WITH_SOUND_STILL : REST_CHANNEL_SILENT_STILL;
 }
 
 /** The `sound` of a scheduled Rest notification: the chime's file (iOS), or none. */

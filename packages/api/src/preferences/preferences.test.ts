@@ -74,6 +74,10 @@ describe("preferences", () => {
       ui: {
         weighInReminder: { enabled: false, time: "08:00" },
         checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+        trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+        reportReminder: { enabled: false },
+        restVibration: true,
+        cueVolume: 100,
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -137,6 +141,10 @@ describe("preferences", () => {
       ui: {
         weighInReminder: { enabled: false, time: "08:00" },
         checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+        trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+        reportReminder: { enabled: false },
+        restVibration: true,
+        cueVolume: 100,
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -192,6 +200,10 @@ describe("preferences", () => {
       ui: {
         weighInReminder: { enabled: false, time: "08:00" },
         checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+        trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+        reportReminder: { enabled: false },
+        restVibration: true,
+        cueVolume: 100,
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
@@ -253,6 +265,10 @@ describe("preferences", () => {
       ui: {
         weighInReminder: { enabled: false, time: "08:00" },
         checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+        trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+        reportReminder: { enabled: false },
+        restVibration: true,
+        cueVolume: 100,
         lengthUnit: "cm",
         heightCm: null,
         trackedMetrics: [
