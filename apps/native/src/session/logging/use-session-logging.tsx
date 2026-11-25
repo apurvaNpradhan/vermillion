@@ -134,7 +134,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     actions,
     editsPending: logging.editsPending,
     flushEdits: logging.flush,
-    gymId: gym.gymId,
+    gym,
   });
 
   return {
