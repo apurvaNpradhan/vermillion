@@ -430,7 +430,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
         reason: null,
         incrementKg: 0,
         breakDays: null,
-        capKg: grid.capKg,
+        capKg: grid?.capKg ?? null,
         sets: offered.map((set, index) => ({
           id: ids[index],
           ghosts: { weight: set?.weightKg, reps: set?.reps },
@@ -449,7 +449,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       expect(adjusted?.sets[0]?.ghosts.weight).toBe(offered[0]?.weightKg);
       const lowered = adjusted?.sets[1]?.ghosts.weight ?? 0;
       expect(lowered).toBeLessThan(offered[1]?.weightKg ?? 0);
-      expect(grid.nearest(lowered)).toBeCloseTo(lowered, 3);
+      expect(grid?.nearest(lowered)).toBeCloseTo(lowered, 3);
       const session = train(
         day,
         [

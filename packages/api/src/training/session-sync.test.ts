@@ -27,6 +27,9 @@ const syncOptions = {
 
 type Value = string | number | null;
 
+/** What a snapshot looks like on the wire, before the server validates it. */
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json | undefined };
+
 describe("session upload handlers", () => {
   let app: TestApp;
   let weightReps: string;
@@ -308,7 +311,7 @@ describe("session upload handlers", () => {
         },
       ],
     };
-    const patch = (value: typeof snapshot & { previousRevision: string | null }) =>
+    const patch = (value: Json) =>
       op("PATCH", "session_exercise", t.exerciseId, { prescription: JSON.stringify(value) });
 
     expect(await stranger.send([patch(snapshot)])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
@@ -338,16 +341,15 @@ describe("session upload handlers", () => {
     expect(await storedPrescription(t.exerciseId)).toEqual(revision);
 
     // A same-day adjustment is a revision that names the snapshot it replaces.
+    const [kept, lowered] = revision.sets;
+    if (!kept || !lowered) throw new Error("Expected two sets");
     const adjusted = {
       ...revision,
       revision: uuidv7(),
       previousRevision: revision.revision,
       adjustedBy: [t.set1],
       adjustment: { setId: t.set1, reason: "reps_short", reps: 3 },
-      sets: [
-        revision.sets[0],
-        { ...revision.sets[1], ghosts: { weight: 62.5, reps: 8 }, unadjustedWeightKg: 65 },
-      ],
+      sets: [kept, { ...lowered, ghosts: { weight: 62.5, reps: 8 }, unadjustedWeightKg: 65 }],
     };
     expect(
       await me.send([patch({ ...adjusted, adjustment: { ...adjusted.adjustment, reason: "x" } })]),

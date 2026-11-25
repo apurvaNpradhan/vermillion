@@ -15,7 +15,7 @@ import { Button } from "@/platform/ui/button";
 import { usePreference, usePreferences } from "@/preferences";
 
 import { capPromptKey } from "./cap-prompt";
-import { useGymSetting } from "./use-gym-setting";
+import { useGymSetting } from "../use-gym-setting";
 
 /** Either answer dismisses the prompt for this exercise at this gym. */
 export function StepPrompt({

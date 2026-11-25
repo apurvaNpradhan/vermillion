@@ -6,11 +6,11 @@ import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { usePreference, usePreferences } from "@/preferences";
-import { useTrainingWrite } from "@/training";
 
 import { capPromptKey, pendingCapPrompt } from "./cap-prompt";
 import { dismissOverridePrompt, pendingOverridePrompt } from "./override-prompt";
-import { useGymSetting } from "./use-gym-setting";
+import { useGymSetting } from "../use-gym-setting";
+import { useGyms } from "../use-gyms";
 
 /** The planned range of the exercise's working sets, as the Session started with it. */
 export type PlannedRange = { min: number; max: number };
@@ -156,7 +156,7 @@ function RangeAnswer({
 }) {
   const { t } = useTranslation();
   const { updateUi } = usePreferences();
-  const { write, writeScope } = useTrainingWrite();
+  const { run, writeScope } = useGyms();
   const [busy, setBusy] = useState(false);
   const newMax = reps;
   const newMin = Math.max(1, reps - (range.max - range.min));
@@ -165,10 +165,9 @@ function RangeAnswer({
     setBusy(true);
     try {
       if (confirm) {
-        const wrote = await write(
-          (db) => raiseWorkoutRepRange(db, workoutExerciseId, reps, writeScope),
-          false,
-        );
+        const wrote =
+          (await run((db) => raiseWorkoutRepRange(db, workoutExerciseId, reps, writeScope))) ===
+          true;
         if (!wrote) return;
       }
       await updateUi(({ overridePrompts }) => ({

@@ -3,7 +3,7 @@ import { usesGymHistory, type Equipment, type SetOutcome } from "@workspace/shar
 import { usePreferences } from "@/preferences";
 
 import { capPromptKey, noteLoggedLoad } from "./cap-prompt";
-import type { GymLoads } from "./gym-loads";
+import type { GymLoads } from "../gym-loads";
 import { noteOverride, observeReps, observeStep, overridePromptKey } from "./override-prompt";
 
 /**
