@@ -1127,7 +1127,11 @@ export function watchExerciseRules(
   const schema = z.array(z.object({ exercise_id: z.string(), progression_rule: ruleText }));
   return watch(
     database,
-    "SELECT exercise_id, progression_rule FROM exercise_setting WHERE progression_rule IS NOT NULL ORDER BY id LIMIT 500",
+    // The exercise's first row, as every other reader takes it: a later duplicate never counts.
+    `SELECT exercise_id, progression_rule FROM exercise_setting AS setting
+      WHERE progression_rule IS NOT NULL
+        AND id = (SELECT id FROM exercise_setting WHERE exercise_id = setting.exercise_id ORDER BY id LIMIT 1)
+      ORDER BY exercise_id LIMIT 500`,
     [],
     ["exercise_setting"],
     parsing(

@@ -82,4 +82,33 @@ describe("watchExerciseRule and watchExerciseRules", () => {
       ["e2", { id: "maintain" }],
     ]);
   });
+
+  it("read the first row of an exercise alike when a sync left two", () => {
+    const { fake, training } = runningWatches();
+    const insert = fake.sqlite.prepare(
+      "INSERT INTO exercise_setting (id, exercise_id, progression_rule) VALUES (?, ?, ?)",
+    );
+    // e1: the first row has no rule, a later duplicate has one. e2: the reverse.
+    insert.run("a1", "e1", null);
+    insert.run("a2", "e1", '{"id":"linear"}');
+    insert.run("b1", "e2", '{"id":"maintain"}');
+    insert.run("b2", "e2", '{"id":"linear"}');
+    const rules: (readonly [string, unknown])[][] = [];
+    watchExerciseRules(training, {
+      onRules: (found) => rules.push([...found]),
+      onError: () => undefined,
+    });
+    expect(rules[0]).toEqual([["e2", { id: "maintain" }]]);
+    for (const [exercise, expected] of [
+      ["e1", null],
+      ["e2", { id: "maintain" }],
+    ] as const) {
+      const one: unknown[] = [];
+      watchExerciseRule(training, exercise, {
+        onRule: (rule) => one.push(rule),
+        onError: () => undefined,
+      });
+      expect(one).toEqual([expected]);
+    }
+  });
 });
