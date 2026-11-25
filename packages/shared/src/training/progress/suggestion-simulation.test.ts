@@ -376,7 +376,16 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     const recordLoad = kg(weight + step * 5);
     const result = train(7, [{ weightKg: recordLoad, reps: 1 }], { phase: "test", rpe: 9 });
     const history = [result, baseline];
-    expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBe(recordLoad);
+    // A single at RPE 9 had one rep in reserve: it counts as a two-rep set. Without effort it is its reps.
+    expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBeCloseTo(
+      (recordLoad * 36) / 35,
+      5,
+    );
+    expect(
+      exerciseRecords([train(7, [{ weightKg: recordLoad, reps: 1 }], { phase: "test" }), baseline])
+        .get("lift")
+        ?.get("estimated_one_rep_max"),
+    ).toBeCloseTo(recordLoad, 5);
     expect(recordFlags(history).get("7-0")).toContain("reps_1");
     expect(test(history, 8)).toBeCloseTo(estimate * 0.925, 5);
 

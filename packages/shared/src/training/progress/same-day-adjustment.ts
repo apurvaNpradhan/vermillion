@@ -82,7 +82,7 @@ export function deviation(ghosts: PrescribedSet["ghosts"], actual: Actual): Verd
     suggestedKg != null && loggedKg != null && loadIdentity(loggedKg) !== loadIdentity(suggestedKg);
   if (other) {
     if (targetReps == null || reps == null) return null;
-    const worth = repsAtLoad({ weight_kg: loggedKg, reps }, suggestedKg);
+    const worth = repsAtLoad({ weight_kg: loggedKg, reps, rpe }, suggestedKg);
     if (worth === null) return null;
     const gap = worth - targetReps;
     if (gap <= -REPS_GAP + EPSILON) return { reason: "reps_short", reps: Math.round(-gap) };

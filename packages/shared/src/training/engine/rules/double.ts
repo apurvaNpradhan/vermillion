@@ -72,7 +72,7 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
       if (!loaded || weight === null || weight <= 0) continue;
       const bodyweight = set.bodyweight_kg === undefined ? context.bodyweightKg : set.bodyweight_kg;
       const effective = effectiveWeight(type, weight, bodyweight);
-      const max = effective === null ? null : estimatedOneRepMax(effective, reps);
+      const max = effective === null ? null : estimatedOneRepMax(effective, reps, set.rpe);
       const bodyweightOffset = type === "bodyweight_weighted_reps" ? (bodyweight ?? 0) : 0;
       // Invert Brzycki within its 1–12 rep range. Outside it, cut the logged load by 10%.
       const target =

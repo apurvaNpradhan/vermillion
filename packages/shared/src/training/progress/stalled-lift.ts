@@ -51,7 +51,7 @@ function sessionScores(
         set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
       );
       if (weight !== null && weight > 0) {
-        score = estimatedOneRepMax(weight, set.reps);
+        score = estimatedOneRepMax(weight, set.reps, set.rpe);
         volume = Math.max(volume ?? 0, weight * set.reps);
       }
     }

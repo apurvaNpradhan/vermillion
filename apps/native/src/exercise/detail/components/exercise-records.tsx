@@ -1,6 +1,12 @@
-import type { ExerciseType, RecordKey, SessionHistory, WeightUnit } from "@workspace/shared";
+import {
+  recordsMovedByEffort,
+  type ExerciseType,
+  type RecordKey,
+  type SessionHistory,
+  type WeightUnit,
+} from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -8,6 +14,7 @@ import { Button } from "@/platform/ui/button";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 
 import { datedRecords, recordsByYear, recordYears } from "../numbers";
+import { useEffortNote } from "../use-effort-note";
 import { useMetricFormat } from "../use-metric-format";
 
 /** A record row: the shown best, and the all-time best beside it when a year is chosen. */
@@ -58,6 +65,11 @@ export function ExerciseRecords({
   const { t, i18n } = useTranslation();
   const { label, format } = useMetricFormat(type, unit);
   const [help, setHelp] = useState(false);
+  const moved = useMemo(
+    () => recordsMovedByEffort(sessions, bodyweightKg),
+    [sessions, bodyweightKg],
+  );
+  const note = useEffortNote(moved);
   const [year, setYear] = useState<number | null>(null);
   const date = (value: string | number) =>
     new Intl.DateTimeFormat(i18n.language, {
@@ -89,6 +101,18 @@ export function ExerciseRecords({
           <Button.Label>{t("exercise__records_help_symbol")}</Button.Label>
         </Button>
       </View>
+      {note.visible ? (
+        <View className="gap-1 rounded-xl bg-surface p-3">
+          <Text className="font-normal text-caption text-muted">
+            {t("exercise__records_effort_note")}
+          </Text>
+          <View className="flex-row justify-end">
+            <Button size="sm" variant="tertiary" onPress={note.dismiss}>
+              <Button.Label>{t("exercise__records_effort_note_ok")}</Button.Label>
+            </Button>
+          </View>
+        </View>
+      ) : null}
       {years.length > 1 ? (
         <ScrollView
           horizontal

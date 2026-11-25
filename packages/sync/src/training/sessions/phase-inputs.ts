@@ -112,6 +112,7 @@ export async function testWorkingLoadIn(
       kind: sessionSet.kind,
       weight_kg: sessionSet.weight_kg,
       reps: sessionSet.reps,
+      rpe: sessionSet.rpe,
       completed_at: sessionSet.completed_at,
     })
     .from(sessionSet)
