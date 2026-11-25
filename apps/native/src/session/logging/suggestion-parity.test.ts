@@ -164,7 +164,15 @@ it.each([
     for (const set of sets)
       await tickSet(training, set.id, {
         weight: kilograms,
-        reps: testWeek || fixed ? 5 : progressing ? 5 + index : 8,
+        // Microplates jump 15%: the lifter climbed to the extended ceiling of 5–8 reps (12) to earn it.
+        reps:
+          testWeek || fixed
+            ? 5
+            : "microplates" in scenario
+              ? 9 + index
+              : progressing
+                ? 5 + index
+                : 8,
         rpe: effort ? 7 : undefined,
       });
     await finishSession(training, id);

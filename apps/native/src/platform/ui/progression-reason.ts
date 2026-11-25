@@ -37,6 +37,8 @@ export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
       return "progress__label_deload";
     case "test_single":
       return "progress__label_test_single";
+    case "more_reps":
+      return "progress__label_more_reps";
     case "backoff_share":
       return "progress__label_backoff_share";
     case "capped":
@@ -83,6 +85,8 @@ export function progressionReasonKey(
       return effortScale === "rir"
         ? "progress__reason_test_single_rir"
         : "progress__reason_test_single";
+    case "more_reps":
+      return "progress__reason_more_reps";
     case "backoff_share":
       return "progress__reason_backoff_share";
     case "capped":
@@ -107,5 +111,8 @@ export function progressionParams(progression: Progression, outcome: SetOutcome,
     unit,
     count: breakWeeks(progression),
     percent: Math.round((outcome.loadFactor ?? 1) * 100),
+    /** How much heavier the next load is than this one, for `more_reps`. */
+    jump: Math.round(((outcome.loadFactor ?? 1) - 1) * 100),
+    reps: outcome.ceiling ?? 0,
   };
 }

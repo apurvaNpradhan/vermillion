@@ -17,6 +17,8 @@ export type SuggestedSet = { weightKg: number | null; reps: number | null };
 export const PROGRESSION_REASONS = [
   "add_weight",
   "add_rep",
+  /** The next load is a big jump: the reps climb past the range first. */
+  "more_reps",
   "reset",
   "hold_missed",
   "hold_together",
@@ -45,6 +47,8 @@ export type SetOutcome = {
   limit?: "plates" | "equipment";
   /** The share of the previous load after snapping to the equipment. */
   loadFactor?: number;
+  /** For `more_reps`: the reps to reach before the load goes up. */
+  ceiling?: number;
 };
 
 export type Progression = {

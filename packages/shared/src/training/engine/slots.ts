@@ -53,6 +53,7 @@ export type Outcome =
   | "capped"
   | "add_weight"
   | "add_rep"
+  | "more_reps"
   | "cap_reps"
   | "cap_hint"
   | "reset"
@@ -65,6 +66,7 @@ export const OUTCOME_ORDER = [
   "reset",
   "add_weight",
   "add_rep",
+  "more_reps",
   "cap_reps",
   "hold_effort",
   "cap_hint",
@@ -78,6 +80,7 @@ export const REASON_OF = {
   cap_hint: "cap_hint",
   add_weight: "add_weight",
   add_rep: "add_rep",
+  more_reps: "more_reps",
   hold_effort: "hold_effort",
   reset: "reset",
   hold_missed: "hold_missed",

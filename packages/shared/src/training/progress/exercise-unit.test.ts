@@ -91,7 +91,8 @@ it.each(cases)("uses the $override rack and progression for a $preferred lifter"
             kind: "working",
             completed_at: now.toISOString(),
             weight_kg: stored(example.last),
-            reps: 12,
+            // The extended ceiling: the jump to the next rack weight is earned.
+            reps: 18,
           },
         ],
       },

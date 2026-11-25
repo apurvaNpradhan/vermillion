@@ -266,7 +266,8 @@ describe("workout live notification", () => {
             exercise_type: "weight_reps" as const,
             kind: "working" as const,
             completed_at: "2026-11-20T10:30:00Z",
-            reps: 8,
+            // The extended ceiling of 8 reps: the 12% jump to the next pin is earned.
+            reps: 12,
             weight_kg: weight,
           },
         ],

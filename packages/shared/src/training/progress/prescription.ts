@@ -12,6 +12,7 @@ const outcome = z.strictObject({
   capKg: load.optional(),
   limit: z.enum(["plates", "equipment"]).optional(),
   loadFactor: z.number().nonnegative().optional(),
+  ceiling: z.int().min(1).max(999).optional(),
 }) satisfies z.ZodType<SetOutcome>;
 
 const ghostFields = {

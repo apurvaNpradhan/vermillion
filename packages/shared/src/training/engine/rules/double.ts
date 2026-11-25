@@ -9,7 +9,7 @@ import {
 } from "../../progress/progression-steps";
 import type { Progression, SetOutcome, SuggestedSet } from "../../progress/progression";
 import type { ProgressionRule } from "../rule";
-import { cappedRepCeiling } from "../ceiling";
+import { cappedRepCeiling, isBigJump } from "../ceiling";
 import {
   OUTCOME_ORDER,
   REASON_OF,
@@ -149,6 +149,16 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
         easyLoads.set(key, (easyLoads.get(key) ?? true) && easySet(before, target));
       }
     }
+    /** Straight sets move together: while one is short of the extended ceiling, the load waits. */
+    const behindExtended = (kind: SetKind) =>
+      together(kind) &&
+      slots.some(({ target, index }) => {
+        const reps = saved.get(index)?.exact?.reps;
+        const top = target.reps_max ?? target.reps_min;
+        return (
+          target.kind === kind && reps != null && top !== undefined && reps < cappedRepCeiling(top)
+        );
+      });
     const ordered: Outcome[] = [];
     let incrementKg: number | null = null;
     let lastMatchedWorkingIndex: number | undefined;
@@ -174,6 +184,7 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
           : resets.get(index);
       let outcome: Outcome = "same";
       let next = same;
+      let jump: { factor: number; ceiling: number } | undefined;
       if (
         cap !== null &&
         before.weight_kg != null &&
@@ -221,6 +232,13 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
             if (raised === null) {
               outcome = before.reps >= extended ? "cap_hint" : "cap_reps";
               if (outcome === "cap_reps") next = { ...same, reps: before.reps + 1 };
+            } else if (!easy && isBigJump(base, raised) && before.reps < extended) {
+              // The next load is far heavier (a dumbbell, a stack): earn more reps before it.
+              outcome = "more_reps";
+              next = { ...same, reps: before.reps + 1 };
+              jump = { factor: raised / base, ceiling: extended };
+            } else if (!easy && isBigJump(base, raised) && behindExtended(target.kind)) {
+              outcome = "hold_together";
             } else {
               incrementKg ??= raised - base;
               outcome = "add_weight";
@@ -249,6 +267,8 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
         changeKg:
           outcome === "add_weight" ? (next.weightKg ?? 0) - (before.weight_kg ?? 0) : undefined,
         capKg: outcome === "capped" ? (next.weightKg ?? undefined) : undefined,
+        loadFactor: jump?.factor,
+        ceiling: jump?.ceiling,
       };
       sets[index] = next;
     }

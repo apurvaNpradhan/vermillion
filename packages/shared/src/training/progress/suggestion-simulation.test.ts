@@ -235,7 +235,8 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
 
   it("uses physical automatic steps with legacy microplates and no stack setting", () => {
     const amount = unit === "kg" ? 20 : 45;
-    const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
+    // The extended ceiling of 6–8 reps: every jump below is earned, none waits for more reps.
+    const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 12 }));
     const history = [train(0, stacked)];
     const now = new Date(START + DAY);
     const plates = [{ id: "micro", weightKg: exact(unit === "kg" ? 0.5 : 1.25), count: null }];
