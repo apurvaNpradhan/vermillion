@@ -1888,6 +1888,7 @@
   "phase__effect_sets": "sets ×{{value}}",
   "phase__effect_rpe": "{{value}} RPE",
   "phase__effect_load": "−{{value}}% load",
+  "phase__effect_actual_load_range": "{{min}}–{{max}}% less load",
   "phase__banner": "{{phase}}: {{effects}}",
   "phase__preview_note": "This week: {{banner}}",
   "phase__week_chip": "Week {{week}} · {{phase}}",

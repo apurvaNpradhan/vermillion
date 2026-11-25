@@ -88,8 +88,8 @@ export type ProgressionContext = {
   /**
    * The load factor of this week's phase (0.9 in a Deload): below 1 it suggests that share of the
    * last load at the bottom of the range, like the stalled-lift deload. Unlike a break, a Lighter
-   * week or the stalled-lift deload, which round to the nearest load, a phase snaps down to the
-   * grid: the greatest load at or below the product, as the Workout's own targets are lowered.
+   * week or the stalled-lift deload, which round to the nearest lower load, a phase rounds down only within five percentage
+   * points of the intended cut.
    */
   phaseLoad?: number;
   /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
@@ -324,7 +324,7 @@ export function suggestNext(
               equipment,
               unit,
               grid,
-              phaseDecides ? "down" : "nearest",
+              phaseDecides ? "deload" : "nearest",
             );
       outcomes[index] = {
         reason: resetReason,

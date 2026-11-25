@@ -203,7 +203,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
     const history = [train(0, stacked)];
     const now = new Date(START + DAY);
-    const plates = [{ weightKg: exact(unit === "kg" ? 0.5 : 1.25), count: null }];
+    const plates = [{ id: "micro", weightKg: exact(unit === "kg" ? 0.5 : 1.25), count: null }];
     const legacyKit = barGrid({ weightKg: exact(amount) }, plates);
     const bar = suggestNext(plan, history, "weight_reps", "barbell", settings, {
       now,
@@ -222,6 +222,24 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       suggestNext(plan, history, "bodyweight_weighted_reps", "none", settings, { now })?.sets[0]
         ?.weightKg,
     ).toBeCloseTo(exact(amount + (unit === "kg" ? 1.25 : 2.5)), 2);
+  });
+
+  it("shows the actual deload when the next lower pin would cut too far", () => {
+    const load = unit === "kg" ? 15 : 30;
+    const stack = rangeGrid([{ min: exact(load / 3), max: null, step: exact(load / 3) }]);
+    const history = [
+      train(
+        0,
+        plan.map(() => ({ weightKg: kg(load), reps: 8 })),
+      ),
+    ];
+    const next = suggestNext(plan, history, "weight_reps", "machine", settings, {
+      now: new Date(START + DAY),
+      phaseLoad: 0.9,
+      grid: stack,
+    });
+    expect(next?.sets[0]?.weightKg).toBeCloseTo(exact(load), 2);
+    expect(next?.outcomes[0]?.loadFactor).toBeCloseTo(1, 3);
   });
 
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {

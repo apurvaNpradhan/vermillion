@@ -205,7 +205,7 @@ it("a plan added later applies from the next Session, and clearing it ends the p
   }
 });
 
-it("inserts a deload now: this week becomes a Deload and the rest shifts by one", async () => {
+it("inserts a deload now and restarts the pattern the following week", async () => {
   const s = await setupSessions();
   try {
     const { workoutId, runId } = await setup(s, { pattern: ["build", "build", "deload"] });
@@ -214,9 +214,10 @@ it("inserts a deload now: this week becomes a Deload and the rest shifts by one"
     const run = (await readRuns(s.training)).find((item) => item.id === runId);
     expect(run?.inserted_deloads).toEqual([2]);
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 2))).toBe("deload");
-    // Week 3 now holds Program week 2, week 4 the plan's deload.
+    // Weeks 3 and 4 are Build. The next planned Deload is week 5.
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 3))).toBe("build");
-    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 4))).toBe("deload");
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 4))).toBe("build");
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 5))).toBe("deload");
     // The same week twice is a no-op.
     expect(await insertDeloadNow(s.training, runId, 2)).toBe(false);
     expect(
@@ -399,7 +400,13 @@ it("keeps the modifiers it started with when the plan is edited later", async ()
     const { phase_modifiers: stored } = z
       .object({ phase_modifiers: z.string() })
       .parse(s.one("training_session", id));
-    expect(JSON.parse(stored)).toEqual({ sets: 0.5, rpe: -2, load: 0.9, test_top: "single" });
+    expect(JSON.parse(stored)).toEqual({
+      sets: 0.5,
+      rpe: -2,
+      load: 0.9,
+      test_top: "single",
+      load_cuts: [10, 10],
+    });
     // The snapshot survives finishing the Session.
     await finishSession(s.training, id);
     expect(

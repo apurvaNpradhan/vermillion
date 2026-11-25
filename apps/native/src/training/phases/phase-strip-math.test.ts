@@ -43,12 +43,12 @@ describe("stripBlocks", () => {
     expect(heights("push")).toBeLessThan(heights("test") ?? 0);
   });
 
-  it("adds a week for each inserted Deload and shifts the weeks after it", () => {
+  it("replaces the planned Deload without adding weeks to the strip", () => {
     const blocks = stripBlocks({ plan, insertedDeloads: [2], currentWeek: 2, plannedWeeks: 4 });
-    expect(blocks).toHaveLength(5);
+    expect(blocks).toHaveLength(4);
     expect(blocks[1]).toMatchObject({ phase: "deload", inserted: true, state: "current" });
-    expect(blocks.map((block) => block.programWeek)).toEqual([1, 2, 2, 3, 4]);
-    expect(blocks[4]?.phase).toBe("deload");
+    expect(blocks.map((block) => block.programWeek)).toEqual([1, 2, 5, 6]);
+    expect(blocks[3]?.phase).toBe("build");
   });
 
   it("an overridden week shows its own phase", () => {

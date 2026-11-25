@@ -77,8 +77,8 @@ const phaseEditsSchema = z
 /**
  * A Program's phases: a repeating pattern ("build, build, build, deload"), optional overrides of
  * single weeks, and optional edits of a phase's modifiers (only the fields given replace the
- * preset). Weeks are the Program's weeks: a Run's calendar weeks, less the Deload weeks inserted
- * into that Run. No plan means no phases.
+ * preset). Overrides name Program weeks. An inserted Deload consumes the next planned Deload
+ * and restarts the repeating pattern. No plan means no phases.
  *
  * Keys this build does not know are stripped, not refused, so an older app can still read and
  * edit a Program whose plan a newer app wrote.
@@ -117,6 +117,7 @@ export const phaseSnapshotSchema = z.object({
   rpe: phaseModifiersSchema.shape.rpe,
   load: phaseModifiersSchema.shape.load,
   test_top: z.enum(TEST_TOPS),
+  load_cuts: z.tuple([z.number().min(0).max(100), z.number().min(0).max(100)]).optional(),
 });
 export type PhaseSnapshot = z.infer<typeof phaseSnapshotSchema>;
 
@@ -138,7 +139,7 @@ export function snapshotModifiers(
   snapshot: PhaseSnapshot | null | undefined,
 ): PhaseSettings {
   if (!snapshot) return { modifiers: PHASE_PRESETS[phase], testTop: "single" };
-  const { test_top: testTop, ...modifiers } = snapshot;
+  const { test_top: testTop, load_cuts: _loadCuts, ...modifiers } = snapshot;
   return { modifiers, testTop };
 }
 
@@ -174,13 +175,27 @@ export function phaseOfWeek(
 ): PhaseWeek | null {
   if (!plan || plan.pattern.length === 0) return null;
   const clamped = Math.max(1, Math.floor(week));
-  const before = insertedDeloads.filter((inserted) => inserted < clamped).length;
-  if (insertedDeloads.includes(clamped)) {
-    return { phase: "deload", week: clamped, programWeek: clamped - before, inserted: true };
+  const overrides = new Map(plan.overrides.map(({ week, phase }) => [week, phase]));
+  let patternStart = 1;
+  let offset = 0;
+  const phaseAt = (runWeek: number) =>
+    overrides.get(runWeek + offset) ?? plan.pattern[(runWeek - patternStart) % plan.pattern.length];
+  for (const inserted of insertedDeloads) {
+    if (inserted > clamped) break;
+    if (inserted === clamped)
+      return { phase: "deload", week: clamped, programWeek: clamped + offset, inserted: true };
+    // Skip the planned weeks up through the replaced Deload. When the plan has none,
+    // replace the current week and start the pattern again.
+    const bound = Math.max(inserted, PHASE_WEEK_MAX - offset) + plan.pattern.length;
+    for (let scheduled = inserted; scheduled < bound; scheduled += 1) {
+      if (phaseAt(scheduled) !== "deload") continue;
+      offset += scheduled - inserted;
+      break;
+    }
+    patternStart = inserted + 1;
   }
-  const programWeek = clamped - before;
-  const override = plan.overrides.find((item) => item.week === programWeek);
-  const phase = override?.phase ?? plan.pattern[(programWeek - 1) % plan.pattern.length];
+  const programWeek = clamped + offset;
+  const phase = phaseAt(clamped);
   return phase ? { phase, week: clamped, programWeek, inserted: false } : null;
 }
 
@@ -227,7 +242,7 @@ export function phaseFor(
 }
 
 /**
- * "Insert deload now": the current Run week becomes a Deload and every later week shifts by one.
+ * "Insert deload now": replace the next planned Deload and restart the pattern after this week.
  * Returns the new list of inserted weeks; inserting into a week that is already inserted changes
  * nothing.
  */
@@ -276,7 +291,7 @@ export function lowerLoad(
   input: { equipment: Equipment; unit: WeightUnit; grid?: LoadGrid | null },
 ): number {
   if (kg <= 0 || factor >= 1) return kg;
-  return lightenLoad(kg, factor, input.equipment, input.unit, input.grid ?? null, "down");
+  return lightenLoad(kg, factor, input.equipment, input.unit, input.grid ?? null, "deload");
 }
 
 export type ApplyPhaseOptions = {
@@ -298,7 +313,7 @@ export type ApplyPhaseOptions = {
 };
 
 /** `count` sets scaled by `factor`: rounded up, at least one, never more than a Workout holds. */
-function scaledCount(count: number, factor: number): number {
+export function phaseSetCount(count: number, factor: number): number {
   if (count === 0) return 0;
   const scaled = Math.ceil(count * factor - EPS);
   return Math.min(TRAINING_LIMITS.setsPerExercise, Math.max(1, scaled));
@@ -374,7 +389,7 @@ export function applyPhase(
     }
     kept = top ? [top] : [];
   } else {
-    const target = scaledCount(working.length, modifiers.sets);
+    const target = phaseSetCount(working.length, modifiers.sets);
     kept = working.slice(0, target);
     const last = working[working.length - 1];
     // A factor above one repeats the last set rather than inventing a target.
@@ -397,6 +412,23 @@ export function applyPhase(
   });
   // Warm-ups keep their place at the front, as the Workout order has them.
   return [...planned.filter((set) => set.kind === "warmup"), ...adjusted];
+}
+
+/** The actual percentage cut after snapping, optionally a range across sets. */
+export function loadCutRange(factors: readonly number[]): [number, number] | undefined {
+  if (factors.length === 0) return undefined;
+  const percent = (factor: number) => Math.round((1 - factor) * 100);
+  return [percent(Math.max(...factors)), percent(Math.min(...factors))];
+}
+
+export function plannedLoadFactors(before: readonly PlannedSet[], after: readonly PlannedSet[]) {
+  const working = before.filter((set) => set.kind !== "warmup");
+  return after
+    .filter((set) => set.kind !== "warmup")
+    .flatMap((set, index) => {
+      const original = working[Math.min(index, working.length - 1)]?.weight_kg;
+      return original && set.weight_kg !== undefined ? [set.weight_kg / original] : [];
+    });
 }
 
 /** What a phase changes, for a one-line banner; only the parts that differ from the Workout. */

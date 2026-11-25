@@ -22,7 +22,7 @@ export type StripBlock = {
 
 /**
  * The weeks of a Program as blocks, each as tall as its phase is hard: Deload lowest, Test
- * tallest. With a planned length that many weeks (and one more per inserted Deload); open-ended,
+ * tallest. With a planned length that many weeks; open-ended,
  * at least twelve and a few past the current week. `currentWeek` is null when the Program has no
  * Run, so no block is current.
  */
@@ -36,7 +36,7 @@ export function stripBlocks(input: {
   const base =
     plannedWeeks === null
       ? Math.max(STRIP_WEEKS_MIN, plan.pattern.length * 2, (currentWeek ?? 0) + LOOKAHEAD)
-      : plannedWeeks + insertedDeloads.length;
+      : plannedWeeks;
   const count = Math.min(STRIP_WEEKS_MAX, Math.max(base, currentWeek ?? 0));
   const tallest = Math.max(...Object.values(PHASE_INTENSITY));
   return Array.from({ length: count }, (_, index) => {

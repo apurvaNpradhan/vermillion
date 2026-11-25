@@ -67,12 +67,28 @@ export function usePhaseText() {
    * effort shift is left out when the Workout has no effort targets for it to move.
    */
   const banner = useCallback(
-    (phase: Phase, modifiers: PhaseModifiers, testTop: TestTop = "single", hasEffort = true) => {
-      const text = effects(phase, modifiers, testTop, hasEffort);
+    (
+      phase: Phase,
+      modifiers: PhaseModifiers,
+      testTop: TestTop = "single",
+      hasEffort = true,
+      loadCuts?: readonly [number, number],
+    ) => {
+      const parts = effects(phase, { ...modifiers, load: 1 }, testTop, hasEffort);
+      const cut = loadCuts
+        ? loadCuts[0] === loadCuts[1]
+          ? t("phase__effect_load", { value: loadCuts[0] })
+          : t("phase__effect_actual_load_range", { min: loadCuts[0], max: loadCuts[1] })
+        : null;
+      const text = cut
+        ? new Intl.ListFormat(locale, { style: "narrow", type: "unit" }).format(
+            parts === t("phase__as_planned") ? [cut] : [parts, cut],
+          )
+        : parts;
       const plain = phase === "build" && text === t("phase__as_planned");
       return plain ? null : t("phase__banner", { phase: name(phase), effects: text });
     },
-    [effects, name, t],
+    [effects, name, t, locale],
   );
   /** A pattern with its runs folded: "Build ×3, Deload". */
   const pattern = useCallback(

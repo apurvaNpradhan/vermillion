@@ -6,6 +6,8 @@ import {
   sessionTotals,
   KG_PER_LB,
   resolveExerciseUnit,
+  loadCutRange,
+  plannedLoadFactors,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Note, PencilSimple, ShareNetwork, Timer } from "phosphor-react-native";
@@ -150,6 +152,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       );
       return {
         entry,
+        original,
         unit: context.unit,
         history,
         type: entry.exercise?.exerciseType ?? "weight_reps",
@@ -165,6 +168,20 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
             : [];
         })
       : [];
+  const loadCuts =
+    week && week.modifiers.load < 1
+      ? loadCutRange(
+          exerciseHistory.flatMap(({ entry, original }) => {
+            const preview = progression.find(({ id: entryId }) => entryId === entry.id)?.preview;
+            const factors = preview?.suggestion.outcomes.flatMap((outcome) =>
+              outcome?.reason === "deload" && outcome.loadFactor !== undefined
+                ? [outcome.loadFactor]
+                : [],
+            );
+            return factors?.length ? factors : plannedLoadFactors(original.sets, entry.sets);
+          }),
+        )
+      : undefined;
   return (
     <>
       <ScrollPage
@@ -258,6 +275,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         ready.exercises.some((item) =>
                           item.sets.some((set) => set.effort_min !== undefined),
                         ),
+                        loadCuts,
                       ) ?? phaseText.name(week.phase),
                   })}
                 </Text>

@@ -2,6 +2,7 @@ import type { MuscleGroup } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
 import { GOAL_ROTATION_MAX } from "../plans/session-goal";
 import type { SetKind } from "../vocabulary/vocabulary";
+import { phaseSetCount } from "../phases/phases";
 import { calendarDay, type WeekRange } from "../plans/week";
 import {
   detailDistribution,
@@ -76,10 +77,13 @@ type PlannedExercise = {
 };
 
 /** Count the rotation once per week, or scale it to the Program's training frequency. */
-export function plannedMuscleVolume(program: {
-  sessionsPerWeek: number | null;
-  slots: readonly { workout: { exercises: readonly PlannedExercise[] } | null }[];
-}): MuscleLoad[] {
+export function plannedMuscleVolume(
+  program: {
+    sessionsPerWeek: number | null;
+    slots: readonly { workout: { exercises: readonly PlannedExercise[] } | null }[];
+  },
+  setFactor = 1,
+): MuscleLoad[] {
   const workouts = program.slots.flatMap((slot) => (slot.workout ? [slot.workout] : []));
   if (workouts.length === 0) return [];
   const cyclesPerWeek =
@@ -95,7 +99,7 @@ export function plannedMuscleVolume(program: {
               {
                 primary_muscle: primaryMuscle,
                 secondary_muscles: secondaryMuscles,
-                count: sets.filter((set) => set.kind !== "warmup").length,
+                count: phaseSetCount(sets.filter((set) => set.kind !== "warmup").length, setFactor),
               },
             ],
       ),

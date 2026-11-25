@@ -7,6 +7,8 @@ import {
   cycleState,
   finishClock,
   mainEntryOf,
+  loadCutRange,
+  plannedLoadFactors,
   phaseFor,
   hasLoad,
   sessionInput,
@@ -216,6 +218,40 @@ async function createSessionIn(
     planned.map((entry) => entry.id),
     plan?.main_entry_id,
   );
+  const entries = [];
+  const factors: number[] = [];
+  for (const entry of planned) {
+    const info = await exerciseInfoOf(tx, entry.exercise_id);
+    const [setting] = await tx
+      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
+      .from(exerciseSetting)
+      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
+      .orderBy(asc(exerciseSetting.id))
+      .limit(1);
+    const sessionExerciseId = uuidv7();
+    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
+    const isMainLift = entry.id === mainEntryId;
+    const sets =
+      phase && loads
+        ? applyPhase(entry.sets, phase.phase, {
+            isMainLift,
+            type: info.exercise_type,
+            equipment: info.equipment,
+            unit: resolveExerciseUnit(loads.unit, setting?.unit),
+            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
+            modifiers: phase.modifiers,
+            testTop: phase.testTop,
+            // A Test week's top set starts from what the lifter last did, not the stale plan.
+            testLoadKg:
+              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
+                ? await lastBaselineLoadKg(tx, entry.exercise_id)
+                : null,
+          })
+        : entry.sets;
+    assertSessionRoom(0, sets.length, "setsPerExercise");
+    if (phase && phase.modifiers.load < 1) factors.push(...plannedLoadFactors(entry.sets, sets));
+    entries.push({ entry, info, setting, sessionExerciseId, sets });
+  }
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
@@ -223,7 +259,7 @@ async function createSessionIn(
     slot_id: slot?.id ?? null,
     gym_id: gymId,
     phase: phase?.phase ?? null,
-    phase_modifiers: phase ? snapshotOf(phase) : null,
+    phase_modifiers: phase ? { ...snapshotOf(phase), load_cuts: loadCutRange(factors) } : null,
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
@@ -254,35 +290,7 @@ async function createSessionIn(
     ...parsed,
   });
 
-  for (const entry of planned) {
-    const info = await exerciseInfoOf(tx, entry.exercise_id);
-    const [setting] = await tx
-      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
-      .from(exerciseSetting)
-      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
-      .orderBy(asc(exerciseSetting.id))
-      .limit(1);
-    const sessionExerciseId = uuidv7();
-    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
-    const isMainLift = entry.id === mainEntryId;
-    const sets =
-      phase && loads
-        ? applyPhase(entry.sets, phase.phase, {
-            isMainLift,
-            type: info.exercise_type,
-            equipment: info.equipment,
-            unit: resolveExerciseUnit(loads.unit, setting?.unit),
-            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
-            modifiers: phase.modifiers,
-            testTop: phase.testTop,
-            // A Test week's top set starts from what the lifter last did, not the stale plan.
-            testLoadKg:
-              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
-                ? await lastBaselineLoadKg(tx, entry.exercise_id)
-                : null,
-          })
-        : entry.sets;
-    assertSessionRoom(0, sets.length, "setsPerExercise");
+  for (const { entry, info, setting, sessionExerciseId, sets } of entries) {
     await tx.insert(sessionExercise).values({
       id: sessionExerciseId,
       user_id: userId,

@@ -214,22 +214,30 @@ export function lightenLoad(
   equipment: Equipment,
   unit: WeightUnit,
   grid: LoadGrid | null = null,
-  rounding: "nearest" | "down" = "nearest",
+  rounding: "nearest" | "down" | "deload" = "nearest",
 ): number {
   if (loadKg <= 0) return loadable(loadKg, unit);
   // A cap alone has no grid of its own: the equipment's step rounds, the cap only limits.
   const snapping = grid !== null && grid.source !== "cap" ? grid : null;
+  if (rounding === "deload") {
+    const lower = snapping
+      ? Math.min(loadKg, gridFloor(snapping, loadKg * factor))
+      : lightenLoad(loadKg, factor, equipment, unit, grid, "down");
+    if (Math.abs(lower / loadKg - factor) <= 0.05 + EPS) return lower;
+  }
   const down = rounding === "down";
+  const forceCut = rounding === "nearest";
   let lighter: number;
   if (snapping) {
     const start = alignToGrid(snapping, loadKg);
-    const target = start * factor;
+    const target = (rounding === "deload" ? loadKg : start) * factor;
     const lowest = snapping.nearest(0);
     if (!down && loadIdentity(start) < loadIdentity(lowest)) {
       lighter = target;
     } else {
       lighter = down ? gridFloor(snapping, target) : snapping.nearest(target);
-      if (loadIdentity(lighter) >= loadIdentity(start)) lighter = snapping.below(start) ?? lowest;
+      if (loadIdentity(lighter) >= loadIdentity(start) && (down || forceCut))
+        lighter = snapping.below(start) ?? lowest;
       // Deload uses the physical point so display rounding cannot put it below the empty bar.
       if (down) return Math.min(lighter, snapping.capKg ?? lighter);
     }
@@ -241,10 +249,14 @@ export function lightenLoad(
       // Nowhere lower to go on the step: the load stays.
       lighter = floored <= 0 ? loadKg : toKg(Math.min(floored, load), unit);
     } else {
-      const rounded = Math.round((load * factor) / step) * step;
-      lighter = toKg(rounded >= load && load > step ? load - step : rounded, unit);
+      const rounded = Math.round((load * factor) / step + EPS) * step;
+      lighter =
+        rounded <= 0 && !forceCut
+          ? loadKg
+          : toKg(forceCut && rounded >= load && load > step ? load - step : rounded, unit);
     }
   }
   const limit = Math.min(loadKg, grid?.capKg ?? loadKg);
+  if (rounding === "deload" && loadIdentity(lighter) >= loadIdentity(limit)) return limit;
   return weightAtMost(Math.max(0, Math.min(lighter, limit)), unit, limit);
 }

@@ -84,8 +84,7 @@ export const stopProgram = (db: TrainingDatabase, id: string, scope?: string) =>
 export const finishRun = (db: TrainingDatabase, id: string, scope?: string) =>
   endRun(db, id, "completed", scope);
 /**
- * "Insert deload now": Run week `week` (the current one) becomes a Deload and the weeks after it
- * shift by one. False when the Run is gone or finished, or the week already is an inserted one.
+ * "Insert deload now": Run week `week` becomes a Deload and restarts the phase pattern. False when the Run is gone or finished, or the week already is an inserted one.
  */
 export function insertDeloadNow(
   database: TrainingDatabase,

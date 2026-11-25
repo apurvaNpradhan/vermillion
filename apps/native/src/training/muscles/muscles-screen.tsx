@@ -43,7 +43,7 @@ const SAMPLE_INTENSITY = {
 export function MusclesScreen() {
   const { t } = useTranslation();
   const program = useActiveProgram();
-  const volume = useMuscleVolume(program.program);
+  const volume = useMuscleVolume(program.program, program.phase?.modifiers.sets ?? 1);
   const [chosen, setChosen] = useState<TargetMuscle | null>(null);
   const [showSample, setShowSample] = useState(false);
   const sampleVisible = __DEV__ && showSample;

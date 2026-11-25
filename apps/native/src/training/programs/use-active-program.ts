@@ -141,11 +141,8 @@ export function useActiveProgram() {
     now,
     timeZone,
   );
-  /** Weeks to show as the Run's length: the planned weeks, and one more per inserted Deload. */
-  const totalWeeks =
-    program?.plannedWeeks == null
-      ? null
-      : program.plannedWeeks + (run?.inserted_deloads.length ?? 0);
+  /** Weeks to show as the Run's length: inserted Deloads replace planned weeks. */
+  const totalWeeks = program?.plannedWeeks ?? null;
   return {
     run,
     runProgramId,

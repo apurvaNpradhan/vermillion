@@ -5,6 +5,7 @@ import {
   phaseLoadOf,
   suggestionContext,
   type PhasePlan,
+  type PlannedSet,
 } from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
@@ -17,6 +18,7 @@ import {
   createProgram,
   createWorkout,
   readBodyweightsOnDates,
+  savePreferences,
   finishSession,
   parseFinishedSessions,
   parseSessionDetail,
@@ -54,15 +56,25 @@ it.each([
   { unit: "lb", weight: 135, expected: 140, plannedDeload: false, progressing: true },
   { unit: "kg", weight: 20, expected: 23, plannedDeload: false, microplates: true },
   { unit: "lb", weight: 45, expected: 50, plannedDeload: false, microplates: true },
+  { unit: "kg", weight: 12.5, expected: 12.5, plannedDeload: true, tolerance: true },
+  { unit: "lb", weight: 25, expected: 25, plannedDeload: true, tolerance: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
   const progressing = "progressing" in scenario || "microplates" in scenario;
   const fixture = await setupSessions();
   const { training } = fixture;
+  await savePreferences(
+    training,
+    { ui: { weightUnit: unit } },
+    {
+      owner: "owner",
+      installId: fixture.installId,
+    },
+  );
   const phasePlan: PhasePlan = {
     pattern: ["deload"],
-    modifiers: { deload: { load: 0.75 } },
+    modifiers: { deload: { load: "tolerance" in scenario ? 0.9 : 0.75 } },
     overrides: [],
     test_top: "single",
   };
@@ -77,10 +89,12 @@ it.each([
   const workoutId = await createWorkout(training, { title: "Legs", program_id: programId });
   const [squat] = await addExercises(training, workoutId, [SQUAT]);
   if (!squat) throw new Error("Expected squat in Workout");
-  const target = {
+  const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
+  const target: PlannedSet = {
     kind: "working",
     reps_min: 5,
     reps_max: 8,
+    ...("tolerance" in scenario ? { weight_kg: kilograms } : {}),
     ...(effort ? { effort_min: 7, effort_max: 7 } : {}),
   } as const;
   await updateWorkoutExercise(training, squat, { sets: [target, target] });
@@ -89,7 +103,6 @@ it.each([
       await training.getAll(SESSION_DETAIL_SQL, [id]),
       await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
     );
-  const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
   for (let index = 0; index < 4; index += 1) {
     const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
     const sets = (await readSession(id))?.exercises[0]?.sets;
@@ -181,6 +194,7 @@ it.each([
   const week = plannedDeload
     ? phaseFor(phasePlan, { started_at: session.startedAt, inserted_deloads: [] }, now, "UTC")
     : null;
+  if ("tolerance" in scenario) expect(session.phaseModifiers?.load_cuts).toEqual([0, 0]);
   expect(session.phase).toBe(plannedDeload ? "deload" : null);
   const prepared = prepareWorkoutEntry(
     plan,
