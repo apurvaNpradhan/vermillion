@@ -66,13 +66,16 @@ export {
   defaultGymIdOf,
   deleteGym,
   renameGym,
+  setGymAvailability,
   setGymExerciseSetting,
+  type GymAvailabilityPatch,
   setSessionGym,
   type GymExerciseSettingPatch,
 } from "./gyms/gym-store";
 export {
   readGymLoadInputs,
   watchGymExerciseSettings,
+  unavailableEquipmentOf,
   watchGyms,
   watchSessionGym,
   type GymExerciseSettingRow,

@@ -1,11 +1,14 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
+  gymAvailabilityInput,
   gymExerciseSettingId,
   gymExerciseSettingInput,
   gymInput,
+  EQUIPMENT,
   loadRangesSchema,
   SYNC_LIMITS,
+  type Equipment,
   type LoadRange,
 } from "@workspace/shared";
 import { and, asc, count, desc, eq, isNull, or } from "drizzle-orm";
@@ -14,6 +17,7 @@ import { z } from "zod";
 import { readPreferencesRow, userPreferences } from "../../preferences";
 import { changedFields, nowIso, ownerOf, write, type TrainingDatabase } from "../store-common";
 import { gym, gymEquipment, gymExerciseSetting, session } from "../tables";
+import { unavailableEquipmentOf } from "./gym-watch";
 
 type Tx = Parameters<Parameters<typeof write>[2]>[0];
 
@@ -134,6 +138,42 @@ export async function renameGym(
     if (!current) return false;
     if (current.name !== values.name)
       await tx.update(gym).set({ name: values.name }).where(eq(gym.id, id));
+    return true;
+  });
+}
+
+/** What a gym says about its equipment; a field left out stays as it is. */
+export type GymAvailabilityPatch = {
+  unavailableEquipment?: readonly Equipment[];
+  dumbbellMaxKg?: number | null;
+};
+
+/** Sets the equipment a gym lacks and its dumbbell max. False when the gym is gone. */
+export async function setGymAvailability(
+  database: TrainingDatabase,
+  id: string,
+  patch: GymAvailabilityPatch,
+  scope: string,
+): Promise<boolean> {
+  const fields = gymAvailabilityInput.partial().parse({
+    unavailable_equipment: patch.unavailableEquipment && [...new Set(patch.unavailableEquipment)],
+    dumbbell_max_kg: patch.dumbbellMaxKg,
+  });
+  return write(database, scope, async (tx) => {
+    const [current] = await tx.select().from(gym).where(eq(gym.id, id)).limit(1);
+    if (!current) return false;
+    const changes: Partial<typeof gym.$inferInsert> = {};
+    if (fields.unavailable_equipment !== undefined) {
+      // A fixed order, so two devices that tick the same boxes store the same text.
+      const text = JSON.stringify(
+        EQUIPMENT.filter((equipment) => fields.unavailable_equipment?.includes(equipment)),
+      );
+      if (text !== JSON.stringify(unavailableEquipmentOf(current.unavailable_equipment)))
+        changes.unavailable_equipment = text;
+    }
+    if (fields.dumbbell_max_kg !== undefined && fields.dumbbell_max_kg !== current.dumbbell_max_kg)
+      changes.dumbbell_max_kg = fields.dumbbell_max_kg;
+    if (Object.keys(changes).length > 0) await tx.update(gym).set(changes).where(eq(gym.id, id));
     return true;
   });
 }
