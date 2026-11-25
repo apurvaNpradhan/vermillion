@@ -1,0 +1,237 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8fd4b091-486f-4f05-a1e1-ee6fcc8265ed",
+  "prevIds": ["992c9f5d-87cb-4e6a-ba12-43469463e823"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "program", "phase_plan"],
+      "writes": [
+        "s|col|public.program.phase_plan",
+        "n|col|public.program.phase_plan",
+        "e|col|public.program.phase_plan"
+      ],
+      "reads": ["n|tbl|public.program", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "program_run", "inserted_deloads"],
+      "writes": [
+        "s|col|public.program_run.inserted_deloads",
+        "n|col|public.program_run.inserted_deloads",
+        "e|col|public.program_run.inserted_deloads"
+      ],
+      "reads": ["n|tbl|public.program_run", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "phase"],
+      "writes": [
+        "s|col|public.training_session.phase",
+        "n|col|public.training_session.phase",
+        "e|col|public.training_session.phase"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "training_session", "phase_modifiers"],
+      "writes": [
+        "s|col|public.training_session.phase_modifiers",
+        "n|col|public.training_session.phase_modifiers",
+        "e|col|public.training_session.phase_modifiers"
+      ],
+      "reads": ["n|tbl|public.training_session", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "workout", "main_entry_id"],
+      "writes": [
+        "s|col|public.workout.main_entry_id",
+        "n|col|public.workout.main_entry_id",
+        "e|col|public.workout.main_entry_id"
+      ],
+      "reads": ["n|tbl|public.workout", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "program"],
+      "writes": [
+        "s|ck|public.program.program_phase_plan_shape",
+        "n|ck|public.program.program_phase_plan_shape",
+        "e|ck|public.program.program_phase_plan_shape",
+        "n|con|public.program.program_phase_plan_shape"
+      ],
+      "reads": ["n|tbl|public.program", "n|sch|public", "n|col|public.program.phase_plan"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "program_run"],
+      "writes": [
+        "s|ck|public.program_run.program_run_inserted_deloads_shape",
+        "n|ck|public.program_run.program_run_inserted_deloads_shape",
+        "e|ck|public.program_run.program_run_inserted_deloads_shape",
+        "n|con|public.program_run.program_run_inserted_deloads_shape"
+      ],
+      "reads": [
+        "n|tbl|public.program_run",
+        "n|sch|public",
+        "n|col|public.program_run.inserted_deloads"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "training_session"],
+      "writes": [
+        "s|ck|public.training_session.session_phase_known",
+        "n|ck|public.training_session.session_phase_known",
+        "e|ck|public.training_session.session_phase_known",
+        "n|con|public.training_session.session_phase_known"
+      ],
+      "reads": [
+        "n|tbl|public.training_session",
+        "n|sch|public",
+        "n|col|public.training_session.phase"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "training_session"],
+      "writes": [
+        "s|ck|public.training_session.session_phase_modifiers_shape",
+        "n|ck|public.training_session.session_phase_modifiers_shape",
+        "e|ck|public.training_session.session_phase_modifiers_shape",
+        "n|con|public.training_session.session_phase_modifiers_shape"
+      ],
+      "reads": [
+        "n|tbl|public.training_session",
+        "n|sch|public",
+        "n|col|public.training_session.phase_modifiers"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program",
+        "name": "phase_plan",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "inserted_deloads",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "phase",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "phase_modifiers",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "workout",
+        "name": "main_entry_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program",
+        "name": "program_phase_plan_shape",
+        "value": "\"phase_plan\" IS NULL OR jsonb_typeof(\"phase_plan\") = 'object'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "program_run_inserted_deloads_shape",
+        "value": "\"inserted_deloads\" IS NULL OR (jsonb_typeof(\"inserted_deloads\") = 'array' AND jsonb_array_length(\"inserted_deloads\") <= 52)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "session_phase_known",
+        "value": "\"phase\" IN ('build','push','test','deload')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "training_session",
+        "name": "session_phase_modifiers_shape",
+        "value": "\"phase_modifiers\" IS NULL OR jsonb_typeof(\"phase_modifiers\") = 'object'",
+        "entityType": "checks"
+      }
+    }
+  ]
+}
