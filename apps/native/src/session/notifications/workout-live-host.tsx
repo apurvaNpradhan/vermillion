@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { useGymLoads, useSessionGym } from "@/gym";
 import { usePreferences } from "@/preferences";
+import { useWeight } from "@/body";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useSession } from "@/session/screen/use-session";
@@ -24,6 +25,8 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
+  const weight = useWeight();
+  const bodyweightKg = session ? weight.bodyweightOn(session.startedAt) : null;
   const sessionGymId = useSessionGym(id);
   const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
@@ -53,6 +56,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
         weightIncrementKg,
         lighterWeeks,
         previousSource,
+        bodyweightKg,
         soundOn,
         vibrate: restVibration,
       },
@@ -67,6 +71,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     weightIncrementKg,
     lighterWeeks,
     previousSource,
+    bodyweightKg,
     gym,
     sessionGymId,
     soundOn,

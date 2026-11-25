@@ -2,6 +2,10 @@ import {
   addsLoad,
   baselineSessions,
   formatLoad,
+  suggestionContext,
+  type ContextSession,
+  type SuggestionAccount,
+  type SuggestionPlace,
   type SessionHistory,
   type SetKind,
 } from "@workspace/shared";
@@ -12,6 +16,28 @@ import { ghostsOf, ordinalOf, previousOfRow } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
 type Change = { kind: SetKind; number: number; last: PreviewSet; today: PreviewSet };
+
+/** The context for a Workout entry, shared by the preview and its exercise details. */
+export function workoutEntryContext(
+  entry: WorkoutExerciseDetail,
+  history: readonly ContextSession[],
+  place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad">,
+  account: SuggestionAccount,
+) {
+  return suggestionContext(
+    history,
+    {
+      ...place,
+      exerciseId: entry.exerciseId,
+      type: entry.exercise?.exerciseType ?? "weight_reps",
+      equipment: entry.exercise?.equipment ?? "other",
+      unitOverride: entry.unit,
+      workoutId: entry.workoutId,
+      stalls: true,
+    },
+    account,
+  );
+}
 
 /** Compare the live suggestion with the same Previous cell the completed set grid shows. */
 export function previewProgression(

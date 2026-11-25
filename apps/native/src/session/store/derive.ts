@@ -1,13 +1,11 @@
 import {
   SET_FIELDS,
   baselineSessions,
-  historyForGym,
-  historyForWorkout,
   optionalSetIndexes,
-  resolveExerciseUnit,
-  stalledSessions,
+  suggestionContext,
   weightAtMost,
   type Ghosts,
+  type StallInfo,
   type LighterPeriod,
   type LoggedSet,
   type Progression,
@@ -25,9 +23,6 @@ import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
 import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
-
-/** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
 
 /** Everything outside the Session that Previous, Ghost values and the row labels depend on. */
 export type DeriveInputs = {
@@ -107,44 +102,32 @@ function buildView(
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
-  const baseline =
-    rawHistory &&
-    historyForWorkout(rawHistory, inputs.previousSource === "same_workout" ? workoutId : null);
-  const history = baseline && historyForGym(baseline, inputs.sessionGymId ?? null, equipment);
   const loaded = rawHistory !== undefined;
   const historyReady = loaded || inputs.historyFailed;
 
-  // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
-  let stall: StallInfo | null = null;
-  if (!finished && exercise.sourceWorkoutExerciseId) {
-    // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
-    const sessions = rawHistory?.filter((session) => session.workoutId === workoutId) ?? [];
-    const latestSessionId = sessions[0]?.id ?? null;
-    const count = stalledSessions(sessions, exercise.type, {
-      bodyweightKg: inputs.bodyweightKg,
-      lighterWeeks: inputs.lighterWeeks,
-    });
-    if (latestSessionId !== null && count > 0) {
-      const memory = inputs.stallMemory(exercise.exerciseId, latestSessionId);
-      if (!memory.dismissed || memory.applied)
-        stall = { count, latestSessionId, applied: memory.applied };
-    }
-  }
-  const unit = resolveExerciseUnit(inputs.unit, exercise.unit);
+  // One builder for every surface: the baseline, the stalled-lift verdict and its applied deload.
   const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
+  const context = suggestionContext(
+    rawHistory ?? [],
+    {
+      exerciseId: exercise.exerciseId,
+      type: exercise.type,
+      equipment,
+      unitOverride: exercise.unit,
+      workoutId,
+      gymId: inputs.sessionGymId ?? null,
+      phaseLoad: inputs.phaseLoad,
+      grid,
+      // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
+      stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
+    },
+    inputs,
+  );
+  const { unit, stall, history } = context;
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
-      : exerciseSuggestion(exercise, rawHistory ?? [], {
-          baselineHistory: baseline,
-          weightUnit: unit,
-          weightIncrementKg: inputs.weightIncrementKg,
-          gymId: inputs.sessionGymId ?? null,
-          grid,
-          lighterWeeks: inputs.lighterWeeks,
-          deload: stall?.applied === true,
-          phaseLoad: inputs.phaseLoad,
-        });
+      : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
   const capKg = !finished && fields.includes("weight") ? (grid?.capKg ?? null) : null;

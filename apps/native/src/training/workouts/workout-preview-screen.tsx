@@ -2,13 +2,11 @@ import { haptic } from "@/platform/haptics";
 import {
   applyPhase,
   hasLoad,
-  historyForWorkout,
   isCounted,
   lastBaselineLoadKg,
   mainEntryOf,
   sessionDurationSeconds,
   sessionTotals,
-  stalledSessions,
   KG_PER_LB,
   resolveExerciseUnit,
 } from "@workspace/shared";
@@ -26,7 +24,13 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { useGymLoads } from "@/gym";
-import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
+import {
+  usePreviousSets,
+  useStartSession,
+  formatElapsed,
+  previewProgression,
+  workoutEntryContext,
+} from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
@@ -156,47 +160,33 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
             }),
           }
         : original;
-    // Stalls compare this Workout across gyms. Progression uses all Sessions for its break clock.
-    const stallHistory = history.filter((session) => session.workoutId === id);
-    const lastSessionId = stallHistory[0]?.id ?? null;
     const type = entry.exercise?.exerciseType ?? "weight_reps";
-    const count = stalledSessions(stallHistory, type, {
-      bodyweightKg,
-      lighterWeeks: preferences.ui.lighterWeeks,
-    });
-    return {
+    // The same builder as the Session and the live notification: baseline, stall and deload.
+    const context = workoutEntryContext(
       entry,
-      unit: exerciseUnit,
       history,
-      type,
-      count,
-      lastSessionId,
-      memory: stallMemory(entry.exerciseId, lastSessionId),
-    };
+      {
+        gymId: gym.gymId,
+        phaseLoad: week?.modifiers.load,
+        grid: entry.exercise
+          ? gym.gridFor(entry.exerciseId, entry.exercise.equipment, entry.unit)
+          : null,
+      },
+      {
+        previousSource: preferences.ui.previousSource,
+        unit: userUnit,
+        weightIncrementKg: preferences.ui.weightIncrementKg,
+        lighterWeeks: preferences.ui.lighterWeeks,
+        bodyweightKg,
+        stallMemory,
+      },
+    );
+    return { entry, unit: exerciseUnit, history, type, context };
   });
   const progression =
     previousHistory.ready && !preferencesLoading
-      ? exerciseHistory.flatMap(({ entry, unit, history, count, memory }) => {
-          const preview = previewProgression(
-            entry,
-            history,
-            {
-              baselineHistory: historyForWorkout(
-                history,
-                preferences.ui.previousSource === "same_workout" ? id : null,
-              ),
-              weightUnit: unit,
-              weightIncrementKg: preferences.ui.weightIncrementKg,
-              lighterWeeks: preferences.ui.lighterWeeks,
-              deload: count > 0 && memory.applied,
-              phaseLoad: week?.modifiers.load,
-              gymId: gym.gymId,
-              grid: entry.exercise
-                ? gym.gridFor(entry.exerciseId, entry.exercise.equipment, entry.unit)
-                : null,
-            },
-            now,
-          );
+      ? exerciseHistory.flatMap(({ entry, unit, history, context }) => {
+          const preview = previewProgression(entry, history, context.settings, now);
           return preview && entry.exercise
             ? [{ id: entry.id, title: entry.exercise.title, preview, unit }]
             : [];
@@ -355,7 +345,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
                 }
               />
-              {exerciseHistory.map(({ entry, history, type, count, lastSessionId, memory }) => {
+              {exerciseHistory.map(({ entry, history, type, context }) => {
                 const unit = resolveExerciseUnit(userUnit, entry.unit);
                 const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
                 const sets =
@@ -393,13 +383,13 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         )
                       }
                     />
-                    {count > 0 && lastSessionId && (!memory.dismissed || memory.applied) ? (
+                    {context.stall ? (
                       <StalledNote
                         key={stallVersion}
                         exerciseId={entry.exerciseId}
-                        latestSessionId={lastSessionId}
-                        count={count}
-                        applied={memory.applied}
+                        latestSessionId={context.stall.latestSessionId}
+                        count={context.stall.count}
+                        applied={context.stall.applied}
                       />
                     ) : null}
                     {entry.restSeconds !== null ? (
