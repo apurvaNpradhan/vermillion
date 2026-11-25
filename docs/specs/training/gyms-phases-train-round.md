@@ -213,6 +213,27 @@ Built (slice 4), decisions made while building:
 - "Insert deload" on a Program with no plan makes the rest of that Run Build, so it still works.
 - The Run's length is the planned weeks plus its inserted Deloads.
 
+Changes after review:
+
+- A Session starts on the unit and the Session gym's load grid: the Session store reads them in
+  the starting transaction (the gym, its exercise settings, kit and remembered bars), so the
+  Workout preview and the Session that starts from it show the same loads.
+- Deload loads (the Workout's targets and the engine's suggestion) snap down to the grid and never
+  above the gym's cap; a return from a break keeps its nearest-load rounding.
+- A Test week's top set starts from the heaviest completed working set of the exercise's last
+  baseline Session (else the Workout's heaviest planned load), held to the gym's cap. A lift with
+  no weight (bodyweight reps, reps only) gets an AMRAP set, there being no single to test.
+- Stalls: the 14-day break rule reads all training, so a Deload or Test Session between two
+  baselines counts as training; only scoring leaves the non-baseline Sessions out. Ghost hints
+  derived from Previous skip them too.
+- A Session stores `phase_modifiers` (modifiers and Test top at its start); the banner and the
+  engine's load factor read it, not the Program's current plan. `phase_plan` is replaced whole by
+  a write (last write wins), and its schema strips unknown keys on read and merge.
+- Not built: sharing or importing a Program or Workout does not carry `phase_plan` or
+  `main_entry_id`; a shared or imported copy starts with no phases and the first exercise as the
+  main lift.
+- Repair before deploy: `scripts/ops/repair-run-started-at.sh` (see the runbook).
+
 ## 5. Gym equipment and swaps
 
 - A gym gains available equipment (tick list of the 13 types, default all) and an optional
