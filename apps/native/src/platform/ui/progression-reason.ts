@@ -37,6 +37,8 @@ export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
       return "progress__label_deload";
     case "test_single":
       return "progress__label_test_single";
+    case "backoff_share":
+      return "progress__label_backoff_share";
     case "capped":
       return "progress__label_capped";
     case "cap_reps":
@@ -81,6 +83,8 @@ export function progressionReasonKey(
       return effortScale === "rir"
         ? "progress__reason_test_single_rir"
         : "progress__reason_test_single";
+    case "backoff_share":
+      return "progress__reason_backoff_share";
     case "capped":
       return "progress__reason_capped";
     case "cap_reps":

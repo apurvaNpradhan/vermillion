@@ -114,6 +114,8 @@ export {
   watchExerciseBars,
   watchExerciseUnit,
   watchExerciseProgressionMode,
+  watchExerciseRule,
+  watchExerciseRules,
   watchExerciseAutoWarmups,
   watchExerciseNote,
   watchExerciseHistory,

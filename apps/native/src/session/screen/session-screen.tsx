@@ -10,6 +10,7 @@ import {
   snapshotModifiers,
   loadCutRange,
   type SetKind,
+  previewRules,
   resolveExerciseUnit,
   SET_FIELDS,
 } from "@workspace/shared";
@@ -27,6 +28,7 @@ import {
   LinkBreak,
   NotePencil,
   Barbell,
+  SlidersHorizontal,
   Plus,
   PushPin,
   Swap,
@@ -41,6 +43,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ExerciseThumbnail,
   ExerciseUnitSheet,
+  ProgressionRuleSheet,
   useExerciseActions,
   useExerciseUnitOptions,
   usePickExercises,
@@ -62,7 +65,7 @@ import {
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { formatVolume } from "@/session/finish/summary";
-import { stallPrescription } from "@/session/store/derive";
+import { ruleInputOf, stallPrescription } from "@/session/store/derive";
 import { blockOf } from "@/session/logging/blocks";
 import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
@@ -159,6 +162,7 @@ type Sheet =
   | { kind: "pinned"; exercise: SessionExerciseDetail }
   | { kind: "limits"; exercise: SessionExerciseDetail }
   | { kind: "unit"; exercise: SessionExerciseDetail }
+  | { kind: "progression"; exercise: SessionExerciseDetail }
   | { kind: "swap"; exercise: SessionExerciseDetail; next: string }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
@@ -282,7 +286,7 @@ const LoadedSession = memo(function LoadedSession({
     refreshDerivedTitle,
   ]);
 
-  const { setUnit } = useExerciseActions();
+  const { setUnit, setProgressionRule } = useExerciseActions();
   const unitLabels = useExerciseUnitOptions(unit);
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
@@ -461,6 +465,16 @@ const LoadedSession = memo(function LoadedSession({
               },
             ]
           : []),
+        ...(menuExercise.type === "weight_reps" || menuExercise.type === "bodyweight_weighted_reps"
+          ? [
+              {
+                key: "progression",
+                label: t("progress__rule"),
+                icon: SlidersHorizontal,
+                onPress: () => setSheet({ kind: "progression", exercise: menuExercise }),
+              },
+            ]
+          : []),
         ...(SET_FIELDS[menuExercise.type].some((field) => field === "weight")
           ? [
               {
@@ -534,6 +548,16 @@ const LoadedSession = memo(function LoadedSession({
     sheet?.kind === "unit"
       ? session.exercises.find((entry) => entry.id === sheet.exercise.id)
       : undefined;
+
+  const ruleExercise =
+    sheet?.kind === "progression"
+      ? session.exercises.find((entry) => entry.id === sheet.exercise.id)
+      : undefined;
+  const ruleEntry = ruleExercise ? store.getState().cache.get(ruleExercise.id) : undefined;
+  const rulePreviews = useMemo(
+    () => (ruleEntry ? previewRules(ruleInputOf(ruleEntry)) : null),
+    [ruleEntry],
+  );
 
   const accessory = useSessionKeypadAccessory(logging, sessionGymId);
 
@@ -931,6 +955,22 @@ const LoadedSession = memo(function LoadedSession({
             logging.closeKeypad();
             void setUnit(unitExercise.exerciseId, next).catch(() => undefined);
           }
+        }}
+      />
+      <ProgressionRuleSheet
+        isOpen={ruleExercise !== undefined}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "progression") closeSheet();
+        }}
+        title={ruleExercise?.title ?? ""}
+        rule={ruleExercise?.rule ?? null}
+        previews={rulePreviews}
+        type={ruleExercise?.type ?? "weight_reps"}
+        unit={resolveExerciseUnit(unit, ruleExercise?.unit)}
+        appliesNext={Boolean(ruleExercise?.prescription)}
+        onSelect={(next) => {
+          if (!readOnly && ruleExercise)
+            void setProgressionRule(ruleExercise.exerciseId, next).catch(() => undefined);
         }}
       />
       <LoadLimitsSheet

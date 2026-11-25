@@ -17,7 +17,10 @@ import {
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
 import type { GymLoads } from "@/gym";
-import { sessionPrescription } from "../../platform/training/session-prescription";
+import {
+  sessionPrescribeInput,
+  sessionPrescription,
+} from "../../platform/training/session-prescription";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
@@ -330,4 +333,24 @@ export function adjustmentLoadsOf({ exercise, inputs }: ExerciseCache) {
     inputs,
     inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
   );
+}
+
+/**
+ * What the engine would be asked for this exercise as the Session is now. The preview of a rule
+ * runs on it, so the four sessions it shows start from the sets and history on screen.
+ */
+export function ruleInputOf({ exercise, inputs, history, workoutId, ...position }: ExerciseCache) {
+  const equipment = exercise.exercise?.equipment ?? "other";
+  return sessionPrescribeInput(exercise, history ?? [], inputs, {
+    workoutId,
+    gymId: inputs.sessionGymId ?? null,
+    grid: inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+    phaseLoad: inputs.phaseLoad,
+    phase: inputs.phase,
+    testEntryId: inputs.testEntryId,
+    exerciseOrdinal: position.exerciseOrdinal,
+    duplicateEntry: position.duplicateEntry,
+    stalls: false,
+    suggest: true,
+  });
 }

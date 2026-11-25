@@ -249,7 +249,9 @@ describe("session upload handlers", () => {
     const [row] = await app.rows(
       table === "session_set"
         ? sql`SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, generated_warmup, deleted_at, target::text AS target FROM session_set WHERE id = ${id}`
-        : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
+        : table === "exercise_setting"
+          ? sql`SELECT id, user_id, exercise_id, bar_id, unit, log_effort, progression_per_set, auto_warmups, note, created_at, updated_at, deleted_at, progression_rule::text AS progression_rule FROM exercise_setting WHERE id = ${id}`
+          : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
     );
     return row;
   };
@@ -677,6 +679,55 @@ describe("session upload handlers", () => {
     expect(await stored("exercise_setting", id)).toMatchObject({ unit: "kg" });
     expect(await me.send([patch(null)])).toEqual(applied);
     expect(await stored("exercise_setting", id)).toMatchObject({ unit: null, note: "Pause" });
+  });
+
+  it("uploads, validates and clears an exercise's progression rule without touching other settings", async () => {
+    const me = await writer("session-setting-rule@example.com");
+    const other = await writer("session-setting-rule-other@example.com");
+    const id = uuidv7();
+    const rule = (value: Json | null) => (value === null ? null : JSON.stringify(value));
+    const patch = (value: Json | null) =>
+      op("PATCH", "exercise_setting", id, { progression_rule: rule(value) });
+    const storedRule = async () => (await stored("exercise_setting", id))?.["progression_rule"];
+
+    // A legacy upload has no rule: it is Double.
+    expect(await me.send([putSetting(id, weightReps, { unit: "lb", note: "Pause" })])).toEqual(
+      applied,
+    );
+    expect(await storedRule()).toBeNull();
+
+    // Anything but a known rule, in its range, is refused and changes nothing.
+    for (const bad of [
+      { id: "waves" },
+      { id: "linear", reset_percent: 90 },
+      { id: "linear", reset_percent: 2.5 },
+      { id: "top_backoff", backoff_percent: 20 },
+      { id: "maintain", extra: 1 },
+      [],
+    ]) {
+      expect(await me.send([patch(bad)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    }
+    expect(
+      await me.send([op("PATCH", "exercise_setting", id, { progression_rule: "not json" })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await storedRule()).toBeNull();
+
+    // Another account cannot set it, and a patch leaves the other settings as they were.
+    expect(await other.send([patch({ id: "maintain" })])).not.toEqual(applied);
+    expect(await me.send([patch({ id: "linear", reset_percent: 15 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toEqual({ id: "linear", reset_percent: 15 });
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", note: "Pause" });
+    expect(await me.send([patch({ id: "top_backoff", backoff_percent: 85 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toEqual({
+      id: "top_backoff",
+      backoff_percent: 85,
+    });
+    // A PUT that omits the rule keeps it; Double is no rule.
+    expect(await me.send([putSetting(id, weightReps, { auto_warmups: 1 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toMatchObject({ id: "top_backoff" });
+    expect(await me.send([patch(null)])).toEqual(applied);
+    expect(await storedRule()).toBeNull();
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", auto_warmups: true });
   });
 
   it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {

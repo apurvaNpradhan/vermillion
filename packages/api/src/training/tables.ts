@@ -21,6 +21,7 @@ import {
   type PhaseSnapshot,
   type PlannedSet,
   type Prescription,
+  type RuleConfig,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
 import {
@@ -519,6 +520,8 @@ export const exerciseSetting = pgTable(
     logEffort: boolean("log_effort").notNull().default(false),
     progressionPerSet: boolean("progression_per_set").notNull().default(false),
     autoWarmups: boolean("auto_warmups").notNull().default(false),
+    /** The exercise's progression rule, validated by `ruleConfigSchema`; null is Double. */
+    progressionRule: jsonb("progression_rule").$type<RuleConfig>(),
     note: text("note"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -535,6 +538,10 @@ export const exerciseSetting = pgTable(
     check(
       "exercise_setting_note_length",
       sql`char_length(${table.note}) <= ${raw(SESSION_LIMITS.noteMax)}`,
+    ),
+    check(
+      "exercise_setting_rule_shape",
+      sql`${table.progressionRule} IS NULL OR jsonb_typeof(${table.progressionRule}) = 'object'`,
     ),
   ],
 );

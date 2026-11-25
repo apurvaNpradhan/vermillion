@@ -83,7 +83,7 @@ export function prescribe(input: PrescribeInput): Prescribed {
   const rule = input.rule ?? DEFAULT_RULE;
   const context = suggestionContext(
     input.history,
-    { ...input.place, prescription: input.plan },
+    { ...input.place, prescription: input.plan, rule: rule.id },
     input.account,
   );
   const base = {

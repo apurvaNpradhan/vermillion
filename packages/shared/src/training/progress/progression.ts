@@ -25,6 +25,8 @@ export const PROGRESSION_REASONS = [
   "same_as_last",
   "deload",
   "test_single",
+  /** A back-off set follows its top set: a share of the top load. */
+  "backoff_share",
   /** The last load was above this gym's cap, so the cap is suggested. */
   "capped",
   /** At the cap with reps still to gain: the load stays, the reps climb. */

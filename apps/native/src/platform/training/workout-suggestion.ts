@@ -8,6 +8,7 @@ import {
   type ContextSession,
   type LoadGrid,
   type PhaseNow,
+  type PrescribeInput,
   type SuggestionAccount,
 } from "@workspace/shared";
 import type { WorkoutDetail, WorkoutExerciseDetail } from "@workspace/sync";
@@ -61,7 +62,7 @@ export function prepareWorkoutEntry(
         }
       : original;
   const entries = workout.exercises.filter(({ exerciseId }) => exerciseId === original.exerciseId);
-  const prescribed = prescribe({
+  const input: PrescribeInput = {
     place: {
       exerciseId: entry.exerciseId,
       sourceWorkoutExerciseId: entry.id,
@@ -80,8 +81,9 @@ export function prepareWorkoutEntry(
     plan: entry.sets,
     history,
     account,
+    rule: exercise?.rule,
     progressionPerSet: exercise?.progressionPerSet ?? false,
     now,
-  });
-  return { entry, prescribed };
+  };
+  return { entry, input, prescribed: prescribe(input) };
 }

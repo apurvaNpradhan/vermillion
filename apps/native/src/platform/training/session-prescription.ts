@@ -4,6 +4,7 @@ import {
   type ContextSession,
   type LoadGrid,
   type Phase,
+  type PrescribeInput,
   type Prescribed,
   type SuggestionAccount,
 } from "@workspace/shared";
@@ -33,19 +34,15 @@ export type SessionPrescriptionContext = {
 export const sessionPlan = (exercise: SessionExerciseDetail) =>
   exercise.sets.map(({ kind, target }) => ({ ...target, kind }));
 
-/**
- * The prescription of one Session entry: the same call for the Session screen and the live
- * notification, so the Done button ticks the value the screen shows. A snapshot the Session
- * captured is read back, never recomputed.
- */
-export function sessionPrescription(
+/** What the engine is asked for one Session entry; the preview of a rule asks the same. */
+export function sessionPrescribeInput(
   exercise: SessionExerciseDetail,
   history: readonly ContextSession[],
   account: SuggestionAccount,
   context: SessionPrescriptionContext,
-): Prescribed {
+): PrescribeInput {
   const plan = sessionPlan(exercise);
-  return prescribe({
+  return {
     place: {
       exerciseId: exercise.exerciseId,
       sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
@@ -68,6 +65,7 @@ export function sessionPrescription(
     plan,
     history,
     account,
+    rule: exercise.rule,
     progressionPerSet: exercise.progressionPerSet,
     now: context.now,
     snapshot: {
@@ -75,5 +73,19 @@ export function sessionPrescription(
       setIds: exercise.sets.map(({ id }) => id),
     },
     suggest: context.suggest && Boolean(exercise.sourceWorkoutExerciseId),
-  });
+  };
+}
+
+/**
+ * The prescription of one Session entry: the same call for the Session screen and the live
+ * notification, so the Done button ticks the value the screen shows. A snapshot the Session
+ * captured is read back, never recomputed.
+ */
+export function sessionPrescription(
+  exercise: SessionExerciseDetail,
+  history: readonly ContextSession[],
+  account: SuggestionAccount,
+  context: SessionPrescriptionContext,
+): Prescribed {
+  return prescribe(sessionPrescribeInput(exercise, history, account, context));
 }

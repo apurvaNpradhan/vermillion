@@ -1,4 +1,4 @@
-import type { CustomExerciseInput, WeightUnit } from "@workspace/shared";
+import type { CustomExerciseInput, RuleConfig, WeightUnit } from "@workspace/shared";
 import {
   archiveExercise,
   createCustomExercise,
@@ -92,6 +92,13 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
+  /** The exercise's progression rule; null is Double. */
+  const setProgressionRule = useCallback(
+    (id: string, rule: RuleConfig | null) =>
+      write((db) => setExerciseSetting(db, id, { progression_rule: rule }, writeScope)),
+    [write, writeScope],
+  );
+
   const setUnit = useCallback(
     (id: string, unit: WeightUnit | null) =>
       write((db) => setExerciseSetting(db, id, { unit }, writeScope)),
@@ -129,6 +136,7 @@ export function useExerciseActions() {
     archive,
     restore,
     setProgressionPerSet,
+    setProgressionRule,
     setAutoWarmups,
     setUnit,
     setPinnedNote,

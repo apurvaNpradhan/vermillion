@@ -40,7 +40,7 @@ export function nextExerciseSuggestion(
   const original = workout.exercises.find((entry) => entry.exerciseId === exerciseId);
   const exercise = original?.exercise;
   if (!original || !exercise) return null;
-  const { entry, prescribed } = prepareWorkoutEntry(
+  const { entry, input, prescribed } = prepareWorkoutEntry(
     workout,
     original,
     history,
@@ -52,5 +52,12 @@ export function nextExerciseSuggestion(
     week,
     now,
   );
-  return { workout, sets: entry.sets, suggestion: prescribed.progression, unit: prescribed.unit };
+  return {
+    workout,
+    sets: entry.sets,
+    suggestion: prescribed.progression,
+    unit: prescribed.unit,
+    /** What the engine was asked, so a rule can be previewed on the same footing. */
+    input,
+  };
 }

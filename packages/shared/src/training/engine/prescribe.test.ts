@@ -7,6 +7,7 @@ import type { ContextSession, SuggestionAccount } from "../progress/suggestion-c
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { stalledExerciseIds } from "./stalled";
 import { prescribe, type PrescribeInput } from "./prescribe";
+import { previewRule } from "./preview-rule";
 
 const DAY = 86_400_000;
 const NOW = new Date("2026-03-01T12:00:00Z");
@@ -133,5 +134,40 @@ describe.each([
         account(unit),
       ),
     ).toEqual(["bench"]);
+  });
+});
+
+describe.each([
+  { unit: "kg", load: 60 },
+  { unit: "lb", load: 135 },
+] as const)("previewRule in $unit", ({ unit, load }) => {
+  const kilograms = parseWeight(String(load), unit) ?? 0;
+  const history = [session(7, kilograms, 12)];
+
+  it("projects four Sessions of the rule if every set is made", () => {
+    const preview = previewRule({ ...input(unit, history), rule: { id: "double" } });
+    expect(preview).toHaveLength(4);
+    expect(preview[0]?.reason).toBe("add_weight");
+    const loads = preview.map(({ sets }) => sets[0]?.weightKg ?? 0);
+    expect(loads[0]).toBeGreaterThan(kilograms);
+    // Reps climb from the bottom of the range before the next load.
+    expect(preview[1]?.sets[0]?.reps).toBe(9);
+    expect(loads[1]).toBe(loads[0]);
+    // The real history is untouched.
+    expect(history).toHaveLength(1);
+  });
+
+  it("shows a maintained lift repeating", () => {
+    const preview = previewRule({ ...input(unit, history), rule: { id: "maintain" } });
+    expect(preview.map(({ sets }) => sets[0])).toEqual(
+      Array.from({ length: 4 }, () => ({ kind: "working", weightKg: kilograms, reps: 12 })),
+    );
+  });
+
+  it("starts from the plan with no history, and says nothing without a load", () => {
+    const planned = plan.map((set) => ({ ...set, weight_kg: kilograms }));
+    const fromPlan = previewRule({ ...input(unit, []), plan: planned });
+    expect(fromPlan[0]?.sets[0]).toMatchObject({ weightKg: kilograms });
+    expect(previewRule(input(unit, []))).toEqual([]);
   });
 });

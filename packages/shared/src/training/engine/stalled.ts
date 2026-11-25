@@ -2,12 +2,15 @@ import { isCounted, type LoggedSet } from "../logging/logged-set";
 import { exerciseEntries } from "../progress/suggestion-history";
 import type { ContextSession, SuggestionAccount } from "../progress/suggestion-context";
 import { prescribe } from "./prescribe";
+import type { RuleConfig } from "./rule-config";
 
 /** The exercises trained this week with a visible stall on at least one of their entries. */
 export function stalledExerciseIds(
   thisWeek: readonly Pick<ContextSession, "workoutId" | "gymId" | "sets">[],
   histories: ReadonlyMap<string, readonly ContextSession[]>,
   account: SuggestionAccount,
+  /** The progression rule of each exercise that has one; a maintained lift is never stalled. */
+  rules: ReadonlyMap<string, RuleConfig> = new Map(),
 ): string[] {
   const stalled = new Set<string>();
   for (const session of thisWeek) {
@@ -27,6 +30,7 @@ export function stalledExerciseIds(
         if (!set) continue;
         const { stall } = prescribe({
           history,
+          rule: rules.get(exerciseId),
           account,
           plan: entry.map((row) => ({ ...row.target, kind: row.kind })),
           suggest: false,

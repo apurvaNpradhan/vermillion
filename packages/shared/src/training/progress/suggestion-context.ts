@@ -1,4 +1,5 @@
 import type { PlannedSet } from "../plans/planned-sets";
+import type { RuleId } from "../engine/rule-config";
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { SessionHistory } from "../logging/logged-set";
 import {
@@ -95,6 +96,8 @@ export type SuggestionPlace = {
   /** Judge the stalled-lift note and apply an accepted deload (only for an exercise to train). */
   stalls: boolean;
   stallDeload?: boolean;
+  /** The exercise's rule id; a maintained lift is never reported as stalled. */
+  rule?: RuleId | null;
   prescription?: readonly PlannedSet[];
 };
 
@@ -138,7 +141,7 @@ export function suggestionContext(
     place.prescription ?? [],
   );
   let stall: StallInfo | null = null;
-  if (place.stalls && !place.testSingle) {
+  if (place.stalls && !place.testSingle && place.rule !== "maintain") {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
     const sessions = workoutHistory;
     const latestSessionId = sessions[0]?.id ?? null;

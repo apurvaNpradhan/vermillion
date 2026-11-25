@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createFakeDatabase } from "../platform/fake-database";
 import type { TrainingDatabase } from "./store";
-import { watchExerciseBar } from "./watch";
+import { watchExerciseBar, watchExerciseRule, watchExerciseRules } from "./watch";
 
 /**
  * A database whose watch runs the statement on the fake's real SQLite with exactly the parameters
@@ -45,5 +45,41 @@ describe("watchExerciseBar", () => {
     const seen: (string | null)[] = [];
     watchExerciseBar(training, "none", { onBar: (id) => seen.push(id), onError: () => undefined });
     expect(seen).toEqual([null]);
+  });
+});
+
+describe("watchExerciseRule and watchExerciseRules", () => {
+  it("report the rule of one exercise, and every rule by exercise", () => {
+    const { fake, calls, training } = runningWatches();
+    const insert = fake.sqlite.prepare(
+      "INSERT INTO exercise_setting (id, exercise_id, progression_rule) VALUES (?, ?, ?)",
+    );
+    insert.run("a", "e1", '{"id":"linear","reset_percent":15}');
+    insert.run("b", "e2", '{"id":"maintain"}');
+    insert.run("c", "e3", null);
+    // A rule a newer build wrote reads as none.
+    insert.run("d", "e4", '{"id":"waves"}');
+    const one: unknown[] = [];
+    watchExerciseRule(training, "e1", {
+      onRule: (rule) => one.push(rule),
+      onError: () => undefined,
+    });
+    expect(calls[0]?.params).toEqual(["e1"]);
+    expect(one).toEqual([{ id: "linear", reset_percent: 15 }]);
+    const none: unknown[] = [];
+    watchExerciseRule(training, "e3", {
+      onRule: (rule) => none.push(rule),
+      onError: () => undefined,
+    });
+    expect(none).toEqual([null]);
+    const all: (readonly [string, unknown])[][] = [];
+    watchExerciseRules(training, {
+      onRules: (rules) => all.push([...rules]),
+      onError: () => undefined,
+    });
+    expect(all[0]).toEqual([
+      ["e1", { id: "linear", reset_percent: 15 }],
+      ["e2", { id: "maintain" }],
+    ]);
   });
 });

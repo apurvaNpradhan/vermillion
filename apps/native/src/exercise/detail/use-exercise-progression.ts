@@ -1,9 +1,11 @@
 import { useCallback } from "react";
-import { activeRun, cycleState, phaseFor, runPausedAt } from "@workspace/shared";
+import { activeRun, cycleState, phaseFor, runPausedAt, type RuleConfig } from "@workspace/shared";
 import {
   watchExerciseAutoWarmups,
   watchExerciseHistory,
   watchExerciseProgressionMode,
+  watchExerciseRule,
+  watchExerciseRules,
   watchExercisePlan,
   watchRunState,
   type FinishedSession,
@@ -26,6 +28,32 @@ export function useExerciseProgressionMode(exerciseId: string) {
       onError: () => void,
     ) => watchExerciseProgressionMode(database, exerciseId, { onMode: onValue, onError }),
     [exerciseId],
+  );
+  return useLocalWatch(subscribe);
+}
+
+/** The exercise's progression rule; null is Double. */
+export function useExerciseRule(exerciseId: string) {
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchExerciseRule>[0],
+      onValue: (rule: RuleConfig | null) => void,
+      onError: () => void,
+    ) => watchExerciseRule(database, exerciseId, { onRule: onValue, onError }),
+    [exerciseId],
+  );
+  return useLocalWatch(subscribe);
+}
+
+/** The rule of every exercise that has one, for the stall verdicts of Home. */
+export function useExerciseRules() {
+  const subscribe = useCallback(
+    (
+      database: Parameters<typeof watchExerciseRules>[0],
+      onValue: (rules: ReadonlyMap<string, RuleConfig>) => void,
+      onError: () => void,
+    ) => watchExerciseRules(database, { onRules: onValue, onError }),
+    [],
   );
   return useLocalWatch(subscribe);
 }

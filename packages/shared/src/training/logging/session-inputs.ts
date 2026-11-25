@@ -11,6 +11,7 @@ import { finishClock } from "./session-clock";
 import { loadRangesSchema } from "../progress/load-grid";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
 import { phaseSchema, phaseSnapshotSchema } from "../phases/phases";
+import { ruleConfigSchema } from "../engine/rule-config";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
@@ -272,6 +273,8 @@ export const exerciseSettingInput = z.strictObject({
   unit: z.enum(WEIGHT_UNITS).nullable().optional(),
   progression_per_set: z.boolean().default(false),
   auto_warmups: z.boolean().default(false),
+  /** The progression rule; absent or null is Double. */
+  progression_rule: ruleConfigSchema.nullable().optional(),
   /** The pinned note shown under the exercise name wherever it appears. */
   note: note.default(null),
 });

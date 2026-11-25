@@ -163,6 +163,7 @@ export const trainingUploadColumns = {
     "log_effort",
     "progression_per_set",
     "auto_warmups",
+    "progression_rule",
     "note",
     "restore",
   ]),

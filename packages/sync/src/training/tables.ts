@@ -6,6 +6,7 @@ import type {
   PhaseSnapshot,
   PlannedSet,
   Prescription,
+  RuleConfig,
   SetKind,
   WeightUnit,
 } from "@workspace/shared";
@@ -280,6 +281,7 @@ export const exerciseSetting = sqliteTable(
       .notNull()
       .default(false),
     auto_warmups: integer("auto_warmups", { mode: "boolean" }).notNull().default(false),
+    progression_rule: text("progression_rule", { mode: "json" }).$type<RuleConfig | null>(),
     note: text("note"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
