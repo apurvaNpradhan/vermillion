@@ -1540,6 +1540,7 @@
   "gym__load_settings_at": "Loads at {{gym}}",
   "gym__max_load": "Max load",
   "gym__load_step": "Load step",
+  "gym__step_prompt": "What does this stack go up by?",
   "gym__setup_note": "Setup note",
   "gym__setup_note_hint": "Seat, pad or pin settings. Stack numbers differ between machines, so write what you set.",
   "gym__setup_note_placeholder": "Seat 4, pad 2",

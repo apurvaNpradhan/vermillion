@@ -1,4 +1,9 @@
-import { SESSION_LIMITS, type SupersetPlace, resolveExerciseUnit } from "@workspace/shared";
+import {
+  SESSION_LIMITS,
+  type SupersetPlace,
+  resolveExerciseUnit,
+  usesGymHistory,
+} from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NotePencil } from "phosphor-react-native";
@@ -13,7 +18,7 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
-import { MaxPrompt, SetupNoteChip } from "@/gym";
+import { MaxPrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { ProgressionChip } from "./progression-chip";
@@ -122,6 +127,7 @@ export const ExerciseItem = memo(function ExerciseItem({
     [suggestion, exercise, data.rows, unit],
   );
   if (!exercise) return null;
+  const equipment = exercise.exercise?.equipment ?? "other";
   return (
     <View className={expanded ? "pb-4" : "pb-1"} onLayout={() => handlers.onLayout(exerciseId)}>
       <ExerciseRow
@@ -163,7 +169,16 @@ export const ExerciseItem = memo(function ExerciseItem({
                   exerciseId={exercise.exerciseId}
                   sessionId={data.activeSessionId}
                   gymId={data.gymId}
-                  equipment={exercise.exercise?.equipment ?? "other"}
+                  equipment={equipment}
+                  unit={unit}
+                />
+              ) : null}
+              {!readOnly && data.activeSessionId && data.gymId && usesGymHistory(equipment) ? (
+                <StepPrompt
+                  key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
+                  exerciseId={exercise.exerciseId}
+                  gymId={data.gymId}
+                  equipment={equipment}
                   unit={unit}
                 />
               ) : null}

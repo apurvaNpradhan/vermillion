@@ -15,6 +15,7 @@ import { Button } from "@/platform/ui/button";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import {
+  formatEquipmentWeight,
   addToStack,
   clearStack,
   formatDifference,
@@ -172,6 +173,8 @@ function CalculatorBody({
   const unit = state.displayUnit;
   const weight = (kg: number, own: WeightUnit = unit) =>
     t("plates__weight", { weight: formatWeight(kg, own), unit: own });
+  const plateWeight = (kg: number) =>
+    t("plates__weight", { weight: formatEquipmentWeight(kg, unit), unit });
   const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
   const [mode, setMode] = useState<Mode>("calculate");
   const [stack, setStack] = useState<LoadPlate[]>([]);
@@ -194,8 +197,11 @@ function CalculatorBody({
           plates: plateGroups(platesPerSide)
             .map((group) =>
               group.count === 1
-                ? weight(group.weightKg)
-                : t("plates__plate_count", { count: group.count, weight: weight(group.weightKg) }),
+                ? plateWeight(group.weightKg)
+                : t("plates__plate_count", {
+                    count: group.count,
+                    weight: plateWeight(group.weightKg),
+                  }),
             )
             .join(", "),
         });
@@ -358,7 +364,7 @@ function CalculatorBody({
                   onPlatePress={
                     building ? (index) => setStack(removeFromStack(stack, index)) : undefined
                   }
-                  plateLabel={(kg) => t("plates__remove_plate", { weight: weight(kg) })}
+                  plateLabel={(kg) => t("plates__remove_plate", { weight: plateWeight(kg) })}
                 />
                 {building ? (
                   <>

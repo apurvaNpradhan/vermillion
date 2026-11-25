@@ -52,10 +52,12 @@ it.each([
   { unit: "lb", weight: 200, expected: 150, plannedDeload: true },
   { unit: "kg", weight: 60, expected: 62.5, plannedDeload: false, progressing: true },
   { unit: "lb", weight: 135, expected: 140, plannedDeload: false, progressing: true },
+  { unit: "kg", weight: 20, expected: 23, plannedDeload: false, microplates: true },
+  { unit: "lb", weight: 45, expected: 50, plannedDeload: false, microplates: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
-  const progressing = "progressing" in scenario;
+  const progressing = "progressing" in scenario || "microplates" in scenario;
   const fixture = await setupSessions();
   const { training } = fixture;
   const phasePlan: PhasePlan = {
@@ -121,7 +123,30 @@ it.each([
   const history = parseFinishedSessions(
     await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
   );
-  const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
+  const kit =
+    "microplates" in scenario
+      ? ([
+          {
+            id: "bar",
+            kind: "bar",
+            unit,
+            weightKg: kilograms,
+            label: null,
+            count: null,
+            enabled: true,
+          },
+          {
+            id: "plate",
+            kind: "plate",
+            unit,
+            weightKg: unit === "kg" ? 0.5 : 1.25 * KG_PER_LB,
+            label: null,
+            count: null,
+            enabled: true,
+          },
+        ] as const)
+      : [];
+  const gym = buildGymLoads({ unit, kit, settings: [], gymId: null });
   const inputs: DeriveInputs = {
     previous: new Map([[SQUAT, history]]),
     historyFailed: false,
@@ -161,7 +186,7 @@ it.each([
     plan,
     entry,
     history,
-    { grid: null, gymId: null },
+    { grid: gym.gridFor(SQUAT, "barbell"), gymId: null },
     inputs,
     week,
   );

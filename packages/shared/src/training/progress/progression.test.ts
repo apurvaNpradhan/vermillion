@@ -186,7 +186,7 @@ describe("double progression", () => {
       { now: NOW },
     );
     expect(next?.reason).toBe("add_weight");
-    expect(next?.sets[0]?.weightKg).toBe(21);
+    expect(next?.sets[0]?.weightKg).toBe(21.25);
   });
 
   it("adds reps only below the cap and never reduces a logged weight", () => {
@@ -399,8 +399,8 @@ describe("increment sized to the lift", () => {
     expect(inc(5, "dumbbell")).toBe(1);
     expect(inc(20, "dumbbell")).toBe(2.5);
     expect(inc(60, "dumbbell")).toBe(2.5);
-    expect(inc(100, "machine")).toBe(3);
-    expect(inc(40, "kettlebell")).toBe(2);
+    expect(inc(100, "machine")).toBe(2.5);
+    expect(inc(40, "kettlebell")).toBe(4);
     expect(inc(null, "barbell")).toBe(2.5);
   });
 

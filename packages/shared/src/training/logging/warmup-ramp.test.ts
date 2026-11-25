@@ -34,21 +34,21 @@ describe("warmupRamp on a barbell", () => {
   });
 
   it("rounds each step to a load the plates can make (62.5 kg)", () => {
-    // 31.25, 43.75 and 53.125 are not loadable; 31, 43.5 and 53 are.
+    // The ramp rounds to 2.5 kg before snapping to the kit, including legacy microplates.
     expect(asKg(barbell(62.5, { bar: kit("kg") }))).toEqual([
       [20, 10],
-      [31, 5],
-      [43.5, 3],
-      [53, 1],
+      [32.5, 5],
+      [45, 3],
+      [52.5, 1],
     ]);
   });
 
-  it("works in pounds: 225 lb gives bar, 110, 155, 190 (a 112.5 tie goes down)", () => {
+  it("works in pounds: rounds a 225 lb ramp to 5 lb before snapping to the kit", () => {
     const working = 225 * KG_PER_LB;
     expect(asLb(barbell(working, { bar: kit("lb") }, "lb"))).toEqual([
       [45, 10],
-      [110, 5],
-      [155, 3],
+      [115, 5],
+      [160, 3],
       [190, 1],
     ]);
   });

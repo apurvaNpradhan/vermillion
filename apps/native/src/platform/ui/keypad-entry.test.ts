@@ -94,12 +94,14 @@ describe("what a cell shows while typing", () => {
 });
 
 describe("steps", () => {
-  it("steps by the equipment's smallest step: 2.5 kg / 5 lb on a barbell, 1 kg / 2.5 lb on a machine", () => {
+  it("uses loadable defaults for barbells, stacks and kettlebells", () => {
     expect(stepOf("weight", { unit: "kg", equipment: "barbell", incrementKg: null })).toBe(2.5);
     expect(stepOf("weight", { unit: "lb", equipment: "barbell", incrementKg: null })).toBe(5);
-    expect(stepOf("weight", { unit: "kg", equipment: "machine", incrementKg: null })).toBe(1);
+    expect(stepOf("weight", { unit: "kg", equipment: "machine", incrementKg: null })).toBe(2.5);
+    expect(stepOf("weight", { unit: "lb", equipment: "machine", incrementKg: null })).toBe(5);
     expect(stepOf("weight", { unit: "lb", equipment: null, incrementKg: null })).toBe(2.5);
-    expect(stepOf("weight", { unit: "kg", equipment: "kettlebell", incrementKg: null })).toBe(2);
+    expect(stepOf("weight", { unit: "kg", equipment: "kettlebell", incrementKg: null })).toBe(4);
+    expect(stepOf("weight", { unit: "lb", equipment: "kettlebell", incrementKg: null })).toBe(10);
     expect(stepOf("reps", { unit: "kg", equipment: "barbell", incrementKg: null })).toBe(1);
   });
 
@@ -120,7 +122,7 @@ describe("steps", () => {
     expect(stepValue("weight", 101, null, 1, bar)).toBe(102.5);
     expect(
       stepValue("weight", 20, null, 1, { unit: "kg", equipment: "machine", incrementKg: null }),
-    ).toBe(21);
+    ).toBe(22.5);
   });
 
   it("steps pounds in pounds and stores kilograms", () => {

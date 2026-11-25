@@ -1,4 +1,4 @@
-import type { Equipment } from "../../exercise/vocabulary";
+import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import {
   KG_PER_LB,
   formatWeight,
@@ -11,9 +11,9 @@ import { alignToGrid, gridFloor, type LoadGrid, type SteppedRange } from "./load
 
 /**
  * The smallest load change that equipment can make, in the display unit: a barbell with the
- * smallest plates adds 2.5 kg (5 lb) a side pair, a kettlebell steps by 2 kg (5 lb). Plates held
+ * smallest plates adds 2.5 kg (5 lb) a side pair, a kettlebell steps by 4 kg (10 lb). Plates held
  * in the hand, the EZ and trap bars and the Smith machine step like a barbell. Everything else
- * (machines, cables, bands, suspension, no equipment) has fine adjustment, so 1 kg (2.5 lb). A
+ * besides stacks (bands, suspension, no equipment) steps by 1 kg (2.5 lb). A
  * dumbbell rack is the exception, see {@link DUMBBELL_STEPS}.
  */
 const SMALLEST_STEP = {
@@ -22,10 +22,10 @@ const SMALLEST_STEP = {
   trap_bar: { kg: 2.5, lb: 5 },
   smith_machine: { kg: 2.5, lb: 5 },
   plate: { kg: 2.5, lb: 5 },
-  kettlebell: { kg: 2, lb: 5 },
+  kettlebell: { kg: 4, lb: 10 },
   dumbbell: { kg: 1, lb: 2.5 },
-  machine: { kg: 1, lb: 2.5 },
-  cable: { kg: 1, lb: 2.5 },
+  machine: { kg: 2.5, lb: 5 },
+  cable: { kg: 2.5, lb: 5 },
   resistance_band: { kg: 1, lb: 2.5 },
   suspension: { kg: 1, lb: 2.5 },
   none: { kg: 1, lb: 2.5 },
@@ -135,17 +135,25 @@ export function gridCapInUnit(grid: LoadGrid | null, unit: WeightUnit): number |
 export function incrementFor(
   loadKg: number | null,
   equipment: Equipment,
-  settings: { weightUnit: WeightUnit; weightIncrementKg: number | null },
+  settings: {
+    weightUnit: WeightUnit;
+    weightIncrementKg: number | null;
+    exerciseType?: ExerciseType;
+  },
   grid: LoadGrid | null = null,
 ): number {
   const load = loadKg ?? 0;
   if (grid?.source === "gym") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   if (settings.weightIncrementKg !== null) return settings.weightIncrementKg;
-  if (grid && grid.source !== "cap") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   const unit = settings.weightUnit;
-  const step = defaultStep(equipment, unit, load);
-  const raw = inUnit(load, unit) * INCREMENT_SHARE;
-  return toKg(Math.max(step, Math.round(raw / step) * step), unit);
+  if (settings.exerciseType === "bodyweight_weighted_reps")
+    return toKg(unit === "kg" ? 1.25 : 2.5, unit);
+  if (grid?.source === "kit") {
+    const step = grid.stepAt(alignToGrid(grid, load));
+    return Math.max(defaultStepKg("barbell", unit, 0), automatic(load, step));
+  }
+  if (grid?.source === "default") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
+  return automatic(load, defaultStepKg(equipment, unit, load));
 }
 
 /** 2.5% of the load in whole steps of `stepKg`, at least one. */
@@ -163,6 +171,7 @@ export function addLoad(
   addedKg: number,
   unit: WeightUnit,
   grid: LoadGrid | null = null,
+  minimumIncrease = 0,
 ): number | null {
   if (!grid) return loadable(loadKg + addedKg, unit);
   const cap = grid.capKg;
@@ -170,6 +179,15 @@ export function addLoad(
   const start = alignToGrid(grid, loadKg);
   let next: number | null = grid.nearest(start + addedKg);
   if (loadIdentity(next) <= loadIdentity(start)) next = grid.above(start);
+  const minimum = loadKg + minimumIncrease;
+  while (minimumIncrease > 0 && next !== null && loadIdentity(next) < loadIdentity(minimum)) {
+    next = grid.above(next);
+  }
+  if (
+    minimumIncrease > 0 &&
+    (next === null || (cap !== null && loadIdentity(cap) < loadIdentity(minimum)))
+  )
+    return null;
   if (cap !== null && (next === null || next > cap)) next = cap;
   if (next === null) return null;
   const typed = loadable(next, unit);

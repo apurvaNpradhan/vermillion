@@ -15,6 +15,18 @@ export { defaultBar, enabledBars, missingBarLabel, platesForBar } from "@workspa
 
 /** Pure view logic of the plate calculator and the equipment screen. */
 
+/** Inventory weights can use quarter-pound plates, even though logged sets use half-pound steps. */
+export function formatEquipmentWeight(kg: number, unit: WeightUnit): string {
+  return String(Number((unit === "kg" ? kg : kg / KG_PER_LB).toFixed(2)));
+}
+
+export function parseEquipmentWeight(text: string, unit: WeightUnit): number | null {
+  const cleaned = text.trim().replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const weight = Number(cleaned);
+  return unit === "kg" ? weight : weight * KG_PER_LB;
+}
+
 /** Kilograms of difference below which two weights are the same load. */
 const SAME = 0.0005;
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { formatWeight, type LoadPlate, type WeightUnit } from "@workspace/shared";
-import { plateLayout, plateRole, type PlateRole } from "./plate-view";
+import { type LoadPlate, type WeightUnit } from "@workspace/shared";
+import { formatEquipmentWeight, plateLayout, plateRole, type PlateRole } from "./plate-view";
 
 // Class names are written out whole: styles are generated only for the names the source spells
 // out, so a name built from a template is never defined.
@@ -45,7 +45,7 @@ export function BarDiagram({
   plateLabel?: (weightKg: number) => string;
 }) {
   const [width, setWidth] = useState(320);
-  const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, displayUnit), width);
+  const layout = plateLayout(platesPerSide, (kg) => formatEquipmentWeight(kg, displayUnit), width);
   const middle = layout.height / 2;
   return (
     <View
@@ -110,7 +110,7 @@ export function BarDiagram({
                   transform: [{ rotate: "-90deg" }],
                 }}
               >
-                {formatWeight(plate.weightKg, displayUnit)}
+                {formatEquipmentWeight(plate.weightKg, displayUnit)}
               </Text>
             ) : null}
           </Pressable>

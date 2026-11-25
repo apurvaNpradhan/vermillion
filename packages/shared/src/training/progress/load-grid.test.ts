@@ -226,7 +226,7 @@ describe("loadGridOf", () => {
   });
 
   it.each([
-    { name: "automatic", manual: null, at40: 1, expected: 41 },
+    { name: "automatic", manual: null, at40: 2.5, expected: 42.5 },
     { name: "manual", manual: 5, at40: 5, expected: 45 },
   ])(
     "keeps the equipment's $name step under a machine's cap alone",
@@ -308,7 +308,7 @@ describe("default dumbbell step", () => {
       { min: 1, max: 10, step: 1 },
       { min: 12.5, max: null, step: 2.5 },
     ]);
-    expect(defaultRangesFor("machine", "kg")).toEqual([{ min: 1, max: null, step: 1 }]);
+    expect(defaultRangesFor("machine", "kg")).toEqual([{ min: 2.5, max: null, step: 2.5 }]);
     expect(defaultRangesFor("barbell", "kg", { weightKg: 20, stepKg: 2.5 })).toEqual([
       { min: 22.5, max: null, step: 2.5 },
     ]);
@@ -447,7 +447,7 @@ describe("lightenLoad with a grid", () => {
       ranges: [{ min: 0, max: 50, step: null }],
     });
     expect(lightenLoad(60, 0.9, "machine", "kg", capped)).toBe(50);
-    expect(lightenLoad(40, 0.9, "machine", "kg", capped)).toBe(36);
+    expect(lightenLoad(40, 0.9, "machine", "kg", capped)).toBe(35);
   });
 
   it("goes down to a load the bar can make, always below the load", () => {

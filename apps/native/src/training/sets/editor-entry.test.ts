@@ -56,7 +56,7 @@ describe("editor keypad entry", () => {
 
   it("steps a weight by the equipment's step or the manual increment", () => {
     expect(pressStep(openEntry(cell({ value: 100 })), 1).value).toBe(102.5);
-    expect(pressStep(openEntry(cell({ value: 100, equipment: "machine" })), -1).value).toBe(99);
+    expect(pressStep(openEntry(cell({ value: 100, equipment: "machine" })), -1).value).toBe(97.5);
     expect(pressStep(openEntry(cell({ value: 100, incrementKg: 1.25 })), 1).value).toBe(101.25);
     expect(pressStep(openEntry(cell()), 1).value).toBe(2.5);
   });

@@ -12,7 +12,13 @@ import {
   type LighterPeriod,
 } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
-import { addLoad, gridCapInUnit, incrementFor, lightenLoad } from "./progression-steps";
+import {
+  addLoad,
+  defaultStepKg,
+  gridCapInUnit,
+  incrementFor,
+  lightenLoad,
+} from "./progression-steps";
 
 export { incrementFor } from "./progression-steps";
 
@@ -251,6 +257,7 @@ export function suggestNext(
   const slots = slotsOf(planned);
   if (slots.length === 0) return null;
   const unit = settings.weightUnit;
+  const increments = { ...settings, exerciseType: type };
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
   const roundedCap = gridCapInUnit(grid, unit);
@@ -339,7 +346,7 @@ export function suggestNext(
       reason: resetReason,
       sets,
       outcomes,
-      incrementKg: incrementFor(null, equipment, settings, grid),
+      incrementKg: incrementFor(null, equipment, increments, grid),
       breakDays: resetReason === "after_break" ? breakDays : null,
     };
   }
@@ -505,8 +512,12 @@ export function suggestNext(
             ? (easyLoads.get(groupKey(target.kind, before.weight_kg ?? 0)) ?? false)
             : easySet(before, target);
           const base = before.weight_kg ?? 0;
-          const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
-          const raised = addLoad(base, added, unit, grid);
+          const added = incrementFor(base, equipment, increments, grid) * (easy ? 2 : 1);
+          const minimumIncrease =
+            grid?.source === "kit" && settings.weightIncrementKg === null
+              ? defaultStepKg("barbell", unit, base)
+              : 0;
+          const raised = addLoad(base, added, unit, grid, minimumIncrease);
           if (raised === null) {
             outcome = before.reps >= extended ? "cap_hint" : "cap_reps";
             if (outcome === "cap_reps") next = { ...same, reps: before.reps + 1 };

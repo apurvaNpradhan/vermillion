@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
-import { rangeGrid } from "./load-grid";
+import { barGrid, rangeGrid } from "./load-grid";
 import { suggestNext, type SuggestedSet } from "./progression";
 import { stalledSessions } from "./stalled-lift";
 import { suggestionContext, type ContextSession } from "./suggestion-context";
@@ -197,6 +197,32 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       expect(propose(misses, 2)?.reason).toBe(steps ? "add_rep" : "reset");
     },
   );
+
+  it("uses physical automatic steps with legacy microplates and no stack setting", () => {
+    const amount = unit === "kg" ? 20 : 45;
+    const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
+    const history = [train(0, stacked)];
+    const now = new Date(START + DAY);
+    const plates = [{ weightKg: exact(unit === "kg" ? 0.5 : 1.25), count: null }];
+    const legacyKit = barGrid({ weightKg: exact(amount) }, plates);
+    const bar = suggestNext(plan, history, "weight_reps", "barbell", settings, {
+      now,
+      grid: legacyKit,
+    });
+    expect(bar?.sets[0]?.weightKg).toBeCloseTo(exact(amount + (unit === "kg" ? 3 : 5)), 2);
+    for (const equipment of ["machine", "cable", "smith_machine"] as const) {
+      expect(
+        suggestNext(plan, history, "weight_reps", equipment, settings, { now })?.sets[0]?.weightKg,
+      ).toBeCloseTo(exact(amount + step), 2);
+    }
+    expect(
+      suggestNext(plan, history, "weight_reps", "kettlebell", settings, { now })?.sets[0]?.weightKg,
+    ).toBeCloseTo(exact(amount + (unit === "kg" ? 4 : 10)), 2);
+    expect(
+      suggestNext(plan, history, "bodyweight_weighted_reps", "none", settings, { now })?.sets[0]
+        ?.weightKg,
+    ).toBeCloseTo(exact(amount + (unit === "kg" ? 1.25 : 2.5)), 2);
+  });
 
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {
     const targets = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
