@@ -20,6 +20,7 @@ import {
   formatDifference,
   hasTarget,
   loadChoices,
+  withinCap,
   plateGroups,
   overInventory,
   plateRole,
@@ -100,6 +101,7 @@ function PlateCalculatorSheetBody({
   targetKg,
   exerciseId,
   equipment,
+  gymId,
   onUse,
   onClose,
 }: {
@@ -110,13 +112,15 @@ function PlateCalculatorSheetBody({
   exerciseId: string;
   /** The exercise's equipment: an EZ bar or trap bar opens on its own bar. */
   equipment?: Equipment;
+  /** The Session's gym, whose kit and cap the calculator uses; none is the gym trained at. */
+  gymId?: string | null;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen, equipment);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId);
   return (
     <BottomSheet
       animation={animation}
@@ -170,7 +174,7 @@ function CalculatorBody({
   const [mode, setMode] = useState<Mode>("calculate");
   const [stack, setStack] = useState<LoadPlate[]>([]);
   const result = state.result;
-  const choices = result ? loadChoices(state.target, result) : [];
+  const choices = result ? loadChoices(state.target, result, state.cap) : [];
   const choice = selectedChoice(
     choices,
     picked && picked.barId === state.bar?.id ? picked.side : null,
@@ -197,7 +201,8 @@ function CalculatorBody({
     t(kg < 0 ? "plates__under" : "plates__over", {
       weight: t("plates__weight", { weight: formatDifference(kg, unit), unit }),
     });
-  const canUse = building ? true : choice !== null;
+  const barFits = withinCap(barKg, state.cap);
+  const canUse = withinCap(totalKg, state.cap) && (building || choice !== null);
   const use = async () => {
     if (!canUse || !state.bar) return;
     if (await state.chooseBar(state.bar.id)) {
@@ -265,6 +270,13 @@ function CalculatorBody({
             ) : null}
             {!state.bar ? (
               <Text className="font-normal text-body text-muted">{t(noBarKey)}</Text>
+            ) : !barFits ? (
+              <View className="gap-1">
+                <Text className="text-caption text-muted">
+                  {state.cap === null ? null : t("gym__plate_cap", { weight: weight(state.cap) })}
+                </Text>
+                <Text className="text-body text-muted">{t("gym__plate_bar_above_cap")}</Text>
+              </View>
             ) : (
               <>
                 <SegmentedControl
@@ -292,6 +304,11 @@ function CalculatorBody({
                   </View>
                 ) : null}
                 <View className="gap-1">
+                  {state.cap !== null ? (
+                    <Text className="text-caption text-muted">
+                      {t("gym__plate_cap", { weight: weight(state.cap) })}
+                    </Text>
+                  ) : null}
                   {!building && hasTarget(state.target) ? (
                     <Text className="font-medium text-label text-muted tabular-nums">
                       {t("plates__target", { weight: weight(state.target) })}
@@ -371,9 +388,12 @@ function CalculatorBody({
                           removeLabel={t("plates__remove_plate", { weight: label(p) })}
                           onRemove={() => setStack(removeKindFromStack(stack, p.id))}
                           onPress={() =>
-                            setStack(
-                              addToStack(stack, { id: p.id, weightKg: p.weightKg, count: p.count }),
-                            )
+                            setStack((current) => {
+                              const next = addToStack(current, p);
+                              return withinCap(stackTotalKg(barKg, next), state.cap)
+                                ? next
+                                : current;
+                            })
                           }
                         />
                       ))}

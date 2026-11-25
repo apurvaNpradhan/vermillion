@@ -12,17 +12,18 @@ import {
   type WeekStart,
   type WeightUnit,
 } from "@workspace/shared";
-import { Barbell, CalendarBlank, Gauge, Target, Timer } from "phosphor-react-native";
+import { Barbell, CalendarBlank, Gauge, MapPin, Plus, Target, Timer } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
+import { GymNameSheet, useGyms } from "@/gym";
 import { usePreferences } from "@/preferences";
 
 import { formatClock } from "@/training/targets/rest";
 
-type Picker = "unit" | "effort" | "rest" | "increment" | "weekStart" | "sessions" | null;
+type Picker = "gym" | "unit" | "effort" | "rest" | "increment" | "weekStart" | "sessions" | null;
 
 /** Default rest choices, in seconds. */
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
@@ -60,6 +61,7 @@ export function useTrainingPreferenceRows({
     sessionsPerWeek === null || SESSION_CHOICES.some((count) => count === sessionsPerWeek)
       ? SESSION_CHOICES
       : [...SESSION_CHOICES, sessionsPerWeek].sort((a, b) => a - b);
+  const { multiple, activeGym, create } = useGyms();
   const [picker, setPicker] = useState<Picker>(null);
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
@@ -150,6 +152,26 @@ export function useTrainingPreferenceRows({
         onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
       />
     ),
+    // One gym stays out of sight: Equipment is its kit, and a second gym is one row away. With
+    // two or more, Gyms lists them.
+    gyms:
+      onManageEquipment || !activeGym ? null : multiple ? (
+        <ListRow
+          key="gyms"
+          icon={MapPin}
+          title={t("gym__gyms")}
+          value={activeGym?.name}
+          onPress={() => router.push("/settings/gyms")}
+        />
+      ) : (
+        <ListRow
+          key="add-gym"
+          icon={Plus}
+          title={t("gym__add")}
+          accessory="none"
+          onPress={() => setPicker("gym")}
+        />
+      ),
   };
   const section = (
     <ListSection title={t("training__settings_title")}>
@@ -161,10 +183,20 @@ export function useTrainingPreferenceRows({
       {rows.sessions}
       {extraRows}
       {rows.equipment}
+      {rows.gyms}
     </ListSection>
   );
   const sheets = (
     <>
+      <GymNameSheet
+        isOpen={picker === "gym"}
+        onOpenChange={onOpenChange}
+        title={t("gym__new_title")}
+        description={t("gym__new_hint")}
+        value=""
+        confirmLabel={t("gym__create")}
+        onSave={async (name) => (await create(name)) !== null}
+      />
       <OptionSheet
         isOpen={picker === "increment"}
         onOpenChange={onOpenChange}

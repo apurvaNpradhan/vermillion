@@ -19,6 +19,7 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
+import { useGymLoads } from "@/gym";
 import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
@@ -44,6 +45,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const foreground = useThemeColor("foreground");
   const columnHeader = useColumnHeaders();
   const { preferences, isLoading: preferencesLoading } = usePreferences();
+  const gym = useGymLoads();
   const state = useWorkout(id);
   const history = useHomeTraining(id);
   const previousHistory = usePreviousSets(
@@ -111,13 +113,12 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const now = new Date();
   const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
   const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
-    const history = historyForWorkout(
-      previousHistory.history.get(entry.exerciseId) ?? [],
-      preferences.ui.previousSource === "same_workout" ? id : null,
-    );
-    const lastSessionId = history[0]?.id ?? null;
+    const history = previousHistory.history.get(entry.exerciseId) ?? [];
+    // Stalls compare this Workout across gyms. Progression uses all Sessions for its break clock.
+    const stallHistory = history.filter((session) => session.workoutId === id);
+    const lastSessionId = stallHistory[0]?.id ?? null;
     const type = entry.exercise?.exerciseType ?? "weight_reps";
-    const count = stalledSessions(history, type, {
+    const count = stalledSessions(stallHistory, type, {
       bodyweightKg,
       lighterWeeks: preferences.ui.lighterWeeks,
     });
@@ -137,10 +138,16 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
             entry,
             history,
             {
+              baselineHistory: historyForWorkout(
+                history,
+                preferences.ui.previousSource === "same_workout" ? id : null,
+              ),
               weightUnit: unit,
               weightIncrementKg: preferences.ui.weightIncrementKg,
               lighterWeeks: preferences.ui.lighterWeeks,
               deload: count > 0 && memory.applied,
+              gymId: gym.gymId,
+              grid: entry.exercise ? gym.gridFor(entry.exerciseId, entry.exercise.equipment) : null,
             },
             now,
           );

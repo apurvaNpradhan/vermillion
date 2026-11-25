@@ -6,7 +6,9 @@ import { z } from "zod";
 import { exercise } from "../../exercise/index";
 import {
   exerciseSetting,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   program,
   programSlot,
   session,
@@ -25,6 +27,8 @@ export type SessionExerciseRow = typeof sessionExercise.$inferSelect;
 export type SessionSetRow = typeof sessionSet.$inferSelect;
 export type GymEquipmentRow = typeof gymEquipment.$inferSelect;
 export type ExerciseSettingRow = typeof exerciseSetting.$inferSelect;
+export type GymRow = typeof gym.$inferSelect;
+export type GymExerciseSettingRow = typeof gymExerciseSetting.$inferSelect;
 
 /** Who a row belongs to, from one writer's point of view. A deleted row is still "own". */
 export type Ownership<Row> =
@@ -172,6 +176,35 @@ export async function findExerciseSetting(db: DbExecutor, userId: string, id: st
   const [row] = await db.select().from(exerciseSetting).where(eq(exerciseSetting.id, id)).limit(1);
   return ownership(row, userId);
 }
+
+export async function findGym(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db.select().from(gym).where(eq(gym.id, id)).limit(1);
+  return ownership(row, userId);
+}
+
+export async function findGymExerciseSetting(db: DbExecutor, userId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(gymExerciseSetting)
+    .where(eq(gymExerciseSetting.id, id))
+    .limit(1);
+  return ownership(row, userId);
+}
+
+/** A gym the writer owns and has not deleted, or undefined. */
+export async function liveGym(db: DbExecutor, userId: string, id: string) {
+  const found = await findGym(db, userId, id);
+  return found.kind === "own" && found.row.deletedAt === null ? found.row : undefined;
+}
+
+/** Live gyms of the writer, not counting `except`. */
+export const countLiveGyms = (db: DbExecutor, userId: string, except: string) =>
+  total(
+    db
+      .select({ total: count() })
+      .from(gym)
+      .where(and(eq(gym.userId, userId), isNull(gym.deletedAt), ne(gym.id, except))),
+  );
 
 /** The writer's live setting for an exercise, which a unique index allows at most one of. */
 export async function liveSettingFor(db: DbExecutor, userId: string, exerciseId: string) {

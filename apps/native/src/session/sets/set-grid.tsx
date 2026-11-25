@@ -41,6 +41,8 @@ export type SetHandlers = {
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
+  /** Long-press on a set's badge: this exercise's max load, step and setup note. */
+  onLimits: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
@@ -130,6 +132,7 @@ const SetRowItem = memo(function SetRowItem({
         onCell={handlers.onCell}
         onTick={handlers.onTick}
         onKind={handlers.onKind}
+        onLimits={handlers.onLimits}
         onEffort={handlers.onEffort}
         onPrevious={handlers.onPrevious}
         onCopySets={handlers.onCopySets}

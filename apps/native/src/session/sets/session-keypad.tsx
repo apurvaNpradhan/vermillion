@@ -12,7 +12,11 @@ import type { useLoggingState } from "@/session/logging/use-logging-state";
 type Logging = ReturnType<typeof useLoggingState>;
 
 /** What sits above the keypad's keys for the cell being edited (the plate calculator chip). */
-export function useSessionKeypadAccessory(logging: Logging, unit: WeightUnit): ReactNode {
+export function useSessionKeypadAccessory(
+  logging: Logging,
+  unit: WeightUnit,
+  gymId: string | null,
+): ReactNode {
   const cell =
     logging.entry && logging.activeField
       ? (() => {
@@ -23,6 +27,7 @@ export function useSessionKeypadAccessory(logging: Logging, unit: WeightUnit): R
                 setId: at.set.id,
                 field: logging.activeField,
                 unit,
+                gymId,
                 readCurrentKg: () => {
                   const typed = logging.readTypedValue();
                   return typed !== undefined

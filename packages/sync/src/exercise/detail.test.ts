@@ -11,6 +11,7 @@ type Seed = {
   rank?: number;
   details?: string[];
   retired?: string | null;
+  type?: string;
 };
 
 const seeds: Seed[] = [
@@ -29,7 +30,7 @@ function setup(rows: Seed[] = seeds) {
   const insert = fake.sqlite.prepare(
     `INSERT INTO exercise (id, user_id, title, primary_muscle, secondary_muscles, equipment,
        exercise_type, is_full_bodyweight, rank, retired_at, primary_detail, created_at)
-     VALUES (?, NULL, ?, ?, '["triceps"]', ?, 'weight_reps', 0, ?, ?, ?, 'now')`,
+     VALUES (?, NULL, ?, ?, '["triceps"]', ?, ?, 0, ?, ?, ?, 'now')`,
   );
   for (const s of rows) {
     insert.run(
@@ -37,6 +38,7 @@ function setup(rows: Seed[] = seeds) {
       s.title,
       s.primary,
       s.equipment,
+      s.type ?? "weight_reps",
       s.rank ?? 0,
       s.retired ?? null,
       JSON.stringify(s.details ?? []),
@@ -47,7 +49,7 @@ function setup(rows: Seed[] = seeds) {
 
 const candidates = (limit?: number) => {
   const { sql, params } = swapCandidatesQuery(
-    { id: "bench", primaryMuscle: "chest", equipment: "barbell" },
+    { id: "bench", primaryMuscle: "chest", exerciseType: "weight_reps" },
     limit,
   );
   return setup()
@@ -58,20 +60,20 @@ const candidates = (limit?: number) => {
 
 describe("swap candidates", () => {
   it("lists live rows of the same primary muscle and other equipment by rank, then title", () => {
-    // pushup 70, then the three rank-50 rows by title (Ab Fly, cable fly, Dumbbell Press).
-    expect(candidates()).toEqual(["pushup", "ab-fly", "fly", "db"]);
+    // close grip 80, pushup 70, then the rank-50 rows by title (Ab Fly, cable fly, Dumbbell Press).
+    expect(candidates()).toEqual(["bench2", "pushup", "ab-fly", "fly", "db"]);
   });
 
-  it("leaves out the same equipment, retired rows, other muscles and the exercise itself", () => {
+  it("offers the same equipment too, but not retired rows, other muscles or the exercise itself", () => {
     const list = candidates();
     expect(list).not.toContain("bench");
-    expect(list).not.toContain("bench2");
+    expect(list).toContain("bench2");
     expect(list).not.toContain("old");
     expect(list).not.toContain("row");
   });
 
   it("returns at most the limit", () => {
-    expect(candidates(2)).toEqual(["pushup", "ab-fly"]);
+    expect(candidates(2)).toEqual(["bench2", "pushup"]);
   });
 
   it("returns at most 8 by default", () => {
@@ -84,13 +86,59 @@ describe("swap candidates", () => {
     const { sql, params } = swapCandidatesQuery({
       id: "bench",
       primaryMuscle: "chest",
-      equipment: "barbell",
     });
     expect(
       setup([...seeds, ...many])
         .prepare(sql)
         .all(...params),
     ).toHaveLength(8);
+  });
+});
+
+describe("swap candidates by exercise type", () => {
+  const mixed: Seed[] = [
+    { id: "squat", title: "Squat", primary: "quadriceps", equipment: "barbell", rank: 50 },
+    { id: "press", title: "Leg Press", primary: "quadriceps", equipment: "machine", rank: 40 },
+    { id: "wsit", title: "Wall Sit", primary: "quadriceps", equipment: "none", type: "duration" },
+    {
+      id: "pistol",
+      title: "Pistol",
+      primary: "quadriceps",
+      equipment: "none",
+      type: "bodyweight_reps",
+    },
+    {
+      id: "wlunge",
+      title: "Weighted Lunge",
+      primary: "quadriceps",
+      equipment: "none",
+      type: "bodyweight_weighted_reps",
+    },
+    { id: "lunge", title: "Lunge", primary: "quadriceps", equipment: "none", type: "reps_only" },
+  ];
+  const listed = (exerciseType: Parameters<typeof swapCandidatesQuery>[0]["exerciseType"]) => {
+    const { sql, params } = swapCandidatesQuery({
+      id: "squat",
+      primaryMuscle: "quadriceps",
+      exerciseType,
+    });
+    return setup(mixed)
+      .prepare(sql)
+      .all(...params)
+      .map((row) => row["id"]);
+  };
+
+  it("never offers a duration or bodyweight alternative for a weighted lift", () => {
+    expect(listed("weight_reps")).toEqual(["press", "wlunge"]);
+  });
+
+  it("keeps bodyweight rep exercises together, and a timed one with timed ones", () => {
+    expect(listed("bodyweight_reps").sort()).toEqual(["lunge", "pistol"]);
+    expect(listed("duration")).toEqual(["wsit"]);
+  });
+
+  it("filters nothing when the type is not known", () => {
+    expect(listed(undefined)).toHaveLength(5);
   });
 });
 
@@ -134,7 +182,6 @@ describe("swap candidates by muscle details", () => {
     const { sql, params } = swapCandidatesQuery({
       id: "lat-bar",
       primaryMuscle: "shoulders",
-      equipment: "barbell",
       primaryDetail,
     });
     return setup(shoulders)

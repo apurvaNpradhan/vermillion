@@ -16,6 +16,7 @@ import { Keyboard, Pressable, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
+import { useGyms } from "@/gym";
 import { TextField } from "@/platform/forms/text-field";
 import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
@@ -34,9 +35,11 @@ type FormTarget = {
 };
 
 /** The user's bars and plates by unit; a Back button returns to wherever it was opened from. */
-export function ManageEquipmentScreen() {
+export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
   const { t } = useTranslation();
-  const state = useEquipment();
+  const state = useEquipment(true, gymId);
+  const { multiple, activeGymId, nameOf } = useGyms();
+  const gymName = nameOf(gymId ?? activeGymId);
   const label = useEquipmentLabel();
   const groups = kitGroups(state.rows, state.unit);
   const [target, setTarget] = useState<FormTarget | null>(null);
@@ -47,7 +50,11 @@ export function ManageEquipmentScreen() {
   };
   return (
     <>
-      <ScrollPage title={t("plates__manage")} back backFallback="/">
+      <ScrollPage
+        title={multiple && gymName ? t("gym__equipment_at", { gym: gymName }) : t("plates__manage")}
+        back
+        backFallback="/"
+      >
         {state.failed ? <Button onPress={state.retry}>{t("plates__retry")}</Button> : null}
         {!state.loading && !state.failed && state.rows.length === 0 ? (
           <EmptyState

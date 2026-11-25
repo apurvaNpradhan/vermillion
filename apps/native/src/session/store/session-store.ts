@@ -145,6 +145,7 @@ export const DEFAULT_INPUTS: DeriveInputs = {
   unitName: "kg",
   display: { durationFormat: "clock", distanceUnit: "m" },
   weightIncrementKg: null,
+  gym: { gymId: null, gridFor: () => null, settingFor: () => undefined },
   lighterWeeks: [],
   lighter: false,
   bodyweightKg: null,

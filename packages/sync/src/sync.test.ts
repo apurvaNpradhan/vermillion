@@ -83,7 +83,9 @@ describe("powerSyncSchema", () => {
       "device_owner",
       "exercise",
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "history_import_receipt",
       "install_meta",
       "media",
@@ -105,7 +107,9 @@ describe("powerSyncSchema", () => {
       "body_measurement",
       "exercise",
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "media",
       "program",
       "program_run",
@@ -154,6 +158,9 @@ describe("powerSyncSchema", () => {
     expect(indexed("training_session")).toContainEqual(["finished_at"]);
     expect(indexed("training_session")).toContainEqual(["import_fingerprint"]);
     expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
+    expect(indexed("gym_equipment")).toContainEqual(["gym_id"]);
+    expect(indexed("gym_exercise_setting")).toContainEqual(["exercise_id", "gym_id"]);
+    expect(indexed("training_session")).toContainEqual(["gym_id"]);
   });
 
   it("has the training stream columns and the upload-only markers", () => {
@@ -182,7 +189,9 @@ describe("powerSyncSchema", () => {
     }
     expect(checked.sort()).toEqual([
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "program",
       "program_run",
       "program_slot",

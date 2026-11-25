@@ -29,6 +29,14 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 - Native needs a dev client; changing a native module or build flag bumps `NATIVE_STACK_REVISION`: [native-dev](../docs/guides/native-dev.md).
 - Synthetic data only until the [privacy readiness](../docs/privacy-readiness.md) sign-off.
 
+## Gyms
+
+`gym`, `gym_exercise_setting`, `gym_equipment.gym_id` and `training_session.gym_id` ride the `my_training` stream. The server, not a device, creates the default "My gym": `sync.credentials` calls `ensureDefaultGym` under the user's training lock, and a kit item uploaded with no `gym_id` (an older app) is put in the oldest live gym. A migration backfilled existing kits into a "My gym". The active gym is `ui.activeGymId` (an unknown id reads as the oldest gym). A Session's `gym_id` is a plain reference: deleting a gym nulls it on the server and readers ignore a gym that is gone. The last gym cannot be deleted.
+
+Deleting a gym uploads one write, the gym row: its kit and settings can number more than one upload may hold (`SYNC_LIMITS.maxOps`), so the server's `deleteGymCascade` soft-deletes them, and local readers (the kit and settings queries, seeding, the kit copy) ignore rows whose gym is gone until that sync arrives. Making a gym copies the active gym's kit in transactions of at most `maxOps` rows, the gym with the first of them; a copy cut short leaves a gym with part of the kit.
+
+From the first release, every `gym_exercise_setting` row requires the UUIDv5 id from `gymExerciseSettingId({ userId, gymId, exerciseId })` in `packages/shared`. Two devices that create the setting offline make the same row, so a later PATCH or DELETE from either finds it. Its PUT is an upsert (it revives a deleted row too, and merges into a live one: a non-empty range list or note replaces the stored one, clearing is a PATCH). `exercise_setting` has the same pre-existing two-device race (one row per exercise, random ids) and is left as is.
+
 ## Commands
 
 ```sh

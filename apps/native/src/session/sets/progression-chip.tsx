@@ -23,8 +23,18 @@ export function ProgressionChip({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const sheet = useMountOnOpen(open);
-  if (suggestion.reason === "same_as_last") return null;
-  const value = formatWeight(suggestion.incrementKg, unit);
+  if (
+    suggestion.reason === "same_as_last" ||
+    suggestion.reason === "cap_reps" ||
+    suggestion.reason === "cap_hint"
+  )
+    return null;
+  // A capped suggestion names the max it fell back to, not an amount to add.
+  const shown =
+    suggestion.reason === "capped"
+      ? (suggestion.sets.find((set) => set?.weightKg != null)?.weightKg ?? suggestion.incrementKg)
+      : suggestion.incrementKg;
+  const value = formatWeight(shown, unit);
   const params = { value, unit, count: breakWeeks(suggestion) };
   const label = t(progressionLabelKey(suggestion.reason), params);
   return (

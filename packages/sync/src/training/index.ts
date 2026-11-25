@@ -1,6 +1,8 @@
 export {
   exerciseSetting,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   program,
   programSlot,
   session,
@@ -59,6 +61,25 @@ export {
   type WorkoutRow,
 } from "./store";
 export {
+  activeGymIdOf,
+  createGym,
+  defaultGymIdOf,
+  deleteGym,
+  renameGym,
+  setGymExerciseSetting,
+  setSessionGym,
+  type GymExerciseSettingPatch,
+} from "./gyms/gym-store";
+export {
+  readGymLoadInputs,
+  watchGymExerciseSettings,
+  watchGyms,
+  watchSessionGym,
+  type GymExerciseSettingRow,
+  type GymLoadInputs,
+  type GymRow,
+} from "./gyms/gym-watch";
+export {
   byPosition,
   keyAfterLast,
   keyBetween,
@@ -85,6 +106,7 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseBar,
+  watchExerciseBars,
   watchExerciseProgressionMode,
   watchExerciseAutoWarmups,
   watchExerciseNote,

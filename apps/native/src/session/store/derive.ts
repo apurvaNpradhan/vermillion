@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  historyForGym,
   historyForWorkout,
   optionalSetIndexes,
   stalledSessions,
@@ -13,10 +14,11 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
+import type { GymLoads } from "@/gym";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
-import { exerciseSuggestion } from "../logging/logging-ghosts";
+import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
 import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
@@ -34,6 +36,10 @@ export type DeriveInputs = {
   unitName: string;
   display: DisplayUnits;
   weightIncrementKg: number | null;
+  /** The active gym supplies equipment, load steps and caps. */
+  gym: GymLoads;
+  /** The gym selected for this Session determines which history leads. */
+  sessionGymId?: string | null;
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
@@ -60,6 +66,7 @@ export type RowView = {
   canFillRemaining: boolean;
   /** A Lighter week makes this set optional. */
   optional: boolean;
+  capKg: number | null;
 };
 
 /** What an exercise's header and set rows draw, apart from the sets themselves. */
@@ -86,16 +93,6 @@ export type ExerciseCache = {
   view: ExerciseView;
 };
 
-/** The history an exercise compares with: its Workout's own Sessions first, when asked to. */
-export function historyOf(
-  exercise: SessionExerciseDetail,
-  inputs: DeriveInputs,
-  workoutId: string | null,
-): readonly FinishedSession[] | undefined {
-  const all = inputs.previous.get(exercise.exerciseId);
-  return all && historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null);
-}
-
 function buildView(
   exercise: SessionExerciseDetail,
   rawHistory: readonly FinishedSession[] | undefined,
@@ -104,14 +101,19 @@ function buildView(
   workoutId: string | null,
   before: ExerciseView | undefined,
 ): ExerciseView {
-  const history = historyOf(exercise, inputs, workoutId);
+  const equipment = exercise.exercise?.equipment ?? "other";
+  const baseline =
+    rawHistory &&
+    historyForWorkout(rawHistory, inputs.previousSource === "same_workout" ? workoutId : null);
+  const history = baseline && historyForGym(baseline, inputs.sessionGymId ?? null, equipment);
   const loaded = rawHistory !== undefined;
   const historyReady = loaded || inputs.historyFailed;
 
   // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
   let stall: StallInfo | null = null;
   if (!finished && exercise.sourceWorkoutExerciseId) {
-    const sessions = history ?? [];
+    // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
+    const sessions = rawHistory?.filter((session) => session.workoutId === workoutId) ?? [];
     const latestSessionId = sessions[0]?.id ?? null;
     const count = stalledSessions(sessions, exercise.type, {
       bodyweightKg: inputs.bodyweightKg,
@@ -123,17 +125,22 @@ function buildView(
         stall = { count, latestSessionId, applied: memory.applied };
     }
   }
+  const grid = inputs.gym.gridFor(exercise.exerciseId, equipment);
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
-      : exerciseSuggestion(exercise, history ?? [], {
+      : exerciseSuggestion(exercise, rawHistory ?? [], {
+          baselineHistory: baseline,
           weightUnit: inputs.unit,
           weightIncrementKg: inputs.weightIncrementKg,
+          gymId: inputs.sessionGymId ?? null,
+          grid,
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,
         });
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
+  const capKg = !finished && fields.includes("weight") ? (grid?.capKg ?? null) : null;
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const kinds = exercise.sets.map((set) => set.kind);
   const optional = inputs.lighter ? optionalSetIndexes(kinds) : new Set<number>();
@@ -144,18 +151,19 @@ function buildView(
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
+    const ghosts = loaded
+      ? ghostsOf(
+          exercise.type,
+          previous,
+          set.target,
+          exercise.logEffort,
+          suggestion?.sets[index],
+          exercise.repeated,
+        )
+      : {};
     const row: RowView = {
       previous,
-      ghosts: loaded
-        ? ghostsOf(
-            exercise.type,
-            previous,
-            set.target,
-            exercise.logEffort,
-            suggestion?.sets[index],
-            exercise.repeated,
-          )
-        : {},
+      ghosts: capGhostWeight(ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -165,6 +173,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
+      capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
@@ -207,9 +216,20 @@ function sameView(a: ExerciseView, b: ExerciseView): boolean {
 
 function sameSettings(a: DeriveInputs, b: DeriveInputs): boolean {
   if (a === b) return true;
-  const { previous: _a, chipTexts, stallMemory, ...settings } = a;
-  const { previous: _b, chipTexts: otherChips, stallMemory: otherStall, ...other } = b;
-  return chipTexts === otherChips && stallMemory === otherStall && deepEqual(settings, other);
+  const { previous: _a, chipTexts, stallMemory, gym, ...settings } = a;
+  const {
+    previous: _b,
+    chipTexts: otherChips,
+    stallMemory: otherStall,
+    gym: otherGym,
+    ...other
+  } = b;
+  return (
+    chipTexts === otherChips &&
+    stallMemory === otherStall &&
+    gym === otherGym &&
+    deepEqual(settings, other)
+  );
 }
 
 /**

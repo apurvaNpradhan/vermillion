@@ -49,7 +49,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT, import_fingerprint TEXT, import_content TEXT, import_undo TEXT,
-        program_id TEXT, run_id TEXT, slot_id TEXT, cycle INTEGER, title TEXT,
+        program_id TEXT, run_id TEXT, slot_id TEXT, gym_id TEXT, cycle INTEGER, title TEXT,
         title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
         device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT, paused_at TEXT, paused_ms INTEGER,
         created_at TEXT, restore INTEGER);
@@ -67,8 +67,11 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,
         timer_started_at TEXT, target TEXT, generated_warmup INTEGER, created_at TEXT, restore INTEGER);
       CREATE INDEX session_set_order_idx ON session_set (session_exercise_id, position);
-      CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, weight_kg REAL,
+      CREATE TABLE gym (id TEXT PRIMARY KEY, user_id TEXT, name TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, gym_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER, seed TEXT);
+      CREATE TABLE gym_exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, gym_id TEXT, exercise_id TEXT,
+        load_ranges TEXT, setup_note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
         bar_id TEXT, log_effort INTEGER, progression_per_set INTEGER, auto_warmups INTEGER, note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
@@ -208,7 +211,9 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         "training_session",
         "session_exercise",
         "session_set",
+        "gym",
         "gym_equipment",
+        "gym_exercise_setting",
         "exercise_setting",
         "media",
         "progress_photo",

@@ -1,3 +1,4 @@
+import { gymSyncHandlers } from "./gym-sync";
 import { runSyncHandler } from "./run-sync";
 import { programSlotSkipSyncHandler } from "./skip-sync";
 import type { DbExecutor } from "@workspace/db";
@@ -523,4 +524,5 @@ export const trainingSyncHandlers: readonly SyncTableHandler[] = [
   workoutExerciseSyncHandler,
   programSlotSyncHandler,
   ...sessionSyncHandlers,
+  ...gymSyncHandlers,
 ];

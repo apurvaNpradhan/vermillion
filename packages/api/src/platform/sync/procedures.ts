@@ -11,6 +11,7 @@ import { user } from "@workspace/db/schema/auth";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { ensureDefaultGym } from "../../training/index";
 import { authed } from "../orpc/base";
 import { applyUpload, SyncRefusal } from "./upload";
 
@@ -64,6 +65,8 @@ const credentials = syncApi
         data: { code: "BANNED_USER" },
       });
     }
+    // Every account has a gym before its first sync, so no device has to invent the default one.
+    await context.services.db.transaction((tx) => ensureDefaultGym(tx, context.userId));
     const { token } = await context.services.auth.api.getToken({ headers: context.headers });
     return { endpoint, token, userId: context.userId, expiresAt: expiresAtOf(token) };
   });

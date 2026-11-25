@@ -6,6 +6,7 @@ import { useThemeColor } from "heroui-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
+import { SessionGymChip } from "@/gym";
 import { OfflinePill } from "@/sync";
 
 import { MARKER_ENTERING, MARKER_EXITING } from "@/session/shared/motion";
@@ -74,6 +75,8 @@ function Clock({
 export function SessionHeader({
   finished,
   onMenu,
+  sessionId,
+  gymId,
   title,
   startedAt,
   pausedAt,
@@ -88,6 +91,8 @@ export function SessionHeader({
 }: {
   finished: boolean;
   onMenu: () => void;
+  sessionId: string;
+  gymId: string | null;
   title: string;
   startedAt: string;
   pausedAt: string | null;
@@ -148,6 +153,7 @@ export function SessionHeader({
           </Text>
           <OfflinePill />
         </View>
+        <SessionGymChip sessionId={sessionId} gymId={gymId} readOnly={readOnly || finished} />
       </View>
       <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
         <DotsThreeVertical size={24} color={foreground} />

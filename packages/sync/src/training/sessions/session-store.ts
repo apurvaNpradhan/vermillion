@@ -16,6 +16,7 @@ import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
+import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
 import { performAgainIn } from "./session-again-store";
 import {
@@ -158,6 +159,7 @@ async function createSessionIn(
     program_id: plan?.program_id ?? null,
     run_id: active?.id ?? null,
     slot_id: slot?.id ?? null,
+    gym_id: await activeGymIdOf(tx),
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
@@ -385,6 +387,7 @@ export function finishSession(
       program_id: current.program_id,
       run_id: current.run_id,
       slot_id: current.slot_id,
+      gym_id: current.gym_id,
       cycle: current.cycle,
       title: input.title ?? current.title,
       title_derived: edited ? false : current.title_derived,

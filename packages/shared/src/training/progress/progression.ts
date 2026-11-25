@@ -1,6 +1,7 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import { weightAtMost } from "../vocabulary/format";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
   LIGHTER_WEEK_LOAD,
@@ -8,7 +9,8 @@ import {
   outsideLighterWeeks,
   type LighterPeriod,
 } from "./lighter-week";
-import { incrementFor, lightenLoad, loadable } from "./progression-steps";
+import type { LoadGrid } from "./load-grid";
+import { addLoad, incrementFor, lightenLoad } from "./progression-steps";
 
 export { incrementFor } from "./progression-steps";
 
@@ -28,6 +30,12 @@ export const PROGRESSION_REASONS = [
   "after_break",
   "same_as_last",
   "deload",
+  /** The last load was above this gym's cap, so the cap is suggested. */
+  "capped",
+  /** At the cap with reps still to gain: the load stays, the reps climb. */
+  "cap_reps",
+  /** At the cap and past the extended rep ceiling: add a set or go single-arm. */
+  "cap_hint",
 ] as const;
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
 
@@ -43,10 +51,18 @@ export type Progression = {
 /** What a suggestion needs besides the history: the clock and the Lighter weeks. */
 export type ProgressionContext = {
   now: Date;
+  /**
+   * The Sessions the loads and reps are read from, when fewer than the whole `history`: a
+   * baseline can prefer the same Workout and, for gym-bound equipment, the same gym. The break
+   * clock reads the exercise's full history across Workouts and gyms.
+   */
+  baselineHistory?: readonly ProgressionSession[];
   /** Every Lighter week, past and running. Their Sessions are never a baseline. */
   lighterWeeks?: readonly LighterPeriod[];
   /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
   deload?: boolean;
+  /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
+  grid?: LoadGrid | null;
 };
 
 /** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
@@ -61,6 +77,9 @@ const LONG_BREAK_LOAD = 0.8;
 /** At this effort or harder a set was a grind; at the easier one it was easy. */
 const GRIND_RPE = 9.5;
 const EASY_RPE = 7;
+/** At the cap, reps keep growing past the range's top up to this multiple of it, rounded. */
+export const cappedRepCeiling = (maxReps: number) => Math.round(maxReps * 1.5);
+const AT_CAP = 1e-4;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
 const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
@@ -108,9 +127,29 @@ function missedRange(slots: readonly Slot[], sets: readonly LoggedSet[]): boolea
   });
 }
 
-type Outcome = "add_weight" | "add_rep" | "hold" | "hold_effort" | "same";
-const OUTCOME_ORDER = ["add_weight", "add_rep", "hold_effort", "hold", "same"] as const;
+type Outcome =
+  | "capped"
+  | "add_weight"
+  | "add_rep"
+  | "cap_reps"
+  | "cap_hint"
+  | "hold"
+  | "hold_effort"
+  | "same";
+const OUTCOME_ORDER = [
+  "capped",
+  "add_weight",
+  "add_rep",
+  "cap_reps",
+  "hold_effort",
+  "cap_hint",
+  "hold",
+  "same",
+] as const;
 const REASON_OF = {
+  capped: "capped",
+  cap_reps: "cap_reps",
+  cap_hint: "cap_hint",
   add_weight: "add_weight",
   add_rep: "add_rep",
   hold_effort: "hold_effort",
@@ -119,7 +158,8 @@ const REASON_OF = {
 } as const satisfies Record<Outcome, ProgressionReason>;
 
 /**
- * Progression for planned sets (ADR 0038). `history` is newest first. Matched sets grow reps
+ * Progression for planned sets (ADR 0038). `history` is newest first, all of it; the baselines
+ * come from `context.baselineHistory` when given. Matched sets grow reps
  * to the top of their range, then add load and reset the reps. By default working sets wait
  * for every working set to reach the ceiling before adding load. Top and back-off sets progress
  * independently.
@@ -140,14 +180,20 @@ export function suggestNext(
   const slots = slotsOf(planned);
   if (slots.length === 0) return null;
   const unit = settings.weightUnit;
-  const baselines = outsideLighterWeeks(history, context.lighterWeeks ?? []).flatMap((session) => {
+  const grid = context.grid ?? null;
+  const cap = loaded ? (grid?.capKg ?? null) : null;
+  const roundedCap = cap === null ? null : weightAtMost(cap, unit, cap);
+  const baselines = outsideLighterWeeks(
+    context.baselineHistory ?? history,
+    context.lighterWeeks ?? [],
+  ).flatMap((session) => {
     const sets = done(session.sets).filter((set) => progresses(set.kind));
     return sets.length > 0 ? [{ ...session, sets }] : [];
   });
   const last = baselines[0];
   if (!last) return null;
-  // The break clock runs from the latest Session with a completed working set; a Session of only
-  // warm-ups or unticked sets is not training.
+  // The break clock runs from the latest Session with a completed working set, across all Workouts and gyms. A
+  // Session of only warm-ups or unticked sets is not training.
   const lastTrained =
     history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
   const breakDays = Math.floor(
@@ -179,7 +225,9 @@ export function suggestNext(
       const before = counterpart(last.sets, target.kind, ordinal);
       if (!before) continue;
       const weightKg =
-        before.weight_kg == null ? null : lightenLoad(before.weight_kg, factor, equipment, unit);
+        before.weight_kg == null
+          ? null
+          : lightenLoad(before.weight_kg, factor, equipment, unit, grid);
       // A reset that cannot lower the load must not raise the reps either.
       const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;
@@ -192,7 +240,7 @@ export function suggestNext(
     return {
       reason: resetReason,
       sets,
-      incrementKg: incrementFor(null, equipment, settings),
+      incrementKg: incrementFor(null, equipment, settings, grid),
       breakDays: resetReason === "after_break" ? breakDays : null,
     };
   }
@@ -237,24 +285,43 @@ export function suggestNext(
     const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
     let outcome: Outcome = "same";
     let next = same;
-    if (held) outcome = "hold";
+    if (cap !== null && before.weight_kg != null && before.weight_kg > cap) {
+      // Last time's load is more than this gym has: the cap is the most the lifter can load.
+      outcome = "capped";
+      next = { ...same, weightKg: cap };
+    } else if (held) outcome = "hold";
     else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
-      if (before.reps >= max) {
+      const atCap =
+        roundedCap !== null && before.weight_kg != null && before.weight_kg >= roundedCap - AT_CAP;
+      const extended = cappedRepCeiling(max);
+      if (before.reps >= max && atCap) {
+        // The load cannot rise: reps keep growing to the extended ceiling, then a hint. Straight
+        // working sets still move together: nothing grows until every set reached the ceiling.
+        if (target.kind === "working" && !settings.progressionPerSet && !workingReady)
+          outcome = "hold";
+        else if (before.reps >= extended) outcome = "cap_hint";
+        else {
+          outcome = "cap_reps";
+          next = { ...same, reps: before.reps + 1 };
+        }
+      } else if (before.reps >= max) {
         if (canLoad && (target.kind !== "working" || settings.progressionPerSet || workingReady)) {
           const easy =
             target.kind === "working" && !settings.progressionPerSet
               ? (easyLoads.get(before.weight_kg ?? 0) ?? false)
               : before.rpe != null && before.rpe <= EASY_RPE;
-          const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
-          incrementKg ??= added;
-          outcome = "add_weight";
-          next = {
-            weightKg: loadable((before.weight_kg ?? 0) + added, unit),
-            reps: target.reps_min,
-          };
+          const base = before.weight_kg ?? 0;
+          const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
+          const raised = addLoad(base, added, unit, grid);
+          if (raised === null) outcome = "hold";
+          else {
+            incrementKg ??= raised - base;
+            outcome = "add_weight";
+            next = { weightKg: raised, reps: target.reps_min };
+          }
         } else if (!canLoad) {
           outcome = "add_rep";
           next = { ...same, reps: allTopped ? before.reps + 1 : before.reps };
@@ -273,7 +340,8 @@ export function suggestNext(
   return {
     reason: REASON_OF[top],
     sets,
-    incrementKg: incrementKg ?? incrementFor(last.sets[0]?.weight_kg ?? null, equipment, settings),
+    incrementKg:
+      incrementKg ?? incrementFor(last.sets[0]?.weight_kg ?? null, equipment, settings, grid),
     breakDays: null,
   };
 }

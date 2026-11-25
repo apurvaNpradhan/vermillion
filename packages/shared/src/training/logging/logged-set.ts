@@ -26,6 +26,8 @@ export type SessionHistory = {
   id: string;
   started_at: string;
   finished_at: string | null;
+  /** The gym trained at; absent or null for a Session with no gym (an older one). */
+  gymId?: string | null;
   sets: readonly LoggedSet[];
 };
 

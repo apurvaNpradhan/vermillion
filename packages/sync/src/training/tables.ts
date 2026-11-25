@@ -1,4 +1,4 @@
-import type { ExerciseType, PlannedSet, SetKind, WeightUnit } from "@workspace/shared";
+import type { ExerciseType, LoadRange, PlannedSet, SetKind, WeightUnit } from "@workspace/shared";
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
@@ -97,6 +97,8 @@ export const session = sqliteTable(
     program_id: text("program_id"),
     run_id: text("run_id"),
     slot_id: text("slot_id"),
+    /** The gym trained at; null is any gym. A deleted gym reads as null (the server nulls it). */
+    gym_id: text("gym_id"),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     title_derived: integer("title_derived", { mode: "boolean" }).notNull().default(true),
@@ -128,6 +130,7 @@ export const session = sqliteTable(
     index("session_import_fingerprint_idx").on(table.import_fingerprint),
     index("session_run_id_idx").on(table.run_id, table.started_at, table.id),
     index("session_finished_at_idx").on(table.finished_at),
+    index("session_gym_id_idx").on(table.gym_id),
   ],
 );
 
@@ -191,21 +194,54 @@ export const sessionSet = sqliteTable(
   (table) => [index("session_set_order_idx").on(table.session_exercise_id, table.position)],
 );
 
-/** The user's bars and plates. `unit` is the kit an item belongs to; weights are kilograms. */
-export const gymEquipment = sqliteTable("gym_equipment", {
+/** A place the user trains. The server creates "My gym" for every account. */
+export const gym = sqliteTable("gym", {
   id: text("id").primaryKey().notNull(),
   user_id: text("user_id").notNull(),
-  kind: text("kind").$type<"bar" | "plate">().notNull(),
-  weight_kg: real("weight_kg").notNull(),
-  unit: text("unit").$type<WeightUnit>().notNull(),
-  label: text("label"),
-  count: integer("count"),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  name: text("name").notNull(),
   created_at: text("created_at").notNull(),
   restore: integer("restore"),
-  // Upload only: the first row ID of the automatic kit this item belongs to.
-  seed: text("seed"),
 });
+
+/**
+ * The bars and plates of a gym's kit. `unit` is the kit an item belongs to; weights are
+ * kilograms. `gym_id` is null on rows from before gyms existed: they belong to the default gym.
+ */
+export const gymEquipment = sqliteTable(
+  "gym_equipment",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    gym_id: text("gym_id"),
+    kind: text("kind").$type<"bar" | "plate">().notNull(),
+    weight_kg: real("weight_kg").notNull(),
+    unit: text("unit").$type<WeightUnit>().notNull(),
+    label: text("label"),
+    count: integer("count"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+    // Upload only: the first row ID of the automatic kit this item belongs to.
+    seed: text("seed"),
+  },
+  (table) => [index("gym_equipment_gym_id_idx").on(table.gym_id)],
+);
+
+/** What one gym says about one exercise: its load ranges (the last `max` is the cap) and a note. */
+export const gymExerciseSetting = sqliteTable(
+  "gym_exercise_setting",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    gym_id: text("gym_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    load_ranges: text("load_ranges", { mode: "json" }).$type<LoadRange[]>().notNull(),
+    setup_note: text("setup_note"),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [index("gym_exercise_setting_exercise_id_idx").on(table.exercise_id, table.gym_id)],
+);
 
 export const exerciseSetting = sqliteTable(
   "exercise_setting",

@@ -83,15 +83,30 @@ export function exerciseDetailQuery(id: string): LibraryQuery {
 }
 
 /**
- * Live exercises with the same primary muscle and a different equipment, most shared primary
- * details first (ADR 0050), then best rank first, then title, then id; at most `limit`. The
- * exercise itself is never listed (it has its own equipment). Without details the order is rank.
+ * The exercise types that can stand in for each other in a swap: a weighted lift is not offered a
+ * timed or a plain bodyweight alternative. A type outside these groups swaps only with its own.
+ */
+const COMPATIBLE_TYPES = [
+  ["weight_reps", "bodyweight_weighted_reps"],
+  ["bodyweight_reps", "reps_only", "bodyweight_assisted_reps"],
+] as const satisfies readonly (readonly (typeof EXERCISE_TYPES)[number][])[];
+
+/** The types a swap for `type` may be, itself included. */
+export function compatibleSwapTypes(type: (typeof EXERCISE_TYPES)[number]): string[] {
+  return [...(COMPATIBLE_TYPES.find((group) => group.some((member) => member === type)) ?? [type])];
+}
+
+/**
+ * Live exercises with the same primary muscle and a compatible type, equipment of any kind (a
+ * cable fly is a fine swap for a machine fly), most shared primary details first (ADR 0050), then
+ * best rank first, then title, then id; at most `limit`, applied after that ordering. The exercise
+ * itself is never listed. Without details the order is rank.
  */
 export function swapCandidatesQuery(
   exercise: {
     id: string;
     primaryMuscle: string;
-    equipment: string;
+    exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
   },
   limit: number = SWAP_CANDIDATE_LIMIT,
@@ -99,14 +114,17 @@ export function swapCandidatesQuery(
   const details = exercise.primaryDetail ?? [];
   const overlap = details.map(() => `(primary_detail LIKE ? ESCAPE '\\')`);
   const shared = overlap.length > 0 ? `(${overlap.join(" + ")}) DESC, ` : "";
+  const types = exercise.exerciseType ? compatibleSwapTypes(exercise.exerciseType) : [];
+  const typeFilter =
+    types.length > 0 ? ` AND exercise_type IN (${types.map(() => "?").join(", ")})` : "";
   return {
     sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM exercise
-      WHERE retired_at IS NULL AND primary_muscle = ? AND equipment <> ? AND id <> ?
+      WHERE retired_at IS NULL AND primary_muscle = ? AND id <> ?${typeFilter}
       ORDER BY ${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
     params: [
       exercise.primaryMuscle,
-      exercise.equipment,
       exercise.id,
+      ...types,
       ...details.map(detailLikePattern),
       limit,
     ],
@@ -182,7 +200,7 @@ export function watchSwapCandidates(
   exercise: {
     id: string;
     primaryMuscle: string;
-    equipment: string;
+    exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
   },
   handlers: { onRows: (rows: LibraryRow[]) => void; onError: (error: Error) => void },

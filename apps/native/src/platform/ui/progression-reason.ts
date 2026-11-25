@@ -17,6 +17,12 @@ export function progressionLabelKey(reason: Progression["reason"]) {
       return "progress__label_same_as_last";
     case "deload":
       return "progress__label_deload";
+    case "capped":
+      return "progress__label_capped";
+    case "cap_reps":
+      return "progress__label_cap_reps";
+    case "cap_hint":
+      return "progress__label_cap_hint";
   }
 }
 
@@ -37,6 +43,12 @@ export function progressionReasonKey(reason: Progression["reason"]) {
       return "progress__reason_same_as_last";
     case "deload":
       return "progress__reason_deload";
+    case "capped":
+      return "progress__reason_capped";
+    case "cap_reps":
+      return "progress__reason_cap_reps";
+    case "cap_hint":
+      return "progress__reason_cap_hint";
   }
 }
 

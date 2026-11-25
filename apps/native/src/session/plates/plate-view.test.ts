@@ -148,6 +148,13 @@ describe("loadChoices and nearest", () => {
     ]);
     expect(nearestChoice(choices)?.side).toBe("below");
   });
+  it("omits plate combinations and bare bars above the cap", () => {
+    const result = loadBar(61, { weightKg: 20 }, [plate(20), plate(1.25)]);
+    expect(loadChoices(61, result, 61).map((choice) => choice.load.totalKg)).toEqual([60]);
+    expect(loadChoices(61, result, 62.5)).toHaveLength(2);
+    const heavyBar = loadBar(10, { weightKg: 20 }, []);
+    expect(loadChoices(10, heavyBar, 10)).toEqual([]);
+  });
   it("breaks a tie towards the lower load", () => {
     const result = loadBar(61.25, { weightKg: 20 }, [plate(20), plate(1.25)]);
     const choices = loadChoices(61.25, result);

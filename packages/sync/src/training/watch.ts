@@ -15,7 +15,9 @@ import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
   EXERCISE_BAR_SQL,
+  EXERCISE_BARS_SQL,
   parseExerciseBar,
+  parseExerciseBars,
   EXERCISE_HISTORY_SQL,
   exerciseHistoriesSql,
   exerciseRecordsSql,
@@ -959,22 +961,26 @@ export function watchHistoryOverview(
   };
   database.onChangeWithCallback(
     { onChange: () => void read() },
-    { signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+    { signal, tables: [...SESSION_TABLES, "gym"], throttleMs: THROTTLE_MS },
   );
   void read();
   return () => controller.abort();
 }
 
-/** Watches the user's bars and plates: bars first, heavier first. */
+/**
+ * Watches the bars and plates of one gym: bars first, heavier first. `unassigned` includes the
+ * rows that predate gyms, which belong to the default gym (and to no gym before the first sync).
+ */
 export function watchEquipment(
   database: TrainingDatabase,
   handlers: { onEquipment: (items: EquipmentRow[]) => void; onError: (error: Error) => void },
+  gym: { gymId: string | null; unassigned: boolean },
 ): () => void {
   return watch(
     database,
     EQUIPMENT_SQL,
-    [],
-    ["gym_equipment"],
+    [gym.gymId ?? "", gym.unassigned ? "1" : "0"],
+    ["gym_equipment", "gym"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
     handlers.onError,
   );
@@ -992,6 +998,24 @@ export function watchExerciseBar(
     [exerciseId],
     ["exercise_setting"],
     parsing(parseExerciseBar, { onResult: handlers.onBar, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the bar each exercise remembers, by exercise id (exercises with none are left out). */
+export function watchExerciseBars(
+  database: TrainingDatabase,
+  handlers: {
+    onBars: (bars: ReadonlyMap<string, string>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    EXERCISE_BARS_SQL,
+    [],
+    ["exercise_setting"],
+    parsing(parseExerciseBars, { onResult: handlers.onBars, onError: handlers.onError }),
     handlers.onError,
   );
 }

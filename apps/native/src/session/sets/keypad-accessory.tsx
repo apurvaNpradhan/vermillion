@@ -15,6 +15,8 @@ export type KeypadCell = {
   setId: string;
   field: SetField;
   unit: WeightUnit;
+  /** The Session's gym, whose kit and cap the plate calculator uses; none is the gym trained at. */
+  gymId: string | null;
   /** The weight the cell shows now: its value, else its Ghost value. */
   readCurrentKg: () => number | null;
   /** Puts a weight into the cell (the calculator's Use). */
@@ -55,6 +57,7 @@ export function useKeypadAccessory(cell: KeypadCell | null): ReactNode {
         targetKg={openedKg}
         exerciseId={cell.exercise.exerciseId}
         equipment={cell.exercise.exercise?.equipment}
+        gymId={cell.gymId}
         onUse={(weightKg) => {
           cell.putKg(weightKg);
           setOpen(false);

@@ -448,7 +448,7 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
 
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
-    s.workout_id AS workout_id,
+    s.workout_id AS workout_id, s.gym_id AS gym_id,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -612,6 +612,8 @@ const overviewRow = z.object({
   finished_at: z.string(),
   durationS: z.number().nullable(),
   pausedMs: z.number().nullable(),
+  /** The gym trained at; null for any gym or a gym that is gone. */
+  gymName: z.string().nullable().optional(),
   exerciseTitles: jsonText.pipe(z.array(z.string())),
   sets: jsonText.pipe(z.array(overviewSet)),
 });
@@ -621,6 +623,7 @@ export type HistoryOverviewSession = z.output<typeof overviewRow>;
 function overviewPageSql(bounded: boolean): string {
   return `SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s AS durationS,
     s.paused_ms AS pausedMs,
+    (SELECT g.name FROM gym g WHERE g.id = s.gym_id) AS gymName,
     (SELECT json_group_array(title) FROM (
       SELECT se.exercise_title AS title FROM session_exercise se
       WHERE se.session_id = s.id AND se.exercise_title <> ''
@@ -778,6 +781,7 @@ const finishedRowSchema = z.object({
   duration_s: z.number().nullable(),
   paused_ms: z.number().nullable().optional(),
   workout_id: z.string().nullable(),
+  gym_id: z.string().nullable().optional(),
   exercise_id: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   set_id: z.string().nullable(),
@@ -806,6 +810,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         durationS: row.duration_s,
         pausedMs: row.paused_ms ?? 0,
         workoutId: row.workout_id,
+        gymId: row.gym_id ?? null,
         sets: [],
       };
       result.push(current);
@@ -857,11 +862,30 @@ export type EquipmentRow = {
   enabled: boolean;
 };
 
+/**
+ * The kit of one gym. Two placeholders: the gym id, and "1" when rows with no gym (written before
+ * gyms existed) belong to it too, which they do for the default gym. The kit of a gym that was
+ * deleted is not read, even while its rows wait on the device for the server to take them.
+ * A watch of this query depends on both gym_equipment and gym.
+ */
 export const EQUIPMENT_SQL = `SELECT id, kind, weight_kg, unit, label, count, enabled FROM gym_equipment
+  WHERE (gym_id = ? AND EXISTS (SELECT 1 FROM gym WHERE gym.id = gym_equipment.gym_id))
+    OR (gym_id IS NULL AND ? = '1')
   ORDER BY kind, weight_kg DESC, id LIMIT ${EQUIPMENT_LIMIT}`;
 
 /** The bar an exercise remembers; one placeholder, the exercise id. */
 export const EXERCISE_BAR_SQL = "SELECT bar_id FROM exercise_setting WHERE exercise_id = ?";
+
+/** The bar every exercise remembers (only those that remember one). */
+export const EXERCISE_BARS_SQL = `SELECT exercise_id, bar_id FROM exercise_setting
+  WHERE bar_id IS NOT NULL ORDER BY exercise_id LIMIT 1000`;
+
+const exerciseBarsSchema = z.array(z.object({ exercise_id: z.string(), bar_id: z.string() }));
+
+/** The bars of an `EXERCISE_BARS_SQL` result, by exercise id. */
+export function parseExerciseBars(rows: readonly object[]): Map<string, string> {
+  return new Map(exerciseBarsSchema.parse(rows).map((row) => [row.exercise_id, row.bar_id]));
+}
 
 const exerciseBarSchema = z.array(z.object({ bar_id: z.string().nullable() }));
 

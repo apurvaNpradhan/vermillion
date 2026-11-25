@@ -1,5 +1,8 @@
 import {
   DEFAULT_WARMUP_STEPS,
+  capOnlyOf,
+  rangeGrid,
+  type LoadRange,
   hasWarmupRamp,
   type Equipment,
   warmupRamp,
@@ -47,24 +50,30 @@ const equipmentOf = (exercise: Pick<SessionExerciseDetail, "exercise">): Equipme
   exercise.exercise?.equipment ?? "other";
 
 /**
- * What the user can load for this exercise: its remembered bar and the plates of that bar's unit.
- * The key holds what the ramp reads: the equipment class, the bar and plates only for a barbell
- * (anything else rounds to the step), and the step; so a ramp made before the library's metadata
- * arrived is rebuilt when it does.
+ * The Session gym's exercise ranges take priority. Without them, use the remembered bar and
+ * plates or the global step. The key changes when a range, cap or fallback input changes.
  */
 export function warmupLoading(
   exercise: Pick<SessionExerciseDetail, "barId" | "exercise">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
+  ranges: readonly LoadRange[] = [],
 ): WarmupLoadingKey {
+  const grid = rangeGrid(ranges);
+  if (grid) return { loading: { bar: null, grid }, key: JSON.stringify(ranges) };
+  const capKg = capOnlyOf(ranges);
   const equipment = equipmentOf(exercise);
   const bar = defaultBar(enabledBars(rows), exercise.barId, unit);
   const plates = bar ? platesForBar(rows, bar) : [];
   const barKey = equipment === "barbell" ? loadInputKey(bar, plates) : "-";
   return {
-    loading: { bar: bar ? { weightKg: bar.weightKg, plates } : null, stepKg: weightIncrementKg },
-    key: `${equipment}|${barKey}|${weightIncrementKg ?? "-"}`,
+    loading: {
+      bar: bar ? { weightKg: bar.weightKg, plates } : null,
+      stepKg: weightIncrementKg,
+      capKg,
+    },
+    key: `${equipment}|${barKey}|${weightIncrementKg ?? "-"}${capKg === null ? "" : `|${capKg}`}`,
   };
 }
 
@@ -76,6 +85,7 @@ export function rampTargets(
   unit: WeightUnit,
   weightIncrementKg: number | null,
   settings?: WarmupSettings,
+  ranges?: readonly LoadRange[],
 ): PlannedSet[] {
   return warmupRamp({
     steps: settings?.steps,
@@ -84,7 +94,7 @@ export function rampTargets(
     exerciseType: exercise.type,
     equipment: equipmentOf(exercise),
     unit,
-    loading: warmupLoading(exercise, rows, unit, weightIncrementKg).loading,
+    loading: warmupLoading(exercise, rows, unit, weightIncrementKg, ranges).loading,
   }).map((step) => ({
     kind: "warmup",
     weight_kg: step.weightKg,
@@ -130,8 +140,9 @@ export function rampKey(
   unit: WeightUnit,
   weightIncrementKg: number | null,
   settings?: WarmupSettings,
+  ranges?: readonly LoadRange[],
 ): string {
-  const loading = warmupLoading(exercise, rows, unit, weightIncrementKg).key;
+  const loading = warmupLoading(exercise, rows, unit, weightIncrementKg, ranges).key;
   const base = `${workingKg}|${exercise.type}|${unit}|${loading}`;
   // The default ramp keeps its old key, so no stored ramp is rebuilt by this setting existing.
   const text = settings ? settingsText(settings) : DEFAULT_SETTINGS_TEXT;

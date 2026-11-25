@@ -57,10 +57,18 @@ describe("ui preferences schema", () => {
       muscleGoals: {},
       deloadUntil: null,
       lighterWeeks: [],
+      activeGymId: null,
+      capPrompts: [],
       deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);
+  });
+  it.each([
+    { name: "a value that is not a list", capPrompts: "nope" },
+    { name: "a prompt with a missing field", capPrompts: [{ key: "g:e" }] },
+  ])("reads $name in capPrompts as no prompts", ({ capPrompts }) => {
+    expect(uiPreferencesSchema.parse({ capPrompts }).capPrompts).toEqual([]);
   });
   it("keeps saved muscle goals and rejects an inverted Custom range", () => {
     const goals = { chest: { level: "focus" }, calves: { level: "custom", min: 4, max: 9 } };

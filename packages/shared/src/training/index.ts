@@ -19,6 +19,7 @@ export * from "./progress/records";
 export * from "./volume/muscle-distribution";
 export * from "./plates/gym-kit";
 export * from "./plates/plates";
+export * from "./plates/bar-choice";
 export * from "./plans/session-workout-diff";
 export {
   activeRun,
@@ -30,6 +31,16 @@ export {
 } from "./plans/cycle";
 
 export * from "./progress/progression";
+export * from "./progress/load-grid";
+export * from "./progress/gym-history";
+export * from "./progress/gym-setting-id";
+export {
+  addLoad,
+  defaultRangesFor,
+  defaultStepKg,
+  lightenLoad,
+  loadable,
+} from "./progress/progression-steps";
 export * from "./progress/lighter-week";
 export * from "./progress/stalled-lift";
 export * from "./plans/week";
