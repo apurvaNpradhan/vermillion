@@ -327,10 +327,11 @@ export function suggestNext(
   const workingReady = slots.every(({ target, ordinal }) => {
     if (target.kind !== "working") return true;
     const before = lastWorking[ordinal];
+    if (!before) return true;
     const ceiling = target.reps_max ?? target.reps_min;
     return (
       ceiling !== undefined &&
-      before?.reps != null &&
+      before.reps != null &&
       before.reps >= ceiling &&
       before.weight_kg != null &&
       (before.rpe == null || before.rpe < GRIND_RPE)

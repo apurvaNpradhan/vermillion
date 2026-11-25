@@ -69,6 +69,25 @@ describe("double progression", () => {
   });
 
   it.each([
+    { weightUnit: "kg", before: 60, expected: 62.5 },
+    { weightUnit: "lb", before: 135, expected: 140 },
+  ] as const)(
+    "lets a new working slot follow the others in $weightUnit",
+    ({ weightUnit, before, expected }) => {
+      const targets = [...plan, ...plan];
+      const weight = parseWeight(String(before), weightUnit) ?? 0;
+      const history = [session(targets.slice(1).map(() => logged(12, weight)))];
+      const settings = { weightUnit, weightIncrementKg: null };
+      const next = (sets: PlannedSet[]) =>
+        suggestNext(sets, history, "weight_reps", "barbell", settings, { now: NOW });
+      expect(next(targets)?.sets).toEqual(
+        targets.map(() => ({ weightKg: parseWeight(String(expected), weightUnit), reps: 8 })),
+      );
+      expect(next(targets)?.sets.slice(0, -1)).toEqual(next(targets.slice(1))?.sets);
+    },
+  );
+
+  it.each([
     { weightUnit: "kg", before: 10, expected: 15 },
     { weightUnit: "lb", before: 25, expected: 35 },
   ] as const)(
@@ -129,10 +148,6 @@ describe("double progression", () => {
         { weightKg: 70, reps: 11 },
       ],
     });
-    expect(suggest([logged(12)])?.sets).toEqual([
-      { weightKg: 80, reps: 12 },
-      { weightKg: 80, reps: 12 },
-    ]);
     expect(suggest([logged(12, 80, { rpe: 9.5 }), logged(12)])?.reason).toBe("hold_effort");
   });
 
@@ -147,8 +162,8 @@ describe("double progression", () => {
 
   it("copies the nearest previous working set for a set it had no counterpart for", () => {
     expect(suggest([logged(12)])?.sets).toEqual([
-      { weightKg: 80, reps: 12 },
-      { weightKg: 80, reps: 12 },
+      { weightKg: 82.5, reps: 8 },
+      { weightKg: 82.5, reps: 8 },
     ]);
     expect(suggest([logged(10)])?.sets).toEqual([
       { weightKg: 80, reps: 11 },
