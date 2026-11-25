@@ -115,6 +115,7 @@ export const trainingUploadColumns = {
     "exercise_type",
     "source_workout_exercise_id",
     "stall_deload",
+    "prescription",
     "workout_swap_fragment",
     "position",
     "rest_seconds",

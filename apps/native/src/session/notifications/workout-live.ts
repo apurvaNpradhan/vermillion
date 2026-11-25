@@ -52,6 +52,7 @@ async function snapshotOf(
     { ...options, stallMemory },
     gym,
     sessionGymId,
+    session.deviceId,
   );
   const state = workoutLiveState({
     session,

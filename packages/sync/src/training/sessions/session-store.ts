@@ -11,6 +11,9 @@ import {
   loadCutRange,
   plannedLoadFactors,
   phaseFor,
+  prescriptionFor,
+  prescriptionSchema,
+  type PrescriptionDraft,
   runPausedAt,
   hasLoad,
   isTestSingle,
@@ -22,7 +25,7 @@ import {
   type PlannedSet,
   type RunSlot,
 } from "@workspace/shared";
-import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { program, programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
@@ -60,14 +63,38 @@ export function setStallDeload(
   entryId: string,
   applied: boolean,
   writeScope?: string,
+  draft?: PrescriptionDraft | null,
 ) {
   return write(db, writeScope, async (tx) => {
     const entry = await requireSessionExercise(tx, entryId);
     const current = await requireSession(tx, entry.session_id);
     if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
+    const saved = prescriptionFor(entry.prescription, entry.exercise_id);
+    const unticked =
+      draft && saved && draft.exerciseId === entry.exercise_id
+        ? await tx
+            .select({ id: sessionSet.id })
+            .from(sessionSet)
+            .where(
+              and(eq(sessionSet.session_exercise_id, entryId), isNull(sessionSet.completed_at)),
+            )
+        : [];
+    const freshById = new Map(draft?.sets.map((set) => [set.id, set]));
+    const untickedIds = new Set(unticked.map(({ id }) => id));
+    const prescription =
+      saved && draft && untickedIds.size > 0
+        ? prescriptionSchema.parse({
+            ...draft,
+            sets: saved.sets.map((set) =>
+              untickedIds.has(set.id) ? (freshById.get(set.id) ?? set) : set,
+            ),
+            revision: uuidv7(),
+            previousRevision: saved.revision,
+          })
+        : undefined;
     await tx
       .update(sessionExercise)
-      .set({ stall_deload: applied })
+      .set({ stall_deload: applied, ...(prescription ? { prescription } : {}) })
       .where(eq(sessionExercise.id, entryId));
     return true;
   });

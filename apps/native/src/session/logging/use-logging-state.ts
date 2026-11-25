@@ -55,7 +55,7 @@ import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } f
 
 type Actions = Pick<
   ReturnType<typeof useOptimisticSession>,
-  "tick" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
+  "tick" | "savePrescription" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
 >;
 
 /**
@@ -73,6 +73,7 @@ export function useLoggingState({
   recordBests,
   historyReady,
   historyFailed,
+  prescriptionReady,
   unit,
   display,
   effortScale,
@@ -97,6 +98,7 @@ export function useLoggingState({
   historyReady: boolean;
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
+  prescriptionReady: boolean;
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
@@ -162,6 +164,7 @@ export function useLoggingState({
     () => ({
       previous,
       historyFailed,
+      prescriptionReady,
       previousSource,
       unit,
       unitNames,
@@ -183,6 +186,7 @@ export function useLoggingState({
     [
       previous,
       historyFailed,
+      prescriptionReady,
       previousSource,
       unit,
       unitNames,
@@ -213,6 +217,16 @@ export function useLoggingState({
   const blocks = useStore(store, (state) => state.blocks);
   const places = useStore(store, (state) => state.places);
   const views = useStore(store, (state) => state.views);
+  const savePrescription = actions.savePrescription;
+  const capturing = useRef(new Set<string>());
+  useEffect(() => {
+    if (readOnly || !historyReady || !prescriptionReady) return;
+    for (const [id, view] of views) {
+      if (!view.prescriptionDraft || capturing.current.has(id)) continue;
+      capturing.current.add(id);
+      void savePrescription(id, view.prescriptionDraft).finally(() => capturing.current.delete(id));
+    }
+  }, [readOnly, historyReady, prescriptionReady, views, savePrescription]);
   const exercises = useStore(store, (state) => state.session.exercises);
   const finished = useStore(store, (state) => state.session.finishedAt !== null);
   const currentSetId = useStore(store, (state) => state.currentSetId);
@@ -467,14 +481,13 @@ export function useLoggingState({
       const at = state.found.get(setId);
       if (!at) return false;
       const settled = historySettled({
-        loaded: previous.has(at.exercise.exerciseId),
+        loaded:
+          Boolean(at.exercise.prescription) ||
+          (prescriptionReady && previous.has(at.exercise.exerciseId)),
         failed: historyFailed,
       });
       const latest = at.set;
-      if (
-        !settled &&
-        (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
-      )
+      if (!settled && !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
         return false;
       const block = state.blocks.find((entry) =>
         entry.members.some((member) => member.id === at.exercise.id),
@@ -593,6 +606,7 @@ export function useLoggingState({
       store,
       editor,
       historyFailed,
+      prescriptionReady,
       actions,
       previous,
       recordBests,

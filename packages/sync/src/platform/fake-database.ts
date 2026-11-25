@@ -55,7 +55,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         created_at TEXT, restore INTEGER);
       CREATE TABLE session_exercise (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT,
         exercise_id TEXT, exercise_title TEXT, exercise_type TEXT,
-        source_workout_exercise_id TEXT, stall_deload INTEGER, workout_swap_fragment INTEGER, position TEXT, rest_seconds INTEGER, note TEXT,
+        source_workout_exercise_id TEXT, stall_deload INTEGER, prescription TEXT, workout_swap_fragment INTEGER, position TEXT, rest_seconds INTEGER, note TEXT,
         superset_group TEXT, log_effort INTEGER, warmup_key TEXT, repeated INTEGER, created_at TEXT, restore INTEGER);
       CREATE INDEX session_started_at_idx ON training_session (started_at);
       CREATE INDEX session_workout_started_idx ON training_session (workout_id, started_at, id);

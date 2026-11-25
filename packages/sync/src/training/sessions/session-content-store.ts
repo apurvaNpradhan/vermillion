@@ -15,6 +15,8 @@ import {
   sessionSetInput,
   sessionSetSchema,
   tickValues,
+  prescriptionFor,
+  type PrescriptionDraft,
   type ActualValues,
   type ExerciseType,
   type Ghosts,
@@ -25,6 +27,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { capturePrescriptionIn } from "./prescription-store";
 import { resumeIn } from "./session-clock-store";
 import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
@@ -633,6 +636,7 @@ export function tickSet(
   expectedInstallId?: string,
   restSeconds?: number | null,
   expiresAt?: number,
+  draft?: PrescriptionDraft | null,
 ): Promise<TickResult> {
   if (restSeconds != null && !isRestSeconds(restSeconds)) {
     return Promise.reject(new Error("Rest is 1 to 600 seconds"));
@@ -656,7 +660,14 @@ export function tickSet(
       }
     }
     const completedAt = expiresAt ?? now;
-    const result = tickValues(current, ghosts, SET_FIELDS[parent.exercise_type]);
+    const prescription = draft
+      ? await capturePrescriptionIn(tx, parent, draft)
+      : prescriptionFor(parent.prescription, parent.exercise_id);
+    const savedGhosts = prescription?.sets.find((set) => set.id === id)?.ghosts;
+    const used = savedGhosts
+      ? { ...savedGhosts, ...(expiresAt === undefined ? {} : { duration: ghosts.duration }) }
+      : ghosts;
+    const result = tickValues(current, used, SET_FIELDS[parent.exercise_type]);
     if (!result.ok) {
       // A countdown with a missing field keeps its elapsed duration and stops in the same write.
       if (expiresAt !== undefined && duration != null) {

@@ -282,3 +282,5 @@ export {
   type ImportedPlan,
   type ImportExercisePreview,
 } from "./plans/share-store";
+
+export { capturePrescription } from "./sessions/prescription-store";

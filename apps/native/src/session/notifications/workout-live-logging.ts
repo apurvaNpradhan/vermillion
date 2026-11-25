@@ -1,5 +1,6 @@
 import {
   phaseLoadOf,
+  gridCapInUnit,
   isTestSingle,
   suggestionContext,
   withWarmupsCounted,
@@ -7,6 +8,7 @@ import {
   type SuggestionAccount,
 } from "@workspace/shared";
 import {
+  capturePrescription,
   EXERCISE_HISTORY_SQL,
   parseFinishedSessions,
   readBodyweightsOnDates,
@@ -17,7 +19,7 @@ import {
 import type { GymLoads } from "@/gym";
 import { blocksOf } from "../logging/blocks";
 import { currentAction, orderedSets } from "../logging/current-action";
-import { loggingGhosts } from "../logging/logging-ghosts";
+import { exerciseSuggestion, loggingGhosts, prescriptionDraft } from "../logging/logging-ghosts";
 import { restAfterTick } from "../rest/rest-rules";
 
 /**
@@ -41,11 +43,17 @@ export async function workoutLiveGhosts(
   options: LiveSuggestionAccount,
   gym: GymLoads,
   sessionGymId: string | null,
+  writeScope?: string,
 ) {
   const ghosts = new Map<string, Ghosts>();
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
   if (!first) return ghosts;
   const { exercise } = first;
+  const saved = exercise.prescription?.sets.find(({ id }) => id === first.set.id);
+  if (saved) {
+    ghosts.set(first.set.id, saved.ghosts);
+    return ghosts;
+  }
   const entries = session.exercises.filter(({ exerciseId }) => exerciseId === exercise.exerciseId);
   const rawHistory = parseFinishedSessions(
     await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
@@ -101,7 +109,25 @@ export async function workoutLiveGhosts(
     },
     { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
   );
-  ghosts.set(first.set.id, loggingGhosts(exercise, first.index, history, context.settings));
+  const suggestion = exercise.prescription
+    ? null
+    : exerciseSuggestion(exercise, history, context.settings);
+  const ghostsAt = (index: number) =>
+    loggingGhosts(exercise, index, history, context.settings, suggestion);
+  const draft =
+    writeScope !== undefined && !exercise.prescription
+      ? prescriptionDraft(
+          exercise,
+          suggestion,
+          gridCapInUnit(context.settings.grid ?? null, context.unit),
+          ghostsAt,
+        )
+      : null;
+  const captured = draft ? await capturePrescription(db, exercise.id, draft, writeScope) : null;
+  ghosts.set(
+    first.set.id,
+    captured?.sets.find(({ id }) => id === first.set.id)?.ghosts ?? ghostsAt(first.index),
+  );
   return ghosts;
 }
 

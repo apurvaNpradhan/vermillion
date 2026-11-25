@@ -333,6 +333,37 @@ it.each([
   if (!effort && !progressing && !testWeek && !fixed)
     expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
+  // The live surface captures the same ghosts and factors the Session derived. A changed
+  // history or phase input cannot replace what was already offered for these set ids.
+  await workoutLiveGhosts(
+    training,
+    session,
+    { ...inputs, weightUnit: unit },
+    gym,
+    null,
+    fixture.installId,
+  );
+  const frozen = (await readSession(id))!;
+  const pinned = frozen.exercises.find((item) => item.id === exercise.id)?.prescription;
+  expect(pinned?.sets.find(({ id }) => id === set.id)).toEqual({
+    id: set.id,
+    ghosts: live.get(set.id),
+    outcome: view?.suggestion?.outcomes[exercise.sets.indexOf(set)] ?? null,
+  });
+  const changed = { ...inputs, previous: new Map(), phaseLoad: 0.5 };
+  const frozenView = deriveExercises(
+    frozen.exercises,
+    changed,
+    { finished: false, workoutId },
+    new Map(),
+  ).get(exercise.id)?.view;
+  expect(frozenView?.rows.get(set.id)?.ghosts).toEqual(live.get(set.id));
+  expect(
+    (await workoutLiveGhosts(training, frozen, { ...changed, weightUnit: unit }, gym, null)).get(
+      set.id,
+    ),
+  ).toEqual(live.get(set.id));
+
   if (applied) {
     expect(view?.rows.get(set.id)?.ghosts.weight).toBeCloseTo(
       unit === "kg" ? expected : expected * KG_PER_LB,

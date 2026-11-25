@@ -124,6 +124,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
     ) => {
       const state = store.getState();
       const at = state.found.get(setId);
+      const draft = at && state.views.get(at.exercise.id)?.prescriptionDraft;
       const block = at && blockOf(state.blocks, at.exercise.id);
       const finishesBlock =
         at && block && state.expanded.has(at.exercise.id) && !highlightOf(block, setId);
@@ -135,7 +136,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
         }
         await nudges.release();
         const before = savedSession(store.getState()).rest;
-        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt);
+        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt, draft);
         if (!result?.ok || !result.wrote) {
           settle(id);
           return result;

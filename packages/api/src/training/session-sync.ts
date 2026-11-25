@@ -13,6 +13,8 @@ import {
   SESSION_LIMITS,
   SYNC_LIMITS,
   sessionExerciseInput,
+  prescriptionFor,
+  prescriptionSchema,
   sessionInput,
   sessionSetInput,
   sessionSetSchema,
@@ -426,7 +428,10 @@ const sessionSyncHandler: SyncTableHandler = {
 
 // ---- Session exercise ----
 
+const wirePrescription = jsonText(prescriptionSchema).nullable();
+
 const putSessionExercise = z.strictObject({
+  prescription: wirePrescription.optional(),
   restore: restoreMarker,
   session_id: sessionExerciseInput.shape.session_id,
   exercise_id: sessionExerciseInput.shape.exercise_id,
@@ -449,6 +454,7 @@ const patchSessionExercise = z
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
     stall_deload: wireBoolean.nullable(),
+    prescription: wirePrescription,
     warmup_key: wireWarmupKey,
     workout_swap_fragment: wireBoolean.nullable(),
   })
@@ -501,13 +507,16 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         restore,
         warmup_key: warmupKey,
         repeated,
+        prescription,
         stall_deload: stallDeload,
         workout_swap_fragment: workoutSwapFragment,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
+      if (prescription && prescription.exerciseId !== values.exercise_id) return invalid();
       const extra = {
+        ...(found.kind === "absent" && prescription ? { prescription } : {}),
         ...(warmupKey === undefined ? {} : { warmupKey }),
         // Set when the exercise is created and never edited, so a PUT that omits it keeps it.
         ...(repeated === undefined ? {} : { repeated }),
@@ -544,6 +553,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
     const row = liveRow(found);
     const {
       warmup_key: warmupKey,
+      prescription,
       stall_deload: stallDeload,
       workout_swap_fragment: workoutSwapFragment,
       ...patch
@@ -563,6 +573,13 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         ...patch,
       }),
     );
+    if (prescription && prescription.exerciseId !== merged.exercise_id) return invalid();
+    const current = prescriptionFor(row.prescription, merged.exercise_id);
+    // The first capture wins. A later revision must name the snapshot it was based on.
+    const next =
+      prescription && prescription.previousRevision === (current?.revision ?? null)
+        ? prescription
+        : undefined;
     if (patch.exercise_id !== undefined) await exerciseVisible(db, userId, patch.exercise_id);
     if (patch.exercise_id !== undefined && patch.exercise_id !== row.exerciseId) {
       await assertExerciseHasNoCompletedSets(db, id);
@@ -571,6 +588,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       .update(sessionExercise)
       .set({
         ...columns(merged),
+        ...(next ? { prescription: next } : {}),
         ...(stallDeload === undefined ? {} : { stallDeload }),
         ...(warmupKey === undefined ? {} : { warmupKey }),
         ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),

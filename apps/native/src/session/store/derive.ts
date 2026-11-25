@@ -10,6 +10,7 @@ import {
   type LighterPeriod,
   type LoggedSet,
   type Progression,
+  type PrescriptionDraft,
   type PreviousSource,
   type SetField,
   type SetKind,
@@ -20,7 +21,12 @@ import type { GymLoads } from "@/gym";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
-import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
+import {
+  capGhostWeight,
+  exerciseSuggestion,
+  prescriptionDraft,
+  snapshotProgression,
+} from "../logging/logging-ghosts";
 import {
   ghostsOf,
   previousForSuggestion,
@@ -35,6 +41,7 @@ export type DeriveInputs = {
   /** The finished Sessions of each exercise, newest first. */
   previous: ReadonlyMap<string, readonly FinishedSession[]>;
   historyFailed: boolean;
+  prescriptionReady?: boolean;
   previousSource: PreviousSource;
   unit: WeightUnit;
   unitNames: Readonly<Record<WeightUnit, string>>;
@@ -78,6 +85,7 @@ export type RowView = {
 /** What an exercise's header and set rows draw, apart from the sets themselves. */
 export type ExerciseView = {
   suggestion: Progression | null;
+  prescriptionDraft: PrescriptionDraft | null;
   stall: StallInfo | null;
   /** "2/4". */
   progress: string;
@@ -112,8 +120,8 @@ function buildView(
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
-  const loaded = rawHistory !== undefined;
-  const historyReady = loaded || inputs.historyFailed;
+  const loaded = rawHistory !== undefined && inputs.prescriptionReady !== false;
+  const historyReady = loaded || inputs.historyFailed || Boolean(exercise.prescription);
 
   // One builder for every surface: the baseline, the stalled-lift verdict and its applied deload.
   const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
@@ -146,9 +154,11 @@ function buildView(
   );
   const { unit, stall, history } = context;
   const suggestion =
-    finished || !exercise.sourceWorkoutExerciseId
+    finished || !exercise.sourceWorkoutExerciseId || (!loaded && !exercise.prescription)
       ? null
-      : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
+      : exercise.prescription
+        ? snapshotProgression(exercise)
+        : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
   const capKg = !finished && fields.includes("weight") ? gridCapInUnit(grid, unit) : null;
@@ -186,9 +196,10 @@ function buildView(
           exercise.repeated,
         )
       : {};
+    const saved = exercise.prescription?.sets.find(({ id }) => id === set.id);
     const row: RowView = {
       previous,
-      ghosts: capGhostWeight(ghosts, capKg),
+      ghosts: saved ? saved.ghosts : capGhostWeight(ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -198,7 +209,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
-      capKg,
+      capKg: saved ? (exercise.prescription?.capKg ?? null) : capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
@@ -206,6 +217,18 @@ function buildView(
   const setIds = exercise.sets.map((set) => set.id);
   const view: ExerciseView = {
     suggestion: before && deepEqual(before.suggestion, suggestion) ? before.suggestion : suggestion,
+    prescriptionDraft:
+      !finished && loaded && !exercise.prescription
+        ? keepIfEqual(
+            before?.prescriptionDraft,
+            prescriptionDraft(
+              exercise,
+              suggestion,
+              capKg,
+              (index) => rows.get(exercise.sets[index]?.id ?? "")?.ghosts ?? {},
+            ),
+          )
+        : null,
     stall: before && deepEqual(before.stall, stall) ? before.stall : stall,
     progress: progressText(exercise.sets),
     summary: doneSummary(
@@ -229,6 +252,7 @@ function sameIds(a: readonly string[], b: readonly string[] | undefined): boolea
 function sameView(a: ExerciseView, b: ExerciseView): boolean {
   return (
     a.suggestion === b.suggestion &&
+    a.prescriptionDraft === b.prescriptionDraft &&
     a.stall === b.stall &&
     a.progress === b.progress &&
     a.summary === b.summary &&
@@ -311,4 +335,17 @@ export function deriveExercises(
     });
   }
   return next;
+}
+
+export function stallPrescription(entry: ExerciseCache, applied: boolean) {
+  return buildView(
+    { ...entry.exercise, stallDeload: applied, prescription: null },
+    entry.history,
+    entry.inputs,
+    entry.finished,
+    entry.workoutId,
+    entry.exerciseOrdinal,
+    entry.duplicateEntry,
+    undefined,
+  ).prescriptionDraft;
 }

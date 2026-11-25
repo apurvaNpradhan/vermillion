@@ -20,6 +20,7 @@ import {
   type PhasePlan,
   type PhaseSnapshot,
   type PlannedSet,
+  type Prescription,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
 import {
@@ -318,6 +319,7 @@ export const sessionExercise = pgTable(
     exerciseType: text("exercise_type").notNull(),
     sourceWorkoutExerciseId: uuid("source_workout_exercise_id"),
     stallDeload: boolean("stall_deload"),
+    prescription: jsonb("prescription").$type<Prescription>(),
     /** Completed history left by a swap that already updated the source Workout. */
     workoutSwapFragment: boolean("workout_swap_fragment"),
     position: text("position").notNull(),

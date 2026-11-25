@@ -175,6 +175,7 @@ export {
   restoreSessionExercise,
   supersetSessionWithNext,
   tickSet,
+  capturePrescription,
   untickSet,
   updateSessionExercise,
   updateSet,

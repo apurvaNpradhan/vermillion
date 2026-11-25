@@ -273,6 +273,70 @@ describe("session upload handlers", () => {
     return ids;
   }
 
+  it("validates and keeps one prescription per owned entry across installs", async () => {
+    const client = app.client(await createSignedInUser(app, "prescribed@example.com"));
+    const { userId } = await client.sync.credentials();
+    const me = installOf(client, userId);
+    const otherInstall = installOf(client, userId);
+    const stranger = await writer("prescription-stranger@example.com");
+    const t = await training(me);
+    const snapshot = {
+      exerciseId: weightReps,
+      revision: uuidv7(),
+      previousRevision: null as string | null,
+      reason: "add_weight",
+      incrementKg: 2.5,
+      breakDays: null,
+      capKg: 65,
+      sets: [
+        {
+          id: t.set1,
+          ghosts: { weight: 62.5, reps: 8, rpe: 8 },
+          outcome: { reason: "add_weight", changeKg: 2.5 },
+        },
+        {
+          id: t.set2,
+          ghosts: { weight: 65, reps: 8 },
+          outcome: { reason: "capped", capKg: 65, limit: "equipment" },
+        },
+      ],
+    };
+    const patch = (value: typeof snapshot & { previousRevision: string | null }) =>
+      op("PATCH", "session_exercise", t.exerciseId, { prescription: JSON.stringify(value) });
+
+    expect(await stranger.send([patch(snapshot)])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([patch({ ...snapshot, exerciseId: duration })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(
+      await me.send([patch({ ...snapshot, sets: [...snapshot.sets, ...snapshot.sets] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([patch(snapshot)])).toEqual(applied);
+    expect(
+      await otherInstall.send([patch({ ...snapshot, revision: uuidv7(), capKg: 70 })]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({
+      prescription: snapshot,
+    });
+
+    const revision = {
+      ...snapshot,
+      revision: uuidv7(),
+      previousRevision: snapshot.revision,
+      capKg: 70,
+    };
+    expect(await me.send([patch(revision)])).toEqual(applied);
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({
+      prescription: revision,
+    });
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { note: "Seat 3" })]),
+    ).toEqual(applied);
+    expect(await stored("session_exercise", t.exerciseId)).toMatchObject({
+      prescription: revision,
+    });
+  });
+
   it.each(["top", "backoff", "myo"] as const)(
     "persists %s and its effort through sync upload",
     async (kind) => {

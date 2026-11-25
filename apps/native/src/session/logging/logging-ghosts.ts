@@ -1,6 +1,8 @@
 import {
   gridCapInUnit,
   type Ghosts,
+  type PrescriptionDraft,
+  type Progression,
   type SessionHistory,
   type SuggestionSettings,
 } from "@workspace/shared";
@@ -38,8 +40,11 @@ export function loggingGhosts(
   index: number,
   history: readonly SessionHistory[],
   settings: SuggestionSettings,
+  suggestion = exerciseSuggestion(exercise, history, settings),
 ) {
   const set = exercise.sets[index];
+  const saved = exercise.prescription?.sets.find(({ id }) => id === set?.id);
+  if (saved) return saved.ghosts;
   return set
     ? capGhostWeight(
         ghostsOf(
@@ -55,10 +60,48 @@ export function loggingGhosts(
           ),
           set.target,
           exercise.logEffort,
-          exerciseSuggestion(exercise, history, settings)?.sets[index],
+          suggestion?.sets[index],
           exercise.repeated,
         ),
         gridCapInUnit(settings.grid ?? null, settings.weightUnit),
       )
     : {};
+}
+
+/** Use the recorded per-set outcome in the chip as well as in the logging cells. */
+export function snapshotProgression(exercise: SessionExerciseDetail): Progression | null {
+  const snapshot = exercise.prescription;
+  if (!snapshot?.reason) return null;
+  const sets = exercise.sets.map((set) => snapshot.sets.find(({ id }) => id === set.id));
+  return {
+    reason: snapshot.reason,
+    incrementKg: snapshot.incrementKg,
+    breakDays: snapshot.breakDays,
+    sets: sets.map((set) =>
+      set ? { weightKg: set.ghosts.weight ?? null, reps: set.ghosts.reps ?? null } : null,
+    ),
+    outcomes: sets.map((set) => set?.outcome ?? null),
+  };
+}
+
+export function prescriptionDraft(
+  exercise: SessionExerciseDetail,
+  suggestion: Progression | null,
+  capKg: number | null,
+  ghostsFor: (index: number) => Ghosts,
+): PrescriptionDraft | null {
+  const sets = exercise.sets.map(({ id }, index) => ({
+    id,
+    ghosts: ghostsFor(index),
+    outcome: suggestion?.outcomes[index] ?? null,
+  }));
+  if (!sets.some(({ ghosts }) => Object.values(ghosts).some((value) => value != null))) return null;
+  return {
+    exerciseId: exercise.exerciseId,
+    reason: suggestion?.reason ?? null,
+    incrementKg: suggestion?.incrementKg ?? 0,
+    breakDays: suggestion?.breakDays ?? null,
+    capKg,
+    sets,
+  };
 }

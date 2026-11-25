@@ -765,7 +765,7 @@ export function watchSession(
     database,
     SESSION_DETAIL_SQL,
     [id],
-    [...SESSION_TABLES, "exercise", "exercise_setting", "workout"],
+    [...SESSION_TABLES, "exercise", "exercise_setting", "workout", "gym"],
     (next) => {
       rows = next;
       emit();

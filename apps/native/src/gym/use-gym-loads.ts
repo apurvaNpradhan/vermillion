@@ -22,7 +22,7 @@ import { useGyms } from "./use-gyms";
  * first sync has delivered a gym.
  */
 export function useGymLoads(gymId?: string | null): GymLoads {
-  const { gyms, activeGymId, defaultGymId } = useGyms();
+  const { gyms, activeGymId, defaultGymId, ready: gymsReady } = useGyms();
   const wanted = gymId ?? activeGymId;
   const gym = gyms.find((entry) => entry.id === wanted);
   const dumbbellMaxKg = gym?.dumbbellMaxKg ?? null;
@@ -50,8 +50,8 @@ export function useGymLoads(gymId?: string | null): GymLoads {
   );
   const bars = useLocalWatch(barsSubscribe).value;
   return useMemo(
-    () =>
-      buildGymLoads({
+    () => ({
+      ...buildGymLoads({
         gymId: wanted,
         settings: settings ?? [],
         kit: wanted === null ? [] : (kit ?? []),
@@ -60,7 +60,9 @@ export function useGymLoads(gymId?: string | null): GymLoads {
         dumbbellMaxKg,
         unavailableEquipment: unavailable,
       }),
-    [wanted, settings, kit, bars, unit, dumbbellMaxKg, unavailable],
+      ready: gymsReady && settings !== undefined && kit !== undefined && bars !== undefined,
+    }),
+    [wanted, settings, kit, bars, unit, dumbbellMaxKg, unavailable, gymsReady],
   );
 }
 

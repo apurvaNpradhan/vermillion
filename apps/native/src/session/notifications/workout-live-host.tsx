@@ -1,7 +1,7 @@
 import { useStallVersion } from "@/exercise";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
-import { useGymLoads, useSessionGym } from "@/gym";
+import { useGymLoads } from "@/gym";
 import { usePreferences } from "@/preferences";
 import { useWeight } from "@/body";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
@@ -15,7 +15,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   const state = useSession(id);
   const stallVersion = useStallVersion();
   const permission = useNotificationPermission();
-  const { preferences, timeZone } = usePreferences();
+  const { preferences, timeZone, isLoading: preferencesLoading } = usePreferences();
   const {
     weightUnit,
     weightIncrementKg,
@@ -30,8 +30,8 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
-  const { entries } = useWeight();
-  const sessionGymId = useSessionGym(id);
+  const { entries, loading: weightLoading } = useWeight();
+  const sessionGymId = session?.gymId ?? null;
   const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
   // A different Session or a new install invalidates in-flight work for the old one.
@@ -43,7 +43,14 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     return () => subscription.remove();
   }, []);
   useEffect(() => {
-    if (loading || permission === "unknown") return;
+    if (
+      loading ||
+      preferencesLoading ||
+      weightLoading ||
+      gym.ready !== true ||
+      permission === "unknown"
+    )
+      return;
     if (
       permission !== "granted" ||
       !session ||
@@ -71,6 +78,8 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     );
   }, [
     loading,
+    preferencesLoading,
+    weightLoading,
     stallVersion,
     session,
     installId,
