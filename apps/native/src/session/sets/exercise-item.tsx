@@ -18,7 +18,7 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
-import { MaxPrompt, SetupNoteChip, StepPrompt } from "@/gym";
+import { MaxPrompt, OverridePrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { AdjustmentNote } from "./adjustment-note";
@@ -29,6 +29,16 @@ import { SetGrid, type SetHandlers } from "./set-grid";
 /** A ticked set that loads the stack the way training does: anything but a warm-up. */
 function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
   return kind !== "warmup";
+}
+
+/** The rep range the Session's first working set was planned with. */
+function plannedRangeOf(exercise: SessionExerciseDetail) {
+  for (const set of exercise.sets) {
+    const min = set.target?.reps_min;
+    const max = set.target?.reps_max;
+    if (set.kind !== "warmup" && min !== undefined && max !== undefined) return { min, max };
+  }
+  return null;
 }
 
 /** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
@@ -206,6 +216,17 @@ export const ExerciseItem = memo(function ExerciseItem({
                   gymId={data.gymId}
                   equipment={equipment}
                   unit={unit}
+                />
+              ) : null}
+              {!readOnly && data.activeSessionId && data.gymId ? (
+                <OverridePrompt
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={equipment}
+                  unit={unit}
+                  workoutExerciseId={exercise.sourceWorkoutExerciseId}
+                  range={plannedRangeOf(exercise)}
                 />
               ) : null}
               <ExerciseBody

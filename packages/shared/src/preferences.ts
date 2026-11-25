@@ -71,6 +71,25 @@ export const capPromptSchema = z.object({
 });
 export type CapPrompt = z.infer<typeof capPromptSchema>;
 
+/**
+ * What the step and rep-range prompts remember per gym, exercise and kind (`key` is
+ * `<gym id>:<exercise id>:<kind>`): the step in kilograms, or the rep count, the lifter keeps
+ * choosing over the suggestion, how many Sessions did, the last of them, and whether the question
+ * was dismissed for good. The newest entries are kept.
+ */
+export const OVERRIDE_PROMPTS_MAX = 100;
+export const OVERRIDE_PROMPT_KINDS = ["step", "range"] as const;
+export const overridePromptSchema = z.object({
+  key: z.string().max(120),
+  kind: z.enum(OVERRIDE_PROMPT_KINDS),
+  value: z.number().min(0).max(MAX_WEIGHT_KG),
+  count: z.number().int().min(0).max(1000),
+  sessionId: z.string().max(40).nullable(),
+  dismissed: z.boolean(),
+});
+export type OverridePrompt = z.infer<typeof overridePromptSchema>;
+export type OverridePromptKind = (typeof OVERRIDE_PROMPT_KINDS)[number];
+
 /** Answered stack-step prompts kept (newest last); older answers drop off first. */
 export const STEP_PROMPTS_MAX = 500;
 
@@ -129,6 +148,7 @@ const uiFields = {
   activeGymId: z.uuid().nullable(),
   capPrompts: z.array(capPromptSchema).max(100),
   stepPrompts: z.array(z.string().max(80)).max(STEP_PROMPTS_MAX),
+  overridePrompts: z.array(overridePromptSchema).max(OVERRIDE_PROMPTS_MAX),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -202,6 +222,7 @@ export const uiPreferencesSchema = z
     activeGymId: uiFields.activeGymId.default(null).catch(null),
     capPrompts: uiFields.capPrompts.default([]).catch([]),
     stepPrompts: uiFields.stepPrompts.default([]).catch([]),
+    overridePrompts: uiFields.overridePrompts.default([]).catch([]),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

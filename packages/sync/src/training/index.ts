@@ -46,6 +46,7 @@ export {
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   type DeletedProgram,
   type DeletedWorkout,
   type ProgramPatch,

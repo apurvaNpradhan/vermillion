@@ -9,6 +9,7 @@ import {
   planLeaveSuperset,
   planSupersetRepair,
   planSupersetWithNext,
+  raisedRepRange,
   workoutExerciseInput,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
@@ -155,6 +156,41 @@ export async function updateWorkoutExercise(
       const rows = await supersetRowsOf(tx, current.workout_id);
       await applySupersetChanges(tx, planSupersetRepair(rows));
     }
+    return true;
+  });
+}
+
+/**
+ * Moves the rep ranges of a Workout exercise's working sets up so they end at `toReps`, keeping
+ * their width, when the lifter keeps beating them. Warm-ups stay. Returns whether it wrote.
+ */
+export function raiseWorkoutRepRange(
+  database: TrainingDatabase,
+  id: string,
+  toReps: number,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(workoutExercise)
+      .where(eq(workoutExercise.id, id))
+      .limit(1);
+    if (!current) return false;
+    const sets = raisedRepRange(current.sets, toReps);
+    if (!sets) return false;
+    const type = (await exerciseTypeOf(tx, current.exercise_id)).exercise_type;
+    plannedSetsSchema(type).parse(sets);
+    workoutExerciseInput.parse({
+      workout_id: current.workout_id,
+      exercise_id: current.exercise_id,
+      position: current.position,
+      rest_seconds: current.rest_seconds,
+      note: current.note,
+      superset_group: current.superset_group,
+      sets,
+    });
+    await tx.update(workoutExercise).set({ sets }).where(eq(workoutExercise.id, id));
     return true;
   });
 }

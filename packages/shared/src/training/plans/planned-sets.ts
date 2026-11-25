@@ -109,3 +109,20 @@ export function defaultPlannedSets(exerciseType: ExerciseType): PlannedSet[] {
       : {};
   return [1, 2, 3].map(() => ({ kind: "working", ...target }));
 }
+
+/**
+ * The sets with each working-style rep range moved up so it ends at `toReps`, keeping its width
+ * (15 on an 8 to 12 range makes 11 to 15). Warm-ups, sets without a range and ranges that already
+ * reach `toReps` stay. Null when nothing changes.
+ */
+export function raisedRepRange(sets: readonly PlannedSet[], toReps: number): PlannedSet[] | null {
+  let changed = false;
+  const next = sets.map((set) => {
+    const { reps_min: min, reps_max: max } = set;
+    if (set.kind === "warmup" || min === undefined || max === undefined || max >= toReps)
+      return set;
+    changed = true;
+    return { ...set, reps_min: Math.max(1, toReps - (max - min)), reps_max: toReps };
+  });
+  return changed ? next : null;
+}

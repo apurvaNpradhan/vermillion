@@ -37,6 +37,7 @@ import {
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   type TrainingDatabase,
 } from "./store";
 
@@ -290,6 +291,30 @@ describe("workout exercises", () => {
     const { workoutId } = await workoutWith(s, ...Array.from({ length: 40 }, () => CURL));
     await expect(addExercises(s.training, workoutId, [CURL])).rejects.toThrow(TrainingLimitError);
     expect(s.all("workout_exercise")).toHaveLength(TRAINING_LIMITS.exercisesPerWorkout);
+  });
+
+  it("moves a rep range up to what the lifter keeps doing, keeping its width and warm-ups", async () => {
+    const s = await setup();
+    const { ids } = await workoutWith(s, CURL, PLANK);
+    const [curl] = ids;
+    await updateWorkoutExercise(s.training, curl ?? "", {
+      sets: [
+        { kind: "warmup", reps_min: 12, reps_max: 12, weight_kg: 10 },
+        { kind: "working", reps_min: 8, reps_max: 12, weight_kg: 20 },
+        { kind: "working", reps_min: 15, reps_max: 20, weight_kg: 20 },
+      ],
+    });
+    expect(await raiseWorkoutRepRange(s.training, curl ?? "", 15)).toBe(true);
+    expect(JSON.parse(String(s.one("workout_exercise", curl ?? "")?.["sets"]))).toEqual([
+      { kind: "warmup", reps_min: 12, reps_max: 12, weight_kg: 10 },
+      { kind: "working", reps_min: 11, reps_max: 15, weight_kg: 20 },
+      { kind: "working", reps_min: 15, reps_max: 20, weight_kg: 20 },
+    ]);
+    // The range already reaches 15: nothing to write, and a gone exercise is refused.
+    expect(await raiseWorkoutRepRange(s.training, curl ?? "", 15)).toBe(false);
+    expect(await raiseWorkoutRepRange(s.training, "0192f0a0-0000-7000-8000-0000000000ee", 9)).toBe(
+      false,
+    );
   });
 
   it("updates dirty fields and checks the sets against the exercise type", async () => {

@@ -10,6 +10,7 @@ import {
   type Ghosts,
   type SetKind,
   type SetField,
+  type SetOutcome,
   type LighterPeriod,
   type WeightUnit,
   incrementInUnit,
@@ -125,6 +126,9 @@ export function useLoggingState({
     equipment: Equipment;
     suggestedKg: number;
     loggedKg: number;
+    outcome: Pick<SetOutcome, "reason" | "changeKg"> | null;
+    loggedReps: number | null;
+    targetRepsMax: number | null;
   }) => void;
 }) {
   const { t } = useTranslation();
@@ -560,6 +564,9 @@ export function useLoggingState({
           equipment: at.exercise.exercise?.equipment ?? "other",
           suggestedKg,
           loggedKg,
+          outcome: at.exercise.prescription?.sets.find(({ id }) => id === setId)?.outcome ?? null,
+          loggedReps: latest.reps ?? used.reps ?? null,
+          targetRepsMax: at.set.target?.reps_max ?? null,
         });
 
       const prior =

@@ -144,6 +144,7 @@ export {
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   workout,
   workoutExercise,
   SessionLimitError,
