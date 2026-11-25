@@ -4,7 +4,7 @@ import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { prescriptionSchema, revisedSets, type PrescriptionDraft } from "../progress/prescription";
 import { rangeGrid } from "../progress/load-grid";
-import { KG_PER_LB, parseWeight } from "../vocabulary/format";
+import { parseWeight } from "../vocabulary/format";
 import { suggestNext } from "./pipeline";
 
 const DAY = 86_400_000;
@@ -159,6 +159,5 @@ describe.each([
         previousRevision: null,
       }).success,
     ).toBe(true);
-    expect(KG_PER_LB).toBeGreaterThan(0);
   });
 });

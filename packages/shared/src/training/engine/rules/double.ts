@@ -9,6 +9,7 @@ import {
 } from "../../progress/progression-steps";
 import type { Progression, SetOutcome, SuggestedSet } from "../../progress/progression";
 import type { ProgressionRule } from "../rule";
+import { lowerAssistance } from "../assisted";
 import { cappedRepCeiling, isBigJump } from "../ceiling";
 import {
   OUTCOME_ORDER,
@@ -177,6 +178,7 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
       const before = saved.get(index)?.before;
       if (!before) continue;
       if (target.kind === "working") lastMatchedWorkingIndex = index;
+      const assisted = type === "bodyweight_assisted_reps";
       const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
       const reset =
         together(target.kind) && same.weightKg !== null
@@ -202,7 +204,7 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
       else if (waitsForEffort(slot)) outcome = "hold_effort";
       else if (target.reps_min !== undefined && before.reps != null) {
         const max = target.reps_max ?? target.reps_min;
-        const canLoad = loaded && before.weight_kg != null;
+        const canLoad = (loaded || assisted) && before.weight_kg != null;
         const atCap =
           roundedCap !== null &&
           before.weight_kg != null &&
@@ -223,6 +225,30 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
               ? (easyLoads.get(groupKey(target.kind, before.weight_kg ?? 0)) ?? false)
               : easySet(before, target);
             const base = before.weight_kg ?? 0;
+            if (assisted) {
+              // Less help, one step down the grid; with none left the reps keep climbing.
+              const lowered = lowerAssistance(
+                base,
+                unit,
+                grid,
+                defaultStepKg(equipment, unit, base),
+              );
+              if (lowered === null) {
+                outcome = "add_rep";
+                next = { ...same, reps: before.reps + 1 };
+              } else {
+                incrementKg ??= base - lowered;
+                outcome = "less_assist";
+                next = { weightKg: lowered, reps: target.reps_min };
+              }
+              ordered.push(outcome);
+              outcomes[index] = {
+                reason: REASON_OF[outcome],
+                changeKg: outcome === "less_assist" ? base - (next.weightKg ?? 0) : undefined,
+              };
+              sets[index] = next;
+              continue;
+            }
             const added = incrementFor(base, equipment, increments, grid) * (easy ? 2 : 1);
             const minimumIncrease =
               grid?.source === "kit" && settings.weightIncrementKg === null

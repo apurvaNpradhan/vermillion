@@ -44,12 +44,8 @@ const suggest = (
 describe("double progression", () => {
   it("requires history and an eligible type", () => {
     expect(suggest([])).toBeNull();
-    for (const type of [
-      "duration",
-      "distance_duration",
-      "short_distance_weight",
-      "bodyweight_assisted_reps",
-    ] as const)
+    // Planks, carries and assisted lifts progress by their own rules; cardio and steps do not.
+    for (const type of ["distance_duration", "floors_duration", "steps_duration"] as const)
       expect(
         suggestNext(plan, [session([logged(12)])], type, "none", settings, { now: NOW }),
       ).toBeNull();

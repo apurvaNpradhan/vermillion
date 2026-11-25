@@ -14,6 +14,8 @@ const outcome = z.strictObject({
   limit: z.enum(["plates", "equipment"]).optional(),
   loadFactor: z.number().nonnegative().optional(),
   ceiling: z.int().min(1).max(999).optional(),
+  changeS: z.number().min(0).max(86_400).optional(),
+  changeM: z.number().min(0).max(1_000_000).optional(),
 }) satisfies z.ZodType<SetOutcome>;
 
 const ghostFields = {

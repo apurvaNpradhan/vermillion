@@ -28,7 +28,12 @@ export const maintainRule: ProgressionRule<MaintainConfig> = {
         (grid?.source === "cap" ? weight > cap : loadIdentity(weight) > loadIdentity(cap));
       const outcome: Outcome = over ? "capped" : "same";
       capped ||= over;
-      sets[index] = { weightKg: over ? cap : weight, reps: before.reps ?? null };
+      sets[index] = {
+        weightKg: over ? cap : weight,
+        reps: before.reps ?? null,
+        ...(before.duration_s == null ? {} : { durationS: before.duration_s }),
+        ...(before.distance_m == null ? {} : { distanceM: before.distance_m }),
+      };
       outcomes[index] = {
         reason: REASON_OF[outcome],
         limit: over ? (grid?.plateLimit ? "plates" : "equipment") : undefined,

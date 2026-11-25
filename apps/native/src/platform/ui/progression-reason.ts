@@ -39,6 +39,14 @@ export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
       return "progress__label_test_single";
     case "more_reps":
       return "progress__label_more_reps";
+    case "less_assist":
+      return "progress__label_less_assist";
+    case "add_time":
+      return "progress__label_add_time";
+    case "add_distance":
+      return "progress__label_add_distance";
+    case "hold_target":
+      return "progress__label_hold_target";
     case "backoff_share":
       return "progress__label_backoff_share";
     case "capped":
@@ -87,6 +95,14 @@ export function progressionReasonKey(
         : "progress__reason_test_single";
     case "more_reps":
       return "progress__reason_more_reps";
+    case "less_assist":
+      return "progress__reason_less_assist";
+    case "add_time":
+      return "progress__reason_add_time";
+    case "add_distance":
+      return "progress__reason_add_distance";
+    case "hold_target":
+      return "progress__reason_hold_target";
     case "backoff_share":
       return "progress__reason_backoff_share";
     case "capped":
@@ -114,5 +130,7 @@ export function progressionParams(progression: Progression, outcome: SetOutcome,
     /** How much heavier the next load is than this one, for `more_reps`. */
     jump: Math.round(((outcome.loadFactor ?? 1) - 1) * 100),
     reps: outcome.ceiling ?? 0,
+    seconds: outcome.changeS ?? 0,
+    metres: outcome.changeM ?? 0,
   };
 }

@@ -12,7 +12,16 @@ export type IncrementSettings = {
   weightIncrementKg: number | null;
   progressionPerSet?: boolean;
 };
-export type SuggestedSet = { weightKg: number | null; reps: number | null };
+/**
+ * What a set is suggested: its load and reps, and for timed and carried work its duration and
+ * distance. The two are absent for every type that does not record them.
+ */
+export type SuggestedSet = {
+  weightKg: number | null;
+  reps: number | null;
+  durationS?: number | null;
+  distanceM?: number | null;
+};
 
 /** Why a suggestion is what it is: a small closed set, each with its own short label. */
 export const PROGRESSION_REASONS = [
@@ -30,6 +39,14 @@ export const PROGRESSION_REASONS = [
   "test_single",
   /** A back-off set follows its top set: a share of the top load. */
   "backoff_share",
+  /** An assisted lift needs less help: the assistance steps down. */
+  "less_assist",
+  /** A timed set was made: five seconds more. */
+  "add_time",
+  /** A carry with no load was made: a few metres more. */
+  "add_distance",
+  /** A timed or carried set fell short: the target again. */
+  "hold_target",
   /** The last load was above this gym's cap, so the cap is suggested. */
   "capped",
   /** At the cap with reps still to gain: the load stays, the reps climb. */
@@ -50,6 +67,10 @@ export type SetOutcome = {
   loadFactor?: number;
   /** For `more_reps`: the reps to reach before the load goes up. */
   ceiling?: number;
+  /** Seconds added to a timed set (`add_time`). */
+  changeS?: number;
+  /** Metres added to a carry (`add_distance`). */
+  changeM?: number;
 };
 
 export type Progression = {

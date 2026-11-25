@@ -64,7 +64,14 @@ export function progressionFromSnapshot(
     incrementKg: snapshot.incrementKg,
     breakDays: snapshot.breakDays,
     sets: sets.map((set) =>
-      set ? { weightKg: set.ghosts.weight ?? null, reps: set.ghosts.reps ?? null } : null,
+      set
+        ? {
+            weightKg: set.ghosts.weight ?? null,
+            reps: set.ghosts.reps ?? null,
+            ...(set.ghosts.duration == null ? {} : { durationS: set.ghosts.duration }),
+            ...(set.ghosts.distance == null ? {} : { distanceM: set.ghosts.distance }),
+          }
+        : null,
     ),
     outcomes: sets.map((set) =>
       set?.unadjustedWeightKg === undefined ? (set?.outcome ?? null) : null,

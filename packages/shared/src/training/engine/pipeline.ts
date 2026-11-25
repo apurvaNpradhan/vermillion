@@ -22,6 +22,7 @@ import {
 } from "../progress/progression";
 import type { RuleConfig } from "./rule-config";
 import { ruleFor } from "./rules";
+import { TIME_STEP_S, isTimed } from "./rules/timed";
 import { slotsOf } from "./slots";
 import { SESSION_LIMITS } from "../vocabulary/vocabulary";
 import type { Evidence } from "../progress/evidence";
@@ -51,14 +52,18 @@ export function suggestNext(
   config: RuleConfig = { id: "double" },
 ): Progression | null {
   const loaded = type === "weight_reps" || type === "bodyweight_weighted_reps";
-  if (!loaded && type !== "reps_only" && type !== "bodyweight_reps") return null;
+  // An assisted lift steps its assistance down; planks and carries add time, distance or load.
+  const assisted = type === "bodyweight_assisted_reps";
+  const timed = isTimed(type);
+  if (!loaded && !assisted && !timed && type !== "reps_only" && type !== "bodyweight_reps")
+    return null;
   const slots = slotsOf(planned);
   if (slots.length === 0) return null;
   const unit = settings.weightUnit;
   const increments = { ...settings, exerciseType: type };
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
-  const roundedCap = gridCapInUnit(grid, unit);
+  const roundedCap = loaded ? gridCapInUnit(grid, unit) : null;
   if (context.testSingle) {
     return {
       reason: "test_single",
@@ -110,7 +115,7 @@ export function suggestNext(
     context.phaseLoad !== undefined && context.phaseLoad < 1 ? context.phaseLoad : 1;
   const lightFactor = Math.min(lighter ? LIGHTER_WEEK_LOAD : 1, phaseFactor);
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
-  const breakFactor = loaded || type === "bodyweight_reps" ? breakLoad : 1;
+  const breakFactor = loaded || assisted || timed || type === "bodyweight_reps" ? breakLoad : 1;
   const factor = Math.min(lightFactor, breakFactor);
   const resetReason: ProgressionReason | null =
     factor === 1 ? null : breakFactor < lightFactor ? "after_break" : "deload";
@@ -147,25 +152,44 @@ export function suggestNext(
         ? saved.get(index)?.before
         : last?.logged.filter(({ kind }) => kind === target.kind)[ordinal];
       if (!before || (!progressing && before.weight_kg == null)) continue;
+      // An assisted lift keeps its assistance: a break or Deload only brings its reps back down.
       const weightKg =
         before.weight_kg == null
           ? null
-          : lightenLoad(
-              before.weight_kg,
-              factor,
-              equipment,
-              unit,
-              grid,
-              phaseDecides ? "deload" : "nearest",
-            );
+          : assisted
+            ? before.weight_kg
+            : lightenLoad(
+                before.weight_kg,
+                factor,
+                equipment,
+                unit,
+                grid,
+                phaseDecides ? "deload" : "nearest",
+              );
       outcomes[index] = {
         reason: resetReason,
-        loadFactor: weightKg !== null && before.weight_kg ? weightKg / before.weight_kg : undefined,
+        loadFactor:
+          !assisted && weightKg !== null && before.weight_kg
+            ? weightKg / before.weight_kg
+            : undefined,
       };
       // A reset that cannot lower the load must not raise the reps either.
       const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;
+      // Timed work takes the same cut off its time: five seconds at a time, never none.
+      const durationS =
+        timed && before.duration_s != null
+          ? Math.max(
+              TIME_STEP_S,
+              Math.round((before.duration_s * factor) / TIME_STEP_S) * TIME_STEP_S,
+            )
+          : undefined;
+      if (timed && progressing && durationS !== undefined) {
+        outcomes[index] = { reason: resetReason, loadFactor: factor };
+      }
       sets[index] = {
+        ...(durationS === undefined ? {} : { durationS }),
+        ...(timed && before.distance_m != null ? { distanceM: before.distance_m } : {}),
         weightKg,
         reps: !progressing
           ? null
@@ -200,7 +224,7 @@ export function suggestNext(
     };
   }
 
-  const proposal = ruleFor(config).propose({
+  const proposal = ruleFor(config, type).propose({
     config,
     planned,
     slots,
