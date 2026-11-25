@@ -194,7 +194,7 @@ export const uiPreferencesSchema = z
     trainingPlace: uiFields.trainingPlace.default(null).catch(null),
     // The gym the user trains at now; an unknown or deleted id reads as the first gym.
     activeGymId: uiFields.activeGymId.default(null).catch(null),
-    capPrompts: uiFields.capPrompts.default([]),
+    capPrompts: uiFields.capPrompts.default([]).catch([]),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({

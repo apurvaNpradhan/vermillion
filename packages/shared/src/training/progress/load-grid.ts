@@ -1,28 +1,34 @@
 import { z } from "zod";
 
 import type { Equipment } from "../../exercise/vocabulary";
-import { MAX_WEIGHT_KG } from "../vocabulary/vocabulary";
+import { MAX_WEIGHT_KG, type WeightUnit } from "../vocabulary/vocabulary";
 import { loadBar, nearestBarLoadKg, smallestBarStepKg, type LoadPlate } from "../plates/plates";
+import { defaultRangesFor, defaultStepKg } from "./progression-steps";
 
 /**
  * One run of loads a gym offers for an exercise: `min`, `min + step`, ... up to `max`, in
  * kilograms. A `max` of null runs on without a cap (only the last range may). A cable stack of
  * 5 to 90 kg by 5 is one range; a dumbbell rack of 1 to 10 kg by 1, then 12.5 kg and up by 2.5, is
- * two. The last range's `max` is the exercise's cap at that gym.
+ * two. The last range's `max` is the exercise's cap at that gym. A `step` of null is a cap with no
+ * step of its own: below it the kit, the default rack or the equipment's step still apply (see
+ * {@link loadGridOf}); it is the only range then.
  */
 export const loadRangeSchema = z.strictObject({
   min: z.number().min(0).max(MAX_WEIGHT_KG),
   max: z.number().positive().max(MAX_WEIGHT_KG).nullable(),
-  step: z.number().min(0.05).max(MAX_WEIGHT_KG),
+  step: z.number().min(0.05).max(MAX_WEIGHT_KG).nullable(),
 });
 export type LoadRange = z.infer<typeof loadRangeSchema>;
+/** A range with a step of its own. */
+export type SteppedRange = LoadRange & { step: number };
 
 /** At most this many ranges per gym and exercise (the schema holds more than the editor shows). */
 export const LOAD_RANGES_MAX = 8;
 
 /**
  * Ranges in ascending order, each starting where the previous one starts or later, only the last
- * one without a cap, and each with room for at least one load.
+ * one without a cap, and each with room for at least one load. A range without a step is a lone
+ * cap.
  */
 export const loadRangesSchema = z
   .array(loadRangeSchema)
@@ -35,6 +41,12 @@ export const loadRangesSchema = z
           (index === 0 || range.min >= (ranges[index - 1]?.min ?? 0)),
       ),
     "Ranges must ascend, and only the last may be open-ended",
+  )
+  .refine(
+    (ranges) =>
+      ranges.every((range) => range.step !== null) ||
+      (ranges.length === 1 && ranges[0]?.max !== null),
+    "A range without a step is a lone cap",
   );
 
 /** Within this many kilograms two loads are the same one. */
@@ -59,8 +71,13 @@ export function loadBasisOf(equipment: Equipment): LoadBasis {
  * step by the equipment's default.
  */
 export type LoadGrid = {
-  /** `gym`: the gym's ranges for this exercise. `kit`: the bar and plates of the gym. */
-  readonly source: "gym" | "kit";
+  /**
+   * `gym`: the gym's own ranges for this exercise, whose step is the step. `kit`: the bar and
+   * plates of the gym. `default`: the equipment's usual rack, such as a dumbbell rack. `cap`: no
+   * grid, only a cap over the equipment's default stepping. Only `gym` overrides a manual
+   * increment.
+   */
+  readonly source: "gym" | "kit" | "default" | "cap";
   /** The most the exercise may be loaded to at this gym; null for no cap. */
   readonly capKg: number | null;
   /** The loadable weight nearest `kg`; the lower on a tie. */
@@ -75,10 +92,28 @@ export type LoadGrid = {
 
 const clean = (kg: number) => Number(kg.toFixed(6));
 
-/** The grid of explicit ranges. Empty ranges give no grid. */
-export function rangeGrid(ranges: readonly LoadRange[]): LoadGrid | null {
-  const first = ranges[0];
-  if (!first) return null;
+/** The ranges when every one has a step of its own; else null. */
+const steppedOf = (ranges: readonly LoadRange[]): SteppedRange[] | null => {
+  const stepped = ranges.flatMap((range): SteppedRange[] =>
+    range.step === null ? [] : [{ ...range, step: range.step }],
+  );
+  return stepped.length === ranges.length ? stepped : null;
+};
+
+/** The cap of a lone range without a step; null for any other ranges. */
+export function capOnlyOf(ranges: readonly LoadRange[]): number | null {
+  const only = ranges[0];
+  return ranges.length === 1 && only?.step === null ? only.max : null;
+}
+
+/** The grid of explicit ranges. Empty ranges, and a cap without a step, give no grid. */
+export function rangeGrid(
+  input: readonly LoadRange[],
+  source: "gym" | "default" = "gym",
+): LoadGrid | null {
+  const ranges = steppedOf(input);
+  const first = ranges?.[0];
+  if (!ranges || !first) return null;
   const last = ranges[ranges.length - 1] ?? first;
   const atOrBelow = (kg: number): number | null => {
     let best: number | null = null;
@@ -107,7 +142,7 @@ export function rangeGrid(ranges: readonly LoadRange[]): LoadGrid | null {
   const below = (kg: number) => atOrBelow(kg - 2 * EPS);
   const above = (kg: number) => atOrAbove(kg + 2 * EPS);
   return {
-    source: "gym",
+    source,
     capKg: last.max,
     below,
     above,
@@ -155,43 +190,83 @@ export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[])
   };
 }
 
+/** `base` held to a cap: no load above it, and the cap itself when the next load would pass it. */
+function capGrid(base: LoadGrid | null, capKg: number, stepAt: (kg: number) => number): LoadGrid {
+  const held = (kg: number) => Math.min(kg, capKg);
+  return {
+    source: base?.source ?? "cap",
+    capKg,
+    nearest: (kg) => held(base ? base.nearest(kg) : kg),
+    above(kg) {
+      if (kg >= capKg - EPS) return null;
+      return held(base ? (base.above(kg) ?? capKg) : clean(kg + stepAt(kg)));
+    },
+    below(kg) {
+      if (kg > capKg + EPS) return capKg;
+      if (base) return base.below(kg);
+      return kg - stepAt(kg) > EPS ? clean(kg - stepAt(kg)) : null;
+    },
+    stepAt: (kg) => (base ? base.stepAt(kg) : stepAt(kg)),
+  };
+}
+
 /**
- * The grid a gym gives an exercise: its own ranges when it has set them, else the loads of the
- * gym's bar and plates for a barbell, else none (the equipment's default step applies).
+ * The grid a gym gives an exercise. Its own ranges when it has set a step, else the loads the
+ * equipment has without a setting (the loaded bar of a barbell, the usual rack of a dumbbell,
+ * nothing for the rest), held to the gym's cap when it has set one.
  */
 export function loadGridOf(input: {
   equipment: Equipment;
+  unit: WeightUnit;
   ranges?: readonly LoadRange[] | null;
+  /** The bar this exercise loads, already resolved (see `defaultBar`). */
   bar?: { weightKg: number } | null;
   plates?: readonly LoadPlate[];
 }): LoadGrid | null {
-  const explicit = rangeGrid(input.ranges ?? []);
+  const ranges = input.ranges ?? [];
+  const explicit = rangeGrid(ranges);
   if (explicit) return explicit;
-  return input.equipment === "barbell" && input.bar ? barGrid(input.bar, input.plates ?? []) : null;
+  const base =
+    input.equipment === "barbell"
+      ? input.bar
+        ? barGrid(input.bar, input.plates ?? [])
+        : null
+      : input.equipment === "dumbbell"
+        ? rangeGrid(defaultRangesFor("dumbbell", input.unit), "default")
+        : null;
+  const cap = capOnlyOf(ranges);
+  return cap === null
+    ? base
+    : capGrid(base, cap, (kg) => defaultStepKg(input.equipment, input.unit, kg));
 }
 
+const sameKg = (a: number | null, b: number | null) =>
+  a === b || (a !== null && b !== null && Math.abs(a - b) < EPS);
+
 /**
- * Ranges for the two-field form, "Max load" and "Load step". A step makes one range from it to the
- * cap; a cap alone keeps the `defaults` up to the cap, so a dumbbell rack keeps its 1 kg steps
- * below 10 kg. Neither gives no ranges.
+ * Ranges for the two-field form, "Max load" and "Load step". Without a step it is a cap alone:
+ * the kit, the default rack or the equipment's step still apply below it. With the step the
+ * ranges already hold, only the cap moves: the last range is clipped or extended and the rest
+ * stay, so a rack of 1 kg and 2.5 kg steps keeps both. A new step makes one range from it to the
+ * cap. Neither gives no ranges.
  */
 export function rangesFromLimits(
   limits: { maxKg: number | null; stepKg: number | null },
-  defaults: readonly LoadRange[],
+  current: readonly LoadRange[] = [],
 ): LoadRange[] {
   const { maxKg, stepKg } = limits;
-  if (stepKg !== null) return [{ min: stepKg, max: maxKg, step: stepKg }];
-  if (maxKg === null) return [];
-  const kept = defaults.filter((range) => range.min < maxKg - EPS);
-  const clipped = kept.map((range) =>
-    range.max === null || range.max > maxKg ? { ...range, max: maxKg } : range,
-  );
-  return clipped.length > 0 ? clipped : [{ min: 0, max: maxKg, step: defaults[0]?.step ?? 1 }];
+  if (stepKg === null) return maxKg === null ? [] : [{ min: 0, max: maxKg, step: null }];
+  if (sameKg(limitsOfRanges(current).stepKg, stepKg)) {
+    const kept = current.filter((range) => maxKg === null || range.min < maxKg - EPS);
+    const last = kept[kept.length - 1];
+    if (last) return [...kept.slice(0, -1), { ...last, max: maxKg }];
+  }
+  return [{ min: stepKg, max: maxKg, step: stepKg }];
 }
 
 /**
- * The two fields of a gym's ranges: the cap and the step the last range climbs by. More than one
- * range is read as its cap and last step; the editor shows no more than that for now.
+ * The two fields of a gym's ranges: the cap and the step the last range climbs by (null for a
+ * cap alone). More than one range is read as its cap and last step; the editor shows no more.
  */
 export function limitsOfRanges(ranges: readonly LoadRange[]): {
   maxKg: number | null;

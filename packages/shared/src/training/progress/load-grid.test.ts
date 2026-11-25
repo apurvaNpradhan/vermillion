@@ -126,16 +126,103 @@ describe("bar grid", () => {
 });
 
 describe("loadGridOf", () => {
-  it("prefers the gym's ranges, then the barbell's plates, else none", () => {
-    expect(loadGridOf({ equipment: "machine", ranges: stack })?.source).toBe("gym");
-    expect(
-      loadGridOf({ equipment: "barbell", ranges: stack, bar: { weightKg: 20 }, plates })?.source,
-    ).toBe("gym");
-    expect(
-      loadGridOf({ equipment: "barbell", ranges: [], bar: { weightKg: 20 }, plates })?.source,
-    ).toBe("kit");
-    expect(loadGridOf({ equipment: "barbell", ranges: null, bar: null, plates })).toBeNull();
-    expect(loadGridOf({ equipment: "dumbbell", bar: { weightKg: 20 }, plates })).toBeNull();
+  const bar = { weightKg: 20 };
+
+  it.each([
+    {
+      name: "a machine's own ranges",
+      input: { equipment: "machine", ranges: stack },
+      source: "gym",
+    },
+    {
+      name: "a barbell's own ranges over its kit",
+      input: { equipment: "barbell", ranges: stack, bar, plates },
+      source: "gym",
+    },
+    {
+      name: "a barbell without ranges, its kit",
+      input: { equipment: "barbell", ranges: [], bar, plates },
+      source: "kit",
+    },
+    {
+      name: "a dumbbell without ranges, the usual rack",
+      input: { equipment: "dumbbell", bar, plates },
+      source: "default",
+    },
+    {
+      name: "a machine with only a cap, the cap",
+      input: { equipment: "machine", ranges: [{ min: 0, max: 90, step: null }] },
+      source: "cap",
+    },
+    {
+      name: "a barbell with only a cap, its kit",
+      input: { equipment: "barbell", ranges: [{ min: 0, max: 100, step: null }], bar, plates },
+      source: "kit",
+    },
+  ] as const)("gives $name", ({ input, source }) => {
+    expect(loadGridOf({ unit: "kg", ...input })?.source).toBe(source);
+  });
+
+  it.each([
+    { name: "a barbell with no bar", input: { equipment: "barbell", bar: null, plates } },
+    { name: "a machine with nothing set", input: { equipment: "machine", ranges: [] } },
+    { name: "a cable with nothing set", input: { equipment: "cable", ranges: null } },
+  ] as const)("gives $name no grid", ({ input }) => {
+    expect(loadGridOf({ unit: "kg", ...input })).toBeNull();
+  });
+
+  it("snaps a dumbbell with no setting to the rack, not to a free sum", () => {
+    const grid = loadGridOf({ equipment: "dumbbell", unit: "kg" });
+    expect(addLoad(10, incrementFor(10, "dumbbell", settings, grid), "kg", grid)).toBe(12.5);
+    expect(addLoad(27.5, 5, "kg", grid)).toBe(32.5);
+    expect(grid?.capKg).toBeNull();
+  });
+
+  it("holds the kit and the manual increment under a cap alone", () => {
+    const grid = loadGridOf({
+      equipment: "barbell",
+      unit: "kg",
+      ranges: [{ min: 0, max: 100, step: null }],
+      bar,
+      plates,
+    });
+    const manual = { weightUnit: "kg", weightIncrementKg: 1.25 } as const;
+    expect(grid?.capKg).toBe(100);
+    expect(incrementFor(80, "barbell", settings, grid)).toBe(2.5);
+    expect(incrementFor(80, "barbell", manual, grid)).toBe(1.25);
+    expect(addLoad(97.5, 2.5, "kg", grid)).toBe(100);
+    expect(addLoad(100, 2.5, "kg", grid)).toBeNull();
+    expect(grid?.nearest(120)).toBe(100);
+  });
+
+  it.each([
+    { name: "automatic", manual: null, at40: 1, expected: 41 },
+    { name: "manual", manual: 5, at40: 5, expected: 45 },
+  ])(
+    "keeps the equipment's $name step under a machine's cap alone",
+    ({ manual, at40, expected }) => {
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit: "kg",
+        ranges: [{ min: 0, max: 90, step: null }],
+      });
+      const state = { weightUnit: "kg", weightIncrementKg: manual } as const;
+      expect(incrementFor(40, "machine", state, grid)).toBe(at40);
+      expect(addLoad(40, at40, "kg", grid)).toBe(expected);
+      expect(addLoad(90, at40, "kg", grid)).toBeNull();
+      expect(addLoad(88, 5, "kg", grid)).toBe(90);
+    },
+  );
+
+  it("holds a dumbbell rack to its cap and keeps the rack's steps", () => {
+    const grid = loadGridOf({
+      equipment: "dumbbell",
+      unit: "kg",
+      ranges: [{ min: 0, max: 30, step: null }],
+    });
+    expect(addLoad(10, 1, "kg", grid)).toBe(12.5);
+    expect(addLoad(27.5, 5, "kg", grid)).toBe(30);
+    expect(addLoad(30, 2.5, "kg", grid)).toBeNull();
   });
 });
 
@@ -262,6 +349,36 @@ describe("lightenLoad with a grid", () => {
     expect(lightenLoad(load, factor, "machine", "kg", rangeGrid(ranges))).toBe(expected);
   });
 
+  it.each([
+    { name: "below the bar, scaled as it is", load: 15, factor: 0.9, expected: 13.5 },
+    { name: "the bare bar stays", load: 20, factor: 0.9, expected: 20 },
+    { name: "just over the bar goes to the bar", load: 22.5, factor: 0.8, expected: 20 },
+  ])("never raises a load on a bar: $name", ({ load, factor, expected }) => {
+    expect(lightenLoad(load, factor, "barbell", "kg", barGrid({ weightKg: 20 }, plates))).toBe(
+      expected,
+    );
+  });
+
+  it.each([
+    { load: 3, factor: 0.9, expected: 2.75 },
+    { load: 5, factor: 0.8, expected: 5 },
+    { load: 8, factor: 0.9, expected: 5 },
+  ])("never raises a load on a grid that starts at 5: $load kg", ({ load, factor, expected }) => {
+    expect(
+      lightenLoad(load, factor, "machine", "kg", rangeGrid([{ min: 5, max: 90, step: 5 }])),
+    ).toBe(expected);
+  });
+
+  it("rounds by the equipment's step under a cap alone, and stays under the cap", () => {
+    const capped = loadGridOf({
+      equipment: "machine",
+      unit: "kg",
+      ranges: [{ min: 0, max: 50, step: null }],
+    });
+    expect(lightenLoad(60, 0.9, "machine", "kg", capped)).toBe(50);
+    expect(lightenLoad(40, 0.9, "machine", "kg", capped)).toBe(36);
+  });
+
   it("goes down to a load the bar can make, always below the load", () => {
     const grid = barGrid({ weightKg: 20 }, plates);
     expect(lightenLoad(100, 0.9, "barbell", "kg", grid)).toBe(90);
@@ -296,16 +413,52 @@ describe("ranges and the two-field form", () => {
     ]);
   });
 
-  it("a cap alone keeps the equipment's own steps below it", () => {
-    expect(
-      rangesFromLimits({ maxKg: 24, stepKg: null }, defaultRangesFor("dumbbell", "kg")),
-    ).toEqual([
-      { min: 1, max: 10, step: 1 },
-      { min: 12.5, max: 24, step: 2.5 },
+  it("a cap alone is stored without a step, so the equipment's own steps apply below it", () => {
+    const ranges = rangesFromLimits({ maxKg: 24, stepKg: null }, rack);
+    expect(ranges).toEqual([{ min: 0, max: 24, step: null }]);
+    expect(limitsOfRanges(ranges)).toEqual({ maxKg: 24, stepKg: null });
+    expect(rangeGrid(ranges)).toBeNull();
+    expect(loadRangesSchema.safeParse(ranges).success).toBe(true);
+  });
+
+  const stackThenRack: LoadRange[] = [
+    { min: 5, max: 20, step: 5 },
+    { min: 25, max: 90, step: 2.5 },
+  ];
+  it.each([
+    {
+      name: "extends the last range",
+      max: 120,
+      expected: [stackThenRack[0], { min: 25, max: 120, step: 2.5 }],
+    },
+    {
+      name: "clips the last range",
+      max: 60,
+      expected: [stackThenRack[0], { min: 25, max: 60, step: 2.5 }],
+    },
+    {
+      name: "opens the last range",
+      max: null,
+      expected: [stackThenRack[0], { min: 25, max: null, step: 2.5 }],
+    },
+    { name: "drops the ranges above the cap", max: 15, expected: [{ min: 5, max: 15, step: 5 }] },
+  ])("with the step untouched, a new max $name", ({ max, expected }) => {
+    expect(rangesFromLimits({ maxKg: max, stepKg: 2.5 }, stackThenRack)).toEqual(expected);
+  });
+
+  it("a new step replaces the ranges with one", () => {
+    expect(rangesFromLimits({ maxKg: 90, stepKg: 5 }, stackThenRack)).toEqual([
+      { min: 5, max: 90, step: 5 },
     ]);
-    expect(
-      rangesFromLimits({ maxKg: 8, stepKg: null }, defaultRangesFor("dumbbell", "kg")),
-    ).toEqual([{ min: 1, max: 8, step: 1 }]);
+    expect(rangesFromLimits({ maxKg: 90, stepKg: 5 }, [{ min: 0, max: 90, step: null }])).toEqual([
+      { min: 5, max: 90, step: 5 },
+    ]);
+  });
+
+  it("clearing the step turns the ranges into a cap alone", () => {
+    expect(rangesFromLimits({ maxKg: 90, stepKg: null }, stackThenRack)).toEqual([
+      { min: 0, max: 90, step: null },
+    ]);
   });
 
   it("neither gives no ranges, and none read as empty limits", () => {
@@ -322,6 +475,9 @@ describe("ranges and the two-field form", () => {
     { name: "max under min", ranges: [{ min: 10, max: 5, step: 1 }], ok: false },
     { name: "zero step", ranges: [{ min: 1, max: 5, step: 0 }], ok: false },
     { name: "too heavy", ranges: [{ min: 1, max: 5000, step: 1 }], ok: false },
+    { name: "a lone cap", ranges: [{ min: 0, max: 90, step: null }], ok: true },
+    { name: "a cap with no max", ranges: [{ min: 0, max: null, step: null }], ok: false },
+    { name: "a cap among ranges", ranges: [{ min: 0, max: 90, step: null }, ...rack], ok: false },
   ])("validates $name ranges", ({ ranges, ok }) => {
     expect(loadRangesSchema.safeParse(ranges).success).toBe(ok);
   });

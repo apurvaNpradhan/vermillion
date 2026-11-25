@@ -50,6 +50,13 @@ export type Progression = {
 /** What a suggestion needs besides the history: the clock and the Lighter weeks. */
 export type ProgressionContext = {
   now: Date;
+  /**
+   * The Sessions the loads and reps are read from, when fewer than the whole `history`: a
+   * gym-bound exercise reads the Sessions at this gym (see `historyForGym`). The break clock still
+   * runs from the whole history, because a lifter who trained the exercise elsewhere yesterday has
+   * not been away.
+   */
+  baselineHistory?: readonly ProgressionSession[];
   /** Every Lighter week, past and running. Their Sessions are never a baseline. */
   lighterWeeks?: readonly LighterPeriod[];
   /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
@@ -151,7 +158,8 @@ const REASON_OF = {
 } as const satisfies Record<Outcome, ProgressionReason>;
 
 /**
- * Progression for planned sets (ADR 0038). `history` is newest first. Matched sets grow reps
+ * Progression for planned sets (ADR 0038). `history` is newest first, all of it; the baselines
+ * come from `context.baselineHistory` when given. Matched sets grow reps
  * to the top of their range, then add load and reset the reps. By default working sets wait
  * for every working set to reach the ceiling before adding load. Top and back-off sets progress
  * independently.
@@ -174,14 +182,17 @@ export function suggestNext(
   const unit = settings.weightUnit;
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
-  const baselines = outsideLighterWeeks(history, context.lighterWeeks ?? []).flatMap((session) => {
+  const baselines = outsideLighterWeeks(
+    context.baselineHistory ?? history,
+    context.lighterWeeks ?? [],
+  ).flatMap((session) => {
     const sets = done(session.sets).filter((set) => progresses(set.kind));
     return sets.length > 0 ? [{ ...session, sets }] : [];
   });
   const last = baselines[0];
   if (!last) return null;
-  // The break clock runs from the latest Session with a completed working set; a Session of only
-  // warm-ups or unticked sets is not training.
+  // The break clock runs from the latest Session with a completed working set, at any gym; a
+  // Session of only warm-ups or unticked sets is not training.
   const lastTrained =
     history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
   const breakDays = Math.floor(
@@ -285,8 +296,11 @@ export function suggestNext(
       const atCap = cap !== null && before.weight_kg != null && before.weight_kg >= cap - AT_CAP;
       const extended = cappedRepCeiling(max);
       if (before.reps >= max && atCap) {
-        // The load cannot rise: reps keep growing to the extended ceiling, then a hint.
-        if (before.reps >= extended) outcome = "cap_hint";
+        // The load cannot rise: reps keep growing to the extended ceiling, then a hint. Straight
+        // working sets still move together: nothing grows until every set reached the ceiling.
+        if (target.kind === "working" && !settings.progressionPerSet && !workingReady)
+          outcome = "hold";
+        else if (before.reps >= extended) outcome = "cap_hint";
         else {
           outcome = "cap_reps";
           next = { ...same, reps: before.reps + 1 };

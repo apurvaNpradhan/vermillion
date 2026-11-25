@@ -103,6 +103,31 @@ describe("a cap on the load", () => {
     expect(run(extended + 3)?.reason).toBe("cap_hint");
   });
 
+  it.each([
+    { name: "one set short of the top", sets: [12, 10], reason: "add_rep", reps: [12, 11] },
+    { name: "every set at the top", sets: [12, 12], reason: "cap_reps", reps: [13, 13] },
+    { name: "every set past the top, uneven", sets: [14, 12], reason: "cap_reps", reps: [15, 13] },
+  ])("straight sets at the cap wait for each other: $name", ({ sets, reason, reps: expected }) => {
+    const next = suggest(
+      sets.map((done) => logged(done, 91)),
+      { grid: rangeGrid(stack) },
+    );
+    expect(next?.reason).toBe(reason);
+    expect(reps(next)).toEqual(expected);
+  });
+
+  it("sets progressing on their own climb at the cap without waiting", () => {
+    const next = suggestNext(
+      plan,
+      [{ started_at: "2026-11-13T10:00:00Z", sets: [logged(12, 91), logged(10, 91)] }],
+      "weight_reps",
+      "machine",
+      { ...settings, progressionPerSet: true },
+      { now: NOW, grid: rangeGrid(stack) },
+    );
+    expect(reps(next)).toEqual([13, 11]);
+  });
+
   it("below the range's top at the cap is the usual rep climb", () => {
     const next = suggest([logged(9, 91), logged(9, 91)], { grid: rangeGrid(stack) });
     expect(next?.reason).toBe("add_rep");
@@ -198,5 +223,41 @@ describe("a gym's grid in suggestions", () => {
       { now: NOW },
     );
     expect(weights(light)).toEqual([7, 7]);
+  });
+});
+
+describe("history at another gym", () => {
+  const atOtherGym = { started_at: "2026-11-14T10:00:00Z", sets: [logged(12, 50), logged(12, 50)] };
+  const atThisGym = {
+    started_at: "2026-10-25T10:00:00Z",
+    sets: [logged(12, 40), logged(12, 40)],
+  };
+
+  it("reads loads from the baseline history and the break from the whole history", () => {
+    const next = suggestNext(plan, [atOtherGym, atThisGym], "weight_reps", "machine", settings, {
+      now: NOW,
+      baselineHistory: [atThisGym],
+    });
+    // 40 kg from this gym's own Session, two days after training elsewhere: no break reduction.
+    expect(next?.reason).toBe("add_weight");
+    expect(next?.breakDays).toBeNull();
+    expect(weights(next)?.[0]).toBeGreaterThan(40);
+    expect(weights(next)?.[0]).toBeLessThan(50);
+  });
+
+  it("without a baseline history it reads the whole history, as before", () => {
+    const next = suggestNext(plan, [atOtherGym, atThisGym], "weight_reps", "machine", settings, {
+      now: NOW,
+    });
+    expect(weights(next)?.[0]).toBeGreaterThan(50);
+  });
+
+  it("a long absence from every gym still lowers the load", () => {
+    const old = { ...atThisGym, started_at: "2026-09-01T10:00:00Z" };
+    const next = suggestNext(plan, [old], "weight_reps", "machine", settings, {
+      now: NOW,
+      baselineHistory: [old],
+    });
+    expect(next?.reason).toBe("after_break");
   });
 });
