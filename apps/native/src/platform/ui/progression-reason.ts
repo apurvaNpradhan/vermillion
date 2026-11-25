@@ -86,7 +86,10 @@ const breakWeeks = (progression: Progression) =>
 
 export function progressionParams(progression: Progression, outcome: SetOutcome, unit: WeightUnit) {
   return {
-    value: formatWeight(outcome.changeKg ?? 0, unit),
+    value: formatWeight(
+      (outcome.reason === "capped" ? outcome.capKg : outcome.changeKg) ?? 0,
+      unit,
+    ),
     unit,
     count: breakWeeks(progression),
     percent: Math.round((outcome.loadFactor ?? 1) * 100),

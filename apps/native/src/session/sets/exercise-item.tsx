@@ -70,6 +70,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         exercise,
         record,
         suggestion: view?.suggestion ?? null,
+        rows: view?.rows,
         stall: view?.stall ?? null,
         progress: view?.progress ?? "",
         summary: view?.summary ?? "",
@@ -107,8 +108,17 @@ export const ExerciseItem = memo(function ExerciseItem({
     [exerciseId, isInViewport],
   );
   const progression = useMemo(
-    () => (suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null),
-    [suggestion, unit],
+    () =>
+      suggestion && exercise ? (
+        <ProgressionChip
+          suggestion={suggestion}
+          badges={exercise.sets.map(
+            (set, index) => data.rows?.get(set.id)?.badge ?? String(index + 1),
+          )}
+          unit={unit}
+        />
+      ) : null,
+    [suggestion, exercise, data.rows, unit],
   );
   if (!exercise) return null;
   return (

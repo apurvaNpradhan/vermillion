@@ -196,14 +196,17 @@ describe("double progression", () => {
     ]);
   });
 
-  it("resets straight sets after two misses, even on different working sets", () => {
-    expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])).toMatchObject({
+  it("resets straight sets together once the same slot misses twice at the same load", () => {
+    expect(suggest([logged(7), logged(12)], [logged(6), logged(10)])).toMatchObject({
       reason: "reset",
       sets: [
         { weightKg: 75, reps: 8 },
         { weightKg: 75, reps: 8 },
       ],
     });
+    // Misses in different slots or at different loads do not start a reset.
+    expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])?.reason).toBe("add_rep");
+    expect(suggest([logged(7), logged(12)], [logged(6, 82.5), logged(10)])?.reason).toBe("add_rep");
     // Only one session missed: sets can still add reps.
     expect(suggest([logged(7), logged(12)], [logged(10), logged(10)])?.reason).toBe("add_rep");
     expect(suggest([logged(7), logged(11)], [logged(10), logged(10)])?.reason).toBe("add_rep");
@@ -682,6 +685,65 @@ it.each([
     );
     expect(result).toMatchObject({ reason: "reset", sets: [{ reps: 8 }] });
     expect(result?.sets[0]?.weightKg).toBeCloseTo(toKg(expected), 5);
+  },
+);
+
+it.each([
+  { weightUnit: "kg", added: 20, bodyweight: 80, reset: 12.5, smallest: 2.5 },
+  { weightUnit: "lb", added: 45, bodyweight: 180, reset: 30, smallest: 5 },
+] as const)(
+  "resets a weighted bodyweight lift using effective load in $weightUnit",
+  ({ weightUnit, added, bodyweight, reset, smallest }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const propose = (load: number, snapshot?: number) => {
+      const miss = logged(4, toKg(load), {
+        exercise_type: "bodyweight_weighted_reps",
+        bodyweight_kg: snapshot,
+      });
+      return suggestNext(
+        [{ kind: "working", reps_min: 6, reps_max: 8 }],
+        [session([miss]), session([miss], "2026-11-10")],
+        "bodyweight_weighted_reps",
+        "plate",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW, bodyweightKg: snapshot === undefined ? toKg(bodyweight) : null },
+      );
+    };
+    for (const snapshot of [undefined, toKg(bodyweight)]) {
+      expect(propose(added, snapshot)).toMatchObject({
+        reason: "reset",
+        sets: [{ weightKg: toKg(reset), reps: 6 }],
+      });
+    }
+    expect(propose(smallest)).toMatchObject({
+      reason: "reset",
+      sets: [{ weightKg: 0, reps: 6 }],
+    });
+  },
+);
+
+it.each([
+  { weightUnit: "kg", weight: 40, reset: 35 },
+  { weightUnit: "lb", weight: 90, reset: 80 },
+] as const)(
+  "cuts the load by 10% and floors it for high-rep targets in $weightUnit",
+  ({ weightUnit, weight, reset }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    for (const reps of [12, 13]) {
+      const miss = logged(reps, toKg(weight));
+      const next = suggestNext(
+        [{ kind: "working", reps_min: 15, reps_max: 20 }],
+        [session([miss]), session([miss], "2026-11-10")],
+        "weight_reps",
+        "barbell",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW },
+      );
+      expect(next).toMatchObject({
+        reason: "reset",
+        sets: [{ weightKg: toKg(reset), reps: 15 }],
+      });
+    }
   },
 );
 

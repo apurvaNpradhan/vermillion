@@ -92,27 +92,31 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(history[0]?.sets[0]?.weight_kg).toBe(kg(weight + step * 6));
   });
 
-  it("lowers after repeated misses but holds a completed grind at the ceiling", () => {
-    const history = [
-      train(
-        0,
-        startingTargets.map((set) => ({ ...set, reps: 5 })),
-        { rpe: 10 },
-      ),
-    ];
-    for (let index = 1; index <= 8; index += 1) {
-      const result = propose(history, index);
-      if (!result) throw new Error("Expected a target after a miss");
-      expect(result.reason).toBe(index === 1 ? "hold_effort" : "reset");
-      history.unshift(
-        train(
-          index,
-          result.sets.map((set) => set && { ...set, reps: 5 }),
-          { rpe: 10 },
-        ),
-      );
-    }
-    expect(history[0]?.sets[0]?.weight_kg).toBeLessThan(kg(weight));
+  it("requires two misses at the same load again after a reset", () => {
+    const targets: PlannedSet[] = plan.map((set) => ({ ...set, reps_min: 8, reps_max: 10 }));
+    const missed = (amount: number, reps: number) =>
+      targets.map(() => ({ weightKg: kg(amount), reps }));
+    const history = [train(0, missed(weight, 6), { rpe: 10 })];
+    expect(propose(history, 1, targets)?.reason).toBe("hold_effort");
+    history.unshift(train(1, missed(weight, 6), { rpe: 10 }));
+    const resetLoad = weight - step * 2;
+    expect(propose(history, 2, targets)).toMatchObject({
+      reason: "reset",
+      sets: targets.map(() => ({ weightKg: grid?.nearest(exact(resetLoad)), reps: 8 })),
+    });
+    history.unshift(train(2, missed(resetLoad, 7), { rpe: 10 }));
+    expect(propose(history, 3, targets)).toMatchObject({
+      reason: "hold_effort",
+      sets: missed(resetLoad, 7),
+    });
+    history.unshift(train(3, missed(resetLoad, 7)));
+    expect(propose(history, 4, targets)).toMatchObject({
+      reason: "reset",
+      sets: targets.map(() => ({ weightKg: grid?.nearest(exact(resetLoad - step)), reps: 8 })),
+    });
+  });
+
+  it("holds a completed grind at the ceiling across Sessions", () => {
     const grinds = [
       train(
         0,

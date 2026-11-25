@@ -276,15 +276,24 @@ it.each([
     ]);
     const weight = parseWeight(String(top), weightUnit) ?? 0;
     expect(grid?.capKg).toBeCloseTo(weight, 3);
-    for (let reps = 12; reps <= 18; reps += 1) {
-      const result = suggestNext(
+    const propose = (reps: number, last: number) =>
+      suggestNext(
         plan,
-        [{ started_at: NOW.toISOString(), sets: [logged(reps, weight), logged(reps, weight)] }],
+        [{ started_at: NOW.toISOString(), sets: [logged(reps, last), logged(reps, last)] }],
         "weight_reps",
         "barbell",
         { weightUnit, weightIncrementKg: null },
         { now: NOW, grid },
       );
+    const capped = propose(12, weight + toKg(plate));
+    expect(capped?.outcomes[0]).toMatchObject({
+      reason: "capped",
+      limit: "plates",
+      capKg: grid?.capKg,
+    });
+    expect(capped?.outcomes[0]?.changeKg).toBeUndefined();
+    for (let reps = 12; reps <= 18; reps += 1) {
+      const result = propose(reps, weight);
       expect(result?.outcomes[0]).toMatchObject({
         reason: reps < 18 ? "cap_reps" : "cap_hint",
         limit: "plates",

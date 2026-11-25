@@ -14,21 +14,24 @@ import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 export function ProgressionChip({
   suggestion,
+  badges,
   unit,
 }: {
   suggestion: Progression;
+  badges: readonly string[];
   unit: WeightUnit;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const sheet = useMountOnOpen(open);
-  const explanations = suggestion.outcomes.flatMap((outcome, index) => {
+  const explanations = badges.flatMap((badge, index) => {
+    const outcome = suggestion.outcomes[index];
     if (!outcome) return [];
     const params = progressionParams(suggestion, outcome, unit);
     return [
       {
-        index,
+        badge,
         label: t(progressionLabelKey(outcome), params),
         reason: t(progressionReasonKey(outcome), params),
         show: outcome.reason !== "same_as_last",
@@ -62,9 +65,7 @@ export function ProgressionChip({
               <BottomSheet.Description>
                 {mixed
                   ? explanations
-                      .map(({ index, reason }) =>
-                        t("progress__set_reason", { number: index + 1, reason }),
-                      )
+                      .map(({ badge, reason }) => t("progress__set_reason", { badge, reason }))
                       .join("\n")
                   : first.reason}
               </BottomSheet.Description>

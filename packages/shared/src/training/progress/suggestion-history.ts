@@ -11,15 +11,20 @@ type HistorySelection = {
 
 const histories = new WeakMap<readonly ContextSession[], Map<string, HistorySelection>>();
 
-/** History rows are in Session exercise order. Use the source entry across Sessions when known. */
-function matchingSets(session: ContextSession, place: SuggestionPlace): readonly LoggedSet[] {
+/** Split one exercise's sets into its entries in Session exercise order. */
+export function exerciseEntries(sets: readonly LoggedSet[]): LoggedSet[][] {
   const rows = new Map<string | undefined, LoggedSet[]>();
-  for (const set of session.sets) {
+  for (const set of sets) {
     const row = rows.get(set.session_exercise_id) ?? [];
     row.push(set);
     rows.set(set.session_exercise_id, row);
   }
-  const entries = [...rows.values()];
+  return [...rows.values()];
+}
+
+/** Use the source entry across Sessions when known. */
+function matchingSets(session: ContextSession, place: SuggestionPlace): readonly LoggedSet[] {
+  const entries = exerciseEntries(session.sets);
   const ordinal = entries[place.exerciseOrdinal ?? 0];
   const source = place.sourceWorkoutExerciseId;
   if (source && session.workoutId === place.workoutId) {

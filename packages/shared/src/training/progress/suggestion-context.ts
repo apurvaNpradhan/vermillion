@@ -1,12 +1,12 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
-import type { SessionHistory } from "../logging/logged-set";
+import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
 import { snapshotModifiers, type Phase, type PhaseSnapshot } from "../phases/phases";
 import {
   resolveExerciseUnit,
   type PreviousSource,
   type WeightUnit,
 } from "../vocabulary/vocabulary";
-import { suggestionHistory } from "./suggestion-history";
+import { exerciseEntries, suggestionHistory } from "./suggestion-history";
 import type { LighterPeriod } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
@@ -14,6 +14,8 @@ import { stalledSessions } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
 export type SuggestionSettings = {
+  /** Fallback when history has no bodyweight snapshot. */
+  bodyweightKg?: number | null;
   weightUnit: WeightUnit;
   weightIncrementKg: number | null;
   lighterWeeks?: readonly LighterPeriod[];
@@ -122,6 +124,7 @@ export function suggestionContext(
     stall,
     history,
     settings: {
+      bodyweightKg: account.bodyweightKg,
       baselineHistory: history,
       weightUnit: unit,
       weightIncrementKg: incrementInUnit(
@@ -136,4 +139,53 @@ export function suggestionContext(
       phaseLoad: place.phaseLoad ?? 1,
     },
   };
+}
+
+/** The exercises trained this week with a visible stall on at least one of their entries. */
+export function stalledExerciseIds(
+  thisWeek: readonly Pick<ContextSession, "workoutId" | "gymId" | "sets">[],
+  histories: ReadonlyMap<string, readonly ContextSession[]>,
+  account: SuggestionAccount,
+): string[] {
+  const stalled = new Set<string>();
+  for (const session of thisWeek) {
+    const exercises = new Map<string, LoggedSet[]>();
+    for (const set of session.sets) {
+      if (stalled.has(set.exercise_id)) continue;
+      const sets = exercises.get(set.exercise_id) ?? [];
+      sets.push(set);
+      exercises.set(set.exercise_id, sets);
+    }
+    for (const [exerciseId, sets] of exercises) {
+      const history = histories.get(exerciseId);
+      if (!history) continue;
+      const entries = exerciseEntries(sets);
+      for (const [exerciseOrdinal, entry] of entries.entries()) {
+        const set = entry.find(isCounted);
+        if (!set) continue;
+        const { stall } = suggestionContext(
+          history,
+          {
+            exerciseId,
+            sourceWorkoutExerciseId: set.source_workout_exercise_id,
+            exerciseOrdinal,
+            duplicateEntry: entries.length > 1,
+            type: set.exercise_type,
+            workoutId: session.workoutId,
+            gymId: session.gymId ?? null,
+            // The stall verdict compares this Workout's history across gyms and ignores load grids.
+            equipment: "other",
+            grid: null,
+            stalls: true,
+          },
+          account,
+        );
+        if (stall) {
+          stalled.add(exerciseId);
+          break;
+        }
+      }
+    }
+  }
+  return [...stalled];
 }

@@ -184,6 +184,7 @@ export function rangeGrid(
 /** The grid of a loaded bar: the bar and the plates the gym has, pairs of them. */
 export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[]): LoadGrid | null {
   const smallest = smallestBarStepKg(plates);
+  if (smallest === null) return null;
   const available = plates.filter(
     (plate) =>
       Number.isFinite(plate.weightKg) &&
@@ -221,7 +222,7 @@ export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[])
       return belowCache.get(key) ?? null;
     },
     nearest: (kg) => nearestBarLoadKg(Math.max(0, kg), bar, plates),
-    stepAt: (kg) => Math.max(smallest ?? 0, (above(kg) ?? kg + (smallest ?? 0)) - kg),
+    stepAt: (kg) => Math.max(smallest, (above(kg) ?? kg + smallest) - kg),
   };
 }
 

@@ -121,27 +121,3 @@ export function stalledSessions(
   }
   return stalled;
 }
-
-/**
- * The exercises trained in `thisWeek` that have stalled, in the order they were first trained.
- * Each is judged on the Sessions of the Workout it was trained in, across gyms.
- */
-export function stalledExerciseIds(
-  thisWeek: readonly { workoutId: string | null; sets: readonly LoggedSet[] }[],
-  histories: ReadonlyMap<string, readonly (StallSession & { workoutId: string | null })[]>,
-  options: { lighterWeeks?: readonly LighterPeriod[] } = {},
-): string[] {
-  const seen = new Set<string>();
-  const stalled: string[] = [];
-  for (const session of thisWeek) {
-    for (const set of session.sets) {
-      if (!isCounted(set) || seen.has(set.exercise_id)) continue;
-      seen.add(set.exercise_id);
-      const history = (histories.get(set.exercise_id) ?? []).filter(
-        (past) => past.workoutId === session.workoutId,
-      );
-      if (stalledSessions(history, set.exercise_type, options) > 0) stalled.push(set.exercise_id);
-    }
-  }
-  return stalled;
-}

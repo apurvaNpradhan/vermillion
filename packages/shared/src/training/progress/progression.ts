@@ -3,7 +3,7 @@ import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { isBaselinePhase, type Phase } from "../phases/phases";
 import { loadIdentity } from "../vocabulary/format";
-import { estimatedOneRepMax } from "../volume/volume";
+import { effectiveWeight, estimatedOneRepMax } from "../volume/volume";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
   LIGHTER_WEEK_LOAD,
@@ -45,7 +45,10 @@ export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
 
 export type SetOutcome = {
   reason: ProgressionReason;
+  /** Added load, when the set progresses in weight. */
   changeKg?: number;
+  /** The suggested load when the last set exceeded the cap. */
+  capKg?: number;
   limit?: "plates" | "equipment";
   /** The share of the previous load after snapping to the equipment. */
   loadFactor?: number;
@@ -64,6 +67,8 @@ export type Progression = {
 /** What a suggestion needs besides the history: the clock and the Lighter weeks. */
 export type ProgressionContext = {
   now: Date;
+  /** Fallback when a logged set has no bodyweight snapshot. */
+  bodyweightKg?: number | null;
   /**
    * The Sessions the loads and reps are read from, when fewer than the whole `history`: a
    * baseline can prefer the same Workout and, for gym-bound equipment, the same gym. The break
@@ -216,9 +221,9 @@ const REASON_OF = {
  * for every working set to reach the ceiling before adding load. Back-offs do the same within
  * their own group. Top sets progress independently.
  * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
- * minimum on two Sessions running resets the load, a break lowers the load and a Lighter week or the
- * stalled-lift deload suggests 90%. Warm-ups, Lighter-week Sessions and Test or Deload phase
- * Sessions are never a baseline.
+ * minimum in the same slot at the same load on two Sessions running resets the load. A break
+ * lowers the load, and a Lighter week or the stalled-lift deload suggests 90%. Warm-ups,
+ * Lighter-week Sessions and Test or Deload phase Sessions are never a baseline.
  */
 export function suggestNext(
   planned: readonly PlannedSet[],
@@ -327,28 +332,50 @@ export function suggestNext(
   }
 
   const older = baselines[1];
-  const misses = rangeMisses(slots, last.sets);
-  const held =
-    misses.length > 0 && older !== undefined && rangeMisses(slots, older.sets).length > 0;
+  const earlierMisses = new Map(
+    older
+      ? rangeMisses(slots, older.sets).map(({ index, set }) => [
+          index,
+          set.weight_kg == null ? null : loadIdentity(set.weight_kg),
+        ])
+      : [],
+  );
+  const held = new Set<number>();
   const resets = new Map<number, number>();
   const together = (kind: SetKind) =>
     !settings.progressionPerSet && (kind === "working" || kind === "backoff");
   const groupKey = (kind: SetKind, weight: number) => `${kind}/${weight}`;
   const groupResets = new Map<string, number>();
-  if (held && loaded) {
-    for (const { index, set, minimum, reps } of misses) {
-      const weight = set.weight_kg;
-      const max = estimatedOneRepMax(weight ?? 0, reps);
-      if (max === null || weight == null || minimum >= 37) continue;
-      // Invert Brzycki at the target reps, then floor to a load that can be made.
-      const ratio = (max * (37 - minimum)) / 36 / weight;
-      const reset = lightenLoad(weight, ratio, equipment, unit, grid, "down");
-      if (reset >= weight) continue;
-      resets.set(index, reset);
-      if (together(set.kind)) {
-        const key = groupKey(set.kind, weight);
-        groupResets.set(key, Math.min(reset, groupResets.get(key) ?? reset));
-      }
+  for (const { index, set, minimum, reps } of rangeMisses(slots, last.sets)) {
+    const weight = set.weight_kg ?? null;
+    if (earlierMisses.get(index) !== (weight === null ? null : loadIdentity(weight))) continue;
+    held.add(index);
+    if (!loaded || weight === null || weight <= 0) continue;
+    const bodyweight = set.bodyweight_kg === undefined ? context.bodyweightKg : set.bodyweight_kg;
+    const effective = effectiveWeight(type, weight, bodyweight);
+    const max = effective === null ? null : estimatedOneRepMax(effective, reps);
+    const bodyweightOffset = type === "bodyweight_weighted_reps" ? (bodyweight ?? 0) : 0;
+    // Invert Brzycki within its 1–12 rep range. Outside it, cut the logged load by 10%.
+    const target =
+      max === null || minimum > 12 ? weight * 0.9 : (max * (37 - minimum)) / 36 - bodyweightOffset;
+    const rounded = lightenLoad(
+      weight,
+      Math.max(0, target) / weight,
+      equipment,
+      unit,
+      grid,
+      "down",
+    );
+    // A weighted bodyweight lift can still be done when no positive added load fits the target.
+    const reset =
+      type === "bodyweight_weighted_reps" && loadIdentity(rounded) > loadIdentity(target)
+        ? 0
+        : rounded;
+    if (loadIdentity(reset) >= loadIdentity(weight)) continue;
+    resets.set(index, reset);
+    if (together(set.kind)) {
+      const key = groupKey(set.kind, weight);
+      groupResets.set(key, Math.min(reset, groupResets.get(key) ?? reset));
     }
   }
   // Without a weight to add, a rep range grows past its top only when every set topped it.
@@ -424,7 +451,7 @@ export function suggestNext(
     } else if (reset !== undefined && target.reps_min !== undefined) {
       outcome = "reset";
       next = { weightKg: reset, reps: target.reps_min };
-    } else if (held) outcome = "hold_missed";
+    } else if (held.has(index)) outcome = "hold_missed";
     else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
@@ -478,11 +505,8 @@ export function suggestNext(
             : "equipment"
           : undefined,
       changeKg:
-        outcome === "add_weight"
-          ? (next.weightKg ?? 0) - (before.weight_kg ?? 0)
-          : outcome === "capped"
-            ? (next.weightKg ?? undefined)
-            : undefined,
+        outcome === "add_weight" ? (next.weightKg ?? 0) - (before.weight_kg ?? 0) : undefined,
+      capKg: outcome === "capped" ? (next.weightKg ?? undefined) : undefined,
     };
     sets[index] = next;
   }
