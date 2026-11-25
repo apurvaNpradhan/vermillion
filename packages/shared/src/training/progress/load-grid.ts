@@ -216,19 +216,50 @@ function capGrid(base: LoadGrid | null, capKg: number, stepAt: (kg: number) => n
 }
 
 /**
+ * `ranges` held to a cap of `capKg`: ranges that start above it go, and the last one ends at it.
+ * No ranges become a lone cap. The result stays valid for {@link loadRangesSchema}.
+ */
+export function limitRangesTo(ranges: readonly LoadRange[], capKg: number): LoadRange[] {
+  const kept = ranges.filter((range) => range.min <= capKg + EPS);
+  const last = kept[kept.length - 1];
+  if (!last) return [{ min: 0, max: capKg, step: null }];
+  return [...kept.slice(0, -1), { ...last, max: Math.min(last.max ?? capKg, capKg) }];
+}
+
+/**
+ * The ranges a gym gives an exercise: its own for that exercise, and for a dumbbell exercise held
+ * to the gym's dumbbell max. The lower of the two caps wins, so an exercise limit below the
+ * dumbbell max stays as it is.
+ */
+export function gymRangesFor(input: {
+  equipment: Equipment;
+  ranges?: readonly LoadRange[] | null;
+  dumbbellMaxKg?: number | null;
+}): readonly LoadRange[] {
+  const ranges = input.ranges ?? [];
+  const cap = input.dumbbellMaxKg ?? null;
+  if (input.equipment !== "dumbbell" || cap === null) return ranges;
+  const own = ranges[ranges.length - 1]?.max ?? null;
+  return own !== null && own <= cap + EPS ? ranges : limitRangesTo(ranges, cap);
+}
+
+/**
  * The grid a gym gives an exercise. Its own ranges when it has set a step, else the loads the
  * equipment has without a setting (the loaded bar of a barbell, the usual rack of a dumbbell,
- * nothing for the rest), held to the gym's cap when it has set one.
+ * nothing for the rest), held to the gym's cap when it has set one (an exercise's own, or the
+ * gym's dumbbell max for dumbbell exercises, whichever is lower).
  */
 export function loadGridOf(input: {
   equipment: Equipment;
   unit: WeightUnit;
   ranges?: readonly LoadRange[] | null;
+  /** The most any dumbbell exercise is loaded to at this gym, in kilograms. */
+  dumbbellMaxKg?: number | null;
   /** The bar this exercise loads, already resolved (see `defaultBar`). */
   bar?: { weightKg: number } | null;
   plates?: readonly LoadPlate[];
 }): LoadGrid | null {
-  const ranges = input.ranges ?? [];
+  const ranges = gymRangesFor(input);
   const explicit = rangeGrid(ranges);
   if (explicit) return explicit;
   const base =

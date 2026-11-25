@@ -542,3 +542,96 @@ describe("load basis", () => {
     expect(loadBasisOf(equipment)).toBe(basis);
   });
 });
+
+describe("a gym's dumbbell max", () => {
+  const lb = (pounds: number) => pounds * KG_PER_LB;
+  const grid = (
+    unit: "kg" | "lb",
+    dumbbellMaxKg: number | null,
+    ranges: LoadRange[] = [],
+    equipment: "dumbbell" | "kettlebell" | "machine" = "dumbbell",
+  ) => loadGridOf({ equipment, unit, ranges, dumbbellMaxKg });
+
+  it.each([
+    { name: "no max", unit: "kg", max: null, ranges: [], cap: null },
+    { name: "kg, none own", unit: "kg", max: 30, ranges: [], cap: 30 },
+    { name: "lb, none own", unit: "lb", max: lb(100), ranges: [], cap: lb(100) },
+    {
+      name: "own cap above the max",
+      unit: "kg",
+      max: 30,
+      ranges: [{ min: 0, max: 40, step: null }],
+      cap: 30,
+    },
+    {
+      name: "own cap below the max wins",
+      unit: "kg",
+      max: 30,
+      ranges: [{ min: 0, max: 20, step: null }],
+      cap: 20,
+    },
+    {
+      name: "own cap equal to the max",
+      unit: "lb",
+      max: lb(50),
+      ranges: [{ min: 0, max: lb(50), step: null }],
+      cap: lb(50),
+    },
+    { name: "own open rack", unit: "kg", max: 30, ranges: rack, cap: 30 },
+    {
+      name: "own rack that ends lower",
+      unit: "kg",
+      max: 30,
+      ranges: [{ min: 1, max: 20, step: 1 }],
+      cap: 20,
+    },
+  ] as const)("caps at $cap with $name", ({ unit, max, ranges, cap }) => {
+    expect(grid(unit, max, [...ranges])?.capKg ?? null).toBeCloseTo(cap ?? 0, 6);
+    if (cap === null) expect(grid(unit, max, [...ranges])?.capKg ?? null).toBeNull();
+  });
+
+  it.each([{ equipment: "machine" }, { equipment: "kettlebell" }] as const)(
+    "does not cap $equipment",
+    ({ equipment }) => {
+      expect(grid("kg", 30, [], equipment)).toBeNull();
+    },
+  );
+
+  it("keeps the default rack steps below the max, in kg", () => {
+    const capped = grid("kg", 30);
+    expect(capped?.source).toBe("default");
+    expect(addLoad(9, 1, "kg", capped)).toBe(10);
+    expect(addLoad(27.5, 2.5, "kg", capped)).toBe(30);
+    expect(addLoad(30, 2.5, "kg", capped)).toBeNull();
+    expect(addLoad(40, 2.5, "kg", capped)).toBeNull();
+    expect(capped?.nearest(40)).toBe(30);
+  });
+
+  it("keeps the default rack steps below the max, in lb", () => {
+    // The max is typed in pounds, so it is stored the way typing stores it.
+    const max = parseWeight("50", "lb") ?? 0;
+    const capped = grid("lb", max);
+    expect(
+      incrementFor(lb(30), "dumbbell", { weightUnit: "lb", weightIncrementKg: null }, capped),
+    ).toBeCloseTo(lb(5), 6);
+    expect(addLoad(lb(45), lb(5), "lb", capped)).toBe(max);
+    expect(addLoad(max, lb(5), "lb", capped)).toBeNull();
+    expect(lightenLoad(lb(80), 0.9, "dumbbell", "lb", capped)).toBe(max);
+  });
+
+  it("clips a stepped rack at the max and drops runs that start above it", () => {
+    const capped = grid("kg", 11, rack);
+    // 12.5 kg is above the max, so only the fine run stays and it ends at 10 kg.
+    expect(capped?.capKg).toBe(10);
+    expect(capped?.above(10)).toBeNull();
+    expect(grid("kg", 5, rack)?.capKg).toBe(5);
+    expect(grid("kg", 5, rack)?.above(4)).toBe(5);
+    expect(grid("kg", 0.5, rack)?.capKg).toBe(0.5);
+  });
+
+  it("lets a lower own limit win in lightenLoad and addLoad", () => {
+    const own = grid("kg", 30, [{ min: 0, max: 20, step: null }]);
+    expect(addLoad(20, 2.5, "kg", own)).toBeNull();
+    expect(lightenLoad(40, 0.9, "dumbbell", "kg", own)).toBe(20);
+  });
+});
