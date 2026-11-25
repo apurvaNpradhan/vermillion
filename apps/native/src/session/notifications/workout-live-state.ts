@@ -1,6 +1,7 @@
 import {
   DEFAULT_PREVIOUS_SOURCE,
   PREVIOUS_SOURCES,
+  WEIGHT_UNITS,
   lighterPeriodSchema,
   sessionActiveSeconds,
   resolveExerciseUnit,
@@ -15,6 +16,7 @@ import { formatElapsed } from "../timer/clock";
 export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),
   weightIncrementKg: z.number().positive().nullable(),
+  weightIncrementUnit: z.enum(WEIGHT_UNITS).nullable().optional(),
   lighterWeeks: z.array(lighterPeriodSchema).default([]),
   previousSource: z.enum(PREVIOUS_SOURCES).default(DEFAULT_PREVIOUS_SOURCE),
   /** The body weight on the Session's day, which the stalled-lift verdict scores weighted lifts with. */

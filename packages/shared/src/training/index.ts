@@ -40,6 +40,8 @@ export {
   defaultRangesFor,
   defaultStepKg,
   lightenLoad,
+  incrementInUnit,
+  INCREMENT_CHOICES,
   loadable,
 } from "./progress/progression-steps";
 export * from "./progress/lighter-week";

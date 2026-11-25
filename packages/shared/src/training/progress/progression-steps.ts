@@ -48,6 +48,27 @@ const EPS = 1e-4;
 const inUnit = (kg: number, unit: WeightUnit) => (unit === "kg" ? kg : kg / KG_PER_LB);
 const toKg = (value: number, unit: WeightUnit) => (unit === "kg" ? value : value * KG_PER_LB);
 
+/** Manual increment choices in each display unit. */
+export const INCREMENT_CHOICES = {
+  kg: [1, 1.25, 2, 2.5, 5],
+  lb: [1, 2.5, 5, 10],
+} as const satisfies Record<WeightUnit, readonly number[]>;
+
+/** Preserve a same-unit increment. Across units, use the closest nominal choice. */
+export function incrementInUnit(
+  kilograms: number | null,
+  from: WeightUnit,
+  to: WeightUnit,
+): number | null {
+  if (kilograms === null || from === to) return kilograms;
+  const amount = inUnit(kilograms, to);
+  const choices: readonly number[] = INCREMENT_CHOICES[to];
+  const closest = choices.reduce((best, choice) =>
+    Math.abs(choice - amount) < Math.abs(best - amount) ? choice : best,
+  );
+  return toKg(closest, to);
+}
+
 /** The default step of `equipment` for a load of `loadKg`, in the display unit. */
 function defaultStep(equipment: Equipment, unit: WeightUnit, loadKg: number): number {
   if (equipment !== "dumbbell") return SMALLEST_STEP[equipment][unit];

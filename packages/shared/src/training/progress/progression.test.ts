@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { suggestionContext } from "./suggestion-context";
 
 import { loadGridOf } from "./load-grid";
 import { incrementFor, suggestNext, type ProgressionSession } from "./progression";
@@ -604,3 +605,53 @@ describe("deload and Lighter weeks", () => {
     ).toBeNull();
   });
 });
+
+it.each([
+  { unit: "kg", override: "lb", increment: 2.5, before: 100, expected: 105 },
+  { unit: "lb", override: "kg", increment: 5, before: 60, expected: 62.5 },
+] as const)(
+  "uses a nominal $override increment for a $unit preference",
+  ({ unit, override, increment, before, expected }) => {
+    const kilograms = unit === "kg" ? increment : increment * KG_PER_LB;
+    const weight = parseWeight(String(before), override) ?? 0;
+    const history = [
+      {
+        ...session([logged(12, weight)]),
+        id: "one",
+        finished_at: "2026-11-13T11:00:00Z",
+        workoutId: null,
+      },
+    ];
+    const context = suggestionContext(
+      history,
+      {
+        exerciseId: "e",
+        type: "weight_reps",
+        equipment: "machine",
+        unitOverride: override,
+        workoutId: null,
+        gymId: null,
+        grid: null,
+        stalls: false,
+      },
+      {
+        unit,
+        weightIncrementKg: kilograms,
+        weightIncrementUnit: unit,
+        previousSource: "same_workout",
+        lighterWeeks: [],
+        bodyweightKg: null,
+        stallMemory: () => ({ dismissed: false, applied: false }),
+      },
+    );
+    const result = suggestNext(
+      plan.slice(0, 1),
+      history,
+      "weight_reps",
+      "machine",
+      context.settings,
+      { now: NOW },
+    );
+    expect(result?.sets[0]?.weightKg).toBe(parseWeight(String(expected), override));
+  },
+);

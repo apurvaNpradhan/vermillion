@@ -17,6 +17,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   const {
     weightUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     lighterWeeks,
     previousSource,
     sounds,
@@ -54,6 +55,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
       {
         weightUnit,
         weightIncrementKg,
+        weightIncrementUnit,
         lighterWeeks,
         previousSource,
         bodyweightKg,
@@ -69,6 +71,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     permission,
     weightUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     lighterWeeks,
     previousSource,
     bodyweightKg,

@@ -10,6 +10,7 @@ import {
 import { historyForGym } from "./gym-history";
 import type { LighterPeriod } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
+import { incrementInUnit } from "./progression-steps";
 import { stalledSessions } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
@@ -44,6 +45,7 @@ export type SuggestionAccount = {
   /** The account's weight unit; an exercise may override it. */
   unit: WeightUnit;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
   lighterWeeks: readonly LighterPeriod[];
   bodyweightKg: number | null;
   stallMemory: (exerciseId: string, latestSessionId: string) => StallFlags;
@@ -127,7 +129,11 @@ export function suggestionContext(
     settings: {
       baselineHistory: sameWorkout,
       weightUnit: unit,
-      weightIncrementKg: account.weightIncrementKg,
+      weightIncrementKg: incrementInUnit(
+        account.weightIncrementKg,
+        account.weightIncrementUnit ?? account.unit,
+        unit,
+      ),
       gymId: place.gymId,
       grid: place.grid,
       lighterWeeks: account.lighterWeeks,

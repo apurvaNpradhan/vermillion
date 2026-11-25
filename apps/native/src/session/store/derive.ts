@@ -34,6 +34,7 @@ export type DeriveInputs = {
   unitNames: Readonly<Record<WeightUnit, string>>;
   display: DisplayUnits;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
   /** The active gym supplies equipment, load steps and caps. */
   gym: GymLoads;
   /** The gym selected for this Session determines which history leads. */

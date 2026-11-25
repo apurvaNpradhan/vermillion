@@ -12,6 +12,7 @@ import {
   type SetField,
   type LighterPeriod,
   type WeightUnit,
+  incrementInUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail, SetPatch } from "@workspace/sync";
 import { useIsFocused } from "expo-router";
@@ -77,6 +78,7 @@ export function useLoggingState({
   effortScale,
   bodyweightKg,
   weightIncrementKg,
+  weightIncrementUnit,
   gym,
   lighterWeeks: rawLighterWeeks,
   recordAlerts,
@@ -100,6 +102,7 @@ export function useLoggingState({
   effortScale: EffortScale;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
   gym: GymLoads;
   lighterWeeks: readonly LighterPeriod[];
   /** Whether a new Record shows its on-screen alert (its sound is the milestone sound's). */
@@ -162,6 +165,7 @@ export function useLoggingState({
       unitNames,
       display: shownDisplay,
       weightIncrementKg,
+      weightIncrementUnit,
       gym,
       sessionGymId,
       lighterWeeks,
@@ -180,6 +184,7 @@ export function useLoggingState({
       unitNames,
       shownDisplay,
       weightIncrementKg,
+      weightIncrementUnit,
       gym,
       sessionGymId,
       lighterWeeks,
@@ -249,14 +254,15 @@ export function useLoggingState({
   const contextFor = useCallback(
     (exercise: SessionExerciseDetail | undefined): StepContext => {
       const equipment = exercise?.exercise?.equipment ?? "other";
+      const exerciseUnit = resolveExerciseUnit(unit, exercise?.unit);
       return {
-        unit: resolveExerciseUnit(unit, exercise?.unit),
+        unit: exerciseUnit,
         equipment,
         grid: exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null,
-        incrementKg: weightIncrementKg,
+        incrementKg: incrementInUnit(weightIncrementKg, weightIncrementUnit ?? unit, exerciseUnit),
       };
     },
-    [unit, gym, weightIncrementKg],
+    [unit, gym, weightIncrementKg, weightIncrementUnit],
   );
   const readEntry = useCallback(() => {
     const { cell, raw, fresh, draftValue, found } = store.getState();

@@ -176,6 +176,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         previousSource: preferences.ui.previousSource,
         unit: userUnit,
         weightIncrementKg: preferences.ui.weightIncrementKg,
+        weightIncrementUnit: preferences.ui.weightIncrementUnit,
         lighterWeeks: preferences.ui.lighterWeeks,
         bodyweightKg,
         stallMemory,

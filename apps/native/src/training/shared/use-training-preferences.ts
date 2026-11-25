@@ -8,6 +8,7 @@ export function useTrainingPreferences() {
     ({ ui }) => ({
       weightUnit: ui.weightUnit,
       weightIncrementKg: ui.weightIncrementKg,
+      weightIncrementUnit: ui.weightIncrementUnit,
       effortScale: ui.effortScale,
       defaultRestSeconds: ui.defaultRestSeconds,
     }),
