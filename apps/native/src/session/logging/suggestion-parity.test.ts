@@ -49,9 +49,12 @@ it.each([
   { unit: "lb", weight: 220, expected: 225, plannedDeload: false, effort: true },
   { unit: "kg", weight: 100, expected: 75, plannedDeload: true },
   { unit: "lb", weight: 200, expected: 150, plannedDeload: true },
+  { unit: "kg", weight: 60, expected: 62.5, plannedDeload: false, progressing: true },
+  { unit: "lb", weight: 135, expected: 140, plannedDeload: false, progressing: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
+  const progressing = "progressing" in scenario;
   const fixture = await setupSessions();
   const { training } = fixture;
   const phasePlan: PhasePlan = {
@@ -89,7 +92,11 @@ it.each([
     const sets = (await readSession(id))?.exercises[0]?.sets;
     if (!sets) throw new Error("Expected squat sets");
     for (const set of sets)
-      await tickSet(training, set.id, { weight: kilograms, reps: 8, rpe: effort ? 7 : undefined });
+      await tickSet(training, set.id, {
+        weight: kilograms,
+        reps: progressing ? 5 + index : 8,
+        rpe: effort ? 7 : undefined,
+      });
     await finishSession(training, id);
   }
   if (programId !== null) {
@@ -158,10 +165,14 @@ it.each([
     nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
   ).toEqual(["upcoming", workoutId]);
 
+  if (progressing) expect(view?.stall).toBeNull();
   const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
 
-  expect(view?.suggestion?.outcomes[0]).toMatchObject({ reason: effort ? "add_weight" : "deload" });
-  if (!effort) expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
+  expect(view?.suggestion?.outcomes[0]).toMatchObject({
+    reason: effort || progressing ? "add_weight" : "deload",
+  });
+  if (!effort && !progressing)
+    expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
   expect(preview?.suggestion).toEqual(view?.suggestion);
   expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });

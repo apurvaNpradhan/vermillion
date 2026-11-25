@@ -53,47 +53,32 @@ describe("stalledSessions", () => {
     );
   });
 
-  it("is stalled when the best of the last three has not beaten the one before by 1%", () => {
+  it("is stalled when the last three have not improved on the reference", () => {
     expect(
       stalledSessions(history([set(100, 5), set(100, 5), set(100, 4), set(100, 5)]), "weight_reps"),
     ).toBe(3);
   });
 
   describe("sets of more than 12 reps (no estimated 1RM)", () => {
-    it("compares volume when every Session is a high-rep Session", () => {
+    it("compares reps at the same load when e1RM is unavailable", () => {
       const improving = history([set(60, 20), set(60, 15), set(60, 15), set(60, 15)]);
       expect(stalledSessions(improving, "weight_reps")).toBe(0);
       const flat = history([set(60, 15), set(60, 15), set(60, 15), set(60, 15)]);
       expect(stalledSessions(flat, "weight_reps")).toBe(3);
     });
-
-    it("compares every Session by volume when ranges are mixed", () => {
-      // Newest first. 60 x 15 is more volume than 100 x 5 although its 1RM is not scored.
-      const improving = history([set(60, 15), set(100, 5), set(100, 5), set(100, 5)]);
-      expect(stalledSessions(improving, "weight_reps")).toBe(0);
-      // The reverse: a lighter high-rep Session does not beat three heavy ones.
-      const mixed = history([set(60, 15), set(100, 12), set(100, 12), set(100, 12)]);
-      expect(stalledSessions(mixed, "weight_reps")).toBe(3);
-      // An older high-rep Session pulls the comparison to volume as well (600 < 900).
-      const older = history([set(100, 6), set(100, 6), set(100, 6), set(60, 15)]);
-      expect(stalledSessions(older, "weight_reps")).toBe(3);
-    });
   });
 
-  it("is not stalled once any of the last three improves by 1% or more", () => {
+  it("counts heavier loads at the minimum even below a 1% gain in e1RM", () => {
+    const flat = [set(100, 5), set(100, 5), set(100, 5)];
+    expect(stalledSessions(history([set(100.5, 5), ...flat]), "weight_reps")).toBe(0);
+    const target = { kind: "working", reps_min: 5, reps_max: 8 } as const;
+    expect(stalledSessions(history([set(100.5, 4, { target }), ...flat]), "weight_reps")).toBe(3);
+  });
+
+  it("counts a 1% gain in e1RM even when load goes down", () => {
     expect(
-      stalledSessions(
-        history([set(102.5, 5), set(100, 5), set(100, 4), set(100, 5)]),
-        "weight_reps",
-      ),
+      stalledSessions(history([set(95, 8), set(100, 5), set(100, 5), set(100, 5)]), "weight_reps"),
     ).toBe(0);
-    // A gain under 1% still counts as stalled.
-    expect(
-      stalledSessions(
-        history([set(100.5, 5), set(100, 5), set(100, 4), set(100, 5)]),
-        "weight_reps",
-      ),
-    ).toBe(3);
   });
 
   it("counts how long it has stalled past three Sessions", () => {

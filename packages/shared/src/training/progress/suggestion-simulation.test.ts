@@ -94,6 +94,25 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(history[0]?.sets[0]?.weight_kg).toBe(kg(weight + step * 6));
   });
 
+  it("never flags a stall during 8–12 double progression", () => {
+    const target = { kind: "working", reps_min: 8, reps_max: 12 } as const;
+    const targets = [target, target, target];
+    const history = [
+      train(
+        0,
+        targets.map(() => ({ weightKg: kg(weight), reps: 8 })),
+        { target },
+      ),
+    ];
+    for (let day = 1; day <= 24; day += 1) {
+      const next = propose(history, day, targets);
+      if (!next) throw new Error("Expected progression");
+      history.unshift(train(day, next.sets, { target }));
+      expect(stalledSessions(history, "weight_reps")).toBe(0);
+    }
+    expect(history[0]?.sets[0]?.weight_kg).toBeCloseTo(exact(weight + step * 4), 2);
+  });
+
   it("requires two misses at the same load again after a reset", () => {
     const targets: PlannedSet[] = plan.map((set) => ({ ...set, reps_min: 8, reps_max: 10 }));
     const missed = (amount: number, reps: number) =>

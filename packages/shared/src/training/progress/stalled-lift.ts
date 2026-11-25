@@ -2,6 +2,7 @@ import type { ExerciseType } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet } from "../logging/logged-set";
 import { effectiveWeight, estimatedOneRepMax } from "../volume/volume";
 import { isBaselinePhase, type Phase } from "../phases/phases";
+import { loadIdentity } from "../vocabulary/format";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 
 const DAY_MS = 86_400_000;
@@ -66,7 +67,7 @@ export function sessionScore(
 /**
  * How many Sessions in a row a lift has stalled, 0 when it has not. `history` is the exercise's
  * Sessions newest first, from the same Workout when one is known. The best of the most recent
- * three Sessions has not beaten the Session before them by 1%, and none of those three came after
+ * three Sessions has not improved on the Session before them, and none of those three came after
  * a gap of 14 days or more (a break is not a stall). It needs at least four scored Sessions;
  * Sessions in a Lighter week do not count. A Test or Deload phase Session is not scored (it is
  * not a baseline) but it is training: it fills a gap, so a Deload every fourth week is not a
@@ -76,7 +77,10 @@ export function sessionScore(
 export function stalledSessions(
   history: readonly StallSession[],
   type: ExerciseType,
-  options: { bodyweightKg?: number | null; lighterWeeks?: readonly LighterPeriod[] } = {},
+  options: {
+    bodyweightKg?: number | null;
+    lighterWeeks?: readonly LighterPeriod[];
+  } = {},
 ): number {
   const trained = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
     const scores = sessionScores(session.sets, type, options.bodyweightKg ?? null);
@@ -86,13 +90,13 @@ export function stalledSessions(
           {
             at: Date.parse(session.started_at),
             baseline: isBaselinePhase(session.phase),
-            ...scores,
+            performance: stallPerformance(session.sets, type, options.bodyweightKg),
           },
         ];
   });
   // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
   // Session between two baselines shortens it. Compare only the baselines since the last gap.
-  const sessions: SessionScores[] = [];
+  const sessions: StallPerformance[] = [];
   let gap = false;
   let previous: number | null = null;
   for (const item of trained) {
@@ -101,23 +105,75 @@ export function stalledSessions(
     previous = item.at;
     if (!item.baseline) continue;
     if (gap) break;
-    sessions.push(item);
+    sessions.push(item.performance);
   }
-  let maximumStrength = 0;
-  let maximumVolume = 0;
-  let allStrength = true;
+  const recent: StallPerformance = {
+    strength: null,
+    maxLoad: null,
+    qualifyingLoad: null,
+    repsByLoad: new Map(),
+  };
   let stalled = 0;
   for (const [index, before] of sessions.entries()) {
     if (index >= STALL_SESSIONS) {
-      const strength = allStrength && before.strength !== null;
-      const best = strength ? maximumStrength : maximumVolume;
-      const score = strength ? before.strength : (before.volume ?? 0);
-      if (best >= (score ?? 0) * MIN_GAIN) break;
+      if (improvedOn(recent, before)) break;
       stalled = index;
     }
-    allStrength &&= before.strength !== null;
-    maximumStrength = Math.max(maximumStrength, before.strength ?? 0);
-    maximumVolume = Math.max(maximumVolume, before.volume ?? 0);
+    if (before.strength !== null) recent.strength = Math.max(recent.strength ?? 0, before.strength);
+    if (before.qualifyingLoad !== null)
+      recent.qualifyingLoad = Math.max(recent.qualifyingLoad ?? 0, before.qualifyingLoad);
+    for (const [load, reps] of before.repsByLoad)
+      recent.repsByLoad.set(load, Math.max(recent.repsByLoad.get(load) ?? 0, reps));
   }
   return stalled;
+}
+
+type StallPerformance = {
+  strength: number | null;
+  maxLoad: number | null;
+  qualifyingLoad: number | null;
+  repsByLoad: Map<number, number>;
+};
+
+function stallPerformance(
+  sets: readonly LoggedSet[],
+  type: ExerciseType,
+  bodyweightKg?: number | null,
+): StallPerformance {
+  const repsByLoad = new Map<number, number>();
+  let maxLoad: number | null = null;
+  let qualifyingLoad: number | null = null;
+  for (const set of sets) {
+    if (!isCounted(set) || set.reps == null) continue;
+    const load = loadIdentity(set.weight_kg ?? 0);
+    repsByLoad.set(load, Math.max(repsByLoad.get(load) ?? 0, set.reps));
+    maxLoad = Math.max(maxLoad ?? 0, load);
+    if (set.reps >= (set.target?.reps_min ?? 1))
+      qualifyingLoad = Math.max(qualifyingLoad ?? 0, load);
+  }
+  return {
+    strength: sessionScores(sets, type, bodyweightKg).strength,
+    maxLoad,
+    qualifyingLoad,
+    repsByLoad,
+  };
+}
+
+function improvedOn(recent: StallPerformance, before: StallPerformance): boolean {
+  if (
+    recent.qualifyingLoad !== null &&
+    before.maxLoad !== null &&
+    recent.qualifyingLoad > before.maxLoad
+  )
+    return true;
+  if (
+    recent.strength !== null &&
+    before.strength !== null &&
+    recent.strength >= before.strength * MIN_GAIN
+  )
+    return true;
+  for (const [load, reps] of before.repsByLoad) {
+    if ((recent.repsByLoad.get(load) ?? 0) > reps) return true;
+  }
+  return false;
 }
