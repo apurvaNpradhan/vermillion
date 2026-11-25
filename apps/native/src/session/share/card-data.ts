@@ -1,6 +1,7 @@
 import {
   isCounted,
   recordCount,
+  resolveExerciseUnit,
   muscleDistribution,
   type recordFlags,
   sessionTotals,
@@ -114,7 +115,14 @@ export function buildCardData(input: {
             title: row.title,
             thumbnailKey: row.thumbnailKey,
             imageMediaId: row.imageMediaId,
-            summary: labels.rowSummary(row.sets, formatDetail(row.detail, labels), row.detail.kind),
+            summary: labels.rowSummary(
+              row.sets,
+              formatDetail(row.detail, {
+                ...labels,
+                unit: resolveExerciseUnit(labels.unit, row.unit),
+              }),
+              row.detail.kind,
+            ),
             record: row.record,
           })),
           more: more > 0 ? labels.more(more) : null,

@@ -1,4 +1,4 @@
-import { SESSION_LIMITS, type SupersetPlace } from "@workspace/shared";
+import { SESSION_LIMITS, type SupersetPlace, resolveExerciseUnit } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NotePencil } from "phosphor-react-native";
@@ -74,7 +74,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         progress: view?.progress ?? "",
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         gymId: state.inputs.gym.gymId,
         activeSessionId: state.session.finishedAt === null ? state.session.id : null,
         setupNote: exercise

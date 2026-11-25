@@ -4,7 +4,7 @@ import {
   type Equipment,
   SET_KIND_KEYS,
   formatWeight,
-  parseWeight,
+  type LoadGrid,
   type EffortScale,
   type ExerciseType,
   type PlannedSet,
@@ -18,6 +18,7 @@ import Animated from "react-native-reanimated";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { valueOfText } from "@/platform/ui/keypad-entry";
 import { useRowMotion } from "@/platform/ui/row-motion";
 import { SwipeGroup, SwipeRow, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 
@@ -63,6 +64,7 @@ export function SetTable({
   weightUnit,
   weightIncrementKg,
   equipment,
+  grid,
   effortScale,
   animateRows,
   onChange,
@@ -82,6 +84,7 @@ export function SetTable({
   weightIncrementKg: number | null;
   /** The exercise's equipment, for the keypad's − / + step. */
   equipment: Equipment | null;
+  grid: LoadGrid | null;
   effortScale: EffortScale;
   animateRows: boolean;
   onChange: (index: number, change: Partial<Target>) => void;
@@ -146,6 +149,7 @@ export function SetTable({
       unit: weightUnit,
       equipment,
       incrementKg: weightIncrementKg,
+      grid,
       onValue: spec.onValue,
     });
     if (keypad) {
@@ -204,7 +208,9 @@ export function SetTable({
                   decimal: true,
                   parse: (text) => {
                     const cleaned = text.trim();
-                    return cleaned === "" ? undefined : parseWeight(cleaned, weightUnit);
+                    return cleaned === ""
+                      ? undefined
+                      : valueOfText("weight", cleaned, weightUnit, grid?.capKg);
                   },
                   format: (kg) => formatWeight(kg, weightUnit),
                   onValue: (weight_kg) => onChange(index, { weight_kg }),

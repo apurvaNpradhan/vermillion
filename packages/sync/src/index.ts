@@ -214,6 +214,7 @@ export {
   watchEquipment,
   watchExerciseBar,
   watchExerciseBars,
+  watchExerciseUnit,
   watchExerciseProgressionMode,
   watchExerciseAutoWarmups,
   watchExerciseHistory,

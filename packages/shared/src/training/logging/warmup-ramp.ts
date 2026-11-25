@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { LoadGrid } from "../progress/load-grid";
-import { KG_PER_LB } from "../vocabulary/format";
+import { KG_PER_LB, formatWeight, parseWeight, weightAtMost } from "../vocabulary/format";
 import type { ExerciseType, Equipment } from "../../exercise/vocabulary";
 import type { WeightUnit } from "../vocabulary/vocabulary";
 import { nearestBarLoadKg, smallestBarStepKg, type LoadPlate } from "../plates/plates";
@@ -98,7 +98,7 @@ export function warmupRamp(input: {
 
   let round: (kg: number) => number;
   let opener: WarmupSet;
-  if (loading.grid) {
+  if (loading.grid && (!fixed || loading.grid.source === "gym")) {
     const grid = loading.grid;
     round = (kg) => grid.nearest(kg);
     opener = {
@@ -134,6 +134,10 @@ export function warmupRamp(input: {
     if (candidate.weightKg <= SAME || candidate.weightKg >= workingKg - SAME) continue;
     if (candidate.weightKg > workingKg * cap + SAME) continue;
     if (gymCap != null && candidate.weightKg > gymCap) continue;
+    const shownKg = parseWeight(formatWeight(candidate.weightKg, unit), unit);
+    if (gymCap != null && shownKg !== null && shownKg > gymCap)
+      candidate.weightKg = weightAtMost(candidate.weightKg, unit, gymCap);
+    if (candidate.weightKg <= SAME) continue;
     if (last && candidate.weightKg <= last.weightKg + SAME) continue;
     ramp.push(candidate);
   }

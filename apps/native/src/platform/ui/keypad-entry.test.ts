@@ -1,3 +1,4 @@
+import { formatWeight, parseWeight, resolveExerciseUnit, type WeightUnit } from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +7,7 @@ import {
   displayOfText,
   durationFromDigits,
   stepOf,
+  stepLabel,
   stepValue,
   textOfValue,
   valueOfText,
@@ -131,6 +133,22 @@ describe("steps", () => {
     expect(next / 0.45359237).toBeCloseTo(140, 2);
   });
 
+  it.each<[WeightUnit, WeightUnit, string, string, string, string, string]>([
+    ["kg", "lb", "25", "30", "22.5", "2.5", "5"],
+    ["lb", "kg", "10", "12.5", "9", "1", "2.5"],
+  ])(
+    "uses the %s user's %s override at the dumbbell rack boundary",
+    (preferred, override, start, up, down, minus, plus) => {
+      const unit = resolveExerciseUnit(preferred, override);
+      const current = parseWeight(start, unit);
+      const context = { unit, equipment: "dumbbell", incrementKg: null } as const;
+      expect(formatWeight(stepValue("weight", current, null, 1, context), unit)).toBe(up);
+      expect(formatWeight(stepValue("weight", current, null, -1, context), unit)).toBe(down);
+      expect(stepLabel("weight", current, null, -1, context)).toBe(minus);
+      expect(stepLabel("weight", current, null, 1, context)).toBe(plus);
+    },
+  );
+
   it("keeps reps, duration and the rest in their ranges", () => {
     const any = { unit: "kg", equipment: "machine", incrementKg: null } as const;
     expect(stepValue("reps", 8, null, 1, any)).toBe(9);
@@ -142,4 +160,14 @@ describe("steps", () => {
     expect(stepValue("distance", 100, null, 1, any)).toBe(110);
     expect(stepValue("distance", 5, null, -1, any)).toBe(0);
   });
+});
+
+it.each([
+  { unit: "kg", lightest: "1" },
+  { unit: "lb", lightest: "2.5" },
+] as const)("can step down to zero from the lightest $unit dumbbell", ({ unit, lightest }) => {
+  const current = parseWeight(lightest, unit);
+  expect(
+    stepValue("weight", current, null, -1, { unit, equipment: "dumbbell", incrementKg: null }),
+  ).toBe(0);
 });

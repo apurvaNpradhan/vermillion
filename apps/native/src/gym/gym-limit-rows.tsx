@@ -1,4 +1,4 @@
-import { formatWeight, type Equipment, type WeightUnit } from "@workspace/shared";
+import { formatWeight, weightAtMost, type Equipment, type WeightUnit } from "@workspace/shared";
 import { Barbell, Notepad, Ruler } from "phosphor-react-native";
 import { useState } from "react";
 
@@ -43,9 +43,17 @@ export function GymLimitRows({
         <ListRow
           icon={Barbell}
           title={t("gym__max_load")}
-          value={amount(setting.maxKg)}
+          value={amount(
+            setting.maxKg === null ? null : weightAtMost(setting.maxKg, unit, setting.maxKg),
+          )}
           onPress={() => setOpen(true)}
         />
+        {equipment === "dumbbell" && setting.dumbbellMaxKg !== null ? (
+          <ListRow
+            title={t("gym__dumbbell_max")}
+            value={amount(weightAtMost(setting.dumbbellMaxKg, unit, setting.dumbbellMaxKg))}
+          />
+        ) : null}
         <ListRow
           icon={Ruler}
           title={t("gym__load_step")}

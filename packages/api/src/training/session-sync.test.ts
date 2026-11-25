@@ -525,6 +525,29 @@ describe("session upload handlers", () => {
     expect(await stored("exercise_setting", settingId)).toMatchObject({ note: null });
   });
 
+  it("uploads, validates and clears an exercise's unit without resetting other settings", async () => {
+    const me = await writer("session-setting-unit@example.com");
+    const other = await writer("session-setting-unit-other@example.com");
+    const id = uuidv7();
+    const patch = (unit: string | null) => op("PATCH", "exercise_setting", id, { unit });
+
+    expect(await me.send([putSetting(id, weightReps, { unit: "stone" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(await me.send([putSetting(id, weightReps, { unit: "lb", note: "Pause" })])).toEqual(
+      applied,
+    );
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", note: "Pause" });
+    expect(await me.send([putSetting(id, weightReps, { auto_warmups: 1 })])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", auto_warmups: true });
+    expect(await me.send([patch("stone")])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await other.send([patch("kg")])).not.toEqual(applied);
+    expect(await me.send([patch("kg")])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "kg" });
+    expect(await me.send([patch(null)])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: null, note: "Pause" });
+  });
+
   it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {
     const me = await writer("session-new-columns@example.com");
     const legacySession = uuidv7();
@@ -538,6 +561,7 @@ describe("session upload handlers", () => {
     });
     expect(await stored("exercise_setting", legacySetting)).toMatchObject({
       progression_per_set: false,
+      unit: null,
     });
 
     const sessionId = uuidv7();

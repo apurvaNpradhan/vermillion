@@ -7,7 +7,12 @@ import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
 import { useActiveSessions, usePreviousSets, useStartSession } from "@/session";
 import { usePreferences } from "@/preferences";
-import { calendarDay, historyForWorkout, sessionGoal } from "@workspace/shared";
+import {
+  calendarDay,
+  historyForWorkout,
+  sessionGoal,
+  resolveExerciseUnit,
+} from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { homeWeek, lastWorkoutSession, sessionMinutes, weekSummary } from "./home-stats";
@@ -119,7 +124,13 @@ export function TrainingHome() {
             {
               id: entry.id,
               title: entry.exercise.title,
-              lastTopSet: top ? topSetText(top, entry.exercise.exerciseType) : null,
+              lastTopSet: top
+                ? topSetText(
+                    top,
+                    entry.exercise.exerciseType,
+                    resolveExerciseUnit(unit, entry.unit),
+                  )
+                : null,
             },
           ];
         })

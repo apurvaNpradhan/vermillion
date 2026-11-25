@@ -33,6 +33,7 @@ export function loadBar(
   targetKg: number,
   bar: { weightKg: number },
   plates: readonly LoadPlate[],
+  capKg: number | null = null,
 ): BarLoading {
   if (
     !Number.isFinite(targetKg) ||
@@ -96,6 +97,7 @@ export function loadBar(
   let aboveNode: Node | null | undefined;
   for (const node of sums.values()) {
     const totalKg = node?.totalKg ?? bar.weightKg;
+    if (!withinLoadCap(totalKg, capKg)) continue;
     if (
       totalKg <= targetKg + EPSILON &&
       (belowNode === undefined || totalKg > (belowNode?.totalKg ?? bar.weightKg))
@@ -115,6 +117,11 @@ export function loadBar(
   const above = load(aboveNode);
   const chosen = below ?? above ?? { totalKg: bar.weightKg, platesPerSide: [] };
   return { ...chosen, exact: Math.abs(chosen.totalKg - targetKg) < EPSILON, below, above };
+}
+
+/** A physical cap allows only arithmetic noise in a sum of plate weights. */
+export function withinLoadCap(weightKg: number, capKg: number | null): boolean {
+  return capKg === null || weightKg <= capKg + Number.EPSILON * capKg * 4;
 }
 
 /** Equal-size solutions compare denomination counts without expanding tiny plate bundles. */
@@ -153,6 +160,8 @@ export function nearestBarLoadKg(
 
 /** The smallest change one step of plates makes to a loaded bar: a pair of the lightest plate. */
 export function smallestBarStepKg(plates: readonly LoadPlate[]): number | null {
-  const usable = plates.filter((p) => p.weightKg > 0 && (p.count === null || p.count > 0));
+  const usable = plates.filter(
+    (p) => Number.isFinite(p.weightKg) && p.weightKg > 0 && (p.count === null || p.count > 0),
+  );
   return usable.length === 0 ? null : 2 * Math.min(...usable.map((p) => p.weightKg));
 }

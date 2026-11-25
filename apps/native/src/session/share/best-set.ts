@@ -1,5 +1,4 @@
-import type { ExerciseType, WeightUnit } from "@workspace/shared";
-import { addsLoad, formatWeight } from "@workspace/shared";
+import { addsLoad, formatWeight, type ExerciseType, type WeightUnit } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
 
 import { formatElapsed } from "../timer/clock";
@@ -134,14 +133,14 @@ export function rowDetail(
 /** The words a row's numbers are written with; the caller supplies them from its locale. */
 export type BestLabels = {
   unit: WeightUnit;
-  unitLabel: string;
+  unitLabel: (unit: WeightUnit) => string;
   reps: (count: number) => string;
   distance: (meters: number) => string;
   floors: (count: number) => string;
   steps: (count: number) => string;
   repRange: (min: number, max: number) => string;
   /** "{{weight}} {{unit}} × {{reps}}" */
-  weightReps: (weight: string, reps: number) => string;
+  weightReps: (weight: string, reps: number, unit: WeightUnit) => string;
 };
 
 /** A row's detail as text: "100 kg × 5", "12 reps", "5–8 reps", "2000 m · 8:30". */
@@ -149,9 +148,10 @@ export function formatDetail(detail: RowDetail, labels: BestLabels): string {
   if (detail.kind === "reps") return labels.repRange(detail.min, detail.max);
   const { set } = detail;
   const shown = (kg: number) => `${detail.addedLoad ? "+" : ""}${formatWeight(kg, labels.unit)}`;
-  const weight = set.weightKg === null ? null : `${shown(set.weightKg)} ${labels.unitLabel}`;
+  const weight =
+    set.weightKg === null ? null : `${shown(set.weightKg)} ${labels.unitLabel(labels.unit)}`;
   if (set.weightKg !== null && set.reps !== null && set.reps > 0) {
-    return labels.weightReps(shown(set.weightKg), set.reps);
+    return labels.weightReps(shown(set.weightKg), set.reps, labels.unit);
   }
   return [
     weight,

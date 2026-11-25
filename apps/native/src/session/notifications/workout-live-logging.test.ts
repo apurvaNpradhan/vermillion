@@ -5,6 +5,7 @@ import {
   createGym,
   parseSessionDetail,
   readGymLoadInputs,
+  setExerciseSetting,
   setGymExerciseSetting,
   setSessionGym,
   startSession,
@@ -22,11 +23,13 @@ import { logWorkoutLiveSet, workoutLiveGhosts } from "./workout-live-logging";
 import { workoutLiveState } from "./workout-live-state";
 
 it.each([
-  { unit: "kg", display: "60 kg" },
-  { unit: "lb", display: "132.5 lb" },
+  { unit: "kg", override: null, display: "60 kg", weightKg: 60 },
+  { unit: "lb", override: null, display: "132 lb", weightKg: 59.874 },
+  { unit: "kg", override: "lb", display: "132 lb", weightKg: 59.874 },
+  { unit: "lb", override: "kg", display: "60 kg", weightKg: 60 },
 ] as const)(
-  "shows and logs the Session gym cap from notification Done in $unit",
-  async ({ unit, display }) => {
+  "shows and logs the gym cap for $unit with override $override",
+  async ({ unit, override, display, weightKg }) => {
     const fixture = await setupSessions();
     const { training, installId, one } = fixture;
     const { workoutId, squat } = await pushWorkout(fixture);
@@ -43,6 +46,7 @@ it.each([
       { load_ranges: [{ min: 0, max: 60, step: null }] },
       installId,
     );
+    if (override !== null) await setExerciseSetting(training, SQUAT, { unit: override }, installId);
     const session = parseSessionDetail(
       await training.getAll(SESSION_DETAIL_SQL, [id]),
       await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
@@ -72,9 +76,9 @@ it.each([
     expect(state.canLog).toBe(true);
     expect(
       await logWorkoutLiveSet(training, session, ghosts, installId, state.setId),
-    ).toMatchObject({ ok: true, wrote: true, values: { weight_kg: 60, reps: 8 } });
+    ).toMatchObject({ ok: true, wrote: true, values: { weight_kg: weightKg, reps: 8 } });
     expect(one("session_set", state.setId ?? "")).toMatchObject({
-      weight_kg: 60,
+      weight_kg: weightKg,
       completed_at: expect.any(String),
     });
   },

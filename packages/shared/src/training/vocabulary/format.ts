@@ -4,6 +4,9 @@ import { MAX_WEIGHT_KG, type WeightUnit } from "./vocabulary";
 export const KG_PER_LB = 0.45359237;
 const STEP = { kg: 0.25, lb: 0.5 } as const satisfies Record<WeightUnit, number>;
 
+/** Match physical loads at the gram precision used when logging pounds. */
+export const loadIdentity = (kg: number): number => Number(kg.toFixed(3));
+
 const roundTo = (value: number, step: number) => Math.round(value / step) * step;
 
 /** Weight in the unit's own step (0.25 kg, 0.5 lb), as short text: "45", "22.5", "42.25". */
@@ -31,7 +34,7 @@ export function parseWeight(text: string, unit: WeightUnit): number | null {
   const cleaned = text.trim().replace(",", ".");
   if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
   const entered = roundTo(Number(cleaned), STEP[unit]);
-  const kg = unit === "kg" ? entered : Number((entered * KG_PER_LB).toFixed(3));
+  const kg = unit === "kg" ? entered : loadIdentity(entered * KG_PER_LB);
   return kg <= MAX_WEIGHT_KG ? kg : null;
 }
 

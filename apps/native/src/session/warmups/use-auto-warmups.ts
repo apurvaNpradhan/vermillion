@@ -1,3 +1,4 @@
+import { resolveExerciseUnit } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WeightUnit } from "@workspace/shared";
@@ -36,7 +37,7 @@ export function useAutoWarmups({
   session,
   ghostWeightOf,
   historyReady,
-  unit,
+  unit: preferredUnit,
   weightIncrementKg,
   warmupSettings,
   readOnly,
@@ -72,6 +73,7 @@ export function useAutoWarmups({
       if (!shouldAutoWarmup(exercise)) continue;
       const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
       if (workingKg === null) continue;
+      const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
       const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
       const key = rampKey(
         workingKg,
@@ -109,7 +111,7 @@ export function useAutoWarmups({
     session.exercises,
     ghostWeightOf,
     rows,
-    unit,
+    preferredUnit,
     weightIncrementKg,
     warmupSettings,
     replaceWarmups,
@@ -124,6 +126,7 @@ export function useAutoWarmups({
       const workingKg = canAddWarmups(exercise)
         ? firstWorkingWeightKg(exercise, ghostWeightOf)
         : null;
+      const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
       const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
       const ramp =
         workingKg !== null && workingKg > 0
@@ -136,7 +139,7 @@ export function useAutoWarmups({
       });
       return "added";
     },
-    [ghostWeightOf, gym, rows, unit, weightIncrementKg, warmupSettings, replaceWarmups],
+    [ghostWeightOf, gym, rows, preferredUnit, weightIncrementKg, warmupSettings, replaceWarmups],
   );
 
   return { addWarmups };

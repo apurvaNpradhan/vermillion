@@ -1,6 +1,7 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
+  resolveExerciseUnit,
   snapshotModifiers,
   type PreviousSource,
   type EffortScale,
@@ -29,15 +30,16 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 import { useStableValue } from "@/session/shared/use-stable-value";
 import type { DeriveInputs } from "@/session/store/derive";
-import type { SessionStore } from "@/session/store/session-store";
+import type { SessionState, SessionStore } from "@/session/store/session-store";
 
 import {
   applyKey,
-  stepOf,
+  stepLabel,
   stepValue,
   textOfValue,
   valueOfText,
   type EntryField,
+  type StepContext,
 } from "@/platform/ui/keypad-entry";
 import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
@@ -127,7 +129,10 @@ export function useLoggingState({
   const stallVersion = useStallVersion();
   const lighterWeeks = useStableValue(rawLighterWeeks);
   const shownDisplay = useStableValue(display);
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const unitNames = useMemo(
+    () => ({ kg: t("training__unit_kg"), lb: t("training__unit_lb") }),
+    [t],
+  );
   const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
   // How much of the last load this Session's phase asks for (0.9 in a Deload, 1 otherwise).
   const phaseLoad = useStore(store, (state) =>
@@ -154,7 +159,7 @@ export function useLoggingState({
       historyFailed,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       display: shownDisplay,
       weightIncrementKg,
       gym,
@@ -172,7 +177,7 @@ export function useLoggingState({
       historyFailed,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       shownDisplay,
       weightIncrementKg,
       gym,
@@ -202,11 +207,6 @@ export function useLoggingState({
   const currentSetId = useStore(store, (state) => state.currentSetId);
   const cell = useStore(store, (state) => state.cell);
   const refusal = useStore(store, (state) => (editor ? null : state.refusal));
-  // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
-  // screen without rows follows it here.
-  const raw = useStore(store, (state) => (editor ? "" : state.raw));
-  const fresh = useStore(store, (state) => (editor ? true : state.fresh));
-
   const previousOf = useCallback(
     (setId: string) => {
       const at = views.get(found.get(setId)?.exercise.id ?? "")?.rows.get(setId);
@@ -242,21 +242,48 @@ export function useLoggingState({
 
   // ---- The keypad ----
   const setEntry = useCallback(
-    (next: { cell: CellRef; raw: string; fresh: boolean } | null) =>
+    (next: Parameters<ReturnType<SessionStore["getState"]>["setEntry"]>[0]) =>
       store.getState().setEntry(next),
     [store],
   );
+  const contextFor = useCallback(
+    (exercise: SessionExerciseDetail | undefined): StepContext => {
+      const equipment = exercise?.exercise?.equipment ?? "other";
+      return {
+        unit: resolveExerciseUnit(unit, exercise?.unit),
+        equipment,
+        grid: exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null,
+        incrementKg: weightIncrementKg,
+      };
+    },
+    [unit, gym, weightIncrementKg],
+  );
   const readEntry = useCallback(() => {
-    const { cell: current, raw: text, fresh: isFresh } = store.getState();
-    return current ? { cell: current, raw: text, fresh: isFresh } : null;
-  }, [store]);
+    const { cell, raw, fresh, draftValue, found } = store.getState();
+    if (!cell) return null;
+    const at = found.get(cell.setId);
+    if (!at) return null;
+    return { cell, raw, fresh, draftValue, set: at.set, context: contextFor(at.exercise) };
+  }, [store, contextFor]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
     actions.updateValues(patch.setId, patch.values),
   );
   const activeSetId = cell?.setId ?? null;
+  const activeExercise = activeSetId === null ? undefined : found.get(activeSetId)?.exercise;
+  const activeUnit = resolveExerciseUnit(unit, activeExercise?.unit);
+  const priorEntry = useRef<{ cell: CellRef | null; unit: WeightUnit }>({ cell: null, unit });
 
   /** Saves what is typed now, for a cell that is about to be left. */
   const { flush } = writer;
+  useLayoutEffect(() => {
+    const last = priorEntry.current;
+    priorEntry.current = { cell, unit: activeUnit };
+    // The queued write already holds kilograms. Close the old unit's draft if sync changes it.
+    if (cell?.field === "weight" && cell === last.cell && activeUnit !== last.unit) {
+      void flush();
+      setEntry(null);
+    }
+  }, [cell, activeUnit, flush, setEntry]);
   const { awaitWrites } = actions;
   const flushWrites = useCallback(async () => {
     await flush();
@@ -278,7 +305,11 @@ export function useLoggingState({
       if (!at) return;
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(at.set, field), unit),
+        raw: textOfValue(
+          field,
+          valueOfSet(at.set, field),
+          resolveExerciseUnit(unit, at.exercise.unit),
+        ),
         fresh: true,
       });
     },
@@ -322,49 +353,56 @@ export function useLoggingState({
       if (!current) return;
       const base = current.fresh ? "" : current.raw;
       const text =
-        current.fresh && key === "backspace" ? "" : applyKey(current.cell.field, base, key, unit);
+        current.fresh && key === "backspace"
+          ? ""
+          : applyKey(current.cell.field, base, key, current.context.unit);
       if (text === current.raw && !current.fresh) return;
-      setEntry({ cell: current.cell, raw: text, fresh: false });
-      commit(current.cell, valueOfText(current.cell.field, text, unit));
+      const value = valueOfText(
+        current.cell.field,
+        text,
+        current.context.unit,
+        current.context.grid?.capKg,
+      );
+      setEntry({ cell: current.cell, raw: text, fresh: false, draftValue: value });
+      commit(current.cell, value);
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   /** Puts a whole value into the cell being edited (the plate calculator's Use). */
   const putValue = useCallback(
     (value: number) => {
       const current = readEntry();
-      if (!current) return;
+      if (!current || current.cell.field !== "weight") return;
+      const kg = Math.min(value, current.context.grid?.capKg ?? value);
       setEntry({
         cell: current.cell,
-        raw: textOfValue(current.cell.field, value, unit),
+        raw: textOfValue("weight", kg, current.context.unit),
         fresh: false,
+        draftValue: kg,
       });
-      commit(current.cell, value);
+      commit(current.cell, kg);
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   const onStep = useCallback(
     (direction: 1 | -1) => {
       const current = readEntry();
       if (!current) return;
-      const at = store.getState().found.get(current.cell.setId);
-      if (!at) return;
       const field = current.cell.field;
-      const typed = current.fresh
-        ? valueOfSet(at.set, field)
-        : valueOfText(field, current.raw, unit);
+      const typed = current.fresh ? valueOfSet(current.set, field) : current.draftValue;
       const ghost = lookupGhosts(current.cell.setId)[field] ?? null;
-      const stepped = stepValue(field, typed, ghost, direction, {
-        unit,
-        equipment: at.exercise.exercise?.equipment ?? null,
-        incrementKg: weightIncrementKg,
+      const stepped = stepValue(field, typed, ghost, direction, current.context);
+      setEntry({
+        cell: current.cell,
+        raw: textOfValue(field, stepped, current.context.unit),
+        fresh: false,
+        draftValue: stepped,
       });
-      setEntry({ cell: current.cell, raw: textOfValue(field, stepped, unit), fresh: false });
       commit(current.cell, stepped);
     },
-    [store, unit, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
+    [lookupGhosts, commit, readEntry, setEntry],
   );
 
   const next = useMemo(() => {
@@ -381,17 +419,15 @@ export function useLoggingState({
       : null;
   }, [cell, found, blocks]);
 
-  const stepText = useMemo(() => {
+  const stepText = (state: SessionState, direction: 1 | -1): string => {
+    const { cell } = state;
     if (!cell) return "";
-    const at = found.get(cell.setId);
-    return String(
-      stepOf(cell.field, {
-        unit,
-        equipment: at?.exercise.exercise?.equipment ?? null,
-        incrementKg: weightIncrementKg,
-      }),
-    );
-  }, [cell, found, unit, weightIncrementKg]);
+    const at = state.found.get(cell.setId);
+    if (!at) return "";
+    const current = state.fresh ? valueOfSet(at.set, cell.field) : state.draftValue;
+    const ghost = state.views.get(at.exercise.id)?.rows.get(cell.setId)?.ghosts[cell.field] ?? null;
+    return stepLabel(cell.field, current, ghost, direction, contextFor(at.exercise));
+  };
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
@@ -676,7 +712,7 @@ export function useLoggingState({
           ? {
               setId: typing.cell.setId,
               field: typing.cell.field,
-              value: valueOfText(typing.cell.field, typing.raw, unit),
+              value: typing.draftValue,
             }
           : null;
       flush();
@@ -686,7 +722,7 @@ export function useLoggingState({
       await Promise.all(updates.map(({ id, patch }) => actions.updateValues(id, patch)));
       store.getState().setRefusal(null);
     },
-    [readOnly, flush, store, lookupPrevious, actions, unit, readEntry],
+    [readOnly, flush, store, lookupPrevious, actions, readEntry],
   );
   const onKindSelected = useCallback(
     (setId: string, kind: SetKind) => void actions.updateValues(setId, { kind }),
@@ -734,17 +770,9 @@ export function useLoggingState({
     refusal,
     activeSetId,
     activeField: cell?.field ?? null,
-    /**
-     * What is typed in the cell being edited, or undefined when nothing has been typed yet. The
-     * saved set trails it while typing pauses are coalesced into one write. Only a screen without
-     * rows follows it.
-     */
-    typedValue: cell && !fresh ? valueOfText(cell.field, raw, unit) : undefined,
     readTypedValue: () => {
       const current = readEntry();
-      return current && !current.fresh
-        ? valueOfText(current.cell.field, current.raw, unit)
-        : undefined;
+      return current && !current.fresh ? current.draftValue : undefined;
     },
     hasNext: next !== null,
     stepText,

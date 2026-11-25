@@ -1,6 +1,14 @@
-import { defaultGymKit, KG_PER_LB, loadBar } from "@workspace/shared";
+import {
+  barKitFor,
+  defaultGymKit,
+  formatWeight,
+  KG_PER_LB,
+  loadBar,
+  parseWeight,
+} from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
+import { textOfValue, valueOfText } from "../../platform/ui/keypad-entry";
 
 import {
   addToStack,
@@ -388,3 +396,76 @@ describe("plate stack", () => {
     expect(overInventory([p(20)], inventory)).toEqual([]);
   });
 });
+
+it.each([
+  { unit: "kg", other: "lb", equipment: "ez_bar", label: "EZ" },
+  { unit: "lb", other: "kg", equipment: "trap_bar", label: "Trap" },
+] as const)(
+  "chooses a loadable $unit kit or falls back to the $other kit",
+  ({ unit, other, equipment, label }) => {
+    const matchingBar = row({ kind: "bar", weightKg: 20, unit, label });
+    const matchingPlate = row({ kind: "plate", weightKg: 5, unit, count: 1 });
+    const fallbackBar = row({ kind: "bar", weightKg: 15, unit: other, label });
+    const fallbackPlate = row({ kind: "plate", weightKg: 2, unit: other, count: null });
+    const options = { unit, equipment, preferMatchingUnit: true, rememberedId: fallbackBar.id };
+    const rows = [matchingBar, fallbackBar, fallbackPlate];
+    expect(barKitFor([...rows, matchingPlate], options).bar).toBe(matchingBar);
+    expect(barKitFor([...rows, matchingPlate], { ...options, capKg: 25 }).bar).toBe(fallbackBar);
+    for (const plate of [
+      [],
+      [{ ...matchingPlate, enabled: false }],
+      [{ ...matchingPlate, count: 0 }],
+    ]) {
+      const kit = barKitFor([...rows, ...plate], options);
+      expect(kit.bar).toBe(fallbackBar);
+      expect(kit.plates.map((item) => item.id)).toEqual([fallbackPlate.id]);
+    }
+    const selected = barKitFor([...rows, matchingPlate], {
+      ...options,
+      selectedId: fallbackBar.id,
+    });
+    expect(selected.bars).toContain(fallbackBar);
+    expect(selected.bar).toBe(fallbackBar);
+
+    const unlabelledBar = { ...matchingBar, label: null };
+    const onlyLabelled = barKitFor([unlabelledBar, matchingPlate, fallbackBar], options);
+    expect(onlyLabelled.bar).toBe(fallbackBar);
+    expect(onlyLabelled.bars).toContain(fallbackBar);
+    expect(missingBarLabel(onlyLabelled.bars, equipment)).toBeNull();
+  },
+);
+
+it.each([
+  { unit: "lb", cap: 99.78, physical: 99.75, bar: 20, shown: "220" },
+  { unit: "kg", cap: 100.23, physical: 100.2, bar: 45 * KG_PER_LB, shown: "100.25" },
+] as const)(
+  "uses the displayed $shown $unit while keeping the physical load within the cap",
+  ({ unit, cap, physical, bar, shown }) => {
+    const choices = loadChoices(
+      cap,
+      loadBar(cap, { weightKg: bar }, [plate((physical - bar) / 2)], cap),
+      cap,
+    );
+    const selected = nearestChoice(choices);
+    if (!selected) throw new Error("Expected a load under the cap");
+    const applied = Math.min(selected.load.totalKg, cap);
+    expect(applied).toBeCloseTo(physical);
+    expect(applied).toBeLessThanOrEqual(cap);
+    expect(formatWeight(selected.load.totalKg, unit)).toBe(shown);
+    expect(textOfValue("weight", applied, unit)).toBe(shown);
+    expect(parseWeight(shown, unit)).toBeGreaterThan(cap);
+    expect(valueOfText("weight", shown, unit, cap)).toBe(cap);
+  },
+);
+
+it.each([
+  { unit: "kg", physical: 100, bar: 20 },
+  { unit: "lb", physical: 220 * KG_PER_LB, bar: 45 * KG_PER_LB },
+] as const)(
+  "finds the next lower $unit load when the apparent exact match exceeds the cap",
+  ({ physical, bar }) => {
+    const cap = physical - 0.0001;
+    const result = loadBar(cap, { weightKg: bar }, [plate((physical - bar) / 2)], cap);
+    expect(nearestChoice(loadChoices(cap, result, cap))?.load.totalKg).toBe(bar);
+  },
+);

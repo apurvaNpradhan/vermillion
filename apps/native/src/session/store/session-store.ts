@@ -91,7 +91,13 @@ type Derived = {
 };
 
 /** The keypad: the cell being edited and what is typed in it. `fresh` means the next key replaces it. */
-export type EntryState = { cell: CellRef | null; raw: string; fresh: boolean };
+export type EntryState = {
+  cell: CellRef | null;
+  raw: string;
+  fresh: boolean;
+  /** Actual value, which can carry more precision than the displayed weight. */
+  draftValue: number | null;
+};
 
 /** A request to scroll an exercise into view; a new `nonce` is a new request. */
 export type ScrollRequest = { exerciseId: string; nonce: number };
@@ -118,7 +124,11 @@ export type SessionState = Base &
     setInputs: (inputs: DeriveInputs) => void;
     setUi: (ui: SessionUi) => void;
     setFocusedExercise: (exerciseId: string | null) => void;
-    setEntry: (next: { cell: CellRef; raw: string; fresh: boolean } | null) => void;
+    setEntry: (
+      next:
+        | (Omit<EntryState, "cell" | "draftValue"> & { cell: CellRef; draftValue?: number | null })
+        | null,
+    ) => void;
     setRefusal: (refusal: Refusal | null) => void;
   };
 
@@ -142,7 +152,7 @@ export const DEFAULT_INPUTS: DeriveInputs = {
   historyFailed: false,
   previousSource: "same_workout",
   unit: "kg",
-  unitName: "kg",
+  unitNames: { kg: "kg", lb: "lb" },
   display: { durationFormat: "clock", distanceUnit: "m" },
   weightIncrementKg: null,
   gym: {
@@ -359,7 +369,7 @@ export function createSessionStore(
         ...(scroll && (!expanded.has(scroll.exerciseId) || !sameExercise(scroll.exerciseId))
           ? { scrollRequest: null }
           : {}),
-        ...(closes ? { cell: null, raw: "", fresh: true } : {}),
+        ...(closes ? { cell: null, raw: "", fresh: true, draftValue: null } : {}),
         ...(clearRefusal ? { refusal: null } : {}),
       });
     };
@@ -371,7 +381,9 @@ export function createSessionStore(
       const isHidden = (setId: string) => !expanded.has(state.found.get(setId)?.exercise.id ?? "");
       set({
         expanded,
-        ...(state.cell && isHidden(state.cell.setId) ? { cell: null, raw: "", fresh: true } : {}),
+        ...(state.cell && isHidden(state.cell.setId)
+          ? { cell: null, raw: "", fresh: true, draftValue: null }
+          : {}),
         ...(state.refusal && isHidden(state.refusal.setId) ? { refusal: null } : {}),
         ...(state.scrollRequest && !expanded.has(state.scrollRequest.exerciseId)
           ? { scrollRequest: null }
@@ -448,6 +460,7 @@ export function createSessionStore(
       cell: null,
       raw: "",
       fresh: true,
+      draftValue: null,
       refusal: null,
       setStored: (session) => {
         if (get().stored !== session)
@@ -472,14 +485,18 @@ export function createSessionStore(
       },
       setEntry: (next) => {
         if (!next) {
-          set({ cell: null, raw: "", fresh: true });
+          set({ cell: null, raw: "", fresh: true, draftValue: null });
           return;
         }
         const state = get();
         const at = state.found.get(next.cell.setId);
         const block = at && blockOf(state.blocks, at.exercise.id);
         if (!block || state.ui.readOnly) return;
-        set({ ...next, expanded: expandedWith(state.expanded, memberIds(block)) });
+        set({
+          ...next,
+          draftValue: next.draftValue ?? null,
+          expanded: expandedWith(state.expanded, memberIds(block)),
+        });
       },
       setRefusal: (refusal) => set({ refusal }),
     };

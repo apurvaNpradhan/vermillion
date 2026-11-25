@@ -10,6 +10,7 @@ import {
   sessionTotals,
   stalledSessions,
   KG_PER_LB,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { Note, PencilSimple, ShareNetwork, Timer } from "phosphor-react-native";
@@ -97,8 +98,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           : sessionTotals(s.sets, history.bodyweightKg).volume /
             (history.weightUnit === "lb" ? KG_PER_LB : 1),
   }));
-  const unit = history.weightUnit;
-  const unitLabel = t(unit === "lb" ? "training__unit_lb" : "training__unit_kg");
+  const userUnit = history.weightUnit;
+  const unitLabel = t(userUnit === "lb" ? "training__unit_lb" : "training__unit_kg");
   const shortDate = (at: number) =>
     new Intl.DateTimeFormat(i18n.language, {
       month: "short",
@@ -134,6 +135,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     : null;
   const exerciseHistory = (ready?.exercises ?? []).map((original) => {
     const history = previousHistory.history.get(original.exerciseId) ?? [];
+    const exerciseUnit = resolveExerciseUnit(userUnit, original.unit);
     const entry =
       week && original.exercise
         ? {
@@ -142,8 +144,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               isMainLift: original.id === mainId,
               type: original.exercise.exerciseType,
               equipment: original.exercise.equipment,
-              unit,
-              grid: gym.gridFor(original.exerciseId, original.exercise.equipment),
+              unit: exerciseUnit,
+              grid: gym.gridFor(original.exerciseId, original.exercise.equipment, original.unit),
               modifiers: week.modifiers,
               testTop: week.testTop,
               // As the Session will start: from what was last done, not the planned load.
@@ -164,6 +166,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     });
     return {
       entry,
+      unit: exerciseUnit,
       history,
       type,
       count,
@@ -173,7 +176,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   });
   const progression =
     previousHistory.ready && !preferencesLoading
-      ? exerciseHistory.flatMap(({ entry, history, count, memory }) => {
+      ? exerciseHistory.flatMap(({ entry, unit, history, count, memory }) => {
           const preview = previewProgression(
             entry,
             history,
@@ -188,12 +191,14 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               deload: count > 0 && memory.applied,
               phaseLoad: week?.modifiers.load,
               gymId: gym.gymId,
-              grid: entry.exercise ? gym.gridFor(entry.exerciseId, entry.exercise.equipment) : null,
+              grid: entry.exercise
+                ? gym.gridFor(entry.exerciseId, entry.exercise.equipment, entry.unit)
+                : null,
             },
             now,
           );
           return preview && entry.exercise
-            ? [{ id: entry.id, title: entry.exercise.title, preview }]
+            ? [{ id: entry.id, title: entry.exercise.title, preview, unit }]
             : [];
         })
       : [];
@@ -294,11 +299,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   })}
                 </Text>
               ) : null}
-              <WorkoutProgressionPreview
-                exercises={progression}
-                unit={unit}
-                unitLabel={unitLabel}
-              />
+              <WorkoutProgressionPreview exercises={progression} />
               {ready.note ? (
                 <Text className="font-normal text-body text-muted">{ready.note}</Text>
               ) : null}
@@ -355,6 +356,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 }
               />
               {exerciseHistory.map(({ entry, history, type, count, lastSessionId, memory }) => {
+                const unit = resolveExerciseUnit(userUnit, entry.unit);
+                const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
                 const sets =
                   history[0]?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],

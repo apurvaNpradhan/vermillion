@@ -14,11 +14,11 @@ type TextSet = Pick<
  * A set as one line, in human units: "100 kg × 5", "+20 kg × 8", "12 reps", "40:00", "7.0 km · 40:00".
  * A weight with reps reads as one phrase; any other mix lists the numbers with a middle dot.
  */
-export function useTopSetText(unit: WeightUnit) {
+export function useTopSetText(preferred: WeightUnit) {
   const { t, i18n } = useTranslation();
   const human = useHumanUnits();
   const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
-  return (set: TextSet, type: ExerciseType): string => {
+  return (set: TextSet, type: ExerciseType, unit = preferred): string => {
     const weight = set.weight_kg ?? 0;
     const shown = (kg: number) => formatLoad(kg, unit, type);
     if (weight > 0 && set.reps) {

@@ -1,4 +1,4 @@
-import type { Equipment, SetField, WeightUnit } from "@workspace/shared";
+import type { Equipment, LoadGrid, SetField, WeightUnit } from "@workspace/shared";
 
 import {
   applyKey,
@@ -27,11 +27,12 @@ export type EditorCell = {
   unit: WeightUnit;
   equipment: Equipment | null;
   incrementKg: number | null;
+  grid?: LoadGrid | null;
   onValue: (value: number | undefined) => void;
 };
 
 /** What the keypad is doing: the cell being edited and the text typed into it. */
-export type EditorEntry = { cell: EditorCell; raw: string; fresh: boolean };
+export type EditorEntry = { cell: EditorCell; raw: string; fresh: boolean; value: number | null };
 
 /** Starts editing a cell: its value as text; the first key replaces it. */
 export function openEntry(cell: EditorCell): EditorEntry {
@@ -39,6 +40,7 @@ export function openEntry(cell: EditorCell): EditorEntry {
     cell,
     raw: textOfValue(cell.field, cell.value ?? null, cell.unit),
     fresh: true,
+    value: cell.value ?? null,
   };
 }
 
@@ -57,25 +59,17 @@ export function pressKey(entry: EditorEntry, key: EntryKey): KeyResult {
   const base = entry.fresh ? "" : entry.raw;
   const raw = entry.fresh && key === "backspace" ? "" : applyKey(cell.field, base, key, cell.unit);
   if (raw === entry.raw && !entry.fresh) return { entry, write: false, value: cell.value };
-  return {
-    entry: { cell, raw, fresh: false },
-    write: true,
-    value: valueOfText(cell.field, raw, cell.unit) ?? undefined,
-  };
+  const value = valueOfText(cell.field, raw, cell.unit, cell.grid?.capKg);
+  return { entry: { cell, raw, fresh: false, value }, write: true, value: value ?? undefined };
 }
 
 /** The − and + keys: step from what is typed, else the planned value, else zero. */
 export type StepResult = { entry: EditorEntry; value: number };
 export function pressStep(entry: EditorEntry, direction: 1 | -1): StepResult {
   const { cell } = entry;
-  const typed = entry.fresh ? (cell.value ?? null) : valueOfText(cell.field, entry.raw, cell.unit);
-  const value = stepValue(cell.field, typed, null, direction, {
-    unit: cell.unit,
-    equipment: cell.equipment,
-    incrementKg: cell.incrementKg,
-  });
+  const value = stepValue(cell.field, entry.value, null, direction, cell);
   return {
-    entry: { cell, raw: textOfValue(cell.field, value, cell.unit), fresh: false },
+    entry: { cell, raw: textOfValue(cell.field, value, cell.unit), fresh: false, value },
     value,
   };
 }

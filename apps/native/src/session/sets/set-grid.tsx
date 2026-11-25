@@ -1,4 +1,4 @@
-import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
+import { SET_FIELDS, addsLoad, type SetField, resolveExerciseUnit } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
 import { memo, useCallback, useMemo, useRef } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
@@ -89,7 +89,8 @@ const SetRowItem = memo(function SetRowItem({
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
         fresh: state.cell?.setId === setId ? state.fresh : true,
-        unit: state.inputs.unit,
+        draftValue: state.cell?.setId === setId ? state.draftValue : null,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
@@ -104,8 +105,11 @@ const SetRowItem = memo(function SetRowItem({
     const { y, height } = event.nativeEvent.layout;
     layout.current = { y, height };
   }, []);
-  const { set, row, type, cell, raw, fresh } = data;
-  const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
+  const { set, row, type, cell, raw, fresh, draftValue } = data;
+  const entry = useMemo(
+    () => (cell ? { cell, raw, fresh, draftValue } : null),
+    [cell, raw, fresh, draftValue],
+  );
   if (!set || !row || !type) return null;
   // Only a set added while the grid is open enters and one removed fades out: the grid sits in a
   // LayoutAnimationConfig that skips both for its first render and for the whole grid closing.
@@ -177,7 +181,7 @@ export const SetGrid = memo(function SetGrid({
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         setIds: state.views.get(exerciseId)?.setIds,
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,

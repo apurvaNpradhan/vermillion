@@ -446,3 +446,27 @@ describe("queued preferences written before the patch column", () => {
     expect(fake.uploads[1]?.ops[0]?.opData).toEqual({ patch: '{"ui":{"keepAwake":true}}' });
   });
 });
+
+it.each([
+  { first: "kg", second: "lb" },
+  { first: "lb", second: "kg" },
+])(
+  "uploads setting the unit to $first, changing to $second and clearing it across two devices",
+  async ({ first, second }) => {
+    const one = setup();
+    const two = setup();
+    expect(await ready(one)).not.toBe(await ready(two));
+
+    for (const [device, txId, op, fields] of [
+      [one, 1, "PUT", { exercise_id: EXERCISE, unit: first }],
+      [two, 1, "PATCH", { unit: second }],
+      [one, 2, "PATCH", { unit: null }],
+    ] as const) {
+      device.queue([crudEntry(op, EXERCISE, fields, "exercise_setting")], txId);
+      await device.connector.uploadData();
+      expect(device.uploads.at(-1)?.ops).toEqual([
+        { op, table: "exercise_setting", id: EXERCISE, opData: fields },
+      ]);
+    }
+  },
+);

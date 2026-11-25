@@ -65,14 +65,18 @@ export function useSessionShare(id: string): SessionShare {
   const reps = (count: number) => t("share__reps", { count });
   const labels: SessionCardLabels = {
     unit,
-    unitLabel,
+    unitLabel: (unit) => t(unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
     reps,
     distance: (meters) => t("share__distance", { value: Number(meters.toFixed(1)) }),
     floors: (count) => t("share__floors", { count }),
     steps: (count) => t("share__steps", { count }),
     repRange: (min, max) => (min === max ? reps(min) : t("share__rep_range", { min, max })),
-    weightReps: (value, count) =>
-      t("share__weight_reps", { weight: value, unit: unitLabel, reps: count }),
+    weightReps: (value, count, unit) =>
+      t("share__weight_reps", {
+        weight: value,
+        unit: t(unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
+        reps: count,
+      }),
     date: (startedAt) =>
       t("share__session_date", {
         date: new Intl.DateTimeFormat(i18n.language, {

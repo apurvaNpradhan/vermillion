@@ -1,4 +1,6 @@
 import {
+  resolveExerciseUnit,
+  type WeightUnit,
   type Equipment,
   type ExerciseType,
   type PlannedSet,
@@ -7,6 +9,7 @@ import {
 import { useState } from "react";
 import { View } from "react-native";
 
+import { useGymLoads } from "@/gym";
 import { useTranslation } from "@/platform/i18n";
 
 import {
@@ -27,20 +30,25 @@ import { SetTypeSheet } from "./set-type-sheet";
 /** Shared by the inline row and the detailed screen: custom sets have identical behavior. */
 export function DetailedTargets({
   sets,
+  exerciseId,
   type,
   equipment = null,
+  unit,
   animateRows = true,
   onSets,
 }: {
   sets: readonly PlannedSet[];
+  exerciseId: string;
   type: ExerciseType;
   /** The exercise's equipment, for the keypad's step. */
   equipment?: Equipment | null;
+  unit?: WeightUnit | null;
   animateRows?: boolean;
   onSets: (sets: PlannedSet[]) => void;
 }) {
   const { t } = useTranslation();
   const preferences = useTrainingPreferences();
+  const gym = useGymLoads();
   const [kindFor, setKindFor] = useState<number | null>(null);
   const [effortFor, setEffortFor] = useState<number | null>(null);
   // Draft ids follow the rows through edits, adds and removals, so row state stays with its set.
@@ -67,9 +75,10 @@ export function DetailedTargets({
         sets={sets}
         ids={ids}
         chips={chipTexts(sets, letters)}
-        weightUnit={preferences.weightUnit}
+        weightUnit={resolveExerciseUnit(preferences.weightUnit, unit)}
         weightIncrementKg={preferences.weightIncrementKg}
         equipment={equipment}
+        grid={gym.gridFor(exerciseId, equipment ?? "other", unit)}
         animateRows={animateRows}
         effortScale={preferences.effortScale}
         onChange={(index, change) => {

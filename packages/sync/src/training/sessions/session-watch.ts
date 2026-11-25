@@ -171,6 +171,8 @@ export type SessionExerciseDetail = {
   repeated: boolean;
   /** The bar the exercise remembers, if any. */
   barId: string | null;
+  /** Null follows the account weight unit. */
+  unit?: WeightUnit | null;
   /** The library's current data (muscles, media); null while it has not arrived on this device. */
   exercise: {
     primaryMuscle: MuscleGroup;
@@ -240,7 +242,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
     es.progression_per_set AS progression_per_set, es.bar_id AS bar_id,
-    es.auto_warmups AS auto_warmups, es.note AS pinned_note,
+    es.auto_warmups AS auto_warmups, es.note AS pinned_note, es.unit AS unit,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
     ss.id AS set_row, ss.position AS set_position, ss.kind AS kind, ss.weight_kg AS weight_kg,
@@ -315,6 +317,7 @@ const detailRowSchema = z.object({
   warmup_key: z.string().nullable(),
   repeated: flag.nullable(),
   bar_id: z.string().nullable(),
+  unit: z.enum(["kg", "lb"]).nullable(),
   primary_muscle: z.enum(MUSCLE_GROUPS).nullable(),
   secondary_muscles: secondaryText,
   equipment: z.enum(EQUIPMENT).nullable(),
@@ -390,6 +393,7 @@ export function parseSessionDetail(
         warmupKey: row.warmup_key,
         repeated: row.repeated ?? false,
         barId: row.bar_id,
+        unit: row.unit,
         exercise:
           row.primary_muscle !== null && row.equipment !== null
             ? {

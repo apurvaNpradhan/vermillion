@@ -4,6 +4,8 @@ import {
   type Equipment,
   type GymEquipmentInput,
   type WeightUnit,
+  barKitFor,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import {
   deleteEquipment,
@@ -27,13 +29,10 @@ import { useGyms, useGymCap } from "@/gym";
 import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
-  defaultBar,
-  enabledBars,
   hasTarget,
   loadInputKey,
   missingBarLabel,
   missingKitItems,
-  platesForBar,
 } from "./plate-view";
 
 /** Write scopes whose empty inventory this app run has already seeded. */
@@ -183,6 +182,7 @@ export function usePlates(
   equipmentKind?: Equipment,
   /** The Session's gym: its kit and its cap. None (or null) is the gym trained at. */
   gymId?: string | null,
+  unitOverride?: WeightUnit | null,
 ) {
   const equipment = useEquipment(enabled, gymId ?? undefined, true);
   const { run, scope } = equipment;
@@ -202,28 +202,33 @@ export function usePlates(
     [exerciseId, enabled],
   );
   const remembered = useLocalWatch(subscribe);
-  const bars = useMemo(() => enabledBars(equipment.rows), [equipment.rows]);
-  const bar = defaultBar(
-    bars,
-    selected?.exerciseId === exerciseId && selected.scope === scope
-      ? selected.id
-      : remembered.value,
-    equipment.unit,
-    equipmentKind,
-  );
-  const plates = bar ? platesForBar(equipment.rows, bar) : [];
+  const preferred = resolveExerciseUnit(equipment.unit, unitOverride);
   // The gym's max for this exercise is the most the calculator offers.
   const gymCap = useGymCap(enabled ? equipment.gymId : null, exerciseId);
   const { cap } = gymCap;
+  const selectedId =
+    selected?.exerciseId === exerciseId && selected.scope === scope ? selected.id : undefined;
+  const { bars, bar, plates } = useMemo(
+    () =>
+      barKitFor(equipment.rows, {
+        unit: preferred,
+        equipment: equipmentKind,
+        rememberedId: remembered.value,
+        selectedId,
+        capKg: cap,
+        preferMatchingUnit: unitOverride != null,
+      }),
+    [equipment.rows, preferred, equipmentKind, remembered.value, selectedId, cap, unitOverride],
+  );
   const wanted = useDeferredValue(targetKg);
   const target = cap !== null && wanted > cap ? cap : wanted;
   // The inventory emits a new array on every change; solve again only when the bar, a plate that
   // matters to the solver or the target changes.
   const inputKey = loadInputKey(bar, plates);
   const result = useMemo(
-    () => (enabled && bar && hasTarget(target) ? loadBar(target, bar, plates) : null),
+    () => (enabled && bar && hasTarget(target) ? loadBar(target, bar, plates, cap) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `inputKey` stands for `bar` and `plates`.
-    [inputKey, target, enabled],
+    [inputKey, target, enabled, cap],
   );
   const chooseBar = async (id: string) => {
     if (exerciseId) {
@@ -250,8 +255,10 @@ export function usePlates(
     bar,
     /** The "EZ" or "Trap" bar this exercise opens on, when the kit has no such bar. */
     missingBar: missingBarLabel(bars, equipmentKind),
-    /** The unit the calculator works in: the bar's own. */
-    barUnit: bar?.unit ?? equipment.unit,
+    /** The unit of the physical plates, which must match the bar. */
+    barUnit: bar?.unit ?? preferred,
+    /** Loads are shown in the exercise unit, including when the kit is in another unit. */
+    displayUnit: preferred,
     plates,
     target,
     cap,

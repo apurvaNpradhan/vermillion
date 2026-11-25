@@ -12,14 +12,14 @@ import {
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { usePreference } from "@/preferences";
 
-import { buildGymLoads, NO_GYM_LOADS, type GymLoads } from "./gym-loads";
+import { buildGymLoads, type GymLoads } from "./gym-loads";
 import { useGyms } from "./use-gyms";
 
 /**
  * The loads of one gym: its exercise settings and its kit, as one memoised value. With no `gymId`
  * it is the gym trained at; a Session passes its own, and one that has none (an older Session, or
- * "Any gym") passes null and reads the gym trained at too. `NO_GYM_LOADS` until the first sync has
- * delivered a gym.
+ * "Any gym") passes null and reads the gym trained at too. The default grid applies until the
+ * first sync has delivered a gym.
  */
 export function useGymLoads(gymId?: string | null): GymLoads {
   const { gyms, activeGymId, defaultGymId } = useGyms();
@@ -51,17 +51,15 @@ export function useGymLoads(gymId?: string | null): GymLoads {
   const bars = useLocalWatch(barsSubscribe).value;
   return useMemo(
     () =>
-      wanted === null
-        ? NO_GYM_LOADS
-        : buildGymLoads({
-            gymId: wanted,
-            settings: settings ?? [],
-            kit: kit ?? [],
-            bars,
-            unit,
-            dumbbellMaxKg,
-            unavailableEquipment: unavailable,
-          }),
+      buildGymLoads({
+        gymId: wanted,
+        settings: settings ?? [],
+        kit: wanted === null ? [] : (kit ?? []),
+        bars,
+        unit,
+        dumbbellMaxKg,
+        unavailableEquipment: unavailable,
+      }),
     [wanted, settings, kit, bars, unit, dumbbellMaxKg, unavailable],
   );
 }

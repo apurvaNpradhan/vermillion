@@ -9,7 +9,8 @@ import {
 import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek } from "../plans/cycle";
 import { lightenLoad } from "../progress/progression-steps";
-import type { LoadGrid } from "../progress/load-grid";
+import { gridFloor, type LoadGrid } from "../progress/load-grid";
+import { formatWeight, loadIdentity, parseWeight, weightAtMost } from "../vocabulary/format";
 import {
   EFFORT_STEPS,
   TRAINING_LIMITS,
@@ -266,9 +267,8 @@ function shiftEffort(value: number, by: number): EffortStep {
 }
 
 /**
- * `kg` times `factor`, snapped down to a load the gym can make: the greatest load at or below the
- * product, on the grid (or the equipment's step without one). Never above `kg` or the grid's cap,
- * and a load with nowhere lower to go stays. The same rule as the engine's Deload suggestion.
+ * Scale the load down, above the grid's lowest point and within its physical cap. Without a
+ * grid, use the equipment's step and keep the load when there is no lower step.
  */
 export function lowerLoad(
   kg: number,
@@ -340,7 +340,7 @@ function testTopSet(
  * A Workout exercise's Planned sets as `phase` reads them. Warm-ups are never changed. Build is
  * as planned and Push shifts effort targets. Deload scales the working sets, shifts effort
  * and lowers planned loads. Test halves an accessory, and turns the main lift into one top set.
- * Effort shifts act on targets that exist; a load is only ever lowered, to the gym's grid.
+ * Effort shifts act on targets that exist. Phase loads respect the gym's loadable floor and cap.
  */
 export function applyPhase(
   planned: readonly PlannedSet[],
@@ -364,7 +364,13 @@ export function applyPhase(
       // Capped, then snapped down onto the gym's grid so the seed is a load the gym can make.
       const capped = capKg === null ? top.weight_kg : Math.min(top.weight_kg, capKg);
       const grid = options.grid && options.grid.source !== "cap" ? options.grid : null;
-      top.weight_kg = grid ? (grid.below(capped + EPS) ?? capped) : capped;
+      const snapped =
+        grid && capped > 0 ? Math.min(gridFloor(grid, capped), capKg ?? Infinity) : capped;
+      const shownKg = capKg === null ? null : parseWeight(formatWeight(snapped, unit), unit);
+      top.weight_kg =
+        capKg !== null && shownKg !== null && loadIdentity(shownKg) > loadIdentity(capKg)
+          ? Math.max(Math.min(grid?.nearest(0) ?? 0, capKg), weightAtMost(snapped, unit, capKg))
+          : snapped;
     }
     kept = top ? [top] : [];
   } else {

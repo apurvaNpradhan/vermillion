@@ -102,6 +102,7 @@ function PlateCalculatorSheetBody({
   exerciseId,
   equipment,
   gymId,
+  unitOverride,
   onUse,
   onClose,
 }: {
@@ -114,13 +115,14 @@ function PlateCalculatorSheetBody({
   equipment?: Equipment;
   /** The Session's gym, whose kit and cap the calculator uses; none is the gym trained at. */
   gymId?: string | null;
+  unitOverride?: WeightUnit | null;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId, unitOverride);
   return (
     <BottomSheet
       animation={animation}
@@ -167,7 +169,7 @@ function CalculatorBody({
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const label = useEquipmentLabel();
-  const unit = state.barUnit;
+  const unit = state.displayUnit;
   const weight = (kg: number, own: WeightUnit = unit) =>
     t("plates__weight", { weight: formatWeight(kg, own), unit: own });
   const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
@@ -206,7 +208,7 @@ function CalculatorBody({
   const use = async () => {
     if (!canUse || !state.bar) return;
     if (await state.chooseBar(state.bar.id)) {
-      onUse(totalKg);
+      onUse(Math.min(totalKg, state.cap ?? totalKg));
       onClose();
     }
   };
@@ -222,7 +224,7 @@ function CalculatorBody({
     indicator: state.indicator,
   });
   const unitPlates = state.rows.flatMap((p) =>
-    p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
+    p.kind === "plate" && p.unit === state.barUnit && p.enabled ? [p] : [],
   );
   const over = overInventory(stack, state.plates);
   const loaded = !state.failed && !state.loading;
@@ -350,7 +352,8 @@ function CalculatorBody({
                 </View>
                 <BarDiagram
                   platesPerSide={platesPerSide}
-                  unit={unit}
+                  unit={state.barUnit}
+                  displayUnit={unit}
                   label={sideText}
                   onPlatePress={
                     building ? (index) => setStack(removeFromStack(stack, index)) : undefined

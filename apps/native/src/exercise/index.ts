@@ -17,3 +17,5 @@ export { changeStall, stallMemory, useStallVersion } from "./stall/stall-store";
 export { topSet } from "./detail/top-set";
 export { useTopSetText } from "./detail/use-top-set-text";
 export { useExercise } from "./detail/use-exercise";
+export { ExerciseUnitSheet, useExerciseUnitOptions } from "./detail/components/exercise-unit-sheet";
+export { useExerciseUnit } from "./detail/use-exercise-unit";

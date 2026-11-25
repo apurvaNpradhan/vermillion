@@ -1,4 +1,10 @@
-import { KG_PER_LB, insertedDeloadsSchema, type PhasePlanInput } from "@workspace/shared";
+import {
+  formatWeight,
+  KG_PER_LB,
+  insertedDeloadsSchema,
+  type PhasePlanInput,
+  type WeightUnit,
+} from "@workspace/shared";
 import { expect, it } from "vitest";
 import { z } from "zod";
 
@@ -16,7 +22,7 @@ import {
   updateWorkoutExercise,
 } from "../store";
 import { CURL, DIP, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
-import { upsertEquipment } from "./equipment-store";
+import { setExerciseSetting, upsertEquipment } from "./equipment-store";
 import { finishSession, startSession } from "./session-store";
 import { tickSet, updateSet } from "./session-content-store";
 
@@ -297,6 +303,62 @@ it("lowers a Deload in the user's unit: 100 lb on a barbell becomes 90 lb", asyn
     s.sqlite.close();
   }
 });
+
+it.each<[WeightUnit, WeightUnit, number, string]>([
+  ["kg", "lb", 50 * KG_PER_LB, "45"],
+  ["lb", "kg", 22.5, "20"],
+])(
+  "starts a Deload for a %s user on the exercise's %s bar",
+  async (preference, override, kg, expected) => {
+    const s = await setupSessions();
+    try {
+      deliverGym(s);
+      await savePreferences(
+        s.training,
+        { ui: { weightUnit: preference } },
+        {
+          installId: s.installId,
+          owner: "owner",
+        },
+      );
+      await upsertEquipment(
+        s.training,
+        [
+          { unit: "kg", kind: "bar", weight_kg: 20, count: null, label: null, enabled: true },
+          {
+            unit: "lb",
+            kind: "bar",
+            weight_kg: 45 * KG_PER_LB,
+            count: null,
+            label: null,
+            enabled: true,
+          },
+          { unit: "kg", kind: "plate", weight_kg: 1.25, count: null, label: null, enabled: true },
+          {
+            unit: "lb",
+            kind: "plate",
+            weight_kg: 2.5 * KG_PER_LB,
+            count: null,
+            label: null,
+            enabled: true,
+          },
+        ],
+        s.installId,
+        HOME,
+      );
+      await setExerciseSetting(s.training, SQUAT, { unit: override }, s.installId);
+      const { workoutId, runId, squat } = await setup(s, { pattern: ["deload"] });
+      await updateWorkoutExercise(s.training, squat, {
+        sets: [{ kind: "working", reps_min: 5, reps_max: 5, weight_kg: kg }],
+      });
+      const id = await startInWeek(s, runId, workoutId, 1);
+      const [top] = targetsOf(s, id).get(SQUAT) ?? [];
+      expect(formatWeight(top?.weight_kg ?? 0, override)).toBe(expected);
+    } finally {
+      s.sqlite.close();
+    }
+  },
+);
 
 it("lowers a Deload onto the Session gym's load grid and keeps it under its cap", async () => {
   const s = await setupSessions();

@@ -1,4 +1,5 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
+import { KG_PER_LB } from "@workspace/shared";
 import { createI18n } from "@workspace/i18n";
 import { describe, expect, it } from "vitest";
 import { workoutLivePayloadSchema, workoutLiveState } from "./workout-live-state";
@@ -109,6 +110,12 @@ describe("workout live notification", () => {
       canComplete: true,
     });
     expect(state(s, T0 + 61_000)).toEqual(state(s));
+  });
+  it("shows the unit of the next exercise when it differs from the account", () => {
+    const first = set("1", { weightKg: 45 * KG_PER_LB, reps: 5, completedAt: at(30) });
+    const next = set("2", { weightKg: 25 * KG_PER_LB, reps: 8 });
+    const s = session([exercise("a", [first]), exercise("b", [next], { unit: "lb" })]);
+    expect(state(s).text).toBe("Title b · Set 1 of 1 · 25 lb × 8");
   });
   it("moves the chronometer base by the paused time so it shows the time trained", () => {
     const s = { ...session([exercise("a", [set("1")])]), pausedMs: 90_000 };

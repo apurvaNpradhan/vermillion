@@ -269,6 +269,7 @@ export const exerciseSettingInput = z.strictObject({
   exercise_id: z.uuid(),
   bar_id: z.uuid().nullable(),
   log_effort: z.boolean(),
+  unit: z.enum(WEIGHT_UNITS).nullable().optional(),
   progression_per_set: z.boolean().default(false),
   auto_warmups: z.boolean().default(false),
   /** The pinned note shown under the exercise name wherever it appears. */

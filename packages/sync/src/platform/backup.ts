@@ -49,7 +49,7 @@ const BACKUP_TABLES = [
   ],
   [
     drizzleSchema.exerciseSetting,
-    "id, user_id, exercise_id, bar_id, log_effort, progression_per_set, auto_warmups, note, created_at",
+    "id, user_id, exercise_id, bar_id, unit, log_effort, progression_per_set, auto_warmups, note, created_at",
   ],
   [drizzleSchema.media, "id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at"],
   [drizzleSchema.userPreferences, "id, user_id, locale, timezone, ui, created_at"],

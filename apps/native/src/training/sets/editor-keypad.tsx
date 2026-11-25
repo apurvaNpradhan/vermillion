@@ -15,7 +15,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useHideTabBar } from "@/platform/navigation/tab-action";
 import { Keypad } from "@/platform/ui/keypad";
 import type { KeypadKey } from "@/platform/ui/keypad-keys";
-import { stepOf } from "@/platform/ui/keypad-entry";
+import { stepLabel } from "@/platform/ui/keypad-entry";
 import { usePreference } from "@/preferences";
 
 import {
@@ -147,12 +147,22 @@ export function EditorKeypadProvider({
       const current = store.getState().active;
       if (current?.tableId !== tableId) return;
       const { key } = current.entry.cell;
-      if (!cells.some((cell) => cell.key === key)) {
+      const cell = cells.find((item) => item.key === key);
+      if (!cell || (cell.field === "weight" && cell.unit !== current.entry.cell.unit)) {
         setCurrent(null);
         return;
       }
       const hasNext = nextEditorCell(cells, key) !== null;
-      if (hasNext !== current.hasNext) setCurrent({ ...current, hasNext });
+      const value = current.entry.fresh ? (cell.value ?? null) : current.entry.value;
+      if (
+        hasNext !== current.hasNext ||
+        cell.grid !== current.entry.cell.grid ||
+        cell.equipment !== current.entry.cell.equipment ||
+        cell.incrementKg !== current.entry.cell.incrementKg ||
+        value !== current.entry.value
+      ) {
+        setCurrent({ ...current, hasNext, entry: { ...current.entry, cell, value } });
+      }
     },
     [store, setCurrent],
   );
@@ -234,7 +244,7 @@ export function EditorKeypadProvider({
   );
 }
 
-/** The docked keypad: reads the edited cell's field, label and step, never what is typed. */
+/** The docked keypad follows the current cell and the move each step key would make. */
 function KeypadDock({
   store,
   labels,
@@ -254,28 +264,26 @@ function KeypadDock({
   const field = useStore(store, (state) => state.active?.entry.cell.field ?? null);
   const label = useStore(store, (state) => state.active?.entry.cell.label ?? "");
   const hasNext = useStore(store, (state) => state.active?.hasNext ?? false);
-  const stepText = useStore(store, (state) => {
-    const cell = state.active?.entry.cell;
-    if (!cell) return "";
-    return String(
-      stepOf(cell.field, {
-        unit: cell.unit,
-        equipment: cell.equipment,
-        incrementKg: cell.incrementKg,
-      }),
-    );
+  const decrease = useStore(store, (state) => {
+    const entry = state.active?.entry;
+    return entry ? stepLabel(entry.cell.field, entry.value, null, -1, entry.cell) : "";
+  });
+  const increase = useStore(store, (state) => {
+    const entry = state.active?.entry;
+    return entry ? stepLabel(entry.cell.field, entry.value, null, 1, entry.cell) : "";
   });
   if (field === null) return null;
   return (
     <Keypad
       labels={{
         ...labels,
-        decrease: t("session__key_decrease", { step: stepText }),
-        increase: t("session__key_increase", { step: stepText }),
+        decrease: t("session__key_decrease", { step: decrease }),
+        increase: t("session__key_increase", { step: increase }),
       }}
       allowPoint={field === "weight" || field === "distance"}
       hasNext={hasNext}
-      stepText={stepText}
+      stepText={increase}
+      decreaseStepText={decrease}
       accessory={
         <Text numberOfLines={1} className="font-normal flex-1 text-caption text-muted">
           {label}

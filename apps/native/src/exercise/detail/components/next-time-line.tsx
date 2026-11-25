@@ -7,6 +7,7 @@ import {
   type ExerciseType,
   type IncrementSettings,
   type SessionHistory,
+  type WeightUnit,
 } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { breakWeeks, progressionLabelKey } from "@/platform/ui/progression-reason";
@@ -23,6 +24,7 @@ export function NextTimeLine({
   equipment,
   settings,
   gymId,
+  unitOverride,
 }: {
   sessions: readonly SessionHistory[];
   exerciseId: string;
@@ -30,6 +32,7 @@ export function NextTimeLine({
   equipment: Equipment;
   settings: IncrementSettings;
   gymId?: string | null;
+  unitOverride?: WeightUnit | null;
 }) {
   const { t } = useTranslation();
   const { sets, suggestion } = useExerciseProgression(
@@ -39,6 +42,7 @@ export function NextTimeLine({
     sessions,
     settings,
     gymId,
+    unitOverride,
   );
   const firstIndex =
     sets?.findIndex((set) => set.kind === "working" && set.reps_min !== undefined) ?? -1;
