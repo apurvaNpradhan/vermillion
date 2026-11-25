@@ -399,3 +399,41 @@ Review fixes (owner-delegate decisions, 2026-11-26):
 - **Forward compatibility.** A snapshot this build cannot fully read (unknown keys or reasons from a
   newer build) is still shown, but is never adjusted, revised or written over; a snapshot that
   does not parse at all is ignored.
+
+**E4 as built.**
+
+- **`prescribe()`.** One pure entry point (`packages/shared/src/training/engine/prescribe.ts`) takes
+  the exercise's place (Workout, gym, grid, phase load, stall flags), its plan, its history, the
+  account and the Session's snapshot, and returns the unit, the context the surface reads Previous
+  and ghosts from, the stalled-lift verdict and the per-set progression with its evidence. A
+  readable snapshot is returned as is. `suggestNext` moved to `engine/pipeline.ts`: eligibility,
+  the Test single, the baseline, a reset for a break or Deload, then the exercise's rule.
+  `phaseTargets()` is the one way a phase adjusts targets (Session start and the preview);
+  `loadExerciseHistory()` is the one way the database surfaces read an exercise's history.
+- **Rules (I6).** `exercise_setting.progression_rule` (nullable JSON; null is Double; an unknown
+  rule reads as Double). Linear resets after the second miss in a row at a load, by 10% unless the
+  rule says otherwise, rounded down onto the grid. Top set and back-offs: back-offs are the rule's
+  percent, else the share used last time, else 90%, of today's top load, to the nearest load the
+  grid makes; their reps climb within their range. Maintain skips stalls and still takes breaks and
+  Deloads. Linear on a lift with no load is Double. The Progression row (exercise page, Session
+  exercise menu) opens one sheet with the four rules and what the chosen one asks of the next four
+  sessions if every set is made (`previewRule`, the real engine over a made-up history). A rule
+  changed mid-Session applies from the next one: sets already shown keep their targets.
+- **More reps before a big jump (I4).** At the top of the range, when the next load is more than
+  10% heavier (exactly 10% is not), reps climb one a Session to 1.5 times the top, then the load
+  jumps. Straight sets wait for each other; an easy set (effort well under its target) takes the
+  jump. The extra reps can raise the rep-range prompt after two Sessions.
+- **Evidence (I2).** Kept in the snapshot (`evidence`, optional, strict) so every surface reads the
+  same lines: "From Nov 24: 60 kg × 12, 12, 11." and, for a break, a Deload or a cap, one more line
+  ("Lighter day: the next load down is 10 kg, 20% under.").
+- **Effort-aware 1RM (I7).** Reps in reserve (10 minus RPE, at most 4) count as reps, up to 12.
+  Records, the stall check, the Test seed and the load conversion that judges a set at another load
+  use it; a set judged that way is worth what it was at the same effort. The exercise page shows
+  one quiet note, once per device, when logged effort moved a best.
+- **Assisted and timed (I8).** Assisted lifts take one grid step of help away once the reps top the
+  range (none left: reps keep climbing); a break or Deload keeps the help. A hold that was made at
+  its own target adds 5 s, a carry adds a load step (5 m when it carries none), a miss asks for the
+  target again; a break cuts a hold in whole fives.
+- **Not done here.** The Workout preview's change list shows reps only, so timed work appears in
+  the reason sheet and "Next time" but not in that list. Same-day adjustment and the stall check do
+  not read time or distance. A Test week with a rule other than Double is unchanged.
