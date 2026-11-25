@@ -284,4 +284,8 @@ export {
   type ImportExercisePreview,
 } from "./plans/share-store";
 
-export { capturePrescription, undoSessionAdjustment } from "./sessions/prescription-store";
+export {
+  capturePrescription,
+  revisePrescription,
+  undoSessionAdjustment,
+} from "./sessions/prescription-store";

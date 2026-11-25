@@ -298,11 +298,13 @@ describe("session upload handlers", () => {
       incrementKg: 2.5,
       breakDays: null,
       capKg: 65,
+      gymId: null as string | null,
       sets: [
         {
           id: t.set1,
           ghosts: { weight: 62.5, reps: 8, rpe: 8 },
           outcome: { reason: "add_weight", changeKg: 2.5 },
+          basis: "0a1b2c3d",
         },
         {
           id: t.set2,
@@ -347,15 +349,23 @@ describe("session upload handlers", () => {
       ...revision,
       revision: uuidv7(),
       previousRevision: revision.revision,
-      adjustedBy: [t.set1],
-      adjustment: { setId: t.set1, reason: "reps_short", reps: 3 },
+      adjustments: [
+        {
+          setId: t.set1,
+          reason: "reps_short",
+          reps: 3,
+          moved: [{ id: t.set2, fromKg: 65 }],
+        },
+      ],
       sets: [kept, { ...lowered, ghosts: { weight: 62.5, reps: 8 }, unadjustedWeightKg: 65 }],
     };
+    const [only] = adjusted.adjustments;
+    if (!only) throw new Error("Expected an adjustment");
     expect(
-      await me.send([patch({ ...adjusted, adjustment: { ...adjusted.adjustment, reason: "x" } })]),
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, reason: "x" }] })]),
     ).toMatchObject(rejected("SYNC_INVALID_OP"));
     expect(
-      await me.send([patch({ ...adjusted, adjustment: { ...adjusted.adjustment, extra: 1 } })]),
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, extra: 1 }] })]),
     ).toMatchObject(rejected("SYNC_INVALID_OP"));
     expect(await me.send([patch(adjusted)])).toEqual(applied);
     expect(await storedPrescription(t.exerciseId)).toEqual(adjusted);

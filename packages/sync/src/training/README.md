@@ -14,11 +14,16 @@ one. Entries from older apps have no snapshot until they offer a suggestion in a
 Sets added after capture use their own targets and Previous. A swap to a different library
 exercise gets its own capture, and a split keeps the original snapshot with the original entry.
 
-A same-day adjustment is one more revision of that snapshot. When a working set misses its target
-by 2 reps or 1.5 effort, or beats it by the same, `tickSet` revises the unticked sets of that
-exercise in the same write: one step through the gym grid, the caps and the exercise's unit,
-keeping each set's first suggested load (`unadjustedWeightKg`) and naming the trigger in
-`adjustedBy` so a set triggers once. Undo for the Session (`undoSessionAdjustment`) restores the
-unticked sets and sets `adjustmentUndone`. History rows carry what was first suggested
-(`LoggedSet.suggested`), which the stall check and the finished Session's suggested-versus-done
-line read.
+A same-day adjustment is one more revision of that snapshot. When a working, top or back-off set
+misses its target (capacity 1.5 reps or effort, or 2 reps, off; at another load, by estimated 1RM)
+or beats it by the same, `tickSet` revises the unticked progressing sets of that exercise in the
+same write: one step through the gym grid, the caps and the exercise's unit, keeping each set's
+first suggested load (`unadjustedWeightKg`) and recording the trigger with what it moved in
+`adjustments`, so a set triggers once and adjustments undo one at a time. Undo for the Session
+(`undoSessionAdjustment`) takes back the newest and sets `adjustmentUndone`; unticking or correcting
+the trigger set (`untickSet`, `updateSet`) takes its own back. `revisePrescription` gives the
+unticked sets that went stale (a Session gym that moved, an edited kind or target) and any set added
+since a fresh suggestion; ticked sets keep theirs. Every write reads the snapshot with the strict
+schema (`readSnapshot`): one this build cannot fully read is never adjusted, revised or written over.
+History rows carry what was first suggested (`LoggedSet.suggested`), which the stall check and the
+finished Session's suggested-versus-done line read.

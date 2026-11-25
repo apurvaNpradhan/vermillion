@@ -11,8 +11,7 @@ import {
   loadCutRange,
   plannedLoadFactors,
   phaseFor,
-  prescriptionFor,
-  prescriptionSchema,
+  revisedSets,
   type PrescriptionDraft,
   runPausedAt,
   hasLoad,
@@ -34,7 +33,7 @@ import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
 import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
-import { untickedIdsIn } from "./prescription-store";
+import { nextRevision, readSnapshot, untickedIn } from "./prescription-store";
 import { performAgainIn } from "./session-again-store";
 import {
   assertSessionRoom,
@@ -70,26 +69,16 @@ export function setStallDeload(
     const entry = await requireSessionExercise(tx, entryId);
     const current = await requireSession(tx, entry.session_id);
     if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
-    const saved = prescriptionFor(entry.prescription, entry.exercise_id);
-    const untickedIds =
+    const saved = readSnapshot(entry);
+    // The lighter targets replace every unticked set's suggestion; ticked sets keep theirs.
+    const unticked =
       draft && saved && draft.exerciseId === entry.exercise_id
-        ? await untickedIdsIn(tx, entryId)
-        : new Set<string>();
-    const freshById = new Map(draft?.sets.map((set) => [set.id, set]));
+        ? [...(await untickedIn(tx, entryId)).keys()]
+        : [];
     const prescription =
-      saved && draft && untickedIds.size > 0
-        ? prescriptionSchema.parse({
-            ...draft,
-            // Sets that were adjusted keep their trigger: a set adjusts the exercise only once.
-            adjustedBy: saved.adjustedBy,
-            adjustmentUndone: saved.adjustmentUndone,
-            sets: saved.sets.map((set) =>
-              untickedIds.has(set.id) ? (freshById.get(set.id) ?? set) : set,
-            ),
-            revision: uuidv7(),
-            previousRevision: saved.revision,
-          })
-        : undefined;
+      draft && saved && unticked.length > 0
+        ? nextRevision(revisedSets(saved, draft, new Set(unticked)), saved.revision)
+        : null;
     await tx
       .update(sessionExercise)
       .set({ stall_deload: applied, ...(prescription ? { prescription } : {}) })

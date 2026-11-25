@@ -10,6 +10,7 @@ import {
   planSupersetRepair,
   planSupersetWithNext,
   raisedRepRange,
+  type RepRange,
   workoutExerciseInput,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
@@ -161,13 +162,15 @@ export async function updateWorkoutExercise(
 }
 
 /**
- * Moves the rep ranges of a Workout exercise's working sets up so they end at `toReps`, keeping
- * their width, when the lifter keeps beating them. Warm-ups stay. Returns whether it wrote.
+ * Moves the rep range of a Workout exercise's progressing sets (working, top, back-off) that are on
+ * `from` up so it ends at `toReps`, keeping its width, when the lifter keeps beating it. Warm-ups,
+ * drop, myo and failure sets and other ranges stay. Returns whether it wrote.
  */
 export function raiseWorkoutRepRange(
   database: TrainingDatabase,
   id: string,
   toReps: number,
+  from: RepRange,
   expectedInstallId?: string,
 ): Promise<boolean> {
   return write(database, expectedInstallId, async (tx) => {
@@ -177,7 +180,7 @@ export function raiseWorkoutRepRange(
       .where(eq(workoutExercise.id, id))
       .limit(1);
     if (!current) return false;
-    const sets = raisedRepRange(current.sets, toReps);
+    const sets = raisedRepRange(current.sets, toReps, from);
     if (!sets) return false;
     const type = (await exerciseTypeOf(tx, current.exercise_id)).exercise_type;
     plannedSetsSchema(type).parse(sets);

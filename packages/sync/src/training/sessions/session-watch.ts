@@ -6,7 +6,7 @@ import {
   phaseSchema,
   plannedSetSchema,
   prescriptionFor,
-  prescriptionSchema,
+  prescriptionReadSchema,
   suggestedFromSnapshot,
   type Prescription,
   type Equipment,
@@ -316,7 +316,7 @@ const detailRowSchema = z.object({
   source_workout_exercise_id: z.string().nullable(),
   workout_swap_fragment: flag.nullable(),
   stall_deload: flag.nullable().optional(),
-  prescription: jsonText.pipe(prescriptionSchema).nullable().optional().catch(null),
+  prescription: jsonText.pipe(prescriptionReadSchema).nullable().optional().catch(null),
   exercise_position: z.string().nullable(),
   rest_seconds: z.number().nullable(),
   exercise_note: z.string().nullable(),
@@ -836,7 +836,7 @@ const finishedRowSchema = z.object({
   rpe: z.number().nullable(),
   target: targetText.optional(),
   stall_deload: flag.nullable().optional(),
-  prescription: jsonText.pipe(prescriptionSchema).nullable().optional().catch(null),
+  prescription: jsonText.pipe(prescriptionReadSchema).nullable().optional().catch(null),
   completed_at: z.string().nullable(),
 });
 
