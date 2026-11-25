@@ -41,6 +41,9 @@ export async function workoutLiveGhosts(
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
   if (!first) return ghosts;
   const { exercise } = first;
+  const exerciseOrdinal = session.exercises
+    .slice(0, session.exercises.indexOf(exercise))
+    .filter(({ exerciseId }) => exerciseId === exercise.exerciseId).length;
   const history = parseFinishedSessions(
     await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
   );
@@ -50,6 +53,8 @@ export async function workoutLiveGhosts(
     history,
     {
       exerciseId: exercise.exerciseId,
+      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
+      exerciseOrdinal,
       type: exercise.type,
       equipment,
       unitOverride: exercise.unit,

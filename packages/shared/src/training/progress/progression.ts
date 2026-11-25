@@ -94,11 +94,13 @@ export type ProgressionSession = {
 };
 
 const DAY_MS = 86_400_000;
-/** Back after this many days: start at 90% of the last load, and after the longer one at 80%. */
+/** Break tiers and their starting shares of the last load. */
 const SHORT_BREAK_DAYS = 14;
 const LONG_BREAK_DAYS = 28;
+const EXTENDED_BREAK_DAYS = 84;
 const SHORT_BREAK_LOAD = 0.9;
 const LONG_BREAK_LOAD = 0.8;
+const EXTENDED_BREAK_LOAD = 0.7;
 /** At this effort or harder a set was a grind; at the easier one it was easy. */
 const GRIND_RPE = 9.5;
 const EASY_RPE = 7;
@@ -253,11 +255,13 @@ export function suggestNext(
     (context.now.getTime() - Date.parse(lastTrained.started_at)) / DAY_MS,
   );
   const breakLoad =
-    breakDays >= LONG_BREAK_DAYS
-      ? LONG_BREAK_LOAD
-      : breakDays >= SHORT_BREAK_DAYS
-        ? SHORT_BREAK_LOAD
-        : null;
+    breakDays >= EXTENDED_BREAK_DAYS
+      ? EXTENDED_BREAK_LOAD
+      : breakDays >= LONG_BREAK_DAYS
+        ? LONG_BREAK_LOAD
+        : breakDays >= SHORT_BREAK_DAYS
+          ? SHORT_BREAK_LOAD
+          : null;
   const lighter =
     context.deload === true || activeLighterWeek(context.lighterWeeks ?? [], context.now) !== null;
   // A phase may ask for less than a Lighter week does (or for it alone): the lighter of them.
@@ -265,13 +269,10 @@ export function suggestNext(
     context.phaseLoad !== undefined && context.phaseLoad < 1 ? context.phaseLoad : 1;
   const lightFactor = Math.min(lighter ? LIGHTER_WEEK_LOAD : 1, phaseFactor);
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
-  const factor = Math.min(lightFactor, loaded && breakLoad !== null ? breakLoad : 1);
+  const breakFactor = loaded || type === "bodyweight_reps" ? (breakLoad ?? 1) : 1;
+  const factor = Math.min(lightFactor, breakFactor);
   const resetReason: ProgressionReason | null =
-    factor === 1
-      ? null
-      : loaded && breakLoad !== null && breakLoad < lightFactor
-        ? "after_break"
-        : "deload";
+    factor === 1 ? null : breakFactor < lightFactor ? "after_break" : "deload";
 
   // The phase names the reset (and so rounds down) when its factor is the one in force.
   const phaseDecides =

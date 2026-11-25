@@ -1602,7 +1602,7 @@
   "stall__note": "Stalled for {{count}} sessions. Try 90% today.",
   "stall__applied": "Using 90% of last time today.",
   "stall__undo": "Undo",
-  "stall__dismiss": "Dismiss stalled note",
+  "stall__dismiss": "Hide stall note for 30 days",
   "stall__apply_hint": "Uses 90% of the last load today",
   "lighter__optional": "Optional this week",
   "lighter__card_title": "Several lifts have stalled. Consider a lighter week.",

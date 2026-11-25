@@ -1,13 +1,12 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { SessionHistory } from "../logging/logged-set";
-import { historyForWorkout } from "../logging/history-for-workout";
 import { snapshotModifiers, type Phase, type PhaseSnapshot } from "../phases/phases";
 import {
   resolveExerciseUnit,
   type PreviousSource,
   type WeightUnit,
 } from "../vocabulary/vocabulary";
-import { historyForGym } from "./gym-history";
+import { suggestionHistory } from "./suggestion-history";
 import type { LighterPeriod } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
@@ -22,7 +21,7 @@ export type SuggestionSettings = {
   deload?: boolean;
   /** The share of the last load this week's phase asks for (0.9 in a Deload); 1 or absent: none. */
   phaseLoad?: number;
-  /** History selected by the Previous source preference, before applying the gym preference. */
+  /** History selected by the entry, Workout preference and gym. */
   baselineHistory?: readonly SessionHistory[];
   /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
   gymId?: string | null;
@@ -55,6 +54,8 @@ export type SuggestionAccount = {
 export type SuggestionPlace = {
   exerciseId: string;
   type: ExerciseType;
+  sourceWorkoutExerciseId?: string | null;
+  exerciseOrdinal?: number;
   equipment: Equipment;
   /** The exercise's own unit, when it overrides the account's. */
   unitOverride?: WeightUnit | null;
@@ -75,8 +76,6 @@ export type SuggestionContext = {
   settings: SuggestionSettings;
   /** The stalled-lift verdict for this Workout's Sessions; null when none, or dismissed. */
   stall: StallInfo | null;
-  /** The Sessions of the Previous preference's Workout, before the gym preference. */
-  baseline: readonly ContextSession[];
   /** The Sessions Previous and the hints read: the baseline of the Session's gym. */
   history: readonly ContextSession[];
 };
@@ -100,15 +99,11 @@ export function suggestionContext(
   place: SuggestionPlace,
   account: SuggestionAccount,
 ): SuggestionContext {
-  const sameWorkout = historyForWorkout(
-    rawHistory,
-    account.previousSource === "same_workout" ? place.workoutId : null,
-  );
-  const history = historyForGym(sameWorkout, place.gymId, place.equipment);
+  const { history, workoutHistory } = suggestionHistory(rawHistory, place, account.previousSource);
   let stall: StallInfo | null = null;
   if (place.stalls) {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
-    const sessions = rawHistory.filter((session) => session.workoutId === place.workoutId);
+    const sessions = workoutHistory;
     const latestSessionId = sessions[0]?.id ?? null;
     const count = stalledSessions(sessions, place.type, {
       bodyweightKg: account.bodyweightKg,
@@ -124,10 +119,9 @@ export function suggestionContext(
   return {
     unit,
     stall,
-    baseline: sameWorkout,
     history,
     settings: {
-      baselineHistory: sameWorkout,
+      baselineHistory: history,
       weightUnit: unit,
       weightIncrementKg: incrementInUnit(
         account.weightIncrementKg,

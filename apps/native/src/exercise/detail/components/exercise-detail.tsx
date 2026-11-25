@@ -416,6 +416,7 @@ function LoadedDetail({
                 <GymLimitRows
                   exerciseId={exercise.id}
                   title={exercise.title}
+                  equipment={exercise.equipment}
                   gymId={gymId}
                   unit={unit}
                 />

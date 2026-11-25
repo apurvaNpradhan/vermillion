@@ -499,7 +499,7 @@ describe("back from a break", () => {
     expect(next?.sets[0]?.weightKg).toBe(75);
   });
 
-  it("leaves bodyweight and reps-only exercises on their normal rules", () => {
+  it("leaves reps-only exercises on their normal rules", () => {
     expect(after(30, { type: "reps_only" })?.reason).not.toBe("after_break");
   });
 
@@ -737,5 +737,43 @@ it.each([
       );
     expect(run(4)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(weight), reps: 5 })));
     expect(run(5)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(next), reps: 4 })));
+  },
+);
+
+it.each([
+  { weightUnit: "kg", original: 100, reduced: 70 },
+  { weightUnit: "lb", original: 200, reduced: 140 },
+] as const)(
+  "returns to the bottom of the range after a long break in $weightUnit",
+  ({ weightUnit, original, reduced }) => {
+    const weight = parseWeight(String(original), weightUnit) ?? 0;
+    const context = { now: NOW };
+    const settings = { weightUnit, weightIncrementKg: null };
+    const old = new Date(NOW.getTime() - 84 * 86_400_000).toISOString();
+    const weighted = suggestNext(
+      plan,
+      [session([logged(12, weight)], old)],
+      "weight_reps",
+      "barbell",
+      settings,
+      context,
+    );
+    expect(weighted).toMatchObject({
+      reason: "after_break",
+      breakDays: 84,
+      sets: [{ weightKg: parseWeight(String(reduced), weightUnit), reps: 8 }, { reps: 8 }],
+    });
+    const unweighted = suggestNext(
+      plan,
+      [session([logged(12, 0, { weight_kg: null, exercise_type: "bodyweight_reps" })], old)],
+      "bodyweight_reps",
+      "none",
+      settings,
+      context,
+    );
+    expect(unweighted).toMatchObject({
+      reason: "after_break",
+      sets: [{ weightKg: null, reps: 8 }, { reps: 8 }],
+    });
   },
 );

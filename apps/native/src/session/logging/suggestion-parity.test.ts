@@ -1,9 +1,10 @@
-import { KG_PER_LB } from "@workspace/shared";
+import { KG_PER_LB, parseWeight, suggestionContext } from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
   WORKOUT_DETAIL_SQL,
+  addExercises,
   finishSession,
   parseFinishedSessions,
   parseSessionDetail,
@@ -116,3 +117,61 @@ it.each([
   expect(preview?.suggestion).toEqual(view?.suggestion);
   expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
 });
+
+it.each([
+  { unit: "kg", first: 100, second: 70 },
+  { unit: "lb", first: 225, second: 155 },
+] as const)(
+  "returns only the matching Session row for duplicate $unit entries",
+  async ({ unit, first, second }) => {
+    const fixture = await setupSessions();
+    const { training } = fixture;
+    const { workoutId, squat } = await pushWorkout(fixture);
+    const [duplicate] = await addExercises(training, workoutId, [SQUAT]);
+    if (!duplicate) throw new Error("Expected duplicate squat");
+    const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    const session = parseSessionDetail(await training.getAll(SESSION_DETAIL_SQL, [id]));
+    const firstSet = session?.exercises
+      .find((row) => row.sourceWorkoutExerciseId === squat)
+      ?.sets.find((set) => set.kind === "working");
+    const secondSet = session?.exercises.find((row) => row.sourceWorkoutExerciseId === duplicate)
+      ?.sets[0];
+    if (!firstSet || !secondSet) throw new Error("Expected both squat rows");
+    await tickSet(training, firstSet.id, {
+      weight: parseWeight(String(first), unit) ?? 0,
+      reps: 5,
+    });
+    await tickSet(training, secondSet.id, {
+      weight: parseWeight(String(second), unit) ?? 0,
+      reps: 10,
+    });
+    await finishSession(training, id);
+    const history = parseFinishedSessions(
+      await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
+    );
+    const account = {
+      unit,
+      previousSource: "same_workout",
+      weightIncrementKg: null,
+      bodyweightKg: null,
+      lighterWeeks: [],
+      stallMemory: () => ({ applied: false, dismissed: false }),
+    } as const;
+    const context = suggestionContext(
+      history,
+      {
+        exerciseId: SQUAT,
+        sourceWorkoutExerciseId: duplicate,
+        exerciseOrdinal: 1,
+        type: "weight_reps",
+        equipment: "barbell",
+        workoutId,
+        gymId: null,
+        grid: null,
+        stalls: true,
+      },
+      account,
+    );
+    expect(context.history[0]?.sets).toMatchObject([{ id: secondSet.id, reps: 10 }]);
+  },
+);

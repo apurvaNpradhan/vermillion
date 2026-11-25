@@ -1,5 +1,4 @@
 import {
-  baselineSessions,
   weightAtMost,
   type Ghosts,
   type SessionHistory,
@@ -49,11 +48,10 @@ export function loggingGhosts(
           exercise.type,
           // A hint is derived from a baseline: never from a Test or Deload week's lighter sets.
           previousOfRow(
-            baselineSessions(
-              loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
-            ),
+            loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
             exercise.sets,
             index,
+            true,
           ),
           set.target,
           exercise.logEffort,

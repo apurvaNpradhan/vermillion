@@ -9,8 +9,7 @@ import { changeStall } from "./stall-store";
 
 /**
  * One quiet line under an exercise's header: "Stalled for 3 sessions. Try 90% today." Tapping it
- * applies the deload (suggestions only, never a tick or a typed value); the cross hides it until
- * the exercise has a new Session. Never a modal, never blocking.
+ * applies the deload (suggestions only, never a tick or a typed value); the cross snoozes the note for 30 days. Never a modal, never blocking.
  */
 export function StalledNote({
   exerciseId,

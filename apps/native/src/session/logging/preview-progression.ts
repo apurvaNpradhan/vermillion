@@ -1,6 +1,5 @@
 import {
   addsLoad,
-  baselineSessions,
   formatLoad,
   type SessionHistory,
   type SetKind,
@@ -46,7 +45,6 @@ export function previewProgression(
   const displayWeight = (kg: number | null | undefined) =>
     loaded && kg != null ? formatLoad(kg, settings.weightUnit, type) : null;
   const baseline = loggingHistory(history, exercise.equipment, settings);
-  const hintBaseline = baselineSessions(baseline);
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];
@@ -57,7 +55,7 @@ export function previewProgression(
     // The hint comes from a baseline Session, as in the set grid.
     const ghost = ghostsOf(
       type,
-      previousOfRow(hintBaseline, entry.sets, index),
+      previousOfRow(baseline, entry.sets, index, true),
       target,
       false,
       next,

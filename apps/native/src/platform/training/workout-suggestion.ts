@@ -26,7 +26,7 @@ export function loggingHistory(
   equipment: Equipment,
   settings: SuggestionSettings,
 ) {
-  return historyForGym(settings.baselineHistory ?? history, settings.gymId ?? null, equipment);
+  return settings.baselineHistory ?? historyForGym(history, settings.gymId ?? null, equipment);
 }
 
 /** The break clock reads all of the exercise's Sessions, newest first. */
@@ -60,12 +60,15 @@ function workoutEntryContext(
   history: readonly ContextSession[],
   place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad">,
   account: SuggestionAccount,
+  exerciseOrdinal: number,
 ) {
   return suggestionContext(
     history,
     {
       ...place,
       exerciseId: entry.exerciseId,
+      sourceWorkoutExerciseId: entry.id,
+      exerciseOrdinal,
       type: entry.exercise?.exerciseType ?? "weight_reps",
       equipment: entry.exercise?.equipment ?? "other",
       unitOverride: entry.unit,
@@ -110,11 +113,18 @@ export function prepareWorkoutEntry(
           }),
         }
       : original;
+  const exerciseOrdinal = workout.exercises
+    .slice(
+      0,
+      workout.exercises.findIndex(({ id }) => id === original.id),
+    )
+    .filter(({ exerciseId }) => exerciseId === original.exerciseId).length;
   const context = workoutEntryContext(
     entry,
     history,
     { ...place, phaseLoad: week?.modifiers.load },
     account,
+    exerciseOrdinal,
   );
   return { entry, context };
 }

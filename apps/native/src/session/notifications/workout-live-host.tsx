@@ -1,3 +1,4 @@
+import { useStallVersion } from "@/exercise";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { useGymLoads, useSessionGym } from "@/gym";
@@ -12,6 +13,7 @@ import { restSoundOn } from "@/session/settings/rest-sound";
 
 function SessionLive({ id, installId }: { id: string | null; installId: string }) {
   const state = useSession(id);
+  const stallVersion = useStallVersion();
   const permission = useNotificationPermission();
   const { preferences } = usePreferences();
   const {
@@ -66,6 +68,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     );
   }, [
     loading,
+    stallVersion,
     session,
     installId,
     permission,

@@ -1,6 +1,5 @@
 import {
   SET_FIELDS,
-  baselineSessions,
   optionalSetIndexes,
   suggestionContext,
   weightAtMost,
@@ -91,6 +90,7 @@ export type ExerciseCache = {
   inputs: DeriveInputs;
   finished: boolean;
   workoutId: string | null;
+  exerciseOrdinal: number;
   view: ExerciseView;
 };
 
@@ -100,6 +100,7 @@ function buildView(
   inputs: DeriveInputs,
   finished: boolean,
   workoutId: string | null,
+  exerciseOrdinal: number,
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
@@ -112,6 +113,8 @@ function buildView(
     rawHistory ?? [],
     {
       exerciseId: exercise.exerciseId,
+      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
+      exerciseOrdinal,
       type: exercise.type,
       equipment,
       unitOverride: exercise.unit,
@@ -139,12 +142,11 @@ function buildView(
   let lastUnticked = exercise.sets.length - 1;
   while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
 
-  const hintHistory = history && baselineSessions(history);
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
     // The hint is derived from a baseline Session, not from a Test or Deload week.
-    const hinted = previousOfRow(hintHistory, exercise.sets, index);
+    const hinted = previousOfRow(history, exercise.sets, index, true);
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,
@@ -237,7 +239,10 @@ export function deriveExercises(
   cache: ReadonlyMap<string, ExerciseCache>,
 ): Map<string, ExerciseCache> {
   const next = new Map<string, ExerciseCache>();
+  const ordinals = new Map<string, number>();
   for (const exercise of exercises) {
+    const exerciseOrdinal = ordinals.get(exercise.exerciseId) ?? 0;
+    ordinals.set(exercise.exerciseId, exerciseOrdinal + 1);
     const raw = inputs.previous.get(exercise.exerciseId);
     const old = cache.get(exercise.id);
     if (
@@ -246,6 +251,7 @@ export function deriveExercises(
       sameSettings(old.inputs, inputs) &&
       (old.history === raw || deepEqual(old.history, raw)) &&
       old.finished === context.finished &&
+      old.exerciseOrdinal === exerciseOrdinal &&
       old.workoutId === context.workoutId
     ) {
       next.set(exercise.id, old.inputs === inputs ? old : { ...old, inputs, history: raw });
@@ -257,7 +263,16 @@ export function deriveExercises(
       inputs,
       finished: context.finished,
       workoutId: context.workoutId,
-      view: buildView(exercise, raw, inputs, context.finished, context.workoutId, old?.view),
+      exerciseOrdinal,
+      view: buildView(
+        exercise,
+        raw,
+        inputs,
+        context.finished,
+        context.workoutId,
+        exerciseOrdinal,
+        old?.view,
+      ),
     });
   }
   return next;
