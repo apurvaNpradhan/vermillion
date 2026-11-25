@@ -1,4 +1,9 @@
-import { lighterPeriodSchema, sessionActiveSeconds } from "@workspace/shared";
+import {
+  DEFAULT_PREVIOUS_SOURCE,
+  PREVIOUS_SOURCES,
+  lighterPeriodSchema,
+  sessionActiveSeconds,
+} from "@workspace/shared";
 import { z } from "zod";
 import type { TFunction } from "i18next";
 import type { Ghosts, WeightUnit } from "@workspace/shared";
@@ -10,6 +15,7 @@ export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),
   weightIncrementKg: z.number().positive().nullable(),
   lighterWeeks: z.array(lighterPeriodSchema).default([]),
+  previousSource: z.enum(PREVIOUS_SOURCES).default(DEFAULT_PREVIOUS_SOURCE),
   soundOn: z.boolean(),
   vibrate: z.boolean().default(true),
 });

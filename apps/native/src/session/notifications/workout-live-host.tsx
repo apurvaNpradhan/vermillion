@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
+import { useGymLoads, useSessionGym } from "@/gym";
 import { usePreferences } from "@/preferences";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
@@ -12,10 +13,19 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   const state = useSession(id);
   const permission = useNotificationPermission();
   const { preferences } = usePreferences();
-  const { weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest, restVibration } =
-    preferences.ui;
+  const {
+    weightUnit,
+    weightIncrementKg,
+    lighterWeeks,
+    previousSource,
+    sounds,
+    soundRest,
+    restVibration,
+  } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
+  const sessionGymId = useSessionGym(id);
+  const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
   // A different Session or a new install invalidates in-flight work for the old one.
   useEffect(() => dismissWorkoutLive, [id, installId]);
@@ -36,13 +46,18 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
       dismissWorkoutLive();
       return;
     }
-    refreshWorkoutLive(session, {
-      weightUnit,
-      weightIncrementKg,
-      lighterWeeks,
-      soundOn,
-      vibrate: restVibration,
-    });
+    refreshWorkoutLive(
+      session,
+      {
+        weightUnit,
+        weightIncrementKg,
+        lighterWeeks,
+        previousSource,
+        soundOn,
+        vibrate: restVibration,
+      },
+      { gym, sessionGymId },
+    );
   }, [
     loading,
     session,
@@ -51,6 +66,9 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     weightUnit,
     weightIncrementKg,
     lighterWeeks,
+    previousSource,
+    gym,
+    sessionGymId,
     soundOn,
     restVibration,
   ]);

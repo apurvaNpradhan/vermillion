@@ -1,10 +1,8 @@
 import { Linking } from "react-native";
 import { z } from "zod";
 import {
-  EXERCISE_HISTORY_SQL,
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
-  parseFinishedSessions,
   parseSessionDetail,
   readGymLoadInputs,
   readInstallId,
@@ -12,18 +10,12 @@ import {
   type TrainingDatabase,
   clearRest,
   adjustRest,
-  tickSet,
 } from "@workspace/sync";
-import type { Ghosts } from "@workspace/shared";
 import { workoutLive } from "../../../modules/workout-live";
-import { buildGymLoads } from "@/gym";
+import { buildGymLoads, type GymLoads } from "@/gym";
 import { appConfig } from "@/platform/app-config";
 import { i18n } from "@/platform/i18n";
 import { openLocalData } from "@/platform/local-database";
-import { blocksOf } from "@/session/logging/blocks";
-import { currentAction, orderedSets } from "@/session/logging/current-action";
-import { loggingGhosts } from "@/session/logging/logging-ghosts";
-import { restAfterTick } from "@/session/rest/rest-rules";
 import { markRestEnded, restEndedAt } from "@/session/rest/rest-ended";
 import {
   cancelRestNotification,
@@ -34,6 +26,7 @@ import {
 } from "./rest-notification";
 import { restNotificationId } from "@/session/rest/rest-schedule";
 import { getNotificationPermission } from "@/platform/notifications/permission";
+import { logWorkoutLiveSet, workoutLiveGhosts } from "./workout-live-logging";
 import {
   workoutLivePayloadSchema,
   liveOptionsSchema,
@@ -41,36 +34,18 @@ import {
 } from "./workout-live-state";
 
 type Options = z.infer<typeof liveOptionsSchema>;
+type LiveGym = { gym: GymLoads; sessionGymId: string | null };
 let queue = Promise.resolve();
 let held = "";
 
 /** Builds the notification from an already validated Session and the current exercise's history. */
-async function snapshotOf(db: TrainingDatabase, session: SessionDetail, options: Options) {
-  const ghosts = new Map<string, Ghosts>();
-  // The Session's gym sets the steps and caps of its Ghost values, as on the screen.
-  const read = await readGymLoadInputs(db, session.id);
-  const gym = buildGymLoads({
-    gymId: read.gymId,
-    settings: read.settings,
-    kit: read.kit,
-    bars: read.bars,
-    unit: options.weightUnit,
-  });
-  // Only the current set's values are shown or logged, so only its exercise needs its history.
-  const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
-  for (const exercise of first ? [first.exercise] : []) {
-    const history = parseFinishedSessions(
-      await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
-    );
-    const settings = {
-      ...options,
-      gymId: read.sessionGymId,
-      grid: gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other"),
-    };
-    exercise.sets.forEach((set, index) =>
-      ghosts.set(set.id, loggingGhosts(exercise, index, history, settings)),
-    );
-  }
+async function snapshotOf(
+  db: TrainingDatabase,
+  session: SessionDetail,
+  options: Options,
+  { gym, sessionGymId }: LiveGym,
+) {
+  const ghosts = await workoutLiveGhosts(db, session, options, gym, sessionGymId);
   const state = workoutLiveState({
     session,
     ghostsFor: (id) => ghosts.get(id) ?? {},
@@ -97,7 +72,10 @@ async function snapshot(sessionId: string, options: Options) {
     ),
   );
   if (!session || session.finishedAt !== null || session.deviceId !== installId) return null;
-  return { db, installId, ...(await snapshotOf(db, session, options)) };
+  // An action always reads the current gym, even when the posted notification is older.
+  const { sessionGymId, ...loads } = await readGymLoadInputs(db, session.id);
+  const gym = buildGymLoads({ ...loads, unit: options.weightUnit });
+  return { db, installId, ...(await snapshotOf(db, session, options, { gym, sessionGymId })) };
 }
 
 /** Serialize UI watches and headless actions in the same JS runtime. */
@@ -109,7 +87,7 @@ const LIVE_INTERVAL_MS = 1000;
 let lastUpdateAt = -Infinity;
 let generation = 0;
 let trailing: ReturnType<typeof setTimeout> | null = null;
-let pending: { session: SessionDetail; options: Options } | null = null;
+let pending: { session: SessionDetail; options: Options; gym: LiveGym } | null = null;
 let refreshing = false;
 
 const updateDelay = () => Math.max(0, LIVE_INTERVAL_MS - (performance.now() - lastUpdateAt));
@@ -152,12 +130,12 @@ export function resumeWorkoutLiveRefresh() {
   void enqueue(async () => {
     // A headless action may have updated the notification while this job waited in the queue.
     if (updateDelay() > 0 || !pending) return;
-    const { session, options } = pending;
+    const { session, options, gym } = pending;
     pending = null;
     const current = generation;
     const local = await openLocalData();
     if (local.status !== "ready" || current !== generation) return;
-    const { state } = await snapshotOf(local.database, session, options);
+    const { state } = await snapshotOf(local.database, session, options, gym);
     post(state, current);
   })
     .catch(() => undefined)
@@ -168,9 +146,9 @@ export function resumeWorkoutLiveRefresh() {
 }
 
 /** Receives the shared Session after the host checks ownership and cached permission. */
-export function refreshWorkoutLive(session: SessionDetail, options: Options) {
+export function refreshWorkoutLive(session: SessionDetail, options: Options, gym: LiveGym) {
   if (!workoutLive) return;
-  pending = { session, options };
+  pending = { session, options, gym };
   if (trailing === null) resumeWorkoutLiveRefresh();
 }
 
@@ -205,24 +183,8 @@ export function workoutLiveAction(data: { state: string; action: string }) {
       const { db, session, installId, ghosts } = current;
       if (!installId) throw new Error("No install identity");
       if (action === "done") {
-        const next = currentAction({
-          session,
-          ghostsFor: (id) => ghosts.get(id) ?? {},
-          now: Date.now(),
-        }).current;
-        if (next && next.setId === request.setId) {
-          const block = blocksOf(session.exercises).find((item) =>
-            item.members.some((exercise) => exercise.id === next.exerciseRowId),
-          );
-          const result = await tickSet(
-            db,
-            next.setId,
-            ghosts.get(next.setId) ?? {},
-            installId,
-            block ? restAfterTick(block, next.exerciseRowId, next.setId) : null,
-          );
-          if (!result.ok) await Linking.openURL(current.state.url);
-        }
+        const result = await logWorkoutLiveSet(db, session, ghosts, installId, request.setId);
+        if (result && !result.ok) await Linking.openURL(current.state.url);
       } else if (
         session.pausedAt === null &&
         session.rest &&
