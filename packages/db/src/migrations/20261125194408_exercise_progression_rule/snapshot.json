@@ -1,0 +1,62 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "bc72b4a8-1e42-4b2d-a05d-291cf4622376",
+  "prevIds": ["ea4e80c7-0e6e-434e-8291-709e14898188"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise_setting", "progression_rule"],
+      "writes": [
+        "s|col|public.exercise_setting.progression_rule",
+        "n|col|public.exercise_setting.progression_rule",
+        "e|col|public.exercise_setting.progression_rule"
+      ],
+      "reads": ["n|tbl|public.exercise_setting", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "exercise_setting"],
+      "writes": [
+        "s|ck|public.exercise_setting.exercise_setting_rule_shape",
+        "n|ck|public.exercise_setting.exercise_setting_rule_shape",
+        "e|ck|public.exercise_setting.exercise_setting_rule_shape",
+        "n|con|public.exercise_setting.exercise_setting_rule_shape"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_setting",
+        "n|sch|public",
+        "n|col|public.exercise_setting.progression_rule"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "progression_rule",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "exercise_setting_rule_shape",
+        "value": "\"progression_rule\" IS NULL OR jsonb_typeof(\"progression_rule\") = 'object'",
+        "entityType": "checks"
+      }
+    }
+  ]
+}
