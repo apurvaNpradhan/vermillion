@@ -13,6 +13,8 @@ export type LoggedSet = SetValues & {
   bodyweight_kg?: number | null;
   /** Prescription stored when the set was created. */
   target?: PlannedSet | null;
+  /** This Session entry used the stall deload. */
+  stall_deload?: boolean;
   /**
    * Set by the user's "Count warm-up sets" setting on the sets a stat reads: a warm-up with it
    * counts like a working set. Absent (the default) leaves warm-ups out of every number.

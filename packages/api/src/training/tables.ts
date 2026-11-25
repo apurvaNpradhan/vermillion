@@ -317,6 +317,7 @@ export const sessionExercise = pgTable(
     exerciseTitle: text("exercise_title").notNull(),
     exerciseType: text("exercise_type").notNull(),
     sourceWorkoutExerciseId: uuid("source_workout_exercise_id"),
+    stallDeload: boolean("stall_deload"),
     /** Completed history left by a swap that already updated the source Workout. */
     workoutSwapFragment: boolean("workout_swap_fragment"),
     position: text("position").notNull(),

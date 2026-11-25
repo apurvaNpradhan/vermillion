@@ -22,6 +22,7 @@ import {
   parseSessionDetail,
   parseWorkoutDetail,
   startSession,
+  setStallDeload,
   tickSet,
   updateWorkoutExercise,
 } from "@workspace/sync";
@@ -104,6 +105,12 @@ it.each([
     await activateProgram(training, programId);
   }
   const id = await startSession(training, { workoutId, derivedTitle: "Legs", timeZone: "UTC" });
+  const applied = !plannedDeload && !effort && !progressing;
+  if (applied) {
+    const row = (await readSession(id))?.exercises[0];
+    if (!row) throw new Error("Expected a Session exercise");
+    expect(await setStallDeload(training, row.id, true)).toBe(true);
+  }
   const session = await readSession(id);
   const exercise = session?.exercises[0];
   const set = exercise?.sets[0];
@@ -129,7 +136,7 @@ it.each([
     phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
     bodyweightKg: null,
     stallVersion: 0,
-    stallMemory: () => ({ applied: !plannedDeload && !effort, dismissed: false }),
+    stallMemory: () => ({ dismissed: false }),
     chipTexts: () => [],
   };
   const view = deriveExercises(
@@ -160,7 +167,7 @@ it.each([
   );
   const next = nextExerciseSuggestion(plan, SQUAT, history, gym, inputs, week, now);
   expect(prepared.entry.sets).toHaveLength(plannedDeload ? 1 : 2);
-  expect(next?.suggestion).toEqual(view?.suggestion);
+  if (!applied) expect(next?.suggestion).toEqual(view?.suggestion);
   expect(
     nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
   ).toEqual(["upcoming", workoutId]);
@@ -174,8 +181,26 @@ it.each([
   if (!effort && !progressing)
     expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
-  expect(preview?.suggestion).toEqual(view?.suggestion);
-  expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
+  if (applied) {
+    expect(view?.rows.get(set.id)?.ghosts.weight).toBeCloseTo(
+      unit === "kg" ? expected : expected * KG_PER_LB,
+      2,
+    );
+    await tickSet(training, set.id, live.get(set.id) ?? {});
+    await finishSession(training, id);
+    const nextId = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    const nextSession = await readSession(nextId);
+    const nextHistory = parseFinishedSessions(
+      await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
+    );
+    expect(nextHistory[0]?.sets[0]?.stall_deload).toBe(true);
+    const upcoming = nextExerciseSuggestion(plan, SQUAT, nextHistory, gym, inputs, week, now);
+    expect(upcoming?.suggestion?.reason).not.toBe("deload");
+    expect(nextSession?.exercises[0]?.stallDeload).toBe(false);
+  } else {
+    expect(preview?.suggestion).toEqual(view?.suggestion);
+    expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
+  }
 });
 
 it.each([

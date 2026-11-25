@@ -33,6 +33,7 @@ import {
   installIdOf,
   isRestSeconds,
   requireSession,
+  requireSessionExercise,
   writeRest,
   type DeletedSession,
   type RestTimes,
@@ -47,6 +48,25 @@ import {
   workout,
   workoutExercise,
 } from "../tables";
+
+/** Store the load cut on the exact entry so duplicate lifts and concurrent edits stay independent. */
+export function setStallDeload(
+  db: TrainingDatabase,
+  entryId: string,
+  applied: boolean,
+  writeScope?: string,
+) {
+  return write(db, writeScope, async (tx) => {
+    const entry = await requireSessionExercise(tx, entryId);
+    const current = await requireSession(tx, entry.session_id);
+    if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
+    await tx
+      .update(sessionExercise)
+      .set({ stall_deload: applied })
+      .where(eq(sessionExercise.id, entryId));
+    return true;
+  });
+}
 
 /** The Workout a Session starts from, or none; `derivedTitle` names a Session with no title of its own. */
 export type SessionSource = {

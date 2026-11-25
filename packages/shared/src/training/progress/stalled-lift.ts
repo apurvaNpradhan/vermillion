@@ -82,6 +82,15 @@ export function stalledSessions(
     lighterWeeks?: readonly LighterPeriod[];
   } = {},
 ): number {
+  const lastDeload = history.findIndex((session) =>
+    session.sets.some((set) => isCounted(set) && set.stall_deload),
+  );
+  if (lastDeload >= 0) {
+    const since = history.slice(0, lastDeload).filter((session) => session.sets.some(isCounted));
+    // Give the lift three Sessions to rebuild. Any improvement that passes the old best
+    // already clears a stall through the ordinary comparison below.
+    if (since.length < STALL_SESSIONS) return 0;
+  }
   const trained = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
     const scores = sessionScores(session.sets, type, options.bodyweightKg ?? null);
     return scores.strength === null && scores.volume === null
@@ -89,7 +98,8 @@ export function stalledSessions(
       : [
           {
             at: Date.parse(session.started_at),
-            baseline: isBaselinePhase(session.phase),
+            baseline:
+              isBaselinePhase(session.phase) && !session.sets.some((set) => set.stall_deload),
             performance: stallPerformance(session.sets, type, options.bodyweightKg),
           },
         ];

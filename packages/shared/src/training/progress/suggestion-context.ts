@@ -38,7 +38,7 @@ export type StallInfo = { count: number; latestSessionId: string; applied: boole
 export type ContextSession = SessionHistory & { workoutId: string | null };
 
 /** What the device remembers about a stalled lift's note. */
-export type StallFlags = { dismissed: boolean; applied: boolean };
+export type StallFlags = { dismissed: boolean };
 
 /** The account and device side of a suggestion: preferences, the weight log and stall memory. */
 export type SuggestionAccount = {
@@ -72,6 +72,7 @@ export type SuggestionPlace = {
   grid: LoadGrid | null;
   /** Judge the stalled-lift note and apply an accepted deload (only for an exercise to train). */
   stalls: boolean;
+  stallDeload?: boolean;
 };
 
 export type SuggestionContext = {
@@ -112,10 +113,10 @@ export function suggestionContext(
       bodyweightKg: account.bodyweightKg,
       lighterWeeks: account.lighterWeeks,
     });
-    if (latestSessionId !== null && count > 0) {
+    if (latestSessionId !== null && (count > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
-      if (!memory.dismissed || memory.applied)
-        stall = { count, latestSessionId, applied: memory.applied };
+      if (!memory.dismissed || place.stallDeload)
+        stall = { count, latestSessionId, applied: place.stallDeload === true };
     }
   }
   const unit = resolveExerciseUnit(account.unit, place.unitOverride ?? null);
@@ -135,7 +136,7 @@ export function suggestionContext(
       gymId: place.gymId,
       grid: place.grid,
       lighterWeeks: account.lighterWeeks,
-      deload: stall?.applied === true,
+      deload: place.stallDeload === true,
       phaseLoad: place.phaseLoad ?? 1,
     },
   };

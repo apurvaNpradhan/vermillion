@@ -21,6 +21,7 @@ import {
   resumeSession,
   setDerivedTitle,
   setSessionStart,
+  setStallDeload,
   setExerciseSetting,
   supersetSessionWithNext,
   takeOver,
@@ -191,6 +192,12 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  const setExerciseDeload = useCallback(
+    (id: string, applied: boolean) =>
+      write((db) => setStallDeload(db, id, applied, writeScope), false),
+    [write, writeScope],
+  );
+
   const updateExercise = useCallback(
     (id: string, patch: SessionExercisePatch) =>
       write((db) => updateSessionExercise(db, id, patch, writeScope), false),
@@ -315,6 +322,7 @@ export function useSessionActions() {
       removeExercise,
       moveExercise,
       updateExercise,
+      setExerciseDeload,
       setPinnedNote,
       superset,
       leaveSuperset,
@@ -340,6 +348,7 @@ export function useSessionActions() {
       removeExercise,
       moveExercise,
       updateExercise,
+      setExerciseDeload,
       setPinnedNote,
       superset,
       leaveSuperset,

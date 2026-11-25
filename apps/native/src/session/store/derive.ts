@@ -44,13 +44,10 @@ export type DeriveInputs = {
   /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
   phaseLoad: number;
   bodyweightKg: number | null;
-  /** Changes when a stalled note is dismissed or applied (that memory lives on the device). */
+  /** Changes when a stalled note is manually dismissed on this device. */
   stallVersion: number;
   /** The device's memory of a stalled note. */
-  stallMemory: (
-    exerciseId: string,
-    latestSessionId: string,
-  ) => { dismissed: boolean; applied: boolean };
+  stallMemory: (exerciseId: string, latestSessionId: string) => { dismissed: boolean };
   /** The badge text of each set: its number, or its kind's letter. */
   chipTexts: (sets: readonly { kind: SetKind }[]) => string[];
 };
@@ -127,6 +124,7 @@ function buildView(
       grid,
       // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
       stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
+      stallDeload: exercise.stallDeload,
     },
     inputs,
   );

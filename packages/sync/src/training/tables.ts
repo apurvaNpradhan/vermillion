@@ -166,6 +166,7 @@ export const sessionExercise = sqliteTable(
     exercise_title: text("exercise_title").notNull(),
     exercise_type: text("exercise_type").$type<ExerciseType>().notNull(),
     source_workout_exercise_id: text("source_workout_exercise_id"),
+    stall_deload: integer("stall_deload", { mode: "boolean" }),
     workout_swap_fragment: integer("workout_swap_fragment", { mode: "boolean" }),
     position: text("position").notNull(),
     rest_seconds: integer("rest_seconds"),

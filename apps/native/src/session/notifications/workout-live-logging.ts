@@ -89,6 +89,7 @@ export async function workoutLiveGhosts(
       phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
       grid: gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
       stalls: Boolean(exercise.sourceWorkoutExerciseId),
+      stallDeload: exercise.stallDeload,
     },
     { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
   );

@@ -160,6 +160,7 @@ export {
   newSessionId,
   restoreSession,
   setDerivedTitle,
+  setStallDeload,
   startRest,
   startSession,
   takeOver,

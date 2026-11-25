@@ -30,6 +30,7 @@ export type ExerciseHandlers = SetHandlers & {
   onReorder: () => void;
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
+  onStallDeload: (exerciseId: string, applied: boolean) => void;
   /** The exercise was laid out again (its sets grew or shrank). */
   onLayout: (exerciseId: string) => void;
 };
@@ -151,6 +152,9 @@ export const ExerciseItem = memo(function ExerciseItem({
                   latestSessionId={stall.latestSessionId}
                   count={stall.count}
                   applied={stall.applied}
+                  onApply={
+                    readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)
+                  }
                 />
               ) : null}
               {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}

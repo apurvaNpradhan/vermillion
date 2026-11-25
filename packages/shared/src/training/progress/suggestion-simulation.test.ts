@@ -113,6 +113,21 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(history[0]?.sets[0]?.weight_kg).toBeCloseTo(exact(weight + step * 4), 2);
   });
 
+  it("excludes an applied stall deload and lets the lift rebuild for three Sessions", () => {
+    const at = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
+    const flat = [3, 2, 1, 0].map((day) => train(day, at(weight)));
+    expect(stalledSessions(flat, "weight_reps")).toBe(3);
+    const light = train(4, at(weight - step * 2));
+    light.sets = light.sets.map((set) => ({ ...set, stall_deload: true }));
+    const history = [light, ...flat];
+    for (let day = 5; day <= 6; day += 1) {
+      expect(stalledSessions(history, "weight_reps")).toBe(0);
+      history.unshift(train(day, at(weight)));
+    }
+    expect(stalledSessions([train(7, at(weight)), ...history], "weight_reps")).toBe(6);
+    expect(stalledSessions([train(7, at(weight + step)), ...history], "weight_reps")).toBe(0);
+  });
+
   it("requires two misses at the same load again after a reset", () => {
     const targets: PlannedSet[] = plan.map((set) => ({ ...set, reps_min: 8, reps_max: 10 }));
     const missed = (amount: number, reps: number) =>
