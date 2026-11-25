@@ -1,6 +1,7 @@
 import type { ExerciseType } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet } from "../logging/logged-set";
 import { effectiveWeight, estimatedOneRepMax } from "../volume/volume";
+import { isBaselinePhase, type Phase } from "../phases/phases";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 
 const DAY_MS = 86_400_000;
@@ -12,7 +13,12 @@ const MIN_GAIN = 1.01;
 const BREAK_DAYS = 14;
 
 /** What a stall needs of a Session: when it started and its sets of the exercise. */
-export type StallSession = { started_at: string; sets: readonly LoggedSet[] };
+export type StallSession = {
+  started_at: string;
+  sets: readonly LoggedSet[];
+  /** A Test or Deload phase Session does not count towards a stall. */
+  phase?: Phase | null;
+};
 
 /**
  * One Session's score for the exercise, the best Counted set: estimated 1RM for loaded lifts
@@ -62,7 +68,7 @@ export function sessionScore(
  * Sessions newest first, from the same Workout when one is known. The best of the most recent
  * three Sessions has not beaten the Session before them by 1%, and none of those three came after
  * a gap of 14 days or more (a break is not a stall). It needs at least four scored Sessions;
- * Sessions in a Lighter week do not count. A stall of more than three Sessions keeps counting while
+ * Sessions in a Lighter week, and Test or Deload phase Sessions, do not count. A stall of more than three Sessions keeps counting while
  * the best of the recent Sessions still has not beaten the one before them by 1%.
  */
 export function stalledSessions(
@@ -71,6 +77,7 @@ export function stalledSessions(
   options: { bodyweightKg?: number | null; lighterWeeks?: readonly LighterPeriod[] } = {},
 ): number {
   const sessions = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
+    if (!isBaselinePhase(session.phase)) return [];
     const scores = sessionScores(session.sets, type, options.bodyweightKg ?? null);
     return scores.strength === null && scores.volume === null
       ? []

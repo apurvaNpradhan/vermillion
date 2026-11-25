@@ -80,6 +80,8 @@ export const TRAINING_LIMITS = {
   skipsPerRun: 1000,
   /** The highest Cycle a skip may name. */
   cycleMax: 10_000,
+  /** Deload weeks one Run may have inserted. */
+  insertedDeloadsMax: 52,
 } as const;
 
 /**

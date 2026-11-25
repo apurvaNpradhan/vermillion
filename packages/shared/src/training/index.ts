@@ -42,6 +42,7 @@ export {
   loadable,
 } from "./progress/progression-steps";
 export * from "./progress/lighter-week";
+export * from "./phases/phases";
 export * from "./progress/stalled-lift";
 export * from "./plans/week";
 export * from "./plans/session-goal";
