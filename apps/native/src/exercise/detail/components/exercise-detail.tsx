@@ -10,7 +10,6 @@ import {
   type MuscleGroup,
   SET_FIELDS,
   resolveExerciseUnit,
-  incrementInUnit,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
 import { Switch, useThemeColor } from "heroui-native";
@@ -343,15 +342,7 @@ function LoadedDetail({
                   sessions={history.sessions}
                   exerciseId={exercise.id}
                   type={exercise.exerciseType}
-                  equipment={exercise.equipment}
                   gymId={gymId}
-                  weightIncrementKg={incrementInUnit(
-                    preferences.ui.weightIncrementKg,
-                    preferences.ui.weightIncrementUnit ?? preferredUnit,
-                    unit,
-                  )}
-                  progressionPerSet={perSet}
-                  unitOverride={override}
                   bodyweightKg={preferences.ui.bodyweightKg}
                   unit={unit}
                   timezone={timeZone}
@@ -425,7 +416,6 @@ function LoadedDetail({
                 <GymLimitRows
                   exerciseId={exercise.id}
                   title={exercise.title}
-                  equipment={exercise.equipment}
                   gymId={gymId}
                   unit={unit}
                 />

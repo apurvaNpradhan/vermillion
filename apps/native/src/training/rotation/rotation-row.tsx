@@ -10,7 +10,7 @@ import { useSubtleColor } from "@/platform/theme";
 
 import { SwipeRow, type SwipeAction } from "@/platform/ui/swipe-row";
 import { WorkoutTile } from "@/training/shared/workout-tile";
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { estimateMinutes } from "@/training/workouts/estimate";
 
 const TILE = 44;

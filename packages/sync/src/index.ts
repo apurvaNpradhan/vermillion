@@ -134,7 +134,7 @@ export {
   watchProgram,
   watchPrograms,
   watchWorkout,
-  watchLatestExercisePlan,
+  watchExercisePlan,
   watchWorkouts,
   PROGRAM_DETAIL_SQL,
   PROGRAM_LIST_SQL,

@@ -22,7 +22,12 @@ import { expect, it } from "vitest";
 import { buildGymLoads } from "../../gym/gym-loads";
 import { workoutLiveGhosts } from "../notifications/workout-live-logging";
 import { deriveExercises, type DeriveInputs } from "../store/derive";
-import { previewProgression, workoutEntryContext } from "./preview-progression";
+import { previewProgression } from "./preview-progression";
+import { prepareWorkoutEntry } from "../../platform/training/workout-suggestion";
+import {
+  nextExerciseSuggestion,
+  nextWorkoutCandidates,
+} from "../../exercise/detail/next-exercise-suggestion";
 
 it.each([
   { unit: "kg", weight: 100, expected: 90 },
@@ -53,7 +58,7 @@ it.each([
   const set = exercise?.sets[0];
   const plan = parseWorkoutDetail(await training.getAll(WORKOUT_DETAIL_SQL, [workoutId]));
   const entry = plan?.exercises[0];
-  if (!session || !exercise || !set || !entry) throw new Error("Expected the squat plan");
+  if (!session || !exercise || !set || !entry || !plan) throw new Error("Expected the squat plan");
 
   const history = parseFinishedSessions(
     await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
@@ -89,7 +94,20 @@ it.each([
     gym,
     null,
   );
-  const context = workoutEntryContext(entry, history, { grid: null, gymId: null }, inputs);
+  const { context } = prepareWorkoutEntry(
+    plan,
+    entry,
+    history,
+    { grid: null, gymId: null },
+    inputs,
+    null,
+  );
+  const next = nextExerciseSuggestion(plan, SQUAT, history, gym, inputs, null, new Date());
+  expect(next?.suggestion).toEqual(view?.suggestion);
+  expect(
+    nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
+  ).toEqual(["upcoming", workoutId]);
+
   const preview = previewProgression(entry, history, context.settings);
 
   expect(view?.suggestion?.outcomes[0]).toMatchObject({ reason: "deload" });

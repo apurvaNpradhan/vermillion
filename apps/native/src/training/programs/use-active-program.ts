@@ -15,7 +15,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
-import { useProgram } from "./use-program";
+import { useProgram } from "@/platform/training/use-program";
 import { UNDO_MS, useTrainingWrite } from "@/training/shared/use-training-write";
 
 /**

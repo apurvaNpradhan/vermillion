@@ -7,7 +7,7 @@ import { ExerciseThumbnail } from "@/exercise";
 import { MediaImage } from "@/media";
 import { CardText, useImageSettle, type CardContext } from "@/share";
 import { useTranslation } from "@/platform/i18n";
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { estimateMinutes } from "@/training/workouts/estimate";
 import {
   summariseWorking,

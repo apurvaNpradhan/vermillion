@@ -11,7 +11,7 @@ import { EmptyState } from "@/platform/ui/empty-state";
 import { Field } from "@/platform/ui/field";
 
 import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
-import { useProgram } from "./use-program";
+import { useProgram } from "@/platform/training/use-program";
 import { useProgramActions } from "./use-program-actions";
 import { useProgramCover } from "./use-program-cover";
 import { ProgramTile } from "./program-row";

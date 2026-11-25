@@ -1,53 +1,16 @@
 import {
   baselineSessions,
-  historyForGym,
-  suggestNext,
   weightAtMost,
   type Ghosts,
-  type Equipment,
-  type ExerciseType,
-  type PlannedSet,
   type SessionHistory,
   type SuggestionSettings,
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
+import { loggingHistory, plannedSuggestion } from "../../platform/training/workout-suggestion";
 import { ghostsOf, previousOfRow } from "./set-values";
 
 export type { SuggestionSettings };
-
-export function loggingHistory(
-  history: readonly SessionHistory[],
-  equipment: Equipment,
-  settings: SuggestionSettings,
-) {
-  return historyForGym(settings.baselineHistory ?? history, settings.gymId ?? null, equipment);
-}
-
-/** The break clock reads all of the exercise's Sessions, newest first. */
-export function plannedSuggestion(
-  sets: readonly PlannedSet[],
-  history: readonly SessionHistory[],
-  exercise: { type: ExerciseType; equipment: Equipment; progressionPerSet: boolean },
-  settings: SuggestionSettings,
-  now = new Date(),
-) {
-  return suggestNext(
-    sets,
-    history,
-    exercise.type,
-    exercise.equipment,
-    { ...settings, progressionPerSet: exercise.progressionPerSet },
-    {
-      now,
-      baselineHistory: loggingHistory(history, exercise.equipment, settings),
-      lighterWeeks: settings.lighterWeeks,
-      deload: settings.deload,
-      phaseLoad: settings.phaseLoad,
-      grid: settings.grid,
-    },
-  );
-}
 
 export function exerciseSuggestion(
   exercise: SessionExerciseDetail,

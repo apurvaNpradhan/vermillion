@@ -20,7 +20,7 @@ export { doneSummary } from "./finish/summary";
 export { useRecordHistory } from "./history/use-session-history";
 export { sessionRecords } from "./finish/session-records";
 export { usePreviousSets } from "./logging/use-previous-sets";
-export { previewProgression, workoutEntryContext } from "./logging/preview-progression";
+export { previewProgression } from "./logging/preview-progression";
 
 export { ReminderHost } from "./reminders/reminder-host";
 export { useReminderRows } from "./reminders/use-reminder-rows";

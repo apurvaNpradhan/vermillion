@@ -1,10 +1,7 @@
+import { prepareWorkoutEntry } from "@/platform/training/workout-suggestion";
 import { haptic } from "@/platform/haptics";
 import {
-  applyPhase,
-  hasLoad,
   isCounted,
-  lastBaselineLoadKg,
-  mainEntryOf,
   sessionDurationSeconds,
   sessionTotals,
   KG_PER_LB,
@@ -24,19 +21,13 @@ import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
 import { useGymLoads } from "@/gym";
-import {
-  usePreviousSets,
-  useStartSession,
-  formatElapsed,
-  previewProgression,
-  workoutEntryContext,
-} from "@/session";
+import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useWorkout } from "./use-workout";
-import { displayTitle } from "./derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { WorkoutTile } from "@/training/shared/workout-tile";
 import { RenameWorkoutSheet } from "./rename-workout-sheet";
 import { useWorkoutActions } from "./use-workout-actions";
@@ -131,59 +122,40 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     ready && ready.programId !== null && active.run?.program_id === ready.programId
       ? active.phase
       : null;
-  const mainId = ready
-    ? mainEntryOf(
-        ready.exercises.map((item) => item.id),
-        ready.mainEntryId,
-      )
-    : null;
-  const exerciseHistory = (ready?.exercises ?? []).map((original) => {
-    const history = previousHistory.history.get(original.exerciseId) ?? [];
-    const exerciseUnit = resolveExerciseUnit(userUnit, original.unit);
-    const entry =
-      week && original.exercise
-        ? {
-            ...original,
-            sets: applyPhase(original.sets, week.phase, {
-              isMainLift: original.id === mainId,
-              type: original.exercise.exerciseType,
-              equipment: original.exercise.equipment,
-              unit: exerciseUnit,
-              grid: gym.gridFor(original.exerciseId, original.exercise.equipment, original.unit),
-              modifiers: week.modifiers,
-              testTop: week.testTop,
-              // As the Session will start: from what was last done, not the planned load.
-              testLoadKg:
-                week.phase === "test" && hasLoad(original.exercise.exerciseType)
-                  ? lastBaselineLoadKg(history)
-                  : null,
-            }),
-          }
-        : original;
-    const type = entry.exercise?.exerciseType ?? "weight_reps";
-    // The same builder as the Session and the live notification: baseline, stall and deload.
-    const context = workoutEntryContext(
-      entry,
-      history,
-      {
-        gymId: gym.gymId,
-        phaseLoad: week?.modifiers.load,
-        grid: entry.exercise
-          ? gym.gridFor(entry.exerciseId, entry.exercise.equipment, entry.unit)
-          : null,
-      },
-      {
-        previousSource: preferences.ui.previousSource,
-        unit: userUnit,
-        weightIncrementKg: preferences.ui.weightIncrementKg,
-        weightIncrementUnit: preferences.ui.weightIncrementUnit,
-        lighterWeeks: preferences.ui.lighterWeeks,
-        bodyweightKg,
-        stallMemory,
-      },
-    );
-    return { entry, unit: exerciseUnit, history, type, context };
-  });
+  const exerciseHistory =
+    ready?.exercises.map((original) => {
+      const history = previousHistory.history.get(original.exerciseId) ?? [];
+      const { entry, context } = prepareWorkoutEntry(
+        ready,
+        original,
+        history,
+        {
+          gymId: gym.gymId,
+          grid: gym.gridFor(
+            original.exerciseId,
+            original.exercise?.equipment ?? "other",
+            original.unit,
+          ),
+        },
+        {
+          previousSource: preferences.ui.previousSource,
+          unit: userUnit,
+          weightIncrementKg: preferences.ui.weightIncrementKg,
+          weightIncrementUnit: preferences.ui.weightIncrementUnit,
+          lighterWeeks: preferences.ui.lighterWeeks,
+          bodyweightKg,
+          stallMemory,
+        },
+        week,
+      );
+      return {
+        entry,
+        unit: context.unit,
+        history,
+        type: entry.exercise?.exerciseType ?? "weight_reps",
+        context,
+      };
+    }) ?? [];
   const progression =
     previousHistory.ready && !preferencesLoading
       ? exerciseHistory.flatMap(({ entry, unit, history, context }) => {
