@@ -387,6 +387,21 @@ const expectation: Expectation = {
           "CREATE UNIQUE INDEX gym_exercise_setting_live_idx ON public.gym_exercise_setting USING btree (user_id, gym_id, exercise_id) WHERE (deleted_at IS NULL)",
       },
     },
+    exercise_pin: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        exercise_pin_user_exercise_uidx:
+          "CREATE UNIQUE INDEX exercise_pin_user_exercise_uidx ON public.exercise_pin USING btree (user_id, exercise_id)",
+        exercise_pin_exercise_id_idx:
+          "CREATE INDEX exercise_pin_exercise_id_idx ON public.exercise_pin USING btree (exercise_id)",
+      },
+    },
     exercise_setting: {
       columns: {
         id: { type: "uuid", notNull: true, default: null },
@@ -479,6 +494,7 @@ const expectation: Expectation = {
       "gym(id, user_id, name, created_at, updated_at, deleted_at)",
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at, gym_id)",
       "gym_exercise_setting(id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at, updated_at, deleted_at)",
+      "exercise_pin(id, user_id, exercise_id, created_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at, progression_per_set, auto_warmups, note)",
       "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
       "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at, cover_unreferenced_at)",
@@ -519,11 +535,20 @@ describe("server schema parity", () => {
     expect([...new Set(streams.map((stream) => stream.name))].sort()).toEqual([
       "exercise_catalog",
       "my_body",
+      "my_exercise_pins",
       "my_library",
       "my_media",
       "my_preferences",
       "my_training",
     ]);
+    expect(streams.find((stream) => stream.name === "my_exercise_pins")).toMatchObject({
+      table: "exercise_pin",
+      columns: ["id", "user_id", "exercise_id", "created_at"],
+    });
+    const grants = await client.query(
+      "SELECT has_table_privilege('powersync_replication', 'exercise_pin', 'SELECT') AS granted",
+    );
+    expect(grants.rows).toEqual([{ granted: true }]);
     // my_training is one subscription over the plan tables and the session tables.
     expect(
       streams

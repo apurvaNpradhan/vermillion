@@ -123,7 +123,8 @@ function LoadedDetail({
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
-  const { setProgressionPerSet, setAutoWarmups, setPinnedNote } = useExerciseActions();
+  const { setProgressionPerSet, setAutoWarmups, setPinnedNote, setExercisePinned } =
+    useExerciseActions();
   const pinned = useExerciseNote(exercise.id);
   const [noteOpen, setNoteOpen] = useState(false);
   const autoWarmups = useExerciseAutoWarmups(exercise.id);
@@ -280,6 +281,26 @@ function LoadedDetail({
                 <Button variant="secondary" onPress={() => onAddToWorkout(exercise.id)}>
                   <Plus size={20} color={foreground} />
                   <Button.Label>{t("training__add_to_workout")}</Button.Label>
+                </Button>
+              </View>
+            ) : null}
+            {!exercise.isArchived || exercise.isPinned ? (
+              <View className="px-4">
+                <Button
+                  variant="secondary"
+                  accessibilityState={{ selected: exercise.isPinned }}
+                  onPress={() =>
+                    void setExercisePinned(exercise.id, !exercise.isPinned).catch(() => undefined)
+                  }
+                >
+                  <PushPin
+                    size={20}
+                    color={foreground}
+                    weight={exercise.isPinned ? "fill" : "regular"}
+                  />
+                  <Button.Label>
+                    {t(exercise.isPinned ? "exercise__unpin" : "exercise__pin")}
+                  </Button.Label>
                 </Button>
               </View>
             ) : null}

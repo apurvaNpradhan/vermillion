@@ -2,6 +2,7 @@ import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
   CUSTOM_EXERCISE_LIMIT,
+  exercisePinId,
   SYNC_SCHEMA_VERSION,
   type SyncFailureCode,
   type SyncOp,
@@ -93,6 +94,72 @@ describe("exercise upload handler", () => {
   const rejected = (code: SyncFailureCode): Partial<SyncUploadResult> => ({
     status: "rejected",
     code,
+  });
+
+  it.each(["pin", "unpin"] as const)(
+    "converges across two devices when %s arrives first",
+    async (first) => {
+      const me = await writer(`pin-order-${first}@example.com`);
+      const second = me.another();
+      const id = exercisePinId(me.userId.toUpperCase(), catalogId.toUpperCase());
+      const pin: SyncOp = {
+        op: "PUT",
+        table: "exercise_pin",
+        id: id.toUpperCase(),
+        opData: { exercise_id: catalogId.toUpperCase() },
+      };
+      const unpin: SyncOp = { op: "DELETE", table: "exercise_pin", id };
+      const storedPin = () =>
+        app.rows(sql`
+          SELECT id, user_id, exercise_id, deleted_at IS NULL AS live
+          FROM exercise_pin WHERE user_id = ${me.userId}
+        `);
+
+      if (first === "pin") {
+        // Two offline first pins converge to one row before the other device unpins.
+        expect(await Promise.all([me.send([pin]), second.send([pin])])).toEqual([
+          { status: "applied" },
+          { status: "applied" },
+        ]);
+        expect(await second.send([unpin])).toEqual({ status: "applied" });
+        expect(await second.send([unpin])).toEqual({ status: "applied" });
+        expect(await storedPin()).toEqual([
+          { id, user_id: me.userId, exercise_id: catalogId, live: false },
+        ]);
+      } else {
+        expect(await second.send([unpin])).toEqual({ status: "applied" });
+        expect(await storedPin()).toEqual([]);
+      }
+      expect(await me.send([pin])).toEqual({ status: "applied" });
+      expect(await storedPin()).toEqual([
+        { id, user_id: me.userId, exercise_id: catalogId, live: true },
+      ]);
+    },
+  );
+
+  it("only accepts pins for visible exercises and only deletes the writer's own pin", async () => {
+    const me = await writer("pin-owner@example.com");
+    const other = await writer("pin-other@example.com");
+    const customId = uuidv7();
+    const pin = (exerciseId: string, userId: string): SyncOp => ({
+      op: "PUT",
+      table: "exercise_pin",
+      id: exercisePinId(userId, exerciseId),
+      opData: { exercise_id: exerciseId },
+    });
+    const ownPin = pin(customId, me.userId);
+
+    expect(await me.send([ownPin])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([put(customId)])).toEqual({ status: "applied" });
+    expect(await other.send([pin(customId, other.userId)])).toMatchObject(
+      rejected("SYNC_ROW_NOT_FOUND"),
+    );
+    expect(await me.send([{ ...ownPin, id: uuidv7() }])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([{ ...ownPin, op: "PATCH" }])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([ownPin])).toEqual({ status: "applied" });
+    expect(
+      await other.send([{ op: "DELETE", table: "exercise_pin", id: ownPin.id.toUpperCase() }]),
+    ).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
   });
 
   it("creates, edits, archives and restores the owner's exercise", async () => {

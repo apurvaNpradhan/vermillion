@@ -10,6 +10,8 @@ export function withoutFacets(filters: LibraryFilters): LibraryFilters {
   return {
     ...filters,
     muscles: DEFAULT_LIBRARY_FILTERS.muscles,
+    primaryDetail: null,
+    pinnedOnly: false,
     includeSecondary: DEFAULT_LIBRARY_FILTERS.includeSecondary,
     equipment: DEFAULT_LIBRARY_FILTERS.equipment,
     show: DEFAULT_LIBRARY_FILTERS.show,

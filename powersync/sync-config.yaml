@@ -15,6 +15,10 @@ streams:
     priority: 3
     query: SELECT id, user_id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at FROM exercise WHERE user_id IS NULL
 
+  my_exercise_pins:
+    auto_subscribe: true
+    query: SELECT id, user_id, exercise_id, created_at FROM exercise_pin WHERE user_id = auth.user_id() AND deleted_at IS NULL
+
   # A user's Custom exercises, archived ones included.
   my_library:
     auto_subscribe: true

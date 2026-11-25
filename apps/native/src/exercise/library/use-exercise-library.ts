@@ -32,9 +32,9 @@ function subscribeRecent(
  */
 export function useExerciseLibrary(filters: LibraryFilters) {
   const catalog = useSyncValue(catalogState);
-  const { search, muscles, includeSecondary, equipment, show, sort } = filters;
+  const { show } = filters;
   // The same filters give the same key, so a new object per render does not restart the watch.
-  const key = JSON.stringify({ search, muscles, includeSecondary, equipment, show, sort });
+  const key = JSON.stringify(filters);
 
   const [widen, setWindow] = useState({ key, limit: LIBRARY_PAGE_SIZE });
   const limit = widen.key === key ? widen.limit : LIBRARY_PAGE_SIZE;

@@ -4,6 +4,7 @@ export {
   createCustomExercise,
   exerciseUploadColumns,
   restoreExercise,
+  setExercisePinned,
   updateCustomExercise,
   type ExerciseDatabase,
   type ExercisePatch,

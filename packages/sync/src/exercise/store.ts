@@ -4,6 +4,8 @@ import {
   CUSTOM_EXERCISE_LIMIT,
   customExerciseFields,
   customExerciseInput,
+  exercisePinId,
+  exercisePinUuid,
   isMuscleDetail,
   type CustomExerciseInput,
   type MuscleDetail,
@@ -15,7 +17,7 @@ import { removeMedia } from "../media/index";
 import { DEVICE_OWNER_ID } from "../platform/device-owner";
 import { drizzleSchema } from "../platform/schema";
 import { deviceOwner, installMeta } from "../platform/tables";
-import { exercise } from "./tables";
+import { exercise, exercisePin } from "./tables";
 
 /** Columns of `exercise` the server accepts in an upload; the rest are written locally only. */
 export const exerciseUploadColumns: ReadonlySet<string> = new Set([
@@ -233,4 +235,41 @@ export function restoreExercise(
   expectedInstallId?: string,
 ): Promise<boolean> {
   return setRetired(database, id, null, expectedInstallId);
+}
+
+/** Queues a PUT or DELETE for the same pin id on every device of this account. */
+export async function setExercisePinned(
+  database: ExerciseDatabase,
+  exerciseId: string,
+  pinned: boolean,
+  expectedInstallId?: string,
+): Promise<void> {
+  const normalizedId = exercisePinUuid.parse(exerciseId);
+  await localExercises(database).transaction(async (tx) => {
+    await assertWriteScope(tx, expectedInstallId);
+    const [owner] = await tx
+      .select({ userId: deviceOwner.user_id })
+      .from(deviceOwner)
+      .where(eq(deviceOwner.id, DEVICE_OWNER_ID))
+      .limit(1);
+    if (!owner) throw new Error("No Device owner: sign in first");
+    const id = exercisePinId(owner.userId, normalizedId);
+    const pinById = eq(exercisePin.id, id);
+    if (!pinned) {
+      await tx.delete(exercisePin).where(pinById);
+      return;
+    }
+    const [current] = await tx
+      .select({ id: exercisePin.id })
+      .from(exercisePin)
+      .where(pinById)
+      .limit(1);
+    if (current) return;
+    await tx.insert(exercisePin).values({
+      id,
+      user_id: owner.userId,
+      exercise_id: normalizedId,
+      created_at: new Date().toISOString(),
+    });
+  });
 }

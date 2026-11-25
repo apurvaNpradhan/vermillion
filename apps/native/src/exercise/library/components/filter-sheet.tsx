@@ -34,7 +34,7 @@ export function FilterSheet({
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const toggleMuscle = (muscle: MuscleGroup) =>
-    onChange({ ...filters, muscles: toggled(filters.muscles, muscle) });
+    onChange({ ...filters, muscles: toggled(filters.muscles, muscle), primaryDetail: null });
 
   const showOptions = LIBRARY_SHOW.map((value) => ({
     value,

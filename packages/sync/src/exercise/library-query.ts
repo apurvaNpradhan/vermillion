@@ -1,8 +1,10 @@
 import {
   detailLikePattern,
   detailsMatching,
+  groupOf,
   searchTokens,
   type Equipment,
+  type MuscleDetail,
   type MuscleGroup,
 } from "@workspace/shared";
 
@@ -17,6 +19,9 @@ export type LibrarySort = (typeof LIBRARY_SORT)[number];
 export type LibraryFilters = {
   search: string;
   muscles: readonly MuscleGroup[];
+  primaryDetail: MuscleDetail | null;
+  pinnedOnly: boolean;
+  pinnedFirst: boolean;
   /** Also match exercises that use a chosen muscle group as a secondary one. */
   includeSecondary: boolean;
   equipment: readonly Equipment[];
@@ -27,6 +32,9 @@ export type LibraryFilters = {
 export const DEFAULT_LIBRARY_FILTERS = {
   search: "",
   muscles: [],
+  primaryDetail: null,
+  pinnedOnly: false,
+  pinnedFirst: false,
   includeSecondary: false,
   equipment: [],
   show: "all",
@@ -40,9 +48,20 @@ export type LibraryQuery = { sql: string; params: LibraryParam[] };
 export const LIBRARY_ROW_COLUMNS =
   "id, user_id, title, primary_muscle, primary_detail, secondary_detail, equipment, thumbnail_key, image_media_id, retired_at";
 
+// The device database is scoped to its owner, and the stream only delivers live pins.
+export const IS_PINNED_SQL = `EXISTS (
+  SELECT 1 FROM exercise_pin WHERE exercise_id = exercise.id
+)`;
+
 /** Whether any filter beyond the search text is set. */
 export function hasActiveFilters(filters: LibraryFilters): boolean {
-  return filters.muscles.length > 0 || filters.equipment.length > 0 || filters.show !== "all";
+  return (
+    filters.muscles.length > 0 ||
+    filters.primaryDetail !== null ||
+    filters.pinnedOnly ||
+    filters.equipment.length > 0 ||
+    filters.show !== "all"
+  );
 }
 
 function placeholders(values: readonly string[]): string {
@@ -85,6 +104,13 @@ function whereClause(filters: LibraryFilters): WhereClause {
     }
   }
 
+  if (filters.primaryDetail !== null) {
+    clauses.push(`primary_muscle = ? AND primary_detail ${LIKE}`);
+    params.push(groupOf(filters.primaryDetail), detailLikePattern(filters.primaryDetail));
+  }
+
+  if (filters.pinnedOnly) clauses.push(IS_PINNED_SQL);
+
   if (filters.equipment.length > 0) {
     clauses.push(`equipment IN (${placeholders(filters.equipment)})`);
     params.push(...filters.equipment);
@@ -112,8 +138,10 @@ export function libraryQuery(filters: LibraryFilters, limit: number): LibraryQue
   } else {
     order = "title COLLATE NOCASE, id";
   }
+  if (tokens.length === 0 && filters.pinnedFirst) order = `is_pinned DESC, ${order}`;
   return {
-    sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM exercise WHERE ${where} ORDER BY ${order} LIMIT ?`,
+    sql: `SELECT ${LIBRARY_ROW_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned
+      FROM exercise WHERE ${where} ORDER BY ${order} LIMIT ?`,
     params: [...params, ...orderParams, limit],
   };
 }

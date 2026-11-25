@@ -82,6 +82,7 @@ describe("powerSyncSchema", () => {
       "body_measurement",
       "device_owner",
       "exercise",
+      "exercise_pin",
       "exercise_setting",
       "gym",
       "gym_equipment",
@@ -106,6 +107,7 @@ describe("powerSyncSchema", () => {
     const synced = [
       "body_measurement",
       "exercise",
+      "exercise_pin",
       "exercise_setting",
       "gym",
       "gym_equipment",
@@ -157,6 +159,7 @@ describe("powerSyncSchema", () => {
     expect(indexed("training_session")).toContainEqual(["started_at"]);
     expect(indexed("training_session")).toContainEqual(["finished_at"]);
     expect(indexed("training_session")).toContainEqual(["import_fingerprint"]);
+    expect(indexed("exercise_pin")).toContainEqual(["exercise_id"]);
     expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
     expect(indexed("gym_equipment")).toContainEqual(["gym_id"]);
     expect(indexed("gym_exercise_setting")).toContainEqual(["exercise_id", "gym_id"]);

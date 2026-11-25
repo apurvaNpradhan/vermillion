@@ -3,6 +3,7 @@ import {
   archiveExercise,
   createCustomExercise,
   restoreExercise,
+  setExercisePinned as writeExercisePin,
   setExerciseSetting,
   updateCustomExercise,
   type ExerciseDatabase,
@@ -111,5 +112,19 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
-  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups, setPinnedNote };
+  const setExercisePinned = useCallback(
+    (id: string, pinned: boolean) => write((db) => writeExercisePin(db, id, pinned, writeScope)),
+    [write, writeScope],
+  );
+
+  return {
+    create,
+    update,
+    archive,
+    restore,
+    setProgressionPerSet,
+    setAutoWarmups,
+    setPinnedNote,
+    setExercisePinned,
+  };
 }

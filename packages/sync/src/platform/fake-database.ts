@@ -72,6 +72,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER, seed TEXT);
       CREATE TABLE gym_exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, gym_id TEXT, exercise_id TEXT,
         load_ranges TEXT, setup_note TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE exercise_pin (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT, created_at TEXT);
       CREATE TABLE exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, exercise_id TEXT,
         bar_id TEXT, log_effort INTEGER, progression_per_set INTEGER, auto_warmups INTEGER, note TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE media (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, mime TEXT, width INTEGER,
@@ -204,6 +205,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       state.clears += 1;
       for (const table of [
         "exercise",
+        "exercise_pin",
         "program",
         "workout",
         "workout_exercise",

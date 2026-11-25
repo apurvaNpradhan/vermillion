@@ -1,4 +1,4 @@
-import { createdAt, id, updatedAt } from "@workspace/db/columns";
+import { createdAt, deletedAt, id, updatedAt } from "@workspace/db/columns";
 import { user } from "@workspace/db/schema/auth";
 import {
   EQUIPMENT,
@@ -102,6 +102,26 @@ export const exercise = pgTable(
       "exercise_instructions_length",
       sql`char_length(${table.instructions}) <= ${sql.raw(String(EXERCISE_INSTRUCTIONS_MAX))}`,
     ),
+  ],
+);
+
+/** A user's bookmark for an exercise. DELETE leaves a tombstone that another PUT can revive. */
+export const exercisePin = pgTable(
+  "exercise_pin",
+  {
+    id: uuid("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercise.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+    deletedAt: deletedAt(),
+  },
+  (table) => [
+    uniqueIndex("exercise_pin_user_exercise_uidx").on(table.userId, table.exerciseId),
+    index("exercise_pin_exercise_id_idx").on(table.exerciseId),
   ],
 );
 
