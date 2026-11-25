@@ -102,6 +102,7 @@ export function TrainingNudges({
   });
   // A week that is already a Deload needs no offer of one.
   const offer =
+    !program.paused &&
     program.phase?.phase !== "deload" &&
     offerLighterWeek({
       stalledCount: stalled.length,

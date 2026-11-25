@@ -6,7 +6,7 @@ import type { ExerciseType } from "../../exercise/vocabulary";
 import type { EffortStep } from "../vocabulary/vocabulary";
 import { KG_PER_LB } from "../vocabulary/format";
 import { loadGridOf } from "../progress/load-grid";
-import { lastBaselineLoadKg, suggestNext, type ProgressionSession } from "../progress/progression";
+import { suggestNext, type ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
 import { lowerLoad } from "./phases";
 import {
@@ -61,15 +61,14 @@ describe("phaseOfWeek", () => {
       "build",
     ],
     ["an inserted week is a deload", threeOne, 2, [2], "deload"],
-    // Week 2 was inserted: Program week 2 (build) is now Run week 3, week 4 holds Program week 3...
-    ["later weeks shift by one", threeOne, 3, [2], "build"],
-    ["the deload of the plan shifts too", threeOne, 5, [2], "deload"],
+    ["the pattern restarts the following week", threeOne, 3, [2], "build"],
+    ["the next Deload follows three Builds", threeOne, 6, [2], "deload"],
     ["two insertions shift by two", threeOne, 5, [2, 3], "build"],
     ["a week before the insertion is unchanged", threeOne, 1, [3], "build"],
     [
-      "overrides name Program weeks, so they shift with the insertion",
+      "an insert in a plan with no Deload leaves later overrides on their week",
       plan({ pattern: ["build"], overrides: [{ week: 3, phase: "test" }] }),
-      4,
+      3,
       [2],
       "test",
     ],
@@ -78,9 +77,18 @@ describe("phaseOfWeek", () => {
     expect(phaseOfWeek(input, week, inserted)?.phase ?? null).toBe(expected);
   });
 
+  it("leaves a planned Deload beyond one pattern length in its own week", () => {
+    const edited = plan({
+      pattern: ["build", "push"],
+      overrides: [{ week: 3, phase: "deload" }],
+    });
+    expect(phaseOfWeek(edited, 2, [1])).toMatchObject({ phase: "push", programWeek: 2 });
+    expect(phaseOfWeek(edited, 3, [1])).toMatchObject({ phase: "deload", programWeek: 3 });
+  });
+
   it("says whether a week is an inserted deload, and which Program week it holds", () => {
     expect(phaseOfWeek(threeOne, 2, [2])).toMatchObject({ inserted: true, programWeek: 2 });
-    expect(phaseOfWeek(threeOne, 3, [2])).toMatchObject({ inserted: false, programWeek: 2 });
+    expect(phaseOfWeek(threeOne, 3, [2])).toMatchObject({ inserted: false, programWeek: 5 });
   });
 });
 
@@ -149,12 +157,11 @@ describe("insertDeload", () => {
     expect(insertDeload(inserted, week)).toEqual(expected);
   });
 
-  it("inserting now makes the week a deload and shifts the rest", () => {
-    const run = { started_at: "2026-11-02T10:00:00Z", inserted_deloads: insertDeload([], 2) };
-    expect(phaseOfWeek(threeOne, 2, run.inserted_deloads)?.phase).toBe("deload");
-    // The week that would have been week 2 is now week 3; the plan's deload moves from 4 to 5.
-    expect(phaseOfWeek(threeOne, 4, run.inserted_deloads)?.phase).toBe("build");
-    expect(phaseOfWeek(threeOne, 5, run.inserted_deloads)?.phase).toBe("deload");
+  it("replaces the next deload and starts a fresh pattern after the insert", () => {
+    const inserted = insertDeload([], 3);
+    expect(
+      Array.from({ length: 7 }, (_, index) => phaseOfWeek(threeOne, index + 1, inserted)?.phase),
+    ).toEqual(["build", "build", "deload", "build", "build", "build", "deload"]);
   });
 
   it("only accepts ascending weeks", () => {
@@ -317,7 +324,7 @@ describe("applyPhase", () => {
       expect(out[0]?.weight_kg).toBe(expected);
     });
 
-    it("snaps down to the gym's grid, never up", () => {
+    it("snaps down only within five points of the requested cut", () => {
       const grid = loadGridOf({
         equipment: "machine",
         unit: "kg",
@@ -331,14 +338,14 @@ describe("applyPhase", () => {
         grid,
       });
       expect(lowered[0]?.weight_kg).toBe(50);
-      // 0.9 x 55 = 49.5: nearest is 50, which is above it, so it goes down to 45.
+      // 0.9 x 55 = 49.5: nearest is 50, and 45 would cut more than 15%.
       const down = applyPhase(working(2, { weight_kg: 55 }), "deload", {
         type: "weight_reps",
         equipment: "machine",
         isMainLift: false,
         grid,
       });
-      expect(down[0]?.weight_kg).toBe(45);
+      expect(down[0]?.weight_kg).toBe(50);
     });
 
     it("never raises a load", () => {
@@ -360,7 +367,7 @@ describe("applyPhase", () => {
         ranges: [{ min: 0, max: 40, step: null }],
       });
       expect(lowerLoad(120, 0.9, { equipment: "dumbbell", unit: "kg", grid })).toBe(40);
-      expect(lowerLoad(30, 0.9, { equipment: "dumbbell", unit: "kg", grid })).toBe(25);
+      expect(lowerLoad(30, 0.9, { equipment: "dumbbell", unit: "kg", grid })).toBe(27.5);
     });
 
     it("snaps down in the user's unit: 100 lb becomes 90 lb", () => {
@@ -378,7 +385,7 @@ describe("applyPhase", () => {
       const out = applyPhase(sets, "test", { ...base, isMainLift: true });
       expect(out).toEqual([
         { kind: "warmup", weight_kg: 40 },
-        { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100 },
+        { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100, effort_min: 8, effort_max: 9 },
       ]);
     });
 
@@ -390,9 +397,16 @@ describe("applyPhase", () => {
       ]);
     });
 
-    it("starts the top set from the load the lifter last did, not the stale plan", () => {
+    it("uses the computed Test load when there is one", () => {
       const out = applyPhase(sets, "test", { ...base, isMainLift: true, testLoadKg: 120 });
-      expect(out[1]).toEqual({ kind: "top", reps_min: 1, reps_max: 1, weight_kg: 120 });
+      expect(out[1]).toEqual({
+        kind: "top",
+        reps_min: 1,
+        reps_max: 1,
+        weight_kg: 120,
+        effort_min: 8,
+        effort_max: 9,
+      });
       const amrap = applyPhase(sets, "test", {
         ...base,
         isMainLift: true,
@@ -661,10 +675,10 @@ describe("baseline exclusion", () => {
         ...context,
       })?.sets[0]?.weightKg;
 
-    it("snaps a phase Deload down to the grid, as the Workout's own loads are", () => {
-      // 0.9 x 55 = 49.5: the nearest pin is 50, but a Deload is never heavier than asked.
-      expect(run(3, { phaseLoad: 0.9 })).toBe(45);
-      expect(lowerLoad(55, 0.9, { equipment: "machine", unit: "kg", grid: stack })).toBe(45);
+    it("uses nearest if the lower pin would cut more than five extra points", () => {
+      // 0.9 x 55 = 49.5: the nearest pin is 50, and 45 is more than five points below the requested cut.
+      expect(run(3, { phaseLoad: 0.9 })).toBe(50);
+      expect(lowerLoad(55, 0.9, { equipment: "machine", unit: "kg", grid: stack })).toBe(50);
     });
 
     it("rounds a break and the stalled-lift deload as before", () => {
@@ -690,21 +704,6 @@ describe("baseline exclusion", () => {
     expect(stalledSessions([flat(14, "test", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "deload", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "push", 140), ...build], "weight_reps")).toBe(0);
-  });
-
-  it("finds the heaviest working set of the latest baseline, for a Test week's top set", () => {
-    const heavy = (weight: number, phase: Phase | null) =>
-      sessionOf("2026-11-10T10:00:00Z", 5, weight, phase);
-    const warmup: LoggedSet = { ...set(5, 200), kind: "warmup" };
-    expect(lastBaselineLoadKg([])).toBeNull();
-    // The newest Session is a Deload and the one before is a Test: the Build before them counts.
-    expect(lastBaselineLoadKg([heavy(60, "deload"), heavy(140, "test"), heavy(110, "build")])).toBe(
-      110,
-    );
-    expect(
-      lastBaselineLoadKg([{ ...heavy(100, null), sets: [warmup, set(5, 100), set(5, 105)] }]),
-    ).toBe(105);
-    expect(lastBaselineLoadKg([heavy(60, "deload")])).toBeNull();
   });
 
   it("a Deload every fourth week is training: it does not turn a stall into a break", () => {

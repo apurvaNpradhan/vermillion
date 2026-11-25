@@ -17,6 +17,8 @@ import {
   defaultBar,
   enabledBars,
   formatDifference,
+  formatEquipmentWeight,
+  parseEquipmentWeight,
   hasTarget,
   kitGroups,
   loadChoices,
@@ -467,5 +469,19 @@ it.each([
     const cap = physical - 0.0001;
     const result = loadBar(cap, { weightKg: bar }, [plate((physical - bar) / 2)], cap);
     expect(nearestChoice(loadChoices(cap, result, cap))?.load.totalKg).toBe(bar);
+  },
+);
+
+it.each([
+  { unit: "kg", micro: 0.5 },
+  { unit: "lb", micro: 1.25 },
+] as const)(
+  "keeps the seeded $unit microplate at its actual weight in equipment settings",
+  ({ unit, micro }) => {
+    const item = defaultGymKit(unit).find((row) => row.kind === "plate" && !row.enabled);
+    expect(item).toBeDefined();
+    const display = formatEquipmentWeight(item?.weight_kg ?? 0, unit);
+    expect(display).toBe(String(micro));
+    expect(parseEquipmentWeight(display, unit)).toBe(item?.weight_kg);
   },
 );

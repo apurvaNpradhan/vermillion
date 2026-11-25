@@ -9,6 +9,7 @@ import {
   weeklyMuscleVolume,
   withWarmupsCounted,
   type TargetMuscle,
+  type PhaseNow,
 } from "@workspace/shared";
 import {
   watchExerciseMuscles,
@@ -35,7 +36,7 @@ const DAY_MS = 86_400_000;
  * Counted sets of each exercise, plus the goal writer. Reads those weeks' Sessions and the muscles
  * of their exercises from the local database, once.
  */
-export function useMuscleVolume(program: ProgramDetail | null) {
+export function useMuscleVolume(program: ProgramDetail | null, phase: PhaseNow | null) {
   const { preferences, setMuscleGoal, timeZone } = usePreferences();
   const { now } = useToday(timeZone);
   const { weekStart, muscleGoals, countWarmups } = preferences.ui;
@@ -78,7 +79,10 @@ export function useMuscleVolume(program: ProgramDetail | null) {
     const exercises = muscles.value ?? [];
     const found = sessions ?? [];
     const loads = weeklyMuscleVolume(found, exercises, week, timeZone);
-    const planned = program === null ? null : plannedMuscleVolume(program);
+    const planned =
+      program === null
+        ? null
+        : plannedMuscleVolume(program, phase?.modifiers.sets, phase?.phase === "test");
     const rows = muscleRows(loads, muscleGoals, planned);
     const trend = muscleTrend(found, exercises, week, timeZone);
     return {
@@ -91,7 +95,7 @@ export function useMuscleVolume(program: ProgramDetail | null) {
       contributions: (muscle: TargetMuscle) =>
         muscleContributions(found, exercises, muscle, week, timeZone),
     };
-  }, [sessions, muscles.value, week, timeZone, program, muscleGoals]);
+  }, [sessions, muscles.value, week, timeZone, program, muscleGoals, phase]);
   return {
     // Later reloads (a new exercise in this week's Sessions) keep what is on screen.
     loading: history.loading || (muscles.loading && muscles.value === undefined),

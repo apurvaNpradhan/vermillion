@@ -1,5 +1,6 @@
 import {
   phaseLoadOf,
+  isTestSingle,
   suggestionContext,
   withWarmupsCounted,
   type Ghosts,
@@ -89,6 +90,14 @@ export async function workoutLiveGhosts(
       phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
       grid: gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
       stalls: Boolean(exercise.sourceWorkoutExerciseId),
+      stallDeload: exercise.stallDeload,
+      prescription: exercise.sets.map(({ kind, target }) => ({ ...target, kind })),
+      testSingle:
+        session.phaseModifiers?.test_entry_id === exercise.sourceWorkoutExerciseId &&
+        isTestSingle(
+          session.phase,
+          exercise.sets.map(({ target }) => target),
+        ),
     },
     { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
   );

@@ -108,7 +108,9 @@ export function warmupRamp(input: {
   } else if (bar) {
     const step = smallestBarStepKg(bar.plates);
     if (step === null || workingKg <= bar.weightKg + step + SAME) return [];
-    round = fixed ? (kg) => roundToStep(kg, stepKg) : (kg) => nearestBarLoadKg(kg, bar, bar.plates);
+    round = fixed
+      ? (kg) => roundToStep(kg, stepKg)
+      : (kg) => nearestBarLoadKg(roundToStep(kg, DEFAULT_STEP[unit]), bar, bar.plates);
     opener = { weightKg: bar.weightKg, reps: OPENER.bar.reps };
   } else {
     if (workingKg <= 2 * stepKg + SAME) return [];

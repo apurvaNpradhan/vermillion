@@ -43,6 +43,25 @@ From the first release, every `gym_exercise_setting` row requires the UUIDv5 id 
 
 `program.phase_plan`, `program_run.inserted_deloads`, `workout.main_entry_id` and `training_session.phase` ride the `my_training` stream. The two JSON columns travel as text like `workout_exercise.sets`; handlers parse them with the shared zod schemas (`phasePlanSchema`, `insertedDeloadsSchema`) and refuse anything else as `SYNC_INVALID_OP`. A Run PATCH of `inserted_deloads` is a union with the stored weeks, so two devices that each insert a Deload offline both keep theirs. `main_entry_id` is a plain reference (the exercise is written after the Workout, so it cannot be checked); a stale id reads as the first exercise. A PATCH never resets fields it does not carry: zod applies `.default()` inside `.partial()`, so a patch schema must not reuse a schema with defaults. `phase_plan` is replaced whole by a write (last write wins, unlike `inserted_deloads`): two devices that edit the plan offline do not merge field by field, and the later upload keeps its own plan. The schema strips keys a build does not know instead of refusing them, so an older app can still read and edit a Program whose plan a newer app wrote (the older app's PATCH of another field leaves the stored plan alone). A Run holds at most `TRAINING_LIMITS.insertedDeloadsMax` (52) inserted weeks: a union that would pass it is refused as `SYNC_INVALID_OP`. A Session keeps `phase_modifiers`, the modifiers and Test top style it started with, so editing the plan later does not change a Session already begun.
 
+A Run's nullable `pauses` JSON holds start and resume timestamps. Uploads merge by the
+start instant and keep the earliest known resume. A stale open interval cannot reopen a
+closed one. An offline device can still re-pause a resumed Run if it uploads an open pause
+with a different start instant. The Run clock subtracts whole local days from the union of
+paused intervals. Starting a Workout in a paused Run closes its open pauses in the Session
+transaction and uses the updated pauses to set the phase. Backfills inside a pause stay
+outside the Run. After a gap of at least 14 days between counted Run Sessions, a scheduled
+Test becomes Build for the rest of that Run week.
+
+## Stall deloads
+
+`session_exercise.stall_deload` is a nullable flag on the exact Session entry. It rides
+`my_training` with the Session and keeps multiple entries of the same exercise independent.
+Null is the old-row default. A Session entry marked as deloaded counts as training for the
+break clock and as a load to build from. It starts a new stall episode. The stall detector uses
+only later baseline Sessions, including when another Workout uses that entry as its fixed-rep
+baseline.
+Manual dismissal stays on the device for the current baseline Session only.
+
 ## Commands
 
 ```sh

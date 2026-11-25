@@ -1,4 +1,4 @@
-import { activeRun, cycleState, phaseFor, runWeek } from "@workspace/shared";
+import { activeRun, cycleState, phaseFor, runPausedAt, runWeek } from "@workspace/shared";
 import {
   activateProgram,
   finishRun,
@@ -6,6 +6,7 @@ import {
   runAgain,
   skipSlot,
   stopProgram,
+  setRunPaused,
   unskipSlot,
   watchRunState,
 } from "@workspace/sync";
@@ -42,8 +43,16 @@ export function useActiveRun() {
     () => (runId ? write((db) => stopProgram(db, runId, writeScope), undefined) : undefined),
     [runId, write, writeScope],
   );
+  const paused = runPausedAt(run?.pauses ?? [], new Date());
+  const changePause = useCallback(
+    (next: boolean) =>
+      runId ? write((db) => setRunPaused(db, runId, next, writeScope), false) : undefined,
+    [runId, write, writeScope],
+  );
   return {
     run,
+    paused,
+    changePause,
     runs: state,
     runProgramId,
     loading: state.loading,
@@ -83,7 +92,17 @@ export function useActiveProgram() {
   const { write, writeScope } = useTrainingWrite();
   const { toast } = useAppToast();
   const timeZone = useDeviceTimeZone();
-  const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
+  const {
+    run,
+    runs,
+    runProgramId,
+    loading,
+    activate,
+    stop,
+    paused,
+    changePause,
+    confirmationProps,
+  } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;
   const runId = run?.id ?? null;
@@ -133,19 +152,11 @@ export function useActiveProgram() {
     [write, writeScope, t, toast, unskip],
   );
   const now = new Date();
-  const week = runWeek(run?.started_at ?? null, now, timeZone);
+  const week = runWeek(run?.started_at ?? null, now, timeZone, run?.pauses);
   // The phase of this Run week, from the Program's pattern and the Deload weeks inserted into the Run.
-  const phase = phaseFor(
-    program?.phasePlan ?? null,
-    run ? { started_at: run.started_at, inserted_deloads: run.inserted_deloads } : null,
-    now,
-    timeZone,
-  );
-  /** Weeks to show as the Run's length: the planned weeks, and one more per inserted Deload. */
-  const totalWeeks =
-    program?.plannedWeeks == null
-      ? null
-      : program.plannedWeeks + (run?.inserted_deloads.length ?? 0);
+  const phase = phaseFor(program?.phasePlan ?? null, run, now, timeZone, runs.value?.phaseStarts);
+  /** Weeks to show as the Run's length: inserted Deloads replace planned weeks. */
+  const totalWeeks = program?.plannedWeeks ?? null;
   return {
     run,
     runProgramId,
@@ -154,6 +165,8 @@ export function useActiveProgram() {
     week,
     totalWeeks,
     phase,
+    paused,
+    changePause,
     loading,
     // The Run is known and, if there is one, so is its Program: the card can draw at once.
     ready: !loading && (run === null || detail.status !== "loading"),

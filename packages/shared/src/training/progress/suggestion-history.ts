@@ -1,3 +1,4 @@
+import type { PlannedSet } from "../plans/planned-sets";
 import type { LoggedSet } from "../logging/logged-set";
 import { historyForWorkout } from "../logging/history-for-workout";
 import type { ContextSession, SuggestionPlace } from "./suggestion-context";
@@ -7,6 +8,7 @@ import type { PreviousSource } from "../vocabulary/vocabulary";
 type HistorySelection = {
   history: readonly ContextSession[];
   workoutHistory: readonly ContextSession[];
+  anyWorkout: readonly ContextSession[];
 };
 
 const histories = new WeakMap<readonly ContextSession[], Map<string, HistorySelection>>();
@@ -63,7 +65,53 @@ export function suggestionHistory(
   const workoutHistory = rows.filter((session) => session.workoutId === place.workoutId);
   const baseline = historyForWorkout(rows, source === "same_workout" ? place.workoutId : null);
   const history = historyForGym(baseline, gym, place.equipment);
-  const result = { history, workoutHistory };
+  const anyWorkout = historyForGym(rows, gym, place.equipment);
+  const result = { history, workoutHistory, anyWorkout };
   cache.set(key, result);
   return result;
+}
+
+/** The most recent complete entries with this prescription, newest first. */
+export function fixedPrescriptionHistory<Session extends { sets: readonly LoggedSet[] }>(
+  history: readonly Session[],
+  prescription: readonly PlannedSet[],
+): Session[] {
+  if (!prescription.some((target) => usesFixedPrescription(prescription, target))) return [];
+  return history.filter(({ sets }) => {
+    const completed = sets.filter((set) => set.completed_at !== null);
+    return (
+      completed.length === prescription.length &&
+      prescription.every((target, index) => {
+        const set = completed[index];
+        const before = set?.target;
+        return (
+          before != null &&
+          set?.kind === target.kind &&
+          before.kind === target.kind &&
+          before.reps_min === target.reps_min &&
+          (before.reps_max ?? before.reps_min) === (target.reps_max ?? target.reps_min) &&
+          before.effort_min === target.effort_min &&
+          before.effort_max === target.effort_max &&
+          before.weight_kg === target.weight_kg
+        );
+      })
+    );
+  });
+}
+
+function isFixedPrescription(target: PlannedSet): boolean {
+  const reps = target.reps_min;
+  return (
+    reps !== undefined &&
+    reps === (target.reps_max ?? reps) &&
+    (target.kind === "working" || target.kind === "top" || target.kind === "backoff")
+  );
+}
+
+/** A kind moves as a group only when all of its sets use fixed reps. */
+export function usesFixedPrescription(prescription: readonly PlannedSet[], target: PlannedSet) {
+  return (
+    isFixedPrescription(target) &&
+    prescription.every((set) => set.kind !== target.kind || isFixedPrescription(set))
+  );
 }

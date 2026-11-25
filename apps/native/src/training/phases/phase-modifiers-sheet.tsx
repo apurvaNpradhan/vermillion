@@ -1,5 +1,5 @@
 import { PHASE_PRESETS, type Phase, type PhaseModifiers, type TestTop } from "@workspace/shared";
-import { BottomSheet } from "heroui-native";
+import { BottomSheet, Switch } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -22,13 +22,15 @@ export function PhaseModifiersSheet({
   phase,
   modifiers,
   testTop,
+  testWorkups,
   onSave,
   onClose,
 }: {
   phase: Phase;
   modifiers: PhaseModifiers;
   testTop: TestTop;
-  onSave: (modifiers: PhaseModifiers, testTop: TestTop) => void;
+  testWorkups: boolean;
+  onSave: (modifiers: PhaseModifiers, testTop: TestTop, testWorkups: boolean) => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -36,13 +38,15 @@ export function PhaseModifiersSheet({
   const sheet = useSheetPresent();
   const [draft, setDraft] = useState(modifiers);
   const [top, setTop] = useState(testTop);
+  const [workups, setWorkups] = useState(testWorkups);
   const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
   const preset = PHASE_PRESETS[phase];
   const edited =
     draft.sets !== modifiers.sets ||
     draft.rpe !== modifiers.rpe ||
     draft.load !== modifiers.load ||
-    top !== testTop;
+    top !== testTop ||
+    workups !== testWorkups;
   const isPreset =
     draft.sets === preset.sets && draft.rpe === preset.rpe && draft.load === preset.load;
   return (
@@ -59,7 +63,7 @@ export function PhaseModifiersSheet({
             <Button
               isDisabled={!edited}
               onPress={() => {
-                onSave(draft, top);
+                onSave(draft, top, workups);
                 onClose();
               }}
             >
@@ -116,6 +120,16 @@ export function PhaseModifiersSheet({
                 ]}
                 onChange={setTop}
               />
+              {top === "single" ? (
+                <View className="min-h-11 flex-row items-center justify-between">
+                  <Text className="text-body text-foreground">{t("phase__test_workups")}</Text>
+                  <Switch
+                    accessibilityLabel={t("phase__test_workups")}
+                    isSelected={workups}
+                    onSelectedChange={setWorkups}
+                  />
+                </View>
+              ) : null}
             </View>
           ) : null}
           <Button variant="tertiary" isDisabled={isPreset} onPress={() => setDraft({ ...preset })}>

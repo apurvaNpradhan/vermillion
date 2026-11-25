@@ -5,10 +5,15 @@ import {
   applyPhase,
   resolveExerciseUnit,
   cycleState,
+  closeRunPauses,
   finishClock,
   mainEntryOf,
+  loadCutRange,
+  plannedLoadFactors,
   phaseFor,
+  runPausedAt,
   hasLoad,
+  isTestSingle,
   sessionInput,
   snapshotOf,
   sessionStartAllowed,
@@ -23,7 +28,7 @@ import { program, programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
 import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
-import { lastBaselineLoadKg, phaseLoadsIn } from "./phase-inputs";
+import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
 import { performAgainIn } from "./session-again-store";
@@ -33,6 +38,7 @@ import {
   installIdOf,
   isRestSeconds,
   requireSession,
+  requireSessionExercise,
   writeRest,
   type DeletedSession,
   type RestTimes,
@@ -47,6 +53,25 @@ import {
   workout,
   workoutExercise,
 } from "../tables";
+
+/** Store the load cut on the exact entry so duplicate lifts and concurrent edits stay independent. */
+export function setStallDeload(
+  db: TrainingDatabase,
+  entryId: string,
+  applied: boolean,
+  writeScope?: string,
+) {
+  return write(db, writeScope, async (tx) => {
+    const entry = await requireSessionExercise(tx, entryId);
+    const current = await requireSession(tx, entry.session_id);
+    if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
+    await tx
+      .update(sessionExercise)
+      .set({ stall_deload: applied })
+      .where(eq(sessionExercise.id, entryId));
+    return true;
+  });
+}
 
 /** The Workout a Session starts from, or none; `derivedTitle` names a Session with no title of its own. */
 export type SessionSource = {
@@ -95,7 +120,15 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
-  const matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  let matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  const openPauses = matching?.pauses;
+  if (matching && !fields.backfill && openPauses?.some((pause) => pause.until === null)) {
+    const pauses = closeRunPauses(openPauses, fields.startedAt);
+    if (pauses.some((pause, index) => pause !== openPauses[index])) {
+      await tx.update(programRun).set({ pauses }).where(eq(programRun.id, matching.id));
+      matching = { ...matching, pauses };
+    }
+  }
   const runSessions = matching
     ? await tx
         .select({
@@ -118,7 +151,9 @@ async function createSessionIn(
     firstStart ??
     (matching ? new Date(Date.parse(matching.activated_at) - 86_400_000).toISOString() : null);
   const active =
-    matching && !(fields.backfill && runStart !== null && fields.startedAt < runStart)
+    matching &&
+    !runPausedAt(matching.pauses ?? [], fields.startedAt) &&
+    !(fields.backfill && runStart !== null && fields.startedAt < runStart)
       ? matching
       : null;
   const slots = active
@@ -184,9 +219,13 @@ async function createSessionIn(
           {
             started_at: runStartedAt,
             inserted_deloads: readInsertedDeloads(active.inserted_deloads),
+            pauses: active.pauses ?? [],
           },
           new Date(fields.startedAt),
           source.timeZone ?? "UTC",
+          history.flatMap((item) =>
+            item.finishedAt && item.hasCountedSet ? [item.startedAt] : [],
+          ),
         )
       : null;
   const gymId = await activeGymIdOf(tx);
@@ -196,6 +235,57 @@ async function createSessionIn(
     planned.map((entry) => entry.id),
     plan?.main_entry_id,
   );
+  const entries = [];
+  const factors: number[] = [];
+  for (const entry of planned) {
+    const info = await exerciseInfoOf(tx, entry.exercise_id);
+    const [setting] = await tx
+      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
+      .from(exerciseSetting)
+      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
+      .orderBy(asc(exerciseSetting.id))
+      .limit(1);
+    const sessionExerciseId = uuidv7();
+    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
+    const isMainLift = entry.id === mainEntryId;
+    const sets =
+      phase && loads
+        ? applyPhase(entry.sets, phase.phase, {
+            isMainLift,
+            type: info.exercise_type,
+            equipment: info.equipment,
+            unit: resolveExerciseUnit(loads.unit, setting?.unit),
+            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
+            modifiers: phase.modifiers,
+            testTop: phase.testTop,
+            testWorkups: phase.testWorkups,
+            // The Test seed uses the exercise estimate and the break clock.
+            testLoadKg:
+              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
+                ? await testWorkingLoadIn(tx, entry.exercise_id, info.exercise_type, {
+                    now: new Date(fields.startedAt),
+                    timeZone: source.timeZone ?? "UTC",
+                    single: phase.testTop === "single",
+                    lighterWeeks: loads.lighterWeeks,
+                  })
+                : null,
+          })
+        : entry.sets;
+    assertSessionRoom(0, sets.length, "setsPerExercise");
+    if (phase && phase.modifiers.load < 1) factors.push(...plannedLoadFactors(entry.sets, sets));
+    const plannedWarmups = entry.sets.filter((set) => set.kind === "warmup").length;
+    const rows = sets.map((target) => ({ id: uuidv7(), target }));
+    const testWorkupIds =
+      phase?.phase === "test" && isMainLift && phase.testWorkups
+        ? rows
+            .slice(plannedWarmups)
+            .flatMap(({ id, target }) => (target.kind === "warmup" ? [id] : []))
+        : [];
+    entries.push({ entry, info, setting, sessionExerciseId, sets, rows, testWorkupIds });
+  }
+  const testEntry =
+    phase &&
+    entries.find(({ entry, sets }) => entry.id === mainEntryId && isTestSingle(phase.phase, sets));
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
@@ -203,7 +293,14 @@ async function createSessionIn(
     slot_id: slot?.id ?? null,
     gym_id: gymId,
     phase: phase?.phase ?? null,
-    phase_modifiers: phase ? snapshotOf(phase) : null,
+    phase_modifiers: phase
+      ? {
+          ...snapshotOf(phase),
+          load_cuts: loadCutRange(factors),
+          test_entry_id: testEntry?.entry.id,
+          test_workup_ids: testEntry?.testWorkupIds.length ? testEntry.testWorkupIds : undefined,
+        }
+      : null,
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
@@ -234,35 +331,7 @@ async function createSessionIn(
     ...parsed,
   });
 
-  for (const entry of planned) {
-    const info = await exerciseInfoOf(tx, entry.exercise_id);
-    const [setting] = await tx
-      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
-      .from(exerciseSetting)
-      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
-      .orderBy(asc(exerciseSetting.id))
-      .limit(1);
-    const sessionExerciseId = uuidv7();
-    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
-    const isMainLift = entry.id === mainEntryId;
-    const sets =
-      phase && loads
-        ? applyPhase(entry.sets, phase.phase, {
-            isMainLift,
-            type: info.exercise_type,
-            equipment: info.equipment,
-            unit: resolveExerciseUnit(loads.unit, setting?.unit),
-            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
-            modifiers: phase.modifiers,
-            testTop: phase.testTop,
-            // A Test week's top set starts from what the lifter last did, not the stale plan.
-            testLoadKg:
-              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
-                ? await lastBaselineLoadKg(tx, entry.exercise_id)
-                : null,
-          })
-        : entry.sets;
-    assertSessionRoom(0, sets.length, "setsPerExercise");
+  for (const { entry, info, setting, sessionExerciseId, sets, rows } of entries) {
     await tx.insert(sessionExercise).values({
       id: sessionExerciseId,
       user_id: userId,
@@ -280,9 +349,9 @@ async function createSessionIn(
       created_at: nowIso(),
     });
     const keys = keysAfterLast([], sets.length);
-    for (const [index, target] of sets.entries()) {
+    for (const [index, { id, target }] of rows.entries()) {
       await tx.insert(sessionSet).values({
-        id: uuidv7(),
+        id,
         user_id: userId,
         session_exercise_id: sessionExerciseId,
         position: keys[index] ?? "a0",

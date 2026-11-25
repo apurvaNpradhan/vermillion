@@ -40,7 +40,7 @@ export function RunHero({
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const onAction = useThemeColor("accent-foreground");
-  const { program, run, progress, week, totalWeeks, phase } = state;
+  const { program, run, progress, week, totalWeeks, phase, paused } = state;
   const insert = useInsertDeload(run);
   const day = useSlotDay({
     runId: run?.id ?? null,
@@ -65,7 +65,9 @@ export function RunHero({
       >
         <ProgramTile title={program.title} size={COVER} coverMediaId={program.coverMediaId} />
         <View className="min-w-0 flex-1 gap-0.5">
-          <Text className="text-caption font-medium text-muted">{t("run__active")}</Text>
+          <Text className="text-caption font-medium text-muted">
+            {t(paused ? "run__paused" : "run__active")}
+          </Text>
           <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
             {program.title}
           </Text>
@@ -78,24 +80,31 @@ export function RunHero({
           )}
         </View>
       </Pressable>
-      <View className="gap-1">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="font-normal text-caption tabular-nums text-muted">
-            {t("run__cycle", { cycle: progress.cycle })}
-          </Text>
-          {phase?.phase === "deload" ? null : (
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={insert.ask}
-              className="min-h-8 justify-center active:opacity-60"
-            >
-              <Text className="font-normal text-caption text-muted">{t("phase__insert_now")}</Text>
-            </Pressable>
-          )}
+      {!paused ? (
+        <View className="gap-1">
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="font-normal text-caption tabular-nums text-muted">
+              {t("run__cycle", { cycle: progress.cycle })}
+            </Text>
+            {phase?.phase === "deload" ? null : (
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={insert.ask}
+                className="min-h-8 justify-center active:opacity-60"
+              >
+                <Text className="font-normal text-caption text-muted">
+                  {t("phase__insert_now")}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+          <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
         </View>
-        <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
-      </View>
+      ) : null}
+      <Button size="sm" variant="tertiary" onPress={() => void state.changePause(!paused)}>
+        <Button.Label>{t(paused ? "run__resume_run" : "run__pause_run")}</Button.Label>
+      </Button>
       {next?.workoutId && nextTitle ? (
         <View className="gap-3">
           <View className="flex-row items-center gap-3">
@@ -112,6 +121,9 @@ export function RunHero({
               <Text numberOfLines={1} className="font-medium text-body text-foreground">
                 {nextTitle}
               </Text>
+              {paused ? (
+                <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
+              ) : null}
             </View>
           </View>
           <Button

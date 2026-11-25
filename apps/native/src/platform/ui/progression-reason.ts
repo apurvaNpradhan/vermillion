@@ -1,5 +1,6 @@
 import {
   formatWeight,
+  type EffortScale,
   type Progression,
   type SetOutcome,
   type WeightUnit,
@@ -34,6 +35,8 @@ export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
       return "progress__label_same_as_last";
     case "deload":
       return "progress__label_deload";
+    case "test_single":
+      return "progress__label_test_single";
     case "capped":
       return "progress__label_capped";
     case "cap_reps":
@@ -44,7 +47,10 @@ export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
 }
 
 /** The longer explanation of a suggestion. */
-export function progressionReasonKey({ reason, loadFactor, limit }: SetOutcome) {
+export function progressionReasonKey(
+  { reason, loadFactor, limit }: SetOutcome,
+  effortScale: EffortScale,
+) {
   if (limit === "plates") {
     if (reason === "capped") return "progress__reason_capped_plates";
     if (reason === "cap_reps") return "progress__reason_cap_reps_plates";
@@ -71,6 +77,10 @@ export function progressionReasonKey({ reason, loadFactor, limit }: SetOutcome) 
       return "progress__reason_same_as_last";
     case "deload":
       return "progress__reason_deload";
+    case "test_single":
+      return effortScale === "rir"
+        ? "progress__reason_test_single_rir"
+        : "progress__reason_test_single";
     case "capped":
       return "progress__reason_capped";
     case "cap_reps":

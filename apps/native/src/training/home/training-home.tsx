@@ -212,6 +212,7 @@ export function TrainingHome() {
           exercises={heroExercises}
           lastDuration={lastDuration}
           resuming={resume !== undefined}
+          resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
           onStart={() =>
             resume
               ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })

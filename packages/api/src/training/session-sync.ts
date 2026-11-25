@@ -440,6 +440,7 @@ const putSessionExercise = z.strictObject({
   log_effort: wireBoolean.default(false),
   warmup_key: wireWarmupKey.optional(),
   repeated: wireBoolean.optional(),
+  stall_deload: wireBoolean.nullable().optional(),
   workout_swap_fragment: wireBoolean.nullable().optional(),
 });
 // An exercise never moves to another Session.
@@ -447,6 +448,7 @@ const patchSessionExercise = z
   .strictObject({
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
+    stall_deload: wireBoolean.nullable(),
     warmup_key: wireWarmupKey,
     workout_swap_fragment: wireBoolean.nullable(),
   })
@@ -499,6 +501,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         restore,
         warmup_key: warmupKey,
         repeated,
+        stall_deload: stallDeload,
         workout_swap_fragment: workoutSwapFragment,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
@@ -508,6 +511,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         ...(warmupKey === undefined ? {} : { warmupKey }),
         // Set when the exercise is created and never edited, so a PUT that omits it keeps it.
         ...(repeated === undefined ? {} : { repeated }),
+        ...(stallDeload === undefined ? {} : { stallDeload }),
         ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
       };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
@@ -540,6 +544,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
     const row = liveRow(found);
     const {
       warmup_key: warmupKey,
+      stall_deload: stallDeload,
       workout_swap_fragment: workoutSwapFragment,
       ...patch
     } = accept(patchSessionExercise.safeParse(op.opData ?? {}));
@@ -566,6 +571,7 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       .update(sessionExercise)
       .set({
         ...columns(merged),
+        ...(stallDeload === undefined ? {} : { stallDeload }),
         ...(warmupKey === undefined ? {} : { warmupKey }),
         ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
         updatedAt: now(),

@@ -137,6 +137,8 @@ export function useLoggingState({
     [t],
   );
   const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
+  const phase = useStore(store, (state) => state.session.phase);
+  const testEntryId = useStore(store, (state) => state.session.phaseModifiers?.test_entry_id);
   // How much of the last load this Session's phase asks for (0.9 in a Deload, 1 otherwise).
   const phaseLoad = useStore(store, (state) =>
     state.session.phase === null
@@ -171,6 +173,8 @@ export function useLoggingState({
       lighterWeeks,
       lighter,
       phaseLoad,
+      phase,
+      testEntryId,
       bodyweightKg,
       stallVersion,
       stallMemory,
@@ -190,6 +194,8 @@ export function useLoggingState({
       lighterWeeks,
       lighter,
       phaseLoad,
+      phase,
+      testEntryId,
       bodyweightKg,
       stallVersion,
       badges,

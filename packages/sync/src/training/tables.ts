@@ -166,6 +166,7 @@ export const sessionExercise = sqliteTable(
     exercise_title: text("exercise_title").notNull(),
     exercise_type: text("exercise_type").$type<ExerciseType>().notNull(),
     source_workout_exercise_id: text("source_workout_exercise_id"),
+    stall_deload: integer("stall_deload", { mode: "boolean" }),
     workout_swap_fragment: integer("workout_swap_fragment", { mode: "boolean" }),
     position: text("position").notNull(),
     rest_seconds: integer("rest_seconds"),
@@ -297,6 +298,7 @@ export const programRun = sqliteTable(
     continued_at: text("continued_at"),
     /** Run weeks turned into Deload weeks ("Insert deload now") as JSON, ascending; null is none. */
     inserted_deloads: text("inserted_deloads", { mode: "json" }).$type<number[] | null>(),
+    pauses: text("pauses", { mode: "json" }).$type<import("@workspace/shared").RunPause[]>(),
     created_at: text("created_at").notNull(),
   },
   (table) => [

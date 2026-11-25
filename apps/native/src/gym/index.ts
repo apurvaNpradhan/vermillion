@@ -13,3 +13,4 @@ export { GymsScreen } from "./gyms-screen";
 export { GymScreen } from "./gym-screen";
 export { EquipmentHereSection } from "./equipment-here-section";
 export { useGymAvailability } from "./use-gym-availability";
+export { StepPrompt } from "./step-prompt";

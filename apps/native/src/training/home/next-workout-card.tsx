@@ -30,6 +30,7 @@ export function NextWorkoutCard({
   exercises,
   lastDuration,
   resuming,
+  resumesRun,
   onStart,
   onStartEmpty,
 }: {
@@ -42,6 +43,7 @@ export function NextWorkoutCard({
   /** "Last time 52 min"; null when the workout was not done yet. */
   lastDuration: string | null;
   resuming: boolean;
+  resumesRun: boolean;
   onStart: () => void;
   onStartEmpty: () => void;
 }) {
@@ -86,6 +88,9 @@ export function NextWorkoutCard({
             </Text>
           ) : null}
         </View>
+      ) : null}
+      {resumesRun ? (
+        <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
       ) : null}
       <Button size="lg" className="h-14 w-full" onPress={title === null ? onStartEmpty : onStart}>
         <Play size={20} color={onAction} />

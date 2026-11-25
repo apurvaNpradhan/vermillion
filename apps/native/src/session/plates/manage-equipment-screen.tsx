@@ -1,13 +1,6 @@
 import { BottomSheet, Switch } from "heroui-native";
 import { useForm } from "@tanstack/react-form";
-import {
-  gymEquipmentInput,
-  KG_PER_LB,
-  parseWeight,
-  formatWeight,
-  type GymEquipmentInput,
-  type WeightUnit,
-} from "@workspace/shared";
+import { gymEquipmentInput, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Barbell, Trash } from "phosphor-react-native";
@@ -23,7 +16,12 @@ import { ScrollPage } from "@/platform/ui/page";
 import { ListSection, ListRow } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { SwipeGroup, SwipeRow } from "@/platform/ui/swipe-row";
-import { kitGroups, missingKitItems } from "./plate-view";
+import {
+  formatEquipmentWeight,
+  parseEquipmentWeight,
+  kitGroups,
+  missingKitItems,
+} from "./plate-view";
 import { useEquipmentLabel } from "./use-equipment-label";
 import { useEquipment } from "./use-plates";
 
@@ -233,23 +231,19 @@ function CustomEquipmentForm({
   const [error, setError] = useState(false);
   const form = useForm({
     defaultValues: {
-      weight: item ? formatWeight(item.weightKg, unit) : "",
+      weight: item ? formatEquipmentWeight(item.weightKg, unit) : "",
       name: item?.label ?? "",
       pairs: item?.count?.toString() ?? "",
     },
     onSubmit: async ({ value }) => {
-      const parsedWeight = parseWeight(value.weight, unit);
-      const weight =
-        parsedWeight === null
-          ? null
-          : unit === "lb"
-            ? Number(formatWeight(parsedWeight, unit)) * KG_PER_LB
-            : parsedWeight;
+      const weight = parseEquipmentWeight(value.weight, unit);
       const parsed = gymEquipmentInput.safeParse({
         kind,
         unit,
         weight_kg:
-          item && value.weight === formatWeight(item.weightKg, unit) ? item.weightKg : weight,
+          item && value.weight === formatEquipmentWeight(item.weightKg, unit)
+            ? item.weightKg
+            : weight,
         label: value.name.trim() || null,
         count: kind === "plate" && value.pairs.trim() ? Number(value.pairs) : null,
         enabled: item?.enabled ?? true,
@@ -265,7 +259,7 @@ function CustomEquipmentForm({
       }
       const saved = item
         ? await edit(item.id, {
-            ...(value.weight !== formatWeight(item.weightKg, unit)
+            ...(value.weight !== formatEquipmentWeight(item.weightKg, unit)
               ? { weight_kg: parsed.data.weight_kg }
               : {}),
             ...(kind === "bar" && value.name !== (item.label ?? "")

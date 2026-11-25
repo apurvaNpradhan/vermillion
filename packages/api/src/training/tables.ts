@@ -317,6 +317,7 @@ export const sessionExercise = pgTable(
     exerciseTitle: text("exercise_title").notNull(),
     exerciseType: text("exercise_type").notNull(),
     sourceWorkoutExerciseId: uuid("source_workout_exercise_id"),
+    stallDeload: boolean("stall_deload"),
     /** Completed history left by a swap that already updated the source Workout. */
     workoutSwapFragment: boolean("workout_swap_fragment"),
     position: text("position").notNull(),
@@ -594,6 +595,7 @@ export const programRun = pgTable(
     continuedAt: timestamptz("continued_at"),
     /** Run weeks turned into Deload weeks by "Insert deload now", ascending; null is none. */
     insertedDeloads: jsonb("inserted_deloads").$type<number[]>(),
+    pauses: jsonb("pauses").$type<import("@workspace/shared").RunPause[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

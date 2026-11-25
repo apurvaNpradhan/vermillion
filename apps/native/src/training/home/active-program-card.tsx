@@ -21,7 +21,7 @@ export function ActiveProgramCard({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { program, run, progress, week, totalWeeks } = state;
+  const { program, run, progress, week, totalWeeks, paused } = state;
   const { startSlot, sheet } = useStartSession();
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
@@ -43,11 +43,13 @@ export function ActiveProgramCard({
             {program.title}
           </Text>
           <Text className="font-normal text-caption text-muted">
-            {position > 0
-              ? progressText
-              : totalWeeks
-                ? t("run__week_of", { week, total: totalWeeks })
-                : t("run__week", { week })}
+            {paused
+              ? t("run__paused")
+              : position > 0
+                ? progressText
+                : totalWeeks
+                  ? t("run__week_of", { week, total: totalWeeks })
+                  : t("run__week", { week })}
           </Text>
         </View>
       </View>
@@ -102,9 +104,14 @@ export function ActiveProgramCard({
       </View>
       {next?.workoutId ? (
         <View className="flex-row items-center justify-between gap-3">
-          <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
-            {t("run__next", { title: slotTitle(next, t) })}
-          </Text>
+          <View className="min-w-0 flex-1">
+            <Text numberOfLines={1} className="font-normal text-body text-foreground">
+              {t("run__next", { title: slotTitle(next, t) })}
+            </Text>
+            {paused ? (
+              <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
+            ) : null}
+          </View>
           <Button
             size="sm"
             className="rounded-full px-4"
@@ -132,13 +139,14 @@ export function ActiveProgramCard({
  */
 export function RunEndOffer({ state }: { state: ReturnType<typeof useActiveProgram> }) {
   const { t } = useTranslation();
-  const { run, week, totalWeeks } = state;
+  const { run, week, totalWeeks, paused } = state;
   const [endOpen, setEndOpen] = useState(false);
   const offered = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       if (
         run &&
+        !paused &&
         totalWeeks &&
         run.started_at &&
         !run.continued_at &&
@@ -148,7 +156,7 @@ export function RunEndOffer({ state }: { state: ReturnType<typeof useActiveProgr
         offered.current = run.id;
         setEndOpen(true);
       }
-    }, [run, totalWeeks, week]),
+    }, [run, totalWeeks, week, paused]),
   );
   return (
     <ActionSheet

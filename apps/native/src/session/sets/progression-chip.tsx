@@ -1,4 +1,4 @@
-import { type Progression, type WeightUnit } from "@workspace/shared";
+import { type EffortScale, type Progression, type WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 
@@ -16,10 +16,12 @@ export function ProgressionChip({
   suggestion,
   badges,
   unit,
+  effortScale,
 }: {
   suggestion: Progression;
   badges: readonly string[];
   unit: WeightUnit;
+  effortScale: EffortScale;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
@@ -33,7 +35,7 @@ export function ProgressionChip({
       {
         badge,
         label: t(progressionLabelKey(outcome), params),
-        reason: t(progressionReasonKey(outcome), params),
+        reason: t(progressionReasonKey(outcome, effortScale), params),
         show: outcome.reason !== "same_as_last",
       },
     ];

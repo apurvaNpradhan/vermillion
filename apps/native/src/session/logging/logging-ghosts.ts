@@ -6,7 +6,7 @@ import {
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { loggingHistory, plannedSuggestion } from "../../platform/training/workout-suggestion";
-import { ghostsOf, previousOfRow } from "./set-values";
+import { ghostsOf, previousForSuggestion } from "./set-values";
 
 export type { SuggestionSettings };
 
@@ -45,10 +45,12 @@ export function loggingGhosts(
         ghostsOf(
           exercise.type,
           // A hint is derived from a baseline: never from a Test or Deload week's lighter sets.
-          previousOfRow(
+          previousForSuggestion(
             loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
+            settings,
             exercise.sets,
             index,
+            set.target,
             true,
           ),
           set.target,

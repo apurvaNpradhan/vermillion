@@ -1,4 +1,9 @@
-import { SESSION_LIMITS, type SupersetPlace, resolveExerciseUnit } from "@workspace/shared";
+import {
+  SESSION_LIMITS,
+  type SupersetPlace,
+  resolveExerciseUnit,
+  usesGymHistory,
+} from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NotePencil } from "phosphor-react-native";
@@ -13,12 +18,17 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
-import { MaxPrompt, SetupNoteChip } from "@/gym";
+import { MaxPrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
+
+/** A ticked set that loads the stack the way training does: anything but a warm-up. */
+function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
+  return kind !== "warmup";
+}
 
 /** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
 export type ExerciseHandlers = SetHandlers & {
@@ -30,6 +40,7 @@ export type ExerciseHandlers = SetHandlers & {
   onReorder: () => void;
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
+  onStallDeload: (exerciseId: string, applied: boolean) => void;
   /** The exercise was laid out again (its sets grew or shrank). */
   onLayout: (exerciseId: string) => void;
 };
@@ -82,6 +93,7 @@ export const ExerciseItem = memo(function ExerciseItem({
           ? (state.inputs.gym.settingFor(exercise.exerciseId)?.setupNote ?? null)
           : null,
         readOnly: state.ui.readOnly,
+        effortScale: state.ui.effortScale,
         expanded: state.expanded.has(exerciseId),
         done: allTicked(exercise?.sets ?? []),
       };
@@ -116,11 +128,13 @@ export const ExerciseItem = memo(function ExerciseItem({
             (set, index) => data.rows?.get(set.id)?.badge ?? String(index + 1),
           )}
           unit={unit}
+          effortScale={data.effortScale}
         />
       ) : null,
-    [suggestion, exercise, data.rows, unit],
+    [suggestion, exercise, data.rows, data.effortScale, unit],
   );
   if (!exercise) return null;
+  const equipment = exercise.exercise?.equipment ?? "other";
   return (
     <View className={expanded ? "pb-4" : "pb-1"} onLayout={() => handlers.onLayout(exerciseId)}>
       <ExerciseRow
@@ -151,6 +165,9 @@ export const ExerciseItem = memo(function ExerciseItem({
                   latestSessionId={stall.latestSessionId}
                   count={stall.count}
                   applied={stall.applied}
+                  onApply={
+                    readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)
+                  }
                 />
               ) : null}
               {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}
@@ -159,7 +176,20 @@ export const ExerciseItem = memo(function ExerciseItem({
                   exerciseId={exercise.exerciseId}
                   sessionId={data.activeSessionId}
                   gymId={data.gymId}
-                  equipment={exercise.exercise?.equipment ?? "other"}
+                  equipment={equipment}
+                  unit={unit}
+                />
+              ) : null}
+              {!readOnly &&
+              data.activeSessionId &&
+              data.gymId &&
+              usesGymHistory(equipment) &&
+              exercise.sets.some((set) => isStepEvidence(set.kind) && set.completedAt !== null) ? (
+                <StepPrompt
+                  key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
+                  exerciseId={exercise.exerciseId}
+                  gymId={data.gymId}
+                  equipment={equipment}
                   unit={unit}
                 />
               ) : null}

@@ -468,8 +468,8 @@ export function replaceWarmups(
         .from(sessionSet)
         .where(eq(sessionSet.session_exercise_id, sessionExerciseId))
     ).sort(byPosition);
+    const owner = await requireSession(tx, parent.session_id);
     if (options.auto) {
-      const owner = await requireSession(tx, parent.session_id);
       const [setting] = await tx
         .select({ auto: exerciseSetting.auto_warmups })
         .from(exerciseSetting)
@@ -485,7 +485,8 @@ export function replaceWarmups(
         return false;
       }
     }
-    const firstOther = rows.findIndex((row) => row.kind !== "warmup");
+    const workups = owner.phase_modifiers?.test_workup_ids ?? [];
+    const firstOther = rows.findIndex((row) => row.kind !== "warmup" || workups.includes(row.id));
     const lead = firstOther < 0 ? rows : rows.slice(0, firstOther);
     const others = firstOther < 0 ? [] : rows.slice(firstOther);
     const slots = planRampSlots(lead, ramp);

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { activeRun, cycleState, phaseFor } from "@workspace/shared";
+import { activeRun, cycleState, phaseFor, runPausedAt } from "@workspace/shared";
 import {
   watchExerciseAutoWarmups,
   watchExerciseHistory,
@@ -88,13 +88,11 @@ export function useExerciseProgression(exerciseId: string, gymId?: string | null
 
   const now = new Date();
   const week =
-    run && program.status === "ready" && workout.programId === run.program_id
-      ? phaseFor(
-          program.program.phasePlan,
-          { started_at: run.started_at, inserted_deloads: run.inserted_deloads },
-          now,
-          timeZone,
-        )
+    run &&
+    !runPausedAt(run.pauses, now) &&
+    program.status === "ready" &&
+    workout.programId === run.program_id
+      ? phaseFor(program.program.phasePlan, run, now, timeZone, runs.value?.phaseStarts)
       : null;
   return nextExerciseSuggestion(
     workout,

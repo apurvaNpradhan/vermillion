@@ -5,7 +5,7 @@ import type { TrainingPlace } from "../vocabulary/profile";
 
 const KITS = {
   kg: { bars: [20, 15, 10, 0], trap: 25, plates: [25, 20, 15, 10, 5, 2.5, 1.25, 0.5] },
-  lb: { bars: [45, 35, 25, 0], trap: 55, plates: [45, 35, 25, 10, 5, 2.5] },
+  lb: { bars: [45, 35, 25, 0], trap: 55, plates: [45, 35, 25, 10, 5, 2.5, 1.25] },
 } as const satisfies Record<
   WeightUnit,
   { bars: readonly number[]; trap: number; plates: readonly number[] }
@@ -22,6 +22,7 @@ const HOME_KITS = {
 
 /** The third bar of each kit is the EZ bar. */
 const EZ_BAR_INDEX = 2;
+const FRACTIONAL_PLATE = { kg: 0.5, lb: 1.25 };
 
 /** The labels the plate calculator looks for to open an EZ bar or trap bar exercise (ADR 0050). */
 export const EZ_BAR_LABEL = "EZ";
@@ -29,9 +30,9 @@ export const TRAP_BAR_LABEL = "Trap";
 
 /**
  * The kit seeded on first use (ADR 0038). kg: bars 20, 15, 10 (EZ) and 0, plates 25 down to
- * 0.5. lb: bars 45, 35, 25 and 0, plates 45 down to 2.5. Both kits end their bars with a trap
+ * 0.5. lb: bars 45, 35, 25 and 0, plates 45 down to 1.25. Both kits end their bars with a trap
  * bar (25 kg, 55 lb). Any place but the gym seeds the smaller home kit. Weights are stored in kg whatever the unit, which only records the kit an
- * item belongs to; plate counts are unlimited.
+ * item belongs to; plate counts are unlimited. Fractional plates start disabled.
  */
 export function defaultGymKit(
   unit: WeightUnit,
@@ -83,7 +84,7 @@ export function defaultGymKit(
       unit,
       label: null,
       count: null,
-      enabled: true,
+      enabled: weight !== FRACTIONAL_PLATE[unit],
     })),
   ];
 }

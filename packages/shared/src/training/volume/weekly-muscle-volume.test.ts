@@ -127,7 +127,7 @@ it("counts repeated workouts and half-credit secondary muscles in the weekly pla
     { muscle: "chest", sets: 4 },
     { muscle: "triceps", sets: 2 },
   ]);
-  expect(plannedMuscleVolume({ slots, sessionsPerWeek: 1 })).toEqual([
+  expect(plannedMuscleVolume({ slots, sessionsPerWeek: null }, 0.5)).toEqual([
     { muscle: "chest", sets: 2 },
     { muscle: "triceps", sets: 1 },
   ]);

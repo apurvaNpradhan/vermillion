@@ -2,7 +2,6 @@ import {
   PHASES,
   modifiersFor,
   phaseFor,
-  runWeek,
   withModifiers,
   withPattern,
   withWeekPhase,
@@ -10,7 +9,7 @@ import {
 } from "@workspace/shared";
 import type { ProgramDetail, readRuns } from "@workspace/sync";
 import { TrendDown } from "phosphor-react-native";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
@@ -40,41 +39,37 @@ export function PhaseSection({
   program,
   run,
   actions,
+  trainedAt,
+  paused,
 }: {
   program: ProgramDetail;
   /** The active Run when this Program is the active one; null otherwise. */
   run: Awaited<ReturnType<typeof readRuns>>[number] | null;
   actions: ReturnType<typeof useProgramActions>;
+  trainedAt?: readonly string[];
+  paused: boolean;
 }) {
   const { t } = useTranslation();
   const text = usePhaseText();
   const timeZone = useDeviceTimeZone();
   const plan = program.phasePlan;
-  const inserted = run?.inserted_deloads ?? [];
-  const currentWeek = run ? runWeek(run.started_at, new Date(), timeZone) : null;
+  const now = new Date();
   const [patternOpen, setPatternOpen] = useState(false);
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
   const insert = useInsertDeload(run);
-  const blocks = useMemo(
-    () =>
-      plan
-        ? stripBlocks({
-            plan,
-            insertedDeloads: inserted,
-            currentWeek,
-            plannedWeeks: program.plannedWeeks,
-          })
-        : [],
-    // `inserted` is a new array each render, but its weeks are what matter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plan, inserted.join(","), currentWeek, program.plannedWeeks],
-  );
+  const blocks = plan
+    ? stripBlocks({
+        plan,
+        current: run ? { run, now, timeZone, trainedAt } : undefined,
+        plannedWeeks: program.plannedWeeks,
+      })
+    : [];
   const save = (next: ProgramDetail["phasePlan"]) =>
     void actions.update(program.id, { phase_plan: next });
   const overridden =
     week !== null && plan?.overrides.some((item) => item.week === week.programWeek);
-  const nowPhase = phaseFor(plan, run, new Date(), timeZone);
+  const nowPhase = phaseFor(plan, run, now, timeZone, trainedAt);
 
   return (
     <View className="gap-2">
@@ -101,7 +96,7 @@ export function PhaseSection({
           </Text>
           <PhaseStrip blocks={blocks} onSelect={setWeek} />
           <View className="gap-3 px-4 pt-2">
-            {run && nowPhase?.phase !== "deload" ? (
+            {run && !paused && nowPhase?.phase !== "deload" ? (
               <ListSection variant="plain">
                 <ListRow
                   icon={TrendDown}
@@ -136,8 +131,13 @@ export function PhaseSection({
           phase={editing}
           modifiers={modifiersFor(plan, editing)}
           testTop={plan.test_top}
-          onSave={(modifiers, testTop) =>
-            save({ ...withModifiers(plan, editing, modifiers), test_top: testTop })
+          testWorkups={plan.test_workups ?? false}
+          onSave={(modifiers, testTop, testWorkups) =>
+            save({
+              ...withModifiers(plan, editing, modifiers),
+              test_top: testTop,
+              test_workups: testWorkups,
+            })
           }
           onClose={() => setEditing(null)}
         />

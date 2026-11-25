@@ -25,6 +25,10 @@ export {
   activeRun,
   cycleState,
   runWeek,
+  runPausesSchema,
+  runPausedAt,
+  closeRunPauses,
+  type RunPause,
   slotSkipId,
   type RunSlot,
   type SlotSkip,
@@ -47,8 +51,10 @@ export {
 } from "./progress/progression-steps";
 export * from "./progress/lighter-week";
 export * from "./phases/phases";
+export { isTestSingle, testWorkingLoad } from "./phases/test-load";
 export * from "./progress/stalled-lift";
 export * from "./progress/suggestion-context";
+export { usesFixedPrescription } from "./progress/suggestion-history";
 export * from "./plans/week";
 export * from "./plans/session-goal";
 export * from "./volume/muscle-targets";

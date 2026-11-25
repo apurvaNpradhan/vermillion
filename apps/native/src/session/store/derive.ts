@@ -1,6 +1,8 @@
 import {
   SET_FIELDS,
   optionalSetIndexes,
+  isTestSingle,
+  type Phase,
   suggestionContext,
   gridCapInUnit,
   type Ghosts,
@@ -19,7 +21,12 @@ import type { GymLoads } from "@/gym";
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
 import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
-import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
+import {
+  ghostsOf,
+  previousForSuggestion,
+  valueOfSet,
+  type DisplayUnits,
+} from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
 
@@ -43,14 +50,13 @@ export type DeriveInputs = {
   lighter: boolean;
   /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
   phaseLoad: number;
+  phase?: Phase | null;
+  testEntryId?: string;
   bodyweightKg: number | null;
-  /** Changes when a stalled note is dismissed or applied (that memory lives on the device). */
+  /** Changes when a stalled note is manually dismissed on this device. */
   stallVersion: number;
   /** The device's memory of a stalled note. */
-  stallMemory: (
-    exerciseId: string,
-    latestSessionId: string,
-  ) => { dismissed: boolean; applied: boolean };
+  stallMemory: (exerciseId: string, latestSessionId: string) => { dismissed: boolean };
   /** The badge text of each set: its number, or its kind's letter. */
   chipTexts: (sets: readonly { kind: SetKind }[]) => string[];
 };
@@ -127,6 +133,14 @@ function buildView(
       grid,
       // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
       stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
+      stallDeload: exercise.stallDeload,
+      prescription: exercise.sets.map(({ kind, target }) => ({ ...target, kind })),
+      testSingle:
+        inputs.testEntryId === exercise.sourceWorkoutExerciseId &&
+        isTestSingle(
+          inputs.phase,
+          exercise.sets.map(({ target }) => target),
+        ),
     },
     inputs,
   );
@@ -147,9 +161,21 @@ function buildView(
 
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
-    const previous = previousOfRow(history, exercise.sets, index);
-    // The hint is derived from a baseline Session, not from a Test or Deload week.
-    const hinted = previousOfRow(history, exercise.sets, index, true);
+    const previous = previousForSuggestion(
+      history,
+      context.settings,
+      exercise.sets,
+      index,
+      set.target,
+    );
+    const hinted = previousForSuggestion(
+      history,
+      context.settings,
+      exercise.sets,
+      index,
+      set.target,
+      true,
+    );
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,

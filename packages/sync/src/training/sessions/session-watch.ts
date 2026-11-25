@@ -153,6 +153,7 @@ export type SessionExerciseDetail = {
   type: ExerciseType;
   sourceWorkoutExerciseId: string | null;
   workoutSwapFragment?: boolean;
+  stallDeload?: boolean;
   position: string;
   restSeconds: number | null;
   note: string | null;
@@ -239,7 +240,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     s.paused_at AS paused_at, s.paused_ms AS paused_ms,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
+    se.stall_deload AS stall_deload, se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
     es.progression_per_set AS progression_per_set, es.bar_id AS bar_id,
     es.auto_warmups AS auto_warmups, es.note AS pinned_note, es.unit AS unit,
@@ -306,6 +307,7 @@ const detailRowSchema = z.object({
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   source_workout_exercise_id: z.string().nullable(),
   workout_swap_fragment: flag.nullable(),
+  stall_deload: flag.nullable().optional(),
   exercise_position: z.string().nullable(),
   rest_seconds: z.number().nullable(),
   exercise_note: z.string().nullable(),
@@ -381,6 +383,7 @@ export function parseSessionDetail(
         type: row.exercise_type,
         sourceWorkoutExerciseId: row.source_workout_exercise_id,
         workoutSwapFragment: row.workout_swap_fragment === true,
+        stallDeload: row.stall_deload === true,
         position: row.exercise_position,
         restSeconds: row.rest_seconds,
         note: row.exercise_note,
@@ -472,10 +475,11 @@ const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS start
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
     s.workout_id AS workout_id, s.gym_id AS gym_id, s.phase AS phase,
     se.id AS session_exercise_id, se.source_workout_exercise_id AS source_workout_exercise_id,
+    se.stall_deload AS stall_deload,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
-    ss.steps AS steps, ss.rpe AS rpe, ss.completed_at AS completed_at`;
+    ss.steps AS steps, ss.rpe AS rpe, ss.target AS target, ss.completed_at AS completed_at`;
 
 const SET_ORDER = "ORDER BY s.started_at DESC, s.id DESC, se.position, se.id, ss.position, ss.id";
 
@@ -689,12 +693,12 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
         json_group_array(json(payload))) AS signature
     FROM (
       SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s, s.paused_ms, s.workout_id,
-        json_array(se.exercise_id, se.exercise_type, se.exercise_title, ss.id, ss.kind,
+        json_array(se.exercise_id, se.exercise_type, se.exercise_title, se.stall_deload, ss.id, ss.kind,
           CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
           ss.reps, ss.duration_s,
           CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
           ss.floors, ss.steps,
-          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.completed_at) AS payload
+          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.target, ss.completed_at) AS payload
       FROM training_session s
       LEFT JOIN session_exercise se ON se.session_id = s.id
       LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
@@ -819,6 +823,8 @@ const finishedRowSchema = z.object({
   floors: z.number().nullable(),
   steps: z.number().nullable(),
   rpe: z.number().nullable(),
+  target: targetText.optional(),
+  stall_deload: flag.nullable().optional(),
   completed_at: z.string().nullable(),
 });
 
@@ -872,6 +878,8 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         floors: row.floors,
         steps: row.steps,
         rpe: row.rpe,
+        target: row.target ?? null,
+        stall_deload: row.stall_deload === true,
       };
       current.sets.push(set);
     }

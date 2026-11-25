@@ -1,5 +1,8 @@
 import {
   formatWeight,
+  exerciseRecords,
+  recordFlags,
+  parseWeight,
   KG_PER_LB,
   insertedDeloadsSchema,
   type PhasePlanInput,
@@ -10,7 +13,13 @@ import { z } from "zod";
 
 import { savePreferences } from "../../preferences";
 import { setGymExerciseSetting } from "../gyms/gym-store";
-import { activateProgram, finishRun, insertDeloadNow, readRuns } from "../plans/run-store";
+import {
+  activateProgram,
+  finishRun,
+  insertDeloadNow,
+  readRuns,
+  setRunPaused,
+} from "../plans/run-store";
 import {
   addExercises,
   addSlot,
@@ -23,8 +32,9 @@ import {
 } from "../store";
 import { CURL, DIP, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
 import { setExerciseSetting, upsertEquipment } from "./equipment-store";
-import { finishSession, startSession } from "./session-store";
-import { tickSet, updateSet } from "./session-content-store";
+import { finishSession, logPastSession, startSession } from "./session-store";
+import { EXERCISE_HISTORY_SQL, parseFinishedSessions } from "./session-watch";
+import { replaceWarmups, tickSet } from "./session-content-store";
 
 const DAY = 86_400_000;
 
@@ -52,9 +62,9 @@ async function setup(s: Sessions, plan: PhasePlanInput | null) {
   const [squat = "", curl = ""] = await addExercises(s.training, workoutId, [SQUAT, CURL]);
   await updateWorkoutExercise(s.training, squat, { sets: sets(4) });
   await updateWorkoutExercise(s.training, curl, { sets: sets(4) });
-  await addSlot(s.training, programId, workoutId);
+  const slotId = await addSlot(s.training, programId, workoutId);
   const runId = await activateProgram(s.training, programId);
-  return { programId, workoutId, squat, curl, runId };
+  return { programId, workoutId, squat, curl, runId, slotId };
 }
 
 /** Starts a Session as if the Run began `weeksAgo` weeks ago. */
@@ -64,6 +74,44 @@ async function startInWeek(s: Sessions, runId: string, workoutId: string, week: 
     .run(new Date(Date.now() - (week - 1) * 7 * DAY - 60_000).toISOString(), runId);
   return await startSession(s.training, { workoutId, derivedTitle: "Day", timeZone: "UTC" });
 }
+
+it("resumes a paused Run when starting its Workout, and leaves backfills outside", async () => {
+  const s = await setupSessions();
+  try {
+    const { runId, workoutId, slotId } = await setup(s, { pattern: ["push", "test", "deload"] });
+    const session = await startInWeek(s, runId, workoutId, 1);
+    const exercise = s.exercises(session)[0];
+    const set = exercise && s.sets(String(exercise.id))[0];
+    if (!set) throw new Error("Expected a working set");
+    await tickSet(s.training, String(set.id), { weight: 100, reps: 8 });
+    await finishSession(s.training, session);
+    const now = Date.now();
+    const at = (daysAgo: number) => new Date(now - daysAgo * DAY).toISOString();
+    s.sqlite
+      .prepare("UPDATE training_session SET started_at = ?, finished_at = ? WHERE id = ?")
+      .run(at(21), at(21), session);
+    s.sqlite.prepare("UPDATE program_run SET started_at = ? WHERE id = ?").run(at(21), runId);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(14))).toBe(true);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(13))).toBe(false);
+    const source = { workoutId, derivedTitle: "Day", timeZone: "UTC" };
+    const backfill = await logPastSession(s.training, source, { startedAt: at(10) });
+    expect(s.one("training_session", backfill)).toMatchObject({ run_id: null, phase: null });
+    expect((await readRuns(s.training))[0]?.pauses).toEqual([{ from: at(14), until: null }]);
+    const returned = await startSession(s.training, {
+      ...source,
+      day: { runId, slotId, cycle: 2 },
+    });
+    const row = s.one("training_session", returned);
+    expect(row).toMatchObject({ run_id: runId, slot_id: slotId, cycle: 2, phase: "build" });
+    expect((await readRuns(s.training))[0]?.pauses).toEqual([
+      { from: at(14), until: row?.started_at },
+    ]);
+    const outside = await logPastSession(s.training, source, { startedAt: at(2) });
+    expect(s.one("training_session", outside)).toMatchObject({ run_id: null, phase: null });
+  } finally {
+    s.sqlite.close();
+  }
+});
 
 const exerciseRow = z.object({ id: z.string(), exercise_id: z.string() });
 const setRow = z.object({ target: z.string() });
@@ -128,13 +176,17 @@ it("makes the main lift one top set in a Test week, and the first exercise by de
     const first = await startInWeek(s, runId, workoutId, 1);
     expect(phaseOf(s, first)).toBe("test");
     const targets = targetsOf(s, first);
-    expect(targets.get(SQUAT)).toEqual([{ kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100 }]);
+    expect(targets.get(SQUAT)).toEqual([
+      { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100, effort_min: 8, effort_max: 9 },
+    ]);
     expect(targets.get(CURL)).toHaveLength(2);
     // Changing the main lift per Workout moves the top set to it.
     await updateWorkout(s.training, workoutId, { main_entry_id: curl });
     const second = await startInWeek(s, runId, workoutId, 1);
     const moved = targetsOf(s, second);
-    expect(moved.get(CURL)).toEqual([{ kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100 }]);
+    expect(moved.get(CURL)).toEqual([
+      { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100, effort_min: 8, effort_max: 9 },
+    ]);
     expect(moved.get(SQUAT)).toHaveLength(2);
   } finally {
     s.sqlite.close();
@@ -205,7 +257,7 @@ it("a plan added later applies from the next Session, and clearing it ends the p
   }
 });
 
-it("inserts a deload now: this week becomes a Deload and the rest shifts by one", async () => {
+it("inserts a deload now and restarts the pattern the following week", async () => {
   const s = await setupSessions();
   try {
     const { workoutId, runId } = await setup(s, { pattern: ["build", "build", "deload"] });
@@ -214,9 +266,10 @@ it("inserts a deload now: this week becomes a Deload and the rest shifts by one"
     const run = (await readRuns(s.training)).find((item) => item.id === runId);
     expect(run?.inserted_deloads).toEqual([2]);
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 2))).toBe("deload");
-    // Week 3 now holds Program week 2, week 4 the plan's deload.
+    // Weeks 3 and 4 are Build. The next planned Deload is week 5.
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 3))).toBe("build");
-    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 4))).toBe("deload");
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 4))).toBe("build");
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 5))).toBe("deload");
     // The same week twice is a no-op.
     expect(await insertDeloadNow(s.training, runId, 2)).toBe(false);
     expect(
@@ -399,7 +452,13 @@ it("keeps the modifiers it started with when the plan is edited later", async ()
     const { phase_modifiers: stored } = z
       .object({ phase_modifiers: z.string() })
       .parse(s.one("training_session", id));
-    expect(JSON.parse(stored)).toEqual({ sets: 0.5, rpe: -2, load: 0.9, test_top: "single" });
+    expect(JSON.parse(stored)).toEqual({
+      sets: 0.5,
+      rpe: -2,
+      load: 0.9,
+      test_top: "single",
+      load_cuts: [10, 10],
+    });
     // The snapshot survives finishing the Session.
     await finishSession(s.training, id);
     expect(
@@ -411,29 +470,129 @@ it("keeps the modifiers it started with when the plan is edited later", async ()
   }
 });
 
-it("starts a Test week's top set from the last baseline's heaviest working set", async () => {
-  const s = await setupSessions();
-  try {
-    const { workoutId, runId } = await setup(s, { pattern: ["build", "test"] });
-    // Week 1 (a Build) lifts 120 kg, though the Workout still plans 100 kg.
-    const build = await startInWeek(s, runId, workoutId, 1);
-    const exercise = z
-      .array(z.object({ id: z.string(), exercise_id: z.string() }))
-      .parse(s.exercises(build))
-      .find((row) => row.exercise_id === SQUAT);
-    const rows = z.array(z.object({ id: z.string() })).parse(s.sets(exercise?.id ?? ""));
-    await updateSet(s.training, rows[0]?.id ?? "", { weight_kg: 120, reps: 5 });
-    await tickSet(s.training, rows[0]?.id ?? "", {});
-    await finishSession(s.training, build);
-    const test = await startInWeek(s, runId, workoutId, 2);
-    expect(phaseOf(s, test)).toBe("test");
-    expect(targetsOf(s, test).get(SQUAT)).toEqual([
-      { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 120 },
-    ]);
-  } finally {
-    s.sqlite.close();
-  }
-});
+it.each([
+  { unit: "kg", baseline: 100, top: 105, warmups: [85, 95], record: 115 },
+  { unit: "lb", baseline: 225, top: 235, warmups: [190, 210], record: 260 },
+] as const)(
+  "seeds a Test single and work-ups in $unit and records a new e1RM",
+  async ({ unit, baseline, top, warmups, record }) => {
+    const s = await setupSessions();
+    const kg = (value: number) => parseWeight(String(value), unit) ?? 0;
+    try {
+      await savePreferences(
+        s.training,
+        { ui: { weightUnit: unit } },
+        { installId: s.installId, owner: "owner" },
+      );
+      const { workoutId, runId } = await setup(s, {
+        pattern: ["build", "test"],
+        test_workups: true,
+      });
+      const build = await startInWeek(s, runId, workoutId, 1);
+      const buildSquat = z
+        .array(exerciseRow)
+        .parse(s.exercises(build))
+        .find((row) => row.exercise_id === SQUAT);
+      const first = s.sets(buildSquat?.id ?? "")[0];
+      await tickSet(s.training, String(first?.id), { weight: kg(baseline), reps: 5 });
+      await finishSession(s.training, build);
+
+      const test = await startInWeek(s, runId, workoutId, 2);
+      expect(phaseOf(s, test)).toBe("test");
+      const targets = targetsOf(s, test).get(SQUAT);
+      expect(targets).toEqual([
+        ...warmups.map((weight) => ({
+          kind: "warmup",
+          reps_min: 1,
+          reps_max: 1,
+          weight_kg: kg(weight),
+        })),
+        { kind: "top", reps_min: 1, reps_max: 1, weight_kg: kg(top), effort_min: 8, effort_max: 9 },
+      ]);
+      const testSquat = z
+        .array(exerciseRow)
+        .parse(s.exercises(test))
+        .find((row) => row.exercise_id === SQUAT);
+      if (!testSquat) throw new Error("Expected the Test entry");
+      await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+      const ramp = [warmups[0] / 2, warmups[0] - 5].map((load) => ({
+        kind: "warmup" as const,
+        weight_kg: kg(load),
+        reps_min: 3,
+        reps_max: 3,
+      }));
+      expect(
+        await replaceWarmups(s.training, testSquat.id, ramp, s.installId, { auto: true }),
+      ).toBe(true);
+      expect(targetsOf(s, test).get(SQUAT)).toEqual([...ramp, ...(targets ?? [])]);
+      const single = s.sets(testSquat?.id ?? "").find((set) => set.kind === "top");
+      await tickSet(s.training, String(single?.id), { weight: kg(record), reps: 1, rpe: 9 });
+      await finishSession(s.training, test);
+      const history = parseFinishedSessions(
+        await s.training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
+      );
+      const records = exerciseRecords(history).get(SQUAT);
+      expect(records?.get("reps_1")).toBe(kg(record));
+      expect(records?.get("estimated_one_rep_max")).toBe(kg(record));
+      expect(recordFlags(history).get(String(single?.id))).toContain("estimated_one_rep_max");
+    } finally {
+      s.sqlite.close();
+    }
+  },
+);
+
+it.each([
+  { unit: "kg", added: 20, expected: 3.75 },
+  { unit: "lb", added: 45, expected: 7.5 },
+] as const)(
+  "uses bodyweight on the two training dates for a weighted Test in $unit",
+  async ({ unit, added, expected }) => {
+    const s = await setupSessions();
+    try {
+      await savePreferences(
+        s.training,
+        { ui: { weightUnit: unit } },
+        { installId: s.installId, owner: "owner" },
+      );
+      const { workoutId, runId } = await setup(s, { pattern: ["build", "test"] });
+      s.sqlite
+        .prepare(
+          "UPDATE exercise SET exercise_type = 'bodyweight_weighted_reps', equipment = 'none' WHERE id = ?",
+        )
+        .run(DIP);
+      const [dip] = await addExercises(s.training, workoutId, [DIP]);
+      if (!dip) throw new Error("Expected a weighted dip");
+      await updateWorkoutExercise(s.training, dip, { sets: sets(1) });
+      await updateWorkout(s.training, workoutId, { main_entry_id: dip });
+      const build = await startInWeek(s, runId, workoutId, 1);
+      const row = z
+        .array(exerciseRow)
+        .parse(s.exercises(build))
+        .find((entry) => entry.exercise_id === DIP);
+      const first = s.sets(row?.id ?? "")[0];
+      await tickSet(s.training, String(first?.id), {
+        weight: parseWeight(String(added), unit),
+        reps: 5,
+      });
+      await finishSession(s.training, build);
+      const earlier = new Date(Date.now() - 2 * DAY).toISOString();
+      const today = new Date().toISOString();
+      s.sqlite
+        .prepare("UPDATE training_session SET started_at = ?, finished_at = ? WHERE id = ?")
+        .run(earlier, earlier, build);
+      const weight = s.sqlite.prepare(`INSERT INTO body_measurement
+      (id, user_id, metric, value, measured_at, local_date, source, created_at)
+      VALUES (?, 'owner', 'weight', ?, ?, ?, 'manual', ?)`);
+      weight.run("baseline", 60, earlier, earlier.slice(0, 10), earlier);
+      weight.run("today", 80, today, today.slice(0, 10), today);
+      const test = await startInWeek(s, runId, workoutId, 2);
+      const top = targetsOf(s, test).get(DIP)?.[0];
+      expect(formatWeight(top?.weight_kg ?? 0, unit)).toBe(String(expected));
+    } finally {
+      s.sqlite.close();
+    }
+  },
+);
 
 it("is as many reps as possible for a lift with no weight in a Test week", async () => {
   const s = await setupSessions();

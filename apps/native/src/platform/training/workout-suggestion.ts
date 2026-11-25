@@ -2,7 +2,8 @@ import {
   applyPhase,
   hasLoad,
   historyForGym,
-  lastBaselineLoadKg,
+  isTestSingle,
+  testWorkingLoad,
   mainEntryOf,
   resolveExerciseUnit,
   suggestionContext,
@@ -47,9 +48,12 @@ export function plannedSuggestion(
       now,
       bodyweightKg: settings.bodyweightKg,
       baselineHistory: loggingHistory(history, exercise.equipment, settings),
+      fixedBaselineHistory: settings.fixedBaselineHistory,
+      fixedFallbackHistory: settings.fixedFallbackHistory,
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
       phaseLoad: settings.phaseLoad,
+      testSingle: settings.testSingle,
       grid: settings.grid,
     },
   );
@@ -59,7 +63,7 @@ export function plannedSuggestion(
 function workoutEntryContext(
   entry: WorkoutExerciseDetail,
   history: readonly ContextSession[],
-  place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad">,
+  place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad" | "testSingle">,
   account: SuggestionAccount,
   exerciseOrdinal: number,
   duplicateEntry: boolean,
@@ -77,6 +81,7 @@ function workoutEntryContext(
       unitOverride: entry.unit,
       workoutId: entry.workoutId,
       stalls: true,
+      prescription: entry.sets,
     },
     account,
   );
@@ -90,28 +95,36 @@ export function prepareWorkoutEntry(
   place: Pick<SuggestionPlace, "gymId" | "grid">,
   account: SuggestionAccount,
   week: PhaseNow | null,
+  now = new Date(),
 ) {
   const exercise = original.exercise;
+  const main =
+    original.id ===
+    mainEntryOf(
+      workout.exercises.map(({ id }) => id),
+      workout.mainEntryId,
+    );
   const entry =
     week && exercise
       ? {
           ...original,
           sets: applyPhase(original.sets, week.phase, {
-            isMainLift:
-              original.id ===
-              mainEntryOf(
-                workout.exercises.map(({ id }) => id),
-                workout.mainEntryId,
-              ),
+            isMainLift: main,
             type: exercise.exerciseType,
             equipment: exercise.equipment,
             unit: resolveExerciseUnit(account.unit, original.unit),
             grid: place.grid,
             modifiers: week.modifiers,
             testTop: week.testTop,
+            testWorkups: week.testWorkups,
             testLoadKg:
-              week.phase === "test" && hasLoad(exercise.exerciseType)
-                ? lastBaselineLoadKg(history)
+              week.phase === "test" && main && hasLoad(exercise.exerciseType)
+                ? testWorkingLoad(history, exercise.exerciseType, {
+                    now,
+                    bodyweightKg: account.bodyweightKg,
+                    lighterWeeks: account.lighterWeeks,
+                    single: week.testTop === "single",
+                  })
                 : null,
           }),
         }
@@ -120,7 +133,11 @@ export function prepareWorkoutEntry(
   const context = workoutEntryContext(
     entry,
     history,
-    { ...place, phaseLoad: week?.modifiers.load },
+    {
+      ...place,
+      phaseLoad: week?.modifiers.load,
+      testSingle: main && isTestSingle(week?.phase, entry.sets),
+    },
     account,
     entries.findIndex(({ id }) => id === original.id),
     entries.length > 1,

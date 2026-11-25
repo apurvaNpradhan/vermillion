@@ -13,7 +13,7 @@ export { ExerciseHistoryScreen } from "./detail/components/exercise-history";
 export { PinnedNote } from "./components/pinned-note";
 export { ExerciseHeading } from "./components/exercise-heading";
 export { StalledNote } from "./stall/stalled-note";
-export { changeStall, stallMemory, useStallVersion } from "./stall/stall-store";
+export { stallMemory, useStallVersion } from "./stall/stall-store";
 export { topSet } from "./detail/top-set";
 export { useTopSetText } from "./detail/use-top-set-text";
 export { useExercise } from "./detail/use-exercise";

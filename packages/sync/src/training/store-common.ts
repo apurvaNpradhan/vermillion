@@ -57,6 +57,7 @@ export const trainingUploadColumns = {
     "outcome",
     "continued_at",
     "inserted_deloads",
+    "pauses",
   ]),
   program: new Set([
     "title",
@@ -113,6 +114,7 @@ export const trainingUploadColumns = {
     "exercise_title",
     "exercise_type",
     "source_workout_exercise_id",
+    "stall_deload",
     "workout_swap_fragment",
     "position",
     "rest_seconds",

@@ -3,6 +3,7 @@ import {
   actualValuesSchema,
   SET_VALUE_KEYS,
   formatLoad,
+  usesFixedPrescription,
   formatWeight,
   ghostFor,
   previousFor,
@@ -12,6 +13,7 @@ import {
   type GhostField,
   type Ghosts,
   type SuggestedSet,
+  type SuggestionSettings,
   type LoggedSet,
   type PlannedSet,
   type SessionHistory,
@@ -40,6 +42,26 @@ export function previousOfRow(
   const set = sets[index];
   if (!set || !history) return null;
   return previousFor(history, set.kind, ordinalOf(sets, index), baselineOnly);
+}
+
+/** Fixed-rep Previous and Ghosts read the same matching prescription as the engine. */
+export function previousForSuggestion(
+  history: readonly SessionHistory[],
+  settings: Pick<SuggestionSettings, "fixedBaselineHistory" | "fixedFallbackHistory">,
+  rows: readonly (PlannedSet | Pick<SessionSetDetail, "kind" | "target">)[],
+  index: number,
+  target: PlannedSet | null,
+  baselineOnly = false,
+): LoggedSet | null {
+  const prescription = rows.map((row) =>
+    "target" in row ? { ...row.target, kind: row.kind } : row,
+  );
+  if (target && usesFixedPrescription(prescription, target)) {
+    const { fixedBaselineHistory, fixedFallbackHistory } = settings;
+    if (fixedBaselineHistory?.length) return previousOfRow(fixedBaselineHistory, rows, index, true);
+    if (fixedFallbackHistory) return previousOfRow(fixedFallbackHistory, rows, index, baselineOnly);
+  }
+  return previousOfRow(history, rows, index, baselineOnly);
 }
 
 /**

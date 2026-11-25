@@ -1,5 +1,11 @@
 import type { DbExecutor } from "@workspace/db";
-import { insertedDeloadsSchema, TRAINING_LIMITS, type SessionInput } from "@workspace/shared";
+import {
+  insertedDeloadsSchema,
+  runPausesSchema,
+  TRAINING_LIMITS,
+  type RunPause,
+  type SessionInput,
+} from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -16,6 +22,7 @@ const fields = {
   continued_at: z.iso.datetime({ offset: true }).nullable(),
   // JSON text of the Run weeks turned into Deload weeks; absent from an older app's write.
   inserted_deloads: jsonText(insertedDeloadsSchema).nullable(),
+  pauses: jsonText(runPausesSchema).nullable(),
 };
 // A write fills what it leaves out; a PATCH must not (zod applies defaults to `.partial()` too).
 const input = z.strictObject({
@@ -25,9 +32,16 @@ const input = z.strictObject({
   outcome: fields.outcome.default(null),
   continued_at: fields.continued_at.default(null),
   inserted_deloads: fields.inserted_deloads.default(null),
+  pauses: fields.pauses.default(null),
 });
 // The weeks stay text here: `input` parses them once, after the patch is merged onto the row.
-const patchInput = z.strictObject({ ...fields, inserted_deloads: z.string().nullable() }).partial();
+const patchInput = z
+  .strictObject({
+    ...fields,
+    inserted_deloads: z.string().nullable(),
+    pauses: z.string().nullable(),
+  })
+  .partial();
 /**
  * Two devices may each insert a Deload while offline: both stay, and the weeks do not repeat. A
  * Run holds at most {@link TRAINING_LIMITS.insertedDeloadsMax} of them; more than that is refused
@@ -39,6 +53,27 @@ function unionWeeks(stored: readonly number[] | null, incoming: readonly number[
   if (weeks.length > TRAINING_LIMITS.insertedDeloadsMax) throw new SyncRejection("SYNC_INVALID_OP");
   return weeks;
 }
+/** Offline pauses merge by start time. A stale open copy cannot reopen a resumed interval. */
+function mergePauses(stored: readonly RunPause[] | null, incoming: readonly RunPause[] | null) {
+  if (stored === null && incoming === null) return null;
+  const pauses = new Map<number, RunPause>();
+  for (const pause of [...(stored ?? []), ...(incoming ?? [])]) {
+    const start = Date.parse(pause.from);
+    const existing = pauses.get(start);
+    if (
+      !existing ||
+      existing.until === null ||
+      (pause.until !== null && Date.parse(pause.until) < Date.parse(existing.until))
+    )
+      pauses.set(start, pause);
+  }
+  return accept(
+    runPausesSchema.safeParse(
+      [...pauses.values()].sort((a, b) => Date.parse(a.from) - Date.parse(b.from)),
+    ),
+  );
+}
+
 const date = (value: string | null) => (value === null ? null : new Date(value));
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",
@@ -62,6 +97,7 @@ export const runSyncHandler: SyncTableHandler = {
               continued_at: row.continuedAt?.toISOString() ?? null,
               inserted_deloads:
                 row.insertedDeloads === null ? null : JSON.stringify(row.insertedDeloads),
+              pauses: row.pauses === null ? null : JSON.stringify(row.pauses),
             }
           : {}),
         ...patch,
@@ -85,6 +121,7 @@ export const runSyncHandler: SyncTableHandler = {
       outcome: values.outcome,
       continuedAt: date(values.continued_at),
       insertedDeloads: unionWeeks(row?.insertedDeloads ?? null, values.inserted_deloads),
+      pauses: mergePauses(row?.pauses ?? null, values.pauses),
     };
     if (!row) {
       accept(newRowId.safeParse(id));

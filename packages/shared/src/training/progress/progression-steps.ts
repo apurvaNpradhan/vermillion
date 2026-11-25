@@ -1,4 +1,4 @@
-import type { Equipment } from "../../exercise/vocabulary";
+import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import {
   KG_PER_LB,
   formatWeight,
@@ -11,9 +11,9 @@ import { alignToGrid, gridFloor, type LoadGrid, type SteppedRange } from "./load
 
 /**
  * The smallest load change that equipment can make, in the display unit: a barbell with the
- * smallest plates adds 2.5 kg (5 lb) a side pair, a kettlebell steps by 2 kg (5 lb). Plates held
+ * smallest plates adds 2.5 kg (5 lb) a side pair, a kettlebell steps by 4 kg (10 lb). Plates held
  * in the hand, the EZ and trap bars and the Smith machine step like a barbell. Everything else
- * (machines, cables, bands, suspension, no equipment) has fine adjustment, so 1 kg (2.5 lb). A
+ * besides stacks (bands, suspension, no equipment) steps by 1 kg (2.5 lb). A
  * dumbbell rack is the exception, see {@link DUMBBELL_STEPS}.
  */
 const SMALLEST_STEP = {
@@ -22,10 +22,10 @@ const SMALLEST_STEP = {
   trap_bar: { kg: 2.5, lb: 5 },
   smith_machine: { kg: 2.5, lb: 5 },
   plate: { kg: 2.5, lb: 5 },
-  kettlebell: { kg: 2, lb: 5 },
+  kettlebell: { kg: 4, lb: 10 },
   dumbbell: { kg: 1, lb: 2.5 },
-  machine: { kg: 1, lb: 2.5 },
-  cable: { kg: 1, lb: 2.5 },
+  machine: { kg: 2.5, lb: 5 },
+  cable: { kg: 2.5, lb: 5 },
   resistance_band: { kg: 1, lb: 2.5 },
   suspension: { kg: 1, lb: 2.5 },
   none: { kg: 1, lb: 2.5 },
@@ -77,7 +77,13 @@ function defaultStep(equipment: Equipment, unit: WeightUnit, loadKg: number): nu
 }
 
 /** The default step of `equipment` for a load of `loadKg`, in kilograms. */
-export function defaultStepKg(equipment: Equipment, unit: WeightUnit, loadKg: number): number {
+export function defaultStepKg(
+  equipment: Equipment,
+  unit: WeightUnit,
+  loadKg: number,
+  exerciseType?: ExerciseType,
+): number {
+  if (exerciseType === "bodyweight_weighted_reps") return toKg(unit === "kg" ? 1.25 : 2.5, unit);
   return toKg(defaultStep(equipment, unit, loadKg), unit);
 }
 
@@ -130,22 +136,31 @@ export function gridCapInUnit(grid: LoadGrid | null, unit: WeightUnit): number |
  * The increment for a set at `loadKg`, in kilograms. A gym's own step for the exercise comes
  * first; else a manual setting always wins (a cap alone changes neither); otherwise the step is
  * the loaded bar's, the rack's or the equipment's. Automatically it is about 2.5% of the load,
- * rounded to a multiple of the step and never below it.
+ * rounded to a multiple of the step and never below it. A kit uses whole default barbell
+ * steps rounded down before snapping to its plates.
  */
 export function incrementFor(
   loadKg: number | null,
   equipment: Equipment,
-  settings: { weightUnit: WeightUnit; weightIncrementKg: number | null },
+  settings: {
+    weightUnit: WeightUnit;
+    weightIncrementKg: number | null;
+    exerciseType?: ExerciseType;
+  },
   grid: LoadGrid | null = null,
 ): number {
   const load = loadKg ?? 0;
   if (grid?.source === "gym") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   if (settings.weightIncrementKg !== null) return settings.weightIncrementKg;
-  if (grid && grid.source !== "cap") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   const unit = settings.weightUnit;
-  const step = defaultStep(equipment, unit, load);
-  const raw = inUnit(load, unit) * INCREMENT_SHARE;
-  return toKg(Math.max(step, Math.round(raw / step) * step), unit);
+  if (settings.exerciseType === "bodyweight_weighted_reps")
+    return defaultStepKg(equipment, unit, load, settings.exerciseType);
+  if (grid?.source === "kit") {
+    const step = defaultStepKg("barbell", unit, 0);
+    return Math.max(1, Math.floor((load * INCREMENT_SHARE) / step + EPS)) * step;
+  }
+  if (grid?.source === "default") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
+  return automatic(load, defaultStepKg(equipment, unit, load));
 }
 
 /** 2.5% of the load in whole steps of `stepKg`, at least one. */
@@ -163,6 +178,7 @@ export function addLoad(
   addedKg: number,
   unit: WeightUnit,
   grid: LoadGrid | null = null,
+  minimumIncrease = 0,
 ): number | null {
   if (!grid) return loadable(loadKg + addedKg, unit);
   const cap = grid.capKg;
@@ -170,6 +186,15 @@ export function addLoad(
   const start = alignToGrid(grid, loadKg);
   let next: number | null = grid.nearest(start + addedKg);
   if (loadIdentity(next) <= loadIdentity(start)) next = grid.above(start);
+  const minimum = loadKg + minimumIncrease;
+  while (minimumIncrease > 0 && next !== null && loadIdentity(next) < loadIdentity(minimum)) {
+    next = grid.above(next);
+  }
+  if (
+    minimumIncrease > 0 &&
+    (next === null || (cap !== null && loadIdentity(cap) < loadIdentity(minimum)))
+  )
+    return null;
   if (cap !== null && (next === null || next > cap)) next = cap;
   if (next === null) return null;
   const typed = loadable(next, unit);
@@ -196,22 +221,32 @@ export function lightenLoad(
   equipment: Equipment,
   unit: WeightUnit,
   grid: LoadGrid | null = null,
-  rounding: "nearest" | "down" = "nearest",
+  rounding: "nearest" | "down" | "deload" = "nearest",
 ): number {
   if (loadKg <= 0) return loadable(loadKg, unit);
   // A cap alone has no grid of its own: the equipment's step rounds, the cap only limits.
   const snapping = grid !== null && grid.source !== "cap" ? grid : null;
+  if (rounding === "deload") {
+    const lowest = snapping?.nearest(0);
+    if (lowest !== undefined && loadIdentity(loadKg) <= loadIdentity(lowest)) return lowest;
+    const lower = snapping
+      ? Math.min(loadKg, gridFloor(snapping, loadKg * factor))
+      : lightenLoad(loadKg, factor, equipment, unit, grid, "down");
+    if (Math.abs(lower / loadKg - factor) <= 0.05 + EPS) return lower;
+  }
   const down = rounding === "down";
+  const forceCut = rounding === "nearest";
   let lighter: number;
   if (snapping) {
     const start = alignToGrid(snapping, loadKg);
-    const target = start * factor;
+    const target = (rounding === "deload" ? loadKg : start) * factor;
     const lowest = snapping.nearest(0);
     if (!down && loadIdentity(start) < loadIdentity(lowest)) {
       lighter = target;
     } else {
       lighter = down ? gridFloor(snapping, target) : snapping.nearest(target);
-      if (loadIdentity(lighter) >= loadIdentity(start)) lighter = snapping.below(start) ?? lowest;
+      if (loadIdentity(lighter) >= loadIdentity(start) && (down || forceCut))
+        lighter = snapping.below(start) ?? lowest;
       // Deload uses the physical point so display rounding cannot put it below the empty bar.
       if (down) return Math.min(lighter, snapping.capKg ?? lighter);
     }
@@ -223,10 +258,14 @@ export function lightenLoad(
       // Nowhere lower to go on the step: the load stays.
       lighter = floored <= 0 ? loadKg : toKg(Math.min(floored, load), unit);
     } else {
-      const rounded = Math.round((load * factor) / step) * step;
-      lighter = toKg(rounded >= load && load > step ? load - step : rounded, unit);
+      const rounded = Math.round((load * factor) / step - EPS) * step;
+      lighter =
+        rounded <= 0 && !forceCut
+          ? loadKg
+          : toKg(forceCut && rounded >= load && load > step ? load - step : rounded, unit);
     }
   }
   const limit = Math.min(loadKg, grid?.capKg ?? loadKg);
+  if (rounding === "deload" && loadIdentity(lighter) >= loadIdentity(limit)) return limit;
   return weightAtMost(Math.max(0, Math.min(lighter, limit)), unit, limit);
 }
