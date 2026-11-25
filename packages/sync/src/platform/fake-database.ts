@@ -38,12 +38,14 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
         planned_weeks INTEGER, sessions_per_week INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
-        note TEXT, created_at TEXT, restore INTEGER);
+        note TEXT, cover_media_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout_exercise (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
         exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT, superset_group TEXT,
         sets TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE program_run (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, created_at TEXT);
+      CREATE TABLE program_slot_skip (id TEXT PRIMARY KEY, user_id TEXT, run_id TEXT, slot_id TEXT,
+        cycle INTEGER, created_at TEXT);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT, import_fingerprint TEXT, import_content TEXT, import_undo TEXT,
@@ -56,6 +58,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         source_workout_exercise_id TEXT, workout_swap_fragment INTEGER, position TEXT, rest_seconds INTEGER, note TEXT,
         superset_group TEXT, log_effort INTEGER, warmup_key TEXT, repeated INTEGER, created_at TEXT, restore INTEGER);
       CREATE INDEX session_started_at_idx ON training_session (started_at);
+      CREATE INDEX session_workout_started_idx ON training_session (workout_id, started_at, id);
+      CREATE INDEX session_run_id_idx ON training_session (run_id, started_at, id);
       CREATE INDEX session_exercise_order_idx ON session_exercise (session_id, position);
       CREATE TABLE session_photo (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT, media_id TEXT, position REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,

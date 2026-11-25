@@ -9,8 +9,9 @@ import {
   runAgain,
   stopProgram,
 } from "./run-store";
+import { skipSlot, unskipSlot } from "./skip-store";
 import { setupSessions, SQUAT } from "../sessions/session-fixtures";
-import { startSession, logPastSession } from "../sessions/session-store";
+import { beginSession, startSession, logPastSession } from "../sessions/session-store";
 import { activeRun, cycleState } from "@workspace/shared";
 import { tickSet } from "../sessions/session-content-store";
 
@@ -174,20 +175,26 @@ async function rotation(count: number) {
   const progress = () => {
     const rows = s.sqlite
       .prepare(
-        `SELECT id, workout_id, cycle, started_at, finished_at, ${hasCountedSetSql} AS counted
+        `SELECT id, workout_id, slot_id, cycle, started_at, finished_at, ${hasCountedSetSql} AS counted
          FROM training_session WHERE run_id = ?`,
       )
       .all(runId);
+    const skips = s.sqlite
+      .prepare("SELECT slot_id, cycle FROM program_slot_skip WHERE run_id = ?")
+      .all(runId)
+      .map((row) => ({ slotId: String(row["slot_id"]), cycle: Number(row["cycle"]) }));
     return cycleState(
       days.map((day) => ({ id: day.slotId, workoutId: day.workoutId })),
       rows.map((row) => ({
         id: String(row["id"]),
         workoutId: row["workout_id"] === null ? null : String(row["workout_id"]),
+        slotId: row["slot_id"] === null ? null : String(row["slot_id"]),
         cycle: row["cycle"] === null ? null : Number(row["cycle"]),
         startedAt: String(row["started_at"]),
         finishedAt: row["finished_at"] === null ? null : String(row["finished_at"]),
         hasCountedSet: row["counted"] === 1,
       })),
+      skips,
     );
   };
   return { s, days, runId, backfill, tick, progress };
@@ -230,6 +237,118 @@ it("places an out-of-order backfill by the run's own history", async () => {
     // Before the run's first session, a backfill belongs to an earlier period.
     const earlier = await backfill(0, 5);
     expect(s.one("training_session", earlier)).toMatchObject({ run_id: null, cycle: null });
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("skips a slot for one cycle, completes the cycle without it and lets the skip be undone", async () => {
+  const { s, days, runId, backfill, tick, progress } = await rotation(3);
+  try {
+    const first = await backfill(0, 0.9);
+    await tick(first);
+    expect(progress().next?.id).toBe(days[1]?.slotId);
+    const skip = await skipSlot(s.training, {
+      runId,
+      slotId: days[1]?.slotId ?? "",
+      cycle: 1,
+    });
+    expect(skip).not.toBeNull();
+    // Skipping again is a no-op that returns the same record.
+    expect(await skipSlot(s.training, { runId, slotId: days[1]?.slotId ?? "", cycle: 1 })).toBe(
+      skip,
+    );
+    expect(s.all("program_slot_skip")).toHaveLength(1);
+    expect(progress().skipped.has(days[1]?.slotId ?? "")).toBe(true);
+    expect(progress().next?.id).toBe(days[2]?.slotId);
+
+    // The last Workout completes the Cycle even though the middle one was never trained.
+    const last = await backfill(2, 0.3);
+    await tick(last);
+    expect(progress().complete).toBe(true);
+    expect(progress().cycle).toBe(2);
+    expect(progress().next?.id).toBe(days[0]?.slotId);
+
+    // Undoing the skip of the finished Cycle brings that Slot back; nothing else changes.
+    expect(await unskipSlot(s.training, { runId, slotId: days[1]?.slotId ?? "", cycle: 1 })).toBe(
+      true,
+    );
+    expect(await unskipSlot(s.training, { runId, slotId: days[1]?.slotId ?? "", cycle: 1 })).toBe(
+      false,
+    );
+    expect(progress().cycle).toBe(1);
+    expect(progress().next?.id).toBe(days[1]?.slotId);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("stamps a new session with the next slot after a skip, and never skips rest or a foreign slot", async () => {
+  const { s, days, runId } = await rotation(3);
+  try {
+    await skipSlot(s.training, { runId, slotId: days[0]?.slotId ?? "", cycle: 1 });
+    const started = await startSession(s.training, {
+      workoutId: days[1]?.workoutId ?? null,
+      derivedTitle: "Day",
+    });
+    expect(s.one("training_session", started)).toMatchObject({
+      slot_id: days[1]?.slotId,
+      cycle: 1,
+    });
+
+    // A Rest slot and a Slot of another Program are not skippable.
+    const programId = String(s.one("program_run", runId)?.["program_id"]);
+    const rest = await addSlot(s.training, programId, null);
+    expect(await skipSlot(s.training, { runId, slotId: rest, cycle: 1 })).toBeNull();
+    const other = await createProgram(s.training, {
+      title: "Other",
+      description: null,
+      planned_weeks: null,
+      sessions_per_week: null,
+    });
+    const otherWorkout = await createWorkout(s.training, { title: "X", program_id: other });
+    const otherSlot = await addSlot(s.training, other, otherWorkout);
+    expect(await skipSlot(s.training, { runId, slotId: otherSlot, cycle: 1 })).toBeNull();
+    await expect(
+      skipSlot(s.training, { runId, slotId: days[1]?.slotId ?? "", cycle: 0 }),
+    ).rejects.toThrow("cycle");
+    expect(s.all("program_slot_skip")).toHaveLength(1);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("keeps the skip on Resume and consumes it when the repeated day is actually started", async () => {
+  const { s, days, runId } = await rotation(2);
+  try {
+    const programId = String(s.one("program_run", runId)?.["program_id"]);
+    const workoutId = days[0]?.workoutId ?? "";
+    const secondSlotId = await addSlot(s.training, programId, workoutId);
+    const day = { runId, cycle: 1, slotId: secondSlotId };
+    const skipped = await skipSlot(s.training, day);
+    const open = await startSession(s.training, { workoutId: null, derivedTitle: "Open" });
+    const source = { workoutId, day };
+    expect(await beginSession(s.training, source, "Chosen", { resumeActive: true })).toMatchObject({
+      id: open,
+      outcome: "resumed",
+    });
+    expect(s.one("program_slot_skip", skipped ?? "")).toBeDefined();
+
+    await expect(
+      beginSession(s.training, { ...source, day: { ...day, cycle: 2 } }, "Stale", {
+        discardIds: [open],
+      }),
+    ).rejects.toThrow("no longer available");
+    expect(s.one("training_session", open)).toBeDefined();
+    expect(s.one("program_slot_skip", skipped ?? "")).toBeDefined();
+
+    const started = await beginSession(s.training, source, "Chosen", { discardIds: [open] });
+    expect(s.one("program_slot_skip", skipped ?? "")).toBeUndefined();
+    expect(s.one("training_session", started.id)).toMatchObject({
+      run_id: runId,
+      cycle: 1,
+      slot_id: secondSlotId,
+    });
   } finally {
     s.sqlite.close();
   }

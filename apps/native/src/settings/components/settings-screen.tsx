@@ -1,9 +1,10 @@
 import { AvatarPicker } from "@/account";
-import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
+import { HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
 import {
   Barbell,
+  Bell,
   ChatCircleText,
   Database,
   Hash,
@@ -34,7 +35,7 @@ import { FeedbackSheet } from "./feedback-sheet";
 
 /**
  * Settings as grouped rows: the profile picture, Preferences (appearance, language, time zone,
- * units), Workouts (a pushed page of its own), Body, Help, Data and Account. Rows that open picker
+ * units), Workouts (a pushed page of its own), Body, Notifications (a pushed page of its own), Help, Data and Account. Rows that open picker
  * sheets show their current value.
  */
 export function SettingsScreen() {
@@ -43,7 +44,6 @@ export function SettingsScreen() {
   const signOut = useSignOut();
   const online = useIsOnline();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
-  const reminders = useBodyReminderRows();
   const training = useTrainingPreferenceRows();
   const { session } = useSession();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -52,7 +52,6 @@ export function SettingsScreen() {
     <>
       <ConfirmationDialog {...confirmationProps} />
       {training.sheets}
-      {reminders.editor}
       <FeedbackSheet
         isOpen={feedbackOpen}
         onOpenChange={setFeedbackOpen}
@@ -82,7 +81,14 @@ export function SettingsScreen() {
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
           />
-          {reminders.rows}
+        </ListSection>
+        <ListSection title={t("settings__section_notifications")}>
+          <ListRow
+            icon={Bell}
+            title={t("settings__notifications_screen")}
+            description={t("settings__notifications_hint")}
+            onPress={() => router.push("/settings/notifications")}
+          />
         </ListSection>
         <ListSection title={t("settings__section_help")}>
           <ListRow

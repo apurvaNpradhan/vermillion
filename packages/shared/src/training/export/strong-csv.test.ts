@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { ExerciseType } from "../../exercise/vocabulary";
 import { parseHistoryCsv, planSession, type ExerciseTarget } from "../history-import";
 import { KG_PER_LB } from "../vocabulary/format";
-import { csvCell, strongCsv, strongDuration, type SessionExportRow } from "./strong-csv";
+import {
+  createStrongCsvPageFormatter,
+  csvCell,
+  strongCsv,
+  strongDuration,
+  type SessionExportRow,
+} from "./strong-csv";
 
 const row = (overrides: Partial<SessionExportRow> = {}): SessionExportRow => ({
   sessionId: "s1",
@@ -26,6 +32,17 @@ const row = (overrides: Partial<SessionExportRow> = {}): SessionExportRow => ({
 const utc = { timeZone: "UTC" };
 
 describe("strongCsv", () => {
+  it("continues set numbers across pages and writes notes once", () => {
+    const formatPage = createStrongCsvPageFormatter(utc);
+    const set = row({ sessionNote: "session note", exerciseNote: "exercise note" });
+    const first = formatPage([set]);
+    const second = formatPage([set]);
+    expect(first).toContain(",1,");
+    expect(first).toContain('"exercise note","session note"');
+    expect(second).toContain(",2,");
+    expect(second).not.toContain("note");
+  });
+
   it("writes Strong's header and one line per set, numbering working sets only", () => {
     const csv = strongCsv(
       [

@@ -34,9 +34,12 @@ export {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
+  skipSlot,
+  unskipSlot,
+  setWorkoutCover,
+  setWorkoutCoverToNewMedia,
   supersetWithNext,
   trainingUploadColumns,
   updateProgram,
@@ -129,7 +132,12 @@ export {
   type WorkoutExerciseInfo,
   type WorkoutSummary,
 } from "./watch";
-export { SESSION_EXPORT_SQL, readSessionExportRows } from "./sessions/session-export";
+export { SESSION_EXPORT_SQL, visitSessionExportPages } from "./sessions/session-export";
+export {
+  readSessionStarts,
+  watchSessionStarts,
+  type SessionStart,
+} from "./sessions/session-starts";
 export {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
@@ -244,7 +252,7 @@ export {
   readRuns,
   reconcileRuns,
 } from "./plans/run-store";
-export { programRun } from "./tables";
+export { programRun, programSlotSkip } from "./tables";
 
 export {
   addSessionPhoto,

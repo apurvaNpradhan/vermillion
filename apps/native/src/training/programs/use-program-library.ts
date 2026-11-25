@@ -10,7 +10,7 @@ export function useProgramLibrary(
   active: Pick<ReturnType<typeof useActiveRun>, "runProgramId" | "activate" | "stop">,
 ) {
   const list = usePrograms();
-  const actions = useProgramActions();
+  const { duplicate: copyProgram, remove: removeProgram } = useProgramActions();
   const router = useRouter();
   const { runProgramId, activate, stop } = active;
   const open = useCallback(
@@ -19,14 +19,14 @@ export function useProgramLibrary(
   );
   const duplicate = useCallback(
     async (program: { id: string; title: string }) => {
-      const copy = await actions.duplicate(program.id, program.title);
+      const copy = await copyProgram(program.id, program.title);
       if (copy) open(copy);
     },
-    [actions, open],
+    [copyProgram, open],
   );
   const remove = useCallback(
-    (id: string, title: string) => void actions.remove(id, title),
-    [actions],
+    (id: string, title: string) => void removeProgram(id, title),
+    [removeProgram],
   );
   return { ...list, activeId: runProgramId, activate, stop, open, duplicate, remove };
 }

@@ -84,7 +84,13 @@ const state = (s: SessionDetail, now = T0 + 60_000, restEndedAt: number | null =
     restEndedAt,
     ghostsFor: () => ({ weight: 80, reps: 8 }),
     unit: "kg",
-    options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
+    options: {
+      weightUnit: "kg",
+      weightIncrementKg: null,
+      lighterWeeks: [],
+      soundOn: false,
+      vibrate: true,
+    },
     url: "sigil:///session/s",
     t,
   });
@@ -169,7 +175,13 @@ describe("workout live notification", () => {
       unit: "kg",
       url: "sigil:///session/s",
       t,
-      options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
+      options: {
+        weightUnit: "kg",
+        weightIncrementKg: null,
+        lighterWeeks: [],
+        soundOn: false,
+        vibrate: true,
+      },
     });
     expect(result.canLog).toBe(false);
     expect(workoutLivePayloadSchema.parse(JSON.parse(JSON.stringify(result)))).toEqual(result);

@@ -31,9 +31,10 @@ streams:
     queries:
       - SELECT id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at FROM program_run WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, title, description, planned_weeks, sessions_per_week, cover_media_id, created_at FROM program WHERE user_id = auth.user_id() AND deleted_at IS NULL
-      - SELECT id, user_id, program_id, title, note, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, program_id, title, note, cover_media_id, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at FROM workout_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, program_id, workout_id, position, created_at FROM program_slot WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, run_id, slot_id, cycle, created_at FROM program_slot_skip WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id FROM training_session WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, workout_swap_fragment, position, rest_seconds, note, superset_group, log_effort, warmup_key, repeated, created_at FROM session_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, session_id, media_id, position, created_at FROM session_photo WHERE user_id = auth.user_id() AND deleted_at IS NULL

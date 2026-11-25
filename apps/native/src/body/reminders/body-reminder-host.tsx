@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { getNotificationPermission } from "@/platform/notifications/permission";
+import { useNotificationPermission } from "@/platform/notifications/permission-store";
 import { createNotificationReconciler } from "@/platform/notifications/reconciler";
 import { desiredBodyReminders, planBodyReminders } from "./reminder-schedule";
 import {
@@ -18,6 +18,7 @@ const reconciler = () => (shared ??= createNotificationReconciler());
 export function BodyReminderHost() {
   const { preferences, hasPreferences } = usePreferences();
   const { t } = useTranslation();
+  const permission = useNotificationPermission();
   const title = t("body__reminder_channel");
   const weightTitle = t("body__reminder_weight_title");
   const weightBody = t("body__reminder_weight_body");
@@ -25,16 +26,12 @@ export function BodyReminderHost() {
   const checkBody = t("body__reminder_check_body");
   const ui = preferences.ui;
   useEffect(() => {
-    if (!hasPreferences) return;
+    if (permission === "unknown" || (permission === "granted" && !hasPreferences)) return;
     void reconciler()
       .enqueue(async (current) => {
-        await installBodyChannel(title);
-        if (!current()) return;
-        const granted = await getNotificationPermission();
-        if (!current()) return;
         const scheduled = await scheduledBodyReminders();
         if (!current()) return;
-        const desired = desiredBodyReminders({ ui, granted: granted === "granted" });
+        const desired = desiredBodyReminders({ ui, granted: permission === "granted" });
         const plan = planBodyReminders(
           desired,
           scheduled,
@@ -44,6 +41,9 @@ export function BodyReminderHost() {
           await cancelBodyReminder(id);
           if (!current()) return;
         }
+        if (desired.length === 0) return;
+        await installBodyChannel(title);
+        if (!current()) return;
         for (const entry of plan.schedule) {
           await scheduleBodyReminder(
             entry,
@@ -56,7 +56,7 @@ export function BodyReminderHost() {
       })
       .catch(() => undefined);
     return () => reconciler().invalidate();
-  }, [ui, hasPreferences, title, weightTitle, weightBody, checkTitle, checkBody]);
+  }, [ui, hasPreferences, permission, title, weightTitle, weightBody, checkTitle, checkBody]);
   useEffect(
     () => () => {
       void reconciler()

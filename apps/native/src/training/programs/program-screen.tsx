@@ -1,6 +1,8 @@
+import { stripState } from "@/training/train/strip-state";
+import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
-import { useActiveRun } from "./use-active-program";
+import { runProgress, useActiveRun } from "./use-active-program";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -55,8 +57,10 @@ const DESCRIPTION_LINES = 4;
 /** Where the Program screen sends the user. */
 export type ProgramScreenProps = {
   id: string;
-  /** Open the Workout editor (slice 2) for a Workout of this Program. */
+  /** Open the read-first Workout preview for a Workout of this Program. */
   onOpenWorkout: (workoutId: string) => void;
+  /** Open the Workout editor directly for a Workout of this Program. */
+  onEditWorkout: (workoutId: string) => void;
   /** Open the details sheet. */
   onOpenDetails: () => void;
   /** The Program was deleted: leave the screen. */
@@ -98,6 +102,7 @@ export function ProgramScreen(props: ProgramScreenProps) {
 function LoadedProgram({
   program,
   onOpenWorkout,
+  onEditWorkout,
   onOpenDetails,
   onClosed,
   onOpenCopy,
@@ -113,6 +118,11 @@ function LoadedProgram({
     if (isActive) void active.stop();
     else active.activate(program.id);
   };
+  // Slots done or skipped in the current Cycle, marked on the rotation rows of the active Program.
+  const cycle = useMemo(
+    () => (isActive ? runProgress(active.runs, active.run?.id ?? null, program.slots) : null),
+    [isActive, active.runs, active.run?.id, program.slots],
+  );
   const { fromPicker } = useStartWorkout();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -207,7 +217,7 @@ function LoadedProgram({
         key: "edit",
         label: t("training__edit_workout"),
         icon: PencilSimple,
-        onPress: () => onOpenWorkout(workoutId),
+        onPress: () => onEditWorkout(workoutId),
       },
       {
         key: "duplicate",
@@ -226,7 +236,7 @@ function LoadedProgram({
   })();
 
   return (
-    <>
+    <SwipeGroup>
       <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={program.title}
@@ -321,18 +331,23 @@ function LoadedProgram({
                 />
               ) : (
                 <View className="px-4">
-                  {slots.map((slot) => (
-                    <RotationRow
-                      key={slot.id}
-                      slot={slot}
-                      number={numbers.get(slot.id) ?? 0}
-                      title={slotTitle(slot, (key) => t(key))}
-                      repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
-                      onReorder={() => setReordering(true)}
-                      onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
-                      onMenu={setSlotMenu}
-                    />
-                  ))}
+                  {slots.map((slot) => {
+                    const state = cycle && stripState(slot, cycle);
+                    return (
+                      <RotationRow
+                        key={slot.id}
+                        slot={slot}
+                        number={numbers.get(slot.id) ?? 0}
+                        title={slotTitle(slot, (key) => t(key))}
+                        repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                        cycleState={state === "done" || state === "skipped" ? state : null}
+                        onEdit={onEditWorkout}
+                        onReorder={() => setReordering(true)}
+                        onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
+                        onMenu={setSlotMenu}
+                      />
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -425,6 +440,6 @@ function LoadedProgram({
         own={own}
         onPick={(workoutId) => void actions.repeat(program.id, workoutId)}
       />
-    </>
+    </SwipeGroup>
   );
 }

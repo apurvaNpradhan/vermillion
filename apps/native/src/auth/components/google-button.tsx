@@ -1,11 +1,12 @@
+import { addBreadcrumb } from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { authErrorKey } from "@workspace/client/auth-error";
 import { Chip, Spinner } from "heroui-native";
 import { GoogleLogo } from "phosphor-react-native";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
-import { authClient } from "@/platform/auth-client";
+import { signInWithGoogle } from "@/platform/auth-client";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { FormError } from "@/platform/ui/form-error";
@@ -13,11 +14,13 @@ import { FormError } from "@/platform/ui/form-error";
 import { readLastLoginMethod, rememberLoginMethod } from "../last-login-method";
 import { refreshSession } from "../session";
 
-/**
- * "Continue with Google": the ink-filled button of the welcome screen, shown only when the server
- * has Google configured. The Expo plugin opens the system browser and turns the relative callback
- * into a deep link; a cancelled flow records nothing.
- */
+type GoogleAttempt = { controller: AbortController; retryable: boolean };
+
+function breadcrumb(message: "start" | "returned" | "cancelled" | "error" | "success") {
+  addBreadcrumb({ category: "auth.google", message });
+}
+
+/** Opens Google sign-in and refreshes the app session once the browser callback is saved. */
 export function GoogleButton({
   glyphColor,
   disabled,
@@ -31,23 +34,53 @@ export function GoogleButton({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const owner = useRef<GoogleAttempt | null>(null);
+  useLayoutEffect(
+    () => () => {
+      const attempt = owner.current;
+      owner.current = null;
+      attempt?.controller.abort();
+    },
+    [],
+  );
+
   async function signIn() {
-    if (pending) return;
+    const previous = owner.current;
+    if (disabled || (previous && !previous.retryable)) return;
+    const attempt = { controller: new AbortController(), retryable: false };
+    owner.current = attempt;
+    previous?.controller.abort();
     setPending(true);
     setFailure(null);
+
     try {
-      const { error } = await authClient.signIn.social({ provider: "google", callbackURL: "/" });
-      if (error) {
-        setFailure(t(authErrorKey(error)));
-        return;
+      breadcrumb("start");
+      const result = await signInWithGoogle(attempt.controller.signal, (retryable) => {
+        if (owner.current !== attempt) return;
+        attempt.retryable = retryable;
+        setPending(!retryable);
+        if (retryable) breadcrumb("returned");
+      });
+      if (owner.current !== attempt) return;
+      if (result.error) {
+        breadcrumb("error");
+        setFailure(t(authErrorKey(result.error)));
+      } else if (result.signedIn) {
+        breadcrumb("success");
+        rememberLoginMethod("google");
+        await refreshSession(queryClient);
+      } else {
+        breadcrumb("cancelled");
       }
-      // Record only a completed login, not a cancelled browser/provider flow.
-      const session = await refreshSession(queryClient);
-      if (session) rememberLoginMethod("google");
     } catch {
+      if (owner.current !== attempt) return;
+      breadcrumb("error");
       setFailure(t("auth__error_unknown"));
     } finally {
-      setPending(false);
+      if (owner.current === attempt) {
+        owner.current = null;
+        setPending(false);
+      }
     }
   }
 

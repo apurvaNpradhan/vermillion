@@ -50,6 +50,12 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const reminderTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const weighInReminder = z.object({ enabled: z.boolean(), time: reminderTime });
 const checkInReminder = weighInReminder.extend({ weekday: z.number().int().min(1).max(7) });
+/** Weekdays use Expo's numbering: Sunday is 1, Saturday is 7. */
+const reminderWeekday = z.number().int().min(1).max(7);
+/** `weekdays` null follows the setup answer (sessions per week) until the user picks days. */
+const trainingReminder = weighInReminder.extend({
+  weekdays: z.array(reminderWeekday).max(7).nullable(),
+});
 
 /**
  * What the "Is this the max on this machine?" prompt remembers per gym and exercise (`key` is
@@ -68,6 +74,10 @@ export type CapPrompt = z.infer<typeof capPromptSchema>;
 const uiFields = {
   weighInReminder,
   checkInReminder,
+  trainingReminder,
+  reportReminder: z.object({ enabled: z.boolean() }),
+  restVibration: z.boolean(),
+  cueVolume: z.number().int().min(0).max(100),
   avatarMediaId: z.uuid().nullable(),
   lengthUnit: z.enum(["cm", "in"]),
   heightCm: z.number().min(100).max(250).nullable(),
@@ -123,6 +133,17 @@ export const uiPreferencesSchema = z
       weekday: 1,
       time: "09:00",
     }),
+    // Notifications: both off until the user turns them on; the report one fires on the 1st.
+    trainingReminder: uiFields.trainingReminder.default({
+      enabled: false,
+      weekdays: null,
+      time: "18:00",
+    }),
+    // Sent at the training reminder's time.
+    reportReminder: uiFields.reportReminder.default({ enabled: false }),
+    // The Rest-end buzz, and how loud the sound cues are (0 to 100).
+    restVibration: uiFields.restVibration.default(true),
+    cueVolume: uiFields.cueVolume.default(100),
     lengthUnit: uiFields.lengthUnit.optional(),
     avatarMediaId: uiFields.avatarMediaId.default(null),
     heightCm: uiFields.heightCm.default(null),

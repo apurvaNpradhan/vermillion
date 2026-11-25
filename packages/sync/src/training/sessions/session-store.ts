@@ -9,10 +9,12 @@ import {
   sessionTimesConsistent,
   workoutStructureKey,
   type PlannedSet,
+  type RunSlot,
 } from "@workspace/shared";
 import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { programRun, programSlot } from "../tables";
+import { programRun, programSlot, programSlotSkip } from "../tables";
+import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
@@ -41,6 +43,7 @@ import {
 /** The Workout a Session starts from, or none; `derivedTitle` names a Session with no title of its own. */
 export type SessionSource = {
   workoutId: string | null;
+  day?: RunSlot;
   /**
    * The title when the Workout has none (it is derived) or there is no Workout, already
    * translated by the caller. The Session stays "derived" until the user renames it.
@@ -88,6 +91,7 @@ async function createSessionIn(
         .select({
           id: session.id,
           workoutId: session.workout_id,
+          slotId: session.slot_id,
           cycle: session.cycle,
           startedAt: session.started_at,
           finishedAt: session.finished_at,
@@ -116,11 +120,34 @@ async function createSessionIn(
     : [];
   // Out of order is fine: the cycle and slot come from the run's Sessions up to this start.
   const history = active ? runSessions.filter((item) => item.startedAt <= fields.startedAt) : [];
+  const skips = active
+    ? await tx
+        .select({ slotId: programSlotSkip.slot_id, cycle: programSlotSkip.cycle })
+        .from(programSlotSkip)
+        .where(eq(programSlotSkip.run_id, active.id))
+    : [];
   const progress = cycleState(
     slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
     history,
+    skips,
   );
-  const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
+  const day = source.day;
+  let slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
+  if (day) {
+    slot = slots.find((s) => s.id === day.slotId && s.workout_id === plan?.id);
+    const skipped = skips.some((s) => s.slotId === day.slotId && s.cycle === day.cycle);
+    // A skip may have completed the displayed cycle while the conflict sheet was open.
+    // The selected day can still start if its skip is present and there is no later counted session.
+    if (
+      !slot ||
+      !active ||
+      day.runId !== active.id ||
+      day.cycle < progress.latestCountedCycle ||
+      (day.cycle !== progress.cycle && !(skipped && day.cycle < progress.cycle))
+    )
+      throw new Error("The selected day is no longer available");
+    if (skipped) await unskipSlotIn(tx, day);
+  }
   if (active && (!active.started_at || fields.startedAt < active.started_at))
     await tx
       .update(programRun)
@@ -133,7 +160,7 @@ async function createSessionIn(
     run_id: active?.id ?? null,
     slot_id: slot?.id ?? null,
     gym_id: await activeGymIdOf(tx),
-    cycle: active ? progress.cycle : null,
+    cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
     note: null,
@@ -231,7 +258,7 @@ export function startSession(
 }
 
 /** What starts a Session: a Workout (or nothing), or a finished Session to repeat. */
-export type BeginSource = { workoutId: string | null } | { againOf: string };
+export type BeginSource = Omit<SessionSource, "derivedTitle"> | { againOf: string };
 
 /**
  * Starts a Session in ONE transaction: the source is read, the Sessions in `discardIds` are
@@ -270,7 +297,7 @@ export function beginSession(
     } else {
       await createSessionIn(
         tx,
-        { workoutId: source.workoutId, derivedTitle },
+        { ...source, derivedTitle },
         { id, startedAt: nowIso(), finishedAt: null, durationS: null },
         active,
       );

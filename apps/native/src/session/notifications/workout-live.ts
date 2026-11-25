@@ -28,6 +28,7 @@ import {
   installRestNotifications,
   scheduleRestNotification,
   setRestSoundEnabled,
+  setRestVibrationEnabled,
 } from "./rest-notification";
 import { restNotificationId } from "@/session/rest/rest-schedule";
 import { getNotificationPermission } from "@/platform/notifications/permission";
@@ -226,6 +227,7 @@ export function workoutLiveAction(data: { state: string; action: string }) {
       await postActionState(after.state, generationAtDispatch);
       await installRestNotifications(i18n.t("session__rest_channel"));
       setRestSoundEnabled(options.soundOn);
+      setRestVibrationEnabled(options.vibrate);
       await cancelRestNotification(restNotificationId(session.id));
       const restEndsAt = after.state.restEndsAtMs;
       if (restEndsAt !== null && restEndsAt > Date.now()) {
