@@ -76,7 +76,7 @@ const session = (count: number): SessionDetail => ({
   runId: null,
   slotId: null,
   phase: null,
-  phasePlan: null,
+  phaseModifiers: null,
   cycle: null,
   title: "Push",
   titleDerived: false,

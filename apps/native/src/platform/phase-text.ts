@@ -37,8 +37,8 @@ export function usePhaseText() {
   const hint = useCallback((phase: Phase) => t(HINT_KEYS[phase]), [t]);
   /** What a phase changes, in plain words; "as planned" when it changes nothing. */
   const effects = useCallback(
-    (phase: Phase, modifiers: PhaseModifiers, testTop: TestTop = "single") => {
-      const found = phaseEffects(phase, modifiers, testTop);
+    (phase: Phase, modifiers: PhaseModifiers, testTop: TestTop = "single", hasEffort = true) => {
+      const found = phaseEffects(phase, modifiers, testTop, hasEffort);
       const parts: string[] = [];
       if (found.top !== null)
         parts.push(t(found.top === "single" ? "phase__effect_single" : "phase__effect_amrap"));
@@ -62,10 +62,13 @@ export function usePhaseText() {
     },
     [t, locale],
   );
-  /** "Deload: sets halved, −10% load"; null for Build as planned, which needs no banner. */
+  /**
+   * "Deload: sets halved, −10% load"; null for Build as planned, which needs no banner. The
+   * effort shift is left out when the Workout has no effort targets for it to move.
+   */
   const banner = useCallback(
-    (phase: Phase, modifiers: PhaseModifiers, testTop: TestTop = "single") => {
-      const text = effects(phase, modifiers, testTop);
+    (phase: Phase, modifiers: PhaseModifiers, testTop: TestTop = "single", hasEffort = true) => {
+      const text = effects(phase, modifiers, testTop, hasEffort);
       const plain = phase === "build" && text === t("phase__as_planned");
       return plain ? null : t("phase__banner", { phase: name(phase), effects: text });
     },

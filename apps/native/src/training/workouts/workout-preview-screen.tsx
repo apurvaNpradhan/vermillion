@@ -1,8 +1,10 @@
 import { haptic } from "@/platform/haptics";
 import {
   applyPhase,
+  hasLoad,
   historyForWorkout,
   isCounted,
+  lastBaselineLoadKg,
   mainEntryOf,
   sessionDurationSeconds,
   sessionTotals,
@@ -131,6 +133,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       )
     : null;
   const exerciseHistory = (ready?.exercises ?? []).map((original) => {
+    const history = previousHistory.history.get(original.exerciseId) ?? [];
     const entry =
       week && original.exercise
         ? {
@@ -143,10 +146,14 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               grid: gym.gridFor(original.exerciseId, original.exercise.equipment),
               modifiers: week.modifiers,
               testTop: week.testTop,
+              // As the Session will start: from what was last done, not the planned load.
+              testLoadKg:
+                week.phase === "test" && hasLoad(original.exercise.exerciseType)
+                  ? lastBaselineLoadKg(history)
+                  : null,
             }),
           }
         : original;
-    const history = previousHistory.history.get(entry.exerciseId) ?? [];
     // Stalls compare this Workout across gyms. Progression uses all Sessions for its break clock.
     const stallHistory = history.filter((session) => session.workoutId === id);
     const lastSessionId = stallHistory[0]?.id ?? null;
@@ -275,8 +282,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                 <Text className="font-normal text-caption text-muted">
                   {t("phase__preview_note", {
                     banner:
-                      phaseText.banner(week.phase, week.modifiers, week.testTop) ??
-                      phaseText.name(week.phase),
+                      phaseText.banner(
+                        week.phase,
+                        week.modifiers,
+                        week.testTop,
+                        // The effort shift shows only where the Workout has effort targets.
+                        ready.exercises.some((item) =>
+                          item.sets.some((set) => set.effort_min !== undefined),
+                        ),
+                      ) ?? phaseText.name(week.phase),
                   })}
                 </Text>
               ) : null}

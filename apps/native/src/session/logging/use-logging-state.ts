@@ -1,7 +1,7 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
-  modifiersFor,
+  snapshotModifiers,
   type PreviousSource,
   type EffortScale,
   type Equipment,
@@ -133,7 +133,7 @@ export function useLoggingState({
   const phaseLoad = useStore(store, (state) =>
     state.session.phase === null
       ? 1
-      : modifiersFor(state.session.phasePlan, state.session.phase).load,
+      : snapshotModifiers(state.session.phase, state.session.phaseModifiers).modifiers.load,
   );
   const badges = useCallback(
     (sets: readonly { kind: SetKind }[]) =>

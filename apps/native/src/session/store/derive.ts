@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  baselineSessions,
   historyForGym,
   historyForWorkout,
   optionalSetIndexes,
@@ -151,13 +152,16 @@ function buildView(
   let lastUnticked = exercise.sets.length - 1;
   while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
 
+  const hintHistory = history && baselineSessions(history);
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
+    // The hint is derived from a baseline Session, not from a Test or Deload week.
+    const hinted = previousOfRow(hintHistory, exercise.sets, index);
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,
-          previous,
+          hinted,
           set.target,
           exercise.logEffort,
           suggestion?.sets[index],

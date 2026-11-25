@@ -17,7 +17,7 @@ import { usePreferences } from "@/preferences";
 import { sessionRecords, usePreviousSets, useRecordHistory } from "@/session";
 import { ANCHORED } from "@/platform/navigation/anchored";
 import { useInsertDeload } from "@/training/phases/use-insert-deload";
-import { useActiveProgram } from "@/training/programs/use-active-program";
+import type { useActiveProgram } from "@/training/programs/use-active-program";
 
 import { useHomeTraining } from "./use-home-training";
 
@@ -31,11 +31,17 @@ const DAY_MS = 86_400_000;
  * week have stalled (a Deload week inserted into the active Run, or a plain Lighter week when
  * there is no Run), or a note about the one or two that have; and the records of the last Session.
  */
-export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTraining> }) {
+export function TrainingNudges({
+  state,
+  program,
+}: {
+  state: ReturnType<typeof useHomeTraining>;
+  /** Home's active Program, so the nudges do not watch it a second time. */
+  program: ReturnType<typeof useActiveProgram>;
+}) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
-  const program = useActiveProgram();
   const run = program.run;
   const insert = useInsertDeload(run);
   const now = new Date();

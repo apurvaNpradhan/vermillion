@@ -53,7 +53,7 @@ export const session = (exercises: SessionExerciseDetail[]): SessionDetail => ({
   runId: null,
   slotId: null,
   phase: null,
-  phasePlan: null,
+  phaseModifiers: null,
   cycle: null,
   title: "Upper",
   titleDerived: false,

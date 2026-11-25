@@ -1,4 +1,10 @@
-import { addsLoad, formatLoad, type SessionHistory, type SetKind } from "@workspace/shared";
+import {
+  addsLoad,
+  baselineSessions,
+  formatLoad,
+  type SessionHistory,
+  type SetKind,
+} from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 
 import { loggingHistory, plannedSuggestion, type SuggestionSettings } from "./logging-ghosts";
@@ -29,13 +35,21 @@ export function previewProgression(
   const displayWeight = (kg: number | null | undefined) =>
     loaded && kg != null ? formatLoad(kg, settings.weightUnit, type) : null;
   const baseline = loggingHistory(history, exercise.equipment, settings);
+  const hintBaseline = baselineSessions(baseline);
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];
     if (!next) continue;
     const previous = previousOfRow(baseline, entry.sets, index);
     if (!previous || previous.reps == null || previous.exercise_type !== type) continue;
-    const ghost = ghostsOf(type, previous, target, false, next);
+    // The hint comes from a baseline Session, as in the set grid.
+    const ghost = ghostsOf(
+      type,
+      previousOfRow(hintBaseline, entry.sets, index),
+      target,
+      false,
+      next,
+    );
     if (ghost.reps == null) continue;
     const last = { reps: previous.reps, weight: displayWeight(previous.weight_kg) };
     const today = { reps: ghost.reps, weight: displayWeight(ghost.weight) };

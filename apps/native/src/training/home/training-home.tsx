@@ -216,7 +216,7 @@ export function TrainingHome() {
         />
       )}
       <ThisWeekRow current={summary.current} previous={summary.previous} goal={goal} unit={unit} />
-      <TrainingNudges state={state} />
+      <TrainingNudges state={state} program={programState} />
       {hasWeight ? <WeightTrendCard weight={weight} /> : null}
       {sheet}
     </FadeIn>

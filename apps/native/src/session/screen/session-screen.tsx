@@ -7,7 +7,7 @@ import {
   MUSCLE_GROUP_KEYS,
   SESSION_LIMITS,
   derivedWorkoutTitle,
-  modifiersFor,
+  snapshotModifiers,
   type SetKind,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
@@ -273,6 +273,15 @@ const LoadedSession = memo(function LoadedSession({
 
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
+  // The banner reads the modifiers the Session started with, not the Program's plan now.
+  const phaseBanner = (() => {
+    if (session.phase === null) return null;
+    const { modifiers, testTop } = snapshotModifiers(session.phase, session.phaseModifiers);
+    const hasEffort = session.exercises.some((entry) =>
+      entry.sets.some((set) => set.target?.effort_min !== undefined),
+    );
+    return phaseText.banner(session.phase, modifiers, testTop, hasEffort);
+  })();
 
   // ---- Sheets and dialogs ----
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -654,15 +663,7 @@ const LoadedSession = memo(function LoadedSession({
         onMinimise={onMinimise}
         onFinish={flow.askFinish}
         onOpenClock={openClock}
-        banner={
-          session.phase === null
-            ? null
-            : phaseText.banner(
-                session.phase,
-                modifiersFor(session.phasePlan, session.phase),
-                session.phasePlan?.test_top,
-              )
-        }
+        banner={phaseBanner}
       />
       <ClockSheet
         isOpen={clockOpen && !readOnly && session.finishedAt === null}
