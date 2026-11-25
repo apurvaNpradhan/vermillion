@@ -1,0 +1,280 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8fc3a148-d6b4-4817-88a3-7fbcf928858b",
+  "prevIds": ["65a3f078-8d04-4fe6-a58c-f9d628052d9c"],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "exercise_pin"],
+      "writes": [
+        "s|tbl|public.exercise_pin",
+        "n|tbl|public.exercise_pin",
+        "e|tbl|public.exercise_pin",
+        "n|rel|public.exercise_pin",
+        "n|type|public.exercise_pin",
+        "n|rel|public.exercise_pin_pkey"
+      ],
+      "reads": ["n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "exercise_pin", "exercise_pin_user_exercise_uidx"],
+      "writes": [
+        "s|idx|public.exercise_pin_user_exercise_uidx",
+        "n|idx|public.exercise_pin_user_exercise_uidx",
+        "e|idx|public.exercise_pin_user_exercise_uidx",
+        "n|rel|public.exercise_pin_user_exercise_uidx"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_pin",
+        "n|sch|public",
+        "n|col|public.exercise_pin.user_id",
+        "n|col|public.exercise_pin.exercise_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "exercise_pin", "exercise_pin_exercise_id_idx"],
+      "writes": [
+        "s|idx|public.exercise_pin_exercise_id_idx",
+        "n|idx|public.exercise_pin_exercise_id_idx",
+        "e|idx|public.exercise_pin_exercise_id_idx",
+        "n|rel|public.exercise_pin_exercise_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_pin",
+        "n|sch|public",
+        "n|col|public.exercise_pin.exercise_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "exercise_pin"],
+      "writes": [
+        "s|fk|public.exercise_pin.exercise_pin_user_id_user_id_fkey",
+        "n|fk|public.exercise_pin.exercise_pin_user_id_user_id_fkey",
+        "e|fk|public.exercise_pin.exercise_pin_user_id_user_id_fkey",
+        "n|con|public.exercise_pin.exercise_pin_user_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_pin",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.exercise_pin.user_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "exercise_pin"],
+      "writes": [
+        "s|fk|public.exercise_pin.exercise_pin_exercise_id_exercise_id_fkey",
+        "n|fk|public.exercise_pin.exercise_pin_exercise_id_exercise_id_fkey",
+        "e|fk|public.exercise_pin.exercise_pin_exercise_id_exercise_id_fkey",
+        "n|con|public.exercise_pin.exercise_pin_exercise_id_exercise_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_pin",
+        "n|sch|public",
+        "n|tbl|public.exercise",
+        "n|sch|public",
+        "n|col|public.exercise_pin.exercise_id",
+        "n|col|public.exercise.id",
+        "e|uniqueness|public.exercise.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "exercise_pin",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "user_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "deleted_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_pin_user_exercise_uidx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "exercise_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_pin_exercise_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "exercise_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_pin_user_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": ["user_id"],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_pin_exercise_id_exercise_id_fkey",
+        "nameExplicit": false,
+        "columns": ["exercise_id"],
+        "schemaTo": "public",
+        "tableTo": "exercise",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_pin",
+        "name": "exercise_pin_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}
