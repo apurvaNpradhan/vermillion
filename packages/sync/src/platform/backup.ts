@@ -2,53 +2,88 @@ import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { getTableName } from "drizzle-orm";
 import { z } from "zod";
 
-import { SYNCED_TABLE_NAMES, drizzleSchema } from "./schema";
+import { drizzleSchema } from "./schema";
 import { storageRowToWire, type WireRow } from "./row-conversion";
 
-/** Rows one backup read pulls per table page. */
-const BACKUP_PAGE = 1000;
+/** Include only owner data. Local bookkeeping and the catalog stay out of the file. */
+const BACKUP_TABLES = [
+  [
+    drizzleSchema.exercise,
+    "id, user_id, title, primary_muscle, secondary_muscles, primary_detail, secondary_detail, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, image_media_id, retired_at, created_at",
+  ],
+  [
+    drizzleSchema.bodyMeasurement,
+    "id, user_id, metric, value, measured_at, local_date, source, created_at",
+  ],
+  [drizzleSchema.progressPhoto, "id, user_id, media_id, pose, taken_at, local_date, created_at"],
+  [
+    drizzleSchema.program,
+    "id, user_id, title, description, planned_weeks, sessions_per_week, cover_media_id, created_at",
+  ],
+  [
+    drizzleSchema.programRun,
+    "id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at",
+  ],
+  [drizzleSchema.workout, "id, user_id, program_id, title, note, created_at"],
+  [
+    drizzleSchema.workoutExercise,
+    "id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at",
+  ],
+  [drizzleSchema.programSlot, "id, user_id, program_id, workout_id, position, created_at"],
+  [
+    drizzleSchema.session,
+    "id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms",
+  ],
+  [
+    drizzleSchema.sessionExercise,
+    "id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, workout_swap_fragment, position, rest_seconds, note, superset_group, log_effort, warmup_key, repeated, created_at",
+  ],
+  [drizzleSchema.sessionPhoto, "id, user_id, session_id, media_id, position, created_at"],
+  [
+    drizzleSchema.sessionSet,
+    "id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, generated_warmup, created_at",
+  ],
+  [
+    drizzleSchema.gymEquipment,
+    "id, user_id, kind, weight_kg, unit, label, count, enabled, created_at",
+  ],
+  [
+    drizzleSchema.exerciseSetting,
+    "id, user_id, exercise_id, bar_id, log_effort, progression_per_set, auto_warmups, note, created_at",
+  ],
+  [drizzleSchema.media, "id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at"],
+  [drizzleSchema.userPreferences, "id, user_id, locale, timezone, ui, created_at"],
+] as const; // Safety: each tuple pairs a table with its fixed SQL column list.
 
-const storageRowSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
+const PAGE_SIZE = 1000;
+const pageSchema = z.array(z.record(z.string(), z.union([z.string(), z.number(), z.null()])));
 
-/** Every table that holds the user's own data, by name (the synced ones, local-only never). */
-const BACKUP_TABLES = Object.values(drizzleSchema).flatMap((table) => {
-  const name = getTableName(table);
-  return SYNCED_TABLE_NAMES.includes(name) ? [{ name, table }] : [];
-});
+export type BackupPageWriter = (table: string, rows: readonly WireRow[]) => Promise<void>;
 
-/** The names of the tables a backup holds, in the order it writes them. */
-export const BACKUP_TABLE_NAMES: readonly string[] = BACKUP_TABLES.map((entry) => entry.name);
-
-export type BackupTables = { [table: string]: WireRow[] };
-
-/**
- * Every row the signed-in user owns locally, per table, in one SQLite snapshot: plans, Sessions and
- * sets, body data, media rows, preferences and Custom exercises. The Reference catalog
- * (`user_id IS NULL`) is not the user's and stays out. Values are JSON-safe (booleans, JSON
- * columns decoded). Media files are not included, only their rows.
- */
-export function readBackupTables(
+/** Visits bounded pages from one SQLite snapshot, including the empty tables. */
+export function visitBackupPages(
   database: Pick<AbstractPowerSyncDatabase, "readTransaction">,
-): Promise<BackupTables> {
+  owner: string,
+  writePage: BackupPageWriter,
+): Promise<void> {
   return database.readTransaction(async (tx) => {
-    const tables: BackupTables = {};
-    for (const { name, table } of BACKUP_TABLES) {
-      const rows: WireRow[] = [];
-      const own = name === "exercise" ? "WHERE user_id IS NOT NULL" : "";
-      for (let offset = 0; ; offset += BACKUP_PAGE) {
-        const page = z
-          .array(storageRowSchema)
-          .parse(
-            await tx.getAll(`SELECT * FROM "${name}" ${own} ORDER BY id LIMIT ? OFFSET ?`, [
-              BACKUP_PAGE,
-              offset,
-            ]),
+    for (const [table, columns] of BACKUP_TABLES) {
+      const name = getTableName(table);
+      for (let offset = 0; ; offset += PAGE_SIZE) {
+        const page = pageSchema.parse(
+          await tx.getAll(
+            `SELECT ${columns} FROM "${name}" WHERE user_id = ? ORDER BY id LIMIT ? OFFSET ?`,
+            [owner, PAGE_SIZE, offset],
+          ),
+        );
+        if (offset === 0 || page.length > 0) {
+          await writePage(
+            name,
+            page.map((row) => storageRowToWire(table, row)),
           );
-        for (const row of page) rows.push(storageRowToWire(table, row));
-        if (page.length < BACKUP_PAGE) break;
+        }
+        if (page.length < PAGE_SIZE) break;
       }
-      tables[name] = rows;
     }
-    return tables;
   });
 }

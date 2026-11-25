@@ -1,11 +1,12 @@
 import { Switch, useThemeColor } from "heroui-native";
 import { Bell, BellSlash, ChartLineUp, Minus, Plus } from "phosphor-react-native";
-import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { getNotificationPermission } from "@/platform/notifications/permission";
-import { askNotificationPermission } from "@/platform/notifications/permission-store";
+import {
+  askNotificationPermission,
+  useNotificationPermission,
+} from "@/platform/notifications/permission-store";
 import { ListRow } from "@/platform/ui/list";
 import { usePreferences } from "@/preferences";
 
@@ -83,24 +84,26 @@ function TimeStepper({ time, onChange }: { time: string; onChange: (time: string
 export function useReminderRows() {
   const { t, i18n } = useTranslation();
   const { preferences, setUi } = usePreferences();
-  const [denied, setDenied] = useState(false);
-  const { trainingReminder, reportReminder, sessionsPerWeek } = preferences.ui;
+  const permission = useNotificationPermission();
+  const { trainingReminder, reportReminder, sessionsPerWeek, weighInReminder, checkInReminder } =
+    preferences.ui;
   const days = trainingWeekdays(trainingReminder, sessionsPerWeek);
 
-  /** True when notifications are allowed, asking the system once if they were never decided. */
-  const allowed = async () => {
-    const permission = await getNotificationPermission();
-    if (permission === "granted") return true;
-    if (permission !== "denied") {
-      await askNotificationPermission();
-      if ((await getNotificationPermission()) === "granted") return true;
-    }
-    setDenied(true);
-    return false;
-  };
+  const blocked =
+    permission === "denied" ||
+    (permission === "undetermined" &&
+      (trainingReminder.enabled ||
+        reportReminder.enabled ||
+        weighInReminder.enabled ||
+        checkInReminder.enabled));
+  const disabled = permission === "denied" || permission === "unknown";
+  const trainingOn = trainingReminder.enabled && permission === "granted";
+  const reportOn = reportReminder.enabled && permission === "granted";
   const toggle = async (on: boolean, apply: (on: boolean) => void) => {
     if (!on) return apply(false);
-    if (await allowed()) apply(true);
+    if (permission === "granted") return apply(true);
+    if (permission === "undetermined" && (await askNotificationPermission()) === "granted")
+      apply(true);
   };
 
   const weekdayLabel = (weekday: number) =>
@@ -117,12 +120,15 @@ export function useReminderRows() {
         title={t("reminder__training_row")}
         description={t("reminder__training_hint")}
         accessory="none"
-        checked={trainingReminder.enabled}
-        onPress={() => void toggle(!trainingReminder.enabled, (on) => setTraining({ enabled: on }))}
+        checked={trainingOn}
+        disabled={disabled}
+        value={blocked && trainingReminder.enabled ? t("session__setting_denied") : undefined}
+        onPress={() => void toggle(!trainingOn, (on) => setTraining({ enabled: on }))}
         trailing={
           <Switch
             accessibilityLabel={t("reminder__training_row")}
-            isSelected={trainingReminder.enabled}
+            isSelected={trainingOn}
+            isDisabled={disabled}
             onSelectedChange={(on) => void toggle(on, (value) => setTraining({ enabled: value }))}
           />
         }
@@ -184,14 +190,15 @@ export function useReminderRows() {
         time: formatTime(trainingReminder.time, i18n.language),
       })}
       accessory="none"
-      checked={reportReminder.enabled}
-      onPress={() =>
-        void toggle(!reportReminder.enabled, (on) => setUi({ reportReminder: { enabled: on } }))
-      }
+      checked={reportOn}
+      disabled={disabled}
+      value={blocked && reportReminder.enabled ? t("session__setting_denied") : undefined}
+      onPress={() => void toggle(!reportOn, (on) => setUi({ reportReminder: { enabled: on } }))}
       trailing={
         <Switch
           accessibilityLabel={t("reminder__report_row")}
-          isSelected={reportReminder.enabled}
+          isSelected={reportOn}
+          isDisabled={disabled}
           onSelectedChange={(on) =>
             void toggle(on, (value) => setUi({ reportReminder: { enabled: value } }))
           }
@@ -200,7 +207,7 @@ export function useReminderRows() {
     />
   );
 
-  const permissionRow = denied ? (
+  const permissionRow = blocked ? (
     <ListRow
       icon={BellSlash}
       title={t("reminder__denied_title")}

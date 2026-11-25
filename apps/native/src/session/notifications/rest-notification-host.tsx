@@ -35,6 +35,8 @@ export function RestNotificationHost() {
   const installId = useInstallId();
   const permission = useNotificationPermission();
   const reconciler = useRef(createNotificationReconciler());
+  // On first launch after an Android upgrade, an empty map causes pending Rests to be replaced
+  // on the current channel. A timer that expires before the updated app opens uses its old channel.
   const known = useRef(new Map<string, number>());
   const { sounds, soundRest, restVibration } = usePreferences().preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });

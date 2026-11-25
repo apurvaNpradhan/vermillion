@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Text } from "react-native";
 import { Archive, FileCsv, Scales, Ruler } from "phosphor-react-native";
 
 import { ImportHistoryScreen } from "@/history-import";
@@ -56,6 +57,11 @@ export function DataSettingsScreen() {
       exportPane={
         pane === "export" ? (
           <ListSection title={t("settings__record_title")}>
+            {!record.hasSynced ? (
+              <Text className="px-4 py-2 text-caption text-muted">
+                {t("settings__export_waiting_for_sync")}
+              </Text>
+            ) : null}
             {rows.map((row) => (
               <ListRow
                 key={row.kind}

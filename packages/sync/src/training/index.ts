@@ -110,7 +110,7 @@ export {
   type WorkoutExerciseInfo,
   type WorkoutSummary,
 } from "./watch";
-export { SESSION_EXPORT_SQL, readSessionExportRows } from "./sessions/session-export";
+export { SESSION_EXPORT_SQL, visitSessionExportPages } from "./sessions/session-export";
 export {
   readSessionStarts,
   watchSessionStarts,

@@ -25,28 +25,31 @@ export type BodyExportRow = {
 };
 
 /** Every weigh-in and body measurement, oldest first, from one SQLite snapshot. */
-export function readBodyExportRows(
+export function visitBodyExportPages(
   database: Pick<AbstractPowerSyncDatabase, "readTransaction">,
-): Promise<BodyExportRow[]> {
+  owner: string,
+  writePage: (rows: readonly BodyExportRow[]) => Promise<void>,
+): Promise<void> {
   return database.readTransaction(async (tx) => {
-    const rows: BodyExportRow[] = [];
     for (let offset = 0; ; offset += EXPORT_PAGE) {
       const page = z.array(rowSchema).parse(
         await tx.getAll(
-          `SELECT metric, value, measured_at, local_date, source FROM body_measurement
+          `SELECT metric, value, measured_at, local_date, source FROM body_measurement WHERE user_id = ?
            ORDER BY local_date, julianday(measured_at), id LIMIT ? OFFSET ?`,
-          [EXPORT_PAGE, offset],
+          [owner, EXPORT_PAGE, offset],
         ),
       );
-      for (const row of page)
-        rows.push({
-          metric: row.metric,
-          value: row.value,
-          measuredAt: row.measured_at,
-          localDate: row.local_date,
-          source: row.source,
-        });
-      if (page.length < EXPORT_PAGE) return rows;
+      if (page.length > 0)
+        await writePage(
+          page.map((row) => ({
+            metric: row.metric,
+            value: row.value,
+            measuredAt: row.measured_at,
+            localDate: row.local_date,
+            source: row.source,
+          })),
+        );
+      if (page.length < EXPORT_PAGE) return;
     }
   });
 }

@@ -1,5 +1,5 @@
 import { csvCell } from "@workspace/shared";
-import type { BackupTables, BodyExportRow } from "@workspace/sync";
+import type { BackupPageWriter, BodyExportRow } from "@workspace/sync";
 
 /** Bumped when the backup file's layout changes in a way a reader must know about. */
 export const RECORD_SCHEMA_VERSION = 1;
@@ -26,79 +26,53 @@ export function recordFileName(app: string, kind: RecordKind, date: string): str
   return `${prefix}-${kind}-${date}.csv`;
 }
 
-const lines = (rows: string[][]) => rows.map((row) => row.join(",")).join("\r\n") + "\r\n";
+type BodyCsvKind = "weights" | "measurements";
+
+export const BODY_CSV_HEADERS = {
+  weights: "Date,Measured at,Weight (kg),Source",
+  measurements: "Date,Measured at,Metric,Value (cm),Source",
+};
+
 const number = (value: number) => String(Number(value.toFixed(4)));
 
-/** One line per weigh-in, oldest first. Weight is in kilograms. */
-export function weightsCsv(rows: readonly BodyExportRow[]): string {
-  return lines([
-    ["Date", "Measured at", "Weight (kg)", "Source"],
-    ...rows.flatMap((row) =>
-      row.metric === "weight"
-        ? [
-            [
-              csvCell(row.localDate),
-              csvCell(row.measuredAt),
-              number(row.value),
-              csvCell(row.source),
-            ],
-          ]
-        : [],
-    ),
-  ]);
+/** Returns only the data lines for this export, in the order read from SQLite. */
+export function bodyCsvPage(kind: BodyCsvKind, rows: readonly BodyExportRow[]): string {
+  const lines: string[] = [];
+  for (const row of rows) {
+    if ((row.metric === "weight") !== (kind === "weights")) continue;
+    const cells = [csvCell(row.localDate), csvCell(row.measuredAt)];
+    if (kind === "measurements") cells.push(csvCell(row.metric));
+    cells.push(number(row.value), csvCell(row.source));
+    lines.push(cells.join(",") + "\r\n");
+  }
+  return lines.join("");
 }
 
-/** One line per body measurement (every metric but weight), oldest first. Values are in cm. */
-export function measurementsCsv(rows: readonly BodyExportRow[]): string {
-  return lines([
-    ["Date", "Measured at", "Metric", "Value (cm)", "Source"],
-    ...rows.flatMap((row) =>
-      row.metric === "weight"
-        ? []
-        : [
-            [
-              csvCell(row.localDate),
-              csvCell(row.measuredAt),
-              csvCell(row.metric),
-              number(row.value),
-              csvCell(row.source),
-            ],
-          ],
-    ),
-  ]);
-}
-
-export const hasWeights = (rows: readonly BodyExportRow[]) =>
-  rows.some((row) => row.metric === "weight");
-export const hasMeasurements = (rows: readonly BodyExportRow[]) =>
-  rows.some((row) => row.metric !== "weight");
-
-/**
- * Everything the user owns on this device as one JSON document: a `schemaVersion` for readers,
- * when it was exported, and each table's rows as stored (ids, times, kilograms and centimetres).
- * Media files are not inside it, only their rows. There is no restore yet.
- */
-export function backupJson({
-  app,
-  appVersion,
-  exportedAt,
-  tables,
-}: {
-  app: string;
-  appVersion: string;
-  exportedAt: Date;
-  tables: BackupTables;
-}): string {
-  return JSON.stringify(
-    {
-      app: app.toLowerCase(),
-      kind: "record",
-      schemaVersion: RECORD_SCHEMA_VERSION,
-      exportedAt: exportedAt.toISOString(),
-      appVersion,
-      tables,
-    },
-    null,
-    1,
-  );
+/** Writes a versioned JSON document one table page at a time. */
+export async function writeBackupJson(
+  { app, appVersion, exportedAt }: { app: string; appVersion: string; exportedAt: Date },
+  visitPages: (writePage: BackupPageWriter) => Promise<void>,
+  write: (chunk: string) => Promise<void>,
+): Promise<void> {
+  const header = JSON.stringify({
+    app: app.toLowerCase(),
+    kind: "record",
+    schemaVersion: RECORD_SCHEMA_VERSION,
+    exportedAt: exportedAt.toISOString(),
+    appVersion,
+  });
+  await write(`${header.slice(0, -1)},"tables":{`);
+  let table: string | null = null;
+  let hasRows = false;
+  await visitPages(async (name, rows) => {
+    if (name !== table) {
+      await write(`${table === null ? "" : "],"}${JSON.stringify(name)}:[`);
+      table = name;
+      hasRows = false;
+    }
+    if (rows.length === 0) return;
+    await write((hasRows ? "," : "") + rows.map((row) => JSON.stringify(row)).join(","));
+    hasRows = true;
+  });
+  await write(table === null ? "}}" : "]}}");
 }

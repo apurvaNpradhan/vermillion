@@ -28,6 +28,7 @@ import {
   useSignedOut,
 } from "@/auth";
 import { BodyReminderHost } from "@/body";
+import { sweepExportFiles } from "@/platform/export-files";
 import { useNotificationNavigation } from "@/platform/navigation/use-notification-navigation";
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
@@ -162,6 +163,7 @@ function ThemedStatusBar() {
 }
 
 export default function Layout() {
+  useEffect(sweepExportFiles, []);
   return (
     <AppProviders>
       <ThemedStatusBar />

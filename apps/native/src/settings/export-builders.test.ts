@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   RECORD_SCHEMA_VERSION,
-  backupJson,
-  hasMeasurements,
-  hasWeights,
-  measurementsCsv,
+  BODY_CSV_HEADERS,
+  bodyCsvPage,
+  writeBackupJson,
   recordDate,
   recordFileName,
-  weightsCsv,
 } from "./export-builders";
 
 const rows = [
@@ -57,7 +55,9 @@ describe("record file names", () => {
 
 describe("body CSVs", () => {
   it("writes weights only, oldest first, in kilograms", () => {
-    expect(weightsCsv(rows).split("\r\n")).toEqual([
+    expect(
+      (BODY_CSV_HEADERS.weights + "\r\n" + bodyCsvPage("weights", rows)).split("\r\n"),
+    ).toEqual([
       "Date,Measured at,Weight (kg),Source",
       '"2026-11-01","2026-11-01T07:00:00.000Z",81.25,"manual"',
       '"2026-11-08","2026-11-08T07:00:00.000Z",80.9,"health"',
@@ -65,33 +65,42 @@ describe("body CSVs", () => {
     ]);
   });
   it("writes measurements only, one line per metric reading, in centimetres", () => {
-    expect(measurementsCsv(rows).split("\r\n")).toEqual([
+    expect(
+      (BODY_CSV_HEADERS.measurements + "\r\n" + bodyCsvPage("measurements", rows)).split("\r\n"),
+    ).toEqual([
       "Date,Measured at,Metric,Value (cm),Source",
       '"2026-11-01","2026-11-01T07:05:00.000Z","waist",82,"manual"',
       "",
     ]);
   });
-  it("is header-only when empty, and says what exists", () => {
-    expect(weightsCsv([])).toBe("Date,Measured at,Weight (kg),Source\r\n");
-    expect(hasWeights(rows)).toBe(true);
-    expect(hasMeasurements(rows.slice(0, 1))).toBe(false);
-    expect(hasWeights(rows.slice(1, 2))).toBe(false);
+  it("supplies no data lines for an empty or nonmatching page", () => {
+    expect(bodyCsvPage("weights", [])).toBe("");
+    expect(bodyCsvPage("weights", rows.slice(1, 2))).toBe("");
+    expect(bodyCsvPage("measurements", rows.slice(0, 1))).toBe("");
   });
 });
 
 describe("backup JSON", () => {
-  it("is versioned and dated, and keeps every table's rows", () => {
-    const parsed = JSON.parse(
-      backupJson({
+  it("writes a versioned document with multiple pages and empty tables", async () => {
+    const chunks: string[] = [];
+    await writeBackupJson(
+      {
         app: "Sigil",
         appVersion: "1.2.3",
         exportedAt: new Date("2026-11-24T10:00:00Z"),
-        tables: {
-          program: [{ id: "p1", title: "Upper / Lower", deleted: null }],
-          training_session: [],
-        },
-      }),
+      },
+      async (writePage) => {
+        await writePage("program", [{ id: "p1", title: "Upper / Lower", deleted: null }]);
+        expect(chunks.join("")).toContain('"p1"');
+        await writePage("program", [{ id: "p2" }]);
+        await writePage("training_session", []);
+        await writePage("workout", [{ id: "w1" }]);
+      },
+      async (chunk) => {
+        chunks.push(chunk);
+      },
     );
+    const parsed = JSON.parse(chunks.join(""));
     expect(parsed).toEqual({
       app: "sigil",
       kind: "record",
@@ -99,8 +108,9 @@ describe("backup JSON", () => {
       exportedAt: "2026-11-24T10:00:00.000Z",
       appVersion: "1.2.3",
       tables: {
-        program: [{ id: "p1", title: "Upper / Lower", deleted: null }],
+        program: [{ id: "p1", title: "Upper / Lower", deleted: null }, { id: "p2" }],
         training_session: [],
+        workout: [{ id: "w1" }],
       },
     });
   });

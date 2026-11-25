@@ -1,6 +1,7 @@
 import { Switch } from "heroui-native";
 import { Vibrate, SpeakerHigh } from "phosphor-react-native";
 import { useState } from "react";
+import { Platform } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { ListRow } from "@/platform/ui/list";
@@ -24,7 +25,11 @@ export function useRestAlertRows() {
       <ListRow
         icon={Vibrate}
         title={t("reminder__rest_vibration")}
-        description={t("reminder__rest_vibration_hint")}
+        description={
+          Platform.OS === "ios"
+            ? t("reminder__rest_vibration_ios_hint")
+            : t("reminder__rest_vibration_hint")
+        }
         accessory="none"
         checked={restVibration}
         onPress={() => setUi({ restVibration: !restVibration })}

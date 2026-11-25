@@ -73,19 +73,8 @@ const SET_LETTER: Partial<Record<SetKind, string>> = {
   failure: "F",
 };
 
-/**
- * Every finished Session in Strong's CSV format (RFC 4180, CRLF line ends): one line per ticked
- * set, in the order given (oldest first). Working sets are numbered from 1 within their exercise;
- * warm-up, drop and failure sets are `W`, `D` and `F`. Bodyweight and unused cells are `0`, effort
- * is the RPE. Workout and exercise notes appear on their respective first lines.
- * The date is local to `timeZone`.
- * Strong's set-based CSV has no columns for floors, steps or empty workouts.
- */
-export function strongCsv(
-  rows: readonly SessionExportRow[],
-  options: { timeZone: string },
-): string {
-  const lines = [STRONG_CSV_HEADER.join(",")];
+/** Keeps set numbering and first-line notes correct when a Session spans multiple pages. */
+export function createStrongCsvPageFormatter(options: { timeZone: string }) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: options.timeZone,
     year: "numeric",
@@ -100,34 +89,52 @@ export function strongCsv(
   let date = "";
   let place = "";
   let working = 0;
-  for (const row of rows) {
-    const firstSet = row.sessionId !== sessionId;
-    if (firstSet) {
-      sessionId = row.sessionId;
-      date = localDateTime(row.startedAt, formatter);
+  return (rows: readonly SessionExportRow[]): string => {
+    const lines: string[] = [];
+    for (const row of rows) {
+      const firstSet = row.sessionId !== sessionId;
+      if (firstSet) {
+        sessionId = row.sessionId;
+        date = localDateTime(row.startedAt, formatter);
+      }
+      const key = `${row.sessionId}|${row.exerciseKey}`;
+      const first = key !== place;
+      working = first ? 0 : working;
+      place = key;
+      const letter = SET_LETTER[row.kind];
+      if (letter === undefined) working += 1;
+      lines.push(
+        [
+          date,
+          csvCell(row.workout),
+          strongDuration(row.sessionDurationS),
+          csvCell(row.exercise),
+          letter ?? String(working),
+          number(row.weightKg),
+          number(row.reps),
+          number(row.distanceM),
+          number(row.durationS),
+          first ? csvCell(row.exerciseNote ?? "") : "",
+          firstSet ? csvCell(row.sessionNote ?? "") : "",
+          row.rpe === null ? "" : String(row.rpe),
+        ].join(","),
+      );
     }
-    const key = `${row.sessionId}|${row.exerciseKey}`;
-    const first = key !== place;
-    working = first ? 0 : working;
-    place = key;
-    const letter = SET_LETTER[row.kind];
-    if (letter === undefined) working += 1;
-    lines.push(
-      [
-        date,
-        csvCell(row.workout),
-        strongDuration(row.sessionDurationS),
-        csvCell(row.exercise),
-        letter ?? String(working),
-        number(row.weightKg),
-        number(row.reps),
-        number(row.distanceM),
-        number(row.durationS),
-        first ? csvCell(row.exerciseNote ?? "") : "",
-        firstSet ? csvCell(row.sessionNote ?? "") : "",
-        row.rpe === null ? "" : String(row.rpe),
-      ].join(","),
-    );
-  }
-  return `${lines.join("\r\n")}\r\n`;
+    return lines.length === 0 ? "" : `${lines.join("\r\n")}\r\n`;
+  };
+}
+
+/**
+ * Every finished Session in Strong's CSV format (RFC 4180, CRLF line ends): one line per ticked
+ * set, in the order given (oldest first). Working sets are numbered from 1 within their exercise;
+ * warm-up, drop and failure sets are `W`, `D` and `F`. Bodyweight and unused cells are `0`, effort
+ * is the RPE. Workout and exercise notes appear on their respective first lines.
+ * The date is local to `timeZone`.
+ * Strong's set-based CSV has no columns for floors, steps or empty workouts.
+ */
+export function strongCsv(
+  rows: readonly SessionExportRow[],
+  options: { timeZone: string },
+): string {
+  return `${STRONG_CSV_HEADER.join(",")}\r\n${createStrongCsvPageFormatter(options)(rows)}`;
 }

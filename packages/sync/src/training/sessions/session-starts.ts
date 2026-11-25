@@ -55,7 +55,7 @@ export function watchSessionStarts(
       },
       onError,
     },
-    { signal: controller.signal, tables: ["training_session"], throttleMs: 500 },
+    { signal: controller.signal, tables: ["training_session"], throttleMs: 0 },
   );
   return () => controller.abort();
 }

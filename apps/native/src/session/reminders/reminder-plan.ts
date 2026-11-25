@@ -1,4 +1,4 @@
-import type { UiPreferences } from "@workspace/shared";
+import { fromZonedParts, zonedParts, type UiPreferences } from "@workspace/shared";
 
 export const TRAINING_REMINDER_PREFIX = "training-reminder:";
 export const REPORT_REMINDER_PREFIX = "report-reminder:";
@@ -45,18 +45,54 @@ export function trainingWeekdays(
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
-const dayKey = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+// UTC Date arithmetic here advances calendar fields, independent of the device's current offset.
+const calendarDate = (date: Date, timeZone: string) => {
+  const { year, month, day } = zonedParts(date.toISOString(), timeZone);
+  return new Date(Date.UTC(year, month - 1, day));
+};
 
-function atTime(date: Date, time: string): Date {
+const dayKey = (day: Date) => day.toISOString().slice(0, 10);
+const trainingReminderId = (day: Date) => `${TRAINING_REMINDER_PREFIX}${dayKey(day)}`;
+
+function atTime(date: Date, time: string, timeZone: string): number {
   const [hour = 0, minute = 0] = time.split(":").map(Number);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute);
+  return Date.parse(
+    fromZonedParts(
+      {
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate(),
+        hour,
+        minute,
+      },
+      timeZone,
+    ),
+  );
 }
 
-/** True when a Session (finished or not) started on the same local calendar day as `day`. */
-export function startedOnDay(sessions: readonly StartedSession[], day: Date): boolean {
-  const key = dayKey(day);
-  return sessions.some((session) => dayKey(new Date(session.startedAt)) === key);
+function startsInRange(sessions: readonly StartedSession[], from: number, until: number) {
+  return sessions.some(({ startedAt }) => {
+    const instant = Date.parse(startedAt);
+    return instant >= from && instant < until;
+  });
+}
+
+/** The pending training reminder to cancel once today's Session appears in local storage. */
+export function startedTrainingReminderId(
+  sessions: readonly StartedSession[],
+  now: Date,
+  timeZone: string,
+): string | null {
+  const today = calendarDate(now, timeZone);
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(today.getUTCDate() + 1);
+  return startsInRange(
+    sessions,
+    atTime(today, "00:00", timeZone),
+    atTime(tomorrow, "00:00", timeZone),
+  )
+    ? trainingReminderId(today)
+    : null;
 }
 
 /**
@@ -68,12 +104,14 @@ export function startedOnDay(sessions: readonly StartedSession[], day: Date): bo
  */
 export function desiredTrainingReminders({
   now,
+  timeZone,
   reminder,
   sessionsPerWeek,
   sessions,
   granted,
 }: {
   now: Date;
+  timeZone: string;
   reminder: UiPreferences["trainingReminder"];
   sessionsPerWeek: number | null;
   sessions: readonly StartedSession[];
@@ -82,50 +120,38 @@ export function desiredTrainingReminders({
   if (!granted || !reminder.enabled) return [];
   const weekdays = trainingWeekdays(reminder, sessionsPerWeek);
   const entries: ReminderEntry[] = [];
-  for (let offset = 0; offset < TRAINING_REMINDER_DAYS; offset++) {
-    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    const when = atTime(day, reminder.time);
-    if (when.getTime() <= now.getTime()) continue;
-    if (!weekdays.includes(day.getDay() + 1)) continue;
-    if (startedOnDay(sessions, day)) continue;
-    entries.push({
-      kind: "training",
-      id: `${TRAINING_REMINDER_PREFIX}${dayKey(day)}`,
-      at: when.getTime(),
-      url: "/train",
-    });
+  const day = calendarDate(now, timeZone);
+  const tomorrow = new Date(day);
+  for (
+    let offset = 0;
+    offset < TRAINING_REMINDER_DAYS;
+    offset++, day.setUTCDate(day.getUTCDate() + 1)
+  ) {
+    if (!weekdays.includes(day.getUTCDay() + 1)) continue;
+    const when = atTime(day, reminder.time, timeZone);
+    if (when <= now.getTime()) continue;
+    tomorrow.setTime(day.getTime());
+    tomorrow.setUTCDate(day.getUTCDate() + 1);
+    if (
+      startsInRange(sessions, atTime(day, "00:00", timeZone), atTime(tomorrow, "00:00", timeZone))
+    )
+      continue;
+    entries.push({ kind: "training", id: trainingReminderId(day), at: when, url: "/train" });
   }
   return entries;
 }
 
-/** True when a finished Session started in the local calendar month (`month` is 1 to 12) or year. */
-export function periodHadSessions(
-  sessions: readonly StartedSession[],
-  period: { year: number; month?: number },
-): boolean {
-  return sessions.some((session) => {
-    if (!session.finished) return false;
-    const started = new Date(session.startedAt);
-    return (
-      started.getFullYear() === period.year &&
-      (period.month === undefined || started.getMonth() + 1 === period.month)
-    );
-  });
-}
-
-/**
- * The next 1st of a month at the reminder time: last month's report, and on 1 January also the
- * year's. A report with no finished Session in its period is left out, so the notification is only
- * scheduled once the period has one (the schedule is made again whenever a Session finishes).
- */
+/** A report is ready on the next first of the month or year if its period had a finished Session. */
 export function desiredReportReminders({
   now,
+  timeZone,
   reminder,
   time,
   sessions,
   granted,
 }: {
   now: Date;
+  timeZone: string;
   reminder: UiPreferences["reportReminder"];
   /** The training reminder's time of day, `HH:MM`. */
   time: string;
@@ -133,30 +159,40 @@ export function desiredReportReminders({
   granted: boolean;
 }): ReminderEntry[] {
   if (!granted || !reminder.enabled) return [];
-  const thisMonth = atTime(new Date(now.getFullYear(), now.getMonth(), 1), time);
-  const target =
-    thisMonth.getTime() > now.getTime()
-      ? thisMonth
-      : atTime(new Date(now.getFullYear(), now.getMonth() + 1, 1), time);
-  const previous = new Date(target.getFullYear(), target.getMonth() - 1, 1);
-  const year = previous.getFullYear();
-  const month = previous.getMonth() + 1;
+  const today = calendarDate(now, timeZone);
+  const year = today.getUTCFullYear();
+  const monthIndex = today.getUTCMonth();
+  const first = (year: number, month: number) => new Date(Date.UTC(year, month, 1));
+  const thisMonth = atTime(first(year, monthIndex), time, timeZone);
+  const thisYear = atTime(first(year, 0), time, timeZone);
+  const nextMonthIndex = thisMonth > now.getTime() ? monthIndex : monthIndex + 1;
+  const nextYear = thisYear > now.getTime() ? year : year + 1;
+  const monthEnd = first(year, nextMonthIndex);
+  const monthStart = first(year, nextMonthIndex - 1);
+  const yearEnd = first(nextYear, 0);
+  const yearStart = first(nextYear - 1, 0);
+  const finished = sessions.filter((session) => session.finished);
+  const hadSessions = (start: Date, end: Date) =>
+    startsInRange(finished, atTime(start, "00:00", timeZone), atTime(end, "00:00", timeZone));
   const entries: ReminderEntry[] = [];
-  if (periodHadSessions(sessions, { year, month })) {
+  if (hadSessions(monthStart, monthEnd)) {
+    const year = monthStart.getUTCFullYear();
+    const month = monthStart.getUTCMonth() + 1;
     const key = `${year}-${pad(month)}`;
     entries.push({
       kind: "report",
       id: `${REPORT_REMINDER_PREFIX}${key}`,
-      at: target.getTime(),
+      at: atTime(monthEnd, time, timeZone),
       url: `/history/report/${key}`,
       period: { kind: "month", year, month },
     });
   }
-  if (month === 12 && periodHadSessions(sessions, { year })) {
+  if (hadSessions(yearStart, yearEnd)) {
+    const year = nextYear - 1;
     entries.push({
       kind: "report",
       id: `${REPORT_REMINDER_PREFIX}${year}`,
-      at: target.getTime(),
+      at: atTime(yearEnd, time, timeZone),
       url: `/history/report/${year}`,
       period: { kind: "year", year },
     });
@@ -164,9 +200,9 @@ export function desiredReportReminders({
   return entries;
 }
 
-/** The oldest Session start the reminders need: the start of the previous year. */
+/** The oldest Session start the reminders need, with room for any device time zone. */
 export function reminderHistoryStart(now: Date): Date {
-  return new Date(now.getFullYear() - 1, 0, 1);
+  return new Date(Date.UTC(now.getUTCFullYear() - 2, 11, 30));
 }
 
 export type HeldReminder = { id: string; signature: string };
