@@ -1,13 +1,18 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
-import { snapshotModifiers, type Phase, type PhaseSnapshot } from "../phases/phases";
+import {
+  isBaselinePhase,
+  snapshotModifiers,
+  type Phase,
+  type PhaseSnapshot,
+} from "../phases/phases";
 import {
   resolveExerciseUnit,
   type PreviousSource,
   type WeightUnit,
 } from "../vocabulary/vocabulary";
 import { exerciseEntries, suggestionHistory } from "./suggestion-history";
-import type { LighterPeriod } from "./lighter-week";
+import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
 import { stalledSessions } from "./stalled-lift";
@@ -26,6 +31,8 @@ export type SuggestionSettings = {
   testSingle?: boolean;
   /** History selected by the entry, Workout preference and gym. */
   baselineHistory?: readonly SessionHistory[];
+  /** Baseline-eligible Sessions, across Workouts, for matching fixed-rep prescriptions. */
+  fixedBaselineHistory?: readonly SessionHistory[];
   /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
   gymId?: string | null;
   /** The loads and cap of this gym for the exercise; null is the equipment default. */
@@ -105,7 +112,11 @@ export function suggestionContext(
   place: SuggestionPlace,
   account: SuggestionAccount,
 ): SuggestionContext {
-  const { history, workoutHistory } = suggestionHistory(rawHistory, place, account.previousSource);
+  const { history, workoutHistory, anyWorkout } = suggestionHistory(
+    rawHistory,
+    place,
+    account.previousSource,
+  );
   let stall: StallInfo | null = null;
   if (place.stalls && !place.testSingle) {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
@@ -129,6 +140,9 @@ export function suggestionContext(
     settings: {
       bodyweightKg: account.bodyweightKg,
       baselineHistory: history,
+      fixedBaselineHistory: outsideLighterWeeks(anyWorkout, account.lighterWeeks).filter(
+        (session) => isBaselinePhase(session.phase),
+      ),
       weightUnit: unit,
       weightIncrementKg: incrementInUnit(
         account.weightIncrementKg,

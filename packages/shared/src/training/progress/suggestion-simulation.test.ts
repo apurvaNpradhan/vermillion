@@ -301,6 +301,58 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(test(history, 8)).toBeCloseTo(recordLoad * 0.925, 5);
   });
 
+  it("advances fixed reps across alternating Workouts without mixing range or effort targets", () => {
+    const fixed: PlannedSet = { kind: "working", reps_min: 5, reps_max: 5 };
+    const target: PlannedSet = { kind: "working", reps_min: 8, reps_max: 12 };
+    const history = [train(0, [{ weightKg: kg(weight), reps: 5 }], { target: fixed })];
+    const next = (day: number, workoutId: string, targets: PlannedSet[]) => {
+      const { settings } = suggestionContext(
+        [...history],
+        {
+          exerciseId: "lift",
+          type: "weight_reps",
+          equipment: "barbell",
+          workoutId,
+          gymId: null,
+          grid: null,
+          stalls: false,
+        },
+        {
+          unit,
+          previousSource: "same_workout",
+          weightIncrementKg: null,
+          lighterWeeks: [],
+          bodyweightKg: null,
+          stallMemory: () => ({ dismissed: false }),
+        },
+      );
+      return suggestNext(targets, history, "weight_reps", "barbell", settings, {
+        ...settings,
+        now: new Date(START + day * DAY),
+      });
+    };
+    for (let day = 1; day < 8; day += 1) {
+      const workout = day % 2 ? "alternate" : workoutId;
+      const suggestion = next(day, workout, [fixed]);
+      expect(suggestion?.sets[0]?.weightKg).toBeCloseTo(exact(weight + day * step), 2);
+      history.unshift({
+        ...train(day, suggestion?.sets ?? [], { target: fixed }),
+        workoutId: workout,
+      });
+    }
+    history.unshift({
+      ...train(8, [{ weightKg: kg(weight + step * 20), reps: 5 }], {
+        target: { ...fixed, effort_min: 6, effort_max: 6 },
+      }),
+      workoutId: "technique",
+    });
+    expect(next(9, workoutId, [fixed])?.sets[0]?.weightKg).toBeCloseTo(exact(weight + step * 8), 2);
+    expect(next(9, workoutId, [target])?.sets[0]).toMatchObject({
+      weightKg: expect.closeTo(exact(weight + step * 6), 2),
+      reps: 6,
+    });
+  });
+
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {
     const targets = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
     const history = [

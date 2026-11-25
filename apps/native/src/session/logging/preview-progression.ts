@@ -14,7 +14,7 @@ import {
   plannedSuggestion,
   type SuggestionSettings,
 } from "../../platform/training/workout-suggestion";
-import { ghostsOf, ordinalOf, previousOfRow } from "./set-values";
+import { ghostsOf, ordinalOf, previousForSuggestion } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
 type Change = {
@@ -53,7 +53,7 @@ export function previewProgression(
     const outcome = suggestion.outcomes[index];
     if (!next || !outcome) continue;
     const previous =
-      previousOfRow(baseline, entry.sets, index) ??
+      previousForSuggestion(baseline, settings.fixedBaselineHistory, entry.sets, index, target) ??
       (outcome.reason === "test_single"
         ? history
             .find((session) => session.sets.some(isCounted))
@@ -63,7 +63,14 @@ export function previewProgression(
     // The hint comes from a baseline Session, as in the set grid.
     const ghost = ghostsOf(
       type,
-      previousOfRow(baseline, entry.sets, index, true),
+      previousForSuggestion(
+        baseline,
+        settings.fixedBaselineHistory,
+        entry.sets,
+        index,
+        target,
+        true,
+      ),
       target,
       false,
       next,

@@ -1,3 +1,4 @@
+import type { PlannedSet } from "../plans/planned-sets";
 import type { LoggedSet } from "../logging/logged-set";
 import { historyForWorkout } from "../logging/history-for-workout";
 import type { ContextSession, SuggestionPlace } from "./suggestion-context";
@@ -7,6 +8,7 @@ import type { PreviousSource } from "../vocabulary/vocabulary";
 type HistorySelection = {
   history: readonly ContextSession[];
   workoutHistory: readonly ContextSession[];
+  anyWorkout: readonly ContextSession[];
 };
 
 const histories = new WeakMap<readonly ContextSession[], Map<string, HistorySelection>>();
@@ -63,7 +65,36 @@ export function suggestionHistory(
   const workoutHistory = rows.filter((session) => session.workoutId === place.workoutId);
   const baseline = historyForWorkout(rows, source === "same_workout" ? place.workoutId : null);
   const history = historyForGym(baseline, gym, place.equipment);
-  const result = { history, workoutHistory };
+  const anyWorkout = historyForGym(rows, gym, place.equipment);
+  const result = { history, workoutHistory, anyWorkout };
   cache.set(key, result);
   return result;
+}
+
+/** The latest matching fixed-rep prescriptions at this ordinal, across Workouts. */
+export function fixedPrescriptionSets(
+  history: readonly { sets: readonly LoggedSet[] }[],
+  target: PlannedSet,
+  ordinal: number,
+  limit = 1,
+): LoggedSet[] {
+  const reps = target.reps_min;
+  if (reps === undefined || reps !== (target.reps_max ?? reps)) return [];
+  const matches: LoggedSet[] = [];
+  for (const { sets } of history) {
+    const before = sets.filter((set) => set.kind === target.kind && set.completed_at !== null)[
+      ordinal
+    ];
+    if (
+      !before?.target ||
+      before.target.reps_min !== reps ||
+      before.target.reps_max !== reps ||
+      before.target.effort_min !== target.effort_min ||
+      before.target.effort_max !== target.effort_max
+    )
+      continue;
+    matches.push(before);
+    if (matches.length === limit) break;
+  }
+  return matches;
 }

@@ -48,6 +48,7 @@ export function plannedSuggestion(
       now,
       bodyweightKg: settings.bodyweightKg,
       baselineHistory: loggingHistory(history, exercise.equipment, settings),
+      fixedBaselineHistory: settings.fixedBaselineHistory,
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
       phaseLoad: settings.phaseLoad,

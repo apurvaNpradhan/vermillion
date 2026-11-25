@@ -3,9 +3,11 @@ import {
   actualValuesSchema,
   SET_VALUE_KEYS,
   formatLoad,
+  fixedPrescriptionSets,
   formatWeight,
   ghostFor,
   previousFor,
+  progresses,
   type DistanceUnit,
   type DurationFormat,
   type ExerciseType,
@@ -40,6 +42,22 @@ export function previousOfRow(
   const set = sets[index];
   if (!set || !history) return null;
   return previousFor(history, set.kind, ordinalOf(sets, index), baselineOnly);
+}
+
+/** Fixed-rep Previous and Ghosts read the same matching prescription as the engine. */
+export function previousForSuggestion(
+  history: readonly SessionHistory[],
+  fixedHistory: readonly SessionHistory[] | undefined,
+  rows: readonly { kind: SetKind }[],
+  index: number,
+  target: PlannedSet | null,
+  baselineOnly = false,
+): LoggedSet | null {
+  const fixed =
+    target && progresses(target.kind) && fixedHistory
+      ? fixedPrescriptionSets(fixedHistory, target, ordinalOf(rows, index))[0]
+      : undefined;
+  return fixed ?? previousOfRow(history, rows, index, baselineOnly);
 }
 
 /**

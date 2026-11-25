@@ -64,11 +64,14 @@ it.each([
   { unit: "lb", weight: 220, expected: 200, plannedDeload: false, resumed: true },
   { unit: "kg", weight: 100, expected: 105, plannedDeload: false, testWeek: true },
   { unit: "lb", weight: 225, expected: 235, plannedDeload: false, testWeek: true },
+  { unit: "kg", weight: 60, expected: 67.5, plannedDeload: false, fixed: true },
+  { unit: "lb", weight: 135, expected: 150, plannedDeload: false, fixed: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
   const resumed = "resumed" in scenario;
   const testWeek = "testWeek" in scenario;
+  const fixed = "fixed" in scenario;
   const progressing = "progressing" in scenario || "microplates" in scenario || resumed;
   const fixture = await setupSessions();
   const { training } = fixture;
@@ -102,7 +105,7 @@ it.each([
   const target: PlannedSet = {
     kind: "working",
     reps_min: 5,
-    reps_max: 8,
+    reps_max: fixed ? 5 : 8,
     ...("tolerance" in scenario ? { weight_kg: kilograms } : {}),
     ...(effort ? { effort_min: 7, effort_max: 7 } : {}),
   } as const;
@@ -119,10 +122,23 @@ it.each([
     for (const set of sets)
       await tickSet(training, set.id, {
         weight: kilograms,
-        reps: testWeek ? 5 : progressing ? 5 + index : 8,
+        reps: testWeek || fixed ? 5 : progressing ? 5 + index : 8,
         rpe: effort ? 7 : undefined,
       });
     await finishSession(training, id);
+  }
+  if (fixed) {
+    const alternate = await createWorkout(training, { title: "Second day", program_id: null });
+    const [second] = await addExercises(training, alternate, [SQUAT]);
+    if (!second) throw new Error("Expected a second Workout entry");
+    await updateWorkoutExercise(training, second, { sets: [target, target] });
+    const previousId = await startSession(training, { workoutId: alternate, derivedTitle: "Legs" });
+    const previous = await readSession(previousId);
+    const laterLoad = expected - (unit === "kg" ? 2.5 : 5);
+    for (const set of previous?.exercises[0]?.sets ?? []) {
+      await tickSet(training, set.id, { weight: parseWeight(String(laterLoad), unit), reps: 5 });
+    }
+    await finishSession(training, previousId);
   }
   if (programId !== null) {
     await addSlot(training, programId, workoutId);
@@ -147,7 +163,7 @@ it.each([
     }
   }
   const id = await startSession(training, { workoutId, derivedTitle: "Legs", timeZone: "UTC" });
-  const applied = !plannedDeload && !effort && !progressing && !testWeek;
+  const applied = !plannedDeload && !effort && !progressing && !testWeek && !fixed;
   if (applied) {
     const row = (await readSession(id))?.exercises[0];
     if (!row) throw new Error("Expected a Session exercise");
@@ -247,7 +263,7 @@ it.each([
   if (!applied) expect(next?.suggestion).toEqual(view?.suggestion);
   expect(
     nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
-  ).toEqual(["upcoming", workoutId]);
+  ).toEqual(fixed ? ["upcoming", history[0]?.workoutId, workoutId] : ["upcoming", workoutId]);
 
   if (progressing) expect(view?.stall).toBeNull();
   const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
@@ -257,11 +273,11 @@ it.each([
       ? "test_single"
       : resumed
         ? "after_break"
-        : effort || progressing
+        : effort || progressing || fixed
           ? "add_weight"
           : "deload",
   });
-  if (!effort && !progressing && !testWeek)
+  if (!effort && !progressing && !testWeek && !fixed)
     expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
   if (applied) {

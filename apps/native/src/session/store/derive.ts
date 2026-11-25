@@ -21,7 +21,12 @@ import type { GymLoads } from "@/gym";
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
 import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
-import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
+import {
+  ghostsOf,
+  previousForSuggestion,
+  valueOfSet,
+  type DisplayUnits,
+} from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
 
@@ -155,9 +160,21 @@ function buildView(
 
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
-    const previous = previousOfRow(history, exercise.sets, index);
-    // The hint is derived from a baseline Session, not from a Test or Deload week.
-    const hinted = previousOfRow(history, exercise.sets, index, true);
+    const previous = previousForSuggestion(
+      history,
+      context.settings.fixedBaselineHistory,
+      exercise.sets,
+      index,
+      set.target,
+    );
+    const hinted = previousForSuggestion(
+      history,
+      context.settings.fixedBaselineHistory,
+      exercise.sets,
+      index,
+      set.target,
+      true,
+    );
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,
