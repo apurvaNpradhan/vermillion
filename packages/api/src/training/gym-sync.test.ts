@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  gymExerciseSettingId,
   GYM_LIMITS,
   SYNC_SCHEMA_VERSION,
   type SyncFailureCode,
@@ -32,8 +33,9 @@ const rejected = (code: SyncFailureCode): Partial<SyncUploadResult> => ({
 const op = (kind: SyncOp["op"], table: string, id: string, opData?: SyncOp["opData"]): SyncOp =>
   opData ? { op: kind, table, id, opData } : { op: kind, table, id };
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
-const ranges = (value: { min: number; max: number | null; step: number; extra?: boolean }[]) =>
-  JSON.stringify(value);
+const ranges = (
+  value: { min: number; max: number | null; step: number | null; extra?: boolean }[],
+) => JSON.stringify(value);
 
 describe("gym upload handlers", () => {
   let app: TestApp;
@@ -123,6 +125,10 @@ describe("gym upload handlers", () => {
       setup_note: "Seat 4",
       ...extra,
     });
+
+  /** The one id a setting of this user, gym and exercise has. */
+  const settingId = (me: Writer, gymId: string, forExercise = exerciseId) =>
+    gymExerciseSettingId({ userId: me.userId, gymId, exerciseId: forExercise });
 
   async function defaultGym(me: Writer) {
     const [gym] = await liveGyms(me.userId);
@@ -221,13 +227,13 @@ describe("gym upload handlers", () => {
     );
   });
 
-  it("stores exercise settings per gym and converges two devices on one row", async () => {
+  it("stores exercise settings per gym, each under its own deterministic id", async () => {
     const me = await writer("gym-setting@example.com");
     const first = await defaultGym(me);
     const garage = uuidv7();
-    const a = uuidv7();
-    const b = uuidv7();
-    const c = uuidv7();
+    const a = settingId(me, first);
+    const c = settingId(me, garage);
+    expect(a).not.toBe(c);
     expect(await me.send([putGym(garage, "Garage"), putSetting(a, first)])).toEqual(applied);
     expect(await stored("gym_exercise_setting", a)).toMatchObject({
       gym_id: first,
@@ -237,10 +243,6 @@ describe("gym upload handlers", () => {
     expect(JSON.parse(String((await stored("gym_exercise_setting", a))?.load_ranges))).toEqual([
       { min: 5, max: 91, step: 1 },
     ]);
-    // The same gym and exercise from another install lands on the existing row.
-    expect(await me.send([putSetting(b, first, { setup_note: "Seat 5" })])).toEqual(applied);
-    expect(await stored("gym_exercise_setting", a)).toMatchObject({ setup_note: "Seat 5" });
-    expect(await stored("gym_exercise_setting", b)).toBeUndefined();
     // Another gym is another row.
     expect(await me.send([putSetting(c, garage, { setup_note: "Seat 2" })])).toEqual(applied);
     expect(await stored("gym_exercise_setting", c)).toMatchObject({ gym_id: garage });
@@ -264,6 +266,87 @@ describe("gym upload handlers", () => {
     ]);
     expect(await me.send([op("DELETE", "gym_exercise_setting", a)])).toEqual(applied);
     expect((await stored("gym_exercise_setting", a))?.deleted_at).not.toBeNull();
+  });
+
+  it("converges two devices that each create a setting offline, and either can edit it after", async () => {
+    const me = await writer("gym-setting-two@example.com");
+    const first = await defaultGym(me);
+    const id = settingId(me, first);
+    const tablet = {
+      send: (ops: SyncOp[]) => me.send(ops),
+    };
+    // Each device made its own row, with different fields; the same id arrives twice.
+    expect(
+      await me.send([
+        putSetting(id, first, {
+          load_ranges: ranges([{ min: 5, max: 90, step: 5 }]),
+          setup_note: null,
+        }),
+      ]),
+    ).toEqual(applied);
+    expect(
+      await tablet.send([putSetting(id, first, { load_ranges: ranges([]), setup_note: "Seat 4" })]),
+    ).toEqual(applied);
+    expect(await stored("gym_exercise_setting", id)).toMatchObject({ setup_note: "Seat 4" });
+    expect(JSON.parse(String((await stored("gym_exercise_setting", id))?.load_ranges))).toEqual([
+      { min: 5, max: 90, step: 5 },
+    ]);
+    const live = await app.rows(
+      sql`SELECT id FROM gym_exercise_setting WHERE gym_id = ${first} AND exercise_id = ${exerciseId} AND deleted_at IS NULL`,
+    );
+    expect(live).toHaveLength(1);
+    // A later edit from either device finds the row.
+    expect(
+      await me.send([op("PATCH", "gym_exercise_setting", id, { setup_note: "Seat 5" })]),
+    ).toEqual(applied);
+    expect(
+      await tablet.send([op("PATCH", "gym_exercise_setting", id, { setup_note: null })]),
+    ).toEqual(applied);
+    expect(await stored("gym_exercise_setting", id)).toMatchObject({ setup_note: null });
+  });
+
+  it("brings a deleted setting back under its id, with only what the new PUT holds", async () => {
+    const me = await writer("gym-setting-revive@example.com");
+    const first = await defaultGym(me);
+    const id = settingId(me, first);
+    expect(await me.send([putSetting(id, first)])).toEqual(applied);
+    expect(await me.send([op("DELETE", "gym_exercise_setting", id)])).toEqual(applied);
+    expect(
+      await me.send([op("PATCH", "gym_exercise_setting", id, { setup_note: "x" })]),
+    ).toMatchObject(rejected("SYNC_ROW_DELETED"));
+    expect(
+      await me.send([putSetting(id, first, { load_ranges: ranges([]), setup_note: "Pin 3" })]),
+    ).toEqual(applied);
+    expect(await stored("gym_exercise_setting", id)).toMatchObject({
+      setup_note: "Pin 3",
+      deleted_at: null,
+    });
+    expect(JSON.parse(String((await stored("gym_exercise_setting", id))?.load_ranges))).toEqual([]);
+  });
+
+  it("refuses a new setting under an id that is not its own, and keeps one an older app made", async () => {
+    const me = await writer("gym-setting-legacy@example.com");
+    const other = await writer("gym-setting-legacy-other@example.com");
+    const first = await defaultGym(me);
+    expect(await me.send([putSetting(uuidv7(), first)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    const id = settingId(me, first);
+    // Nobody writes into another user's setting by sending its id.
+    expect(await me.send([putSetting(id, first)])).toEqual(applied);
+    expect(await other.send([putSetting(id, await defaultGym(other))])).toMatchObject(
+      rejected("SYNC_ID_CONFLICT"),
+    );
+    // A row made under a random id by an earlier build stays the one live row.
+    const legacy = uuidv7();
+    const garage = uuidv7();
+    expect(await me.send([putGym(garage, "Garage")])).toEqual(applied);
+    await app.rows(
+      sql`INSERT INTO gym_exercise_setting (id, user_id, gym_id, exercise_id, load_ranges, setup_note) VALUES (${legacy}, ${me.userId}, ${garage}, ${exerciseId}, '[]'::jsonb, 'Old')`,
+    );
+    expect(
+      await me.send([putSetting(settingId(me, garage), garage, { setup_note: "New" })]),
+    ).toEqual(applied);
+    expect(await stored("gym_exercise_setting", legacy)).toMatchObject({ setup_note: "New" });
+    expect(await stored("gym_exercise_setting", settingId(me, garage))).toBeUndefined();
   });
 
   it.each([
@@ -292,6 +375,30 @@ describe("gym upload handlers", () => {
     );
   });
 
+  it("stores a cap without a step, and refuses one among ranges", async () => {
+    const me = await writer("gym-cap-only@example.com");
+    const first = await defaultGym(me);
+    const id = settingId(me, first);
+    expect(
+      await me.send([
+        putSetting(id, first, { load_ranges: ranges([{ min: 0, max: 90, step: null }]) }),
+      ]),
+    ).toEqual(applied);
+    expect(JSON.parse(String((await stored("gym_exercise_setting", id))?.load_ranges))).toEqual([
+      { min: 0, max: 90, step: null },
+    ]);
+    expect(
+      await me.send([
+        op("PATCH", "gym_exercise_setting", id, {
+          load_ranges: ranges([
+            { min: 0, max: 90, step: null },
+            { min: 100, max: null, step: 5 },
+          ]),
+        }),
+      ]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+  });
+
   it("refuses settings for another user's gym, a missing exercise or a moved row", async () => {
     const me = await writer("gym-setting-owner@example.com");
     const other = await writer("gym-setting-other@example.com");
@@ -303,7 +410,7 @@ describe("gym upload handlers", () => {
     expect(await me.send([putSetting(uuidv7(), first, { exercise_id: uuidv7() })])).toMatchObject(
       rejected("SESSION_PARENT_NOT_FOUND"),
     );
-    const id = uuidv7();
+    const id = settingId(me, first);
     expect(await me.send([putSetting(id, first)])).toEqual(applied);
     const garage = uuidv7();
     expect(await me.send([putGym(garage, "Garage")])).toEqual(applied);
@@ -349,8 +456,8 @@ describe("gym upload handlers", () => {
     const garage = uuidv7();
     const kitHome = uuidv7();
     const kitGarage = uuidv7();
-    const setGarage = uuidv7();
-    const setHome = uuidv7();
+    const setGarage = settingId(me, garage);
+    const setHome = settingId(me, first);
     const sGarage = uuidv7();
     const sHome = uuidv7();
     expect(
@@ -371,6 +478,22 @@ describe("gym upload handlers", () => {
     expect((await stored("gym_equipment", kitHome))?.deleted_at).toBeNull();
     expect((await stored("gym_exercise_setting", setHome))?.deleted_at).toBeNull();
     expect(await stored("training_session", sHome)).toMatchObject({ gym_id: first });
+  });
+
+  it("deleting a gym takes a kit larger than one upload with it", async () => {
+    const me = await writer("gym-cascade-large@example.com");
+    const garage = uuidv7();
+    expect(await me.send([putGym(garage, "Garage")])).toEqual(applied);
+    await app.rows(
+      sql`INSERT INTO gym_equipment (id, user_id, gym_id, kind, weight_kg, unit, count, enabled)
+        SELECT uuidv7(), ${me.userId}, ${garage}, 'plate', n / 10.0, 'kg', NULL, true
+        FROM generate_series(1, 250) AS n`,
+    );
+    expect(await me.send([op("DELETE", "gym", garage)])).toEqual(applied);
+    const [left] = await app.rows(
+      sql`SELECT count(*)::int AS n FROM gym_equipment WHERE gym_id = ${garage} AND deleted_at IS NULL`,
+    );
+    expect(left).toMatchObject({ n: 0 });
   });
 
   it("carries a kit written without a gym (an older app) into the default gym", async () => {

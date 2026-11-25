@@ -1,4 +1,9 @@
-import { gymExerciseSettingInput, gymInput, loadRangesSchema } from "@workspace/shared";
+import {
+  gymExerciseSettingId,
+  gymExerciseSettingInput,
+  gymInput,
+  loadRangesSchema,
+} from "@workspace/shared";
 import type { DbExecutor } from "@workspace/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -139,14 +144,16 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
     }
 
     if (op.op === "PUT") {
+      // The row's id is made of the user, gym and exercise, so it cannot belong to another user.
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, ...data } = accept(putSetting.safeParse(op.opData ?? {}));
-      checkPut(found, restore);
+      // The restore marker is accepted but not needed: a PUT of a setting is always an upsert.
+      const put = accept(putSetting.safeParse(op.opData ?? {}));
       const values = accept(
         gymExerciseSettingInput.safeParse({
-          load_ranges: [],
-          setup_note: null,
-          ...data,
+          gym_id: put.gym_id,
+          exercise_id: put.exercise_id,
+          load_ranges: put.load_ranges ?? [],
+          setup_note: put.setup_note ?? null,
         }),
       );
       if (
@@ -160,37 +167,49 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
       if (!(await visibleExerciseType(db, userId, values.exercise_id))) {
         throw new SyncRejection("SESSION_PARENT_NOT_FOUND");
       }
-      const fields = {
-        ...(data.load_ranges !== undefined ? { loadRanges: values.load_ranges } : {}),
-        ...(data.setup_note !== undefined ? { setupNote: values.setup_note } : {}),
-        updatedAt: now(),
-      };
-      // One live setting per gym and exercise: two devices that each created one offline converge
-      // on the first to arrive, the later values winning, instead of failing the unique index.
       const existing = await liveSettingOf(db, userId, values.gym_id, values.exercise_id);
-      if (existing && existing.id !== id) {
+      // Two devices that each create the setting offline send the same id. The later PUT meets a
+      // live row and adds what it holds: a range list or a note the first did not have. Clearing a
+      // field is a PATCH, which the creating device can send once its row exists.
+      if (existing) {
         await db
           .update(gymExerciseSetting)
-          .set(fields)
+          .set({
+            ...(values.load_ranges.length > 0 ? { loadRanges: values.load_ranges } : {}),
+            ...(values.setup_note !== null ? { setupNote: values.setup_note } : {}),
+            updatedAt: now(),
+          })
           .where(eq(gymExerciseSetting.id, existing.id));
         return;
       }
-      if (found.kind === "absent") {
-        accept(newRowId.safeParse(id));
-        await db.insert(gymExerciseSetting).values({
-          id,
-          userId,
-          gymId: values.gym_id,
-          exerciseId: values.exercise_id,
-          loadRanges: values.load_ranges,
-          setupNote: values.setup_note,
-        });
+      // A setting that was deleted comes back under its own id with exactly these values.
+      if (found.kind === "own") {
+        await db
+          .update(gymExerciseSetting)
+          .set({
+            loadRanges: values.load_ranges,
+            setupNote: values.setup_note,
+            deletedAt: null,
+            updatedAt: now(),
+          })
+          .where(eq(gymExerciseSetting.id, id));
         return;
       }
-      await db
-        .update(gymExerciseSetting)
-        .set({ ...fields, deletedAt: null })
-        .where(eq(gymExerciseSetting.id, id));
+      // A new setting has the one id its user, gym and exercise make.
+      if (
+        id !==
+        gymExerciseSettingId({ userId, gymId: values.gym_id, exerciseId: values.exercise_id })
+      ) {
+        invalid();
+      }
+      await db.insert(gymExerciseSetting).values({
+        id,
+        userId,
+        gymId: values.gym_id,
+        exerciseId: values.exercise_id,
+        loadRanges: values.load_ranges,
+        setupNote: values.setup_note,
+      });
       return;
     }
 

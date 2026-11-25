@@ -1,9 +1,11 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
+  gymExerciseSettingId,
   gymExerciseSettingInput,
   gymInput,
   loadRangesSchema,
+  SYNC_LIMITS,
   type LoadRange,
 } from "@workspace/shared";
 import { and, asc, count, desc, eq, isNull, or } from "drizzle-orm";
@@ -51,6 +53,11 @@ export async function activeGymIdOf(tx: Tx): Promise<string | null> {
 /**
  * Makes a gym with a copy of `copyKitFrom`'s bars and plates (a new gym starts with the kit of the
  * one the user trains at). It does not become the active gym. Returns the new id.
+ *
+ * The server refuses an upload of more than `SYNC_LIMITS.maxOps` writes, and a kit can be larger,
+ * so the copy goes in transactions of at most that many rows (the gym with the first of them).
+ * A copy cut short, say by the app closing, leaves a gym with part of the kit, which the user can
+ * complete in the kit screen; the gym itself is never half-made, because it uploads first.
  */
 export async function createGym(
   database: TrainingDatabase,
@@ -58,38 +65,60 @@ export async function createGym(
   scope: string,
 ): Promise<string> {
   const values = gymInput.parse({ name: input.name });
-  return write(database, scope, async (tx) => {
+  const id = uuidv7();
+  let rest: KitItem[] = [];
+  await write(database, scope, async (tx) => {
     const userId = await ownerOf(tx);
-    const id = uuidv7();
     await tx.insert(gym).values({ id, user_id: userId, name: values.name, created_at: nowIso() });
-    if (input.copyKitFrom) {
-      const isDefault = (await defaultGymIdOf(tx)) === input.copyKitFrom;
-      const kit = await tx
-        .select()
-        .from(gymEquipment)
-        .where(
-          or(
-            eq(gymEquipment.gym_id, input.copyKitFrom),
-            isDefault ? isNull(gymEquipment.gym_id) : undefined,
-          ),
-        );
-      for (const item of kit) {
-        await tx.insert(gymEquipment).values({
-          id: uuidv7(),
-          user_id: userId,
-          gym_id: id,
-          kind: item.kind,
-          weight_kg: item.weight_kg,
-          unit: item.unit,
-          label: item.label,
-          count: item.count,
-          enabled: item.enabled,
-          created_at: nowIso(),
-        });
-      }
-    }
-    return id;
+    if (!input.copyKitFrom) return;
+    // A gym that is gone has no kit to copy, whatever rows of it the device still holds.
+    const [source] = await tx
+      .select({ id: gym.id })
+      .from(gym)
+      .where(eq(gym.id, input.copyKitFrom))
+      .limit(1);
+    if (!source) return;
+    const isDefault = (await defaultGymIdOf(tx)) === input.copyKitFrom;
+    const kit = await tx
+      .select()
+      .from(gymEquipment)
+      .where(
+        or(
+          eq(gymEquipment.gym_id, input.copyKitFrom),
+          isDefault ? isNull(gymEquipment.gym_id) : undefined,
+        ),
+      );
+    const first = kit.slice(0, KIT_COPY_FIRST);
+    rest = kit.slice(KIT_COPY_FIRST);
+    await copyKit(tx, userId, id, first);
   });
+  for (let at = 0; at < rest.length; at += KIT_COPY_CHUNK) {
+    const chunk = rest.slice(at, at + KIT_COPY_CHUNK);
+    await write(database, scope, async (tx) => copyKit(tx, await ownerOf(tx), id, chunk));
+  }
+  return id;
+}
+
+type KitItem = typeof gymEquipment.$inferSelect;
+/** The gym row is one write of its first transaction, the rest of the room is kit. */
+const KIT_COPY_FIRST = SYNC_LIMITS.maxOps - 1;
+const KIT_COPY_CHUNK = SYNC_LIMITS.maxOps;
+
+async function copyKit(tx: Tx, userId: string, gymId: string, items: readonly KitItem[]) {
+  for (const item of items) {
+    await tx.insert(gymEquipment).values({
+      id: uuidv7(),
+      user_id: userId,
+      gym_id: gymId,
+      kind: item.kind,
+      weight_kg: item.weight_kg,
+      unit: item.unit,
+      label: item.label,
+      count: item.count,
+      enabled: item.enabled,
+      created_at: nowIso(),
+    });
+  }
 }
 
 /** Renames a gym. False when it is gone. */
@@ -110,9 +139,11 @@ export async function renameGym(
 }
 
 /**
- * Deletes a gym, its kit and its exercise settings. The Sessions trained there stay; they read
- * as "any gym" (the server nulls their `gym_id`, and readers ignore a gym that is gone). The last
- * gym cannot be deleted: false.
+ * Deletes a gym. Only the gym row goes: its kit and exercise settings can number more than one
+ * upload may hold (`SYNC_LIMITS.maxOps`), so the server takes them down with it (`deleteGymCascade`)
+ * and nulls `gym_id` on its Sessions, which stay and read as "any gym". Until that sync arrives,
+ * readers ignore the kit, settings and Sessions of a gym that is gone. The last gym cannot be
+ * deleted: false.
  */
 export async function deleteGym(
   database: TrainingDatabase,
@@ -123,11 +154,6 @@ export async function deleteGym(
     const [total] = await tx.select({ value: count() }).from(gym);
     const [current] = await tx.select({ id: gym.id }).from(gym).where(eq(gym.id, id)).limit(1);
     if (!current || (total?.value ?? 0) <= 1) return false;
-    const isDefault = (await defaultGymIdOf(tx)) === id;
-    await tx
-      .delete(gymEquipment)
-      .where(or(eq(gymEquipment.gym_id, id), isDefault ? isNull(gymEquipment.gym_id) : undefined));
-    await tx.delete(gymExerciseSetting).where(eq(gymExerciseSetting.gym_id, id));
     await tx.delete(gym).where(eq(gym.id, id));
     return true;
   });
@@ -170,7 +196,7 @@ export type GymExerciseSettingPatch = {
 /**
  * Sets what one gym says about one exercise, creating the row on first use and changing only the
  * given fields. A row left with no ranges and no note is deleted. Returns the row's id, or null
- * when it was removed.
+ * when it was removed or the gym is gone.
  */
 export async function setGymExerciseSetting(
   database: TrainingDatabase,
@@ -181,6 +207,12 @@ export async function setGymExerciseSetting(
   const fields = settingPatch.parse(patch);
   return write(database, scope, async (tx) => {
     const userId = await ownerOf(tx);
+    const [live] = await tx
+      .select({ id: gym.id })
+      .from(gym)
+      .where(eq(gym.id, target.gymId))
+      .limit(1);
+    if (!live) return null;
     const [current] = await tx
       .select()
       .from(gymExerciseSetting)
@@ -204,7 +236,13 @@ export async function setGymExerciseSetting(
         exercise_id: target.exerciseId,
         ...merged,
       });
-      const id = uuidv7();
+      // One id per user, gym and exercise, so two devices that each create the setting offline
+      // make the same row and a later edit from either reaches it.
+      const id = gymExerciseSettingId({
+        userId,
+        gymId: target.gymId,
+        exerciseId: target.exerciseId,
+      });
       await tx
         .insert(gymExerciseSetting)
         .values({ id, user_id: userId, created_at: nowIso(), ...values });

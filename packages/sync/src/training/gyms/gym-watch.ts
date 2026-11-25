@@ -2,6 +2,15 @@ import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { loadRangesSchema, type LoadRange } from "@workspace/shared";
 import { z } from "zod";
 
+import { readPreferencesRow } from "../../preferences";
+import {
+  EQUIPMENT_SQL,
+  EXERCISE_BARS_SQL,
+  parseEquipment,
+  parseExerciseBars,
+  type EquipmentRow,
+} from "../sessions/session-watch";
+
 const THROTTLE_MS = 50;
 const GYM_PAGE_SIZE = 50;
 const SETTINGS_LIMIT = 500;
@@ -121,6 +130,21 @@ function rangesOf(text: string | null): LoadRange[] {
   }
 }
 
+/**
+ * The exercise settings of one gym. A gym that was deleted has none here, even while its rows
+ * wait on the device for the server to take them.
+ */
+const SETTINGS_SQL = `SELECT exercise_id, load_ranges, setup_note FROM gym_exercise_setting
+  WHERE gym_id = ? AND EXISTS (SELECT 1 FROM gym WHERE gym.id = gym_exercise_setting.gym_id)
+  ORDER BY exercise_id LIMIT ${SETTINGS_LIMIT}`;
+
+const parseSettings = (rows: readonly object[]): GymExerciseSettingRow[] =>
+  settingSchema.parse(rows).map((row) => ({
+    exerciseId: row.exercise_id,
+    loadRanges: rangesOf(row.load_ranges),
+    setupNote: row.setup_note,
+  }));
+
 /** Watches every exercise setting of one gym (a gym has few: only exercises the user set up). */
 export function watchGymExerciseSettings(
   database: AbstractPowerSyncDatabase,
@@ -132,18 +156,65 @@ export function watchGymExerciseSettings(
 ): () => void {
   return watchRows(
     database,
-    `SELECT exercise_id, load_ranges, setup_note FROM gym_exercise_setting
-      WHERE gym_id = ? ORDER BY exercise_id LIMIT ${SETTINGS_LIMIT}`,
+    SETTINGS_SQL,
     [gymId],
-    ["gym_exercise_setting"],
-    (rows) =>
-      settingSchema.parse(rows).map((row) => ({
-        exerciseId: row.exercise_id,
-        loadRanges: rangesOf(row.load_ranges),
-        setupNote: row.setup_note,
-      })),
+    ["gym_exercise_setting", "gym"],
+    parseSettings,
     { onResult: handlers.onSettings, onError: handlers.onError },
   );
+}
+
+/** What a gym says about loads: the gym, its exercise settings and kit, and each exercise's bar. */
+export type GymLoadInputs = {
+  /** The gym of the Session when it has one that exists, else the gym trained at; null with none. */
+  gymId: string | null;
+  /** The Session's own gym when it exists: whose Sessions the baselines come from. */
+  sessionGymId: string | null;
+  /** Rows with no gym belong to the oldest gym. */
+  isDefaultGym: boolean;
+  settings: GymExerciseSettingRow[];
+  kit: EquipmentRow[];
+  bars: ReadonlyMap<string, string>;
+};
+
+/**
+ * Reads the gym loads of one Session once, for work that has no screen to watch them (the live
+ * notification). Same rule as the screens: the Session's gym when it exists, else the gym the user
+ * trains at, else the oldest gym.
+ */
+export async function readGymLoadInputs(
+  database: AbstractPowerSyncDatabase,
+  sessionId: string,
+): Promise<GymLoadInputs> {
+  return database.readTransaction(async (tx) => {
+    const gyms = z
+      .array(z.object({ id: z.string() }))
+      .parse(await tx.getAll("SELECT id FROM gym ORDER BY created_at, id"));
+    const ids = new Set(gyms.map((row) => row.id));
+    const [session] = z
+      .array(z.object({ gym_id: z.string().nullable() }))
+      .parse(await tx.getAll("SELECT gym_id FROM training_session WHERE id = ?", [sessionId]));
+    const [prefs] = z
+      .array(z.object({ ui: z.string() }))
+      .parse(await tx.getAll("SELECT ui FROM user_preferences ORDER BY id DESC LIMIT 1"));
+    const chosen = readPreferencesRow(prefs && { locale: null, timezone: null, ui: prefs.ui }).ui
+      .activeGymId;
+    const sessionGymId = session?.gym_id && ids.has(session.gym_id) ? session.gym_id : null;
+    const activeGym = chosen && ids.has(chosen) ? chosen : null;
+    const gymId = sessionGymId ?? activeGym ?? gyms[0]?.id ?? null;
+    if (gymId === null) {
+      return { gymId, sessionGymId, isDefaultGym: false, settings: [], kit: [], bars: new Map() };
+    }
+    const isDefaultGym = gymId === gyms[0]?.id;
+    return {
+      gymId,
+      sessionGymId,
+      isDefaultGym,
+      settings: parseSettings(await tx.getAll(SETTINGS_SQL, [gymId])),
+      kit: parseEquipment(await tx.getAll(EQUIPMENT_SQL, [gymId, isDefaultGym ? "1" : "0"])),
+      bars: parseExerciseBars(await tx.getAll(EXERCISE_BARS_SQL)),
+    };
+  });
 }
 
 /** The gym of one Session (null for any gym); a gym that is gone reads as none. */

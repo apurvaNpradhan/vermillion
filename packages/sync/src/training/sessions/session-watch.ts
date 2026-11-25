@@ -864,14 +864,27 @@ export type EquipmentRow = {
 
 /**
  * The kit of one gym. Two placeholders: the gym id, and "1" when rows with no gym (written before
- * gyms existed) belong to it too, which they do for the default gym.
+ * gyms existed) belong to it too, which they do for the default gym. The kit of a gym that was
+ * deleted is not read, even while its rows wait on the device for the server to take them.
  */
 export const EQUIPMENT_SQL = `SELECT id, kind, weight_kg, unit, label, count, enabled FROM gym_equipment
-  WHERE gym_id = ? OR (gym_id IS NULL AND ? = '1')
+  WHERE (gym_id = ? AND EXISTS (SELECT 1 FROM gym WHERE gym.id = gym_equipment.gym_id))
+    OR (gym_id IS NULL AND ? = '1')
   ORDER BY kind, weight_kg DESC, id LIMIT ${EQUIPMENT_LIMIT}`;
 
 /** The bar an exercise remembers; one placeholder, the exercise id. */
 export const EXERCISE_BAR_SQL = "SELECT bar_id FROM exercise_setting WHERE exercise_id = ?";
+
+/** The bar every exercise remembers (only those that remember one). */
+export const EXERCISE_BARS_SQL = `SELECT exercise_id, bar_id FROM exercise_setting
+  WHERE bar_id IS NOT NULL ORDER BY exercise_id LIMIT 1000`;
+
+const exerciseBarsSchema = z.array(z.object({ exercise_id: z.string(), bar_id: z.string() }));
+
+/** The bars of an `EXERCISE_BARS_SQL` result, by exercise id. */
+export function parseExerciseBars(rows: readonly object[]): Map<string, string> {
+  return new Map(exerciseBarsSchema.parse(rows).map((row) => [row.exercise_id, row.bar_id]));
+}
 
 const exerciseBarSchema = z.array(z.object({ bar_id: z.string().nullable() }));
 

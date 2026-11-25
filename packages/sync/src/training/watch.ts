@@ -15,7 +15,9 @@ import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
   EXERCISE_BAR_SQL,
+  EXERCISE_BARS_SQL,
   parseExerciseBar,
+  parseExerciseBars,
   EXERCISE_HISTORY_SQL,
   exerciseHistoriesSql,
   exerciseRecordsSql,
@@ -996,6 +998,24 @@ export function watchExerciseBar(
     [exerciseId],
     ["exercise_setting"],
     parsing(parseExerciseBar, { onResult: handlers.onBar, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches the bar each exercise remembers, by exercise id (exercises with none are left out). */
+export function watchExerciseBars(
+  database: TrainingDatabase,
+  handlers: {
+    onBars: (bars: ReadonlyMap<string, string>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    EXERCISE_BARS_SQL,
+    [],
+    ["exercise_setting"],
+    parsing(parseExerciseBars, { onResult: handlers.onBars, onError: handlers.onError }),
     handlers.onError,
   );
 }

@@ -71,10 +71,12 @@ export {
   type GymExerciseSettingPatch,
 } from "./gyms/gym-store";
 export {
+  readGymLoadInputs,
   watchGymExerciseSettings,
   watchGyms,
   watchSessionGym,
   type GymExerciseSettingRow,
+  type GymLoadInputs,
   type GymRow,
 } from "./gyms/gym-watch";
 export {
@@ -104,6 +106,7 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseBar,
+  watchExerciseBars,
   watchExerciseProgressionMode,
   watchExerciseAutoWarmups,
   watchExerciseNote,

@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { gymExerciseSettingId, SYNC_LIMITS } from "@workspace/shared";
+import { describe, expect, it, vi } from "vitest";
 
 import { savePreferences } from "../../preferences";
 import { write } from "../store-common";
 import { startSession } from "../sessions/session-store";
 import { seedEquipment, upsertEquipment } from "../sessions/equipment-store";
-import { SQUAT, pushWorkout, setupSessions, type Sessions } from "../sessions/session-fixtures";
+import {
+  CURL,
+  SQUAT,
+  pushWorkout,
+  setupSessions,
+  type Sessions,
+} from "../sessions/session-fixtures";
 import {
   activeGymIdOf,
   createGym,
@@ -13,7 +20,8 @@ import {
   setGymExerciseSetting,
   setSessionGym,
 } from "./gym-store";
-import { watchGyms, type GymRow } from "./gym-watch";
+import { EQUIPMENT_SQL } from "../sessions/session-watch";
+import { readGymLoadInputs, watchGyms, type GymRow } from "./gym-watch";
 
 /** A synced "My gym", as the server delivers it. */
 function deliverGym(s: Sessions, id: string, createdAt: string, name = "My gym") {
@@ -109,7 +117,7 @@ describe("kit and gyms", () => {
     expect(await renameGym(s.training, "nope", "X", s.installId)).toBe(false);
   });
 
-  it("deletes a gym with its kit and settings, never the last one", async () => {
+  it("deletes only the gym row, never the last gym, and readers ignore what hung off it", async () => {
     const s = await setupSessions();
     deliverGym(s, HOME, "2026-11-01T00:00:00Z");
     expect(await deleteGym(s.training, HOME, s.installId)).toBe(false);
@@ -128,8 +136,95 @@ describe("kit and gyms", () => {
     );
     expect(await deleteGym(s.training, garage, s.installId)).toBe(true);
     expect(s.all("gym").map((row) => row["id"])).toEqual([HOME]);
-    expect(s.all("gym_equipment")).toEqual([]);
-    expect(s.all("gym_exercise_setting")).toEqual([]);
+    // The server takes the kit and settings down with the gym; a delete here is one write.
+    expect(s.all("gym_equipment")).toHaveLength(1);
+    expect(s.all("gym_exercise_setting")).toHaveLength(1);
+    expect(s.sqlite.prepare(EQUIPMENT_SQL).all(garage, "0")).toEqual([]);
+    expect(
+      await setGymExerciseSetting(
+        s.training,
+        { gymId: garage, exerciseId: CURL },
+        { setup_note: "Pin 2" },
+        s.installId,
+      ),
+    ).toBeNull();
+    const session = await startSession(s.training, {
+      workoutId: (await pushWorkout(s)).workoutId,
+      derivedTitle: "A",
+    });
+    await setSessionGym(s.training, session, garage, s.installId);
+    const read = await readGymLoadInputs(s.training, session);
+    expect(read).toMatchObject({ gymId: HOME, settings: [], kit: [] });
+  });
+
+  it("deleting a gym with a large kit is one write, not one per row", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const garage = await createGym(s.training, { name: "Garage", copyKitFrom: null }, s.installId);
+    const items = Array.from({ length: 150 }, (_, i) => ({
+      kind: "plate" as const,
+      weight_kg: 1 + i / 10,
+      unit: "kg" as const,
+      label: null,
+      count: null,
+      enabled: true,
+    }));
+    await upsertEquipment(s.training, items, s.installId, garage);
+    const write = vi.spyOn(s.training, "writeTransaction");
+    expect(await deleteGym(s.training, garage, s.installId)).toBe(true);
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies a large kit in transactions of at most the upload limit", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const items = Array.from({ length: 2 * SYNC_LIMITS.maxOps + 30 }, (_, i) => ({
+      kind: "plate" as const,
+      weight_kg: 1 + i / 10,
+      unit: "kg" as const,
+      label: null,
+      count: null,
+      enabled: true,
+    }));
+    for (let at = 0; at < items.length; at += 100)
+      await upsertEquipment(s.training, items.slice(at, at + 100), s.installId, HOME);
+    const write = vi.spyOn(s.training, "writeTransaction");
+    const copy = await createGym(s.training, { name: "Garage", copyKitFrom: HOME }, s.installId);
+    const copied = s.sqlite.prepare("SELECT COUNT(*) AS n FROM gym_equipment WHERE gym_id = ?");
+    expect(copied.get(copy)).toEqual({ n: items.length });
+    // The gym with the first rows, then the rest at the limit.
+    expect(write).toHaveBeenCalledTimes(Math.ceil((items.length + 1) / SYNC_LIMITS.maxOps));
+  });
+
+  it("does not copy the kit of a gym that is gone", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const garage = await createGym(s.training, { name: "Garage", copyKitFrom: null }, s.installId);
+    await upsertEquipment(
+      s.training,
+      [{ kind: "bar", weight_kg: 15, unit: "kg", label: null, count: null, enabled: true }],
+      s.installId,
+      garage,
+    );
+    await deleteGym(s.training, garage, s.installId);
+    const copy = await createGym(s.training, { name: "Shed", copyKitFrom: garage }, s.installId);
+    expect(s.sqlite.prepare("SELECT id FROM gym_equipment WHERE gym_id = ?").all(copy)).toEqual([]);
+  });
+
+  it("seeds the default kit although a deleted gym's rows are still on the device", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const garage = await createGym(s.training, { name: "Garage", copyKitFrom: null }, s.installId);
+    await upsertEquipment(
+      s.training,
+      [{ kind: "bar", weight_kg: 15, unit: "kg", label: null, count: null, enabled: true }],
+      s.installId,
+      garage,
+    );
+    await deleteGym(s.training, garage, s.installId);
+    await seedEquipment(s.training, s.installId, HOME);
+    const seeded = s.sqlite.prepare("SELECT gym_id FROM gym_equipment WHERE gym_id = ?").all(HOME);
+    expect(seeded.length).toBeGreaterThan(0);
   });
 });
 
@@ -160,6 +255,52 @@ describe("exercise settings per gym", () => {
       await setGymExerciseSetting(s.training, target, { setup_note: null }, s.installId),
     ).toBeNull();
     expect(s.all("gym_exercise_setting")).toEqual([]);
+  });
+
+  it("makes the same row on every device, so a later edit finds it", async () => {
+    const [a, b] = [await setupSessions(), await setupSessions()];
+    for (const device of [a, b]) deliverGym(device, HOME, "2026-11-01T00:00:00Z");
+    const target = { gymId: HOME, exerciseId: SQUAT };
+    const first = await setGymExerciseSetting(
+      a.training,
+      target,
+      { load_ranges: [{ min: 5, max: 91, step: 1 }] },
+      a.installId,
+    );
+    const second = await setGymExerciseSetting(
+      b.training,
+      target,
+      { setup_note: "Seat 4" },
+      b.installId,
+    );
+    expect(first).toBe(second);
+    expect(first).toBe(gymExerciseSettingId({ userId: "owner", ...target }));
+    const other = await setGymExerciseSetting(
+      a.training,
+      { gymId: HOME, exerciseId: CURL },
+      { setup_note: "Pin 2" },
+      a.installId,
+    );
+    expect(other).not.toBe(first);
+  });
+
+  it("keeps editing a row that an older build made under another id", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const legacy = "0192f0a0-0000-7000-8000-0000000000bb";
+    s.sqlite
+      .prepare(
+        "INSERT INTO gym_exercise_setting (id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at) VALUES (?, 'owner', ?, ?, '[]', 'Seat 1', 'now')",
+      )
+      .run(legacy, HOME, SQUAT);
+    const id = await setGymExerciseSetting(
+      s.training,
+      { gymId: HOME, exerciseId: SQUAT },
+      { setup_note: "Seat 2" },
+      s.installId,
+    );
+    expect(id).toBe(legacy);
+    expect(s.all("gym_exercise_setting")).toHaveLength(1);
   });
 
   it("does not create a row for nothing", async () => {
