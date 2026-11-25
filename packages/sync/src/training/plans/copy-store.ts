@@ -35,16 +35,6 @@ async function copyWorkoutRows(
   programId: string | null,
 ): Promise<{ id: string }> {
   const id = uuidv7();
-  await tx.insert(workout).values({
-    id,
-    user_id: context.userId,
-    program_id: programId,
-    title: source.title,
-    note: source.note,
-    // The copy keeps the cover: both point at the same media.
-    cover_media_id: source.cover_media_id,
-    created_at: context.created,
-  });
   const exercises = await tx
     .select()
     .from(workoutExercise)
@@ -66,6 +56,20 @@ async function copyWorkoutRows(
     created_at: context.created,
     restore: null,
   }));
+  // The copy's main lift is the copy of the source's: the exercise ids change with the copy.
+  const sourceIds = sortByPosition(exercises).map((row) => row.id);
+  const mainIndex = source.main_entry_id === null ? -1 : sourceIds.indexOf(source.main_entry_id);
+  await tx.insert(workout).values({
+    id,
+    user_id: context.userId,
+    program_id: programId,
+    title: source.title,
+    note: source.note,
+    // The copy keeps the cover: both point at the same media.
+    cover_media_id: source.cover_media_id,
+    main_entry_id: mainIndex === -1 ? null : (rows[mainIndex]?.id ?? null),
+    created_at: context.created,
+  });
   if (rows.length > 0) await tx.insert(workoutExercise).values(rows);
   return { id };
 }

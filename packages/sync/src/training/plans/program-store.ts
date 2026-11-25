@@ -56,6 +56,7 @@ export async function updateProgram(
       description: current.description,
       planned_weeks: current.planned_weeks,
       sessions_per_week: current.sessions_per_week,
+      phase_plan: current.phase_plan,
       ...changes,
     });
     await tx.update(program).set(changes).where(eq(program.id, id));

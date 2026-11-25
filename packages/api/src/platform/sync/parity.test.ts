@@ -171,6 +171,7 @@ const expectation: Expectation = {
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
         cover_media_id: { type: "uuid", notNull: false, default: null },
         sessions_per_week: { type: "smallint", notNull: false, default: null },
+        phase_plan: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
         program_user_id_live_idx:
@@ -188,6 +189,7 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        main_entry_id: { type: "uuid", notNull: false, default: null },
       },
       indexes: {
         workout_user_id_live_idx:
@@ -265,6 +267,7 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        phase: { type: "text", notNull: false, default: null },
       },
       indexes: {
         session_user_id_live_idx:
@@ -436,6 +439,7 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        inserted_deloads: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
         program_run_user_id_live_idx:
@@ -482,13 +486,13 @@ const expectation: Expectation = {
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id, primary_detail, secondary_detail)",
-      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week)",
-      "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at, cover_media_id)",
+      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week, phase_plan)",
+      "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at, cover_media_id, main_entry_id)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
-      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
+      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at, inserted_deloads)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
       "program_slot_skip(id, user_id, run_id, slot_id, cycle, created_at, updated_at, deleted_at)",
-      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id)",
+      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id, phase)",
       "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment)",
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at, generated_warmup)",
       "gym(id, user_id, name, created_at, updated_at, deleted_at)",

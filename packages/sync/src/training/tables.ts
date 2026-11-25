@@ -1,4 +1,12 @@
-import type { ExerciseType, LoadRange, PlannedSet, SetKind, WeightUnit } from "@workspace/shared";
+import type {
+  ExerciseType,
+  LoadRange,
+  Phase,
+  PhasePlan,
+  PlannedSet,
+  SetKind,
+  WeightUnit,
+} from "@workspace/shared";
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
@@ -18,6 +26,8 @@ export const program = sqliteTable(
     planned_weeks: integer("planned_weeks"),
     sessions_per_week: integer("sessions_per_week"),
     cover_media_id: text("cover_media_id"),
+    /** The week phases as JSON; null is none. Validated by `phasePlanSchema` on write. */
+    phase_plan: text("phase_plan", { mode: "json" }).$type<PhasePlan | null>(),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -33,6 +43,8 @@ export const workout = sqliteTable(
     title: text("title"),
     note: text("note"),
     cover_media_id: text("cover_media_id"),
+    /** The main lift's `workout_exercise` id; null (or one no longer there) is the first. */
+    main_entry_id: text("main_entry_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -99,6 +111,8 @@ export const session = sqliteTable(
     slot_id: text("slot_id"),
     /** The gym trained at; null is any gym. A deleted gym reads as null (the server nulls it). */
     gym_id: text("gym_id"),
+    /** The phase of the Run week it started in; Test and Deload are never a baseline. */
+    phase: text("phase").$type<Phase>(),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     title_derived: integer("title_derived", { mode: "boolean" }).notNull().default(true),
@@ -273,6 +287,8 @@ export const programRun = sqliteTable(
     finished_at: text("finished_at"),
     outcome: text("outcome"),
     continued_at: text("continued_at"),
+    /** Run weeks turned into Deload weeks ("Insert deload now") as JSON, ascending; null is none. */
+    inserted_deloads: text("inserted_deloads", { mode: "json" }).$type<number[] | null>(),
     created_at: text("created_at").notNull(),
   },
   (table) => [

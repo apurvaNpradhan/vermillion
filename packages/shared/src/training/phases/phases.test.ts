@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import type { EffortStep } from "../vocabulary/vocabulary";
 import { loadGridOf } from "../progress/load-grid";
 import { suggestNext, type ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
@@ -226,7 +227,7 @@ describe("applyPhase", () => {
     ]);
   });
 
-  it.each<[string, Phase, number, number, number, number]>([
+  it.each<[string, Phase, EffortStep, EffortStep, EffortStep, EffortStep]>([
     ["push raises the effort a step", "push", 7, 8, 8, 9],
     ["deload lowers it by two", "deload", 8, 9, 6, 7],
   ])("%s", (_name, phase, min, max, shiftedMin, shiftedMax) => {

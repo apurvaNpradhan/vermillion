@@ -61,6 +61,7 @@ export function editFinishedSession(
       run_id: current.run_id,
       slot_id: current.slot_id,
       gym_id: current.gym_id,
+      phase: current.phase,
       cycle: current.cycle,
       device_id: current.device_id,
       rest_set_id: null,

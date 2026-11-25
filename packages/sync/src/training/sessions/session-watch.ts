@@ -3,11 +3,13 @@ import {
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
   SET_KINDS,
+  phaseSchema,
   plannedSetSchema,
   type Equipment,
   type ExerciseType,
   type LoggedSet,
   type MuscleGroup,
+  type Phase,
   type PlannedSet,
   type SessionHistory,
   type SetKind,
@@ -184,6 +186,8 @@ export type SessionDetail = {
   programId: string | null;
   runId: string | null;
   slotId: string | null;
+  /** The phase of the Run week it started in; null with no phases. */
+  phase: Phase | null;
   cycle: number | null;
   title: string;
   titleDerived: boolean;
@@ -215,7 +219,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     GROUP BY exercise_id)
   SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
-    s.run_id AS run_id, s.slot_id AS slot_id, s.cycle AS cycle, s.title AS title,
+    s.run_id AS run_id, s.slot_id AS slot_id, s.phase AS phase, s.cycle AS cycle, s.title AS title,
     s.title_derived AS title_derived, s.note AS note,
     (SELECT w.note FROM workout w WHERE w.id = s.workout_id) AS workout_note, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.device_id AS device_id,
@@ -268,6 +272,7 @@ const detailRowSchema = z.object({
   program_id: z.string().nullable(),
   run_id: z.string().nullable(),
   slot_id: z.string().nullable(),
+  phase: phaseSchema.nullable().optional(),
   cycle: z.number().nullable(),
   title: z.string(),
   title_derived: flag,
@@ -414,6 +419,7 @@ export function parseSessionDetail(
     programId: first.program_id,
     runId: first.run_id,
     slotId: first.slot_id,
+    phase: first.phase ?? null,
     cycle: first.cycle,
     title: first.title,
     titleDerived: first.title_derived,
@@ -448,7 +454,7 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
 
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
-    s.workout_id AS workout_id, s.gym_id AS gym_id,
+    s.workout_id AS workout_id, s.gym_id AS gym_id, s.phase AS phase,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -782,6 +788,7 @@ const finishedRowSchema = z.object({
   paused_ms: z.number().nullable().optional(),
   workout_id: z.string().nullable(),
   gym_id: z.string().nullable().optional(),
+  phase: phaseSchema.nullable().optional(),
   exercise_id: z.string().nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   set_id: z.string().nullable(),
@@ -811,6 +818,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         pausedMs: row.paused_ms ?? 0,
         workoutId: row.workout_id,
         gymId: row.gym_id ?? null,
+        phase: row.phase ?? null,
         sets: [],
       };
       result.push(current);

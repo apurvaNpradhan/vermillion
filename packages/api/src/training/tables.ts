@@ -6,6 +6,7 @@ import {
   GYM_LIMITS,
   LOAD_RANGES_MAX,
   MAX_WEIGHT_KG,
+  PHASES,
   POSITION_KEY_MAX,
   REST_SECONDS_MAX,
   SESSION_LIMITS,
@@ -13,6 +14,8 @@ import {
   TRAINING_LIMITS,
   WEIGHT_UNITS,
   type LoadRange,
+  type Phase,
+  type PhasePlan,
   type PlannedSet,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
@@ -64,6 +67,11 @@ export const program = pgTable(
      * on another device. The sync handler checks it belongs to the writer and is a program cover.
      */
     coverMediaId: uuid("cover_media_id"),
+    /**
+     * The week phases (Build, Push, Test, Deload): a repeating pattern, per-week overrides and
+     * edits of each phase's modifiers, validated by `phasePlanSchema`. Null is no phases.
+     */
+    phasePlan: jsonb("phase_plan").$type<PhasePlan>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -85,6 +93,10 @@ export const program = pgTable(
       sql`${table.sessionsPerWeek} BETWEEN ${raw(TRAINING_LIMITS.sessionsPerWeekMin)} AND ${raw(TRAINING_LIMITS.sessionsPerWeekMax)}`,
     ),
     check(
+      "program_phase_plan_shape",
+      sql`${table.phasePlan} IS NULL OR jsonb_typeof(${table.phasePlan}) = 'object'`,
+    ),
+    check(
       "program_planned_weeks_range",
       sql`${table.plannedWeeks} BETWEEN ${raw(TRAINING_LIMITS.plannedWeeksMin)} AND ${raw(TRAINING_LIMITS.plannedWeeksMax)}`,
     ),
@@ -102,6 +114,12 @@ export const workout = pgTable(
     note: text("note"),
     /** The cover's `media` row (kind `workout_cover`); no foreign key, as for a Program cover. */
     coverMediaId: uuid("cover_media_id"),
+    /**
+     * The `workout_exercise` that is the main lift (a Test week's one top set). A plain
+     * reference: the exercise is written after the Workout, so it cannot be checked here; a
+     * stale id reads as the first exercise.
+     */
+    mainEntryId: uuid("main_entry_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -224,6 +242,8 @@ export const session = pgTable(
     slotId: uuid("slot_id"),
     /** The gym trained at; null is any gym. A plain reference: deleting a gym nulls it. */
     gymId: uuid("gym_id"),
+    /** The phase of the Run week the Session started in; Test and Deload are never a baseline. */
+    phase: text("phase").$type<Phase>(),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     /** True until the user renames the Session: the title is then recomputed from its muscles. */
@@ -256,6 +276,7 @@ export const session = pgTable(
       .where(sql`${table.deletedAt} IS NULL`),
     index("session_user_started_at_idx").on(table.userId, table.startedAt.desc()),
     check("session_cycle_range", sql`${table.cycle} BETWEEN 1 AND 2147483647`),
+    check("session_phase_known", sql`${table.phase} IN (${literals(PHASES)})`),
     check(
       "session_title_length",
       sql`char_length(${table.title}) BETWEEN ${raw(SESSION_LIMITS.titleMin)} AND ${raw(SESSION_LIMITS.titleMax)}`,
@@ -545,6 +566,8 @@ export const programRun = pgTable(
     finishedAt: timestamptz("finished_at"),
     outcome: text("outcome"),
     continuedAt: timestamptz("continued_at"),
+    /** Run weeks turned into Deload weeks by "Insert deload now", ascending; null is none. */
+    insertedDeloads: jsonb("inserted_deloads").$type<number[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -554,6 +577,10 @@ export const programRun = pgTable(
       .on(table.userId)
       .where(sql`${table.deletedAt} IS NULL`),
     index("program_run_program_id_idx").on(table.programId),
+    check(
+      "program_run_inserted_deloads_shape",
+      sql`${table.insertedDeloads} IS NULL OR (jsonb_typeof(${table.insertedDeloads}) = 'array' AND jsonb_array_length(${table.insertedDeloads}) <= ${raw(TRAINING_LIMITS.insertedDeloadsMax)})`,
+    ),
     check(
       "program_run_outcome",
       sql`(${table.finishedAt} IS NULL AND ${table.outcome} IS NULL) OR (${table.finishedAt} IS NOT NULL AND ${table.outcome} IN ('completed', 'stopped'))`,
