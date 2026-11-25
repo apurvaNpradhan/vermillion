@@ -15,9 +15,17 @@ export type LoggedSet = SetValues & {
   target?: PlannedSet | null;
   /**
    * What was suggested for this set, from the Session's prescription snapshot: the load before any
-   * same-day adjustment, and the reps. Absent for a Session that has no snapshot.
+   * same-day adjustment, and the reps; the reps asked past the top of the range, and whether the
+   * rule reset the load, the share of a top set it was meant to be. Absent for a Session that has no snapshot.
    */
-  suggested?: { weight_kg: number | null; reps: number | null } | null;
+  suggested?: {
+    weight_kg: number | null;
+    reps: number | null;
+    extraReps?: number;
+    reset?: boolean;
+    /** The share of the top set a back-off was meant to be, before rounding. */
+    share?: number;
+  } | null;
   /** This Session entry used the stall deload. */
   stall_deload?: boolean;
   /**

@@ -9,8 +9,23 @@ const SHORT_BY = 1 - 1e-6;
 /** Half a rep: a lighter set has to make up for its load by at least this. */
 const LIGHTER_BY = 0.5 - 1e-6;
 
+/** The most reps the estimate reads (the reserve counts up to this many). */
+const MAX_COUNTED = 12;
+
 /** What was offered for one set: its load before any same-day adjustment, and its reps. */
-export type OfferedSet = { weight_kg: number | null; reps: number | null };
+export type OfferedSet = {
+  weight_kg: number | null;
+  reps: number | null;
+  /**
+   * Reps asked beyond the top of the range, to earn a heavier step (13 on 8 to 12): the set meets
+   * the suggestion at `reps` less these, so doing the top is not a miss.
+   */
+  extraReps?: number;
+  /** The suggestion was a reset: the rule lowered the load for a missed range. */
+  reset?: boolean;
+  /** The share of the top set a back-off was meant to be, before the grid rounded it. */
+  share?: number;
+};
 
 /** The load and reps a set was logged at, and the effort when it was logged. */
 export type DoneSet = { weight_kg?: number | null; reps?: number | null; rpe?: number | null };
@@ -22,6 +37,11 @@ export function suggestedFromSnapshot(snapshot: Prescription, setId: string): Of
     ? {
         weight_kg: saved.unadjustedWeightKg ?? saved.ghosts.weight ?? null,
         reps: saved.ghosts.reps ?? null,
+        ...(saved.outcome?.reason === "more_reps" && saved.ghosts.reps != null
+          ? { extraReps: 1 }
+          : {}),
+        ...(saved.outcome?.reason === "reset" ? { reset: true } : {}),
+        ...(saved.outcome?.share === undefined ? {} : { share: saved.outcome.share }),
       }
     : null;
 }
@@ -38,9 +58,10 @@ export function repsAtLoad(
   loadKg: number,
 ) {
   const estimate = estimatedOneRepMax(done.weight_kg, done.reps, done.rpe);
-  return estimate === null || loadKg <= 0
-    ? null
-    : 37 - (36 * loadKg) / estimate - repsInReserve(done.rpe);
+  if (estimate === null || loadKg <= 0) return null;
+  // Only the reserve the estimate counted comes off: 12 reps at RPE 7 had no room for its 3.
+  const counted = Math.min(MAX_COUNTED, done.reps + repsInReserve(done.rpe)) - done.reps;
+  return 37 - (36 * loadKg) / estimate - counted;
 }
 
 /**
@@ -68,9 +89,13 @@ export function repsAgainstSuggestion(suggested: OfferedSet, done: DoneSet): num
  * A set fell short of what was suggested. At the suggested load that is fewer reps. A lighter set
  * falls short unless its extra reps are worth it by estimated 1RM; a heavier set only when it is
  * worth a whole rep less, so a lifter who always adds 5 kg is not "missing". A blank value never
- * falls short, and reps past what the estimate covers are judged on the load alone.
+ * falls short, nor does the top of the range when one more rep was asked of it, and reps past what the estimate covers are judged on the load alone.
  */
-export function fellShortOfSuggestion(suggested: OfferedSet, done: DoneSet): boolean {
+export function fellShortOfSuggestion(offered: OfferedSet, done: DoneSet): boolean {
+  const suggested = {
+    ...offered,
+    reps: offered.reps === null ? null : offered.reps - (offered.extraReps ?? 0),
+  };
   const lighter =
     suggested.weight_kg !== null &&
     done.weight_kg != null &&

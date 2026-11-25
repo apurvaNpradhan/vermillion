@@ -65,6 +65,11 @@ export type SetOutcome = {
   limit?: "plates" | "equipment";
   /** The share of the previous load after snapping to the equipment. */
   loadFactor?: number;
+  /**
+   * For `backoff_share`: the share of the top set the rule meant, before the grid rounded it. The
+   * next Session reads it back when the back-off was done as suggested, so rounding never creeps it.
+   */
+  share?: number;
   /** For `more_reps`: the reps to reach before the load goes up. */
   ceiling?: number;
   /** Seconds added to a timed set (`add_time`). */

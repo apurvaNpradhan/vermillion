@@ -342,3 +342,129 @@ describe("deviation", () => {
     expect(deviation({ weight: 100 }, { kind: "working", weight_kg: 110, reps: 6 })).toBeNull();
   });
 });
+
+describe.each([
+  { unit: "kg", assist: 20, more: 25, less: 15, step: 5, exact: (n: number) => n },
+  { unit: "lb", assist: 45, more: 50, less: 40, step: 5, exact: (n: number) => n * KG_PER_LB },
+] as const)("an assisted lift in $unit", ({ unit, assist, more, less, step, exact }) => {
+  const grid = rangeGrid([{ min: exact(step), max: exact(200), step: exact(step) }]);
+  const loads = adjustmentLoadsFor(
+    { equipment: "machine", type: "bodyweight_assisted_reps", unit },
+    { unit, weightIncrementKg: null, bodyweightKg: 80 },
+    grid,
+  );
+  const target = (id: string) => ({
+    id,
+    ghosts: { weight: exact(assist), reps: 8 },
+    outcome: { reason: "less_assist" as const },
+  });
+  const value = prescriptionSchema.parse({
+    exerciseId: EXERCISE,
+    revision: "0192f0a0-0000-7000-8000-0000000000a1",
+    previousRevision: null,
+    reason: "less_assist",
+    incrementKg: 0,
+    breakDays: null,
+    capKg: null,
+    sets: [first, second, third].map(target),
+  });
+  const adjust = (actual: { reps: number; weight_kg?: number }, adjustment = loads) =>
+    adjustPrescription(
+      value,
+      first,
+      { kind: "working", weight_kg: exact(assist), ...actual },
+      open([second, third]),
+      adjustment,
+      true,
+    );
+
+  it("gives a short set more help, not less", () => {
+    const next = adjust({ reps: 5 });
+    expect(latestAdjustment(next)?.reason).toBe("reps_short");
+    expect(next?.sets.slice(1).map((set) => set.ghosts.weight)).toEqual([
+      expect.closeTo(exact(more), 2),
+      expect.closeTo(exact(more), 2),
+    ]);
+  });
+
+  it("takes help away after a set that beat its target", () => {
+    const next = adjust({ reps: 10 });
+    expect(latestAdjustment(next)?.reason).toBe("reps_over");
+    expect(next?.sets.slice(1).map((set) => set.ghosts.weight)).toEqual([
+      expect.closeTo(exact(less), 2),
+      expect.closeTo(exact(less), 2),
+    ]);
+  });
+
+  // About ten kilograms of help either way.
+  const gap = unit === "kg" ? 10 : 22;
+  it("judges a set at another help by what is lifted: bodyweight less the help", () => {
+    // 80 kg lifting with 20 of help is 60; with 10 of help it is 70, so 6 reps there are worth
+    // more than 8 at the suggested help. Read as a plain load it would look lighter, and short.
+    expect(
+      deviation(
+        { weight: exact(assist), reps: 8 },
+        { kind: "working", weight_kg: exact(assist - gap), reps: 6 },
+        { bodyweightKg: 80 },
+      ),
+    ).toMatchObject({ reason: "reps_over" });
+    expect(
+      deviation(
+        { weight: exact(assist), reps: 8 },
+        { kind: "working", weight_kg: exact(assist + gap), reps: 8 },
+        { bodyweightKg: 80 },
+      ),
+    ).toMatchObject({ reason: "reps_short" });
+    // Without a bodyweight a set at another help says nothing.
+    expect(
+      deviation(
+        { weight: exact(assist), reps: 8 },
+        { kind: "working", weight_kg: exact(assist + gap), reps: 2 },
+        { bodyweightKg: null },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe.each([
+  { unit: "kg", load: 20, exact: (n: number) => n },
+  { unit: "lb", load: 45, exact: (n: number) => n * KG_PER_LB },
+] as const)("the extra rep before a big jump in $unit", ({ unit, load, exact }) => {
+  const loads = adjustmentLoadsFor(
+    { equipment: "dumbbell", type: "weight_reps", unit },
+    { unit, weightIncrementKg: null },
+    null,
+  );
+  // 13 was asked of a range that tops at 12, to earn the next dumbbell.
+  const asked = prescriptionSchema.parse({
+    exerciseId: EXERCISE,
+    revision: "0192f0a0-0000-7000-8000-0000000000a1",
+    previousRevision: null,
+    reason: "more_reps",
+    incrementKg: 0,
+    breakDays: null,
+    capKg: null,
+    sets: [first, second, third].map((id) => ({
+      id,
+      ghosts: { weight: exact(load), reps: 13, rpe: 8 },
+      outcome: { reason: "more_reps", ceiling: 18 },
+    })),
+  });
+  const adjust = (reps: number) =>
+    adjustPrescription(
+      asked,
+      first,
+      { kind: "working", weight_kg: exact(load), reps, rpe: 8 },
+      open([second, third]),
+      loads,
+      true,
+    );
+
+  it("measures a short set against the top of the range, not the extra rep", () => {
+    // 11 is two short of 13 but one short of the top: nothing moves. 10 is two short of the top.
+    expect(adjust(11)).toBeNull();
+    const short = adjust(10);
+    expect(latestAdjustment(short)).toMatchObject({ reason: "reps_short", reps: 2 });
+    expect(short?.sets[1]?.ghosts.weight).toBeLessThan(exact(load));
+  });
+});

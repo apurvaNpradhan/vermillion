@@ -22,6 +22,8 @@ export type AdjustmentLoads = {
   weightIncrementKg: number | null;
   /** A Lighter week is running: like a Deload, it never raises a load. */
   lighter?: boolean;
+  /** What the lifter weighs now: an assisted set is worth what is left of it after the help. */
+  bodyweightKg?: number | null;
 };
 
 /** The loads of one exercise as the suggestion read them: the lifter's unit, step and the gym grid. */
@@ -32,6 +34,7 @@ export function adjustmentLoadsFor(
     weightIncrementKg: number | null;
     weightIncrementUnit?: WeightUnit | null;
     lighterWeeks?: readonly LighterPeriod[];
+    bodyweightKg?: number | null;
   },
   grid: LoadGrid | null,
   now: Date = new Date(),
@@ -48,6 +51,7 @@ export function adjustmentLoadsFor(
       unit,
     ),
     lighter: activeLighterWeek(account.lighterWeeks ?? [], now) !== null,
+    bodyweightKg: account.bodyweightKg ?? null,
   };
 }
 
@@ -68,21 +72,33 @@ const EPSILON = 1e-6;
 
 type Verdict = Pick<Adjustment, "reason" | "reps">;
 
+/** An assisted exercise reads loads as the help given: what is lifted is bodyweight less the help. */
+export type AssistedLoad = { bodyweightKg: number | null };
+
 /**
  * How a set went against its target. At the load that was suggested, reps and effort are read
  * together as capacity (reps plus the reps left in reserve, 10 − RPE), so fewer reps at an easier
  * effort is not a miss; with only one of them logged, that one is read. At another load the set
- * is converted to the reps it is worth at the suggested load by estimated 1RM, and effort is not
- * read (it was said about a different weight): 110 × 6 against 100 × 8 moves nothing.
+ * is converted to the reps it is worth at the suggested load by estimated 1RM, with its own
+ * logged effort counted in that estimate (the target's effort was about the other weight, so it is
+ * not compared): 110 × 6 against 100 × 8 moves nothing. On an
+ * assisted lift the loads are the help given, so the lifted load of each is the bodyweight less
+ * it; with no bodyweight known, a set at another help is not read.
  */
-export function deviation(ghosts: PrescribedSet["ghosts"], actual: Actual): Verdict | null {
+export function deviation(
+  ghosts: PrescribedSet["ghosts"],
+  actual: Actual,
+  assisted?: AssistedLoad,
+): Verdict | null {
   const { weight: suggestedKg, reps: targetReps, rpe: targetRpe } = ghosts;
   const { weight_kg: loggedKg, reps, rpe } = actual;
   const other =
     suggestedKg != null && loggedKg != null && loadIdentity(loggedKg) !== loadIdentity(suggestedKg);
   if (other) {
     if (targetReps == null || reps == null) return null;
-    const worth = repsAtLoad({ weight_kg: loggedKg, reps, rpe }, suggestedKg);
+    if (assisted && assisted.bodyweightKg === null) return null;
+    const lifted = (kg: number) => (assisted ? (assisted.bodyweightKg ?? 0) - kg : kg);
+    const worth = repsAtLoad({ weight_kg: lifted(loggedKg), reps, rpe }, lifted(suggestedKg));
     if (worth === null) return null;
     const gap = worth - targetReps;
     if (gap <= -REPS_GAP + EPSILON) return { reason: "reps_short", reps: Math.round(-gap) };
@@ -152,8 +168,8 @@ function stepLoad(
 /**
  * Adjusts only the still-unticked sets that progress (never a warm-up, drop, myo or failure set):
  * a miss by a working, top or back-off set lowers the rest of them, a top set's back-offs
- * included. A trigger set adjusts once, and each adjustment records what it moved so it can be
- * undone on its own. `unticked` names the open sets and their kinds.
+ * included. On an assisted lift a miss gives the rest more help, and a surplus less. A trigger set
+ * adjusts once, and each adjustment records what it moved so it can be undone on its own. `unticked` names the open sets and their kinds.
  */
 export function adjustPrescription(
   snapshot: Prescription,
@@ -171,9 +187,20 @@ export function adjustPrescription(
     return null;
   const target = snapshot.sets.find(({ id }) => id === setId);
   if (!target) return null;
-  const verdict = deviation(target.ghosts, actual);
+  const assisted = loads.type === "bodyweight_assisted_reps";
+  const bodyweight = assisted ? { bodyweightKg: loads.bodyweightKg ?? null } : undefined;
+  let verdict = deviation(target.ghosts, actual, bodyweight);
+  const missed = (found: Verdict | null) =>
+    found?.reason === "reps_short" || found?.reason === "effort_high";
+  if (missed(verdict) && target.outcome?.reason === "more_reps" && target.ghosts.reps != null) {
+    // The extra rep was asked to earn a heavier step: the top of the range is the mark to miss.
+    const found = deviation({ ...target.ghosts, reps: target.ghosts.reps - 1 }, actual, bodyweight);
+    verdict = missed(found) ? found : null;
+  }
   if (!verdict) return null;
-  const lighter = verdict.reason === "reps_short" || verdict.reason === "effort_high";
+  const lighter = missed(verdict);
+  // The lift gets easier with more help: an assisted set that fell short is given more of it.
+  const lowersLoad = assisted ? !lighter : lighter;
   if (
     !lighter &&
     (!canIncrease ||
@@ -188,7 +215,7 @@ export function adjustPrescription(
     const weight = set.ghosts.weight;
     const kind = unticked.get(set.id);
     if (set.id === setId || kind === undefined || !progresses(kind) || weight == null) return set;
-    const adjusted = stepLoad(weight, lighter, cap, loads);
+    const adjusted = stepLoad(weight, lowersLoad, cap, loads);
     if (adjusted === weight) return set;
     moved.push({ id: set.id, fromKg: weight });
     return {
