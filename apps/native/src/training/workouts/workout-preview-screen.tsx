@@ -381,6 +381,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         exerciseId={entry.exerciseId}
                         latestSessionId={context.stall.latestSessionId}
                         count={context.stall.count}
+                        missed={context.stall.missed}
                         applied={context.stall.applied}
                       />
                     ) : null}

@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { EQUIPMENT, type Equipment } from "@workspace/shared";
 import type { EquipmentRow, GymExerciseSettingRow, GymRow } from "@workspace/sync";
 
-import { capPromptKey, dismissCapPrompt, noteLoggedLoad, pendingCapPrompt } from "./cap-prompt";
+import {
+  capPromptKey,
+  dismissCapPrompt,
+  noteLoggedLoad,
+  pendingCapPrompt,
+} from "./prompts/cap-prompt";
 import { buildGymLoads, resolveActiveGym } from "./gym-loads";
 
 const item = (over: Partial<EquipmentRow>): EquipmentRow => ({

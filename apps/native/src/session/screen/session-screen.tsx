@@ -62,6 +62,7 @@ import {
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
 import { formatVolume } from "@/session/finish/summary";
+import { stallPrescription } from "@/session/store/derive";
 import { blockOf } from "@/session/logging/blocks";
 import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
@@ -557,10 +558,12 @@ const LoadedSession = memo(function LoadedSession({
   }, []);
   const { addSet, openCell, onTick, onPrevious, onTimer } = logging;
   const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
-  const { updateExercise, setExerciseDeload } = actions;
-  const onStallDeload = useStableHandler(
-    (id: string, applied: boolean) => void setExerciseDeload(id, applied),
-  );
+  const { updateExercise, setExerciseDeload, undoAdjustment } = actions;
+  const onUndoAdjustment = useStableHandler((id: string) => void undoAdjustment(id));
+  const onStallDeload = useStableHandler((id: string, applied: boolean) => {
+    const entry = store.getState().cache.get(id);
+    void setExerciseDeload(id, applied, entry ? stallPrescription(entry, applied) : null);
+  });
   const onNote = useCallback(
     (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
     [updateExercise],
@@ -616,6 +619,7 @@ const LoadedSession = memo(function LoadedSession({
       onNote: stableNote,
       onRest: stableRest,
       onStallDeload,
+      onUndoAdjustment,
       onCell: openCell,
       onTick,
       onKind,
@@ -637,6 +641,7 @@ const LoadedSession = memo(function LoadedSession({
       stableNote,
       stableRest,
       onStallDeload,
+      onUndoAdjustment,
       openCell,
       onTick,
       onKind,

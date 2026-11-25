@@ -5,6 +5,10 @@ import {
   SET_KINDS,
   phaseSchema,
   plannedSetSchema,
+  prescriptionFor,
+  prescriptionReadSchema,
+  suggestedFromSnapshot,
+  type Prescription,
   type Equipment,
   type ExerciseType,
   type LoggedSet,
@@ -154,6 +158,7 @@ export type SessionExerciseDetail = {
   sourceWorkoutExerciseId: string | null;
   workoutSwapFragment?: boolean;
   stallDeload?: boolean;
+  prescription?: Prescription | null;
   position: string;
   restSeconds: number | null;
   note: string | null;
@@ -186,6 +191,7 @@ export type SessionExerciseDetail = {
 };
 
 export type SessionDetail = {
+  gymId?: string | null;
   id: string;
   workoutId: string | null;
   workoutStructure: string | null;
@@ -232,6 +238,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.phase AS phase,
     s.phase_modifiers AS phase_modifiers,
+    (SELECT id FROM gym WHERE id = s.gym_id) AS session_gym_id,
     s.cycle AS cycle, s.title AS title,
     s.title_derived AS title_derived, s.note AS note,
     (SELECT w.note FROM workout w WHERE w.id = s.workout_id) AS workout_note, s.started_at AS started_at,
@@ -240,7 +247,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     s.paused_at AS paused_at, s.paused_ms AS paused_ms,
     se.id AS exercise_row, se.exercise_id AS exercise_id, se.exercise_title AS exercise_title,
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.stall_deload AS stall_deload, se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
+    se.stall_deload AS stall_deload, se.prescription AS prescription, se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
     es.progression_per_set AS progression_per_set, es.bar_id AS bar_id,
     es.auto_warmups AS auto_warmups, es.note AS pinned_note, es.unit AS unit,
@@ -301,6 +308,7 @@ const detailRowSchema = z.object({
   rest_ends_at: z.string().nullable(),
   paused_at: z.string().nullable(),
   paused_ms: z.number().nullable(),
+  session_gym_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   exercise_title: z.string().nullable(),
@@ -308,6 +316,7 @@ const detailRowSchema = z.object({
   source_workout_exercise_id: z.string().nullable(),
   workout_swap_fragment: flag.nullable(),
   stall_deload: flag.nullable().optional(),
+  prescription: jsonText.pipe(prescriptionReadSchema).nullable().optional().catch(null),
   exercise_position: z.string().nullable(),
   rest_seconds: z.number().nullable(),
   exercise_note: z.string().nullable(),
@@ -384,6 +393,7 @@ export function parseSessionDetail(
         sourceWorkoutExerciseId: row.source_workout_exercise_id,
         workoutSwapFragment: row.workout_swap_fragment === true,
         stallDeload: row.stall_deload === true,
+        prescription: prescriptionFor(row.prescription, row.exercise_id),
         position: row.exercise_position,
         restSeconds: row.rest_seconds,
         note: row.exercise_note,
@@ -433,6 +443,7 @@ export function parseSessionDetail(
   return {
     id: first.id,
     workoutId: first.workout_id,
+    gymId: first.session_gym_id ?? null,
     workoutStructure: first.workout_structure,
     programId: first.program_id,
     runId: first.run_id,
@@ -475,7 +486,7 @@ const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS start
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
     s.workout_id AS workout_id, s.gym_id AS gym_id, s.phase AS phase,
     se.id AS session_exercise_id, se.source_workout_exercise_id AS source_workout_exercise_id,
-    se.stall_deload AS stall_deload,
+    se.stall_deload AS stall_deload, se.prescription AS prescription,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -825,8 +836,19 @@ const finishedRowSchema = z.object({
   rpe: z.number().nullable(),
   target: targetText.optional(),
   stall_deload: flag.nullable().optional(),
+  prescription: jsonText.pipe(prescriptionReadSchema).nullable().optional().catch(null),
   completed_at: z.string().nullable(),
 });
+
+/** What the snapshot offered for one set; null without a snapshot. */
+function suggestionOfRow(
+  snapshot: Prescription | null | undefined,
+  exerciseId: string,
+  setId: string,
+) {
+  const saved = prescriptionFor(snapshot, exerciseId);
+  return saved ? suggestedFromSnapshot(saved, setId) : null;
+}
 
 /** Groups the rows of {@link EXERCISE_HISTORY_SQL} or {@link SESSIONS_BETWEEN_SQL} by Session, in row order. */
 export function parseFinishedSessions(rows: readonly object[]): FinishedSession[] {
@@ -880,6 +902,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         rpe: row.rpe,
         target: row.target ?? null,
         stall_deload: row.stall_deload === true,
+        suggested: suggestionOfRow(row.prescription, row.exercise_id, row.set_id),
       };
       current.sets.push(set);
     }

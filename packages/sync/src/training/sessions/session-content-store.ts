@@ -2,6 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   actualValuesSchema,
+  type AdjustmentLoads,
   planLeaveSuperset,
   planSupersetRepair,
   planSupersetWithNext,
@@ -15,6 +16,7 @@ import {
   sessionSetInput,
   sessionSetSchema,
   tickValues,
+  type PrescriptionDraft,
   type ActualValues,
   type ExerciseType,
   type Ghosts,
@@ -25,6 +27,12 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import {
+  adjustAfterSetIn,
+  capturePrescriptionIn,
+  readSnapshot,
+  revertAfterUntickIn,
+} from "./prescription-store";
 import { resumeIn } from "./session-clock-store";
 import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
@@ -578,12 +586,14 @@ export function replaceWarmups(
 /**
  * Changes only the fields that differ from the stored set: its kind, actual values or timer
  * start. A ticked set must keep a value for every field its type records. Returns whether it wrote.
+ * With `loads`, correcting a ticked set also takes back the adjustment it made and reads again.
  */
 export async function updateSet(
   database: TrainingDatabase,
   id: string,
   patch: SetPatch,
   expectedInstallId?: string,
+  loads?: AdjustmentLoads,
 ): Promise<boolean> {
   const fields = setPatchSchema.parse(patch);
   return write(database, expectedInstallId, async (tx) => {
@@ -607,6 +617,12 @@ export async function updateSet(
           : {}),
       })
       .where(eq(sessionSet.id, id));
+    // Correcting a ticked set takes back what it moved, then reads the corrected values.
+    if (
+      current.completed_at !== null &&
+      ("weight_kg" in changes || "reps" in changes || "rpe" in changes)
+    )
+      await adjustAfterSetIn(tx, parent, { ...current, ...changes }, loads, true);
     return true;
   });
 }
@@ -633,6 +649,8 @@ export function tickSet(
   expectedInstallId?: string,
   restSeconds?: number | null,
   expiresAt?: number,
+  draft?: PrescriptionDraft | null,
+  loads?: AdjustmentLoads,
 ): Promise<TickResult> {
   if (restSeconds != null && !isRestSeconds(restSeconds)) {
     return Promise.reject(new Error("Rest is 1 to 600 seconds"));
@@ -656,7 +674,14 @@ export function tickSet(
       }
     }
     const completedAt = expiresAt ?? now;
-    const result = tickValues(current, ghosts, SET_FIELDS[parent.exercise_type]);
+    const prescription = draft
+      ? await capturePrescriptionIn(tx, parent, draft)
+      : readSnapshot(parent);
+    const savedGhosts = prescription?.sets.find((set) => set.id === id)?.ghosts;
+    const used = savedGhosts
+      ? { ...savedGhosts, ...(expiresAt === undefined ? {} : { duration: ghosts.duration }) }
+      : ghosts;
+    const result = tickValues(current, used, SET_FIELDS[parent.exercise_type]);
     if (!result.ok) {
       // A countdown with a missing field keeps its elapsed duration and stops in the same write.
       if (expiresAt !== undefined && duration != null) {
@@ -677,6 +702,9 @@ export function tickSet(
     };
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
+    if (prescription) {
+      await adjustAfterSetIn(tx, parent, { ...current, ...result.values }, loads);
+    }
     if (restSeconds == null || completedAt + restSeconds * 1000 <= now) {
       return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
     }
@@ -712,6 +740,8 @@ export function untickSet(
     const parent = await requireSessionExercise(tx, current.session_exercise_id);
     await tx.update(sessionSet).set({ completed_at: null }).where(eq(sessionSet.id, id));
     await clearRestStartedBy(tx, parent.session_id, id);
+    // What the set moved on the sets after it no longer follows from it.
+    await revertAfterUntickIn(tx, parent, id);
     return true;
   });
 }

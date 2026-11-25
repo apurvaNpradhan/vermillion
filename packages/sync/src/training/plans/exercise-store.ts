@@ -9,6 +9,8 @@ import {
   planLeaveSuperset,
   planSupersetRepair,
   planSupersetWithNext,
+  raisedRepRange,
+  type RepRange,
   workoutExerciseInput,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
@@ -155,6 +157,43 @@ export async function updateWorkoutExercise(
       const rows = await supersetRowsOf(tx, current.workout_id);
       await applySupersetChanges(tx, planSupersetRepair(rows));
     }
+    return true;
+  });
+}
+
+/**
+ * Moves the rep range of a Workout exercise's progressing sets (working, top, back-off) that are on
+ * `from` up so it ends at `toReps`, keeping its width, when the lifter keeps beating it. Warm-ups,
+ * drop, myo and failure sets and other ranges stay. Returns whether it wrote.
+ */
+export function raiseWorkoutRepRange(
+  database: TrainingDatabase,
+  id: string,
+  toReps: number,
+  from: RepRange,
+  expectedInstallId?: string,
+): Promise<boolean> {
+  return write(database, expectedInstallId, async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(workoutExercise)
+      .where(eq(workoutExercise.id, id))
+      .limit(1);
+    if (!current) return false;
+    const sets = raisedRepRange(current.sets, toReps, from);
+    if (!sets) return false;
+    const type = (await exerciseTypeOf(tx, current.exercise_id)).exercise_type;
+    plannedSetsSchema(type).parse(sets);
+    workoutExerciseInput.parse({
+      workout_id: current.workout_id,
+      exercise_id: current.exercise_id,
+      position: current.position,
+      rest_seconds: current.rest_seconds,
+      note: current.note,
+      superset_group: current.superset_group,
+      sets,
+    });
+    await tx.update(workoutExercise).set({ sets }).where(eq(workoutExercise.id, id));
     return true;
   });
 }

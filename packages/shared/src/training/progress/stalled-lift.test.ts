@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
-import { sessionScore, stalledSessions, type StallSession } from "./stalled-lift";
+import {
+  missedSuggestions,
+  sessionScore,
+  stalledSessions,
+  type StallSession,
+} from "./stalled-lift";
 import { stalledExerciseIds, type SuggestionAccount } from "./suggestion-context";
 
 const set = (weight: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({
@@ -190,5 +195,119 @@ describe("stalledExerciseIds", () => {
     ).toEqual([]);
     const replacement = { workoutId: "w1", sets: [row("growing", 4, 125), row("new", 4, 100)] };
     expect(stalledExerciseIds([replacement], histories, account)).toEqual([]);
+  });
+});
+
+describe("missedSuggestions", () => {
+  const suggested = (weight: number | null, reps: number | null) => ({
+    suggested: { weight_kg: weight, reps },
+  });
+  /** A Session of two working sets against a suggestion of 100 kg for 8. */
+  const session = (index: number, done: [number, number][], extra: Partial<StallSession> = {}) =>
+    ({
+      started_at: day(index * 4),
+      sets: done.map(([weight, reps]) => set(weight, reps, suggested(100, 8))),
+      ...extra,
+    }) satisfies StallSession;
+  const miss = (index: number) =>
+    session(index, [
+      [100, 6],
+      [100, 5],
+    ]);
+  const met = (index: number) =>
+    session(index, [
+      [100, 8],
+      [100, 8],
+    ]);
+
+  it("counts a run of three Sessions that fell short, even while the numbers still move", () => {
+    expect(missedSuggestions([miss(0), miss(1), miss(2)], "weight_reps")).toBe(3);
+    expect(missedSuggestions([miss(0), miss(1), miss(2), miss(3), met(4)], "weight_reps")).toBe(4);
+  });
+
+  it("is not stalled with two misses, or when one of the last three met it", () => {
+    expect(missedSuggestions([miss(0), miss(1)], "weight_reps")).toBe(0);
+    expect(missedSuggestions([miss(0), met(1), miss(2), miss(3)], "weight_reps")).toBe(0);
+  });
+
+  it("reads less load as a miss too, and needs more than half of the sets short", () => {
+    const light = (index: number) =>
+      session(index, [
+        [95, 8],
+        [95, 8],
+      ]);
+    expect(missedSuggestions([light(0), light(1), light(2)], "weight_reps")).toBe(3);
+    const half = (index: number) =>
+      session(index, [
+        [100, 8],
+        [100, 6],
+      ]);
+    expect(missedSuggestions([half(0), half(1), half(2)], "weight_reps")).toBe(0);
+  });
+
+  it("ends at a Session with no snapshot, and ignores warm-ups and unticked sets", () => {
+    const older: StallSession = { started_at: day(8), sets: [set(100, 8)] };
+    expect(missedSuggestions([miss(0), miss(1), older, miss(3)], "weight_reps")).toBe(0);
+    const noisy = {
+      started_at: day(0),
+      sets: [
+        set(40, 3, { ...suggested(40, 10), kind: "warmup" }),
+        set(100, 8, { ...suggested(100, 8), completed_at: null }),
+        ...miss(0).sets,
+      ],
+    } satisfies StallSession;
+    expect(missedSuggestions([noisy, miss(1), miss(2)], "weight_reps")).toBe(3);
+  });
+
+  it("skips Test and Deload Sessions and stops at an applied stall deload", () => {
+    const deload = { ...miss(1), phase: "deload" } satisfies StallSession;
+    expect(missedSuggestions([miss(0), deload, miss(2), miss(3)], "weight_reps")).toBe(3);
+    const applied = session(2, [[90, 8]], {}).sets.map((one) => ({ ...one, stall_deload: true }));
+    expect(
+      missedSuggestions(
+        [miss(0), miss(1), { started_at: day(8), sets: applied }, miss(3), miss(4)],
+        "weight_reps",
+      ),
+    ).toBe(0);
+  });
+
+  it("does not count a Session whose numbers still improved", () => {
+    // Each Session was offered more than it did, yet did more than the Session before.
+    const rising = (index: number, load: number) => ({
+      started_at: day(index * 4),
+      sets: [set(load, 6, suggested(load + 5, 6)), set(load, 6, suggested(load + 5, 6))],
+    });
+    // Newest first: 110, 105, 100, 95.
+    expect(
+      missedSuggestions(
+        [rising(0, 110), rising(1, 105), rising(2, 100), rising(3, 95)],
+        "weight_reps",
+      ),
+    ).toBe(0);
+    // Flat, the same misses are flagged.
+    expect(
+      missedSuggestions(
+        [rising(0, 100), rising(1, 100), rising(2, 100), rising(3, 100)],
+        "weight_reps",
+      ),
+    ).toBe(4);
+  });
+
+  it("reads a lifter who always adds a step as meeting the suggestion", () => {
+    const heavier = (index: number) => ({
+      started_at: day(index * 4),
+      sets: [set(105, 8, suggested(100, 8)), set(105, 7, suggested(100, 8))],
+    });
+    expect(missedSuggestions([heavier(0), heavier(1), heavier(2)], "weight_reps")).toBe(0);
+  });
+
+  it("compares loads typed in lb by their identity", () => {
+    // 135 lb suggested, 130 lb done: a different load, so a miss; the same load is not.
+    const lb = (index: number, weightLb: number) => ({
+      started_at: day(index * 4),
+      sets: [set(weightLb * 0.45359237, 8, suggested(135 * 0.45359237, 8))],
+    });
+    expect(missedSuggestions([lb(0, 130), lb(1, 130), lb(2, 130)], "weight_reps")).toBe(3);
+    expect(missedSuggestions([lb(0, 135), lb(1, 135), lb(2, 135)], "weight_reps")).toBe(0);
   });
 });

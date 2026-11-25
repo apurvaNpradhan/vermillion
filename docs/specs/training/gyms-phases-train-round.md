@@ -364,3 +364,38 @@ instruction to proceed while away (2026-11-25); the owner may overturn any of th
 Slices: **E1** decision-free fixes (F4, F11, F5, F7, F8, F9, F10, F15, F16, simulation + parity
 suites); **E2** decision fixes (F1, F2, F3, F6, F12, F13, F14, Pause Run); **E3** prescription
 snapshot, same-day adjustment, override prompts; **E4** `prescribe()` façade and the Q40 features.
+
+**E3 as built.** The step prompt follows the Max and Load step prompts' equipment (machine, cable,
+Smith machine): free weights keep the account's increment, which is global, so a lifter who always
+adds more than the suggestion on a barbell is not asked. The step prompt is kept per gym and
+exercise; the rep-range prompt is kept per Workout exercise, whatever the gym.
+
+Review fixes (owner-delegate decisions, 2026-11-26):
+
+- **Judging a set.** Reps and effort are read only when the set was logged at the suggested load.
+  At another load the set is converted to the reps it is worth at the suggested load by estimated
+  1RM (Brzycki); a heavier set with fewer reps is not a miss, and a lifter who always adds 5 kg is
+  not "missing". With reps and effort both logged and targeted, capacity (reps + 10 − RPE) is
+  compared (1.5 or more off moves the sets); with one signal, that one is read (2 reps or 1.5
+  effort).
+- **Which sets.** Working, top and back-off sets (`progresses(kind)`) trigger, move, count in the
+  ledger, the missed-suggestion rule and the override observations. Warm-up, drop, myo and failure
+  sets never do. A top set's miss lowers its back-offs. A Lighter week never raises, like a Deload.
+- **Undo.** Each adjustment records what it moved, so they undo one at a time (the button stops
+  further adjusting). Unticking or correcting the trigger set takes its adjustment back, and any
+  made after it, for the sets still unticked, and it may trigger again when ticked.
+- **Staying in step.** The snapshot records the Session gym and each set's kind and target. When
+  the Session gym moves, a set's kind or target is edited, or a set is added, the Session screen
+  gives the unticked sets (all of them for a gym change, the edited ones otherwise) and any set the
+  snapshot never covered a fresh suggestion as a revision naming the one it replaces; ticked sets
+  keep theirs.
+- **Stall.** A Session counts as a missed suggestion only if it also did not improve by the stall
+  rule. A stall that comes only from missed suggestions says "Suggestions have been ahead of you
+  for three sessions." and offers no lighter-load deload; a real stall still does.
+- **Rep range.** Observed over the Session as a whole once every progressing set with a range is
+  ticked: most sets above the top, using the lowest of them (14, 15, 14, 15 reads 14); near-equal
+  counts (within one rep) across Sessions count together. Answering changes the Workout's
+  working, top and back-off sets on exactly the range that was beaten, and says so.
+- **Forward compatibility.** A snapshot this build cannot fully read (unknown keys or reasons from a
+  newer build) is still shown, but is never adjusted, revised or written over; a snapshot that
+  does not parse at all is ignored.

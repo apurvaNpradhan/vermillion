@@ -10,6 +10,7 @@ import type { EquipmentRow, GymExerciseSettingRow, GymRow } from "@workspace/syn
 
 /** What one gym says about loads, read by progression, the plate calculator and the editors. */
 export type GymLoads = {
+  ready?: boolean;
   /** The gym these loads are of; null before the first sync has delivered one. */
   gymId: string | null;
   /** The loads the gym can make for an exercise; null is the equipment's default step. */

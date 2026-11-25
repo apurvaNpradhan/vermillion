@@ -50,7 +50,7 @@ function buildRows(
   makeId: () => string,
 ) {
   const created_at = nowIso();
-  const exerciseRows: (typeof sessionExercise.$inferInsert)[] = [];
+  const exerciseRows: Omit<typeof sessionExercise.$inferInsert, "prescription">[] = [];
   const setRows: Omit<typeof sessionSet.$inferInsert, "target">[] = [];
   const id = makeId();
   const start = Date.parse(planned.startedAt);

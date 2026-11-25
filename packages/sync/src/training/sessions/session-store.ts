@@ -11,6 +11,8 @@ import {
   loadCutRange,
   plannedLoadFactors,
   phaseFor,
+  revisedSets,
+  type PrescriptionDraft,
   runPausedAt,
   hasLoad,
   isTestSingle,
@@ -31,6 +33,7 @@ import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
 import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
+import { nextRevision, readSnapshot, untickedIn } from "./prescription-store";
 import { performAgainIn } from "./session-again-store";
 import {
   assertSessionRoom,
@@ -60,14 +63,25 @@ export function setStallDeload(
   entryId: string,
   applied: boolean,
   writeScope?: string,
+  draft?: PrescriptionDraft | null,
 ) {
   return write(db, writeScope, async (tx) => {
     const entry = await requireSessionExercise(tx, entryId);
     const current = await requireSession(tx, entry.session_id);
     if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
+    const saved = readSnapshot(entry);
+    // The lighter targets replace every unticked set's suggestion; ticked sets keep theirs.
+    const unticked =
+      draft && saved && draft.exerciseId === entry.exercise_id
+        ? [...(await untickedIn(tx, entryId)).keys()]
+        : [];
+    const prescription =
+      draft && saved && unticked.length > 0
+        ? nextRevision(revisedSets(saved, draft, new Set(unticked)), saved.revision)
+        : null;
     await tx
       .update(sessionExercise)
-      .set({ stall_deload: applied })
+      .set({ stall_deload: applied, ...(prescription ? { prescription } : {}) })
       .where(eq(sessionExercise.id, entryId));
     return true;
   });

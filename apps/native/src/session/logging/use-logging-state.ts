@@ -1,11 +1,11 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
+  progresses,
   resolveExerciseUnit,
   snapshotModifiers,
   type PreviousSource,
   type EffortScale,
-  type Equipment,
   type ExerciseBests,
   type Ghosts,
   type SetKind,
@@ -47,15 +47,22 @@ import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { hasRequiredSetValues, historySettled } from "./history-gate";
+import { usePrescriptionRevisions } from "./use-prescription-revisions";
 import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
-import type { GymLoads } from "@/gym";
+import type { GymLoads, LoggedLoad } from "@/gym";
 import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
   ReturnType<typeof useOptimisticSession>,
-  "tick" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
+  | "tick"
+  | "savePrescription"
+  | "reviseSnapshot"
+  | "untick"
+  | "updateValues"
+  | "addExtraSet"
+  | "awaitWrites"
 >;
 
 /**
@@ -73,6 +80,7 @@ export function useLoggingState({
   recordBests,
   historyReady,
   historyFailed,
+  prescriptionReady,
   unit,
   display,
   effortScale,
@@ -97,6 +105,7 @@ export function useLoggingState({
   historyReady: boolean;
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
+  prescriptionReady: boolean;
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
@@ -117,13 +126,7 @@ export function useLoggingState({
   onRestStarted?: () => void;
   sessionGymId: string | null;
   /** A working set was ticked: what it was logged at and what the Ghost value offered. */
-  onLoggedLoad?: (input: {
-    sessionId: string;
-    exerciseId: string;
-    equipment: Equipment;
-    suggestedKg: number;
-    loggedKg: number;
-  }) => void;
+  onLoggedLoad?: (input: LoggedLoad) => void;
 }) {
   const { t } = useTranslation();
   const sound = useSoundCues();
@@ -162,6 +165,7 @@ export function useLoggingState({
     () => ({
       previous,
       historyFailed,
+      prescriptionReady,
       previousSource,
       unit,
       unitNames,
@@ -183,6 +187,7 @@ export function useLoggingState({
     [
       previous,
       historyFailed,
+      prescriptionReady,
       previousSource,
       unit,
       unitNames,
@@ -213,6 +218,23 @@ export function useLoggingState({
   const blocks = useStore(store, (state) => state.blocks);
   const places = useStore(store, (state) => state.places);
   const views = useStore(store, (state) => state.views);
+  const savePrescription = actions.savePrescription;
+  const capturing = useRef(new Set<string>());
+  useEffect(() => {
+    if (readOnly || !historyReady || !prescriptionReady) return;
+    for (const [id, view] of views) {
+      if (!view.prescriptionDraft || capturing.current.has(id)) continue;
+      capturing.current.add(id);
+      void savePrescription(id, view.prescriptionDraft).finally(() => capturing.current.delete(id));
+    }
+  }, [readOnly, historyReady, prescriptionReady, views, savePrescription]);
+  usePrescriptionRevisions({
+    store,
+    views,
+    readOnly,
+    ready: historyReady && prescriptionReady,
+    revise: actions.reviseSnapshot,
+  });
   const exercises = useStore(store, (state) => state.session.exercises);
   const finished = useStore(store, (state) => state.session.finishedAt !== null);
   const currentSetId = useStore(store, (state) => state.currentSetId);
@@ -467,14 +489,13 @@ export function useLoggingState({
       const at = state.found.get(setId);
       if (!at) return false;
       const settled = historySettled({
-        loaded: previous.has(at.exercise.exerciseId),
+        loaded:
+          Boolean(at.exercise.prescription) ||
+          (prescriptionReady && previous.has(at.exercise.exerciseId)),
         failed: historyFailed,
       });
       const latest = at.set;
-      if (
-        !settled &&
-        (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
-      )
+      if (!settled && !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
         return false;
       const block = state.blocks.find((entry) =>
         entry.members.some((member) => member.id === at.exercise.id),
@@ -534,20 +555,24 @@ export function useLoggingState({
         onRestStarted?.();
       const suggestedKg = used.weight ?? null;
       const loggedKg = latest.weightKg ?? suggestedKg;
-      if (
-        onLoggedLoad &&
-        state.session.finishedAt === null &&
-        at.set.kind === "working" &&
-        suggestedKg !== null &&
-        loggedKg !== null
-      )
+      if (onLoggedLoad && state.session.finishedAt === null && progresses(at.set.kind)) {
+        const loggedReps = latest.reps ?? used.reps ?? null;
         onLoggedLoad({
           sessionId: state.session.id,
           exerciseId: at.exercise.exerciseId,
           equipment: at.exercise.exercise?.equipment ?? "other",
           suggestedKg,
           loggedKg,
+          outcome: at.exercise.prescription?.sets.find(({ id }) => id === setId)?.outcome ?? null,
+          workoutExerciseId: at.exercise.sourceWorkoutExerciseId,
+          sets: at.exercise.sets.map((set) => ({
+            kind: set.kind,
+            completed: set.id === setId || set.completedAt !== null,
+            reps: set.id === setId ? loggedReps : set.reps,
+            target: set.target,
+          })),
         });
+      }
 
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
@@ -593,6 +618,7 @@ export function useLoggingState({
       store,
       editor,
       historyFailed,
+      prescriptionReady,
       actions,
       previous,
       recordBests,

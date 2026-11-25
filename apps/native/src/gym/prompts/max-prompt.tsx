@@ -8,7 +8,7 @@ import { Button } from "@/platform/ui/button";
 import { usePreference, usePreferences } from "@/preferences";
 
 import { capPromptKey, dismissCapPrompt, pendingCapPrompt } from "./cap-prompt";
-import { useGymSetting } from "./use-gym-setting";
+import { useGymSetting } from "../use-gym-setting";
 
 /**
  * A small inline question under an exercise's header, after the suggestion was lowered to the

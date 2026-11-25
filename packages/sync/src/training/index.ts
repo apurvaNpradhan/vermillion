@@ -46,6 +46,7 @@ export {
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   type DeletedProgram,
   type DeletedWorkout,
   type ProgramPatch,
@@ -282,3 +283,9 @@ export {
   type ImportedPlan,
   type ImportExercisePreview,
 } from "./plans/share-store";
+
+export {
+  capturePrescription,
+  revisePrescription,
+  undoSessionAdjustment,
+} from "./sessions/prescription-store";

@@ -5,10 +5,14 @@ import { isBaselinePhase, type Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { loadIdentity } from "../vocabulary/format";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
+import { progresses } from "./progression";
+import { fellShortOfSuggestion } from "./suggestion-ledger";
 
 const DAY_MS = 86_400_000;
 /** The most recent Sessions that must show no gain for a lift to count as stalled. */
 export const STALL_SESSIONS = 3;
+/** The most recent Sessions that must all miss their suggestion for a lift to count as stalled. */
+export const MISSED_SESSIONS = 3;
 /** The recent best has to beat the Session before by this much, or the lift has stalled. */
 const MIN_GAIN = 1.01;
 /** A gap this long between Sessions is a break, not a stall. */
@@ -68,6 +72,55 @@ export function sessionScore(
 export const wasStallDeload = ({ sets }: StallSession): boolean =>
   sets.some((set) => isCounted(set) && set.stall_deload);
 
+type Baseline = { session: StallSession; performance: Map<SetKind, StallPerformance> };
+
+/**
+ * The scored baseline Sessions of the current episode, newest first: after the last applied stall
+ * deload, outside Lighter weeks, until a gap of 14 days. A Test or Deload Session is not scored but
+ * is training, so it fills a gap.
+ */
+function episodeBaselines(
+  history: readonly StallSession[],
+  type: ExerciseType,
+  options: {
+    bodyweightKg?: number | null;
+    lighterWeeks?: readonly LighterPeriod[];
+    sinceDeload?: string;
+  },
+): Baseline[] {
+  const lastDeload = history.findIndex(wasStallDeload);
+  const since = lastDeload < 0 ? history : history.slice(0, lastDeload);
+  const opened = options.sinceDeload ? Date.parse(options.sinceDeload) : -Infinity;
+  const episode = since.filter((session) => Date.parse(session.started_at) > opened);
+  const trained = outsideLighterWeeks(episode, options.lighterWeeks ?? []).flatMap((session) => {
+    const performance = performanceByKind(session.sets, type, options.bodyweightKg);
+    return performance.size === 0
+      ? []
+      : [
+          {
+            session,
+            at: Date.parse(session.started_at),
+            baseline: isBaselinePhase(session.phase),
+            performance,
+          },
+        ];
+  });
+  // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
+  // Session between two baselines shortens it. Compare only the baselines since the last gap.
+  const baselines: Baseline[] = [];
+  let gap = false;
+  let previous: number | null = null;
+  for (const item of trained) {
+    if (baselines.length > 0 && previous !== null && previous - item.at >= BREAK_DAYS * DAY_MS)
+      gap = true;
+    previous = item.at;
+    if (!item.baseline) continue;
+    if (gap) break;
+    baselines.push({ session: item.session, performance: item.performance });
+  }
+  return baselines;
+}
+
 /**
  * How many Sessions in a row a lift has stalled, 0 when it has not. `history` is the exercise's
  * Sessions newest first, from the same Workout when one is known. The best of the most recent
@@ -88,35 +141,7 @@ export function stalledSessions(
     sinceDeload?: string;
   } = {},
 ): number {
-  const lastDeload = history.findIndex(wasStallDeload);
-  const since = lastDeload < 0 ? history : history.slice(0, lastDeload);
-  const opened = options.sinceDeload ? Date.parse(options.sinceDeload) : -Infinity;
-  const episode = since.filter((session) => Date.parse(session.started_at) > opened);
-  const trained = outsideLighterWeeks(episode, options.lighterWeeks ?? []).flatMap((session) => {
-    const performance = performanceByKind(session.sets, type, options.bodyweightKg);
-    return performance.size === 0
-      ? []
-      : [
-          {
-            at: Date.parse(session.started_at),
-            baseline: isBaselinePhase(session.phase),
-            performance,
-          },
-        ];
-  });
-  // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
-  // Session between two baselines shortens it. Compare only the baselines since the last gap.
-  const sessions: Map<SetKind, StallPerformance>[] = [];
-  let gap = false;
-  let previous: number | null = null;
-  for (const item of trained) {
-    if (sessions.length > 0 && previous !== null && previous - item.at >= BREAK_DAYS * DAY_MS)
-      gap = true;
-    previous = item.at;
-    if (!item.baseline) continue;
-    if (gap) break;
-    sessions.push(item.performance);
-  }
+  const sessions = episodeBaselines(history, type, options).map(({ performance }) => performance);
   const recent = new Map<SetKind, StallPerformance>();
   let stalled = 0;
   for (const [index, before] of sessions.entries()) {
@@ -213,6 +238,63 @@ function improvedOn(recent: StallPerformance, before: StallPerformance): boolean
     return true;
   for (const [load, reps] of before.repsByLoad) {
     if ((recent.repsByLoad.get(load) ?? 0) > reps) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether a Session missed what was suggested for it: more than half of its Counted progressing
+ * sets that have a suggestion ended short of it (fewer reps at the suggested load, or a lighter
+ * set worth less by estimated 1RM). Null when it has no snapshot to compare with (an older
+ * Session): that says nothing, and ends a run of misses.
+ */
+function missedSuggestion(session: StallSession): boolean | null {
+  const worked = session.sets.filter(
+    (set) => isCounted(set) && progresses(set.kind) && set.suggested,
+  );
+  if (worked.length === 0) return null;
+  return (
+    worked.filter((set) => set.suggested && fellShortOfSuggestion(set.suggested, set)).length * 2 >
+    worked.length
+  );
+}
+
+/**
+ * How many Sessions in a row the suggestion was missed and the lift did not gain, 0 until it has
+ * happened {@link MISSED_SESSIONS} times. A Session counts only if it also did not improve on the
+ * Session before it by the stall rule, so a lifter whose numbers keep rising is not flagged for
+ * choosing a different load. Reads the prescription snapshot of each Session, newest first, in
+ * the same scope as {@link stalledSessions}: it stops at an applied stall deload or a break, skips
+ * a Test or Deload Session and a Lighter week, and ends at a Session that met the suggestion,
+ * improved, or has no snapshot.
+ */
+export function missedSuggestions(
+  history: readonly StallSession[],
+  type: ExerciseType,
+  options: {
+    bodyweightKg?: number | null;
+    lighterWeeks?: readonly LighterPeriod[];
+    sinceDeload?: string;
+  } = {},
+): number {
+  const baselines = episodeBaselines(history, type, options);
+  let missed = 0;
+  for (const [index, { session, performance }] of baselines.entries()) {
+    if (missedSuggestion(session) !== true) break;
+    const before = baselines[index + 1]?.performance;
+    if (before && improvedAny(performance, before)) break;
+    missed += 1;
+  }
+  return missed >= MISSED_SESSIONS ? missed : 0;
+}
+
+function improvedAny(
+  recent: Map<SetKind, StallPerformance>,
+  before: Map<SetKind, StallPerformance>,
+): boolean {
+  for (const [kind, values] of before) {
+    const after = recent.get(kind);
+    if (after && improvedOn(after, values)) return true;
   }
   return false;
 }

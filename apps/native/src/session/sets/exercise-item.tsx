@@ -1,5 +1,7 @@
 import {
   SESSION_LIMITS,
+  latestAdjustment,
+  suggestionLedger,
   type SupersetPlace,
   resolveExerciseUnit,
   usesGymHistory,
@@ -18,9 +20,11 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
-import { MaxPrompt, SetupNoteChip, StepPrompt } from "@/gym";
+import { MaxPrompt, OverridePrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
+import { AdjustmentNote } from "./adjustment-note";
+import { SuggestionLedgerLine } from "./suggestion-ledger-line";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
@@ -41,6 +45,8 @@ export type ExerciseHandlers = SetHandlers & {
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
   onStallDeload: (exerciseId: string, applied: boolean) => void;
+  /** Restore the targets a same-day adjustment moved, for the rest of the Session. */
+  onUndoAdjustment: (exerciseId: string) => void;
   /** The exercise was laid out again (its sets grew or shrank). */
   onLayout: (exerciseId: string) => void;
 };
@@ -87,6 +93,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
         unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
+        unitLabel: state.inputs.unitNames[resolveExerciseUnit(state.inputs.unit, exercise?.unit)],
         gymId: state.inputs.gym.gymId,
         activeSessionId: state.session.finishedAt === null ? state.session.id : null,
         setupNote: exercise
@@ -100,6 +107,27 @@ export const ExerciseItem = memo(function ExerciseItem({
     }),
   );
   const { exercise, suggestion, stall, unit, place, readOnly, expanded } = data;
+  const finishedLedger = useMemo(
+    () =>
+      exercise && data.activeSessionId === null
+        ? suggestionLedger(
+            exercise.prescription,
+            exercise.sets.map((set) => ({
+              id: set.id,
+              kind: set.kind,
+              completed: set.completedAt !== null,
+              weight_kg: set.weightKg,
+              reps: set.reps,
+            })),
+          )
+        : null,
+    [exercise, data.activeSessionId],
+  );
+  const adjustment = latestAdjustment(exercise?.prescription);
+  const adjustedNumber = adjustment
+    ? (data.rows?.get(adjustment.setId)?.number ??
+      (exercise?.sets.findIndex(({ id }) => id === adjustment.setId) ?? 0) + 1)
+    : 0;
   // Once this row has been seen closed, opening it fades its body in. A row that mounts open (the
   // screen opening, or the list mounting it while scrolling) shows it at once.
   const [seenClosed, setSeenClosed] = useState(false);
@@ -164,10 +192,18 @@ export const ExerciseItem = memo(function ExerciseItem({
                   exerciseId={exercise.exerciseId}
                   latestSessionId={stall.latestSessionId}
                   count={stall.count}
+                  missed={stall.missed}
                   applied={stall.applied}
                   onApply={
                     readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)
                   }
+                />
+              ) : null}
+              {adjustment && !data.done ? (
+                <AdjustmentNote
+                  adjustment={adjustment}
+                  setNumber={adjustedNumber}
+                  onUndo={readOnly ? undefined : () => handlers.onUndoAdjustment(exerciseId)}
                 />
               ) : null}
               {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}
@@ -193,6 +229,16 @@ export const ExerciseItem = memo(function ExerciseItem({
                   unit={unit}
                 />
               ) : null}
+              {!readOnly && data.activeSessionId ? (
+                <OverridePrompt
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={equipment}
+                  unit={unit}
+                  workoutExerciseId={exercise.sourceWorkoutExerciseId}
+                />
+              ) : null}
               <ExerciseBody
                 id={exercise.id}
                 note={exercise.note}
@@ -202,6 +248,14 @@ export const ExerciseItem = memo(function ExerciseItem({
                 onNote={handlers.onNote}
                 onRest={handlers.onRest}
               />
+              {finishedLedger ? (
+                <SuggestionLedgerLine
+                  ledger={finishedLedger}
+                  type={exercise.type}
+                  unit={unit}
+                  unitLabel={data.unitLabel}
+                />
+              ) : null}
               <SetGrid
                 exerciseId={exerciseId}
                 handlers={handlers}

@@ -27,6 +27,9 @@ const syncOptions = {
 
 type Value = string | number | null;
 
+/** What a snapshot looks like on the wire, before the server validates it. */
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json | undefined };
+
 describe("session upload handlers", () => {
   let app: TestApp;
   let weightReps: string;
@@ -250,6 +253,13 @@ describe("session upload handlers", () => {
     );
     return row;
   };
+  /** The snapshot of a Session exercise, read as text like the set target. */
+  const storedPrescription = async (id: string) => {
+    const [row] = await app.rows(
+      sql`SELECT prescription::text AS prescription FROM session_exercise WHERE id = ${id}`,
+    );
+    return row?.prescription ? JSON.parse(String(row.prescription)) : null;
+  };
   const deletedAt = async (table: string, id: string) =>
     (await stored(table, id))?.deleted_at ?? null;
 
@@ -272,6 +282,101 @@ describe("session upload handlers", () => {
     ).toEqual(applied);
     return ids;
   }
+
+  it("validates and keeps one prescription per owned entry across installs", async () => {
+    const client = app.client(await createSignedInUser(app, "prescribed@example.com"));
+    const { userId } = await client.sync.credentials();
+    const me = installOf(client, userId);
+    const otherInstall = installOf(client, userId);
+    const stranger = await writer("prescription-stranger@example.com");
+    const t = await training(me);
+    const snapshot = {
+      exerciseId: weightReps,
+      revision: uuidv7(),
+      previousRevision: null as string | null,
+      reason: "add_weight",
+      incrementKg: 2.5,
+      breakDays: null,
+      capKg: 65,
+      gymId: null as string | null,
+      sets: [
+        {
+          id: t.set1,
+          ghosts: { weight: 62.5, reps: 8, rpe: 8 },
+          outcome: { reason: "add_weight", changeKg: 2.5 },
+          basis: "0a1b2c3d",
+        },
+        {
+          id: t.set2,
+          ghosts: { weight: 65, reps: 8 },
+          outcome: { reason: "capped", capKg: 65, limit: "equipment" },
+        },
+      ],
+    };
+    const patch = (value: Json) =>
+      op("PATCH", "session_exercise", t.exerciseId, { prescription: JSON.stringify(value) });
+
+    expect(await stranger.send([patch(snapshot)])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([patch({ ...snapshot, exerciseId: duration })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(
+      await me.send([patch({ ...snapshot, sets: [...snapshot.sets, ...snapshot.sets] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([patch(snapshot)])).toEqual(applied);
+    expect(
+      await otherInstall.send([patch({ ...snapshot, revision: uuidv7(), capKg: 70 })]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(snapshot);
+
+    const revision = {
+      ...snapshot,
+      revision: uuidv7(),
+      previousRevision: snapshot.revision,
+      capKg: 70,
+    };
+    expect(await me.send([patch(revision)])).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(revision);
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { note: "Seat 3" })]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(revision);
+
+    // A same-day adjustment is a revision that names the snapshot it replaces.
+    const [kept, lowered] = revision.sets;
+    if (!kept || !lowered) throw new Error("Expected two sets");
+    const adjusted = {
+      ...revision,
+      revision: uuidv7(),
+      previousRevision: revision.revision,
+      adjustments: [
+        {
+          setId: t.set1,
+          reason: "reps_short",
+          reps: 3,
+          moved: [{ id: t.set2, fromKg: 65 }],
+        },
+      ],
+      sets: [kept, { ...lowered, ghosts: { weight: 62.5, reps: 8 }, unadjustedWeightKg: 65 }],
+    };
+    const [only] = adjusted.adjustments;
+    if (!only) throw new Error("Expected an adjustment");
+    expect(
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, reason: "x" }] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, extra: 1 }] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([patch(adjusted)])).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(adjusted);
+    // Another install that never saw the adjustment names the older snapshot: it does not win.
+    expect(
+      await otherInstall.send([
+        patch({ ...revision, revision: uuidv7(), previousRevision: revision.revision, capKg: 99 }),
+      ]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(adjusted);
+  });
 
   it.each(["top", "backoff", "myo"] as const)(
     "persists %s and its effort through sync upload",

@@ -17,7 +17,7 @@ import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 import { historyForGym } from "./gym-history";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
-import { stalledSessions, wasStallDeload } from "./stalled-lift";
+import { missedSuggestions, stalledSessions, wasStallDeload } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
 export type SuggestionSettings = {
@@ -44,7 +44,16 @@ export type SuggestionSettings = {
 };
 
 /** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
+export type StallInfo = {
+  count: number;
+  latestSessionId: string;
+  applied: boolean;
+  /**
+   * The numbers have not stalled, but the suggestion was missed without gain every time: it asks
+   * to hold or review the target, and never offers the lighter-load deload.
+   */
+  missed?: boolean;
+};
 
 /** A finished Session of an exercise, as a suggestion reads it. */
 export type ContextSession = SessionHistory & { workoutId: string | null };
@@ -138,10 +147,20 @@ export function suggestionContext(
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
     });
-    if (latestSessionId !== null && (count > 0 || place.stallDeload)) {
+    const missed = missedSuggestions(sessions, place.type, {
+      bodyweightKg: account.bodyweightKg,
+      lighterWeeks: account.lighterWeeks,
+      sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
+    });
+    if (latestSessionId !== null && (count > 0 || missed > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)
-        stall = { count, latestSessionId, applied: place.stallDeload === true };
+        stall = {
+          count: count > 0 ? count : missed,
+          latestSessionId,
+          applied: place.stallDeload === true,
+          ...(count === 0 && missed > 0 ? { missed: true } : {}),
+        };
     }
   }
   const unit = resolveExerciseUnit(account.unit, place.unitOverride ?? null);
@@ -215,7 +234,8 @@ export function stalledExerciseIds(
           },
           account,
         );
-        if (stall) {
+        // A missed suggestion alone asks to review the target, not for a deload.
+        if (stall && !stall.missed) {
           stalled.add(exerciseId);
           break;
         }

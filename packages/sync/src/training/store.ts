@@ -28,6 +28,7 @@ export {
   addExercises,
   type WorkoutExercisePatch,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   moveWorkoutExercise,
   replaceExercise,
   removeWorkoutExercise,

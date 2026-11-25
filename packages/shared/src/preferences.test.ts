@@ -60,6 +60,7 @@ describe("ui preferences schema", () => {
       activeGymId: null,
       capPrompts: [],
       stepPrompts: [],
+      overridePrompts: [],
       deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
@@ -70,6 +71,23 @@ describe("ui preferences schema", () => {
     { name: "a prompt with a missing field", capPrompts: [{ key: "g:e" }] },
   ])("reads $name in capPrompts as no prompts", ({ capPrompts }) => {
     expect(uiPreferencesSchema.parse({ capPrompts }).capPrompts).toEqual([]);
+  });
+  it("reads override prompts, and a bad list as none", () => {
+    const prompt = {
+      key: "g:e:step",
+      kind: "step",
+      value: 5,
+      count: 2,
+      sessionId: "s",
+      dismissed: false,
+    };
+    expect(uiPreferencesSchema.parse({ overridePrompts: [prompt] }).overridePrompts).toEqual([
+      prompt,
+    ]);
+    expect(
+      uiPreferencesSchema.parse({ overridePrompts: [{ ...prompt, kind: "max" }] }).overridePrompts,
+    ).toEqual([]);
+    expect(uiPreferencesSchema.parse({ overridePrompts: "nope" }).overridePrompts).toEqual([]);
   });
   it("keeps saved muscle goals and rejects an inverted Custom range", () => {
     const goals = { chest: { level: "focus" }, calves: { level: "custom", min: 4, max: 9 } };

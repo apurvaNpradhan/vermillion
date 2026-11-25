@@ -13,6 +13,11 @@ export type LoggedSet = SetValues & {
   bodyweight_kg?: number | null;
   /** Prescription stored when the set was created. */
   target?: PlannedSet | null;
+  /**
+   * What was suggested for this set, from the Session's prescription snapshot: the load before any
+   * same-day adjustment, and the reps. Absent for a Session that has no snapshot.
+   */
+  suggested?: { weight_kg: number | null; reps: number | null } | null;
   /** This Session entry used the stall deload. */
   stall_deload?: boolean;
   /**
