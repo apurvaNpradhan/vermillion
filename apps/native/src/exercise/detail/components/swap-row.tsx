@@ -53,14 +53,19 @@ export function SwapRow({
           const picking = selectedIds !== undefined;
           const selected = selectedIds?.includes(candidate.id) ?? false;
           const here = hasEquipment(candidate.equipment);
+          const label = picking
+            ? here
+              ? "exercise__swap_pick"
+              : "exercise__swap_pick_unavailable"
+            : here
+              ? "exercise__swap_open"
+              : "exercise__swap_open_unavailable";
           return (
             <Pressable
               key={candidate.id}
               accessibilityRole={picking ? "checkbox" : "button"}
               accessibilityState={picking ? { checked: selected } : undefined}
-              accessibilityLabel={`${t(picking ? "exercise__swap_pick" : "exercise__swap_open", {
-                title: candidate.title,
-              })}${here ? "" : `, ${t("exercise__not_here")}`}`}
+              accessibilityLabel={t(label, { title: candidate.title })}
               onPress={() => onOpen(candidate.id)}
               className={`gap-2 rounded-xl border active:opacity-70 p-2 active:bg-default ${
                 selected ? "border-foreground bg-default" : "border-transparent bg-surface"

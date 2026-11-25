@@ -1,4 +1,6 @@
 import {
+  EQUIPMENT,
+  type Equipment,
   gymAvailabilityInput,
   gymExerciseSettingId,
   gymExerciseSettingInput,
@@ -57,6 +59,25 @@ const putGym = z.strictObject({
   unavailable_equipment: availabilityFields.unavailable_equipment.optional(),
   dumbbell_max_kg: availabilityFields.dumbbell_max_kg.optional(),
 });
+/**
+ * The list a toggle leaves. With the list the device started from, only what it changed applies
+ * to the stored list, so two devices that untick different types both survive; without it the
+ * device's list replaces the stored one.
+ */
+function mergedEquipment(
+  stored: readonly Equipment[],
+  sent: readonly Equipment[],
+  expectedText: string | undefined,
+): Equipment[] {
+  const expected = expectedText === undefined ? null : wireEquipment.safeParse(expectedText);
+  if (!expected?.success) return [...sent];
+  const added = sent.filter((entry) => !expected.data.includes(entry));
+  const removed = expected.data.filter((entry: Equipment) => !sent.includes(entry));
+  return EQUIPMENT.filter(
+    (entry) => (stored.includes(entry) || added.includes(entry)) && !removed.includes(entry),
+  );
+}
+
 const patchGym = z.strictObject({ name: gymInput.shape.name, ...availabilityFields }).partial();
 
 const gymSyncHandler: SyncTableHandler = {
@@ -102,7 +123,13 @@ const gymSyncHandler: SyncTableHandler = {
     const changes = {
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.unavailable_equipment !== undefined
-        ? { unavailableEquipment: patch.unavailable_equipment }
+        ? {
+            unavailableEquipment: mergedEquipment(
+              row.unavailableEquipment,
+              patch.unavailable_equipment,
+              op.expect?.unavailable_equipment,
+            ),
+          }
         : {}),
       ...(patch.dumbbell_max_kg !== undefined ? { dumbbellMaxKg: patch.dumbbell_max_kg } : {}),
     };

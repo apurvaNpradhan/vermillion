@@ -19,6 +19,7 @@ import {
   deleteGym,
   renameGym,
   setGymAvailability,
+  setGymEquipmentHere,
   setGymExerciseSetting,
   setSessionGym,
 } from "./gym-store";
@@ -160,6 +161,17 @@ describe("kit and gyms", () => {
     ]);
     await setGymAvailability(s.training, HOME, { unavailableEquipment: [] }, s.installId);
     expect(await rows()).toMatchObject([{ unavailableEquipment: [], dumbbellMaxKg: null }]);
+  });
+
+  it("applies each equipment toggle to the current row", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    await setGymEquipmentHere(s.training, HOME, "cable", false, s.installId);
+    await setGymEquipmentHere(s.training, HOME, "machine", false, s.installId);
+    expect(s.one("gym", HOME)).toMatchObject({ unavailable_equipment: '["machine","cable"]' });
+    await setGymEquipmentHere(s.training, HOME, "cable", true, s.installId);
+    expect(s.one("gym", HOME)).toMatchObject({ unavailable_equipment: '["machine"]' });
+    expect(await setGymEquipmentHere(s.training, "nope", "cable", false, s.installId)).toBe(false);
   });
 
   it("refuses bodyweight, a zero max and a gym that is gone", async () => {

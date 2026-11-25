@@ -7,10 +7,10 @@ export type PickOptions = {
   /** Replace: the exercise being swapped out; "Swap for" suggestions for it sit above the list. */
   swapFor?: string;
   /**
-   * The gym whose equipment ranks the swap suggestions and the "Available here" filter: the
-   * Session's gym during a Session. Without one it is the gym trained at.
+   * The Session whose gym ranks the swap suggestions and powers the "Available here" filter.
+   * With no Session gym the picker uses the active gym.
    */
-  gymId?: string | null;
+  sessionId?: string;
 };
 
 /** Whether `id` may be picked at all (not excluded). Archived is decided by the row. */

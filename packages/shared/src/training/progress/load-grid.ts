@@ -221,9 +221,9 @@ function capGrid(base: LoadGrid | null, capKg: number, stepAt: (kg: number) => n
  */
 export function limitRangesTo(ranges: readonly LoadRange[], capKg: number): LoadRange[] {
   const kept = ranges.filter((range) => range.min <= capKg + EPS);
-  const last = kept[kept.length - 1];
-  if (!last) return [{ min: 0, max: capKg, step: null }];
-  return [...kept.slice(0, -1), { ...last, max: Math.min(last.max ?? capKg, capKg) }];
+  if (kept.length === 0) return [{ min: 0, max: capKg, step: null }];
+  // Ranges may overlap, so every one ends at the cap, not only the last.
+  return kept.map((range) => ({ ...range, max: Math.min(range.max ?? capKg, capKg) }));
 }
 
 /**
@@ -240,7 +240,9 @@ export function gymRangesFor(input: {
   const cap = input.dumbbellMaxKg ?? null;
   if (input.equipment !== "dumbbell" || cap === null) return ranges;
   const own = ranges[ranges.length - 1]?.max ?? null;
-  return own !== null && own <= cap + EPS ? ranges : limitRangesTo(ranges, cap);
+  const effective = own === null ? cap : Math.min(own, cap);
+  const within = ranges.every((range) => range.max !== null && range.max <= effective + EPS);
+  return ranges.length > 0 && within ? ranges : limitRangesTo(ranges, effective);
 }
 
 /**

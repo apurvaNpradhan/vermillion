@@ -7,6 +7,7 @@ import {
   gymInput,
   EQUIPMENT,
   loadRangesSchema,
+  unavailableEquipmentSchema,
   SYNC_LIMITS,
   type Equipment,
   type LoadRange,
@@ -174,6 +175,34 @@ export async function setGymAvailability(
     if (fields.dumbbell_max_kg !== undefined && fields.dumbbell_max_kg !== current.dumbbell_max_kg)
       changes.dumbbell_max_kg = fields.dumbbell_max_kg;
     if (Object.keys(changes).length > 0) await tx.update(gym).set(changes).where(eq(gym.id, id));
+    return true;
+  });
+}
+
+/**
+ * Ticks one equipment type on or off against the gym's current row, so a toggle never carries
+ * the other types along from a stale screen. False when the gym is gone.
+ */
+export async function setGymEquipmentHere(
+  database: TrainingDatabase,
+  id: string,
+  equipment: Equipment,
+  here: boolean,
+  scope: string,
+): Promise<boolean> {
+  const checked = unavailableEquipmentSchema.parse([equipment]);
+  return write(database, scope, async (tx) => {
+    const [current] = await tx.select().from(gym).where(eq(gym.id, id)).limit(1);
+    if (!current) return false;
+    const lacking = unavailableEquipmentOf(current.unavailable_equipment);
+    const next = EQUIPMENT.filter((entry) =>
+      entry === checked[0] ? !here : lacking.includes(entry),
+    );
+    if (JSON.stringify(next) !== JSON.stringify(lacking))
+      await tx
+        .update(gym)
+        .set({ unavailable_equipment: JSON.stringify(next) })
+        .where(eq(gym.id, id));
     return true;
   });
 }

@@ -245,6 +245,23 @@ describe("loadGridOf", () => {
   });
 });
 
+describe("a dumbbell max over overlapping ranges", () => {
+  it("clips every retained range to the cap", () => {
+    const grid = loadGridOf({
+      equipment: "dumbbell",
+      unit: "kg",
+      dumbbellMaxKg: 20,
+      ranges: [
+        { min: 5, max: 40, step: 5 },
+        { min: 15, max: 50, step: 5 },
+      ],
+    });
+    expect(grid?.capKg).toBe(20);
+    expect(grid?.above(20)).toBeNull();
+    expect(grid?.nearest(35)).toBeLessThanOrEqual(20);
+  });
+});
+
 describe("default dumbbell step", () => {
   const inc = (kg: number, unit: "kg" | "lb" = "kg") =>
     incrementFor(kg, "dumbbell", { weightUnit: unit, weightIncrementKg: null });

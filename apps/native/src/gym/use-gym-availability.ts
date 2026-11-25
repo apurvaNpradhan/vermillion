@@ -1,5 +1,5 @@
 import { isEquipmentAvailable, type Equipment } from "@workspace/shared";
-import { setGymAvailability } from "@workspace/sync";
+import { setGymAvailability, setGymEquipmentHere } from "@workspace/sync";
 import { useCallback, useMemo } from "react";
 
 import { useGyms } from "./use-gyms";
@@ -28,12 +28,12 @@ export function useGymAvailability(forGymId?: string | null) {
     dumbbellMaxKg: gym?.dumbbellMaxKg ?? null,
     has: (equipment: Equipment) => isEquipmentAvailable(equipment, unavailable),
     /** Ticks one equipment type on or off. */
-    setHas: (equipment: Equipment, here: boolean) =>
-      save({
-        unavailableEquipment: here
-          ? unavailable.filter((entry) => entry !== equipment)
-          : [...unavailable, equipment],
-      }),
+    setHas: async (equipment: Equipment, here: boolean) => {
+      if (!gymId) return false;
+      return (
+        (await run((db) => setGymEquipmentHere(db, gymId, equipment, here, writeScope))) === true
+      );
+    },
     setDumbbellMax: (kg: number | null) => save({ dumbbellMaxKg: kg }),
   };
 }

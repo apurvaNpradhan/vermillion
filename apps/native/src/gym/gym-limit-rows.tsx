@@ -16,16 +16,18 @@ export function GymLimitRows({
   exerciseId,
   title,
   equipment,
+  gymId,
   unit,
 }: {
   exerciseId: string;
   title: string;
   equipment: Equipment;
+  gymId?: string | null;
   unit: WeightUnit;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const setting = useGymSetting(exerciseId);
+  const setting = useGymSetting(exerciseId, gymId);
   if (!setting.ready) return null;
   const amount = (kg: number | null) =>
     kg === null ? t("gym__not_set") : t("plates__weight", { weight: formatWeight(kg, unit), unit });
@@ -64,6 +66,7 @@ export function GymLimitRows({
         exerciseId={exerciseId}
         title={title}
         equipment={equipment}
+        gymId={gymId}
         unit={unit}
       />
     </>

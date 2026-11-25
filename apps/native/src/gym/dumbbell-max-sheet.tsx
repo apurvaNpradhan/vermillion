@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { formatWeight, parseWeight, type WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,12 +36,21 @@ function DumbbellMaxSheetBody({
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((state) => state.height);
-  const shown = valueKg === null ? "" : formatWeight(valueKg, unit);
+  const current = valueKg === null ? "" : formatWeight(valueKg, unit);
+  // What the sheet showed when it opened: later syncs do not move it or touch the draft.
+  const latest = useRef(current);
+  latest.current = current;
+  const [shown, setShown] = useState(current);
   const form = useForm({
     defaultValues: { max: shown },
     onSubmit: async ({ value: draft }) => {
-      // Saving the text as it was shown keeps the stored weight as it is.
-      const next = draft.max === shown ? valueKg : dumbbellMaxOf(draft.max, unit);
+      // An unchanged draft saves nothing, so it cannot overwrite what synced meanwhile.
+      if (draft.max === shown) {
+        Keyboard.dismiss();
+        onOpenChange(false);
+        return;
+      }
+      const next = dumbbellMaxOf(draft.max, unit);
       if (next === "invalid") return;
       if (await onSave(next)) {
         Keyboard.dismiss();
@@ -50,8 +59,10 @@ function DumbbellMaxSheetBody({
     },
   });
   useEffect(() => {
-    if (isOpen) form.reset({ max: shown });
-  }, [form, isOpen, shown]);
+    if (!isOpen) return;
+    setShown(latest.current);
+    form.reset({ max: latest.current });
+  }, [form, isOpen]);
   return (
     <BottomSheet
       isOpen={isOpen}

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useSessionGym } from "@/gym";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalData } from "@/sync";
@@ -42,6 +43,7 @@ export function ExercisePickScreen({
   const { bottom } = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
   const session = usePickSession(requestId);
+  const gymId = useSessionGym(session?.options.sessionId ?? null);
   useHideTabBar(true);
 
   // Whatever way the sheet goes away (close button, swipe, account reset), the caller is answered.
@@ -94,13 +96,13 @@ export function ExercisePickScreen({
         mode="pick"
         title={t("exercise__pick_title")}
         selectedOrder={order}
-        gymId={session?.options.gymId}
+        gymId={gymId}
         disabledIds={session?.options.exclude}
         listHeader={
           session?.options.swapFor ? (
             <PickSwapSuggestions
               exerciseId={session.options.swapFor}
-              gymId={session.options.gymId}
+              gymId={gymId}
               selected={selected}
               onToggle={onToggle}
             />

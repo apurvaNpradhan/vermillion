@@ -6,12 +6,7 @@ import {
   type MuscleDetail,
   type MuscleGroup,
 } from "@workspace/shared";
-import {
-  DEFAULT_LIBRARY_FILTERS,
-  hasActiveFilters,
-  type LibraryFilters,
-  type LibraryRow,
-} from "@workspace/sync";
+import { DEFAULT_LIBRARY_FILTERS, type LibraryRow } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -28,7 +23,7 @@ import { SyncBanner } from "@/sync";
 import { useGymAvailability, useGyms } from "@/gym";
 
 import { useExerciseActions } from "../../use-exercise-actions";
-import { toggled, withoutFacets } from "../filter-state";
+import { hasActiveFacets, toggled, withoutFacets, type LibraryFilterState } from "../filter-state";
 import { useExerciseLibrary } from "../use-exercise-library";
 import { BodyMapFilter } from "./body-map-filter";
 import { ExerciseRow } from "./exercise-row";
@@ -117,10 +112,10 @@ export function ExerciseLibrary({
   const { t } = useTranslation();
   const here = useGymAvailability(gymId);
   const { multiple } = useGyms();
-  const [filters, setFilters] = useState<LibraryFilters>(() => ({
-    ...DEFAULT_LIBRARY_FILTERS,
-    pinnedFirst: mode === "pick",
-  }));
+  const [filters, setFilters] = useState<LibraryFilterState>(() => {
+    const { lacking: _, ...defaults } = DEFAULT_LIBRARY_FILTERS;
+    return { ...defaults, availableOnly: false, pinnedFirst: mode === "pick" };
+  });
   const { setExercisePinned } = useExerciseActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const browsedMuscle = browseMuscle?.muscle;
@@ -133,10 +128,14 @@ export function ExerciseLibrary({
       muscles: [browsedMuscle],
     }));
   }, [browsedMuscle, browsedAt]);
-  const library = useExerciseLibrary(filters);
+  const { availableOnly, ...queryFilters } = filters;
+  const library = useExerciseLibrary({
+    ...queryFilters,
+    lacking: availableOnly ? here.unavailable : [],
+  });
   const query = filters.search.trim();
   const searching = query !== "";
-  const showRecent = !searching && !hasActiveFilters(filters);
+  const showRecent = !searching && !hasActiveFacets(filters);
   const showSwapSuggestions =
     !searching &&
     !filters.pinnedOnly &&
@@ -144,7 +143,7 @@ export function ExerciseLibrary({
     filters.primaryDetail === null;
 
   const chips = useMemo<FilterChip[]>(() => {
-    const change = (next: Partial<LibraryFilters>) =>
+    const change = (next: Partial<LibraryFilterState>) =>
       setFilters((current) => ({ ...current, ...next }));
     return [
       ...filters.muscles.map((muscle) => ({
@@ -260,7 +259,7 @@ export function ExerciseLibrary({
     if (
       filters.show === "archived" &&
       !searching &&
-      !hasActiveFilters({ ...filters, show: "all" })
+      !hasActiveFacets({ ...filters, show: "all" })
     ) {
       return (
         <ArchivedEmptyState
@@ -273,7 +272,7 @@ export function ExerciseLibrary({
     return (
       <NoMatchesState
         query={query}
-        canClear={searching || hasActiveFilters(filters)}
+        canClear={searching || hasActiveFacets(filters)}
         onClear={clearFilters}
         onCreate={onCreate}
       />
@@ -309,7 +308,7 @@ export function ExerciseLibrary({
                 >
                   <FilterPill
                     label={t("exercise__filters_title")}
-                    active={hasActiveFilters(filters)}
+                    active={hasActiveFacets(filters)}
                     onPress={() => setFiltersOpen(true)}
                   />
                   <Button
@@ -323,16 +322,16 @@ export function ExerciseLibrary({
                   >
                     <Button.Label>{t("exercise__pinned")}</Button.Label>
                   </Button>
-                  {here.unavailable.length > 0 || filters.lacking.length > 0 ? (
+                  {here.unavailable.length > 0 || availableOnly ? (
                     <Button
                       size="sm"
-                      variant={filters.lacking.length > 0 ? "secondary" : "ghost"}
+                      variant={availableOnly ? "secondary" : "ghost"}
                       className="h-9 rounded-full"
-                      accessibilityState={{ selected: filters.lacking.length > 0 }}
+                      accessibilityState={{ selected: availableOnly }}
                       onPress={() =>
                         setFilters((current) => ({
                           ...current,
-                          lacking: current.lacking.length > 0 ? [] : here.unavailable,
+                          availableOnly: !current.availableOnly,
                         }))
                       }
                     >
@@ -344,7 +343,7 @@ export function ExerciseLibrary({
                     </Button>
                   ) : null}
                   <FilterChips chips={chips} />
-                  {chips.length > 0 || filters.pinnedOnly || filters.lacking.length > 0 ? (
+                  {chips.length > 0 || filters.pinnedOnly || availableOnly ? (
                     <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
                       <Button.Label>{t("exercise__clear_filters")}</Button.Label>
                     </Button>

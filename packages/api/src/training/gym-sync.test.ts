@@ -221,6 +221,35 @@ describe("gym upload handlers", () => {
     expect(await stored("gym", garage)).toMatchObject({ name: "Home" });
   });
 
+  it.each([
+    ["cable first", false],
+    ["machine first", true],
+  ])("keeps both devices' equipment toggles in any upload order (%s)", async (_name, flip) => {
+    const me = await writer(`gym-toggle-${flip}@example.com`);
+    const id = uuidv7();
+    expect(await me.send([putGym(id, "Garage")])).toEqual(applied);
+    const untick = (type: string) =>
+      ({
+        ...op("PATCH", "gym", id, { unavailable_equipment: JSON.stringify([type]) }),
+        expect: { unavailable_equipment: "[]" },
+      }) as const;
+    const ops = [untick("cable"), untick("machine")];
+    for (const next of flip ? ops.reverse() : ops) expect(await me.send([next])).toEqual(applied);
+    expect(JSON.parse(String((await stored("gym", id))?.unavailable_equipment)).sort()).toEqual([
+      "cable",
+      "machine",
+    ]);
+    // Re-ticking one type removes only that type.
+    const retick = {
+      ...op("PATCH", "gym", id, { unavailable_equipment: JSON.stringify(["machine"]) }),
+      expect: { unavailable_equipment: JSON.stringify(["cable", "machine"]) },
+    } as const;
+    expect(await me.send([retick])).toEqual(applied);
+    expect(JSON.parse(String((await stored("gym", id))?.unavailable_equipment))).toEqual([
+      "machine",
+    ]);
+  });
+
   const badGyms: { name: string; data: Record<string, Value> }[] = [
     { name: "an unknown type", data: { unavailable_equipment: JSON.stringify(["sled"]) } },
     { name: "bodyweight", data: { unavailable_equipment: JSON.stringify(["none"]) } },

@@ -47,6 +47,7 @@ export function useExerciseProgression(
   equipment: Equipment,
   sessions: readonly SessionHistory[],
   settings: IncrementSettings,
+  gymId?: string | null,
 ) {
   const subscribe = useCallback(
     (
@@ -57,7 +58,7 @@ export function useExerciseProgression(
     [exerciseId],
   );
   const plan = useLocalWatch(subscribe);
-  const gym = useGymLoads();
+  const gym = useGymLoads(gymId);
   const lighterWeeks = usePreference((preferences) => preferences.ui.lighterWeeks);
   const sets = plan.value;
   const suggestion = sets

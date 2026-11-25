@@ -10,6 +10,8 @@ import {
   type SyncUploadResult,
 } from "@workspace/shared";
 
+import { z } from "zod";
+
 import { readDeviceOwner } from "./device-owner";
 import { readInstallId } from "./install-meta";
 import { boundPayload } from "./rejected-payload";
@@ -96,6 +98,13 @@ function expectationOf(entry: CrudEntry): Pick<SyncOp, "expect"> {
         },
       };
     }
+  }
+  if (entry.op === "PATCH" && entry.table === "gym") {
+    const known = z.string().safeParse(entry.previousValues?.unavailable_equipment);
+    if (known.success && entry.opData && "unavailable_equipment" in entry.opData) {
+      return { expect: { unavailable_equipment: known.data } };
+    }
+    return {};
   }
   if (entry.op !== "DELETE" || entry.table !== "session_set") return {};
   const known = entry.previousValues?.completed_at;

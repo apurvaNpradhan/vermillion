@@ -184,6 +184,7 @@ export {
   deleteGym,
   renameGym,
   setGymAvailability,
+  setGymEquipmentHere,
   setGymExerciseSetting,
   setSessionGym,
   readGymLoadInputs,

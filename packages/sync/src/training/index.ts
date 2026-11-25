@@ -67,6 +67,7 @@ export {
   deleteGym,
   renameGym,
   setGymAvailability,
+  setGymEquipmentHere,
   setGymExerciseSetting,
   type GymAvailabilityPatch,
   setSessionGym,

@@ -66,6 +66,26 @@ it("uploads the completion state PowerSync recorded when a set was deleted", asy
   ]);
 });
 
+it("uploads the equipment list a gym toggle started from", async () => {
+  const fake = setup();
+  await ready(fake);
+  const gym = crudEntry("PATCH", EXERCISE, { unavailable_equipment: '["cable"]' }, "gym");
+  gym.previousValues = { unavailable_equipment: "[]" };
+  fake.queue([gym]);
+
+  await fake.connector.uploadData();
+
+  expect(fake.uploads[0]?.ops).toEqual([
+    {
+      op: "PATCH",
+      table: "gym",
+      id: EXERCISE,
+      opData: { unavailable_equipment: '["cable"]' },
+      expect: { unavailable_equipment: "[]" },
+    },
+  ]);
+});
+
 it("uploads a resume with its baseline and leaves derived timer shifts to the server", async () => {
   const fake = setup();
   await ready(fake);

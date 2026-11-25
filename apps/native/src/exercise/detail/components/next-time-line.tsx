@@ -22,12 +22,14 @@ export function NextTimeLine({
   type,
   equipment,
   settings,
+  gymId,
 }: {
   sessions: readonly SessionHistory[];
   exerciseId: string;
   type: ExerciseType;
   equipment: Equipment;
   settings: IncrementSettings;
+  gymId?: string | null;
 }) {
   const { t } = useTranslation();
   const { sets, suggestion } = useExerciseProgression(
@@ -36,6 +38,7 @@ export function NextTimeLine({
     equipment,
     sessions,
     settings,
+    gymId,
   );
   const firstIndex =
     sets?.findIndex((set) => set.kind === "working" && set.reps_min !== undefined) ?? -1;
