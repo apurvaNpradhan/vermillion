@@ -92,7 +92,8 @@ it.each([
   const context = workoutEntryContext(entry, history, { grid: null, gymId: null }, inputs);
   const preview = previewProgression(entry, history, context.settings);
 
-  expect(view?.suggestion?.reason).toBe("deload");
+  expect(view?.suggestion?.outcomes[0]).toMatchObject({ reason: "deload" });
+  expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
   expect(preview?.suggestion).toEqual(view?.suggestion);
   expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });

@@ -182,7 +182,7 @@ describe("double progression", () => {
 
   it("holds after two sessions that missed the range, even on different working sets", () => {
     expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])).toMatchObject({
-      reason: "hold",
+      reason: "hold_missed",
       sets: [
         { weightKg: 80, reps: 7 },
         { weightKg: 80, reps: 12 },
@@ -329,7 +329,7 @@ describe("effort-aware progression", () => {
 
   it("holds after missing the minimum at a grind on two sessions running", () => {
     const grind = (reps: number) => logged(reps, 80, { rpe: 10 });
-    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("hold");
+    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("hold_missed");
   });
 
   it("does not hold when the missed sessions were not hard", () => {

@@ -2,7 +2,6 @@ import { Text, View } from "react-native";
 import {
   addsLoad,
   formatLoad,
-  formatWeight,
   type Equipment,
   type ExerciseType,
   type IncrementSettings,
@@ -10,7 +9,7 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
-import { breakWeeks, progressionLabelKey } from "@/platform/ui/progression-reason";
+import { progressionLabelKey, progressionParams } from "@/platform/ui/progression-reason";
 import { useExerciseProgression } from "../use-exercise-progression";
 
 /**
@@ -49,7 +48,8 @@ export function NextTimeLine({
   const target = sets?.[firstIndex];
   const next = suggestion?.sets[firstIndex];
   const unit = settings.weightUnit;
-  if (!target || !next || !suggestion) return null;
+  const outcome = suggestion?.outcomes[firstIndex];
+  if (!target || !next || !suggestion || !outcome) return null;
   const aim =
     type === "weight_reps" || addsLoad(type)
       ? next.weightKg === null
@@ -71,11 +71,7 @@ export function NextTimeLine({
         <Text className="font-normal text-body text-foreground">{aim}</Text>
       </View>
       <Text className="font-normal text-caption text-muted">
-        {t(progressionLabelKey(suggestion.reason), {
-          value: formatWeight(suggestion.incrementKg, unit),
-          unit,
-          count: breakWeeks(suggestion),
-        })}
+        {t(progressionLabelKey(outcome.reason), progressionParams(suggestion, outcome, unit))}
       </Text>
     </View>
   );

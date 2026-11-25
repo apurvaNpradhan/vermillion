@@ -26,7 +26,9 @@ export type SuggestedSet = { weightKg: number | null; reps: number | null };
 export const PROGRESSION_REASONS = [
   "add_weight",
   "add_rep",
-  "hold",
+  "hold_missed",
+  "hold_together",
+  "hold_limit",
   "hold_effort",
   "after_break",
   "same_as_last",
@@ -40,9 +42,17 @@ export const PROGRESSION_REASONS = [
 ] as const;
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
 
+export type SetOutcome = {
+  reason: ProgressionReason;
+  changeKg?: number;
+  /** The share of the previous load after snapping to the equipment. */
+  loadFactor?: number;
+};
+
 export type Progression = {
   reason: ProgressionReason;
   sets: (SuggestedSet | null)[];
+  outcomes: (SetOutcome | null)[];
   /** The load the first progressing set adds, in kilograms (what "Add 2.5 kg" shows). */
   incrementKg: number;
   /** Whole days since the last Session with this exercise, for `after_break`; else null. */
@@ -164,7 +174,9 @@ type Outcome =
   | "add_rep"
   | "cap_reps"
   | "cap_hint"
-  | "hold"
+  | "hold_missed"
+  | "hold_together"
+  | "hold_limit"
   | "hold_effort"
   | "same";
 const OUTCOME_ORDER = [
@@ -174,7 +186,9 @@ const OUTCOME_ORDER = [
   "cap_reps",
   "hold_effort",
   "cap_hint",
-  "hold",
+  "hold_missed",
+  "hold_together",
+  "hold_limit",
   "same",
 ] as const;
 const REASON_OF = {
@@ -184,7 +198,9 @@ const REASON_OF = {
   add_weight: "add_weight",
   add_rep: "add_rep",
   hold_effort: "hold_effort",
-  hold: "hold",
+  hold_missed: "hold_missed",
+  hold_together: "hold_together",
+  hold_limit: "hold_limit",
   same: "same_as_last",
 } as const satisfies Record<Outcome, ProgressionReason>;
 
@@ -257,6 +273,7 @@ export function suggestNext(
   const phaseDecides =
     resetReason === "deload" && phaseFactor < 1 && Math.abs(factor - phaseFactor) < AT_CAP;
   const sets: (SuggestedSet | null)[] = planned.map(() => null);
+  const outcomes: (SetOutcome | null)[] = planned.map(() => null);
   if (resetReason !== null) {
     for (const { index, target, ordinal } of slots) {
       const before = counterpart(last.sets, target.kind, ordinal);
@@ -272,6 +289,10 @@ export function suggestNext(
               grid,
               phaseDecides ? "down" : "nearest",
             );
+      outcomes[index] = {
+        reason: resetReason,
+        loadFactor: weightKg !== null && before.weight_kg ? weightKg / before.weight_kg : undefined,
+      };
       // A reset that cannot lower the load must not raise the reps either.
       const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;
@@ -284,6 +305,7 @@ export function suggestNext(
     return {
       reason: resetReason,
       sets,
+      outcomes,
       incrementKg: incrementFor(null, equipment, settings, grid),
       breakDays: resetReason === "after_break" ? breakDays : null,
     };
@@ -321,7 +343,7 @@ export function suggestNext(
     const easy = set.rpe != null && set.rpe <= EASY_RPE;
     easyLoads.set(set.weight_kg, (easyLoads.get(set.weight_kg) ?? true) && easy);
   }
-  const outcomes: Outcome[] = [];
+  const ordered: Outcome[] = [];
   let incrementKg: number | null = null;
   for (const { index, target, ordinal } of slots) {
     const before = counterpart(last.sets, target.kind, ordinal);
@@ -333,7 +355,7 @@ export function suggestNext(
       // Last time's load is more than this gym has: the cap is the most the lifter can load.
       outcome = "capped";
       next = { ...same, weightKg: cap };
-    } else if (held) outcome = "hold";
+    } else if (held) outcome = "hold_missed";
     else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
@@ -345,7 +367,7 @@ export function suggestNext(
         // The load cannot rise: reps keep growing to the extended ceiling, then a hint. Straight
         // working sets still move together: nothing grows until every set reached the ceiling.
         if (target.kind === "working" && !settings.progressionPerSet && !workingReady)
-          outcome = "hold";
+          outcome = "hold_together";
         else if (before.reps >= extended) outcome = "cap_hint";
         else {
           outcome = "cap_reps";
@@ -360,30 +382,40 @@ export function suggestNext(
           const base = before.weight_kg ?? 0;
           const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
           const raised = addLoad(base, added, unit, grid);
-          if (raised === null) outcome = "hold";
+          if (raised === null) outcome = "hold_limit";
           else {
             incrementKg ??= raised - base;
             outcome = "add_weight";
             next = { weightKg: raised, reps: target.reps_min };
           }
         } else if (!canLoad) {
-          outcome = "add_rep";
+          outcome = allTopped ? "add_rep" : "hold_together";
           next = { ...same, reps: allTopped ? before.reps + 1 : before.reps };
         } else {
-          outcome = "hold";
+          outcome = "hold_together";
         }
       } else {
         outcome = "add_rep";
         next = { ...same, reps: Math.min(max, before.reps + 1) };
       }
     }
-    outcomes.push(outcome);
+    ordered.push(outcome);
+    outcomes[index] = {
+      reason: REASON_OF[outcome],
+      changeKg:
+        outcome === "add_weight"
+          ? (next.weightKg ?? 0) - (before.weight_kg ?? 0)
+          : outcome === "capped"
+            ? (next.weightKg ?? undefined)
+            : undefined,
+    };
     sets[index] = next;
   }
-  const top = OUTCOME_ORDER.find((outcome) => outcomes.includes(outcome)) ?? "same";
+  const top = OUTCOME_ORDER.find((outcome) => ordered.includes(outcome)) ?? "same";
   return {
     reason: REASON_OF[top],
     sets,
+    outcomes,
     incrementKg:
       incrementKg ?? incrementFor(last.sets[0]?.weight_kg ?? null, equipment, settings, grid),
     breakDays: null,

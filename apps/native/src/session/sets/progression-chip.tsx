@@ -1,4 +1,4 @@
-import { formatWeight, type Progression, type WeightUnit } from "@workspace/shared";
+import { type Progression, type WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 
@@ -6,7 +6,7 @@ import { useMountOnOpen } from "@/platform/ui/mount-on-open";
 import { Pressable, Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import {
-  breakWeeks,
+  progressionParams,
   progressionLabelKey,
   progressionReasonKey,
 } from "@/platform/ui/progression-reason";
@@ -23,20 +23,22 @@ export function ProgressionChip({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const sheet = useMountOnOpen(open);
-  if (
-    suggestion.reason === "same_as_last" ||
-    suggestion.reason === "cap_reps" ||
-    suggestion.reason === "cap_hint"
-  )
-    return null;
-  // A capped suggestion names the max it fell back to, not an amount to add.
-  const shown =
-    suggestion.reason === "capped"
-      ? (suggestion.sets.find((set) => set?.weightKg != null)?.weightKg ?? suggestion.incrementKg)
-      : suggestion.incrementKg;
-  const value = formatWeight(shown, unit);
-  const params = { value, unit, count: breakWeeks(suggestion) };
-  const label = t(progressionLabelKey(suggestion.reason), params);
+  const explanations = suggestion.outcomes.flatMap((outcome, index) => {
+    if (!outcome) return [];
+    const params = progressionParams(suggestion, outcome, unit);
+    return [
+      {
+        index,
+        label: t(progressionLabelKey(outcome.reason), params),
+        reason: t(progressionReasonKey(outcome), params),
+        show: outcome.reason !== "same_as_last",
+      },
+    ];
+  });
+  const first = explanations[0];
+  if (!first || !explanations.some((entry) => entry.show)) return null;
+  const mixed = explanations.some((entry) => entry.reason !== first.reason);
+  const label = mixed ? t("progress__label_mixed") : first.label;
   return (
     <>
       <Pressable
@@ -58,7 +60,13 @@ export function ProgressionChip({
             >
               <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
               <BottomSheet.Description>
-                {t(progressionReasonKey(suggestion.reason), params)}
+                {mixed
+                  ? explanations
+                      .map(({ index, reason }) =>
+                        t("progress__set_reason", { number: index + 1, reason }),
+                      )
+                      .join("\n")
+                  : first.reason}
               </BottomSheet.Description>
             </BottomSheet.Content>
           </BottomSheet.Portal>

@@ -8,6 +8,7 @@ import {
   type SuggestionPlace,
   type SessionHistory,
   type SetKind,
+  type SetOutcome,
 } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 
@@ -15,7 +16,13 @@ import { loggingHistory, plannedSuggestion, type SuggestionSettings } from "./lo
 import { ghostsOf, ordinalOf, previousOfRow } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
-type Change = { kind: SetKind; number: number; last: PreviewSet; today: PreviewSet };
+type Change = {
+  kind: SetKind;
+  number: number;
+  last: PreviewSet;
+  today: PreviewSet;
+  outcome: SetOutcome;
+};
 
 /** The context for a Workout entry, shared by the preview and its exercise details. */
 export function workoutEntryContext(
@@ -65,7 +72,8 @@ export function previewProgression(
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];
-    if (!next) continue;
+    const outcome = suggestion.outcomes[index];
+    if (!next || !outcome) continue;
     const previous = previousOfRow(baseline, entry.sets, index);
     if (!previous || previous.reps == null || previous.exercise_type !== type) continue;
     // The hint comes from a baseline Session, as in the set grid.
@@ -80,7 +88,13 @@ export function previewProgression(
     const last = { reps: previous.reps, weight: displayWeight(previous.weight_kg) };
     const today = { reps: ghost.reps, weight: displayWeight(ghost.weight) };
     if (last.reps === today.reps && last.weight === today.weight) continue;
-    changes.push({ kind: target.kind, number: ordinalOf(entry.sets, index) + 1, last, today });
+    changes.push({
+      kind: target.kind,
+      number: ordinalOf(entry.sets, index) + 1,
+      last,
+      today,
+      outcome,
+    });
   }
   return changes.length === 0 ? null : { suggestion, changes };
 }

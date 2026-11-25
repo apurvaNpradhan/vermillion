@@ -1,4 +1,9 @@
-import type { Progression } from "@workspace/shared";
+import {
+  formatWeight,
+  type Progression,
+  type SetOutcome,
+  type WeightUnit,
+} from "@workspace/shared";
 
 /** The short label of a suggestion: "Add 2.5 kg", "One more rep". */
 export function progressionLabelKey(reason: Progression["reason"]) {
@@ -7,8 +12,12 @@ export function progressionLabelKey(reason: Progression["reason"]) {
       return "progress__label_add_weight";
     case "add_rep":
       return "progress__label_add_rep";
-    case "hold":
-      return "progress__label_hold";
+    case "hold_missed":
+      return "progress__label_hold_missed";
+    case "hold_together":
+      return "progress__label_hold_together";
+    case "hold_limit":
+      return "progress__label_hold_limit";
     case "hold_effort":
       return "progress__label_hold_effort";
     case "after_break":
@@ -27,14 +36,20 @@ export function progressionLabelKey(reason: Progression["reason"]) {
 }
 
 /** The longer explanation of a suggestion. */
-export function progressionReasonKey(reason: Progression["reason"]) {
+export function progressionReasonKey({ reason, loadFactor }: SetOutcome) {
+  if (loadFactor === undefined && reason === "after_break") return "progress__reason_break_reps";
+  if (loadFactor === undefined && reason === "deload") return "progress__reason_deload_reps";
   switch (reason) {
     case "add_weight":
       return "progress__reason_add_weight";
     case "add_rep":
       return "progress__reason_add_rep";
-    case "hold":
-      return "progress__reason_hold";
+    case "hold_missed":
+      return "progress__reason_hold_missed";
+    case "hold_together":
+      return "progress__reason_hold_together";
+    case "hold_limit":
+      return "progress__reason_hold_limit";
     case "hold_effort":
       return "progress__reason_hold_effort";
     case "after_break":
@@ -53,5 +68,14 @@ export function progressionReasonKey(reason: Progression["reason"]) {
 }
 
 /** Weeks of a break for the label, at least two (a break starts at 14 days). */
-export const breakWeeks = (progression: Progression) =>
+const breakWeeks = (progression: Progression) =>
   Math.max(2, Math.floor((progression.breakDays ?? 14) / 7));
+
+export function progressionParams(progression: Progression, outcome: SetOutcome, unit: WeightUnit) {
+  return {
+    value: formatWeight(outcome.changeKg ?? 0, unit),
+    unit,
+    count: breakWeeks(progression),
+    percent: Math.round((outcome.loadFactor ?? 1) * 100),
+  };
+}
