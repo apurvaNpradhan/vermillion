@@ -20,7 +20,7 @@ export type ExerciseRowProps = {
   disabled?: boolean;
   /** Called with the id; without it a browse row is not pressable and shows no chevron. */
   onPress?: (id: string) => void;
-  onSetPinned?: (id: string, pinned: boolean) => Promise<string>;
+  onSetPinned?: (id: string, pinned: boolean) => Promise<void>;
   /**
    * Swipe a Custom exercise to archive it (or restore it, once archived). Pass them only in the
    * Custom and Archived views; a row without them does not swipe.

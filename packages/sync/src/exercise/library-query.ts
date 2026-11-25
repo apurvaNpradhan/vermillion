@@ -48,11 +48,9 @@ export type LibraryQuery = { sql: string; params: LibraryParam[] };
 export const LIBRARY_ROW_COLUMNS =
   "id, user_id, title, primary_muscle, primary_detail, secondary_detail, equipment, thumbnail_key, image_media_id, retired_at";
 
-// The device database is scoped to its owner. The settings index serves this lookup, and EXISTS
-// keeps a transient duplicate setting from producing duplicate exercise rows.
+// The device database is scoped to its owner, and the stream only delivers live pins.
 export const IS_PINNED_SQL = `EXISTS (
-  SELECT 1 FROM exercise_setting
-  WHERE exercise_id = exercise.id AND pinned_at IS NOT NULL
+  SELECT 1 FROM exercise_pin WHERE exercise_id = exercise.id
 )`;
 
 /** Whether any filter beyond the search text is set. */

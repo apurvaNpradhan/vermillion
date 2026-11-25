@@ -1,11 +1,6 @@
 import { v7 as uuidv7 } from "uuid";
 
-import {
-  defaultGymKit,
-  exerciseSettingId,
-  exerciseSettingInput,
-  gymEquipmentInput,
-} from "@workspace/shared";
+import { defaultGymKit, exerciseSettingInput, gymEquipmentInput } from "@workspace/shared";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -69,7 +64,6 @@ const settingPatch = z.strictObject({
   progression_per_set: z.boolean().optional(),
   auto_warmups: z.boolean().optional(),
   note: exerciseSettingInput.shape.note.unwrap().optional(),
-  pinned_at: exerciseSettingInput.shape.pinned_at,
 });
 /** What an exercise remembers: the bar and whether the effort column is on. */
 export type ExerciseSettingPatch = z.infer<typeof settingPatch>;
@@ -85,7 +79,6 @@ export async function setExerciseSetting(
   expectedInstallId?: string,
 ): Promise<string> {
   const fields = settingPatch.parse(patch);
-  const exercise_id = exerciseSettingInput.shape.exercise_id.parse(exerciseId);
   return write(database, expectedInstallId, async (tx) => {
     const userId = await ownerOf(tx);
     const [current] = await tx
@@ -94,10 +87,16 @@ export async function setExerciseSetting(
       .where(eq(exerciseSetting.exercise_id, exerciseId))
       .limit(1);
     if (!current) {
-      const id = exerciseSettingId(userId, exercise_id);
+      const values = exerciseSettingInput.parse({
+        exercise_id: exerciseId,
+        bar_id: null,
+        log_effort: false,
+        ...fields,
+      });
+      const id = uuidv7();
       await tx
         .insert(exerciseSetting)
-        .values({ id, user_id: userId, exercise_id, created_at: nowIso(), ...fields });
+        .values({ id, user_id: userId, created_at: nowIso(), ...values });
       return id;
     }
     const changes = changedFields(current, fields);

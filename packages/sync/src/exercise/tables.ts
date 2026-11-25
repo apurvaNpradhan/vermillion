@@ -46,3 +46,15 @@ export const exercise = sqliteTable(
     index("exercise_retired_at_idx").on(table.retired_at),
   ],
 );
+
+/** PowerSync only keeps live pins in SQLite. */
+export const exercisePin = sqliteTable(
+  "exercise_pin",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    created_at: text("created_at").notNull(),
+  },
+  (table) => [index("exercise_pin_exercise_id_idx").on(table.exercise_id)],
+);

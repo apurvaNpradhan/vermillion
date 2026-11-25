@@ -1,4 +1,3 @@
-import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 
 import {
@@ -233,14 +232,7 @@ export const gymEquipmentInput = z
   });
 export type GymEquipmentInput = z.infer<typeof gymEquipmentInput>;
 
-const EXERCISE_SETTING_NAMESPACE = "8b65803b-c48a-47e9-8ca6-d43bb0a8dd79";
-
-/** New settings on two devices share an id. Existing rows keep their original id. */
-export function exerciseSettingId(userId: string, exerciseId: string): string {
-  return uuidv5(JSON.stringify([userId, exerciseId.toLowerCase()]), EXERCISE_SETTING_NAMESPACE);
-}
-
-/** Settings remembered for one exercise. */
+/** Per exercise: the remembered bar and whether the effort column is on. One row per exercise. */
 export const exerciseSettingInput = z.strictObject({
   exercise_id: z.uuid(),
   bar_id: z.uuid().nullable(),
@@ -249,6 +241,5 @@ export const exerciseSettingInput = z.strictObject({
   auto_warmups: z.boolean().default(false),
   /** The pinned note shown under the exercise name wherever it appears. */
   note: note.default(null),
-  pinned_at: timestamp.nullable().optional(),
 });
 export type ExerciseSettingInput = z.infer<typeof exerciseSettingInput>;

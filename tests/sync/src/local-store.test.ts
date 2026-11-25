@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { PowerSyncDatabase } from "@powersync/node";
-import { exerciseSettingId, type CustomExerciseInput } from "@workspace/shared";
+import { exercisePinId, type CustomExerciseInput } from "@workspace/shared";
 import {
   DEFAULT_LIBRARY_FILTERS,
   addExercises,
@@ -21,7 +21,7 @@ import {
   replaceSessionExercise,
   resumeSession,
   seedEquipment,
-  setExerciseSetting,
+  setExercisePinned,
   startSession,
   updateCustomExercise,
   updateEquipment,
@@ -67,37 +67,25 @@ const input = (title: string): CustomExerciseInput => ({
 });
 
 describe("Drizzle writes reach the upload queue", () => {
-  it("uploads only the pin on first use and clears it with a patch on the same id", async () => {
+  it("pins and unpins on the same normalized id without writing exercise settings", async () => {
     const exerciseId = await createCustomExercise(database, input("Pin this"));
-    const pinnedAt = "2026-11-25T06:00:00.000Z";
-    const id = await setExerciseSetting(database, exerciseId, { pinned_at: pinnedAt });
-    expect(id).toBe(exerciseSettingId("owner", exerciseId));
+    const installId = await ensureInstallId(database);
+    const id = exercisePinId("owner", exerciseId);
+    await expect(setExercisePinned(database, exerciseId, true, "old-install")).rejects.toThrow();
+    await setExercisePinned(database, exerciseId.toUpperCase(), true, installId);
+    await setExercisePinned(database, exerciseId, true, installId);
 
-    const filters = { ...DEFAULT_LIBRARY_FILTERS, pinnedOnly: true, muscles: ["chest"] } as const;
-    const { sql, params } = libraryQuery(filters, 10);
+    const { sql, params } = libraryQuery({ ...DEFAULT_LIBRARY_FILTERS, pinnedOnly: true }, 10);
     expect(await database.getAll(sql, params)).toMatchObject([{ id: exerciseId, is_pinned: 1 }]);
     const plan = await database.getAll<{ detail: string }>(`EXPLAIN QUERY PLAN ${sql}`, params);
-    expect(plan.map((row) => row.detail).join("\n")).toContain("exercise_setting_exercise_id_idx");
+    expect(plan.map((row) => row.detail).join("\n")).toContain("exercise_pin_exercise_id_idx");
 
-    expect(await setExerciseSetting(database, exerciseId, { pinned_at: null })).toBe(id);
+    await setExercisePinned(database, exerciseId.toUpperCase(), false, installId);
     expect(await database.getAll(sql, params)).toEqual([]);
-
-    const settings = (await database.getCrudBatch(10))?.crud.filter(
-      (entry) => entry.table === "exercise_setting",
-    );
-    expect(settings).toMatchObject([
-      {
-        op: "PUT",
-        id,
-        opData: { exercise_id: exerciseId, pinned_at: pinnedAt },
-      },
-      { op: "PATCH", id, opData: { pinned_at: null } },
-    ]);
-    expect(Object.keys(settings?.[0]?.opData ?? {}).sort()).toEqual([
-      "created_at",
-      "exercise_id",
-      "pinned_at",
-      "user_id",
+    expect((await database.getCrudBatch(10))?.crud).toMatchObject([
+      { table: "exercise", op: "PUT", id: exerciseId },
+      { table: "exercise_pin", op: "PUT", id, opData: { exercise_id: exerciseId } },
+      { table: "exercise_pin", op: "DELETE", id },
     ]);
   });
 

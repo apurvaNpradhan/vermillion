@@ -168,7 +168,7 @@ export function watchRecentExercises(
     },
     {
       signal: controller.signal,
-      tables: ["exercise", "exercise_setting", "session_exercise", "training_session"],
+      tables: ["exercise", "exercise_pin", "session_exercise", "training_session"],
       throttleMs: THROTTLE_MS,
     },
   );
@@ -195,7 +195,7 @@ function watch(
     },
     {
       signal: controller.signal,
-      tables: ["exercise", "exercise_setting"],
+      tables: ["exercise", "exercise_pin"],
       throttleMs: THROTTLE_MS,
     },
   );

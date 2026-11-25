@@ -433,7 +433,6 @@ export const exerciseSetting = pgTable(
     progressionPerSet: boolean("progression_per_set").notNull().default(false),
     autoWarmups: boolean("auto_warmups").notNull().default(false),
     note: text("note"),
-    pinnedAt: timestamptz("pinned_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

@@ -5,7 +5,6 @@ import type { DbExecutor } from "@workspace/db";
 import {
   EXERCISE_TYPES,
   PAUSE_AUTO_RESUME_MS,
-  exerciseSettingId,
   exerciseSettingInput,
   gymEquipmentInput,
   importDigestSchema,
@@ -804,20 +803,15 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
 
 // ---- Exercise setting ----
 
-const pinnedAt = exerciseSettingInput.shape.pinned_at
-  .unwrap()
-  .transform((value) => (value === null ? null : new Date(value)));
-
 const putSetting = z.strictObject({
   restore: restoreMarker,
   exercise_id: exerciseSettingInput.shape.exercise_id,
-  bar_id: exerciseSettingInput.shape.bar_id.optional(),
-  log_effort: wireBoolean.optional(),
+  bar_id: exerciseSettingInput.shape.bar_id.default(null),
+  log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
   auto_warmups: wireBoolean.optional(),
   // Unwrap the default: an omitted note must stay omitted, not become null and erase the value.
   note: exerciseSettingInput.shape.note.unwrap().optional(),
-  pinned_at: pinnedAt.optional(),
 });
 // A setting belongs to one exercise for good.
 const patchSetting = z
@@ -827,21 +821,8 @@ const patchSetting = z
     progression_per_set: wireBoolean,
     auto_warmups: wireBoolean,
     note: exerciseSettingInput.shape.note.unwrap(),
-    pinned_at: pinnedAt,
   })
   .partial();
-
-function settingFields(patch: z.output<typeof patchSetting>) {
-  return {
-    barId: patch.bar_id,
-    logEffort: patch.log_effort,
-    progressionPerSet: patch.progression_per_set,
-    autoWarmups: patch.auto_warmups,
-    note: patch.note,
-    pinnedAt: patch.pinned_at,
-    updatedAt: now(),
-  };
-}
 
 /** The remembered bar must be one of the writer's own bars. */
 async function assertOwnBar(db: DbExecutor, userId: string, barId: string | null) {
@@ -871,28 +852,34 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const {
-        restore,
-        exercise_id: exerciseId,
-        ...patch
-      } = accept(putSetting.safeParse(op.opData ?? {}));
+      const { restore, ...data } = accept(putSetting.safeParse(op.opData ?? {}));
       checkPut(found, restore);
-      if (found.kind === "own" && found.row.exerciseId !== exerciseId) return invalid();
-      await exerciseVisible(db, userId, exerciseId);
-      if (patch.bar_id !== undefined) await assertOwnBar(db, userId, patch.bar_id);
-      const fields = settingFields(patch);
-      // New clients share a deterministic id. Older clients can still upload a UUIDv7.
-      if (found.kind === "absent" && id !== exerciseSettingId(userId, exerciseId)) {
-        accept(newRowId.safeParse(id));
-      }
-      // Fold a legacy id into the live row while applying only the fields the device sent.
-      const existing = await liveSettingFor(db, userId, exerciseId);
+      const values = accept(exerciseSettingInput.safeParse(data));
+      if (found.kind === "own" && found.row.exerciseId !== values.exercise_id) return invalid();
+      await exerciseVisible(db, userId, values.exercise_id);
+      await assertOwnBar(db, userId, values.bar_id);
+      const fields = {
+        barId: values.bar_id,
+        logEffort: values.log_effort,
+        ...(data.progression_per_set !== undefined
+          ? { progressionPerSet: values.progression_per_set }
+          : {}),
+        ...(data.auto_warmups !== undefined ? { autoWarmups: values.auto_warmups } : {}),
+        ...(data.note !== undefined ? { note: values.note } : {}),
+        updatedAt: now(),
+      };
+      // One live setting per exercise: two devices that each created one offline converge on the
+      // first to arrive, the later values winning, instead of failing the unique index.
+      const existing = await liveSettingFor(db, userId, values.exercise_id);
       if (existing && existing.id !== id) {
         await db.update(exerciseSetting).set(fields).where(eq(exerciseSetting.id, existing.id));
         return;
       }
       if (found.kind === "absent") {
-        await db.insert(exerciseSetting).values({ id, userId, exerciseId, ...fields });
+        accept(newRowId.safeParse(id));
+        await db
+          .insert(exerciseSetting)
+          .values({ id, userId, exerciseId: values.exercise_id, ...fields });
         return;
       }
       await db
@@ -907,7 +894,16 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
     if (patch.bar_id !== undefined) await assertOwnBar(db, userId, patch.bar_id);
     await db
       .update(exerciseSetting)
-      .set(settingFields(patch))
+      .set({
+        ...(patch.bar_id !== undefined ? { barId: patch.bar_id } : {}),
+        ...(patch.log_effort !== undefined ? { logEffort: patch.log_effort } : {}),
+        ...(patch.progression_per_set !== undefined
+          ? { progressionPerSet: patch.progression_per_set }
+          : {}),
+        ...(patch.auto_warmups !== undefined ? { autoWarmups: patch.auto_warmups } : {}),
+        ...(patch.note !== undefined ? { note: patch.note } : {}),
+        updatedAt: now(),
+      })
       .where(eq(exerciseSetting.id, row.id));
   },
   purgeTombstones: async () => 0,

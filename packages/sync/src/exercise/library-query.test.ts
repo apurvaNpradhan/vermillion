@@ -106,7 +106,7 @@ async function setup(extra: Seed[] = []) {
      VALUES (?, ?, ?, ?, ?, ?, 'weight_reps', 0, ?, ?, ?, NULL, ?, ?, ?, 'now')`,
   );
   const pin = fake.sqlite.prepare(
-    "INSERT INTO exercise_setting (id, user_id, exercise_id, pinned_at) VALUES (?, 'u1', ?, ?)",
+    "INSERT INTO exercise_pin (id, user_id, exercise_id, created_at) VALUES (?, 'u1', ?, ?)",
   );
   for (const s of [...seeds, ...extra]) {
     insert.run(

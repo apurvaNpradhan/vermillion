@@ -7,6 +7,7 @@ export {
   rejectedExercisePayloadTitle,
   rejectedExerciseTitle,
   restoreExercise,
+  setExercisePinned,
   updateCustomExercise,
 } from "./exercise";
 export {

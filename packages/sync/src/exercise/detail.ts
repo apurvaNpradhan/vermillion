@@ -243,7 +243,7 @@ function watch(
     },
     {
       signal: controller.signal,
-      tables: ["exercise", "exercise_setting"],
+      tables: ["exercise", "exercise_pin"],
       throttleMs: THROTTLE_MS,
     },
   );

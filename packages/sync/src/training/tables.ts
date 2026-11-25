@@ -214,12 +214,12 @@ export const exerciseSetting = sqliteTable(
     user_id: text("user_id").notNull(),
     exercise_id: text("exercise_id").notNull(),
     bar_id: text("bar_id"),
-    // Unset fields stay out of a first upload. Readers treat null switches as off.
-    log_effort: integer("log_effort", { mode: "boolean" }),
-    progression_per_set: integer("progression_per_set", { mode: "boolean" }),
-    auto_warmups: integer("auto_warmups", { mode: "boolean" }),
+    log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
+    progression_per_set: integer("progression_per_set", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    auto_warmups: integer("auto_warmups", { mode: "boolean" }).notNull().default(false),
     note: text("note"),
-    pinned_at: text("pinned_at"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
