@@ -351,6 +351,7 @@ export {
   deleteMeasurement,
   restoreMeasurement,
   watchMetric,
+  readBodyweightsOnDates,
   watchLatestByMetric,
   watchWeighInDays,
   visitBodyExportPages,

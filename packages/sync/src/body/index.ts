@@ -33,6 +33,7 @@ export {
 } from "./store";
 export {
   watchMetric,
+  readBodyweightsOnDates,
   watchLatestByMetric,
   watchWeighInDays,
   type WatchedMeasurement,

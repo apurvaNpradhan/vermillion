@@ -15,21 +15,22 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   const state = useSession(id);
   const stallVersion = useStallVersion();
   const permission = useNotificationPermission();
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const {
     weightUnit,
     weightIncrementKg,
     weightIncrementUnit,
     lighterWeeks,
     previousSource,
+    countWarmups,
+    bodyweightKg,
     sounds,
     soundRest,
     restVibration,
   } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
-  const weight = useWeight();
-  const bodyweightKg = session ? weight.bodyweightOn(session.startedAt) : null;
+  const { entries } = useWeight();
   const sessionGymId = useSessionGym(id);
   const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
@@ -61,6 +62,8 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
         lighterWeeks,
         previousSource,
         bodyweightKg,
+        timeZone,
+        countWarmups,
         soundOn,
         vibrate: restVibration,
       },
@@ -78,6 +81,9 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     lighterWeeks,
     previousSource,
     bodyweightKg,
+    timeZone,
+    countWarmups,
+    entries,
     gym,
     sessionGymId,
     soundOn,

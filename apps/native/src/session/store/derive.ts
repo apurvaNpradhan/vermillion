@@ -2,7 +2,7 @@ import {
   SET_FIELDS,
   optionalSetIndexes,
   suggestionContext,
-  weightAtMost,
+  gridCapInUnit,
   type Ghosts,
   type StallInfo,
   type LighterPeriod,
@@ -91,6 +91,7 @@ export type ExerciseCache = {
   finished: boolean;
   workoutId: string | null;
   exerciseOrdinal: number;
+  duplicateEntry: boolean;
   view: ExerciseView;
 };
 
@@ -101,6 +102,7 @@ function buildView(
   finished: boolean,
   workoutId: string | null,
   exerciseOrdinal: number,
+  duplicateEntry: boolean,
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
@@ -115,6 +117,7 @@ function buildView(
       exerciseId: exercise.exerciseId,
       sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
       exerciseOrdinal,
+      duplicateEntry,
       type: exercise.type,
       equipment,
       unitOverride: exercise.unit,
@@ -134,7 +137,7 @@ function buildView(
       : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
-  const capKg = !finished && fields.includes("weight") ? (grid?.capKg ?? null) : null;
+  const capKg = !finished && fields.includes("weight") ? gridCapInUnit(grid, unit) : null;
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const kinds = exercise.sets.map((set) => set.kind);
   const optional = inputs.lighter ? optionalSetIndexes(kinds) : new Set<number>();
@@ -159,7 +162,7 @@ function buildView(
       : {};
     const row: RowView = {
       previous,
-      ghosts: capGhostWeight(ghosts, capKg, unit),
+      ghosts: capGhostWeight(ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -169,7 +172,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
-      capKg: capKg === null ? null : weightAtMost(capKg, unit, capKg),
+      capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
@@ -239,10 +242,13 @@ export function deriveExercises(
   cache: ReadonlyMap<string, ExerciseCache>,
 ): Map<string, ExerciseCache> {
   const next = new Map<string, ExerciseCache>();
+  const counts = new Map<string, number>();
+  for (const { exerciseId } of exercises) counts.set(exerciseId, (counts.get(exerciseId) ?? 0) + 1);
   const ordinals = new Map<string, number>();
   for (const exercise of exercises) {
     const exerciseOrdinal = ordinals.get(exercise.exerciseId) ?? 0;
     ordinals.set(exercise.exerciseId, exerciseOrdinal + 1);
+    const duplicateEntry = (counts.get(exercise.exerciseId) ?? 0) > 1;
     const raw = inputs.previous.get(exercise.exerciseId);
     const old = cache.get(exercise.id);
     if (
@@ -252,6 +258,7 @@ export function deriveExercises(
       (old.history === raw || deepEqual(old.history, raw)) &&
       old.finished === context.finished &&
       old.exerciseOrdinal === exerciseOrdinal &&
+      old.duplicateEntry === duplicateEntry &&
       old.workoutId === context.workoutId
     ) {
       next.set(exercise.id, old.inputs === inputs ? old : { ...old, inputs, history: raw });
@@ -264,6 +271,7 @@ export function deriveExercises(
       finished: context.finished,
       workoutId: context.workoutId,
       exerciseOrdinal,
+      duplicateEntry,
       view: buildView(
         exercise,
         raw,
@@ -271,6 +279,7 @@ export function deriveExercises(
         context.finished,
         context.workoutId,
         exerciseOrdinal,
+        duplicateEntry,
         old?.view,
       ),
     });

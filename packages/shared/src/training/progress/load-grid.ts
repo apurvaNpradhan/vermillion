@@ -81,6 +81,8 @@ export type LoadGrid = {
   readonly source: "gym" | "kit" | "default" | "cap";
   /** The most the exercise may be loaded to at this gym; null for no cap. */
   readonly capKg: number | null;
+  /** The available plates determine the limit. */
+  readonly plateLimit?: boolean;
   /** The loadable weight nearest `kg`; the lower on a tie. */
   nearest(kg: number): number;
   /** The smallest loadable weight above `kg`; null when there is none. */
@@ -154,9 +156,10 @@ export function rangeGrid(
   };
   const below = (kg: number) => atOrBelow(kg - 2 * EPS);
   const above = (kg: number) => atOrAbove(kg + 2 * EPS);
+  const limit = last.max === null ? null : Math.max(...ranges.map((range) => range.max ?? 0));
   return {
     source,
-    capKg: last.max === null ? null : atOrBelow(Math.max(...ranges.map((range) => range.max ?? 0))),
+    capKg: limit === null ? null : Math.min(limit, atOrBelow(limit) ?? limit),
     below,
     above,
     nearest(kg) {
@@ -206,6 +209,7 @@ export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[])
   return {
     source: "kit",
     capKg,
+    plateLimit: capKg !== null,
     above,
     below(kg) {
       const key = clean(kg);
@@ -227,6 +231,7 @@ function capGrid(base: LoadGrid | null, capKg: number, stepAt: (kg: number) => n
   return {
     source: base?.source ?? "cap",
     capKg,
+    plateLimit: base?.plateLimit && base.capKg === capKg,
     nearest: (kg) => held(base ? base.nearest(kg) : kg),
     above(kg) {
       if (kg >= capKg - EPS) return null;

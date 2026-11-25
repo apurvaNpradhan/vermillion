@@ -21,6 +21,8 @@ export const liveOptionsSchema = z.object({
   previousSource: z.enum(PREVIOUS_SOURCES).default(DEFAULT_PREVIOUS_SOURCE),
   /** The body weight on the Session's day, which the stalled-lift verdict scores weighted lifts with. */
   bodyweightKg: z.number().positive().nullable().default(null),
+  timeZone: z.string().optional(),
+  countWarmups: z.boolean().optional(),
   soundOn: z.boolean(),
   vibrate: z.boolean().default(true),
 });

@@ -1,10 +1,22 @@
-import { KG_PER_LB, parseWeight, suggestionContext } from "@workspace/shared";
+import {
+  KG_PER_LB,
+  parseWeight,
+  phaseFor,
+  phaseLoadOf,
+  suggestionContext,
+  type PhasePlan,
+} from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
   WORKOUT_DETAIL_SQL,
   addExercises,
+  activateProgram,
+  addSlot,
+  createProgram,
+  createWorkout,
+  readBodyweightsOnDates,
   finishSession,
   parseFinishedSessions,
   parseSessionDetail,
@@ -31,92 +43,123 @@ import {
 } from "../../exercise/detail/next-exercise-suggestion";
 
 it.each([
-  { unit: "kg", weight: 100, expected: 90 },
-  { unit: "lb", weight: 220, expected: 200 },
-] as const)("agrees on a stalled-lift deload in $unit", async ({ unit, weight, expected }) => {
-  const fixture = await setupSessions();
-  const { training } = fixture;
-  const { workoutId, squat } = await pushWorkout(fixture);
-  await updateWorkoutExercise(training, squat, {
-    sets: [{ kind: "working", reps_min: 5, reps_max: 8 }],
-  });
-  const readSession = async (id: string) =>
-    parseSessionDetail(
-      await training.getAll(SESSION_DETAIL_SQL, [id]),
-      await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
+  { unit: "kg", weight: 100, expected: 90, plannedDeload: false },
+  { unit: "lb", weight: 220, expected: 200, plannedDeload: false },
+  { unit: "kg", weight: 100, expected: 75, plannedDeload: true },
+  { unit: "lb", weight: 200, expected: 150, plannedDeload: true },
+] as const)(
+  "agrees in $unit with planned deload $plannedDeload",
+  async ({ unit, weight, expected, plannedDeload }) => {
+    const fixture = await setupSessions();
+    const { training } = fixture;
+    const phasePlan: PhasePlan = {
+      pattern: ["deload"],
+      modifiers: { deload: { load: 0.75 } },
+      overrides: [],
+      test_top: "single",
+    };
+    const programId = plannedDeload
+      ? await createProgram(training, {
+          title: "Strength",
+          description: null,
+          planned_weeks: null,
+          phase_plan: phasePlan,
+        })
+      : null;
+    const workoutId = await createWorkout(training, { title: "Legs", program_id: programId });
+    const [squat] = await addExercises(training, workoutId, [SQUAT]);
+    if (!squat) throw new Error("Expected squat in Workout");
+    const target = { kind: "working", reps_min: 5, reps_max: 8 } as const;
+    await updateWorkoutExercise(training, squat, { sets: [target, target] });
+    const readSession = async (id: string) =>
+      parseSessionDetail(
+        await training.getAll(SESSION_DETAIL_SQL, [id]),
+        await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
+      );
+    const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
+    for (let index = 0; index < 4; index += 1) {
+      const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
+      const sets = (await readSession(id))?.exercises[0]?.sets;
+      if (!sets) throw new Error("Expected squat sets");
+      for (const set of sets) await tickSet(training, set.id, { weight: kilograms, reps: 8 });
+      await finishSession(training, id);
+    }
+    if (programId !== null) {
+      await addSlot(training, programId, workoutId);
+      await activateProgram(training, programId);
+    }
+    const id = await startSession(training, { workoutId, derivedTitle: "Legs", timeZone: "UTC" });
+    const session = await readSession(id);
+    const exercise = session?.exercises[0];
+    const set = exercise?.sets[0];
+    const plan = parseWorkoutDetail(await training.getAll(WORKOUT_DETAIL_SQL, [workoutId]));
+    const entry = plan?.exercises[0];
+    if (!session || !exercise || !set || !entry || !plan)
+      throw new Error("Expected the squat plan");
+
+    const history = parseFinishedSessions(
+      await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
     );
-  const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
-  for (let index = 0; index < 4; index += 1) {
-    const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
-    const set = (await readSession(id))?.exercises[0]?.sets[0];
-    if (!set) throw new Error("Expected a squat set");
-    await tickSet(training, set.id, { weight: kilograms, reps: 8 });
-    await finishSession(training, id);
-  }
-  const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
-  const session = await readSession(id);
-  const exercise = session?.exercises[0];
-  const set = exercise?.sets[0];
-  const plan = parseWorkoutDetail(await training.getAll(WORKOUT_DETAIL_SQL, [workoutId]));
-  const entry = plan?.exercises[0];
-  if (!session || !exercise || !set || !entry || !plan) throw new Error("Expected the squat plan");
+    const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
+    const inputs: DeriveInputs = {
+      previous: new Map([[SQUAT, history]]),
+      historyFailed: false,
+      previousSource: "same_workout",
+      unit,
+      unitNames: { kg: "kg", lb: "lb" },
+      display: { distanceUnit: "km", durationFormat: "seconds" },
+      weightIncrementKg: null,
+      gym,
+      lighterWeeks: [],
+      lighter: false,
+      phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
+      bodyweightKg: null,
+      stallVersion: 0,
+      stallMemory: () => ({ applied: !plannedDeload, dismissed: false }),
+      chipTexts: () => [],
+    };
+    const view = deriveExercises(
+      session.exercises,
+      inputs,
+      { finished: false, workoutId },
+      new Map(),
+    ).get(exercise.id)?.view;
+    const live = await workoutLiveGhosts(
+      training,
+      session,
+      { ...inputs, weightUnit: unit },
+      gym,
+      null,
+    );
+    const now = new Date();
+    const week = plannedDeload
+      ? phaseFor(phasePlan, { started_at: session.startedAt, inserted_deloads: [] }, now, "UTC")
+      : null;
+    expect(session.phase).toBe(plannedDeload ? "deload" : null);
+    const prepared = prepareWorkoutEntry(
+      plan,
+      entry,
+      history,
+      { grid: null, gymId: null },
+      inputs,
+      week,
+    );
+    const next = nextExerciseSuggestion(plan, SQUAT, history, gym, inputs, week, now);
+    expect(prepared.entry.sets).toHaveLength(plannedDeload ? 1 : 2);
+    expect(next?.suggestion).toEqual(view?.suggestion);
+    expect(
+      nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
+    ).toEqual(["upcoming", workoutId]);
 
-  const history = parseFinishedSessions(
-    await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
-  );
-  const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
-  const inputs: DeriveInputs = {
-    previous: new Map([[SQUAT, history]]),
-    historyFailed: false,
-    previousSource: "same_workout",
-    unit,
-    unitNames: { kg: "kg", lb: "lb" },
-    display: { distanceUnit: "km", durationFormat: "seconds" },
-    weightIncrementKg: null,
-    gym,
-    lighterWeeks: [],
-    lighter: false,
-    phaseLoad: 1,
-    bodyweightKg: null,
-    stallVersion: 0,
-    stallMemory: () => ({ applied: true, dismissed: false }),
-    chipTexts: () => [],
-  };
-  const view = deriveExercises(
-    session.exercises,
-    inputs,
-    { finished: false, workoutId },
-    new Map(),
-  ).get(exercise.id)?.view;
-  const live = await workoutLiveGhosts(
-    training,
-    session,
-    { ...inputs, weightUnit: unit },
-    gym,
-    null,
-  );
-  const { context } = prepareWorkoutEntry(
-    plan,
-    entry,
-    history,
-    { grid: null, gymId: null },
-    inputs,
-    null,
-  );
-  const next = nextExerciseSuggestion(plan, SQUAT, history, gym, inputs, null, new Date());
-  expect(next?.suggestion).toEqual(view?.suggestion);
-  expect(
-    nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
-  ).toEqual(["upcoming", workoutId]);
+    const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
 
-  const preview = previewProgression(entry, history, context.settings);
-
-  expect(view?.suggestion?.outcomes[0]).toMatchObject({ reason: "deload" });
-  expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
-  expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
-  expect(preview?.suggestion).toEqual(view?.suggestion);
-  expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
-});
+    expect(view?.suggestion?.outcomes[0]).toMatchObject({ reason: "deload" });
+    expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
+    expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
+    expect(preview?.suggestion).toEqual(view?.suggestion);
+    expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
+  },
+);
 
 it.each([
   { unit: "kg", first: 100, second: 70 },
@@ -157,21 +200,49 @@ it.each([
       lighterWeeks: [],
       stallMemory: () => ({ applied: false, dismissed: false }),
     } as const;
-    const context = suggestionContext(
-      history,
-      {
-        exerciseId: SQUAT,
-        sourceWorkoutExerciseId: duplicate,
-        exerciseOrdinal: 1,
-        type: "weight_reps",
-        equipment: "barbell",
-        workoutId,
-        gymId: null,
-        grid: null,
-        stalls: true,
-      },
-      account,
-    );
+    const place = {
+      exerciseId: SQUAT,
+      sourceWorkoutExerciseId: duplicate,
+      exerciseOrdinal: 1,
+      type: "weight_reps",
+      equipment: "barbell",
+      workoutId,
+      gymId: null,
+      grid: null,
+      stalls: true,
+    } as const;
+    const context = suggestionContext(history, place, account);
     expect(context.history[0]?.sets).toMatchObject([{ id: secondSet.id, reps: 10 }]);
+    const previouslySingle = context.history;
+    const replaced = { ...place, sourceWorkoutExerciseId: "new-row", exerciseOrdinal: 0 };
+    expect(suggestionContext(previouslySingle, replaced, account).history[0]?.sets[0]?.id).toBe(
+      secondSet.id,
+    );
+    expect(
+      suggestionContext(previouslySingle, { ...replaced, duplicateEntry: true }, account).history,
+    ).toEqual([]);
   },
 );
+
+it("reads the same daily average for the notification's weighted bodyweight history", async () => {
+  const { training, sqlite } = await setupSessions();
+  const insert = sqlite.prepare(`INSERT INTO body_measurement
+    (id, user_id, metric, value, measured_at, local_date, source, created_at)
+    VALUES (?, 'owner', 'weight', ?, ?, ?, 'manual', ?)`);
+  for (const [id, kg, date] of [
+    ["w1", 78, "2026-11-10"],
+    ["w2", 82, "2026-11-10"],
+    ["w3", 77, "2026-11-15"],
+  ] as const) {
+    insert.run(id, kg, date, date, date);
+  }
+  expect(
+    await readBodyweightsOnDates(training, ["2026-11-01", "2026-11-12", "2026-11-16"]),
+  ).toEqual(
+    new Map([
+      ["2026-11-01", 80],
+      ["2026-11-12", 80],
+      ["2026-11-16", 77],
+    ]),
+  );
+});

@@ -2,7 +2,7 @@ import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { isBaselinePhase, type Phase } from "../phases/phases";
-import { weightAtMost } from "../vocabulary/format";
+import { loadIdentity } from "../vocabulary/format";
 import { estimatedOneRepMax } from "../volume/volume";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
@@ -12,7 +12,7 @@ import {
   type LighterPeriod,
 } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
-import { addLoad, incrementFor, lightenLoad } from "./progression-steps";
+import { addLoad, gridCapInUnit, incrementFor, lightenLoad } from "./progression-steps";
 
 export { incrementFor } from "./progression-steps";
 
@@ -235,7 +235,7 @@ export function suggestNext(
   const unit = settings.weightUnit;
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
-  const roundedCap = cap === null ? null : weightAtMost(cap, unit, cap);
+  const roundedCap = gridCapInUnit(grid, unit);
   const baselines = outsideLighterWeeks(
     context.baselineHistory ?? history,
     context.lighterWeeks ?? [],
@@ -352,7 +352,9 @@ export function suggestNext(
     }
   }
   // Without a weight to add, a rep range grows past its top only when every set topped it.
+  const lastWorkingCount = last.sets.filter(({ kind }) => kind === "working").length;
   const allTopped = slots.every(({ target, ordinal }) => {
+    if (target.kind === "working" && ordinal >= lastWorkingCount) return true;
     const before = counterpart(last.sets, target.kind, ordinal);
     return (
       target.reps_min !== undefined &&
@@ -387,9 +389,21 @@ export function suggestNext(
   }
   const ordered: Outcome[] = [];
   let incrementKg: number | null = null;
+  let lastMatchedWorkingIndex: number | undefined;
   for (const { index, target, ordinal } of slots) {
+    if (
+      target.kind === "working" &&
+      ordinal >= lastWorkingCount &&
+      !settings.progressionPerSet &&
+      lastMatchedWorkingIndex !== undefined
+    ) {
+      sets[index] = sets[lastMatchedWorkingIndex] ?? null;
+      outcomes[index] = outcomes[lastMatchedWorkingIndex] ?? null;
+      continue;
+    }
     const before = counterpart(last.sets, target.kind, ordinal);
     if (!before) continue;
+    if (target.kind === "working") lastMatchedWorkingIndex = index;
     const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
     const reset =
       together(target.kind) && same.weightKg !== null
@@ -397,7 +411,13 @@ export function suggestNext(
         : resets.get(index);
     let outcome: Outcome = "same";
     let next = same;
-    if (cap !== null && before.weight_kg != null && before.weight_kg > cap) {
+    if (
+      cap !== null &&
+      before.weight_kg != null &&
+      (grid?.source === "cap"
+        ? before.weight_kg > cap
+        : loadIdentity(before.weight_kg) > loadIdentity(cap))
+    ) {
       // Last time's load is more than this gym has: the cap is the most the lifter can load.
       outcome = "capped";
       next = { ...same, weightKg: cap };
@@ -453,7 +473,7 @@ export function suggestNext(
       reason: REASON_OF[outcome],
       limit:
         outcome === "capped" || outcome === "cap_hint" || outcome === "cap_reps"
-          ? grid?.source === "kit"
+          ? grid?.plateLimit
             ? "plates"
             : "equipment"
           : undefined,

@@ -40,6 +40,7 @@ export {
   defaultRangesFor,
   defaultStepKg,
   lightenLoad,
+  gridCapInUnit,
   incrementInUnit,
   INCREMENT_CHOICES,
   loadable,

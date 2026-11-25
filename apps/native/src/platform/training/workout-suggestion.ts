@@ -61,6 +61,7 @@ function workoutEntryContext(
   place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad">,
   account: SuggestionAccount,
   exerciseOrdinal: number,
+  duplicateEntry: boolean,
 ) {
   return suggestionContext(
     history,
@@ -69,6 +70,7 @@ function workoutEntryContext(
       exerciseId: entry.exerciseId,
       sourceWorkoutExerciseId: entry.id,
       exerciseOrdinal,
+      duplicateEntry,
       type: entry.exercise?.exerciseType ?? "weight_reps",
       equipment: entry.exercise?.equipment ?? "other",
       unitOverride: entry.unit,
@@ -113,18 +115,14 @@ export function prepareWorkoutEntry(
           }),
         }
       : original;
-  const exerciseOrdinal = workout.exercises
-    .slice(
-      0,
-      workout.exercises.findIndex(({ id }) => id === original.id),
-    )
-    .filter(({ exerciseId }) => exerciseId === original.exerciseId).length;
+  const entries = workout.exercises.filter(({ exerciseId }) => exerciseId === original.exerciseId);
   const context = workoutEntryContext(
     entry,
     history,
     { ...place, phaseLoad: week?.modifiers.load },
     account,
-    exerciseOrdinal,
+    entries.findIndex(({ id }) => id === original.id),
+    entries.length > 1,
   );
   return { entry, context };
 }

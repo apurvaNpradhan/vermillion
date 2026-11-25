@@ -116,6 +116,16 @@ export function loadable(kg: number, unit: WeightUnit, grid: LoadGrid | null = n
   return parseWeight(formatWeight(snapped, unit), unit) ?? snapped;
 }
 
+/** A physical grid point is still the same load when a typed value rounds by half a gram. */
+export function gridCapInUnit(grid: LoadGrid | null, unit: WeightUnit): number | null {
+  const cap = grid?.capKg;
+  if (cap == null) return null;
+  const typed = loadable(cap, unit);
+  return grid?.source !== "cap" && loadIdentity(typed) === loadIdentity(cap)
+    ? Math.min(typed, cap)
+    : weightAtMost(cap, unit, cap);
+}
+
 /**
  * The increment for a set at `loadKg`, in kilograms. A gym's own step for the exercise comes
  * first; else a manual setting always wins (a cap alone changes neither); otherwise the step is

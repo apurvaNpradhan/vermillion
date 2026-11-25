@@ -25,7 +25,8 @@ function matchingSets(session: ContextSession, place: SuggestionPlace): readonly
   if (source && session.workoutId === place.workoutId) {
     const same = entries.find((row) => row[0]?.source_workout_exercise_id === source);
     if (same) return same;
-    if (ordinal?.[0]?.source_workout_exercise_id) return [];
+    if (ordinal?.[0]?.source_workout_exercise_id && (place.duplicateEntry || entries.length > 1))
+      return [];
   }
   return ordinal ?? [];
 }
@@ -41,6 +42,7 @@ export function suggestionHistory(
     place.workoutId,
     place.sourceWorkoutExerciseId,
     place.exerciseOrdinal ?? 0,
+    place.duplicateEntry ?? false,
     source,
     gym,
   ]);

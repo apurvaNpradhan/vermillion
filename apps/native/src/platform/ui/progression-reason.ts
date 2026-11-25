@@ -6,7 +6,10 @@ import {
 } from "@workspace/shared";
 
 /** The short label of a suggestion: "Add 2.5 kg", "One more rep". */
-export function progressionLabelKey({ reason, limit }: SetOutcome) {
+export function progressionLabelKey({ reason, limit, loadFactor }: SetOutcome) {
+  if (loadFactor !== undefined && reason === "after_break")
+    return "progress__label_after_break_load";
+  if (loadFactor !== undefined && reason === "deload") return "progress__label_deload_load";
   if (limit === "plates") {
     if (reason === "capped") return "progress__label_capped_plates";
     if (reason === "cap_reps") return "progress__label_cap_reps_plates";

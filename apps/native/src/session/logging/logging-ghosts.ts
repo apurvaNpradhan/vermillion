@@ -1,9 +1,8 @@
 import {
-  weightAtMost,
+  gridCapInUnit,
   type Ghosts,
   type SessionHistory,
   type SuggestionSettings,
-  type WeightUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { loggingHistory, plannedSuggestion } from "../../platform/training/workout-suggestion";
@@ -29,10 +28,9 @@ export function exerciseSuggestion(
         settings,
       );
 }
-export function capGhostWeight(ghosts: Ghosts, capKg: number | null, unit: WeightUnit): Ghosts {
+export function capGhostWeight(ghosts: Ghosts, capKg: number | null): Ghosts {
   if (capKg === null || ghosts.weight == null) return ghosts;
-  const cap = weightAtMost(capKg, unit, capKg);
-  return ghosts.weight > cap ? { ...ghosts, weight: cap } : ghosts;
+  return ghosts.weight > capKg ? { ...ghosts, weight: capKg } : ghosts;
 }
 
 export function loggingGhosts(
@@ -58,8 +56,7 @@ export function loggingGhosts(
           exerciseSuggestion(exercise, history, settings)?.sets[index],
           exercise.repeated,
         ),
-        settings.grid?.capKg ?? null,
-        settings.weightUnit,
+        gridCapInUnit(settings.grid ?? null, settings.weightUnit),
       )
     : {};
 }

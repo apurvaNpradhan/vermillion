@@ -56,6 +56,7 @@ export type SuggestionPlace = {
   type: ExerciseType;
   sourceWorkoutExerciseId?: string | null;
   exerciseOrdinal?: number;
+  duplicateEntry?: boolean;
   equipment: Equipment;
   /** The exercise's own unit, when it overrides the account's. */
   unitOverride?: WeightUnit | null;

@@ -1,12 +1,14 @@
 import {
   phaseLoadOf,
   suggestionContext,
+  withWarmupsCounted,
   type Ghosts,
   type SuggestionAccount,
 } from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
   parseFinishedSessions,
+  readBodyweightsOnDates,
   tickSet,
   type SessionDetail,
   type TrainingDatabase,
@@ -25,6 +27,8 @@ export type LiveSuggestionAccount = Omit<SuggestionAccount, "unit" | "stallMemor
   weightUnit: SuggestionAccount["unit"];
   /** The device's memory of stalled notes; absent when none is kept. */
   stallMemory?: SuggestionAccount["stallMemory"];
+  timeZone?: string;
+  countWarmups?: boolean;
 };
 
 const NO_STALL = () => ({ dismissed: false, applied: false });
@@ -41,12 +45,33 @@ export async function workoutLiveGhosts(
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
   if (!first) return ghosts;
   const { exercise } = first;
-  const exerciseOrdinal = session.exercises
-    .slice(0, session.exercises.indexOf(exercise))
-    .filter(({ exerciseId }) => exerciseId === exercise.exerciseId).length;
-  const history = parseFinishedSessions(
+  const entries = session.exercises.filter(({ exerciseId }) => exerciseId === exercise.exerciseId);
+  const rawHistory = parseFinishedSessions(
     await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
   );
+  let history = options.countWarmups ? withWarmupsCounted(rawHistory, true) : rawHistory;
+  if (exercise.type === "bodyweight_weighted_reps" && history.length > 0) {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: options.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const days = history.map((item) => {
+      const parts = formatter.formatToParts(new Date(item.started_at));
+      return ["year", "month", "day"]
+        .map((key) => parts.find((part) => part.type === key)?.value)
+        .join("-");
+    });
+    const weights = await readBodyweightsOnDates(db, [...new Set(days)]);
+    history = history.map((item, index) => ({
+      ...item,
+      sets: item.sets.map((set) => ({
+        ...set,
+        bodyweight_kg: weights.get(days[index] ?? "") ?? options.bodyweightKg,
+      })),
+    }));
+  }
   const equipment = exercise.exercise?.equipment ?? "other";
   const { weightUnit, stallMemory, ...account } = options;
   const context = suggestionContext(
@@ -54,7 +79,8 @@ export async function workoutLiveGhosts(
     {
       exerciseId: exercise.exerciseId,
       sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
-      exerciseOrdinal,
+      exerciseOrdinal: entries.indexOf(exercise),
+      duplicateEntry: entries.length > 1,
       type: exercise.type,
       equipment,
       unitOverride: exercise.unit,

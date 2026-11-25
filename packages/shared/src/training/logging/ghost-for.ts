@@ -22,7 +22,7 @@ export function ghostFor(
   suggestion?: SuggestedSet | null,
   repeated = false,
 ): number | null {
-  if (suggestion) {
+  if (suggestion && target?.kind !== "warmup") {
     if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
     if (field === "reps" && suggestion.reps !== null) return suggestion.reps;
   }
