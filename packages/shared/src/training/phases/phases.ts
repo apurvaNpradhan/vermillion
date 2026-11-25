@@ -8,9 +8,8 @@ import {
 } from "../../exercise/vocabulary";
 import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek } from "../plans/cycle";
-import { defaultStepKg } from "../progress/progression-steps";
+import { lightenLoad } from "../progress/progression-steps";
 import type { LoadGrid } from "../progress/load-grid";
-import { weightAtMost } from "../vocabulary/format";
 import {
   EFFORT_STEPS,
   TRAINING_LIMITS,
@@ -45,6 +44,12 @@ export const PHASE_PRESETS = {
   deload: { sets: 0.5, rpe: -2, load: 0.9 },
 } as const satisfies Record<Phase, PhaseModifiers>;
 
+/** Whether a lift of `type` is loaded (has a weight), so a Test week can ask for a heavy single. */
+export const hasLoad = (type: ExerciseType): boolean => {
+  const fields: readonly SetField[] = SET_FIELDS[type];
+  return fields.includes("weight");
+};
+
 /** How the one top set of a Test week is done: a heavy single, or as many reps as possible. */
 export const TEST_TOPS = ["single", "amrap"] as const;
 export type TestTop = (typeof TEST_TOPS)[number];
@@ -54,17 +59,30 @@ export const PHASE_PATTERN_MAX = 12;
 export const PHASE_WEEK_MAX = 520;
 export const PHASE_OVERRIDES_MAX = 104;
 
+/** The edits of one phase's modifiers: only the fields given replace the preset. */
+const phaseEditsSchema = z
+  .object({
+    sets: phaseModifiersSchema.shape.sets,
+    rpe: phaseModifiersSchema.shape.rpe,
+    load: phaseModifiersSchema.shape.load,
+  })
+  .partial()
+  .optional();
+
 /**
  * A Program's phases: a repeating pattern ("build, build, build, deload"), optional overrides of
  * single weeks, and optional edits of a phase's modifiers (only the fields given replace the
  * preset). Weeks are the Program's weeks: a Run's calendar weeks, less the Deload weeks inserted
  * into that Run. No plan means no phases.
+ *
+ * Keys this build does not know are stripped, not refused, so an older app can still read and
+ * edit a Program whose plan a newer app wrote.
  */
-export const phasePlanSchema = z.strictObject({
+export const phasePlanSchema = z.object({
   pattern: z.array(phaseSchema).min(1).max(PHASE_PATTERN_MAX),
   overrides: z
     .array(
-      z.strictObject({
+      z.object({
         week: z.number().int().min(1).max(PHASE_WEEK_MAX),
         phase: phaseSchema,
       }),
@@ -72,11 +90,11 @@ export const phasePlanSchema = z.strictObject({
     .max(PHASE_OVERRIDES_MAX)
     .default([]),
   modifiers: z
-    .strictObject({
-      build: phaseModifiersSchema.partial().optional(),
-      push: phaseModifiersSchema.partial().optional(),
-      test: phaseModifiersSchema.partial().optional(),
-      deload: phaseModifiersSchema.partial().optional(),
+    .object({
+      build: phaseEditsSchema,
+      push: phaseEditsSchema,
+      test: phaseEditsSchema,
+      deload: phaseEditsSchema,
     })
     .default({}),
   test_top: z.enum(TEST_TOPS).default("single"),
@@ -84,6 +102,40 @@ export const phasePlanSchema = z.strictObject({
 export type PhasePlan = z.infer<typeof phasePlanSchema>;
 /** What a form or a store writes: the defaults may be left out. */
 export type PhasePlanInput = z.input<typeof phasePlanSchema>;
+
+/**
+ * What a Session keeps of its phase: the modifiers and the Test top set's style as they were when
+ * it started, so editing the Program's plan later does not change a Session already begun.
+ */
+export const phaseSnapshotSchema = z.object({
+  sets: phaseModifiersSchema.shape.sets,
+  rpe: phaseModifiersSchema.shape.rpe,
+  load: phaseModifiersSchema.shape.load,
+  test_top: z.enum(TEST_TOPS),
+});
+export type PhaseSnapshot = z.infer<typeof phaseSnapshotSchema>;
+
+/** What a phase asks of a Workout: its modifiers and how a Test week's top set is done. */
+export type PhaseSettings = { modifiers: PhaseModifiers; testTop: TestTop };
+
+/** The snapshot of a phase read from a plan. */
+export const snapshotOf = (now: PhaseSettings): PhaseSnapshot => ({
+  ...now.modifiers,
+  test_top: now.testTop,
+});
+
+/**
+ * The modifiers and Test top style a Session started in `phase` ran with: its snapshot, else the
+ * phase's preset (a Session with no snapshot).
+ */
+export function snapshotModifiers(
+  phase: Phase,
+  snapshot: PhaseSnapshot | null | undefined,
+): PhaseSettings {
+  if (!snapshot) return { modifiers: PHASE_PRESETS[phase], testTop: "single" };
+  const { test_top: testTop, ...modifiers } = snapshot;
+  return { modifiers, testTop };
+}
 
 /** The Run weeks that are Deload weeks inserted by "Insert deload now", ascending, no repeats. */
 export const insertedDeloadsSchema = z
@@ -127,7 +179,7 @@ export function phaseOfWeek(
   return phase ? { phase, week: clamped, programWeek, inserted: false } : null;
 }
 
-export type PhaseNow = PhaseWeek & { modifiers: PhaseModifiers; testTop: TestTop };
+export type PhaseNow = PhaseWeek & PhaseSettings;
 
 /**
  * What a Run with inserted Deload weeks but no plan of its own follows: Build every week, so
@@ -183,6 +235,11 @@ export function insertDeload(inserted: readonly number[], week: number): number[
 export const isBaselinePhase = (phase: Phase | null | undefined): boolean =>
   phase !== "test" && phase !== "deload";
 
+/** The Sessions of `history` that are a baseline (not a Test or Deload), in the same order. */
+export const baselineSessions = <Session extends { phase?: Phase | null }>(
+  history: readonly Session[],
+): Session[] => history.filter((session) => isBaselinePhase(session.phase));
+
 /** The Workout's main lift: the chosen entry while it is in the Workout, else the first. */
 export function mainEntryOf(
   entryIds: readonly string[],
@@ -205,9 +262,9 @@ function shiftEffort(value: number, by: number): EffortStep {
 }
 
 /**
- * `kg` times `factor`, rounded down to a load the gym can make and never above `kg`. With a grid
- * it is the greatest load at or below the product; without one, a multiple of the equipment's
- * smallest step.
+ * `kg` times `factor`, snapped down to a load the gym can make: the greatest load at or below the
+ * product, on the grid (or the equipment's step without one). Never above `kg` or the grid's cap,
+ * and a load with nowhere lower to go stays. The same rule as the engine's Deload suggestion.
  */
 export function lowerLoad(
   kg: number,
@@ -215,19 +272,7 @@ export function lowerLoad(
   input: { equipment: Equipment; unit: WeightUnit; grid?: LoadGrid | null },
 ): number {
   if (kg <= 0 || factor >= 1) return kg;
-  const target = kg * factor;
-  const grid = input.grid && input.grid.source !== "cap" ? input.grid : null;
-  let lowered: number;
-  if (grid) {
-    const nearest = grid.nearest(target);
-    lowered = nearest <= target + EPS ? nearest : (grid.below(target + EPS) ?? nearest);
-  } else {
-    const step = defaultStepKg(input.equipment, input.unit, kg);
-    lowered = Math.floor((target + EPS) / step) * step;
-  }
-  // A load at the bottom of the grid has nowhere lower to go: it stays.
-  if (lowered <= 0) return kg;
-  return weightAtMost(Math.max(0, Math.min(lowered, kg)), input.unit, kg);
+  return lightenLoad(kg, factor, input.equipment, input.unit, input.grid ?? null, "down");
 }
 
 export type ApplyPhaseOptions = {
@@ -240,6 +285,12 @@ export type ApplyPhaseOptions = {
   modifiers?: PhaseModifiers;
   /** How a Test week's main lift is done. */
   testTop?: TestTop;
+  /**
+   * The load the Test week's top set aims at: what the lifter has recently done (the engine's or
+   * the last baseline's heaviest working set), not the Workout's possibly stale plan. Without it
+   * the heaviest planned load stays.
+   */
+  testLoadKg?: number | null;
 };
 
 /** `count` sets scaled by `factor`: rounded up, at least one, never more than a Workout holds. */
@@ -249,22 +300,29 @@ function scaledCount(count: number, factor: number): number {
   return Math.min(TRAINING_LIMITS.setsPerExercise, Math.max(1, scaled));
 }
 
-/** The one top set of a Test week's main lift, made from the Workout's first working set. */
+/**
+ * The one top set of a Test week's main lift, made from the Workout's first working set. A lift
+ * with no weight to load (bodyweight reps, reps only) has no single to test: it is as many reps
+ * as possible.
+ */
 function testTopSet(
   working: readonly PlannedSet[],
-  testTop: TestTop,
-  recordsReps: boolean,
+  options: { testTop: TestTop; fields: readonly SetField[]; loadKg: number | null },
 ): PlannedSet | null {
   const first = working[0];
   if (!first) return null;
-  // The heaviest planned load stays the target of the top set.
-  const weights = working.flatMap((set) => (set.weight_kg === undefined ? [] : [set.weight_kg]));
   const top: PlannedSet = { ...first, kind: "top" };
   delete top.effort_min;
   delete top.effort_max;
-  if (weights.length > 0) top.weight_kg = Math.max(...weights);
-  if (!recordsReps) return top;
-  if (testTop === "single") return { ...top, reps_min: 1, reps_max: 1 };
+  if (options.fields.includes("weight")) {
+    // The load to test: the lifter's own recent best when known, else the heaviest planned.
+    const planned = working.flatMap((set) => (set.weight_kg === undefined ? [] : [set.weight_kg]));
+    if (options.loadKg !== null) top.weight_kg = options.loadKg;
+    else if (planned.length > 0) top.weight_kg = Math.max(...planned);
+  }
+  if (!options.fields.includes("reps")) return top;
+  const single = options.testTop === "single" && options.fields.includes("weight");
+  if (single) return { ...top, reps_min: 1, reps_max: 1 };
   // As many reps as possible: a failure set, aiming to beat the planned reps.
   return { ...top, kind: "failure" };
 }
@@ -285,8 +343,14 @@ export function applyPhase(
   const working = planned.filter((set) => set.kind !== "warmup");
   let kept: PlannedSet[];
   if (phase === "test" && options.isMainLift) {
-    const fields: readonly SetField[] = SET_FIELDS[options.type];
-    const top = testTopSet(working, options.testTop ?? "single", fields.includes("reps"));
+    const top = testTopSet(working, {
+      testTop: options.testTop ?? "single",
+      fields: SET_FIELDS[options.type],
+      loadKg: options.testLoadKg ?? null,
+    });
+    const capKg = options.grid?.capKg ?? null;
+    if (top?.weight_kg !== undefined && capKg !== null)
+      top.weight_kg = Math.min(top.weight_kg, capKg);
     kept = top ? [top] : [];
   } else {
     const target = scaledCount(working.length, modifiers.sets);
@@ -330,10 +394,12 @@ export function phaseEffects(
   phase: Phase,
   modifiers: PhaseModifiers,
   testTop: TestTop = "single",
+  /** Whether the Workout has effort targets to shift; without any the shift is not shown. */
+  hasEffort = true,
 ): PhaseEffects {
   return {
     sets: modifiers.sets === 1 ? null : modifiers.sets,
-    rpe: modifiers.rpe === 0 ? null : modifiers.rpe,
+    rpe: modifiers.rpe === 0 || !hasEffort ? null : modifiers.rpe,
     loadPct: modifiers.load < 1 ? Math.round(modifiers.load * 100) : null,
     top: phase === "test" ? testTop : null,
   };

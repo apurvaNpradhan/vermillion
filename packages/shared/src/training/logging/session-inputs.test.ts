@@ -22,6 +22,7 @@ const session = {
   slot_id: null,
   gym_id: null,
   phase: null,
+  phase_modifiers: null,
   cycle: null,
   title: "Push",
   title_derived: false,

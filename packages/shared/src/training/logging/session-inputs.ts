@@ -10,7 +10,7 @@ import { positionKey } from "../vocabulary/inputs";
 import { finishClock } from "./session-clock";
 import { loadRangesSchema } from "../progress/load-grid";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
-import { phaseSchema } from "../phases/phases";
+import { phaseSchema, phaseSnapshotSchema } from "../phases/phases";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
@@ -40,6 +40,11 @@ export const sessionInput = z.strictObject({
   gym_id: reference,
   /** The phase of the Run week the Session started in; null with no phases (older Sessions). */
   phase: phaseSchema.nullable(),
+  /**
+   * The phase's modifiers as they were when the Session started (see `phaseSnapshotSchema`);
+   * null with no phase. The Program's later edits do not change a Session already begun.
+   */
+  phase_modifiers: phaseSnapshotSchema.nullable(),
   cycle: z.number().int().min(1).max(2_147_483_647).nullable(),
   title: z.string().trim().min(SESSION_LIMITS.titleMin).max(SESSION_LIMITS.titleMax),
   title_derived: z.boolean(),

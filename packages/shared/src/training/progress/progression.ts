@@ -64,7 +64,9 @@ export type ProgressionContext = {
   deload?: boolean;
   /**
    * The load factor of this week's phase (0.9 in a Deload): below 1 it suggests that share of the
-   * last load at the bottom of the range, like the stalled-lift deload, snapped down to the grid.
+   * last load at the bottom of the range, like the stalled-lift deload. Unlike a break, a Lighter
+   * week or the stalled-lift deload, which round to the nearest load, a phase snaps down to the
+   * grid: the greatest load at or below the product, as the Workout's own targets are lowered.
    */
   phaseLoad?: number;
   /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
@@ -97,6 +99,24 @@ const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
 export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
 const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
+
+/**
+ * The heaviest completed working set, in kilograms, of the latest baseline Session in `history`
+ * (newest first, not a Test or Deload); null when there is none. What a Test week's top set
+ * starts from.
+ */
+export function lastBaselineLoadKg(
+  history: readonly Pick<ProgressionSession, "phase" | "sets">[],
+): number | null {
+  for (const session of history) {
+    if (!isBaselinePhase(session.phase)) continue;
+    const loads = done(session.sets).flatMap((set) =>
+      progresses(set.kind) && set.weight_kg != null ? [set.weight_kg] : [],
+    );
+    if (loads.length > 0) return Math.max(...loads);
+  }
+  return null;
+}
 
 /**
  * The set of `sets` a planned set progresses from: the same kind at the same position, or the
@@ -233,6 +253,9 @@ export function suggestNext(
         ? "after_break"
         : "deload";
 
+  // The phase names the reset (and so rounds down) when its factor is the one in force.
+  const phaseDecides =
+    resetReason === "deload" && phaseFactor < 1 && Math.abs(factor - phaseFactor) < AT_CAP;
   const sets: (SuggestedSet | null)[] = planned.map(() => null);
   if (resetReason !== null) {
     for (const { index, target, ordinal } of slots) {
@@ -241,7 +264,14 @@ export function suggestNext(
       const weightKg =
         before.weight_kg == null
           ? null
-          : lightenLoad(before.weight_kg, factor, equipment, unit, grid);
+          : lightenLoad(
+              before.weight_kg,
+              factor,
+              equipment,
+              unit,
+              grid,
+              phaseDecides ? "down" : "nearest",
+            );
       // A reset that cannot lower the load must not raise the reps either.
       const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;

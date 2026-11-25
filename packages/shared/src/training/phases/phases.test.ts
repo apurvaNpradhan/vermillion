@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import type { ExerciseType } from "../../exercise/vocabulary";
 import type { EffortStep } from "../vocabulary/vocabulary";
+import { KG_PER_LB } from "../vocabulary/format";
 import { loadGridOf } from "../progress/load-grid";
-import { suggestNext, type ProgressionSession } from "../progress/progression";
+import { lastBaselineLoadKg, suggestNext, type ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
+import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
   PATTERN_PRESETS,
   applyPhase,
+  baselineSessions,
   insertDeload,
   insertedDeloadsSchema,
   isBaselinePhase,
@@ -19,6 +23,8 @@ import {
   phaseFor,
   phaseOfWeek,
   phasePlanSchema,
+  snapshotModifiers,
+  snapshotOf,
   withModifiers,
   withPattern,
   withWeekPhase,
@@ -177,7 +183,22 @@ describe("phasePlanSchema", () => {
     });
     expect(phasePlanSchema.safeParse({ pattern: [] }).success).toBe(false);
     expect(phasePlanSchema.safeParse({ pattern: ["rest"] }).success).toBe(false);
-    expect(phasePlanSchema.safeParse({ pattern: ["build"], extra: 1 }).success).toBe(false);
+  });
+
+  it("strips keys it does not know, so an older app can still read and edit a plan", () => {
+    expect(
+      phasePlanSchema.parse({
+        pattern: ["build"],
+        extra: 1,
+        overrides: [{ week: 2, phase: "test", note: "x" }],
+        modifiers: { deload: { load: 0.8, future: true }, future: {} },
+      }),
+    ).toEqual({
+      pattern: ["build"],
+      overrides: [{ week: 2, phase: "test" }],
+      modifiers: { deload: { load: 0.8 } },
+      test_top: "single",
+    });
   });
 
   it("bounds the modifiers", () => {
@@ -331,6 +352,23 @@ describe("applyPhase", () => {
     });
   });
 
+  describe("lowerLoad", () => {
+    it("never goes above the gym's cap", () => {
+      const grid = loadGridOf({
+        equipment: "dumbbell",
+        unit: "kg",
+        ranges: [{ min: 0, max: 40, step: null }],
+      });
+      expect(lowerLoad(120, 0.9, { equipment: "dumbbell", unit: "kg", grid })).toBe(40);
+      expect(lowerLoad(30, 0.9, { equipment: "dumbbell", unit: "kg", grid })).toBe(25);
+    });
+
+    it("snaps down in the user's unit: 100 lb becomes 90 lb", () => {
+      const kg = lowerLoad(100 * KG_PER_LB, 0.9, { equipment: "barbell", unit: "lb" });
+      expect(Math.round(kg / KG_PER_LB)).toBe(90);
+    });
+  });
+
   describe("test week", () => {
     const sets: PlannedSet[] = [
       { kind: "warmup", weight_kg: 40 },
@@ -351,6 +389,47 @@ describe("applyPhase", () => {
         { kind: "failure", reps_min: 8, reps_max: 10, weight_kg: 100 },
       ]);
     });
+
+    it("starts the top set from the load the lifter last did, not the stale plan", () => {
+      const out = applyPhase(sets, "test", { ...base, isMainLift: true, testLoadKg: 120 });
+      expect(out[1]).toEqual({ kind: "top", reps_min: 1, reps_max: 1, weight_kg: 120 });
+      const amrap = applyPhase(sets, "test", {
+        ...base,
+        isMainLift: true,
+        testTop: "amrap",
+        testLoadKg: 120,
+      });
+      expect(amrap[1]).toMatchObject({ kind: "failure", weight_kg: 120 });
+    });
+
+    it("holds the top set to the gym's cap", () => {
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit: "kg",
+        ranges: [{ min: 5, max: 90, step: 5 }],
+      });
+      const out = applyPhase(sets, "test", {
+        type: "weight_reps",
+        equipment: "machine",
+        isMainLift: true,
+        grid,
+        testLoadKg: 120,
+      });
+      expect(out[1]?.weight_kg).toBe(90);
+    });
+
+    it.each<ExerciseType>(["bodyweight_reps", "reps_only"])(
+      "gives a %s lift an AMRAP set, there being no weight for a single",
+      (type) => {
+        const out = applyPhase([{ kind: "working", reps_min: 10, reps_max: 15 }], "test", {
+          type,
+          equipment: "none",
+          isMainLift: true,
+          testTop: "single",
+        });
+        expect(out).toEqual([{ kind: "failure", reps_min: 10, reps_max: 15 }]);
+      },
+    );
 
     it("keeps a duration lift's target and just makes it the top set", () => {
       const out = applyPhase([{ kind: "working", duration_s: 60 }], "test", {
@@ -407,7 +486,41 @@ describe("mainEntryOf", () => {
   });
 });
 
+describe("the phase a Session kept", () => {
+  it("round-trips through the snapshot, and falls back to the preset without one", () => {
+    const now = phaseFor(
+      plan({ pattern: ["deload"], modifiers: { deload: { load: 0.8 } }, test_top: "amrap" }),
+      { started_at: "2026-11-02T10:00:00Z", inserted_deloads: [] },
+      new Date("2026-11-03T10:00:00Z"),
+      "UTC",
+    );
+    if (!now) throw new Error("no phase");
+    expect(snapshotModifiers("deload", snapshotOf(now))).toEqual({
+      modifiers: { sets: 0.5, rpe: -2, load: 0.8 },
+      testTop: "amrap",
+    });
+    expect(snapshotModifiers("deload", null)).toEqual({
+      modifiers: PHASE_PRESETS.deload,
+      testTop: "single",
+    });
+  });
+
+  it("keeps the baselines of a history", () => {
+    const history = [{ phase: "deload" as const }, { phase: null }, { phase: "test" as const }, {}];
+    expect(baselineSessions(history)).toEqual([{ phase: null }, {}]);
+  });
+});
+
 describe("phaseEffects", () => {
+  it("leaves the effort shift out when the Workout has no effort targets", () => {
+    expect(phaseEffects("push", PHASE_PRESETS.push, "single", false).rpe).toBeNull();
+    expect(phaseEffects("deload", PHASE_PRESETS.deload, "single", false)).toMatchObject({
+      sets: 0.5,
+      rpe: null,
+      loadPct: 90,
+    });
+  });
+
   it("names only what a phase changes", () => {
     expect(phaseEffects("build", PHASE_PRESETS.build)).toEqual({
       sets: null,
@@ -484,6 +597,34 @@ describe("baseline exclusion", () => {
     expect(result?.sets[0]?.reps).toBe(8);
   });
 
+  describe("rounding", () => {
+    const stack = loadGridOf({
+      equipment: "machine",
+      unit: "kg",
+      ranges: [{ min: 5, max: 90, step: 5 }],
+    });
+    const lastTime = (days: number) => [
+      sessionOf(new Date(NOW.getTime() - days * 86_400_000).toISOString(), 10, 55, "build"),
+    ];
+    const run = (days: number, context: { phaseLoad?: number; deload?: boolean }) =>
+      suggestNext(target, lastTime(days), "weight_reps", "machine", settings, {
+        now: NOW,
+        grid: stack,
+        ...context,
+      })?.sets[0]?.weightKg;
+
+    it("snaps a phase Deload down to the grid, as the Workout's own loads are", () => {
+      // 0.9 x 55 = 49.5: the nearest pin is 50, but a Deload is never heavier than asked.
+      expect(run(3, { phaseLoad: 0.9 })).toBe(45);
+      expect(lowerLoad(55, 0.9, { equipment: "machine", unit: "kg", grid: stack })).toBe(45);
+    });
+
+    it("rounds a break and the stalled-lift deload as before", () => {
+      expect(run(15, {})).toBe(50);
+      expect(run(3, { deload: true })).toBe(50);
+    });
+  });
+
   it("a load share of 1 changes nothing", () => {
     const history = [sessionOf("2026-11-13T10:00:00Z", 10, 100, "build")];
     expect(suggest(history, 1)?.reason).not.toBe("deload");
@@ -501,6 +642,51 @@ describe("baseline exclusion", () => {
     expect(stalledSessions([flat(14, "test", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "deload", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "push", 140), ...build], "weight_reps")).toBe(0);
+  });
+
+  it("finds the heaviest working set of the latest baseline, for a Test week's top set", () => {
+    const heavy = (weight: number, phase: Phase | null) =>
+      sessionOf("2026-11-10T10:00:00Z", 5, weight, phase);
+    const warmup: LoggedSet = { ...set(5, 200), kind: "warmup" };
+    expect(lastBaselineLoadKg([])).toBeNull();
+    // The newest Session is a Deload and the one before is a Test: the Build before them counts.
+    expect(lastBaselineLoadKg([heavy(60, "deload"), heavy(140, "test"), heavy(110, "build")])).toBe(
+      110,
+    );
+    expect(
+      lastBaselineLoadKg([{ ...heavy(100, null), sets: [warmup, set(5, 100), set(5, 105)] }]),
+    ).toBe(105);
+    expect(lastBaselineLoadKg([heavy(60, "deload")])).toBeNull();
+  });
+
+  it("a Deload every fourth week is training: it does not turn a stall into a break", () => {
+    const weekly = Array.from({ length: 12 }, (_, week) => ({
+      started_at: new Date(Date.UTC(2026, 8, 1 + week * 7, 10)).toISOString(),
+      phase: (week % 4 === 3 ? "deload" : "build") as Phase,
+      sets: [set(8, 100)],
+    })).reverse();
+    // Nine flat baseline Sessions, two weeks apart across each Deload: still a stall.
+    expect(stalledSessions(weekly, "weight_reps")).toBeGreaterThan(0);
+    // Without the Deload Sessions in the history, the same gap is a break.
+    expect(
+      stalledSessions(
+        weekly.filter((session) => session.phase !== "deload"),
+        "weight_reps",
+      ),
+    ).toBe(0);
+  });
+
+  it("a real break across a Deload is still a break", () => {
+    const at = (day: number, phase: Phase) => ({
+      started_at: new Date(Date.UTC(2026, 9, day, 10)).toISOString(),
+      phase,
+      sets: [set(8, 100)],
+    });
+    const recent = [at(30, "build"), at(29, "build"), at(28, "build")];
+    // A Deload on the 20th leaves 19 days to the Session before it: that is a break, not a stall.
+    expect(stalledSessions([...recent, at(20, "deload"), at(1, "build")], "weight_reps")).toBe(0);
+    // On the 15th it splits the stretch into two short ones: the lift has stalled.
+    expect(stalledSessions([...recent, at(15, "deload"), at(3, "build")], "weight_reps")).toBe(3);
   });
 });
 

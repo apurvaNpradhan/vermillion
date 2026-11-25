@@ -68,30 +68,51 @@ export function sessionScore(
  * Sessions newest first, from the same Workout when one is known. The best of the most recent
  * three Sessions has not beaten the Session before them by 1%, and none of those three came after
  * a gap of 14 days or more (a break is not a stall). It needs at least four scored Sessions;
- * Sessions in a Lighter week, and Test or Deload phase Sessions, do not count. A stall of more than three Sessions keeps counting while
- * the best of the recent Sessions still has not beaten the one before them by 1%.
+ * Sessions in a Lighter week do not count. A Test or Deload phase Session is not scored (it is
+ * not a baseline) but it is training: it fills a gap, so a Deload every fourth week is not a
+ * break. A stall of more than three Sessions keeps counting while the best of the recent Sessions
+ * still has not beaten the one before them by 1%.
  */
 export function stalledSessions(
   history: readonly StallSession[],
   type: ExerciseType,
   options: { bodyweightKg?: number | null; lighterWeeks?: readonly LighterPeriod[] } = {},
 ): number {
-  const sessions = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
-    if (!isBaselinePhase(session.phase)) return [];
+  const trained = outsideLighterWeeks(history, options.lighterWeeks ?? []).flatMap((session) => {
     const scores = sessionScores(session.sets, type, options.bodyweightKg ?? null);
     return scores.strength === null && scores.volume === null
       ? []
-      : [{ at: Date.parse(session.started_at), ...scores }];
+      : [
+          {
+            at: Date.parse(session.started_at),
+            baseline: isBaselinePhase(session.phase),
+            ...scores,
+          },
+        ];
+  });
+  // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
+  // Session between two baselines shortens it. `gapBefore` is whether the stretch from a
+  // baseline back to the next older baseline holds a break.
+  const baselines = trained.flatMap((session, position) =>
+    session.baseline ? [{ ...session, position, gapBefore: false }] : [],
+  );
+  const sessions = baselines.map((session, index) => {
+    const older = baselines[index + 1];
+    const gapBefore =
+      older !== undefined &&
+      trained
+        .slice(session.position, older.position + 1)
+        .some(
+          (item, at, span) => at > 0 && (span[at - 1]?.at ?? 0) - item.at >= BREAK_DAYS * DAY_MS,
+        );
+    return { ...session, gapBefore };
   });
   let stalled = 0;
   for (let recent = STALL_SESSIONS; recent < sessions.length; recent += 1) {
     const before = sessions[recent];
     const window = sessions.slice(0, recent);
     if (!before) break;
-    const gap = window.some((session, index) => {
-      const previous = sessions[index + 1];
-      return previous !== undefined && session.at - previous.at >= BREAK_DAYS * DAY_MS;
-    });
+    const gap = window.some((session) => session.gapBefore);
     // Every score in the comparison uses the same metric.
     const metric =
       before.strength === null || window.some((session) => session.strength === null)

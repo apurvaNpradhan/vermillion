@@ -32,6 +32,7 @@ export {
 
 export * from "./progress/progression";
 export * from "./progress/load-grid";
+export * from "./progress/gym-grids";
 export * from "./progress/gym-history";
 export * from "./progress/gym-setting-id";
 export {
