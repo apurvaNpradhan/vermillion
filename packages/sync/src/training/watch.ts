@@ -253,7 +253,9 @@ const detailRowSchema = z.object({
   retired_at: z.string().nullable(),
 });
 
-export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
+const workoutDetailSql = (
+  id: string,
+) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
     w.note AS note, w.cover_media_id AS cover_media_id, w.main_entry_id AS main_entry_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
@@ -268,8 +270,10 @@ export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
-  WHERE w.id = ?
+  WHERE w.id = ${id}
   ORDER BY we.position, we.id`;
+
+export const WORKOUT_DETAIL_SQL = workoutDetailSql("?");
 
 /** Builds one Workout from the joined rows of {@link WORKOUT_DETAIL_SQL}; null if none. */
 export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | null {
@@ -1194,26 +1198,28 @@ export async function readRecordHistory(
   );
 }
 
-/** Local rows exclude deleted Workouts and exercises through the sync stream. */
-export const LATEST_EXERCISE_PLAN_SQL = `SELECT we.sets FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
-     WHERE we.exercise_id = ? ORDER BY w.created_at DESC, w.id DESC, we.position, we.id LIMIT 1`;
+/** First surviving Workout on the ordered list that still contains the exercise. */
+export const EXERCISE_PLAN_SQL = workoutDetailSql(`(
+  SELECT w.id FROM json_each(?) AS candidate
+  JOIN workout w ON w.id = candidate.value
+  WHERE EXISTS (
+    SELECT 1 FROM workout_exercise we WHERE we.workout_id = w.id AND we.exercise_id = ?
+  )
+  ORDER BY candidate.key LIMIT 1
+)`);
 
-/** Most recently created surviving Workout that plans this exercise. */
-export function watchLatestExercisePlan(
+export function watchExercisePlan(
   database: TrainingDatabase,
   exerciseId: string,
-  handlers: { onPlan: (sets: PlannedSet[] | null) => void; onError: (error: Error) => void },
+  candidates: readonly string[],
+  handlers: { onPlan: (workout: WorkoutDetail | null) => void; onError: (error: Error) => void },
 ): () => void {
-  const parse = (rows: QueryResult["array"]) => {
-    const row = z.array(z.object({ sets: z.string() })).parse(rows)[0];
-    return row ? z.array(plannedSetSchema).parse(JSON.parse(row.sets)) : null;
-  };
   return watch(
     database,
-    LATEST_EXERCISE_PLAN_SQL,
-    [exerciseId],
+    EXERCISE_PLAN_SQL,
+    [JSON.stringify(candidates), exerciseId],
     WORKOUT_TABLES,
-    parsing(parse, { onResult: handlers.onPlan, onError: handlers.onError }),
+    parsing(parseWorkoutDetail, { onResult: handlers.onPlan, onError: handlers.onError }),
     handlers.onError,
   );
 }

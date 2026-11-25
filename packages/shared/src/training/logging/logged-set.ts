@@ -17,6 +17,10 @@ export type LoggedSet = SetValues & {
   warmup_counted?: boolean;
   id: string;
   exercise_id: string;
+  /** Distinguishes repeated entries of the same exercise in an imported or edited Session. */
+  session_exercise_id?: string;
+  /** Identifies the Workout entry across Sessions, when the Session came from a Workout. */
+  source_workout_exercise_id?: string | null;
   exercise_type: ExerciseType;
   kind: SetKind;
   completed_at: string | null;
@@ -62,9 +66,12 @@ export function inSessionOrder<Session extends { id: string; started_at: string 
   sessions: readonly Session[],
 ): Session[] {
   // `sort` on a copy, not `toSorted`: Hermes on the device has no ES2023 array methods.
-  return [...sessions].sort((a, b) => {
-    const byStart = Date.parse(a.started_at) - Date.parse(b.started_at);
-    if (byStart !== 0) return byStart;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
+  return sessions
+    .map((session) => ({ session, time: Date.parse(session.started_at) }))
+    .sort((a, b) => {
+      const byStart = a.time - b.time;
+      if (byStart) return byStart;
+      return a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0;
+    })
+    .map(({ session }) => session);
 }

@@ -11,6 +11,8 @@ import {
   type EffortScale,
   type WeekStart,
   type WeightUnit,
+  incrementInUnit,
+  INCREMENT_CHOICES,
 } from "@workspace/shared";
 import { Barbell, CalendarBlank, Gauge, MapPin, Plus, Target, Timer } from "phosphor-react-native";
 import { useState, type ReactNode } from "react";
@@ -37,12 +39,6 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300] as const;
 
 /** Weekly session goals to offer; a stored value outside the list is added. */
 const SESSION_CHOICES = [1, 2, 3, 4, 5, 6, 7] as const;
-
-/** Weight increments to offer, in the unit the user weighs in. */
-const INCREMENT_CHOICES = {
-  kg: [1, 1.25, 2, 2.5, 5],
-  lb: [1, 2.5, 5, 10],
-} as const satisfies Record<WeightUnit, readonly number[]>;
 
 export function useTrainingPreferenceRows({
   extraRows = [],
@@ -72,6 +68,11 @@ export function useTrainingPreferenceRows({
 
   const toKg = (amount: number) =>
     weightUnit === "lb" ? Number((amount * KG_PER_LB).toFixed(6)) : amount;
+  const selectedIncrement = incrementInUnit(
+    preferences.ui.weightIncrementKg,
+    preferences.ui.weightIncrementUnit ?? weightUnit,
+    weightUnit,
+  );
   const fromKg = (kg: number) =>
     weightUnit === "lb" ? Number((kg / KG_PER_LB).toFixed(2)) : Number(kg.toFixed(2));
   const incrementLabel = (kg: number) =>
@@ -114,11 +115,7 @@ export function useTrainingPreferenceRows({
         key="increment"
         icon={Barbell}
         title={t("progress__increment")}
-        value={
-          preferences.ui.weightIncrementKg === null
-            ? t("progress__auto")
-            : incrementLabel(preferences.ui.weightIncrementKg)
-        }
+        value={selectedIncrement === null ? t("progress__auto") : incrementLabel(selectedIncrement)}
         onPress={() => setPicker("increment")}
       />
     ),
@@ -209,13 +206,12 @@ export function useTrainingPreferenceRows({
             label: incrementLabel(toKg(amount)),
           })),
         ]}
-        value={
-          preferences.ui.weightIncrementKg === null
-            ? "auto"
-            : String(fromKg(preferences.ui.weightIncrementKg))
-        }
+        value={selectedIncrement === null ? "auto" : String(fromKg(selectedIncrement))}
         onSelect={(value) =>
-          setUi({ weightIncrementKg: value === "auto" ? null : toKg(Number(value)) })
+          setUi({
+            weightIncrementKg: value === "auto" ? null : toKg(Number(value)),
+            weightIncrementUnit: value === "auto" ? null : weightUnit,
+          })
         }
       />
       <OptionSheet<WeightUnit>
@@ -225,7 +221,16 @@ export function useTrainingPreferenceRows({
         description={t("training__setting_unit_hint")}
         options={WEIGHT_UNITS.map((value) => ({ value, label: t(WEIGHT_UNIT_KEYS[value]) }))}
         value={weightUnit}
-        onSelect={(value) => setUi({ weightUnit: value })}
+        onSelect={(value) =>
+          setUi({
+            weightUnit: value,
+            // Keep the original unit of an older preference when changing the account unit.
+            ...(preferences.ui.weightIncrementKg !== null &&
+            preferences.ui.weightIncrementUnit == null
+              ? { weightIncrementUnit: weightUnit }
+              : {}),
+          })
+        }
       />
       <OptionSheet<EffortScale>
         isOpen={picker === "effort"}

@@ -35,10 +35,11 @@ export function previousOfRow(
   history: readonly SessionHistory[] | undefined,
   sets: readonly { kind: SetKind }[],
   index: number,
+  baselineOnly = false,
 ): LoggedSet | null {
   const set = sets[index];
   if (!set || !history) return null;
-  return previousFor(history, set.kind, ordinalOf(sets, index));
+  return previousFor(history, set.kind, ordinalOf(sets, index), baselineOnly);
 }
 
 /**

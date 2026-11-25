@@ -23,7 +23,7 @@ import { RunEndOffer } from "@/training/home/active-program-card";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useProgramLibrary } from "@/training/programs/use-program-library";
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useWorkoutActions } from "@/training/workouts/use-workout-actions";
 
 import { ProgramGridRow } from "./program-grid";

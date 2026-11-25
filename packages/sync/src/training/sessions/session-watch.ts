@@ -471,6 +471,7 @@ export type FinishedSession = Omit<SessionHistory, "sets"> & {
 const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS started_at,
     s.finished_at AS finished_at, s.duration_s AS duration_s, s.paused_ms AS paused_ms,
     s.workout_id AS workout_id, s.gym_id AS gym_id, s.phase AS phase,
+    se.id AS session_exercise_id, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
@@ -487,7 +488,7 @@ export const EXERCISE_HISTORY_SQL = `SELECT ${SET_COLUMNS}
   JOIN session_exercise se ON se.session_id = s.id AND se.exercise_id = ?
   JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
   WHERE s.finished_at IS NOT NULL AND s.id IN (
-    SELECT s2.id FROM training_session s2
+    SELECT DISTINCT s2.id FROM training_session s2
     JOIN session_exercise se2 ON se2.session_id = s2.id AND se2.exercise_id = ?
     WHERE s2.finished_at IS NOT NULL
     ORDER BY s2.started_at DESC, s2.id DESC LIMIT ${SESSION_READ_LIMIT})
@@ -806,6 +807,8 @@ const finishedRowSchema = z.object({
   gym_id: z.string().nullable().optional(),
   phase: phaseSchema.nullable().optional(),
   exercise_id: z.string().nullable(),
+  session_exercise_id: z.string().nullable().optional(),
+  source_workout_exercise_id: z.string().nullable().optional(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   set_id: z.string().nullable(),
   kind: kind.nullable(),
@@ -857,6 +860,8 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
       const set: LoggedSet = {
         id: row.set_id,
         exercise_id: row.exercise_id,
+        session_exercise_id: row.session_exercise_id ?? undefined,
+        source_workout_exercise_id: row.source_workout_exercise_id,
         exercise_type: row.exercise_type,
         kind: row.kind,
         completed_at: row.completed_at,

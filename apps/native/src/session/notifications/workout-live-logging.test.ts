@@ -57,6 +57,7 @@ it.each([
     const options: Parameters<typeof workoutLiveState>[0]["options"] = {
       weightUnit: unit,
       previousSource: "same_workout",
+      bodyweightKg: null,
       weightIncrementKg: null,
       lighterWeeks: [],
       soundOn: false,

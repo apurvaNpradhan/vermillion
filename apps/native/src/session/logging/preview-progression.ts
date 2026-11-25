@@ -1,17 +1,27 @@
 import {
   addsLoad,
-  baselineSessions,
   formatLoad,
   type SessionHistory,
   type SetKind,
+  type SetOutcome,
 } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 
-import { loggingHistory, plannedSuggestion, type SuggestionSettings } from "./logging-ghosts";
+import {
+  loggingHistory,
+  plannedSuggestion,
+  type SuggestionSettings,
+} from "../../platform/training/workout-suggestion";
 import { ghostsOf, ordinalOf, previousOfRow } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
-type Change = { kind: SetKind; number: number; last: PreviewSet; today: PreviewSet };
+type Change = {
+  kind: SetKind;
+  number: number;
+  last: PreviewSet;
+  today: PreviewSet;
+  outcome: SetOutcome;
+};
 
 /** Compare the live suggestion with the same Previous cell the completed set grid shows. */
 export function previewProgression(
@@ -35,17 +45,17 @@ export function previewProgression(
   const displayWeight = (kg: number | null | undefined) =>
     loaded && kg != null ? formatLoad(kg, settings.weightUnit, type) : null;
   const baseline = loggingHistory(history, exercise.equipment, settings);
-  const hintBaseline = baselineSessions(baseline);
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];
-    if (!next) continue;
+    const outcome = suggestion.outcomes[index];
+    if (!next || !outcome) continue;
     const previous = previousOfRow(baseline, entry.sets, index);
     if (!previous || previous.reps == null || previous.exercise_type !== type) continue;
     // The hint comes from a baseline Session, as in the set grid.
     const ghost = ghostsOf(
       type,
-      previousOfRow(hintBaseline, entry.sets, index),
+      previousOfRow(baseline, entry.sets, index, true),
       target,
       false,
       next,
@@ -54,7 +64,13 @@ export function previewProgression(
     const last = { reps: previous.reps, weight: displayWeight(previous.weight_kg) };
     const today = { reps: ghost.reps, weight: displayWeight(ghost.weight) };
     if (last.reps === today.reps && last.weight === today.weight) continue;
-    changes.push({ kind: target.kind, number: ordinalOf(entry.sets, index) + 1, last, today });
+    changes.push({
+      kind: target.kind,
+      number: ordinalOf(entry.sets, index) + 1,
+      last,
+      today,
+      outcome,
+    });
   }
   return changes.length === 0 ? null : { suggestion, changes };
 }

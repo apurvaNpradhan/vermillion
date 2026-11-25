@@ -91,60 +91,33 @@ export function stalledSessions(
         ];
   });
   // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
-  // Session between two baselines shortens it. `gapBefore` is whether the stretch from a
-  // baseline back to the next older baseline holds a break.
-  const baselines = trained.flatMap((session, position) =>
-    session.baseline ? [{ ...session, position, gapBefore: false }] : [],
-  );
-  const sessions = baselines.map((session, index) => {
-    const older = baselines[index + 1];
-    const gapBefore =
-      older !== undefined &&
-      trained
-        .slice(session.position, older.position + 1)
-        .some(
-          (item, at, span) => at > 0 && (span[at - 1]?.at ?? 0) - item.at >= BREAK_DAYS * DAY_MS,
-        );
-    return { ...session, gapBefore };
-  });
-  let stalled = 0;
-  for (let recent = STALL_SESSIONS; recent < sessions.length; recent += 1) {
-    const before = sessions[recent];
-    const window = sessions.slice(0, recent);
-    if (!before) break;
-    const gap = window.some((session) => session.gapBefore);
-    // Every score in the comparison uses the same metric.
-    const metric =
-      before.strength === null || window.some((session) => session.strength === null)
-        ? "volume"
-        : "strength";
-    const best = Math.max(...window.map((session) => session[metric] ?? 0));
-    if (gap || best >= (before[metric] ?? 0) * MIN_GAIN) break;
-    stalled = recent;
+  // Session between two baselines shortens it. Compare only the baselines since the last gap.
+  const sessions: SessionScores[] = [];
+  let gap = false;
+  let previous: number | null = null;
+  for (const item of trained) {
+    if (sessions.length > 0 && previous !== null && previous - item.at >= BREAK_DAYS * DAY_MS)
+      gap = true;
+    previous = item.at;
+    if (!item.baseline) continue;
+    if (gap) break;
+    sessions.push(item);
   }
-  return stalled;
-}
-
-/**
- * The exercises trained in `thisWeek` that have stalled, in the order they were first trained.
- * Each is judged on the Sessions of the Workout it was trained in, across gyms.
- */
-export function stalledExerciseIds(
-  thisWeek: readonly { workoutId: string | null; sets: readonly LoggedSet[] }[],
-  histories: ReadonlyMap<string, readonly (StallSession & { workoutId: string | null })[]>,
-  options: { lighterWeeks?: readonly LighterPeriod[] } = {},
-): string[] {
-  const seen = new Set<string>();
-  const stalled: string[] = [];
-  for (const session of thisWeek) {
-    for (const set of session.sets) {
-      if (!isCounted(set) || seen.has(set.exercise_id)) continue;
-      seen.add(set.exercise_id);
-      const history = (histories.get(set.exercise_id) ?? []).filter(
-        (past) => past.workoutId === session.workoutId,
-      );
-      if (stalledSessions(history, set.exercise_type, options) > 0) stalled.push(set.exercise_id);
+  let maximumStrength = 0;
+  let maximumVolume = 0;
+  let allStrength = true;
+  let stalled = 0;
+  for (const [index, before] of sessions.entries()) {
+    if (index >= STALL_SESSIONS) {
+      const strength = allStrength && before.strength !== null;
+      const best = strength ? maximumStrength : maximumVolume;
+      const score = strength ? before.strength : (before.volume ?? 0);
+      if (best >= (score ?? 0) * MIN_GAIN) break;
+      stalled = index;
     }
+    allStrength &&= before.strength !== null;
+    maximumStrength = Math.max(maximumStrength, before.strength ?? 0);
+    maximumVolume = Math.max(maximumVolume, before.volume ?? 0);
   }
   return stalled;
 }

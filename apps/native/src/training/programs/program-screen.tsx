@@ -33,7 +33,7 @@ import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { repeatCounts, rotationSummary } from "@/training/rotation/rotation";
-import { useProgram } from "./use-program";
+import { useProgram } from "@/platform/training/use-program";
 import { useShareLinkAction } from "@/share";
 import { useProgramActions } from "./use-program-actions";
 import { useProgramMeta } from "./use-program-meta";

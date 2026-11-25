@@ -5,6 +5,7 @@ import {
   type ExerciseType,
   type PlannedSet,
   type SetKind,
+  incrementInUnit,
 } from "@workspace/shared";
 import { useState } from "react";
 import { View } from "react-native";
@@ -76,7 +77,11 @@ export function DetailedTargets({
         ids={ids}
         chips={chipTexts(sets, letters)}
         weightUnit={resolveExerciseUnit(preferences.weightUnit, unit)}
-        weightIncrementKg={preferences.weightIncrementKg}
+        weightIncrementKg={incrementInUnit(
+          preferences.weightIncrementKg,
+          preferences.weightIncrementUnit ?? preferences.weightUnit,
+          resolveExerciseUnit(preferences.weightUnit, unit),
+        )}
         equipment={equipment}
         grid={gym.gridFor(exerciseId, equipment ?? "other", unit)}
         animateRows={animateRows}

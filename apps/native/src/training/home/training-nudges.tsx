@@ -10,7 +10,13 @@ import {
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
-import { useExercise, useExerciseUnit, useTopSetText } from "@/exercise";
+import {
+  stallMemory,
+  useExercise,
+  useExerciseUnit,
+  useStallVersion,
+  useTopSetText,
+} from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
@@ -42,6 +48,7 @@ export function TrainingNudges({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
+  useStallVersion();
   const run = program.run;
   const insert = useInsertDeload(run);
   const now = new Date();
@@ -84,7 +91,15 @@ export function TrainingNudges({
     );
   }
   if (!histories.ready) return records;
-  const stalled = stalledExerciseIds(thisWeek, histories.history, { lighterWeeks });
+  const stalled = stalledExerciseIds(thisWeek, histories.history, {
+    previousSource: preferences.ui.previousSource,
+    unit: preferences.ui.weightUnit,
+    weightIncrementKg: preferences.ui.weightIncrementKg,
+    weightIncrementUnit: preferences.ui.weightIncrementUnit,
+    lighterWeeks,
+    bodyweightKg: histories.bodyweightOn(now.toISOString()),
+    stallMemory,
+  });
   // A week that is already a Deload needs no offer of one.
   const offer =
     program.phase?.phase !== "deload" &&

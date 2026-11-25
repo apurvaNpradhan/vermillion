@@ -1,14 +1,9 @@
+import { prepareWorkoutEntry } from "@/platform/training/workout-suggestion";
 import { haptic } from "@/platform/haptics";
 import {
-  applyPhase,
-  hasLoad,
-  historyForWorkout,
   isCounted,
-  lastBaselineLoadKg,
-  mainEntryOf,
   sessionDurationSeconds,
   sessionTotals,
-  stalledSessions,
   KG_PER_LB,
   resolveExerciseUnit,
 } from "@workspace/shared";
@@ -32,7 +27,7 @@ import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useWorkout } from "./use-workout";
-import { displayTitle } from "./derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { WorkoutTile } from "@/training/shared/workout-tile";
 import { RenameWorkoutSheet } from "./rename-workout-sheet";
 import { useWorkoutActions } from "./use-workout-actions";
@@ -127,76 +122,44 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     ready && ready.programId !== null && active.run?.program_id === ready.programId
       ? active.phase
       : null;
-  const mainId = ready
-    ? mainEntryOf(
-        ready.exercises.map((item) => item.id),
-        ready.mainEntryId,
-      )
-    : null;
-  const exerciseHistory = (ready?.exercises ?? []).map((original) => {
-    const history = previousHistory.history.get(original.exerciseId) ?? [];
-    const exerciseUnit = resolveExerciseUnit(userUnit, original.unit);
-    const entry =
-      week && original.exercise
-        ? {
-            ...original,
-            sets: applyPhase(original.sets, week.phase, {
-              isMainLift: original.id === mainId,
-              type: original.exercise.exerciseType,
-              equipment: original.exercise.equipment,
-              unit: exerciseUnit,
-              grid: gym.gridFor(original.exerciseId, original.exercise.equipment, original.unit),
-              modifiers: week.modifiers,
-              testTop: week.testTop,
-              // As the Session will start: from what was last done, not the planned load.
-              testLoadKg:
-                week.phase === "test" && hasLoad(original.exercise.exerciseType)
-                  ? lastBaselineLoadKg(history)
-                  : null,
-            }),
-          }
-        : original;
-    // Stalls compare this Workout across gyms. Progression uses all Sessions for its break clock.
-    const stallHistory = history.filter((session) => session.workoutId === id);
-    const lastSessionId = stallHistory[0]?.id ?? null;
-    const type = entry.exercise?.exerciseType ?? "weight_reps";
-    const count = stalledSessions(stallHistory, type, {
-      bodyweightKg,
-      lighterWeeks: preferences.ui.lighterWeeks,
-    });
-    return {
-      entry,
-      unit: exerciseUnit,
-      history,
-      type,
-      count,
-      lastSessionId,
-      memory: stallMemory(entry.exerciseId, lastSessionId),
-    };
-  });
+  const exerciseHistory =
+    ready?.exercises.map((original) => {
+      const history = previousHistory.history.get(original.exerciseId) ?? [];
+      const { entry, context } = prepareWorkoutEntry(
+        ready,
+        original,
+        history,
+        {
+          gymId: gym.gymId,
+          grid: gym.gridFor(
+            original.exerciseId,
+            original.exercise?.equipment ?? "other",
+            original.unit,
+          ),
+        },
+        {
+          previousSource: preferences.ui.previousSource,
+          unit: userUnit,
+          weightIncrementKg: preferences.ui.weightIncrementKg,
+          weightIncrementUnit: preferences.ui.weightIncrementUnit,
+          lighterWeeks: preferences.ui.lighterWeeks,
+          bodyweightKg,
+          stallMemory,
+        },
+        week,
+      );
+      return {
+        entry,
+        unit: context.unit,
+        history,
+        type: entry.exercise?.exerciseType ?? "weight_reps",
+        context,
+      };
+    }) ?? [];
   const progression =
     previousHistory.ready && !preferencesLoading
-      ? exerciseHistory.flatMap(({ entry, unit, history, count, memory }) => {
-          const preview = previewProgression(
-            entry,
-            history,
-            {
-              baselineHistory: historyForWorkout(
-                history,
-                preferences.ui.previousSource === "same_workout" ? id : null,
-              ),
-              weightUnit: unit,
-              weightIncrementKg: preferences.ui.weightIncrementKg,
-              lighterWeeks: preferences.ui.lighterWeeks,
-              deload: count > 0 && memory.applied,
-              phaseLoad: week?.modifiers.load,
-              gymId: gym.gymId,
-              grid: entry.exercise
-                ? gym.gridFor(entry.exerciseId, entry.exercise.equipment, entry.unit)
-                : null,
-            },
-            now,
-          );
+      ? exerciseHistory.flatMap(({ entry, unit, history, context }) => {
+          const preview = previewProgression(entry, history, context.settings, now);
           return preview && entry.exercise
             ? [{ id: entry.id, title: entry.exercise.title, preview, unit }]
             : [];
@@ -355,7 +318,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
                 }
               />
-              {exerciseHistory.map(({ entry, history, type, count, lastSessionId, memory }) => {
+              {exerciseHistory.map(({ entry, history, type, context }) => {
                 const unit = resolveExerciseUnit(userUnit, entry.unit);
                 const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
                 const sets =
@@ -393,13 +356,13 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         )
                       }
                     />
-                    {count > 0 && lastSessionId && (!memory.dismissed || memory.applied) ? (
+                    {context.stall ? (
                       <StalledNote
                         key={stallVersion}
                         exerciseId={entry.exerciseId}
-                        latestSessionId={lastSessionId}
-                        count={count}
-                        applied={memory.applied}
+                        latestSessionId={context.stall.latestSessionId}
+                        count={context.stall.count}
+                        applied={context.stall.applied}
                       />
                     ) : null}
                     {entry.restSeconds !== null ? (

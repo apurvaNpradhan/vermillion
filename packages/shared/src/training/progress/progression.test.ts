@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { suggestionContext } from "./suggestion-context";
 
 import { loadGridOf } from "./load-grid";
 import { incrementFor, suggestNext, type ProgressionSession } from "./progression";
@@ -69,6 +70,25 @@ describe("double progression", () => {
   });
 
   it.each([
+    { weightUnit: "kg", before: 60, expected: 62.5 },
+    { weightUnit: "lb", before: 135, expected: 140 },
+  ] as const)(
+    "lets a new working slot follow the others in $weightUnit",
+    ({ weightUnit, before, expected }) => {
+      const targets = [...plan, ...plan];
+      const weight = parseWeight(String(before), weightUnit) ?? 0;
+      const history = [session(targets.slice(1).map(() => logged(12, weight)))];
+      const settings = { weightUnit, weightIncrementKg: null };
+      const next = (sets: PlannedSet[]) =>
+        suggestNext(sets, history, "weight_reps", "barbell", settings, { now: NOW });
+      expect(next(targets)?.sets).toEqual(
+        targets.map(() => ({ weightKg: parseWeight(String(expected), weightUnit), reps: 8 })),
+      );
+      expect(next(targets)?.sets.slice(0, -1)).toEqual(next(targets.slice(1))?.sets);
+    },
+  );
+
+  it.each([
     { weightUnit: "kg", before: 10, expected: 15 },
     { weightUnit: "lb", before: 25, expected: 35 },
   ] as const)(
@@ -129,10 +149,6 @@ describe("double progression", () => {
         { weightKg: 70, reps: 11 },
       ],
     });
-    expect(suggest([logged(12)])?.sets).toEqual([
-      { weightKg: 80, reps: 12 },
-      { weightKg: 80, reps: 12 },
-    ]);
     expect(suggest([logged(12, 80, { rpe: 9.5 }), logged(12)])?.reason).toBe("hold_effort");
   });
 
@@ -147,8 +163,8 @@ describe("double progression", () => {
 
   it("copies the nearest previous working set for a set it had no counterpart for", () => {
     expect(suggest([logged(12)])?.sets).toEqual([
-      { weightKg: 80, reps: 12 },
-      { weightKg: 80, reps: 12 },
+      { weightKg: 82.5, reps: 8 },
+      { weightKg: 82.5, reps: 8 },
     ]);
     expect(suggest([logged(10)])?.sets).toEqual([
       { weightKg: 80, reps: 11 },
@@ -180,14 +196,17 @@ describe("double progression", () => {
     ]);
   });
 
-  it("holds after two sessions that missed the range, even on different working sets", () => {
-    expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])).toMatchObject({
-      reason: "hold",
+  it("resets straight sets together once the same slot misses twice at the same load", () => {
+    expect(suggest([logged(7), logged(12)], [logged(6), logged(10)])).toMatchObject({
+      reason: "reset",
       sets: [
-        { weightKg: 80, reps: 7 },
-        { weightKg: 80, reps: 12 },
+        { weightKg: 75, reps: 8 },
+        { weightKg: 75, reps: 8 },
       ],
     });
+    // Misses in different slots or at different loads do not start a reset.
+    expect(suggest([logged(7), logged(12)], [logged(10), logged(6)])?.reason).toBe("add_rep");
+    expect(suggest([logged(7), logged(12)], [logged(6, 82.5), logged(10)])?.reason).toBe("add_rep");
     // Only one session missed: sets can still add reps.
     expect(suggest([logged(7), logged(12)], [logged(10), logged(10)])?.reason).toBe("add_rep");
     expect(suggest([logged(7), logged(11)], [logged(10), logged(10)])?.reason).toBe("add_rep");
@@ -269,7 +288,7 @@ describe("top and back-off sets", () => {
     { kind: "backoff", reps_min: 8, reps_max: 10 },
     { kind: "backoff", reps_min: 8, reps_max: 10 },
   ];
-  it("progress against their own previous counterparts", () => {
+  it("progresses top sets independently while back-offs wait for one another", () => {
     const next = suggest(
       [
         logged(5, 100, { kind: "top" }),
@@ -282,7 +301,7 @@ describe("top and back-off sets", () => {
     expect(next?.sets).toEqual([
       { weightKg: 102.5, reps: 3 },
       { weightKg: 80, reps: 10 },
-      { weightKg: 82.5, reps: 8 },
+      { weightKg: 80, reps: 10 },
     ]);
   });
 
@@ -327,9 +346,9 @@ describe("effort-aware progression", () => {
     expect(suggest([logged(12), logged(12)])?.sets[0]).toEqual({ weightKg: 82.5, reps: 8 });
   });
 
-  it("holds after missing the minimum at a grind on two sessions running", () => {
+  it("resets after missing the minimum at a grind on two sessions running", () => {
     const grind = (reps: number) => logged(reps, 80, { rpe: 10 });
-    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("hold");
+    expect(suggest([grind(7), grind(9)], [grind(6), grind(9)])?.reason).toBe("reset");
   });
 
   it("does not hold when the missed sessions were not hard", () => {
@@ -483,7 +502,7 @@ describe("back from a break", () => {
     expect(next?.sets[0]?.weightKg).toBe(75);
   });
 
-  it("leaves bodyweight and reps-only exercises on their normal rules", () => {
+  it("leaves reps-only exercises on their normal rules", () => {
     expect(after(30, { type: "reps_only" })?.reason).not.toBe("after_break");
   });
 
@@ -589,3 +608,234 @@ describe("deload and Lighter weeks", () => {
     ).toBeNull();
   });
 });
+
+it.each([
+  { unit: "kg", override: "lb", increment: 2.5, before: 100, expected: 105 },
+  { unit: "lb", override: "kg", increment: 5, before: 60, expected: 62.5 },
+] as const)(
+  "uses a nominal $override increment for a $unit preference",
+  ({ unit, override, increment, before, expected }) => {
+    const kilograms = unit === "kg" ? increment : increment * KG_PER_LB;
+    const weight = parseWeight(String(before), override) ?? 0;
+    const history = [
+      {
+        ...session([logged(12, weight)]),
+        id: "one",
+        finished_at: "2026-11-13T11:00:00Z",
+        workoutId: null,
+      },
+    ];
+    const context = suggestionContext(
+      history,
+      {
+        exerciseId: "e",
+        type: "weight_reps",
+        equipment: "machine",
+        unitOverride: override,
+        workoutId: null,
+        gymId: null,
+        grid: null,
+        stalls: false,
+      },
+      {
+        unit,
+        weightIncrementKg: kilograms,
+        weightIncrementUnit: unit,
+        previousSource: "same_workout",
+        lighterWeeks: [],
+        bodyweightKg: null,
+        stallMemory: () => ({ dismissed: false, applied: false }),
+      },
+    );
+    const result = suggestNext(
+      plan.slice(0, 1),
+      history,
+      "weight_reps",
+      "machine",
+      context.settings,
+      { now: NOW },
+    );
+    expect(result?.sets[0]?.weightKg).toBe(parseWeight(String(expected), override));
+  },
+);
+
+it.each([
+  { weightUnit: "kg", before: 60, expected: 55, step: 2.5 },
+  { weightUnit: "lb", before: 135, expected: 125, step: 5 },
+] as const)(
+  "floors the e1RM reset to the $weightUnit grid",
+  ({ weightUnit, before, expected, step }) => {
+    const toKg = (amount: number) => (weightUnit === "kg" ? amount : amount * KG_PER_LB);
+    const grid = loadGridOf({
+      equipment: "machine",
+      unit: weightUnit,
+      ranges: [{ min: 0, max: null, step: toKg(step) }],
+    });
+    const misses = [
+      session([logged(6, toKg(before), { rpe: 10 })]),
+      session([logged(6, toKg(before))]),
+    ];
+    const result = suggestNext(
+      plan.slice(0, 1),
+      misses,
+      "weight_reps",
+      "machine",
+      { weightUnit, weightIncrementKg: null },
+      { now: NOW, grid },
+    );
+    expect(result).toMatchObject({ reason: "reset", sets: [{ reps: 8 }] });
+    expect(result?.sets[0]?.weightKg).toBeCloseTo(toKg(expected), 5);
+  },
+);
+
+it.each([
+  { weightUnit: "kg", added: 20, bodyweight: 80, reset: 12.5, smallest: 2.5 },
+  { weightUnit: "lb", added: 45, bodyweight: 180, reset: 30, smallest: 5 },
+] as const)(
+  "resets a weighted bodyweight lift using effective load in $weightUnit",
+  ({ weightUnit, added, bodyweight, reset, smallest }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const propose = (load: number, snapshot?: number) => {
+      const miss = logged(4, toKg(load), {
+        exercise_type: "bodyweight_weighted_reps",
+        bodyweight_kg: snapshot,
+      });
+      return suggestNext(
+        [{ kind: "working", reps_min: 6, reps_max: 8 }],
+        [session([miss]), session([miss], "2026-11-10")],
+        "bodyweight_weighted_reps",
+        "plate",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW, bodyweightKg: snapshot === undefined ? toKg(bodyweight) : null },
+      );
+    };
+    for (const snapshot of [undefined, toKg(bodyweight)]) {
+      expect(propose(added, snapshot)).toMatchObject({
+        reason: "reset",
+        sets: [{ weightKg: toKg(reset), reps: 6 }],
+      });
+    }
+    expect(propose(smallest)).toMatchObject({
+      reason: "reset",
+      sets: [{ weightKg: 0, reps: 6 }],
+    });
+  },
+);
+
+it.each([
+  { weightUnit: "kg", weight: 40, reset: 35 },
+  { weightUnit: "lb", weight: 90, reset: 80 },
+] as const)(
+  "cuts the load by 10% and floors it for high-rep targets in $weightUnit",
+  ({ weightUnit, weight, reset }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    for (const reps of [12, 13]) {
+      const miss = logged(reps, toKg(weight));
+      const next = suggestNext(
+        [{ kind: "working", reps_min: 15, reps_max: 20 }],
+        [session([miss]), session([miss], "2026-11-10")],
+        "weight_reps",
+        "barbell",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW },
+      );
+      expect(next).toMatchObject({
+        reason: "reset",
+        sets: [{ weightKg: toKg(reset), reps: 15 }],
+      });
+    }
+  },
+);
+
+it.each([
+  { weightUnit: "kg", work: 100, accessory: 75, lighter: 60 },
+  { weightUnit: "lb", work: 200, accessory: 150, lighter: 120 },
+] as const)(
+  "scales drop, failure, and myo sets on a lighter $weightUnit day",
+  ({ weightUnit, work, accessory, lighter }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const kinds = ["drop", "failure", "myo"] as const;
+    const targets: PlannedSet[] = [...plan, ...kinds.map((kind) => ({ kind, reps_min: 8 }))];
+    const previous = [
+      logged(10, toKg(work)),
+      logged(10, toKg(work)),
+      ...kinds.map((kind) => logged(8, toKg(accessory), { kind })),
+    ];
+    const result = suggestNext(
+      targets,
+      [session(previous, "2026-10-01")],
+      "weight_reps",
+      "barbell",
+      { weightUnit, weightIncrementKg: null },
+      { now: NOW },
+    );
+    expect(result?.sets.slice(2)).toEqual(
+      kinds.map(() => ({ weightKg: toKg(lighter), reps: null })),
+    );
+  },
+);
+
+it.each([
+  { weightUnit: "kg", weight: 120, next: 122.5 },
+  { weightUnit: "lb", weight: 265, next: 270 },
+] as const)(
+  "raises both $weightUnit back-offs once both reach the target",
+  ({ weightUnit, weight, next }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const targets: PlannedSet[] = plan.map(() => ({ kind: "backoff", reps_min: 4, reps_max: 5 }));
+    const run = (reps: number) =>
+      suggestNext(
+        targets,
+        [
+          session([
+            logged(reps, toKg(weight), { kind: "backoff" }),
+            logged(5, toKg(weight), { kind: "backoff" }),
+          ]),
+        ],
+        "weight_reps",
+        "barbell",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW },
+      );
+    expect(run(4)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(weight), reps: 5 })));
+    expect(run(5)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(next), reps: 4 })));
+  },
+);
+
+it.each([
+  { weightUnit: "kg", original: 100, reduced: 70 },
+  { weightUnit: "lb", original: 200, reduced: 140 },
+] as const)(
+  "returns to the bottom of the range after a long break in $weightUnit",
+  ({ weightUnit, original, reduced }) => {
+    const weight = parseWeight(String(original), weightUnit) ?? 0;
+    const context = { now: NOW };
+    const settings = { weightUnit, weightIncrementKg: null };
+    const old = new Date(NOW.getTime() - 84 * 86_400_000).toISOString();
+    const weighted = suggestNext(
+      plan,
+      [session([logged(12, weight)], old)],
+      "weight_reps",
+      "barbell",
+      settings,
+      context,
+    );
+    expect(weighted).toMatchObject({
+      reason: "after_break",
+      breakDays: 84,
+      sets: [{ weightKg: parseWeight(String(reduced), weightUnit), reps: 8 }, { reps: 8 }],
+    });
+    const unweighted = suggestNext(
+      plan,
+      [session([logged(12, 0, { weight_kg: null, exercise_type: "bodyweight_reps" })], old)],
+      "bodyweight_reps",
+      "none",
+      settings,
+      context,
+    );
+    expect(unweighted).toMatchObject({
+      reason: "after_break",
+      sets: [{ weightKg: null, reps: 8 }, { reps: 8 }],
+    });
+  },
+);

@@ -1,22 +1,47 @@
 import { inSessionOrder, type LoggedSet, type SessionHistory } from "./logged-set";
 import type { SetKind } from "../vocabulary/vocabulary";
+import { isBaselinePhase } from "../phases/phases";
 
-/**
- * Previous: the ticked set of the latest finished Session that has the same kind and the same
- * place among that kind's sets (`ordinal`, 0-based: warm-up 1 to warm-up 1, working set 2 to
- * working set 2). `history` holds the Sessions that contain the exercise, from any Workout; a
- * finished Session without a ticked set of it is skipped. Null when nothing matches.
- */
+type Previous = ReadonlyMap<SetKind, readonly LoggedSet[]>;
+const cached = new WeakMap<readonly SessionHistory[], { latest: Previous; baseline: Previous }>();
+
+function previousByKind(history: readonly SessionHistory[]) {
+  const existing = cached.get(history);
+  if (existing) return existing;
+  const finished = inSessionOrder(history.filter((session) => session.finished_at !== null));
+  let latest: Previous | undefined;
+  let baseline: Previous | undefined;
+  for (let index = finished.length - 1; index >= 0; index -= 1) {
+    const session = finished[index];
+    if (!session) continue;
+    const eligible = isBaselinePhase(session.phase);
+    if (latest && !eligible) continue;
+    const sets = new Map<SetKind, LoggedSet[]>();
+    for (const set of session.sets) {
+      if (set.completed_at === null) continue;
+      const kind = sets.get(set.kind) ?? [];
+      kind.push(set);
+      sets.set(set.kind, kind);
+    }
+    if (sets.size === 0) continue;
+    latest ??= sets;
+    if (eligible) {
+      baseline = sets;
+      break;
+    }
+  }
+  const result = { latest: latest ?? new Map(), baseline: baseline ?? new Map() };
+  cached.set(history, result);
+  return result;
+}
+
+/** Previous is the same kind and ordinal in the latest finished Session with any ticked sets. */
 export function previousFor(
   history: readonly SessionHistory[],
   kind: SetKind,
   ordinal: number,
+  baselineOnly = false,
 ): LoggedSet | null {
-  const finished = inSessionOrder(history.filter((session) => session.finished_at !== null));
-  for (let index = finished.length - 1; index >= 0; index -= 1) {
-    const ticked = finished[index]?.sets.filter((set) => set.completed_at !== null) ?? [];
-    if (ticked.length === 0) continue;
-    return ticked.filter((set) => set.kind === kind)[ordinal] ?? null;
-  }
-  return null;
+  const { latest, baseline } = previousByKind(history);
+  return (baselineOnly ? baseline : latest).get(kind)?.[ordinal] ?? null;
 }

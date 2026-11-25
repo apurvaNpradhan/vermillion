@@ -5,7 +5,7 @@ import { memo, useMemo } from "react";
 import { useTranslation } from "@/platform/i18n";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { PlanRow } from "@/training/shared/plan-row";
 import { WorkoutTile } from "@/training/shared/workout-tile";
 

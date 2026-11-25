@@ -38,7 +38,7 @@ import { EmptyState } from "@/platform/ui/empty-state";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
-import { displayTitle } from "./derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
 import { useProgramActions } from "@/training/programs/use-program-actions";
 import { useWorkout } from "./use-workout";

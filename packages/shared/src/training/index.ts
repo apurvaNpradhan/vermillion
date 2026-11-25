@@ -40,11 +40,15 @@ export {
   defaultRangesFor,
   defaultStepKg,
   lightenLoad,
+  gridCapInUnit,
+  incrementInUnit,
+  INCREMENT_CHOICES,
   loadable,
 } from "./progress/progression-steps";
 export * from "./progress/lighter-week";
 export * from "./phases/phases";
 export * from "./progress/stalled-lift";
+export * from "./progress/suggestion-context";
 export * from "./plans/week";
 export * from "./plans/session-goal";
 export * from "./volume/muscle-targets";

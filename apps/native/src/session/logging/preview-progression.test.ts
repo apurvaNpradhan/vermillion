@@ -54,18 +54,20 @@ describe("workout progression preview", () => {
       settings,
       now,
     );
-    expect(preview?.changes).toEqual([
+    expect(preview?.changes).toMatchObject([
       {
         kind: "working",
         number: 1,
         last: { weight: "77.5", reps: 8 },
         today: { weight: "80", reps: 6 },
+        outcome: { reason: "add_weight", changeKg: 2.5 },
       },
       {
         kind: "working",
         number: 2,
         last: { weight: "77.5", reps: 6 },
         today: { weight: "77.5", reps: 7 },
+        outcome: { reason: "add_rep" },
       },
     ]);
   });

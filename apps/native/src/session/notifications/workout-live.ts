@@ -12,6 +12,7 @@ import {
   adjustRest,
 } from "@workspace/sync";
 import { workoutLive } from "../../../modules/workout-live";
+import { stallMemory } from "@/exercise";
 import { buildGymLoads, type GymLoads } from "@/gym";
 import { appConfig } from "@/platform/app-config";
 import { i18n } from "@/platform/i18n";
@@ -45,7 +46,13 @@ async function snapshotOf(
   options: Options,
   { gym, sessionGymId }: LiveGym,
 ) {
-  const ghosts = await workoutLiveGhosts(db, session, options, gym, sessionGymId);
+  const ghosts = await workoutLiveGhosts(
+    db,
+    session,
+    { ...options, stallMemory },
+    gym,
+    sessionGymId,
+  );
   const state = workoutLiveState({
     session,
     ghostsFor: (id) => ghosts.get(id) ?? {},

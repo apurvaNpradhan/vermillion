@@ -1,13 +1,14 @@
 import {
-  historyForWorkout,
-  resolveExerciseUnit,
-  snapshotModifiers,
+  phaseLoadOf,
+  suggestionContext,
+  withWarmupsCounted,
   type Ghosts,
-  type PreviousSource,
+  type SuggestionAccount,
 } from "@workspace/shared";
 import {
   EXERCISE_HISTORY_SQL,
   parseFinishedSessions,
+  readBodyweightsOnDates,
   tickSet,
   type SessionDetail,
   type TrainingDatabase,
@@ -15,16 +16,28 @@ import {
 import type { GymLoads } from "@/gym";
 import { blocksOf } from "../logging/blocks";
 import { currentAction, orderedSets } from "../logging/current-action";
-import { loggingGhosts, type SuggestionSettings } from "../logging/logging-ghosts";
+import { loggingGhosts } from "../logging/logging-ghosts";
 import { restAfterTick } from "../rest/rest-rules";
+
+/**
+ * What the notification reads of the account: the same inputs the Session screen builds its
+ * suggestions from, so the Done button ticks the value the screen shows.
+ */
+export type LiveSuggestionAccount = Omit<SuggestionAccount, "unit" | "stallMemory"> & {
+  weightUnit: SuggestionAccount["unit"];
+  /** The device's memory of stalled notes; absent when none is kept. */
+  stallMemory?: SuggestionAccount["stallMemory"];
+  timeZone?: string;
+  countWarmups?: boolean;
+};
+
+const NO_STALL = () => ({ dismissed: false, applied: false });
 
 /** Only the current set can be shown or logged, so only its exercise needs history. */
 export async function workoutLiveGhosts(
   db: TrainingDatabase,
   session: SessionDetail,
-  options: Pick<SuggestionSettings, "weightUnit" | "weightIncrementKg" | "lighterWeeks"> & {
-    previousSource: PreviousSource;
-  },
+  options: LiveSuggestionAccount,
   gym: GymLoads,
   sessionGymId: string | null,
 ) {
@@ -32,24 +45,54 @@ export async function workoutLiveGhosts(
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
   if (!first) return ghosts;
   const { exercise } = first;
-  const history = parseFinishedSessions(
+  const entries = session.exercises.filter(({ exerciseId }) => exerciseId === exercise.exerciseId);
+  const rawHistory = parseFinishedSessions(
     await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
   );
-  const settings: SuggestionSettings = {
-    ...options,
-    weightUnit: resolveExerciseUnit(options.weightUnit, exercise.unit),
-    gymId: sessionGymId,
-    phaseLoad:
-      session.phase === null
-        ? undefined
-        : snapshotModifiers(session.phase, session.phaseModifiers).modifiers.load,
-    baselineHistory: historyForWorkout(
-      history,
-      options.previousSource === "same_workout" ? session.workoutId : null,
-    ),
-    grid: gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other", exercise.unit),
-  };
-  ghosts.set(first.set.id, loggingGhosts(exercise, first.index, history, settings));
+  let history = options.countWarmups ? withWarmupsCounted(rawHistory, true) : rawHistory;
+  if (exercise.type === "bodyweight_weighted_reps" && history.length > 0) {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: options.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const days = history.map((item) => {
+      const parts = formatter.formatToParts(new Date(item.started_at));
+      return ["year", "month", "day"]
+        .map((key) => parts.find((part) => part.type === key)?.value)
+        .join("-");
+    });
+    const weights = await readBodyweightsOnDates(db, [...new Set(days)]);
+    history = history.map((item, index) => ({
+      ...item,
+      sets: item.sets.map((set) => ({
+        ...set,
+        bodyweight_kg: weights.get(days[index] ?? "") ?? options.bodyweightKg,
+      })),
+    }));
+  }
+  const equipment = exercise.exercise?.equipment ?? "other";
+  const { weightUnit, stallMemory, ...account } = options;
+  const context = suggestionContext(
+    history,
+    {
+      exerciseId: exercise.exerciseId,
+      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
+      exerciseOrdinal: entries.indexOf(exercise),
+      duplicateEntry: entries.length > 1,
+      type: exercise.type,
+      equipment,
+      unitOverride: exercise.unit,
+      workoutId: session.workoutId,
+      gymId: sessionGymId,
+      phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
+      grid: gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+      stalls: Boolean(exercise.sourceWorkoutExerciseId),
+    },
+    { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
+  );
+  ghosts.set(first.set.id, loggingGhosts(exercise, first.index, history, context.settings));
   return ghosts;
 }
 

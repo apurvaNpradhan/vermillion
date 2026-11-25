@@ -129,7 +129,7 @@ export {
   watchRecordHistoryChanges,
   readRecordHistory,
   watchWorkout,
-  watchLatestExercisePlan,
+  watchExercisePlan,
   watchWorkouts,
   type ProgramDetail,
   type ProgramPlan,

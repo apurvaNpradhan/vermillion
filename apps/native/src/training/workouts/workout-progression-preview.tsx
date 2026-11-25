@@ -1,11 +1,11 @@
-import { formatWeight, SET_KIND_KEYS, type WeightUnit } from "@workspace/shared";
+import { SET_KIND_KEYS, type WeightUnit } from "@workspace/shared";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
-import { breakWeeks, progressionLabelKey } from "@/platform/ui/progression-reason";
+import { progressionParams, progressionLabelKey } from "@/platform/ui/progression-reason";
 import type { previewProgression } from "@/session";
 
 type Preview = NonNullable<ReturnType<typeof previewProgression>>;
@@ -49,15 +49,8 @@ export function WorkoutProgressionPreview({
               <View key={id} className="gap-2 border-t border-border pt-3">
                 <View className="gap-0.5">
                   <Text className="text-body font-medium text-foreground">{title}</Text>
-                  <Text className="font-normal text-caption text-muted">
-                    {t(progressionLabelKey(suggestion.reason), {
-                      value: formatWeight(suggestion.incrementKg, unit),
-                      unit: unitLabel,
-                      count: breakWeeks(suggestion),
-                    })}
-                  </Text>
                 </View>
-                {changes.map(({ kind, number, last, today }) => (
+                {changes.map(({ kind, number, last, today, outcome }) => (
                   <View key={`${kind}-${number}`} className="gap-0.5">
                     <Text className="font-normal text-caption tabular-nums text-muted">
                       {kind === "working"
@@ -66,6 +59,12 @@ export function WorkoutProgressionPreview({
                             kind: t(SET_KIND_KEYS[kind]),
                             number: integer.format(number),
                           })}
+                    </Text>
+                    <Text className="font-normal text-caption text-muted">
+                      {t(
+                        progressionLabelKey(outcome),
+                        progressionParams(suggestion, outcome, unit),
+                      )}
                     </Text>
                     <View className="flex-row flex-wrap gap-x-4 gap-y-1">
                       <Text className="font-normal text-caption tabular-nums text-muted">

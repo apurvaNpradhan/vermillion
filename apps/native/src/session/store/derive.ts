@@ -1,13 +1,10 @@
 import {
   SET_FIELDS,
-  baselineSessions,
-  historyForGym,
-  historyForWorkout,
   optionalSetIndexes,
-  resolveExerciseUnit,
-  stalledSessions,
-  weightAtMost,
+  suggestionContext,
+  gridCapInUnit,
   type Ghosts,
+  type StallInfo,
   type LighterPeriod,
   type LoggedSet,
   type Progression,
@@ -26,9 +23,6 @@ import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../loggi
 
 import { deepEqual, keepIfEqual } from "./equal";
 
-/** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
-
 /** Everything outside the Session that Previous, Ghost values and the row labels depend on. */
 export type DeriveInputs = {
   /** The finished Sessions of each exercise, newest first. */
@@ -39,6 +33,7 @@ export type DeriveInputs = {
   unitNames: Readonly<Record<WeightUnit, string>>;
   display: DisplayUnits;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
   /** The active gym supplies equipment, load steps and caps. */
   gym: GymLoads;
   /** The gym selected for this Session determines which history leads. */
@@ -95,6 +90,8 @@ export type ExerciseCache = {
   inputs: DeriveInputs;
   finished: boolean;
   workoutId: string | null;
+  exerciseOrdinal: number;
+  duplicateEntry: boolean;
   view: ExerciseView;
 };
 
@@ -104,50 +101,43 @@ function buildView(
   inputs: DeriveInputs,
   finished: boolean,
   workoutId: string | null,
+  exerciseOrdinal: number,
+  duplicateEntry: boolean,
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
-  const baseline =
-    rawHistory &&
-    historyForWorkout(rawHistory, inputs.previousSource === "same_workout" ? workoutId : null);
-  const history = baseline && historyForGym(baseline, inputs.sessionGymId ?? null, equipment);
   const loaded = rawHistory !== undefined;
   const historyReady = loaded || inputs.historyFailed;
 
-  // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
-  let stall: StallInfo | null = null;
-  if (!finished && exercise.sourceWorkoutExerciseId) {
-    // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
-    const sessions = rawHistory?.filter((session) => session.workoutId === workoutId) ?? [];
-    const latestSessionId = sessions[0]?.id ?? null;
-    const count = stalledSessions(sessions, exercise.type, {
-      bodyweightKg: inputs.bodyweightKg,
-      lighterWeeks: inputs.lighterWeeks,
-    });
-    if (latestSessionId !== null && count > 0) {
-      const memory = inputs.stallMemory(exercise.exerciseId, latestSessionId);
-      if (!memory.dismissed || memory.applied)
-        stall = { count, latestSessionId, applied: memory.applied };
-    }
-  }
-  const unit = resolveExerciseUnit(inputs.unit, exercise.unit);
+  // One builder for every surface: the baseline, the stalled-lift verdict and its applied deload.
   const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
+  const context = suggestionContext(
+    rawHistory ?? [],
+    {
+      exerciseId: exercise.exerciseId,
+      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
+      exerciseOrdinal,
+      duplicateEntry,
+      type: exercise.type,
+      equipment,
+      unitOverride: exercise.unit,
+      workoutId,
+      gymId: inputs.sessionGymId ?? null,
+      phaseLoad: inputs.phaseLoad,
+      grid,
+      // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
+      stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
+    },
+    inputs,
+  );
+  const { unit, stall, history } = context;
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
-      : exerciseSuggestion(exercise, rawHistory ?? [], {
-          baselineHistory: baseline,
-          weightUnit: unit,
-          weightIncrementKg: inputs.weightIncrementKg,
-          gymId: inputs.sessionGymId ?? null,
-          grid,
-          lighterWeeks: inputs.lighterWeeks,
-          deload: stall?.applied === true,
-          phaseLoad: inputs.phaseLoad,
-        });
+      : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
-  const capKg = !finished && fields.includes("weight") ? (grid?.capKg ?? null) : null;
+  const capKg = !finished && fields.includes("weight") ? gridCapInUnit(grid, unit) : null;
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const kinds = exercise.sets.map((set) => set.kind);
   const optional = inputs.lighter ? optionalSetIndexes(kinds) : new Set<number>();
@@ -155,12 +145,11 @@ function buildView(
   let lastUnticked = exercise.sets.length - 1;
   while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
 
-  const hintHistory = history && baselineSessions(history);
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
     // The hint is derived from a baseline Session, not from a Test or Deload week.
-    const hinted = previousOfRow(hintHistory, exercise.sets, index);
+    const hinted = previousOfRow(history, exercise.sets, index, true);
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,
@@ -173,7 +162,7 @@ function buildView(
       : {};
     const row: RowView = {
       previous,
-      ghosts: capGhostWeight(ghosts, capKg, unit),
+      ghosts: capGhostWeight(ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -183,7 +172,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
-      capKg: capKg === null ? null : weightAtMost(capKg, unit, capKg),
+      capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
@@ -253,7 +242,13 @@ export function deriveExercises(
   cache: ReadonlyMap<string, ExerciseCache>,
 ): Map<string, ExerciseCache> {
   const next = new Map<string, ExerciseCache>();
+  const counts = new Map<string, number>();
+  for (const { exerciseId } of exercises) counts.set(exerciseId, (counts.get(exerciseId) ?? 0) + 1);
+  const ordinals = new Map<string, number>();
   for (const exercise of exercises) {
+    const exerciseOrdinal = ordinals.get(exercise.exerciseId) ?? 0;
+    ordinals.set(exercise.exerciseId, exerciseOrdinal + 1);
+    const duplicateEntry = (counts.get(exercise.exerciseId) ?? 0) > 1;
     const raw = inputs.previous.get(exercise.exerciseId);
     const old = cache.get(exercise.id);
     if (
@@ -262,6 +257,8 @@ export function deriveExercises(
       sameSettings(old.inputs, inputs) &&
       (old.history === raw || deepEqual(old.history, raw)) &&
       old.finished === context.finished &&
+      old.exerciseOrdinal === exerciseOrdinal &&
+      old.duplicateEntry === duplicateEntry &&
       old.workoutId === context.workoutId
     ) {
       next.set(exercise.id, old.inputs === inputs ? old : { ...old, inputs, history: raw });
@@ -273,7 +270,18 @@ export function deriveExercises(
       inputs,
       finished: context.finished,
       workoutId: context.workoutId,
-      view: buildView(exercise, raw, inputs, context.finished, context.workoutId, old?.view),
+      exerciseOrdinal,
+      duplicateEntry,
+      view: buildView(
+        exercise,
+        raw,
+        inputs,
+        context.finished,
+        context.workoutId,
+        exerciseOrdinal,
+        duplicateEntry,
+        old?.view,
+      ),
     });
   }
   return next;

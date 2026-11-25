@@ -10,7 +10,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useWorkouts } from "@/training/train/use-workouts";
 
 /** A Workout of the Program that the sheets offer: one row, however many Slots it fills. */

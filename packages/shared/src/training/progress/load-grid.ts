@@ -81,6 +81,8 @@ export type LoadGrid = {
   readonly source: "gym" | "kit" | "default" | "cap";
   /** The most the exercise may be loaded to at this gym; null for no cap. */
   readonly capKg: number | null;
+  /** The available plates determine the limit. */
+  readonly plateLimit?: boolean;
   /** The loadable weight nearest `kg`; the lower on a tie. */
   nearest(kg: number): number;
   /** The smallest loadable weight above `kg`; null when there is none. */
@@ -154,9 +156,10 @@ export function rangeGrid(
   };
   const below = (kg: number) => atOrBelow(kg - 2 * EPS);
   const above = (kg: number) => atOrAbove(kg + 2 * EPS);
+  const limit = last.max === null ? null : Math.max(...ranges.map((range) => range.max ?? 0));
   return {
     source,
-    capKg: last.max,
+    capKg: limit === null ? null : Math.min(limit, atOrBelow(limit) ?? limit),
     below,
     above,
     nearest(kg) {
@@ -182,6 +185,20 @@ export function rangeGrid(
 export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[]): LoadGrid | null {
   const smallest = smallestBarStepKg(plates);
   if (smallest === null) return null;
+  const available = plates.filter(
+    (plate) =>
+      Number.isFinite(plate.weightKg) &&
+      plate.weightKg > 0 &&
+      (plate.count === null || plate.count > 0),
+  );
+  const capKg = available.some((plate) => plate.count === null)
+    ? null
+    : clean(
+        available.reduce(
+          (total, plate) => total + 2 * plate.weightKg * (plate.count ?? 0),
+          bar.weightKg,
+        ),
+      );
   const aboveCache = new Map<number, number | null>();
   const belowCache = new Map<number, number | null>();
   const above = (kg: number) => {
@@ -192,7 +209,8 @@ export function barGrid(bar: { weightKg: number }, plates: readonly LoadPlate[])
   };
   return {
     source: "kit",
-    capKg: null,
+    capKg,
+    plateLimit: capKg !== null,
     above,
     below(kg) {
       const key = clean(kg);
@@ -214,6 +232,7 @@ function capGrid(base: LoadGrid | null, capKg: number, stepAt: (kg: number) => n
   return {
     source: base?.source ?? "cap",
     capKg,
+    plateLimit: base?.plateLimit && base.capKg === capKg,
     nearest: (kg) => held(base ? base.nearest(kg) : kg),
     above(kg) {
       if (kg >= capKg - EPS) return null;
@@ -294,9 +313,9 @@ export function loadGridOf(input: {
         ? rangeGrid(defaultRangesFor("dumbbell", input.unit), "default")
         : null;
   const cap = capOnlyOf(ranges);
-  return cap === null
-    ? base
-    : capGrid(base, cap, (kg) => defaultStepKg(input.equipment, input.unit, kg));
+  if (cap === null) return base;
+  const limit = base?.source === "kit" ? gridFloor(base, cap) : cap;
+  return capGrid(base, limit, (kg) => defaultStepKg(input.equipment, input.unit, kg));
 }
 
 const sameKg = (a: number | null, b: number | null) =>

@@ -1,3 +1,4 @@
+import { incrementInUnit } from "@workspace/shared";
 import { resolveExerciseUnit } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,6 +40,7 @@ export function useAutoWarmups({
   historyReady,
   unit: preferredUnit,
   weightIncrementKg,
+  weightIncrementUnit,
   warmupSettings,
   readOnly,
   actions,
@@ -51,6 +53,7 @@ export function useAutoWarmups({
   historyReady: boolean;
   unit: WeightUnit;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
   warmupSettings: WarmupSettings;
   readOnly: boolean;
   actions: Actions;
@@ -74,16 +77,9 @@ export function useAutoWarmups({
       const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
       if (workingKg === null) continue;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
+      const step = incrementInUnit(weightIncrementKg, weightIncrementUnit ?? preferredUnit, unit);
       const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
-      const key = rampKey(
-        workingKg,
-        exercise,
-        rows,
-        unit,
-        weightIncrementKg,
-        warmupSettings,
-        ranges,
-      );
+      const key = rampKey(workingKg, exercise, rows, unit, step, warmupSettings, ranges);
       if (exercise.warmupKey === key) continue;
       if (editsPending()) {
         flushEdits();
@@ -96,7 +92,7 @@ export function useAutoWarmups({
       asked.current.add(asking);
       void replaceWarmups(
         exercise.id,
-        rampTargets(exercise, workingKg, rows, unit, weightIncrementKg, warmupSettings, ranges),
+        rampTargets(exercise, workingKg, rows, unit, step, warmupSettings, ranges),
         { key, auto: true },
       ).finally(() => asked.current.delete(asking));
     }
@@ -113,6 +109,7 @@ export function useAutoWarmups({
     rows,
     preferredUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     warmupSettings,
     replaceWarmups,
     editsPending,
@@ -127,19 +124,29 @@ export function useAutoWarmups({
         ? firstWorkingWeightKg(exercise, ghostWeightOf)
         : null;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
+      const step = incrementInUnit(weightIncrementKg, weightIncrementUnit ?? preferredUnit, unit);
       const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
       const ramp =
         workingKg !== null && workingKg > 0
-          ? rampTargets(exercise, workingKg, rows, unit, weightIncrementKg, warmupSettings, ranges)
+          ? rampTargets(exercise, workingKg, rows, unit, step, warmupSettings, ranges)
           : [];
       if (ramp.length === 0 || workingKg === null) return "none";
       // The user asked for this ramp: storing its key keeps the automatic one from redoing it.
       await replaceWarmups(exercise.id, ramp, {
-        key: rampKey(workingKg, exercise, rows, unit, weightIncrementKg, warmupSettings, ranges),
+        key: rampKey(workingKg, exercise, rows, unit, step, warmupSettings, ranges),
       });
       return "added";
     },
-    [ghostWeightOf, gym, rows, preferredUnit, weightIncrementKg, warmupSettings, replaceWarmups],
+    [
+      ghostWeightOf,
+      gym,
+      rows,
+      preferredUnit,
+      weightIncrementKg,
+      weightIncrementUnit,
+      warmupSettings,
+      replaceWarmups,
+    ],
   );
 
   return { addWarmups };

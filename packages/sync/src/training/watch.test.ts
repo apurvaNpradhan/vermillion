@@ -19,7 +19,7 @@ import {
   type TrainingDatabase,
 } from "./store";
 import {
-  LATEST_EXERCISE_PLAN_SQL,
+  EXERCISE_PLAN_SQL,
   PROGRAM_DETAIL_SQL,
   PROGRAM_LIST_SQL,
   WORKOUT_DETAIL_SQL,
@@ -277,27 +277,22 @@ describe("covers and plans", () => {
   });
 });
 
-it("selects the latest surviving Workout prescription for the exercise", async () => {
+it("selects the first candidate still planning the exercise", async () => {
   const s = await setup();
-  expect(s.sqlite.prepare(LATEST_EXERCISE_PLAN_SQL).all(SQUAT)).toEqual([]);
-  const older = await createWorkout(s.training);
-  const [oldEntry] = await addExercises(s.training, older, [SQUAT]);
-  const newer = await createWorkout(s.training);
-  const [newEntry] = await addExercises(s.training, newer, [SQUAT]);
-  s.sqlite.prepare("UPDATE workout SET created_at = ? WHERE id = ?").run("2026-01-01", older);
-  s.sqlite.prepare("UPDATE workout SET created_at = ? WHERE id = ?").run("2026-02-01", newer);
-  const targets = [{ kind: "working", weight_kg: 80, reps_min: 8, reps_max: 12 }] as const;
-  await updateWorkoutExercise(s.training, newEntry!, { sets: [...targets] });
-  const rows = () => s.sqlite.prepare(LATEST_EXERCISE_PLAN_SQL).all(SQUAT);
-  expect(JSON.parse(String(rows()[0]?.["sets"]))).toEqual(targets);
-  await removeWorkoutExercise(s.training, newEntry!);
-  expect(rows()).toEqual([
-    {
-      sets: String(
-        s.sqlite.prepare("SELECT sets FROM workout_exercise WHERE id = ?").get(oldEntry!)?.["sets"],
-      ),
-    },
-  ]);
+  const trained = await createWorkout(s.training);
+  await addExercises(s.training, trained, [SQUAT]);
+  const upcoming = await createWorkout(s.training);
+  const [entry] = await addExercises(s.training, upcoming, [SQUAT]);
+  if (!entry) throw new Error("Expected an upcoming squat");
+  const unrelated = await createWorkout(s.training);
+  await addExercises(s.training, unrelated, [SQUAT]);
+  const plan = (...ids: string[]) =>
+    parseWorkoutDetail(s.sqlite.prepare(EXERCISE_PLAN_SQL).all(JSON.stringify(ids), SQUAT));
+  expect(plan()).toBeNull();
+  expect(plan(trained)?.id).toBe(trained);
+  expect(plan(upcoming, trained)?.id).toBe(upcoming);
+  await removeWorkoutExercise(s.training, entry);
+  expect(plan(upcoming, trained)?.id).toBe(trained);
 });
 
 it("refreshes session detail after only the workout note changes", async () => {

@@ -1,3 +1,4 @@
+import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
@@ -49,11 +50,12 @@ describe("a cap on the load", () => {
     expect(next?.reason).toBe("add_weight");
   });
 
-  it("suggests the cap when the step would overshoot it by less than a step", () => {
+  it("uses the highest pin when the configured cap is between pins", () => {
     const next = suggest([logged(12, 90), logged(12, 90)], {
       grid: rangeGrid([{ min: 10, max: 95, step: 10 }]),
     });
-    expect(weights(next)).toEqual([95, 95]);
+    expect(weights(next)).toEqual([90, 90]);
+    expect(next?.reason).toBe("cap_reps");
   });
 
   it("an easy doubled add stops at the cap", () => {
@@ -261,3 +263,43 @@ describe("history at another gym", () => {
     expect(next?.reason).toBe("after_break");
   });
 });
+
+it.each([
+  { weightUnit: "kg", bar: 20, plate: 20, top: 100 },
+  { weightUnit: "lb", bar: 45, plate: 45, top: 225 },
+] as const)(
+  "climbs from 12 to 18 and offers a set at the $weightUnit plate limit",
+  ({ weightUnit, bar, plate, top }) => {
+    const toKg = (amount: number) => (weightUnit === "kg" ? amount : amount * KG_PER_LB);
+    const grid = barGrid({ weightKg: toKg(bar) }, [
+      { id: "pair", count: 2, weightKg: toKg(plate) },
+    ]);
+    const weight = parseWeight(String(top), weightUnit) ?? 0;
+    expect(grid?.capKg).toBeCloseTo(weight, 3);
+    const propose = (reps: number, last: number) =>
+      suggestNext(
+        plan,
+        [{ started_at: NOW.toISOString(), sets: [logged(reps, last), logged(reps, last)] }],
+        "weight_reps",
+        "barbell",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW, grid },
+      );
+    const capped = propose(12, weight + toKg(plate));
+    expect(capped?.outcomes[0]).toMatchObject({
+      reason: "capped",
+      limit: "plates",
+      capKg: grid?.capKg,
+    });
+    expect(capped?.outcomes[0]?.changeKg).toBeUndefined();
+    for (let reps = 12; reps <= 18; reps += 1) {
+      const result = propose(reps, weight);
+      expect(result?.outcomes[0]).toMatchObject({
+        reason: reps < 18 ? "cap_reps" : "cap_hint",
+        limit: "plates",
+      });
+      expect(result?.sets[0]?.reps).toBe(Math.min(reps + 1, 18));
+      expect(result?.sets[0]?.weightKg).toBe(weight);
+    }
+  },
+);

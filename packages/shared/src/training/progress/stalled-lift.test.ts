@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
-import {
-  sessionScore,
-  stalledExerciseIds,
-  stalledSessions,
-  type StallSession,
-} from "./stalled-lift";
+import { sessionScore, stalledSessions, type StallSession } from "./stalled-lift";
+import { stalledExerciseIds, type SuggestionAccount } from "./suggestion-context";
 
 const set = (weight: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({
   id: "s",
@@ -140,11 +136,23 @@ describe("stalledSessions", () => {
 });
 
 describe("stalledExerciseIds", () => {
-  const stalledHistory = (workoutId: string | null) =>
-    history([set(100, 5), set(100, 5), set(100, 4), set(100, 5)]).map((session) => ({
+  const account: SuggestionAccount = {
+    previousSource: "any_session",
+    unit: "kg",
+    weightIncrementKg: null,
+    lighterWeeks: [],
+    bodyweightKg: null,
+    stallMemory: () => ({ dismissed: false, applied: false }),
+  };
+  const inWorkout = (sessions: StallSession[], workoutId: string | null = "w1") =>
+    sessions.map((session) => ({
       ...session,
+      id: session.started_at,
+      finished_at: session.started_at,
       workoutId,
     }));
+  const stalledHistory = () =>
+    inWorkout(history([set(100, 5), set(100, 5), set(100, 4), set(100, 5)]));
   const week = (exerciseId: string, workoutId: string | null = "w1") => ({
     workoutId,
     sets: [set(100, 5, { exercise_id: exerciseId })],
@@ -152,22 +160,50 @@ describe("stalledExerciseIds", () => {
 
   it("lists the exercises trained this week that have stalled, once each", () => {
     const histories = new Map([
-      ["a", stalledHistory("w1")],
-      [
-        "b",
-        history([set(120, 5), set(100, 5), set(100, 5), set(100, 5)]).map((s) => ({
-          ...s,
-          workoutId: "w1",
-        })),
-      ],
+      ["a", stalledHistory()],
+      ["b", inWorkout(history([set(120, 5), set(100, 5), set(100, 5), set(100, 5)]))],
     ]);
-    expect(stalledExerciseIds([week("a"), week("b"), week("a")], histories)).toEqual(["a"]);
+    expect(stalledExerciseIds([week("a"), week("b"), week("a")], histories, account)).toEqual([
+      "a",
+    ]);
   });
 
   it("judges an exercise on the history of the Workout it was trained in", () => {
-    const histories = new Map([["a", stalledHistory("w1")]]);
+    const histories = new Map([["a", stalledHistory()]]);
     // A Workout without enough Sessions cannot borrow a stall from another one.
-    expect(stalledExerciseIds([week("a", "w2")], histories)).toEqual([]);
-    expect(stalledExerciseIds([week("c")], histories)).toEqual([]);
+    expect(stalledExerciseIds([week("a", "w2")], histories, account)).toEqual([]);
+    expect(stalledExerciseIds([week("c")], histories, account)).toEqual([]);
+  });
+
+  it("matches duplicate entries by source and skips a snoozed stall", () => {
+    const row = (entry: string, index: number, weight: number) =>
+      set(weight, 5, {
+        session_exercise_id: `${entry}-${index}`,
+        source_workout_exercise_id: entry,
+      });
+    const sessions = inWorkout(
+      [0, 1, 2, 3].map((index) => {
+        const growing = row("growing", index, 120 - index * 5);
+        const stalled = row("stalled", index, 100);
+        return {
+          started_at: day(index * 4),
+          sets: index % 2 === 0 ? [growing, stalled] : [stalled, growing],
+        };
+      }),
+    );
+    const histories = new Map([["e", sessions]]);
+    const thisWeek = sessions.slice(0, 1);
+    expect(stalledExerciseIds(thisWeek, histories, account)).toEqual(["e"]);
+    expect(
+      stalledExerciseIds(thisWeek, histories, {
+        ...account,
+        stallMemory: (exerciseId, latestSessionId) => ({
+          dismissed: exerciseId === "e" && latestSessionId === sessions[0]?.id,
+          applied: false,
+        }),
+      }),
+    ).toEqual([]);
+    const replacement = { workoutId: "w1", sets: [row("growing", 4, 125), row("new", 4, 100)] };
+    expect(stalledExerciseIds([replacement], histories, account)).toEqual([]);
   });
 });

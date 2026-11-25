@@ -1,7 +1,9 @@
+import { useStallVersion } from "@/exercise";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { useGymLoads, useSessionGym } from "@/gym";
 import { usePreferences } from "@/preferences";
+import { useWeight } from "@/body";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useSession } from "@/session/screen/use-session";
@@ -11,19 +13,24 @@ import { restSoundOn } from "@/session/settings/rest-sound";
 
 function SessionLive({ id, installId }: { id: string | null; installId: string }) {
   const state = useSession(id);
+  const stallVersion = useStallVersion();
   const permission = useNotificationPermission();
-  const { preferences } = usePreferences();
+  const { preferences, timeZone } = usePreferences();
   const {
     weightUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     lighterWeeks,
     previousSource,
+    countWarmups,
+    bodyweightKg,
     sounds,
     soundRest,
     restVibration,
   } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
+  const { entries } = useWeight();
   const sessionGymId = useSessionGym(id);
   const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
@@ -51,8 +58,12 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
       {
         weightUnit,
         weightIncrementKg,
+        weightIncrementUnit,
         lighterWeeks,
         previousSource,
+        bodyweightKg,
+        timeZone,
+        countWarmups,
         soundOn,
         vibrate: restVibration,
       },
@@ -60,13 +71,19 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     );
   }, [
     loading,
+    stallVersion,
     session,
     installId,
     permission,
     weightUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     lighterWeeks,
     previousSource,
+    bodyweightKg,
+    timeZone,
+    countWarmups,
+    entries,
     gym,
     sessionGymId,
     soundOn,

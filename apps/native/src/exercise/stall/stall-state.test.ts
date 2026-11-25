@@ -22,12 +22,22 @@ describe("stall memory", () => {
     });
   });
 
-  it("forgets everything once the exercise has a newer Session", () => {
-    const stored = writeStallMemory(null, "s1", { dismissed: true, applied: true });
-    expect(readStallMemory(stored, "s2")).toEqual({ dismissed: false, applied: false });
-    expect(readStallMemory(writeStallMemory(stored, "s2", { applied: true }), "s2")).toEqual({
+  it("snoozes the note for 30 days across Sessions while the applied deload expires", () => {
+    const now = Date.parse("2026-11-20");
+    const stored = writeStallMemory(null, "s1", { dismissed: true, applied: true }, now);
+    expect(readStallMemory(stored, "s2", now + 29 * 86_400_000)).toEqual({
+      dismissed: true,
+      applied: false,
+    });
+    expect(readStallMemory(stored, "s2", now + 30 * 86_400_000)).toEqual({
       dismissed: false,
-      applied: true,
+      applied: false,
+    });
+    expect(
+      readStallMemory('{"sessionId":"s1","dismissed":true,"applied":false}', "s2", now),
+    ).toEqual({
+      dismissed: false,
+      applied: false,
     });
   });
 });

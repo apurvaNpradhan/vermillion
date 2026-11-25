@@ -10,7 +10,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
-import { displayTitle } from "./derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useStartWorkout } from "@/training/train/use-start-workout";
 import { useWorkoutActions } from "./use-workout-actions";
 import type { WorkoutSummary } from "@workspace/sync";
