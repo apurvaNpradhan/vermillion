@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Equipment } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { rangeGrid } from "../progress/load-grid";
@@ -17,7 +18,14 @@ const units = [
   { unit: "lb", weight: 225, step: 5 },
 ] as const;
 
-type Done = { kind: SetKind; weightKg: number | null; reps: number | null; rpe?: number };
+type Done = {
+  kind: SetKind;
+  weightKg: number | null;
+  reps: number | null;
+  rpe?: number;
+  /** What the Session's snapshot said it offered for the set. */
+  suggested?: LoggedSet["suggested"];
+};
 
 function account(unit: "kg" | "lb"): SuggestionAccount {
   return {
@@ -58,6 +66,7 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
         weight_kg: set.weightKg,
         reps: set.reps,
         rpe: set.rpe,
+        suggested: set.suggested,
         target: plan[index] ?? null,
       })),
     };
@@ -69,13 +78,14 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
     history: readonly ContextSession[],
     day: number,
     rule: RuleConfig | null,
+    equipment: Equipment = "machine",
   ) {
     return prescribe({
       place: {
         exerciseId: "lift",
         sourceWorkoutExerciseId: "plan-lift",
         type: "weight_reps",
-        equipment: "machine",
+        equipment,
         workoutId: "w",
         gymId: "home",
         grid,
@@ -97,10 +107,11 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
     rule: RuleConfig | null,
     count: number,
     from = 1,
+    equipment: Equipment = "machine",
   ) {
     const seen = [];
     for (let day = from; day < from + count; day += 1) {
-      const result = propose(plan, history, day * 2, rule);
+      const result = propose(plan, history, day * 2, rule, equipment);
       if (!result.progression) throw new Error("Expected a prescription");
       seen.push(result);
       history.unshift(
@@ -111,6 +122,14 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
             kind: target.kind,
             weightKg: result.progression?.sets[index]?.weightKg ?? null,
             reps: result.progression?.sets[index]?.reps ?? null,
+            // The snapshot keeps what was offered, and the share a back-off was meant to be.
+            suggested: {
+              weight_kg: result.progression?.sets[index]?.weightKg ?? null,
+              reps: result.progression?.sets[index]?.reps ?? null,
+              ...(result.progression?.outcomes[index]?.share === undefined
+                ? {}
+                : { share: result.progression.outcomes[index]?.share }),
+            },
           })),
         ),
       );
@@ -204,6 +223,29 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
         ),
       );
       expect(propose(fixed, history, 6, linear).progression?.reason).toBe("hold_missed");
+    });
+
+    it("ends the stall episode at a Session it reset, so no second deload is offered", () => {
+      // Six Sessions at the same load with the last set short: stalled, whichever rule.
+      const stuck = (day: number, reset = false) =>
+        session(
+          day,
+          fixed,
+          fixed.map((_, index) => ({
+            kind: "working" as const,
+            weightKg: kg(weight),
+            reps: index === 2 ? 4 : 5,
+            ...(reset ? { suggested: { weight_kg: kg(weight), reps: 5, reset: true } } : {}),
+          })),
+        );
+      const days = [0, 2, 4, 6, 8, 10];
+      const plain = days.map((day) => stuck(day)).reverse();
+      expect(propose(fixed, plain, 12, linear).stall).not.toBeNull();
+      // The newest Session was the one Linear reset: the episode starts over.
+      const reset = [stuck(10, true), ...plain.slice(1)];
+      expect(propose(fixed, reset, 12, linear).stall).toBeNull();
+      // Double's reset is its own, and a stall deload still answers it: it does not end the count.
+      expect(propose(fixed, reset, 12, null).stall).not.toBeNull();
     });
 
     it("keeps the other sets' suggestions when a set is added", () => {
@@ -310,6 +352,56 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
       expect(result.progression?.outcomes[1]?.loadFactor).toBeCloseTo(backoff / topLoad, 6);
     });
 
+    it("keeps its back-off reps inside their range at a big jump on a coarse grid", () => {
+      const reps: PlannedSet[] = [
+        { kind: "top", reps_min: 6, reps_max: 8 },
+        { kind: "backoff", reps_min: 10, reps_max: 12 },
+        { kind: "backoff", reps_min: 10, reps_max: 12 },
+      ];
+      // Dumbbells of 20 and 16: the next step up is more than 10% heavier, where Double asks for
+      // more reps before it. A back-off follows the top set's load instead and never leaves 10–12.
+      const history = [
+        session(0, reps, [
+          { kind: "top", weightKg: exact(weight / 5), reps: 8 },
+          { kind: "backoff", weightKg: exact((weight / 5) * 0.8), reps: 12 },
+          { kind: "backoff", weightKg: exact((weight / 5) * 0.8), reps: 12 },
+        ]),
+      ];
+      const seen = follow(reps, history, rule, 12, 1, "dumbbell");
+      for (const { progression } of seen) {
+        for (const index of [1, 2]) {
+          const set = progression?.sets[index];
+          expect(set?.reps).toBeGreaterThanOrEqual(10);
+          expect(set?.reps).toBeLessThanOrEqual(12);
+          expect(progression?.outcomes[index]?.reason).toBe("backoff_share");
+        }
+      }
+    });
+
+    it("keeps the share steady for 30 Sessions on a fixed-rep top set", () => {
+      const fixedTop: PlannedSet[] = [
+        { kind: "top", reps_min: 5, reps_max: 5 },
+        { kind: "backoff", reps_min: 8, reps_max: 10 },
+        { kind: "backoff", reps_min: 8, reps_max: 10 },
+      ];
+      const [topStart, backoffStart] = unit === "kg" ? [60, 55] : [135, 125];
+      const history = [
+        session(0, fixedTop, [
+          { kind: "top", weightKg: kg(topStart), reps: 5 },
+          { kind: "backoff", weightKg: kg(backoffStart), reps: 8 },
+          { kind: "backoff", weightKg: kg(backoffStart), reps: 8 },
+        ]),
+      ];
+      const shares = follow(fixedTop, history, rule, 30).map(({ progression }) => {
+        const topLoad = progression?.sets[0]?.weightKg ?? 0;
+        return (progression?.sets[1]?.weightKg ?? 0) / topLoad;
+      });
+      // Rounding onto the grid moves a single share by about a step; it never drifts away.
+      const first = shares[0] ?? 0;
+      for (const share of shares) expect(Math.abs(share - first)).toBeLessThan(0.03);
+      expect(Math.abs((shares.at(-1) ?? 0) - first)).toBeLessThan(0.02);
+    });
+
     it("is the Double rule when the plan has no back-offs", () => {
       const onlyTop: PlannedSet[] = [{ kind: "top", reps_min: 3, reps_max: 5 }];
       const history = [session(0, onlyTop, [{ kind: "top", weightKg: kg(weight), reps: 5 }])];
@@ -340,6 +432,16 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
           new Map([["lift", maintain]]),
         ),
       ).toEqual([]);
+    });
+
+    it("never asks fewer reps than the range's minimum after a bad day", () => {
+      const range: PlannedSet[] = [{ kind: "working", reps_min: 8, reps_max: 12 }];
+      const history = [session(0, range, [{ kind: "working", weightKg: kg(weight), reps: 5 }])];
+      const result = propose(range, history, 2, maintain);
+      expect(result.progression?.sets[0]).toEqual({ weightKg: kg(weight), reps: 8 });
+      // A good day above the minimum is repeated as it was.
+      const good = [session(0, range, [{ kind: "working", weightKg: kg(weight), reps: 10 }])];
+      expect(propose(range, good, 2, maintain).progression?.sets[0]?.reps).toBe(10);
     });
 
     it("still takes a break into account", () => {

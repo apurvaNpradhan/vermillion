@@ -145,16 +145,15 @@ export function suggestionContext(
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
     const sessions = workoutHistory;
     const latestSessionId = sessions[0]?.id ?? null;
-    const count = stalledSessions(sessions, place.type, {
+    const options = {
       bodyweightKg: account.bodyweightKg,
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
-    });
-    const missed = missedSuggestions(sessions, place.type, {
-      bodyweightKg: account.bodyweightKg,
-      lighterWeeks: account.lighterWeeks,
-      sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
-    });
+      // Linear resets a lift by itself: its Session ends the episode, so no second deload follows.
+      ruleResets: place.rule === "linear",
+    };
+    const count = stalledSessions(sessions, place.type, options);
+    const missed = missedSuggestions(sessions, place.type, options);
     if (latestSessionId !== null && (count > 0 || missed > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)

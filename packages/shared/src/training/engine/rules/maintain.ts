@@ -8,8 +8,8 @@ import { REASON_OF, type Outcome } from "../slots";
 type MaintainConfig = Extract<RuleConfig, { id: "maintain" }>;
 
 /**
- * Maintain: loads and reps stay as last time, set by set, so the lift is not pushed. Nothing is
- * added, and the stalled-lift note is never shown for it. A load above the gym's cap still comes
+ * Maintain: loads and reps stay as last time, set by set, so the lift is not pushed (reps never
+ * below the range's minimum, so one bad day does not lower the bar). Nothing is added, and the stalled-lift note is never shown for it. A load above the gym's cap still comes
  * down to the cap, and breaks and Deloads still lower it before this rule runs.
  */
 export const maintainRule: ProgressionRule<MaintainConfig> = {
@@ -18,7 +18,7 @@ export const maintainRule: ProgressionRule<MaintainConfig> = {
     const sets: (SuggestedSet | null)[] = planned.map(() => null);
     const outcomes: (SetOutcome | null)[] = planned.map(() => null);
     let capped = false;
-    for (const { index } of slots) {
+    for (const { index, target } of slots) {
       const before = saved.get(index)?.before;
       if (!before) continue;
       const weight = before.weight_kg ?? null;
@@ -30,7 +30,11 @@ export const maintainRule: ProgressionRule<MaintainConfig> = {
       capped ||= over;
       sets[index] = {
         weightKg: over ? cap : weight,
-        reps: before.reps ?? null,
+        // A bad day is not the new normal: the reps never fall below the range's minimum.
+        reps:
+          before.reps == null || target.reps_min === undefined
+            ? (before.reps ?? null)
+            : Math.max(before.reps, target.reps_min),
         ...(before.duration_s == null ? {} : { durationS: before.duration_s }),
         ...(before.distance_m == null ? {} : { distanceM: before.distance_m }),
       };
