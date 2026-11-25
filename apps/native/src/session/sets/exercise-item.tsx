@@ -25,6 +25,11 @@ import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
 
+/** A ticked set that loads the stack the way training does: anything but a warm-up. */
+function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
+  return kind !== "warmup";
+}
+
 /** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
 export type ExerciseHandlers = SetHandlers & {
   onView: (exerciseId: string) => void;
@@ -179,7 +184,7 @@ export const ExerciseItem = memo(function ExerciseItem({
               data.activeSessionId &&
               data.gymId &&
               usesGymHistory(equipment) &&
-              exercise.sets.some((set) => set.kind === "working" && set.completedAt !== null) ? (
+              exercise.sets.some((set) => isStepEvidence(set.kind) && set.completedAt !== null) ? (
                 <StepPrompt
                   key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
                   exerciseId={exercise.exerciseId}

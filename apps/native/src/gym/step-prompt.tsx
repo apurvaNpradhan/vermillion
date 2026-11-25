@@ -2,6 +2,7 @@ import {
   defaultStepKg,
   formatWeight,
   parseWeight,
+  STEP_PROMPTS_MAX,
   type Equipment,
   type WeightUnit,
 } from "@workspace/shared";
@@ -47,7 +48,9 @@ export function StepPrompt({
     try {
       if (save && !(await setting.save({ limits: { maxKg: setting.maxKg, stepKg } }))) return;
       await updateUi(({ stepPrompts }) =>
-        stepPrompts.includes(key) ? null : { stepPrompts: [...stepPrompts, key] },
+        stepPrompts.includes(key)
+          ? null
+          : { stepPrompts: [...stepPrompts, key].slice(-STEP_PROMPTS_MAX) },
       );
     } finally {
       setBusy(false);

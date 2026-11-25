@@ -71,6 +71,9 @@ export const capPromptSchema = z.object({
 });
 export type CapPrompt = z.infer<typeof capPromptSchema>;
 
+/** Answered stack-step prompts kept (newest last); older answers drop off first. */
+export const STEP_PROMPTS_MAX = 500;
+
 const uiFields = {
   weighInReminder,
   checkInReminder,
@@ -125,7 +128,7 @@ const uiFields = {
   trainingPlace: z.enum(TRAINING_PLACES).nullable(),
   activeGymId: z.uuid().nullable(),
   capPrompts: z.array(capPromptSchema).max(100),
-  stepPrompts: z.array(z.string().max(80)),
+  stepPrompts: z.array(z.string().max(80)).max(STEP_PROMPTS_MAX),
 };
 export const uiPreferencesSchema = z
   .object({
