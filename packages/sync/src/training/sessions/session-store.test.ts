@@ -793,7 +793,7 @@ describe("equipment and settings", () => {
     expect(s.one("exercise_setting", id)).toMatchObject({
       exercise_id: SQUAT,
       bar_id: barId,
-      log_effort: 0,
+      log_effort: null,
       user_id: "owner",
     });
     expect(await setExerciseSetting(s.training, SQUAT, { log_effort: true })).toBe(id);
@@ -816,7 +816,7 @@ describe("equipment and settings", () => {
     await setExerciseSetting(s.training, SQUAT, { bar_id: barId });
     expect(stored()).toMatchObject({
       bar_id: barId,
-      log_effort: 0,
+      log_effort: null,
       progression_per_set: 1,
       auto_warmups: 1,
     });

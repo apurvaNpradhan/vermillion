@@ -8,7 +8,7 @@ import { useTranslation } from "@/platform/i18n";
 import { muscleArtTint, tintOpacity } from "../core/ramp";
 import { BODY_ASPECT, BODY_CANVAS } from "../core/body-canvas";
 import { layerAlphas } from "../core/detail-layers";
-import { BASE_LAYERS } from "../core/group-layers";
+import { BASE_LAYERS, GROUP_LAYERS } from "../core/group-layers";
 import { groupAt } from "../core/hit-test";
 import { BODY_GROUPS, type BodyGroup, type BodyView } from "../core/groups";
 import { groupAlphas } from "../core/intensity";
@@ -65,7 +65,9 @@ export function BodyMap({
   const actions = useMemo(
     () =>
       BODY_GROUPS.flatMap((group) => {
-        if (!alphas.has(group)) return [];
+        if (!alphas.has(group) || (onPressGroup && GROUP_LAYERS[group][view].length === 0)) {
+          return [];
+        }
         const name = t(MUSCLE_GROUP_KEYS[group]);
         const label = primary?.includes(group)
           ? t("bodymap__group_primary", { name })
@@ -74,7 +76,7 @@ export function BodyMap({
             : name;
         return [{ name: group, label }];
       }),
-    [alphas, primary, secondary, t],
+    [alphas, onPressGroup, primary, secondary, t, view],
   );
 
   const onPress = (event: GestureResponderEvent) => {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { parseMuscleDetails } from "./details";
 import type { ExerciseDatabase } from "./store";
 import {
+  IS_PINNED_SQL,
   LIBRARY_ROW_COLUMNS,
   libraryCountQuery,
   libraryQuery,
@@ -32,6 +33,7 @@ const libraryRowSchema = z.object({
   thumbnail_key: z.string().nullable(),
   image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
+  is_pinned: z.number(),
 });
 
 /** One row of the list. `isCustom` is a Custom exercise of the signed-in user. */
@@ -46,6 +48,7 @@ export type LibraryRow = {
   imageMediaId?: string | null;
   isCustom: boolean;
   isArchived: boolean;
+  isPinned: boolean;
 };
 
 function toLibraryRow(row: z.infer<typeof libraryRowSchema>): LibraryRow {
@@ -60,6 +63,7 @@ function toLibraryRow(row: z.infer<typeof libraryRowSchema>): LibraryRow {
     imageMediaId: row.image_media_id ?? null,
     isCustom: row.user_id !== null,
     isArchived: row.retired_at !== null,
+    isPinned: row.is_pinned === 1,
   };
 }
 
@@ -125,7 +129,7 @@ const RECENT_LIMIT = 10;
  * exercises are left out: they cannot be added to a workout any more.
  */
 export const RECENT_QUERY: LibraryQuery = {
-  sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM (
+  sql: `SELECT ${LIBRARY_ROW_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM (
       SELECT se.exercise_id AS recent_id, MAX(s.started_at) AS last_at
       FROM session_exercise se
       JOIN training_session s ON s.id = se.session_id
@@ -164,7 +168,7 @@ export function watchRecentExercises(
     },
     {
       signal: controller.signal,
-      tables: ["exercise", "session_exercise", "training_session"],
+      tables: ["exercise", "exercise_setting", "session_exercise", "training_session"],
       throttleMs: THROTTLE_MS,
     },
   );
@@ -189,7 +193,11 @@ function watch(
         if (!controller.signal.aborted) onError(error);
       },
     },
-    { signal: controller.signal, tables: ["exercise"], throttleMs: THROTTLE_MS },
+    {
+      signal: controller.signal,
+      tables: ["exercise", "exercise_setting"],
+      throttleMs: THROTTLE_MS,
+    },
   );
   return () => controller.abort();
 }

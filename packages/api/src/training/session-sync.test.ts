@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  exerciseSettingId,
   importContentDigest,
   SESSION_LIMITS,
   SYNC_LIMITS,
@@ -523,6 +524,45 @@ describe("session upload handlers", () => {
       applied,
     );
     expect(await stored("exercise_setting", settingId)).toMatchObject({ note: null });
+  });
+
+  it("pins and unpins with field-only uploads, including concurrent first writes", async () => {
+    const client = app.client(await createSignedInUser(app, "session-setting-pin@example.com"));
+    const { userId } = await client.sync.credentials();
+    const me = installOf(client, userId);
+    const second = installOf(client, userId);
+    const other = await writer("session-setting-pin-other@example.com");
+    const id = exerciseSettingId(userId, weightReps);
+    const put = (fields: Record<string, Value>) =>
+      op("PUT", "exercise_setting", id, { exercise_id: weightReps, ...fields });
+    const patch = (pinned_at: Value) => op("PATCH", "exercise_setting", id, { pinned_at });
+    const pinnedAt = "2026-11-24T09:30:00.000Z";
+
+    expect(await me.send([put({ pinned_at: "2026-11-24" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(
+      await Promise.all([
+        me.send([put({ pinned_at: pinnedAt })]),
+        second.send([put({ log_effort: 1, note: "Slow down" })]),
+      ]),
+    ).toEqual([applied, applied]);
+    expect(await me.send([put({ pinned_at: pinnedAt })])).toEqual(applied);
+    expect(
+      await app.rows(sql`
+        SELECT pinned_at = ${pinnedAt}::timestamptz AS pinned, note, log_effort
+        FROM exercise_setting WHERE id = ${id}
+      `),
+    ).toEqual([{ pinned: true, note: "Slow down", log_effort: true }]);
+
+    expect(await other.send([patch(null)])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([patch(42)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await second.send([patch(null)])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({
+      pinned_at: null,
+      note: "Slow down",
+      log_effort: true,
+    });
   });
 
   it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {

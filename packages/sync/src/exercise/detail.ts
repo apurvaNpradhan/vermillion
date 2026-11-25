@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { parseMuscleDetails } from "./details";
 import type { LibraryRow } from "./library";
-import { LIBRARY_ROW_COLUMNS, type LibraryQuery } from "./library-query";
+import { IS_PINNED_SQL, LIBRARY_ROW_COLUMNS, type LibraryQuery } from "./library-query";
 import type { ExerciseDatabase } from "./store";
 
 /** The most swap candidates the detail screen shows. */
@@ -41,6 +41,7 @@ const detailRowSchema = z.object({
   image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
+  is_pinned: z.number(),
 });
 
 /** PowerSync hands a Postgres array over as JSON text. */
@@ -75,11 +76,15 @@ export type ExerciseDetail = {
   thumbnailKey: string | null;
   isCustom: boolean;
   isArchived: boolean;
+  isPinned: boolean;
 };
 
 /** The lookup of one exercise by id, retired or not. */
 export function exerciseDetailQuery(id: string): LibraryQuery {
-  return { sql: `SELECT ${DETAIL_COLUMNS} FROM exercise WHERE id = ? LIMIT 1`, params: [id] };
+  return {
+    sql: `SELECT ${DETAIL_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM exercise WHERE id = ? LIMIT 1`,
+    params: [id],
+  };
 }
 
 /**
@@ -100,7 +105,7 @@ export function swapCandidatesQuery(
   const overlap = details.map(() => `(primary_detail LIKE ? ESCAPE '\\')`);
   const shared = overlap.length > 0 ? `(${overlap.join(" + ")}) DESC, ` : "";
   return {
-    sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM exercise
+    sql: `SELECT ${LIBRARY_ROW_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM exercise
       WHERE retired_at IS NULL AND primary_muscle = ? AND equipment <> ? AND id <> ?
       ORDER BY ${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
     params: [
@@ -124,6 +129,7 @@ const candidateRowSchema = z.object({
   image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
+  is_pinned: z.number(),
 });
 
 /** Watches one exercise; `null` when no row has that id (yet). */
@@ -170,6 +176,7 @@ export function watchExercise(
         imageMediaId: row.image_media_id ?? null,
         isCustom: row.user_id !== null,
         isArchived: row.retired_at !== null,
+        isPinned: row.is_pinned === 1,
       });
     },
     handlers.onError,
@@ -208,6 +215,7 @@ export function watchSwapCandidates(
           imageMediaId: row.image_media_id ?? null,
           isCustom: row.user_id !== null,
           isArchived: row.retired_at !== null,
+          isPinned: row.is_pinned === 1,
         })),
       );
     },
@@ -233,7 +241,11 @@ function watch(
         if (!controller.signal.aborted) onError(error);
       },
     },
-    { signal: controller.signal, tables: ["exercise"], throttleMs: THROTTLE_MS },
+    {
+      signal: controller.signal,
+      tables: ["exercise", "exercise_setting"],
+      throttleMs: THROTTLE_MS,
+    },
   );
   return () => controller.abort();
 }

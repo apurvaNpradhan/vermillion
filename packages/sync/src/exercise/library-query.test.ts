@@ -22,6 +22,7 @@ type Seed = {
   terms?: string | null;
   user?: string | null;
   retired?: string | null;
+  pinned?: boolean;
 };
 
 const seeds: Seed[] = [
@@ -61,8 +62,22 @@ const seeds: Seed[] = [
     aka: "back squat",
   },
   { id: "a5", title: "100% Effort_Row", primary: "lats", equipment: "machine", rank: 0 },
-  { id: "a6", title: "Ab Wheel", primary: "abdominals", equipment: "other", rank: 10 },
-  { id: "c1", title: "my bench variation", primary: "chest", equipment: "barbell", user: "u1" },
+  {
+    id: "a6",
+    title: "Ab Wheel",
+    primary: "abdominals",
+    equipment: "other",
+    rank: 10,
+    pinned: true,
+  },
+  {
+    id: "c1",
+    title: "my bench variation",
+    primary: "chest",
+    equipment: "barbell",
+    user: "u1",
+    pinned: true,
+  },
   {
     id: "c2",
     title: "Old custom",
@@ -70,6 +85,7 @@ const seeds: Seed[] = [
     equipment: "dumbbell",
     user: "u1",
     retired: "2026-01-01",
+    pinned: true,
   },
   {
     id: "r1",
@@ -89,6 +105,9 @@ async function setup(extra: Seed[] = []) {
        primary_detail, secondary_detail, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 'weight_reps', 0, ?, ?, ?, NULL, ?, ?, ?, 'now')`,
   );
+  const pin = fake.sqlite.prepare(
+    "INSERT INTO exercise_setting (id, user_id, exercise_id, pinned_at) VALUES (?, 'u1', ?, ?)",
+  );
   for (const s of [...seeds, ...extra]) {
     insert.run(
       s.id,
@@ -104,6 +123,7 @@ async function setup(extra: Seed[] = []) {
       JSON.stringify(s.primaryDetail ?? []),
       JSON.stringify(s.secondaryDetail ?? []),
     );
+    if (s.pinned) pin.run(s.id, s.id, "2026-11-25T00:00:00.000Z");
   }
   return fake.sqlite;
 }
@@ -159,6 +179,18 @@ describe("library query: muscle details", () => {
   it("still ANDs the words", async () => {
     expect(await ids({ search: "rear delt cable" }, 50, detailRows)).toEqual([]);
     expect(await ids({ search: "rear face" }, 50, detailRows)).toEqual(["d1"]);
+  });
+
+  it("filters by primary detail and its group, even with secondary muscles enabled", async () => {
+    const detail = {
+      primaryDetail: "rear_delts",
+      includeSecondary: true,
+    } satisfies Partial<LibraryFilters>;
+    expect(await ids(detail, 50, detailRows)).toEqual(["d2"]);
+    expect(
+      await ids({ ...detail, muscles: ["shoulders"], search: "reverse" }, 50, detailRows),
+    ).toEqual(["d2"]);
+    expect(await ids({ ...detail, muscles: ["upper_back"] }, 50, detailRows)).toEqual([]);
   });
 
   it("is unchanged for a word that names no detail", async () => {
@@ -248,6 +280,20 @@ describe("library query", () => {
     expect(await ids({ show: "archived" })).toEqual(["c2"]);
     expect(await ids({ show: "archived", search: "custom" })).toEqual(["c2"]);
     expect(await ids({ show: "custom", muscles: ["biceps"] })).toEqual([]);
+  });
+
+  it("keeps pins at the head of the empty picker window and keeps search ranking", async () => {
+    expect(await ids({ pinnedFirst: true, search: "  " }, 3)).toEqual(["a6", "c1", "a4"]);
+    expect(await ids({ pinnedFirst: true, search: "bench" })).toEqual(["a1", "a3", "a2", "c1"]);
+    expect(await ids({ pinnedFirst: true, sort: "az" }, 3)).toEqual(["a6", "c1", "a5"]);
+  });
+
+  it("filters and counts pins with the other facets", async () => {
+    expect(await ids({ pinnedOnly: true })).toEqual(["a6", "c1"]);
+    expect(await ids({ pinnedOnly: true, search: "bench", muscles: ["chest"] })).toEqual(["c1"]);
+    expect(await total({ pinnedOnly: true, show: "custom" })).toBe(1);
+    expect(await ids({ pinnedOnly: true, show: "archived" })).toEqual(["c2"]);
+    expect(hasActiveFilters({ ...DEFAULT_LIBRARY_FILTERS, pinnedOnly: true })).toBe(true);
   });
 
   it("bounds the window", async () => {

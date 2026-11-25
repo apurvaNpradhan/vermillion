@@ -111,5 +111,27 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
-  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups, setPinnedNote };
+  const setExercisePinned = useCallback(
+    (id: string, pinned: boolean) =>
+      write((db) =>
+        setExerciseSetting(
+          db,
+          id,
+          { pinned_at: pinned ? new Date().toISOString() : null },
+          writeScope,
+        ),
+      ),
+    [write, writeScope],
+  );
+
+  return {
+    create,
+    update,
+    archive,
+    restore,
+    setProgressionPerSet,
+    setAutoWarmups,
+    setPinnedNote,
+    setExercisePinned,
+  };
 }

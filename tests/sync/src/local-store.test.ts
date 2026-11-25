@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { PowerSyncDatabase } from "@powersync/node";
-import type { CustomExerciseInput } from "@workspace/shared";
+import { exerciseSettingId, type CustomExerciseInput } from "@workspace/shared";
 import {
   DEFAULT_LIBRARY_FILTERS,
   addExercises,
@@ -15,11 +15,13 @@ import {
   createWorkout,
   deleteProgram,
   ensureInstallId,
+  libraryQuery,
   pauseSession,
   powerSyncSchema,
   replaceSessionExercise,
   resumeSession,
   seedEquipment,
+  setExerciseSetting,
   startSession,
   updateCustomExercise,
   updateEquipment,
@@ -65,6 +67,40 @@ const input = (title: string): CustomExerciseInput => ({
 });
 
 describe("Drizzle writes reach the upload queue", () => {
+  it("uploads only the pin on first use and clears it with a patch on the same id", async () => {
+    const exerciseId = await createCustomExercise(database, input("Pin this"));
+    const pinnedAt = "2026-11-25T06:00:00.000Z";
+    const id = await setExerciseSetting(database, exerciseId, { pinned_at: pinnedAt });
+    expect(id).toBe(exerciseSettingId("owner", exerciseId));
+
+    const filters = { ...DEFAULT_LIBRARY_FILTERS, pinnedOnly: true, muscles: ["chest"] } as const;
+    const { sql, params } = libraryQuery(filters, 10);
+    expect(await database.getAll(sql, params)).toMatchObject([{ id: exerciseId, is_pinned: 1 }]);
+    const plan = await database.getAll<{ detail: string }>(`EXPLAIN QUERY PLAN ${sql}`, params);
+    expect(plan.map((row) => row.detail).join("\n")).toContain("exercise_setting_exercise_id_idx");
+
+    expect(await setExerciseSetting(database, exerciseId, { pinned_at: null })).toBe(id);
+    expect(await database.getAll(sql, params)).toEqual([]);
+
+    const settings = (await database.getCrudBatch(10))?.crud.filter(
+      (entry) => entry.table === "exercise_setting",
+    );
+    expect(settings).toMatchObject([
+      {
+        op: "PUT",
+        id,
+        opData: { exercise_id: exerciseId, pinned_at: pinnedAt },
+      },
+      { op: "PATCH", id, opData: { pinned_at: null } },
+    ]);
+    expect(Object.keys(settings?.[0]?.opData ?? {}).sort()).toEqual([
+      "created_at",
+      "exercise_id",
+      "pinned_at",
+      "user_id",
+    ]);
+  });
+
   it("keeps the previous clock values in a PowerSync resume patch", async () => {
     const installId = await ensureInstallId(database);
     const id = await startSession(database, { workoutId: null, derivedTitle: "Clock" });
