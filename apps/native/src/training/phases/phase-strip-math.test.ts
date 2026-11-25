@@ -5,9 +5,15 @@ import { stripBlocks } from "./phase-strip-math";
 
 const plan = phasePlanSchema.parse({ pattern: ["build", "build", "build", "deload"] });
 
+const current = (week: number, inserts: number[] = []) => ({
+  run: { started_at: "2026-01-01T12:00:00Z", inserted_deloads: inserts },
+  now: new Date(Date.UTC(2026, 0, 1 + (week - 1) * 7, 12)),
+  timeZone: "UTC",
+});
+
 describe("stripBlocks", () => {
   it("draws the planned weeks, each with its phase", () => {
-    const blocks = stripBlocks({ plan, insertedDeloads: [], currentWeek: 1, plannedWeeks: 8 });
+    const blocks = stripBlocks({ plan, current: current(1), plannedWeeks: 8 });
     expect(blocks.map((block) => block.phase)).toEqual([
       "build",
       "build",
@@ -21,10 +27,12 @@ describe("stripBlocks", () => {
   });
 
   it("marks past, current and future weeks, and none current without a Run", () => {
-    const states = (current: number | null) =>
-      stripBlocks({ plan, insertedDeloads: [], currentWeek: current, plannedWeeks: 5 }).map(
-        (block) => block.state,
-      );
+    const states = (week: number | null) =>
+      stripBlocks({
+        plan,
+        current: week === null ? undefined : current(week),
+        plannedWeeks: 5,
+      }).map((block) => block.state);
     expect(states(3)).toEqual(["past", "past", "current", "future", "future"]);
     expect(states(null)).toEqual(["future", "future", "future", "future", "future"]);
   });
@@ -33,8 +41,6 @@ describe("stripBlocks", () => {
     const heights = (phase: "deload" | "build" | "push" | "test") =>
       stripBlocks({
         plan: phasePlanSchema.parse({ pattern: [phase] }),
-        insertedDeloads: [],
-        currentWeek: null,
         plannedWeeks: 1,
       })[0]?.height;
     expect(heights("test")).toBe(1);
@@ -44,7 +50,7 @@ describe("stripBlocks", () => {
   });
 
   it("replaces the planned Deload without adding weeks to the strip", () => {
-    const blocks = stripBlocks({ plan, insertedDeloads: [2], currentWeek: 2, plannedWeeks: 4 });
+    const blocks = stripBlocks({ plan, current: current(2, [2]), plannedWeeks: 4 });
     expect(blocks).toHaveLength(4);
     expect(blocks[1]).toMatchObject({ phase: "deload", inserted: true, state: "current" });
     expect(blocks.map((block) => block.programWeek)).toEqual([1, 2, 5, 6]);
@@ -58,24 +64,29 @@ describe("stripBlocks", () => {
     });
     const blocks = stripBlocks({
       plan: edited,
-      insertedDeloads: [],
-      currentWeek: 1,
+      current: current(1),
       plannedWeeks: 4,
     });
     expect(blocks[2]?.phase).toBe("test");
   });
 
   it("an open-ended Program shows twelve weeks, and a few past the current one", () => {
-    expect(
-      stripBlocks({ plan, insertedDeloads: [], currentWeek: 2, plannedWeeks: null }),
-    ).toHaveLength(12);
-    expect(
-      stripBlocks({ plan, insertedDeloads: [], currentWeek: 20, plannedWeeks: null }),
-    ).toHaveLength(24);
+    expect(stripBlocks({ plan, current: current(2), plannedWeeks: null })).toHaveLength(12);
+    expect(stripBlocks({ plan, current: current(20), plannedWeeks: null })).toHaveLength(24);
+  });
+
+  it("shows Build for a current Test week after a training break", () => {
+    const blocks = stripBlocks({
+      plan: phasePlanSchema.parse({ pattern: ["build", "build", "test"] }),
+      current: { ...current(3), trainedAt: ["2026-01-01T12:00:00Z"] },
+      plannedWeeks: 6,
+    });
+    expect(blocks[2]).toMatchObject({ phase: "build", state: "current" });
+    expect(blocks[5]).toMatchObject({ phase: "test", state: "future" });
   });
 
   it("keeps the current week on the strip after the planned weeks have passed", () => {
-    const blocks = stripBlocks({ plan, insertedDeloads: [], currentWeek: 6, plannedWeeks: 4 });
+    const blocks = stripBlocks({ plan, current: current(6), plannedWeeks: 4 });
     expect(blocks).toHaveLength(6);
     expect(blocks[5]?.state).toBe("current");
   });

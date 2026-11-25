@@ -102,11 +102,16 @@ export function ActiveProgramCard({
           );
         })}
       </View>
-      {!paused && next?.workoutId ? (
+      {next?.workoutId ? (
         <View className="flex-row items-center justify-between gap-3">
-          <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
-            {t("run__next", { title: slotTitle(next, t) })}
-          </Text>
+          <View className="min-w-0 flex-1">
+            <Text numberOfLines={1} className="font-normal text-body text-foreground">
+              {t("run__next", { title: slotTitle(next, t) })}
+            </Text>
+            {paused ? (
+              <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
+            ) : null}
+          </View>
           <Button
             size="sm"
             className="rounded-full px-4"

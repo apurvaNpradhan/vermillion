@@ -32,9 +32,9 @@ import {
 } from "../store";
 import { CURL, DIP, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
 import { setExerciseSetting, upsertEquipment } from "./equipment-store";
-import { finishSession, startSession } from "./session-store";
+import { finishSession, logPastSession, startSession } from "./session-store";
 import { EXERCISE_HISTORY_SQL, parseFinishedSessions } from "./session-watch";
-import { tickSet } from "./session-content-store";
+import { replaceWarmups, tickSet } from "./session-content-store";
 
 const DAY = 86_400_000;
 
@@ -62,9 +62,9 @@ async function setup(s: Sessions, plan: PhasePlanInput | null) {
   const [squat = "", curl = ""] = await addExercises(s.training, workoutId, [SQUAT, CURL]);
   await updateWorkoutExercise(s.training, squat, { sets: sets(4) });
   await updateWorkoutExercise(s.training, curl, { sets: sets(4) });
-  await addSlot(s.training, programId, workoutId);
+  const slotId = await addSlot(s.training, programId, workoutId);
   const runId = await activateProgram(s.training, programId);
-  return { programId, workoutId, squat, curl, runId };
+  return { programId, workoutId, squat, curl, runId, slotId };
 }
 
 /** Starts a Session as if the Run began `weeksAgo` weeks ago. */
@@ -75,10 +75,10 @@ async function startInWeek(s: Sessions, runId: string, workoutId: string, week: 
   return await startSession(s.training, { workoutId, derivedTitle: "Day", timeZone: "UTC" });
 }
 
-it("keeps a paused workout outside the Run, then resumes its phase clock", async () => {
+it("resumes a paused Run when starting its Workout, and leaves backfills outside", async () => {
   const s = await setupSessions();
   try {
-    const { runId, workoutId } = await setup(s, { pattern: ["build", "test", "deload"] });
+    const { runId, workoutId, slotId } = await setup(s, { pattern: ["push", "test", "deload"] });
     const session = await startInWeek(s, runId, workoutId, 1);
     const exercise = s.exercises(session)[0];
     const set = exercise && s.sets(String(exercise.id))[0];
@@ -91,19 +91,23 @@ it("keeps a paused workout outside the Run, then resumes its phase clock", async
       .prepare("UPDATE training_session SET started_at = ?, finished_at = ? WHERE id = ?")
       .run(at(21), at(21), session);
     s.sqlite.prepare("UPDATE program_run SET started_at = ? WHERE id = ?").run(at(21), runId);
-    expect(await setRunPaused(s.training, runId, true, s.installId, at(16))).toBe(true);
-    expect(await setRunPaused(s.training, runId, true, s.installId, at(15))).toBe(false);
-    const outside = await startSession(s.training, { workoutId, derivedTitle: "Day" });
-    expect(s.one("training_session", outside)).toMatchObject({ run_id: null, phase: null });
-    expect(await setRunPaused(s.training, runId, false, s.installId, at(2))).toBe(true);
-    const run = (await readRuns(s.training))[0];
-    expect(run?.pauses).toEqual([{ from: at(16), until: at(2) }]);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(14))).toBe(true);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(13))).toBe(false);
+    const source = { workoutId, derivedTitle: "Day", timeZone: "UTC" };
+    const backfill = await logPastSession(s.training, source, { startedAt: at(10) });
+    expect(s.one("training_session", backfill)).toMatchObject({ run_id: null, phase: null });
+    expect((await readRuns(s.training))[0]?.pauses).toEqual([{ from: at(14), until: null }]);
     const returned = await startSession(s.training, {
-      workoutId,
-      derivedTitle: "Day",
-      timeZone: "UTC",
+      ...source,
+      day: { runId, slotId, cycle: 2 },
     });
-    expect(s.one("training_session", returned)).toMatchObject({ run_id: runId, phase: "build" });
+    const row = s.one("training_session", returned);
+    expect(row).toMatchObject({ run_id: runId, slot_id: slotId, cycle: 2, phase: "build" });
+    expect((await readRuns(s.training))[0]?.pauses).toEqual([
+      { from: at(14), until: row?.started_at },
+    ]);
+    const outside = await logPastSession(s.training, source, { startedAt: at(2) });
+    expect(s.one("training_session", outside)).toMatchObject({ run_id: null, phase: null });
   } finally {
     s.sqlite.close();
   }
@@ -509,6 +513,18 @@ it.each([
         .array(exerciseRow)
         .parse(s.exercises(test))
         .find((row) => row.exercise_id === SQUAT);
+      if (!testSquat) throw new Error("Expected the Test entry");
+      await setExerciseSetting(s.training, SQUAT, { auto_warmups: true });
+      const ramp = [warmups[0] / 2, warmups[0] - 5].map((load) => ({
+        kind: "warmup" as const,
+        weight_kg: kg(load),
+        reps_min: 3,
+        reps_max: 3,
+      }));
+      expect(
+        await replaceWarmups(s.training, testSquat.id, ramp, s.installId, { auto: true }),
+      ).toBe(true);
+      expect(targetsOf(s, test).get(SQUAT)).toEqual([...ramp, ...(targets ?? [])]);
       const single = s.sets(testSquat?.id ?? "").find((set) => set.kind === "top");
       await tickSet(s.training, String(single?.id), { weight: kg(record), reps: 1, rpe: 9 });
       await finishSession(s.training, test);

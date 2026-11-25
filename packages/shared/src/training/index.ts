@@ -27,6 +27,7 @@ export {
   runWeek,
   runPausesSchema,
   runPausedAt,
+  closeRunPauses,
   type RunPause,
   slotSkipId,
   type RunSlot,
@@ -53,7 +54,7 @@ export * from "./phases/phases";
 export { isTestSingle, testWorkingLoad } from "./phases/test-load";
 export * from "./progress/stalled-lift";
 export * from "./progress/suggestion-context";
-export { fixedPrescriptionSets } from "./progress/suggestion-history";
+export { usesFixedPrescription } from "./progress/suggestion-history";
 export * from "./plans/week";
 export * from "./plans/session-goal";
 export * from "./volume/muscle-targets";

@@ -117,19 +117,46 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(history[0]?.sets[0]?.weight_kg).toBeCloseTo(exact(weight + step * 4), 2);
   });
 
-  it("excludes an applied stall deload and lets the lift rebuild for three Sessions", () => {
+  it("rebuilds after a stall deload and counts only a new plateau", () => {
+    const target: PlannedSet = { kind: "working", reps_min: 6, reps_max: 8 };
     const at = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
-    const flat = [3, 2, 1, 0].map((day) => train(day, at(weight)));
-    expect(stalledSessions(flat, "weight_reps")).toBe(3);
-    const light = train(4, at(weight - step * 2));
+    const history = [3, 2, 1, 0].map((day) => train(day, at(weight), { target }));
+    expect(stalledSessions(history, "weight_reps")).toBe(3);
+    const deload = suggestNext(plan, history, "weight_reps", "machine", settings, {
+      now: new Date(START + 4 * DAY),
+      grid,
+      deload: true,
+    });
+    expect(deload?.reason).toBe("deload");
+    const light = train(4, deload?.sets ?? [], { target });
     light.sets = light.sets.map((set) => ({ ...set, stall_deload: true }));
-    const history = [light, ...flat];
-    for (let day = 5; day <= 6; day += 1) {
+    history.unshift(light);
+    for (let day = 5; day <= 18; day += 1) {
       expect(stalledSessions(history, "weight_reps")).toBe(0);
-      history.unshift(train(day, at(weight)));
+      history.unshift(train(day, propose(history, day)?.sets ?? [], { target }));
     }
-    expect(stalledSessions([train(7, at(weight)), ...history], "weight_reps")).toBe(6);
-    expect(stalledSessions([train(7, at(weight + step)), ...history], "weight_reps")).toBe(0);
+    expect(stalledSessions(history, "weight_reps")).toBe(0);
+    expect(history[0]?.sets[0]?.weight_kg).toBeGreaterThan(kg(weight));
+    const plateau =
+      history[0]?.sets.map((set) => ({
+        weightKg: set.weight_kg ?? null,
+        reps: set.reps ?? null,
+      })) ?? [];
+    for (let day = 19; day <= 21; day += 1) {
+      history.unshift(train(day, plateau, { target }));
+      expect(stalledSessions(history, "weight_reps")).toBe(day === 21 ? 3 : 0);
+    }
+  });
+
+  it("compares stall gains within a set kind", () => {
+    const lower = [{ weightKg: kg(weight), reps: 5 }];
+    const flat = [3, 2, 1, 0].map((day) => train(day, lower));
+    const top = train(4, [{ weightKg: kg(weight + step * 4), reps: 5 }]).sets;
+    const mixed = {
+      ...train(4, lower),
+      sets: [...train(4, lower).sets, ...top.map((set) => ({ ...set, kind: "top" as const }))],
+    };
+    expect(stalledSessions([mixed, ...flat], "weight_reps")).toBe(4);
   });
 
   it("requires two misses at the same load again after a reset", () => {
@@ -228,6 +255,54 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     ).toBeCloseTo(exact(amount + (unit === "kg" ? 1.25 : 2.5)), 2);
   });
 
+  it("sizes kit jumps in whole barbell steps before snapping", () => {
+    const samples =
+      unit === "kg"
+        ? [
+            [100, 102.5],
+            [140, 142.5],
+            [220, 225],
+          ]
+        : [[315, 320]];
+    const plates = unit === "kg" ? [0.5, 1.25, 20] : [1.25, 45];
+    const grid = barGrid(
+      { weightKg: exact(unit === "kg" ? 20 : 45) },
+      plates.map((plate) => ({ id: String(plate), weightKg: exact(plate), count: null })),
+    );
+    for (const [from = 0, to = 0] of samples) {
+      const history = [
+        train(
+          0,
+          plan.map(() => ({ weightKg: kg(from), reps: 8 })),
+        ),
+      ];
+      const result = suggestNext(plan, history, "weight_reps", "barbell", settings, {
+        now: new Date(START + DAY),
+        grid,
+      });
+      expect(result?.sets[0]?.weightKg).toBeCloseTo(exact(to), 2);
+    }
+  });
+
+  it("rounds a deload midpoint down with and without a grid", () => {
+    const load = step * 15;
+    const history = [
+      train(
+        0,
+        plan.map(() => ({ weightKg: kg(load), reps: 8 })),
+      ),
+    ];
+    const stack = rangeGrid([{ min: exact(step), max: null, step: exact(step) }]);
+    for (const grid of [null, stack]) {
+      const result = suggestNext(plan, history, "weight_reps", "machine", settings, {
+        now: new Date(START + DAY),
+        grid,
+        deload: true,
+      });
+      expect(result?.sets[0]?.weightKg).toBeCloseTo(exact(step * 13), 2);
+    }
+  });
+
   it("shows the actual deload when the next lower pin would cut too far", () => {
     const load = unit === "kg" ? 15 : 30;
     const stack = rangeGrid([{ min: exact(load / 3), max: null, step: exact(load / 3) }]);
@@ -298,7 +373,14 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     const history = [result, baseline];
     expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBe(recordLoad);
     expect(recordFlags(history).get("7-0")).toContain("reps_1");
-    expect(test(history, 8)).toBeCloseTo(recordLoad * 0.925, 5);
+    expect(test(history, 8)).toBeCloseTo(estimate * 0.925, 5);
+
+    const unusable = [10, 9, 8].map((day) =>
+      train(day, [{ weightKg: kg(weight - step), reps: 15 }]),
+    );
+    expect(test([...unusable.slice(1), baseline], 11)).toBeCloseTo(estimate * 0.925, 5);
+    expect(test([...unusable, baseline], 11)).toBeCloseTo(kg(weight - step), 5);
+    expect(test([baseline], 57)).toBeCloseTo(kg(weight) * 0.8, 5);
   });
 
   it("advances fixed reps across alternating Workouts without mixing range or effort targets", () => {
@@ -316,6 +398,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
           gymId: null,
           grid: null,
           stalls: false,
+          prescription: targets,
         },
         {
           unit,

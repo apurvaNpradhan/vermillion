@@ -1,3 +1,4 @@
+import type { PlannedSet } from "../plans/planned-sets";
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
 import {
@@ -11,11 +12,12 @@ import {
   type PreviousSource,
   type WeightUnit,
 } from "../vocabulary/vocabulary";
-import { exerciseEntries, suggestionHistory } from "./suggestion-history";
+import { exerciseEntries, fixedPrescriptionHistory, suggestionHistory } from "./suggestion-history";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
+import { historyForGym } from "./gym-history";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
-import { stalledSessions } from "./stalled-lift";
+import { stalledSessions, wasStallDeload } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
 export type SuggestionSettings = {
@@ -31,8 +33,10 @@ export type SuggestionSettings = {
   testSingle?: boolean;
   /** History selected by the entry, Workout preference and gym. */
   baselineHistory?: readonly SessionHistory[];
-  /** Baseline-eligible Sessions, across Workouts, for matching fixed-rep prescriptions. */
+  /** Whole baseline entries that match the fixed-rep prescription, newest first. */
   fixedBaselineHistory?: readonly SessionHistory[];
+  /** The fixed-rep fallback when the general Previous preference is any Session. */
+  fixedFallbackHistory?: readonly SessionHistory[];
   /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
   gymId?: string | null;
   /** The loads and cap of this gym for the exercise; null is the equipment default. */
@@ -82,6 +86,7 @@ export type SuggestionPlace = {
   /** Judge the stalled-lift note and apply an accepted deload (only for an exercise to train). */
   stalls: boolean;
   stallDeload?: boolean;
+  prescription?: readonly PlannedSet[];
 };
 
 export type SuggestionContext = {
@@ -117,6 +122,12 @@ export function suggestionContext(
     place,
     account.previousSource,
   );
+  const fixedBaselineHistory = fixedPrescriptionHistory(
+    outsideLighterWeeks(anyWorkout, account.lighterWeeks).filter((session) =>
+      isBaselinePhase(session.phase),
+    ),
+    place.prescription ?? [],
+  );
   let stall: StallInfo | null = null;
   if (place.stalls && !place.testSingle) {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
@@ -125,6 +136,7 @@ export function suggestionContext(
     const count = stalledSessions(sessions, place.type, {
       bodyweightKg: account.bodyweightKg,
       lighterWeeks: account.lighterWeeks,
+      sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
     });
     if (latestSessionId !== null && (count > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
@@ -140,9 +152,13 @@ export function suggestionContext(
     settings: {
       bodyweightKg: account.bodyweightKg,
       baselineHistory: history,
-      fixedBaselineHistory: outsideLighterWeeks(anyWorkout, account.lighterWeeks).filter(
-        (session) => isBaselinePhase(session.phase),
-      ),
+      fixedBaselineHistory,
+      fixedFallbackHistory:
+        place.workoutId !== null &&
+        account.previousSource === "any_session" &&
+        workoutHistory.length > 0
+          ? historyForGym(workoutHistory, place.gymId, place.equipment)
+          : undefined,
       weightUnit: unit,
       weightIncrementKg: incrementInUnit(
         account.weightIncrementKg,
@@ -195,6 +211,7 @@ export function stalledExerciseIds(
             equipment: "other",
             grid: null,
             stalls: true,
+            prescription: entry.map((row) => ({ ...row.target, kind: row.kind })),
           },
           account,
         );

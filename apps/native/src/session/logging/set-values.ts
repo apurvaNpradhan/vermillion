@@ -3,17 +3,17 @@ import {
   actualValuesSchema,
   SET_VALUE_KEYS,
   formatLoad,
-  fixedPrescriptionSets,
+  usesFixedPrescription,
   formatWeight,
   ghostFor,
   previousFor,
-  progresses,
   type DistanceUnit,
   type DurationFormat,
   type ExerciseType,
   type GhostField,
   type Ghosts,
   type SuggestedSet,
+  type SuggestionSettings,
   type LoggedSet,
   type PlannedSet,
   type SessionHistory,
@@ -47,17 +47,21 @@ export function previousOfRow(
 /** Fixed-rep Previous and Ghosts read the same matching prescription as the engine. */
 export function previousForSuggestion(
   history: readonly SessionHistory[],
-  fixedHistory: readonly SessionHistory[] | undefined,
-  rows: readonly { kind: SetKind }[],
+  settings: Pick<SuggestionSettings, "fixedBaselineHistory" | "fixedFallbackHistory">,
+  rows: readonly (PlannedSet | Pick<SessionSetDetail, "kind" | "target">)[],
   index: number,
   target: PlannedSet | null,
   baselineOnly = false,
 ): LoggedSet | null {
-  const fixed =
-    target && progresses(target.kind) && fixedHistory
-      ? fixedPrescriptionSets(fixedHistory, target, ordinalOf(rows, index))[0]
-      : undefined;
-  return fixed ?? previousOfRow(history, rows, index, baselineOnly);
+  const prescription = rows.map((row) =>
+    "target" in row ? { ...row.target, kind: row.kind } : row,
+  );
+  if (target && usesFixedPrescription(prescription, target)) {
+    const { fixedBaselineHistory, fixedFallbackHistory } = settings;
+    if (fixedBaselineHistory?.length) return previousOfRow(fixedBaselineHistory, rows, index, true);
+    if (fixedFallbackHistory) return previousOfRow(fixedFallbackHistory, rows, index, baselineOnly);
+  }
+  return previousOfRow(history, rows, index, baselineOnly);
 }
 
 /**

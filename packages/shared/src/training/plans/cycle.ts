@@ -1,6 +1,6 @@
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
-import { calendarDay } from "./week";
+import { calendarDay, localTime } from "./week";
 
 const RUN_PAUSES_MAX = 520;
 const timestamp = z.iso.datetime({ offset: true });
@@ -21,6 +21,15 @@ export function runPausedAt(pauses: readonly RunPause[], at: string | Date): boo
   const now = new Date(at).getTime();
   return pauses.some(
     ({ from, until }) => Date.parse(from) <= now && (until === null || now < Date.parse(until)),
+  );
+}
+
+/** Close open pauses which have started by this instant. */
+export function closeRunPauses(pauses: readonly RunPause[], at: string): RunPause[] {
+  return pauses.map((pause) =>
+    pause.until === null && Date.parse(pause.from) <= Date.parse(at)
+      ? { ...pause, until: at }
+      : pause,
   );
 }
 
@@ -117,19 +126,37 @@ export function runWeek(
   if (startedAt === null) return 1;
   const start = calendarDay(startedAt, timezone);
   const today = calendarDay(now, timezone);
+  if (pauses.length === 0) return Math.max(1, Math.floor((today - start) / 604800000) + 1);
+  const started = Date.parse(startedAt);
+  const through = now.getTime();
   const ranges = pauses
-    .map(({ from, until }) => ({
-      start: Math.max(start, calendarDay(from, timezone)),
-      end: Math.min(today, until === null ? today : calendarDay(until, timezone)),
-    }))
+    .flatMap(({ from, until }) => {
+      const start = Math.max(started, Date.parse(from));
+      const end = Math.min(through, until === null ? through : Date.parse(until));
+      return end > start ? [{ start, end }] : [];
+    })
     .sort((a, b) => a.start - b.start);
-  let paused = 0;
-  let usedThrough = start;
+  const merged: { start: number; end: number }[] = [];
   for (const range of ranges) {
-    const next = Math.max(usedThrough, range.start);
-    if (range.end <= next) continue;
-    paused += range.end - next;
-    usedThrough = range.end;
+    const last = merged.at(-1);
+    if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
+    else merged.push(range);
+  }
+  const format = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const dayMs = 86_400_000;
+  let paused = 0;
+  for (const range of merged) {
+    const duration = localTime(range.end, format) - localTime(range.start, format);
+    paused += Math.max(0, Math.floor(duration / dayMs)) * dayMs;
   }
   return Math.max(1, Math.floor((today - start - paused) / 604800000) + 1);
 }

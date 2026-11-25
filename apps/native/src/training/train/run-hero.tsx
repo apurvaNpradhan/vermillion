@@ -105,7 +105,7 @@ export function RunHero({
       <Button size="sm" variant="tertiary" onPress={() => void state.changePause(!paused)}>
         <Button.Label>{t(paused ? "run__resume_run" : "run__pause_run")}</Button.Label>
       </Button>
-      {!paused && next?.workoutId && nextTitle ? (
+      {next?.workoutId && nextTitle ? (
         <View className="gap-3">
           <View className="flex-row items-center gap-3">
             {next.workout ? (
@@ -121,6 +121,9 @@ export function RunHero({
               <Text numberOfLines={1} className="font-medium text-body text-foreground">
                 {nextTitle}
               </Text>
+              {paused ? (
+                <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
+              ) : null}
             </View>
           </View>
           <Button

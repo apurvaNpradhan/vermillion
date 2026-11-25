@@ -77,6 +77,15 @@ describe("phaseOfWeek", () => {
     expect(phaseOfWeek(input, week, inserted)?.phase ?? null).toBe(expected);
   });
 
+  it("leaves a planned Deload beyond one pattern length in its own week", () => {
+    const edited = plan({
+      pattern: ["build", "push"],
+      overrides: [{ week: 3, phase: "deload" }],
+    });
+    expect(phaseOfWeek(edited, 2, [1])).toMatchObject({ phase: "push", programWeek: 2 });
+    expect(phaseOfWeek(edited, 3, [1])).toMatchObject({ phase: "deload", programWeek: 3 });
+  });
+
   it("says whether a week is an inserted deload, and which Program week it holds", () => {
     expect(phaseOfWeek(threeOne, 2, [2])).toMatchObject({ inserted: true, programWeek: 2 });
     expect(phaseOfWeek(threeOne, 3, [2])).toMatchObject({ inserted: false, programWeek: 5 });

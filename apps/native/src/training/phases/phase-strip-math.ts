@@ -1,4 +1,10 @@
-import { PHASE_INTENSITY, phaseOfWeek, type Phase, type PhasePlan } from "@workspace/shared";
+import {
+  PHASE_INTENSITY,
+  phaseOfWeek,
+  phaseFor,
+  type Phase,
+  type PhasePlan,
+} from "@workspace/shared";
 
 /** The most weeks the strip draws: a year, and the Deload weeks a Run may have inserted. */
 const STRIP_WEEKS_MAX = 104;
@@ -23,16 +29,25 @@ export type StripBlock = {
 /**
  * The weeks of a Program as blocks, each as tall as its phase is hard: Deload lowest, Test
  * tallest. With a planned length that many weeks; open-ended,
- * at least twelve and a few past the current week. `currentWeek` is null when the Program has no
+ * at least twelve and a few past the current week. `current` is absent when the Program has no
  * Run, so no block is current.
  */
 export function stripBlocks(input: {
   plan: PhasePlan;
-  insertedDeloads: readonly number[];
-  currentWeek: number | null;
+  current?: {
+    run: NonNullable<Parameters<typeof phaseFor>[1]>;
+    now: Date;
+    timeZone: string;
+    trainedAt?: readonly string[];
+  };
   plannedWeeks: number | null;
 }): StripBlock[] {
-  const { plan, insertedDeloads, currentWeek, plannedWeeks } = input;
+  const { plan, current, plannedWeeks } = input;
+  const runningPhase = current
+    ? phaseFor(plan, current.run, current.now, current.timeZone, current.trainedAt)
+    : null;
+  const currentWeek = runningPhase?.week ?? null;
+  const insertedDeloads = current?.run.inserted_deloads ?? [];
   const base =
     plannedWeeks === null
       ? Math.max(STRIP_WEEKS_MIN, plan.pattern.length * 2, (currentWeek ?? 0) + LOOKAHEAD)
@@ -41,7 +56,8 @@ export function stripBlocks(input: {
   const tallest = Math.max(...Object.values(PHASE_INTENSITY));
   return Array.from({ length: count }, (_, index) => {
     const week = index + 1;
-    const found = phaseOfWeek(plan, week, insertedDeloads);
+    const found =
+      runningPhase?.week === week ? runningPhase : phaseOfWeek(plan, week, insertedDeloads);
     // The plan has a pattern, so a week always has a phase.
     const phase = found?.phase ?? "build";
     return {

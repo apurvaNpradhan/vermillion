@@ -154,9 +154,7 @@ export function useActiveProgram() {
   const now = new Date();
   const week = runWeek(run?.started_at ?? null, now, timeZone, run?.pauses);
   // The phase of this Run week, from the Program's pattern and the Deload weeks inserted into the Run.
-  const phase = paused
-    ? null
-    : phaseFor(program?.phasePlan ?? null, run, now, timeZone, runs.value?.phaseStarts);
+  const phase = phaseFor(program?.phasePlan ?? null, run, now, timeZone, runs.value?.phaseStarts);
   /** Weeks to show as the Run's length: inserted Deloads replace planned weeks. */
   const totalWeeks = program?.plannedWeeks ?? null;
   return {

@@ -49,6 +49,7 @@ export function plannedSuggestion(
       bodyweightKg: settings.bodyweightKg,
       baselineHistory: loggingHistory(history, exercise.equipment, settings),
       fixedBaselineHistory: settings.fixedBaselineHistory,
+      fixedFallbackHistory: settings.fixedFallbackHistory,
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
       phaseLoad: settings.phaseLoad,
@@ -80,6 +81,7 @@ function workoutEntryContext(
       unitOverride: entry.unit,
       workoutId: entry.workoutId,
       stalls: true,
+      prescription: entry.sets,
     },
     account,
   );

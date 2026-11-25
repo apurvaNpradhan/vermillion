@@ -47,7 +47,7 @@ export function loggingGhosts(
           // A hint is derived from a baseline: never from a Test or Deload week's lighter sets.
           previousForSuggestion(
             loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
-            settings.fixedBaselineHistory,
+            settings,
             exercise.sets,
             index,
             set.target,

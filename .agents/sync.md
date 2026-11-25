@@ -45,17 +45,21 @@ From the first release, every `gym_exercise_setting` row requires the UUIDv5 id 
 
 A Run's nullable `pauses` JSON holds start and resume timestamps. Uploads merge by the
 start instant and keep the earliest known resume. A stale open interval cannot reopen a
-closed one. The Run clock subtracts the union of paused calendar days in the user's time zone.
-Workouts started during a pause stay in history outside the Run. After a gap of at least 14
-days between counted Run Sessions, a scheduled Test becomes Build for the rest of that Run week.
+closed one. An offline device can still re-pause a resumed Run if it uploads an open pause
+with a different start instant. The Run clock subtracts whole local days from the union of
+paused intervals. Starting a Workout in a paused Run closes its open pauses in the Session
+transaction and uses the updated pauses to set the phase. Backfills inside a pause stay
+outside the Run. After a gap of at least 14 days between counted Run Sessions, a scheduled
+Test becomes Build for the rest of that Run week.
 
 ## Stall deloads
 
 `session_exercise.stall_deload` is a nullable flag on the exact Session entry. It rides
 `my_training` with the Session and keeps multiple entries of the same exercise independent.
 Null is the old-row default. A Session entry marked as deloaded counts as training for the
-break clock and as a load to build from. The stall detector leaves it out of scoring and gives
-the lifter three completed Sessions before offering another deload if a stall still qualifies.
+break clock and as a load to build from. It starts a new stall episode. The stall detector uses
+only later baseline Sessions, including when another Workout uses that entry as its fixed-rep
+baseline.
 Manual dismissal stays on the device for the current baseline Session only.
 
 ## Commands

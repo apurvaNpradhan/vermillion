@@ -78,7 +78,8 @@ const phaseEditsSchema = z
  * A Program's phases: a repeating pattern ("build, build, build, deload"), optional overrides of
  * single weeks, and optional edits of a phase's modifiers (only the fields given replace the
  * preset). Overrides name Program weeks. An inserted Deload consumes the next planned Deload
- * and restarts the repeating pattern. No plan means no phases.
+ * within one pattern length and restarts the pattern. With none in reach, it only replaces the
+ * current week. No plan means no phases.
  *
  * Keys this build does not know are stripped, not refused, so an older app can still read and
  * edit a Program whose plan a newer app wrote.
@@ -119,6 +120,7 @@ export const phaseSnapshotSchema = z.object({
   load: phaseModifiersSchema.shape.load,
   test_top: z.enum(TEST_TOPS),
   test_entry_id: z.uuid().optional(),
+  test_workup_ids: z.array(z.uuid()).max(2).optional(),
   load_cuts: z.tuple([z.number().max(100), z.number().max(100)]).optional(),
 });
 export type PhaseSnapshot = z.infer<typeof phaseSnapshotSchema>;
@@ -145,6 +147,7 @@ export function snapshotModifiers(
     test_top: testTop,
     load_cuts: _loadCuts,
     test_entry_id: _testEntry,
+    test_workup_ids: _testWorkups,
     ...modifiers
   } = snapshot;
   return { modifiers, testTop };
@@ -191,15 +194,15 @@ export function phaseOfWeek(
     if (inserted > clamped) break;
     if (inserted === clamped)
       return { phase: "deload", week: clamped, programWeek: clamped + offset, inserted: true };
-    // Skip the planned weeks up through the replaced Deload. When the plan has none,
-    // replace the current week and start the pattern again.
-    const bound = Math.max(inserted, PHASE_WEEK_MAX - offset) + plan.pattern.length;
+    // Skip through the replaced Deload and restart the pattern. With none in reach,
+    // the insert only changes its own week.
+    const bound = inserted + plan.pattern.length;
     for (let scheduled = inserted; scheduled < bound; scheduled += 1) {
       if (phaseAt(scheduled) !== "deload") continue;
       offset += scheduled - inserted;
+      patternStart = inserted + 1;
       break;
     }
-    patternStart = inserted + 1;
   }
   const programWeek = clamped + offset;
   const phase = phaseAt(clamped);

@@ -26,13 +26,15 @@ type PlanSet = Pick<
 
 /**
  * The first working weight of an exercise: what is typed into its first non-warm-up set, else its
- * Ghost value (Previous, the suggestion or the target). Null when there is none to ramp to.
+ * Ghost value (Previous, the suggestion or the target). In a Test, ramp to the first work-up
+ * when present. Null when there is none to ramp to.
  */
 export function firstWorkingWeightKg(
   exercise: { sets: readonly PlanSet[] },
   ghostWeightOf: (setId: string) => number | null,
+  workupIds: readonly string[] = [],
 ): number | null {
-  const set = exercise.sets.find((candidate) => candidate.kind !== "warmup");
+  const set = exercise.sets.find((row) => row.kind !== "warmup" || workupIds.includes(row.id));
   if (!set) return null;
   return set.weightKg ?? ghostWeightOf(set.id);
 }

@@ -136,7 +136,8 @@ export function gridCapInUnit(grid: LoadGrid | null, unit: WeightUnit): number |
  * The increment for a set at `loadKg`, in kilograms. A gym's own step for the exercise comes
  * first; else a manual setting always wins (a cap alone changes neither); otherwise the step is
  * the loaded bar's, the rack's or the equipment's. Automatically it is about 2.5% of the load,
- * rounded to a multiple of the step and never below it.
+ * rounded to a multiple of the step and never below it. A kit uses whole default barbell
+ * steps rounded down before snapping to its plates.
  */
 export function incrementFor(
   loadKg: number | null,
@@ -155,8 +156,8 @@ export function incrementFor(
   if (settings.exerciseType === "bodyweight_weighted_reps")
     return defaultStepKg(equipment, unit, load, settings.exerciseType);
   if (grid?.source === "kit") {
-    const step = grid.stepAt(alignToGrid(grid, load));
-    return Math.max(defaultStepKg("barbell", unit, 0), automatic(load, step));
+    const step = defaultStepKg("barbell", unit, 0);
+    return Math.max(1, Math.floor((load * INCREMENT_SHARE) / step + EPS)) * step;
   }
   if (grid?.source === "default") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   return automatic(load, defaultStepKg(equipment, unit, load));
@@ -257,7 +258,7 @@ export function lightenLoad(
       // Nowhere lower to go on the step: the load stays.
       lighter = floored <= 0 ? loadKg : toKg(Math.min(floored, load), unit);
     } else {
-      const rounded = Math.round((load * factor) / step + EPS) * step;
+      const rounded = Math.round((load * factor) / step - EPS) * step;
       lighter =
         rounded <= 0 && !forceCut
           ? loadKg

@@ -11,9 +11,12 @@ import { useState } from "react";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 
+import { usePreference, usePreferences } from "@/preferences";
+
+import { capPromptKey } from "./cap-prompt";
 import { useGymSetting } from "./use-gym-setting";
 
-/** Saving a step answers the prompt for this exercise at this gym. */
+/** Either answer dismisses the prompt for this exercise at this gym. */
 export function StepPrompt({
   exerciseId,
   gymId,
@@ -26,20 +29,26 @@ export function StepPrompt({
   unit: WeightUnit;
 }) {
   const { t } = useTranslation();
+  const key = capPromptKey(gymId, exerciseId);
+  const answered = usePreference(({ ui }) => ui.stepPrompts.includes(key));
+  const { updateUi } = usePreferences();
   const setting = useGymSetting(exerciseId, gymId);
   const fallback = formatWeight(defaultStepKg(equipment, unit, 0), unit);
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (!setting.ready || setting.gymId !== gymId || setting.stepKg !== null) return null;
+  if (answered || !setting.ready || setting.gymId !== gymId || setting.stepKg !== null) return null;
   const input = draft ?? fallback;
   const stepKg = parseWeight(input, unit);
   const valid =
     stepKg !== null && stepKg >= 0.05 && (setting.maxKg === null || stepKg <= setting.maxKg);
-  const save = async () => {
-    if (!valid || busy) return;
+  const answer = async (save: boolean) => {
+    if (busy || (save && !valid)) return;
     setBusy(true);
     try {
-      await setting.save({ limits: { maxKg: setting.maxKg, stepKg } });
+      if (save && !(await setting.save({ limits: { maxKg: setting.maxKg, stepKg } }))) return;
+      await updateUi(({ stepPrompts }) =>
+        stepPrompts.includes(key) ? null : { stepPrompts: [...stepPrompts, key] },
+      );
     } finally {
       setBusy(false);
     }
@@ -58,13 +67,23 @@ export function StepPrompt({
           className="min-h-11 flex-1 rounded-xl bg-field px-3 text-body text-foreground"
         />
         <Text className="text-caption text-muted">{unit}</Text>
+      </View>
+      <View className="flex-row gap-2">
         <Button
           size="sm"
           variant="secondary"
           isDisabled={!valid || busy}
-          onPress={() => void save().catch(() => undefined)}
+          onPress={() => void answer(true).catch(() => undefined)}
         >
-          <Button.Label>{t("common__save")}</Button.Label>
+          <Button.Label>{t("gym__step_save")}</Button.Label>
+        </Button>
+        <Button
+          size="sm"
+          variant="tertiary"
+          isDisabled={busy}
+          onPress={() => void answer(false).catch(() => undefined)}
+        >
+          <Button.Label>{t("gym__step_keep", { weight: fallback, unit })}</Button.Label>
         </Button>
       </View>
     </View>

@@ -2,7 +2,6 @@ import {
   PHASES,
   modifiersFor,
   phaseFor,
-  runWeek,
   withModifiers,
   withPattern,
   withWeekPhase,
@@ -10,7 +9,7 @@ import {
 } from "@workspace/shared";
 import type { ProgramDetail, readRuns } from "@workspace/sync";
 import { TrendDown } from "phosphor-react-native";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
@@ -54,31 +53,23 @@ export function PhaseSection({
   const text = usePhaseText();
   const timeZone = useDeviceTimeZone();
   const plan = program.phasePlan;
-  const inserted = run?.inserted_deloads ?? [];
-  const currentWeek = run ? runWeek(run.started_at, new Date(), timeZone, run.pauses) : null;
+  const now = new Date();
   const [patternOpen, setPatternOpen] = useState(false);
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
   const insert = useInsertDeload(run);
-  const blocks = useMemo(
-    () =>
-      plan
-        ? stripBlocks({
-            plan,
-            insertedDeloads: inserted,
-            currentWeek,
-            plannedWeeks: program.plannedWeeks,
-          })
-        : [],
-    // `inserted` is a new array each render, but its weeks are what matter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plan, inserted.join(","), currentWeek, program.plannedWeeks],
-  );
+  const blocks = plan
+    ? stripBlocks({
+        plan,
+        current: run ? { run, now, timeZone, trainedAt } : undefined,
+        plannedWeeks: program.plannedWeeks,
+      })
+    : [];
   const save = (next: ProgramDetail["phasePlan"]) =>
     void actions.update(program.id, { phase_plan: next });
   const overridden =
     week !== null && plan?.overrides.some((item) => item.week === week.programWeek);
-  const nowPhase = phaseFor(plan, run, new Date(), timeZone, trainedAt);
+  const nowPhase = phaseFor(plan, run, now, timeZone, trainedAt);
 
   return (
     <View className="gap-2">

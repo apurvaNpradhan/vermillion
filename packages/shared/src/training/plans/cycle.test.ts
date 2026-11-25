@@ -181,3 +181,52 @@ it("seals earlier cycles once a later counted session exists, even after an Undo
   expect(withSkip.latestCountedCycle).toBe(2);
   expect(withSkip.cycle).toBe(2);
 });
+
+it.each([
+  [
+    "UTC",
+    "2026-03-02T00:00:00Z",
+    "2026-03-07T12:00:00Z",
+    "2026-03-08T12:00:00Z",
+    "2026-03-09T00:00:00Z",
+  ],
+  [
+    "America/New_York",
+    "2026-03-02T05:00:00Z",
+    "2026-03-07T17:00:00Z",
+    "2026-03-08T16:00:00Z",
+    "2026-03-09T04:00:00Z",
+  ],
+  [
+    "Asia/Kolkata",
+    "2026-03-01T18:30:00Z",
+    "2026-03-07T06:30:00Z",
+    "2026-03-08T06:30:00Z",
+    "2026-03-08T18:30:00Z",
+  ],
+])("counts only whole local days paused in %s", (zone, start, from, until, through) => {
+  const now = new Date(through);
+  expect(runWeek(start, now, zone, [{ from, until }])).toBe(1);
+  const almost = new Date(Date.parse(until) - 60_000).toISOString();
+  expect(runWeek(start, now, zone, [{ from, until: almost }])).toBe(2);
+});
+
+it("unions overlapping pauses across a fall DST change and ignores a short midnight crossing", () => {
+  const week = (pauses: Parameters<typeof runWeek>[3]) =>
+    runWeek("2026-10-27T04:00:00Z", new Date("2026-11-03T05:00:00Z"), "America/New_York", pauses);
+  const from = "2026-11-01T03:30:00Z";
+  const until = "2026-11-01T04:30:00Z";
+  expect(week([{ from, until }])).toBe(2);
+  expect(
+    week([
+      { from, until: "2026-11-02T04:29:00Z" },
+      { from: until, until: "2026-11-02T04:29:00Z" },
+    ]),
+  ).toBe(2);
+  expect(
+    week([
+      { from, until: "2026-11-02T05:30:00Z" },
+      { from: until, until: "2026-11-02T04:30:00Z" },
+    ]),
+  ).toBe(1);
+});

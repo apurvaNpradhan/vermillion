@@ -71,30 +71,47 @@ export function suggestionHistory(
   return result;
 }
 
-/** The latest matching fixed-rep prescriptions at this ordinal, across Workouts. */
-export function fixedPrescriptionSets(
-  history: readonly { sets: readonly LoggedSet[] }[],
-  target: PlannedSet,
-  ordinal: number,
-  limit = 1,
-): LoggedSet[] {
+/** The most recent complete entries with this prescription, newest first. */
+export function fixedPrescriptionHistory<Session extends { sets: readonly LoggedSet[] }>(
+  history: readonly Session[],
+  prescription: readonly PlannedSet[],
+): Session[] {
+  if (!prescription.some((target) => usesFixedPrescription(prescription, target))) return [];
+  return history.filter(({ sets }) => {
+    const completed = sets.filter((set) => set.completed_at !== null);
+    return (
+      completed.length === prescription.length &&
+      prescription.every((target, index) => {
+        const set = completed[index];
+        const before = set?.target;
+        return (
+          before != null &&
+          set?.kind === target.kind &&
+          before.kind === target.kind &&
+          before.reps_min === target.reps_min &&
+          (before.reps_max ?? before.reps_min) === (target.reps_max ?? target.reps_min) &&
+          before.effort_min === target.effort_min &&
+          before.effort_max === target.effort_max &&
+          before.weight_kg === target.weight_kg
+        );
+      })
+    );
+  });
+}
+
+function isFixedPrescription(target: PlannedSet): boolean {
   const reps = target.reps_min;
-  if (reps === undefined || reps !== (target.reps_max ?? reps)) return [];
-  const matches: LoggedSet[] = [];
-  for (const { sets } of history) {
-    const before = sets.filter((set) => set.kind === target.kind && set.completed_at !== null)[
-      ordinal
-    ];
-    if (
-      !before?.target ||
-      before.target.reps_min !== reps ||
-      before.target.reps_max !== reps ||
-      before.target.effort_min !== target.effort_min ||
-      before.target.effort_max !== target.effort_max
-    )
-      continue;
-    matches.push(before);
-    if (matches.length === limit) break;
-  }
-  return matches;
+  return (
+    reps !== undefined &&
+    reps === (target.reps_max ?? reps) &&
+    (target.kind === "working" || target.kind === "top" || target.kind === "backoff")
+  );
+}
+
+/** A kind moves as a group only when all of its sets use fixed reps. */
+export function usesFixedPrescription(prescription: readonly PlannedSet[], target: PlannedSet) {
+  return (
+    isFixedPrescription(target) &&
+    prescription.every((set) => set.kind !== target.kind || isFixedPrescription(set))
+  );
 }

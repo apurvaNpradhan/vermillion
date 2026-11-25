@@ -5,6 +5,7 @@ import {
   applyPhase,
   resolveExerciseUnit,
   cycleState,
+  closeRunPauses,
   finishClock,
   mainEntryOf,
   loadCutRange,
@@ -119,7 +120,15 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
-  const matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  let matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  const openPauses = matching?.pauses;
+  if (matching && !fields.backfill && openPauses?.some((pause) => pause.until === null)) {
+    const pauses = closeRunPauses(openPauses, fields.startedAt);
+    if (pauses.some((pause, index) => pause !== openPauses[index])) {
+      await tx.update(programRun).set({ pauses }).where(eq(programRun.id, matching.id));
+      matching = { ...matching, pauses };
+    }
+  }
   const runSessions = matching
     ? await tx
         .select({
@@ -264,8 +273,19 @@ async function createSessionIn(
         : entry.sets;
     assertSessionRoom(0, sets.length, "setsPerExercise");
     if (phase && phase.modifiers.load < 1) factors.push(...plannedLoadFactors(entry.sets, sets));
-    entries.push({ entry, info, setting, sessionExerciseId, sets });
+    const plannedWarmups = entry.sets.filter((set) => set.kind === "warmup").length;
+    const rows = sets.map((target) => ({ id: uuidv7(), target }));
+    const testWorkupIds =
+      phase?.phase === "test" && isMainLift && phase.testWorkups
+        ? rows
+            .slice(plannedWarmups)
+            .flatMap(({ id, target }) => (target.kind === "warmup" ? [id] : []))
+        : [];
+    entries.push({ entry, info, setting, sessionExerciseId, sets, rows, testWorkupIds });
   }
+  const testEntry =
+    phase &&
+    entries.find(({ entry, sets }) => entry.id === mainEntryId && isTestSingle(phase.phase, sets));
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
@@ -277,9 +297,8 @@ async function createSessionIn(
       ? {
           ...snapshotOf(phase),
           load_cuts: loadCutRange(factors),
-          test_entry_id: entries.find(
-            ({ entry, sets }) => entry.id === mainEntryId && isTestSingle(phase.phase, sets),
-          )?.entry.id,
+          test_entry_id: testEntry?.entry.id,
+          test_workup_ids: testEntry?.testWorkupIds.length ? testEntry.testWorkupIds : undefined,
         }
       : null,
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
@@ -312,7 +331,7 @@ async function createSessionIn(
     ...parsed,
   });
 
-  for (const { entry, info, setting, sessionExerciseId, sets } of entries) {
+  for (const { entry, info, setting, sessionExerciseId, sets, rows } of entries) {
     await tx.insert(sessionExercise).values({
       id: sessionExerciseId,
       user_id: userId,
@@ -330,9 +349,9 @@ async function createSessionIn(
       created_at: nowIso(),
     });
     const keys = keysAfterLast([], sets.length);
-    for (const [index, target] of sets.entries()) {
+    for (const [index, { id, target }] of rows.entries()) {
       await tx.insert(sessionSet).values({
-        id: uuidv7(),
+        id,
         user_id: userId,
         session_exercise_id: sessionExerciseId,
         position: keys[index] ?? "a0",

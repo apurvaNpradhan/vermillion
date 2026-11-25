@@ -1,5 +1,6 @@
 import {
   activeRun,
+  closeRunPauses,
   insertDeload,
   insertedDeloadsSchema,
   runPausesSchema,
@@ -131,13 +132,7 @@ export function setRunPaused(
     if (active?.id !== id) return false;
     const pauses = active.pauses ?? [];
     if (runPausedAt(pauses, at) === paused) return false;
-    const next = paused
-      ? [...pauses, { from: at, until: null }]
-      : pauses.map((pause) =>
-          pause.until === null && Date.parse(pause.from) <= Date.parse(at)
-            ? { ...pause, until: at }
-            : pause,
-        );
+    const next = paused ? [...pauses, { from: at, until: null }] : closeRunPauses(pauses, at);
     const checked = runPausesSchema.safeParse(next);
     if (!checked.success) return false;
     await tx.update(programRun).set({ pauses: checked.data }).where(eq(programRun.id, id));

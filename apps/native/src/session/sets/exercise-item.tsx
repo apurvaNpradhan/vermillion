@@ -88,6 +88,7 @@ export const ExerciseItem = memo(function ExerciseItem({
           ? (state.inputs.gym.settingFor(exercise.exerciseId)?.setupNote ?? null)
           : null,
         readOnly: state.ui.readOnly,
+        effortScale: state.ui.effortScale,
         expanded: state.expanded.has(exerciseId),
         done: allTicked(exercise?.sets ?? []),
       };
@@ -122,9 +123,10 @@ export const ExerciseItem = memo(function ExerciseItem({
             (set, index) => data.rows?.get(set.id)?.badge ?? String(index + 1),
           )}
           unit={unit}
+          effortScale={data.effortScale}
         />
       ) : null,
-    [suggestion, exercise, data.rows, unit],
+    [suggestion, exercise, data.rows, data.effortScale, unit],
   );
   if (!exercise) return null;
   const equipment = exercise.exercise?.equipment ?? "other";
@@ -173,7 +175,11 @@ export const ExerciseItem = memo(function ExerciseItem({
                   unit={unit}
                 />
               ) : null}
-              {!readOnly && data.activeSessionId && data.gymId && usesGymHistory(equipment) ? (
+              {!readOnly &&
+              data.activeSessionId &&
+              data.gymId &&
+              usesGymHistory(equipment) &&
+              exercise.sets.some((set) => set.kind === "working" && set.completedAt !== null) ? (
                 <StepPrompt
                   key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
                   exerciseId={exercise.exerciseId}

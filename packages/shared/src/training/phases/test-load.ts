@@ -15,8 +15,10 @@ type TestHistory = {
   >[];
 };
 
-/** Midpoint of the prescribed 90–95% range. Tests can raise the estimate for a subsequent Test. */
+/** Midpoint of the prescribed 90–95% range. */
 const TEST_SHARE = 0.925;
+const RECENT_BASELINES = 3;
+const RECENT_MS = 56 * 86_400_000;
 
 export function testWorkingLoad(
   history: readonly TestHistory[],
@@ -33,20 +35,31 @@ export function testWorkingLoad(
   );
   let estimate: number | null = null;
   let loggedLoad: number | null = null;
+  let baselines = 0;
   for (const session of outsideLighterWeeks(before, options.lighterWeeks ?? [])) {
-    if (session.phase === "deload") continue;
+    if (session.phase === "test" || session.phase === "deload") continue;
+    baselines += 1;
+    const recent =
+      options.single &&
+      baselines <= RECENT_BASELINES &&
+      options.now.getTime() - Date.parse(session.started_at) <= RECENT_MS;
     let result: number | null = null;
+    let workingLoad: number | null = null;
     for (const set of session.sets) {
       if (set.completed_at === null || !progresses(set.kind) || set.weight_kg == null) continue;
-      if (session.phase !== "test") loggedLoad = Math.max(loggedLoad ?? 0, set.weight_kg);
-      if (set.reps == null || !options.single) continue;
+      workingLoad = Math.max(workingLoad ?? 0, set.weight_kg);
+      if (!recent || set.reps == null) continue;
       const bodyweight = set.bodyweight_kg === undefined ? options.bodyweightKg : set.bodyweight_kg;
       const weight = effectiveWeight(type, set.weight_kg, bodyweight);
       const max = weight === null ? null : estimatedOneRepMax(weight, set.reps);
       if (max !== null) result = Math.max(result ?? 0, max);
     }
-    if (result !== null) estimate = Math.max(estimate ?? 0, result);
-    if (session.phase !== "test" && (options.single ? result !== null : loggedLoad !== null)) break;
+    loggedLoad ??= workingLoad;
+    if (result !== null) {
+      estimate = result;
+      break;
+    }
+    if (!recent && loggedLoad !== null) break;
   }
   const { load: factor } = trainingBreak(before, options.now);
   if (estimate === null) return loggedLoad === null ? null : loggedLoad * factor;

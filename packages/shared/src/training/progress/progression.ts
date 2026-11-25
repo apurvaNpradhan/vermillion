@@ -11,7 +11,7 @@ import {
   outsideLighterWeeks,
   type LighterPeriod,
 } from "./lighter-week";
-import { fixedPrescriptionSets } from "./suggestion-history";
+import { usesFixedPrescription } from "./suggestion-history";
 import type { LoadGrid } from "./load-grid";
 import {
   addLoad,
@@ -83,8 +83,9 @@ export type ProgressionContext = {
    * clock reads the exercise's full history across Workouts and gyms.
    */
   baselineHistory?: readonly ProgressionSession[];
-  /** Baseline-eligible history across Workouts, used only for matching fixed reps. */
+  /** Whole baseline entries that match the fixed-rep prescription, newest first. */
   fixedBaselineHistory?: readonly ProgressionSession[];
+  fixedFallbackHistory?: readonly ProgressionSession[];
   /** Every Lighter week, past and running. Their Sessions are never a baseline. */
   lighterWeeks?: readonly LighterPeriod[];
   /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
@@ -268,34 +269,31 @@ export function suggestNext(
       breakDays: null,
     };
   }
-  const baselines = outsideLighterWeeks(
-    context.baselineHistory ?? history,
-    context.lighterWeeks ?? [],
-  ).flatMap((session) => {
-    if (!isBaselinePhase(session.phase)) return [];
-    const logged = done(session.sets);
-    const sets = logged.filter((set) => progresses(set.kind));
-    return sets.length > 0 ? [{ ...session, sets, logged }] : [];
-  });
-  const [last, older] = baselines;
+  const baselinesIn = (sessions: readonly ProgressionSession[]) =>
+    outsideLighterWeeks(sessions, context.lighterWeeks ?? []).flatMap((session) => {
+      if (!isBaselinePhase(session.phase)) return [];
+      const logged = done(session.sets);
+      const sets = logged.filter((set) => progresses(set.kind));
+      return sets.length > 0 ? [{ sets, logged }] : [];
+    });
+  const baselines = baselinesIn(context.baselineHistory ?? history);
+  const [last] = baselines;
+  const fixedBaselines = context.fixedBaselineHistory?.length
+    ? baselinesIn(context.fixedBaselineHistory)
+    : context.fixedFallbackHistory
+      ? baselinesIn(context.fixedFallbackHistory)
+      : baselines;
   const saved = new Map(
     slots.map(({ target, ordinal, index }) => {
-      const [fixed, priorFixed] = fixedPrescriptionSets(
-        context.fixedBaselineHistory ?? [],
-        target,
-        ordinal,
-        2,
-      );
-      const matching = last?.sets.filter(({ kind }) => kind === target.kind) ?? [];
-      const exact = fixed ?? matching[ordinal];
+      const [latest, older] = usesFixedPrescription(planned, target) ? fixedBaselines : baselines;
+      const matching = latest?.sets.filter(({ kind }) => kind === target.kind) ?? [];
+      const exact = matching[ordinal];
       return [
         index,
         {
           exact,
           before: exact ?? matching.at(-1),
-          prior: fixed
-            ? priorFixed
-            : older?.sets.filter(({ kind }) => kind === target.kind)[ordinal],
+          prior: older?.sets.filter(({ kind }) => kind === target.kind)[ordinal],
         },
       ] as const;
     }),

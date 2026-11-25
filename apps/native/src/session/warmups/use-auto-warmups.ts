@@ -1,4 +1,4 @@
-import { isTestSingle, incrementInUnit } from "@workspace/shared";
+import { incrementInUnit } from "@workspace/shared";
 import { resolveExerciseUnit } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -61,6 +61,7 @@ export function useAutoWarmups({
   flushEdits: () => void;
   gym: GymLoads;
 }) {
+  const workupIds = session.phaseModifiers?.test_workup_ids;
   const active = !readOnly && session.finishedAt === null;
   const equipment = useEquipment(active, gym.gymId ?? undefined, true);
   const rows = equipment.rows;
@@ -73,16 +74,8 @@ export function useAutoWarmups({
     if (!active || !historyReady || !equipmentReady) return;
     let deferred = false;
     for (const exercise of session.exercises) {
-      if (
-        !shouldAutoWarmup(exercise) ||
-        (session.phaseModifiers?.test_entry_id === exercise.sourceWorkoutExerciseId &&
-          isTestSingle(
-            session.phase,
-            exercise.sets.map(({ target }) => target),
-          ))
-      )
-        continue;
-      const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
+      if (!shouldAutoWarmup(exercise)) continue;
+      const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf, workupIds);
       if (workingKg === null) continue;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
       const step = incrementInUnit(weightIncrementKg, weightIncrementUnit ?? preferredUnit, unit);
@@ -113,8 +106,7 @@ export function useAutoWarmups({
     equipmentReady,
     gym,
     session.exercises,
-    session.phase,
-    session.phaseModifiers,
+    workupIds,
     ghostWeightOf,
     rows,
     preferredUnit,
@@ -131,7 +123,7 @@ export function useAutoWarmups({
   const addWarmups = useCallback(
     async (exercise: SessionExerciseDetail): Promise<"added" | "none"> => {
       const workingKg = canAddWarmups(exercise)
-        ? firstWorkingWeightKg(exercise, ghostWeightOf)
+        ? firstWorkingWeightKg(exercise, ghostWeightOf, workupIds)
         : null;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
       const step = incrementInUnit(weightIncrementKg, weightIncrementUnit ?? preferredUnit, unit);
@@ -148,6 +140,7 @@ export function useAutoWarmups({
       return "added";
     },
     [
+      workupIds,
       ghostWeightOf,
       gym,
       rows,

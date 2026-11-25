@@ -134,6 +134,7 @@ function buildView(
       // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
       stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
       stallDeload: exercise.stallDeload,
+      prescription: exercise.sets.map(({ kind, target }) => ({ ...target, kind })),
       testSingle:
         inputs.testEntryId === exercise.sourceWorkoutExerciseId &&
         isTestSingle(
@@ -162,14 +163,14 @@ function buildView(
   exercise.sets.forEach((set, index) => {
     const previous = previousForSuggestion(
       history,
-      context.settings.fixedBaselineHistory,
+      context.settings,
       exercise.sets,
       index,
       set.target,
     );
     const hinted = previousForSuggestion(
       history,
-      context.settings.fixedBaselineHistory,
+      context.settings,
       exercise.sets,
       index,
       set.target,
