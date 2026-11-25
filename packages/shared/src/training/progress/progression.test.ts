@@ -134,10 +134,10 @@ describe("double progression", () => {
     },
   );
 
-  it.each([9.5, 10])("holds a set below the ceiling at RPE %s", (rpe) => {
+  it.each([9.5, 10])("adds a rep below the ceiling at RPE %s", (rpe) => {
     expect(suggest([logged(10, 80, { rpe })], [], plan.slice(0, 1))).toMatchObject({
-      reason: "hold_effort",
-      sets: [{ weightKg: 80, reps: 10 }],
+      reason: "add_rep",
+      sets: [{ weightKg: 80, reps: 11 }],
     });
   });
 

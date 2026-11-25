@@ -475,7 +475,7 @@ const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS start
     se.exercise_id AS exercise_id, se.exercise_type AS exercise_type, se.exercise_title AS exercise_title,
     ss.id AS set_id, ss.kind AS kind, ss.weight_kg AS weight_kg, ss.reps AS reps,
     ss.duration_s AS set_duration_s, ss.distance_m AS distance_m, ss.floors AS floors,
-    ss.steps AS steps, ss.rpe AS rpe, ss.completed_at AS completed_at`;
+    ss.steps AS steps, ss.rpe AS rpe, ss.target AS target, ss.completed_at AS completed_at`;
 
 const SET_ORDER = "ORDER BY s.started_at DESC, s.id DESC, se.position, se.id, ss.position, ss.id";
 
@@ -694,7 +694,7 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
           ss.reps, ss.duration_s,
           CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
           ss.floors, ss.steps,
-          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.completed_at) AS payload
+          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.target, ss.completed_at) AS payload
       FROM training_session s
       LEFT JOIN session_exercise se ON se.session_id = s.id
       LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
@@ -819,6 +819,7 @@ const finishedRowSchema = z.object({
   floors: z.number().nullable(),
   steps: z.number().nullable(),
   rpe: z.number().nullable(),
+  target: targetText.optional(),
   completed_at: z.string().nullable(),
 });
 
@@ -872,6 +873,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         floors: row.floors,
         steps: row.steps,
         rpe: row.rpe,
+        target: row.target ?? null,
       };
       current.sets.push(set);
     }

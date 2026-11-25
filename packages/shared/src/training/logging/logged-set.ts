@@ -1,5 +1,6 @@
 import type { ExerciseType } from "../../exercise/vocabulary";
 import type { ActualValues } from "./session-inputs";
+import type { PlannedSet } from "../plans/planned-sets";
 import type { Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 
@@ -10,6 +11,8 @@ export type SetValues = { [Key in keyof ActualValues]?: number | null };
 export type LoggedSet = SetValues & {
   /** Computed on read from the weight log on this Session’s local date. */
   bodyweight_kg?: number | null;
+  /** Prescription stored when the set was created. */
+  target?: PlannedSet | null;
   /**
    * Set by the user's "Count warm-up sets" setting on the sets a stat reads: a warm-up with it
    * counts like a working set. Absent (the default) leaves warm-ups out of every number.

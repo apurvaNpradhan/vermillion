@@ -34,6 +34,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       gymId?: string;
       phase?: ContextSession["phase"];
       rpe?: LoggedSet["rpe"];
+      target?: PlannedSet;
     } = {},
   ): ContextSession {
     const date = new Date(START + day * DAY).toISOString();
@@ -56,6 +57,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
                 weight_kg: target.weightKg,
                 reps: target.reps,
                 rpe: options.rpe,
+                target: options.target,
               },
             ]
           : [],
@@ -97,7 +99,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     const missed = (amount: number, reps: number) =>
       targets.map(() => ({ weightKg: kg(amount), reps }));
     const history = [train(0, missed(weight, 6), { rpe: 10 })];
-    expect(propose(history, 1, targets)?.reason).toBe("hold_effort");
+    expect(propose(history, 1, targets)?.reason).toBe("hold_missed");
     history.unshift(train(1, missed(weight, 6), { rpe: 10 }));
     const resetLoad = weight - step * 2;
     expect(propose(history, 2, targets)).toMatchObject({
@@ -106,7 +108,7 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     });
     history.unshift(train(2, missed(resetLoad, 7), { rpe: 10 }));
     expect(propose(history, 3, targets)).toMatchObject({
-      reason: "hold_effort",
+      reason: "hold_missed",
       sets: missed(resetLoad, 7),
     });
     history.unshift(train(3, missed(resetLoad, 7)));
@@ -116,21 +118,51 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     });
   });
 
-  it("holds a completed grind at the ceiling across Sessions", () => {
-    const grinds = [
-      train(
-        0,
-        startingTargets.map((set) => ({ ...set, reps: 8 })),
-        { rpe: 10 },
-      ),
-    ];
-    for (let index = 1; index <= 6; index += 1) {
-      const result = propose(grinds, index);
-      expect(result?.reason).toBe("hold_effort");
-      expect(result?.sets).toEqual(startingTargets.map((set) => ({ ...set, reps: 8 })));
-      if (result) grinds.unshift(train(index, result.sets, { rpe: 10 }));
-    }
+  it("holds a completed grind once at the same load and reps", () => {
+    const topped = startingTargets.map((set) => ({ ...set, reps: 8 }));
+    const grinds = [train(0, topped, { rpe: 10 })];
+    expect(propose(grinds, 1)).toMatchObject({ reason: "hold_effort", sets: topped });
+    grinds.unshift(train(1, topped, { rpe: 10 }));
+    expect(propose(grinds, 2)).toMatchObject({
+      reason: "add_weight",
+      sets: plan.map(() => ({ weightKg: expect.closeTo(exact(weight + step), 2), reps: 6 })),
+    });
   });
+
+  it.each([
+    { logged: 7, target: 7, steps: 1 },
+    { logged: 10, target: 9.5, steps: 1 },
+    { logged: 7, target: 9, steps: 2 },
+    { logged: 9, target: 8, steps: 0 },
+  ] as const)(
+    "judges RPE $logged against the logged target $target",
+    ({ logged, target, steps }) => {
+      const topped = startingTargets.map((set) => ({ ...set, reps: 8 }));
+      const snapshot: PlannedSet = {
+        kind: "working",
+        reps_min: 6,
+        reps_max: 8,
+        effort_min: target,
+        effort_max: target,
+      };
+      const history = [train(0, topped, { rpe: logged, target: snapshot })];
+      expect(propose(history, 1)?.sets[0]).toMatchObject({
+        weightKg: expect.closeTo(exact(weight + step * steps), 2),
+        reps: steps ? 6 : 8,
+      });
+      const misses = [1, 0].map((day) =>
+        train(
+          day,
+          topped.map((set) => ({ ...set, reps: 5 })),
+          {
+            rpe: logged,
+            target: snapshot,
+          },
+        ),
+      );
+      expect(propose(misses, 2)?.reason).toBe(steps ? "add_rep" : "reset");
+    },
+  );
 
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {
     const targets = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));

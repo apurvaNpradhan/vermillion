@@ -109,6 +109,19 @@ const EXTENDED_BREAK_LOAD = 0.7;
 /** At this effort or harder a set was a grind; at the easier one it was easy. */
 const GRIND_RPE = 9.5;
 const EASY_RPE = 7;
+const effortTarget = (set: LoggedSet, current: PlannedSet) =>
+  set.target === undefined ? current : set.target;
+
+function wasGrind(set: LoggedSet, current: PlannedSet): boolean {
+  const max = effortTarget(set, current)?.effort_max;
+  return set.rpe != null && set.rpe >= (max === undefined ? GRIND_RPE : max + 1);
+}
+
+function easySet(set: LoggedSet, current: PlannedSet): boolean {
+  const min = effortTarget(set, current)?.effort_min;
+  return set.rpe != null && set.rpe <= (min === undefined ? EASY_RPE : min - 2);
+}
+
 /** At the cap, reps keep growing past the range's top up to this multiple of it, rounded. */
 export const cappedRepCeiling = (maxReps: number) => Math.round(maxReps * 1.5);
 const AT_CAP = 1e-4;
@@ -172,7 +185,7 @@ function rangeMisses(slots: readonly Slot[], sets: readonly LoggedSet[]) {
     return target.reps_min !== undefined &&
       set?.reps != null &&
       set.reps < target.reps_min &&
-      (set.rpe == null || set.rpe >= GRIND_RPE)
+      (set.rpe == null || wasGrind(set, target))
       ? [{ index, set, minimum: target.reps_min, reps: set.reps }]
       : [];
   });
@@ -332,6 +345,8 @@ export function suggestNext(
   }
 
   const older = baselines[1];
+  const misses = rangeMisses(slots, last.sets);
+  const missedSlots = new Set(misses.flatMap(({ index, set }) => (set.rpe != null ? [index] : [])));
   const earlierMisses = new Map(
     older
       ? rangeMisses(slots, older.sets).map(({ index, set }) => [
@@ -346,7 +361,7 @@ export function suggestNext(
     !settings.progressionPerSet && (kind === "working" || kind === "backoff");
   const groupKey = (kind: SetKind, weight: number) => `${kind}/${weight}`;
   const groupResets = new Map<string, number>();
-  for (const { index, set, minimum, reps } of rangeMisses(slots, last.sets)) {
+  for (const { index, set, minimum, reps } of misses) {
     const weight = set.weight_kg ?? null;
     if (earlierMisses.get(index) !== (weight === null ? null : loadIdentity(weight))) continue;
     held.add(index);
@@ -389,11 +404,30 @@ export function suggestNext(
       before.reps >= (target.reps_max ?? target.reps_min)
     );
   });
+  const grindHolds = new Set<number>();
+  const repeatedGrindGroups = new Set<SetKind>();
+  for (const { index, target, ordinal } of slots) {
+    const before = counterpart(last.sets, target.kind, ordinal);
+    const ceiling = target.reps_max ?? target.reps_min;
+    if (!before || ceiling === undefined || (before.reps ?? 0) < ceiling) continue;
+    const prior = older?.sets.filter(({ kind }) => kind === target.kind)[ordinal];
+    const repeat =
+      prior &&
+      prior.reps === before.reps &&
+      (prior.weight_kg == null ? null : loadIdentity(prior.weight_kg)) ===
+        (before.weight_kg == null ? null : loadIdentity(before.weight_kg)) &&
+      wasGrind(prior, target);
+    if (repeat && together(target.kind)) repeatedGrindGroups.add(target.kind);
+    if (!repeat && wasGrind(before, target)) grindHolds.add(index);
+  }
+  const waitsForEffort = ({ index, target }: Slot) =>
+    grindHolds.has(index) && !repeatedGrindGroups.has(target.kind);
   const waiting = new Set<SetKind>();
   const easyLoads = new Map<string, boolean>();
   for (const kind of ["working", "backoff"] as const) {
     const previous = last.sets.filter((set) => set.kind === kind);
-    for (const { target, ordinal } of slots) {
+    for (const slot of slots) {
+      const { target, ordinal } = slot;
       if (target.kind !== kind) continue;
       const before = previous[ordinal];
       if (!before) continue;
@@ -403,15 +437,12 @@ export function suggestNext(
         before.reps == null ||
         before.reps < ceiling ||
         before.weight_kg == null ||
-        (before.rpe != null && before.rpe >= GRIND_RPE)
+        waitsForEffort(slot)
       )
         waiting.add(kind);
-    }
-    for (const set of previous) {
-      if (set.weight_kg == null) continue;
-      const key = groupKey(kind, set.weight_kg);
-      const easy = set.rpe != null && set.rpe <= EASY_RPE;
-      easyLoads.set(key, (easyLoads.get(key) ?? true) && easy);
+      if (before.weight_kg == null) continue;
+      const key = groupKey(kind, before.weight_kg);
+      easyLoads.set(key, (easyLoads.get(key) ?? true) && easySet(before, target));
     }
   }
   const ordered: Outcome[] = [];
@@ -451,8 +482,8 @@ export function suggestNext(
     } else if (reset !== undefined && target.reps_min !== undefined) {
       outcome = "reset";
       next = { weightKg: reset, reps: target.reps_min };
-    } else if (held.has(index)) outcome = "hold_missed";
-    else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
+    } else if (held.has(index) || missedSlots.has(index)) outcome = "hold_missed";
+    else if (waitsForEffort({ index, target, ordinal })) outcome = "hold_effort";
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
@@ -472,7 +503,7 @@ export function suggestNext(
         if (canLoad && (!together(target.kind) || !waiting.has(target.kind))) {
           const easy = together(target.kind)
             ? (easyLoads.get(groupKey(target.kind, before.weight_kg ?? 0)) ?? false)
-            : before.rpe != null && before.rpe <= EASY_RPE;
+            : easySet(before, target);
           const base = before.weight_kg ?? 0;
           const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
           const raised = addLoad(base, added, unit, grid);
