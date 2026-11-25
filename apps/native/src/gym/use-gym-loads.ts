@@ -22,8 +22,11 @@ import { useGyms } from "./use-gyms";
  * delivered a gym.
  */
 export function useGymLoads(gymId?: string | null): GymLoads {
-  const { activeGymId, defaultGymId } = useGyms();
+  const { gyms, activeGymId, defaultGymId } = useGyms();
   const wanted = gymId ?? activeGymId;
+  const gym = gyms.find((entry) => entry.id === wanted);
+  const dumbbellMaxKg = gym?.dumbbellMaxKg ?? null;
+  const unavailable = gym?.unavailableEquipment;
   const unit = usePreference((preferences) => preferences.ui.weightUnit);
   const settings = useGymExerciseSettings(wanted).value;
   const kitSubscribe = useCallback(
@@ -50,8 +53,16 @@ export function useGymLoads(gymId?: string | null): GymLoads {
     () =>
       wanted === null
         ? NO_GYM_LOADS
-        : buildGymLoads({ gymId: wanted, settings: settings ?? [], kit: kit ?? [], bars, unit }),
-    [wanted, settings, kit, bars, unit],
+        : buildGymLoads({
+            gymId: wanted,
+            settings: settings ?? [],
+            kit: kit ?? [],
+            bars,
+            unit,
+            dumbbellMaxKg,
+            unavailableEquipment: unavailable,
+          }),
+    [wanted, settings, kit, bars, unit, dumbbellMaxKg, unavailable],
   );
 }
 

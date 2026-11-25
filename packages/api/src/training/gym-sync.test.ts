@@ -221,7 +221,7 @@ describe("gym upload handlers", () => {
     expect(await stored("gym", garage)).toMatchObject({ name: "Home" });
   });
 
-  it.each([
+  const badGyms: { name: string; data: Record<string, Value> }[] = [
     { name: "an unknown type", data: { unavailable_equipment: JSON.stringify(["sled"]) } },
     { name: "bodyweight", data: { unavailable_equipment: JSON.stringify(["none"]) } },
     {
@@ -234,7 +234,8 @@ describe("gym upload handlers", () => {
     { name: "a negative dumbbell max", data: { dumbbell_max_kg: -5 } },
     { name: "a dumbbell max over the limit", data: { dumbbell_max_kg: 5000 } },
     { name: "a text dumbbell max", data: { dumbbell_max_kg: "heavy" } },
-  ])("refuses a gym with $name, on PUT and PATCH", async ({ data }) => {
+  ];
+  it.each(badGyms)("refuses a gym with $name, on PUT and PATCH", async ({ data }) => {
     const me = await writer(`gym-equipment-bad-${Math.random().toString(36).slice(2)}@example.com`);
     const first = await defaultGym(me);
     expect(await me.send([putGym(uuidv7(), "Bad", data)])).toMatchObject(

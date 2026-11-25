@@ -302,7 +302,12 @@ const LoadedSession = memo(function LoadedSession({
     if (picked && picked.length > 0) await actions.addExercises(session.id, picked);
   };
   const replace = async (entry: SessionExerciseDetail) => {
-    const picked = await pickExercises({ max: 1, exclude: exerciseIds, swapFor: entry.exerciseId });
+    const picked = await pickExercises({
+      max: 1,
+      exclude: exerciseIds,
+      swapFor: entry.exerciseId,
+      gymId: sessionGymId,
+    });
     const next = picked?.[0];
     if (!next) return;
     // A Session from a Workout asks how far the swap goes; one without has only itself.

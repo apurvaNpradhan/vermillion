@@ -25,6 +25,8 @@ import { SearchBar } from "@/platform/ui/search-bar";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
+import { useGymAvailability, useGyms } from "@/gym";
+
 import { useExerciseActions } from "../../use-exercise-actions";
 import { toggled, withoutFacets } from "../filter-state";
 import { useExerciseLibrary } from "../use-exercise-library";
@@ -87,6 +89,8 @@ type ExerciseLibraryProps = {
    * request, so asking for the same group again re-applies it after the filters were cleared.
    */
   browseMuscle?: { muscle: MuscleGroup; at?: string };
+  /** The gym whose equipment the "Available here" filter uses; none is the gym trained at. */
+  gymId?: string | null;
 };
 
 /**
@@ -108,8 +112,11 @@ export function ExerciseLibrary({
   onArchive,
   onRestore,
   browseMuscle,
+  gymId,
 }: ExerciseLibraryProps) {
   const { t } = useTranslation();
+  const here = useGymAvailability(gymId);
+  const { multiple } = useGyms();
   const [filters, setFilters] = useState<LibraryFilters>(() => ({
     ...DEFAULT_LIBRARY_FILTERS,
     pinnedFirst: mode === "pick",
@@ -316,8 +323,28 @@ export function ExerciseLibrary({
                   >
                     <Button.Label>{t("exercise__pinned")}</Button.Label>
                   </Button>
+                  {here.unavailable.length > 0 || filters.lacking.length > 0 ? (
+                    <Button
+                      size="sm"
+                      variant={filters.lacking.length > 0 ? "secondary" : "ghost"}
+                      className="h-9 rounded-full"
+                      accessibilityState={{ selected: filters.lacking.length > 0 }}
+                      onPress={() =>
+                        setFilters((current) => ({
+                          ...current,
+                          lacking: current.lacking.length > 0 ? [] : here.unavailable,
+                        }))
+                      }
+                    >
+                      <Button.Label>
+                        {multiple && here.gymName
+                          ? t("exercise__available_here_at", { gym: here.gymName })
+                          : t("exercise__available_here")}
+                      </Button.Label>
+                    </Button>
+                  ) : null}
                   <FilterChips chips={chips} />
-                  {chips.length > 0 || filters.pinnedOnly ? (
+                  {chips.length > 0 || filters.pinnedOnly || filters.lacking.length > 0 ? (
                     <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
                       <Button.Label>{t("exercise__clear_filters")}</Button.Label>
                     </Button>

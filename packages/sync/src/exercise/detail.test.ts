@@ -220,7 +220,7 @@ describe("swap candidates by gym equipment", () => {
       primary: "chest",
       equipment: "dumbbell",
       rank: 1,
-      details: ["inner_chest"],
+      details: ["lower_chest"],
     },
     {
       id: "inner-cable",
@@ -228,12 +228,12 @@ describe("swap candidates by gym equipment", () => {
       primary: "chest",
       equipment: "cable",
       rank: 2,
-      details: ["inner_chest"],
+      details: ["lower_chest"],
     },
   ];
   const ranked = (
     unavailable: ("barbell" | "dumbbell" | "cable" | "machine" | "none")[] | undefined,
-    primaryDetail: ("inner_chest" | "upper_chest")[] = [],
+    primaryDetail: ("lower_chest" | "upper_chest")[] = [],
     limit?: number,
   ) => {
     const { sql, params } = swapCandidatesQuery(
@@ -284,7 +284,7 @@ describe("swap candidates by gym equipment", () => {
 
   it("puts available first, then shared details, then rank", () => {
     // Without cables, the inner-chest dumbbell outranks the better-ranked others.
-    expect(ranked(["cable"], ["inner_chest"])).toEqual([
+    expect(ranked(["cable"], ["lower_chest"])).toEqual([
       "inner",
       "bar2",
       "pec",
@@ -293,7 +293,7 @@ describe("swap candidates by gym equipment", () => {
       "inner-cable",
       "cable",
     ]);
-    expect(ranked(["dumbbell"], ["inner_chest"])).toEqual([
+    expect(ranked(["dumbbell"], ["lower_chest"])).toEqual([
       "inner-cable",
       "bar2",
       "cable",

@@ -16,7 +16,7 @@ import { Keyboard, Pressable, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
-import { useGyms } from "@/gym";
+import { EquipmentHereSection, useGyms } from "@/gym";
 import { TextField } from "@/platform/forms/text-field";
 import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
@@ -56,6 +56,8 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
         backFallback="/"
       >
         {state.failed ? <Button onPress={state.retry}>{t("plates__retry")}</Button> : null}
+        {/* With several gyms the gym's own page holds this; with one it lives here. */}
+        {multiple ? null : <EquipmentHereSection gymId={gymId} />}
         {!state.loading && !state.failed && state.rows.length === 0 ? (
           <EmptyState
             icon={Barbell}

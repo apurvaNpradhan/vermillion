@@ -94,11 +94,13 @@ export function ExercisePickScreen({
         mode="pick"
         title={t("exercise__pick_title")}
         selectedOrder={order}
+        gymId={session?.options.gymId}
         disabledIds={session?.options.exclude}
         listHeader={
           session?.options.swapFor ? (
             <PickSwapSuggestions
               exerciseId={session.options.swapFor}
+              gymId={session.options.gymId}
               selected={selected}
               onToggle={onToggle}
             />

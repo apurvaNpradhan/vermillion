@@ -387,7 +387,11 @@ function LoadedDetail({
                 />
               </View>
             ) : null}
-            <SwapRow candidates={swaps} onOpen={onOpenExercise} />
+            <SwapRow
+              candidates={swaps.rows}
+              hasEquipment={swaps.hasEquipment}
+              onOpen={onOpenExercise}
+            />
             <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
             {steps.length > 0 ? <FormSection steps={steps} /> : null}
           </Animated.ScrollView>

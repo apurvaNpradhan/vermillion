@@ -14,6 +14,7 @@ export function withoutFacets(filters: LibraryFilters): LibraryFilters {
     pinnedOnly: false,
     includeSecondary: DEFAULT_LIBRARY_FILTERS.includeSecondary,
     equipment: DEFAULT_LIBRARY_FILTERS.equipment,
+    lacking: DEFAULT_LIBRARY_FILTERS.lacking,
     show: DEFAULT_LIBRARY_FILTERS.show,
   };
 }

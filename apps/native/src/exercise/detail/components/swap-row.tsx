@@ -1,4 +1,9 @@
-import { EQUIPMENT_KEYS, MUSCLE_DETAIL_KEYS, MUSCLE_GROUP_KEYS } from "@workspace/shared";
+import {
+  EQUIPMENT_KEYS,
+  MUSCLE_DETAIL_KEYS,
+  MUSCLE_GROUP_KEYS,
+  type Equipment,
+} from "@workspace/shared";
 import type { LibraryRow } from "@workspace/sync";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
@@ -9,16 +14,20 @@ import { ExerciseThumbnail } from "../../library/components/exercise-thumbnail";
 const CARD_WIDTH = 132;
 
 /**
- * "Swap for": a horizontal row of cards, one per exercise that works the same muscle with other
- * equipment. Renders nothing without candidates.
+ * "Swap for": a horizontal row of cards, one per exercise that works the same muscle. The gym's
+ * own equipment comes first; a card for equipment it lacks stays pickable but is muted and says
+ * "Not here". Renders nothing without candidates.
  */
 export function SwapRow({
   candidates,
+  hasEquipment = () => true,
   onOpen,
   selectedIds,
   bleed = false,
 }: {
   candidates: readonly LibraryRow[];
+  /** Whether the gym has an exercise's equipment; the default is that it has everything. */
+  hasEquipment?: (equipment: Equipment) => boolean;
   onOpen: (id: string) => void;
   /** Pick mode: the cards are checkboxes and these are ticked, instead of buttons that open. */
   selectedIds?: readonly string[];
@@ -43,18 +52,19 @@ export function SwapRow({
         {candidates.map((candidate) => {
           const picking = selectedIds !== undefined;
           const selected = selectedIds?.includes(candidate.id) ?? false;
+          const here = hasEquipment(candidate.equipment);
           return (
             <Pressable
               key={candidate.id}
               accessibilityRole={picking ? "checkbox" : "button"}
               accessibilityState={picking ? { checked: selected } : undefined}
-              accessibilityLabel={t(picking ? "exercise__swap_pick" : "exercise__swap_open", {
+              accessibilityLabel={`${t(picking ? "exercise__swap_pick" : "exercise__swap_open", {
                 title: candidate.title,
-              })}
+              })}${here ? "" : `, ${t("exercise__not_here")}`}`}
               onPress={() => onOpen(candidate.id)}
               className={`gap-2 rounded-xl border active:opacity-70 p-2 active:bg-default ${
                 selected ? "border-foreground bg-default" : "border-transparent bg-surface"
-              }`}
+              } ${here ? "" : "opacity-60"}`}
               style={{ width: CARD_WIDTH }}
             >
               <ExerciseThumbnail
@@ -74,6 +84,11 @@ export function SwapRow({
                     : MUSCLE_GROUP_KEYS[candidate.primaryMuscle],
                 )}
               </Text>
+              {here ? null : (
+                <Text numberOfLines={1} className="font-normal text-caption text-subtle">
+                  {t("exercise__not_here")}
+                </Text>
+              )}
             </Pressable>
           );
         })}

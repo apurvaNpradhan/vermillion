@@ -19,6 +19,7 @@ describe("filter state", () => {
       pinnedOnly: true,
       pinnedFirst: true,
       equipment: ["barbell"],
+      lacking: ["cable"],
       show: "custom",
       sort: "popular",
     });
