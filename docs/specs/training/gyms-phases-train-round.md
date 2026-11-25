@@ -325,3 +325,42 @@ session with the owner. Translations, Health Connect, iOS Live Activity stay on 
 ## Research in flight
 
 Hevy and Lyfta full feature inventory and gap list: `docs/research/hevy-lyfta-feature-gap.md`.
+
+## 9. Engine round (from the engine review)
+
+Source: [engine-review-2026-11-25.md](../../reports/engine-review-2026-11-25.md). Decisions D1–D11
+were put to the owner as Q28–Q40 and taken at the recommended answer under the owner's standing
+instruction to proceed while away (2026-11-25); the owner may overturn any of them.
+
+- **Effort (D1):** judged against the set's own effort target; today's 9.5 / 7 thresholds only
+  without a target; at most one grind hold in a row at the same load and reps.
+- **Stall (D2):** no improvement over three baseline Sessions, where improvement is more load at
+  ≥ `reps_min`, more reps at the same load, or e1RM +1%. Later also "suggestion not met three
+  times" from the prescription snapshot.
+- **Stall deload:** one per stall episode, recorded on the Session, excluded from stall scoring;
+  the note stays quiet until the old best is passed or three Sessions go by.
+- **Deload rounding (D3):** round down when the real cut stays within about 5 points of the
+  intended one, else nearest; always show the real cut.
+- **Insert deload (D4):** the inserted Deload replaces the next planned one and the pattern
+  restarts after it.
+- **Missed weeks (D5):** keep calendar weeks; add Pause Run (paused weeks do not count); skip a
+  Test week straight after a break.
+- **Test week (D6):** single from e1RM × 0.90–0.95 (RPE 8–9) with optional work-up singles and the
+  break factor; the result updates e1RM and Records.
+- **Defaults (D7):** seeded fractional plates off; barbell automatic step at least 2.5 kg / 5 lb
+  without a gym step; ask a machine's step once (like the max prompt), 2.5 kg / 5 lb until
+  answered; kettlebells 4 kg; belt-loaded bodyweight 1.25 kg.
+- **Novice baseline (D8):** fixed-rep sets read the latest Session with the same prescription from
+  any Workout; ranges keep the same-Workout baseline.
+- **Prescription snapshot (D11):** store what was suggested per Session exercise (synced, private).
+- **Same-day adjustment (D9):** only on a deviation of 2+ reps or 1.5+ effort on a working set;
+  re-suggest unticked sets of that exercise only, with a one-line reason.
+- **Overrides (D10):** prompts after the same override twice (step, range, max); never silent drift.
+- **Next features (Q40):** a `prescribe()` façade used by every surface; more reps before a jump
+  over ~10%; named rules per exercise (Double, Linear, Top set + back-offs, Maintain) with a
+  four-Session preview; evidence in every reason; RPE-aware e1RM; assisted and timed progression.
+  Later, as their own round: %1RM / training max with AMRAP and waves; readiness question.
+
+Slices: **E1** decision-free fixes (F4, F11, F5, F7, F8, F9, F10, F15, F16, simulation + parity
+suites); **E2** decision fixes (F1, F2, F3, F6, F12, F13, F14, Pause Run); **E3** prescription
+snapshot, same-day adjustment, override prompts; **E4** `prescribe()` façade and the Q40 features.
