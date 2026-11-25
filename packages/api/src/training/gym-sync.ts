@@ -1,4 +1,4 @@
-import { GYM_LIMITS, gymExerciseSettingInput, gymInput, loadRangesSchema } from "@workspace/shared";
+import { gymExerciseSettingInput, gymInput, loadRangesSchema } from "@workspace/shared";
 import type { DbExecutor } from "@workspace/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -15,7 +15,6 @@ import {
 } from "./operations/lookup";
 import {
   accept,
-  assertRoom,
   checkPut,
   idOf,
   invalid,
@@ -54,9 +53,6 @@ const gymSyncHandler: SyncTableHandler = {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
       const { restore, ...values } = accept(putGym.safeParse(op.opData ?? {}));
       checkPut(found, restore);
-      if (found.kind === "absent" || found.row.deletedAt !== null) {
-        assertRoom(await countLiveGyms(db, userId, id), 1, GYM_LIMITS.gyms);
-      }
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         await db.insert(gym).values({ id, userId, name: values.name });

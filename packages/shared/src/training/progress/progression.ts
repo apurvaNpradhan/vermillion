@@ -71,7 +71,7 @@ const LONG_BREAK_LOAD = 0.8;
 const GRIND_RPE = 9.5;
 const EASY_RPE = 7;
 /** At the cap, reps keep growing past the range's top up to this multiple of it, rounded. */
-const CAP_REPS_FACTOR = 1.5;
+export const cappedRepCeiling = (maxReps: number) => Math.round(maxReps * 1.5);
 const AT_CAP = 1e-4;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
@@ -283,7 +283,7 @@ export function suggestNext(
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
       const atCap = cap !== null && before.weight_kg != null && before.weight_kg >= cap - AT_CAP;
-      const extended = Math.round(max * CAP_REPS_FACTOR);
+      const extended = cappedRepCeiling(max);
       if (before.reps >= max && atCap) {
         // The load cannot rise: reps keep growing to the extended ceiling, then a hint.
         if (before.reps >= extended) outcome = "cap_hint";

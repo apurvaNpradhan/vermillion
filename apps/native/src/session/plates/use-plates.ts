@@ -23,7 +23,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { useGyms, useGymLoads } from "@/gym";
+import { useGyms, useGymCap } from "@/gym";
 import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
@@ -40,7 +40,7 @@ import {
 const seededScopes = new Set<string>();
 
 /** Owns all calculator inventory reads and writes, including account-scoped errors and Undo. */
-export function useEquipment(enabled = true) {
+export function useEquipment(enabled = true, gymId?: string) {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const local = useLocalData();
@@ -51,7 +51,8 @@ export function useEquipment(enabled = true) {
   const scope = writeScope ?? "";
   const { preferences, isLoading } = usePreferences();
   const unit = preferences.ui.weightUnit;
-  const { activeGymId, defaultGymId } = useGyms();
+  const { activeGymId: preferredGymId, defaultGymId, ready: gymsReady } = useGyms();
+  const activeGymId = gymId ?? preferredGymId;
   const unassigned = activeGymId === null || activeGymId === defaultGymId;
   const subscribe = useCallback(
     (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) => {
@@ -86,7 +87,14 @@ export function useEquipment(enabled = true) {
   // The first sync may deliver the account's own kit, so the default kit goes in only after it,
   // into an inventory that loaded empty, and once per write scope.
   useEffect(() => {
-    if (!enabled || !database || isLoading || (hasSynced && activeGymId === null)) return;
+    if (
+      !enabled ||
+      gymId !== undefined ||
+      !database ||
+      isLoading ||
+      (hasSynced && activeGymId === null)
+    )
+      return;
     if (
       !canSeedEquipment({
         hasSynced,
@@ -103,6 +111,7 @@ export function useEquipment(enabled = true) {
     });
   }, [
     enabled,
+    gymId,
     database,
     isLoading,
     hasSynced,
@@ -150,6 +159,8 @@ export function useEquipment(enabled = true) {
   return {
     ...state,
     rows: state.value ?? [],
+    gymId: activeGymId,
+    gymsReady,
     unit,
     hasSynced,
     indicator,
@@ -202,7 +213,8 @@ export function usePlates(
   );
   const plates = bar ? platesForBar(equipment.rows, bar) : [];
   // The gym's max for this exercise is the most the calculator offers.
-  const cap = useGymLoads().gridFor(exerciseId, equipmentKind ?? "barbell")?.capKg ?? null;
+  const gymCap = useGymCap(enabled ? equipment.gymId : null, exerciseId);
+  const { cap } = gymCap;
   const wanted = useDeferredValue(targetKg);
   const target = cap !== null && wanted > cap ? cap : wanted;
   // The inventory emits a new array on every change; solve again only when the bar, a plate that
@@ -223,11 +235,16 @@ export function usePlates(
   };
   return {
     ...equipment,
-    failed: equipment.failed || remembered.failed,
-    loading: equipment.loading || remembered.loading,
+    failed: equipment.failed || remembered.failed || gymCap.failed,
+    loading:
+      equipment.loading ||
+      remembered.loading ||
+      gymCap.loading ||
+      (equipment.hasSynced && !equipment.gymsReady),
     retry: () => {
       equipment.retry();
       remembered.retry();
+      gymCap.retry();
     },
     bars,
     bar,
@@ -237,6 +254,7 @@ export function usePlates(
     barUnit: bar?.unit ?? equipment.unit,
     plates,
     target,
+    cap,
     chooseBar,
     result,
   };

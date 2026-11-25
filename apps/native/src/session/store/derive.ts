@@ -36,8 +36,10 @@ export type DeriveInputs = {
   unitName: string;
   display: DisplayUnits;
   weightIncrementKg: number | null;
-  /** The active gym: its loads and caps, and which gym's history leads. */
+  /** The active gym supplies equipment, load steps and caps. */
   gym: GymLoads;
+  /** The gym selected for this Session determines which history leads. */
+  sessionGymId?: string | null;
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
@@ -64,6 +66,7 @@ export type RowView = {
   canFillRemaining: boolean;
   /** A Lighter week makes this set optional. */
   optional: boolean;
+  capKg: number | null;
 };
 
 /** What an exercise's header and set rows draw, apart from the sets themselves. */
@@ -101,7 +104,7 @@ export function historyOf(
     all &&
     historyForGym(
       historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null),
-      inputs.gym.gymId,
+      inputs.sessionGymId ?? null,
       exercise.exercise?.equipment ?? "other",
     )
   );
@@ -134,19 +137,20 @@ function buildView(
         stall = { count, latestSessionId, applied: memory.applied };
     }
   }
+  const grid = inputs.gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
       : exerciseSuggestion(exercise, history ?? [], {
           weightUnit: inputs.unit,
           weightIncrementKg: inputs.weightIncrementKg,
-          gymId: inputs.gym.gymId,
-          grid: inputs.gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other"),
+          grid,
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,
         });
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
+  const capKg = !finished && fields.includes("weight") ? (grid?.capKg ?? null) : null;
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const kinds = exercise.sets.map((set) => set.kind);
   const optional = inputs.lighter ? optionalSetIndexes(kinds) : new Set<number>();
@@ -157,18 +161,20 @@ function buildView(
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
+    const ghosts = loaded
+      ? ghostsOf(
+          exercise.type,
+          previous,
+          set.target,
+          exercise.logEffort,
+          suggestion?.sets[index],
+          exercise.repeated,
+        )
+      : {};
+    if (capKg !== null && ghosts.weight != null && ghosts.weight > capKg) ghosts.weight = capKg;
     const row: RowView = {
       previous,
-      ghosts: loaded
-        ? ghostsOf(
-            exercise.type,
-            previous,
-            set.target,
-            exercise.logEffort,
-            suggestion?.sets[index],
-            exercise.repeated,
-          )
-        : {},
+      ghosts,
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -178,6 +184,7 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
+      capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });

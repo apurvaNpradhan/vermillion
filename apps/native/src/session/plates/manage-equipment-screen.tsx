@@ -35,10 +35,11 @@ type FormTarget = {
 };
 
 /** The user's bars and plates by unit; a Back button returns to wherever it was opened from. */
-export function ManageEquipmentScreen() {
+export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
   const { t } = useTranslation();
-  const state = useEquipment();
-  const { multiple, activeGym } = useGyms();
+  const state = useEquipment(true, gymId);
+  const { multiple, activeGymId, nameOf } = useGyms();
+  const gymName = nameOf(gymId ?? activeGymId);
   const label = useEquipmentLabel();
   const groups = kitGroups(state.rows, state.unit);
   const [target, setTarget] = useState<FormTarget | null>(null);
@@ -50,9 +51,7 @@ export function ManageEquipmentScreen() {
   return (
     <>
       <ScrollPage
-        title={
-          multiple && activeGym ? `${t("plates__manage")} · ${activeGym.name}` : t("plates__manage")
-        }
+        title={multiple && gymName ? t("gym__equipment_at", { gym: gymName }) : t("plates__manage")}
         back
         backFallback="/"
       >

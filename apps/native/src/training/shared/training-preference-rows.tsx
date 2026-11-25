@@ -154,23 +154,24 @@ export function useTrainingPreferenceRows({
     ),
     // One gym stays out of sight: Equipment is its kit, and a second gym is one row away. With
     // two or more, Gyms lists them.
-    gyms: multiple ? (
-      <ListRow
-        key="gyms"
-        icon={MapPin}
-        title={t("gym__gyms")}
-        value={activeGym?.name}
-        onPress={() => router.push("/settings/gyms")}
-      />
-    ) : (
-      <ListRow
-        key="add-gym"
-        icon={Plus}
-        title={t("gym__add")}
-        accessory="none"
-        onPress={() => setPicker("gym")}
-      />
-    ),
+    gyms:
+      onManageEquipment || !activeGym ? null : multiple ? (
+        <ListRow
+          key="gyms"
+          icon={MapPin}
+          title={t("gym__gyms")}
+          value={activeGym?.name}
+          onPress={() => router.push("/settings/gyms")}
+        />
+      ) : (
+        <ListRow
+          key="add-gym"
+          icon={Plus}
+          title={t("gym__add")}
+          accessory="none"
+          onPress={() => setPicker("gym")}
+        />
+      ),
   };
   const section = (
     <ListSection title={t("training__settings_title")}>
@@ -194,7 +195,7 @@ export function useTrainingPreferenceRows({
         description={t("gym__new_hint")}
         value=""
         confirmLabel={t("gym__create")}
-        onSave={(name) => void create(name)}
+        onSave={async (name) => (await create(name)) !== null}
       />
       <OptionSheet
         isOpen={picker === "increment"}

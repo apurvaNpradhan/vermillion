@@ -102,24 +102,29 @@ export function usePreferences() {
   const timeZone = useDeviceTimeZone();
 
   const save = useCallback(
-    async (patch: UpdatePreferences) => {
+    async (patch: UpdatePreferences, derive?: (current: Preferences) => UpdatePreferences) => {
       if (!database || !access) throw new StorageUnavailableError();
       setSaving((count) => count + 1);
       try {
         // The screen's own user (or the owner while signed out) must still own the device when
         // the write transaction runs.
-        await savePreferences(database, patch, {
-          installId: access.installId,
-          owner: session?.user.id ?? access.owner,
-          // Rechecked inside the write transaction: a lock or another account that arrived after
-          // the save was captured must not let it through.
-          isAuthorized: () => {
-            const phase = lifecycle?.getSnapshot().phase;
-            if (!phase || phase.kind === "blocked") return false;
-            const user = sessionUserRef.current;
-            return user === null || user === access.owner;
+        await savePreferences(
+          database,
+          patch,
+          {
+            installId: access.installId,
+            owner: session?.user.id ?? access.owner,
+            // Rechecked inside the write transaction: a lock or another account that arrived after
+            // the save was captured must not let it through.
+            isAuthorized: () => {
+              const phase = lifecycle?.getSnapshot().phase;
+              if (!phase || phase.kind === "blocked") return false;
+              const user = sessionUserRef.current;
+              return user === null || user === access.owner;
+            },
           },
-        });
+          derive,
+        );
         // Shown at once: the next step reads this, not a watch that has not answered yet.
         await showSaved(database, access);
       } finally {
@@ -147,6 +152,11 @@ export function usePreferences() {
     /** Saves some of the `ui` preferences (weight unit, effort scale, default rest). */
     setUiAsync: (ui: UiPreferencesPatch) => save({ ui }),
     setUi: (ui: UiPreferencesPatch) => quietly({ ui }),
+    updateUi: (derive: (current: Preferences["ui"]) => UiPreferencesPatch | null) =>
+      save({}, ({ ui }) => {
+        const patch = derive(ui);
+        return patch ? { ui: patch } : {};
+      }),
     /** Changes one muscle's goal (`null` resets it) without touching the others. */
     setMuscleGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) =>
       quietly({ muscleGoalChanges: { [muscle]: goal } }),

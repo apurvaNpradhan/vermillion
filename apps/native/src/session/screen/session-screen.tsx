@@ -164,6 +164,7 @@ const LoadedSession = memo(function LoadedSession({
   );
   const {
     session,
+    sessionGymId,
     actions,
     preferences,
     unit,
@@ -482,10 +483,12 @@ const LoadedSession = memo(function LoadedSession({
       if (
         at &&
         (at.exercise.type === "weight_reps" || at.exercise.type === "bodyweight_weighted_reps")
-      )
+      ) {
+        closeKeypad();
         setSheet({ kind: "limits", exercise: at.exercise });
+      }
     },
-    [foundSets],
+    [closeKeypad, foundSets],
   );
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
@@ -630,6 +633,7 @@ const LoadedSession = memo(function LoadedSession({
         finished={session.finishedAt !== null}
         onMenu={() => setSessionMenu(true)}
         sessionId={session.id}
+        gymId={sessionGymId}
         title={title}
         startedAt={session.startedAt}
         pausedAt={session.pausedAt}

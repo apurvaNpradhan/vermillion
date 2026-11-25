@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EQUIPMENT } from "@workspace/shared";
 import type { EquipmentRow, GymExerciseSettingRow, GymRow } from "@workspace/sync";
 
-import { dismissCapPrompt, noteLoggedLoad } from "./cap-prompt";
+import { capPromptKey, dismissCapPrompt, noteLoggedLoad, pendingCapPrompt } from "./cap-prompt";
 import { buildGymLoads, resolveActiveGym, standardBar } from "./gym-loads";
 
 const item = (over: Partial<EquipmentRow>): EquipmentRow => ({
@@ -109,46 +109,39 @@ describe("the active gym", () => {
 });
 
 describe("asking whether it is the max", () => {
-  const key = "g:fly";
+  const key = capPromptKey("g", "fly");
   const log = (
-    prompts: ReturnType<typeof noteLoggedLoad>["prompts"],
+    prompts: NonNullable<ReturnType<typeof noteLoggedLoad>>,
     sessionId: string,
     suggestedKg: number,
     loggedKg: number,
   ) => noteLoggedLoad(prompts, { key, sessionId, suggestedKg, loggedKg });
+  const first = log([], "s1", 95, 91) ?? [];
 
-  it("asks when two Sessions lower the suggestion to the same weight", () => {
-    const first = log([], "s1", 95, 91);
-    expect(first.ask).toBe(false);
-    expect(first.prompts).toMatchObject([{ key, kg: 91, count: 1, sessionId: "s1" }]);
-    expect(log(first.prompts, "s2", 93, 91).ask).toBe(true);
+  it("asks after two Sessions lower the suggestion to the same weight", () => {
+    expect(pendingCapPrompt(first, key, "s1")).toBeUndefined();
+    const second = log(first, "s2", 93, 91) ?? [];
+    expect(pendingCapPrompt(second, key, "s2")).toMatchObject({ kg: 91 });
+    expect(pendingCapPrompt(second, key, "s1")).toBeUndefined();
+    expect(pendingCapPrompt(second, capPromptKey("another-gym", "fly"), "s2")).toBeUndefined();
   });
 
-  it("counts a Session once however many sets it lowers", () => {
-    const first = log([], "s1", 95, 91);
-    const again = log(first.prompts, "s1", 95, 91);
-    expect(again.ask).toBe(false);
-    expect(again.prompts).toEqual(first.prompts);
+  it("counts a Session once even when later sets are logged at different loads", () => {
+    expect(log(first, "s1", 95, 91)).toBeNull();
+    expect(log(first, "s1", 95, 90)).toBeNull();
+    expect(log(first, "s1", 95, 95)).toBeNull();
   });
 
-  it("starts over on a different weight, and forgets the count when the suggestion is met", () => {
-    const first = log([], "s1", 95, 91);
-    const other = log(first.prompts, "s2", 95, 90);
-    expect(other.ask).toBe(false);
-    expect(other.prompts).toMatchObject([{ kg: 90, count: 1 }]);
-    expect(log(first.prompts, "s2", 95, 95).prompts).toEqual([]);
-    expect(log(first.prompts, "s2", 95, 100).prompts).toEqual([]);
+  it("starts over on a different weight and forgets the count when the suggestion is met", () => {
+    expect(log(first, "s2", 95, 90)).toMatchObject([{ kg: 90, count: 1 }]);
+    expect(log(first, "s2", 95, 95)).toEqual([]);
+    expect(log(first, "s2", 95, 100)).toEqual([]);
+    expect(log(first, "s2", 95, 0)).toBeNull();
   });
 
   it("never asks again once dismissed", () => {
-    const dismissed = dismissCapPrompt([], key);
-    expect(log(dismissed, "s1", 95, 91)).toEqual({ prompts: dismissed, ask: false });
-    expect(log(dismissed, "s2", 95, 95).prompts).toEqual(dismissed);
-  });
-
-  it("ignores a logged load of zero and keeps other exercises' entries", () => {
-    const other = { key: "g:row", kg: 50, count: 1, sessionId: "s0", dismissed: false };
-    expect(log([other], "s1", 95, 0)).toEqual({ prompts: [other], ask: false });
-    expect(log([other], "s1", 95, 91).prompts).toHaveLength(2);
+    const dismissed = dismissCapPrompt(log(first, "s2", 95, 91) ?? [], key);
+    expect(pendingCapPrompt(dismissed, key, "s2")).toBeUndefined();
+    expect(log(dismissed, "s3", 95, 91)).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
-import { formatWeight, parseWeight, SESSION_LIMITS } from "@workspace/shared";
+import { useForm } from "@tanstack/react-form";
+import { formatWeight, loadBasisOf, parseWeight, SESSION_LIMITS } from "@workspace/shared";
 import type { Equipment, WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState } from "react";
@@ -9,9 +10,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { Field } from "@/platform/ui/field";
+import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
-import { useGyms } from "./use-gyms";
 import { useGymSetting } from "./use-gym-setting";
 
 /** A typed amount in the user's unit as kilograms; empty is null, anything else is invalid. */
@@ -28,7 +29,7 @@ const shown = (kg: number | null, unit: WeightUnit) => (kg === null ? "" : forma
  * loads in, and a setup note. The same sheet opens from the exercise's settings and from a set in
  * a Session.
  */
-export function LoadLimitsSheet({
+function LoadLimitsSheetBody({
   isOpen,
   onOpenChange,
   exerciseId,
@@ -46,23 +47,73 @@ export function LoadLimitsSheet({
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((state) => state.height);
-  const { multiple, activeGym } = useGyms();
   const setting = useGymSetting(exerciseId, equipment, unit);
-  const [max, setMax] = useState("");
-  const [step, setStep] = useState("");
-  const [note, setNote] = useState("");
-  const { maxKg, stepKg, note: savedNote } = setting;
+  const [baseline, setBaseline] = useState<{
+    gymId: string;
+    exerciseId: string;
+    unit: WeightUnit;
+    maxKg: number | null;
+    stepKg: number | null;
+    note: string;
+  } | null>(null);
+  const { gymId, ready, maxKg, stepKg, note: savedNote } = setting;
+  const draftReady =
+    ready &&
+    baseline !== null &&
+    baseline.gymId === gymId &&
+    baseline.exerciseId === exerciseId &&
+    baseline.unit === unit;
+  const amount = (text: string, original: number | null) =>
+    text === shown(original, unit) ? original : kgOf(text, unit);
+  const maxOf = (text: string) => amount(text, baseline?.maxKg ?? null);
+  const stepOf = (text: string) => amount(text, baseline?.stepKg ?? null);
+  const stepTooLarge = (step: ReturnType<typeof kgOf>, max: ReturnType<typeof kgOf>) =>
+    step !== "invalid" && step !== null && max !== "invalid" && max !== null && step > max;
+  const form = useForm({
+    defaultValues: { max: "", step: "", note: "" },
+    onSubmit: async ({ value: draft }) => {
+      const nextMax = maxOf(draft.max);
+      const nextStep = stepOf(draft.step);
+      if (
+        !draftReady ||
+        nextMax === "invalid" ||
+        nextStep === "invalid" ||
+        stepTooLarge(nextStep, nextMax)
+      )
+        return;
+      if (
+        await setting.save({
+          limits:
+            nextMax !== baseline.maxKg || nextStep !== baseline.stepKg
+              ? { maxKg: nextMax, stepKg: nextStep }
+              : undefined,
+          note: draft.note.trim() !== baseline.note ? draft.note : undefined,
+        })
+      ) {
+        Keyboard.dismiss();
+        onOpenChange(false);
+      }
+    },
+  });
   useEffect(() => {
-    if (!isOpen) return;
-    setMax(shown(maxKg, unit));
-    setStep(shown(stepKg, unit));
-    setNote(savedNote ?? "");
-  }, [isOpen, maxKg, stepKg, savedNote, unit]);
-  const nextMax = kgOf(max, unit);
-  const nextStep = kgOf(step, unit);
-  const invalid = nextMax === "invalid" || nextStep === "invalid";
+    if (!isOpen) {
+      setBaseline(null);
+      return;
+    }
+    if (
+      !ready ||
+      gymId === null ||
+      (baseline?.gymId === gymId && baseline.exerciseId === exerciseId && baseline.unit === unit)
+    )
+      return;
+    setBaseline({ gymId, exerciseId, unit, maxKg, stepKg, note: savedNote ?? "" });
+    form.reset({ max: shown(maxKg, unit), step: shown(stepKg, unit), note: savedNote ?? "" });
+  }, [isOpen, baseline, gymId, exerciseId, ready, maxKg, stepKg, savedNote, unit, form]);
   const label = (key: "gym__max_load" | "gym__load_step") =>
-    `${t(key)} (${unit})${equipment === "dumbbell" || equipment === "kettlebell" ? ` · ${t("gym__per_hand")}` : ""}`;
+    t(loadBasisOf(equipment) === "per_hand" ? "gym__amount_per_hand_label" : "gym__amount_label", {
+      label: t(key),
+      unit,
+    });
   return (
     <BottomSheet
       isOpen={isOpen}
@@ -89,53 +140,91 @@ export function LoadLimitsSheet({
               {title}
             </BottomSheet.Title>
             <BottomSheet.Description className="text-body text-muted">
-              {multiple && activeGym
-                ? t("gym__limits_hint_at", { gym: activeGym.name })
+              {setting.gymName
+                ? t("gym__limits_hint_at", { gym: setting.gymName })
                 : t("gym__limits_hint")}
             </BottomSheet.Description>
           </View>
-          <Field
-            label={label("gym__max_load")}
-            value={max}
-            onChangeText={setMax}
-            keyboardType="decimal-pad"
-            placeholder={t("gym__not_set")}
-            error={nextMax === "invalid" ? t("gym__invalid_amount") : undefined}
-          />
-          <Field
-            label={label("gym__load_step")}
-            value={step}
-            onChangeText={setStep}
-            keyboardType="decimal-pad"
-            placeholder={t("gym__not_set")}
-            error={nextStep === "invalid" ? t("gym__invalid_amount") : undefined}
-          />
-          <Field
-            label={t("gym__setup_note")}
-            description={t("gym__setup_note_hint")}
-            value={note}
-            onChangeText={setNote}
-            multiline
-            maxLength={SESSION_LIMITS.noteMax}
-            placeholder={t("gym__setup_note_placeholder")}
-          />
-          <Button
-            variant="primary"
-            isDisabled={invalid || !setting.ready}
-            onPress={() => {
-              Keyboard.dismiss();
-              if (nextMax !== "invalid" && nextStep !== "invalid") {
-                if (nextMax !== maxKg || nextStep !== stepKg)
-                  void setting.setLimits({ maxKg: nextMax, stepKg: nextStep });
-                if (note.trim() !== (savedNote ?? "")) void setting.setNote(note);
-              }
-              onOpenChange(false);
+          <form.Field name="max">
+            {(field) => (
+              <Field
+                label={label("gym__max_load")}
+                value={field.state.value}
+                onChangeText={field.handleChange}
+                keyboardType="decimal-pad"
+                placeholder={t("gym__not_set")}
+                disabled={!draftReady}
+                error={
+                  maxOf(field.state.value) === "invalid" ? t("gym__invalid_amount") : undefined
+                }
+              />
+            )}
+          </form.Field>
+          <form.Subscribe selector={(state) => state.values.max}>
+            {(max) => (
+              <form.Field name="step">
+                {(field) => {
+                  const step = stepOf(field.state.value);
+                  const error =
+                    step === "invalid"
+                      ? t("gym__invalid_amount")
+                      : stepTooLarge(step, maxOf(max))
+                        ? t("gym__invalid_step")
+                        : undefined;
+                  return (
+                    <Field
+                      label={label("gym__load_step")}
+                      value={field.state.value}
+                      onChangeText={field.handleChange}
+                      keyboardType="decimal-pad"
+                      placeholder={t("gym__not_set")}
+                      disabled={!draftReady}
+                      error={error}
+                    />
+                  );
+                }}
+              </form.Field>
+            )}
+          </form.Subscribe>
+          <form.Field name="note">
+            {(field) => (
+              <Field
+                label={t("gym__setup_note")}
+                description={t("gym__setup_note_hint")}
+                value={field.state.value}
+                onChangeText={field.handleChange}
+                maxLength={SESSION_LIMITS.noteMax}
+                placeholder={t("gym__setup_note_placeholder")}
+                disabled={!draftReady}
+              />
+            )}
+          </form.Field>
+          <form.Subscribe
+            selector={(state) => {
+              const max = maxOf(state.values.max);
+              const step = stepOf(state.values.step);
+              return (
+                state.isSubmitting ||
+                max === "invalid" ||
+                step === "invalid" ||
+                stepTooLarge(step, max)
+              );
             }}
           >
-            <Button.Label>{t("training__effort_done")}</Button.Label>
-          </Button>
+            {(disabled) => (
+              <Button
+                variant="primary"
+                isDisabled={disabled || !draftReady}
+                onPress={() => void form.handleSubmit()}
+              >
+                <Button.Label>{t("common__save")}</Button.Label>
+              </Button>
+            )}
+          </form.Subscribe>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>
   );
 }
+
+export const LoadLimitsSheet = mountOnOpen(LoadLimitsSheetBody);

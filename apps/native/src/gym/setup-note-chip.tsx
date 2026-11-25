@@ -7,9 +7,12 @@ import { useSubtleColor } from "@/platform/theme";
 export function SetupNoteChip({ note }: { note: string }) {
   const subtle = useSubtleColor();
   return (
-    <View className="flex-row items-center gap-1.5 px-1" accessibilityLabel={note}>
+    <View
+      className="max-w-full flex-row items-center gap-1.5 self-start rounded-lg bg-surface px-2 py-1"
+      accessibilityLabel={note}
+    >
       <Notepad size={16} color={subtle} />
-      <Text className="flex-1 text-caption text-muted" numberOfLines={2}>
+      <Text className="shrink text-caption text-muted" numberOfLines={2}>
         {note}
       </Text>
     </View>

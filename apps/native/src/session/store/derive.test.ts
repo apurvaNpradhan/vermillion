@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { FinishedSession } from "@workspace/sync";
+
+import { buildGymLoads } from "../../gym/gym-loads";
+
 import { deriveExercises, type DeriveInputs } from "./derive";
 import { DEFAULT_INPUTS } from "./session-store";
 import { exercise, set } from "./fixtures";
@@ -44,6 +48,72 @@ describe("deriveExercises", () => {
       canCopyPrevious: false,
     });
     expect(view?.rows.get("a2")).toMatchObject({ number: 2, canFillRemaining: false });
+  });
+
+  it("uses the Session gym's history and applies the active gym's cap to its ghost weight", () => {
+    const machine = exercise("press", [set("p1")], {
+      exercise: {
+        equipment: "machine",
+        primaryMuscle: "chest",
+        secondaryMuscles: [],
+        thumbnailKey: null,
+      },
+    });
+    const date = "2026-11-21T10:00:00.000Z";
+    const finished = (gymId: string, weight: number): FinishedSession => ({
+      id: gymId,
+      gymId,
+      started_at: date,
+      finished_at: date,
+      title: "Press",
+      durationS: 60,
+      pausedMs: 0,
+      workoutId: null,
+      sets: [
+        {
+          id: gymId,
+          exercise_id: machine.exerciseId,
+          exercise_type: "weight_reps",
+          kind: "working",
+          completed_at: date,
+          reps: 10,
+          weight_kg: weight,
+        },
+      ],
+    });
+    const gym = buildGymLoads({
+      gymId: "active",
+      unit: "kg",
+      kit: [],
+      settings: [
+        {
+          exerciseId: machine.exerciseId,
+          setupNote: null,
+          loadRanges: [{ min: 5, max: 90, step: 5 }],
+        },
+      ],
+    });
+    const selected = inputs({
+      gym,
+      sessionGymId: "garage",
+      previous: new Map([[machine.exerciseId, [finished("active", 70), finished("garage", 95)]]]),
+    });
+    const first = deriveExercises([machine], selected, context, new Map());
+    expect(first.get(machine.id)?.view.rows.get("p1")).toMatchObject({
+      previous: { weight_kg: 95 },
+      ghosts: { weight: 90 },
+      capKg: 90,
+    });
+    const switched = deriveExercises(
+      [machine],
+      { ...selected, sessionGymId: "active" },
+      context,
+      first,
+    );
+    expect(switched.get(machine.id)?.view.rows.get("p1")).toMatchObject({
+      previous: { weight_kg: 70 },
+      ghosts: { weight: 70 },
+    });
   });
 
   it("waits for the history of an exercise before it counts as ready", () => {

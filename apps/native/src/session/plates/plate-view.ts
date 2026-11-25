@@ -114,25 +114,33 @@ export type LoadChoice = { side: LoadSide; load: BarLoad; differenceKg: number }
  * nearest load below and above the target, each with its signed distance from it (negative is
  * under the target). A target below the bar has only the bare bar, as the `above` choice.
  */
-export function loadChoices(targetKg: number, result: BarLoading): LoadChoice[] {
+export function loadChoices(
+  targetKg: number,
+  result: BarLoading,
+  capKg: number | null = null,
+): LoadChoice[] {
   if (result.exact) {
     const load = result.below ?? result.above ?? result;
-    return [{ side: "below", load, differenceKg: 0 }];
+    return withinCap(load.totalKg, capKg) ? [{ side: "below", load, differenceKg: 0 }] : [];
   }
   const choices: LoadChoice[] = [];
-  if (result.below)
+  if (result.below && withinCap(result.below.totalKg, capKg))
     choices.push({
       side: "below",
       load: result.below,
       differenceKg: result.below.totalKg - targetKg,
     });
-  if (result.above)
+  if (result.above && withinCap(result.above.totalKg, capKg))
     choices.push({
       side: "above",
       load: result.above,
       differenceKg: result.above.totalKg - targetKg,
     });
   return choices;
+}
+
+export function withinCap(weightKg: number, capKg: number | null): boolean {
+  return capKg === null || weightKg <= capKg + SAME;
 }
 
 /** The nearest choice to the target; a tie goes to the lower load. Null with no choices. */

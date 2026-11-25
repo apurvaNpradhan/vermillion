@@ -71,6 +71,8 @@ export function SettingsScreen() {
             description={t("settings__workouts_hint")}
             onPress={() => router.push("/settings/workouts")}
           />
+          {training.rows.equipment}
+          {training.rows.gyms}
         </ListSection>
         <ListSection title={t("settings__section_body")}>
           <WeightPreferenceRow />

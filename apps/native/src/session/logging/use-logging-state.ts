@@ -83,6 +83,7 @@ export function useLoggingState({
   actions,
   onRestStarted,
   onLoggedLoad,
+  sessionGymId,
 }: {
   store: SessionStore;
   editor: boolean;
@@ -108,6 +109,7 @@ export function useLoggingState({
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
   onRestStarted?: () => void;
+  sessionGymId: string | null;
   /** A working set was ticked: what it was logged at and what the Ghost value offered. */
   onLoggedLoad?: (input: {
     sessionId: string;
@@ -149,6 +151,7 @@ export function useLoggingState({
       display: shownDisplay,
       weightIncrementKg,
       gym,
+      sessionGymId,
       lighterWeeks,
       lighter,
       bodyweightKg,
@@ -165,6 +168,7 @@ export function useLoggingState({
       shownDisplay,
       weightIncrementKg,
       gym,
+      sessionGymId,
       lighterWeeks,
       lighter,
       bodyweightKg,
@@ -475,7 +479,7 @@ export function useLoggingState({
       const loggedKg = latest.weightKg ?? suggestedKg;
       if (
         onLoggedLoad &&
-        !editor &&
+        state.session.finishedAt === null &&
         at.set.kind === "working" &&
         suggestedKg !== null &&
         loggedKg !== null

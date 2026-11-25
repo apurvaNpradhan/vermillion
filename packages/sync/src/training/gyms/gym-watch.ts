@@ -3,7 +3,7 @@ import { loadRangesSchema, type LoadRange } from "@workspace/shared";
 import { z } from "zod";
 
 const THROTTLE_MS = 50;
-const GYMS_LIMIT = 50;
+const GYM_PAGE_SIZE = 50;
 const SETTINGS_LIMIT = 500;
 
 /** Runs a query and again whenever one of `tables` changes; a result is parsed or reported. */
@@ -51,17 +51,48 @@ export function watchGyms(
   database: AbstractPowerSyncDatabase,
   handlers: { onGyms: (gyms: GymRow[]) => void; onError: (error: Error) => void },
 ): () => void {
-  return watchRows(
-    database,
-    `SELECT id, name, created_at FROM gym ORDER BY created_at, id LIMIT ${GYMS_LIMIT}`,
-    [],
-    ["gym"],
-    (rows) =>
-      gymSchema
-        .parse(rows)
-        .map((row) => ({ id: row.id, name: row.name, createdAt: row.created_at })),
-    { onResult: handlers.onGyms, onError: handlers.onError },
+  const controller = new AbortController();
+  const { signal } = controller;
+  let reading = false;
+  let pending = false;
+  const read = async () => {
+    pending = true;
+    if (reading) return;
+    reading = true;
+    try {
+      do {
+        pending = false;
+        const gyms = await database.readTransaction(async (tx) => {
+          const rows: GymRow[] = [];
+          let cursor: GymRow | undefined;
+          do {
+            const where = cursor ? "WHERE (created_at, id) > (?, ?)" : "";
+            const page = gymSchema.parse(
+              await tx.getAll(
+                `SELECT id, name, created_at FROM gym ${where} ORDER BY created_at, id LIMIT ${GYM_PAGE_SIZE}`,
+                cursor ? [cursor.createdAt, cursor.id] : [],
+              ),
+            );
+            for (const row of page)
+              rows.push({ id: row.id, name: row.name, createdAt: row.created_at });
+            cursor = page.length === GYM_PAGE_SIZE ? rows.at(-1) : undefined;
+          } while (cursor && !signal.aborted);
+          return rows;
+        });
+        if (!pending && !signal.aborted) handlers.onGyms(gyms);
+      } while (pending && !signal.aborted);
+    } catch {
+      if (!signal.aborted) handlers.onError(new Error("The local gyms could not be read"));
+    } finally {
+      reading = false;
+    }
+  };
+  database.onChangeWithCallback(
+    { onChange: () => void read() },
+    { signal, tables: ["gym"], throttleMs: THROTTLE_MS },
   );
+  void read();
+  return () => controller.abort();
 }
 
 /** What a gym says about one exercise. */

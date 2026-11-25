@@ -1,3 +1,4 @@
+import { limitsOfRanges } from "@workspace/shared";
 import { useCallback, useMemo } from "react";
 import {
   watchEquipment,
@@ -20,23 +21,7 @@ import { useGyms } from "./use-gyms";
 export function useGymLoads(): GymLoads {
   const { activeGymId, defaultGymId } = useGyms();
   const unit = usePreference((preferences) => preferences.ui.weightUnit);
-  const settingsSubscribe = useCallback(
-    (
-      db: TrainingDatabase,
-      onValue: (rows: GymExerciseSettingRow[]) => void,
-      onError: () => void,
-    ) => {
-      if (!activeGymId) {
-        onValue([]);
-        return () => undefined;
-      }
-      return watchGymExerciseSettings(db, activeGymId, {
-        onSettings: onValue,
-        onError: () => onError(),
-      });
-    },
-    [activeGymId],
-  );
+  const settings = useGymExerciseSettings(activeGymId).value;
   const kitSubscribe = useCallback(
     (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) =>
       watchEquipment(
@@ -46,7 +31,6 @@ export function useGymLoads(): GymLoads {
       ),
     [activeGymId, defaultGymId],
   );
-  const settings = useLocalWatch(settingsSubscribe).value;
   const kit = useLocalWatch(kitSubscribe).value;
   return useMemo(
     () =>
@@ -55,4 +39,38 @@ export function useGymLoads(): GymLoads {
         : buildGymLoads({ gymId: activeGymId, settings: settings ?? [], kit: kit ?? [], unit }),
     [activeGymId, settings, kit, unit],
   );
+}
+
+export function useGymExerciseSettings(gymId: string | null) {
+  const settingsSubscribe = useCallback(
+    (
+      db: TrainingDatabase,
+      onValue: (rows: GymExerciseSettingRow[]) => void,
+      onError: () => void,
+    ) => {
+      if (!gymId) {
+        onValue([]);
+        return () => undefined;
+      }
+      return watchGymExerciseSettings(db, gymId, {
+        onSettings: onValue,
+        onError: () => onError(),
+      });
+    },
+    [gymId],
+  );
+  return useLocalWatch(settingsSubscribe);
+}
+
+/** The calculator must wait for the active gym's settings before it can offer a load. */
+export function useGymCap(gymId: string | null, exerciseId: string) {
+  const settings = useGymExerciseSettings(gymId);
+  const ranges =
+    settings.value?.find((setting) => setting.exerciseId === exerciseId)?.loadRanges ?? [];
+  return {
+    cap: limitsOfRanges(ranges).maxKg,
+    loading: settings.loading,
+    failed: settings.failed,
+    retry: settings.retry,
+  };
 }

@@ -13,6 +13,7 @@ import {
   setGymExerciseSetting,
   setSessionGym,
 } from "./gym-store";
+import { watchGyms, type GymRow } from "./gym-watch";
 
 /** A synced "My gym", as the server delivers it. */
 function deliverGym(s: Sessions, id: string, createdAt: string, name = "My gym") {
@@ -40,6 +41,29 @@ describe("the active gym", () => {
 });
 
 describe("kit and gyms", () => {
+  it("watches all gyms across page boundaries that share a creation time", async () => {
+    const s = await setupSessions();
+    const ids = Array.from(
+      { length: 51 },
+      (_, i) => `0192f0a0-0000-7000-8000-${String(i).padStart(12, "0")}`,
+    );
+    for (const id of ids) deliverGym(s, id, "2026-11-01T00:00:00Z");
+    const added = await createGym(s.training, { name: "Garage", copyKitFrom: null }, s.installId);
+    const rows = await new Promise<GymRow[]>((resolve, reject) => {
+      const stop = watchGyms(s.training, {
+        onGyms: (gyms) => {
+          stop();
+          resolve(gyms);
+        },
+        onError: (error) => {
+          stop();
+          reject(error);
+        },
+      });
+    });
+    expect(rows.map((row) => row.id)).toEqual([...ids, added]);
+  });
+
   it("seeds the default kit into the active gym", async () => {
     const s = await setupSessions();
     deliverGym(s, HOME, "2026-11-01T00:00:00Z");

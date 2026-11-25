@@ -23,7 +23,12 @@ export function ProgressionChip({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const sheet = useMountOnOpen(open);
-  if (suggestion.reason === "same_as_last") return null;
+  if (
+    suggestion.reason === "same_as_last" ||
+    suggestion.reason === "cap_reps" ||
+    suggestion.reason === "cap_hint"
+  )
+    return null;
   // A capped suggestion names the max it fell back to, not an amount to add.
   const shown =
     suggestion.reason === "capped"

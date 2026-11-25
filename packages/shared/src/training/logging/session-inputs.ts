@@ -236,7 +236,7 @@ export const gymEquipmentInput = z
 export type GymEquipmentInput = z.infer<typeof gymEquipmentInput>;
 
 /** The most gyms one user keeps, and the longest gym name. */
-export const GYM_LIMITS = { gyms: 20, nameMax: 60 } as const;
+export const GYM_LIMITS = { nameMax: 60 } as const;
 
 /** A gym: a place the user trains, with its own kit and exercise limits. */
 export const gymInput = z.strictObject({

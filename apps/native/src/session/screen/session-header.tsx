@@ -76,6 +76,7 @@ export function SessionHeader({
   finished,
   onMenu,
   sessionId,
+  gymId,
   title,
   startedAt,
   pausedAt,
@@ -91,6 +92,7 @@ export function SessionHeader({
   finished: boolean;
   onMenu: () => void;
   sessionId: string;
+  gymId: string | null;
   title: string;
   startedAt: string;
   pausedAt: string | null;
@@ -151,7 +153,7 @@ export function SessionHeader({
           </Text>
           <OfflinePill />
         </View>
-        <SessionGymChip sessionId={sessionId} readOnly={readOnly} />
+        <SessionGymChip sessionId={sessionId} gymId={gymId} readOnly={readOnly || finished} />
       </View>
       <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
         <DotsThreeVertical size={24} color={foreground} />

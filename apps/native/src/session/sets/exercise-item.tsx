@@ -75,6 +75,8 @@ export const ExerciseItem = memo(function ExerciseItem({
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
         unit: state.inputs.unit,
+        gymId: state.inputs.gym.gymId,
+        activeSessionId: state.session.finishedAt === null ? state.session.id : null,
         setupNote: exercise
           ? (state.inputs.gym.settingFor(exercise.exerciseId)?.setupNote ?? null)
           : null,
@@ -142,11 +144,15 @@ export const ExerciseItem = memo(function ExerciseItem({
                 />
               ) : null}
               {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}
-              <MaxPrompt
-                exerciseId={exercise.exerciseId}
-                equipment={exercise.exercise?.equipment ?? "other"}
-                unit={unit}
-              />
+              {!readOnly && data.activeSessionId && data.gymId ? (
+                <MaxPrompt
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={exercise.exercise?.equipment ?? "other"}
+                  unit={unit}
+                />
+              ) : null}
               <ExerciseBody
                 id={exercise.id}
                 note={exercise.note}

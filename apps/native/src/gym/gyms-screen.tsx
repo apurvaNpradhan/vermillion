@@ -43,7 +43,7 @@ export function GymsScreen() {
         description={t("gym__new_hint")}
         value=""
         confirmLabel={t("gym__create")}
-        onSave={(name) => void create(name)}
+        onSave={async (name) => (await create(name)) !== null}
       />
     </>
   );

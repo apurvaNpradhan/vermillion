@@ -1,7 +1,6 @@
 import { v7 as uuidv7 } from "uuid";
 
 import {
-  GYM_LIMITS,
   gymExerciseSettingInput,
   gymInput,
   loadRangesSchema,
@@ -61,8 +60,6 @@ export async function createGym(
   const values = gymInput.parse({ name: input.name });
   return write(database, scope, async (tx) => {
     const userId = await ownerOf(tx);
-    const [total] = await tx.select({ value: count() }).from(gym);
-    if ((total?.value ?? 0) >= GYM_LIMITS.gyms) throw new Error("Too many gyms");
     const id = uuidv7();
     await tx.insert(gym).values({ id, user_id: userId, name: values.name, created_at: nowIso() });
     if (input.copyKitFrom) {

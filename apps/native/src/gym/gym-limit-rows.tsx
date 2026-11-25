@@ -28,10 +28,16 @@ export function GymLimitRows({
   const setting = useGymSetting(exerciseId, equipment, unit);
   if (!setting.ready) return null;
   const amount = (kg: number | null) =>
-    kg === null ? t("gym__not_set") : `${formatWeight(kg, unit)} ${unit}`;
+    kg === null ? t("gym__not_set") : t("plates__weight", { weight: formatWeight(kg, unit), unit });
   return (
     <>
-      <ListSection title={t("gym__load_settings")}>
+      <ListSection
+        title={
+          setting.gymName
+            ? t("gym__load_settings_at", { gym: setting.gymName })
+            : t("gym__load_settings")
+        }
+      >
         <ListRow
           icon={Barbell}
           title={t("gym__max_load")}

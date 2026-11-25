@@ -941,7 +941,7 @@ export function watchHistoryOverview(
   };
   database.onChangeWithCallback(
     { onChange: () => void read() },
-    { signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+    { signal, tables: [...SESSION_TABLES, "gym"], throttleMs: THROTTLE_MS },
   );
   void read();
   return () => controller.abort();

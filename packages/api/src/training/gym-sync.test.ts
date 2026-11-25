@@ -154,7 +154,7 @@ describe("gym upload handlers", () => {
     expect(await liveGyms(me.userId)).toHaveLength(1);
   });
 
-  it("refuses bad names, foreign ids, a deleted gym's plain PUT and too many gyms", async () => {
+  it("refuses bad names, foreign ids, a deleted gym's plain PUT", async () => {
     const me = await writer("gym-rules@example.com");
     const other = await writer("gym-rules-other@example.com");
     expect(await me.send([putGym(uuidv7(), "")])).toMatchObject(rejected("SYNC_INVALID_OP"));
@@ -177,12 +177,13 @@ describe("gym upload handlers", () => {
     expect(await me.send([op("DELETE", "gym", gone)])).toEqual(applied);
     expect(await me.send([putGym(gone, "Back")])).toMatchObject(rejected("SYNC_ROW_DELETED"));
     expect(await me.send([putGym(gone, "Back", { restore: 1 })])).toEqual(applied);
-    // One gym exists (the default), one was restored: fill up to the limit.
-    const fill = Array.from({ length: GYM_LIMITS.gyms - 2 }, (_, i) => putGym(uuidv7(), `G${i}`));
-    expect(await me.send(fill)).toEqual(applied);
-    expect(await me.send([putGym(uuidv7(), "One more")])).toMatchObject(
-      rejected("TRAINING_LIMIT_REACHED"),
-    );
+  });
+
+  it("creates gyms beyond the old account limit", async () => {
+    const me = await writer("gym-count@example.com");
+    const batch = Array.from({ length: 24 }, (_, i) => putGym(uuidv7(), `Gym ${i + 2}`));
+    expect(await me.send(batch)).toEqual(applied);
+    expect(await liveGyms(me.userId)).toHaveLength(25);
   });
 
   it("puts a kit item in the default gym when it names none, and in the named gym", async () => {

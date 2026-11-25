@@ -11,8 +11,7 @@ import { GymNameSheet } from "./gym-name-sheet";
 import { useGyms } from "./use-gyms";
 
 /**
- * One gym: use it, rename it, open its kit, delete it. The kit is the equipment screen, which
- * always shows the gym in use, so opening it from here makes this gym the one in use first.
+ * One gym: use it, rename it, open its kit, delete it.
  */
 export function GymScreen({ id }: { id: string }) {
   const { t } = useTranslation();
@@ -30,10 +29,7 @@ export function GymScreen({ id }: { id: string }) {
           <ListRow
             icon={Barbell}
             title={t("gym__equipment")}
-            onPress={() => {
-              select(id);
-              router.push("/settings/plates");
-            }}
+            onPress={() => router.push({ pathname: "/settings/plates", params: { gymId: id } })}
           />
           <ListRow
             icon={Barbell}
@@ -66,8 +62,8 @@ export function GymScreen({ id }: { id: string }) {
         onOpenChange={setRenaming}
         title={t("gym__rename")}
         value={gym?.name ?? ""}
-        confirmLabel={t("training__effort_done")}
-        onSave={(name) => void rename(id, name)}
+        confirmLabel={t("common__save")}
+        onSave={async (name) => (await rename(id, name)) === true}
       />
       <ConfirmationDialog
         destructive
@@ -79,7 +75,10 @@ export function GymScreen({ id }: { id: string }) {
         confirmLabel={t("gym__delete")}
         onConfirm={() => {
           void remove(id).then((done) => {
-            if (done) router.back();
+            if (!done) return;
+            if (gyms.length === 2) router.dismissTo("/settings");
+            else if (router.canGoBack()) router.back();
+            else router.replace("/settings/gyms");
           });
         }}
       />

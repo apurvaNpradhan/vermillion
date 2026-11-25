@@ -131,7 +131,6 @@ export function WorkoutSettingsScreen() {
             value={t(DISTANCE_KEYS[distanceUnit])}
             onPress={() => setPicker("distance")}
           />
-          {training.rows.equipment}
         </ListSection>
         <ListSection title={t("settings__plan")}>
           {training.rows.sessions}
