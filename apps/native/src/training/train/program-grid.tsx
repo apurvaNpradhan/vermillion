@@ -15,7 +15,7 @@ const GUTTER = 16;
 const GAP = 12;
 
 /** The width of one cover card: two columns on the page. */
-export function gridCardWidth(screenWidth: number) {
+function gridCardWidth(screenWidth: number) {
   return Math.floor((screenWidth - GUTTER * 2 - GAP) / 2);
 }
 
@@ -78,14 +78,11 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
         accessibilityHint={t("training__program_card_hint")}
         onPress={() => onOpen(program.id)}
         onLongPress={() => setMenu(true)}
-        className="gap-2 rounded-xl border border-separator p-2 active:opacity-70"
+        className="gap-2 rounded-xl bg-surface p-2 active:opacity-70"
         style={{ width }}
       >
-        {/* TODO: render the cover in the ink/ivory duotone by default (with a toggle for the
-            original) once the app has a duotone image treatment; originals are shown until then. */}
-        <ProgramTile title={program.title} size={width - 18} coverMediaId={program.coverMediaId} />
+        <ProgramTile title={program.title} size={width - 16} coverMediaId={program.coverMediaId} />
         <View className="gap-1 px-0.5 pb-0.5">
-          {/* TODO: the serif title of the brand direction; the app loads Geist only today. */}
           <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
             {program.title}
           </Text>
@@ -99,8 +96,8 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
   );
 });
 
-/** The Programs of Train: two columns of cover cards. */
-export function ProgramGrid({
+/** One virtualized row of the Train program grid. */
+export const ProgramGridRow = memo(function ProgramGridRow({
   programs,
   activeId,
   onActivate,
@@ -120,7 +117,7 @@ export function ProgramGrid({
   const { width: screen } = useWindowDimensions();
   const width = gridCardWidth(screen);
   return (
-    <View className="flex-row flex-wrap" style={{ columnGap: GAP, rowGap: 20 }}>
+    <View className="flex-row px-4 pb-3" style={{ columnGap: GAP }}>
       {programs.map((program) => (
         <ProgramCoverCard
           key={program.id}
@@ -136,4 +133,4 @@ export function ProgramGrid({
       ))}
     </View>
   );
-}
+});

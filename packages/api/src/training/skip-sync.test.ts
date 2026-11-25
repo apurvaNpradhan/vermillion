@@ -1,6 +1,7 @@
 import { uuidv7 } from "@workspace/db/columns";
 import {
   computeOpsDigest,
+  slotSkipId,
   SYNC_SCHEMA_VERSION,
   TRAINING_LIMITS,
   type SyncFailureCode,
@@ -103,49 +104,50 @@ describe("program_slot_skip upload handler", () => {
       sql`SELECT id, cycle FROM program_slot_skip WHERE run_id = ${run} AND deleted_at IS NULL`,
     );
 
-  it("records a skip, repeats it as a no-op and deletes it softly", async () => {
+  const putSkip = (runId: string, slotId: string, cycle = 1) =>
+    op(
+      "PUT",
+      "program_slot_skip",
+      slotSkipId({ runId, slotId, cycle }),
+      skipData(runId, slotId, cycle),
+    );
+
+  it("acks a missing Undo and reuses the deterministic id after a delete", async () => {
     const me = await writer("skip-basic@example.com");
     const { run, slot } = await plan(me);
-    const id = uuidv7();
-    expect(await me.send([op("PUT", "program_slot_skip", id, skipData(run, slot))])).toEqual(
-      applied,
-    );
-    expect(await live(run)).toHaveLength(1);
-    // The same PUT again (a lost response) changes nothing.
-    expect(await me.send([op("PUT", "program_slot_skip", id, skipData(run, slot))])).toEqual(
-      applied,
-    );
-    expect(await live(run)).toHaveLength(1);
-
-    expect(await me.send([op("DELETE", "program_slot_skip", id)])).toEqual(applied);
-    expect(await me.send([op("DELETE", "program_slot_skip", id)])).toEqual(applied);
-    expect(await live(run)).toHaveLength(0);
-    // Delete wins over a stale repeat.
-    expect(await me.send([op("PUT", "program_slot_skip", id, skipData(run, slot))])).toMatchObject(
-      rejected("SYNC_ROW_DELETED"),
-    );
-    // Skipping again after an undo is a new row.
-    expect(await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, slot))])).toEqual(
-      applied,
-    );
-    expect(await live(run)).toHaveLength(1);
+    const put = putSkip(run, slot);
+    const undo = op("DELETE", "program_slot_skip", put.id);
+    expect(await me.send([undo])).toEqual(applied);
+    expect(await me.send([put])).toEqual(applied);
+    expect(await me.send([putSkip(run.toUpperCase(), slot.toUpperCase())])).toEqual(applied);
+    expect(await live(run)).toEqual([{ id: put.id, cycle: 1 }]);
+    expect(await me.send([undo])).toEqual(applied);
+    expect(await me.send([undo])).toEqual(applied);
+    expect(await live(run)).toEqual([]);
+    expect(await me.send([put])).toEqual(applied);
+    expect(await live(run)).toEqual([{ id: put.id, cycle: 1 }]);
   });
 
-  it("applies a second device's skip of the same slot and cycle as nothing", async () => {
-    const me = await writer("skip-twice@example.com");
+  it("refuses new skips for removed days and finished runs but still takes late Undo", async () => {
+    const me = await writer("skip-finished@example.com");
     const { run, slot } = await plan(me);
+    const put = putSkip(run, slot);
+    expect(await me.send([put])).toEqual(applied);
+    expect(await me.send([op("DELETE", "program_slot", slot)])).toEqual(applied);
+    expect(await me.send([putSkip(run, slot, 2)])).toMatchObject(
+      rejected("RUN_SLOT_PROGRAM_MISMATCH"),
+    );
     expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, slot, 2))]),
+      await me.send([
+        op("PATCH", "program_run", run, {
+          finished_at: new Date().toISOString(),
+          outcome: "stopped",
+        }),
+      ]),
     ).toEqual(applied);
-    expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, slot, 2))]),
-    ).toEqual(applied);
-    expect(await live(run)).toHaveLength(1);
-    // Another cycle is another skip.
-    expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, slot, 3))]),
-    ).toEqual(applied);
-    expect(await live(run)).toHaveLength(2);
+    expect(await me.send([op("DELETE", "program_slot_skip", put.id)])).toEqual(applied);
+    expect(await me.send([put])).toMatchObject(rejected("RUN_NOT_FOUND"));
+    expect(await live(run)).toEqual([]);
   });
 
   it("refuses Rest slots, foreign runs and slots, bad cycles and changed rows", async () => {
@@ -154,19 +156,13 @@ describe("program_slot_skip upload handler", () => {
     const { run, slot, rest } = await plan(me);
     const theirs = await plan(other);
 
-    expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, rest))]),
-    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([putSkip(run, rest)])).toMatchObject(rejected("SYNC_INVALID_OP"));
     // Another user's Run is "not found", and so is a Slot of another Program.
-    expect(
-      await other.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, theirs.slot))]),
-    ).toMatchObject(rejected("RUN_NOT_FOUND"));
-    expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, theirs.slot))]),
-    ).toMatchObject(rejected("RUN_SLOT_PROGRAM_MISMATCH"));
-    expect(
-      await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(uuidv7(), slot))]),
-    ).toMatchObject(rejected("RUN_NOT_FOUND"));
+    expect(await other.send([putSkip(run, theirs.slot)])).toMatchObject(rejected("RUN_NOT_FOUND"));
+    expect(await me.send([putSkip(run, theirs.slot)])).toMatchObject(
+      rejected("RUN_SLOT_PROGRAM_MISMATCH"),
+    );
+    expect(await me.send([putSkip(uuidv7(), slot)])).toMatchObject(rejected("RUN_NOT_FOUND"));
     for (const cycle of [0, -1, 1.5, TRAINING_LIMITS.cycleMax + 1]) {
       expect(
         await me.send([op("PUT", "program_slot_skip", uuidv7(), skipData(run, slot, cycle))]),
@@ -183,8 +179,8 @@ describe("program_slot_skip upload handler", () => {
       ]),
     ).toMatchObject(rejected("SYNC_INVALID_OP"));
 
-    const id = uuidv7();
-    await me.send([op("PUT", "program_slot_skip", id, skipData(run, slot))]);
+    const { id } = putSkip(run, slot);
+    expect(await me.send([putSkip(run, slot)])).toEqual(applied);
     expect(await me.send([op("PATCH", "program_slot_skip", id, { cycle: 2 })])).toMatchObject(
       rejected("SYNC_INVALID_OP"),
     );

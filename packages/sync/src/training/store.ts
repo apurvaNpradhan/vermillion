@@ -57,6 +57,4 @@ export {
   setProgramCoverToNewMedia,
   setWorkoutCover,
   setWorkoutCoverToNewMedia,
-  releaseWorkoutCover,
-  releaseProgramCover,
 } from "./plans/cover-store";

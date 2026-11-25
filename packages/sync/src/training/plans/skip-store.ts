@@ -1,25 +1,16 @@
-import { TRAINING_LIMITS } from "@workspace/shared";
-import { and, eq } from "drizzle-orm";
-import { v7 as uuidv7 } from "uuid";
+import { slotSkipId, TRAINING_LIMITS, type RunSlot } from "@workspace/shared";
+import { eq } from "drizzle-orm";
 
-import { nowIso, ownerOf, write, type TrainingDatabase } from "../store-common";
-import { programRun, programSlot, programSlotSkip } from "../tables";
+import { nowIso, ownerOf, write, type TrainingDatabase, type Tx } from "../store-common";
+import { programSlot, programSlotSkip } from "../tables";
 
-// ---- Slot skips ----
-// "Skip this cycle": a small synced record that counts a Slot as done for one Cycle of a Run
-// (`cycleState`). The Program order never changes. Undo deletes the record.
-
-/**
- * Marks a Workout Slot of the Run's Program as skipped for `cycle`. Idempotent: skipping a Slot
- * that is already skipped for that Cycle changes nothing. Returns the skip's id, or null when the
- * Run or the Slot is gone or is not a Workout Slot of the Run's Program (Rest is never skipped).
- */
+/** Marks a live Workout Slot of the active Run as skipped. */
 export function skipSlot(
   database: TrainingDatabase,
-  input: { runId: string; slotId: string; cycle: number },
+  input: RunSlot,
   expectedInstallId?: string,
 ): Promise<string | null> {
-  return write(database, expectedInstallId, async (tx) => {
+  return write(database, expectedInstallId, async (tx, run) => {
     if (
       !Number.isInteger(input.cycle) ||
       input.cycle < 1 ||
@@ -27,28 +18,20 @@ export function skipSlot(
     ) {
       throw new Error("The cycle is out of range");
     }
-    const [run] = await tx.select().from(programRun).where(eq(programRun.id, input.runId)).limit(1);
+    if (!run || run.id !== input.runId || run.outcome !== null) return null;
     const [slot] = await tx
       .select()
       .from(programSlot)
       .where(eq(programSlot.id, input.slotId))
       .limit(1);
-    if (!run || !slot || slot.program_id !== run.program_id || slot.workout_id === null) {
-      return null;
-    }
+    if (!slot || slot.program_id !== run.program_id || slot.workout_id === null) return null;
+    const id = slotSkipId(input);
     const [existing] = await tx
       .select({ id: programSlotSkip.id })
       .from(programSlotSkip)
-      .where(
-        and(
-          eq(programSlotSkip.run_id, input.runId),
-          eq(programSlotSkip.slot_id, input.slotId),
-          eq(programSlotSkip.cycle, input.cycle),
-        ),
-      )
+      .where(eq(programSlotSkip.id, id))
       .limit(1);
-    if (existing) return existing.id;
-    const id = uuidv7();
+    if (existing) return id;
     await tx.insert(programSlotSkip).values({
       id,
       user_id: await ownerOf(tx),
@@ -61,23 +44,21 @@ export function skipSlot(
   });
 }
 
-/** Undoes a skip. Returns false when the Slot was not skipped for that Cycle. */
+/** Undo stays scoped to the original Run, even after the Run ends. */
 export function unskipSlot(
   database: TrainingDatabase,
-  input: { runId: string; slotId: string; cycle: number },
+  input: RunSlot,
   expectedInstallId?: string,
 ): Promise<boolean> {
-  return write(database, expectedInstallId, async (tx) => {
-    const removed = await tx
-      .delete(programSlotSkip)
-      .where(
-        and(
-          eq(programSlotSkip.run_id, input.runId),
-          eq(programSlotSkip.slot_id, input.slotId),
-          eq(programSlotSkip.cycle, input.cycle),
-        ),
-      )
-      .returning({ id: programSlotSkip.id });
-    return removed.length > 0;
+  return write(database, expectedInstallId, (tx) => unskipSlotIn(tx, input), {
+    reconcileRuns: false,
   });
+}
+
+export async function unskipSlotIn(tx: Tx, input: RunSlot): Promise<boolean> {
+  const removed = await tx
+    .delete(programSlotSkip)
+    .where(eq(programSlotSkip.id, slotSkipId(input)))
+    .returning({ id: programSlotSkip.id });
+  return removed.length > 0;
 }

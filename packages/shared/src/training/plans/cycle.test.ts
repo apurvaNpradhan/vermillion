@@ -142,3 +142,42 @@ describe("cycle state with skips", () => {
     expect(empty.skipped.size).toBe(0);
   });
 });
+
+it("advances past multiple fully skipped cycles", () => {
+  const work = [{ id: "a", workoutId: "upper" }];
+  const state = cycleState(
+    work,
+    [],
+    [
+      { slotId: "a", cycle: 1 },
+      { slotId: "a", cycle: 2 },
+    ],
+  );
+  expect(state.cycle).toBe(3);
+  expect(state.next?.id).toBe("a");
+});
+
+it("credits a recorded slot even when another device skipped it", () => {
+  const state = cycleState(
+    slots,
+    [{ ...done("1", "upper"), slotId: "c" }],
+    [{ slotId: "c", cycle: 1 }],
+  );
+  expect([...state.trained]).toEqual(["c"]);
+  expect(state.skipped.has("c")).toBe(false);
+  expect(state.next?.id).toBe("a");
+});
+
+it("reserves recorded slots before assigning legacy sessions to repeated workouts", () => {
+  const state = cycleState(slots, [done("1", "upper"), { ...done("2", "upper"), slotId: "a" }]);
+  expect([...state.trained]).toEqual(["a", "c"]);
+  expect(state.next?.id).toBe("b");
+});
+
+it("seals earlier cycles once a later counted session exists, even after an Undo arrives", () => {
+  const sessions = [{ ...done("1", "upper", 2), slotId: "c" }];
+  const withSkip = cycleState(slots, sessions, [{ slotId: "a", cycle: 1 }]);
+  expect(cycleState(slots, sessions)).toEqual(withSkip);
+  expect(withSkip.latestCountedCycle).toBe(2);
+  expect(withSkip.cycle).toBe(2);
+});

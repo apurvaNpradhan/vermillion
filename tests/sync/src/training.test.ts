@@ -1,16 +1,25 @@
+import { cycleState } from "@workspace/shared";
 import {
+  activateProgram,
   addExercises,
   addSlot,
+  beginSession,
   claimDeviceOwner,
   createProgram,
   createWorkout,
   deleteProgram,
   deleteWorkout,
+  ensureInstallId,
+  finishSession,
   moveWorkoutExercise,
   powerSyncSchema,
   restoreProgram,
   restoreWorkout,
+  skipSlot,
   sortByPosition,
+  tickSet,
+  unskipSlot,
+  watchRunState,
   updateWorkoutExercise,
 } from "@workspace/sync";
 import { v7 as uuidv7 } from "uuid";
@@ -356,4 +365,152 @@ describe("training plans sync", () => {
     expect(note.rows[0]?.note).toBeNull();
     expect(await count(a2, "program")).toBe(1);
   });
+});
+
+it("converges two offline skips to one id, then syncs Undo and re-skip", async () => {
+  const user = await createUser();
+  const [a, b] = [await device(user), await device(user)];
+  const program = await createProgram(a.database, {
+    title: "Two devices",
+    description: null,
+    planned_weeks: null,
+  });
+  const workout = await createWorkout(a.database, { program_id: program, title: "Day" });
+  const slotId = await addSlot(a.database, program, workout);
+  const runId = await activateProgram(a.database, program);
+  const day = { runId, slotId, cycle: 1 };
+  await a.uploaded();
+  await vi.waitFor(async () => {
+    expect(
+      await b.database.getOptional("SELECT id FROM program_run WHERE id = ?", [runId]),
+    ).not.toBeNull();
+    expect(
+      await b.database.getOptional("SELECT id FROM program_slot WHERE id = ?", [slotId]),
+    ).not.toBeNull();
+  }, within);
+
+  await Promise.all([a.database.disconnect(), b.database.disconnect()]);
+  const [first, second] = await Promise.all([skipSlot(a.database, day), skipSlot(b.database, day)]);
+  expect(first).not.toBeNull();
+  expect(second).toBe(first);
+  await a.connect();
+  await a.uploaded();
+  await b.connect();
+  await b.uploaded();
+
+  const skipsOf = (client: SyncClient) =>
+    client.database.getAll("SELECT id FROM program_slot_skip WHERE run_id = ?", [runId]);
+  let progress: Parameters<Parameters<typeof watchRunState>[1]>[0] | null = null;
+  const stop = watchRunState(
+    a.database,
+    (value) => {
+      progress = value;
+    },
+    () => {
+      throw new Error("Failed to watch the active run");
+    },
+  );
+  try {
+    await vi.waitFor(async () => {
+      expect(await skipsOf(a)).toEqual([{ id: first }]);
+      expect(await skipsOf(b)).toEqual([{ id: first }]);
+      expect(progress).toMatchObject({ runId, skips: [{ slotId, cycle: 1 }] });
+    }, within);
+
+    expect(await unskipSlot(b.database, day)).toBe(true);
+    await b.uploaded();
+    await vi.waitFor(async () => {
+      expect(await skipsOf(a)).toEqual([]);
+      expect(progress).toMatchObject({ runId, skips: [] });
+    }, within);
+    expect(await skipSlot(a.database, day)).toBe(first);
+    await a.uploaded();
+    await vi.waitFor(async () => expect(await skipsOf(b)).toEqual([{ id: first }]), within);
+    for (const client of [a, b]) {
+      expect([...client.outcomes().values()].every((outcome) => outcome.status === "applied")).toBe(
+        true,
+      );
+    }
+  } finally {
+    stop();
+  }
+});
+
+it("counts the chosen repeated day when an offline skip for it arrives", async () => {
+  const user = await createUser();
+  const [a, b] = [await device(user), await device(user)];
+  await ensureInstallId(a.database);
+  const exercise = await catalogExercise("weight_reps");
+  await hasExercise(a, exercise);
+  const program = await createProgram(a.database, {
+    title: "Repeat",
+    description: null,
+    planned_weeks: null,
+  });
+  const workoutId = await createWorkout(a.database, { program_id: program, title: "Day" });
+  await addExercises(a.database, workoutId, [exercise]);
+  const first = await addSlot(a.database, program, workoutId);
+  const second = await addSlot(a.database, program, workoutId);
+  const runId = await activateProgram(a.database, program);
+  const day = { runId, cycle: 1, slotId: second };
+  await a.uploaded();
+  await vi.waitFor(async () => {
+    expect(
+      await b.database.getOptional("SELECT id FROM program_run WHERE id = ?", [runId]),
+    ).not.toBeNull();
+    expect(
+      await b.database.getOptional("SELECT id FROM program_slot WHERE id = ?", [second]),
+    ).not.toBeNull();
+  }, within);
+  await b.database.disconnect();
+  const skipped = await skipSlot(b.database, day);
+  expect(skipped).not.toBeNull();
+
+  const { id } = await beginSession(a.database, { workoutId, day }, "Chosen day");
+  const set = await a.database.get<{ id: string }>(
+    `SELECT s.id FROM session_set s JOIN session_exercise e ON e.id = s.session_exercise_id
+     WHERE e.session_id = ? ORDER BY s.position, s.id LIMIT 1`,
+    [id],
+  );
+  await tickSet(a.database, set.id, { weight: 100, reps: 5 });
+  await finishSession(a.database, id);
+  await a.uploaded();
+  await b.connect();
+  await b.uploaded();
+
+  const slots = [
+    { id: first, workoutId },
+    { id: second, workoutId },
+  ];
+  let progress: ReturnType<typeof cycleState> | null = null;
+  const stop = watchRunState(
+    b.database,
+    (value) => {
+      if (value.runId === runId) progress = cycleState(slots, value.sessions, value.skips);
+    },
+    () => {
+      throw new Error("Failed to watch the active run");
+    },
+  );
+  try {
+    await vi.waitFor(async () => {
+      expect(
+        await b.database.getOptional(
+          "SELECT run_id, cycle, slot_id FROM training_session WHERE id = ?",
+          [id],
+        ),
+      ).toEqual({ run_id: runId, cycle: 1, slot_id: second });
+      expect(
+        await b.database.getOptional("SELECT id FROM program_slot_skip WHERE id = ?", [skipped]),
+      ).toEqual({ id: skipped });
+      expect(progress).toMatchObject({
+        cycle: 1,
+        trained: new Set([second]),
+        skipped: new Set(),
+        next: slots[0],
+      });
+    }, within);
+  } finally {
+    stop();
+  }
 });

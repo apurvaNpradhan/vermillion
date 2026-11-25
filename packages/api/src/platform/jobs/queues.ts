@@ -1,6 +1,6 @@
 import { accountCleanupQueue, accountFinalPurgeQueue } from "../../account/index";
 import { sendEmailQueue } from "../../auth/index";
-import { sessionMediaCleanupQueue } from "../../training/index";
+import { coverCleanupQueue, sessionMediaCleanupQueue } from "../../training/index";
 import { mediaPurgeQueue } from "../../media/index";
 import { syncPurgeQueue } from "../sync/purge";
 import { slotLagQueue } from "../sync/slot-lag";
@@ -14,5 +14,6 @@ export const queues: readonly AnyQueue[] = [
   slotLagQueue,
   syncPurgeQueue,
   mediaPurgeQueue,
+  coverCleanupQueue,
   sessionMediaCleanupQueue,
 ];

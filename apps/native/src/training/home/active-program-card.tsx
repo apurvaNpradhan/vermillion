@@ -1,3 +1,4 @@
+import { SLOT_STATE_KEYS, stripState } from "@/training/train/strip-state";
 import { useRouter } from "expo-router";
 import { Check, Repeat } from "phosphor-react-native";
 import { useFocusEffect } from "expo-router";
@@ -21,7 +22,7 @@ export function ActiveProgramCard({
   const { t } = useTranslation();
   const router = useRouter();
   const { program, run, progress, week } = state;
-  const { start, sheet } = useStartSession();
+  const { startSlot, sheet } = useStartSession();
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
   const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
@@ -54,35 +55,35 @@ export function ActiveProgramCard({
         className="flex-row flex-wrap gap-2"
         accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}
       >
-        {program.slots.map((slot) => {
-          const trained = progress.trained.has(slot.id);
-          const rest = slot.workoutId === null;
-          const next = progress.next?.id === slot.id;
+        {program.slots.map((slot, index) => {
+          const state = stripState(slot, progress);
+          const trained = state === "done";
+          const rest = state === "rest";
           return (
             <View
               key={slot.id}
               accessible
               accessibilityLabel={t("run__slot_state", {
-                title: slotTitle(slot, t),
-                state: t(trained ? "run__trained" : next ? "run__up_next" : "run__untrained"),
+                day: index + 1,
+                title: rest ? t("training__rest_day") : slotTitle(slot, t),
+                state: t(SLOT_STATE_KEYS[state]),
               })}
               className={
                 rest
                   ? "h-7 w-7 self-center items-center justify-center rounded-full bg-default opacity-40"
                   : trained
                     ? "h-10 w-10 items-center justify-center rounded-full bg-foreground"
-                    : next
+                    : state === "next"
                       ? "h-10 w-10 items-center justify-center rounded-full border-2 border-foreground bg-default"
                       : "h-10 w-10 items-center justify-center rounded-full bg-default"
               }
             >
               {rest ? (
+                <View className="size-1.5 rounded-full bg-muted" />
+              ) : state === "skipped" ? (
                 <View
-                  className={
-                    trained
-                      ? "size-1.5 rounded-full bg-background"
-                      : "size-1.5 rounded-full bg-muted"
-                  }
+                  className="h-px w-3 bg-foreground"
+                  style={{ transform: [{ rotate: "-45deg" }] }}
                 />
               ) : (
                 <Text
@@ -107,7 +108,14 @@ export function ActiveProgramCard({
           <Button
             size="sm"
             className="rounded-full px-4"
-            onPress={() => void start(next.workoutId)}
+            onPress={() => {
+              if (next.workoutId)
+                void startSlot(next.workoutId, {
+                  runId: run.id,
+                  slotId: next.id,
+                  cycle: progress.cycle,
+                });
+            }}
           >
             <Button.Label>{t("training__start")}</Button.Label>
           </Button>

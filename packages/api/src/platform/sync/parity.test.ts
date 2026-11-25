@@ -404,6 +404,7 @@ const expectation: Expectation = {
         thumb_bytes: { type: "integer", notNull: true, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        cover_unreferenced_at: { type: "timestamp with time zone", notNull: false, default: null },
         objects_purged_at: { type: "timestamp with time zone", notNull: false, default: null },
       },
       indexes: {
@@ -441,7 +442,7 @@ const expectation: Expectation = {
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
       "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at, progression_per_set, auto_warmups, note)",
       "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
-      "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
+      "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at, cover_unreferenced_at)",
       "progress_photo(id, user_id, media_id, pose, taken_at, local_date, created_at, updated_at, deleted_at)",
       "user_preferences(id, user_id, locale, timezone, ui, created_at, updated_at)",
     ],

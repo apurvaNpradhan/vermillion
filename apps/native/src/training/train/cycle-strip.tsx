@@ -5,15 +5,7 @@ import { useTranslation } from "@/platform/i18n";
 
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { slotTitle } from "@/training/rotation/rotation-row";
-import { stripState } from "./strip-state";
-
-const STATE_KEYS = {
-  done: "run__trained",
-  skipped: "run__skipped",
-  next: "run__up_next",
-  todo: "run__untrained",
-  rest: "run__rest_day_state",
-} as const;
+import { SLOT_STATE_KEYS, stripState } from "./strip-state";
 
 /**
  * One dot per Slot of the Rotation for the current Cycle: done (a filled ink mark), skipped (a
@@ -39,9 +31,10 @@ export const CycleStrip = memo(function CycleStrip({
       {slots.map((slot, index) => {
         const state = stripState(slot, progress);
         const title = state === "rest" ? t("training__rest_day") : slotTitle(slot, t);
-        const label = t("training__chip_state", {
-          title: `${index + 1}. ${title}`,
-          state: t(STATE_KEYS[state]),
+        const label = t("run__slot_state", {
+          day: index + 1,
+          title,
+          state: t(SLOT_STATE_KEYS[state]),
         });
         // A mason's tally: struck (filled ink), skipped (hollow with a hairline slash), next (the
         // accent dot), still to do (hollow) and Rest (a short hairline).
@@ -70,7 +63,7 @@ export const CycleStrip = memo(function CycleStrip({
               key={slot.id}
               accessible
               accessibilityLabel={label}
-              className="h-11 w-8 items-center justify-center"
+              className="h-11 w-11 items-center justify-center"
             >
               {dot}
             </View>
@@ -81,9 +74,15 @@ export const CycleStrip = memo(function CycleStrip({
             key={slot.id}
             accessibilityRole="button"
             accessibilityLabel={label}
-            accessibilityHint={t("run__strip_hint")}
+            accessibilityHint={t(
+              state === "done"
+                ? "run__strip_start_hint"
+                : state === "skipped"
+                  ? "run__strip_undo_hint"
+                  : "run__strip_skip_hint",
+            )}
             onPress={() => onSelect(slot)}
-            className="h-11 w-9 items-center justify-center active:opacity-70"
+            className="h-11 w-11 items-center justify-center active:opacity-70"
           >
             {dot}
           </Pressable>

@@ -5,7 +5,9 @@ import {
   parseActiveSessions,
   restoreSession,
   type ActiveSession,
+  type BeginSource,
 } from "@workspace/sync";
+import type { RunSlot } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
@@ -18,8 +20,7 @@ import { StartConflictSheet } from "./start-conflict-sheet";
 const NO_ACTIVE: ActiveSession[] = [];
 
 /** What a new Session is made from: a Workout (or nothing), or a finished Session to repeat. */
-type Source = { workoutId: string | null } | { againOf: string };
-type Pending = { source: Source; active: ActiveSession[] };
+type Pending = { source: BeginSource; active: ActiveSession[] };
 
 /**
  * Starting a Session, from a Workout, empty, or as an exact copy of a finished one (Perform again). When one is already active the user is asked
@@ -40,7 +41,7 @@ export function useStartSession() {
   );
 
   const begin = useCallback(
-    async (source: Source, discard: readonly ActiveSession[]) => {
+    async (source: BeginSource, discard: readonly ActiveSession[]) => {
       if (starting.current) return;
       starting.current = true;
       try {
@@ -77,7 +78,7 @@ export function useStartSession() {
 
   /** Starts a Session from `workoutId` (or empty), or asks first when one is active. */
   const startFrom = useCallback(
-    async (source: Source) => {
+    async (source: BeginSource) => {
       const active = await write(
         async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
         NO_ACTIVE,
@@ -88,6 +89,10 @@ export function useStartSession() {
     [write, begin],
   );
   const start = useCallback((workoutId: string | null) => startFrom({ workoutId }), [startFrom]);
+  const startSlot = useCallback(
+    (workoutId: string, day: RunSlot) => startFrom({ workoutId, day }),
+    [startFrom],
+  );
   /** Starts a Session that repeats the finished Session `sessionId`, or asks first when one is active. */
   const startAgain = useCallback(
     (sessionId: string) => startFrom({ againOf: sessionId }),
@@ -113,5 +118,5 @@ export function useStartSession() {
     />
   );
 
-  return { start, startAgain, sheet };
+  return { start, startSlot, startAgain, sheet };
 }

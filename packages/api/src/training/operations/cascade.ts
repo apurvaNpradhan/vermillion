@@ -1,6 +1,7 @@
 import type { DbExecutor } from "@workspace/db";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 
+import { resetCoverGrace } from "../cover-cleanup";
 import { program, programSlot, workout, workoutExercise } from "../tables";
 
 /**
@@ -87,10 +88,15 @@ export async function restoreProgramCascade(db: DbExecutor, id: string, at: Date
         eq(workoutExercise.deletedAt, at),
       ),
     );
-  await db
+  const restored = await db
     .update(workout)
     .set(mark)
-    .where(and(eq(workout.programId, id), eq(workout.deletedAt, at)));
+    .where(and(eq(workout.programId, id), eq(workout.deletedAt, at)))
+    .returning({ cover: workout.coverMediaId });
+  await resetCoverGrace(
+    db,
+    restored.flatMap(({ cover }) => (cover === null ? [] : [cover])),
+  );
   await db
     .update(programSlot)
     .set(mark)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { listWorkouts, showWorkoutTools } from "./train-rows";
+import { indexWorkouts, listWorkouts, showWorkoutTools } from "./train-rows";
 
 const make = (id: string, title: string, createdAt: string, exercises: string[] = []) => ({
   id,
@@ -8,13 +8,16 @@ const make = (id: string, title: string, createdAt: string, exercises: string[] 
   createdAt,
   exercises: exercises.map((exercise) => ({ title: exercise })),
 });
-const workouts = [
-  make("a", "Push", "2026-01-01", ["Bench Press", "Dips"]),
-  make("b", "Pull", "2026-01-02", ["Row", "Chin-up"]),
-  make("c", "Légs", "2026-01-03", ["Squat"]),
-  make("d", "Arms", "2026-01-04", ["Curl", "Bench Press"]),
-];
 const nameOf = (workout: { title: string }) => workout.title;
+const workouts = indexWorkouts(
+  [
+    make("a", "Push", "2026-01-01", ["Bench Press", "Dips"]),
+    make("b", "Pull", "2026-01-02", ["Row", "Chin-up"]),
+    make("c", "Légs", "2026-01-03", ["Squat"]),
+    make("d", "Arms", "2026-01-04", ["Curl", "Bench Press"]),
+  ],
+  nameOf,
+);
 const ids = (list: readonly { id: string }[]) => list.map((workout) => workout.id).join("");
 
 describe("Train workouts list", () => {
@@ -28,20 +31,18 @@ describe("Train workouts list", () => {
       ["a", "2026-02-10T08:00:00Z"],
       ["b", "2026-02-12T08:00:00Z"],
     ]);
-    expect(ids(listWorkouts({ workouts, query: "", sort: "recent", lastDone, nameOf }))).toBe(
-      "badc",
-    );
+    expect(ids(listWorkouts({ workouts, query: "", sort: "recent", lastDone }))).toBe("badc");
   });
 
   it("sorts by name ignoring case and accents", () => {
-    expect(
-      ids(listWorkouts({ workouts, query: "", sort: "name", lastDone: new Map(), nameOf })),
-    ).toBe("dcba");
+    expect(ids(listWorkouts({ workouts, query: "", sort: "name", lastDone: new Map() }))).toBe(
+      "dcba",
+    );
   });
 
   it("searches names and exercises, every word anywhere", () => {
     const run = (query: string) =>
-      ids(listWorkouts({ workouts, query, sort: "name", lastDone: new Map(), nameOf }));
+      ids(listWorkouts({ workouts, query, sort: "name", lastDone: new Map() }));
     expect(run("bench")).toBe("da");
     expect(run("bench dips")).toBe("a");
     expect(run("legs")).toBe("c");
@@ -50,12 +51,15 @@ describe("Train workouts list", () => {
   });
 
   it("keeps a stable order for equal keys", () => {
-    const same = [make("y", "Same", "2026-01-01"), make("x", "Same", "2026-01-01")];
+    const same = indexWorkouts(
+      [make("y", "Same", "2026-01-01"), make("x", "Same", "2026-01-01")],
+      nameOf,
+    );
     expect(
-      ids(listWorkouts({ workouts: same, query: "", sort: "name", lastDone: new Map(), nameOf })),
+      ids(listWorkouts({ workouts: same, query: "", sort: "name", lastDone: new Map() })),
     ).toBe("xy");
     expect(
-      ids(listWorkouts({ workouts: same, query: "", sort: "recent", lastDone: new Map(), nameOf })),
+      ids(listWorkouts({ workouts: same, query: "", sort: "recent", lastDone: new Map() })),
     ).toBe("yx");
   });
 });

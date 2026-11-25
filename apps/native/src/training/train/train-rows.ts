@@ -9,50 +9,46 @@ export const showWorkoutTools = (count: number) => count > WORKOUT_TOOLS_AFTER;
 
 const fold = (text: string) => text.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 
-/**
- * The standalone Workouts of the Train page, searched and sorted. A search matches the name and
- * the exercises (every word must match somewhere). "Recent" puts the last done first, then the
- * ones never done by when they were made; "name" is alphabetical. Ties fall back to the id, so
- * the order never flickers.
- */
-export function listWorkouts<
-  Workout extends {
-    id: string;
-    createdAt: string;
-    exercises: readonly { title: string | null }[];
-  },
->(input: {
-  workouts: readonly Workout[];
+type WorkoutRow = {
+  id: string;
+  createdAt: string;
+  exercises: readonly { title: string | null }[];
+};
+
+export function indexWorkouts<Workout extends WorkoutRow>(
+  workouts: readonly Workout[],
+  nameOf: (workout: Workout) => string,
+) {
+  return workouts.map((workout) => {
+    const name = fold(nameOf(workout));
+    const exercises = workout.exercises.map((entry) => entry.title ?? "").join(" ");
+    return { workout, name, searchKey: `${name} ${fold(exercises)}` };
+  });
+}
+
+/** Every search word must match somewhere in the title or exercises. */
+export function listWorkouts<Workout extends WorkoutRow>(input: {
+  workouts: ReturnType<typeof indexWorkouts<Workout>>;
   query: string;
   sort: WorkoutSort;
-  /** Workout id to when it was last done (ISO), for Workouts done lately. */
   lastDone: ReadonlyMap<string, string>;
-  /** The name shown for a Workout (its title, or the one derived from its muscles). */
-  nameOf: (workout: Workout) => string;
 }): Workout[] {
   const words = fold(input.query).split(/\s+/).filter(Boolean);
-  const matches = (workout: Workout) => {
-    if (words.length === 0) return true;
-    const haystack = fold(
-      [input.nameOf(workout), ...workout.exercises.map((exercise) => exercise.title ?? "")].join(
-        " ",
-      ),
-    );
-    return words.every((word) => haystack.includes(word));
-  };
-  const found = input.workouts.filter(matches);
+  const found = input.workouts.filter(({ searchKey }) =>
+    words.every((word) => searchKey.includes(word)),
+  );
   if (input.sort === "name") {
-    return [...found].sort(
-      (a, b) =>
-        fold(input.nameOf(a)).localeCompare(fold(input.nameOf(b))) || a.id.localeCompare(b.id),
-    );
+    return found
+      .sort((a, b) => a.name.localeCompare(b.name) || a.workout.id.localeCompare(b.workout.id))
+      .map(({ workout }) => workout);
   }
-  const stamp = (workout: Workout) => input.lastDone.get(workout.id) ?? null;
-  return [...found].sort((a, b) => {
-    const left = stamp(a);
-    const right = stamp(b);
-    if (left !== null && right !== null && left !== right) return right.localeCompare(left);
-    if ((left === null) !== (right === null)) return left === null ? 1 : -1;
-    return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
-  });
+  return found
+    .sort(({ workout: a }, { workout: b }) => {
+      const left = input.lastDone.get(a.id) ?? null;
+      const right = input.lastDone.get(b.id) ?? null;
+      if (left !== null && right !== null && left !== right) return right.localeCompare(left);
+      if ((left === null) !== (right === null)) return left === null ? 1 : -1;
+      return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+    })
+    .map(({ workout }) => workout);
 }

@@ -38,7 +38,7 @@ function RenameWorkoutSheetBody({
   const save = () => {
     Keyboard.dismiss();
     const next = draft.trim();
-    onSave(next === "" ? null : next);
+    if (next !== (value ?? "").trim()) onSave(next === "" ? null : next);
     onOpenChange(false);
   };
   return (

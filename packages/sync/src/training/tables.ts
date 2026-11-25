@@ -123,9 +123,10 @@ export const session = sqliteTable(
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
+    index("session_workout_started_idx").on(table.workout_id, table.started_at, table.id),
     index("session_import_batch_idx").on(table.import_batch_id, table.id),
     index("session_import_fingerprint_idx").on(table.import_fingerprint),
-    index("session_run_id_idx").on(table.run_id),
+    index("session_run_id_idx").on(table.run_id, table.started_at, table.id),
     index("session_finished_at_idx").on(table.finished_at),
   ],
 );

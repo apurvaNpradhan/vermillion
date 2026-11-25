@@ -53,6 +53,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const { start, sheet } = useStartSession();
   const [metric, setMetric] = useState<"volume" | "reps" | "duration">("volume");
   const [renaming, setRenaming] = useState(false);
+  const [renameBaseline, setRenameBaseline] = useState<string | null>(null);
   const actions = useWorkoutActions();
   const sessions = history.sessions.filter((s) => s.workoutId === id);
   const last = sessions[0];
@@ -153,7 +154,14 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       <ScrollPage
         back
         title={shownTitle}
-        onTitlePress={ready ? () => setRenaming(true) : undefined}
+        onTitlePress={
+          ready
+            ? () => {
+                setRenameBaseline(ready.title);
+                setRenaming(true);
+              }
+            : undefined
+        }
         titleHint={t("training__rename_hint")}
         actions={
           ready ? (
@@ -393,7 +401,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         <RenameWorkoutSheet
           isOpen={renaming}
           onOpenChange={setRenaming}
-          value={ready.title}
+          value={renameBaseline}
           placeholder={shownTitle}
           onSave={(next) => void actions.update(id, { title: next })}
         />

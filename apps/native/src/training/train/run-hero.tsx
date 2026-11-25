@@ -1,3 +1,4 @@
+import type { RunSlot } from "@workspace/shared";
 import { Play } from "phosphor-react-native";
 import { useThemeColor } from "heroui-native";
 import type { ReactNode } from "react";
@@ -31,7 +32,7 @@ export function RunHero({
 }: {
   state: ReturnType<typeof useActiveProgram>;
   onOpen: (programId: string) => void;
-  onStart: (workoutId: string) => void;
+  onStart: (workoutId: string, day: RunSlot) => void;
   /** A Session is in progress: Start is quiet so Resume stays the one primary action. */
   startSecondary: boolean;
   /** The chip of the Run's current Phase, beside the week; absent until Phases exist. */
@@ -42,9 +43,10 @@ export function RunHero({
   const onAction = useThemeColor("accent-foreground");
   const { program, run, progress, week } = state;
   const day = useSlotDay({
+    runId: run?.id ?? null,
     progress,
     onStart,
-    onSkip: (slotId, title) => void state.skip(slotId, title),
+    onSkip: state.skip,
     onUnskip: state.unskip,
   });
   if (!program || !run) return null;
@@ -103,7 +105,10 @@ export function RunHero({
             size="lg"
             variant={startSecondary ? "secondary" : "primary"}
             className="h-14 w-full"
-            onPress={() => onStart(next.workoutId ?? "")}
+            onPress={() => {
+              if (next.workoutId)
+                onStart(next.workoutId, { runId: run.id, slotId: next.id, cycle: progress.cycle });
+            }}
           >
             <Play size={20} color={startSecondary ? subtle : onAction} />
             <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>

@@ -13,6 +13,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
+import { coverCleanupQueue } from "../training/index";
 import { mediaPurgeQueue, retireUserMedia } from "./index";
 
 const syncOptions = {
@@ -375,13 +376,15 @@ describe("user media", () => {
 
     it("soft-deletes once and never brings a deleted row back", async () => {
       const me = await writer("media-delete@example.com");
-      const id = await newMedia(me);
+      const id = await newMedia(me, { kind: "progress_photo" });
       expect(await me.send([op("DELETE", "media", id)])).toEqual(applied);
       const first = (await stored(id))?.deleted_at;
       expect(first).not.toBeNull();
       expect(await me.send([op("DELETE", "media", id)])).toEqual(applied);
       expect((await stored(id))?.deleted_at).toEqual(first);
-      expect(await me.send([putMedia(id)])).toMatchObject(rejected("SYNC_ROW_DELETED"));
+      expect(await me.send([putMedia(id, { kind: "progress_photo" })])).toMatchObject(
+        rejected("SYNC_ROW_DELETED"),
+      );
     });
   });
 
@@ -389,7 +392,7 @@ describe("user media", () => {
     it("needs a session, and an owned live media", async () => {
       const me = await writer("media-urls@example.com");
       const other = await writer("media-urls-other@example.com");
-      const id = await newMedia(me);
+      const id = await newMedia(me, { kind: "progress_photo" });
       await expect(
         app.client().media.uploadUrl({ mediaId: id, variant: "full" }),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -527,6 +530,9 @@ describe("user media", () => {
     });
   });
 
+  const tombstoneCover = (id: string) =>
+    app.rows(sql`UPDATE media SET deleted_at = now() WHERE id = ${id}`);
+
   describe("program covers", () => {
     const putProgram = (id: string, extra: Record<string, string | number | null> = {}) =>
       op("PUT", "program", id, {
@@ -547,7 +553,7 @@ describe("user media", () => {
       expect(await me.send([putProgram(programId, { cover_media_id: first })])).toEqual(applied);
       expect(await coverOf(programId)).toBe(first);
 
-      // The device moves the reference to the new media and deletes the old one in one transaction.
+      // A legacy delete accompanying a replacement is acknowledged without retiring the cover.
       expect(
         await me.send([
           op("PATCH", "program", programId, { cover_media_id: second }),
@@ -555,7 +561,7 @@ describe("user media", () => {
         ]),
       ).toEqual(applied);
       expect(await coverOf(programId)).toBe(second);
-      expect((await stored(first))?.deleted_at).not.toBeNull();
+      expect((await stored(first))?.deleted_at).toBeNull();
 
       expect(await me.send([op("PATCH", "program", programId, { cover_media_id: null })])).toEqual(
         applied,
@@ -571,9 +577,9 @@ describe("user media", () => {
       const foreign = await newMedia(other);
       const wrongKind = await newMedia(me, { kind: "exercise_image" });
       const gone = await newMedia(me);
-      await me.send([op("DELETE", "media", gone)]);
+      await tombstoneCover(gone);
 
-      for (const cover of [uuidv7(), foreign, wrongKind, gone]) {
+      for (const cover of [uuidv7(), foreign, wrongKind]) {
         expect(
           await me.send([op("PATCH", "program", programId, { cover_media_id: cover })]),
         ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
@@ -581,6 +587,9 @@ describe("user media", () => {
           rejected("MEDIA_REFERENCE_INVALID"),
         );
       }
+      expect(
+        await me.send([op("PATCH", "program", programId, { cover_media_id: gone })]),
+      ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
       expect(await coverOf(programId)).toBeNull();
       expect(
         await me.send([op("PATCH", "program", programId, { cover_media_id: "not-a-uuid" })]),
@@ -594,7 +603,7 @@ describe("user media", () => {
       await me.send([putProgram(programId, { cover_media_id: media })]);
       await me.send([op("DELETE", "program", programId)]);
       // The cover was deleted meanwhile; the restore repeats the reference it already had.
-      await me.send([op("DELETE", "media", media)]);
+      await tombstoneCover(media);
       expect(await me.send([putProgram(programId, { cover_media_id: media, restore: 1 })])).toEqual(
         applied,
       );
@@ -637,8 +646,8 @@ describe("user media", () => {
       const foreign = await newMedia(other, { kind: "workout_cover" });
       const programCover = await newMedia(me);
       const gone = await newMedia(me, { kind: "workout_cover" });
-      await me.send([op("DELETE", "media", gone)]);
-      for (const cover of [uuidv7(), foreign, programCover, gone]) {
+      await tombstoneCover(gone);
+      for (const cover of [uuidv7(), foreign, programCover]) {
         expect(
           await me.send([op("PATCH", "workout", workoutId, { cover_media_id: cover })]),
         ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
@@ -646,6 +655,9 @@ describe("user media", () => {
           rejected("MEDIA_REFERENCE_INVALID"),
         );
       }
+      expect(
+        await me.send([op("PATCH", "workout", workoutId, { cover_media_id: gone })]),
+      ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
       expect(await coverOf(workoutId)).toBeNull();
       // A Program may not point at a workout cover either.
       const workoutCover = await newMedia(me, { kind: "workout_cover" });
@@ -660,6 +672,78 @@ describe("user media", () => {
           }),
         ]),
       ).toMatchObject(rejected("MEDIA_REFERENCE_INVALID"));
+    });
+
+    it("preserves a cover for legacy Workout PUTs and clears an explicit null", async () => {
+      const me = await writer("workout-cover-legacy@example.com");
+      const media = await newMedia(me, { kind: "workout_cover" });
+      const id = uuidv7();
+      expect(await me.send([putWorkout(id, { cover_media_id: media })])).toEqual(applied);
+      expect(await me.send([putWorkout(id, { title: "Renamed" })])).toEqual(applied);
+      expect(await coverOf(id)).toBe(media);
+      expect(await me.send([putWorkout(id, { cover_media_id: null })])).toEqual(applied);
+      expect(await coverOf(id)).toBeNull();
+    });
+
+    async function sweepCovers() {
+      const completed = async () =>
+        Number(
+          (
+            await app.rows(sql`
+        SELECT count(*) AS n FROM pgboss.job
+        WHERE name = ${coverCleanupQueue.name} AND state = 'completed'
+      `)
+          )[0]?.n,
+        );
+      const before = await completed();
+      await app.services.jobs.enqueue(coverCleanupQueue, {});
+      await expect.poll(completed, { timeout: 20_000 }).toBeGreaterThan(before);
+    }
+
+    it.each(["copy-first", "replace-first"])(
+      "preserves a shared cover in either upload order (%s)",
+      async (order) => {
+        const me = await writer(`workout-cover-${order}@example.com`);
+        const other = installOf(me.client, me.userId);
+        const old = await newMedia(me, { kind: "workout_cover" });
+        const next = await newMedia(me, { kind: "workout_cover" });
+        const source = uuidv7();
+        const copy = uuidv7();
+        expect(await me.send([putWorkout(source, { cover_media_id: old })])).toEqual(applied);
+        const addCopy = () => other.send([putWorkout(copy, { cover_media_id: old })]);
+        if (order === "copy-first") expect(await addCopy()).toEqual(applied);
+        expect(await me.send([op("PATCH", "workout", source, { cover_media_id: next })])).toEqual(
+          applied,
+        );
+        await sweepCovers();
+        if (order === "replace-first") {
+          expect((await stored(old))?.cover_unreferenced_at).not.toBeNull();
+          expect(await addCopy()).toEqual(applied);
+        }
+        expect(await coverOf(copy)).toBe(old);
+        expect(await stored(old)).toMatchObject({ deleted_at: null, cover_unreferenced_at: null });
+      },
+    );
+
+    it("retires a cover after the grace period and accepts a late copy with its cover cleared", async () => {
+      const me = await writer("workout-cover-grace@example.com");
+      const old = await newMedia(me, { kind: "workout_cover" });
+      const source = uuidv7();
+      expect(await me.send([putWorkout(source, { cover_media_id: old })])).toEqual(applied);
+      expect(await me.send([op("DELETE", "workout", source)])).toEqual(applied);
+      await sweepCovers();
+      expect((await stored(old))?.deleted_at).toBeNull();
+      await app.rows(
+        sql`UPDATE media SET cover_unreferenced_at = now() - interval '8 days' WHERE id = ${old}`,
+      );
+      await sweepCovers();
+      expect((await stored(old))?.deleted_at).not.toBeNull();
+      const copy = uuidv7();
+      expect(await me.send([putWorkout(copy, { cover_media_id: old })])).toEqual(applied);
+      expect(await coverOf(copy)).toBeNull();
+      expect(await me.send([op("PATCH", "workout", copy, { cover_media_id: old })])).toMatchObject(
+        rejected("MEDIA_REFERENCE_INVALID"),
+      );
     });
 
     it("lets two Workouts share one cover, as a copy does", async () => {

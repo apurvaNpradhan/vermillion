@@ -58,6 +58,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         source_workout_exercise_id TEXT, workout_swap_fragment INTEGER, position TEXT, rest_seconds INTEGER, note TEXT,
         superset_group TEXT, log_effort INTEGER, warmup_key TEXT, repeated INTEGER, created_at TEXT, restore INTEGER);
       CREATE INDEX session_started_at_idx ON training_session (started_at);
+      CREATE INDEX session_workout_started_idx ON training_session (workout_id, started_at, id);
+      CREATE INDEX session_run_id_idx ON training_session (run_id, started_at, id);
       CREATE INDEX session_exercise_order_idx ON session_exercise (session_id, position);
       CREATE TABLE session_photo (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT, media_id TEXT, position REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE session_set (id TEXT PRIMARY KEY, user_id TEXT, session_exercise_id TEXT,

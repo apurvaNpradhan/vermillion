@@ -113,14 +113,12 @@ export {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
   skipSlot,
   unskipSlot,
   setWorkoutCover,
   setWorkoutCoverToNewMedia,
-  releaseWorkoutCover,
   sortByPosition,
   supersetWithNext,
   parseProgramDetail,
@@ -290,6 +288,7 @@ export {
 
 export {
   watchRunState,
+  type BeginSource,
   activateProgram,
   stopProgram,
   finishRun,

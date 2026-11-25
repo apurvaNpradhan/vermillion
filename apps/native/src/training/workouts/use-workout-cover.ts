@@ -12,8 +12,7 @@ import { useTrainingWrite } from "@/training/shared/use-training-write";
 /**
  * Adds, replaces and removes the cover photo of one Workout (ADR 0040), the same way as a
  * Program's: the picked photo is re-encoded on the device, its files join the attachment queue,
- * and the media row and the Workout's reference are written in one local transaction. A replaced
- * cover's files go at once unless a copy of the Workout still shows them.
+ * and the media row and the Workout's reference are written in one local transaction.
  * `pick` resolves to whether a photo was saved (false when cancelled); a failure shows a toast.
  */
 export function useWorkoutCover(workoutId: string) {
@@ -35,8 +34,8 @@ export function useWorkoutCover(workoutId: string) {
         queue,
         { fullUri: picked.fullUri, thumbUri: picked.thumbUri },
         id,
-        () =>
-          write(
+        async () => {
+          const result = await write(
             (db) =>
               setWorkoutCoverToNewMedia(
                 db,
@@ -51,7 +50,9 @@ export function useWorkoutCover(workoutId: string) {
                 writeScope,
               ),
             null,
-          ),
+          );
+          return result && { replaced: null };
+        },
       );
       if (saved) haptic.confirm();
       return saved;
@@ -66,12 +67,11 @@ export function useWorkoutCover(workoutId: string) {
   const remove = useCallback(
     () =>
       write(async (db) => {
-        const replaced = await setWorkoutCover(db, workoutId, null, writeScope);
-        if (replaced !== null) await queue?.discard(replaced).catch(() => undefined);
+        if (!(await setWorkoutCover(db, workoutId, null, writeScope))) return false;
         haptic.confirm();
         return true;
       }, false),
-    [workoutId, queue, write, writeScope],
+    [workoutId, write, writeScope],
   );
 
   return { pick, remove, busy };

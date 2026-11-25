@@ -1,5 +1,5 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
-import type { WorkoutSummary } from "@workspace/sync";
+import type { ProgramSummary, WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { Barbell, Hash, ListNumbers, Lightning, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
@@ -20,23 +20,31 @@ import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { useActiveSessions, useStartSession } from "@/session";
 import { SyncBanner } from "@/sync";
 import { RunEndOffer } from "@/training/home/active-program-card";
-import { useLastDone } from "@/training/home/use-last-done";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useProgramLibrary } from "@/training/programs/use-program-library";
 import { displayTitle } from "@/training/workouts/derived-title";
 import { useWorkoutActions } from "@/training/workouts/use-workout-actions";
 
-import { ProgramGrid } from "./program-grid";
+import { ProgramGridRow } from "./program-grid";
 import { RunHero } from "./run-hero";
 import { combineStatus, isFirstSync } from "./train-status";
-import { listWorkouts, showWorkoutTools, type WorkoutSort } from "./train-rows";
+import { indexWorkouts, listWorkouts, showWorkoutTools, type WorkoutSort } from "./train-rows";
 import { TrainingListState } from "./training-list-state";
 import { useStartWorkout } from "./use-start-workout";
 import { useWorkouts } from "./use-workouts";
+import { useWorkoutRecency } from "./use-workout-recency";
 import { WorkoutRow } from "./workout-row";
 
-const NO_ROWS: WorkoutSummary[] = [];
-const rowKey = (workout: WorkoutSummary) => workout.id;
+type TrainRow =
+  | { kind: "program"; key: string; programs: ProgramSummary[] }
+  | { kind: "workout-header"; key: string }
+  | { kind: "workout"; key: string; workout: WorkoutSummary }
+  | { kind: "workout-empty"; key: string };
+
+const NO_ROWS: TrainRow[] = [];
+const rowKey = (row: TrainRow) => row.key;
+const rowType = (row: TrainRow) => row.kind;
 
 /**
  * Train, top to bottom: the Resume card while a Session is in progress, the active Run (cover,
@@ -54,10 +62,25 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const active = useActiveProgram();
   const programList = useProgramLibrary(active);
   const { workouts } = workoutList;
-  const { programs } = programList;
+  const {
+    programs,
+    open: openProgram,
+    retry: retryPrograms,
+    activeId,
+    activate,
+    stop,
+    duplicate: duplicateProgram,
+    remove: removeProgram,
+  } = programList;
+  const { retry: retryWorkouts } = workoutList;
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<WorkoutSort>("recent");
-  const { lastDone, timezone } = useLastDone();
+  const recency = useWorkoutRecency(true).value;
+  const timezone = useDeviceTimeZone();
+  const lastDone = useMemo(
+    () => new Map(recency?.map(({ id, lastDone }) => [id, lastDone])),
+    [recency],
+  );
   const tools = showWorkoutTools(workouts.length);
   const nameOf = useCallback(
     (workout: WorkoutSummary) =>
@@ -70,31 +93,40 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
       ),
     [t],
   );
-  const rows = useMemo(
-    () =>
-      listWorkouts({
-        workouts,
-        // Without the tools the list is short and unfiltered; a stale query never hides rows.
-        query: tools ? query : "",
-        sort: tools ? sort : "recent",
-        lastDone,
-        nameOf,
-      }),
-    [workouts, tools, query, sort, lastDone, nameOf],
-  );
+  const indexed = useMemo(() => indexWorkouts(workouts, nameOf), [workouts, nameOf]);
+  const programRows = useMemo(() => {
+    const rows: TrainRow[] = [];
+    for (let i = 0; i < programs.length; i += 2) {
+      const first = programs[i];
+      if (first) rows.push({ kind: "program", key: first.id, programs: programs.slice(i, i + 2) });
+    }
+    return rows;
+  }, [programs]);
+  const rows = useMemo(() => {
+    const found = listWorkouts({
+      workouts: indexed,
+      query: tools ? query : "",
+      sort: tools ? sort : "recent",
+      lastDone,
+    });
+    const rows: TrainRow[] = [...programRows, { kind: "workout-header", key: "workout-header" }];
+    for (const workout of found) rows.push({ kind: "workout", key: workout.id, workout });
+    if (found.length === 0) rows.push({ kind: "workout-empty", key: "workout-empty" });
+    return rows;
+  }, [indexed, tools, query, sort, lastDone, programRows]);
 
   // One ready state: the active program, programs and workouts all come from the local database,
   // and nothing is drawn until every one of them has answered, so the screen appears at once.
   const combined = combineStatus(workoutList.status, programList.status);
   const status = combined !== "error" && !active.ready ? "loading" : combined;
   const retry = useCallback(() => {
-    workoutList.retry();
-    programList.retry();
-  }, [workoutList, programList]);
+    retryWorkouts();
+    retryPrograms();
+  }, [retryWorkouts, retryPrograms]);
   const { fromPicker } = useStartWorkout();
-  const actions = useWorkoutActions();
+  const { duplicate: duplicateWorkout, remove: removeWorkout } = useWorkoutActions();
   const [newOpen, setNewOpen] = useState(false);
-  const { start, sheet: startSheet } = useStartSession();
+  const { start, startSlot, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
   const enterCode = useCallback(() => router.push("/import"), [router]);
@@ -114,17 +146,16 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
     (id: string) => router.push({ pathname: "/train/workout/[id]", params: { id } }),
     [router],
   );
-  const openProgram = programList.open;
   const duplicate = useCallback(
     async (workout: { id: string; title: string | null }) => {
-      const copy = await actions.duplicate(workout.id, workout.title);
+      const copy = await duplicateWorkout(workout.id, workout.title);
       if (copy) open(copy);
     },
-    [actions, open],
+    [duplicateWorkout, open],
   );
   const remove = useCallback(
-    (id: string, title: string) => void actions.remove(id, title),
-    [actions],
+    (id: string, title: string) => void removeWorkout(id, title),
+    [removeWorkout],
   );
   const startWorkout = useCallback((id: string) => void start(id), [start]);
   const share = useCallback(
@@ -132,12 +163,70 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
       router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } }),
     [router],
   );
+  const startDay = useCallback(
+    (...args: Parameters<typeof startSlot>) => void startSlot(...args),
+    [startSlot],
+  );
   const renderRow = useCallback(
-    ({ item }: { item: WorkoutSummary }) => {
-      const at = lastDone.get(item.id);
+    ({ item }: { item: TrainRow }) => {
+      if (item.kind === "program")
+        return (
+          <ProgramGridRow
+            programs={item.programs}
+            activeId={activeId}
+            onActivate={activate}
+            onStop={stop}
+            onOpen={openProgram}
+            onDuplicate={duplicateProgram}
+            onDelete={removeProgram}
+          />
+        );
+      if (item.kind === "workout-header")
+        return (
+          <View className="gap-2 px-4 pt-4 pb-1">
+            <SectionHeader title={t("training__workouts_title")} />
+            {tools ? (
+              <View className="gap-3">
+                <SearchBar
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={t("training__search_workouts")}
+                  clearLabel={t("exercise__search_clear")}
+                />
+                <SegmentedControl
+                  accessibilityLabel={t("training__sort_workouts")}
+                  value={sort}
+                  onChange={setSort}
+                  options={[
+                    { value: "recent", label: t("training__sort_recent") },
+                    { value: "name", label: t("training__sort_name") },
+                  ]}
+                />
+              </View>
+            ) : null}
+          </View>
+        );
+      if (item.kind === "workout-empty")
+        return (
+          <View className="px-4">
+            {isFirstSync(workoutList.status) ? (
+              <TrainingListState status={workoutList.status} onRetry={retryWorkouts} />
+            ) : tools && query.trim() !== "" ? (
+              <EmptyState
+                icon={Barbell}
+                title={t("training__no_workouts_match", { query: query.trim() })}
+              />
+            ) : (
+              <Text className="font-normal text-body text-muted">
+                {t("training__no_standalone_workouts")}
+              </Text>
+            )}
+          </View>
+        );
+      const at = lastDone.get(item.workout.id);
       return (
         <WorkoutRow
-          workout={item}
+          workout={item.workout}
           lastDone={
             at
               ? t("workout__last_done", {
@@ -154,7 +243,29 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
         />
       );
     },
-    [open, startWorkout, edit, share, duplicate, remove, lastDone, t, i18n.language, timezone],
+    [
+      activeId,
+      activate,
+      stop,
+      openProgram,
+      duplicateProgram,
+      removeProgram,
+      tools,
+      query,
+      sort,
+      retryWorkouts,
+      workoutList.status,
+      open,
+      startWorkout,
+      edit,
+      share,
+      duplicate,
+      remove,
+      lastDone,
+      t,
+      i18n.language,
+      timezone,
+    ],
   );
 
   const ready = status === "list" || status === "empty";
@@ -192,6 +303,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             contentContainerStyle={contentContainerStyle}
             data={status === "list" ? rows : NO_ROWS}
             keyExtractor={rowKey}
+            getItemType={rowType}
             estimatedItemSize={88}
             extraData={renderRow}
             renderItem={renderRow}
@@ -225,7 +337,7 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                     <RunHero
                       state={active}
                       onOpen={openProgram}
-                      onStart={startWorkout}
+                      onStart={startDay}
                       startSecondary={resume !== undefined}
                     />
                   ) : null}
@@ -238,39 +350,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                       actionAccessibilityLabel={t("training__see_all_programs")}
                       onAction={() => router.push("/train/programs")}
                     />
-                    <ProgramGrid
-                      programs={programs}
-                      activeId={programList.activeId}
-                      onActivate={programList.activate}
-                      onStop={programList.stop}
-                      onOpen={openProgram}
-                      onDuplicate={programList.duplicate}
-                      onDelete={programList.remove}
-                    />
-                  </View>
-                ) : null}
-                {ready && (workouts.length > 0 || programs.length > 0) ? (
-                  <View className="gap-2">
-                    <SectionHeader title={t("training__workouts_title")} />
-                    {tools ? (
-                      <View className="gap-3">
-                        <SearchBar
-                          value={query}
-                          onChangeText={setQuery}
-                          placeholder={t("training__search_workouts")}
-                          clearLabel={t("exercise__search_clear")}
-                        />
-                        <SegmentedControl
-                          accessibilityLabel={t("training__sort_workouts")}
-                          value={sort}
-                          onChange={setSort}
-                          options={[
-                            { value: "recent", label: t("training__sort_recent") },
-                            { value: "name", label: t("training__sort_name") },
-                          ]}
-                        />
-                      </View>
-                    ) : null}
                   </View>
                 ) : null}
               </View>
@@ -284,19 +363,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
                     title={t("training__no_workouts")}
                     action={{ label: t("training__new_workout"), onPress: newWorkout }}
                   />
-                ) : status === "list" ? (
-                  isFirstSync(workoutList.status) ? (
-                    <TrainingListState status={workoutList.status} onRetry={workoutList.retry} />
-                  ) : tools && query.trim() !== "" ? (
-                    <EmptyState
-                      icon={Barbell}
-                      title={t("training__no_workouts_match", { query: query.trim() })}
-                    />
-                  ) : workouts.length === 0 ? (
-                    <Text className="font-normal text-body text-muted">
-                      {t("training__no_standalone_workouts")}
-                    </Text>
-                  ) : null
                 ) : null}
               </View>
             }

@@ -1,3 +1,5 @@
+import { stripState } from "@/training/train/strip-state";
+import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
 import { runProgress, useActiveRun } from "./use-active-program";
@@ -234,7 +236,7 @@ function LoadedProgram({
   })();
 
   return (
-    <>
+    <SwipeGroup>
       <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={program.title}
@@ -329,25 +331,23 @@ function LoadedProgram({
                 />
               ) : (
                 <View className="px-4">
-                  {slots.map((slot) => (
-                    <RotationRow
-                      key={slot.id}
-                      slot={slot}
-                      number={numbers.get(slot.id) ?? 0}
-                      title={slotTitle(slot, (key) => t(key))}
-                      repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
-                      cycleState={
-                        cycle?.skipped.has(slot.id)
-                          ? "skipped"
-                          : cycle?.trained.has(slot.id)
-                            ? "done"
-                            : null
-                      }
-                      onReorder={() => setReordering(true)}
-                      onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
-                      onMenu={setSlotMenu}
-                    />
-                  ))}
+                  {slots.map((slot) => {
+                    const state = cycle && stripState(slot, cycle);
+                    return (
+                      <RotationRow
+                        key={slot.id}
+                        slot={slot}
+                        number={numbers.get(slot.id) ?? 0}
+                        title={slotTitle(slot, (key) => t(key))}
+                        repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                        cycleState={state === "done" || state === "skipped" ? state : null}
+                        onEdit={onEditWorkout}
+                        onReorder={() => setReordering(true)}
+                        onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
+                        onMenu={setSlotMenu}
+                      />
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -440,6 +440,6 @@ function LoadedProgram({
         own={own}
         onPick={(workoutId) => void actions.repeat(program.id, workoutId)}
       />
-    </>
+    </SwipeGroup>
   );
 }
