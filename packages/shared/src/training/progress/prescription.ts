@@ -25,6 +25,7 @@ export const prescribedSetSchema = z.strictObject({
     steps: actualValuesSchema.shape.steps.optional(),
   }),
   outcome: outcome.nullable(),
+  unadjustedWeightKg: load.optional(),
 });
 export type PrescribedSet = z.infer<typeof prescribedSetSchema>;
 
@@ -38,6 +39,15 @@ export const prescriptionSchema = z
     breakDays: z.int().nonnegative().nullable(),
     capKg: load.nullable(),
     sets: z.array(prescribedSetSchema).max(SESSION_LIMITS.setsPerExercise),
+    adjustedBy: z.array(z.uuid()).max(SESSION_LIMITS.setsPerExercise).optional(),
+    adjustmentUndone: z.boolean().optional(),
+    adjustment: z
+      .strictObject({
+        setId: z.uuid(),
+        reason: z.enum(["reps_short", "reps_over", "effort_high", "effort_low"]),
+        reps: z.int().min(0).max(999),
+      })
+      .optional(),
   })
   .refine(({ sets }) => new Set(sets.map(({ id }) => id)).size === sets.length);
 export type Prescription = z.infer<typeof prescriptionSchema>;

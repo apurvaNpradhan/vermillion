@@ -1,8 +1,14 @@
-import { prescriptionFor, prescriptionSchema, type PrescriptionDraft } from "@workspace/shared";
-import { eq } from "drizzle-orm";
+import {
+  undoPrescriptionAdjustment,
+  prescriptionFor,
+  prescriptionSchema,
+  type Prescription,
+  type PrescriptionDraft,
+} from "@workspace/shared";
+import { and, eq, isNull } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { write, type TrainingDatabase, type Tx } from "../store-common";
-import { sessionExercise } from "../tables";
+import { sessionExercise, sessionSet } from "../tables";
 import { installIdOf, requireSession, type SessionExerciseRow } from "./session-common";
 
 /** The first capture on this install wins. The server applies the same rule across installs. */
@@ -38,4 +44,36 @@ export async function capturePrescriptionIn(
     .set({ prescription: snapshot })
     .where(eq(sessionExercise.id, entry.id));
   return snapshot;
+}
+
+export async function untickedIdsIn(tx: Tx, entryId: string) {
+  const rows = await tx
+    .select({ id: sessionSet.id })
+    .from(sessionSet)
+    .where(and(eq(sessionSet.session_exercise_id, entryId), isNull(sessionSet.completed_at)));
+  return new Set(rows.map(({ id }) => id));
+}
+
+export async function revisePrescriptionIn(tx: Tx, entryId: string, snapshot: Prescription) {
+  const prescription = prescriptionSchema.parse({
+    ...snapshot,
+    revision: uuidv7(),
+    previousRevision: snapshot.revision,
+  });
+  await tx.update(sessionExercise).set({ prescription }).where(eq(sessionExercise.id, entryId));
+}
+
+export function undoSessionAdjustment(db: TrainingDatabase, entryId: string, writeScope?: string) {
+  return write(db, writeScope, async (tx) => {
+    const [entry] = await tx.select().from(sessionExercise).where(eq(sessionExercise.id, entryId));
+    if (!entry) return false;
+    const session = await requireSession(tx, entry.session_id);
+    if (session.finished_at !== null || session.device_id !== (await installIdOf(tx))) return false;
+    const snapshot = prescriptionFor(entry.prescription, entry.exercise_id);
+    if (!snapshot?.adjustment) return false;
+    const restored = undoPrescriptionAdjustment(snapshot, await untickedIdsIn(tx, entryId));
+    if (!restored) return false;
+    await revisePrescriptionIn(tx, entryId, restored);
+    return true;
+  });
 }

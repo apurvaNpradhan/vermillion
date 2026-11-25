@@ -1,5 +1,6 @@
 import {
   EXERCISE_TYPE_KEYS,
+  type AdjustmentLoads,
   type Ghosts,
   type PlannedSet,
   type PrescriptionDraft,
@@ -10,6 +11,7 @@ import {
   adjustRest,
   clearRest,
   capturePrescription,
+  undoSessionAdjustment,
   discardSession,
   releaseSessionPhotos,
   finishSession,
@@ -76,9 +78,10 @@ export function useSessionActions() {
       restSeconds: number | null = null,
       expiresAt?: number,
       draft?: PrescriptionDraft | null,
+      loads?: AdjustmentLoads,
     ) =>
       write<TickResult | null>(
-        (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt, draft),
+        (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt, draft, loads),
         null,
         t("session__tick_failed_toast"),
       ),
@@ -92,6 +95,11 @@ export function useSessionActions() {
   const savePrescription = useCallback(
     (id: string, draft: PrescriptionDraft) =>
       write((db) => capturePrescription(db, id, draft, writeScope), null),
+    [write, writeScope],
+  );
+
+  const undoAdjustment = useCallback(
+    (id: string) => write((db) => undoSessionAdjustment(db, id, writeScope), false),
     [write, writeScope],
   );
 
@@ -329,6 +337,7 @@ export function useSessionActions() {
     () => ({
       tick,
       savePrescription,
+      undoAdjustment,
       nudgeRest,
       skipRest,
       untick,
@@ -356,6 +365,7 @@ export function useSessionActions() {
     [
       tick,
       savePrescription,
+      undoAdjustment,
       nudgeRest,
       skipRest,
       untick,

@@ -80,7 +80,9 @@ export function snapshotProgression(exercise: SessionExerciseDetail): Progressio
     sets: sets.map((set) =>
       set ? { weightKg: set.ghosts.weight ?? null, reps: set.ghosts.reps ?? null } : null,
     ),
-    outcomes: sets.map((set) => set?.outcome ?? null),
+    outcomes: sets.map((set) =>
+      set?.unadjustedWeightKg === undefined ? (set?.outcome ?? null) : null,
+    ),
   };
 }
 

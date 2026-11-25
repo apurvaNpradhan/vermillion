@@ -9,6 +9,7 @@ import { blockOf, highlightOf } from "./blocks";
 import { previewValuePatch, savedSession, type PendingWrite, type SetChange } from "./optimistic";
 import { RestNudges } from "@/session/rest/rest-nudges";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
+import { adjustmentLoadsOf } from "@/session/store/derive";
 import type { SessionStore } from "@/session/store/session-store";
 
 type Actions = ReturnType<typeof useSessionActions>;
@@ -125,6 +126,8 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       const state = store.getState();
       const at = state.found.get(setId);
       const draft = at && state.views.get(at.exercise.id)?.prescriptionDraft;
+      const entry = at && state.cache.get(at.exercise.id);
+      const loads = entry && !entry.finished ? adjustmentLoadsOf(entry) : undefined;
       const block = at && blockOf(state.blocks, at.exercise.id);
       const finishesBlock =
         at && block && state.expanded.has(at.exercise.id) && !highlightOf(block, setId);
@@ -136,7 +139,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
         }
         await nudges.release();
         const before = savedSession(store.getState()).rest;
-        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt, draft);
+        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt, draft, loads);
         if (!result?.ok || !result.wrote) {
           settle(id);
           return result;

@@ -176,6 +176,7 @@ export {
   supersetSessionWithNext,
   tickSet,
   capturePrescription,
+  undoSessionAdjustment,
   untickSet,
   updateSessionExercise,
   updateSet,

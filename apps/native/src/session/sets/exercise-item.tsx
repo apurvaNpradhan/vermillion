@@ -21,6 +21,7 @@ import { StalledNote } from "@/exercise";
 import { MaxPrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
+import { AdjustmentNote } from "./adjustment-note";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
@@ -41,6 +42,8 @@ export type ExerciseHandlers = SetHandlers & {
   onNote: (exerciseId: string, note: string | null) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
   onStallDeload: (exerciseId: string, applied: boolean) => void;
+  /** Restore the targets a same-day adjustment moved, for the rest of the Session. */
+  onUndoAdjustment: (exerciseId: string) => void;
   /** The exercise was laid out again (its sets grew or shrank). */
   onLayout: (exerciseId: string) => void;
 };
@@ -100,6 +103,11 @@ export const ExerciseItem = memo(function ExerciseItem({
     }),
   );
   const { exercise, suggestion, stall, unit, place, readOnly, expanded } = data;
+  const adjustment = exercise?.prescription?.adjustment ?? null;
+  const adjustedNumber = adjustment
+    ? (data.rows?.get(adjustment.setId)?.number ??
+      (exercise?.sets.findIndex(({ id }) => id === adjustment.setId) ?? 0) + 1)
+    : 0;
   // Once this row has been seen closed, opening it fades its body in. A row that mounts open (the
   // screen opening, or the list mounting it while scrolling) shows it at once.
   const [seenClosed, setSeenClosed] = useState(false);
@@ -168,6 +176,13 @@ export const ExerciseItem = memo(function ExerciseItem({
                   onApply={
                     readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)
                   }
+                />
+              ) : null}
+              {adjustment && !data.done ? (
+                <AdjustmentNote
+                  adjustment={adjustment}
+                  setNumber={adjustedNumber}
+                  onUndo={readOnly ? undefined : () => handlers.onUndoAdjustment(exerciseId)}
                 />
               ) : null}
               {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}

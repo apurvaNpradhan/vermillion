@@ -25,7 +25,7 @@ import {
   type PlannedSet,
   type RunSlot,
 } from "@workspace/shared";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { program, programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
@@ -34,6 +34,7 @@ import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
 import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
+import { untickedIdsIn } from "./prescription-store";
 import { performAgainIn } from "./session-again-store";
 import {
   assertSessionRoom,
@@ -70,21 +71,18 @@ export function setStallDeload(
     const current = await requireSession(tx, entry.session_id);
     if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
     const saved = prescriptionFor(entry.prescription, entry.exercise_id);
-    const unticked =
+    const untickedIds =
       draft && saved && draft.exerciseId === entry.exercise_id
-        ? await tx
-            .select({ id: sessionSet.id })
-            .from(sessionSet)
-            .where(
-              and(eq(sessionSet.session_exercise_id, entryId), isNull(sessionSet.completed_at)),
-            )
-        : [];
+        ? await untickedIdsIn(tx, entryId)
+        : new Set<string>();
     const freshById = new Map(draft?.sets.map((set) => [set.id, set]));
-    const untickedIds = new Set(unticked.map(({ id }) => id));
     const prescription =
       saved && draft && untickedIds.size > 0
         ? prescriptionSchema.parse({
             ...draft,
+            // Sets that were adjusted keep their trigger: a set adjusts the exercise only once.
+            adjustedBy: saved.adjustedBy,
+            adjustmentUndone: saved.adjustmentUndone,
             sets: saved.sets.map((set) =>
               untickedIds.has(set.id) ? (freshById.get(set.id) ?? set) : set,
             ),

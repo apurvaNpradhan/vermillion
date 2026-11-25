@@ -5,6 +5,7 @@ import {
   type Phase,
   suggestionContext,
   gridCapInUnit,
+  adjustmentLoadsFor,
   type Ghosts,
   type StallInfo,
   type LighterPeriod,
@@ -348,4 +349,14 @@ export function stallPrescription(entry: ExerciseCache, applied: boolean) {
     entry.duplicateEntry,
     undefined,
   ).prescriptionDraft;
+}
+
+/** What a same-day adjustment needs to snap a load the way the suggestion did. */
+export function adjustmentLoadsOf({ exercise, inputs }: ExerciseCache) {
+  const equipment = exercise.exercise?.equipment ?? "other";
+  return adjustmentLoadsFor(
+    { equipment, type: exercise.type, unit: exercise.unit },
+    inputs,
+    inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+  );
 }

@@ -83,7 +83,12 @@ async function snapshot(sessionId: string, options: Options) {
   // An action always reads the current gym, even when the posted notification is older.
   const { sessionGymId, ...loads } = await readGymLoadInputs(db, session.id);
   const gym = buildGymLoads({ ...loads, unit: options.weightUnit });
-  return { db, installId, ...(await snapshotOf(db, session, options, { gym, sessionGymId })) };
+  return {
+    db,
+    installId,
+    gym,
+    ...(await snapshotOf(db, session, options, { gym, sessionGymId })),
+  };
 }
 
 /** Serialize UI watches and headless actions in the same JS runtime. */
@@ -188,10 +193,18 @@ export function workoutLiveAction(data: { state: string; action: string }) {
         return;
       }
       failed = current.state;
-      const { db, session, installId, ghosts } = current;
+      const { db, session, installId, ghosts, gym } = current;
       if (!installId) throw new Error("No install identity");
       if (action === "done") {
-        const result = await logWorkoutLiveSet(db, session, ghosts, installId, request.setId);
+        const result = await logWorkoutLiveSet(
+          db,
+          session,
+          ghosts,
+          installId,
+          request.setId,
+          { ...options, stallMemory },
+          gym,
+        );
         if (result && !result.ok) await Linking.openURL(current.state.url);
       } else if (
         session.pausedAt === null &&

@@ -1,4 +1,5 @@
 import {
+  adjustmentLoadsFor,
   phaseLoadOf,
   gridCapInUnit,
   isTestSingle,
@@ -138,6 +139,8 @@ export async function logWorkoutLiveSet(
   ghosts: ReadonlyMap<string, Ghosts>,
   installId: string,
   requestedSetId: string | null,
+  account?: LiveSuggestionAccount,
+  gym?: GymLoads,
 ) {
   const next = currentAction({
     session,
@@ -148,11 +151,24 @@ export async function logWorkoutLiveSet(
   const block = blocksOf(session.exercises).find((item) =>
     item.members.some((exercise) => exercise.id === next.exerciseRowId),
   );
+  const exercise = session.exercises.find(({ id }) => id === next.exerciseRowId);
+  const equipment = exercise?.exercise?.equipment ?? "other";
+  const loads =
+    exercise && account && gym
+      ? adjustmentLoadsFor(
+          { equipment, type: exercise.type, unit: exercise.unit },
+          { ...account, unit: account.weightUnit },
+          gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+        )
+      : undefined;
   return tickSet(
     db,
     next.setId,
     ghosts.get(next.setId) ?? {},
     installId,
     block ? restAfterTick(block, next.exerciseRowId, next.setId) : null,
+    undefined,
+    undefined,
+    loads,
   );
 }

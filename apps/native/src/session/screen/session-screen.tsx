@@ -558,7 +558,8 @@ const LoadedSession = memo(function LoadedSession({
   }, []);
   const { addSet, openCell, onTick, onPrevious, onTimer } = logging;
   const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
-  const { updateExercise, setExerciseDeload } = actions;
+  const { updateExercise, setExerciseDeload, undoAdjustment } = actions;
+  const onUndoAdjustment = useStableHandler((id: string) => void undoAdjustment(id));
   const onStallDeload = useStableHandler((id: string, applied: boolean) => {
     const entry = store.getState().cache.get(id);
     void setExerciseDeload(id, applied, entry ? stallPrescription(entry, applied) : null);
@@ -618,6 +619,7 @@ const LoadedSession = memo(function LoadedSession({
       onNote: stableNote,
       onRest: stableRest,
       onStallDeload,
+      onUndoAdjustment,
       onCell: openCell,
       onTick,
       onKind,
@@ -639,6 +641,7 @@ const LoadedSession = memo(function LoadedSession({
       stableNote,
       stableRest,
       onStallDeload,
+      onUndoAdjustment,
       openCell,
       onTick,
       onKind,

@@ -2,6 +2,8 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   actualValuesSchema,
+  adjustPrescription,
+  type AdjustmentLoads,
   planLeaveSuperset,
   planSupersetRepair,
   planSupersetWithNext,
@@ -27,7 +29,7 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { capturePrescriptionIn } from "./prescription-store";
+import { capturePrescriptionIn, revisePrescriptionIn, untickedIdsIn } from "./prescription-store";
 import { resumeIn } from "./session-clock-store";
 import { byPosition, keyAfterLast, keyForMove, keysAfterLast, keysBetween } from "../position";
 import {
@@ -637,6 +639,7 @@ export function tickSet(
   restSeconds?: number | null,
   expiresAt?: number,
   draft?: PrescriptionDraft | null,
+  loads?: AdjustmentLoads,
 ): Promise<TickResult> {
   if (restSeconds != null && !isRestSeconds(restSeconds)) {
     return Promise.reject(new Error("Rest is 1 to 600 seconds"));
@@ -688,6 +691,20 @@ export function tickSet(
     };
     checkedSet(current, parent.exercise_type, changes);
     await tx.update(sessionSet).set(changes).where(eq(sessionSet.id, id));
+    if (loads && prescription && current.kind === "working" && !prescription.adjustmentUndone) {
+      const session = await requireSession(tx, parent.session_id);
+      if (session.finished_at === null && session.device_id === (await installIdOf(tx))) {
+        const next = adjustPrescription(
+          prescription,
+          id,
+          { ...current, ...result.values },
+          await untickedIdsIn(tx, parent.id),
+          loads,
+          session.phase !== "deload" && session.phase !== "test" && !parent.stall_deload,
+        );
+        if (next) await revisePrescriptionIn(tx, parent.id, next);
+      }
+    }
     if (restSeconds == null || completedAt + restSeconds * 1000 <= now) {
       return { ok: true, wrote: true, completedAt: changes.completed_at, values: result.values };
     }
