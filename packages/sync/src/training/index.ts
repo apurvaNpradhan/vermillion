@@ -114,6 +114,8 @@ export {
   watchExerciseBars,
   watchExerciseUnit,
   watchExerciseProgressionMode,
+  watchExerciseRule,
+  watchExerciseRules,
   watchExerciseAutoWarmups,
   watchExerciseNote,
   watchExerciseHistory,
@@ -142,6 +144,7 @@ export {
   type WorkoutSummary,
 } from "./watch";
 export { SESSION_EXPORT_SQL, visitSessionExportPages } from "./sessions/session-export";
+export { loadExerciseHistory, type ExerciseHistoryOptions } from "./sessions/exercise-history";
 export {
   readSessionStarts,
   watchSessionStarts,

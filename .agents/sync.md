@@ -62,6 +62,10 @@ only later baseline Sessions, including when another Workout uses that entry as 
 baseline.
 Manual dismissal stays on the device for the current baseline Session only.
 
+## Progression rule
+
+`exercise_setting.progression_rule` is a nullable `jsonb` that rides `my_training` with the setting (JSON text on the wire and in SQLite). The handler parses it with `ruleConfigSchema` (`@workspace/shared`): a PUT that omits it keeps the stored rule, a PATCH of `null` clears it (Double), and an unknown rule, an out-of-range percent or text that is not JSON is `SYNC_INVALID_OP`. Readers map a rule they do not know to Double instead of failing. The setting's id and merge semantics are unchanged.
+
 ## Commands
 
 ```sh

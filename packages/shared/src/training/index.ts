@@ -35,7 +35,9 @@ export {
 } from "./plans/cycle";
 
 export * from "./progress/progression";
+export * from "./engine/index";
 export * from "./progress/prescription";
+export * from "./progress/evidence";
 export * from "./progress/same-day-adjustment";
 export * from "./progress/suggestion-ledger";
 export * from "./progress/load-grid";

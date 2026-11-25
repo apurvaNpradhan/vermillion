@@ -1,0 +1,2 @@
+ALTER TABLE "exercise_setting" ADD COLUMN "progression_rule" jsonb;--> statement-breakpoint
+ALTER TABLE "exercise_setting" ADD CONSTRAINT "exercise_setting_rule_shape" CHECK ("progression_rule" IS NULL OR jsonb_typeof("progression_rule") = 'object');

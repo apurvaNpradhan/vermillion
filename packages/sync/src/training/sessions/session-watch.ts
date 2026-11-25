@@ -7,6 +7,8 @@ import {
   plannedSetSchema,
   prescriptionFor,
   prescriptionReadSchema,
+  readRuleConfig,
+  ruleConfigSchema,
   suggestedFromSnapshot,
   type Prescription,
   type Equipment,
@@ -16,6 +18,7 @@ import {
   type Phase,
   type PhaseSnapshot,
   type PlannedSet,
+  type RuleConfig,
   type SessionHistory,
   type SetKind,
   type WeightUnit,
@@ -169,6 +172,8 @@ export type SessionExerciseDetail = {
   supersetGroup: string | null;
   logEffort: boolean;
   progressionPerSet: boolean;
+  /** The exercise's progression rule; null is Double. */
+  rule?: RuleConfig | null;
   /** The exercise's setting: generate a warm-up ramp from the first working weight. */
   autoWarmups: boolean;
   /** The inputs the generated ramp was last built from; null before the first one. */
@@ -249,7 +254,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     se.exercise_type AS exercise_type, se.source_workout_exercise_id AS source_workout_exercise_id,
     se.stall_deload AS stall_deload, se.prescription AS prescription, se.workout_swap_fragment AS workout_swap_fragment, se.position AS exercise_position, se.rest_seconds AS rest_seconds, se.note AS exercise_note,
     se.superset_group AS superset_group, se.log_effort AS log_effort, se.warmup_key AS warmup_key, se.repeated AS repeated,
-    es.progression_per_set AS progression_per_set, es.bar_id AS bar_id,
+    es.progression_per_set AS progression_per_set, es.progression_rule AS progression_rule, es.bar_id AS bar_id,
     es.auto_warmups AS auto_warmups, es.note AS pinned_note, es.unit AS unit,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.equipment AS equipment, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id,
@@ -323,6 +328,7 @@ const detailRowSchema = z.object({
   superset_group: z.string().nullable(),
   log_effort: flag.nullable(),
   progression_per_set: flag.nullable(),
+  progression_rule: jsonText.pipe(ruleConfigSchema).nullable().optional().catch(null),
   auto_warmups: flag.nullable(),
   pinned_note: z.string().nullable(),
   warmup_key: z.string().nullable(),
@@ -402,6 +408,7 @@ export function parseSessionDetail(
         supersetGroup: row.superset_group,
         logEffort: row.log_effort ?? false,
         progressionPerSet: row.progression_per_set ?? false,
+        rule: readRuleConfig(row.progression_rule),
         autoWarmups: row.auto_warmups ?? false,
         warmupKey: row.warmup_key,
         repeated: row.repeated ?? false,

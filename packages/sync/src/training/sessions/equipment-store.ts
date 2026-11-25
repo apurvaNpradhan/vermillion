@@ -66,6 +66,7 @@ const settingPatch = z.strictObject({
   log_effort: z.boolean().optional(),
   progression_per_set: z.boolean().optional(),
   auto_warmups: z.boolean().optional(),
+  progression_rule: exerciseSettingInput.shape.progression_rule,
   note: exerciseSettingInput.shape.note.unwrap().optional(),
 });
 /** What an exercise remembers: the bar and whether the effort column is on. */

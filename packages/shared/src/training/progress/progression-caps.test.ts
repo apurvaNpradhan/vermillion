@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { barGrid, rangeGrid, type LoadRange } from "./load-grid";
-import { suggestNext, type ProgressionContext } from "./progression";
+import { suggestNext } from "../engine/pipeline";
+import type { ProgressionContext } from "./progression";
 import { defaultGymKit } from "../plates/gym-kit";
 
 const NOW = new Date("2026-11-16T12:00:00Z");
@@ -168,7 +169,8 @@ describe("a cap on the load", () => {
   });
 
   it("does nothing to bodyweight reps or an uncapped grid", () => {
-    const uncapped = suggest([logged(12, 40), logged(12, 40)], {
+    // 18 reps is the extended ceiling: the lifter has earned a jump of 12.5%.
+    const uncapped = suggest([logged(18, 40), logged(18, 40)], {
       grid: rangeGrid([{ min: 5, max: null, step: 5 }]),
     });
     expect(weights(uncapped)).toEqual([45, 45]);
@@ -179,7 +181,7 @@ describe("a cap on the load", () => {
 
 describe("a gym's grid in suggestions", () => {
   it("adds one stack pin, not a fraction of one", () => {
-    const next = suggest([logged(12, 40), logged(12, 40)], { grid: rangeGrid(pins) });
+    const next = suggest([logged(18, 40), logged(18, 40)], { grid: rangeGrid(pins) });
     expect(weights(next)).toEqual([45, 45]);
     expect(next?.incrementKg).toBe(5);
   });
@@ -199,7 +201,7 @@ describe("a gym's grid in suggestions", () => {
 
   it("a barbell kit without small plates steps by its smallest pair", () => {
     const next = suggest(
-      [logged(12, 80), logged(12, 80)],
+      [logged(18, 80), logged(18, 80)],
       { grid: barGrid({ weightKg: 20 }, [{ id: "a", weightKg: 5, count: null }]) },
       "barbell",
     );
@@ -218,7 +220,7 @@ describe("a gym's grid in suggestions", () => {
     expect(weights(heavy)).toEqual([32.5, 32.5]);
     const light = suggestNext(
       plan,
-      [{ started_at: "2026-11-13T10:00:00Z", sets: [logged(12, 6), logged(12, 6)] }],
+      [{ started_at: "2026-11-13T10:00:00Z", sets: [logged(18, 6), logged(18, 6)] }],
       "weight_reps",
       "dumbbell",
       settings,

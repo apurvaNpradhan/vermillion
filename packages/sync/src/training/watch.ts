@@ -6,6 +6,9 @@ import {
   WEIGHT_UNITS,
   type WeightUnit,
   plannedSetSchema,
+  readRuleConfig,
+  ruleConfigSchema,
+  type RuleConfig,
   type Equipment,
   type ExerciseType,
   type MuscleGroup,
@@ -59,6 +62,8 @@ export type WorkoutExerciseInfo = {
   equipment: Equipment;
   exerciseType: ExerciseType;
   progressionPerSet: boolean;
+  /** The progression rule; null is Double. */
+  rule?: RuleConfig | null;
   thumbnailKey: string | null;
   imageMediaId?: string | null;
   isArchived: boolean;
@@ -158,6 +163,8 @@ const jsonText = z.string().transform((text, context) => {
   }
 });
 const setsText = jsonText.pipe(z.array(plannedSetSchema));
+/** A rule this build cannot read (a newer build's) is none, which is Double. */
+const ruleText = jsonText.pipe(ruleConfigSchema).nullable().optional().catch(null);
 const secondaryText = jsonText
   .pipe(z.array(z.enum(MUSCLE_GROUPS)))
   .nullable()
@@ -247,6 +254,7 @@ const detailRowSchema = z.object({
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   progression_per_set: z.number().nullable(),
+  progression_rule: ruleText,
   unit: z.enum(WEIGHT_UNITS).nullable(),
   pinned_note: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
@@ -264,6 +272,8 @@ const workoutDetailSql = (
     e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT progression_rule FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_rule,
     (SELECT unit FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS unit,
     (SELECT note FROM exercise_setting
@@ -307,6 +317,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
               equipment: row.equipment,
               exerciseType: row.exercise_type,
               progressionPerSet: row.progression_per_set === 1,
+              rule: readRuleConfig(row.progression_rule),
               thumbnailKey: row.thumbnail_key,
               imageMediaId: row.image_media_id ?? null,
               isArchived: row.retired_at !== null,
@@ -1081,6 +1092,58 @@ export function watchExerciseProgressionMode(
       onResult: handlers.onMode,
       onError: handlers.onError,
     }),
+    handlers.onError,
+  );
+}
+
+/** Watches the exercise's progression rule; null is Double. */
+export function watchExerciseRule(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onRule: (rule: RuleConfig | null) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ progression_rule: ruleText }));
+  return watch(
+    database,
+    "SELECT progression_rule FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => readRuleConfig(schema.parse(rows)[0]?.progression_rule), {
+      onResult: handlers.onRule,
+      onError: handlers.onError,
+    }),
+    handlers.onError,
+  );
+}
+
+/** Watches the rule of every exercise that has one, by exercise id. */
+export function watchExerciseRules(
+  database: TrainingDatabase,
+  handlers: {
+    onRules: (rules: ReadonlyMap<string, RuleConfig>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  const schema = z.array(z.object({ exercise_id: z.string(), progression_rule: ruleText }));
+  return watch(
+    database,
+    // The exercise's first row, as every other reader takes it: a later duplicate never counts.
+    `SELECT exercise_id, progression_rule FROM exercise_setting AS setting
+      WHERE progression_rule IS NOT NULL
+        AND id = (SELECT id FROM exercise_setting WHERE exercise_id = setting.exercise_id ORDER BY id LIMIT 1)
+      ORDER BY exercise_id LIMIT 500`,
+    [],
+    ["exercise_setting"],
+    parsing(
+      (rows) =>
+        new Map(
+          schema.parse(rows).flatMap(({ exercise_id, progression_rule }) => {
+            const rule = readRuleConfig(progression_rule);
+            return rule ? [[exercise_id, rule] as const] : [];
+          }),
+        ),
+      { onResult: handlers.onRules, onError: handlers.onError },
+    ),
     handlers.onError,
   );
 }

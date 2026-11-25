@@ -24,20 +24,38 @@ export function NextTimeLine({
     workout.exercises.flatMap(({ exercise }) => (exercise ? [exercise.primaryMuscle] : [])),
     (key) => t(key),
   );
-  const firstIndex = sets.findIndex(
-    (set, index) => set.kind === "working" && suggestion?.sets[index]?.reps != null,
-  );
+  const firstIndex = sets.findIndex((set, index) => {
+    const aimed = suggestion?.sets[index];
+    return (
+      set.kind === "working" &&
+      (aimed?.reps != null || aimed?.durationS != null || aimed?.distanceM != null)
+    );
+  });
   const next = suggestion?.sets[firstIndex];
   const outcome = suggestion?.outcomes[firstIndex];
-  if (!next || next.reps === null || !suggestion || !outcome) return null;
+  if (!next || !suggestion || !outcome) return null;
+  const loaded = (type === "weight_reps" || addsLoad(type)) && next.weightKg !== null;
   const aim =
-    (type === "weight_reps" || addsLoad(type)) && next.weightKg !== null
-      ? t("progress__best", {
-          weight: formatLoad(next.weightKg, unit, type),
-          unit,
-          reps: next.reps,
-        })
-      : t("progress__target_reps", { count: next.reps });
+    next.durationS != null
+      ? t("progress__target_seconds", { count: next.durationS })
+      : next.distanceM != null
+        ? next.weightKg !== null && next.weightKg > 0
+          ? t("progress__target_carry", {
+              weight: formatLoad(next.weightKg, unit, type),
+              unit,
+              metres: next.distanceM,
+            })
+          : t("progress__target_metres", { count: next.distanceM })
+        : next.reps === null
+          ? null
+          : loaded
+            ? t("progress__best", {
+                weight: formatLoad(next.weightKg ?? 0, unit, type),
+                unit,
+                reps: next.reps,
+              })
+            : t("progress__target_reps", { count: next.reps });
+  if (aim === null) return null;
   return (
     <View className="gap-2 pt-3">
       <View className="flex-row justify-between gap-3">

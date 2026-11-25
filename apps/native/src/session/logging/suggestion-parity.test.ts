@@ -164,7 +164,15 @@ it.each([
     for (const set of sets)
       await tickSet(training, set.id, {
         weight: kilograms,
-        reps: testWeek || fixed ? 5 : progressing ? 5 + index : 8,
+        // Microplates jump 15%: the lifter climbed to the extended ceiling of 5–8 reps (12) to earn it.
+        reps:
+          testWeek || fixed
+            ? 5
+            : "microplates" in scenario
+              ? 9 + index
+              : progressing
+                ? 5 + index
+                : 8,
         rpe: effort ? 7 : undefined,
       });
     await finishSession(training, id);
@@ -325,7 +333,7 @@ it.each([
   ).toEqual(fixed ? ["upcoming", history[0]?.workoutId, workoutId] : ["upcoming", workoutId]);
 
   if (progressing || crossDeload) expect(view?.stall).toBeNull();
-  if (crossDeload) expect(prepared.context.stall).toBeNull();
+  if (crossDeload) expect(prepared.prescribed.stall).toBeNull();
   if (mismatch) {
     for (const row of exercise.sets) {
       expect(view?.rows.get(row.id)?.ghosts.weight).toBeCloseTo(
@@ -334,7 +342,7 @@ it.each([
       );
     }
   }
-  const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
+  const preview = previewProgression(prepared.entry, prepared.prescribed, history);
 
   expect(view?.suggestion?.outcomes[0]).toMatchObject({
     reason: testWeek
@@ -366,6 +374,11 @@ it.each([
     outcome: view?.suggestion?.outcomes[exercise.sets.indexOf(set)] ?? null,
     basis: setBasis(set.kind, set.target),
   });
+  // The evidence travels with the snapshot: the same Session, factor and snapping on every surface.
+  if (!testWeek) expect(view?.suggestion?.evidence).toBeDefined();
+  expect(pinned?.evidence).toEqual(view?.suggestion?.evidence);
+  if (!applied) expect(preview?.suggestion.evidence).toEqual(view?.suggestion?.evidence);
+  if (!applied) expect(next?.suggestion?.evidence).toEqual(view?.suggestion?.evidence);
   const changed = { ...inputs, previous: new Map(), phaseLoad: 0.5 };
   const frozenView = deriveExercises(
     frozen.exercises,
@@ -374,6 +387,7 @@ it.each([
     new Map(),
   ).get(exercise.id)?.view;
   expect(frozenView?.rows.get(set.id)?.ghosts).toEqual(live.get(set.id));
+  expect(frozenView?.suggestion?.evidence).toEqual(view?.suggestion?.evidence);
   expect(
     (await workoutLiveGhosts(training, frozen, { ...changed, weightUnit: unit }, gym, null)).get(
       set.id,

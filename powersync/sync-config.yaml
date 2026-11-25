@@ -46,7 +46,7 @@ streams:
       - SELECT id, user_id, kind, weight_kg, unit, label, count, enabled, gym_id, created_at FROM gym_equipment WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, name, unavailable_equipment, dumbbell_max_kg, created_at FROM gym WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at FROM gym_exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
-      - SELECT id, user_id, exercise_id, bar_id, log_effort, progression_per_set, auto_warmups, note, unit, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, exercise_id, bar_id, log_effort, progression_per_set, auto_warmups, progression_rule, note, unit, created_at FROM exercise_setting WHERE user_id = auth.user_id() AND deleted_at IS NULL
 
   my_body:
     auto_subscribe: true

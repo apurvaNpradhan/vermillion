@@ -2,8 +2,8 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   REST_SECONDS_MAX,
-  applyPhase,
-  resolveExerciseUnit,
+  needsTestSeed,
+  phaseTargets,
   cycleState,
   closeRunPauses,
   finishClock,
@@ -14,7 +14,6 @@ import {
   revisedSets,
   type PrescriptionDraft,
   runPausedAt,
-  hasLoad,
   isTestSingle,
   sessionInput,
   snapshotOf,
@@ -262,28 +261,30 @@ async function createSessionIn(
     const sessionExerciseId = uuidv7();
     // Phases adjust the targets as the Session copies them; the Workout stays as planned.
     const isMainLift = entry.id === mainEntryId;
+    const target = {
+      isMainLift,
+      type: info.exercise_type,
+      equipment: info.equipment,
+      accountUnit: loads?.unit ?? "kg",
+      unitOverride: setting?.unit,
+      grid: loads?.gridFor(entry.exercise_id, info.equipment, setting?.unit) ?? null,
+    } as const;
     const sets =
       phase && loads
-        ? applyPhase(entry.sets, phase.phase, {
-            isMainLift,
-            type: info.exercise_type,
-            equipment: info.equipment,
-            unit: resolveExerciseUnit(loads.unit, setting?.unit),
-            grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
-            modifiers: phase.modifiers,
-            testTop: phase.testTop,
-            testWorkups: phase.testWorkups,
+        ? phaseTargets(
+            entry.sets,
+            phase,
+            target,
             // The Test seed uses the exercise estimate and the break clock.
-            testLoadKg:
-              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
-                ? await testWorkingLoadIn(tx, entry.exercise_id, info.exercise_type, {
-                    now: new Date(fields.startedAt),
-                    timeZone: source.timeZone ?? "UTC",
-                    single: phase.testTop === "single",
-                    lighterWeeks: loads.lighterWeeks,
-                  })
-                : null,
-          })
+            needsTestSeed(phase, target)
+              ? await testWorkingLoadIn(tx, entry.exercise_id, info.exercise_type, {
+                  now: new Date(fields.startedAt),
+                  timeZone: source.timeZone ?? "UTC",
+                  single: phase.testTop === "single",
+                  lighterWeeks: loads.lighterWeeks,
+                })
+              : null,
+          )
         : entry.sets;
     assertSessionRoom(0, sets.length, "setsPerExercise");
     if (phase && phase.modifiers.load < 1) factors.push(...plannedLoadFactors(entry.sets, sets));

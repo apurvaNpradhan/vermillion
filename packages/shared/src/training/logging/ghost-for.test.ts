@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ghostFor } from "./ghost-for";
-import { suggestNext } from "../progress/progression";
+import { suggestNext } from "../engine/pipeline";
 
 describe("ghostFor", () => {
   const target = { kind: "working", reps_min: 8, reps_max: 12, weight_kg: 60 } as const;

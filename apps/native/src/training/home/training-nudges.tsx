@@ -17,6 +17,7 @@ import {
   useStallVersion,
   useTopSetText,
 } from "@/exercise";
+import { useExerciseRules } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
@@ -59,6 +60,7 @@ export function TrainingNudges({
     ...new Set(thisWeek.flatMap((session) => session.sets.map((set) => set.exercise_id))),
   ];
   const histories = usePreviousSets(exerciseIds);
+  const rules = useExerciseRules();
   const active = activeLighterWeek(lighterWeeks, now);
   const latest = state.recent[0];
   const showRecords =
@@ -90,16 +92,22 @@ export function TrainingNudges({
       </>
     );
   }
-  if (!histories.ready) return records;
-  const stalled = stalledExerciseIds(thisWeek, histories.history, {
-    previousSource: preferences.ui.previousSource,
-    unit: preferences.ui.weightUnit,
-    weightIncrementKg: preferences.ui.weightIncrementKg,
-    weightIncrementUnit: preferences.ui.weightIncrementUnit,
-    lighterWeeks,
-    bodyweightKg: histories.bodyweightOn(now.toISOString()),
-    stallMemory,
-  });
+  if (!histories.ready || rules.loading) return records;
+  const stalled = stalledExerciseIds(
+    thisWeek,
+    histories.history,
+    {
+      previousSource: preferences.ui.previousSource,
+      unit: preferences.ui.weightUnit,
+      weightIncrementKg: preferences.ui.weightIncrementKg,
+      weightIncrementUnit: preferences.ui.weightIncrementUnit,
+      lighterWeeks,
+      bodyweightKg: histories.bodyweightOn(now.toISOString()),
+      stallMemory,
+    },
+    // A maintained lift is never stalled.
+    rules.value ?? new Map(),
+  );
   // A week that is already a Deload needs no offer of one.
   const offer =
     !program.paused &&

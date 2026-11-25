@@ -5,6 +5,41 @@ import { describe, expect, it } from "vitest";
 import { workoutLivePayloadSchema, workoutLiveState } from "./workout-live-state";
 import { loggingGhosts } from "../logging/logging-ghosts";
 import { buildGymLoads } from "../../gym/gym-loads";
+import { sessionPrescription } from "../../platform/training/session-prescription";
+import type { LoadGrid } from "@workspace/shared";
+
+/** The Ghost values of the first set: the prescription the Session and the notification share. */
+function ghostsOfFirst(
+  planned: SessionExerciseDetail,
+  history: Parameters<typeof sessionPrescription>[1],
+  grid: LoadGrid | null,
+) {
+  const prescribed = sessionPrescription(
+    planned,
+    history,
+    {
+      previousSource: "same_workout",
+      unit: "kg",
+      weightIncrementKg: null,
+      lighterWeeks: [],
+      bodyweightKg: null,
+      stallMemory: () => ({ dismissed: false }),
+    },
+    {
+      workoutId: null,
+      gymId: "garage",
+      grid,
+      phaseLoad: 1,
+      phase: null,
+      testEntryId: undefined,
+      exerciseOrdinal: 0,
+      duplicateEntry: false,
+      stalls: false,
+      suggest: true,
+    },
+  );
+  return loggingGhosts(planned, 0, prescribed);
+}
 
 const T0 = Date.parse("2026-01-01T10:00:00.000Z");
 const at = (seconds: number) => new Date(T0 + seconds * 1000).toISOString();
@@ -231,13 +266,13 @@ describe("workout live notification", () => {
             exercise_type: "weight_reps" as const,
             kind: "working" as const,
             completed_at: "2026-11-20T10:30:00Z",
-            reps: 8,
+            // The extended ceiling of 8 reps: the 12% jump to the next pin is earned.
+            reps: 12,
             weight_kg: weight,
           },
         ],
       },
     ];
-    const settings = { weightUnit: "kg", weightIncrementKg: null, gymId: "garage" } as const;
     const stack = (max: number) =>
       buildGymLoads({
         gymId: "garage",
@@ -252,25 +287,23 @@ describe("workout live notification", () => {
         ],
       }).gridFor(planned.exerciseId, "machine");
     const next = (weight: number, max: number) =>
-      loggingGhosts(planned, 0, done(weight), { ...settings, grid: stack(max) }).weight;
+      ghostsOfFirst(planned, done(weight), stack(max)).weight;
     expect(next(40, 90)).toBe(45);
     expect(next(90, 90)).toBe(90);
     // The same history with no grid steps by the equipment's own step instead.
-    expect(loggingGhosts(planned, 0, done(40), settings).weight).not.toBe(45);
+    expect(ghostsOfFirst(planned, done(40), null).weight).not.toBe(45);
   });
   it("uses planned ghosts when there is no history and leaves genuinely empty cells empty", () => {
     const e = exercise("a", [
       set("1", { target: { kind: "working", weight_kg: 80, reps_min: 8, reps_max: 8 } }),
     ]);
-    expect(loggingGhosts(e, 0, [], { weightUnit: "kg", weightIncrementKg: null })).toMatchObject({
+    expect(ghostsOfFirst(e, [], null)).toMatchObject({
       weight: 80,
       reps: 8,
     });
-    expect(
-      loggingGhosts(exercise("b", [set("2")]), 0, [], {
-        weightUnit: "kg",
-        weightIncrementKg: null,
-      }),
-    ).toMatchObject({ weight: null, reps: null });
+    expect(ghostsOfFirst(exercise("b", [set("2")]), [], null)).toMatchObject({
+      weight: null,
+      reps: null,
+    });
   });
 });

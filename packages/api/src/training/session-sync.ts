@@ -15,6 +15,7 @@ import {
   sessionExerciseInput,
   prescriptionFor,
   prescriptionSchema,
+  ruleConfigSchema,
   sessionInput,
   sessionSetInput,
   sessionSetSchema,
@@ -865,6 +866,8 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
 
 // ---- Exercise setting ----
 
+const wireRule = jsonText(ruleConfigSchema).nullable();
+
 const putSetting = z.strictObject({
   restore: restoreMarker,
   exercise_id: exerciseSettingInput.shape.exercise_id,
@@ -873,6 +876,7 @@ const putSetting = z.strictObject({
   log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
   auto_warmups: wireBoolean.optional(),
+  progression_rule: wireRule.optional(),
   // Unwrap the default: an omitted note must stay omitted, not become null and erase the value.
   note: exerciseSettingInput.shape.note.unwrap().optional(),
 });
@@ -884,6 +888,7 @@ const patchSetting = z
     log_effort: wireBoolean,
     progression_per_set: wireBoolean,
     auto_warmups: wireBoolean,
+    progression_rule: wireRule,
     note: exerciseSettingInput.shape.note.unwrap(),
   })
   .partial();
@@ -930,6 +935,9 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
           ? { progressionPerSet: values.progression_per_set }
           : {}),
         ...(data.auto_warmups !== undefined ? { autoWarmups: values.auto_warmups } : {}),
+        ...(data.progression_rule !== undefined
+          ? { progressionRule: values.progression_rule ?? null }
+          : {}),
         ...(data.note !== undefined ? { note: values.note } : {}),
         updatedAt: now(),
       };
@@ -967,6 +975,9 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
           ? { progressionPerSet: patch.progression_per_set }
           : {}),
         ...(patch.auto_warmups !== undefined ? { autoWarmups: patch.auto_warmups } : {}),
+        ...(patch.progression_rule !== undefined
+          ? { progressionRule: patch.progression_rule }
+          : {}),
         ...(patch.note !== undefined ? { note: patch.note } : {}),
         updatedAt: now(),
       })

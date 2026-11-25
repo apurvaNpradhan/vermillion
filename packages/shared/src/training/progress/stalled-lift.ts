@@ -51,7 +51,7 @@ function sessionScores(
         set.bodyweight_kg === undefined ? bodyweightKg : set.bodyweight_kg,
       );
       if (weight !== null && weight > 0) {
-        score = estimatedOneRepMax(weight, set.reps);
+        score = estimatedOneRepMax(weight, set.reps, set.rpe);
         volume = Math.max(volume ?? 0, weight * set.reps);
       }
     }
@@ -72,6 +72,16 @@ export function sessionScore(
 export const wasStallDeload = ({ sets }: StallSession): boolean =>
   sets.some((set) => isCounted(set) && set.stall_deload);
 
+/** The rule itself lowered the load for this Session (Linear's reset), by its snapshot. */
+const wasRuleReset = ({ sets }: StallSession): boolean =>
+  sets.some((set) => isCounted(set) && progresses(set.kind) && set.suggested?.reset === true);
+
+/**
+ * What ends a stall episode besides an applied stall deload. A rule that resets the load by
+ * itself (Linear) has already answered the stall: the Session it reset starts over.
+ */
+type EpisodeOptions = { ruleResets?: boolean };
+
 type Baseline = { session: StallSession; performance: Map<SetKind, StallPerformance> };
 
 /**
@@ -86,9 +96,11 @@ function episodeBaselines(
     bodyweightKg?: number | null;
     lighterWeeks?: readonly LighterPeriod[];
     sinceDeload?: string;
-  },
+  } & EpisodeOptions,
 ): Baseline[] {
-  const lastDeload = history.findIndex(wasStallDeload);
+  const lastDeload = history.findIndex(
+    (session) => wasStallDeload(session) || (options.ruleResets === true && wasRuleReset(session)),
+  );
   const since = lastDeload < 0 ? history : history.slice(0, lastDeload);
   const opened = options.sinceDeload ? Date.parse(options.sinceDeload) : -Infinity;
   const episode = since.filter((session) => Date.parse(session.started_at) > opened);
@@ -124,7 +136,8 @@ function episodeBaselines(
 /**
  * How many Sessions in a row a lift has stalled, 0 when it has not. `history` is the exercise's
  * Sessions newest first, from the same Workout when one is known. The best of the most recent
- * three Sessions has not improved on the Session before them, and none of those three came after
+ * three Sessions has not improved on the Session before them (a Session a rule reset by itself,
+ * with `ruleResets`, starts the count over like an applied deload), and none of those three came after
  * a gap of 14 days or more (a break is not a stall). It needs at least four scored Sessions;
  * Sessions in a Lighter week do not count. A Test or Deload phase Session is not scored (it is
  * not a baseline) but it is training: it fills a gap, so a Deload every fourth week is not a
@@ -139,7 +152,7 @@ export function stalledSessions(
     lighterWeeks?: readonly LighterPeriod[];
     /** A matching baseline from another Workout can start the episode too. */
     sinceDeload?: string;
-  } = {},
+  } & EpisodeOptions = {},
 ): number {
   const sessions = episodeBaselines(history, type, options).map(({ performance }) => performance);
   const recent = new Map<SetKind, StallPerformance>();
@@ -264,7 +277,8 @@ function missedSuggestion(session: StallSession): boolean | null {
  * happened {@link MISSED_SESSIONS} times. A Session counts only if it also did not improve on the
  * Session before it by the stall rule, so a lifter whose numbers keep rising is not flagged for
  * choosing a different load. Reads the prescription snapshot of each Session, newest first, in
- * the same scope as {@link stalledSessions}: it stops at an applied stall deload or a break, skips
+ * the same scope as {@link stalledSessions}: it stops at an applied stall deload (or, for a rule
+ * that resets by itself, a Session it reset) or a break, skips
  * a Test or Deload Session and a Lighter week, and ends at a Session that met the suggestion,
  * improved, or has no snapshot.
  */
@@ -275,7 +289,7 @@ export function missedSuggestions(
     bodyweightKg?: number | null;
     lighterWeeks?: readonly LighterPeriod[];
     sinceDeload?: string;
-  } = {},
+  } & EpisodeOptions = {},
 ): number {
   const baselines = episodeBaselines(history, type, options);
   let missed = 0;

@@ -6,7 +6,8 @@ import type { ExerciseType } from "../../exercise/vocabulary";
 import type { EffortStep } from "../vocabulary/vocabulary";
 import { KG_PER_LB } from "../vocabulary/format";
 import { loadGridOf } from "../progress/load-grid";
-import { suggestNext, type ProgressionSession } from "../progress/progression";
+import { suggestNext } from "../engine/pipeline";
+import type { ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
 import { lowerLoad } from "./phases";
 import {

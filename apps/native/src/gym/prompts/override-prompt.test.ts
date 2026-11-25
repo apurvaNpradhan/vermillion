@@ -107,6 +107,26 @@ describe("observeRepRange", () => {
     expect(observeRepRange(sets([15], { kind: "backoff" }))).toMatchObject({ value: 15 });
   });
 
+  it("reads sets that did the suggested reps as following the plan, even past the top", () => {
+    // The engine asked for 13 and 14 on a range topping at 12 (more reps before a big jump).
+    const asked = (reps: readonly number[], suggested: readonly number[]) =>
+      reps.map((count, index) => ({
+        kind: "working" as const,
+        completed: true,
+        reps: count,
+        target,
+        suggestedReps: suggested[index] ?? null,
+      }));
+    expect(observeRepRange(asked([13, 13, 13], [13, 13, 13]))).toBe("followed");
+    // Going past the asked reps is still an override.
+    expect(observeRepRange(asked([16, 16, 16], [13, 13, 13]))).toEqual({
+      value: 16,
+      range: { min: 8, max: 12 },
+    });
+    // Most of the sets must be above the top on their own, not on the engine's asking.
+    expect(observeRepRange(asked([13, 13, 15], [13, 13, 13]))).toBe("followed");
+  });
+
   it("reads the commonest range when sets differ", () => {
     const other = { kind: "working", reps_min: 15, reps_max: 20 } as const;
     expect(observeRepRange([...sets([13, 14, 13]), ...sets([16], { target: other })])).toEqual({

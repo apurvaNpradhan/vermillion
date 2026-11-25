@@ -51,7 +51,13 @@ import { thumbnailUrl, videoUrl } from "../../media-url";
 import { instructionSteps } from "../instruction-steps";
 import { useExercise, useSwapCandidates } from "../use-exercise";
 import { useExerciseActions } from "../../use-exercise-actions";
-import { useExerciseAutoWarmups, useExerciseProgressionMode } from "../use-exercise-progression";
+import {
+  useExerciseAutoWarmups,
+  useExerciseProgressionMode,
+  useExerciseRule,
+} from "../use-exercise-progression";
+import { ExerciseRuleSheet } from "../../progression/exercise-rule-sheet";
+import { RULE_OPTIONS } from "../../progression/rule-text";
 import { useExerciseHistory } from "../use-exercise-history";
 import { useExerciseNote } from "../use-exercise-note";
 import { PinnedNoteSheet } from "../../components/pinned-note-sheet";
@@ -141,6 +147,10 @@ function LoadedDetail({
     (exercise.exerciseType === "weight_reps" ||
       exercise.exerciseType === "bodyweight_weighted_reps");
   const perSet = mode.value ?? false;
+  const ruleSetting = useExerciseRule(exercise.id);
+  const ruleId = ruleSetting.value?.id ?? "double";
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [ruleSeen, setRuleSeen] = useState(false);
   const { preferences, timeZone } = usePreferences();
   const preferredUnit = preferences.ui.weightUnit;
   const unitSetting = useExerciseUnit(exercise.id);
@@ -366,7 +376,9 @@ function LoadedDetail({
                 )}
               </Text>
             )}
-            {canSetUnit || (canSetWarmups && !autoWarmups.loading && !autoWarmups.failed) ? (
+            {canSetUnit ||
+            canSetProgression ||
+            (canSetWarmups && !autoWarmups.loading && !autoWarmups.failed) ? (
               <View className="px-4">
                 <ListSection title={t("exercise__settings")}>
                   {canSetUnit ? (
@@ -374,6 +386,19 @@ function LoadedDetail({
                       title={t("exercise__unit")}
                       value={unitLabels[override ?? "default"]}
                       onPress={() => setUnitOpen(true)}
+                    />
+                  ) : null}
+                  {canSetProgression && !ruleSetting.loading && !ruleSetting.failed ? (
+                    <ListRow
+                      title={t("progress__rule")}
+                      value={t(
+                        RULE_OPTIONS.find((option) => option.id === ruleId)?.titleKey ??
+                          "progress__rule_double",
+                      )}
+                      onPress={() => {
+                        setRuleSeen(true);
+                        setRuleOpen(true);
+                      }}
                     />
                   ) : null}
                   {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
@@ -398,6 +423,16 @@ function LoadedDetail({
                     />
                   ) : null}
                 </ListSection>
+                {ruleSeen ? (
+                  <ExerciseRuleSheet
+                    exerciseId={exercise.id}
+                    title={exercise.title}
+                    type={exercise.exerciseType}
+                    gymId={gymId}
+                    isOpen={ruleOpen}
+                    onOpenChange={setRuleOpen}
+                  />
+                ) : null}
                 <ExerciseUnitSheet
                   isOpen={unitOpen}
                   onOpenChange={setUnitOpen}

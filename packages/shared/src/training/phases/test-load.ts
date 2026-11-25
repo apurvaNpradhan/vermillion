@@ -11,7 +11,7 @@ type TestHistory = {
   phase?: Phase | null;
   sets: readonly Pick<
     LoggedSet,
-    "kind" | "completed_at" | "weight_kg" | "reps" | "bodyweight_kg"
+    "kind" | "completed_at" | "weight_kg" | "reps" | "rpe" | "bodyweight_kg"
   >[];
 };
 
@@ -51,7 +51,7 @@ export function testWorkingLoad(
       if (!recent || set.reps == null) continue;
       const bodyweight = set.bodyweight_kg === undefined ? options.bodyweightKg : set.bodyweight_kg;
       const weight = effectiveWeight(type, set.weight_kg, bodyweight);
-      const max = weight === null ? null : estimatedOneRepMax(weight, set.reps);
+      const max = weight === null ? null : estimatedOneRepMax(weight, set.reps, set.rpe);
       if (max !== null) result = Math.max(result ?? 0, max);
     }
     loggedLoad ??= workingLoad;

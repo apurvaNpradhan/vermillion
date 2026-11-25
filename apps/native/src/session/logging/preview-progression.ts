@@ -3,17 +3,13 @@ import {
   formatLoad,
   isCounted,
   progresses,
+  type Prescribed,
   type SessionHistory,
   type SetKind,
   type SetOutcome,
 } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 
-import {
-  loggingHistory,
-  plannedSuggestion,
-  type SuggestionSettings,
-} from "../../platform/training/workout-suggestion";
 import { ghostsOf, ordinalOf, previousForSuggestion } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
@@ -25,28 +21,24 @@ type Change = {
   outcome: SetOutcome;
 };
 
-/** Compare the live suggestion with the same Previous cell the completed set grid shows. */
+/**
+ * Compare the prescription with the same Previous cell the completed set grid shows. `history` is
+ * the exercise's whole history, for a Test single that has no baseline set of its own.
+ */
 export function previewProgression(
   entry: WorkoutExerciseDetail,
+  prescribed: Pick<Prescribed, "settings" | "history" | "progression">,
   history: readonly SessionHistory[],
-  settings: SuggestionSettings,
-  now = new Date(),
 ) {
   const exercise = entry.exercise;
   if (!exercise || history.length === 0) return null;
   const type = exercise.exerciseType;
-  const suggestion = plannedSuggestion(
-    entry.sets,
-    history,
-    { type, equipment: exercise.equipment, progressionPerSet: exercise.progressionPerSet },
-    settings,
-    now,
-  );
+  const { settings, progression: suggestion } = prescribed;
   if (!suggestion) return null;
   const loaded = type === "weight_reps" || addsLoad(type);
   const displayWeight = (kg: number | null | undefined) =>
     loaded && kg != null ? formatLoad(kg, settings.weightUnit, type) : null;
-  const baseline = loggingHistory(history, exercise.equipment, settings);
+  const baseline = prescribed.history;
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];

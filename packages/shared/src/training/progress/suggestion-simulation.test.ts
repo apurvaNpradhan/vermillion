@@ -8,7 +8,8 @@ import { testWorkingLoad } from "../phases/test-load";
 import { runWeek } from "../plans/cycle";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { barGrid, rangeGrid } from "./load-grid";
-import { suggestNext, type SuggestedSet } from "./progression";
+import { suggestNext } from "../engine/pipeline";
+import type { SuggestedSet } from "./progression";
 import { missedSuggestions, stalledSessions } from "./stalled-lift";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { prescriptionSchema } from "./prescription";
@@ -234,7 +235,8 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
 
   it("uses physical automatic steps with legacy microplates and no stack setting", () => {
     const amount = unit === "kg" ? 20 : 45;
-    const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
+    // The extended ceiling of 6–8 reps: every jump below is earned, none waits for more reps.
+    const stacked = plan.map(() => ({ weightKg: kg(amount), reps: 12 }));
     const history = [train(0, stacked)];
     const now = new Date(START + DAY);
     const plates = [{ id: "micro", weightKg: exact(unit === "kg" ? 0.5 : 1.25), count: null }];
@@ -374,7 +376,16 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     const recordLoad = kg(weight + step * 5);
     const result = train(7, [{ weightKg: recordLoad, reps: 1 }], { phase: "test", rpe: 9 });
     const history = [result, baseline];
-    expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBe(recordLoad);
+    // A single at RPE 9 had one rep in reserve: it counts as a two-rep set. Without effort it is its reps.
+    expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBeCloseTo(
+      (recordLoad * 36) / 35,
+      5,
+    );
+    expect(
+      exerciseRecords([train(7, [{ weightKg: recordLoad, reps: 1 }], { phase: "test" }), baseline])
+        .get("lift")
+        ?.get("estimated_one_rep_max"),
+    ).toBeCloseTo(recordLoad, 5);
     expect(recordFlags(history).get("7-0")).toContain("reps_1");
     expect(test(history, 8)).toBeCloseTo(estimate * 0.925, 5);
 

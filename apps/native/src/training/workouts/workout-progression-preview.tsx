@@ -1,10 +1,11 @@
-import { SET_KIND_KEYS, type WeightUnit } from "@workspace/shared";
+import { SET_KIND_KEYS, type ExerciseType, type WeightUnit } from "@workspace/shared";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
 import { useTranslation } from "@/platform/i18n";
+import { EvidenceLines } from "@/platform/ui/evidence-lines";
 import { progressionParams, progressionLabelKey } from "@/platform/ui/progression-reason";
 import type { previewProgression } from "@/session";
 
@@ -13,7 +14,13 @@ type Preview = NonNullable<ReturnType<typeof previewProgression>>;
 export function WorkoutProgressionPreview({
   exercises,
 }: {
-  exercises: readonly { id: string; title: string; preview: Preview; unit: WeightUnit }[];
+  exercises: readonly {
+    id: string;
+    title: string;
+    preview: Preview;
+    unit: WeightUnit;
+    type: ExerciseType;
+  }[];
 }) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -43,12 +50,13 @@ export function WorkoutProgressionPreview({
       </Pressable>
       {expanded ? (
         <View className="gap-3 px-3.5 pb-3.5">
-          {exercises.map(({ id, title, unit, preview: { suggestion, changes } }) => {
+          {exercises.map(({ id, title, unit, type, preview: { suggestion, changes } }) => {
             const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
             return (
               <View key={id} className="gap-2 border-t border-border pt-3">
                 <View className="gap-0.5">
                   <Text className="text-body font-medium text-foreground">{title}</Text>
+                  <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
                 </View>
                 {changes.map(({ kind, number, last, today, outcome }) => (
                   <View key={`${kind}-${number}`} className="gap-0.5">

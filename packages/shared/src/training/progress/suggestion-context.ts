@@ -1,6 +1,7 @@
 import type { PlannedSet } from "../plans/planned-sets";
+import type { RuleId } from "../engine/rule-config";
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
-import { isCounted, type LoggedSet, type SessionHistory } from "../logging/logged-set";
+import type { SessionHistory } from "../logging/logged-set";
 import {
   isBaselinePhase,
   snapshotModifiers,
@@ -12,7 +13,7 @@ import {
   type PreviousSource,
   type WeightUnit,
 } from "../vocabulary/vocabulary";
-import { exerciseEntries, fixedPrescriptionHistory, suggestionHistory } from "./suggestion-history";
+import { fixedPrescriptionHistory, suggestionHistory } from "./suggestion-history";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 import { historyForGym } from "./gym-history";
 import type { LoadGrid } from "./load-grid";
@@ -95,6 +96,8 @@ export type SuggestionPlace = {
   /** Judge the stalled-lift note and apply an accepted deload (only for an exercise to train). */
   stalls: boolean;
   stallDeload?: boolean;
+  /** The exercise's rule id; a maintained lift is never reported as stalled. */
+  rule?: RuleId | null;
   prescription?: readonly PlannedSet[];
 };
 
@@ -138,20 +141,19 @@ export function suggestionContext(
     place.prescription ?? [],
   );
   let stall: StallInfo | null = null;
-  if (place.stalls && !place.testSingle) {
+  if (place.stalls && !place.testSingle && place.rule !== "maintain") {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
     const sessions = workoutHistory;
     const latestSessionId = sessions[0]?.id ?? null;
-    const count = stalledSessions(sessions, place.type, {
+    const options = {
       bodyweightKg: account.bodyweightKg,
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
-    });
-    const missed = missedSuggestions(sessions, place.type, {
-      bodyweightKg: account.bodyweightKg,
-      lighterWeeks: account.lighterWeeks,
-      sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
-    });
+      // Linear resets a lift by itself: its Session ends the episode, so no second deload follows.
+      ruleResets: place.rule === "linear",
+    };
+    const count = stalledSessions(sessions, place.type, options);
+    const missed = missedSuggestions(sessions, place.type, options);
     if (latestSessionId !== null && (count > 0 || missed > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)
@@ -192,55 +194,4 @@ export function suggestionContext(
       testSingle: place.testSingle,
     },
   };
-}
-
-/** The exercises trained this week with a visible stall on at least one of their entries. */
-export function stalledExerciseIds(
-  thisWeek: readonly Pick<ContextSession, "workoutId" | "gymId" | "sets">[],
-  histories: ReadonlyMap<string, readonly ContextSession[]>,
-  account: SuggestionAccount,
-): string[] {
-  const stalled = new Set<string>();
-  for (const session of thisWeek) {
-    const exercises = new Map<string, LoggedSet[]>();
-    for (const set of session.sets) {
-      if (stalled.has(set.exercise_id)) continue;
-      const sets = exercises.get(set.exercise_id) ?? [];
-      sets.push(set);
-      exercises.set(set.exercise_id, sets);
-    }
-    for (const [exerciseId, sets] of exercises) {
-      const history = histories.get(exerciseId);
-      if (!history) continue;
-      const entries = exerciseEntries(sets);
-      for (const [exerciseOrdinal, entry] of entries.entries()) {
-        const set = entry.find(isCounted);
-        if (!set) continue;
-        const { stall } = suggestionContext(
-          history,
-          {
-            exerciseId,
-            sourceWorkoutExerciseId: set.source_workout_exercise_id,
-            exerciseOrdinal,
-            duplicateEntry: entries.length > 1,
-            type: set.exercise_type,
-            workoutId: session.workoutId,
-            gymId: session.gymId ?? null,
-            // The stall verdict compares this Workout's history across gyms and ignores load grids.
-            equipment: "other",
-            grid: null,
-            stalls: true,
-            prescription: entry.map((row) => ({ ...row.target, kind: row.kind })),
-          },
-          account,
-        );
-        // A missed suggestion alone asks to review the target, not for a deload.
-        if (stall && !stall.missed) {
-          stalled.add(exerciseId);
-          break;
-        }
-      }
-    }
-  }
-  return [...stalled];
 }

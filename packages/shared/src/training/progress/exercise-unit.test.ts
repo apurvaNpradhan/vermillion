@@ -7,7 +7,7 @@ import { formatWeight, KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { resolveExerciseUnit, type WeightUnit } from "../vocabulary/vocabulary";
 import { gymGridsOf } from "./gym-grids";
 import { addLoad, incrementFor } from "./progression-steps";
-import { suggestNext } from "./progression";
+import { suggestNext } from "../engine/pipeline";
 
 it.each<[WeightUnit, WeightUnit | null | undefined, WeightUnit]>([
   ["kg", undefined, "kg"],
@@ -91,7 +91,8 @@ it.each(cases)("uses the $override rack and progression for a $preferred lifter"
             kind: "working",
             completed_at: now.toISOString(),
             weight_kg: stored(example.last),
-            reps: 12,
+            // The extended ceiling: the jump to the next rack weight is earned.
+            reps: 18,
           },
         ],
       },
