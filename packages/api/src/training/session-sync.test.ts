@@ -290,6 +290,32 @@ describe("session upload handlers", () => {
     },
   );
 
+  it("syncs a stall deload on only the chosen Session entry", async () => {
+    const me = await writer("session-stall-deload@example.com");
+    const other = await writer("session-stall-other@example.com");
+    const t = await training(me);
+    const second = uuidv7();
+    expect(
+      await me.send([putExercise(second, t.sessionId, weightReps, { position: "a2" })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBeNull();
+    const mark = op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 1 });
+    expect(await other.send([mark])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([mark])).toEqual(applied);
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { note: "Follow up" })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBe(true);
+    expect((await stored("session_exercise", second))?.stall_deload).toBeNull();
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 2 })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 0 })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBe(false);
+  });
+
   it("creates, patches dirty fields and deletes each table", async () => {
     const me = await writer("session-crud@example.com");
     const t = await training(me);

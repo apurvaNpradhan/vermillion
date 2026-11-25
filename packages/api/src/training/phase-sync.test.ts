@@ -210,6 +210,37 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
           started_at: rows[0]?.started_at ?? null,
         }));
 
+    it("validates and merges pause intervals without reopening a resumed Run", async () => {
+      const me = await writer("run-pauses@example.com");
+      const other = await writer("run-pauses-other@example.com");
+      const { run } = await runOf(me);
+      const pausesOf = async () => {
+        const [stored] = await app.rows(
+          sql`SELECT pauses::text AS pauses FROM program_run WHERE id = ${run}`,
+        );
+        return parsed(stored?.pauses);
+      };
+      const from = "2026-11-06T08:00:00Z";
+      const until = "2026-11-20T08:00:00Z";
+      const stale = { from, until: null };
+      const second = { from: "2026-11-22T08:00:00Z", until: null };
+      const change = (value: { from: string } | { from: string; until: string | null }[]) =>
+        op("PATCH", "program_run", run, { pauses: JSON.stringify(value) });
+      expect(await pausesOf()).toBeNull();
+      expect(await other.send([change([stale])])).toMatchObject(rejected);
+      expect(await me.send([change([stale])])).toEqual(applied);
+      expect(await me.send([change([{ from, until }])])).toEqual(applied);
+      expect(await me.send([change([stale, second])])).toEqual(applied);
+      expect(await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[3]" })])).toEqual(
+        applied,
+      );
+      expect(await pausesOf()).toEqual([{ from, until }, second]);
+      for (const invalid of [[{ from: until, until: from }], [stale, stale], { from }]) {
+        expect(await me.send([change(invalid)])).toMatchObject(rejected);
+      }
+      expect(await pausesOf()).toEqual([{ from, until }, second]);
+    });
+
     it("starts empty, and stores the weeks of an insert", async () => {
       const me = await writer("deload-basic@example.com");
       const { run } = await runOf(me);
@@ -344,7 +375,7 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
     it("stores the modifiers it started with, and keeps them through a patch", async () => {
       const me = await writer("session-snapshot@example.com");
       const id = uuidv7();
-      const snapshot = { sets: 0.5, rpe: -2, load: 0.9, test_top: "single" };
+      const snapshot = { sets: 0.5, rpe: -2, load: 0.9, test_top: "single", load_cuts: [0, 10] };
       await me.send([
         op("PUT", "training_session", id, {
           ...sessionData("deload"),
