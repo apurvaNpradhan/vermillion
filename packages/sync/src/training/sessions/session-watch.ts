@@ -7,6 +7,7 @@ import {
   plannedSetSchema,
   prescriptionFor,
   prescriptionSchema,
+  suggestedFromSnapshot,
   type Prescription,
   type Equipment,
   type ExerciseType,
@@ -839,19 +840,14 @@ const finishedRowSchema = z.object({
   completed_at: z.string().nullable(),
 });
 
-/** What the snapshot offered for one set, before any same-day adjustment; null without one. */
-function suggestedOf(
+/** What the snapshot offered for one set; null without a snapshot. */
+function suggestionOfRow(
   snapshot: Prescription | null | undefined,
   exerciseId: string,
   setId: string,
-): LoggedSet["suggested"] {
-  const saved = prescriptionFor(snapshot, exerciseId)?.sets.find(({ id }) => id === setId);
-  return saved
-    ? {
-        weight_kg: saved.unadjustedWeightKg ?? saved.ghosts.weight ?? null,
-        reps: saved.ghosts.reps ?? null,
-      }
-    : null;
+) {
+  const saved = prescriptionFor(snapshot, exerciseId);
+  return saved ? suggestedFromSnapshot(saved, setId) : null;
 }
 
 /** Groups the rows of {@link EXERCISE_HISTORY_SQL} or {@link SESSIONS_BETWEEN_SQL} by Session, in row order. */
@@ -906,7 +902,7 @@ export function parseFinishedSessions(rows: readonly object[]): FinishedSession[
         rpe: row.rpe,
         target: row.target ?? null,
         stall_deload: row.stall_deload === true,
-        suggested: suggestedOf(row.prescription, row.exercise_id, row.set_id),
+        suggested: suggestionOfRow(row.prescription, row.exercise_id, row.set_id),
       };
       current.sets.push(set);
     }

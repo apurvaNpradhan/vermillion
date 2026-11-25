@@ -1,5 +1,6 @@
 import {
   SESSION_LIMITS,
+  suggestionLedger,
   type SupersetPlace,
   resolveExerciseUnit,
   usesGymHistory,
@@ -22,6 +23,7 @@ import { MaxPrompt, OverridePrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { AdjustmentNote } from "./adjustment-note";
+import { SuggestionLedgerLine } from "./suggestion-ledger-line";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
@@ -100,6 +102,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
         unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
+        unitLabel: state.inputs.unitNames[resolveExerciseUnit(state.inputs.unit, exercise?.unit)],
         gymId: state.inputs.gym.gymId,
         activeSessionId: state.session.finishedAt === null ? state.session.id : null,
         setupNote: exercise
@@ -113,6 +116,22 @@ export const ExerciseItem = memo(function ExerciseItem({
     }),
   );
   const { exercise, suggestion, stall, unit, place, readOnly, expanded } = data;
+  const finishedLedger = useMemo(
+    () =>
+      exercise && data.activeSessionId === null
+        ? suggestionLedger(
+            exercise.prescription,
+            exercise.sets.map((set) => ({
+              id: set.id,
+              kind: set.kind,
+              completed: set.completedAt !== null,
+              weight_kg: set.weightKg,
+              reps: set.reps,
+            })),
+          )
+        : null,
+    [exercise, data.activeSessionId],
+  );
   const adjustment = exercise?.prescription?.adjustment ?? null;
   const adjustedNumber = adjustment
     ? (data.rows?.get(adjustment.setId)?.number ??
@@ -239,6 +258,14 @@ export const ExerciseItem = memo(function ExerciseItem({
                 onNote={handlers.onNote}
                 onRest={handlers.onRest}
               />
+              {finishedLedger ? (
+                <SuggestionLedgerLine
+                  ledger={finishedLedger}
+                  type={exercise.type}
+                  unit={unit}
+                  unitLabel={data.unitLabel}
+                />
+              ) : null}
               <SetGrid
                 exerciseId={exerciseId}
                 handlers={handlers}

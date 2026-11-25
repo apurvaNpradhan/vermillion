@@ -5,6 +5,7 @@ import { isBaselinePhase, type Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { loadIdentity } from "../vocabulary/format";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
+import { fellShortOfSuggestion } from "./suggestion-ledger";
 
 const DAY_MS = 86_400_000;
 /** The most recent Sessions that must show no gain for a lift to count as stalled. */
@@ -219,18 +220,6 @@ function improvedOn(recent: StallPerformance, before: StallPerformance): boolean
   return false;
 }
 
-/** A set that fell short of what was suggested: less load, or fewer reps. */
-function fellShort(set: LoggedSet): boolean {
-  const { suggested } = set;
-  if (!suggested) return false;
-  const lighter =
-    suggested.weight_kg !== null &&
-    set.weight_kg != null &&
-    loadIdentity(set.weight_kg) < loadIdentity(suggested.weight_kg);
-  const fewer = suggested.reps !== null && set.reps != null && set.reps < suggested.reps;
-  return lighter || fewer;
-}
-
 /**
  * Whether a Session missed what was suggested for it: more than half of its Counted working sets
  * that have a suggestion ended with less load or fewer reps. Null when it has no snapshot to
@@ -241,7 +230,10 @@ function missedSuggestion(session: StallSession): boolean | null {
     (set) => isCounted(set) && set.kind === "working" && set.suggested,
   );
   if (worked.length === 0) return null;
-  return worked.filter(fellShort).length * 2 > worked.length;
+  return (
+    worked.filter((set) => set.suggested && fellShortOfSuggestion(set.suggested, set)).length * 2 >
+    worked.length
+  );
 }
 
 /**
