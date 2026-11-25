@@ -9,6 +9,7 @@ import {
   setGymExerciseSetting,
   setSessionGym,
   startSession,
+  updateSet,
   updateWorkoutExercise,
 } from "@workspace/sync";
 import {
@@ -84,3 +85,45 @@ it.each([
     });
   },
 );
+
+it("lowers the unticked sets when Done logs a set that was typed short", async () => {
+  const fixture = await setupSessions();
+  const { training, installId } = fixture;
+  const { workoutId, squat } = await pushWorkout(fixture);
+  const working = { kind: "working", weight_kg: 80, reps_min: 8, reps_max: 8 } as const;
+  await updateWorkoutExercise(training, squat, { sets: [working, working, working] });
+  const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
+  const read = async () => {
+    const session = parseSessionDetail(
+      await training.getAll(SESSION_DETAIL_SQL, [id]),
+      await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
+    );
+    if (!session) throw new Error("Session missing");
+    return session;
+  };
+  const gym = buildGymLoads({ unit: "kg", kit: [], settings: [], gymId: null });
+  const options: Parameters<typeof workoutLiveState>[0]["options"] = {
+    weightUnit: "kg",
+    previousSource: "same_workout",
+    bodyweightKg: null,
+    weightIncrementKg: null,
+    lighterWeeks: [],
+    soundOn: false,
+    vibrate: true,
+  };
+  await workoutLiveGhosts(training, await read(), options, gym, null, installId);
+  const [first, second, third] = (await read()).exercises[0]?.sets ?? [];
+  if (!first || !second || !third) throw new Error("Expected three sets");
+  await updateSet(training, first.id, { reps: 5 });
+  const session = await read();
+  const ghosts = await workoutLiveGhosts(training, session, options, gym, null);
+  expect(
+    await logWorkoutLiveSet(training, session, ghosts, installId, first.id, options, gym),
+  ).toMatchObject({ ok: true, wrote: true });
+  const prescription = (await read()).exercises[0]?.prescription;
+  expect(prescription?.adjustment).toMatchObject({ setId: first.id, reason: "reps_short" });
+  const weights = prescription?.sets.map((set) => set.ghosts.weight);
+  expect(weights?.[0]).toBe(80);
+  expect(weights?.[1]).toBeLessThan(80);
+  expect(weights?.[2]).toBe(weights?.[1]);
+});

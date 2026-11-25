@@ -28,6 +28,8 @@ import {
   setRunPaused,
   readRuns,
   tickSet,
+  undoSessionAdjustment,
+  updateSet,
   updateWorkoutExercise,
 } from "@workspace/sync";
 import {
@@ -40,7 +42,7 @@ import { expect, it } from "vitest";
 import { buildGymLoads } from "../../gym/gym-loads";
 import { firstWorkingWeightKg, rampTargets } from "../warmups/warmup-plan";
 import { workoutLiveGhosts } from "../notifications/workout-live-logging";
-import { deriveExercises, type DeriveInputs } from "../store/derive";
+import { adjustmentLoadsOf, deriveExercises, type DeriveInputs } from "../store/derive";
 import { previewProgression } from "./preview-progression";
 import { prepareWorkoutEntry } from "../../platform/training/workout-suggestion";
 import {
@@ -497,3 +499,122 @@ it("reads the same daily average for the notification's weighted bodyweight hist
     ]),
   );
 });
+
+it.each([
+  { unit: "kg", weight: 60 },
+  { unit: "lb", weight: 135 },
+] as const)(
+  "shows the same adjusted targets on the Session and the notification in $unit",
+  async ({ unit, weight }) => {
+    const fixture = await setupSessions();
+    const { training } = fixture;
+    await savePreferences(
+      training,
+      { ui: { weightUnit: unit } },
+      { owner: "owner", installId: fixture.installId },
+    );
+    const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
+    const workoutId = await createWorkout(training, { title: "Legs", program_id: null });
+    const [squat] = await addExercises(training, workoutId, [SQUAT]);
+    if (!squat) throw new Error("Expected squat in Workout");
+    const target: PlannedSet = { kind: "working", reps_min: 5, reps_max: 8 };
+    await updateWorkoutExercise(training, squat, { sets: [target, target, target] });
+    const readSession = async (id: string) =>
+      parseSessionDetail(
+        await training.getAll(SESSION_DETAIL_SQL, [id]),
+        await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
+      );
+    const earlier = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    for (const set of (await readSession(earlier))?.exercises[0]?.sets ?? [])
+      await tickSet(training, set.id, { weight: kilograms, reps: 8 });
+    await finishSession(training, earlier);
+
+    const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
+    const inputs: DeriveInputs = {
+      previous: new Map([
+        [SQUAT, parseFinishedSessions(await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]))],
+      ]),
+      historyFailed: false,
+      previousSource: "same_workout",
+      unit,
+      unitNames: { kg: "kg", lb: "lb" },
+      display: { distanceUnit: "km", durationFormat: "seconds" },
+      weightIncrementKg: null,
+      gym,
+      lighterWeeks: [],
+      lighter: false,
+      phaseLoad: 1,
+      phase: null,
+      bodyweightKg: null,
+      stallVersion: 0,
+      stallMemory: () => ({ dismissed: false }),
+      chipTexts: () => [],
+    };
+    const derive = async () => {
+      const session = await readSession(id);
+      if (!session) throw new Error("Expected the Session");
+      return {
+        session,
+        cache: deriveExercises(
+          session.exercises,
+          inputs,
+          { finished: false, workoutId },
+          new Map(),
+        ).get(session.exercises[0]?.id ?? ""),
+      };
+    };
+    const live = async () => {
+      const { session } = await derive();
+      return workoutLiveGhosts(
+        training,
+        session,
+        { ...inputs, weightUnit: unit },
+        gym,
+        null,
+        fixture.installId,
+      );
+    };
+    // The first look pins what was suggested.
+    await live();
+    const before = await derive();
+    const [one, two, three] = before.session.exercises[0]?.sets ?? [];
+    if (!one || !two || !three || !before.cache) throw new Error("Expected three sets");
+    const offered = before.cache.view.rows.get(two.id)?.ghosts.weight;
+    // Eight reps at the top of the range earn one step.
+    expect(offered).toBeGreaterThan(kilograms);
+
+    // A jump resets to five reps; the first set does two, three short of it.
+    await updateSet(training, one.id, { reps: 2 });
+    await tickSet(
+      training,
+      one.id,
+      {},
+      fixture.installId,
+      null,
+      undefined,
+      null,
+      adjustmentLoadsOf(before.cache),
+    );
+    const after = await derive();
+    const adjusted = after.cache?.view.rows.get(two.id)?.ghosts.weight ?? 0;
+    expect(adjusted).toBeLessThan(offered ?? 0);
+    expect(after.cache?.view.rows.get(three.id)?.ghosts.weight).toBe(adjusted);
+    expect(after.cache?.view.rows.get(one.id)?.ghosts.weight).toBe(offered);
+    expect((await live()).get(two.id)?.weight).toBe(adjusted);
+    expect(after.session.exercises[0]?.prescription?.adjustment).toMatchObject({
+      setId: one.id,
+      reason: "reps_short",
+      reps: 3,
+    });
+    // An adjusted set offers no reason of its own: the chip does not claim the engine's one.
+    expect(after.cache?.view.suggestion?.outcomes[1]).toBeNull();
+
+    // Undo puts the first suggestion back on both surfaces.
+    expect(await undoSessionAdjustment(training, after.session.exercises[0]?.id ?? "")).toBe(true);
+    const undone = await derive();
+    expect(undone.cache?.view.rows.get(two.id)?.ghosts.weight).toBe(offered);
+    expect((await live()).get(two.id)?.weight).toBe(offered);
+    expect(undone.session.exercises[0]?.prescription?.adjustment).toBeUndefined();
+  },
+);

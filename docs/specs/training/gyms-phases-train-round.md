@@ -364,3 +364,10 @@ instruction to proceed while away (2026-11-25); the owner may overturn any of th
 Slices: **E1** decision-free fixes (F4, F11, F5, F7, F8, F9, F10, F15, F16, simulation + parity
 suites); **E2** decision fixes (F1, F2, F3, F6, F12, F13, F14, Pause Run); **E3** prescription
 snapshot, same-day adjustment, override prompts; **E4** `prescribe()` façade and the Q40 features.
+
+**E3 as built.** The step prompt follows the Max and Load step prompts' equipment (machine, cable,
+Smith machine): free weights keep the account's increment, which is global, so a lifter who always
+adds more than the suggestion on a barbell is not asked. The rep-range prompt moves the planned
+range of the working sets up to the reps kept, keeping its width. A stall now also reads three
+Sessions in a row where more than half the working sets ended under the suggestion (load or reps);
+the note says so in its own words.
