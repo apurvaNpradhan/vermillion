@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "65a3f078-8d04-4fe6-a58c-f9d628052d9c",
+  "prevIds": ["bd4546ff-a66b-4790-bd5d-bb2a186b72e9"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "media", "cover_unreferenced_at"],
+      "writes": [
+        "s|col|public.media.cover_unreferenced_at",
+        "n|col|public.media.cover_unreferenced_at",
+        "e|col|public.media.cover_unreferenced_at"
+      ],
+      "reads": ["n|tbl|public.media", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "media",
+        "name": "cover_unreferenced_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

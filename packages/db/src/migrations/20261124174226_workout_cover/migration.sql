@@ -1,0 +1,2 @@
+ALTER TABLE "workout" ADD COLUMN "cover_media_id" uuid;--> statement-breakpoint
+ALTER TABLE "media" DROP CONSTRAINT "media_kind_known", ADD CONSTRAINT "media_kind_known" CHECK ("kind" IN ('program_cover','workout_cover','exercise_image','avatar','session_photo','progress_photo'));

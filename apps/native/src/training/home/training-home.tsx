@@ -31,7 +31,7 @@ import { ANCHORED } from "@/platform/navigation/anchored";
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { start, sheet } = useStartSession();
+  const { start, startSlot, sheet } = useStartSession();
   const [weeksAgo, setWeeksAgo] = useState(0);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
@@ -204,7 +204,13 @@ export function TrainingHome() {
           onStart={() =>
             resume
               ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-              : void start(workoutId)
+              : next?.workoutId && programState.run
+                ? void startSlot(next.workoutId, {
+                    runId: programState.run.id,
+                    slotId: next.id,
+                    cycle: programState.progress.cycle,
+                  })
+                : void start(workoutId)
           }
           onStartEmpty={() => void start(null)}
         />

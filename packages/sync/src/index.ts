@@ -114,9 +114,12 @@ export {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
+  skipSlot,
+  unskipSlot,
+  setWorkoutCover,
+  setWorkoutCoverToNewMedia,
   sortByPosition,
   supersetWithNext,
   parseProgramDetail,
@@ -289,6 +292,7 @@ export {
 
 export {
   watchRunState,
+  type BeginSource,
   activateProgram,
   stopProgram,
   finishRun,
@@ -297,7 +301,7 @@ export {
   readRuns,
   reconcileRuns,
 } from "./training";
-export { programRun } from "./training";
+export { programRun, programSlotSkip } from "./training";
 
 export {
   bodyMeasurement,

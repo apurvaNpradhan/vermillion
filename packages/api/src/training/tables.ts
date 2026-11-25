@@ -97,6 +97,8 @@ export const workout = pgTable(
     programId: uuid("program_id").references(() => program.id, { onDelete: "cascade" }),
     title: text("title"),
     note: text("note"),
+    /** The cover's `media` row (kind `workout_cover`); no foreign key, as for a Program cover. */
+    coverMediaId: uuid("cover_media_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -475,6 +477,38 @@ export const programRun = pgTable(
     check(
       "program_run_outcome",
       sql`(${table.finishedAt} IS NULL AND ${table.outcome} IS NULL) OR (${table.finishedAt} IS NOT NULL AND ${table.outcome} IN ('completed', 'stopped'))`,
+    ),
+  ],
+);
+
+/**
+ * A Slot a user deliberately left out of one Cycle of a Run ("Skip this cycle"). Counts as done
+ * for that Cycle in `cycleState`; the Program order never changes. Undo is a soft delete.
+ */
+export const programSlotSkip = pgTable(
+  "program_slot_skip",
+  {
+    id: id(),
+    userId: owner(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => programRun.id),
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => programSlot.id),
+    cycle: integer("cycle").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
+  },
+  (t) => [
+    index("program_slot_skip_user_id_live_idx")
+      .on(t.userId)
+      .where(sql`${t.deletedAt} IS NULL`),
+    index("program_slot_skip_run_idx").on(t.runId, t.cycle),
+    check(
+      "program_slot_skip_cycle_range",
+      sql`${t.cycle} BETWEEN 1 AND ${raw(TRAINING_LIMITS.cycleMax)}`,
     ),
   ],
 );

@@ -20,7 +20,14 @@ export * from "./volume/muscle-distribution";
 export * from "./plates/gym-kit";
 export * from "./plates/plates";
 export * from "./plans/session-workout-diff";
-export { activeRun, cycleState, runWeek } from "./plans/cycle";
+export {
+  activeRun,
+  cycleState,
+  runWeek,
+  slotSkipId,
+  type RunSlot,
+  type SlotSkip,
+} from "./plans/cycle";
 
 export * from "./progress/progression";
 export * from "./progress/lighter-week";

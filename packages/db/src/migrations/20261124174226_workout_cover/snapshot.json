@@ -1,0 +1,56 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0949ffac-89b8-4f19-bae4-8daf467813f3",
+  "prevIds": ["212280cb-5fc2-4d48-824d-457948d4c3f9"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "workout", "cover_media_id"],
+      "writes": [
+        "s|col|public.workout.cover_media_id",
+        "n|col|public.workout.cover_media_id",
+        "e|col|public.workout.cover_media_id"
+      ],
+      "reads": ["n|tbl|public.workout", "n|sch|public"]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": ["table", "public", "media"],
+      "writes": ["s|ck|public.media.media_kind_known"],
+      "reads": [
+        "n|tbl|public.media",
+        "n|sch|public",
+        "n|col|public.media.kind",
+        "e|col|public.media.kind"
+      ],
+      "sqlHash": "d779f6568e747880"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "workout",
+        "name": "cover_media_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"media\",\"media_kind_known\"]",
+      "set": {
+        "value": "\"kind\" IN ('program_cover','workout_cover','exercise_image','avatar','session_photo','progress_photo')"
+      }
+    }
+  ]
+}

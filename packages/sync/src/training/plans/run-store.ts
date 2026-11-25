@@ -1,3 +1,4 @@
+import { activeRun, TRAINING_LIMITS } from "@workspace/shared";
 import { v7 as uuidv7 } from "uuid";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -21,7 +22,7 @@ const runSchema = z.object({
   continued_at: z.string().nullable(),
   created_at: z.string(),
 });
-export async function readRuns(database: TrainingDatabase) {
+export async function readRuns(database: Pick<TrainingDatabase, "getAll">) {
   return z
     .array(runSchema)
     .parse(
@@ -108,52 +109,108 @@ export const hasCountedSetSql = `EXISTS (
   WHERE e.session_id = training_session.id AND s.completed_at IS NOT NULL AND s.kind <> 'warmup'
 )`;
 
+const skipSchema = z.object({
+  slotId: z.string(),
+  cycle: z.number().int(),
+});
 const progressSchema = z.object({
   id: z.string(),
-  runId: z.string().nullable(),
+  slotId: z.string().nullable(),
   workoutId: z.string().nullable(),
   cycle: z.number().nullable(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
   hasCountedSet: z.coerce.boolean(),
 });
+const PROGRESS_PAGE_SIZE = 250;
+
+async function readProgressSessions(db: Pick<TrainingDatabase, "getAll">, runId: string) {
+  const sessions: z.infer<typeof progressSchema>[] = [];
+  let startedAt = "";
+  let id = "";
+  // Only the latest counted Cycle contributes progress. Slot-less legacy sessions may also
+  // lack a cycle, so keep those in chronological order for cycleState to place.
+  const counted = `run_id = ? AND finished_at IS NOT NULL AND ${hasCountedSetSql}`;
+  while (true) {
+    const page = z.array(progressSchema).parse(
+      await db.getAll(
+        `SELECT id, slot_id AS slotId, workout_id AS workoutId, cycle, started_at AS startedAt,
+              finished_at AS finishedAt, 1 AS hasCountedSet
+       FROM training_session WHERE ${counted}
+         AND (cycle IS NULL OR cycle = (SELECT MAX(cycle) FROM training_session WHERE ${counted}))
+         AND (started_at, id) > (?, ?)
+       ORDER BY started_at, id LIMIT ${PROGRESS_PAGE_SIZE}`,
+        [runId, runId, startedAt, id],
+      ),
+    );
+    sessions.push(...page);
+    const last = page.at(-1);
+    if (!last || page.length < PROGRESS_PAGE_SIZE) return sessions;
+    ({ startedAt, id } = last);
+  }
+}
+
 export function watchRunState(
   database: TrainingDatabase,
   onValue: (value: {
     runs: z.infer<typeof runSchema>[];
+    runId: string | null;
     sessions: z.infer<typeof progressSchema>[];
+    /** Slots skipped for a Cycle, for `cycleState`. */
+    skips: z.infer<typeof skipSchema>[];
   }) => void,
   onError: () => void,
 ) {
-  const controller = new AbortController();
-  database.watchWithCallback(
-    `SELECT r.id, r.finished_at, r.started_at, training_session.id,
-            training_session.finished_at, training_session.started_at, ${hasCountedSetSql}
-     FROM program_run r LEFT JOIN training_session ON training_session.run_id = r.id LIMIT 10000`,
-    [],
+  let active = true;
+  let generation = 0;
+  let previous = "";
+  const dispose = database.onChangeWithCallback(
     {
-      onResult: () => {
-        void Promise.all([
-          readRuns(database),
-          database.getAll(
-            `SELECT id, run_id AS runId, workout_id AS workoutId, cycle, started_at AS startedAt,
-                    finished_at AS finishedAt, ${hasCountedSetSql} AS hasCountedSet
-             FROM training_session WHERE run_id IS NOT NULL ORDER BY started_at, id LIMIT 10000`,
-          ),
-        ])
-          .then(([runs, sessions]) => {
-            if (!controller.signal.aborted)
-              onValue({ runs, sessions: z.array(progressSchema).parse(sessions) });
+      onChange: () => {
+        const current = ++generation;
+        void database
+          .readTransaction(async (tx) => {
+            const runs = await readRuns(tx);
+            const runId = activeRun(runs)?.id ?? null;
+            if (runId === null) return { runs, runId, sessions: [], skips: [] };
+            const sessions = await readProgressSessions(tx, runId);
+            const skips = z.array(skipSchema).parse(
+              await tx.getAll(
+                `SELECT slot_id AS slotId, cycle FROM program_slot_skip
+             WHERE run_id = ? ORDER BY cycle, slot_id LIMIT ${TRAINING_LIMITS.skipsPerRun}`,
+                [runId],
+              ),
+            );
+            return { runs, runId, sessions, skips };
           })
-          .catch(onError);
+          .then((value) => {
+            if (!active || current !== generation) return;
+            const snapshot = JSON.stringify(value);
+            if (snapshot === previous) return;
+            previous = snapshot;
+            onValue(value);
+          })
+          .catch(() => {
+            if (!active || current !== generation) return;
+            previous = "";
+            onError();
+          });
       },
-      onError,
     },
     {
-      signal: controller.signal,
-      tables: ["program_run", "training_session", "session_exercise", "session_set"],
+      tables: [
+        "program_run",
+        "program_slot_skip",
+        "training_session",
+        "session_exercise",
+        "session_set",
+      ],
       throttleMs: 150,
+      triggerImmediate: true,
     },
   );
-  return () => controller.abort();
+  return () => {
+    active = false;
+    dispose();
+  };
 }

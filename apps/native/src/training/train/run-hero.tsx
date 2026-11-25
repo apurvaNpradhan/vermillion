@@ -1,0 +1,121 @@
+import type { RunSlot } from "@workspace/shared";
+import { Play } from "phosphor-react-native";
+import { useThemeColor } from "heroui-native";
+import type { ReactNode } from "react";
+import { Pressable, Text, View } from "react-native";
+
+import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
+import { Button } from "@/platform/ui/button";
+import { ProgramTile } from "@/training/programs/program-row";
+import type { useActiveProgram } from "@/training/programs/use-active-program";
+import { slotTitle } from "@/training/rotation/rotation-row";
+import { WorkoutTile } from "@/training/shared/workout-tile";
+
+import { CycleStrip } from "./cycle-strip";
+import { useSlotDay } from "./use-slot-day";
+
+const COVER = 64;
+const NEXT_TILE = 44;
+
+/**
+ * The active Run at the top of Train: the Program's cover and name, "Week 3 of 12" with a place
+ * for the phase chip of a Run that has Phases, the cycle strip (tap a day to start it or skip it
+ * for this Cycle) and one Start for the next Workout. Tapping the heading opens the Program.
+ */
+export function RunHero({
+  state,
+  onOpen,
+  onStart,
+  startSecondary,
+  phaseChip,
+}: {
+  state: ReturnType<typeof useActiveProgram>;
+  onOpen: (programId: string) => void;
+  onStart: (workoutId: string, day: RunSlot) => void;
+  /** A Session is in progress: Start is quiet so Resume stays the one primary action. */
+  startSecondary: boolean;
+  /** The chip of the Run's current Phase, beside the week; absent until Phases exist. */
+  phaseChip?: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const subtle = useSubtleColor();
+  const onAction = useThemeColor("accent-foreground");
+  const { program, run, progress, week } = state;
+  const day = useSlotDay({
+    runId: run?.id ?? null,
+    progress,
+    onStart,
+    onSkip: state.skip,
+    onUnskip: state.unskip,
+  });
+  if (!program || !run) return null;
+  const next = program.slots.find((slot) => slot.id === progress.next?.id);
+  const weekText = program.plannedWeeks
+    ? t("run__week_of", { week, total: program.plannedWeeks })
+    : t("run__week", { week });
+  const nextTitle = next?.workoutId ? slotTitle(next, t) : null;
+  return (
+    <View className="gap-4 rounded-xl bg-surface p-3.5">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${program.title}, ${weekText}`}
+        onPress={() => onOpen(program.id)}
+        className="flex-row items-center gap-3 rounded-xl active:opacity-70"
+      >
+        <ProgramTile title={program.title} size={COVER} coverMediaId={program.coverMediaId} />
+        <View className="min-w-0 flex-1 gap-0.5">
+          <Text className="text-caption font-medium text-muted">{t("run__active")}</Text>
+          <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
+            {program.title}
+          </Text>
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text numberOfLines={1} className="font-normal text-caption tabular-nums text-muted">
+              {weekText}
+            </Text>
+            {phaseChip}
+          </View>
+        </View>
+      </Pressable>
+      <View className="gap-1">
+        <Text className="font-normal text-caption tabular-nums text-muted">
+          {t("run__cycle", { cycle: progress.cycle })}
+        </Text>
+        <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
+      </View>
+      {next?.workoutId && nextTitle ? (
+        <View className="gap-3">
+          <View className="flex-row items-center gap-3">
+            {next.workout ? (
+              <WorkoutTile
+                title={nextTitle}
+                size={NEXT_TILE}
+                coverMediaId={next.workout.coverMediaId}
+                exercises={next.workout.exercises}
+              />
+            ) : null}
+            <View className="min-w-0 flex-1">
+              <Text className="font-normal text-caption text-muted">{t("run__up_next")}</Text>
+              <Text numberOfLines={1} className="font-medium text-body text-foreground">
+                {nextTitle}
+              </Text>
+            </View>
+          </View>
+          <Button
+            size="lg"
+            variant={startSecondary ? "secondary" : "primary"}
+            className="h-14 w-full"
+            onPress={() => {
+              if (next.workoutId)
+                onStart(next.workoutId, { runId: run.id, slotId: next.id, cycle: progress.cycle });
+            }}
+          >
+            <Play size={20} color={startSecondary ? subtle : onAction} />
+            <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>
+          </Button>
+        </View>
+      ) : null}
+      {day.sheet}
+    </View>
+  );
+}

@@ -25,6 +25,20 @@ export function PlanMap({ loads, width }: { loads: MuscleLoad[]; width: number }
   );
 }
 
+function WorkoutCardCover({ mediaId, fallback }: { mediaId: string; fallback: React.ReactNode }) {
+  const settle = useImageSettle();
+  return (
+    <MediaImage
+      mediaId={mediaId}
+      variant="full"
+      localOnly
+      size={200}
+      fallback={fallback}
+      onSettled={settle}
+    />
+  );
+}
+
 export function WorkoutCard({
   workout,
   label,
@@ -48,6 +62,7 @@ export function WorkoutCard({
   const rows = cardRows(workout.exercises);
   const compact = rows.items.length > 9;
   const height = compact ? 82 : rows.items.length > 6 ? 106 : 142;
+  const map = <PlanMap loads={planLoads([workout])} width={200} />;
   const working = workout.exercises.reduce((sum, entry) => sum + setCounts(entry.sets).working, 0);
   return (
     <View style={{ flex: 1 }}>
@@ -85,7 +100,11 @@ export function WorkoutCard({
             {t("share__plan_minutes", { minutes: estimateMinutes(workout.exercises) })}
           </CardText>
         </View>
-        <PlanMap loads={planLoads([workout])} width={200} />
+        {workout.coverMediaId ? (
+          <WorkoutCardCover mediaId={workout.coverMediaId} fallback={map} />
+        ) : (
+          map
+        )}
       </View>
       <View style={{ borderTopWidth: 2, borderTopColor: palette.hairline }}>
         {rows.items.map(({ entry, place }) => {

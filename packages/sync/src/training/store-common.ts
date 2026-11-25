@@ -48,6 +48,7 @@ export class TrainingLimitError extends Error {
 /** Columns of the training tables the server accepts in an upload; the rest are local only. */
 export const trainingUploadColumns = {
   session_photo: new Set(["session_id", "media_id", "position", "restore"]),
+  program_slot_skip: new Set(["run_id", "slot_id", "cycle"]),
   program_run: new Set([
     "program_id",
     "activated_at",
@@ -64,7 +65,7 @@ export const trainingUploadColumns = {
     "cover_media_id",
     "restore",
   ]),
-  workout: new Set(["program_id", "title", "note", "restore"]),
+  workout: new Set(["program_id", "title", "note", "cover_media_id", "restore"]),
   workout_exercise: new Set([
     "workout_id",
     "exercise_id",

@@ -41,6 +41,8 @@ async function copyWorkoutRows(
     program_id: programId,
     title: source.title,
     note: source.note,
+    // The copy keeps the cover: both point at the same media.
+    cover_media_id: source.cover_media_id,
     created_at: context.created,
   });
   const exercises = await tx

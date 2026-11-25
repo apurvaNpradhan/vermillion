@@ -8,7 +8,9 @@ import {
   removeSessionPhoto,
   moveSessionPhoto,
   createProgram,
-  deleteMedia,
+  copyWorkout,
+  createWorkout,
+  setWorkoutCoverToNewMedia,
   powerSyncSchema,
   setProgramCover,
   setProgramCoverToNewMedia,
@@ -153,7 +155,7 @@ describe("user media sync", () => {
     expect(await mediaIds(b)).toEqual([]);
   });
 
-  it("replicates replacing a cover: the old media leaves the other device", async () => {
+  it("replicates replacing a cover and retains its previous media for offline copies", async () => {
     const user = await createUser();
     const [a, b] = [await device(user), await device(user)];
     const programId = await createProgram(a.database, programInput);
@@ -162,18 +164,16 @@ describe("user media sync", () => {
     await vi.waitFor(async () => expect(await mediaIds(b)).toEqual([first.mediaId]), within);
 
     const second = await setProgramCoverToNewMedia(a.database, programId, image);
-    expect(second.replaced).toBe(first.mediaId);
     await a.uploaded();
     await vi.waitFor(async () => {
-      expect(await mediaIds(b)).toEqual([second.mediaId]);
+      expect(await mediaIds(b)).toEqual([first.mediaId, second.mediaId].sort());
       expect(
         await b.database.get("SELECT cover_media_id FROM program WHERE id = ?", [programId]),
       ).toMatchObject({ cover_media_id: second.mediaId });
     }, within);
 
-    // The server soft-deleted the first one; its objects are removed by the purge job.
     const old = await database.query("SELECT deleted_at FROM media WHERE id = $1", [first.mediaId]);
-    expect(old.rows[0]?.deleted_at).not.toBeNull();
+    expect(old.rows[0]?.deleted_at).toBeNull();
   });
 
   it("replicates a cover picked offline once the device reconnects", async () => {
@@ -197,7 +197,7 @@ describe("user media sync", () => {
     await vi.waitFor(async () => expect(await mediaIds(b)).toEqual([mediaId]), within);
   });
 
-  it("replicates a delete, and removing the cover clears the reference", async () => {
+  it("replicates clearing a cover without deleting the media", async () => {
     const user = await createUser();
     const [a, b] = [await device(user), await device(user)];
     const programId = await createProgram(a.database, programInput);
@@ -205,20 +205,52 @@ describe("user media sync", () => {
     await a.uploaded();
     await vi.waitFor(async () => expect(await mediaIds(b)).toEqual([mediaId]), within);
 
-    expect(await setProgramCover(a.database, programId, null)).toBe(mediaId);
+    expect(await setProgramCover(a.database, programId, null)).toBe(true);
     await a.uploaded();
     await vi.waitFor(async () => {
-      expect(await mediaIds(b)).toEqual([]);
+      expect(await mediaIds(b)).toEqual([mediaId]);
       expect(
         await b.database.get("SELECT cover_media_id FROM program WHERE id = ?", [programId]),
       ).toMatchObject({ cover_media_id: null });
     }, within);
     const row = await database.query("SELECT deleted_at FROM media WHERE id = $1", [mediaId]);
-    expect(row.rows[0]?.deleted_at).not.toBeNull();
-
-    // Deleting a media that is already gone does nothing.
-    expect(await deleteMedia(a.database, mediaId)).toBe(false);
+    expect(row.rows[0]?.deleted_at).toBeNull();
   });
+
+  it.each(["copy-first", "replace-first"])(
+    "retains the offline Workout copy's cover in either upload order (%s)",
+    async (order) => {
+      const user = await createUser();
+      const [a, b] = [await device(user), await device(user)];
+      const original = await createWorkout(a.database, { title: "Original" });
+      const { mediaId: old } = await setWorkoutCoverToNewMedia(a.database, original, image);
+      await a.uploaded();
+      const coverOf = (client: SyncClient, id: string) =>
+        client.database.getOptional("SELECT cover_media_id FROM workout WHERE id = ?", [id]);
+      await vi.waitFor(
+        async () => expect(await coverOf(b, original)).toMatchObject({ cover_media_id: old }),
+        within,
+      );
+
+      await Promise.all([a.database.disconnect(), b.database.disconnect()]);
+      const { mediaId: next } = await setWorkoutCoverToNewMedia(a.database, original, image);
+      const copy = await copyWorkout(b.database, original, null);
+      const devices = order === "copy-first" ? [b, a] : [a, b];
+      for (const client of devices) {
+        await client.connect();
+        await client.uploaded();
+        expect(
+          [...client.outcomes().values()].every((outcome) => outcome.status === "applied"),
+        ).toBe(true);
+      }
+      await vi.waitFor(async () => {
+        expect(await coverOf(a, copy)).toMatchObject({ cover_media_id: old });
+        expect(await coverOf(b, original)).toMatchObject({ cover_media_id: next });
+        expect(await mediaIds(a)).toEqual([old, next].sort());
+        expect(await mediaIds(b)).toEqual([old, next].sort());
+      }, within);
+    },
+  );
 
   it("refuses another user's media as a cover and a write against their media row", async () => {
     const [alice, bob] = [await createUser(), await createUser()];

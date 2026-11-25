@@ -32,6 +32,7 @@ export const workout = sqliteTable(
     program_id: text("program_id"),
     title: text("title"),
     note: text("note"),
+    cover_media_id: text("cover_media_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -122,9 +123,10 @@ export const session = sqliteTable(
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
+    index("session_workout_started_idx").on(table.workout_id, table.started_at, table.id),
     index("session_import_batch_idx").on(table.import_batch_id, table.id),
     index("session_import_fingerprint_idx").on(table.import_fingerprint),
-    index("session_run_id_idx").on(table.run_id),
+    index("session_run_id_idx").on(table.run_id, table.started_at, table.id),
     index("session_finished_at_idx").on(table.finished_at),
   ],
 );
@@ -241,6 +243,20 @@ export const programRun = sqliteTable(
     index("program_run_program_id_idx").on(table.program_id),
     index("program_run_activated_at_idx").on(table.activated_at),
   ],
+);
+
+/** A Slot left out of one Cycle of a Run; counts as done for that Cycle (`cycleState`). */
+export const programSlotSkip = sqliteTable(
+  "program_slot_skip",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    run_id: text("run_id").notNull(),
+    slot_id: text("slot_id").notNull(),
+    cycle: integer("cycle").notNull(),
+    created_at: text("created_at").notNull(),
+  },
+  (table) => [index("program_slot_skip_run_idx").on(table.run_id, table.cycle)],
 );
 
 export const sessionPhoto = sqliteTable(

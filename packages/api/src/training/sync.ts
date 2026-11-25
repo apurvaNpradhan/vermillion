@@ -1,4 +1,5 @@
 import { runSyncHandler } from "./run-sync";
+import { programSlotSkipSyncHandler } from "./skip-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
   plannedSetsSchema,
@@ -12,7 +13,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { assertMediaReference } from "../media/index";
+import { resolveCover } from "./cover-cleanup";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import {
   countSlotsDeletedWith,
@@ -66,19 +67,6 @@ const putProgram = z.strictObject({
 });
 const patchProgram = programInput.partial().extend({ cover_media_id: coverMediaId.optional() });
 
-/** A new or changed cover must be the writer's own live program-cover media. */
-async function assertCover(
-  db: DbExecutor,
-  userId: string,
-  coverId: string | null,
-  current: string | null,
-) {
-  if (coverId === null) return;
-  await assertMediaReference(db, userId, coverId, "program_cover", {
-    unchanged: coverId === current,
-  });
-}
-
 async function updateProgram(
   db: DbExecutor,
   id: string,
@@ -117,7 +105,14 @@ const programSyncHandler: SyncTableHandler = {
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         assertRoom(await countLivePrograms(db, userId, id), 1, TRAINING_LIMITS.livePrograms);
-        await assertCover(db, userId, values.cover_media_id, null);
+        const cover = await resolveCover(
+          db,
+          userId,
+          values.cover_media_id,
+          null,
+          "program_cover",
+          true,
+        );
         await db.insert(program).values({
           id,
           userId,
@@ -125,11 +120,17 @@ const programSyncHandler: SyncTableHandler = {
           description: values.description,
           plannedWeeks: values.planned_weeks,
           sessionsPerWeek: values.sessions_per_week,
-          coverMediaId: values.cover_media_id,
+          coverMediaId: cover,
         });
         return;
       }
-      await assertCover(db, userId, values.cover_media_id, found.row.coverMediaId);
+      const cover = await resolveCover(
+        db,
+        userId,
+        values.cover_media_id,
+        found.row.coverMediaId,
+        "program_cover",
+      );
       const deletedAt = found.row.deletedAt;
       if (deletedAt !== null) {
         // Putting a deleted row again is the Undo of a delete: it brings back what that delete took.
@@ -138,7 +139,7 @@ const programSyncHandler: SyncTableHandler = {
         assertRoom(await countLiveWorkouts(db, userId, id), workouts, TRAINING_LIMITS.liveWorkouts);
         await restoreProgramCascade(db, id, deletedAt, now());
       }
-      await updateProgram(db, id, values);
+      await updateProgram(db, id, { ...values, cover_media_id: cover });
       return;
     }
 
@@ -153,7 +154,8 @@ const programSyncHandler: SyncTableHandler = {
         ...patch,
       }),
     );
-    if (cover !== undefined) await assertCover(db, userId, cover, row.coverMediaId);
+    if (cover !== undefined)
+      await resolveCover(db, userId, cover, row.coverMediaId, "program_cover");
     await updateProgram(db, id, {
       ...merged,
       ...(cover !== undefined ? { cover_media_id: cover } : {}),
@@ -169,9 +171,13 @@ const putWorkout = z.strictObject({
   program_id: workoutInput.shape.program_id.default(null),
   title: workoutInput.shape.title.default(null),
   note: workoutInput.shape.note.default(null),
+  cover_media_id: coverMediaId.optional(),
 });
 // A Workout never changes Program: "add to program" copies.
-const patchWorkout = workoutInput.omit({ program_id: true }).partial();
+const patchWorkout = workoutInput
+  .omit({ program_id: true })
+  .partial()
+  .extend({ cover_media_id: coverMediaId.optional() });
 
 /** The Program a Workout would belong to must be the writer's own and live. */
 async function assertProgramOpen(db: DbExecutor, userId: string, programId: string | null) {
@@ -202,16 +208,35 @@ const workoutSyncHandler: SyncTableHandler = {
         accept(newRowId.safeParse(id));
         await assertProgramOpen(db, userId, values.program_id);
         assertRoom(await countLiveWorkouts(db, userId, id), 1, TRAINING_LIMITS.liveWorkouts);
+        const cover = await resolveCover(
+          db,
+          userId,
+          values.cover_media_id ?? null,
+          null,
+          "workout_cover",
+          true,
+        );
         await db.insert(workout).values({
           id,
           userId,
           programId: values.program_id,
           title: values.title,
           note: values.note,
+          coverMediaId: cover,
         });
         return;
       }
       if (found.row.programId !== values.program_id) return invalid();
+      const cover =
+        values.cover_media_id === undefined && found.row.deletedAt === null
+          ? undefined
+          : await resolveCover(
+              db,
+              userId,
+              values.cover_media_id === undefined ? found.row.coverMediaId : values.cover_media_id,
+              found.row.coverMediaId,
+              "workout_cover",
+            );
       const deletedAt = found.row.deletedAt;
       if (deletedAt !== null) {
         await assertProgramOpen(db, userId, values.program_id);
@@ -225,18 +250,27 @@ const workoutSyncHandler: SyncTableHandler = {
       }
       await db
         .update(workout)
-        .set({ title: values.title, note: values.note, updatedAt: now() })
+        .set({
+          title: values.title,
+          note: values.note,
+          coverMediaId: cover,
+          updatedAt: now(),
+        })
         .where(eq(workout.id, id));
       return;
     }
 
-    liveRow(found);
+    const row = liveRow(found);
     const patch = accept(patchWorkout.safeParse(op.opData ?? {}));
+    if (patch.cover_media_id !== undefined) {
+      await resolveCover(db, userId, patch.cover_media_id, row.coverMediaId, "workout_cover");
+    }
     await db
       .update(workout)
       .set({
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.cover_media_id !== undefined ? { coverMediaId: patch.cover_media_id } : {}),
         updatedAt: now(),
       })
       .where(eq(workout.id, id));
@@ -483,6 +517,7 @@ const programSlotSyncHandler: SyncTableHandler = {
  */
 export const trainingSyncHandlers: readonly SyncTableHandler[] = [
   runSyncHandler,
+  programSlotSkipSyncHandler,
   programSyncHandler,
   workoutSyncHandler,
   workoutExerciseSyncHandler,
