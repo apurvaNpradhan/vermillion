@@ -35,7 +35,7 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 
 Deleting a gym uploads one write, the gym row: its kit and settings can number more than one upload may hold (`SYNC_LIMITS.maxOps`), so the server's `deleteGymCascade` soft-deletes them, and local readers (the kit and settings queries, seeding, the kit copy) ignore rows whose gym is gone until that sync arrives. Making a gym copies the active gym's kit in transactions of at most `maxOps` rows, the gym with the first of them; a copy cut short leaves a gym with part of the kit.
 
-A `gym_exercise_setting` id is `gymExerciseSettingId({ userId, gymId, exerciseId })` (UUIDv5, a fixed namespace, in `packages/shared`), not a UUIDv7: two devices that each create the setting offline make the same row, so a later PATCH or DELETE from either finds it. Its PUT is an upsert (it revives a deleted row too, and merges into a live one: a non-empty range list or note replaces the stored one, clearing is a PATCH). `exercise_setting` has the same pre-existing two-device race (one row per exercise, random ids) and is left as is.
+From the first release, every `gym_exercise_setting` row requires the UUIDv5 id from `gymExerciseSettingId({ userId, gymId, exerciseId })` in `packages/shared`. Two devices that create the setting offline make the same row, so a later PATCH or DELETE from either finds it. Its PUT is an upsert (it revives a deleted row too, and merges into a live one: a non-empty range list or note replaces the stored one, clearing is a PATCH). `exercise_setting` has the same pre-existing two-device race (one row per exercise, random ids) and is left as is.
 
 ## Commands
 

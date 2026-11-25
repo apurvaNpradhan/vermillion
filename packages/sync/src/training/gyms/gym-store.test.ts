@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { savePreferences } from "../../preferences";
 import { write } from "../store-common";
+import { watchEquipment } from "../watch";
 import { startSession } from "../sessions/session-store";
 import { seedEquipment, upsertEquipment } from "../sessions/equipment-store";
 import {
@@ -134,7 +135,28 @@ describe("kit and gyms", () => {
       { setup_note: "Seat 4" },
       s.installId,
     );
-    expect(await deleteGym(s.training, garage, s.installId)).toBe(true);
+    const onEquipment = vi.fn();
+    const stop = watchEquipment(
+      s.training,
+      {
+        onEquipment,
+        onError: (error) => {
+          throw error;
+        },
+      },
+      {
+        gymId: garage,
+        unassigned: false,
+      },
+    );
+    try {
+      expect(onEquipment).toHaveBeenLastCalledWith([expect.objectContaining({ weightKg: 15 })]);
+      expect(await deleteGym(s.training, garage, s.installId)).toBe(true);
+      s.notifyTable("gym");
+      expect(onEquipment).toHaveBeenLastCalledWith([]);
+    } finally {
+      stop();
+    }
     expect(s.all("gym").map((row) => row["id"])).toEqual([HOME]);
     // The server takes the kit and settings down with the gym; a delete here is one write.
     expect(s.all("gym_equipment")).toHaveLength(1);

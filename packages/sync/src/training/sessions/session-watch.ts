@@ -866,6 +866,7 @@ export type EquipmentRow = {
  * The kit of one gym. Two placeholders: the gym id, and "1" when rows with no gym (written before
  * gyms existed) belong to it too, which they do for the default gym. The kit of a gym that was
  * deleted is not read, even while its rows wait on the device for the server to take them.
+ * A watch of this query depends on both gym_equipment and gym.
  */
 export const EQUIPMENT_SQL = `SELECT id, kind, weight_kg, unit, label, count, enabled FROM gym_equipment
   WHERE (gym_id = ? AND EXISTS (SELECT 1 FROM gym WHERE gym.id = gym_equipment.gym_id))

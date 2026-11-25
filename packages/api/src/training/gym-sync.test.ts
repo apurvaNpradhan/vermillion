@@ -324,29 +324,29 @@ describe("gym upload handlers", () => {
     expect(JSON.parse(String((await stored("gym_exercise_setting", id))?.load_ranges))).toEqual([]);
   });
 
-  it("refuses a new setting under an id that is not its own, and keeps one an older app made", async () => {
-    const me = await writer("gym-setting-legacy@example.com");
-    const other = await writer("gym-setting-legacy-other@example.com");
+  it("rejects a non-derived id even when the exercise already has a setting", async () => {
+    const me = await writer("gym-setting-id@example.com");
     const first = await defaultGym(me);
-    expect(await me.send([putSetting(uuidv7(), first)])).toMatchObject(rejected("SYNC_INVALID_OP"));
     const id = settingId(me, first);
-    // Nobody writes into another user's setting by sending its id.
+    const wrong = uuidv7();
+    expect(await me.send([putSetting(wrong, first)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([putSetting(id, first)])).toEqual(applied);
+    expect(await me.send([putSetting(wrong, first, { setup_note: "Wrong" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(await stored("gym_exercise_setting", wrong)).toBeUndefined();
+    expect(await stored("gym_exercise_setting", id)).toMatchObject({ setup_note: "Seat 4" });
+  });
+
+  it("refuses PUT on another user's setting id", async () => {
+    const me = await writer("gym-setting-put-owner@example.com");
+    const other = await writer("gym-setting-put-other@example.com");
+    const first = await defaultGym(me);
+    const id = settingId(me, first);
     expect(await me.send([putSetting(id, first)])).toEqual(applied);
     expect(await other.send([putSetting(id, await defaultGym(other))])).toMatchObject(
       rejected("SYNC_ID_CONFLICT"),
     );
-    // A row made under a random id by an earlier build stays the one live row.
-    const legacy = uuidv7();
-    const garage = uuidv7();
-    expect(await me.send([putGym(garage, "Garage")])).toEqual(applied);
-    await app.rows(
-      sql`INSERT INTO gym_exercise_setting (id, user_id, gym_id, exercise_id, load_ranges, setup_note) VALUES (${legacy}, ${me.userId}, ${garage}, ${exerciseId}, '[]'::jsonb, 'Old')`,
-    );
-    expect(
-      await me.send([putSetting(settingId(me, garage), garage, { setup_note: "New" })]),
-    ).toEqual(applied);
-    expect(await stored("gym_exercise_setting", legacy)).toMatchObject({ setup_note: "New" });
-    expect(await stored("gym_exercise_setting", settingId(me, garage))).toBeUndefined();
   });
 
   it.each([
@@ -370,7 +370,7 @@ describe("gym upload handlers", () => {
   ])("refuses $name", async ({ load_ranges }) => {
     const me = await writer(`gym-bad-${Math.random().toString(36).slice(2)}@example.com`);
     const first = await defaultGym(me);
-    expect(await me.send([putSetting(uuidv7(), first, { load_ranges })])).toMatchObject(
+    expect(await me.send([putSetting(settingId(me, first), first, { load_ranges })])).toMatchObject(
       rejected("SYNC_INVALID_OP"),
     );
   });
@@ -404,12 +404,13 @@ describe("gym upload handlers", () => {
     const other = await writer("gym-setting-other@example.com");
     const first = await defaultGym(me);
     const theirs = await defaultGym(other);
-    expect(await me.send([putSetting(uuidv7(), theirs)])).toMatchObject(
+    expect(await me.send([putSetting(settingId(me, theirs), theirs)])).toMatchObject(
       rejected("SESSION_PARENT_NOT_FOUND"),
     );
-    expect(await me.send([putSetting(uuidv7(), first, { exercise_id: uuidv7() })])).toMatchObject(
-      rejected("SESSION_PARENT_NOT_FOUND"),
-    );
+    const missing = uuidv7();
+    expect(
+      await me.send([putSetting(settingId(me, first, missing), first, { exercise_id: missing })]),
+    ).toMatchObject(rejected("SESSION_PARENT_NOT_FOUND"));
     const id = settingId(me, first);
     expect(await me.send([putSetting(id, first)])).toEqual(applied);
     const garage = uuidv7();

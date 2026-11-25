@@ -4,8 +4,7 @@ import {
   gymInput,
   loadRangesSchema,
 } from "@workspace/shared";
-import type { DbExecutor } from "@workspace/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -108,22 +107,6 @@ const patchSetting = z
   })
   .partial();
 
-async function liveSettingOf(db: DbExecutor, userId: string, gymId: string, exerciseId: string) {
-  const [row] = await db
-    .select()
-    .from(gymExerciseSetting)
-    .where(
-      and(
-        eq(gymExerciseSetting.userId, userId),
-        eq(gymExerciseSetting.gymId, gymId),
-        eq(gymExerciseSetting.exerciseId, exerciseId),
-        isNull(gymExerciseSetting.deletedAt),
-      ),
-    )
-    .limit(1);
-  return row;
-}
-
 const gymExerciseSettingSyncHandler: SyncTableHandler = {
   table: "gym_exercise_setting",
   async apply(db, userId, op) {
@@ -157,6 +140,12 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
         }),
       );
       if (
+        id !==
+        gymExerciseSettingId({ userId, gymId: values.gym_id, exerciseId: values.exercise_id })
+      ) {
+        return invalid();
+      }
+      if (
         found.kind === "own" &&
         (found.row.gymId !== values.gym_id || found.row.exerciseId !== values.exercise_id)
       )
@@ -167,11 +156,10 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
       if (!(await visibleExerciseType(db, userId, values.exercise_id))) {
         throw new SyncRejection("SESSION_PARENT_NOT_FOUND");
       }
-      const existing = await liveSettingOf(db, userId, values.gym_id, values.exercise_id);
       // Two devices that each create the setting offline send the same id. The later PUT meets a
       // live row and adds what it holds: a range list or a note the first did not have. Clearing a
       // field is a PATCH, which the creating device can send once its row exists.
-      if (existing) {
+      if (found.kind === "own" && found.row.deletedAt === null) {
         await db
           .update(gymExerciseSetting)
           .set({
@@ -179,7 +167,7 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
             ...(values.setup_note !== null ? { setupNote: values.setup_note } : {}),
             updatedAt: now(),
           })
-          .where(eq(gymExerciseSetting.id, existing.id));
+          .where(eq(gymExerciseSetting.id, id));
         return;
       }
       // A setting that was deleted comes back under its own id with exactly these values.
@@ -194,13 +182,6 @@ const gymExerciseSettingSyncHandler: SyncTableHandler = {
           })
           .where(eq(gymExerciseSetting.id, id));
         return;
-      }
-      // A new setting has the one id its user, gym and exercise make.
-      if (
-        id !==
-        gymExerciseSettingId({ userId, gymId: values.gym_id, exerciseId: values.exercise_id })
-      ) {
-        invalid();
       }
       await db.insert(gymExerciseSetting).values({
         id,

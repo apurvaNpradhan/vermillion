@@ -980,7 +980,7 @@ export function watchEquipment(
     database,
     EQUIPMENT_SQL,
     [gym.gymId ?? "", gym.unassigned ? "1" : "0"],
-    ["gym_equipment"],
+    ["gym_equipment", "gym"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
     handlers.onError,
   );
