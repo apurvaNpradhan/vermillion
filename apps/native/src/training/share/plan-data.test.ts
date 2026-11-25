@@ -29,6 +29,7 @@ const workout: WorkoutDetail = {
   title: "Push",
   note: null,
   coverMediaId: null,
+  mainEntryId: null,
   exercises: [entry("a")],
 };
 

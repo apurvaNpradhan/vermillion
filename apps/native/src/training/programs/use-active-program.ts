@@ -1,4 +1,4 @@
-import { activeRun, cycleState, runWeek } from "@workspace/shared";
+import { activeRun, cycleState, phaseFor, runWeek } from "@workspace/shared";
 import {
   activateProgram,
   finishRun,
@@ -132,13 +132,28 @@ export function useActiveProgram() {
     },
     [write, writeScope, t, toast, unskip],
   );
-  const week = runWeek(run?.started_at ?? null, new Date(), timeZone);
+  const now = new Date();
+  const week = runWeek(run?.started_at ?? null, now, timeZone);
+  // The phase of this Run week, from the Program's pattern and the Deload weeks inserted into the Run.
+  const phase = phaseFor(
+    program?.phasePlan ?? null,
+    run ? { started_at: run.started_at, inserted_deloads: run.inserted_deloads } : null,
+    now,
+    timeZone,
+  );
+  /** Weeks to show as the Run's length: the planned weeks, and one more per inserted Deload. */
+  const totalWeeks =
+    program?.plannedWeeks == null
+      ? null
+      : program.plannedWeeks + (run?.inserted_deloads.length ?? 0);
   return {
     run,
     runProgramId,
     program,
     progress,
     week,
+    totalWeeks,
+    phase,
     loading,
     // The Run is known and, if there is one, so is its Program: the card can draw at once.
     ready: !loading && (run === null || detail.status !== "loading"),

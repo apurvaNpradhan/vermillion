@@ -20,6 +20,8 @@ export type SuggestionSettings = {
   lighterWeeks?: readonly LighterPeriod[];
   /** The stalled-lift deload was applied to this exercise. */
   deload?: boolean;
+  /** The share of the last load this week's phase asks for (0.9 in a Deload); 1 or absent: none. */
+  phaseLoad?: number;
   /** History selected by the Previous source preference, before applying the gym preference. */
   baselineHistory?: readonly SessionHistory[];
   /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
@@ -55,6 +57,7 @@ export function plannedSuggestion(
       baselineHistory: loggingHistory(history, exercise.equipment, settings),
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
+      phaseLoad: settings.phaseLoad,
       grid: settings.grid,
     },
   );

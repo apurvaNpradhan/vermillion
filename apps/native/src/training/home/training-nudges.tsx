@@ -16,6 +16,8 @@ import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
 import { sessionRecords, usePreviousSets, useRecordHistory } from "@/session";
 import { ANCHORED } from "@/platform/navigation/anchored";
+import { useInsertDeload } from "@/training/phases/use-insert-deload";
+import { useActiveProgram } from "@/training/programs/use-active-program";
 
 import { useHomeTraining } from "./use-home-training";
 
@@ -24,14 +26,18 @@ const RECORDS_DAYS = 7;
 const DAY_MS = 86_400_000;
 
 /**
- * Home's contextual cards, each only when it applies: a running Lighter week (a line with its end
- * date and "End now"), otherwise the Lighter week offer when several lifts trained this week have
- * stalled, or a note about the one or two that have; and the records of the last Session.
+ * Home's contextual cards, each only when it applies: a running Lighter week from before phases
+ * (a line with its end date and "End now"), otherwise the offer when several lifts trained this
+ * week have stalled (a Deload week inserted into the active Run, or a plain Lighter week when
+ * there is no Run), or a note about the one or two that have; and the records of the last Session.
  */
 export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTraining> }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
+  const program = useActiveProgram();
+  const run = program.run;
+  const insert = useInsertDeload(run);
   const now = new Date();
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
   const week = weekRange(now, state.timezone, state.weekStart);
@@ -73,25 +79,32 @@ export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTrai
   }
   if (!histories.ready) return records;
   const stalled = stalledExerciseIds(thisWeek, histories.history, { lighterWeeks });
-  const offer = offerLighterWeek({
-    stalledCount: stalled.length,
-    periods: lighterWeeks,
-    now,
-    dismissedAt: deloadCardDismissedAt,
-    weekStartMs: week.start,
-  });
+  // A week that is already a Deload needs no offer of one.
+  const offer =
+    program.phase?.phase !== "deload" &&
+    offerLighterWeek({
+      stalledCount: stalled.length,
+      periods: lighterWeeks,
+      now,
+      dismissedAt: deloadCardDismissedAt,
+      weekStartMs: week.start,
+    });
   const stalledId = stalled[0];
   return (
     <>
       {offer ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
-          <Text className="font-normal text-body text-foreground">{t("lighter__card_title")}</Text>
+          <Text className="font-normal text-body text-foreground">
+            {t(run ? "phase__offer_title" : "lighter__card_title")}
+          </Text>
           <View className="flex-row gap-3">
             <Button
               className="flex-1"
-              onPress={() => setUi(startLighterWeek(lighterWeeks, new Date()))}
+              onPress={() =>
+                run ? insert.ask() : setUi(startLighterWeek(lighterWeeks, new Date()))
+              }
             >
-              <Button.Label>{t("lighter__start")}</Button.Label>
+              <Button.Label>{t(run ? "phase__insert_week" : "lighter__start")}</Button.Label>
             </Button>
             <Button
               className="flex-1"
@@ -110,6 +123,7 @@ export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTrai
           }
         />
       ) : null}
+      {insert.dialog}
       {records}
     </>
   );

@@ -148,6 +148,7 @@ export const DEFAULT_INPUTS: DeriveInputs = {
   gym: { gymId: null, gridFor: () => null, settingFor: () => undefined },
   lighterWeeks: [],
   lighter: false,
+  phaseLoad: 1,
   bodyweightKg: null,
   stallVersion: 0,
   stallMemory: () => ({ dismissed: false, applied: false }),

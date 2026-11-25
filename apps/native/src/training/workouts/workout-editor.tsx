@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { TRAINING_LIMITS, supersetPlaces } from "@workspace/shared";
+import { TRAINING_LIMITS, mainEntryOf, supersetPlaces } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
 import {
@@ -14,6 +14,7 @@ import {
   Plus,
   PencilSimple,
   ShareNetwork,
+  Star,
   Swap,
   Trash,
   WarningCircle,
@@ -234,6 +235,12 @@ function LoadedEditor({
     rowIndex >= 0 &&
     rowIndex < workout.exercises.length - 1 &&
     (rowPlace === "none" || rowPlace === "last");
+  // The main lift is a Test week's one top set: the first exercise unless the user chose another.
+  const mainId = mainEntryOf(
+    workout.exercises.map((entry) => entry.id),
+    workout.mainEntryId,
+  );
+  const isMain = rowMenu !== null && rowMenu.id === mainId;
   const rowActions: SwipeAction[] = rowMenu
     ? [
         {
@@ -245,6 +252,16 @@ function LoadedEditor({
             onOpenExercise(rowMenu.id);
           },
         },
+        ...(isMain || !workout.exercises.some((entry) => entry.id === rowMenu.id)
+          ? []
+          : [
+              {
+                key: "main",
+                label: t("phase__make_main"),
+                icon: Star,
+                onPress: () => void actions.update(workout.id, { main_entry_id: rowMenu.id }),
+              },
+            ]),
         ...(canJoin
           ? [
               {

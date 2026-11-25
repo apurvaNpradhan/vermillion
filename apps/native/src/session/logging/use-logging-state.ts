@@ -1,6 +1,7 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
+  modifiersFor,
   type PreviousSource,
   type EffortScale,
   type Equipment,
@@ -128,6 +129,12 @@ export function useLoggingState({
   const shownDisplay = useStableValue(display);
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
   const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
+  // How much of the last load this Session's phase asks for (0.9 in a Deload, 1 otherwise).
+  const phaseLoad = useStore(store, (state) =>
+    state.session.phase === null
+      ? 1
+      : modifiersFor(state.session.phasePlan, state.session.phase).load,
+  );
   const badges = useCallback(
     (sets: readonly { kind: SetKind }[]) =>
       chipTexts(sets, {
@@ -154,6 +161,7 @@ export function useLoggingState({
       sessionGymId,
       lighterWeeks,
       lighter,
+      phaseLoad,
       bodyweightKg,
       stallVersion,
       stallMemory,
@@ -171,6 +179,7 @@ export function useLoggingState({
       sessionGymId,
       lighterWeeks,
       lighter,
+      phaseLoad,
       bodyweightKg,
       stallVersion,
       badges,

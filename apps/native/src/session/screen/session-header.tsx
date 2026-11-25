@@ -88,6 +88,7 @@ export function SessionHeader({
   onMinimise,
   onFinish,
   onOpenClock,
+  banner,
 }: {
   finished: boolean;
   onMenu: () => void;
@@ -107,6 +108,8 @@ export function SessionHeader({
   onFinish: () => void;
   /** Tapping the clock opens the workout clock sheet. */
   onOpenClock?: () => void;
+  /** What this week's phase did to the Workout, "Deload: sets halved, −10% load"; none if as planned. */
+  banner?: string | null;
 }) {
   const { t } = useTranslation();
   const { top } = useSafeAreaInsets();
@@ -154,6 +157,11 @@ export function SessionHeader({
           <OfflinePill />
         </View>
         <SessionGymChip sessionId={sessionId} gymId={gymId} readOnly={readOnly || finished} />
+        {banner ? (
+          <Text numberOfLines={1} className="font-normal text-caption text-muted">
+            {banner}
+          </Text>
+        ) : null}
       </View>
       <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
         <DotsThreeVertical size={24} color={foreground} />

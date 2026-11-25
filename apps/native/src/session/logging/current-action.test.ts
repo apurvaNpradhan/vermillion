@@ -68,6 +68,8 @@ const session = (
   programId: null,
   runId: null,
   slotId: null,
+  phase: null,
+  phasePlan: null,
   cycle: null,
   title: "Push",
   titleDerived: false,

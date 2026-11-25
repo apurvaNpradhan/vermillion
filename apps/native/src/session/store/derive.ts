@@ -43,6 +43,8 @@ export type DeriveInputs = {
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
+  /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
+  phaseLoad: number;
   bodyweightKg: number | null;
   /** Changes when a stalled note is dismissed or applied (that memory lives on the device). */
   stallVersion: number;
@@ -137,6 +139,7 @@ function buildView(
           grid,
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,
+          phaseLoad: inputs.phaseLoad,
         });
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
