@@ -130,9 +130,21 @@ export function phaseOfWeek(
 export type PhaseNow = PhaseWeek & { modifiers: PhaseModifiers; testTop: TestTop };
 
 /**
+ * What a Run with inserted Deload weeks but no plan of its own follows: Build every week, so
+ * "Insert deload week" works on a Program that has no phases.
+ */
+const BUILD_ONLY: PhasePlan = {
+  pattern: ["build"],
+  overrides: [],
+  modifiers: {},
+  test_top: "single",
+};
+
+/**
  * The phase running at `now` in a Run: the Run's calendar week (seven-day blocks from its first
  * Session, as {@link runWeek}) looked up in the Program's plan and the Run's inserted Deloads.
- * Null without a plan, or without a Run: phases belong to a Run.
+ * Null without a plan (unless the Run has inserted Deload weeks: the rest is then Build), or
+ * without a Run: phases belong to a Run.
  */
 export function phaseFor(
   plan: PhasePlan | null,
@@ -140,9 +152,21 @@ export function phaseFor(
   now: Date,
   timezone: string,
 ): PhaseNow | null {
-  if (!plan || !run) return null;
-  const found = phaseOfWeek(plan, runWeek(run.started_at, now, timezone), run.inserted_deloads);
-  return found && { ...found, modifiers: modifiersFor(plan, found.phase), testTop: plan.test_top };
+  if (!run) return null;
+  const effective = plan ?? (run.inserted_deloads.length > 0 ? BUILD_ONLY : null);
+  if (!effective) return null;
+  const found = phaseOfWeek(
+    effective,
+    runWeek(run.started_at, now, timezone),
+    run.inserted_deloads,
+  );
+  return (
+    found && {
+      ...found,
+      modifiers: modifiersFor(effective, found.phase),
+      testTop: effective.test_top,
+    }
+  );
 }
 
 /**
@@ -314,3 +338,60 @@ export function phaseEffects(
     top: phase === "test" ? testTop : null,
   };
 }
+
+// ---- Editing a plan: pure steps the Program page applies and stores ----
+
+/** Patterns offered as one tap; the Program page also edits a pattern week by week. */
+export const PATTERN_PRESETS = [
+  ["build", "build", "build", "deload"],
+  ["build", "build", "build", "build", "deload"],
+  ["build", "build", "push", "deload"],
+  ["build", "build", "build", "push", "deload"],
+] as const satisfies readonly (readonly Phase[])[];
+
+/** The plan with a new repeating pattern; the overrides and edits stay. No weeks is no plan. */
+export function withPattern(plan: PhasePlan | null, pattern: readonly Phase[]): PhasePlan | null {
+  const weeks = pattern.slice(0, PHASE_PATTERN_MAX);
+  if (weeks.length === 0) return null;
+  return { ...(plan ?? BUILD_ONLY), pattern: [...weeks] };
+}
+
+/**
+ * The plan with Program week `week` set to `phase`, or back to the pattern with null. An override
+ * equal to what the pattern gives is not stored.
+ */
+export function withWeekPhase(plan: PhasePlan, week: number, phase: Phase | null): PhasePlan {
+  const kept = plan.overrides.filter((item) => item.week !== week);
+  const patterned = plan.pattern[(week - 1) % plan.pattern.length];
+  const overrides =
+    phase === null || phase === patterned
+      ? kept
+      : [...kept, { week, phase }].sort((a, b) => a.week - b.week).slice(-PHASE_OVERRIDES_MAX);
+  return { ...plan, overrides };
+}
+
+/** The plan with `phase`'s modifiers edited; only what differs from the preset is stored. */
+export function withModifiers(
+  plan: PhasePlan,
+  phase: Phase,
+  modifiers: PhaseModifiers | null,
+): PhasePlan {
+  const preset = PHASE_PRESETS[phase];
+  const edits: Partial<PhaseModifiers> = {};
+  if (modifiers) {
+    if (modifiers.sets !== preset.sets) edits.sets = modifiers.sets;
+    if (modifiers.rpe !== preset.rpe) edits.rpe = modifiers.rpe;
+    if (modifiers.load !== preset.load) edits.load = modifiers.load;
+  }
+  const { [phase]: _removed, ...others } = plan.modifiers;
+  return {
+    ...plan,
+    modifiers: Object.keys(edits).length === 0 ? others : { ...others, [phase]: edits },
+  };
+}
+
+/** Every phase's intensity for the Program page's blocks: Deload lowest, Test tallest. */
+export const PHASE_INTENSITY = { deload: 1, build: 2, push: 3, test: 4 } as const satisfies Record<
+  Phase,
+  number
+>;

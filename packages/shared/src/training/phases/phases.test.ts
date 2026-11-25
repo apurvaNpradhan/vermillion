@@ -8,6 +8,7 @@ import { suggestNext, type ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
 import {
   PHASE_PRESETS,
+  PATTERN_PRESETS,
   applyPhase,
   insertDeload,
   insertedDeloadsSchema,
@@ -18,6 +19,9 @@ import {
   phaseFor,
   phaseOfWeek,
   phasePlanSchema,
+  withModifiers,
+  withPattern,
+  withWeekPhase,
   type Phase,
   type PhasePlan,
   type PhasePlanInput,
@@ -102,6 +106,14 @@ describe("phaseFor", () => {
     const run = { started_at: start, inserted_deloads: [] };
     expect(phaseFor(null, run, new Date(), "UTC")).toBeNull();
     expect(phaseFor(threeOne, null, new Date(), "UTC")).toBeNull();
+    expect(phaseFor(null, null, new Date(), "UTC")).toBeNull();
+  });
+
+  it("builds around an inserted deload on a Program with no plan", () => {
+    const run = { started_at: start, inserted_deloads: [2] };
+    expect(phaseFor(null, run, new Date("2026-11-09T12:00:00Z"), "UTC")?.phase).toBe("deload");
+    expect(phaseFor(null, run, new Date("2026-11-16T12:00:00Z"), "UTC")?.phase).toBe("build");
+    expect(phaseFor(null, run, new Date("2026-11-04T12:00:00Z"), "UTC")?.phase).toBe("build");
   });
 
   it("carries the plan's edited modifiers and the Test top set", () => {
@@ -489,5 +501,53 @@ describe("baseline exclusion", () => {
     expect(stalledSessions([flat(14, "test", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "deload", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "push", 140), ...build], "weight_reps")).toBe(0);
+  });
+});
+
+describe("editing a plan", () => {
+  it("sets a pattern, keeps the rest, and no weeks is no plan", () => {
+    const edited = plan({ pattern: ["build"], overrides: [{ week: 2, phase: "test" }] });
+    expect(withPattern(edited, ["build", "deload"])).toEqual({
+      ...edited,
+      pattern: ["build", "deload"],
+    });
+    expect(withPattern(null, ["push"])?.pattern).toEqual(["push"]);
+    expect(withPattern(edited, [])).toBeNull();
+    expect(withPattern(null, [])).toBeNull();
+  });
+
+  it("every preset pattern is a valid plan", () => {
+    for (const pattern of PATTERN_PRESETS)
+      expect(phasePlanSchema.safeParse({ pattern }).success).toBe(true);
+  });
+
+  it.each<[string, number, Phase | null, { week: number; phase: Phase }[]]>([
+    ["overrides a week", 2, "test", [{ week: 2, phase: "test" }]],
+    ["an override equal to the pattern is not stored", 4, "deload", []],
+    ["null goes back to the pattern", 2, null, []],
+  ])("%s", (_name, week, phase, expected) => {
+    expect(withWeekPhase(threeOne, week, phase).overrides).toEqual(expected);
+  });
+
+  it("replaces an earlier override of the same week and keeps weeks in order", () => {
+    let edited = withWeekPhase(threeOne, 6, "test");
+    edited = withWeekPhase(edited, 2, "push");
+    edited = withWeekPhase(edited, 6, "deload");
+    expect(edited.overrides).toEqual([
+      { week: 2, phase: "push" },
+      { week: 6, phase: "deload" },
+    ]);
+    expect(withWeekPhase(edited, 2, null).overrides).toEqual([{ week: 6, phase: "deload" }]);
+  });
+
+  it("stores only the modifiers that differ from the preset", () => {
+    const edited = withModifiers(threeOne, "deload", { sets: 0.5, rpe: -2, load: 0.85 });
+    expect(edited.modifiers).toEqual({ deload: { load: 0.85 } });
+    expect(withModifiers(edited, "deload", { ...PHASE_PRESETS.deload }).modifiers).toEqual({});
+    expect(withModifiers(edited, "deload", null).modifiers).toEqual({});
+    expect(withModifiers(edited, "push", { sets: 1, rpe: 1.5, load: 1 }).modifiers).toEqual({
+      deload: { load: 0.85 },
+      push: { rpe: 1.5 },
+    });
   });
 });

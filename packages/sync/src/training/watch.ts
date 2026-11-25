@@ -3,7 +3,6 @@ import {
   EQUIPMENT,
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
-  phasePlanSchema,
   plannedSetSchema,
   type Equipment,
   type ExerciseType,
@@ -45,6 +44,7 @@ import {
   type SessionDetail,
   type SessionSetCount,
 } from "./sessions/session-watch";
+import { parsePhasePlan } from "./plans/phase-plan";
 import type { TrainingDatabase } from "./store";
 
 const THROTTLE_MS = 150;
@@ -352,17 +352,6 @@ export function parseProgramList(rows: readonly object[]): ProgramSummary[] {
     if (row.slot_id !== null) current.slots.push({ id: row.slot_id, workoutId: row.workout_id });
   }
   return result;
-}
-
-/** A Program's phases from its JSON text; a plan this build cannot read counts as none. */
-export function parsePhasePlan(text: string | null | undefined): PhasePlan | null {
-  if (text == null) return null;
-  try {
-    const plan = phasePlanSchema.safeParse(JSON.parse(text));
-    return plan.success ? plan.data : null;
-  } catch {
-    return null;
-  }
 }
 
 const programDetailRowSchema = z.object({
