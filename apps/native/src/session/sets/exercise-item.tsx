@@ -1,5 +1,6 @@
 import {
   SESSION_LIMITS,
+  latestAdjustment,
   suggestionLedger,
   type SupersetPlace,
   resolveExerciseUnit,
@@ -31,16 +32,6 @@ import { SetGrid, type SetHandlers } from "./set-grid";
 /** A ticked set that loads the stack the way training does: anything but a warm-up. */
 function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
   return kind !== "warmup";
-}
-
-/** The rep range the Session's first working set was planned with. */
-function plannedRangeOf(exercise: SessionExerciseDetail) {
-  for (const set of exercise.sets) {
-    const min = set.target?.reps_min;
-    const max = set.target?.reps_max;
-    if (set.kind !== "warmup" && min !== undefined && max !== undefined) return { min, max };
-  }
-  return null;
 }
 
 /** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
@@ -132,7 +123,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         : null,
     [exercise, data.activeSessionId],
   );
-  const adjustment = exercise?.prescription?.adjustment ?? null;
+  const adjustment = latestAdjustment(exercise?.prescription);
   const adjustedNumber = adjustment
     ? (data.rows?.get(adjustment.setId)?.number ??
       (exercise?.sets.findIndex(({ id }) => id === adjustment.setId) ?? 0) + 1)
@@ -238,7 +229,7 @@ export const ExerciseItem = memo(function ExerciseItem({
                   unit={unit}
                 />
               ) : null}
-              {!readOnly && data.activeSessionId && data.gymId ? (
+              {!readOnly && data.activeSessionId ? (
                 <OverridePrompt
                   exerciseId={exercise.exerciseId}
                   sessionId={data.activeSessionId}
@@ -246,7 +237,6 @@ export const ExerciseItem = memo(function ExerciseItem({
                   equipment={equipment}
                   unit={unit}
                   workoutExerciseId={exercise.sourceWorkoutExerciseId}
-                  range={plannedRangeOf(exercise)}
                 />
               ) : null}
               <ExerciseBody

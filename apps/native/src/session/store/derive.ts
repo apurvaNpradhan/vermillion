@@ -227,6 +227,7 @@ function buildView(
               suggestion,
               capKg,
               (index) => rows.get(exercise.sets[index]?.id ?? "")?.ghosts ?? {},
+              inputs.sessionGymId ?? null,
             ),
           )
         : null,
@@ -338,6 +339,11 @@ export function deriveExercises(
   return next;
 }
 
+/**
+ * The suggestion as it would be made now, for the exercise's sets as they are: for a stall deload
+ * that was applied or lifted, and for a snapshot that went stale (the Session gym moved, a target
+ * or kind was edited, a set was added).
+ */
 export function stallPrescription(entry: ExerciseCache, applied: boolean) {
   return buildView(
     { ...entry.exercise, stallDeload: applied, prescription: null },
@@ -349,6 +355,11 @@ export function stallPrescription(entry: ExerciseCache, applied: boolean) {
     entry.duplicateEntry,
     undefined,
   ).prescriptionDraft;
+}
+
+/** What the suggestion would be now for an exercise that keeps its stall deload as it is. */
+export function freshPrescription(entry: ExerciseCache) {
+  return stallPrescription(entry, entry.exercise.stallDeload === true);
 }
 
 /** What a same-day adjustment needs to snap a load the way the suggestion did. */

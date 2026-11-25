@@ -1,10 +1,8 @@
-import type { Prescription } from "@workspace/shared";
+import type { Adjustment } from "@workspace/shared";
 import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-
-type Adjustment = NonNullable<Prescription["adjustment"]>;
 
 /**
  * One quiet line under an open exercise that says why its unticked targets moved: "Lighter: set 1

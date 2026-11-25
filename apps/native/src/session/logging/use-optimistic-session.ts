@@ -103,15 +103,20 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
   const updateValues = useCallback(
     (setId: string, patch: SetPatch) => {
       const value = previewValuePatch(patch);
+      const state = store.getState();
+      const at = state.found.get(setId);
+      const entry = at && state.cache.get(at.exercise.id);
+      // Correcting a ticked set reads its adjustment again, with the loads a tick uses.
+      const loads = entry && !entry.finished ? adjustmentLoadsOf(entry) : undefined;
       const { id, set } = addPreview(setId, value);
       return enqueueWrite(async () => {
-        const wrote = await actions.updateValues(setId, patch);
+        const wrote = await actions.updateValues(setId, patch, loads);
         settle(id, wrote ? { set } : undefined);
         // A patch that was already saved is safe to tick; a failed patch is not.
         return wrote !== null;
       });
     },
-    [actions.updateValues, addPreview, enqueueWrite, settle],
+    [actions.updateValues, addPreview, enqueueWrite, settle, store],
   );
 
   const tick = useCallback(

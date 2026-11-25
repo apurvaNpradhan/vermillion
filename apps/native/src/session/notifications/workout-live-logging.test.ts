@@ -1,4 +1,5 @@
 import { createI18n } from "@workspace/i18n";
+import { latestAdjustment } from "@workspace/shared";
 import {
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
@@ -121,7 +122,7 @@ it("lowers the unticked sets when Done logs a set that was typed short", async (
     await logWorkoutLiveSet(training, session, ghosts, installId, first.id, options, gym),
   ).toMatchObject({ ok: true, wrote: true });
   const prescription = (await read()).exercises[0]?.prescription;
-  expect(prescription?.adjustment).toMatchObject({ setId: first.id, reason: "reps_short" });
+  expect(latestAdjustment(prescription)).toMatchObject({ setId: first.id, reason: "reps_short" });
   const weights = prescription?.sets.map((set) => set.ghosts.weight);
   expect(weights?.[0]).toBe(80);
   expect(weights?.[1]).toBeLessThan(80);

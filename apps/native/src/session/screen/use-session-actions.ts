@@ -11,6 +11,7 @@ import {
   adjustRest,
   clearRest,
   capturePrescription,
+  revisePrescription,
   undoSessionAdjustment,
   discardSession,
   releaseSessionPhotos,
@@ -98,6 +99,13 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** A fresh suggestion for the unticked sets that went stale, and for sets added since. */
+  const reviseSnapshot = useCallback(
+    (id: string, draft: PrescriptionDraft, replace: readonly string[]) =>
+      write((db) => revisePrescription(db, id, draft, replace, writeScope), false),
+    [write, writeScope],
+  );
+
   const undoAdjustment = useCallback(
     (id: string) => write((db) => undoSessionAdjustment(db, id, writeScope), false),
     [write, writeScope],
@@ -122,9 +130,10 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** Edits a set; correcting a ticked one with `loads` also reads its adjustment again. */
   const updateValues = useCallback(
-    (setId: string, patch: SetPatch) =>
-      write((db) => updateSet(db, setId, patch, writeScope), null),
+    (setId: string, patch: SetPatch, loads?: AdjustmentLoads) =>
+      write((db) => updateSet(db, setId, patch, writeScope, loads), null),
     [write, writeScope],
   );
 
@@ -337,6 +346,7 @@ export function useSessionActions() {
     () => ({
       tick,
       savePrescription,
+      reviseSnapshot,
       undoAdjustment,
       nudgeRest,
       skipRest,
@@ -365,6 +375,7 @@ export function useSessionActions() {
     [
       tick,
       savePrescription,
+      reviseSnapshot,
       undoAdjustment,
       nudgeRest,
       skipRest,

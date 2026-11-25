@@ -1,16 +1,15 @@
 import {
   SET_FIELDS,
   activeLighterWeek,
+  progresses,
   resolveExerciseUnit,
   snapshotModifiers,
   type PreviousSource,
   type EffortScale,
-  type Equipment,
   type ExerciseBests,
   type Ghosts,
   type SetKind,
   type SetField,
-  type SetOutcome,
   type LighterPeriod,
   type WeightUnit,
   incrementInUnit,
@@ -48,15 +47,22 @@ import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { hasRequiredSetValues, historySettled } from "./history-gate";
+import { usePrescriptionRevisions } from "./use-prescription-revisions";
 import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
-import type { GymLoads } from "@/gym";
+import type { GymLoads, LoggedLoad } from "@/gym";
 import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
   ReturnType<typeof useOptimisticSession>,
-  "tick" | "savePrescription" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
+  | "tick"
+  | "savePrescription"
+  | "reviseSnapshot"
+  | "untick"
+  | "updateValues"
+  | "addExtraSet"
+  | "awaitWrites"
 >;
 
 /**
@@ -120,16 +126,7 @@ export function useLoggingState({
   onRestStarted?: () => void;
   sessionGymId: string | null;
   /** A working set was ticked: what it was logged at and what the Ghost value offered. */
-  onLoggedLoad?: (input: {
-    sessionId: string;
-    exerciseId: string;
-    equipment: Equipment;
-    suggestedKg: number;
-    loggedKg: number;
-    outcome: Pick<SetOutcome, "reason" | "changeKg"> | null;
-    loggedReps: number | null;
-    targetRepsMax: number | null;
-  }) => void;
+  onLoggedLoad?: (input: LoggedLoad) => void;
 }) {
   const { t } = useTranslation();
   const sound = useSoundCues();
@@ -231,6 +228,13 @@ export function useLoggingState({
       void savePrescription(id, view.prescriptionDraft).finally(() => capturing.current.delete(id));
     }
   }, [readOnly, historyReady, prescriptionReady, views, savePrescription]);
+  usePrescriptionRevisions({
+    store,
+    views,
+    readOnly,
+    ready: historyReady && prescriptionReady,
+    revise: actions.reviseSnapshot,
+  });
   const exercises = useStore(store, (state) => state.session.exercises);
   const finished = useStore(store, (state) => state.session.finishedAt !== null);
   const currentSetId = useStore(store, (state) => state.currentSetId);
@@ -551,13 +555,8 @@ export function useLoggingState({
         onRestStarted?.();
       const suggestedKg = used.weight ?? null;
       const loggedKg = latest.weightKg ?? suggestedKg;
-      if (
-        onLoggedLoad &&
-        state.session.finishedAt === null &&
-        at.set.kind === "working" &&
-        suggestedKg !== null &&
-        loggedKg !== null
-      )
+      if (onLoggedLoad && state.session.finishedAt === null && progresses(at.set.kind)) {
+        const loggedReps = latest.reps ?? used.reps ?? null;
         onLoggedLoad({
           sessionId: state.session.id,
           exerciseId: at.exercise.exerciseId,
@@ -565,9 +564,15 @@ export function useLoggingState({
           suggestedKg,
           loggedKg,
           outcome: at.exercise.prescription?.sets.find(({ id }) => id === setId)?.outcome ?? null,
-          loggedReps: latest.reps ?? used.reps ?? null,
-          targetRepsMax: at.set.target?.reps_max ?? null,
+          workoutExerciseId: at.exercise.sourceWorkoutExerciseId,
+          sets: at.exercise.sets.map((set) => ({
+            kind: set.kind,
+            completed: set.id === setId || set.completedAt !== null,
+            reps: set.id === setId ? loggedReps : set.reps,
+            target: set.target,
+          })),
         });
+      }
 
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;

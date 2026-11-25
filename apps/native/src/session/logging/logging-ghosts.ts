@@ -1,5 +1,6 @@
 import {
   gridCapInUnit,
+  setBasis,
   type Ghosts,
   type PrescriptionDraft,
   type Progression,
@@ -86,16 +87,31 @@ export function snapshotProgression(exercise: SessionExerciseDetail): Progressio
   };
 }
 
+/** What the exercise's sets are now, for comparing with its snapshot ({@link staleSets}). */
+export function currentSetsOf(exercise: SessionExerciseDetail) {
+  return exercise.sets.map((set) => ({
+    id: set.id,
+    basis: setBasis(set.kind, set.target),
+    completed: set.completedAt !== null,
+  }));
+}
+
+/**
+ * The snapshot to capture for an exercise: what each set is suggested, the reason and cap, the
+ * Session gym it was made for, and what each target was (so a later edit can be told apart).
+ */
 export function prescriptionDraft(
   exercise: SessionExerciseDetail,
   suggestion: Progression | null,
   capKg: number | null,
   ghostsFor: (index: number) => Ghosts,
+  gymId: string | null,
 ): PrescriptionDraft | null {
-  const sets = exercise.sets.map(({ id }, index) => ({
+  const sets = exercise.sets.map(({ id, kind, target }, index) => ({
     id,
     ghosts: ghostsFor(index),
     outcome: suggestion?.outcomes[index] ?? null,
+    basis: setBasis(kind, target),
   }));
   if (!sets.some(({ ghosts }) => Object.values(ghosts).some((value) => value != null))) return null;
   return {
@@ -104,6 +120,7 @@ export function prescriptionDraft(
     incrementKg: suggestion?.incrementKg ?? 0,
     breakDays: suggestion?.breakDays ?? null,
     capKg,
+    gymId,
     sets,
   };
 }

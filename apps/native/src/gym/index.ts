@@ -1,7 +1,7 @@
 export { buildGymLoads, type GymLoads } from "./gym-loads";
 export { useGyms } from "./use-gyms";
 export { useGymCap, useGymLoads } from "./use-gym-loads";
-export { useLoggedLoad } from "./prompts/use-logged-load";
+export { useLoggedLoad, type LoggedLoad } from "./prompts/use-logged-load";
 export { GymLimitRows } from "./gym-limit-rows";
 export { LoadLimitsSheet } from "./load-limits-sheet";
 export { SetupNoteChip } from "./setup-note-chip";

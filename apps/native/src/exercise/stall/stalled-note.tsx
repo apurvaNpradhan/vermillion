@@ -9,7 +9,9 @@ import { dismissStall } from "./stall-store";
 
 /**
  * One quiet line under an exercise's header: "Stalled for 3 sessions. Try lighter loads today." Tapping it
- * applies the deload in an active Session. The cross dismisses the current note.
+ * applies the deload in an active Session. When only the suggestion was missed ("Suggestions have
+ * been ahead of you for 3 sessions.") it is a note to hold or review the target, with nothing to
+ * apply. The cross dismisses the current note.
  */
 export function StalledNote({
   exerciseId,
@@ -23,18 +25,22 @@ export function StalledNote({
   latestSessionId: string;
   count: number;
   applied: boolean;
-  /** The suggestion was missed every time, rather than the numbers standing still. */
+  /**
+   * The suggestion was missed every time, rather than the numbers standing still: the note asks to
+   * hold or review the target and never applies the lighter loads.
+   */
   missed?: boolean;
   onApply?: (applied: boolean) => void;
 }) {
   const { t } = useTranslation();
   const muted = useThemeColor("muted");
+  const review = missed && !applied;
   const note = applied
     ? t("stall__applied_with_undo")
     : t(missed ? "stall__note_missed" : "stall__note", { count });
   return (
     <View className="min-h-11 flex-row items-center justify-between gap-2">
-      {onApply ? (
+      {onApply && !review ? (
         <Pressable
           accessibilityRole="button"
           accessibilityHint={t("stall__apply_hint")}

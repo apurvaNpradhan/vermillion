@@ -122,6 +122,7 @@ export async function workoutLiveGhosts(
           suggestion,
           gridCapInUnit(context.settings.grid ?? null, context.unit),
           ghostsAt,
+          sessionGymId,
         )
       : null;
   const captured = draft ? await capturePrescription(db, exercise.id, draft, writeScope) : null;

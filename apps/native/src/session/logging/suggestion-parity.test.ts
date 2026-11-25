@@ -1,5 +1,8 @@
 import {
   KG_PER_LB,
+  latestAdjustment,
+  setBasis,
+  staleSets,
   parseWeight,
   phaseFor,
   phaseLoadOf,
@@ -13,7 +16,11 @@ import {
   SESSION_LAST_NOTES_SQL,
   WORKOUT_DETAIL_SQL,
   addExercises,
+  addSet,
   activateProgram,
+  createGym,
+  revisePrescription,
+  setSessionGym,
   addSlot,
   createProgram,
   createWorkout,
@@ -42,7 +49,13 @@ import { expect, it } from "vitest";
 import { buildGymLoads } from "../../gym/gym-loads";
 import { firstWorkingWeightKg, rampTargets } from "../warmups/warmup-plan";
 import { workoutLiveGhosts } from "../notifications/workout-live-logging";
-import { adjustmentLoadsOf, deriveExercises, type DeriveInputs } from "../store/derive";
+import {
+  adjustmentLoadsOf,
+  deriveExercises,
+  freshPrescription,
+  type DeriveInputs,
+} from "../store/derive";
+import { currentSetsOf } from "./logging-ghosts";
 import { previewProgression } from "./preview-progression";
 import { prepareWorkoutEntry } from "../../platform/training/workout-suggestion";
 import {
@@ -351,6 +364,7 @@ it.each([
     id: set.id,
     ghosts: live.get(set.id),
     outcome: view?.suggestion?.outcomes[exercise.sets.indexOf(set)] ?? null,
+    basis: setBasis(set.kind, set.target),
   });
   const changed = { ...inputs, previous: new Map(), phaseLoad: 0.5 };
   const frozenView = deriveExercises(
@@ -602,7 +616,7 @@ it.each([
     expect(after.cache?.view.rows.get(three.id)?.ghosts.weight).toBe(adjusted);
     expect(after.cache?.view.rows.get(one.id)?.ghosts.weight).toBe(offered);
     expect((await live()).get(two.id)?.weight).toBe(adjusted);
-    expect(after.session.exercises[0]?.prescription?.adjustment).toMatchObject({
+    expect(latestAdjustment(after.session.exercises[0]?.prescription)).toMatchObject({
       setId: one.id,
       reason: "reps_short",
       reps: 3,
@@ -615,6 +629,148 @@ it.each([
     const undone = await derive();
     expect(undone.cache?.view.rows.get(two.id)?.ghosts.weight).toBe(offered);
     expect((await live()).get(two.id)?.weight).toBe(offered);
-    expect(undone.session.exercises[0]?.prescription?.adjustment).toBeUndefined();
+    expect(latestAdjustment(undone.session.exercises[0]?.prescription)).toBeNull();
+  },
+);
+
+it.each([
+  { unit: "kg", weight: 60 },
+  { unit: "lb", weight: 135 },
+] as const)(
+  "revises the snapshot when a set is added, a kind is edited or the gym moves, in $unit",
+  async ({ unit, weight }) => {
+    const fixture = await setupSessions();
+    const { training } = fixture;
+    await savePreferences(
+      training,
+      { ui: { weightUnit: unit } },
+      { owner: "owner", installId: fixture.installId },
+    );
+    const kilograms = unit === "kg" ? weight : weight * KG_PER_LB;
+    const workoutId = await createWorkout(training, { title: "Legs", program_id: null });
+    const [squat] = await addExercises(training, workoutId, [SQUAT]);
+    if (!squat) throw new Error("Expected squat in Workout");
+    const target: PlannedSet = { kind: "working", reps_min: 5, reps_max: 8 };
+    await updateWorkoutExercise(training, squat, { sets: [target, target, target] });
+    const readSession = async (id: string) =>
+      parseSessionDetail(
+        await training.getAll(SESSION_DETAIL_SQL, [id]),
+        await training.getAll(SESSION_LAST_NOTES_SQL, [id]),
+      );
+    const earlier = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    for (const set of (await readSession(earlier))?.exercises[0]?.sets ?? [])
+      await tickSet(training, set.id, { weight: kilograms, reps: 8 });
+    await finishSession(training, earlier);
+
+    const id = await startSession(training, { workoutId, derivedTitle: "Legs" });
+    const history = new Map([
+      [SQUAT, parseFinishedSessions(await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]))],
+    ]);
+    const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
+    const derive = async () => {
+      const session = await readSession(id);
+      if (!session) throw new Error("Expected the Session");
+      const inputs: DeriveInputs = {
+        previous: history,
+        historyFailed: false,
+        previousSource: "same_workout",
+        unit,
+        unitNames: { kg: "kg", lb: "lb" },
+        display: { distanceUnit: "km", durationFormat: "seconds" },
+        weightIncrementKg: null,
+        gym,
+        sessionGymId: session.gymId ?? null,
+        lighterWeeks: [],
+        lighter: false,
+        phaseLoad: 1,
+        phase: null,
+        bodyweightKg: null,
+        stallVersion: 0,
+        stallMemory: () => ({ dismissed: false }),
+        chipTexts: () => [],
+      };
+      const cache = deriveExercises(
+        session.exercises,
+        inputs,
+        { finished: false, workoutId },
+        new Map(),
+      ).get(session.exercises[0]?.id ?? "");
+      if (!cache) throw new Error("Expected the exercise");
+      return { session, cache, snapshot: session.exercises[0]?.prescription ?? null };
+    };
+    /** What the Session screen does after each edit: ask what went stale, and revise it. */
+    const reconcile = async () => {
+      const { session, cache, snapshot } = await derive();
+      if (!snapshot) throw new Error("Expected a snapshot");
+      const stale = staleSets(snapshot, currentSetsOf(cache.exercise), session.gymId ?? null);
+      if (!stale) return false;
+      const draft = freshPrescription(cache);
+      if (!draft) throw new Error("Expected a suggestion");
+      return revisePrescription(training, cache.exercise.id, draft, [...stale], fixture.installId);
+    };
+
+    await workoutLiveGhosts(
+      training,
+      (await derive()).session,
+      {
+        weightUnit: unit,
+        previousSource: "same_workout",
+        bodyweightKg: null,
+        weightIncrementKg: null,
+        lighterWeeks: [],
+      },
+      gym,
+      null,
+      fixture.installId,
+    );
+    const first = await derive();
+    const entry = first.cache.exercise.id;
+    expect(first.snapshot?.sets).toHaveLength(3);
+    expect(await reconcile()).toBe(false);
+
+    // A set added after the snapshot gets a suggestion appended; the others stay as they were.
+    const added = await addSet(training, entry, { target }, fixture.installId);
+    expect(await reconcile()).toBe(true);
+    const grown = await derive();
+    expect(grown.snapshot?.sets.map((set) => set.id)).toEqual([
+      ...(first.snapshot?.sets.map((set) => set.id) ?? []),
+      added,
+    ]);
+    expect(grown.snapshot?.sets.slice(0, 3)).toEqual(first.snapshot?.sets);
+    expect(grown.snapshot?.previousRevision).toBe(first.snapshot?.revision);
+    expect(grown.cache.view.rows.get(added)?.ghosts).toEqual(
+      grown.snapshot?.sets.find((set) => set.id === added)?.ghosts,
+    );
+    expect(await reconcile()).toBe(false);
+
+    // Editing a set's kind makes only that set's suggestion new.
+    const [one, two] = grown.cache.exercise.sets;
+    if (!one || !two) throw new Error("Expected sets");
+    await tickSet(training, one.id, {}, fixture.installId);
+    await updateSet(training, two.id, { kind: "top" }, fixture.installId);
+    expect(await reconcile()).toBe(true);
+    const edited = await derive();
+    expect(edited.snapshot?.sets.find((set) => set.id === two.id)?.basis).toBe(
+      setBasis("top", target),
+    );
+    expect(edited.snapshot?.sets.find((set) => set.id === one.id)).toEqual(
+      grown.snapshot?.sets.find((set) => set.id === one.id),
+    );
+    expect(await reconcile()).toBe(false);
+
+    // Moving the Session gym suggests every unticked set again, and records the gym.
+    const other = await createGym(
+      training,
+      { name: "Garage", copyKitFrom: null },
+      fixture.installId,
+    );
+    expect(await setSessionGym(training, id, other, fixture.installId)).toBe(true);
+    expect(await reconcile()).toBe(true);
+    const moved = await derive();
+    expect(moved.snapshot?.gymId).toBe(other);
+    expect(moved.snapshot?.sets.find((set) => set.id === one.id)).toEqual(
+      edited.snapshot?.sets.find((set) => set.id === one.id),
+    );
+    expect(await reconcile()).toBe(false);
   },
 );

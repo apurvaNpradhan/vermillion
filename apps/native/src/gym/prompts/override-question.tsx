@@ -1,4 +1,11 @@
-import { formatWeight, usesGymHistory, type Equipment, type WeightUnit } from "@workspace/shared";
+import {
+  formatWeight,
+  raisedRange,
+  usesGymHistory,
+  type Equipment,
+  type RepRange,
+  type WeightUnit,
+} from "@workspace/shared";
 import { raiseWorkoutRepRange } from "@workspace/sync";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -12,14 +19,12 @@ import { dismissOverridePrompt, pendingOverridePrompt } from "./override-prompt"
 import { useGymSetting } from "../use-gym-setting";
 import { useGyms } from "../use-gyms";
 
-/** The planned range of the exercise's working sets, as the Session started with it. */
-export type PlannedRange = { min: number; max: number };
-
 /**
  * One quiet question under an exercise's header, after the same override was logged in two
- * Sessions at this gym: use the step you keep taking, or move the rep range to the reps you keep
- * doing. It never asks while the max question is open, and a dismissal is remembered. Nothing
- * changes unless it is answered.
+ * Sessions: use the step you keep taking at this gym, or move the rep range of this workout's
+ * sets to the reps you keep doing. It never asks while the max question is open, asks only what
+ * it can show (a step question that cannot be asked here does not hide the range one), and a
+ * dismissal is remembered. Nothing changes unless it is answered.
  */
 export function OverridePrompt({
   exerciseId,
@@ -28,40 +33,66 @@ export function OverridePrompt({
   equipment,
   unit,
   workoutExerciseId,
-  range,
 }: {
   exerciseId: string;
-  gymId: string;
+  gymId: string | null;
   sessionId: string;
   equipment: Equipment;
   unit: WeightUnit;
   workoutExerciseId: string | null;
-  range: PlannedRange | null;
 }) {
+  const setting = useGymSetting(exerciseId, gymId);
+  // The first step question is the stack's own; this one only follows an answered step.
+  const answered = usePreference(({ ui }) =>
+    gymId === null ? false : ui.stepPrompts.includes(capPromptKey(gymId, exerciseId)),
+  );
+  const maxOpen = usePreference(({ ui }) =>
+    gymId === null
+      ? false
+      : pendingCapPrompt(ui.capPrompts, capPromptKey(gymId, exerciseId), sessionId) !== undefined,
+  );
+  const stepRenders = (kg: number) => {
+    if (gymId === null || !usesGymHistory(equipment)) return false;
+    if (!setting.ready || setting.gymId !== gymId) return false;
+    if (setting.stepKg === null && !answered) return false;
+    const same = setting.stepKg !== null && Math.abs(setting.stepKg - kg) < 0.01;
+    const fits = kg >= 0.05 && (setting.maxKg === null || kg <= setting.maxKg);
+    return !same && fits;
+  };
   const asking = usePreference(({ ui }) =>
-    pendingCapPrompt(ui.capPrompts, capPromptKey(gymId, exerciseId), sessionId)
+    maxOpen
       ? undefined
-      : pendingOverridePrompt(ui.overridePrompts, gymId, exerciseId, sessionId),
+      : pendingOverridePrompt(
+          ui.overridePrompts,
+          { sessionId, exerciseId, gymId, workoutExerciseId },
+          (prompt) =>
+            prompt.kind === "step"
+              ? stepRenders(prompt.value)
+              : workoutExerciseId !== null &&
+                prompt.rangeMin !== undefined &&
+                prompt.rangeMax !== undefined,
+        ),
   );
   if (!asking) return null;
-  return asking.kind === "step" ? (
-    usesGymHistory(equipment) ? (
+  if (asking.kind === "step")
+    return gymId === null ? null : (
       <StepAnswer
         key={asking.key}
         promptKey={asking.key}
-        gymId={gymId}
-        exerciseId={exerciseId}
+        setting={setting}
         unit={unit}
         kg={asking.value}
       />
-    ) : null
-  ) : range && workoutExerciseId ? (
+    );
+  return workoutExerciseId !== null &&
+    asking.rangeMin !== undefined &&
+    asking.rangeMax !== undefined ? (
     <RangeAnswer
       key={asking.key}
       promptKey={asking.key}
       workoutExerciseId={workoutExerciseId}
       reps={asking.value}
-      range={range}
+      range={{ min: asking.rangeMin, max: asking.rangeMax }}
     />
   ) : null;
 }
@@ -95,30 +126,18 @@ function Question({
 
 function StepAnswer({
   promptKey,
-  gymId,
-  exerciseId,
+  setting,
   unit,
   kg,
 }: {
   promptKey: string;
-  gymId: string;
-  exerciseId: string;
+  setting: ReturnType<typeof useGymSetting>;
   unit: WeightUnit;
   kg: number;
 }) {
   const { t } = useTranslation();
   const { updateUi } = usePreferences();
-  const setting = useGymSetting(exerciseId, gymId);
   const [busy, setBusy] = useState(false);
-  // The first step question is the stack's own; this one only follows an answered step.
-  const answered = usePreference(({ ui }) =>
-    ui.stepPrompts.includes(capPromptKey(gymId, exerciseId)),
-  );
-  if (!setting.ready || setting.gymId !== gymId) return null;
-  if (setting.stepKg === null && !answered) return null;
-  const same = setting.stepKg !== null && Math.abs(setting.stepKg - kg) < 0.01;
-  const fits = kg >= 0.05 && (setting.maxKg === null || kg <= setting.maxKg);
-  if (same || !fits) return null;
   const weight = formatWeight(kg, unit);
   const answer = async (confirm: boolean) => {
     if (busy) return;
@@ -152,23 +171,24 @@ function RangeAnswer({
   promptKey: string;
   workoutExerciseId: string;
   reps: number;
-  range: PlannedRange;
+  range: RepRange;
 }) {
   const { t } = useTranslation();
   const { updateUi } = usePreferences();
   const { run, writeScope } = useGyms();
   const [busy, setBusy] = useState(false);
-  const newMax = reps;
-  const newMin = Math.max(1, reps - (range.max - range.min));
+  const { min: newMin, max: newMax } = raisedRange(range, reps);
   const answer = async (confirm: boolean) => {
     if (busy) return;
     setBusy(true);
     try {
+      // A Workout that no longer has sets on that range has nothing to change: the question is
+      // answered either way.
       if (confirm) {
-        const wrote =
-          (await run((db) => raiseWorkoutRepRange(db, workoutExerciseId, reps, writeScope))) ===
-          true;
-        if (!wrote) return;
+        const wrote = await run((db) =>
+          raiseWorkoutRepRange(db, workoutExerciseId, reps, range, writeScope),
+        );
+        if (wrote === null) return;
       }
       await updateUi(({ overridePrompts }) => ({
         overridePrompts: dismissOverridePrompt(overridePrompts, promptKey, "range"),
@@ -186,7 +206,7 @@ function RangeAnswer({
         newMin,
         newMax,
       })}
-      yes={t("gym__override_range_yes")}
+      yes={t("gym__override_range_yes", { newMin, newMax })}
       busy={busy}
       onAnswer={(confirm) => void answer(confirm).catch(() => undefined)}
     />
