@@ -296,6 +296,31 @@ describe("library query", () => {
     expect(hasActiveFilters({ ...DEFAULT_LIBRARY_FILTERS, pinnedOnly: true })).toBe(true);
   });
 
+  it.each([
+    { name: "nothing lacking", lacking: [], hidden: [] },
+    { name: "barbells lacking", lacking: ["barbell"], hidden: ["a1", "a4", "c1"] },
+    {
+      name: "barbells and machines lacking",
+      lacking: ["barbell", "machine"],
+      hidden: ["a1", "a3", "a4", "a5", "c1"],
+    },
+    { name: "an unused type lacking", lacking: ["cable"], hidden: [] },
+  ] as const)(
+    "hides exercises that need equipment the gym lacks: $name",
+    async ({ lacking, hidden }) => {
+      const everything = await ids({});
+      const shown = await ids({ lacking });
+      expect(shown).toEqual(everything.filter((id) => !hidden.some((gone) => gone === id)));
+      expect(await total({ lacking })).toBe(shown.length);
+    },
+  );
+
+  it("keeps bodyweight and combines with the equipment facet and the search", async () => {
+    expect(await ids({ lacking: ["barbell"], equipment: ["barbell", "dumbbell"] })).toEqual(["a2"]);
+    expect(await ids({ lacking: ["barbell"], search: "bench" })).toEqual(["a3", "a2"]);
+    expect(hasActiveFilters({ ...DEFAULT_LIBRARY_FILTERS, lacking: ["barbell"] })).toBe(true);
+  });
+
   it("bounds the window", async () => {
     expect(await ids({}, 3)).toEqual(["a4", "a1", "a3"]);
   });

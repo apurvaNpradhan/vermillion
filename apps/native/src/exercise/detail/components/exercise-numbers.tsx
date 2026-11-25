@@ -69,6 +69,7 @@ export function ExerciseNumbers({
   timezone,
   weekStart,
   equipment,
+  gymId,
   weightIncrementKg,
   progressionPerSet,
 }: {
@@ -80,6 +81,7 @@ export function ExerciseNumbers({
   timezone: string | null;
   weekStart: WeekStart;
   equipment: Equipment;
+  gymId?: string | null;
   weightIncrementKg: number | null;
   progressionPerSet: boolean;
 }) {
@@ -171,6 +173,7 @@ export function ExerciseNumbers({
             type={type}
             equipment={equipment}
             settings={settings}
+            gymId={gymId}
           />
         ) : null}
       </View>

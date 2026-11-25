@@ -1,9 +1,11 @@
 import type { QueryResult } from "@powersync/common";
 import {
+  ALWAYS_AVAILABLE_EQUIPMENT,
   EQUIPMENT,
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
   detailLikePattern,
+  type Equipment,
   type MuscleDetail,
 } from "@workspace/shared";
 import { z } from "zod";
@@ -103,9 +105,11 @@ export function compatibleSwapTypes(type: (typeof EXERCISE_TYPES)[number]): stri
 
 /**
  * Live exercises with the same primary muscle and a compatible type, equipment of any kind (a
- * cable fly is a fine swap for a machine fly), most shared primary details first (ADR 0050), then
- * best rank first, then title, then id; at most `limit`, applied after that ordering. The exercise
- * itself is never listed. Without details the order is rank.
+ * cable fly is a fine swap for a machine fly). Exercises whose equipment the gym has come first
+ * (`unavailable` lists what it lacks; bodyweight is always there), then most shared primary
+ * details (ADR 0050), then best rank, then title, then id; at most `limit`, applied after that
+ * ordering, so a lacking-equipment exercise only fills what the rest leaves. The exercise itself
+ * is never listed. Without details the order is rank.
  */
 export function swapCandidatesQuery(
   exercise: {
@@ -113,6 +117,8 @@ export function swapCandidatesQuery(
     primaryMuscle: string;
     exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
+    /** Equipment types the gym does not have. */
+    unavailable?: readonly Equipment[];
   },
   limit: number = SWAP_CANDIDATE_LIMIT,
 ): LibraryQuery {
@@ -122,14 +128,20 @@ export function swapCandidatesQuery(
   const types = exercise.exerciseType ? compatibleSwapTypes(exercise.exerciseType) : [];
   const typeFilter =
     types.length > 0 ? ` AND exercise_type IN (${types.map(() => "?").join(", ")})` : "";
+  const lacking = (exercise.unavailable ?? []).filter(
+    (equipment) => !ALWAYS_AVAILABLE_EQUIPMENT.includes(equipment),
+  );
+  const here =
+    lacking.length > 0 ? `(equipment IN (${lacking.map(() => "?").join(", ")})) ASC, ` : "";
   return {
     sql: `SELECT ${LIBRARY_ROW_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM exercise
       WHERE retired_at IS NULL AND primary_muscle = ? AND id <> ?${typeFilter}
-      ORDER BY ${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
+      ORDER BY ${here}${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
     params: [
       exercise.primaryMuscle,
       exercise.id,
       ...types,
+      ...lacking,
       ...details.map(detailLikePattern),
       limit,
     ],
@@ -209,6 +221,7 @@ export function watchSwapCandidates(
     primaryMuscle: string;
     exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
+    unavailable?: readonly Equipment[];
   },
   handlers: { onRows: (rows: LibraryRow[]) => void; onError: (error: Error) => void },
 ): () => void {

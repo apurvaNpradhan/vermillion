@@ -19,11 +19,14 @@ describe("filter state", () => {
       pinnedOnly: true,
       pinnedFirst: true,
       equipment: ["barbell"],
+      availableOnly: true,
       show: "custom",
       sort: "popular",
     });
+    const { lacking: _, ...defaults } = DEFAULT_LIBRARY_FILTERS;
     expect(cleared).toEqual({
-      ...DEFAULT_LIBRARY_FILTERS,
+      ...defaults,
+      availableOnly: false,
       search: "bench",
       pinnedFirst: true,
     });

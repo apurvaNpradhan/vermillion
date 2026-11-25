@@ -158,10 +158,6 @@ const LoadedSession = memo(function LoadedSession({
   const { t, i18n } = useTranslation();
   const foreground = useThemeColor("foreground");
   const router = useRouter();
-  const viewExercise = useCallback(
-    (id: string) => router.push({ pathname: "/exercise-view/[id]", params: { id } }),
-    [router],
-  );
   const {
     session,
     sessionGymId,
@@ -185,6 +181,11 @@ const LoadedSession = memo(function LoadedSession({
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
   const { toast } = useAppToast();
+  const viewExercise = useCallback(
+    (id: string) =>
+      router.push({ pathname: "/exercise-view/[id]", params: { id, sessionId: session.id } }),
+    [router, session.id],
+  );
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
   const dismissSwipeRows = useDismissSwipeRows();
@@ -298,11 +299,16 @@ const LoadedSession = memo(function LoadedSession({
   });
 
   const addExercises = async () => {
-    const picked = await pickExercises({ exclude: exerciseIds });
+    const picked = await pickExercises({ exclude: exerciseIds, sessionId: session.id });
     if (picked && picked.length > 0) await actions.addExercises(session.id, picked);
   };
   const replace = async (entry: SessionExerciseDetail) => {
-    const picked = await pickExercises({ max: 1, exclude: exerciseIds, swapFor: entry.exerciseId });
+    const picked = await pickExercises({
+      max: 1,
+      exclude: exerciseIds,
+      swapFor: entry.exerciseId,
+      sessionId: session.id,
+    });
     const next = picked?.[0];
     if (!next) return;
     // A Session from a Workout asks how far the swap goes; one without has only itself.

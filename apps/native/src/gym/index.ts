@@ -11,3 +11,5 @@ export { MaxPrompt } from "./max-prompt";
 export { GymNameSheet } from "./gym-name-sheet";
 export { GymsScreen } from "./gyms-screen";
 export { GymScreen } from "./gym-screen";
+export { EquipmentHereSection } from "./equipment-here-section";
+export { useGymAvailability } from "./use-gym-availability";

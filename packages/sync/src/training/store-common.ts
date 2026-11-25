@@ -136,7 +136,7 @@ export const trainingUploadColumns = {
     "generated_warmup",
     "restore",
   ]),
-  gym: new Set(["name", "restore"]),
+  gym: new Set(["name", "unavailable_equipment", "dumbbell_max_kg", "restore"]),
   gym_exercise_setting: new Set(["gym_id", "exercise_id", "load_ranges", "setup_note", "restore"]),
   gym_equipment: new Set([
     "gym_id",

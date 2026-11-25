@@ -65,6 +65,8 @@ export const syncOpSchema = z.object({
       completed_at: z.iso.datetime({ offset: true }).nullable().optional(),
       paused_at: z.iso.datetime({ offset: true }).nullable().optional(),
       paused_ms: z.int().nonnegative().optional(),
+      /** A gym's equipment list as JSON text, as the device had it before its toggle. */
+      unavailable_equipment: z.string().max(1024).optional(),
     })
     .optional(),
 });

@@ -3,6 +3,7 @@ import { user } from "@workspace/db/schema/auth";
 import {
   EFFORT_STEPS,
   EXERCISE_TYPES,
+  GYM_EQUIPMENT_CHOICES,
   GYM_LIMITS,
   LOAD_RANGES_MAX,
   MAX_WEIGHT_KG,
@@ -12,6 +13,7 @@ import {
   SET_KINDS,
   TRAINING_LIMITS,
   WEIGHT_UNITS,
+  type Equipment,
   type LoadRange,
   type PlannedSet,
 } from "@workspace/shared";
@@ -403,6 +405,13 @@ export const gym = pgTable(
     id: id(),
     userId: owner(),
     name: text("name").notNull(),
+    /** Equipment types this gym lacks; empty (the default) means it has all of them. */
+    unavailableEquipment: jsonb("unavailable_equipment")
+      .$type<Equipment[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** The heaviest dumbbell in kilograms; caps every dumbbell exercise here. Null for no limit. */
+    dumbbellMaxKg: doublePrecision("dumbbell_max_kg"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
@@ -414,6 +423,14 @@ export const gym = pgTable(
     check(
       "gym_name_length",
       sql`char_length(${table.name}) BETWEEN 1 AND ${raw(GYM_LIMITS.nameMax)}`,
+    ),
+    check(
+      "gym_unavailable_equipment_shape",
+      sql`jsonb_typeof(${table.unavailableEquipment}) = 'array' AND jsonb_array_length(${table.unavailableEquipment}) <= ${raw(GYM_EQUIPMENT_CHOICES.length)}`,
+    ),
+    check(
+      "gym_dumbbell_max_range",
+      sql`${table.dumbbellMaxKg} > 0 AND ${table.dumbbellMaxKg} <= ${raw(MAX_WEIGHT_KG)}`,
     ),
   ],
 );

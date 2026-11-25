@@ -206,6 +206,139 @@ describe("swap candidates by muscle details", () => {
   });
 });
 
+describe("swap candidates by gym equipment", () => {
+  const gymRows: Seed[] = [
+    { id: "bench", title: "Bench Press", primary: "chest", equipment: "barbell", rank: 90 },
+    { id: "db", title: "Dumbbell Press", primary: "chest", equipment: "dumbbell", rank: 50 },
+    { id: "cable", title: "Cable Fly", primary: "chest", equipment: "cable", rank: 80 },
+    { id: "pec", title: "Pec Deck", primary: "chest", equipment: "machine", rank: 70 },
+    { id: "push", title: "Push Up", primary: "chest", equipment: "none", rank: 10 },
+    { id: "bar2", title: "Close Grip Bench", primary: "chest", equipment: "barbell", rank: 85 },
+    {
+      id: "inner",
+      title: "Inner Chest Squeeze",
+      primary: "chest",
+      equipment: "dumbbell",
+      rank: 1,
+      details: ["lower_chest"],
+    },
+    {
+      id: "inner-cable",
+      title: "Inner Chest Cable",
+      primary: "chest",
+      equipment: "cable",
+      rank: 2,
+      details: ["lower_chest"],
+    },
+  ];
+  const ranked = (
+    unavailable: ("barbell" | "dumbbell" | "cable" | "machine" | "none")[] | undefined,
+    primaryDetail: ("lower_chest" | "upper_chest")[] = [],
+    limit?: number,
+  ) => {
+    const { sql, params } = swapCandidatesQuery(
+      {
+        id: "bench",
+        primaryMuscle: "chest",
+        exerciseType: "weight_reps",
+        primaryDetail,
+        unavailable,
+      },
+      limit,
+    );
+    return setup(gymRows)
+      .prepare(sql)
+      .all(...params)
+      .map((row) => row["id"]);
+  };
+
+  it.each([
+    {
+      name: "no gym",
+      unavailable: undefined,
+      expected: ["bar2", "cable", "pec", "db", "push", "inner-cable", "inner"],
+    },
+    {
+      name: "a gym with everything",
+      unavailable: [],
+      expected: ["bar2", "cable", "pec", "db", "push", "inner-cable", "inner"],
+    },
+    {
+      name: "no barbells",
+      unavailable: ["barbell"],
+      expected: ["cable", "pec", "db", "push", "inner-cable", "inner", "bar2"],
+    },
+    {
+      name: "no cables or machines",
+      unavailable: ["cable", "machine"],
+      expected: ["bar2", "db", "push", "inner", "cable", "pec", "inner-cable"],
+    },
+    {
+      name: "bodyweight listed as lacking is still there",
+      unavailable: ["none", "dumbbell"],
+      expected: ["bar2", "cable", "pec", "push", "inner-cable", "db", "inner"],
+    },
+  ] as const)("lists what the gym has first, with $name", ({ unavailable, expected }) => {
+    expect(ranked(unavailable ? [...unavailable] : undefined)).toEqual(expected);
+  });
+
+  it("puts available first, then shared details, then rank", () => {
+    // Without cables, the inner-chest dumbbell outranks the better-ranked others.
+    expect(ranked(["cable"], ["lower_chest"])).toEqual([
+      "inner",
+      "bar2",
+      "pec",
+      "db",
+      "push",
+      "inner-cable",
+      "cable",
+    ]);
+    expect(ranked(["dumbbell"], ["lower_chest"])).toEqual([
+      "inner-cable",
+      "bar2",
+      "cable",
+      "pec",
+      "push",
+      "inner",
+      "db",
+    ]);
+  });
+
+  it("applies the limit after the gym ordering, so lacking equipment only fills what is left", () => {
+    expect(ranked(["barbell", "cable"], [], 3)).toEqual(["pec", "db", "push"]);
+    expect(ranked(["barbell", "cable"], [], 6)).toEqual([
+      "pec",
+      "db",
+      "push",
+      "inner",
+      "bar2",
+      "cable",
+    ]);
+  });
+
+  it("keeps the type filter and never lists the exercise or a retired row", () => {
+    const rows: Seed[] = [
+      ...gymRows,
+      { id: "plank", title: "Plank", primary: "chest", equipment: "none", type: "duration" },
+      { id: "old", title: "Old", primary: "chest", equipment: "dumbbell", retired: "x" },
+    ];
+    const { sql, params } = swapCandidatesQuery({
+      id: "bench",
+      primaryMuscle: "chest",
+      exerciseType: "weight_reps",
+      unavailable: ["machine"],
+    });
+    const listed = setup(rows)
+      .prepare(sql)
+      .all(...params)
+      .map((row) => row["id"]);
+    expect(listed).not.toContain("plank");
+    expect(listed).not.toContain("old");
+    expect(listed).not.toContain("bench");
+    expect(listed.at(-1)).toBe("pec");
+  });
+});
+
 describe("exercise detail query", () => {
   it("resolves a retired row by id", () => {
     const { sql, params } = exerciseDetailQuery("old");

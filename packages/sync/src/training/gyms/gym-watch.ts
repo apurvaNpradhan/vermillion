@@ -1,5 +1,10 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
-import { loadRangesSchema, type LoadRange } from "@workspace/shared";
+import {
+  loadRangesSchema,
+  unavailableEquipmentSchema,
+  type Equipment,
+  type LoadRange,
+} from "@workspace/shared";
 import { z } from "zod";
 
 import { readPreferencesRow } from "../../preferences";
@@ -50,10 +55,45 @@ function watchRows<T>(
   return () => controller.abort();
 }
 
-/** One gym of the user, oldest first: the first is the default gym. */
-export type GymRow = { id: string; name: string; createdAt: string };
+/** The lacking equipment as stored (JSON text); anything unreadable is "has everything". */
+export function unavailableEquipmentOf(text: string | null): Equipment[] {
+  if (text === null) return [];
+  try {
+    const parsed = unavailableEquipmentSchema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
 
-const gymSchema = z.array(z.object({ id: z.string(), name: z.string(), created_at: z.string() }));
+/** One gym of the user, oldest first: the first is the default gym. */
+export type GymRow = {
+  id: string;
+  name: string;
+  createdAt: string;
+  /** Equipment types this gym lacks; empty means it has all of them. */
+  unavailableEquipment: Equipment[];
+  /** The heaviest dumbbell in kilograms; null for no limit. */
+  dumbbellMaxKg: number | null;
+};
+
+const GYM_COLUMNS = "id, name, unavailable_equipment, dumbbell_max_kg, created_at";
+const gymSchema = z.array(
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    unavailable_equipment: z.string().nullable(),
+    dumbbell_max_kg: z.number().nullable(),
+    created_at: z.string(),
+  }),
+);
+const gymRowOf = (row: z.infer<typeof gymSchema>[number]): GymRow => ({
+  id: row.id,
+  name: row.name,
+  createdAt: row.created_at,
+  unavailableEquipment: unavailableEquipmentOf(row.unavailable_equipment),
+  dumbbellMaxKg: row.dumbbell_max_kg,
+});
 
 /** Watches the user's gyms, oldest first. */
 export function watchGyms(
@@ -78,12 +118,11 @@ export function watchGyms(
             const where = cursor ? "WHERE (created_at, id) > (?, ?)" : "";
             const page = gymSchema.parse(
               await tx.getAll(
-                `SELECT id, name, created_at FROM gym ${where} ORDER BY created_at, id LIMIT ${GYM_PAGE_SIZE}`,
+                `SELECT ${GYM_COLUMNS} FROM gym ${where} ORDER BY created_at, id LIMIT ${GYM_PAGE_SIZE}`,
                 cursor ? [cursor.createdAt, cursor.id] : [],
               ),
             );
-            for (const row of page)
-              rows.push({ id: row.id, name: row.name, createdAt: row.created_at });
+            for (const row of page) rows.push(gymRowOf(row));
             cursor = page.length === GYM_PAGE_SIZE ? rows.at(-1) : undefined;
           } while (cursor && !signal.aborted);
           return rows;
@@ -172,6 +211,10 @@ export type GymLoadInputs = {
   sessionGymId: string | null;
   /** Rows with no gym belong to the oldest gym. */
   isDefaultGym: boolean;
+  /** The heaviest dumbbell of the gym, in kilograms; null for no limit. */
+  dumbbellMaxKg: number | null;
+  /** The equipment types the gym lacks. */
+  unavailableEquipment: Equipment[];
   settings: GymExerciseSettingRow[];
   kit: EquipmentRow[];
   bars: ReadonlyMap<string, string>;
@@ -187,9 +230,9 @@ export async function readGymLoadInputs(
   sessionId: string,
 ): Promise<GymLoadInputs> {
   return database.readTransaction(async (tx) => {
-    const gyms = z
-      .array(z.object({ id: z.string() }))
-      .parse(await tx.getAll("SELECT id FROM gym ORDER BY created_at, id"));
+    const gyms = gymSchema.parse(
+      await tx.getAll(`SELECT ${GYM_COLUMNS} FROM gym ORDER BY created_at, id`),
+    );
     const ids = new Set(gyms.map((row) => row.id));
     const [session] = z
       .array(z.object({ gym_id: z.string().nullable() }))
@@ -203,13 +246,25 @@ export async function readGymLoadInputs(
     const activeGym = chosen && ids.has(chosen) ? chosen : null;
     const gymId = sessionGymId ?? activeGym ?? gyms[0]?.id ?? null;
     if (gymId === null) {
-      return { gymId, sessionGymId, isDefaultGym: false, settings: [], kit: [], bars: new Map() };
+      return {
+        gymId,
+        sessionGymId,
+        isDefaultGym: false,
+        dumbbellMaxKg: null,
+        unavailableEquipment: [],
+        settings: [],
+        kit: [],
+        bars: new Map(),
+      };
     }
+    const chosenGym = gyms.find((row) => row.id === gymId);
     const isDefaultGym = gymId === gyms[0]?.id;
     return {
       gymId,
       sessionGymId,
       isDefaultGym,
+      dumbbellMaxKg: chosenGym?.dumbbell_max_kg ?? null,
+      unavailableEquipment: unavailableEquipmentOf(chosenGym?.unavailable_equipment ?? null),
       settings: parseSettings(await tx.getAll(SETTINGS_SQL, [gymId])),
       kit: parseEquipment(await tx.getAll(EQUIPMENT_SQL, [gymId, isDefaultGym ? "1" : "0"])),
       bars: parseExerciseBars(await tx.getAll(EXERCISE_BARS_SQL)),

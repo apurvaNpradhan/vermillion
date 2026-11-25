@@ -1,10 +1,13 @@
 import {
   defaultBar,
   enabledBars,
+  gymRangesFor,
+  isEquipmentAvailable,
   loadGridOf,
   platesForBar,
   type Equipment,
   type LoadGrid,
+  type LoadRange,
   type WeightUnit,
 } from "@workspace/shared";
 import type { EquipmentRow, GymExerciseSettingRow, GymRow } from "@workspace/sync";
@@ -17,12 +20,24 @@ export type GymLoads = {
   gridFor: (exerciseId: string, equipment: Equipment) => LoadGrid | null;
   /** The gym's own setting of an exercise (ranges and setup note), if any. */
   settingFor: (exerciseId: string) => GymExerciseSettingRow | undefined;
+  /**
+   * The ranges the gym gives an exercise: its own setting's, and for a dumbbell exercise held to
+   * the gym's dumbbell max (the lower cap wins).
+   */
+  rangesFor: (exerciseId: string, equipment: Equipment) => readonly LoadRange[];
+  /** The equipment types the gym lacks. */
+  unavailableEquipment: readonly Equipment[];
+  /** Whether the gym has the equipment; bodyweight is always there. */
+  hasEquipment: (equipment: Equipment) => boolean;
 };
 
 export const NO_GYM_LOADS: GymLoads = {
   gymId: null,
   gridFor: () => null,
   settingFor: () => undefined,
+  rangesFor: () => [],
+  unavailableEquipment: [],
+  hasEquipment: () => true,
 };
 
 /**
@@ -37,13 +52,23 @@ export function buildGymLoads(input: {
   /** The bar each exercise remembers, by exercise id. */
   bars?: ReadonlyMap<string, string>;
   unit: WeightUnit;
+  /** The heaviest dumbbell of the gym in kilograms; it caps every dumbbell exercise. */
+  dumbbellMaxKg?: number | null;
+  unavailableEquipment?: readonly Equipment[];
 }): GymLoads {
   const byExercise = new Map(input.settings.map((setting) => [setting.exerciseId, setting]));
   const bars = enabledBars(input.kit);
   const grids = new Map<string, LoadGrid | null>();
+  const dumbbellMaxKg = input.dumbbellMaxKg ?? null;
+  const unavailableEquipment = input.unavailableEquipment ?? [];
+  const rangesFor = (exerciseId: string, equipment: Equipment) =>
+    gymRangesFor({ equipment, ranges: byExercise.get(exerciseId)?.loadRanges, dumbbellMaxKg });
   return {
     gymId: input.gymId,
     settingFor: (exerciseId) => byExercise.get(exerciseId),
+    rangesFor,
+    unavailableEquipment,
+    hasEquipment: (equipment) => isEquipmentAvailable(equipment, unavailableEquipment),
     gridFor(exerciseId, equipment) {
       const key = `${exerciseId}|${equipment}`;
       if (!grids.has(key)) {
@@ -57,6 +82,7 @@ export function buildGymLoads(input: {
             equipment,
             unit: input.unit,
             ranges: byExercise.get(exerciseId)?.loadRanges,
+            dumbbellMaxKg,
             bar,
             plates: bar ? platesForBar(input.kit, bar) : [],
           }),
