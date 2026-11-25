@@ -18,6 +18,8 @@ import {
   createGym,
   deleteGym,
   renameGym,
+  setGymAvailability,
+  setGymEquipmentHere,
   setGymExerciseSetting,
   setSessionGym,
 } from "./gym-store";
@@ -116,6 +118,94 @@ describe("kit and gyms", () => {
     expect(s.one("gym", HOME)).toMatchObject({ name: "Iron Works" });
     await expect(renameGym(s.training, HOME, "  ", s.installId)).rejects.toThrow();
     expect(await renameGym(s.training, "nope", "X", s.installId)).toBe(false);
+  });
+
+  it("keeps the equipment a gym lacks and its dumbbell max, defaulting to all of it", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    const rows = () =>
+      new Promise<GymRow[]>((resolve, reject) => {
+        const stop = watchGyms(s.training, {
+          onGyms: (gyms) => {
+            stop();
+            resolve(gyms);
+          },
+          onError: reject,
+        });
+      });
+    expect(await rows()).toMatchObject([
+      { id: HOME, unavailableEquipment: [], dumbbellMaxKg: null },
+    ]);
+
+    // Stored in the catalog's order, so two devices that tick the same boxes agree.
+    expect(
+      await setGymAvailability(
+        s.training,
+        HOME,
+        { unavailableEquipment: ["machine", "cable", "cable"], dumbbellMaxKg: 32.5 },
+        s.installId,
+      ),
+    ).toBe(true);
+    expect(s.one("gym", HOME)).toMatchObject({
+      unavailable_equipment: '["machine","cable"]',
+      dumbbell_max_kg: 32.5,
+    });
+    expect(await rows()).toMatchObject([
+      { unavailableEquipment: ["machine", "cable"], dumbbellMaxKg: 32.5 },
+    ]);
+
+    // A field left out stays; null clears the max.
+    await setGymAvailability(s.training, HOME, { dumbbellMaxKg: null }, s.installId);
+    expect(await rows()).toMatchObject([
+      { unavailableEquipment: ["machine", "cable"], dumbbellMaxKg: null },
+    ]);
+    await setGymAvailability(s.training, HOME, { unavailableEquipment: [] }, s.installId);
+    expect(await rows()).toMatchObject([{ unavailableEquipment: [], dumbbellMaxKg: null }]);
+  });
+
+  it("applies each equipment toggle to the current row", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    await setGymEquipmentHere(s.training, HOME, "cable", false, s.installId);
+    await setGymEquipmentHere(s.training, HOME, "machine", false, s.installId);
+    expect(s.one("gym", HOME)).toMatchObject({ unavailable_equipment: '["machine","cable"]' });
+    await setGymEquipmentHere(s.training, HOME, "cable", true, s.installId);
+    expect(s.one("gym", HOME)).toMatchObject({ unavailable_equipment: '["machine"]' });
+    expect(await setGymEquipmentHere(s.training, "nope", "cable", false, s.installId)).toBe(false);
+  });
+
+  it("refuses bodyweight, a zero max and a gym that is gone", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    await expect(
+      setGymAvailability(s.training, HOME, { unavailableEquipment: ["none"] }, s.installId),
+    ).rejects.toThrow();
+    await expect(
+      setGymAvailability(s.training, HOME, { dumbbellMaxKg: 0 }, s.installId),
+    ).rejects.toThrow();
+    expect(await setGymAvailability(s.training, "nope", { dumbbellMaxKg: 20 }, s.installId)).toBe(
+      false,
+    );
+  });
+
+  it("reads a gym's equipment and dumbbell max for work with no screen", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    await setGymAvailability(
+      s.training,
+      HOME,
+      { unavailableEquipment: ["kettlebell"], dumbbellMaxKg: 40 },
+      s.installId,
+    );
+    const session = await startSession(s.training, {
+      workoutId: (await pushWorkout(s)).workoutId,
+      derivedTitle: "A",
+    });
+    expect(await readGymLoadInputs(s.training, session)).toMatchObject({
+      gymId: HOME,
+      dumbbellMaxKg: 40,
+      unavailableEquipment: ["kettlebell"],
+    });
   });
 
   it("deletes only the gym row, never the last gym, and readers ignore what hung off it", async () => {

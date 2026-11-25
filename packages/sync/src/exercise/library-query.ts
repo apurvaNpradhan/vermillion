@@ -25,6 +25,8 @@ export type LibraryFilters = {
   /** Also match exercises that use a chosen muscle group as a secondary one. */
   includeSecondary: boolean;
   equipment: readonly Equipment[];
+  /** Equipment the current gym lacks: exercises that need it are hidden. Empty hides nothing. */
+  lacking: readonly Equipment[];
   show: LibraryShow;
   sort: LibrarySort;
 };
@@ -37,6 +39,7 @@ export const DEFAULT_LIBRARY_FILTERS = {
   pinnedFirst: false,
   includeSecondary: false,
   equipment: [],
+  lacking: [],
   show: "all",
   sort: "popular",
 } as const satisfies LibraryFilters;
@@ -60,6 +63,7 @@ export function hasActiveFilters(filters: LibraryFilters): boolean {
     filters.primaryDetail !== null ||
     filters.pinnedOnly ||
     filters.equipment.length > 0 ||
+    filters.lacking.length > 0 ||
     filters.show !== "all"
   );
 }
@@ -114,6 +118,11 @@ function whereClause(filters: LibraryFilters): WhereClause {
   if (filters.equipment.length > 0) {
     clauses.push(`equipment IN (${placeholders(filters.equipment)})`);
     params.push(...filters.equipment);
+  }
+
+  if (filters.lacking.length > 0) {
+    clauses.push(`equipment NOT IN (${placeholders(filters.lacking)})`);
+    params.push(...filters.lacking);
   }
 
   return { where: clauses.join(" AND "), params };

@@ -78,7 +78,9 @@ describe("gym upload handlers", () => {
     const [row] = await app.rows(
       table === "gym_exercise_setting"
         ? sql`SELECT id, user_id, gym_id, exercise_id, load_ranges::text AS load_ranges, setup_note, deleted_at FROM gym_exercise_setting WHERE id = ${id}`
-        : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
+        : table === "gym"
+          ? sql`SELECT id, user_id, name, unavailable_equipment::text AS unavailable_equipment, dumbbell_max_kg, deleted_at FROM gym WHERE id = ${id}`
+          : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
     );
     return row;
   };
@@ -183,6 +185,94 @@ describe("gym upload handlers", () => {
     expect(await me.send([op("DELETE", "gym", gone)])).toEqual(applied);
     expect(await me.send([putGym(gone, "Back")])).toMatchObject(rejected("SYNC_ROW_DELETED"));
     expect(await me.send([putGym(gone, "Back", { restore: 1 })])).toEqual(applied);
+  });
+
+  it("stores the equipment a gym lacks and its dumbbell max, and defaults to all of it", async () => {
+    const me = await writer("gym-equipment@example.com");
+    const first = await defaultGym(me);
+    expect(await stored("gym", first)).toMatchObject({ dumbbell_max_kg: null });
+    expect((await stored("gym", first))?.unavailable_equipment).toBe("[]");
+
+    const garage = uuidv7();
+    expect(
+      await me.send([
+        putGym(garage, "Garage", {
+          unavailable_equipment: JSON.stringify(["cable", "machine"]),
+          dumbbell_max_kg: 32.5,
+        }),
+      ]),
+    ).toEqual(applied);
+    expect(await stored("gym", garage)).toMatchObject({
+      unavailable_equipment: '["cable", "machine"]',
+      dumbbell_max_kg: 32.5,
+    });
+
+    // A PATCH carries only what changed; clearing the max is a null.
+    expect(
+      await me.send([op("PATCH", "gym", garage, { unavailable_equipment: JSON.stringify([]) })]),
+    ).toEqual(applied);
+    expect(await stored("gym", garage)).toMatchObject({
+      unavailable_equipment: "[]",
+      dumbbell_max_kg: 32.5,
+    });
+    expect(await me.send([op("PATCH", "gym", garage, { dumbbell_max_kg: null })])).toEqual(applied);
+    expect(await stored("gym", garage)).toMatchObject({ dumbbell_max_kg: null });
+    expect(await me.send([op("PATCH", "gym", garage, { name: "Home" })])).toEqual(applied);
+    expect(await stored("gym", garage)).toMatchObject({ name: "Home" });
+  });
+
+  it.each([
+    ["cable first", false],
+    ["machine first", true],
+  ])("keeps both devices' equipment toggles in any upload order (%s)", async (_name, flip) => {
+    const me = await writer(`gym-toggle-${flip}@example.com`);
+    const id = uuidv7();
+    expect(await me.send([putGym(id, "Garage")])).toEqual(applied);
+    const untick = (type: string) =>
+      ({
+        ...op("PATCH", "gym", id, { unavailable_equipment: JSON.stringify([type]) }),
+        expect: { unavailable_equipment: "[]" },
+      }) as const;
+    const ops = [untick("cable"), untick("machine")];
+    for (const next of flip ? ops.reverse() : ops) expect(await me.send([next])).toEqual(applied);
+    expect(JSON.parse(String((await stored("gym", id))?.unavailable_equipment)).sort()).toEqual([
+      "cable",
+      "machine",
+    ]);
+    // Re-ticking one type removes only that type.
+    const retick = {
+      ...op("PATCH", "gym", id, { unavailable_equipment: JSON.stringify(["machine"]) }),
+      expect: { unavailable_equipment: JSON.stringify(["cable", "machine"]) },
+    } as const;
+    expect(await me.send([retick])).toEqual(applied);
+    expect(JSON.parse(String((await stored("gym", id))?.unavailable_equipment))).toEqual([
+      "machine",
+    ]);
+  });
+
+  const badGyms: { name: string; data: Record<string, Value> }[] = [
+    { name: "an unknown type", data: { unavailable_equipment: JSON.stringify(["sled"]) } },
+    { name: "bodyweight", data: { unavailable_equipment: JSON.stringify(["none"]) } },
+    {
+      name: "a repeated type",
+      data: { unavailable_equipment: JSON.stringify(["cable", "cable"]) },
+    },
+    { name: "a list that is not JSON", data: { unavailable_equipment: "cable" } },
+    { name: "an object", data: { unavailable_equipment: JSON.stringify({ cable: true }) } },
+    { name: "a zero dumbbell max", data: { dumbbell_max_kg: 0 } },
+    { name: "a negative dumbbell max", data: { dumbbell_max_kg: -5 } },
+    { name: "a dumbbell max over the limit", data: { dumbbell_max_kg: 5000 } },
+    { name: "a text dumbbell max", data: { dumbbell_max_kg: "heavy" } },
+  ];
+  it.each(badGyms)("refuses a gym with $name, on PUT and PATCH", async ({ data }) => {
+    const me = await writer(`gym-equipment-bad-${Math.random().toString(36).slice(2)}@example.com`);
+    const first = await defaultGym(me);
+    expect(await me.send([putGym(uuidv7(), "Bad", data)])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(await me.send([op("PATCH", "gym", first, data)])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
   });
 
   it("creates gyms beyond the old account limit", async () => {

@@ -365,6 +365,8 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        unavailable_equipment: { type: "jsonb", notNull: true, default: "'[]'::jsonb" },
+        dumbbell_max_kg: { type: "double precision", notNull: false, default: null },
       },
       indexes: {
         gym_user_id_live_idx:
@@ -495,7 +497,7 @@ const expectation: Expectation = {
       "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id, phase)",
       "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment)",
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at, generated_warmup)",
-      "gym(id, user_id, name, created_at, updated_at, deleted_at)",
+      "gym(id, user_id, name, created_at, updated_at, deleted_at, unavailable_equipment, dumbbell_max_kg)",
       "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at, gym_id)",
       "gym_exercise_setting(id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at, updated_at, deleted_at)",
       "exercise_pin(id, user_id, exercise_id, created_at, deleted_at)",

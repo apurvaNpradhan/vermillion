@@ -38,7 +38,7 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { ListRow, ListSection } from "@/platform/ui/list";
-import { GymLimitRows } from "@/gym";
+import { GymLimitRows, useSessionGym } from "@/gym";
 import { Notice } from "@/platform/ui/notice";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
@@ -60,6 +60,7 @@ const HERO_RATIO_WITH_HISTORY = 9 / 16;
 
 export type ExerciseDetailProps = {
   id: string;
+  sessionId?: string;
   onSeeHistory: () => void;
   /** Open the library filtered to a muscle group, when browsing is available. */
   onBrowseGroup?: (group: MuscleGroup) => void;
@@ -111,6 +112,7 @@ export function ExerciseDetailScreen(props: ExerciseDetailProps) {
 
 function LoadedDetail({
   exercise,
+  sessionId,
   onBrowseGroup,
   onOpenExercise,
   onEdit,
@@ -137,7 +139,8 @@ function LoadedDetail({
   const perSet = mode.value ?? false;
   const { preferences, timeZone } = usePreferences();
   const hasHistory = history.status === "ready" && history.sessions.length > 0;
-  const swaps = useSwapCandidates(exercise);
+  const gymId = useSessionGym(sessionId ?? null);
+  const swaps = useSwapCandidates(exercise, gymId);
   const foreground = useThemeColor("foreground");
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -325,6 +328,7 @@ function LoadedDetail({
                   exerciseId={exercise.id}
                   type={exercise.exerciseType}
                   equipment={exercise.equipment}
+                  gymId={gymId}
                   weightIncrementKg={preferences.ui.weightIncrementKg}
                   progressionPerSet={perSet}
                   bodyweightKg={preferences.ui.bodyweightKg}
@@ -383,11 +387,16 @@ function LoadedDetail({
                   exerciseId={exercise.id}
                   title={exercise.title}
                   equipment={exercise.equipment}
+                  gymId={gymId}
                   unit={preferences.ui.weightUnit}
                 />
               </View>
             ) : null}
-            <SwapRow candidates={swaps} onOpen={onOpenExercise} />
+            <SwapRow
+              candidates={swaps.rows}
+              hasEquipment={swaps.hasEquipment}
+              onOpen={onOpenExercise}
+            />
             <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
             {steps.length > 0 ? <FormSection steps={steps} /> : null}
           </Animated.ScrollView>

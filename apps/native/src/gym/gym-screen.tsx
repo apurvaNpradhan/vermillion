@@ -7,6 +7,7 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { ScrollPage } from "@/platform/ui/page";
 
+import { EquipmentHereSection } from "./equipment-here-section";
 import { GymNameSheet } from "./gym-name-sheet";
 import { useGyms } from "./use-gyms";
 
@@ -45,6 +46,7 @@ export function GymScreen({ id }: { id: string }) {
             onPress={() => setRenaming(true)}
           />
         </ListSection>
+        <EquipmentHereSection gymId={id} />
         <ListSection>
           <ListRow
             icon={Trash}

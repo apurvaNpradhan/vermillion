@@ -67,7 +67,8 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         distance_m REAL, floors INTEGER, steps INTEGER, rpe REAL, completed_at TEXT,
         timer_started_at TEXT, target TEXT, generated_warmup INTEGER, created_at TEXT, restore INTEGER);
       CREATE INDEX session_set_order_idx ON session_set (session_exercise_id, position);
-      CREATE TABLE gym (id TEXT PRIMARY KEY, user_id TEXT, name TEXT, created_at TEXT, restore INTEGER);
+      CREATE TABLE gym (id TEXT PRIMARY KEY, user_id TEXT, name TEXT, unavailable_equipment TEXT,
+        dumbbell_max_kg REAL, created_at TEXT, restore INTEGER);
       CREATE TABLE gym_equipment (id TEXT PRIMARY KEY, user_id TEXT, gym_id TEXT, kind TEXT, weight_kg REAL,
         unit TEXT, label TEXT, count INTEGER, enabled INTEGER, created_at TEXT, restore INTEGER, seed TEXT);
       CREATE TABLE gym_exercise_setting (id TEXT PRIMARY KEY, user_id TEXT, gym_id TEXT, exercise_id TEXT,

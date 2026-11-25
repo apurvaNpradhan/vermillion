@@ -72,7 +72,7 @@ export function useAutoWarmups({
       if (!shouldAutoWarmup(exercise)) continue;
       const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
       if (workingKg === null) continue;
-      const ranges = gym.settingFor(exercise.exerciseId)?.loadRanges;
+      const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
       const key = rampKey(
         workingKg,
         exercise,
@@ -124,7 +124,7 @@ export function useAutoWarmups({
       const workingKg = canAddWarmups(exercise)
         ? firstWorkingWeightKg(exercise, ghostWeightOf)
         : null;
-      const ranges = gym.settingFor(exercise.exerciseId)?.loadRanges;
+      const ranges = gym.rangesFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
       const ramp =
         workingKg !== null && workingKg > 0
           ? rampTargets(exercise, workingKg, rows, unit, weightIncrementKg, warmupSettings, ranges)

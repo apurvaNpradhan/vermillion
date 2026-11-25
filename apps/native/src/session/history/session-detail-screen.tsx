@@ -227,7 +227,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         onPress={() =>
                           router.push({
                             pathname: "/exercise-view/[id]",
-                            params: { id: entry.exerciseId },
+                            params: { id: entry.exerciseId, sessionId: id },
                           })
                         }
                       />

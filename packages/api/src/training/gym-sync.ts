@@ -1,8 +1,12 @@
 import {
+  EQUIPMENT,
+  type Equipment,
+  gymAvailabilityInput,
   gymExerciseSettingId,
   gymExerciseSettingInput,
   gymInput,
   loadRangesSchema,
+  unavailableEquipmentSchema,
 } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -32,8 +36,49 @@ import { gym, gymExerciseSetting } from "./tables";
 
 // ---- Gym ----
 
-const putGym = z.strictObject({ restore: restoreMarker, name: gymInput.shape.name });
-const patchGym = z.strictObject({ name: gymInput.shape.name }).partial();
+// The client stores the lacking equipment as JSON text and uploads it that way.
+const wireEquipment = z
+  .string()
+  .transform((text, ctx) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "not JSON" });
+      return z.NEVER;
+    }
+  })
+  .pipe(unavailableEquipmentSchema);
+
+const availabilityFields = {
+  unavailable_equipment: wireEquipment,
+  dumbbell_max_kg: gymAvailabilityInput.shape.dumbbell_max_kg,
+};
+const putGym = z.strictObject({
+  restore: restoreMarker,
+  name: gymInput.shape.name,
+  unavailable_equipment: availabilityFields.unavailable_equipment.optional(),
+  dumbbell_max_kg: availabilityFields.dumbbell_max_kg.optional(),
+});
+/**
+ * The list a toggle leaves. With the list the device started from, only what it changed applies
+ * to the stored list, so two devices that untick different types both survive; without it the
+ * device's list replaces the stored one.
+ */
+function mergedEquipment(
+  stored: readonly Equipment[],
+  sent: readonly Equipment[],
+  expectedText: string | undefined,
+): Equipment[] {
+  const expected = expectedText === undefined ? null : wireEquipment.safeParse(expectedText);
+  if (!expected?.success) return [...sent];
+  const added = sent.filter((entry) => !expected.data.includes(entry));
+  const removed = expected.data.filter((entry: Equipment) => !sent.includes(entry));
+  return EQUIPMENT.filter(
+    (entry) => (stored.includes(entry) || added.includes(entry)) && !removed.includes(entry),
+  );
+}
+
+const patchGym = z.strictObject({ name: gymInput.shape.name, ...availabilityFields }).partial();
 
 const gymSyncHandler: SyncTableHandler = {
   table: "gym",
@@ -57,22 +102,42 @@ const gymSyncHandler: SyncTableHandler = {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
       const { restore, ...values } = accept(putGym.safeParse(op.opData ?? {}));
       checkPut(found, restore);
+      const availability = {
+        unavailableEquipment: values.unavailable_equipment ?? [],
+        dumbbellMaxKg: values.dumbbell_max_kg ?? null,
+      };
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
-        await db.insert(gym).values({ id, userId, name: values.name });
+        await db.insert(gym).values({ id, userId, name: values.name, ...availability });
         return;
       }
       await db
         .update(gym)
-        .set({ name: values.name, deletedAt: null, updatedAt: now() })
+        .set({ name: values.name, ...availability, deletedAt: null, updatedAt: now() })
         .where(eq(gym.id, id));
       return;
     }
 
     const row = liveRow(found);
     const patch = accept(patchGym.safeParse(op.opData ?? {}));
-    if (patch.name === undefined) return;
-    await db.update(gym).set({ name: patch.name, updatedAt: now() }).where(eq(gym.id, row.id));
+    const changes = {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.unavailable_equipment !== undefined
+        ? {
+            unavailableEquipment: mergedEquipment(
+              row.unavailableEquipment,
+              patch.unavailable_equipment,
+              op.expect?.unavailable_equipment,
+            ),
+          }
+        : {}),
+      ...(patch.dumbbell_max_kg !== undefined ? { dumbbellMaxKg: patch.dumbbell_max_kg } : {}),
+    };
+    if (Object.keys(changes).length === 0) return;
+    await db
+      .update(gym)
+      .set({ ...changes, updatedAt: now() })
+      .where(eq(gym.id, row.id));
   },
   purgeTombstones: async () => 0,
 };

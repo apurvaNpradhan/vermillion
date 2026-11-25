@@ -83,7 +83,12 @@ export const powerSyncSchema = new DrizzleAppSchema({
       trackPrevious: { columns: ["completed_at", "timer_started_at"], onlyWhenChanged: false },
     },
   },
-  gym: { tableDefinition: gym },
+  gym: {
+    tableDefinition: gym,
+    // A PATCH of the lacking equipment reports the list it started from, so the server can apply
+    // the toggle instead of replacing the list.
+    options: { trackPrevious: { columns: ["unavailable_equipment"], onlyWhenChanged: false } },
+  },
   gym_equipment: { tableDefinition: gymEquipment },
   gym_exercise_setting: { tableDefinition: gymExerciseSetting },
   exercise_setting: { tableDefinition: exerciseSetting },

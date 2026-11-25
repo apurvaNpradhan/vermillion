@@ -213,6 +213,10 @@ export const gym = sqliteTable("gym", {
   id: text("id").primaryKey().notNull(),
   user_id: text("user_id").notNull(),
   name: text("name").notNull(),
+  /** JSON text: the equipment types this gym lacks. Empty or null: it has all of them. */
+  unavailable_equipment: text("unavailable_equipment"),
+  /** The heaviest dumbbell in kilograms, which caps every dumbbell exercise here. */
+  dumbbell_max_kg: real("dumbbell_max_kg"),
   created_at: text("created_at").notNull(),
   restore: integer("restore"),
 });
