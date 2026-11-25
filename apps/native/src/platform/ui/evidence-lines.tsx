@@ -6,6 +6,7 @@ import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useTranslation } from "@/platform/i18n";
 
 import { evidenceLines } from "./evidence-text";
+import { distanceText, durationText } from "./work-text";
 
 /**
  * The quiet lines under a reason: the Session the suggestion was read from and what was done in
@@ -33,7 +34,13 @@ export function EvidenceLines({
       type,
       unit,
       formatDate: (iso) => date.format(new Date(iso)),
-      formatSets: (weight, unitName, reps) => t("progress__best", { weight, unit: unitName, reps }),
+      formats: {
+        sets: (weight, unitName, reps) => t("progress__best", { weight, unit: unitName, reps }),
+        assisted: (weight, unitName, reps) =>
+          t("progress__evidence_assisted", { weight, unit: unitName, reps }),
+        duration: (seconds) => durationText(t, seconds),
+        distance: (metres) => distanceText(t, metres),
+      },
     });
   }, [evidence, type, unit, i18n.language, timeZone, t]);
   if (lines.length === 0) return null;

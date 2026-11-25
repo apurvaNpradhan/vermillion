@@ -1,5 +1,7 @@
+import { SET_FIELDS } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import { progresses, type ProgressionReason, type SetOutcome } from "../progress/progression";
+import type { PlannedSet } from "../plans/planned-sets";
 import type { ContextSession } from "../progress/suggestion-context";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { prescribe, type PrescribeInput } from "./prescribe";
@@ -13,8 +15,14 @@ export type RulePreviewSession = {
   reason: ProgressionReason;
   /** What the first set that names the reason says: its change in load, its factor. */
   outcome: SetOutcome | null;
-  /** The progressing sets, in order. */
-  sets: { kind: SetKind; weightKg: number | null; reps: number | null }[];
+  /** The progressing sets, in order; timed and carried work also has its time and distance. */
+  sets: {
+    kind: SetKind;
+    weightKg: number | null;
+    reps: number | null;
+    durationS?: number;
+    distanceM?: number;
+  }[];
 };
 
 /**
@@ -53,10 +61,14 @@ export function previewRule(
   };
   if (history.length === 0) {
     const planned = input.plan.filter((target) => progresses(target.kind));
-    if (planned.length === 0 || planned.some((target) => target.reps_min === undefined)) return [];
-    if (input.place.type !== "reps_only" && input.place.type !== "bodyweight_reps") {
-      if (planned.some((target) => target.weight_kg === undefined)) return [];
-    }
+    // Every value the exercise type records must be planned: reps, a time, a distance or a load.
+    const fields: readonly string[] = SET_FIELDS[input.place.type];
+    const missing = (target: PlannedSet) =>
+      (fields.includes("reps") && target.reps_min === undefined) ||
+      (fields.includes("weight") && target.weight_kg === undefined) ||
+      (fields.includes("duration") && target.duration_s === undefined) ||
+      (fields.includes("distance") && target.distance_m === undefined);
+    if (planned.length === 0 || planned.some(missing)) return [];
     history.unshift(
       session(
         "rule-preview-start",
@@ -66,6 +78,8 @@ export function previewRule(
           kind: target.kind,
           weight_kg: target.weight_kg ?? null,
           reps: target.reps_min ?? null,
+          ...(target.duration_s === undefined ? {} : { duration_s: target.duration_s }),
+          ...(target.distance_m === undefined ? {} : { distance_m: target.distance_m }),
           target,
         })),
       ),
@@ -87,7 +101,15 @@ export function previewRule(
     const sets = input.plan.flatMap((target, position) => {
       const next = progression.sets[position];
       return progresses(target.kind) && next
-        ? [{ kind: target.kind, weightKg: next.weightKg, reps: next.reps }]
+        ? [
+            {
+              kind: target.kind,
+              weightKg: next.weightKg,
+              reps: next.reps,
+              ...(next.durationS == null ? {} : { durationS: next.durationS }),
+              ...(next.distanceM == null ? {} : { distanceM: next.distanceM }),
+            },
+          ]
         : [];
     });
     if (sets.length === 0) break;
@@ -107,6 +129,8 @@ export function previewRule(
                   kind: target.kind,
                   weight_kg: next.weightKg,
                   reps: next.reps,
+                  ...(next.durationS == null ? {} : { duration_s: next.durationS }),
+                  ...(next.distanceM == null ? {} : { distance_m: next.distanceM }),
                   target,
                 },
               ]

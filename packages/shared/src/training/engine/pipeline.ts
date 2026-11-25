@@ -136,6 +136,9 @@ export function suggestNext(
           kind: set.kind,
           weightKg: set.weight_kg ?? null,
           reps: set.reps ?? null,
+          // Only timed and carried work has them; a set without them is what older builds wrote.
+          ...(set.duration_s == null ? {} : { durationS: set.duration_s }),
+          ...(set.distance_m == null ? {} : { distanceM: set.distance_m }),
         })),
       }
     : null;

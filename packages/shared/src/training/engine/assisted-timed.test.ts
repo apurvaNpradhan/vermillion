@@ -7,8 +7,10 @@ import { rangeGrid } from "../progress/load-grid";
 import type { SuggestedSet } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
+import type { ContextSession } from "../progress/suggestion-context";
 import { suggestNext } from "./pipeline";
-import { prescribe } from "./prescribe";
+import { previewRule } from "./preview-rule";
+import { prescribe, type PrescribeInput } from "./prescribe";
 import type { RuleConfig } from "./rule-config";
 
 const DAY = 86_400_000;
@@ -179,6 +181,54 @@ describe("timed work", () => {
     expect(ask([held(0, 60)], 16, { id: "maintain" })?.sets[0]?.durationS).toBe(55);
   });
 
+  it("keeps the time held in its evidence", () => {
+    const result = ask([held(0, 40)], 2);
+    expect(result?.evidence?.baseline?.sets[0]).toMatchObject({ durationS: 40 });
+  });
+
+  it("previews a hold from its plan alone, then from its own history", () => {
+    const input = (history: ContextSession[]): PrescribeInput => ({
+      place: {
+        exerciseId: "lift",
+        sourceWorkoutExerciseId: "plan-lift",
+        type: "duration" as const,
+        equipment: "none" as const,
+        workoutId: "w",
+        gymId: null,
+        grid: null,
+        stalls: false,
+      },
+      plan: [
+        { kind: "working" as const, duration_s: 30 },
+        { kind: "working" as const, duration_s: 30 },
+      ],
+      history,
+      account: {
+        previousSource: "same_workout" as const,
+        unit: "kg" as const,
+        weightIncrementKg: null,
+        lighterWeeks: [],
+        bodyweightKg: null,
+        stallMemory: () => ({ dismissed: false }),
+      },
+      now: new Date(START),
+    });
+    const fromPlan = previewRule(input([]));
+    // Each preview Session asks five seconds more than the one before: 35, 40, 45, 50.
+    expect(fromPlan.map(({ sets }) => sets[0]?.durationS)).toEqual([35, 40, 45, 50]);
+    expect(fromPlan[0]?.reason).toBe("add_time");
+    expect(fromPlan[0]?.sets[0]?.weightKg).toBeNull();
+    const logged = [held(0, 60)].map((item) => ({
+      ...item,
+      workoutId: "w",
+      gymId: null,
+      finished_at: item.started_at,
+    }));
+    expect(previewRule(input(logged)).map(({ sets }) => sets[0]?.durationS)).toEqual([
+      65, 70, 75, 80,
+    ]);
+  });
+
   it("leaves a maintained hold as it was", () => {
     const result = ask([held(0, 40)], 2, { id: "maintain" });
     expect(result?.reason).toBe("same_as_last");
@@ -253,6 +303,14 @@ describe.each([
     const result = ask([walked(0, carried, 15)], 2);
     expect(result?.reason).toBe("hold_target");
     expect(result?.sets[0]).toMatchObject({ weightKg: kg(carried), distanceM: 20 });
+  });
+
+  it("keeps the load and distance carried in its evidence", () => {
+    const result = ask([walked(0, carried, 20)], 2);
+    expect(result?.evidence?.baseline?.sets[0]).toMatchObject({
+      weightKg: kg(carried),
+      distanceM: 20,
+    });
   });
 
   it("adds five metres to a carry with no load", () => {

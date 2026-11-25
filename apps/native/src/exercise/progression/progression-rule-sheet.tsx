@@ -15,6 +15,7 @@ import { useMountOnOpen } from "@/platform/ui/mount-on-open";
 import { progressionLabelKey, progressionParams } from "@/platform/ui/progression-reason";
 import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useSheetAnimation } from "@/platform/ui/sheet-motion";
+import { workText } from "@/platform/ui/work-text";
 
 import { RULE_OPTIONS, previewGroups } from "./rule-text";
 
@@ -101,16 +102,18 @@ export function ProgressionRuleSheet({
                 {preview.map((session, index) => {
                   const groups = previewGroups(session, type, unit);
                   const sets = groups
-                    .map((group) =>
-                      group.weight === null
-                        ? t("progress__rule_sets_reps", { count: group.count, reps: group.reps })
-                        : t("progress__rule_sets_weighted", {
-                            count: group.count,
-                            weight: group.weight,
-                            unit,
-                            reps: group.reps,
-                          }),
-                    )
+                    .map((group) => {
+                      // A hold or a carry says its time and distance where reps would be.
+                      const reps = group.reps ?? workText(t, group) ?? group.reps;
+                      if (group.weight === null)
+                        return t("progress__rule_sets_reps", { count: group.count, reps });
+                      return t(
+                        type === "bodyweight_assisted_reps"
+                          ? "progress__rule_sets_assisted"
+                          : "progress__rule_sets_weighted",
+                        { count: group.count, weight: group.weight, unit, reps },
+                      );
+                    })
                     .join(" · ");
                   const label = session.outcome
                     ? t(

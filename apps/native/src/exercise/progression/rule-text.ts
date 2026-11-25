@@ -19,21 +19,53 @@ export const RULE_OPTIONS = [
 ] as const satisfies readonly { id: RuleId; titleKey: string; hintKey: string }[];
 
 /** One run of identical sets in a previewed Session: "3 × 62.5 kg × 8". */
-export type PreviewGroup = { count: number; weight: string | null; reps: number | null };
+export type PreviewGroup = {
+  count: number;
+  weight: string | null;
+  reps: number | null;
+  /** Timed and carried work: the time and distance of each set. */
+  durationS?: number;
+  distanceM?: number;
+};
 
 /** The sets of a previewed Session, runs of identical ones folded into a count. */
 export function previewGroups(
-  session: { sets: readonly { weightKg: number | null; reps: number | null }[] },
+  session: {
+    sets: readonly {
+      weightKg: number | null;
+      reps: number | null;
+      durationS?: number;
+      distanceM?: number;
+    }[];
+  },
   type: ExerciseType,
   unit: WeightUnit,
 ): PreviewGroup[] {
-  const loaded = type === "weight_reps" || addsLoad(type);
+  const loaded =
+    type === "weight_reps" ||
+    type === "short_distance_weight" ||
+    type === "bodyweight_assisted_reps" ||
+    addsLoad(type);
   const groups: PreviewGroup[] = [];
   for (const set of session.sets) {
     const weight = loaded && set.weightKg !== null ? formatLoad(set.weightKg, unit, type) : null;
     const last = groups.at(-1);
-    if (last && last.weight === weight && last.reps === set.reps) last.count += 1;
-    else groups.push({ count: 1, weight, reps: set.reps });
+    if (
+      last &&
+      last.weight === weight &&
+      last.reps === set.reps &&
+      last.durationS === set.durationS &&
+      last.distanceM === set.distanceM
+    )
+      last.count += 1;
+    else
+      groups.push({
+        count: 1,
+        weight,
+        reps: set.reps,
+        ...(set.durationS === undefined ? {} : { durationS: set.durationS }),
+        ...(set.distanceM === undefined ? {} : { distanceM: set.distanceM }),
+      });
   }
   return groups;
 }

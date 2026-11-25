@@ -13,28 +13,53 @@ export type EvidenceLine =
 
 type SnappedParams = { percent: number; value: string; unit: WeightUnit; cut: number };
 
+/** How the parts of a set read; the screen passes translated ones, tests plain ones. */
+export type EvidenceFormats = {
+  /** A load with its reps (or its time, or its distance): "60 kg × 12". */
+  sets: (weight: string, unit: WeightUnit, reps: string) => string;
+  /** Help on an assisted lift, with its reps: "20 kg assist × 8". */
+  assisted: (weight: string, unit: WeightUnit, reps: string) => string;
+  duration: (seconds: number) => string;
+  distance: (metres: number) => string;
+};
+
 /**
  * The runs of the baseline Session's sets that share a load: "60 kg × 12, 12, 11". A lift with no
- * load is only its reps.
+ * load is only its reps; timed work says how long, carried work how far, and an assisted lift how
+ * much help.
  */
 export function evidenceSets(
-  sets: readonly { weightKg: number | null; reps: number | null }[],
+  sets: readonly {
+    weightKg: number | null;
+    reps: number | null;
+    durationS?: number;
+    distanceM?: number;
+  }[],
   type: ExerciseType,
   unit: WeightUnit,
-  format: (weight: string, unit: WeightUnit, reps: string) => string,
+  formats: EvidenceFormats,
 ): string {
-  const loaded = type === "weight_reps" || addsLoad(type);
+  const assisted = type === "bodyweight_assisted_reps";
+  const loaded =
+    type === "weight_reps" || type === "short_distance_weight" || addsLoad(type) || assisted;
   const runs: { weight: string | null; reps: string[] }[] = [];
   for (const set of sets) {
     const weight = loaded && set.weightKg !== null ? formatLoad(set.weightKg, unit, type) : null;
-    const reps = set.reps === null ? "–" : String(set.reps);
+    const parts = [
+      set.reps === null ? null : String(set.reps),
+      set.durationS === undefined ? null : formats.duration(set.durationS),
+      set.distanceM === undefined ? null : formats.distance(set.distanceM),
+    ].filter((part) => part !== null);
+    const reps = parts.length === 0 ? "–" : parts.join(" · ");
     const last = runs.at(-1);
     if (last && last.weight === weight) last.reps.push(reps);
     else runs.push({ weight, reps: [reps] });
   }
   return runs
     .map(({ weight, reps }) =>
-      weight === null ? reps.join(", ") : format(weight, unit, reps.join(", ")),
+      weight === null
+        ? reps.join(", ")
+        : (assisted ? formats.assisted : formats.sets)(weight, unit, reps.join(", ")),
     )
     .join(" · ");
 }
@@ -50,7 +75,7 @@ export function evidenceLines(
     type: ExerciseType;
     unit: WeightUnit;
     formatDate: (iso: string) => string;
-    formatSets: (weight: string, unit: WeightUnit, reps: string) => string;
+    formats: EvidenceFormats;
   },
 ): EvidenceLine[] {
   if (!evidence) return [];
@@ -62,7 +87,7 @@ export function evidenceLines(
       key: "progress__evidence_from",
       params: {
         date: options.formatDate(baseline.at),
-        sets: evidenceSets(baseline.sets, type, unit, options.formatSets),
+        sets: evidenceSets(baseline.sets, type, unit, options.formats),
       },
     });
   }

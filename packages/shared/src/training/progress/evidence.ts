@@ -21,6 +21,9 @@ export const evidenceSchema = z.strictObject({
             kind: z.enum(SET_KINDS),
             weightKg: load.nullable(),
             reps: z.int().min(0).max(999).nullable(),
+            /** Timed and carried work: the time held and the distance covered, when it had any. */
+            durationS: z.number().min(0).max(86_400).optional(),
+            distanceM: z.number().min(0).max(1_000_000).optional(),
           }),
         )
         .max(SESSION_LIMITS.setsPerExercise),

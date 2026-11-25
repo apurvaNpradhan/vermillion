@@ -43,4 +43,29 @@ describe("rule text", () => {
       { count: 1, weight: null, reps: 12 },
     ]);
   });
+
+  it("keeps the time and distance of a hold or a carry, and the help of an assisted lift", () => {
+    expect(
+      previewGroups(
+        {
+          sets: [
+            { weightKg: null, reps: null, durationS: 35 },
+            { weightKg: null, reps: null, durationS: 35 },
+          ],
+        },
+        "duration",
+        "kg",
+      ),
+    ).toEqual([{ count: 2, weight: null, reps: null, durationS: 35 }]);
+    expect(
+      previewGroups(
+        { sets: [{ weightKg: 24, reps: null, distanceM: 40 }] },
+        "short_distance_weight",
+        "kg",
+      ),
+    ).toEqual([{ count: 1, weight: "24", reps: null, distanceM: 40 }]);
+    expect(
+      previewGroups({ sets: [{ weightKg: 20, reps: 8 }] }, "bodyweight_assisted_reps", "kg"),
+    ).toEqual([{ count: 1, weight: "20", reps: 8 }]);
+  });
 });

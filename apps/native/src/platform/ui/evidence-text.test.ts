@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 
 import { evidenceLines, evidenceSets } from "./evidence-text";
 
-const format = (weight: string, unit: string, reps: string) => `${weight} ${unit} × ${reps}`;
+const format = {
+  sets: (weight: string, unit: string, reps: string) => `${weight} ${unit} × ${reps}`,
+  assisted: (weight: string, unit: string, reps: string) => `${weight} ${unit} assist × ${reps}`,
+  duration: (seconds: number) => `${seconds} s`,
+  distance: (metres: number) => `${metres} m`,
+};
 const options = (unit: "kg" | "lb") => ({
   type: "weight_reps" as const,
   unit,
   formatDate: (iso: string) => iso.slice(0, 10),
-  formatSets: format,
+  formats: format,
 });
 const baseline = (unit: "kg" | "lb"): NonNullable<Evidence["baseline"]> => {
   const kg = (value: number) => (unit === "kg" ? value : value * KG_PER_LB);
@@ -116,5 +121,46 @@ describe.each(["kg", "lb"] as const)("evidence lines in %s", (unit) => {
       },
     ]);
     expect(evidenceLines(undefined, options(unit))).toEqual([]);
+  });
+});
+
+describe("evidence of timed, carried and assisted work", () => {
+  it("says how long a hold was and how far a carry went", () => {
+    expect(
+      evidenceSets(
+        [
+          { weightKg: null, reps: null, durationS: 30 },
+          { weightKg: null, reps: null, durationS: 25 },
+        ],
+        "duration",
+        "kg",
+        format,
+      ),
+    ).toBe("30 s, 25 s");
+    expect(
+      evidenceSets(
+        [
+          { weightKg: 24, reps: null, distanceM: 40 },
+          { weightKg: 24, reps: null, distanceM: 40 },
+        ],
+        "short_distance_weight",
+        "kg",
+        format,
+      ),
+    ).toBe("24 kg × 40 m, 40 m");
+  });
+
+  it("says how much help an assisted set had", () => {
+    expect(
+      evidenceSets(
+        [
+          { weightKg: 20, reps: 8 },
+          { weightKg: 20, reps: 7 },
+        ],
+        "bodyweight_assisted_reps",
+        "kg",
+        format,
+      ),
+    ).toBe("20 kg assist × 8, 7");
   });
 });
