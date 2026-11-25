@@ -43,7 +43,7 @@ export const BodyMapFilter = memo(function BodyMapFilter({
         style={FIGURE_PAIR_STYLE}
         maxFigureWidth={116}
         artTint={artTint}
-        secondary={BODY_GROUPS}
+        targets={BODY_GROUPS}
         selected={muscles}
         details={detail === null ? undefined : [detail]}
         onPressGroup={onPressGroup}

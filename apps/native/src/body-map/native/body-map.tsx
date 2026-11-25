@@ -20,6 +20,8 @@ export type BodyMapProps = {
   primary?: readonly MuscleGroup[];
   /** Groups drawn lighter. */
   secondary?: readonly MuscleGroup[];
+  /** Groups drawn like secondary but announced by name only: neutral targets such as a filter's. */
+  targets?: readonly MuscleGroup[];
   /**
    * Parts of the groups above to light instead of the whole group (an exercise's muscle details).
    * A group with none of its details listed is lit whole.
@@ -47,6 +49,7 @@ export function BodyMap({
   view,
   primary,
   secondary,
+  targets,
   details,
   intensity,
   artTint,
@@ -57,9 +60,13 @@ export function BodyMap({
   const { t } = useTranslation();
   const [size, setSize] = useState({ width: 0, height: 0 });
 
+  const drawnSecondary = useMemo(
+    () => (targets ? [...(secondary ?? []), ...targets] : secondary),
+    [secondary, targets],
+  );
   const alphas = useMemo(
-    () => groupAlphas({ primary, secondary, intensity, selected }),
-    [primary, secondary, intensity, selected],
+    () => groupAlphas({ primary, secondary: drawnSecondary, intensity, selected }),
+    [primary, drawnSecondary, intensity, selected],
   );
   const layers = useMemo(() => layerAlphas(view, alphas, details), [view, alphas, details]);
   const actions = useMemo(
@@ -73,7 +80,7 @@ export function BodyMap({
         let label = name;
         if (chosen) label = t("bodymap__group_selected", { name });
         else if (primary?.includes(group)) label = t("bodymap__group_primary", { name });
-        else if (!onPressGroup && secondary?.includes(group)) {
+        else if (secondary?.includes(group)) {
           label = t("bodymap__group_secondary", { name });
         }
         return [{ name: group, label, chosen }];
