@@ -1,5 +1,5 @@
 import { ArrowUUpLeft, Play, SkipForward } from "phosphor-react-native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { RunSlot } from "@workspace/shared";
 import type { ProgramSlotDetail } from "@workspace/sync";
@@ -89,13 +89,20 @@ export function useSlotDay({
     ];
   }, [selected, progress, runId, title, t, onStart, onSkip, onUnskip]);
 
+  // Progress can change while the sheet is open (another device finishes or skips the day). Close it
+  // for good then, so it never reappears later with a stale selection.
+  const empty = actions.length === 0;
+  useEffect(() => {
+    if (isOpen && empty) setIsOpen(false);
+  }, [isOpen, empty]);
+
   return {
     open,
     sheet: (
       <ActionSheet
         title={title}
         actions={actions}
-        isOpen={isOpen && actions.length > 0}
+        isOpen={isOpen && !empty}
         onOpenChange={setIsOpen}
       />
     ),

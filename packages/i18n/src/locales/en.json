@@ -598,7 +598,6 @@
   "training__sessions_per_week_auto": "Counted from the rotation until you change it",
   "training__edit": "Edit",
   "training__rest_day": "Rest day",
-  "training__chip_state": "{{title}}, {{state}}",
   "training__programs": "Programs",
   "training__new_program": "New program",
   "training__program": "Program",
