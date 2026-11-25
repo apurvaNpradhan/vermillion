@@ -18,7 +18,7 @@ import type { GymLoads } from "@/gym";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
-import { exerciseSuggestion } from "../logging/logging-ghosts";
+import { capGhostWeight, exerciseSuggestion } from "../logging/logging-ghosts";
 import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
@@ -93,32 +93,6 @@ export type ExerciseCache = {
   view: ExerciseView;
 };
 
-/**
- * All of an exercise's finished Sessions: its Workout's own first, when asked to. The break clock
- * and the stall check read this; what the Session's gym adds is {@link historyOf}.
- */
-function fullHistoryOf(
-  exercise: SessionExerciseDetail,
-  inputs: DeriveInputs,
-  workoutId: string | null,
-): readonly FinishedSession[] | undefined {
-  const all = inputs.previous.get(exercise.exerciseId);
-  return all && historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null);
-}
-
-/** The history an exercise compares with: the Sessions at the Session's gym when it is gym-bound. */
-function historyOf(
-  exercise: SessionExerciseDetail,
-  inputs: DeriveInputs,
-  workoutId: string | null,
-): readonly FinishedSession[] | undefined {
-  const full = fullHistoryOf(exercise, inputs, workoutId);
-  return (
-    full &&
-    historyForGym(full, inputs.sessionGymId ?? null, exercise.exercise?.equipment ?? "other")
-  );
-}
-
 function buildView(
   exercise: SessionExerciseDetail,
   rawHistory: readonly FinishedSession[] | undefined,
@@ -127,16 +101,19 @@ function buildView(
   workoutId: string | null,
   before: ExerciseView | undefined,
 ): ExerciseView {
-  const fullHistory = fullHistoryOf(exercise, inputs, workoutId);
-  const history = historyOf(exercise, inputs, workoutId);
+  const equipment = exercise.exercise?.equipment ?? "other";
+  const baseline =
+    rawHistory &&
+    historyForWorkout(rawHistory, inputs.previousSource === "same_workout" ? workoutId : null);
+  const history = baseline && historyForGym(baseline, inputs.sessionGymId ?? null, equipment);
   const loaded = rawHistory !== undefined;
   const historyReady = loaded || inputs.historyFailed;
 
   // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
   let stall: StallInfo | null = null;
   if (!finished && exercise.sourceWorkoutExerciseId) {
-    // A stall is about the lift, wherever it was trained.
-    const sessions = fullHistory ?? [];
+    // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
+    const sessions = rawHistory?.filter((session) => session.workoutId === workoutId) ?? [];
     const latestSessionId = sessions[0]?.id ?? null;
     const count = stalledSessions(sessions, exercise.type, {
       bodyweightKg: inputs.bodyweightKg,
@@ -148,11 +125,12 @@ function buildView(
         stall = { count, latestSessionId, applied: memory.applied };
     }
   }
-  const grid = inputs.gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other");
+  const grid = inputs.gym.gridFor(exercise.exerciseId, equipment);
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
-      : exerciseSuggestion(exercise, fullHistory ?? [], {
+      : exerciseSuggestion(exercise, rawHistory ?? [], {
+          baselineHistory: baseline,
           weightUnit: inputs.unit,
           weightIncrementKg: inputs.weightIncrementKg,
           gymId: inputs.sessionGymId ?? null,
@@ -183,10 +161,9 @@ function buildView(
           exercise.repeated,
         )
       : {};
-    if (capKg !== null && ghosts.weight != null && ghosts.weight > capKg) ghosts.weight = capKg;
     const row: RowView = {
       previous,
-      ghosts,
+      ghosts: capGhostWeight(ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,

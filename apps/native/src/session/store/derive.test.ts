@@ -173,6 +173,28 @@ describe("deriveExercises", () => {
       expect(view?.rows.get("p1")?.ghosts.weight).toBeLessThan(70);
     });
 
+    it.each(["kg", "lb"] as const)(
+      "uses the current Workout's baseline with the break clock across Workouts in %s",
+      (unit) => {
+        const yesterday = { ...at("active", 50, daysAgo(1)), workoutId: "other" };
+        const old = { ...at("garage", 60, daysAgo(49)), workoutId: "current" };
+        const view = deriveExercises(
+          [planned],
+          inputs({
+            unit,
+            previousSource: "same_workout",
+            sessionGymId: "garage",
+            previous: new Map([[planned.exerciseId, [yesterday, old]]]),
+          }),
+          { ...context, workoutId: "current" },
+          new Map(),
+        ).get(planned.id)?.view;
+        expect(view?.suggestion).toMatchObject({ reason: "add_weight", breakDays: null });
+        expect(view?.rows.get("p1")?.previous?.weight_kg).toBe(60);
+        expect(view?.rows.get("p1")?.ghosts.weight).toBeGreaterThan(60);
+      },
+    );
+
     it("still takes a break from a long absence from every gym", () => {
       const view = ghost([at("garage", 40, daysAgo(40)), at("active", 70, daysAgo(45))]);
       expect(view?.suggestion?.reason).toBe("after_break");
@@ -193,6 +215,10 @@ describe("deriveExercises", () => {
       const there = ghost(history, { sessionGymId: "active" })?.stall;
       expect(here?.count).toBeGreaterThan(0);
       expect(there?.count).toBe(here?.count);
+      const otherWorkout = history.map((session, index) =>
+        index === 0 ? session : { ...session, workoutId: "other" },
+      );
+      expect(ghost(otherWorkout, { previousSource: "any_session" })?.stall).toBeNull();
     });
   });
 

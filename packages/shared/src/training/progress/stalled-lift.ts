@@ -1,6 +1,5 @@
 import type { ExerciseType } from "../../exercise/vocabulary";
 import { isCounted, type LoggedSet } from "../logging/logged-set";
-import { historyForWorkout } from "../logging/history-for-workout";
 import { effectiveWeight, estimatedOneRepMax } from "../volume/volume";
 import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 
@@ -100,7 +99,7 @@ export function stalledSessions(
 
 /**
  * The exercises trained in `thisWeek` that have stalled, in the order they were first trained.
- * Each is judged on its own history from the Workout it was trained in (`historyForWorkout`).
+ * Each is judged on the Sessions of the Workout it was trained in, across gyms.
  */
 export function stalledExerciseIds(
   thisWeek: readonly { workoutId: string | null; sets: readonly LoggedSet[] }[],
@@ -113,7 +112,9 @@ export function stalledExerciseIds(
     for (const set of session.sets) {
       if (!isCounted(set) || seen.has(set.exercise_id)) continue;
       seen.add(set.exercise_id);
-      const history = historyForWorkout(histories.get(set.exercise_id) ?? [], session.workoutId);
+      const history = (histories.get(set.exercise_id) ?? []).filter(
+        (past) => past.workoutId === session.workoutId,
+      );
       if (stalledSessions(history, set.exercise_type, options) > 0) stalled.push(set.exercise_id);
     }
   }

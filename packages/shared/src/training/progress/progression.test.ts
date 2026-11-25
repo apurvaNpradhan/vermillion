@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { loadGridOf } from "./load-grid";
 import { incrementFor, suggestNext, type ProgressionSession } from "./progression";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import type { LoggedSet } from "../logging/logged-set";
@@ -66,6 +67,52 @@ describe("double progression", () => {
       incrementKg: 2.5,
     });
   });
+
+  it.each([
+    { weightUnit: "kg", before: 10, expected: 15 },
+    { weightUnit: "lb", before: 25, expected: 35 },
+  ] as const)(
+    "doubles the next rack step at the dumbbell boundary in $weightUnit",
+    ({ weightUnit, before, expected }) => {
+      const grid = loadGridOf({ equipment: "dumbbell", unit: weightUnit });
+      const weight = parseWeight(String(before), weightUnit) ?? 0;
+      const result = suggestNext(
+        plan.slice(0, 1),
+        [session([logged(12, weight, { rpe: 7 })])],
+        "weight_reps",
+        "dumbbell",
+        { ...settings, weightUnit },
+        { now: NOW, grid },
+      );
+      expect(result).toMatchObject({
+        reason: "add_weight",
+        sets: [{ weightKg: parseWeight(String(expected), weightUnit), reps: 8 }],
+      });
+    },
+  );
+
+  it.each([
+    { weightUnit: "kg", cap: 100.15, atCap: 100 },
+    { weightUnit: "lb", cap: 100, atCap: 99.79 },
+  ] as const)(
+    "adds reps at the highest rounded load under the cap in $weightUnit",
+    ({ weightUnit, cap, atCap }) => {
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit: weightUnit,
+        ranges: [{ min: 0, max: cap, step: null }],
+      });
+      const result = suggestNext(
+        plan.slice(0, 1),
+        [session([logged(12, atCap)])],
+        "weight_reps",
+        "machine",
+        { ...settings, weightUnit },
+        { now: NOW, grid },
+      );
+      expect(result).toMatchObject({ reason: "cap_reps", sets: [{ weightKg: atCap, reps: 13 }] });
+    },
+  );
 
   it.each([9.5, 10])("holds a set below the ceiling at RPE %s", (rpe) => {
     expect(suggest([logged(10, 80, { rpe })], [], plan.slice(0, 1))).toMatchObject({

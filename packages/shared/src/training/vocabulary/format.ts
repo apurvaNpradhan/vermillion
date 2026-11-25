@@ -35,6 +35,19 @@ export function parseWeight(text: string, unit: WeightUnit): number | null {
   return kg <= MAX_WEIGHT_KG ? kg : null;
 }
 
+/** Round as a typed weight, choosing the greatest unit step at or below the limit when needed. */
+export function weightAtMost(kg: number, unit: WeightUnit, limitKg: number): number {
+  const rounded = parseWeight(formatWeight(kg, unit), unit);
+  if (rounded !== null && rounded <= limitKg) return rounded;
+  // A parsed pound weight can round down by half a gram when stored.
+  const shownLimit = unit === "kg" ? limitKg : (limitKg + 0.0005) / KG_PER_LB;
+  const step = STEP[unit];
+  const stepBelow = Math.floor(shownLimit / step) * step;
+  const below = parseWeight(String(stepBelow), unit);
+  if (below !== null && below <= limitKg) return below;
+  return parseWeight(String(Math.max(0, stepBelow - step)), unit) ?? 0;
+}
+
 export const DERIVED_TITLE_MUSCLES = 3;
 
 /**

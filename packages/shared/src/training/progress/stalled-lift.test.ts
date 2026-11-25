@@ -166,8 +166,8 @@ describe("stalledExerciseIds", () => {
 
   it("judges an exercise on the history of the Workout it was trained in", () => {
     const histories = new Map([["a", stalledHistory("w1")]]);
-    // Trained in another Workout with no history of its own there: all history counts instead.
-    expect(stalledExerciseIds([week("a", "w2")], histories)).toEqual(["a"]);
+    // A Workout without enough Sessions cannot borrow a stall from another one.
+    expect(stalledExerciseIds([week("a", "w2")], histories)).toEqual([]);
     expect(stalledExerciseIds([week("c")], histories)).toEqual([]);
   });
 });

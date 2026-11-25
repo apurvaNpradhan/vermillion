@@ -90,6 +90,25 @@ describe("range grid", () => {
     expect(grid(ranges).stepAt(kg)).toBe(step);
   });
 
+  it.each([
+    { unit: "kg", factor: 1 },
+    { unit: "lb", factor: KG_PER_LB },
+  ])("keeps a rack's points when capped at a range boundary in $unit", ({ factor }) => {
+    const ranges = rack.map(({ min, max, step }) => ({
+      min: min * factor,
+      max: (max ?? 30) * factor,
+      step: (step ?? 0) * factor,
+    }));
+    const capped = rangesFromLimits({ maxKg: 12.5 * factor, stepKg: 2.5 * factor }, ranges);
+    const made = grid(capped);
+    for (let load = 1; load <= 10; load += 1) {
+      expect(made.nearest(load * factor)).toBeCloseTo(load * factor, 5);
+    }
+    expect(made.above(10 * factor)).toBeCloseTo(12.5 * factor, 5);
+    expect(made.below(12.5 * factor)).toBeCloseTo(10 * factor, 5);
+    expect(made.above(12.5 * factor)).toBeNull();
+  });
+
   it("takes the cap from the last range only", () => {
     expect(grid(stack).capKg).toBe(90);
     expect(grid(jumpStack).capKg).toBe(55);
@@ -327,6 +346,22 @@ describe("addLoad", () => {
     expect(addLoad(load, added, "kg", rangeGrid(ranges))).toBe(expected);
   });
 
+  it.each([
+    { unit: "kg", cap: 100.15, expected: 100 },
+    { unit: "lb", cap: 100, expected: 99.79 },
+  ] as const)(
+    "keeps rounded increments and deloads at or under the cap in $unit",
+    ({ unit, cap, expected }) => {
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit,
+        ranges: [{ min: 0, max: cap, step: null }],
+      });
+      expect(addLoad(95, 10, unit, grid)).toBe(expected);
+      expect(lightenLoad(120, 0.9, "machine", unit, grid)).toBe(expected);
+    },
+  );
+
   it("is the plain sum, as typed, without a grid", () => {
     expect(addLoad(80, 2.5, "kg")).toBe(82.5);
     expect(addLoad(80, 2.26796, "lb")).toBe(parseWeight("181.5", "lb"));
@@ -385,6 +420,17 @@ describe("lightenLoad with a grid", () => {
     expect(lightenLoad(22.5, 0.99, "barbell", "kg", grid)).toBe(20);
     expect(lightenLoad(0, 0.9, "barbell", "kg", grid)).toBe(0);
   });
+
+  it.each([
+    { unit: "kg", weight: 45 * KG_PER_LB, expected: 20.25 },
+    { unit: "lb", weight: 44.9 * KG_PER_LB, expected: 20.185 },
+  ] as const)(
+    "does not raise the bare bar after rounding in $unit",
+    ({ unit, weight, expected }) => {
+      const grid = barGrid({ weightKg: weight }, plates);
+      expect(lightenLoad(weight, 0.9, "barbell", unit, grid)).toBe(expected);
+    },
+  );
 
   it("steps a light dumbbell by its default step", () => {
     expect(lightenLoad(20, 0.9, "dumbbell", "kg")).toBe(17.5);

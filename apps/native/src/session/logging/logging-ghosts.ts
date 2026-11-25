@@ -1,6 +1,7 @@
 import {
   historyForGym,
   suggestNext,
+  type Ghosts,
   type LoadGrid,
   type Equipment,
   type ExerciseType,
@@ -19,16 +20,23 @@ export type SuggestionSettings = {
   lighterWeeks?: readonly LighterPeriod[];
   /** The stalled-lift deload was applied to this exercise. */
   deload?: boolean;
-  /**
-   * The gym whose Sessions are the baseline: machine, cable and Smith exercises read this gym's
-   * history first. The break clock and the stall check still read all of it.
-   */
+  /** History selected by the Previous source preference, before applying the gym preference. */
+  baselineHistory?: readonly SessionHistory[];
+  /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
   gymId?: string | null;
   /** The loads and cap of this gym for the exercise; null is the equipment default. */
   grid?: LoadGrid | null;
 };
 
-/** `history` is all of the exercise's Sessions, newest first; the gym picks the baselines. */
+export function loggingHistory(
+  history: readonly SessionHistory[],
+  equipment: Equipment,
+  settings: SuggestionSettings,
+) {
+  return historyForGym(settings.baselineHistory ?? history, settings.gymId ?? null, equipment);
+}
+
+/** The break clock reads all of the exercise's Sessions, newest first. */
 export function plannedSuggestion(
   sets: readonly PlannedSet[],
   history: readonly SessionHistory[],
@@ -44,7 +52,7 @@ export function plannedSuggestion(
     { ...settings, progressionPerSet: exercise.progressionPerSet },
     {
       now,
-      baselineHistory: historyForGym(history, settings.gymId ?? null, exercise.equipment),
+      baselineHistory: loggingHistory(history, exercise.equipment, settings),
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
       grid: settings.grid,
@@ -70,6 +78,12 @@ export function exerciseSuggestion(
         settings,
       );
 }
+export function capGhostWeight(ghosts: Ghosts, capKg: number | null): Ghosts {
+  return capKg !== null && ghosts.weight != null && ghosts.weight > capKg
+    ? { ...ghosts, weight: capKg }
+    : ghosts;
+}
+
 export function loggingGhosts(
   exercise: SessionExerciseDetail,
   index: number,
@@ -78,17 +92,20 @@ export function loggingGhosts(
 ) {
   const set = exercise.sets[index];
   return set
-    ? ghostsOf(
-        exercise.type,
-        previousOfRow(
-          historyForGym(history, settings.gymId ?? null, exercise.exercise?.equipment ?? "other"),
-          exercise.sets,
-          index,
+    ? capGhostWeight(
+        ghostsOf(
+          exercise.type,
+          previousOfRow(
+            loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
+            exercise.sets,
+            index,
+          ),
+          set.target,
+          exercise.logEffort,
+          exerciseSuggestion(exercise, history, settings)?.sets[index],
+          exercise.repeated,
         ),
-        set.target,
-        exercise.logEffort,
-        exerciseSuggestion(exercise, history, settings)?.sets[index],
-        exercise.repeated,
+        settings.grid?.capKg ?? null,
       )
     : {};
 }

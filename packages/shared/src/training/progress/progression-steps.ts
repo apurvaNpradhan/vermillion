@@ -1,5 +1,5 @@
 import type { Equipment } from "../../exercise/vocabulary";
-import { KG_PER_LB, formatWeight, parseWeight } from "../vocabulary/format";
+import { KG_PER_LB, formatWeight, parseWeight, weightAtMost } from "../vocabulary/format";
 import type { WeightUnit } from "../vocabulary/vocabulary";
 import type { LoadGrid, SteppedRange } from "./load-grid";
 
@@ -133,7 +133,9 @@ export function addLoad(
   let next: number | null = grid.nearest(loadKg + addedKg);
   if (next <= loadKg + EPS) next = grid.above(loadKg);
   if (cap !== null && (next === null || next > cap + EPS)) next = cap;
-  return next === null ? null : loadable(next, unit, null);
+  if (next === null) return null;
+  const rounded = cap === null ? loadable(next, unit) : weightAtMost(next, unit, cap);
+  return rounded > loadKg ? rounded : null;
 }
 
 /**
@@ -166,7 +168,6 @@ export function lightenLoad(
     const rounded = Math.round((load * factor) / step) * step;
     lighter = toKg(rounded >= load && load > step ? load - step : rounded, unit);
   }
-  lighter = Math.min(lighter, loadKg);
-  if (grid?.capKg != null) lighter = Math.min(lighter, grid.capKg);
-  return loadable(Math.max(lighter, 0), unit);
+  const limit = Math.min(loadKg, grid?.capKg ?? loadKg);
+  return weightAtMost(Math.max(0, Math.min(lighter, limit)), unit, limit);
 }

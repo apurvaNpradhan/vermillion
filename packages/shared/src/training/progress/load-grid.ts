@@ -154,8 +154,13 @@ export function rangeGrid(
       return kg - lower <= upper - kg + EPS ? lower : upper;
     },
     stepAt(kg) {
-      const range = [...ranges].reverse().find((candidate) => kg >= candidate.min - EPS) ?? first;
-      return range.step;
+      for (let index = ranges.length - 1; index >= 0; index -= 1) {
+        const range = ranges[index];
+        if (!range || kg < range.min - EPS) continue;
+        const next = ranges[index + 1];
+        return next && range.max !== null && kg >= range.max - EPS ? next.step : range.step;
+      }
+      return first.step;
     },
   };
 }
@@ -257,7 +262,7 @@ export function rangesFromLimits(
   const { maxKg, stepKg } = limits;
   if (stepKg === null) return maxKg === null ? [] : [{ min: 0, max: maxKg, step: null }];
   if (sameKg(limitsOfRanges(current).stepKg, stepKg)) {
-    const kept = current.filter((range) => maxKg === null || range.min < maxKg - EPS);
+    const kept = current.filter((range) => maxKg === null || range.min <= maxKg);
     const last = kept[kept.length - 1];
     if (last) return [...kept.slice(0, -1), { ...last, max: maxKg }];
   }

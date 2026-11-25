@@ -1,7 +1,7 @@
 import { addsLoad, formatLoad, type SessionHistory, type SetKind } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 
-import { plannedSuggestion, type SuggestionSettings } from "./logging-ghosts";
+import { loggingHistory, plannedSuggestion, type SuggestionSettings } from "./logging-ghosts";
 import { ghostsOf, ordinalOf, previousOfRow } from "./set-values";
 
 type PreviewSet = { reps: number; weight: string | null };
@@ -28,11 +28,12 @@ export function previewProgression(
   const loaded = type === "weight_reps" || addsLoad(type);
   const displayWeight = (kg: number | null | undefined) =>
     loaded && kg != null ? formatLoad(kg, settings.weightUnit, type) : null;
+  const baseline = loggingHistory(history, exercise.equipment, settings);
   const changes: Change[] = [];
   for (const [index, target] of entry.sets.entries()) {
     const next = suggestion.sets[index];
     if (!next) continue;
-    const previous = previousOfRow(history, entry.sets, index);
+    const previous = previousOfRow(baseline, entry.sets, index);
     if (!previous || previous.reps == null || previous.exercise_type !== type) continue;
     const ghost = ghostsOf(type, previous, target, false, next);
     if (ghost.reps == null) continue;

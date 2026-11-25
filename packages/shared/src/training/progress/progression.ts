@@ -1,6 +1,7 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import { weightAtMost } from "../vocabulary/format";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
   LIGHTER_WEEK_LOAD,
@@ -52,9 +53,8 @@ export type ProgressionContext = {
   now: Date;
   /**
    * The Sessions the loads and reps are read from, when fewer than the whole `history`: a
-   * gym-bound exercise reads the Sessions at this gym (see `historyForGym`). The break clock still
-   * runs from the whole history, because a lifter who trained the exercise elsewhere yesterday has
-   * not been away.
+   * baseline can prefer the same Workout and, for gym-bound equipment, the same gym. The break
+   * clock reads the exercise's full history across Workouts and gyms.
    */
   baselineHistory?: readonly ProgressionSession[];
   /** Every Lighter week, past and running. Their Sessions are never a baseline. */
@@ -182,6 +182,7 @@ export function suggestNext(
   const unit = settings.weightUnit;
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
+  const roundedCap = cap === null ? null : weightAtMost(cap, unit, cap);
   const baselines = outsideLighterWeeks(
     context.baselineHistory ?? history,
     context.lighterWeeks ?? [],
@@ -191,7 +192,7 @@ export function suggestNext(
   });
   const last = baselines[0];
   if (!last) return null;
-  // The break clock runs from the latest Session with a completed working set, at any gym; a
+  // The break clock runs from the latest Session with a completed working set, across all Workouts and gyms. A
   // Session of only warm-ups or unticked sets is not training.
   const lastTrained =
     history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
@@ -284,7 +285,7 @@ export function suggestNext(
     const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
     let outcome: Outcome = "same";
     let next = same;
-    if (cap !== null && before.weight_kg != null && before.weight_kg > cap + AT_CAP) {
+    if (cap !== null && before.weight_kg != null && before.weight_kg > cap) {
       // Last time's load is more than this gym has: the cap is the most the lifter can load.
       outcome = "capped";
       next = { ...same, weightKg: cap };
@@ -293,7 +294,8 @@ export function suggestNext(
     else if (target.reps_min !== undefined && before.reps != null) {
       const max = target.reps_max ?? target.reps_min;
       const canLoad = loaded && before.weight_kg != null;
-      const atCap = cap !== null && before.weight_kg != null && before.weight_kg >= cap - AT_CAP;
+      const atCap =
+        roundedCap !== null && before.weight_kg != null && before.weight_kg >= roundedCap - AT_CAP;
       const extended = cappedRepCeiling(max);
       if (before.reps >= max && atCap) {
         // The load cannot rise: reps keep growing to the extended ceiling, then a hint. Straight
