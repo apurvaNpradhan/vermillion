@@ -1,0 +1,105 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "992c9f5d-87cb-4e6a-ba12-43469463e823",
+  "prevIds": ["8fc3a148-d6b4-4817-88a3-7fbcf928858b", "9de6849b-0979-4cb1-81a2-bc892dd1ce19"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "gym", "unavailable_equipment"],
+      "writes": [
+        "s|col|public.gym.unavailable_equipment",
+        "n|col|public.gym.unavailable_equipment",
+        "e|col|public.gym.unavailable_equipment"
+      ],
+      "reads": ["n|tbl|public.gym", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "gym", "dumbbell_max_kg"],
+      "writes": [
+        "s|col|public.gym.dumbbell_max_kg",
+        "n|col|public.gym.dumbbell_max_kg",
+        "e|col|public.gym.dumbbell_max_kg"
+      ],
+      "reads": ["n|tbl|public.gym", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "gym"],
+      "writes": [
+        "s|ck|public.gym.gym_unavailable_equipment_shape",
+        "n|ck|public.gym.gym_unavailable_equipment_shape",
+        "e|ck|public.gym.gym_unavailable_equipment_shape",
+        "n|con|public.gym.gym_unavailable_equipment_shape"
+      ],
+      "reads": ["n|tbl|public.gym", "n|sch|public", "n|col|public.gym.unavailable_equipment"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "gym"],
+      "writes": [
+        "s|ck|public.gym.gym_dumbbell_max_range",
+        "n|ck|public.gym.gym_dumbbell_max_range",
+        "e|ck|public.gym.gym_dumbbell_max_range",
+        "n|con|public.gym.gym_dumbbell_max_range"
+      ],
+      "reads": ["n|tbl|public.gym", "n|sch|public", "n|col|public.gym.dumbbell_max_kg"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "gym",
+        "name": "unavailable_equipment",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "gym",
+        "name": "dumbbell_max_kg",
+        "type": "double precision",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "gym",
+        "name": "gym_unavailable_equipment_shape",
+        "value": "jsonb_typeof(\"unavailable_equipment\") = 'array' AND jsonb_array_length(\"unavailable_equipment\") <= 12",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "gym",
+        "name": "gym_dumbbell_max_range",
+        "value": "\"dumbbell_max_kg\" > 0 AND \"dumbbell_max_kg\" <= 1000",
+        "entityType": "checks"
+      }
+    }
+  ]
+}
