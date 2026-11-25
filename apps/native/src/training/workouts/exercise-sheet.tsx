@@ -195,6 +195,7 @@ function LoadedSheet({
       )}
 
       <DetailedTargets
+        exerciseId={entry.exerciseId}
         unit={entry.unit}
         sets={draft.sets}
         type={type}

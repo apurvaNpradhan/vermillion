@@ -5,6 +5,8 @@
 import {
   KG_PER_LB,
   addLoad,
+  alignToGrid,
+  loadIdentity,
   incrementFor,
   loadGridOf,
   weightAtMost,
@@ -90,12 +92,19 @@ export function textOfValue(field: EntryField, value: number | null, unit: Weigh
  * The value the text means, in storage units (kg, seconds, metres, counts); null when empty (the
  * cell is cleared). Text a key press could never produce is also null.
  */
-export function valueOfText(field: EntryField, text: string, unit: WeightUnit): number | null {
+export function valueOfText(
+  field: EntryField,
+  text: string,
+  unit: WeightUnit,
+  capKg: number | null = null,
+): number | null {
   const cleaned = text.endsWith(".") ? text.slice(0, -1) : text;
   if (cleaned === "") return null;
   switch (field) {
-    case "weight":
-      return parseWeight(cleaned, unit);
+    case "weight": {
+      const kg = parseWeight(cleaned, unit);
+      return kg === null || capKg === null ? kg : Math.min(kg, capKg);
+    }
     case "duration":
       return durationFromDigits(cleaned);
     case "distance":
@@ -237,11 +246,6 @@ export function stepValue(
   context: StepContext,
 ): number {
   const start = current ?? ghost ?? 0;
-  const step = stepOf(
-    field,
-    context,
-    field === "weight" && (context.grid || context.equipment === "dumbbell") ? start : null,
-  );
   let next: number;
   if (field === "weight") {
     const grid =
@@ -251,11 +255,8 @@ export function stepValue(
         : null);
     const cap = Math.min(grid?.capKg ?? MAX_WEIGHT_KG, MAX_WEIGHT_KG);
     if (grid && (grid.source === "gym" || context.incrementKg === null)) {
-      // A typed pound weight is rounded to grams. Walk down from its matching rack point.
-      const nearestToStart = direction === -1 ? grid.nearest(start) : start;
-      const atGridPoint =
-        formatWeight(nearestToStart, context.unit) === formatWeight(start, context.unit);
-      const below = direction === -1 ? grid.below(atGridPoint ? nearestToStart : start) : null;
+      const gridStart = alignToGrid(grid, start);
+      const below = direction === -1 ? grid.below(gridStart) : null;
       const stepKg = incrementFor(
         below ?? start,
         context.equipment ?? "other",
@@ -270,11 +271,12 @@ export function stepValue(
         return next > cap ? weightAtMost(next, context.unit, cap) : next;
       }
       if (grid.source !== "cap") {
-        const nearest = grid.nearest(Math.max(0, start - stepKg));
-        const lighter = nearest < start ? nearest : (below ?? 0);
-        return weightAtMost(lighter, context.unit, Math.min(cap, start));
+        const nearest = grid.nearest(Math.max(0, gridStart - stepKg));
+        const lighter = loadIdentity(nearest) < loadIdentity(gridStart) ? nearest : (below ?? 0);
+        return weightAtMost(lighter, context.unit, cap);
       }
     }
+    const step = stepOf(field, context, grid ? start : null);
     const shown = context.unit === "kg" ? start : start / KG_PER_LB;
     const stepped = Math.round((shown + direction * step) / step) * step;
     next = weightAtMost(
@@ -283,7 +285,22 @@ export function stepValue(
       cap,
     );
   } else {
-    next = start + direction * step;
+    next = start + direction * stepOf(field, context);
   }
   return Math.min(MAXIMUM[field], Math.max(MINIMUM[field], next));
+}
+
+/** The displayed change each step key would make, starting from the same value as the press. */
+export function stepLabel(
+  field: EntryField,
+  current: number | null,
+  ghost: number | null,
+  direction: 1 | -1,
+  context: StepContext,
+): string {
+  const start = current ?? ghost ?? 0;
+  const next = stepValue(field, current, ghost, direction, context);
+  const shown = (value: number) =>
+    field === "weight" ? Number(formatWeight(value, context.unit)) : value;
+  return String(Number(Math.abs(shown(next) - shown(start)).toFixed(2)));
 }

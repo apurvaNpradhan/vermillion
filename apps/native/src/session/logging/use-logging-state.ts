@@ -30,15 +30,16 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 import { useStableValue } from "@/session/shared/use-stable-value";
 import type { DeriveInputs } from "@/session/store/derive";
-import type { SessionStore } from "@/session/store/session-store";
+import type { SessionState, SessionStore } from "@/session/store/session-store";
 
 import {
   applyKey,
-  stepOf,
+  stepLabel,
   stepValue,
   textOfValue,
   valueOfText,
   type EntryField,
+  type StepContext,
 } from "@/platform/ui/keypad-entry";
 import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
@@ -206,11 +207,6 @@ export function useLoggingState({
   const currentSetId = useStore(store, (state) => state.currentSetId);
   const cell = useStore(store, (state) => state.cell);
   const refusal = useStore(store, (state) => (editor ? null : state.refusal));
-  // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
-  // screen without rows follows it here.
-  const raw = useStore(store, (state) => (editor ? "" : state.raw));
-  const fresh = useStore(store, (state) => (editor ? true : state.fresh));
-
   const previousOf = useCallback(
     (setId: string) => {
       const at = views.get(found.get(setId)?.exercise.id ?? "")?.rows.get(setId);
@@ -246,20 +242,29 @@ export function useLoggingState({
 
   // ---- The keypad ----
   const setEntry = useCallback(
-    (next: { cell: CellRef; raw: string; fresh: boolean } | null) =>
+    (next: Parameters<ReturnType<SessionStore["getState"]>["setEntry"]>[0]) =>
       store.getState().setEntry(next),
     [store],
   );
+  const contextFor = useCallback(
+    (exercise: SessionExerciseDetail | undefined): StepContext => {
+      const equipment = exercise?.exercise?.equipment ?? "other";
+      return {
+        unit: resolveExerciseUnit(unit, exercise?.unit),
+        equipment,
+        grid: exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null,
+        incrementKg: weightIncrementKg,
+      };
+    },
+    [unit, gym, weightIncrementKg],
+  );
   const readEntry = useCallback(() => {
-    const { cell: current, raw: text, fresh: isFresh, found } = store.getState();
-    if (!current) return null;
-    return {
-      cell: current,
-      raw: text,
-      fresh: isFresh,
-      unit: resolveExerciseUnit(unit, found.get(current.setId)?.exercise.unit),
-    };
-  }, [store, unit]);
+    const { cell, raw, fresh, draftValue, found } = store.getState();
+    if (!cell) return null;
+    const at = found.get(cell.setId);
+    if (!at) return null;
+    return { cell, raw, fresh, draftValue, set: at.set, context: contextFor(at.exercise) };
+  }, [store, contextFor]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
     actions.updateValues(patch.setId, patch.values),
   );
@@ -350,10 +355,16 @@ export function useLoggingState({
       const text =
         current.fresh && key === "backspace"
           ? ""
-          : applyKey(current.cell.field, base, key, current.unit);
+          : applyKey(current.cell.field, base, key, current.context.unit);
       if (text === current.raw && !current.fresh) return;
-      setEntry({ cell: current.cell, raw: text, fresh: false });
-      commit(current.cell, valueOfText(current.cell.field, text, current.unit));
+      const value = valueOfText(
+        current.cell.field,
+        text,
+        current.context.unit,
+        current.context.grid?.capKg,
+      );
+      setEntry({ cell: current.cell, raw: text, fresh: false, draftValue: value });
+      commit(current.cell, value);
     },
     [commit, readEntry, setEntry],
   );
@@ -362,13 +373,15 @@ export function useLoggingState({
   const putValue = useCallback(
     (value: number) => {
       const current = readEntry();
-      if (!current) return;
+      if (!current || current.cell.field !== "weight") return;
+      const kg = Math.min(value, current.context.grid?.capKg ?? value);
       setEntry({
         cell: current.cell,
-        raw: textOfValue(current.cell.field, value, current.unit),
+        raw: textOfValue("weight", kg, current.context.unit),
         fresh: false,
+        draftValue: kg,
       });
-      commit(current.cell, value);
+      commit(current.cell, kg);
     },
     [commit, readEntry, setEntry],
   );
@@ -377,28 +390,19 @@ export function useLoggingState({
     (direction: 1 | -1) => {
       const current = readEntry();
       if (!current) return;
-      const at = store.getState().found.get(current.cell.setId);
-      if (!at) return;
       const field = current.cell.field;
-      const typed = current.fresh
-        ? valueOfSet(at.set, field)
-        : valueOfText(field, current.raw, current.unit);
+      const typed = current.fresh ? valueOfSet(current.set, field) : current.draftValue;
       const ghost = lookupGhosts(current.cell.setId)[field] ?? null;
-      const equipment = at.exercise.exercise?.equipment ?? "other";
-      const stepped = stepValue(field, typed, ghost, direction, {
-        unit: current.unit,
-        equipment,
-        grid: gym.gridFor(at.exercise.exerciseId, equipment, at.exercise.unit),
-        incrementKg: weightIncrementKg,
-      });
+      const stepped = stepValue(field, typed, ghost, direction, current.context);
       setEntry({
         cell: current.cell,
-        raw: textOfValue(field, stepped, current.unit),
+        raw: textOfValue(field, stepped, current.context.unit),
         fresh: false,
+        draftValue: stepped,
       });
       commit(current.cell, stepped);
     },
-    [store, gym, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
+    [lookupGhosts, commit, readEntry, setEntry],
   );
 
   const next = useMemo(() => {
@@ -415,21 +419,15 @@ export function useLoggingState({
       : null;
   }, [cell, found, blocks]);
 
-  const stepText = useMemo(() => {
+  const stepText = (state: SessionState, direction: 1 | -1): string => {
+    const { cell } = state;
     if (!cell) return "";
-    const at = found.get(cell.setId);
-    const exercise = at?.exercise;
-    const equipment = exercise?.exercise?.equipment ?? "other";
-    const grid = exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null;
-    const currentKg = at?.set.weightKg ?? ghostsFor(cell.setId).weight ?? null;
-    return String(
-      stepOf(
-        cell.field,
-        { unit: activeUnit, equipment, grid, incrementKg: weightIncrementKg },
-        grid || equipment === "dumbbell" ? currentKg : null,
-      ),
-    );
-  }, [cell, found, activeUnit, gym, weightIncrementKg, ghostsFor]);
+    const at = state.found.get(cell.setId);
+    if (!at) return "";
+    const current = state.fresh ? valueOfSet(at.set, cell.field) : state.draftValue;
+    const ghost = state.views.get(at.exercise.id)?.rows.get(cell.setId)?.ghosts[cell.field] ?? null;
+    return stepLabel(cell.field, current, ghost, direction, contextFor(at.exercise));
+  };
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
@@ -714,7 +712,7 @@ export function useLoggingState({
           ? {
               setId: typing.cell.setId,
               field: typing.cell.field,
-              value: valueOfText(typing.cell.field, typing.raw, typing.unit),
+              value: typing.draftValue,
             }
           : null;
       flush();
@@ -772,17 +770,9 @@ export function useLoggingState({
     refusal,
     activeSetId,
     activeField: cell?.field ?? null,
-    /**
-     * What is typed in the cell being edited, or undefined when nothing has been typed yet. The
-     * saved set trails it while typing pauses are coalesced into one write. Only a screen without
-     * rows follows it.
-     */
-    typedValue: cell && !fresh ? valueOfText(cell.field, raw, activeUnit) : undefined,
     readTypedValue: () => {
       const current = readEntry();
-      return current && !current.fresh
-        ? valueOfText(current.cell.field, current.raw, current.unit)
-        : undefined;
+      return current && !current.fresh ? current.draftValue : undefined;
     },
     hasNext: next !== null,
     stepText,

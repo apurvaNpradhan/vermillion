@@ -155,6 +155,7 @@ export const trainingUploadColumns = {
   ]),
   exercise_setting: new Set([
     "exercise_id",
+    "unit",
     "bar_id",
     "log_effort",
     "progression_per_set",

@@ -1,6 +1,7 @@
 import {
   defaultGymKit,
   KG_PER_LB,
+  withinLoadCap,
   type BarLoad,
   type BarLoading,
   type Equipment,
@@ -61,7 +62,7 @@ export function loadChoices(
 }
 
 export function withinCap(weightKg: number, capKg: number | null): boolean {
-  return capKg === null || weightKg <= capKg + SAME;
+  return withinLoadCap(weightKg, capKg);
 }
 
 /** The nearest choice to the target; a tie goes to the lower load. Null with no choices. */

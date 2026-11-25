@@ -45,6 +45,7 @@ export function InlineTargets({
   return (
     <View className="gap-3">
       <DetailedTargets
+        exerciseId={entry.exerciseId}
         unit={entry.unit}
         sets={draft.sets}
         type={type}

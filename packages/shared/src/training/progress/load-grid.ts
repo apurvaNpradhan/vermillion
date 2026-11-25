@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { loadIdentity } from "../vocabulary/format";
 import type { Equipment } from "../../exercise/vocabulary";
 import { MAX_WEIGHT_KG, type WeightUnit } from "../vocabulary/vocabulary";
 import { loadBar, nearestBarLoadKg, smallestBarStepKg, type LoadPlate } from "../plates/plates";
@@ -89,6 +90,18 @@ export type LoadGrid = {
   /** The change one step up from `kg` makes. */
   stepAt(kg: number): number;
 };
+
+/** Use the exact grid coordinate when storage rounding moved a logged weight off it. */
+export function alignToGrid(grid: LoadGrid, kg: number): number {
+  const nearest = grid.nearest(kg);
+  return loadIdentity(nearest) === loadIdentity(kg) ? nearest : kg;
+}
+
+/** Round down at logged precision, stopping at the lowest point. */
+export function gridFloor(grid: LoadGrid, kg: number): number {
+  const nearest = grid.nearest(kg);
+  return loadIdentity(nearest) <= loadIdentity(kg) ? nearest : (grid.below(kg) ?? nearest);
+}
 
 const clean = (kg: number) => Number(kg.toFixed(6));
 

@@ -1,7 +1,13 @@
 import type { Equipment } from "../../exercise/vocabulary";
-import { KG_PER_LB, formatWeight, parseWeight, weightAtMost } from "../vocabulary/format";
+import {
+  KG_PER_LB,
+  formatWeight,
+  loadIdentity,
+  parseWeight,
+  weightAtMost,
+} from "../vocabulary/format";
 import type { WeightUnit } from "../vocabulary/vocabulary";
-import type { LoadGrid, SteppedRange } from "./load-grid";
+import { alignToGrid, gridFloor, type LoadGrid, type SteppedRange } from "./load-grid";
 
 /**
  * The smallest load change that equipment can make, in the display unit: a barbell with the
@@ -102,9 +108,9 @@ export function incrementFor(
   grid: LoadGrid | null = null,
 ): number {
   const load = loadKg ?? 0;
-  if (grid?.source === "gym") return automatic(load, grid.stepAt(load));
+  if (grid?.source === "gym") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   if (settings.weightIncrementKg !== null) return settings.weightIncrementKg;
-  if (grid && grid.source !== "cap") return automatic(load, grid.stepAt(load));
+  if (grid && grid.source !== "cap") return automatic(load, grid.stepAt(alignToGrid(grid, load)));
   const unit = settings.weightUnit;
   const step = defaultStep(equipment, unit, load);
   const raw = inUnit(load, unit) * INCREMENT_SHARE;
@@ -129,24 +135,29 @@ export function addLoad(
 ): number | null {
   if (!grid) return loadable(loadKg + addedKg, unit);
   const cap = grid.capKg;
-  if (cap !== null && loadKg >= cap - EPS) return null;
-  let next: number | null = grid.nearest(loadKg + addedKg);
-  if (next <= loadKg + EPS) next = grid.above(loadKg);
-  if (cap !== null && (next === null || next > cap + EPS)) next = cap;
+  if (cap !== null && loadKg >= cap) return null;
+  const start = alignToGrid(grid, loadKg);
+  let next: number | null = grid.nearest(start + addedKg);
+  if (loadIdentity(next) <= loadIdentity(start)) next = grid.above(start);
+  if (cap !== null && (next === null || next > cap)) next = cap;
   if (next === null) return null;
-  const rounded = cap === null ? loadable(next, unit) : weightAtMost(next, unit, cap);
-  return rounded > loadKg ? rounded : null;
+  const typed = loadable(next, unit);
+  const nextKg =
+    cap === null || typed <= cap
+      ? typed
+      : loadIdentity(typed) === loadIdentity(cap)
+        ? cap
+        : weightAtMost(next, unit, cap);
+  return nextKg > loadKg ? nextKg : null;
 }
 
 /**
  * `factor` of a load (0.9 for 90%), rounded to the equipment's step (or the gym's grid) and
- * always below the load when the load is more than one step, so a light lift still gets lighter.
- * Never above the load or the grid's cap. A load already at the grid's lowest point stays; one
- * below the grid is scaled as it is. Zero stays zero.
+ * at least one point down when a lower point exists. Zero stays zero.
  *
- * `rounding` is how the product meets the grid: `nearest` (a break or a Lighter week) or `down`
- * (a phase's Deload), the greatest load at or below the product, so a Deload is never heavier
- * than asked. Either way the result is never above the load or the cap.
+ * A break or Lighter week rounds to the nearest point and scales loads already below the grid
+ * as entered. A phase's Deload rounds down, with the lowest loadable point as its floor.
+ * The physical cap applies in either case.
  */
 export function lightenLoad(
   loadKg: number,
@@ -162,15 +173,16 @@ export function lightenLoad(
   const down = rounding === "down";
   let lighter: number;
   if (snapping) {
-    const target = loadKg * factor;
-    if (down) {
-      const nearest = snapping.nearest(target);
-      lighter = nearest <= target + EPS ? nearest : (snapping.below(target + EPS) ?? nearest);
-    } else lighter = snapping.nearest(target);
-    if (lighter >= loadKg - EPS) {
-      // The lowest loadable weight stays; a load below the grid is scaled as it is.
-      const lowest = Math.abs(snapping.nearest(loadKg) - loadKg) < EPS;
-      lighter = snapping.below(loadKg) ?? (lowest ? loadKg : loadKg * factor);
+    const start = alignToGrid(snapping, loadKg);
+    const target = start * factor;
+    const lowest = snapping.nearest(0);
+    if (!down && loadIdentity(start) < loadIdentity(lowest)) {
+      lighter = target;
+    } else {
+      lighter = down ? gridFloor(snapping, target) : snapping.nearest(target);
+      if (loadIdentity(lighter) >= loadIdentity(start)) lighter = snapping.below(start) ?? lowest;
+      // Deload uses the physical point so display rounding cannot put it below the empty bar.
+      if (down) return Math.min(lighter, snapping.capKg ?? lighter);
     }
   } else {
     const step = defaultStep(equipment, unit, loadKg);

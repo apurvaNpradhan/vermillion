@@ -89,6 +89,7 @@ const SetRowItem = memo(function SetRowItem({
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
         fresh: state.cell?.setId === setId ? state.fresh : true,
+        draftValue: state.cell?.setId === setId ? state.draftValue : null,
         unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
@@ -104,8 +105,11 @@ const SetRowItem = memo(function SetRowItem({
     const { y, height } = event.nativeEvent.layout;
     layout.current = { y, height };
   }, []);
-  const { set, row, type, cell, raw, fresh } = data;
-  const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
+  const { set, row, type, cell, raw, fresh, draftValue } = data;
+  const entry = useMemo(
+    () => (cell ? { cell, raw, fresh, draftValue } : null),
+    [cell, raw, fresh, draftValue],
+  );
   if (!set || !row || !type) return null;
   // Only a set added while the grid is open enters and one removed fades out: the grid sits in a
   // LayoutAnimationConfig that skips both for its first render and for the whole grid closing.

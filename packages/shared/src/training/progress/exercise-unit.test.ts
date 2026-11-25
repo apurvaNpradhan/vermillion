@@ -191,3 +191,36 @@ it.each(cases)("keeps $override loads and their rounded displays within the cap"
   expect(target?.weight_kg).toBeLessThanOrEqual(cap);
   expect(parseWeight(formatWeight(target?.weight_kg ?? 0, unit), unit)).toBeLessThanOrEqual(cap);
 });
+
+it.each([
+  { unit: "kg", bar: 20, test: 30 },
+  { unit: "lb", bar: 45, test: 70 },
+] as const)("keeps typed $unit rack points in Test and the empty bar in Deload", (example) => {
+  const { unit } = example;
+  const kit = defaultGymKit(unit).map((item, index) => ({
+    id: String(index),
+    kind: item.kind,
+    weightKg: item.weight_kg,
+    unit,
+    label: item.label ?? null,
+    count: null,
+    enabled: true,
+  }));
+  const grid = gymGridsOf({ settings: [], kit, unit }).gridFor(id, "barbell");
+  const options = {
+    isMainLift: true,
+    type: "weight_reps",
+    equipment: "barbell",
+    unit,
+    grid,
+  } as const;
+  for (const [phase, entered, shown] of [
+    ["test", example.test, example.test],
+    ["deload", example.bar, example.bar],
+    ["deload", example.bar - 1, example.bar],
+  ] as const) {
+    const weight = parseWeight(String(entered), unit) ?? 0;
+    const [set] = applyPhase([{ kind: "working", weight_kg: weight }], phase, options);
+    expect(formatWeight(set?.weight_kg ?? 0, unit)).toBe(String(shown));
+  }
+});

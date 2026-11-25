@@ -1,7 +1,13 @@
 import type { Equipment } from "../../exercise/vocabulary";
-import { defaultBar, enabledBars, platesForBar, type KitRow } from "../plates/bar-choice";
+import { barKitFor, type KitRow } from "../plates/bar-choice";
 import { resolveExerciseUnit, type WeightUnit } from "../vocabulary/vocabulary";
-import { gymRangesFor, loadGridOf, type LoadGrid, type LoadRange } from "./load-grid";
+import {
+  gymRangesFor,
+  limitsOfRanges,
+  loadGridOf,
+  type LoadGrid,
+  type LoadRange,
+} from "./load-grid";
 
 /**
  * The loads one gym gives each exercise, from its exercise settings and its kit. A barbell loads
@@ -20,7 +26,6 @@ export function gymGridsOf(input: {
   dumbbellMaxKg?: number | null;
 }) {
   const byExercise = new Map(input.settings.map((setting) => [setting.exerciseId, setting]));
-  const bars = enabledBars(input.kit);
   const grids = new Map<string, LoadGrid | null>();
   const dumbbellMaxKg = input.dumbbellMaxKg ?? null;
   return {
@@ -36,19 +41,26 @@ export function gymGridsOf(input: {
       const unit = resolveExerciseUnit(input.unit, override);
       const key = `${exerciseId}|${equipment}|${override ?? ""}`;
       if (!grids.has(key)) {
-        const bar =
+        const ranges = byExercise.get(exerciseId)?.loadRanges;
+        const kit =
           equipment === "barbell"
-            ? defaultBar(bars, input.bars?.get(exerciseId), unit, equipment, override != null)
-            : undefined;
+            ? barKitFor(input.kit, {
+                unit,
+                equipment,
+                rememberedId: input.bars?.get(exerciseId),
+                capKg: limitsOfRanges(ranges ?? []).maxKg,
+                preferMatchingUnit: override != null,
+              })
+            : null;
         grids.set(
           key,
           loadGridOf({
             equipment,
             unit,
-            ranges: byExercise.get(exerciseId)?.loadRanges,
+            ranges,
             dumbbellMaxKg,
-            bar,
-            plates: bar ? platesForBar(input.kit, bar) : [],
+            bar: kit?.bar,
+            plates: kit?.plates,
           }),
         );
       }

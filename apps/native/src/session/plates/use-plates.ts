@@ -4,7 +4,7 @@ import {
   type Equipment,
   type GymEquipmentInput,
   type WeightUnit,
-  barsInUnit,
+  barKitFor,
   resolveExerciseUnit,
 } from "@workspace/shared";
 import {
@@ -29,13 +29,10 @@ import { useGyms, useGymCap } from "@/gym";
 import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
-  defaultBar,
-  enabledBars,
   hasTarget,
   loadInputKey,
   missingBarLabel,
   missingKitItems,
-  platesForBar,
 } from "./plate-view";
 
 /** Write scopes whose empty inventory this app run has already seeded. */
@@ -206,31 +203,32 @@ export function usePlates(
   );
   const remembered = useLocalWatch(subscribe);
   const preferred = resolveExerciseUnit(equipment.unit, unitOverride);
-  const bars = useMemo(() => {
-    const enabled = enabledBars(equipment.rows);
-    return unitOverride == null ? enabled : barsInUnit(enabled, preferred);
-  }, [equipment.rows, preferred, unitOverride]);
-  const bar = defaultBar(
-    bars,
-    selected?.exerciseId === exerciseId && selected.scope === scope
-      ? selected.id
-      : remembered.value,
-    preferred,
-    equipmentKind,
-  );
-  const plates = bar ? platesForBar(equipment.rows, bar) : [];
   // The gym's max for this exercise is the most the calculator offers.
   const gymCap = useGymCap(enabled ? equipment.gymId : null, exerciseId);
   const { cap } = gymCap;
+  const selectedId =
+    selected?.exerciseId === exerciseId && selected.scope === scope ? selected.id : undefined;
+  const { bars, bar, plates } = useMemo(
+    () =>
+      barKitFor(equipment.rows, {
+        unit: preferred,
+        equipment: equipmentKind,
+        rememberedId: remembered.value,
+        selectedId,
+        capKg: cap,
+        preferMatchingUnit: unitOverride != null,
+      }),
+    [equipment.rows, preferred, equipmentKind, remembered.value, selectedId, cap, unitOverride],
+  );
   const wanted = useDeferredValue(targetKg);
   const target = cap !== null && wanted > cap ? cap : wanted;
   // The inventory emits a new array on every change; solve again only when the bar, a plate that
   // matters to the solver or the target changes.
   const inputKey = loadInputKey(bar, plates);
   const result = useMemo(
-    () => (enabled && bar && hasTarget(target) ? loadBar(target, bar, plates) : null),
+    () => (enabled && bar && hasTarget(target) ? loadBar(target, bar, plates, cap) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `inputKey` stands for `bar` and `plates`.
-    [inputKey, target, enabled],
+    [inputKey, target, enabled, cap],
   );
   const chooseBar = async (id: string) => {
     if (exerciseId) {

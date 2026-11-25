@@ -2,7 +2,7 @@ import type { Equipment } from "../../exercise/vocabulary";
 import { KG_PER_LB } from "../vocabulary/format";
 import type { WeightUnit } from "../vocabulary/vocabulary";
 import { EZ_BAR_LABEL, TRAP_BAR_LABEL } from "./gym-kit";
-import type { LoadPlate } from "./plates";
+import { smallestBarStepKg, withinLoadCap, type LoadPlate } from "./plates";
 
 /** What choosing a bar needs of a row of a gym's kit. */
 export type KitRow = {
@@ -26,15 +26,6 @@ const STANDARD_BAR_KG = { kg: 20, lb: 45 * KG_PER_LB } as const satisfies Record
 /** The enabled bars, in the stored order. */
 export function enabledBars<Row extends KitRow>(rows: readonly Row[]): Row[] {
   return rows.filter((row) => row.kind === "bar" && row.enabled);
-}
-
-/** With a unit override, use matching bars if the gym has any. */
-export function barsInUnit<Row extends KitRow>(
-  bars: readonly Row[],
-  unit: WeightUnit,
-): readonly Row[] {
-  const matching = bars.filter((bar) => bar.unit === unit);
-  return matching.length ? matching : bars;
 }
 
 /** The plates the solver may use for a bar: enabled, and in the bar's own unit. */
@@ -91,9 +82,7 @@ export function defaultBar<Row extends KitRow>(
   rememberedId: string | null | undefined,
   preferred: WeightUnit,
   equipment?: Equipment | null,
-  preferMatchingUnit = false,
 ): Row | undefined {
-  if (preferMatchingUnit) bars = barsInUnit(bars, preferred);
   const remembered = rememberedId ? bars.find((bar) => bar.id === rememberedId) : undefined;
   if (remembered) return remembered;
   const labelled = labelledBar(bars, equipment, preferred);
@@ -104,4 +93,46 @@ export function defaultBar<Row extends KitRow>(
     inUnit[0] ??
     bars[0]
   );
+}
+
+/** Resolve a bar and the plate inventory that can load it. Explicit picks remain selectable. */
+export function barKitFor<Row extends KitRow>(
+  rows: readonly Row[],
+  options: {
+    unit: WeightUnit;
+    equipment?: Equipment | null;
+    rememberedId?: string | null;
+    selectedId?: string;
+    capKg?: number | null;
+    preferMatchingUnit?: boolean;
+  },
+) {
+  const bars = enabledBars(rows);
+  const selected = bars.find((bar) => bar.id === options.selectedId);
+  const label = barLabelFor(options.equipment);
+  const labelled = label === null ? [] : bars.filter((bar) => sameLabel(bar.label, label));
+  const compatible = labelled.length > 0 ? labelled : bars;
+  const inventories = new Map<WeightUnit, LoadPlate[]>([
+    ["kg", platesForBar(rows, { unit: "kg" })],
+    ["lb", platesForBar(rows, { unit: "lb" })],
+  ]);
+  const cap = options.capKg ?? null;
+  const usable = compatible.filter((bar) => {
+    const step = smallestBarStepKg(inventories.get(bar.unit) ?? []);
+    return step !== null && withinLoadCap(bar.weightKg + step, cap);
+  });
+  const bare = compatible.filter((bar) => withinLoadCap(bar.weightKg, cap));
+  const candidates = usable.length > 0 ? usable : bare.length > 0 ? bare : compatible;
+  const matching = options.preferMatchingUnit
+    ? candidates.filter((bar) => bar.unit === options.unit)
+    : [];
+  const bar =
+    selected ??
+    defaultBar(
+      matching.length > 0 ? matching : candidates,
+      options.rememberedId,
+      options.unit,
+      options.equipment,
+    );
+  return { bars, bar, plates: bar ? (inventories.get(bar.unit) ?? []) : [] };
 }

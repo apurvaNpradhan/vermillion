@@ -3,6 +3,7 @@ import { Text } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Keypad } from "@/platform/ui/keypad";
+import { useSessionStore } from "@/session/store/session-store-context";
 import { usePreferences } from "@/preferences";
 
 import { useKeypadAccessory } from "./keypad-accessory";
@@ -50,6 +51,8 @@ export function SessionKeypad({
 }) {
   const { t } = useTranslation();
   const { systemKeyboard } = usePreferences().preferences.ui;
+  const decrease = useSessionStore((state) => logging.stepText(state, -1));
+  const increase = useSessionStore((state) => logging.stepText(state, 1));
   if (!logging.entry || !logging.activeField) return null;
   const editLabel =
     logging.activeField === "duration"
@@ -62,14 +65,15 @@ export function SessionKeypad({
       labels={{
         point: t("session__key_point"),
         backspace: t("session__key_backspace"),
-        decrease: t("session__key_decrease", { step: logging.stepText }),
-        increase: t("session__key_increase", { step: logging.stepText }),
+        decrease: t("session__key_decrease", { step: decrease }),
+        increase: t("session__key_increase", { step: increase }),
         next: t("session__key_next"),
         done: t("session__key_done"),
       }}
       allowPoint={logging.activeField === "weight" || logging.activeField === "distance"}
       hasNext={logging.hasNext}
-      stepText={logging.stepText}
+      stepText={increase}
+      decreaseStepText={decrease}
       accessory={
         editLabel ? (
           <Text className="font-normal text-caption text-muted">{editLabel}</Text>

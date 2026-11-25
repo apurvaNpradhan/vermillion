@@ -8,13 +8,7 @@ import { useState } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  formatWeight,
-  weightAtMost,
-  type Equipment,
-  type LoadPlate,
-  type WeightUnit,
-} from "@workspace/shared";
+import { formatWeight, type Equipment, type LoadPlate, type WeightUnit } from "@workspace/shared";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
@@ -178,8 +172,6 @@ function CalculatorBody({
   const unit = state.displayUnit;
   const weight = (kg: number, own: WeightUnit = unit) =>
     t("plates__weight", { weight: formatWeight(kg, own), unit: own });
-  const cappedWeight = (kg: number) =>
-    weight(state.cap === null ? kg : weightAtMost(kg, unit, state.cap));
   const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
   const [mode, setMode] = useState<Mode>("calculate");
   const [stack, setStack] = useState<LoadPlate[]>([]);
@@ -216,7 +208,7 @@ function CalculatorBody({
   const use = async () => {
     if (!canUse || !state.bar) return;
     if (await state.chooseBar(state.bar.id)) {
-      onUse(totalKg);
+      onUse(Math.min(totalKg, state.cap ?? totalKg));
       onClose();
     }
   };
@@ -283,9 +275,7 @@ function CalculatorBody({
             ) : !barFits ? (
               <View className="gap-1">
                 <Text className="text-caption text-muted">
-                  {state.cap === null
-                    ? null
-                    : t("gym__plate_cap", { weight: cappedWeight(state.cap) })}
+                  {state.cap === null ? null : t("gym__plate_cap", { weight: weight(state.cap) })}
                 </Text>
                 <Text className="text-body text-muted">{t("gym__plate_bar_above_cap")}</Text>
               </View>
@@ -306,7 +296,7 @@ function CalculatorBody({
                       <PlateChip
                         key={option.side}
                         label={t("plates__option", {
-                          weight: cappedWeight(option.load.totalKg),
+                          weight: weight(option.load.totalKg),
                           difference: difference(option.differenceKg),
                         })}
                         selected={option.side === choice?.side}
@@ -318,16 +308,16 @@ function CalculatorBody({
                 <View className="gap-1">
                   {state.cap !== null ? (
                     <Text className="text-caption text-muted">
-                      {t("gym__plate_cap", { weight: cappedWeight(state.cap) })}
+                      {t("gym__plate_cap", { weight: weight(state.cap) })}
                     </Text>
                   ) : null}
                   {!building && hasTarget(state.target) ? (
                     <Text className="font-medium text-label text-muted tabular-nums">
-                      {t("plates__target", { weight: cappedWeight(state.target) })}
+                      {t("plates__target", { weight: weight(state.target) })}
                     </Text>
                   ) : null}
                   <Text className="font-semibold text-title-lg text-foreground tabular-nums">
-                    {t("plates__total", { weight: cappedWeight(totalKg) })}
+                    {t("plates__total", { weight: weight(totalKg) })}
                     {!building && choice && choice.differenceKg === 0
                       ? ` · ${t("plates__exact")}`
                       : null}
@@ -442,7 +432,7 @@ function CalculatorBody({
       {loaded && state.bar && canUse ? (
         <View className="bg-overlay px-4 pt-3" style={{ paddingBottom: bottom + 12 }}>
           <Button variant="primary" onPress={() => void use()}>
-            {t("plates__use", { weight: cappedWeight(totalKg) })}
+            {t("plates__use", { weight: weight(totalKg) })}
           </Button>
         </View>
       ) : null}

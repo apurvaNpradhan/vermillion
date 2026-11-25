@@ -32,3 +32,15 @@ it("exports owner rows in bounded pages and omits reference data and local field
   expect(pages.get("workout")).toEqual([[]]);
   expect(pages.has("device_owner")).toBe(false);
 });
+
+it.each(["kg", "lb", null])("exports exercise unit %s", async (unit) => {
+  const { training, sqlite } = await setupSessions();
+  sqlite
+    .prepare("INSERT INTO exercise_setting (id, user_id, exercise_id, unit) VALUES (?, ?, ?, ?)")
+    .run("setting", "owner", "exercise", unit);
+  const settings: WireRow[] = [];
+  await visitBackupPages(training, "owner", async (table, page) => {
+    if (table === "exercise_setting") settings.push(...page);
+  });
+  expect(settings).toMatchObject([{ id: "setting", exercise_id: "exercise", unit }]);
+});

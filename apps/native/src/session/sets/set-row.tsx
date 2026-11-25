@@ -32,7 +32,7 @@ import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
 
 import { hasRequiredSetValues } from "@/session/logging/history-gate";
-import { displayOfText, valueOfText } from "@/platform/ui/keypad-entry";
+import { displayOfText } from "@/platform/ui/keypad-entry";
 import type { CellRef } from "@/session/logging/keypad-entry";
 import {
   formatCell,
@@ -52,7 +52,7 @@ import { DONE_TINT_ALPHA, withAlpha } from "./row-tint";
 import { TickMark } from "./tick-mark";
 
 /** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
-export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
+export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean; draftValue: number | null };
 
 /** The completed-row tint fades in and out like the tick. */
 const TINT_TRANSITION: CSSTransitionProperties = {
@@ -156,9 +156,8 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const tint = withAlpha(accent, DONE_TINT_ALPHA);
   const transparent = withAlpha(accent, 0);
   // What is typed since the cell was opened; nothing until the first key.
-  const raw = entry && !entry.fresh ? entry.raw : null;
   const activeField = entry?.cell.field;
-  const draftValue = activeField && raw !== null ? valueOfText(activeField, raw, unit) : undefined;
+  const draftValue = entry && !entry.fresh ? entry.draftValue : undefined;
   const capLabel =
     weighted && set.kind !== "warmup"
       ? setCapLabel({

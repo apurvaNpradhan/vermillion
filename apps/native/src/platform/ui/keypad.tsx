@@ -63,6 +63,7 @@ export function Keypad({
   allowPoint,
   hasNext,
   stepText,
+  decreaseStepText = stepText,
   accessory,
   systemKeyboard = false,
   motion: animate = true,
@@ -77,6 +78,7 @@ export function Keypad({
   hasNext: boolean;
   /** The step size shown on the − and + keys ("2.5"). */
   stepText: string;
+  decreaseStepText?: string;
   /** Anything that belongs above the keys for the cell being edited; generic on purpose. */
   accessory?: ReactNode;
   /** Use the phone's own number keyboard instead of the digit keys. */
@@ -143,7 +145,7 @@ export function Keypad({
           className="font-medium text-label text-foreground"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          {stepText}
+          {direction === 1 ? stepText : decreaseStepText}
         </Text>
       </View>
     </Cap>

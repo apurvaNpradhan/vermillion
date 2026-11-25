@@ -1,6 +1,7 @@
 import {
   DEFAULT_WARMUP_STEPS,
   capOnlyOf,
+  barKitFor,
   rangeGrid,
   loadGridOf,
   type LoadRange,
@@ -15,7 +16,7 @@ import {
 } from "@workspace/shared";
 import type { EquipmentRow, SessionExerciseDetail } from "@workspace/sync";
 
-import { defaultBar, enabledBars, loadInputKey, platesForBar } from "../plates/plate-view";
+import { loadInputKey } from "../plates/plate-view";
 
 /** The parts of a set the plan reads. */
 type PlanSet = Pick<
@@ -65,8 +66,13 @@ export function warmupLoading(
   if (grid) return { loading: { bar: null, grid }, key: JSON.stringify(ranges) };
   const capKg = capOnlyOf(ranges);
   const equipment = equipmentOf(exercise);
-  const bar = defaultBar(enabledBars(rows), exercise.barId, unit, equipment, exercise.unit != null);
-  const plates = bar ? platesForBar(rows, bar) : [];
+  const { bar, plates } = barKitFor(rows, {
+    unit,
+    equipment,
+    rememberedId: exercise.barId,
+    capKg,
+    preferMatchingUnit: exercise.unit != null,
+  });
   const barKey = equipment === "barbell" ? loadInputKey(bar, plates) : "-";
   return {
     loading: {
