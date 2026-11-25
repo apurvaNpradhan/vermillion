@@ -5,7 +5,7 @@ import {
   progresses,
   type LoadRange,
 } from "@workspace/shared";
-import { and, desc, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
 
 import { readPreferencesRow, userPreferences } from "../../preferences";
 import { defaultGymIdOf } from "../gyms/gym-store";
@@ -51,7 +51,9 @@ export async function phaseLoadsIn(tx: Tx, gymId: string | null) {
   const kit = await tx
     .select()
     .from(gymEquipment)
-    .where(or(eq(gymEquipment.gym_id, gymId), isDefault ? isNull(gymEquipment.gym_id) : undefined));
+    .where(or(eq(gymEquipment.gym_id, gymId), isDefault ? isNull(gymEquipment.gym_id) : undefined))
+    // The screens' order, so the default bar is the same one they pick.
+    .orderBy(asc(gymEquipment.kind), desc(gymEquipment.weight_kg), asc(gymEquipment.id));
   const remembered = await tx
     .select({ exerciseId: exerciseSetting.exercise_id, barId: exerciseSetting.bar_id })
     .from(exerciseSetting)

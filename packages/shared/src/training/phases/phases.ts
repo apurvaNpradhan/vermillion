@@ -44,10 +44,14 @@ export const PHASE_PRESETS = {
   deload: { sets: 0.5, rpe: -2, load: 0.9 },
 } as const satisfies Record<Phase, PhaseModifiers>;
 
-/** Whether a lift of `type` is loaded (has a weight), so a Test week can ask for a heavy single. */
+/**
+ * Whether a lift of `type` is loaded (has a weight that gets heavier), so a Test week can ask for
+ * a heavy single and a Deload can lighten it. An assisted lift records its assistance as the
+ * weight, so more weight is easier: it has none.
+ */
 export const hasLoad = (type: ExerciseType): boolean => {
   const fields: readonly SetField[] = SET_FIELDS[type];
-  return fields.includes("weight");
+  return fields.includes("weight") && type !== "bodyweight_assisted_reps";
 };
 
 /** How the one top set of a Test week is done: a heavy single, or as many reps as possible. */
@@ -307,21 +311,26 @@ function scaledCount(count: number, factor: number): number {
  */
 function testTopSet(
   working: readonly PlannedSet[],
-  options: { testTop: TestTop; fields: readonly SetField[]; loadKg: number | null },
+  options: {
+    testTop: TestTop;
+    fields: readonly SetField[];
+    loaded: boolean;
+    loadKg: number | null;
+  },
 ): PlannedSet | null {
   const first = working[0];
   if (!first) return null;
   const top: PlannedSet = { ...first, kind: "top" };
   delete top.effort_min;
   delete top.effort_max;
-  if (options.fields.includes("weight")) {
+  if (options.loaded) {
     // The load to test: the lifter's own recent best when known, else the heaviest planned.
     const planned = working.flatMap((set) => (set.weight_kg === undefined ? [] : [set.weight_kg]));
     if (options.loadKg !== null) top.weight_kg = options.loadKg;
     else if (planned.length > 0) top.weight_kg = Math.max(...planned);
   }
   if (!options.fields.includes("reps")) return top;
-  const single = options.testTop === "single" && options.fields.includes("weight");
+  const single = options.testTop === "single" && options.loaded;
   if (single) return { ...top, reps_min: 1, reps_max: 1 };
   // As many reps as possible: a failure set, aiming to beat the planned reps.
   return { ...top, kind: "failure" };
@@ -341,16 +350,22 @@ export function applyPhase(
   const modifiers = options.modifiers ?? PHASE_PRESETS[phase];
   const unit = options.unit ?? "kg";
   const working = planned.filter((set) => set.kind !== "warmup");
+  const loaded = hasLoad(options.type);
   let kept: PlannedSet[];
   if (phase === "test" && options.isMainLift) {
     const top = testTopSet(working, {
       testTop: options.testTop ?? "single",
       fields: SET_FIELDS[options.type],
+      loaded,
       loadKg: options.testLoadKg ?? null,
     });
     const capKg = options.grid?.capKg ?? null;
-    if (top?.weight_kg !== undefined && capKg !== null)
-      top.weight_kg = Math.min(top.weight_kg, capKg);
+    if (top?.weight_kg !== undefined && loaded) {
+      // Capped, then snapped down onto the gym's grid so the seed is a load the gym can make.
+      const capped = capKg === null ? top.weight_kg : Math.min(top.weight_kg, capKg);
+      const grid = options.grid && options.grid.source !== "cap" ? options.grid : null;
+      top.weight_kg = grid ? (grid.below(capped + EPS) ?? capped) : capped;
+    }
     kept = top ? [top] : [];
   } else {
     const target = scaledCount(working.length, modifiers.sets);
@@ -365,7 +380,7 @@ export function applyPhase(
       next.effort_min = shiftEffort(next.effort_min, modifiers.rpe);
       next.effort_max = shiftEffort(next.effort_max, modifiers.rpe);
     }
-    if (modifiers.load < 1 && next.weight_kg !== undefined) {
+    if (loaded && modifiers.load < 1 && next.weight_kg !== undefined) {
       next.weight_kg = lowerLoad(next.weight_kg, modifiers.load, {
         equipment: options.equipment,
         unit,

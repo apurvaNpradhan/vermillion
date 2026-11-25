@@ -15,7 +15,8 @@ import {
   updateWorkout,
   updateWorkoutExercise,
 } from "../store";
-import { CURL, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
+import { CURL, DIP, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
+import { upsertEquipment } from "./equipment-store";
 import { finishSession, startSession } from "./session-store";
 import { tickSet, updateSet } from "./session-content-store";
 
@@ -383,6 +384,48 @@ it("is as many reps as possible for a lift with no weight in a Test week", async
     await updateWorkout(s.training, workoutId, { main_entry_id: pushup });
     const id = await startInWeek(s, runId, workoutId, 1);
     expect(targetsOf(s, id).get(PUSHUP)).toEqual([{ kind: "failure", reps_min: 10, reps_max: 15 }]);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("keeps an assisted lift's assistance in a Deload and a Test, which is AMRAP", async () => {
+  const s = await setupSessions();
+  try {
+    const assisted = [30, 20, 15].map((weight_kg) => ({
+      kind: "working" as const,
+      reps_min: 8,
+      reps_max: 10,
+      weight_kg,
+    }));
+    const { workoutId, runId } = await setup(s, { pattern: ["deload", "test"] });
+    const [dip = ""] = await addExercises(s.training, workoutId, [DIP]);
+    await updateWorkoutExercise(s.training, dip, { sets: assisted });
+    const deload = targetsOf(s, await startInWeek(s, runId, workoutId, 1)).get(DIP) ?? [];
+    expect(deload.map((set) => set.weight_kg)).toEqual([30, 20]);
+    await updateWorkout(s.training, workoutId, { main_entry_id: dip });
+    const test = targetsOf(s, await startInWeek(s, runId, workoutId, 2)).get(DIP) ?? [];
+    expect(test).toEqual([{ kind: "failure", reps_min: 8, reps_max: 10, weight_kg: 30 }]);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("loads a Test top set on the bar the screens pick: the heaviest of the unlisted bars", async () => {
+  const s = await setupSessions();
+  try {
+    deliverGym(s);
+    const item = { unit: "kg", label: null, enabled: true } as const;
+    // Inserted lightest first: the order of the rows must not choose the bar.
+    await upsertEquipment(s.training, [
+      { ...item, kind: "bar", weight_kg: 7, count: null },
+      { ...item, kind: "bar", weight_kg: 15, count: null },
+      { ...item, kind: "plate", weight_kg: 10, count: 8 },
+    ]);
+    const { workoutId, runId } = await setup(s, { pattern: ["test"] });
+    const id = await startInWeek(s, runId, workoutId, 1);
+    // The 15 kg bar loads 15, 35, 55, 75, 95 kg (a 7 kg bar would give 87 kg).
+    expect(targetsOf(s, id).get(SQUAT)?.[0]?.weight_kg).toBe(95);
   } finally {
     s.sqlite.close();
   }

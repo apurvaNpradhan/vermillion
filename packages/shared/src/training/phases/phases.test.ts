@@ -431,6 +431,44 @@ describe("applyPhase", () => {
       },
     );
 
+    it("snaps the capped top set down onto the gym's grid", () => {
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit: "kg",
+        ranges: [{ min: 5, max: 100, step: 5 }],
+      });
+      const out = applyPhase(sets, "test", {
+        type: "weight_reps",
+        equipment: "machine",
+        isMainLift: true,
+        grid,
+        testLoadKg: 52.5,
+      });
+      expect(out[1]?.weight_kg).toBe(50);
+    });
+
+    it("gives an assisted lift an AMRAP set with its assistance unchanged", () => {
+      const assisted: PlannedSet[] = [
+        { kind: "working", reps_min: 8, reps_max: 10, weight_kg: 30 },
+        { kind: "working", reps_min: 8, reps_max: 10, weight_kg: 20 },
+        { kind: "working", reps_min: 8, reps_max: 10, weight_kg: 15 },
+      ];
+      const grid = loadGridOf({
+        equipment: "machine",
+        unit: "kg",
+        ranges: [{ min: 5, max: 25, step: 5 }],
+      });
+      const out = applyPhase(assisted, "test", {
+        type: "bodyweight_assisted_reps",
+        equipment: "machine",
+        isMainLift: true,
+        testTop: "single",
+        grid,
+        testLoadKg: 45,
+      });
+      expect(out).toEqual([{ kind: "failure", reps_min: 8, reps_max: 10, weight_kg: 30 }]);
+    });
+
     it("keeps a duration lift's target and just makes it the top set", () => {
       const out = applyPhase([{ kind: "working", duration_s: 60 }], "test", {
         type: "duration",
@@ -452,6 +490,16 @@ describe("applyPhase", () => {
     it("keeps a Workout with no working sets as it is", () => {
       expect(applyPhase([], "test", { ...base, isMainLift: true })).toEqual([]);
     });
+  });
+
+  it("keeps an assisted lift's assistance in a Deload while sets and effort still apply", () => {
+    const out = applyPhase(working(4, { weight_kg: 30, effort_min: 8, effort_max: 8 }), "deload", {
+      type: "bodyweight_assisted_reps",
+      equipment: "machine",
+      isMainLift: false,
+    });
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ weight_kg: 30, effort_min: 6, effort_max: 6 });
   });
 
   it("never leaves an exercise without a working set", () => {
