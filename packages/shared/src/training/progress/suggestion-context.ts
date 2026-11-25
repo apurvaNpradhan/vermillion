@@ -23,6 +23,7 @@ export type SuggestionSettings = {
   deload?: boolean;
   /** The share of the last load this week's phase asks for (0.9 in a Deload); 1 or absent: none. */
   phaseLoad?: number;
+  testSingle?: boolean;
   /** History selected by the entry, Workout preference and gym. */
   baselineHistory?: readonly SessionHistory[];
   /** Machine, cable and Smith exercises prefer history from this gym for their baseline. */
@@ -68,6 +69,7 @@ export type SuggestionPlace = {
   gymId: string | null;
   /** This week's phase load share (0.9 in a Deload); 1 or absent: none. */
   phaseLoad?: number;
+  testSingle?: boolean;
   /** The loads this gym can make for the exercise. */
   grid: LoadGrid | null;
   /** Judge the stalled-lift note and apply an accepted deload (only for an exercise to train). */
@@ -105,7 +107,7 @@ export function suggestionContext(
 ): SuggestionContext {
   const { history, workoutHistory } = suggestionHistory(rawHistory, place, account.previousSource);
   let stall: StallInfo | null = null;
-  if (place.stalls) {
+  if (place.stalls && !place.testSingle) {
     // Stalls compare Sessions of this Workout across gyms, regardless of the Previous preference.
     const sessions = workoutHistory;
     const latestSessionId = sessions[0]?.id ?? null;
@@ -138,6 +140,7 @@ export function suggestionContext(
       lighterWeeks: account.lighterWeeks,
       deload: place.stallDeload === true,
       phaseLoad: place.phaseLoad ?? 1,
+      testSingle: place.testSingle,
     },
   };
 }

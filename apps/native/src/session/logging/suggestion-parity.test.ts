@@ -62,10 +62,13 @@ it.each([
   { unit: "lb", weight: 25, expected: 25, plannedDeload: true, tolerance: true },
   { unit: "kg", weight: 100, expected: 90, plannedDeload: false, resumed: true },
   { unit: "lb", weight: 220, expected: 200, plannedDeload: false, resumed: true },
+  { unit: "kg", weight: 100, expected: 105, plannedDeload: false, testWeek: true },
+  { unit: "lb", weight: 225, expected: 235, plannedDeload: false, testWeek: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
   const resumed = "resumed" in scenario;
+  const testWeek = "testWeek" in scenario;
   const progressing = "progressing" in scenario || "microplates" in scenario || resumed;
   const fixture = await setupSessions();
   const { training } = fixture;
@@ -78,13 +81,13 @@ it.each([
     },
   );
   const phasePlan: PhasePlan = {
-    pattern: resumed ? ["build", "test", "deload"] : ["deload"],
+    pattern: testWeek ? ["test"] : resumed ? ["build", "test", "deload"] : ["deload"],
     modifiers: { deload: { load: "tolerance" in scenario ? 0.9 : 0.75 } },
     overrides: [],
     test_top: "single",
   };
   const programId =
-    plannedDeload || resumed
+    plannedDeload || resumed || testWeek
       ? await createProgram(training, {
           title: "Strength",
           description: null,
@@ -116,7 +119,7 @@ it.each([
     for (const set of sets)
       await tickSet(training, set.id, {
         weight: kilograms,
-        reps: progressing ? 5 + index : 8,
+        reps: testWeek ? 5 : progressing ? 5 + index : 8,
         rpe: effort ? 7 : undefined,
       });
     await finishSession(training, id);
@@ -144,7 +147,7 @@ it.each([
     }
   }
   const id = await startSession(training, { workoutId, derivedTitle: "Legs", timeZone: "UTC" });
-  const applied = !plannedDeload && !effort && !progressing;
+  const applied = !plannedDeload && !effort && !progressing && !testWeek;
   if (applied) {
     const row = (await readSession(id))?.exercises[0];
     if (!row) throw new Error("Expected a Session exercise");
@@ -196,6 +199,8 @@ it.each([
     lighterWeeks: [],
     lighter: false,
     phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
+    phase: session.phase,
+    testEntryId: session.phaseModifiers?.test_entry_id,
     bodyweightKg: null,
     stallVersion: 0,
     stallMemory: () => ({ dismissed: false }),
@@ -226,7 +231,9 @@ it.each([
       )
     : null;
   if ("tolerance" in scenario) expect(session.phaseModifiers?.load_cuts).toEqual([0, 0]);
-  expect(session.phase).toBe(plannedDeload ? "deload" : resumed ? "build" : null);
+  expect(session.phase).toBe(
+    testWeek ? "test" : plannedDeload ? "deload" : resumed ? "build" : null,
+  );
   const prepared = prepareWorkoutEntry(
     plan,
     entry,
@@ -236,7 +243,7 @@ it.each([
     week,
   );
   const next = nextExerciseSuggestion(plan, SQUAT, history, gym, inputs, week, now);
-  expect(prepared.entry.sets).toHaveLength(plannedDeload ? 1 : 2);
+  expect(prepared.entry.sets).toHaveLength(plannedDeload || testWeek ? 1 : 2);
   if (!applied) expect(next?.suggestion).toEqual(view?.suggestion);
   expect(
     nextWorkoutCandidates([{ id: "upcoming", workoutId: "upcoming" }], new Set(), history),
@@ -246,9 +253,15 @@ it.each([
   const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
 
   expect(view?.suggestion?.outcomes[0]).toMatchObject({
-    reason: resumed ? "after_break" : effort || progressing ? "add_weight" : "deload",
+    reason: testWeek
+      ? "test_single"
+      : resumed
+        ? "after_break"
+        : effort || progressing
+          ? "add_weight"
+          : "deload",
   });
-  if (!effort && !progressing)
+  if (!effort && !progressing && !testWeek)
     expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);
   expect(live.get(set.id)).toEqual(view?.rows.get(set.id)?.ghosts);
   if (applied) {
@@ -269,7 +282,10 @@ it.each([
     expect(nextSession?.exercises[0]?.stallDeload).toBe(false);
   } else {
     expect(preview?.suggestion).toEqual(view?.suggestion);
-    expect(preview?.changes[0]?.today).toEqual({ weight: String(expected), reps: 5 });
+    expect(preview?.changes[0]?.today).toEqual({
+      weight: String(expected),
+      reps: testWeek ? 1 : 5,
+    });
   }
 });
 

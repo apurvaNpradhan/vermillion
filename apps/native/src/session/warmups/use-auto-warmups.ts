@@ -1,4 +1,4 @@
-import { incrementInUnit } from "@workspace/shared";
+import { isTestSingle, incrementInUnit } from "@workspace/shared";
 import { resolveExerciseUnit } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -73,7 +73,15 @@ export function useAutoWarmups({
     if (!active || !historyReady || !equipmentReady) return;
     let deferred = false;
     for (const exercise of session.exercises) {
-      if (!shouldAutoWarmup(exercise)) continue;
+      if (
+        !shouldAutoWarmup(exercise) ||
+        (session.phaseModifiers?.test_entry_id === exercise.sourceWorkoutExerciseId &&
+          isTestSingle(
+            session.phase,
+            exercise.sets.map(({ target }) => target),
+          ))
+      )
+        continue;
       const workingKg = firstWorkingWeightKg(exercise, ghostWeightOf);
       if (workingKg === null) continue;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
@@ -105,6 +113,8 @@ export function useAutoWarmups({
     equipmentReady,
     gym,
     session.exercises,
+    session.phase,
+    session.phaseModifiers,
     ghostWeightOf,
     rows,
     preferredUnit,

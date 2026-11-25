@@ -12,6 +12,7 @@ import {
   phaseFor,
   runPausedAt,
   hasLoad,
+  isTestSingle,
   sessionInput,
   snapshotOf,
   sessionStartAllowed,
@@ -26,7 +27,7 @@ import { program, programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
 import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
-import { lastBaselineLoadKg, phaseLoadsIn } from "./phase-inputs";
+import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
 import { performAgainIn } from "./session-again-store";
@@ -248,10 +249,16 @@ async function createSessionIn(
             grid: loads.gridFor(entry.exercise_id, info.equipment, setting?.unit),
             modifiers: phase.modifiers,
             testTop: phase.testTop,
-            // A Test week's top set starts from what the lifter last did, not the stale plan.
+            testWorkups: phase.testWorkups,
+            // The Test seed uses the exercise estimate and the break clock.
             testLoadKg:
               phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
-                ? await lastBaselineLoadKg(tx, entry.exercise_id)
+                ? await testWorkingLoadIn(tx, entry.exercise_id, info.exercise_type, {
+                    now: new Date(fields.startedAt),
+                    timeZone: source.timeZone ?? "UTC",
+                    single: phase.testTop === "single",
+                    lighterWeeks: loads.lighterWeeks,
+                  })
                 : null,
           })
         : entry.sets;
@@ -266,7 +273,15 @@ async function createSessionIn(
     slot_id: slot?.id ?? null,
     gym_id: gymId,
     phase: phase?.phase ?? null,
-    phase_modifiers: phase ? { ...snapshotOf(phase), load_cuts: loadCutRange(factors) } : null,
+    phase_modifiers: phase
+      ? {
+          ...snapshotOf(phase),
+          load_cuts: loadCutRange(factors),
+          test_entry_id: entries.find(
+            ({ entry, sets }) => entry.id === mainEntryId && isTestSingle(phase.phase, sets),
+          )?.entry.id,
+        }
+      : null,
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,

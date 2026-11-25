@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
-import { phaseFor, phasePlanSchema } from "../phases/phases";
+import { applyPhase, phaseFor, phasePlanSchema } from "../phases/phases";
+import { recordFlags, exerciseRecords } from "./records";
+import { testWorkingLoad } from "../phases/test-load";
 import { runWeek } from "../plans/cycle";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { barGrid, rangeGrid } from "./load-grid";
@@ -264,6 +266,39 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(phaseFor(phasePlan, run, date(28), "UTC", [start, date(21).toISOString()])?.phase).toBe(
       "deload",
     );
+  });
+
+  it("seeds an RPE 8–9 Test single from e1RM, factors breaks and reads Test records", () => {
+    const baseline = train(0, [{ weightKg: kg(weight), reps: 5 }]);
+    const estimate = (kg(weight) * 36) / 32;
+    const test = (history: readonly ContextSession[], day: number) =>
+      testWorkingLoad(history, "weight_reps", {
+        now: new Date(START + day * DAY),
+        single: true,
+      });
+    expect(test([baseline], 7)).toBeCloseTo(estimate * 0.925, 5);
+    expect(test([baseline], 18)).toBeCloseTo(estimate * 0.925 * 0.9, 5);
+    const targets = applyPhase(plan, "test", {
+      isMainLift: true,
+      type: "weight_reps",
+      equipment: "barbell",
+      unit,
+      testLoadKg: test([baseline], 7),
+      testWorkups: true,
+    });
+    expect(targets.map(({ kind }) => kind)).toEqual(["warmup", "warmup", "top"]);
+    expect(targets.at(-1)).toMatchObject({
+      reps_min: 1,
+      reps_max: 1,
+      effort_min: 8,
+      effort_max: 9,
+    });
+    const recordLoad = kg(weight + step * 5);
+    const result = train(7, [{ weightKg: recordLoad, reps: 1 }], { phase: "test", rpe: 9 });
+    const history = [result, baseline];
+    expect(exerciseRecords(history).get("lift")?.get("estimated_one_rep_max")).toBe(recordLoad);
+    expect(recordFlags(history).get("7-0")).toContain("reps_1");
+    expect(test(history, 8)).toBeCloseTo(recordLoad * 0.925, 5);
   });
 
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {

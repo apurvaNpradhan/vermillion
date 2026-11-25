@@ -8,9 +8,9 @@ import {
 } from "../../exercise/vocabulary";
 import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek, type RunPause } from "../plans/cycle";
-import { lightenLoad } from "../progress/progression-steps";
-import { gridFloor, type LoadGrid } from "../progress/load-grid";
-import { formatWeight, loadIdentity, parseWeight, weightAtMost } from "../vocabulary/format";
+import { defaultStepKg, lightenLoad, loadable } from "../progress/progression-steps";
+import type { LoadGrid } from "../progress/load-grid";
+import { loadIdentity, weightAtMost } from "../vocabulary/format";
 import {
   EFFORT_STEPS,
   TRAINING_LIMITS,
@@ -103,6 +103,7 @@ export const phasePlanSchema = z.object({
     })
     .default({}),
   test_top: z.enum(TEST_TOPS).default("single"),
+  test_workups: z.boolean().optional(),
 });
 export type PhasePlan = z.infer<typeof phasePlanSchema>;
 /** What a form or a store writes: the defaults may be left out. */
@@ -117,12 +118,13 @@ export const phaseSnapshotSchema = z.object({
   rpe: phaseModifiersSchema.shape.rpe,
   load: phaseModifiersSchema.shape.load,
   test_top: z.enum(TEST_TOPS),
-  load_cuts: z.tuple([z.number().min(0).max(100), z.number().min(0).max(100)]).optional(),
+  test_entry_id: z.uuid().optional(),
+  load_cuts: z.tuple([z.number().max(100), z.number().max(100)]).optional(),
 });
 export type PhaseSnapshot = z.infer<typeof phaseSnapshotSchema>;
 
 /** What a phase asks of a Workout: its modifiers and how a Test week's top set is done. */
-export type PhaseSettings = { modifiers: PhaseModifiers; testTop: TestTop };
+export type PhaseSettings = { modifiers: PhaseModifiers; testTop: TestTop; testWorkups?: boolean };
 
 /** The snapshot of a phase read from a plan. */
 export const snapshotOf = (now: PhaseSettings): PhaseSnapshot => ({
@@ -139,7 +141,12 @@ export function snapshotModifiers(
   snapshot: PhaseSnapshot | null | undefined,
 ): PhaseSettings {
   if (!snapshot) return { modifiers: PHASE_PRESETS[phase], testTop: "single" };
-  const { test_top: testTop, load_cuts: _loadCuts, ...modifiers } = snapshot;
+  const {
+    test_top: testTop,
+    load_cuts: _loadCuts,
+    test_entry_id: _testEntry,
+    ...modifiers
+  } = snapshot;
   return { modifiers, testTop };
 }
 
@@ -255,6 +262,7 @@ export function phaseFor(
       ...found,
       modifiers: modifiersFor(effective, found.phase),
       testTop: effective.test_top,
+      ...(effective.test_workups ? { testWorkups: true } : {}),
     }
   );
 }
@@ -322,10 +330,10 @@ export type ApplyPhaseOptions = {
   modifiers?: PhaseModifiers;
   /** How a Test week's main lift is done. */
   testTop?: TestTop;
+  testWorkups?: boolean;
   /**
-   * The load the Test week's top set aims at: what the lifter has recently done (the engine's or
-   * the last baseline's heaviest working set), not the Workout's possibly stale plan. Without it
-   * the heaviest planned load stays.
+   * The history-derived Test load, before snapping. Without an estimate or logged load, the
+   * heaviest planned load stays.
    */
   testLoadKg?: number | null;
 };
@@ -364,7 +372,7 @@ function testTopSet(
   }
   if (!options.fields.includes("reps")) return top;
   const single = options.testTop === "single" && options.loaded;
-  if (single) return { ...top, reps_min: 1, reps_max: 1 };
+  if (single) return { ...top, reps_min: 1, reps_max: 1, effort_min: 8, effort_max: 9 };
   // As many reps as possible: a failure set, aiming to beat the planned reps.
   return { ...top, kind: "failure" };
 }
@@ -384,6 +392,26 @@ export function applyPhase(
   const unit = options.unit ?? "kg";
   const working = planned.filter((set) => set.kind !== "warmup");
   const loaded = hasLoad(options.type);
+  const warmups = planned.filter((set) => set.kind === "warmup");
+  const testSingle =
+    phase === "test" && options.isMainLift && loaded && (options.testTop ?? "single") === "single";
+  const snapTest = (kg: number, roundDefault: boolean): number => {
+    const cap = options.grid?.capKg ?? Infinity;
+    const grid = options.grid?.source === "cap" ? null : options.grid;
+    const capped = Math.min(kg, cap);
+    const step = defaultStepKg(options.equipment, unit, capped, options.type);
+    const snapped =
+      grid && capped > 0
+        ? grid.nearest(capped)
+        : roundDefault && capped > 0
+          ? Math.round(capped / step + EPS) * step
+          : capped;
+    const typed = loadable(snapped, unit);
+    if (typed <= cap) return typed;
+    return grid && loadIdentity(typed) === loadIdentity(cap)
+      ? cap
+      : weightAtMost(snapped, unit, cap);
+  };
   let kept: PlannedSet[];
   if (phase === "test" && options.isMainLift) {
     const top = testTopSet(working, {
@@ -392,19 +420,8 @@ export function applyPhase(
       loaded,
       loadKg: options.testLoadKg ?? null,
     });
-    const capKg = options.grid?.capKg ?? null;
-    if (top?.weight_kg !== undefined && loaded) {
-      // Capped, then snapped down onto the gym's grid so the seed is a load the gym can make.
-      const capped = capKg === null ? top.weight_kg : Math.min(top.weight_kg, capKg);
-      const grid = options.grid && options.grid.source !== "cap" ? options.grid : null;
-      const snapped =
-        grid && capped > 0 ? Math.min(gridFloor(grid, capped), capKg ?? Infinity) : capped;
-      const shownKg = capKg === null ? null : parseWeight(formatWeight(snapped, unit), unit);
-      top.weight_kg =
-        capKg !== null && shownKg !== null && loadIdentity(shownKg) > loadIdentity(capKg)
-          ? Math.max(Math.min(grid?.nearest(0) ?? 0, capKg), weightAtMost(snapped, unit, capKg))
-          : snapped;
-    }
+    if (top?.weight_kg !== undefined && loaded)
+      top.weight_kg = snapTest(top.weight_kg, testSingle && options.testLoadKg != null);
     kept = top ? [top] : [];
   } else {
     const target = phaseSetCount(working.length, modifiers.sets);
@@ -415,7 +432,12 @@ export function applyPhase(
   }
   const adjusted = kept.map((set): PlannedSet => {
     const next = { ...set };
-    if (modifiers.rpe !== 0 && next.effort_min !== undefined && next.effort_max !== undefined) {
+    if (
+      !testSingle &&
+      modifiers.rpe !== 0 &&
+      next.effort_min !== undefined &&
+      next.effort_max !== undefined
+    ) {
       next.effort_min = shiftEffort(next.effort_min, modifiers.rpe);
       next.effort_max = shiftEffort(next.effort_max, modifiers.rpe);
     }
@@ -428,8 +450,22 @@ export function applyPhase(
     }
     return next;
   });
-  // Warm-ups keep their place at the front, as the Workout order has them.
-  return [...planned.filter((set) => set.kind === "warmup"), ...adjusted];
+  const singleLoad = testSingle ? adjusted[0]?.weight_kg : null;
+  if (options.testWorkups && singleLoad) {
+    let last = Math.max(0, ...warmups.map((set) => set.weight_kg ?? 0));
+    for (const share of [0.8, 0.9]) {
+      const load = snapTest(singleLoad * share, true);
+      if (
+        load >= singleLoad ||
+        load <= last ||
+        warmups.length + adjusted.length >= TRAINING_LIMITS.setsPerExercise
+      )
+        continue;
+      warmups.push({ kind: "warmup", reps_min: 1, reps_max: 1, weight_kg: load });
+      last = load;
+    }
+  }
+  return [...warmups, ...adjusted];
 }
 
 /** The actual percentage cut after snapping, optionally a range across sets. */

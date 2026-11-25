@@ -1,6 +1,8 @@
 import {
   addsLoad,
   formatLoad,
+  isCounted,
+  progresses,
   type SessionHistory,
   type SetKind,
   type SetOutcome,
@@ -50,7 +52,13 @@ export function previewProgression(
     const next = suggestion.sets[index];
     const outcome = suggestion.outcomes[index];
     if (!next || !outcome) continue;
-    const previous = previousOfRow(baseline, entry.sets, index);
+    const previous =
+      previousOfRow(baseline, entry.sets, index) ??
+      (outcome.reason === "test_single"
+        ? history
+            .find((session) => session.sets.some(isCounted))
+            ?.sets.find((set) => isCounted(set) && progresses(set.kind))
+        : null);
     if (!previous || previous.reps == null || previous.exercise_type !== type) continue;
     // The hint comes from a baseline Session, as in the set grid.
     const ghost = ghostsOf(

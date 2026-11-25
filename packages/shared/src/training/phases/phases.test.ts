@@ -6,7 +6,7 @@ import type { ExerciseType } from "../../exercise/vocabulary";
 import type { EffortStep } from "../vocabulary/vocabulary";
 import { KG_PER_LB } from "../vocabulary/format";
 import { loadGridOf } from "../progress/load-grid";
-import { lastBaselineLoadKg, suggestNext, type ProgressionSession } from "../progress/progression";
+import { suggestNext, type ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
 import { lowerLoad } from "./phases";
 import {
@@ -376,7 +376,7 @@ describe("applyPhase", () => {
       const out = applyPhase(sets, "test", { ...base, isMainLift: true });
       expect(out).toEqual([
         { kind: "warmup", weight_kg: 40 },
-        { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100 },
+        { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 100, effort_min: 8, effort_max: 9 },
       ]);
     });
 
@@ -388,9 +388,16 @@ describe("applyPhase", () => {
       ]);
     });
 
-    it("starts the top set from the load the lifter last did, not the stale plan", () => {
+    it("uses the computed Test load when there is one", () => {
       const out = applyPhase(sets, "test", { ...base, isMainLift: true, testLoadKg: 120 });
-      expect(out[1]).toEqual({ kind: "top", reps_min: 1, reps_max: 1, weight_kg: 120 });
+      expect(out[1]).toEqual({
+        kind: "top",
+        reps_min: 1,
+        reps_max: 1,
+        weight_kg: 120,
+        effort_min: 8,
+        effort_max: 9,
+      });
       const amrap = applyPhase(sets, "test", {
         ...base,
         isMainLift: true,
@@ -688,21 +695,6 @@ describe("baseline exclusion", () => {
     expect(stalledSessions([flat(14, "test", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "deload", 140), ...build], "weight_reps")).toBe(3);
     expect(stalledSessions([flat(14, "push", 140), ...build], "weight_reps")).toBe(0);
-  });
-
-  it("finds the heaviest working set of the latest baseline, for a Test week's top set", () => {
-    const heavy = (weight: number, phase: Phase | null) =>
-      sessionOf("2026-11-10T10:00:00Z", 5, weight, phase);
-    const warmup: LoggedSet = { ...set(5, 200), kind: "warmup" };
-    expect(lastBaselineLoadKg([])).toBeNull();
-    // The newest Session is a Deload and the one before is a Test: the Build before them counts.
-    expect(lastBaselineLoadKg([heavy(60, "deload"), heavy(140, "test"), heavy(110, "build")])).toBe(
-      110,
-    );
-    expect(
-      lastBaselineLoadKg([{ ...heavy(100, null), sets: [warmup, set(5, 100), set(5, 105)] }]),
-    ).toBe(105);
-    expect(lastBaselineLoadKg([heavy(60, "deload")])).toBeNull();
   });
 
   it("a Deload every fourth week is training: it does not turn a stall into a break", () => {

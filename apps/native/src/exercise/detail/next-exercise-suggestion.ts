@@ -50,6 +50,7 @@ export function nextExerciseSuggestion(
     },
     account,
     week,
+    now,
   );
   const suggestion = plannedSuggestion(
     entry.sets,

@@ -1,12 +1,17 @@
 import {
   SET_KINDS,
   gymGridsOf,
+  calendarDay,
+  testWorkingLoad,
+  type ExerciseType,
+  type Phase,
   loadRangesSchema,
   progresses,
   type LoadRange,
 } from "@workspace/shared";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 
+import { bodyMeasurement } from "../../body";
 import { readPreferencesRow, userPreferences } from "../../preferences";
 import { defaultGymIdOf } from "../gyms/gym-store";
 import { ownerOf, type Tx } from "../store-common";
@@ -33,8 +38,8 @@ export async function phaseLoadsIn(tx: Tx, gymId: string | null) {
     .where(eq(userPreferences.user_id, userId))
     .orderBy(desc(userPreferences.id))
     .limit(1);
-  const unit = readPreferencesRow(prefs).ui.weightUnit;
-  if (gymId === null) return { unit, ...gymGridsOf({ settings: [], kit: [], unit }) };
+  const { weightUnit: unit, lighterWeeks } = readPreferencesRow(prefs).ui;
+  if (gymId === null) return { unit, lighterWeeks, ...gymGridsOf({ settings: [], kit: [], unit }) };
   const [row] = await tx
     .select({ dumbbell_max_kg: gym.dumbbell_max_kg })
     .from(gym)
@@ -60,6 +65,7 @@ export async function phaseLoadsIn(tx: Tx, gymId: string | null) {
     .where(isNotNull(exerciseSetting.bar_id));
   return {
     unit,
+    lighterWeeks,
     ...gymGridsOf({
       settings: settings.map((setting) => ({
         exerciseId: setting.exerciseId,
@@ -91,14 +97,23 @@ function readRanges(value: LoadRange[]): LoadRange[] {
 
 const PROGRESSING_KINDS = SET_KINDS.filter(progresses);
 
-/**
- * The heaviest completed working set of the exercise's last baseline Session (a finished Session
- * that is not a Test or Deload), in kilograms; null when there is none. A Test week's top set
- * starts from it, not from the Workout's planned load, which may be long stale.
- */
-export async function lastBaselineLoadKg(tx: Tx, exerciseId: string): Promise<number | null> {
+/** Test inputs from the exact transaction starting the Session. */
+export async function testWorkingLoadIn(
+  tx: Tx,
+  exerciseId: string,
+  type: ExerciseType,
+  options: Parameters<typeof testWorkingLoad>[2] & { timeZone: string },
+): Promise<number | null> {
   const rows = await tx
-    .select({ sessionId: session.id, weightKg: sessionSet.weight_kg })
+    .select({
+      id: session.id,
+      started_at: session.started_at,
+      phase: session.phase,
+      kind: sessionSet.kind,
+      weight_kg: sessionSet.weight_kg,
+      reps: sessionSet.reps,
+      completed_at: sessionSet.completed_at,
+    })
     .from(sessionSet)
     .innerJoin(sessionExercise, eq(sessionSet.session_exercise_id, sessionExercise.id))
     .innerJoin(session, eq(sessionExercise.session_id, session.id))
@@ -107,16 +122,51 @@ export async function lastBaselineLoadKg(tx: Tx, exerciseId: string): Promise<nu
         eq(sessionExercise.exercise_id, exerciseId),
         isNotNull(session.finished_at),
         isNotNull(sessionSet.completed_at),
-        isNotNull(sessionSet.weight_kg),
+        lte(session.started_at, options.now.toISOString()),
         inArray(sessionSet.kind, PROGRESSING_KINDS),
-        or(isNull(session.phase), notInArray(session.phase, ["test", "deload"])),
       ),
     )
     .orderBy(desc(session.started_at), desc(session.id))
-    .limit(200);
-  const latest = rows[0]?.sessionId;
-  const loads = rows.flatMap((row) =>
-    row.sessionId === latest && row.weightKg !== null ? [row.weightKg] : [],
-  );
-  return loads.length > 0 ? Math.max(...loads) : null;
+    .limit(500);
+
+  const dateOf = (at: string | Date) =>
+    new Date(calendarDay(at, options.timeZone)).toISOString().slice(0, 10);
+  const today = dateOf(options.now);
+  const weights = new Map<string, number>();
+  if (type === "bodyweight_weighted_reps") {
+    const days = [...new Set([today, ...rows.map(({ started_at }) => dateOf(started_at))])];
+    const measurements = await tx.all<{ day: string; kg: number }>(sql`
+      WITH days AS (
+        SELECT date.value AS day, COALESCE(
+          (SELECT MAX(local_date) FROM ${bodyMeasurement} WHERE metric = 'weight' AND local_date <= date.value),
+          (SELECT MIN(local_date) FROM ${bodyMeasurement} WHERE metric = 'weight')
+        ) AS measured_day FROM json_each(${JSON.stringify(days)}) AS date
+      )
+      SELECT days.day, AVG(m.value) AS kg FROM days
+      JOIN ${bodyMeasurement} m ON m.metric = 'weight' AND m.local_date = days.measured_day
+      GROUP BY days.day
+    `);
+    for (const { day, kg } of measurements) weights.set(day, kg);
+  }
+  const history = new Map<
+    string,
+    {
+      started_at: string;
+      phase: Phase | null;
+      sets: ((typeof rows)[number] & { bodyweight_kg?: number | null })[];
+    }
+  >();
+  for (const row of rows) {
+    const grouped = history.get(row.id) ?? {
+      started_at: row.started_at,
+      phase: row.phase,
+      sets: [],
+    };
+    grouped.sets.push({ ...row, bodyweight_kg: weights.get(dateOf(row.started_at)) ?? null });
+    history.set(row.id, grouped);
+  }
+  return testWorkingLoad([...history.values()], type, {
+    ...options,
+    bodyweightKg: weights.get(today),
+  });
 }

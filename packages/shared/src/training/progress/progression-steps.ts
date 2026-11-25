@@ -77,7 +77,13 @@ function defaultStep(equipment: Equipment, unit: WeightUnit, loadKg: number): nu
 }
 
 /** The default step of `equipment` for a load of `loadKg`, in kilograms. */
-export function defaultStepKg(equipment: Equipment, unit: WeightUnit, loadKg: number): number {
+export function defaultStepKg(
+  equipment: Equipment,
+  unit: WeightUnit,
+  loadKg: number,
+  exerciseType?: ExerciseType,
+): number {
+  if (exerciseType === "bodyweight_weighted_reps") return toKg(unit === "kg" ? 1.25 : 2.5, unit);
   return toKg(defaultStep(equipment, unit, loadKg), unit);
 }
 
@@ -147,7 +153,7 @@ export function incrementFor(
   if (settings.weightIncrementKg !== null) return settings.weightIncrementKg;
   const unit = settings.weightUnit;
   if (settings.exerciseType === "bodyweight_weighted_reps")
-    return toKg(unit === "kg" ? 1.25 : 2.5, unit);
+    return defaultStepKg(equipment, unit, load, settings.exerciseType);
   if (grid?.source === "kit") {
     const step = grid.stepAt(alignToGrid(grid, load));
     return Math.max(defaultStepKg("barbell", unit, 0), automatic(load, step));
@@ -220,6 +226,8 @@ export function lightenLoad(
   // A cap alone has no grid of its own: the equipment's step rounds, the cap only limits.
   const snapping = grid !== null && grid.source !== "cap" ? grid : null;
   if (rounding === "deload") {
+    const lowest = snapping?.nearest(0);
+    if (lowest !== undefined && loadIdentity(loadKg) <= loadIdentity(lowest)) return lowest;
     const lower = snapping
       ? Math.min(loadKg, gridFloor(snapping, loadKg * factor))
       : lightenLoad(loadKg, factor, equipment, unit, grid, "down");

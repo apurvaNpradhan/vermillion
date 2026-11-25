@@ -1,6 +1,8 @@
 import {
   SET_FIELDS,
   optionalSetIndexes,
+  isTestSingle,
+  type Phase,
   suggestionContext,
   gridCapInUnit,
   type Ghosts,
@@ -43,6 +45,8 @@ export type DeriveInputs = {
   lighter: boolean;
   /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
   phaseLoad: number;
+  phase?: Phase | null;
+  testEntryId?: string;
   bodyweightKg: number | null;
   /** Changes when a stalled note is manually dismissed on this device. */
   stallVersion: number;
@@ -125,6 +129,12 @@ function buildView(
       // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
       stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
       stallDeload: exercise.stallDeload,
+      testSingle:
+        inputs.testEntryId === exercise.sourceWorkoutExerciseId &&
+        isTestSingle(
+          inputs.phase,
+          exercise.sets.map(({ target }) => target),
+        ),
     },
     inputs,
   );

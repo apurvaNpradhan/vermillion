@@ -149,6 +149,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           stallMemory,
         },
         week,
+        now,
       );
       return {
         entry,

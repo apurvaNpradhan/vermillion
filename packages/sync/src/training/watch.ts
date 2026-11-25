@@ -131,7 +131,8 @@ export type ProgramSlotDetail = {
   workout: {
     title: string | null;
     coverMediaId: string | null;
-    exercises: WorkoutSummary["exercises"];
+    mainEntryId?: string | null;
+    exercises: (WorkoutSummary["exercises"][number] & { id?: string })[];
   } | null;
 };
 
@@ -379,6 +380,7 @@ const programDetailRowSchema = z.object({
   workout_row: z.string().nullable(),
   workout_title: z.string().nullable(),
   workout_cover_media_id: z.string().nullable().optional(),
+  workout_main_entry_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   sets: setsText.nullable(),
@@ -394,7 +396,7 @@ export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.descri
     p.planned_weeks AS planned_weeks, p.sessions_per_week AS sessions_per_week,
     p.cover_media_id AS cover_media_id, p.phase_plan AS phase_plan, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
-    w.cover_media_id AS workout_cover_media_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
+    w.cover_media_id AS workout_cover_media_id, w.main_entry_id AS workout_main_entry_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM program p
@@ -429,6 +431,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
             : {
                 title: row.workout_title,
                 coverMediaId: row.workout_cover_media_id ?? null,
+                mainEntryId: row.workout_main_entry_id ?? null,
                 exercises: [],
               },
       };
@@ -441,6 +444,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
       row.exercise_id !== null
     ) {
       current.workout.exercises.push({
+        id: row.exercise_row,
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
         secondaryMuscles: row.secondary_muscles,

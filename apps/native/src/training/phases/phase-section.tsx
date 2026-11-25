@@ -140,8 +140,13 @@ export function PhaseSection({
           phase={editing}
           modifiers={modifiersFor(plan, editing)}
           testTop={plan.test_top}
-          onSave={(modifiers, testTop) =>
-            save({ ...withModifiers(plan, editing, modifiers), test_top: testTop })
+          testWorkups={plan.test_workups ?? false}
+          onSave={(modifiers, testTop, testWorkups) =>
+            save({
+              ...withModifiers(plan, editing, modifiers),
+              test_top: testTop,
+              test_workups: testWorkups,
+            })
           }
           onClose={() => setEditing(null)}
         />

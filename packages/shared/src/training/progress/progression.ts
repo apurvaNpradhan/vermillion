@@ -40,6 +40,7 @@ export const PROGRESSION_REASONS = [
   "after_break",
   "same_as_last",
   "deload",
+  "test_single",
   /** The last load was above this gym's cap, so the cap is suggested. */
   "capped",
   /** At the cap with reps still to gain: the load stays, the reps climb. */
@@ -94,6 +95,8 @@ export type ProgressionContext = {
   phaseLoad?: number;
   /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
   grid?: LoadGrid | null;
+  /** The Test single uses its explicit target instead of progressing a previous top set. */
+  testSingle?: boolean;
 };
 
 /** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
@@ -139,22 +142,27 @@ export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
 const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
 
-/**
- * The heaviest completed working set, in kilograms, of the latest baseline Session in `history`
- * (newest first, not a Test or Deload); null when there is none. What a Test week's top set
- * starts from.
- */
-export function lastBaselineLoadKg(
-  history: readonly Pick<ProgressionSession, "phase" | "sets">[],
-): number | null {
-  for (const session of history) {
-    if (!isBaselinePhase(session.phase)) continue;
-    const loads = done(session.sets).flatMap((set) =>
-      progresses(set.kind) && set.weight_kg != null ? [set.weight_kg] : [],
-    );
-    if (loads.length > 0) return Math.max(...loads);
-  }
-  return null;
+/** The elapsed break and its load share, shared by ordinary progression and Test seeding. */
+export function trainingBreak(
+  history: readonly {
+    started_at: string;
+    sets: readonly Pick<LoggedSet, "kind" | "completed_at">[];
+  }[],
+  now: Date,
+) {
+  const trained = history.find((session) =>
+    session.sets.some((set) => set.completed_at !== null && progresses(set.kind)),
+  );
+  const days = trained ? Math.floor((now.getTime() - Date.parse(trained.started_at)) / DAY_MS) : 0;
+  const load =
+    days >= EXTENDED_BREAK_DAYS
+      ? EXTENDED_BREAK_LOAD
+      : days >= LONG_BREAK_DAYS
+        ? LONG_BREAK_LOAD
+        : days >= SHORT_BREAK_DAYS
+          ? SHORT_BREAK_LOAD
+          : 1;
+  return { days, load };
 }
 
 /**
@@ -261,6 +269,17 @@ export function suggestNext(
   const grid = context.grid ?? null;
   const cap = loaded ? (grid?.capKg ?? null) : null;
   const roundedCap = gridCapInUnit(grid, unit);
+  if (context.testSingle) {
+    return {
+      reason: "test_single",
+      sets: planned.map((set) =>
+        set.kind === "top" ? { weightKg: set.weight_kg ?? null, reps: 1 } : null,
+      ),
+      outcomes: planned.map((set) => (set.kind === "top" ? { reason: "test_single" } : null)),
+      incrementKg: 0,
+      breakDays: null,
+    };
+  }
   const baselines = outsideLighterWeeks(
     context.baselineHistory ?? history,
     context.lighterWeeks ?? [],
@@ -274,19 +293,7 @@ export function suggestNext(
   if (!last) return null;
   // The break clock runs from the latest Session with a completed working set, across all Workouts and gyms. A
   // Session of only warm-ups or unticked sets is not training.
-  const lastTrained =
-    history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
-  const breakDays = Math.floor(
-    (context.now.getTime() - Date.parse(lastTrained.started_at)) / DAY_MS,
-  );
-  const breakLoad =
-    breakDays >= EXTENDED_BREAK_DAYS
-      ? EXTENDED_BREAK_LOAD
-      : breakDays >= LONG_BREAK_DAYS
-        ? LONG_BREAK_LOAD
-        : breakDays >= SHORT_BREAK_DAYS
-          ? SHORT_BREAK_LOAD
-          : null;
+  const { days: breakDays, load: breakLoad } = trainingBreak(history, context.now);
   const lighter =
     context.deload === true || activeLighterWeek(context.lighterWeeks ?? [], context.now) !== null;
   // A phase may ask for less than a Lighter week does (or for it alone): the lighter of them.
@@ -294,7 +301,7 @@ export function suggestNext(
     context.phaseLoad !== undefined && context.phaseLoad < 1 ? context.phaseLoad : 1;
   const lightFactor = Math.min(lighter ? LIGHTER_WEEK_LOAD : 1, phaseFactor);
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
-  const breakFactor = loaded || type === "bodyweight_reps" ? (breakLoad ?? 1) : 1;
+  const breakFactor = loaded || type === "bodyweight_reps" ? breakLoad : 1;
   const factor = Math.min(lightFactor, breakFactor);
   const resetReason: ProgressionReason | null =
     factor === 1 ? null : breakFactor < lightFactor ? "after_break" : "deload";

@@ -75,10 +75,15 @@ export function usePhaseText() {
       loadCuts?: readonly [number, number],
     ) => {
       const parts = effects(phase, { ...modifiers, load: 1 }, testTop, hasEffort);
+      const signedCut = (value: number) =>
+        `${value < 0 ? "+" : value > 0 ? MINUS : ""}${Math.abs(value)}%`;
       const cut = loadCuts
         ? loadCuts[0] === loadCuts[1]
-          ? t("phase__effect_load", { value: loadCuts[0] })
-          : t("phase__effect_actual_load_range", { min: loadCuts[0], max: loadCuts[1] })
+          ? t("phase__effect_actual_load", { value: signedCut(loadCuts[0]) })
+          : t("phase__effect_actual_load_range", {
+              min: signedCut(loadCuts[1]),
+              max: signedCut(loadCuts[0]),
+            })
         : null;
       const text = cut
         ? new Intl.ListFormat(locale, { style: "narrow", type: "unit" }).format(

@@ -71,6 +71,7 @@ export function weeklyDetailVolume(
 }
 
 type PlannedExercise = {
+  id?: string;
   primaryMuscle: MuscleGroup | null;
   secondaryMuscles: readonly MuscleGroup[];
   sets: readonly { kind: SetKind }[];
@@ -80,9 +81,12 @@ type PlannedExercise = {
 export function plannedMuscleVolume(
   program: {
     sessionsPerWeek: number | null;
-    slots: readonly { workout: { exercises: readonly PlannedExercise[] } | null }[];
+    slots: readonly {
+      workout: { exercises: readonly PlannedExercise[]; mainEntryId?: string | null } | null;
+    }[];
   },
   setFactor = 1,
+  testing = false,
 ): MuscleLoad[] {
   const workouts = program.slots.flatMap((slot) => (slot.workout ? [slot.workout] : []));
   if (workouts.length === 0) return [];
@@ -91,19 +95,21 @@ export function plannedMuscleVolume(
       ? program.sessionsPerWeek / workouts.length
       : Math.min(1, GOAL_ROTATION_MAX / program.slots.length);
   return distributeSets(
-    workouts.flatMap(({ exercises }) =>
-      exercises.flatMap(({ primaryMuscle, secondaryMuscles, sets }) =>
-        primaryMuscle === null
-          ? []
-          : [
-              {
-                primary_muscle: primaryMuscle,
-                secondary_muscles: secondaryMuscles,
-                count: phaseSetCount(sets.filter((set) => set.kind !== "warmup").length, setFactor),
-              },
-            ],
-      ),
-    ),
+    workouts.flatMap(({ exercises, mainEntryId }) => {
+      const selected = exercises.findIndex(({ id }) => id != null && id === mainEntryId);
+      const main = Math.max(0, selected);
+      return exercises.flatMap(({ primaryMuscle, secondaryMuscles, sets }, index) => {
+        if (primaryMuscle === null) return [];
+        const count = sets.filter((set) => set.kind !== "warmup").length;
+        return [
+          {
+            primary_muscle: primaryMuscle,
+            secondary_muscles: secondaryMuscles,
+            count: testing && index === main ? Math.min(count, 1) : phaseSetCount(count, setFactor),
+          },
+        ];
+      });
+    }),
   ).map(({ muscle, sets }) => ({ muscle, sets: Math.round(sets * cyclesPerWeek * 2) / 2 }));
 }
 
