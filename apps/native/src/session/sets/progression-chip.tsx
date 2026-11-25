@@ -29,7 +29,7 @@ export function ProgressionChip({
     return [
       {
         index,
-        label: t(progressionLabelKey(outcome.reason), params),
+        label: t(progressionLabelKey(outcome), params),
         reason: t(progressionReasonKey(outcome), params),
         show: outcome.reason !== "same_as_last",
       },

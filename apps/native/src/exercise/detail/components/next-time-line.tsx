@@ -71,7 +71,7 @@ export function NextTimeLine({
         <Text className="font-normal text-body text-foreground">{aim}</Text>
       </View>
       <Text className="font-normal text-caption text-muted">
-        {t(progressionLabelKey(outcome.reason), progressionParams(suggestion, outcome, unit))}
+        {t(progressionLabelKey(outcome), progressionParams(suggestion, outcome, unit))}
       </Text>
     </View>
   );

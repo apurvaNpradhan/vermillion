@@ -133,9 +133,9 @@ describe("bar grid", () => {
     expect(grid?.nearest(101)).toBe(100);
   });
 
-  it("cannot go under the bar, and a kit with no plates has no grid", () => {
+  it("cannot go under the bar, and a kit with no plates stops at the bar", () => {
     expect(barGrid({ weightKg: 20 }, plates)?.below(20)).toBeNull();
-    expect(barGrid({ weightKg: 20 }, [])).toBeNull();
+    expect(barGrid({ weightKg: 20 }, [])?.capKg).toBe(20);
   });
 
   it("limits the loads to the plates that exist", () => {
@@ -362,7 +362,7 @@ describe("addLoad", () => {
       ranges: [{ min: 10, max: 95, step: 10 }],
       load: 90,
       added: 10,
-      expected: 95,
+      expected: null,
     },
     { name: "across the jump", ranges: jumpStack, load: 25, added: 5, expected: 35 },
     { name: "rack, fine run", ranges: rack, load: 9, added: 1, expected: 10 },

@@ -62,7 +62,7 @@ export function WorkoutProgressionPreview({
                     </Text>
                     <Text className="font-normal text-caption text-muted">
                       {t(
-                        progressionLabelKey(outcome.reason),
+                        progressionLabelKey(outcome),
                         progressionParams(suggestion, outcome, unit),
                       )}
                     </Text>

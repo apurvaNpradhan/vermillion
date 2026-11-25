@@ -6,7 +6,12 @@ import {
 } from "@workspace/shared";
 
 /** The short label of a suggestion: "Add 2.5 kg", "One more rep". */
-export function progressionLabelKey(reason: Progression["reason"]) {
+export function progressionLabelKey({ reason, limit }: SetOutcome) {
+  if (limit === "plates") {
+    if (reason === "capped") return "progress__label_capped_plates";
+    if (reason === "cap_reps") return "progress__label_cap_reps_plates";
+    if (reason === "cap_hint") return "progress__label_cap_hint_plates";
+  }
   switch (reason) {
     case "add_weight":
       return "progress__label_add_weight";
@@ -16,8 +21,6 @@ export function progressionLabelKey(reason: Progression["reason"]) {
       return "progress__label_hold_missed";
     case "hold_together":
       return "progress__label_hold_together";
-    case "hold_limit":
-      return "progress__label_hold_limit";
     case "hold_effort":
       return "progress__label_hold_effort";
     case "after_break":
@@ -36,7 +39,12 @@ export function progressionLabelKey(reason: Progression["reason"]) {
 }
 
 /** The longer explanation of a suggestion. */
-export function progressionReasonKey({ reason, loadFactor }: SetOutcome) {
+export function progressionReasonKey({ reason, loadFactor, limit }: SetOutcome) {
+  if (limit === "plates") {
+    if (reason === "capped") return "progress__reason_capped_plates";
+    if (reason === "cap_reps") return "progress__reason_cap_reps_plates";
+    if (reason === "cap_hint") return "progress__reason_cap_hint_plates";
+  }
   if (loadFactor === undefined && reason === "after_break") return "progress__reason_break_reps";
   if (loadFactor === undefined && reason === "deload") return "progress__reason_deload_reps";
   switch (reason) {
@@ -48,8 +56,6 @@ export function progressionReasonKey({ reason, loadFactor }: SetOutcome) {
       return "progress__reason_hold_missed";
     case "hold_together":
       return "progress__reason_hold_together";
-    case "hold_limit":
-      return "progress__reason_hold_limit";
     case "hold_effort":
       return "progress__reason_hold_effort";
     case "after_break":

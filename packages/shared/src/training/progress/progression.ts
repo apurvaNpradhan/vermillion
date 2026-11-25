@@ -28,7 +28,6 @@ export const PROGRESSION_REASONS = [
   "add_rep",
   "hold_missed",
   "hold_together",
-  "hold_limit",
   "hold_effort",
   "after_break",
   "same_as_last",
@@ -45,6 +44,7 @@ export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
 export type SetOutcome = {
   reason: ProgressionReason;
   changeKg?: number;
+  limit?: "plates" | "equipment";
   /** The share of the previous load after snapping to the equipment. */
   loadFactor?: number;
 };
@@ -176,7 +176,6 @@ type Outcome =
   | "cap_hint"
   | "hold_missed"
   | "hold_together"
-  | "hold_limit"
   | "hold_effort"
   | "same";
 const OUTCOME_ORDER = [
@@ -188,7 +187,6 @@ const OUTCOME_ORDER = [
   "cap_hint",
   "hold_missed",
   "hold_together",
-  "hold_limit",
   "same",
 ] as const;
 const REASON_OF = {
@@ -200,7 +198,6 @@ const REASON_OF = {
   hold_effort: "hold_effort",
   hold_missed: "hold_missed",
   hold_together: "hold_together",
-  hold_limit: "hold_limit",
   same: "same_as_last",
 } as const satisfies Record<Outcome, ProgressionReason>;
 
@@ -383,8 +380,10 @@ export function suggestNext(
           const base = before.weight_kg ?? 0;
           const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
           const raised = addLoad(base, added, unit, grid);
-          if (raised === null) outcome = "hold_limit";
-          else {
+          if (raised === null) {
+            outcome = before.reps >= extended ? "cap_hint" : "cap_reps";
+            if (outcome === "cap_reps") next = { ...same, reps: before.reps + 1 };
+          } else {
             incrementKg ??= raised - base;
             outcome = "add_weight";
             next = { weightKg: raised, reps: target.reps_min };
@@ -403,6 +402,12 @@ export function suggestNext(
     ordered.push(outcome);
     outcomes[index] = {
       reason: REASON_OF[outcome],
+      limit:
+        outcome === "capped" || outcome === "cap_hint" || outcome === "cap_reps"
+          ? grid?.source === "kit"
+            ? "plates"
+            : "equipment"
+          : undefined,
       changeKg:
         outcome === "add_weight"
           ? (next.weightKg ?? 0) - (before.weight_kg ?? 0)
