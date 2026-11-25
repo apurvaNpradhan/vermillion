@@ -1,98 +1,27 @@
 import {
-  applyPhase,
-  hasLoad,
-  historyForGym,
   isTestSingle,
-  testWorkingLoad,
   mainEntryOf,
-  resolveExerciseUnit,
-  suggestionContext,
-  suggestNext,
+  needsTestSeed,
+  phaseTargets,
+  prescribe,
+  testWorkingLoad,
   type ContextSession,
-  type Equipment,
-  type ExerciseType,
+  type LoadGrid,
   type PhaseNow,
-  type PlannedSet,
-  type SessionHistory,
   type SuggestionAccount,
-  type SuggestionPlace,
-  type SuggestionSettings,
 } from "@workspace/shared";
 import type { WorkoutDetail, WorkoutExerciseDetail } from "@workspace/sync";
 
-export type { SuggestionSettings };
-
-export function loggingHistory(
-  history: readonly SessionHistory[],
-  equipment: Equipment,
-  settings: SuggestionSettings,
-) {
-  return settings.baselineHistory ?? historyForGym(history, settings.gymId ?? null, equipment);
-}
-
-/** The break clock reads all of the exercise's Sessions, newest first. */
-export function plannedSuggestion(
-  sets: readonly PlannedSet[],
-  history: readonly SessionHistory[],
-  exercise: { type: ExerciseType; equipment: Equipment; progressionPerSet: boolean },
-  settings: SuggestionSettings,
-  now = new Date(),
-) {
-  return suggestNext(
-    sets,
-    history,
-    exercise.type,
-    exercise.equipment,
-    { ...settings, progressionPerSet: exercise.progressionPerSet },
-    {
-      now,
-      bodyweightKg: settings.bodyweightKg,
-      baselineHistory: loggingHistory(history, exercise.equipment, settings),
-      fixedBaselineHistory: settings.fixedBaselineHistory,
-      fixedFallbackHistory: settings.fixedFallbackHistory,
-      lighterWeeks: settings.lighterWeeks,
-      deload: settings.deload,
-      phaseLoad: settings.phaseLoad,
-      testSingle: settings.testSingle,
-      grid: settings.grid,
-    },
-  );
-}
-
-/** The context for a Workout entry, shared by the preview and its exercise details. */
-function workoutEntryContext(
-  entry: WorkoutExerciseDetail,
-  history: readonly ContextSession[],
-  place: Pick<SuggestionPlace, "gymId" | "grid" | "phaseLoad" | "testSingle">,
-  account: SuggestionAccount,
-  exerciseOrdinal: number,
-  duplicateEntry: boolean,
-) {
-  return suggestionContext(
-    history,
-    {
-      ...place,
-      exerciseId: entry.exerciseId,
-      sourceWorkoutExerciseId: entry.id,
-      exerciseOrdinal,
-      duplicateEntry,
-      type: entry.exercise?.exerciseType ?? "weight_reps",
-      equipment: entry.exercise?.equipment ?? "other",
-      unitOverride: entry.unit,
-      workoutId: entry.workoutId,
-      stalls: true,
-      prescription: entry.sets,
-    },
-    account,
-  );
-}
-
-/** Apply the same phase and context in both views of an upcoming Workout entry. */
+/**
+ * One upcoming Workout entry as the Session will start it, and what is prescribed for it: this
+ * week's phase applied to the targets, then the engine's prescription. The Workout preview and the
+ * exercise page read the same thing, and so does the Session once it starts.
+ */
 export function prepareWorkoutEntry(
   workout: WorkoutDetail,
   original: WorkoutExerciseDetail,
   history: readonly ContextSession[],
-  place: Pick<SuggestionPlace, "gymId" | "grid">,
+  place: { gymId: string | null; grid: LoadGrid | null },
   account: SuggestionAccount,
   week: PhaseNow | null,
   now = new Date(),
@@ -104,43 +33,55 @@ export function prepareWorkoutEntry(
       workout.exercises.map(({ id }) => id),
       workout.mainEntryId,
     );
+  const target = {
+    isMainLift: main,
+    type: exercise?.exerciseType ?? "weight_reps",
+    equipment: exercise?.equipment ?? "other",
+    accountUnit: account.unit,
+    unitOverride: original.unit,
+    grid: place.grid,
+  } as const;
   const entry =
     week && exercise
       ? {
           ...original,
-          sets: applyPhase(original.sets, week.phase, {
-            isMainLift: main,
-            type: exercise.exerciseType,
-            equipment: exercise.equipment,
-            unit: resolveExerciseUnit(account.unit, original.unit),
-            grid: place.grid,
-            modifiers: week.modifiers,
-            testTop: week.testTop,
-            testWorkups: week.testWorkups,
-            testLoadKg:
-              week.phase === "test" && main && hasLoad(exercise.exerciseType)
-                ? testWorkingLoad(history, exercise.exerciseType, {
-                    now,
-                    bodyweightKg: account.bodyweightKg,
-                    lighterWeeks: account.lighterWeeks,
-                    single: week.testTop === "single",
-                  })
-                : null,
-          }),
+          sets: phaseTargets(
+            original.sets,
+            week,
+            target,
+            needsTestSeed(week, target)
+              ? testWorkingLoad(history, exercise.exerciseType, {
+                  now,
+                  bodyweightKg: account.bodyweightKg,
+                  lighterWeeks: account.lighterWeeks,
+                  single: week.testTop === "single",
+                })
+              : null,
+          ),
         }
       : original;
   const entries = workout.exercises.filter(({ exerciseId }) => exerciseId === original.exerciseId);
-  const context = workoutEntryContext(
-    entry,
-    history,
-    {
-      ...place,
+  const prescribed = prescribe({
+    place: {
+      exerciseId: entry.exerciseId,
+      sourceWorkoutExerciseId: entry.id,
+      exerciseOrdinal: entries.findIndex(({ id }) => id === original.id),
+      duplicateEntry: entries.length > 1,
+      type: exercise?.exerciseType ?? "weight_reps",
+      equipment: exercise?.equipment ?? "other",
+      unitOverride: entry.unit,
+      workoutId: entry.workoutId,
+      gymId: place.gymId,
+      grid: place.grid,
       phaseLoad: week?.modifiers.load,
       testSingle: main && isTestSingle(week?.phase, entry.sets),
+      stalls: true,
     },
+    plan: entry.sets,
+    history,
     account,
-    entries.findIndex(({ id }) => id === original.id),
-    entries.length > 1,
-  );
-  return { entry, context };
+    progressionPerSet: exercise?.progressionPerSet ?? false,
+    now,
+  });
+  return { entry, prescribed };
 }

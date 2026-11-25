@@ -127,7 +127,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const exerciseHistory =
     ready?.exercises.map((original) => {
       const history = previousHistory.history.get(original.exerciseId) ?? [];
-      const { entry, context } = prepareWorkoutEntry(
+      const { entry, prescribed } = prepareWorkoutEntry(
         ready,
         original,
         history,
@@ -154,16 +154,16 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       return {
         entry,
         original,
-        unit: context.unit,
+        unit: prescribed.unit,
         history,
         type: entry.exercise?.exerciseType ?? "weight_reps",
-        context,
+        prescribed,
       };
     }) ?? [];
   const progression =
     previousHistory.ready && !preferencesLoading
-      ? exerciseHistory.flatMap(({ entry, unit, history, context }) => {
-          const preview = previewProgression(entry, history, context.settings, now);
+      ? exerciseHistory.flatMap(({ entry, unit, history, prescribed }) => {
+          const preview = previewProgression(entry, prescribed, history);
           return preview && entry.exercise
             ? [{ id: entry.id, title: entry.exercise.title, preview, unit }]
             : [];
@@ -337,7 +337,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
                 }
               />
-              {exerciseHistory.map(({ entry, history, type, context }) => {
+              {exerciseHistory.map(({ entry, history, type, prescribed }) => {
                 const unit = resolveExerciseUnit(userUnit, entry.unit);
                 const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
                 const sets =
@@ -375,14 +375,14 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         )
                       }
                     />
-                    {context.stall ? (
+                    {prescribed.stall ? (
                       <StalledNote
                         key={stallVersion}
                         exerciseId={entry.exerciseId}
-                        latestSessionId={context.stall.latestSessionId}
-                        count={context.stall.count}
-                        missed={context.stall.missed}
-                        applied={context.stall.applied}
+                        latestSessionId={prescribed.stall.latestSessionId}
+                        count={prescribed.stall.count}
+                        missed={prescribed.stall.missed}
+                        applied={prescribed.stall.applied}
                       />
                     ) : null}
                     {entry.restSeconds !== null ? (

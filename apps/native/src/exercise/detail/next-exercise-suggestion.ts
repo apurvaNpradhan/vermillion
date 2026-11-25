@@ -6,7 +6,7 @@ import {
 } from "@workspace/shared";
 import type { WorkoutDetail } from "@workspace/sync";
 import type { GymLoads } from "@/gym";
-import { plannedSuggestion, prepareWorkoutEntry } from "../../platform/training/workout-suggestion";
+import { prepareWorkoutEntry } from "../../platform/training/workout-suggestion";
 
 /** Remaining Slots in the current Cycle first, then the Workouts actually trained. */
 export function nextWorkoutCandidates(
@@ -40,7 +40,7 @@ export function nextExerciseSuggestion(
   const original = workout.exercises.find((entry) => entry.exerciseId === exerciseId);
   const exercise = original?.exercise;
   if (!original || !exercise) return null;
-  const { entry, context } = prepareWorkoutEntry(
+  const { entry, prescribed } = prepareWorkoutEntry(
     workout,
     original,
     history,
@@ -52,16 +52,5 @@ export function nextExerciseSuggestion(
     week,
     now,
   );
-  const suggestion = plannedSuggestion(
-    entry.sets,
-    history,
-    {
-      type: exercise.exerciseType,
-      equipment: exercise.equipment,
-      progressionPerSet: exercise.progressionPerSet,
-    },
-    context.settings,
-    now,
-  );
-  return { workout, sets: entry.sets, suggestion, unit: context.unit };
+  return { workout, sets: entry.sets, suggestion: prescribed.progression, unit: prescribed.unit };
 }

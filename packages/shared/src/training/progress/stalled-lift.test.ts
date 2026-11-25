@@ -7,7 +7,8 @@ import {
   stalledSessions,
   type StallSession,
 } from "./stalled-lift";
-import { stalledExerciseIds, type SuggestionAccount } from "./suggestion-context";
+import { stalledExerciseIds } from "../engine/stalled";
+import type { SuggestionAccount } from "./suggestion-context";
 
 const set = (weight: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({
   id: "s",

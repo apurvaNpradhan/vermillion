@@ -1,9 +1,7 @@
 import {
   SET_FIELDS,
   optionalSetIndexes,
-  isTestSingle,
   type Phase,
-  suggestionContext,
   gridCapInUnit,
   adjustmentLoadsFor,
   type Ghosts,
@@ -19,15 +17,11 @@ import {
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
 import type { GymLoads } from "@/gym";
+import { sessionPrescription } from "../../platform/training/session-prescription";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
-import {
-  capGhostWeight,
-  exerciseSuggestion,
-  prescriptionDraft,
-  snapshotProgression,
-} from "../logging/logging-ghosts";
+import { capGhostWeight, prescriptionDraft } from "../logging/logging-ghosts";
 import {
   ghostsOf,
   previousForSuggestion,
@@ -124,42 +118,21 @@ function buildView(
   const loaded = rawHistory !== undefined && inputs.prescriptionReady !== false;
   const historyReady = loaded || inputs.historyFailed || Boolean(exercise.prescription);
 
-  // One builder for every surface: the baseline, the stalled-lift verdict and its applied deload.
+  // One call for every surface: the baseline, the stalled-lift verdict and its applied deload.
   const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
-  const context = suggestionContext(
-    rawHistory ?? [],
-    {
-      exerciseId: exercise.exerciseId,
-      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
-      exerciseOrdinal,
-      duplicateEntry,
-      type: exercise.type,
-      equipment,
-      unitOverride: exercise.unit,
-      workoutId,
-      gymId: inputs.sessionGymId ?? null,
-      phaseLoad: inputs.phaseLoad,
-      grid,
-      // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
-      stalls: !finished && Boolean(exercise.sourceWorkoutExerciseId),
-      stallDeload: exercise.stallDeload,
-      prescription: exercise.sets.map(({ kind, target }) => ({ ...target, kind })),
-      testSingle:
-        inputs.testEntryId === exercise.sourceWorkoutExerciseId &&
-        isTestSingle(
-          inputs.phase,
-          exercise.sets.map(({ target }) => target),
-        ),
-    },
-    inputs,
-  );
-  const { unit, stall, history } = context;
-  const suggestion =
-    finished || !exercise.sourceWorkoutExerciseId || (!loaded && !exercise.prescription)
-      ? null
-      : exercise.prescription
-        ? snapshotProgression(exercise)
-        : exerciseSuggestion(exercise, rawHistory ?? [], context.settings);
+  const prescribed = sessionPrescription(exercise, rawHistory ?? [], inputs, {
+    workoutId,
+    gymId: inputs.sessionGymId ?? null,
+    grid,
+    phaseLoad: inputs.phaseLoad,
+    phase: inputs.phase,
+    testEntryId: inputs.testEntryId,
+    exerciseOrdinal,
+    duplicateEntry,
+    stalls: !finished,
+    suggest: !finished && (loaded || Boolean(exercise.prescription)),
+  });
+  const { unit, stall, history, settings, progression: suggestion } = prescribed;
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
   const capKg = !finished && fields.includes("weight") ? gridCapInUnit(grid, unit) : null;
@@ -172,21 +145,8 @@ function buildView(
 
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
-    const previous = previousForSuggestion(
-      history,
-      context.settings,
-      exercise.sets,
-      index,
-      set.target,
-    );
-    const hinted = previousForSuggestion(
-      history,
-      context.settings,
-      exercise.sets,
-      index,
-      set.target,
-      true,
-    );
+    const previous = previousForSuggestion(history, settings, exercise.sets, index, set.target);
+    const hinted = previousForSuggestion(history, settings, exercise.sets, index, set.target, true);
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,

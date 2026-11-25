@@ -7,7 +7,7 @@ import { formatWeight, KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { resolveExerciseUnit, type WeightUnit } from "../vocabulary/vocabulary";
 import { gymGridsOf } from "./gym-grids";
 import { addLoad, incrementFor } from "./progression-steps";
-import { suggestNext } from "./progression";
+import { suggestNext } from "../engine/pipeline";
 
 it.each<[WeightUnit, WeightUnit | null | undefined, WeightUnit]>([
   ["kg", undefined, "kg"],

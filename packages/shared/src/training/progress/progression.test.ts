@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { suggestionContext } from "./suggestion-context";
 
 import { loadGridOf } from "./load-grid";
-import { incrementFor, suggestNext, type ProgressionSession } from "./progression";
+import { suggestNext } from "../engine/pipeline";
+import { incrementFor, type ProgressionSession } from "./progression";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";

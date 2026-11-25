@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
 import { barGrid, rangeGrid, type LoadRange } from "./load-grid";
-import { suggestNext, type ProgressionContext } from "./progression";
+import { suggestNext } from "../engine/pipeline";
+import type { ProgressionContext } from "./progression";
 import { defaultGymKit } from "../plates/gym-kit";
 
 const NOW = new Date("2026-11-16T12:00:00Z");

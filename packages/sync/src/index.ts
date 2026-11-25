@@ -241,6 +241,7 @@ export {
   parseEquipment,
   parseFinishedSessions,
   parseSessionDetail,
+  loadExerciseHistory,
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
   EXERCISE_HISTORY_SQL,

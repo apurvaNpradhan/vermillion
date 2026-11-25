@@ -2,25 +2,21 @@ import {
   adjustmentLoadsFor,
   phaseLoadOf,
   gridCapInUnit,
-  isTestSingle,
-  suggestionContext,
-  withWarmupsCounted,
   type Ghosts,
   type SuggestionAccount,
 } from "@workspace/shared";
 import {
   capturePrescription,
-  EXERCISE_HISTORY_SQL,
-  parseFinishedSessions,
-  readBodyweightsOnDates,
+  loadExerciseHistory,
   tickSet,
   type SessionDetail,
   type TrainingDatabase,
 } from "@workspace/sync";
 import type { GymLoads } from "@/gym";
+import { sessionPrescription } from "../../platform/training/session-prescription";
 import { blocksOf } from "../logging/blocks";
 import { currentAction, orderedSets } from "../logging/current-action";
-import { exerciseSuggestion, loggingGhosts, prescriptionDraft } from "../logging/logging-ghosts";
+import { loggingGhosts, prescriptionDraft } from "../logging/logging-ghosts";
 import { restAfterTick } from "../rest/rest-rules";
 
 /**
@@ -56,71 +52,38 @@ export async function workoutLiveGhosts(
     return ghosts;
   }
   const entries = session.exercises.filter(({ exerciseId }) => exerciseId === exercise.exerciseId);
-  const rawHistory = parseFinishedSessions(
-    await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
-  );
-  let history = options.countWarmups ? withWarmupsCounted(rawHistory, true) : rawHistory;
-  if (exercise.type === "bodyweight_weighted_reps" && history.length > 0) {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: options.timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const days = history.map((item) => {
-      const parts = formatter.formatToParts(new Date(item.started_at));
-      return ["year", "month", "day"]
-        .map((key) => parts.find((part) => part.type === key)?.value)
-        .join("-");
-    });
-    const weights = await readBodyweightsOnDates(db, [...new Set(days)]);
-    history = history.map((item, index) => ({
-      ...item,
-      sets: item.sets.map((set) => ({
-        ...set,
-        bodyweight_kg: weights.get(days[index] ?? "") ?? options.bodyweightKg,
-      })),
-    }));
-  }
+  const history = await loadExerciseHistory(db, exercise.exerciseId, {
+    type: exercise.type,
+    countWarmups: options.countWarmups,
+    timeZone: options.timeZone,
+    bodyweightKg: options.bodyweightKg,
+  });
   const equipment = exercise.exercise?.equipment ?? "other";
   const { weightUnit, stallMemory, ...account } = options;
-  const context = suggestionContext(
+  const prescribed = sessionPrescription(
+    exercise,
     history,
+    { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
     {
-      exerciseId: exercise.exerciseId,
-      sourceWorkoutExerciseId: exercise.sourceWorkoutExerciseId,
-      exerciseOrdinal: entries.indexOf(exercise),
-      duplicateEntry: entries.length > 1,
-      type: exercise.type,
-      equipment,
-      unitOverride: exercise.unit,
       workoutId: session.workoutId,
       gymId: sessionGymId,
-      phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
       grid: gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
-      stalls: Boolean(exercise.sourceWorkoutExerciseId),
-      stallDeload: exercise.stallDeload,
-      prescription: exercise.sets.map(({ kind, target }) => ({ ...target, kind })),
-      testSingle:
-        session.phaseModifiers?.test_entry_id === exercise.sourceWorkoutExerciseId &&
-        isTestSingle(
-          session.phase,
-          exercise.sets.map(({ target }) => target),
-        ),
+      phaseLoad: phaseLoadOf(session.phase, session.phaseModifiers),
+      phase: session.phase,
+      testEntryId: session.phaseModifiers?.test_entry_id,
+      exerciseOrdinal: entries.indexOf(exercise),
+      duplicateEntry: entries.length > 1,
+      stalls: true,
+      suggest: true,
     },
-    { ...account, unit: weightUnit, stallMemory: stallMemory ?? NO_STALL },
   );
-  const suggestion = exercise.prescription
-    ? null
-    : exerciseSuggestion(exercise, history, context.settings);
-  const ghostsAt = (index: number) =>
-    loggingGhosts(exercise, index, history, context.settings, suggestion);
+  const ghostsAt = (index: number) => loggingGhosts(exercise, index, prescribed);
   const draft =
     writeScope !== undefined && !exercise.prescription
       ? prescriptionDraft(
           exercise,
-          suggestion,
-          gridCapInUnit(context.settings.grid ?? null, context.unit),
+          prescribed.progression,
+          gridCapInUnit(prescribed.settings.grid ?? null, prescribed.unit),
           ghostsAt,
           sessionGymId,
         )

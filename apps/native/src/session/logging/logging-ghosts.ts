@@ -3,88 +3,41 @@ import {
   setBasis,
   type Ghosts,
   type PrescriptionDraft,
+  type Prescribed,
   type Progression,
-  type SessionHistory,
-  type SuggestionSettings,
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { loggingHistory, plannedSuggestion } from "../../platform/training/workout-suggestion";
 import { ghostsOf, previousForSuggestion } from "./set-values";
 
-export type { SuggestionSettings };
-
-export function exerciseSuggestion(
-  exercise: SessionExerciseDetail,
-  history: readonly SessionHistory[],
-  settings: SuggestionSettings,
-) {
-  return !exercise.sourceWorkoutExerciseId
-    ? null
-    : plannedSuggestion(
-        exercise.sets.map((set) => ({ ...set.target, kind: set.kind })),
-        history,
-        {
-          type: exercise.type,
-          equipment: exercise.exercise?.equipment ?? "other",
-          progressionPerSet: exercise.progressionPerSet,
-        },
-        settings,
-      );
-}
 export function capGhostWeight(ghosts: Ghosts, capKg: number | null): Ghosts {
   if (capKg === null || ghosts.weight == null) return ghosts;
   return ghosts.weight > capKg ? { ...ghosts, weight: capKg } : ghosts;
 }
 
+/** The Ghost values of one set: the snapshot's if the Session captured one, else the suggestion's. */
 export function loggingGhosts(
   exercise: SessionExerciseDetail,
   index: number,
-  history: readonly SessionHistory[],
-  settings: SuggestionSettings,
-  suggestion = exerciseSuggestion(exercise, history, settings),
+  prescribed: Pick<Prescribed, "settings" | "history" | "progression">,
 ) {
   const set = exercise.sets[index];
   const saved = exercise.prescription?.sets.find(({ id }) => id === set?.id);
   if (saved) return saved.ghosts;
+  const { settings, history, progression } = prescribed;
   return set
     ? capGhostWeight(
         ghostsOf(
           exercise.type,
           // A hint is derived from a baseline: never from a Test or Deload week's lighter sets.
-          previousForSuggestion(
-            loggingHistory(history, exercise.exercise?.equipment ?? "other", settings),
-            settings,
-            exercise.sets,
-            index,
-            set.target,
-            true,
-          ),
+          previousForSuggestion(history, settings, exercise.sets, index, set.target, true),
           set.target,
           exercise.logEffort,
-          suggestion?.sets[index],
+          progression?.sets[index],
           exercise.repeated,
         ),
         gridCapInUnit(settings.grid ?? null, settings.weightUnit),
       )
     : {};
-}
-
-/** Use the recorded per-set outcome in the chip as well as in the logging cells. */
-export function snapshotProgression(exercise: SessionExerciseDetail): Progression | null {
-  const snapshot = exercise.prescription;
-  if (!snapshot?.reason) return null;
-  const sets = exercise.sets.map((set) => snapshot.sets.find(({ id }) => id === set.id));
-  return {
-    reason: snapshot.reason,
-    incrementKg: snapshot.incrementKg,
-    breakDays: snapshot.breakDays,
-    sets: sets.map((set) =>
-      set ? { weightKg: set.ghosts.weight ?? null, reps: set.ghosts.reps ?? null } : null,
-    ),
-    outcomes: sets.map((set) =>
-      set?.unadjustedWeightKg === undefined ? (set?.outcome ?? null) : null,
-    ),
-  };
 }
 
 /** What the exercise's sets are now, for comparing with its snapshot ({@link staleSets}). */

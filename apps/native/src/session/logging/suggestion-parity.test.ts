@@ -325,7 +325,7 @@ it.each([
   ).toEqual(fixed ? ["upcoming", history[0]?.workoutId, workoutId] : ["upcoming", workoutId]);
 
   if (progressing || crossDeload) expect(view?.stall).toBeNull();
-  if (crossDeload) expect(prepared.context.stall).toBeNull();
+  if (crossDeload) expect(prepared.prescribed.stall).toBeNull();
   if (mismatch) {
     for (const row of exercise.sets) {
       expect(view?.rows.get(row.id)?.ghosts.weight).toBeCloseTo(
@@ -334,7 +334,7 @@ it.each([
       );
     }
   }
-  const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
+  const preview = previewProgression(prepared.entry, prepared.prescribed, history);
 
   expect(view?.suggestion?.outcomes[0]).toMatchObject({
     reason: testWeek

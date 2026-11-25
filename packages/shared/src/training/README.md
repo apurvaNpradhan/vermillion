@@ -8,3 +8,4 @@ Pure, runtime-agnostic training logic. `index.ts` re-exports every name; import 
 - `plates/`: the gym kit and plate maths. Start at `plates.ts`.
 - `volume/`: set and session volume, estimated 1RM, muscle distribution, weekly muscle volume and goals. Start at `volume.ts`.
 - `progress/`: records, progression v2, stalled lifts, Lighter weeks and progress charts. Start at `progression.ts`.
+- `engine/`: `prescribe()`, the one entry point every surface asks for a prescription, and the pipeline behind it (baseline, resets, the exercise's rule, effort, snapping, evidence). Start at `prescribe.ts`; a rule is a file in `rules/` plus a variant of `rule-config.ts`.
