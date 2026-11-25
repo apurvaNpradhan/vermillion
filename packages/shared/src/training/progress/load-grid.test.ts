@@ -4,6 +4,7 @@ import { defaultGymKit } from "../plates/gym-kit";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import {
   barGrid,
+  gymRangesFor,
   limitsOfRanges,
   loadBasisOf,
   loadGridOf,
@@ -259,6 +260,14 @@ describe("a dumbbell max over overlapping ranges", () => {
     expect(grid?.capKg).toBe(20);
     expect(grid?.above(20)).toBeNull();
     expect(grid?.nearest(35)).toBeLessThanOrEqual(20);
+  });
+
+  it("keeps the highest range reachable when the max is above every range", () => {
+    const ranges = [
+      { min: 5, max: 40, step: 2.5 },
+      { min: 15, max: 30, step: 5 },
+    ];
+    expect(gymRangesFor({ equipment: "dumbbell", ranges, dumbbellMaxKg: 50 })).toEqual(ranges);
   });
 });
 

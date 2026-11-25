@@ -239,7 +239,15 @@ export function gymRangesFor(input: {
   const ranges = input.ranges ?? [];
   const cap = input.dumbbellMaxKg ?? null;
   if (input.equipment !== "dumbbell" || cap === null) return ranges;
-  const own = ranges[ranges.length - 1]?.max ?? null;
+  // Ranges may overlap and need not end in order, so the exercise's own top is the highest max.
+  let own: number | null = null;
+  for (const range of ranges) {
+    if (range.max === null) {
+      own = null;
+      break;
+    }
+    own = own === null ? range.max : Math.max(own, range.max);
+  }
   const effective = own === null ? cap : Math.min(own, cap);
   const within = ranges.every((range) => range.max !== null && range.max <= effective + EPS);
   return ranges.length > 0 && within ? ranges : limitRangesTo(ranges, effective);
