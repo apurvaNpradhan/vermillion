@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SET_FIELDS, type ExerciseType, type SetField } from "../../exercise/vocabulary";
+import { progresses } from "../progress/progression";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
@@ -110,19 +111,41 @@ export function defaultPlannedSets(exerciseType: ExerciseType): PlannedSet[] {
   return [1, 2, 3].map(() => ({ kind: "working", ...target }));
 }
 
+/** A rep range, both ends. */
+export type RepRange = { min: number; max: number };
+
+/** The range moved up so it ends at `toReps`, keeping its width: 8 to 12 at 15 makes 11 to 15. */
+export function raisedRange({ min, max }: RepRange, toReps: number): RepRange {
+  return { min: Math.max(1, toReps - (max - min)), max: toReps };
+}
+
 /**
- * The sets with each working-style rep range moved up so it ends at `toReps`, keeping its width
- * (15 on an 8 to 12 range makes 11 to 15). Warm-ups, sets without a range and ranges that already
- * reach `toReps` stay. Null when nothing changes.
+ * The sets with the rep range of every progressing set (working, top or back-off) that has one
+ * (the minimum below the maximum) moved up so it ends at `toReps`, keeping its width. With `from`,
+ * only the sets whose range is exactly that one move: the range the lifter was seen to beat, so a
+ * back-off on another range stays. Warm-ups, drop, myo and failure sets, single-number targets and
+ * ranges that already reach `toReps` stay. Null when nothing changes.
  */
-export function raisedRepRange(sets: readonly PlannedSet[], toReps: number): PlannedSet[] | null {
+export function raisedRepRange(
+  sets: readonly PlannedSet[],
+  toReps: number,
+  from?: RepRange,
+): PlannedSet[] | null {
   let changed = false;
   const next = sets.map((set) => {
     const { reps_min: min, reps_max: max } = set;
-    if (set.kind === "warmup" || min === undefined || max === undefined || max >= toReps)
+    if (
+      !progresses(set.kind) ||
+      min === undefined ||
+      max === undefined ||
+      min >= max ||
+      max >= toReps ||
+      (from !== undefined && (min !== from.min || max !== from.max))
+    )
       return set;
     changed = true;
-    return { ...set, reps_min: Math.max(1, toReps - (max - min)), reps_max: toReps };
+    const range = raisedRange({ min, max }, toReps);
+    return { ...set, reps_min: range.min, reps_max: range.max };
   });
   return changed ? next : null;
 }

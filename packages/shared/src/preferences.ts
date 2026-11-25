@@ -72,10 +72,11 @@ export const capPromptSchema = z.object({
 export type CapPrompt = z.infer<typeof capPromptSchema>;
 
 /**
- * What the step and rep-range prompts remember per gym, exercise and kind (`key` is
- * `<gym id>:<exercise id>:<kind>`): the step in kilograms, or the rep count, the lifter keeps
- * choosing over the suggestion, how many Sessions did, the last of them, and whether the question
- * was dismissed for good. The newest entries are kept.
+ * What the step and rep-range prompts remember (`key` is `<gym id>:<exercise id>:step` for a step,
+ * `<workout exercise id>:range` for a rep range): the step in kilograms, or the rep count, the
+ * lifter keeps choosing over the suggestion, how many Sessions did, the last of them, and whether
+ * the question was dismissed for good. A rep range also remembers the planned range it was seen
+ * beating (`rangeMin` to `rangeMax`). The newest entries are kept, dismissals longest.
  */
 export const OVERRIDE_PROMPTS_MAX = 100;
 export const OVERRIDE_PROMPT_KINDS = ["step", "range"] as const;
@@ -86,6 +87,8 @@ export const overridePromptSchema = z.object({
   count: z.number().int().min(0).max(1000),
   sessionId: z.string().max(40).nullable(),
   dismissed: z.boolean(),
+  rangeMin: z.number().int().min(1).max(999).optional(),
+  rangeMax: z.number().int().min(1).max(999).optional(),
 });
 export type OverridePrompt = z.infer<typeof overridePromptSchema>;
 export type OverridePromptKind = (typeof OVERRIDE_PROMPT_KINDS)[number];

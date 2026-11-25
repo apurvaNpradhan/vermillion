@@ -10,6 +10,7 @@ import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { barGrid, rangeGrid } from "./load-grid";
 import { suggestNext, type SuggestedSet } from "./progression";
 import { missedSuggestions, stalledSessions } from "./stalled-lift";
+import type { SetKind } from "../vocabulary/vocabulary";
 import { prescriptionSchema } from "./prescription";
 import { adjustmentLoadsFor, adjustPrescription } from "./same-day-adjustment";
 import { suggestionContext, type ContextSession } from "./suggestion-context";
@@ -385,41 +386,41 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     expect(test([baseline], 57)).toBeCloseTo(kg(weight) * 0.8, 5);
   });
 
-  it("adjusts later sets on the grid after a miss and flags three missed Sessions as a stall", () => {
+  const account = {
+    unit,
+    previousSource: "same_workout",
+    weightIncrementKg: null,
+    lighterWeeks: [],
+    bodyweightKg: null,
+    stallMemory: () => ({ dismissed: false, applied: false }),
+  } as const;
+  const stallOf = (history: readonly ContextSession[]) =>
+    suggestionContext(
+      [...history], // a fresh array: the watch result is immutable
+      {
+        exerciseId: "lift",
+        sourceWorkoutExerciseId: "slot",
+        exerciseOrdinal: 0,
+        duplicateEntry: false,
+        type: "weight_reps",
+        equipment: "machine",
+        workoutId,
+        gymId: "home",
+        grid,
+        stalls: true,
+        prescription: plan,
+      },
+      account,
+    ).stall;
+
+  it("adjusts the later set on the grid after a miss, and not a ticked or warm-up one", () => {
     const target: PlannedSet = { kind: "working", reps_min: 6, reps_max: 8 };
     const loads = adjustmentLoadsFor(
       { equipment: "machine", type: "weight_reps", unit },
       { unit, weightIncrementKg: null },
       grid,
     );
-    const account = {
-      unit,
-      previousSource: "same_workout",
-      weightIncrementKg: null,
-      lighterWeeks: [],
-      bodyweightKg: null,
-      stallMemory: () => ({ dismissed: false, applied: false }),
-    } as const;
     const history: ContextSession[] = [train(0, startingTargets, { target })];
-    const verdict = () =>
-      suggestionContext(
-        [...history], // a fresh array: the watch result is immutable
-
-        {
-          exerciseId: "lift",
-          sourceWorkoutExerciseId: "slot",
-          exerciseOrdinal: 0,
-          duplicateEntry: false,
-          type: "weight_reps",
-          equipment: "machine",
-          workoutId,
-          gymId: "home",
-          grid,
-          stalls: true,
-          prescription: plan,
-        },
-        account,
-      ).stall;
     for (let day = 2; day <= 8; day += 2) {
       const offered = propose(history, day)?.sets ?? [];
       const ids = offered.map((_, index) => `0192f0a0-0000-7000-8000-00000000${day}00${index}`);
@@ -441,8 +442,8 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       const adjusted = adjustPrescription(
         snapshot,
         ids[0] ?? "",
-        { reps: (offered[0]?.reps ?? 0) - 3 },
-        new Set([ids[1] ?? ""]),
+        { kind: "working", weight_kg: offered[0]?.weightKg, reps: (offered[0]?.reps ?? 0) - 3 },
+        new Map<string, SetKind>([[ids[1] ?? "", "working"]]),
         loads,
         true,
       );
@@ -450,70 +451,75 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
       const lowered = adjusted?.sets[1]?.ghosts.weight ?? 0;
       expect(lowered).toBeLessThan(offered[1]?.weightKg ?? 0);
       expect(grid?.nearest(lowered)).toBeCloseTo(lowered, 3);
-      const session = train(
-        day,
-        [
-          { weightKg: offered[0]?.weightKg ?? 0, reps: (offered[0]?.reps ?? 0) - 3 },
-          { weightKg: lowered, reps: offered[1]?.reps ?? 0 },
-        ],
-        { target },
+      history.unshift(
+        train(
+          day,
+          [
+            { weightKg: offered[0]?.weightKg ?? 0, reps: (offered[0]?.reps ?? 0) - 3 },
+            { weightKg: lowered, reps: offered[1]?.reps ?? 0 },
+          ],
+          { target },
+        ),
       );
-      session.sets = session.sets.map((set, index) => ({
-        ...set,
-        suggested: {
-          weight_kg: offered[index]?.weightKg ?? null,
-          reps: offered[index]?.reps ?? null,
-        },
-      }));
-      history.unshift(session);
-      // Both sets fell short of what was offered, Session after Session.
-      expect(missedSuggestions(history)).toBe(day >= 6 ? day / 2 : 0);
-      expect(verdict() === null).toBe(day < 6);
     }
   });
 
-  it("flags missed suggestions while the numbers still improve", () => {
-    const target: PlannedSet = { kind: "working", reps_min: 6, reps_max: 8 };
+  /** A Session at the lifter's own loads, offered `ahead` more load than it did, for 8 reps. */
+  const missing = (day: number, loadKg: number, ahead: number) => {
+    const session = train(
+      day,
+      plan.map(() => ({ weightKg: loadKg, reps: 6 })),
+      { target: { kind: "working", reps_min: 6, reps_max: 8 } },
+    );
+    session.sets = session.sets.map((set) => ({
+      ...set,
+      suggested: { weight_kg: loadKg + exact(ahead), reps: 8 },
+    }));
+    return session;
+  };
+
+  it("asks to review the target after three missed Sessions with no gain, not to deload", () => {
+    const history: ContextSession[] = [];
+    for (const day of [0, 3, 6]) {
+      history.unshift(missing(day, kg(weight), step));
+      expect(missedSuggestions(history, "weight_reps")).toBe(history.length >= 3 ? 3 : 0);
+    }
+    expect(stalledSessions(history, "weight_reps")).toBe(0);
+    expect(stallOf(history)).toMatchObject({ count: 3, missed: true, applied: false });
+    // A fourth flat Session is a real stall: the deload is offered again.
+    history.unshift(missing(9, kg(weight), step));
+    expect(stalledSessions(history, "weight_reps")).toBe(3);
+    const stall = stallOf(history);
+    expect(stall).toMatchObject({ count: 3, applied: false });
+    expect(stall?.missed).toBeUndefined();
+  });
+
+  it("does not flag missed suggestions while the numbers still improve", () => {
+    const history: ContextSession[] = [];
+    for (const [index, load] of [0, 1, 2, 3].entries()) {
+      history.unshift(missing(index * 3, kg(weight + step * load), step * 2));
+    }
+    expect(stalledSessions(history, "weight_reps")).toBe(0);
+    expect(missedSuggestions(history, "weight_reps")).toBe(0);
+    expect(stallOf(history)).toBeNull();
+  });
+
+  it("does not flag a lifter who always loads a step above the suggestion", () => {
     const history: ContextSession[] = [];
     for (const [index, load] of [0, 1, 2, 3].entries()) {
       const session = train(
         index * 3,
-        plan.map(() => ({ weightKg: kg(weight + step * load), reps: 6 })),
-        { target },
+        plan.map(() => ({ weightKg: kg(weight + step * (load + 1)), reps: 7 })),
+        { target: { kind: "working", reps_min: 6, reps_max: 8 } },
       );
-      // Each Session was offered one step more than it did.
       session.sets = session.sets.map((set) => ({
         ...set,
-        suggested: { weight_kg: (set.weight_kg ?? 0) + exact(step), reps: 6 },
+        suggested: { weight_kg: kg(weight + step * load), reps: 8 },
       }));
       history.unshift(session);
     }
-    expect(stalledSessions(history, "weight_reps")).toBe(0);
-    const { stall } = suggestionContext(
-      history,
-      {
-        exerciseId: "lift",
-        sourceWorkoutExerciseId: "slot",
-        exerciseOrdinal: 0,
-        duplicateEntry: false,
-        type: "weight_reps",
-        equipment: "machine",
-        workoutId,
-        gymId: "home",
-        grid,
-        stalls: true,
-        prescription: plan,
-      },
-      {
-        unit,
-        previousSource: "same_workout",
-        weightIncrementKg: null,
-        lighterWeeks: [],
-        bodyweightKg: null,
-        stallMemory: () => ({ dismissed: false, applied: false }),
-      },
-    );
-    expect(stall).toMatchObject({ count: 4, missed: true, applied: false });
+    expect(missedSuggestions(history, "weight_reps")).toBe(0);
+    expect(stallOf(history)).toBeNull();
   });
 
   it("advances fixed reps across alternating Workouts without mixing range or effort targets", () => {

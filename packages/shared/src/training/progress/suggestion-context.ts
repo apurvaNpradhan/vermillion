@@ -48,7 +48,10 @@ export type StallInfo = {
   count: number;
   latestSessionId: string;
   applied: boolean;
-  /** The lift gained as far as the numbers go, but the suggestion was missed every time. */
+  /**
+   * The numbers have not stalled, but the suggestion was missed without gain every time: it asks
+   * to hold or review the target, and never offers the lighter-load deload.
+   */
   missed?: boolean;
 };
 
@@ -144,7 +147,8 @@ export function suggestionContext(
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
     });
-    const missed = missedSuggestions(sessions, {
+    const missed = missedSuggestions(sessions, place.type, {
+      bodyweightKg: account.bodyweightKg,
       lighterWeeks: account.lighterWeeks,
       sinceDeload: fixedBaselineHistory.find(wasStallDeload)?.started_at,
     });
@@ -152,7 +156,7 @@ export function suggestionContext(
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)
         stall = {
-          count: Math.max(count, missed),
+          count: count > 0 ? count : missed,
           latestSessionId,
           applied: place.stallDeload === true,
           ...(count === 0 && missed > 0 ? { missed: true } : {}),
@@ -230,7 +234,8 @@ export function stalledExerciseIds(
           },
           account,
         );
-        if (stall) {
+        // A missed suggestion alone asks to review the target, not for a deload.
+        if (stall && !stall.missed) {
           stalled.add(exerciseId);
           break;
         }
