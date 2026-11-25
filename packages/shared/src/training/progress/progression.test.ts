@@ -285,7 +285,7 @@ describe("top and back-off sets", () => {
     { kind: "backoff", reps_min: 8, reps_max: 10 },
     { kind: "backoff", reps_min: 8, reps_max: 10 },
   ];
-  it("progress against their own previous counterparts", () => {
+  it("progresses top sets independently while back-offs wait for one another", () => {
     const next = suggest(
       [
         logged(5, 100, { kind: "top" }),
@@ -298,7 +298,7 @@ describe("top and back-off sets", () => {
     expect(next?.sets).toEqual([
       { weightKg: 102.5, reps: 3 },
       { weightKg: 80, reps: 10 },
-      { weightKg: 82.5, reps: 8 },
+      { weightKg: 80, reps: 10 },
     ]);
   });
 
@@ -682,5 +682,60 @@ it.each([
     );
     expect(result).toMatchObject({ reason: "reset", sets: [{ reps: 8 }] });
     expect(result?.sets[0]?.weightKg).toBeCloseTo(toKg(expected), 5);
+  },
+);
+
+it.each([
+  { weightUnit: "kg", work: 100, accessory: 75, lighter: 60 },
+  { weightUnit: "lb", work: 200, accessory: 150, lighter: 120 },
+] as const)(
+  "scales drop, failure, and myo sets on a lighter $weightUnit day",
+  ({ weightUnit, work, accessory, lighter }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const kinds = ["drop", "failure", "myo"] as const;
+    const targets: PlannedSet[] = [...plan, ...kinds.map((kind) => ({ kind, reps_min: 8 }))];
+    const previous = [
+      logged(10, toKg(work)),
+      logged(10, toKg(work)),
+      ...kinds.map((kind) => logged(8, toKg(accessory), { kind })),
+    ];
+    const result = suggestNext(
+      targets,
+      [session(previous, "2026-10-01")],
+      "weight_reps",
+      "barbell",
+      { weightUnit, weightIncrementKg: null },
+      { now: NOW },
+    );
+    expect(result?.sets.slice(2)).toEqual(
+      kinds.map(() => ({ weightKg: toKg(lighter), reps: null })),
+    );
+  },
+);
+
+it.each([
+  { weightUnit: "kg", weight: 120, next: 122.5 },
+  { weightUnit: "lb", weight: 265, next: 270 },
+] as const)(
+  "raises both $weightUnit back-offs once both reach the target",
+  ({ weightUnit, weight, next }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const targets: PlannedSet[] = plan.map(() => ({ kind: "backoff", reps_min: 4, reps_max: 5 }));
+    const run = (reps: number) =>
+      suggestNext(
+        targets,
+        [
+          session([
+            logged(reps, toKg(weight), { kind: "backoff" }),
+            logged(5, toKg(weight), { kind: "backoff" }),
+          ]),
+        ],
+        "weight_reps",
+        "barbell",
+        { weightUnit, weightIncrementKg: null },
+        { now: NOW },
+      );
+    expect(run(4)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(weight), reps: 5 })));
+    expect(run(5)?.sets).toEqual(targets.map(() => ({ weightKg: toKg(next), reps: 4 })));
   },
 );

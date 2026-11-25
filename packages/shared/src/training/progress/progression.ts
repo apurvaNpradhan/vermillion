@@ -107,6 +107,7 @@ export const cappedRepCeiling = (maxReps: number) => Math.round(maxReps * 1.5);
 const AT_CAP = 1e-4;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
+const SCALED_KINDS: readonly SetKind[] = ["drop", "failure", "myo"];
 const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
 export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
@@ -210,8 +211,8 @@ const REASON_OF = {
  * Progression for planned sets (ADR 0038). `history` is newest first, all of it; the baselines
  * come from `context.baselineHistory` when given. Matched sets grow reps
  * to the top of their range, then add load and reset the reps. By default working sets wait
- * for every working set to reach the ceiling before adding load. Top and back-off sets progress
- * independently.
+ * for every working set to reach the ceiling before adding load. Back-offs do the same within
+ * their own group. Top sets progress independently.
  * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
  * minimum on two Sessions running resets the load, a break lowers the load and a Lighter week or the
  * stalled-lift deload suggests 90%. Warm-ups, Lighter-week Sessions and Test or Deload phase
@@ -238,8 +239,9 @@ export function suggestNext(
     context.lighterWeeks ?? [],
   ).flatMap((session) => {
     if (!isBaselinePhase(session.phase)) return [];
-    const sets = done(session.sets).filter((set) => progresses(set.kind));
-    return sets.length > 0 ? [{ ...session, sets }] : [];
+    const logged = done(session.sets);
+    const sets = logged.filter((set) => progresses(set.kind));
+    return sets.length > 0 ? [{ ...session, sets, logged }] : [];
   });
   const last = baselines[0];
   if (!last) return null;
@@ -277,9 +279,16 @@ export function suggestNext(
   const sets: (SuggestedSet | null)[] = planned.map(() => null);
   const outcomes: (SetOutcome | null)[] = planned.map(() => null);
   if (resetReason !== null) {
-    for (const { index, target, ordinal } of slots) {
-      const before = counterpart(last.sets, target.kind, ordinal);
-      if (!before) continue;
+    const ordinals = new Map<SetKind, number>();
+    for (const [index, target] of planned.entries()) {
+      const ordinal = ordinals.get(target.kind) ?? 0;
+      ordinals.set(target.kind, ordinal + 1);
+      const progressing = progresses(target.kind);
+      if (!progressing && (!loaded || !SCALED_KINDS.includes(target.kind))) continue;
+      const before = progressing
+        ? counterpart(last.sets, target.kind, ordinal)
+        : last.logged.filter(({ kind }) => kind === target.kind)[ordinal];
+      if (!before || (!progressing && before.weight_kg == null)) continue;
       const weightKg =
         before.weight_kg == null
           ? null
@@ -300,8 +309,11 @@ export function suggestNext(
       const reset = target.reps_min ?? before.reps ?? null;
       sets[index] = {
         weightKg,
-        reps:
-          !lowered && reset !== null && before.reps != null ? Math.min(reset, before.reps) : reset,
+        reps: !progressing
+          ? null
+          : !lowered && reset !== null && before.reps != null
+            ? Math.min(reset, before.reps)
+            : reset,
       };
     }
     return {
@@ -318,7 +330,10 @@ export function suggestNext(
   const held =
     misses.length > 0 && older !== undefined && rangeMisses(slots, older.sets).length > 0;
   const resets = new Map<number, number>();
-  const workingResets = new Map<number, number>();
+  const together = (kind: SetKind) =>
+    !settings.progressionPerSet && (kind === "working" || kind === "backoff");
+  const groupKey = (kind: SetKind, weight: number) => `${kind}/${weight}`;
+  const groupResets = new Map<string, number>();
   if (held && loaded) {
     for (const { index, set, minimum, reps } of misses) {
       const weight = set.weight_kg;
@@ -329,8 +344,9 @@ export function suggestNext(
       const reset = lightenLoad(weight, ratio, equipment, unit, grid, "down");
       if (reset >= weight) continue;
       resets.set(index, reset);
-      if (set.kind === "working" && !settings.progressionPerSet) {
-        workingResets.set(weight, Math.min(reset, workingResets.get(weight) ?? reset));
+      if (together(set.kind)) {
+        const key = groupKey(set.kind, weight);
+        groupResets.set(key, Math.min(reset, groupResets.get(key) ?? reset));
       }
     }
   }
@@ -343,26 +359,30 @@ export function suggestNext(
       before.reps >= (target.reps_max ?? target.reps_min)
     );
   });
-  const lastWorking = last.sets.filter((set) => set.kind === "working");
-  const workingReady = slots.every(({ target, ordinal }) => {
-    if (target.kind !== "working") return true;
-    const before = lastWorking[ordinal];
-    if (!before) return true;
-    const ceiling = target.reps_max ?? target.reps_min;
-    return (
-      ceiling !== undefined &&
-      before.reps != null &&
-      before.reps >= ceiling &&
-      before.weight_kg != null &&
-      (before.rpe == null || before.rpe < GRIND_RPE)
-    );
-  });
-  // Straight sets at one load share one increment: doubled only when every set there was easy.
-  const easyLoads = new Map<number, boolean>();
-  for (const set of lastWorking) {
-    if (set.weight_kg == null) continue;
-    const easy = set.rpe != null && set.rpe <= EASY_RPE;
-    easyLoads.set(set.weight_kg, (easyLoads.get(set.weight_kg) ?? true) && easy);
+  const waiting = new Set<SetKind>();
+  const easyLoads = new Map<string, boolean>();
+  for (const kind of ["working", "backoff"] as const) {
+    const previous = last.sets.filter((set) => set.kind === kind);
+    for (const { target, ordinal } of slots) {
+      if (target.kind !== kind) continue;
+      const before = previous[ordinal];
+      if (!before) continue;
+      const ceiling = target.reps_max ?? target.reps_min;
+      if (
+        ceiling === undefined ||
+        before.reps == null ||
+        before.reps < ceiling ||
+        before.weight_kg == null ||
+        (before.rpe != null && before.rpe >= GRIND_RPE)
+      )
+        waiting.add(kind);
+    }
+    for (const set of previous) {
+      if (set.weight_kg == null) continue;
+      const key = groupKey(kind, set.weight_kg);
+      const easy = set.rpe != null && set.rpe <= EASY_RPE;
+      easyLoads.set(key, (easyLoads.get(key) ?? true) && easy);
+    }
   }
   const ordered: Outcome[] = [];
   let incrementKg: number | null = null;
@@ -371,8 +391,8 @@ export function suggestNext(
     if (!before) continue;
     const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
     const reset =
-      target.kind === "working" && !settings.progressionPerSet && same.weightKg !== null
-        ? workingResets.get(same.weightKg)
+      together(target.kind) && same.weightKg !== null
+        ? groupResets.get(groupKey(target.kind, same.weightKg))
         : resets.get(index);
     let outcome: Outcome = "same";
     let next = same;
@@ -394,19 +414,17 @@ export function suggestNext(
       if (before.reps >= max && atCap) {
         // The load cannot rise: reps keep growing to the extended ceiling, then a hint. Straight
         // working sets still move together: nothing grows until every set reached the ceiling.
-        if (target.kind === "working" && !settings.progressionPerSet && !workingReady)
-          outcome = "hold_together";
+        if (together(target.kind) && waiting.has(target.kind)) outcome = "hold_together";
         else if (before.reps >= extended) outcome = "cap_hint";
         else {
           outcome = "cap_reps";
           next = { ...same, reps: before.reps + 1 };
         }
       } else if (before.reps >= max) {
-        if (canLoad && (target.kind !== "working" || settings.progressionPerSet || workingReady)) {
-          const easy =
-            target.kind === "working" && !settings.progressionPerSet
-              ? (easyLoads.get(before.weight_kg ?? 0) ?? false)
-              : before.rpe != null && before.rpe <= EASY_RPE;
+        if (canLoad && (!together(target.kind) || !waiting.has(target.kind))) {
+          const easy = together(target.kind)
+            ? (easyLoads.get(groupKey(target.kind, before.weight_kg ?? 0)) ?? false)
+            : before.rpe != null && before.rpe <= EASY_RPE;
           const base = before.weight_kg ?? 0;
           const added = incrementFor(base, equipment, settings, grid) * (easy ? 2 : 1);
           const raised = addLoad(base, added, unit, grid);
