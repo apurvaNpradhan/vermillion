@@ -70,27 +70,30 @@ Train plan rows and exercise rows. When the pan activates, gesture-handler cance
 on Android the cancel event is at (0,0). `SwipeDismissSurface.onTouchCancel` reads `dy >= dx` as
 a scroll and calls `closeOpen()` on the row being dragged; since `0bf17dbe8`, `onUpdate` and
 `onDeactivate` exit early while `closing`, so the row never follows the finger. Fix in place:
+
 - a row ignores the touch-cancel caused by its own pan (and cancels at (0,0));
 - `closeOpen` never closes the row currently dragging; drop the `closing` early exit in `onUpdate`;
 - loosen `failOffsetY` from ±10 to ±20;
 - follow the finger on the UI thread without waiting for `layerReady` from JS.
-Verify on the Android device on set rows, Train rows and exercise rows. If it still fails, fall
-back to gesture-handler's `ReanimatedSwipeable` and rebuild the one-open-row group on top.
+  Verify on the Android device on set rows, Train rows and exercise rows. If it still fails, fall
+  back to gesture-handler's `ReanimatedSwipeable` and rebuild the one-open-row group on top.
 
 ## 2. Train, Program and Workout UX
 
 **Train page**, top to bottom:
+
 1. Resume card while a Session is in progress.
 2. Active Run hero: cover, "Week 3 of 12", phase chip (from slice 4), cycle strip, Start next.
 3. Programs: 2-column grid of cover cards in the Program-page style; tap opens the Program.
    Program Workouts are no longer flattened into Train.
 4. Workouts: standalone Workouts only, as a list; search and sort (recent / name) once there are
    more than about 8.
-Create and Start empty move into the header.
+   Create and Start empty move into the header.
 
 **Cycle strip, choose day, skip.** Out-of-order training already works in the data model
 (`cycle.ts`, `session-store.ts:84-134`): starting Workout 3 marks its first untrained Slot and
 "Up next" stays on 2. Add:
+
 - a cycle strip on the Run hero: one dot per Slot (done / next / rest);
 - tapping a dot opens a sheet to start that day;
 - a ✓ on Program rotation rows for Slots done in the current Cycle;
@@ -99,14 +102,15 @@ Create and Start empty move into the header.
 
 **Workout editing.** Today every route from a Program opens the read-only preview, even
 "Edit workout", and the name/note fields hide behind ⋮ → Edit details. New structure:
+
 - the editor always shows cover, name and note at the top; remove the Edit details toggle;
 - "Edit workout" (slot ⋮ and swipe) opens the editor directly; fix the stale comment at
   `program-screen.tsx:58`;
 - the preview header gets a pencil; tapping the title opens a quick rename;
 - tapping an exercise's set table in the preview opens its planned-sets sheet.
-Result: rename 1–2 taps (was 4–5), planned sets 1 tap (was 3–4), Program details 1 tap.
-This supersedes the "title and note editing belong in the overflow menu" line in
-[training-product-decisions.md](../../training-product-decisions.md); update that doc.
+  Result: rename 1–2 taps (was 4–5), planned sets 1 tap (was 3–4), Program details 1 tap.
+  This supersedes the "title and note editing belong in the overflow menu" line in
+  [training-product-decisions.md](../../training-product-decisions.md); update that doc.
 
 **Workout covers.** Mirror Program covers: `workout_cover` media kind, `cover_media_id` on the
 client and server workout tables, a sync check like `assertMediaReference(..., "program_cover")`,
@@ -122,6 +126,7 @@ Alpha Progression (gym profiles with min/max/interval weights), Fitbod (gym loca
 (gyms with equipment and increments) do.
 
 **Model.**
+
 - `gym` table; every user gets "My gym" at first sync. Active gym is a synced preference.
 - `gym_equipment` gains `gym_id`; existing rows move to My gym (additive migration).
 - `gym_exercise_setting` (gym, exercise): `load_ranges` (JSON `[{min,max,step}]`), `setup_note`.
@@ -143,6 +148,7 @@ list, the "@ Gym ▾" Session chip and "at <gym>" labels appear only once a seco
 Settings → Gyms then lists gyms; a gym page holds its kit (and equipment from slice 5).
 
 **Caps in progression.**
+
 - Set from exercise settings, from the set-row long-press in a Session, or from a one-time prompt
   ("Is X the max on this machine?") after the user lowers a suggested load to the same value twice.
 - Never suggest a load above the cap; at the cap, double progression continues on reps up to an
@@ -152,6 +158,7 @@ Settings → Gyms then lists gyms; a gym page holds its kit (and equipment from 
   reason; if the next step would overshoot the cap by less than a step, suggest the cap exactly.
 
 **Snap to real loads** (from [gyms-loads-swaps research](../../research/gyms-loads-swaps.md)).
+
 - `incrementFor`, `lightenLoad`, `loadable` and the easy-set doubled increment snap to a load
   grid: the gym's ranges when set, the barbell grid derived from the gym's plates (as
   `warmup-ramp.ts:100` already does), otherwise the equipment default.
@@ -168,12 +175,12 @@ any gym. Free weights use all gyms. Cap and step always come from the active gym
 
 Each Program week has a phase. Presets, each editable per Program (sets ×, RPE ±, load %):
 
-| Phase  | Sets                                                                   | Effort           | Load          | Progression          |
-| ------ | ---------------------------------------------------------------------- | ---------------- | ------------- | -------------------- |
-| Build  | as planned                                                             | as planned       | engine        | normal               |
-| Push   | as planned                                                             | +1 RPE (−1 RIR)  | engine        | normal               |
-| Test   | accessories ×0.5; main lift one top set (heavy single or AMRAP)        | —                | —             | not a baseline       |
-| Deload | ×0.5, rounded up, min 1                                                | −2 RPE           | ×0.9          | not a baseline       |
+| Phase  | Sets                                                            | Effort          | Load   | Progression    |
+| ------ | --------------------------------------------------------------- | --------------- | ------ | -------------- |
+| Build  | as planned                                                      | as planned      | engine | normal         |
+| Push   | as planned                                                      | +1 RPE (−1 RIR) | engine | normal         |
+| Test   | accessories ×0.5; main lift one top set (heavy single or AMRAP) | —               | —      | not a baseline |
+| Deload | ×0.5, rounded up, min 1                                         | −2 RPE          | ×0.9   | not a baseline |
 
 The main lift is the Workout's first exercise unless changed per Workout.
 
@@ -203,6 +210,7 @@ The main lift is the Workout's first exercise unless changed per Workout.
 
 Source: the old dataset at `~/Workspace/projects/vermillion/apps/api/src/exercise/data/exercises.jsonl`
 (no instructions; write them). Add through a new Catalog patch.
+
 - **Cable Leaning Lateral Raise** (old id 019c5c2e-9543-78c7-b4b9-8693bb3c9736).
 - Every gap in [catalog-gaps.md](../../catalog-gaps.md); stretches as duration, Cat-Cow and Open
   Book as reps only. Standing glute squeeze has no old match; author it.
@@ -235,6 +243,7 @@ Already present, no work: pause workout (workout clock sheet), ±15 s on the res
 import (`undoImportChunk`). The Android widget was removed on purpose and stays removed.
 
 **F1 · Notifications (now, no migration).**
+
 - A Settings → Notifications screen that gathers every reminder: the existing weigh-in and body
   reminders (moved, not duplicated), the training reminder, the report notification and rest
   alerts.
@@ -248,11 +257,13 @@ import (`undoImportChunk`). The Android widget was removed on purpose and stays 
   cues. Settings are synced preferences.
 
 **F2 · Data export (now, no migration).**
+
 - Export body data as CSV: weights and measurements, one file each, same share flow as today.
 - A full JSON backup of everything the user owns (plans, Sessions, sets, body data, preferences,
   gyms), versioned, through the share sheet. Restore from JSON is later.
 
 **F3 · Library and units (after slice 3 merges; one migration on `exercise_setting`).**
+
 - Favourite exercises: `favorited_at` on `exercise_setting`; a star on the exercise page and in
   the picker; a Favourites filter chip, and favourites first in the picker when searching empty.
 - Body-map muscle filter in the exercise library: tap a muscle region to filter by

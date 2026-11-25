@@ -9,6 +9,7 @@ import {
 } from "@workspace/client/session";
 
 import { authClient } from "@/platform/auth-client";
+import { sweepExportFiles } from "@/platform/export-files";
 
 import { purgeLegacySessionCaches, storedSession } from "./stored-session";
 
@@ -35,6 +36,7 @@ export function clearAccountSession(queryClient: QueryClient) {
   // The fence goes up first: a lookup still running must not store a session after this.
   const cleared = clearSession(queryClient);
   storedSession.write(null);
+  sweepExportFiles();
   return cleared;
 }
 

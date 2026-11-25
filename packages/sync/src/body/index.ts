@@ -1,3 +1,4 @@
+export { visitBodyExportPages, type BodyExportRow } from "./body-export";
 export { bodyMeasurement, progressPhoto } from "./tables";
 export { saveCheckIn } from "./check-in-store";
 export {

@@ -13,6 +13,10 @@ describe("ui preferences schema", () => {
     const defaults = {
       weighInReminder: { enabled: false, time: "08:00" },
       checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+      trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+      reportReminder: { enabled: false },
+      restVibration: true,
+      cueVolume: 100,
       avatarMediaId: null,
       lengthUnit: "cm",
       heightCm: null,
@@ -205,5 +209,24 @@ describe("week preferences", () => {
     expect(uiPreferencesSchema.safeParse({ weekStart: "friday" }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 0 }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 15 }).success).toBe(false);
+  });
+});
+
+it("validates the training reminder, report reminder, vibration and cue volume", () => {
+  const trainingReminder = { enabled: true, weekdays: [2, 4, 6], time: "18:30" };
+  expect(uiPreferencesPatchSchema.parse({ trainingReminder })).toEqual({ trainingReminder });
+  expect(
+    uiPreferencesPatchSchema.safeParse({ trainingReminder: { ...trainingReminder, weekdays: [8] } })
+      .success,
+  ).toBe(false);
+  expect(
+    uiPreferencesPatchSchema.safeParse({ trainingReminder: { ...trainingReminder, time: "7:00" } })
+      .success,
+  ).toBe(false);
+  for (const cueVolume of [-1, 101, 50.5])
+    expect(uiPreferencesPatchSchema.safeParse({ cueVolume }).success).toBe(false);
+  expect(uiPreferencesPatchSchema.parse({ cueVolume: 0, restVibration: false })).toEqual({
+    cueVolume: 0,
+    restVibration: false,
   });
 });

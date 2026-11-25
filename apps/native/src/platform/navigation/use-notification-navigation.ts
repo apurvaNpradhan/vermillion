@@ -4,7 +4,16 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { ANCHORED } from "@/platform/navigation/anchored";
 
-const bodyDestination = z.enum(["/body/weight?reminder=1", "/body/measurements?reminder=1"]);
+const destinationSchema = z.enum([
+  "/body/weight?reminder=1",
+  "/body/measurements?reminder=1",
+  "/train",
+]);
+const reportKeySchema = z
+  .string()
+  .regex(/^\/history\/report\/\d{4}(-\d{2})?$/)
+  .transform((path) => path.slice("/history/report/".length));
+
 /** Retain cold-start taps until the protected stack is ready, then consume the response once. */
 export function useNotificationNavigation(ready: boolean) {
   const router = useRouter();
@@ -17,8 +26,14 @@ export function useNotificationNavigation(ready: boolean) {
   useEffect(() => {
     if (!ready || !response) return;
     const request = response.notification.request;
-    const destination = bodyDestination.safeParse(request.content.data?.url);
+    const destination = destinationSchema.safeParse(request.content.data?.url);
+    const reportKey = reportKeySchema.safeParse(request.content.data?.url);
     if (destination.success) router.navigate(destination.data, ANCHORED);
+    else if (reportKey.success)
+      router.navigate(
+        { pathname: "/history/report/[key]", params: { key: reportKey.data } },
+        ANCHORED,
+      );
     else if (request.identifier.startsWith("rest:"))
       router.push({ pathname: "/session/[id]", params: { id: request.identifier.slice(5) } });
     Notifications.clearLastNotificationResponse();

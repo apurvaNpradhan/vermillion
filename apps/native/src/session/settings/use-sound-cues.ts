@@ -18,8 +18,9 @@ export type SoundPlayer = {
  * in memoized callbacks and effects; call them from events and effects, not during render.
  */
 export function useSoundCues(): SoundPlayer {
-  const { sounds, soundRest, soundSets, soundMilestones } = usePreferences().preferences.ui;
-  const prefs = { sounds, soundRest, soundSets, soundMilestones };
+  const { sounds, soundRest, soundSets, soundMilestones, cueVolume } =
+    usePreferences().preferences.ui;
+  const prefs = { sounds, soundRest, soundSets, soundMilestones, cueVolume };
   const latest = useRef(prefs);
   useLayoutEffect(() => {
     latest.current = prefs;
@@ -28,11 +29,11 @@ export function useSoundCues(): SoundPlayer {
     if (sounds) preloadSoundCues();
   }, [sounds]);
   const play = useCallback((cue: SoundCue) => {
-    if (cueEnabled(latest.current, cue)) playSoundCue(cue);
+    if (cueEnabled(latest.current, cue)) playSoundCue(cue, latest.current.cueVolume);
   }, []);
   const playTick = useCallback((tick: { record: boolean; countdown: boolean }) => {
     const cue = tickCue(latest.current, tick);
-    if (cue !== null) playSoundCue(cue);
+    if (cue !== null) playSoundCue(cue, latest.current.cueVolume);
   }, []);
   return { play, playTick };
 }

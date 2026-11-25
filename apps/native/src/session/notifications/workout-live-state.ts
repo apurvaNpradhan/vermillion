@@ -11,6 +11,7 @@ export const liveOptionsSchema = z.object({
   weightIncrementKg: z.number().positive().nullable(),
   lighterWeeks: z.array(lighterPeriodSchema).default([]),
   soundOn: z.boolean(),
+  vibrate: z.boolean().default(true),
 });
 export const liveActionSchema = z.object({
   sessionId: z.string(),

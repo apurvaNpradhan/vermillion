@@ -1,11 +1,14 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
+import { ownsReminder } from "@/session/reminders/reminder-plan";
 import { REST_NOTIFICATION_PREFIX, restNotificationId } from "@/session/rest/rest-schedule";
 
 import {
   REST_CHANNEL_SILENT,
+  REST_CHANNEL_SILENT_STILL,
   REST_CHANNEL_WITH_SOUND,
+  REST_CHANNEL_WITH_SOUND_STILL,
   REST_SOUND_FILE,
   RETIRED_REST_CHANNELS,
   restChannelId,
@@ -19,6 +22,8 @@ let surfaceVisible = false;
 let channelReady: Promise<void> = Promise.resolve();
 /** The "Rest timer sound" setting, kept here for the notification handler and the scheduler. */
 let soundOn = true;
+/** The "Rest vibration" setting: chooses the notification channel (Android). */
+let vibrateOn = true;
 export function setRestSurfaceVisible(visible: boolean) {
   surfaceVisible = visible;
 }
@@ -27,6 +32,9 @@ export function isRestSurfaceVisible(): boolean {
 }
 export function setRestSoundEnabled(enabled: boolean) {
   soundOn = enabled;
+}
+export function setRestVibrationEnabled(enabled: boolean) {
+  vibrateOn = enabled;
 }
 
 /**
@@ -38,7 +46,10 @@ export function setRestSoundEnabled(enabled: boolean) {
 export function installRestNotifications(channelName: string): Promise<void> {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
-      if (notification.request.identifier.startsWith("body-reminder:"))
+      if (
+        notification.request.identifier.startsWith("body-reminder:") ||
+        ownsReminder(notification.request.identifier)
+      )
         return {
           shouldShowBanner: true,
           shouldShowList: true,
@@ -54,12 +65,12 @@ export function installRestNotifications(channelName: string): Promise<void> {
     },
   });
   if (Platform.OS !== "android") return Promise.resolve();
-  const channel = (id: string, sound: string | null) =>
+  const channel = (id: string, sound: string | null, vibrate: boolean) =>
     Notifications.setNotificationChannelAsync(id, {
       name: channelName,
       importance: Notifications.AndroidImportance.HIGH,
-      enableVibrate: true,
-      vibrationPattern: [0, 250, 200, 250],
+      enableVibrate: vibrate,
+      vibrationPattern: vibrate ? [0, 250, 200, 250] : undefined,
       sound,
       // Notification usage, so the ringer mode and Do Not Disturb silence the chime.
       audioAttributes: {
@@ -68,8 +79,10 @@ export function installRestNotifications(channelName: string): Promise<void> {
       },
     });
   channelReady = Promise.all([
-    channel(REST_CHANNEL_WITH_SOUND, REST_SOUND_FILE),
-    channel(REST_CHANNEL_SILENT, null),
+    channel(REST_CHANNEL_WITH_SOUND, REST_SOUND_FILE, true),
+    channel(REST_CHANNEL_SILENT, null, true),
+    channel(REST_CHANNEL_WITH_SOUND_STILL, REST_SOUND_FILE, false),
+    channel(REST_CHANNEL_SILENT_STILL, null, false),
     ...RETIRED_REST_CHANNELS.map((id) => Notifications.deleteNotificationChannelAsync(id)),
   ]).then(
     () => undefined,
@@ -122,7 +135,7 @@ export async function scheduleRestNotification(
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: endsAt,
-        channelId: restChannelId(soundOn),
+        channelId: restChannelId(soundOn, vibrateOn),
       },
     });
   } catch {

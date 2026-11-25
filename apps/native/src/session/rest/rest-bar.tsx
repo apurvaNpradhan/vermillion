@@ -5,6 +5,8 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "heroui-native";
 
+import { usePreferences } from "@/preferences";
+
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
@@ -47,6 +49,7 @@ export function RestBar({
   const now = useNow(pausedAt === null, 250);
   const view = restView(rest, pausedAt === null ? now : Date.parse(pausedAt));
   const { play } = useSoundCues();
+  const { restVibration } = usePreferences().preferences.ui;
 
   // The end haptic plays once, for a Rest this screen saw running; opening to a finished one is silent.
   const seen = useRef<string | null>(null);
@@ -54,10 +57,10 @@ export function RestBar({
     if (view.running) seen.current = rest.endsAt;
     else if (seen.current === rest.endsAt) {
       seen.current = null;
-      haptic.success();
+      if (restVibration) haptic.success();
       play("restOver");
     }
-  }, [view.running, rest.endsAt, play]);
+  }, [view.running, rest.endsAt, play, restVibration]);
 
   // The 3-2-1 beeps, once per second left, while this screen is in front.
   const beeped = useRef<string | null>(null);

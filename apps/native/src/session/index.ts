@@ -22,4 +22,7 @@ export { sessionRecords } from "./finish/session-records";
 export { usePreviousSets } from "./logging/use-previous-sets";
 export { previewProgression } from "./logging/preview-progression";
 
+export { ReminderHost } from "./reminders/reminder-host";
+export { useReminderRows } from "./reminders/use-reminder-rows";
+export { useRestAlertRows } from "./settings/use-rest-alert-rows";
 export { WorkoutLiveHost } from "./notifications/workout-live-host";

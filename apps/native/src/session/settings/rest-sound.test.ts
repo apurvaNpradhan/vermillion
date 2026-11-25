@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   REST_CHANNEL_SILENT,
+  REST_CHANNEL_SILENT_STILL,
   REST_CHANNEL_WITH_SOUND,
+  REST_CHANNEL_WITH_SOUND_STILL,
   REST_SOUND_FILE,
   RETIRED_REST_CHANNELS,
   restChannelId,
@@ -16,6 +18,18 @@ describe("rest sound", () => {
     expect(restChannelId(true)).toBe(REST_CHANNEL_WITH_SOUND);
     expect(restChannelId(false)).toBe(REST_CHANNEL_SILENT);
     expect(REST_CHANNEL_WITH_SOUND).not.toBe(REST_CHANNEL_SILENT);
+  });
+  it("uses channels without vibration when the Rest buzz is off", () => {
+    expect(restChannelId(true, false)).toBe(REST_CHANNEL_WITH_SOUND_STILL);
+    expect(restChannelId(false, false)).toBe(REST_CHANNEL_SILENT_STILL);
+    expect(
+      new Set([
+        REST_CHANNEL_WITH_SOUND,
+        REST_CHANNEL_SILENT,
+        REST_CHANNEL_WITH_SOUND_STILL,
+        REST_CHANNEL_SILENT_STILL,
+      ]).size,
+    ).toBe(4);
   });
   it("never reuses a retired channel id", () => {
     expect(RETIRED_REST_CHANNELS).not.toContain(REST_CHANNEL_WITH_SOUND);

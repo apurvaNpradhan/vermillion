@@ -2,7 +2,8 @@ import { expect, it, vi } from "vitest";
 
 import { addSessionExercises, addSet, tickSet, updateSet } from "./session-content-store";
 import { SQUAT, setupSessions } from "./session-fixtures";
-import { readSessionExportRows } from "./session-export";
+import type { SessionExportRow } from "@workspace/shared";
+import { visitSessionExportPages } from "./session-export";
 import { finishSession, startSession } from "./session-store";
 
 it("reads every ticked set of every finished Session, oldest first, and nothing else", async () => {
@@ -30,7 +31,10 @@ it("reads every ticked set of every finished Session, oldest first, and nothing 
   const open = await startSession(s.training, { workoutId: null, derivedTitle: "Squats" });
   await addSessionExercises(s.training, open, [SQUAT]);
 
-  const rows = await readSessionExportRows(s.training);
+  const rows: SessionExportRow[] = [];
+  await visitSessionExportPages(s.training, "owner", async (page) => {
+    rows.push(...page);
+  });
   expect(rows.map((row) => [row.startedAt.slice(0, 10), row.kind, row.weightKg])).toEqual([
     ["2026-01-02", "warmup", 40],
     ["2026-01-02", "working", 90],
@@ -57,14 +61,20 @@ it("reads all pages in one transaction and pages past the first read", async () 
     WITH RECURSIVE seq(n) AS (
       SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2001
     )
-    INSERT INTO session_set (id, session_exercise_id, position, kind, completed_at)
-    SELECT printf('export-%04d', n), ?, 'z', 'working', '2026-01-01T10:00:00Z'
+    INSERT INTO session_set (id, user_id, session_exercise_id, position, kind, completed_at)
+    SELECT printf('export-%04d', n), 'owner', ?, 'z', 'working', '2026-01-01T10:00:00Z'
     FROM seq
   `)
     .run(exercise ?? "");
 
   const readTransaction = vi.spyOn(s.training, "readTransaction");
-  const rows = await readSessionExportRows(s.training);
+  const rows: SessionExportRow[] = [];
+  const sizes: number[] = [];
+  await visitSessionExportPages(s.training, "owner", async (page) => {
+    sizes.push(page.length);
+    rows.push(...page);
+  });
+  expect(sizes).toEqual([2000, 2]);
   expect(readTransaction).toHaveBeenCalledTimes(1);
   expect(rows).toHaveLength(2002);
 });
