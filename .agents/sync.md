@@ -28,6 +28,10 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 - Native needs a dev client; changing a native module or build flag bumps `NATIVE_STACK_REVISION`: [native-dev](../docs/guides/native-dev.md).
 - Synthetic data only until the [privacy readiness](../docs/privacy-readiness.md) sign-off.
 
+## Gyms
+
+`gym`, `gym_exercise_setting`, `gym_equipment.gym_id` and `training_session.gym_id` ride the `my_training` stream. The server, not a device, creates the default "My gym": `sync.credentials` calls `ensureDefaultGym` under the user's training lock, and a kit item uploaded with no `gym_id` (an older app) is put in the oldest live gym. A migration backfilled existing kits into a "My gym". The active gym is `ui.activeGymId` (an unknown id reads as the oldest gym). A Session's `gym_id` is a plain reference: deleting a gym nulls it on the server and readers ignore a gym that is gone. Deleting a gym soft-deletes its kit and settings; the last gym cannot be deleted.
+
 ## Commands
 
 ```sh

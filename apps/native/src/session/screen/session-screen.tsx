@@ -22,6 +22,7 @@ import {
   Link,
   LinkBreak,
   NotePencil,
+  Barbell,
   Plus,
   PushPin,
   Swap,
@@ -67,6 +68,7 @@ import { SessionEffortSheet } from "@/session/sets/effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
+import { LoadLimitsSheet } from "@/gym";
 import { SessionHeader } from "./session-header";
 import { ClockSheet } from "@/session/clock/clock-sheet";
 import { firstTickedAt } from "@/session/clock/clock-view";
@@ -143,6 +145,7 @@ type Sheet =
   | { kind: "menu"; exercise: SessionExerciseDetail }
   | { kind: "note"; exercise: SessionExerciseDetail }
   | { kind: "pinned"; exercise: SessionExerciseDetail }
+  | { kind: "limits"; exercise: SessionExerciseDetail }
   | { kind: "swap"; exercise: SessionExerciseDetail; next: string }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
@@ -400,6 +403,16 @@ const LoadedSession = memo(function LoadedSession({
           icon: PushPin,
           onPress: () => setSheet({ kind: "pinned", exercise: menuExercise }),
         },
+        ...(menuExercise.type === "weight_reps" || menuExercise.type === "bodyweight_weighted_reps"
+          ? [
+              {
+                key: "limits",
+                label: t("gym__limits_action"),
+                icon: Barbell,
+                onPress: () => setSheet({ kind: "limits", exercise: menuExercise }),
+              },
+            ]
+          : []),
         {
           key: "effort",
           label: t(menuExercise.logEffort ? "session__effort_off" : "session__effort_on"),
@@ -456,11 +469,24 @@ const LoadedSession = memo(function LoadedSession({
   const effortSet = sheet?.kind === "effort" ? logging.found.get(sheet.setId) : undefined;
   const noteExercise = sheet?.kind === "note" ? sheet.exercise : null;
   const pinnedExercise = sheet?.kind === "pinned" ? sheet.exercise : null;
+  const limitsExercise = sheet?.kind === "limits" ? sheet.exercise : null;
 
   const accessory = useSessionKeypadAccessory(logging, unit);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
+  const { found: foundSets } = logging;
+  const onLimits = useCallback(
+    (setId: string) => {
+      const at = foundSets.get(setId);
+      if (
+        at &&
+        (at.exercise.type === "weight_reps" || at.exercise.type === "bodyweight_weighted_reps")
+      )
+        setSheet({ kind: "limits", exercise: at.exercise });
+    },
+    [foundSets],
+  );
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
   }, []);
@@ -524,6 +550,7 @@ const LoadedSession = memo(function LoadedSession({
       onCell: openCell,
       onTick,
       onKind,
+      onLimits,
       onEffort,
       onPrevious,
       onCopySets,
@@ -543,6 +570,7 @@ const LoadedSession = memo(function LoadedSession({
       openCell,
       onTick,
       onKind,
+      onLimits,
       onEffort,
       onPrevious,
       onCopySets,
@@ -601,6 +629,7 @@ const LoadedSession = memo(function LoadedSession({
         animate={animate}
         finished={session.finishedAt !== null}
         onMenu={() => setSessionMenu(true)}
+        sessionId={session.id}
         title={title}
         startedAt={session.startedAt}
         pausedAt={session.pausedAt}
@@ -809,6 +838,16 @@ const LoadedSession = memo(function LoadedSession({
         onSave={(note) => {
           if (pinnedExercise) void actions.setPinnedNote(pinnedExercise.exerciseId, note);
         }}
+      />
+      <LoadLimitsSheet
+        isOpen={limitsExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "limits") closeSheet();
+        }}
+        exerciseId={limitsExercise?.exerciseId ?? ""}
+        title={limitsExercise?.title ?? ""}
+        equipment={limitsExercise?.exercise?.equipment ?? "other"}
+        unit={unit}
       />
       <SetTypeSheet
         isOpen={kindSet !== undefined}

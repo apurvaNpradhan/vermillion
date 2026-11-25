@@ -77,6 +77,7 @@ export type SetRowProps = {
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
+  onLimits: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onRemove: (setId: string) => Promise<boolean>;
@@ -268,6 +269,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         onPress={() => {
           haptic.tick();
           props.onKind(set.id);
+        }}
+        onLongPress={() => {
+          if (readOnly) return;
+          haptic.tick();
+          props.onLimits(set.id);
         }}
         hitSlop={4}
         className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"

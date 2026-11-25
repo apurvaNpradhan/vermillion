@@ -16,6 +16,7 @@ import { Keyboard, Pressable, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
+import { useGyms } from "@/gym";
 import { TextField } from "@/platform/forms/text-field";
 import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
@@ -37,6 +38,7 @@ type FormTarget = {
 export function ManageEquipmentScreen() {
   const { t } = useTranslation();
   const state = useEquipment();
+  const { multiple, activeGym } = useGyms();
   const label = useEquipmentLabel();
   const groups = kitGroups(state.rows, state.unit);
   const [target, setTarget] = useState<FormTarget | null>(null);
@@ -47,7 +49,13 @@ export function ManageEquipmentScreen() {
   };
   return (
     <>
-      <ScrollPage title={t("plates__manage")} back backFallback="/">
+      <ScrollPage
+        title={
+          multiple && activeGym ? `${t("plates__manage")} · ${activeGym.name}` : t("plates__manage")
+        }
+        back
+        backFallback="/"
+      >
         {state.failed ? <Button onPress={state.retry}>{t("plates__retry")}</Button> : null}
         {!state.loading && !state.failed && state.rows.length === 0 ? (
           <EmptyState

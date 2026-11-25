@@ -17,7 +17,7 @@ import { useRecordBests } from "./use-record-bests";
 import { usePreviousSets } from "./use-previous-sets";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
-import { useGymLoads } from "@/gym";
+import { useGymLoads, useLoggedLoad } from "@/gym";
 
 /**
  * The store of one live Session, made with its screen and fed by the database's watch. Changes the
@@ -68,6 +68,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
   } = usePreviousSets(libraryIds);
 
   const gym = useGymLoads();
+  const onLoggedLoad = useLoggedLoad();
   const { recordAlerts, sounds, soundMilestones } = preferences.ui;
   const recordBests = useRecordBests(
     session,
@@ -104,6 +105,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     readOnly,
     actions,
     onRestStarted,
+    onLoggedLoad,
   });
 
   const { warmupSteps, warmupRounding } = preferences.ui;

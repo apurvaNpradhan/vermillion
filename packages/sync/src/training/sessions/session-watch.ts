@@ -612,6 +612,8 @@ const overviewRow = z.object({
   finished_at: z.string(),
   durationS: z.number().nullable(),
   pausedMs: z.number().nullable(),
+  /** The gym trained at; null for any gym or a gym that is gone. */
+  gymName: z.string().nullable().optional(),
   exerciseTitles: jsonText.pipe(z.array(z.string())),
   sets: jsonText.pipe(z.array(overviewSet)),
 });
@@ -621,6 +623,7 @@ export type HistoryOverviewSession = z.output<typeof overviewRow>;
 function overviewPageSql(bounded: boolean): string {
   return `SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s AS durationS,
     s.paused_ms AS pausedMs,
+    (SELECT g.name FROM gym g WHERE g.id = s.gym_id) AS gymName,
     (SELECT json_group_array(title) FROM (
       SELECT se.exercise_title AS title FROM session_exercise se
       WHERE se.session_id = s.id AND se.exercise_title <> ''

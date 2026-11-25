@@ -13,6 +13,7 @@ import { InlineNote, RestPicker } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
+import { MaxPrompt, SetupNoteChip } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { ProgressionChip } from "./progression-chip";
@@ -74,6 +75,9 @@ export const ExerciseItem = memo(function ExerciseItem({
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
         unit: state.inputs.unit,
+        setupNote: exercise
+          ? (state.inputs.gym.settingFor(exercise.exerciseId)?.setupNote ?? null)
+          : null,
         readOnly: state.ui.readOnly,
         expanded: state.expanded.has(exerciseId),
         done: allTicked(exercise?.sets ?? []),
@@ -137,6 +141,12 @@ export const ExerciseItem = memo(function ExerciseItem({
                   applied={stall.applied}
                 />
               ) : null}
+              {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}
+              <MaxPrompt
+                exerciseId={exercise.exerciseId}
+                equipment={exercise.exercise?.equipment ?? "other"}
+                unit={unit}
+              />
               <ExerciseBody
                 id={exercise.id}
                 note={exercise.note}

@@ -38,6 +38,7 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { ListRow, ListSection } from "@/platform/ui/list";
+import { GymLimitRows } from "@/gym";
 import { Notice } from "@/platform/ui/notice";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
@@ -351,6 +352,18 @@ function LoadedDetail({
                     }
                   />
                 </ListSection>
+              </View>
+            ) : null}
+            {!exercise.isArchived &&
+            (exercise.exerciseType === "weight_reps" ||
+              exercise.exerciseType === "bodyweight_weighted_reps") ? (
+              <View className="px-4">
+                <GymLimitRows
+                  exerciseId={exercise.id}
+                  title={exercise.title}
+                  equipment={exercise.equipment}
+                  unit={preferences.ui.weightUnit}
+                />
               </View>
             ) : null}
             <SwapRow candidates={swaps} onOpen={onOpenExercise} />

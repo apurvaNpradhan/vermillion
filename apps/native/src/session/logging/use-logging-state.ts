@@ -3,6 +3,7 @@ import {
   activeLighterWeek,
   type PreviousSource,
   type EffortScale,
+  type Equipment,
   type ExerciseBests,
   type Ghosts,
   type SetKind,
@@ -81,6 +82,7 @@ export function useLoggingState({
   readOnly,
   actions,
   onRestStarted,
+  onLoggedLoad,
 }: {
   store: SessionStore;
   editor: boolean;
@@ -106,6 +108,14 @@ export function useLoggingState({
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
   onRestStarted?: () => void;
+  /** A working set was ticked: what it was logged at and what the Ghost value offered. */
+  onLoggedLoad?: (input: {
+    sessionId: string;
+    exerciseId: string;
+    equipment: Equipment;
+    suggestedKg: number;
+    loggedKg: number;
+  }) => void;
 }) {
   const { t } = useTranslation();
   const sound = useSoundCues();
@@ -461,6 +471,22 @@ export function useLoggingState({
       }
       if (result.rest && store.getState().session.rest?.startedAt === result.rest.startedAt)
         onRestStarted?.();
+      const suggestedKg = used.weight ?? null;
+      const loggedKg = latest.weightKg ?? suggestedKg;
+      if (
+        onLoggedLoad &&
+        !editor &&
+        at.set.kind === "working" &&
+        suggestedKg !== null &&
+        loggedKg !== null
+      )
+        onLoggedLoad({
+          sessionId: state.session.id,
+          exerciseId: at.exercise.exerciseId,
+          equipment: at.exercise.exercise?.equipment ?? "other",
+          suggestedKg,
+          loggedKg,
+        });
 
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
@@ -512,6 +538,7 @@ export function useLoggingState({
       bodyweightKg,
       countWarmups,
       onRestStarted,
+      onLoggedLoad,
       sound,
     ],
   );

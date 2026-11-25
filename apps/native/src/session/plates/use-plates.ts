@@ -23,7 +23,7 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useTranslation } from "@/platform/i18n";
 import { usePreferences } from "@/preferences";
-import { useGyms } from "@/gym";
+import { useGyms, useGymLoads } from "@/gym";
 import { useLocalData, useSyncValue } from "@/sync";
 import {
   canSeedEquipment,
@@ -201,7 +201,10 @@ export function usePlates(
     equipmentKind,
   );
   const plates = bar ? platesForBar(equipment.rows, bar) : [];
-  const target = useDeferredValue(targetKg);
+  // The gym's max for this exercise is the most the calculator offers.
+  const cap = useGymLoads().gridFor(exerciseId, equipmentKind ?? "barbell")?.capKg ?? null;
+  const wanted = useDeferredValue(targetKg);
+  const target = cap !== null && wanted > cap ? cap : wanted;
   // The inventory emits a new array on every change; solve again only when the bar, a plate that
   // matters to the solver or the target changes.
   const inputKey = loadInputKey(bar, plates);
