@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import { programInput, type ProgramInput } from "@workspace/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
+import { readPhasePlan } from "./phase-plan";
 import { programRun, program, programSlot, workout, workoutExercise } from "../tables";
 
 import {
@@ -56,6 +57,8 @@ export async function updateProgram(
       description: current.description,
       planned_weeks: current.planned_weeks,
       sessions_per_week: current.sessions_per_week,
+      // Read as this build does: a stored plan it cannot fully read must not block a rename.
+      phase_plan: readPhasePlan(current.phase_plan),
       ...changes,
     });
     await tx.update(program).set(changes).where(eq(program.id, id));

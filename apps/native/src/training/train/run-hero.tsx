@@ -1,12 +1,13 @@
 import type { RunSlot } from "@workspace/shared";
 import { Play } from "phosphor-react-native";
 import { useThemeColor } from "heroui-native";
-import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
+import { PhaseChip } from "@/training/phases/phase-chip";
+import { useInsertDeload } from "@/training/phases/use-insert-deload";
 import { ProgramTile } from "@/training/programs/program-row";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
 import { slotTitle } from "@/training/rotation/rotation-row";
@@ -19,29 +20,28 @@ const COVER = 64;
 const NEXT_TILE = 44;
 
 /**
- * The active Run at the top of Train: the Program's cover and name, "Week 3 of 12" with a place
- * for the phase chip of a Run that has Phases, the cycle strip (tap a day to start it or skip it
- * for this Cycle) and one Start for the next Workout. Tapping the heading opens the Program.
+ * The active Run at the top of Train: the Program's cover and name, "Week 3 of 12" (a chip, "Week
+ * 5 · Deload", once the Run has phases), the cycle strip (tap a day to start it or skip it for
+ * this Cycle), "Insert deload" and one Start for the next Workout. Tapping the heading opens the
+ * Program.
  */
 export function RunHero({
   state,
   onOpen,
   onStart,
   startSecondary,
-  phaseChip,
 }: {
   state: ReturnType<typeof useActiveProgram>;
   onOpen: (programId: string) => void;
   onStart: (workoutId: string, day: RunSlot) => void;
   /** A Session is in progress: Start is quiet so Resume stays the one primary action. */
   startSecondary: boolean;
-  /** The chip of the Run's current Phase, beside the week; absent until Phases exist. */
-  phaseChip?: ReactNode;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const onAction = useThemeColor("accent-foreground");
-  const { program, run, progress, week } = state;
+  const { program, run, progress, week, totalWeeks, phase } = state;
+  const insert = useInsertDeload(run);
   const day = useSlotDay({
     runId: run?.id ?? null,
     progress,
@@ -51,8 +51,8 @@ export function RunHero({
   });
   if (!program || !run) return null;
   const next = program.slots.find((slot) => slot.id === progress.next?.id);
-  const weekText = program.plannedWeeks
-    ? t("run__week_of", { week, total: program.plannedWeeks })
+  const weekText = totalWeeks
+    ? t("run__week_of", { week, total: totalWeeks })
     : t("run__week", { week });
   const nextTitle = next?.workoutId ? slotTitle(next, t) : null;
   return (
@@ -69,18 +69,31 @@ export function RunHero({
           <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
             {program.title}
           </Text>
-          <View className="flex-row flex-wrap items-center gap-2">
+          {phase ? (
+            <PhaseChip phase={phase} totalWeeks={totalWeeks} />
+          ) : (
             <Text numberOfLines={1} className="font-normal text-caption tabular-nums text-muted">
               {weekText}
             </Text>
-            {phaseChip}
-          </View>
+          )}
         </View>
       </Pressable>
       <View className="gap-1">
-        <Text className="font-normal text-caption tabular-nums text-muted">
-          {t("run__cycle", { cycle: progress.cycle })}
-        </Text>
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="font-normal text-caption tabular-nums text-muted">
+            {t("run__cycle", { cycle: progress.cycle })}
+          </Text>
+          {phase?.phase === "deload" ? null : (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={insert.ask}
+              className="min-h-8 justify-center active:opacity-60"
+            >
+              <Text className="font-normal text-caption text-muted">{t("phase__insert_now")}</Text>
+            </Pressable>
+          )}
+        </View>
         <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
       </View>
       {next?.workoutId && nextTitle ? (
@@ -116,6 +129,7 @@ export function RunHero({
         </View>
       ) : null}
       {day.sheet}
+      {insert.dialog}
     </View>
   );
 }

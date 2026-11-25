@@ -13,6 +13,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useTrainingWrite } from "@/training";
 
 import { StartConflictSheet } from "./start-conflict-sheet";
@@ -32,6 +33,7 @@ export function useStartSession() {
   const { t } = useTranslation();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
+  const timeZone = useDeviceTimeZone();
   const [pending, setPending] = useState<Pending | null>(null);
   const starting = useRef(false);
 
@@ -52,7 +54,9 @@ export function useStartSession() {
           (db) =>
             beginSession(
               db,
-              source,
+              // The Run's calendar week, and so the phase, is counted in the user's time zone.
+              "againOf" in source ? source : { ...source, timeZone },
+
               t("session__untitled"),
               { id, discardIds: discard.map((old) => old.id) },
               writeScope,
@@ -73,7 +77,7 @@ export function useStartSession() {
         starting.current = false;
       }
     },
-    [write, writeScope, t, undoToast, open],
+    [write, writeScope, t, undoToast, open, timeZone],
   );
 
   /** Starts a Session from `workoutId` (or empty), or asks first when one is active. */

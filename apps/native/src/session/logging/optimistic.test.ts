@@ -59,6 +59,8 @@ const session = (sets: SessionSetDetail[], rest: SessionDetail["rest"] = null): 
     programId: null,
     runId: null,
     slotId: null,
+    phase: null,
+    phaseModifiers: null,
     cycle: null,
     title: "Legs",
     titleDerived: false,

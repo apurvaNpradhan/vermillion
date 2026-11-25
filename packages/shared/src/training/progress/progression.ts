@@ -1,6 +1,7 @@
 import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import { isBaselinePhase, type Phase } from "../phases/phases";
 import { weightAtMost } from "../vocabulary/format";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
 import {
@@ -61,12 +62,24 @@ export type ProgressionContext = {
   lighterWeeks?: readonly LighterPeriod[];
   /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
   deload?: boolean;
+  /**
+   * The load factor of this week's phase (0.9 in a Deload): below 1 it suggests that share of the
+   * last load at the bottom of the range, like the stalled-lift deload. Unlike a break, a Lighter
+   * week or the stalled-lift deload, which round to the nearest load, a phase snaps down to the
+   * grid: the greatest load at or below the product, as the Workout's own targets are lowered.
+   */
+  phaseLoad?: number;
   /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
   grid?: LoadGrid | null;
 };
 
 /** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
-export type ProgressionSession = { started_at: string; sets: readonly LoggedSet[] };
+export type ProgressionSession = {
+  started_at: string;
+  sets: readonly LoggedSet[];
+  /** The phase the Session started in; Test and Deload Sessions are never a baseline. */
+  phase?: Phase | null;
+};
 
 const DAY_MS = 86_400_000;
 /** Back after this many days: start at 90% of the last load, and after the longer one at 80%. */
@@ -86,6 +99,24 @@ const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
 export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
 const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
+
+/**
+ * The heaviest completed working set, in kilograms, of the latest baseline Session in `history`
+ * (newest first, not a Test or Deload); null when there is none. What a Test week's top set
+ * starts from.
+ */
+export function lastBaselineLoadKg(
+  history: readonly Pick<ProgressionSession, "phase" | "sets">[],
+): number | null {
+  for (const session of history) {
+    if (!isBaselinePhase(session.phase)) continue;
+    const loads = done(session.sets).flatMap((set) =>
+      progresses(set.kind) && set.weight_kg != null ? [set.weight_kg] : [],
+    );
+    if (loads.length > 0) return Math.max(...loads);
+  }
+  return null;
+}
 
 /**
  * The set of `sets` a planned set progresses from: the same kind at the same position, or the
@@ -165,7 +196,8 @@ const REASON_OF = {
  * independently.
  * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
  * minimum on two Sessions running holds, a break lowers the load and a Lighter week or the
- * stalled-lift deload suggests 90%. Warm-ups and Lighter-week Sessions are never a baseline.
+ * stalled-lift deload suggests 90%. Warm-ups, Lighter-week Sessions and Test or Deload phase
+ * Sessions are never a baseline.
  */
 export function suggestNext(
   planned: readonly PlannedSet[],
@@ -187,6 +219,7 @@ export function suggestNext(
     context.baselineHistory ?? history,
     context.lighterWeeks ?? [],
   ).flatMap((session) => {
+    if (!isBaselinePhase(session.phase)) return [];
     const sets = done(session.sets).filter((set) => progresses(set.kind));
     return sets.length > 0 ? [{ ...session, sets }] : [];
   });
@@ -207,18 +240,22 @@ export function suggestNext(
         : null;
   const lighter =
     context.deload === true || activeLighterWeek(context.lighterWeeks ?? [], context.now) !== null;
+  // A phase may ask for less than a Lighter week does (or for it alone): the lighter of them.
+  const phaseFactor =
+    context.phaseLoad !== undefined && context.phaseLoad < 1 ? context.phaseLoad : 1;
+  const lightFactor = Math.min(lighter ? LIGHTER_WEEK_LOAD : 1, phaseFactor);
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
-  const factor = Math.min(
-    lighter ? LIGHTER_WEEK_LOAD : 1,
-    loaded && breakLoad !== null ? breakLoad : 1,
-  );
+  const factor = Math.min(lightFactor, loaded && breakLoad !== null ? breakLoad : 1);
   const resetReason: ProgressionReason | null =
     factor === 1
       ? null
-      : loaded && breakLoad !== null && breakLoad < (lighter ? LIGHTER_WEEK_LOAD : 1)
+      : loaded && breakLoad !== null && breakLoad < lightFactor
         ? "after_break"
         : "deload";
 
+  // The phase names the reset (and so rounds down) when its factor is the one in force.
+  const phaseDecides =
+    resetReason === "deload" && phaseFactor < 1 && Math.abs(factor - phaseFactor) < AT_CAP;
   const sets: (SuggestedSet | null)[] = planned.map(() => null);
   if (resetReason !== null) {
     for (const { index, target, ordinal } of slots) {
@@ -227,7 +264,14 @@ export function suggestNext(
       const weightKg =
         before.weight_kg == null
           ? null
-          : lightenLoad(before.weight_kg, factor, equipment, unit, grid);
+          : lightenLoad(
+              before.weight_kg,
+              factor,
+              equipment,
+              unit,
+              grid,
+              phaseDecides ? "down" : "nearest",
+            );
       // A reset that cannot lower the load must not raise the reps either.
       const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;

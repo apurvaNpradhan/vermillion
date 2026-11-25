@@ -2,9 +2,14 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   REST_SECONDS_MAX,
+  applyPhase,
   cycleState,
   finishClock,
+  mainEntryOf,
+  phaseFor,
+  hasLoad,
   sessionInput,
+  snapshotOf,
   sessionStartAllowed,
   sessionTimesConsistent,
   workoutStructureKey,
@@ -13,9 +18,11 @@ import {
 } from "@workspace/shared";
 import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { programRun, programSlot, programSlotSkip } from "../tables";
+import { program, programRun, programSlot, programSlotSkip } from "../tables";
 import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
+import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
+import { lastBaselineLoadKg, phaseLoadsIn } from "./phase-inputs";
 import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
 import { performAgainIn } from "./session-again-store";
@@ -49,6 +56,8 @@ export type SessionSource = {
    * translated by the caller. The Session stays "derived" until the user renames it.
    */
   derivedTitle: string;
+  /** The user's time zone, for the Run's calendar week (and so the phase); UTC when absent. */
+  timeZone?: string;
 };
 
 /**
@@ -154,12 +163,46 @@ async function createSessionIn(
       .set({ started_at: fields.startedAt })
       .where(eq(programRun.id, active.id));
   const title = plan?.title ?? source.derivedTitle;
+  // The phase of the Run week this Session starts in; its targets are adjusted as it is copied.
+  const [phasePlan] =
+    active && plan?.program_id
+      ? await tx
+          .select({ phase_plan: program.phase_plan })
+          .from(program)
+          .where(eq(program.id, plan.program_id))
+          .limit(1)
+      : [];
+  const runStartedAt =
+    active && active.started_at && active.started_at < fields.startedAt
+      ? active.started_at
+      : fields.startedAt;
+  const phase =
+    active && phasePlan
+      ? phaseFor(
+          readPhasePlan(phasePlan.phase_plan),
+          {
+            started_at: runStartedAt,
+            inserted_deloads: readInsertedDeloads(active.inserted_deloads),
+          },
+          new Date(fields.startedAt),
+          source.timeZone ?? "UTC",
+        )
+      : null;
+  const gymId = await activeGymIdOf(tx);
+  // The loads a phase lowers or seeds are the Session gym's, in the user's unit.
+  const loads = phase ? await phaseLoadsIn(tx, gymId) : null;
+  const mainEntryId = mainEntryOf(
+    planned.map((entry) => entry.id),
+    plan?.main_entry_id,
+  );
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
     run_id: active?.id ?? null,
     slot_id: slot?.id ?? null,
-    gym_id: await activeGymIdOf(tx),
+    gym_id: gymId,
+    phase: phase?.phase ?? null,
+    phase_modifiers: phase ? snapshotOf(phase) : null,
     cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
@@ -198,7 +241,26 @@ async function createSessionIn(
       .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
       .limit(1);
     const sessionExerciseId = uuidv7();
-    assertSessionRoom(0, entry.sets.length, "setsPerExercise");
+    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
+    const isMainLift = entry.id === mainEntryId;
+    const sets =
+      phase && loads
+        ? applyPhase(entry.sets, phase.phase, {
+            isMainLift,
+            type: info.exercise_type,
+            equipment: info.equipment,
+            unit: loads.unit,
+            grid: loads.gridFor(entry.exercise_id, info.equipment),
+            modifiers: phase.modifiers,
+            testTop: phase.testTop,
+            // A Test week's top set starts from what the lifter last did, not the stale plan.
+            testLoadKg:
+              phase.phase === "test" && isMainLift && hasLoad(info.exercise_type)
+                ? await lastBaselineLoadKg(tx, entry.exercise_id)
+                : null,
+          })
+        : entry.sets;
+    assertSessionRoom(0, sets.length, "setsPerExercise");
     await tx.insert(sessionExercise).values({
       id: sessionExerciseId,
       user_id: userId,
@@ -212,11 +274,11 @@ async function createSessionIn(
       note: entry.note,
       superset_group: entry.superset_group,
       // The effort column shows when the plan has an effort target or the user turned it on.
-      log_effort: setting?.log_effort === true || entry.sets.some(hasEffortTarget),
+      log_effort: setting?.log_effort === true || sets.some(hasEffortTarget),
       created_at: nowIso(),
     });
-    const keys = keysAfterLast([], entry.sets.length);
-    for (const [index, target] of entry.sets.entries()) {
+    const keys = keysAfterLast([], sets.length);
+    for (const [index, target] of sets.entries()) {
       await tx.insert(sessionSet).values({
         id: uuidv7(),
         user_id: userId,
@@ -388,6 +450,8 @@ export function finishSession(
       run_id: current.run_id,
       slot_id: current.slot_id,
       gym_id: current.gym_id,
+      phase: current.phase,
+      phase_modifiers: current.phase_modifiers,
       cycle: current.cycle,
       title: input.title ?? current.title,
       title_derived: edited ? false : current.title_derived,

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { phasePlanSchema } from "../phases/phases";
 import { plannedSetSchema } from "../plans/planned-sets";
 import { POSITION_KEY_MAX, REST_SECONDS_MAX, TRAINING_LIMITS } from "./vocabulary";
 
@@ -31,6 +32,8 @@ export const programInput = z.strictObject({
     .nullable()
     // Absent from writes of builds from before this field: it then stays or starts as null.
     .optional(),
+  /** The repeating week phases (Build, Push, Test, Deload); null is no phases. */
+  phase_plan: phasePlanSchema.nullable().optional(),
 });
 export type ProgramInput = z.infer<typeof programInput>;
 
@@ -39,6 +42,11 @@ export const workoutInput = z.strictObject({
   program_id: z.uuid().nullable(),
   title: title.nullable(),
   note,
+  /**
+   * The Workout exercise that is the main lift (a Test week's one top set); null is the first
+   * exercise. A plain reference: it is read only while it is still in the Workout.
+   */
+  main_entry_id: z.uuid().nullable().optional(),
 });
 export type WorkoutInput = z.infer<typeof workoutInput>;
 

@@ -47,6 +47,7 @@ import { ProgramTile } from "./program-row";
 import { CompactRow } from "@/training/reorder/compact-row";
 import { ReorderView } from "@/training/reorder/reorder-view";
 import { RotationRow, slotTitle } from "@/training/rotation/rotation-row";
+import { PhaseSection } from "@/training/phases/phase-section";
 
 /** The cover tile in the header. */
 const COVER_SIZE = 56;
@@ -315,6 +316,7 @@ function LoadedProgram({
                 />
               ) : null}
             </View>
+            <PhaseSection program={program} run={isActive ? active.run : null} actions={actions} />
             <View className="gap-1">
               <View className="px-4">
                 <SectionHeader

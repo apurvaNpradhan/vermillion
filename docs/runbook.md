@@ -14,6 +14,21 @@ The app and the server release independently: installed apps lag the server by d
 
 If the container loops on start, a migration failed. The old container is already gone, so the API is down: roll back (below) and read the `db.startup` error.
 
+### Pre-deploy data repairs
+
+Run these once, before deploying the release that needs them. Each script defaults to a dry run that prints the rows it would change and writes nothing; read them, then rerun with `--apply`. Point `DATABASE_URL` at the production database through the Dokploy database service (never from a laptop's saved connection), and take a manual backup first (see Postgres and backups).
+
+| Release     | Script                                                                                                                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Week phases | `scripts/ops/repair-run-started-at.sh`: resets `program_run.started_at` to the start of the Run's earliest live Session where it is empty or later than that Session. A Run's phases count weeks from `started_at`, so a Run that starts late would put a Session in the wrong week. Runs with no live Session are left alone. |
+
+```sh
+DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh           # dry run
+DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh --apply   # one transaction
+```
+
+The repair is safe to rerun: the second run finds nothing.
+
 ## Roll back
 
 | Half   | How                                                                                                                                                                                                                                                                                                  |

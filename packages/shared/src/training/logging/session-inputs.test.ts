@@ -21,6 +21,8 @@ const session = {
   run_id: null,
   slot_id: null,
   gym_id: null,
+  phase: null,
+  phase_modifiers: null,
   cycle: null,
   title: "Push",
   title_derived: false,
@@ -80,6 +82,8 @@ describe("sessionInput", () => {
         .success,
     ).toBe(true);
     expect(sessionInput.safeParse({ ...session, gym_id: "home" }).success).toBe(false);
+    expect(sessionInput.safeParse({ ...session, phase: "deload" }).success).toBe(true);
+    expect(sessionInput.safeParse({ ...session, phase: "rest" }).success).toBe(false);
     expect(sessionInput.safeParse({ ...session, cycle: 0 }).success).toBe(false);
   });
 

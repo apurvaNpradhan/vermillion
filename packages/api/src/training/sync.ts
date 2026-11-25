@@ -3,6 +3,7 @@ import { runSyncHandler } from "./run-sync";
 import { programSlotSkipSyncHandler } from "./skip-sync";
 import type { DbExecutor } from "@workspace/db";
 import {
+  phasePlanSchema,
   plannedSetsSchema,
   programInput,
   programSlotInput,
@@ -45,6 +46,7 @@ import {
   checkPut,
   idOf,
   invalid,
+  jsonText,
   liveRow,
   newRowId,
   now,
@@ -58,6 +60,9 @@ import { sessionSyncHandlers } from "./session-sync";
 /** The cover is a `media` row (ADR 0040); the media handler owns its fields, this only points at it. */
 const coverMediaId = z.uuid().nullable();
 
+/** The week phases travel as JSON text; null is no phases. */
+const wirePhasePlan = jsonText(phasePlanSchema).nullable();
+
 const putProgram = z.strictObject({
   restore: restoreMarker,
   title: programInput.shape.title,
@@ -65,8 +70,12 @@ const putProgram = z.strictObject({
   planned_weeks: programInput.shape.planned_weeks.default(null),
   sessions_per_week: programInput.shape.sessions_per_week.default(null),
   cover_media_id: coverMediaId.default(null),
+  // Absent from an older app's write: the stored phases stay.
+  phase_plan: wirePhasePlan.optional(),
 });
-const patchProgram = programInput.partial().extend({ cover_media_id: coverMediaId.optional() });
+const patchProgram = programInput
+  .partial()
+  .extend({ cover_media_id: coverMediaId.optional(), phase_plan: wirePhasePlan.optional() });
 
 async function updateProgram(
   db: DbExecutor,
@@ -81,6 +90,7 @@ async function updateProgram(
       plannedWeeks: values.planned_weeks,
       sessionsPerWeek: values.sessions_per_week,
       ...(values.cover_media_id !== undefined ? { coverMediaId: values.cover_media_id } : {}),
+      ...(values.phase_plan !== undefined ? { phasePlan: values.phase_plan } : {}),
       updatedAt: now(),
     })
     .where(eq(program.id, id));
@@ -122,6 +132,7 @@ const programSyncHandler: SyncTableHandler = {
           plannedWeeks: values.planned_weeks,
           sessionsPerWeek: values.sessions_per_week,
           coverMediaId: cover,
+          phasePlan: values.phase_plan ?? null,
         });
         return;
       }
@@ -152,6 +163,7 @@ const programSyncHandler: SyncTableHandler = {
         description: row.description,
         planned_weeks: row.plannedWeeks,
         sessions_per_week: row.sessionsPerWeek,
+        phase_plan: row.phasePlan,
         ...patch,
       }),
     );
@@ -173,6 +185,7 @@ const putWorkout = z.strictObject({
   title: workoutInput.shape.title.default(null),
   note: workoutInput.shape.note.default(null),
   cover_media_id: coverMediaId.optional(),
+  main_entry_id: workoutInput.shape.main_entry_id,
 });
 // A Workout never changes Program: "add to program" copies.
 const patchWorkout = workoutInput
@@ -224,6 +237,7 @@ const workoutSyncHandler: SyncTableHandler = {
           title: values.title,
           note: values.note,
           coverMediaId: cover,
+          mainEntryId: values.main_entry_id ?? null,
         });
         return;
       }
@@ -255,6 +269,7 @@ const workoutSyncHandler: SyncTableHandler = {
           title: values.title,
           note: values.note,
           coverMediaId: cover,
+          ...(values.main_entry_id !== undefined ? { mainEntryId: values.main_entry_id } : {}),
           updatedAt: now(),
         })
         .where(eq(workout.id, id));
@@ -272,6 +287,7 @@ const workoutSyncHandler: SyncTableHandler = {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.note !== undefined ? { note: patch.note } : {}),
         ...(patch.cover_media_id !== undefined ? { coverMediaId: patch.cover_media_id } : {}),
+        ...(patch.main_entry_id !== undefined ? { mainEntryId: patch.main_entry_id } : {}),
         updatedAt: now(),
       })
       .where(eq(workout.id, id));

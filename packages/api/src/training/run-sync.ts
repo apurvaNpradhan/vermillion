@@ -1,20 +1,44 @@
 import type { DbExecutor } from "@workspace/db";
-import type { SessionInput } from "@workspace/shared";
+import { insertedDeloadsSchema, TRAINING_LIMITS, type SessionInput } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import { liveProgram, lockUserTraining } from "./operations/lookup";
-import { accept, idOf, newRowId, now } from "./sync-common";
+import { accept, idOf, jsonText, newRowId, now } from "./sync-common";
 import { programRun, programSlot } from "./tables";
 
-const input = z.strictObject({
+const fields = {
   program_id: z.uuid(),
   activated_at: z.iso.datetime({ offset: true }),
-  started_at: z.iso.datetime({ offset: true }).nullable().default(null),
-  finished_at: z.iso.datetime({ offset: true }).nullable().default(null),
-  outcome: z.enum(["completed", "stopped"]).nullable().default(null),
-  continued_at: z.iso.datetime({ offset: true }).nullable().default(null),
+  started_at: z.iso.datetime({ offset: true }).nullable(),
+  finished_at: z.iso.datetime({ offset: true }).nullable(),
+  outcome: z.enum(["completed", "stopped"]).nullable(),
+  continued_at: z.iso.datetime({ offset: true }).nullable(),
+  // JSON text of the Run weeks turned into Deload weeks; absent from an older app's write.
+  inserted_deloads: jsonText(insertedDeloadsSchema).nullable(),
+};
+// A write fills what it leaves out; a PATCH must not (zod applies defaults to `.partial()` too).
+const input = z.strictObject({
+  ...fields,
+  started_at: fields.started_at.default(null),
+  finished_at: fields.finished_at.default(null),
+  outcome: fields.outcome.default(null),
+  continued_at: fields.continued_at.default(null),
+  inserted_deloads: fields.inserted_deloads.default(null),
 });
+// The weeks stay text here: `input` parses them once, after the patch is merged onto the row.
+const patchInput = z.strictObject({ ...fields, inserted_deloads: z.string().nullable() }).partial();
+/**
+ * Two devices may each insert a Deload while offline: both stay, and the weeks do not repeat. A
+ * Run holds at most {@link TRAINING_LIMITS.insertedDeloadsMax} of them; more than that is refused
+ * here rather than left to the database's check.
+ */
+function unionWeeks(stored: readonly number[] | null, incoming: readonly number[] | null) {
+  if (incoming === null && stored === null) return null;
+  const weeks = [...new Set([...(stored ?? []), ...(incoming ?? [])])].sort((a, b) => a - b);
+  if (weeks.length > TRAINING_LIMITS.insertedDeloadsMax) throw new SyncRejection("SYNC_INVALID_OP");
+  return weeks;
+}
 const date = (value: string | null) => (value === null ? null : new Date(value));
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",
@@ -25,7 +49,7 @@ export const runSyncHandler: SyncTableHandler = {
     if (row && row.userId !== userId) throw new SyncRejection("RUN_NOT_FOUND");
     if (op.op === "DELETE") throw new SyncRejection("SYNC_INVALID_OP");
     if (op.op === "PATCH" && !row) throw new SyncRejection("RUN_NOT_FOUND");
-    const patch = accept(input.partial().safeParse(op.opData ?? {}));
+    const patch = accept(patchInput.safeParse(op.opData ?? {}));
     const values = accept(
       input.safeParse({
         ...(row
@@ -36,6 +60,8 @@ export const runSyncHandler: SyncTableHandler = {
               finished_at: row.finishedAt?.toISOString() ?? null,
               outcome: row.outcome,
               continued_at: row.continuedAt?.toISOString() ?? null,
+              inserted_deloads:
+                row.insertedDeloads === null ? null : JSON.stringify(row.insertedDeloads),
             }
           : {}),
         ...patch,
@@ -58,6 +84,7 @@ export const runSyncHandler: SyncTableHandler = {
       finishedAt: date(values.finished_at),
       outcome: values.outcome,
       continuedAt: date(values.continued_at),
+      insertedDeloads: unionWeeks(row?.insertedDeloads ?? null, values.inserted_deloads),
     };
     if (!row) {
       accept(newRowId.safeParse(id));

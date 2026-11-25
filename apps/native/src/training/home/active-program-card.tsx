@@ -21,13 +21,13 @@ export function ActiveProgramCard({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { program, run, progress, week } = state;
+  const { program, run, progress, week, totalWeeks } = state;
   const { startSlot, sheet } = useStartSession();
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
   const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
-  const progressText = program.plannedWeeks
-    ? t("run__progress_of", { week, total: program.plannedWeeks, workout: position })
+  const progressText = totalWeeks
+    ? t("run__progress_of", { week, total: totalWeeks, workout: position })
     : t("run__progress", { week, workout: position });
   return (
     <View className="gap-3">
@@ -45,8 +45,8 @@ export function ActiveProgramCard({
           <Text className="font-normal text-caption text-muted">
             {position > 0
               ? progressText
-              : program.plannedWeeks
-                ? t("run__week_of", { week, total: program.plannedWeeks })
+              : totalWeeks
+                ? t("run__week_of", { week, total: totalWeeks })
                 : t("run__week", { week })}
           </Text>
         </View>
@@ -132,23 +132,23 @@ export function ActiveProgramCard({
  */
 export function RunEndOffer({ state }: { state: ReturnType<typeof useActiveProgram> }) {
   const { t } = useTranslation();
-  const { program, run, week } = state;
+  const { run, week, totalWeeks } = state;
   const [endOpen, setEndOpen] = useState(false);
   const offered = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       if (
         run &&
-        program?.plannedWeeks &&
+        totalWeeks &&
         run.started_at &&
         !run.continued_at &&
-        week > program.plannedWeeks &&
+        week > totalWeeks &&
         offered.current !== run.id
       ) {
         offered.current = run.id;
         setEndOpen(true);
       }
-    }, [run, program, week]),
+    }, [run, totalWeeks, week]),
   );
   return (
     <ActionSheet

@@ -98,9 +98,9 @@ export function TrainingHome() {
   const eyebrow = resume
     ? null
     : next
-      ? t(programState.program?.plannedWeeks ? "home__position_of" : "home__position", {
+      ? t(programState.totalWeeks ? "home__position_of" : "home__position", {
           week: programState.week,
-          total: programState.program?.plannedWeeks,
+          total: programState.totalWeeks,
           day: nextIndex + 1,
         })
       : t("home__next_workout");
@@ -216,7 +216,7 @@ export function TrainingHome() {
         />
       )}
       <ThisWeekRow current={summary.current} previous={summary.previous} goal={goal} unit={unit} />
-      <TrainingNudges state={state} />
+      <TrainingNudges state={state} program={programState} />
       {hasWeight ? <WeightTrendCard weight={weight} /> : null}
       {sheet}
     </FadeIn>

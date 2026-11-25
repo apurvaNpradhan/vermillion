@@ -155,6 +155,7 @@ export const DEFAULT_INPUTS: DeriveInputs = {
   },
   lighterWeeks: [],
   lighter: false,
+  phaseLoad: 1,
   bodyweightKg: null,
   stallVersion: 0,
   stallMemory: () => ({ dismissed: false, applied: false }),

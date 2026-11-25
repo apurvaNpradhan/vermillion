@@ -1,4 +1,4 @@
-import { activeRun, TRAINING_LIMITS } from "@workspace/shared";
+import { activeRun, insertDeload, insertedDeloadsSchema, TRAINING_LIMITS } from "@workspace/shared";
 import { v7 as uuidv7 } from "uuid";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -11,6 +11,17 @@ import {
 } from "../store-common";
 import { programRun } from "../tables";
 
+/** The inserted Deload weeks of a row's JSON text; anything unreadable is none. */
+function parseDeloads(text: string | null | undefined): number[] {
+  if (text == null) return [];
+  try {
+    const parsed = insertedDeloadsSchema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
 const runSchema = z.object({
   id: z.string(),
   user_id: z.string(),
@@ -20,6 +31,7 @@ const runSchema = z.object({
   finished_at: z.string().nullable(),
   outcome: z.enum(["completed", "stopped"]).nullable(),
   continued_at: z.string().nullable(),
+  inserted_deloads: z.string().nullable().optional().transform(parseDeloads),
   created_at: z.string(),
 });
 export async function readRuns(database: Pick<TrainingDatabase, "getAll">) {
@@ -71,6 +83,27 @@ export const stopProgram = (db: TrainingDatabase, id: string, scope?: string) =>
   endRun(db, id, "stopped", scope);
 export const finishRun = (db: TrainingDatabase, id: string, scope?: string) =>
   endRun(db, id, "completed", scope);
+/**
+ * "Insert deload now": Run week `week` (the current one) becomes a Deload and the weeks after it
+ * shift by one. False when the Run is gone or finished, or the week already is an inserted one.
+ */
+export function insertDeloadNow(
+  database: TrainingDatabase,
+  id: string,
+  week: number,
+  scope?: string,
+) {
+  return write(database, scope, async (tx) => {
+    const [run] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
+    if (!run || run.finished_at !== null) return false;
+    const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
+    const next = insertDeload(current, week);
+    if (next.length === current.length || next.length > TRAINING_LIMITS.insertedDeloadsMax)
+      return false;
+    await tx.update(programRun).set({ inserted_deloads: next }).where(eq(programRun.id, id));
+    return true;
+  });
+}
 export function keepGoing(database: TrainingDatabase, id: string, scope?: string) {
   return write(database, scope, async (tx) => {
     await tx.update(programRun).set({ continued_at: nowIso() }).where(eq(programRun.id, id));

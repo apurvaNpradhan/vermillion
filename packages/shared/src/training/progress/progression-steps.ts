@@ -143,6 +143,10 @@ export function addLoad(
  * always below the load when the load is more than one step, so a light lift still gets lighter.
  * Never above the load or the grid's cap. A load already at the grid's lowest point stays; one
  * below the grid is scaled as it is. Zero stays zero.
+ *
+ * `rounding` is how the product meets the grid: `nearest` (a break or a Lighter week) or `down`
+ * (a phase's Deload), the greatest load at or below the product, so a Deload is never heavier
+ * than asked. Either way the result is never above the load or the cap.
  */
 export function lightenLoad(
   loadKg: number,
@@ -150,13 +154,19 @@ export function lightenLoad(
   equipment: Equipment,
   unit: WeightUnit,
   grid: LoadGrid | null = null,
+  rounding: "nearest" | "down" = "nearest",
 ): number {
   if (loadKg <= 0) return loadable(loadKg, unit);
   // A cap alone has no grid of its own: the equipment's step rounds, the cap only limits.
   const snapping = grid !== null && grid.source !== "cap" ? grid : null;
+  const down = rounding === "down";
   let lighter: number;
   if (snapping) {
-    lighter = snapping.nearest(loadKg * factor);
+    const target = loadKg * factor;
+    if (down) {
+      const nearest = snapping.nearest(target);
+      lighter = nearest <= target + EPS ? nearest : (snapping.below(target + EPS) ?? nearest);
+    } else lighter = snapping.nearest(target);
     if (lighter >= loadKg - EPS) {
       // The lowest loadable weight stays; a load below the grid is scaled as it is.
       const lowest = Math.abs(snapping.nearest(loadKg) - loadKg) < EPS;
@@ -165,8 +175,14 @@ export function lightenLoad(
   } else {
     const step = defaultStep(equipment, unit, loadKg);
     const load = inUnit(loadKg, unit);
-    const rounded = Math.round((load * factor) / step) * step;
-    lighter = toKg(rounded >= load && load > step ? load - step : rounded, unit);
+    if (down) {
+      const floored = Math.floor((load * factor + EPS) / step) * step;
+      // Nowhere lower to go on the step: the load stays.
+      lighter = floored <= 0 ? loadKg : toKg(Math.min(floored, load), unit);
+    } else {
+      const rounded = Math.round((load * factor) / step) * step;
+      lighter = toKg(rounded >= load && load > step ? load - step : rounded, unit);
+    }
   }
   const limit = Math.min(loadKg, grid?.capKg ?? loadKg);
   return weightAtMost(Math.max(0, Math.min(lighter, limit)), unit, limit);

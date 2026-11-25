@@ -8,6 +8,7 @@ import {
   exerciseSettingInput,
   gymEquipmentInput,
   importDigestSchema,
+  phaseSnapshotSchema,
   plannedSetSchema,
   SESSION_LIMITS,
   SYNC_LIMITS,
@@ -58,6 +59,7 @@ import {
   checkPut,
   idOf,
   invalid,
+  jsonText,
   liveRow,
   newRowId,
   now,
@@ -104,6 +106,8 @@ async function exerciseVisible(db: DbExecutor, userId: string, exerciseId: strin
 
 // ---- Session ----
 
+const wirePhaseModifiers = jsonText(phaseSnapshotSchema).nullable();
+
 const putSession = z.strictObject({
   restore: restoreMarker,
   workout_id: sessionInput.shape.workout_id.default(null),
@@ -116,6 +120,9 @@ const putSession = z.strictObject({
   run_id: sessionInput.shape.run_id.default(null),
   slot_id: sessionInput.shape.slot_id.default(null),
   gym_id: sessionInput.shape.gym_id.default(null),
+  phase: sessionInput.shape.phase.default(null),
+  // JSON text on the wire; an older app's write has none.
+  phase_modifiers: wirePhaseModifiers.default(null),
   cycle: sessionInput.shape.cycle.default(null),
   title: sessionInput.shape.title,
   title_derived: wireBoolean.default(true),
@@ -138,7 +145,11 @@ const undoImport = z.strictObject({
     .pipe(z.tuple([z.uuid(), z.uuid()])),
 });
 const patchSession = z
-  .strictObject({ ...sessionInput.shape, title_derived: wireBoolean })
+  .strictObject({
+    ...sessionInput.shape,
+    title_derived: wireBoolean,
+    phase_modifiers: wirePhaseModifiers,
+  })
   .partial();
 
 function sessionRowAsInput(row: SessionRow): SessionInput {
@@ -148,6 +159,8 @@ function sessionRowAsInput(row: SessionRow): SessionInput {
     run_id: row.runId,
     slot_id: row.slotId,
     gym_id: row.gymId,
+    phase: row.phase,
+    phase_modifiers: row.phaseModifiers,
     cycle: row.cycle,
     title: row.title,
     title_derived: row.titleDerived,
@@ -171,6 +184,8 @@ function sessionColumns(values: SessionInput) {
     runId: values.run_id,
     slotId: values.slot_id,
     gymId: values.gym_id,
+    phase: values.phase,
+    phaseModifiers: values.phase_modifiers,
     cycle: values.cycle,
     title: values.title,
     titleDerived: values.title_derived,

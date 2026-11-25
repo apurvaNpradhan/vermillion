@@ -1,7 +1,11 @@
 import { haptic } from "@/platform/haptics";
 import {
+  applyPhase,
+  hasLoad,
   historyForWorkout,
   isCounted,
+  lastBaselineLoadKg,
+  mainEntryOf,
   sessionDurationSeconds,
   sessionTotals,
   stalledSessions,
@@ -12,6 +16,7 @@ import { Note, PencilSimple, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { usePhaseText } from "@/platform/phase-text";
 import { useSubtleColor } from "@/platform/theme";
 import { useThemeColor } from "heroui-native";
 import { ExerciseHeading, StalledNote, stallMemory, useStallVersion } from "@/exercise";
@@ -24,6 +29,7 @@ import { usePreviousSets, useStartSession, formatElapsed, previewProgression } f
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
+import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useWorkout } from "./use-workout";
 import { displayTitle } from "./derived-title";
 import { WorkoutTile } from "@/training/shared/workout-tile";
@@ -46,6 +52,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const columnHeader = useColumnHeaders();
   const { preferences, isLoading: preferencesLoading } = usePreferences();
   const gym = useGymLoads();
+  const phaseText = usePhaseText();
+  const active = useActiveProgram();
   const state = useWorkout(id);
   const history = useHomeTraining(id);
   const previousHistory = usePreviousSets(
@@ -112,8 +120,40 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
     : t("training__workout");
   const now = new Date();
   const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
-  const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
-    const history = previousHistory.history.get(entry.exerciseId) ?? [];
+  // This week's phase, when the Workout belongs to the active Run's Program: its targets are
+  // shown as the Session will start with them. The Workout itself is unchanged.
+  const week =
+    ready && ready.programId !== null && active.run?.program_id === ready.programId
+      ? active.phase
+      : null;
+  const mainId = ready
+    ? mainEntryOf(
+        ready.exercises.map((item) => item.id),
+        ready.mainEntryId,
+      )
+    : null;
+  const exerciseHistory = (ready?.exercises ?? []).map((original) => {
+    const history = previousHistory.history.get(original.exerciseId) ?? [];
+    const entry =
+      week && original.exercise
+        ? {
+            ...original,
+            sets: applyPhase(original.sets, week.phase, {
+              isMainLift: original.id === mainId,
+              type: original.exercise.exerciseType,
+              equipment: original.exercise.equipment,
+              unit,
+              grid: gym.gridFor(original.exerciseId, original.exercise.equipment),
+              modifiers: week.modifiers,
+              testTop: week.testTop,
+              // As the Session will start: from what was last done, not the planned load.
+              testLoadKg:
+                week.phase === "test" && hasLoad(original.exercise.exerciseType)
+                  ? lastBaselineLoadKg(history)
+                  : null,
+            }),
+          }
+        : original;
     // Stalls compare this Workout across gyms. Progression uses all Sessions for its break clock.
     const stallHistory = history.filter((session) => session.workoutId === id);
     const lastSessionId = stallHistory[0]?.id ?? null;
@@ -146,6 +186,7 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               weightIncrementKg: preferences.ui.weightIncrementKg,
               lighterWeeks: preferences.ui.lighterWeeks,
               deload: count > 0 && memory.applied,
+              phaseLoad: week?.modifiers.load,
               gymId: gym.gymId,
               grid: entry.exercise ? gym.gridFor(entry.exerciseId, entry.exercise.equipment) : null,
             },
@@ -237,6 +278,22 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
               <Button onPress={() => void start(id)}>
                 <Button.Label>{t("session__start")}</Button.Label>
               </Button>
+              {week ? (
+                <Text className="font-normal text-caption text-muted">
+                  {t("phase__preview_note", {
+                    banner:
+                      phaseText.banner(
+                        week.phase,
+                        week.modifiers,
+                        week.testTop,
+                        // The effort shift shows only where the Workout has effort targets.
+                        ready.exercises.some((item) =>
+                          item.sets.some((set) => set.effort_min !== undefined),
+                        ),
+                      ) ?? phaseText.name(week.phase),
+                  })}
+                </Text>
+              ) : null}
               <WorkoutProgressionPreview
                 exercises={progression}
                 unit={unit}

@@ -32,6 +32,7 @@ export {
 
 export * from "./progress/progression";
 export * from "./progress/load-grid";
+export * from "./progress/gym-grids";
 export * from "./progress/gym-history";
 export * from "./progress/gym-setting-id";
 export {
@@ -42,6 +43,7 @@ export {
   loadable,
 } from "./progress/progression-steps";
 export * from "./progress/lighter-week";
+export * from "./phases/phases";
 export * from "./progress/stalled-lift";
 export * from "./plans/week";
 export * from "./plans/session-goal";

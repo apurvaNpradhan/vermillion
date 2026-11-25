@@ -7,6 +7,7 @@ import {
   type Equipment,
   type ExerciseType,
   type MuscleGroup,
+  type PhasePlan,
   type PlannedSet,
 } from "@workspace/shared";
 import { z } from "zod";
@@ -43,6 +44,7 @@ import {
   type SessionDetail,
   type SessionSetCount,
 } from "./sessions/session-watch";
+import { parsePhasePlan } from "./plans/phase-plan";
 import type { TrainingDatabase } from "./store";
 
 const THROTTLE_MS = 150;
@@ -81,6 +83,8 @@ export type WorkoutDetail = {
   note: string | null;
   /** The cover's media (ADR 0040), or null. */
   coverMediaId: string | null;
+  /** The Workout exercise that is the main lift; null (or a stale id) reads as the first. */
+  mainEntryId: string | null;
   exercises: WorkoutExerciseDetail[];
 };
 
@@ -136,6 +140,8 @@ export type ProgramDetail = {
   /** The Sessions a week the Program aims for; null derives it from the rotation. */
   sessionsPerWeek: number | null;
   coverMediaId: string | null;
+  /** The week phases; null is none. */
+  phasePlan: PhasePlan | null;
   slots: ProgramSlotDetail[];
 };
 
@@ -223,6 +229,7 @@ const detailRowSchema = z.object({
   title: z.string().nullable(),
   note: z.string().nullable(),
   cover_media_id: z.string().nullable().optional(),
+  main_entry_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   position: z.string().nullable(),
@@ -243,7 +250,7 @@ const detailRowSchema = z.object({
 });
 
 export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
-    w.note AS note, w.cover_media_id AS cover_media_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
+    w.note AS note, w.cover_media_id AS cover_media_id, w.main_entry_id AS main_entry_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
@@ -301,6 +308,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
     title: first.title,
     note: first.note,
     coverMediaId: first.cover_media_id ?? null,
+    mainEntryId: first.main_entry_id ?? null,
     exercises,
   };
 }
@@ -353,6 +361,7 @@ const programDetailRowSchema = z.object({
   planned_weeks: z.number().nullable(),
   sessions_per_week: z.number().nullable(),
   cover_media_id: z.string().nullable(),
+  phase_plan: z.string().nullable().optional(),
   slot_id: z.string().nullable(),
   slot_position: z.string().nullable(),
   slot_workout_id: z.string().nullable(),
@@ -372,7 +381,7 @@ const programDetailRowSchema = z.object({
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
     p.planned_weeks AS planned_weeks, p.sessions_per_week AS sessions_per_week,
-    p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
+    p.cover_media_id AS cover_media_id, p.phase_plan AS phase_plan, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
     w.cover_media_id AS workout_cover_media_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
@@ -439,6 +448,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
     plannedWeeks: first.planned_weeks,
     sessionsPerWeek: first.sessions_per_week,
     coverMediaId: first.cover_media_id,
+    phasePlan: parsePhasePlan(first.phase_plan),
     slots,
   };
 }

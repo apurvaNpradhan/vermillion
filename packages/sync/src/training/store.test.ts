@@ -104,6 +104,17 @@ describe("programs", () => {
     expect(await updateProgram(s.training, "missing", { title: "x" })).toBe(false);
   });
 
+  it("renames a Program whose stored phase plan this build cannot read", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    // A newer app wrote a phase this build does not know.
+    s.sqlite
+      .prepare("UPDATE program SET phase_plan = ? WHERE id = ?")
+      .run(JSON.stringify({ pattern: ["build", "taper"], overrides: [] }), id);
+    expect(await updateProgram(s.training, id, { title: "Renamed" })).toBe(true);
+    expect(s.one("program", id)).toMatchObject({ title: "Renamed" });
+  });
+
   it("refuses a missing Device owner and a stale install", async () => {
     const bare = createFakeDatabase();
     await expect(

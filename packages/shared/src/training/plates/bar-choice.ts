@@ -5,7 +5,7 @@ import { EZ_BAR_LABEL, TRAP_BAR_LABEL } from "./gym-kit";
 import type { LoadPlate } from "./plates";
 
 /** What choosing a bar needs of a row of a gym's kit. */
-type KitRow = {
+export type KitRow = {
   id: string;
   kind: "bar" | "plate";
   weightKg: number;

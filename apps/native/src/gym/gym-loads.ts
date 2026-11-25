@@ -1,10 +1,6 @@
 import {
-  defaultBar,
-  enabledBars,
-  gymRangesFor,
+  gymGridsOf,
   isEquipmentAvailable,
-  loadGridOf,
-  platesForBar,
   type Equipment,
   type LoadGrid,
   type LoadRange,
@@ -57,39 +53,15 @@ export function buildGymLoads(input: {
   unavailableEquipment?: readonly Equipment[];
 }): GymLoads {
   const byExercise = new Map(input.settings.map((setting) => [setting.exerciseId, setting]));
-  const bars = enabledBars(input.kit);
-  const grids = new Map<string, LoadGrid | null>();
-  const dumbbellMaxKg = input.dumbbellMaxKg ?? null;
+  const grids = gymGridsOf(input);
   const unavailableEquipment = input.unavailableEquipment ?? [];
-  const rangesFor = (exerciseId: string, equipment: Equipment) =>
-    gymRangesFor({ equipment, ranges: byExercise.get(exerciseId)?.loadRanges, dumbbellMaxKg });
   return {
     gymId: input.gymId,
     settingFor: (exerciseId) => byExercise.get(exerciseId),
-    rangesFor,
+    rangesFor: grids.rangesFor,
     unavailableEquipment,
     hasEquipment: (equipment) => isEquipmentAvailable(equipment, unavailableEquipment),
-    gridFor(exerciseId, equipment) {
-      const key = `${exerciseId}|${equipment}`;
-      if (!grids.has(key)) {
-        const bar =
-          equipment === "barbell"
-            ? defaultBar(bars, input.bars?.get(exerciseId), input.unit, equipment)
-            : undefined;
-        grids.set(
-          key,
-          loadGridOf({
-            equipment,
-            unit: input.unit,
-            ranges: byExercise.get(exerciseId)?.loadRanges,
-            dumbbellMaxKg,
-            bar,
-            plates: bar ? platesForBar(input.kit, bar) : [],
-          }),
-        );
-      }
-      return grids.get(key) ?? null;
-    },
+    gridFor: grids.gridFor,
   };
 }
 

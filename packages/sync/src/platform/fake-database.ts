@@ -36,20 +36,20 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         rank INTEGER, search_terms TEXT, aka TEXT, instructions TEXT, video_key TEXT,
         thumbnail_key TEXT, image_media_id TEXT, retired_at TEXT, created_at TEXT);
       CREATE TABLE program (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, description TEXT,
-        planned_weeks INTEGER, sessions_per_week INTEGER, cover_media_id TEXT, created_at TEXT, restore INTEGER);
+        planned_weeks INTEGER, sessions_per_week INTEGER, cover_media_id TEXT, phase_plan TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT, title TEXT,
-        note TEXT, cover_media_id TEXT, created_at TEXT, restore INTEGER);
+        note TEXT, cover_media_id TEXT, main_entry_id TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE workout_exercise (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT,
         exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT, superset_group TEXT,
         sets TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE program_run (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
-        activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, created_at TEXT);
+        activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, inserted_deloads TEXT, created_at TEXT);
       CREATE TABLE program_slot_skip (id TEXT PRIMARY KEY, user_id TEXT, run_id TEXT, slot_id TEXT,
         cycle INTEGER, created_at TEXT);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
         workout_id TEXT, position TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE training_session (id TEXT PRIMARY KEY, user_id TEXT, workout_id TEXT, workout_structure TEXT, import_batch_id TEXT, import_fingerprint TEXT, import_content TEXT, import_undo TEXT,
-        program_id TEXT, run_id TEXT, slot_id TEXT, gym_id TEXT, cycle INTEGER, title TEXT,
+        program_id TEXT, run_id TEXT, slot_id TEXT, gym_id TEXT, phase TEXT, phase_modifiers TEXT, cycle INTEGER, title TEXT,
         title_derived INTEGER, note TEXT, started_at TEXT, finished_at TEXT, duration_s INTEGER,
         device_id TEXT, rest_set_id TEXT, rest_started_at TEXT, rest_ends_at TEXT, paused_at TEXT, paused_ms INTEGER,
         created_at TEXT, restore INTEGER);

@@ -56,6 +56,7 @@ export const trainingUploadColumns = {
     "finished_at",
     "outcome",
     "continued_at",
+    "inserted_deloads",
   ]),
   program: new Set([
     "title",
@@ -63,9 +64,10 @@ export const trainingUploadColumns = {
     "planned_weeks",
     "sessions_per_week",
     "cover_media_id",
+    "phase_plan",
     "restore",
   ]),
-  workout: new Set(["program_id", "title", "note", "cover_media_id", "restore"]),
+  workout: new Set(["program_id", "title", "note", "cover_media_id", "main_entry_id", "restore"]),
   workout_exercise: new Set([
     "workout_id",
     "exercise_id",
@@ -84,6 +86,8 @@ export const trainingUploadColumns = {
     "run_id",
     "slot_id",
     "gym_id",
+    "phase",
+    "phase_modifiers",
     "cycle",
     "title",
     "title_derived",

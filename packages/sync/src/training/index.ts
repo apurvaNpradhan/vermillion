@@ -255,6 +255,7 @@ export {
   stopProgram,
   finishRun,
   keepGoing,
+  insertDeloadNow,
   runAgain,
   readRuns,
   reconcileRuns,

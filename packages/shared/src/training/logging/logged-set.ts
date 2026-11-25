@@ -1,5 +1,6 @@
 import type { ExerciseType } from "../../exercise/vocabulary";
 import type { ActualValues } from "./session-inputs";
+import type { Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 
 /** The actuals of a set; absent and null both mean empty. */
@@ -28,6 +29,8 @@ export type SessionHistory = {
   finished_at: string | null;
   /** The gym trained at; absent or null for a Session with no gym (an older one). */
   gymId?: string | null;
+  /** The phase the Session started in (Test and Deload are not a baseline); null for none. */
+  phase?: Phase | null;
   sets: readonly LoggedSet[];
 };
 

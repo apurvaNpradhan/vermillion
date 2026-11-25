@@ -1,5 +1,6 @@
 import {
   SET_FIELDS,
+  baselineSessions,
   historyForGym,
   historyForWorkout,
   optionalSetIndexes,
@@ -43,6 +44,8 @@ export type DeriveInputs = {
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
+  /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
+  phaseLoad: number;
   bodyweightKg: number | null;
   /** Changes when a stalled note is dismissed or applied (that memory lives on the device). */
   stallVersion: number;
@@ -137,6 +140,7 @@ function buildView(
           grid,
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,
+          phaseLoad: inputs.phaseLoad,
         });
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
@@ -148,13 +152,16 @@ function buildView(
   let lastUnticked = exercise.sets.length - 1;
   while (lastUnticked >= 0 && exercise.sets[lastUnticked]?.completedAt !== null) lastUnticked -= 1;
 
+  const hintHistory = history && baselineSessions(history);
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
     const previous = previousOfRow(history, exercise.sets, index);
+    // The hint is derived from a baseline Session, not from a Test or Deload week.
+    const hinted = previousOfRow(hintHistory, exercise.sets, index);
     const ghosts = loaded
       ? ghostsOf(
           exercise.type,
-          previous,
+          hinted,
           set.target,
           exercise.logEffort,
           suggestion?.sets[index],
