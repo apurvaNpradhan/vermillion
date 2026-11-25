@@ -1,4 +1,4 @@
-export type { GymLoads } from "./gym-loads";
+export { buildGymLoads, type GymLoads } from "./gym-loads";
 export { useGyms } from "./use-gyms";
 export { useGymCap, useGymLoads } from "./use-gym-loads";
 export { useLoggedLoad } from "./use-logged-load";

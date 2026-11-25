@@ -6,6 +6,7 @@ import {
   SESSION_LAST_NOTES_SQL,
   parseFinishedSessions,
   parseSessionDetail,
+  readGymLoadInputs,
   readInstallId,
   type SessionDetail,
   type TrainingDatabase,
@@ -15,6 +16,7 @@ import {
 } from "@workspace/sync";
 import type { Ghosts } from "@workspace/shared";
 import { workoutLive } from "../../../modules/workout-live";
+import { buildGymLoads } from "@/gym";
 import { appConfig } from "@/platform/app-config";
 import { i18n } from "@/platform/i18n";
 import { openLocalData } from "@/platform/local-database";
@@ -45,14 +47,28 @@ let held = "";
 /** Builds the notification from an already validated Session and the current exercise's history. */
 async function snapshotOf(db: TrainingDatabase, session: SessionDetail, options: Options) {
   const ghosts = new Map<string, Ghosts>();
+  // The Session's gym sets the steps and caps of its Ghost values, as on the screen.
+  const read = await readGymLoadInputs(db, session.id);
+  const gym = buildGymLoads({
+    gymId: read.gymId,
+    settings: read.settings,
+    kit: read.kit,
+    bars: read.bars,
+    unit: options.weightUnit,
+  });
   // Only the current set's values are shown or logged, so only its exercise needs its history.
   const first = orderedSets(session.exercises).find((item) => item.set.completedAt === null);
   for (const exercise of first ? [first.exercise] : []) {
     const history = parseFinishedSessions(
       await db.getAll(EXERCISE_HISTORY_SQL, [exercise.exerciseId, exercise.exerciseId]),
     );
+    const settings = {
+      ...options,
+      gymId: read.sessionGymId,
+      grid: gym.gridFor(exercise.exerciseId, exercise.exercise?.equipment ?? "other"),
+    };
     exercise.sets.forEach((set, index) =>
-      ghosts.set(set.id, loggingGhosts(exercise, index, history, options)),
+      ghosts.set(set.id, loggingGhosts(exercise, index, history, settings)),
     );
   }
   const state = workoutLiveState({

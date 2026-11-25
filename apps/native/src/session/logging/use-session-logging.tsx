@@ -67,8 +67,10 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     retry: retryHistory,
   } = usePreviousSets(libraryIds);
 
-  const gym = useGymLoads();
+  // The Session's gym sets caps, steps, the setup note, the kit and the warm-up rounding; a Session
+  // with none reads the gym trained at. Its history reads this gym only (none: every gym).
   const sessionGymId = useSessionGym(session.id);
+  const gym = useGymLoads(sessionGymId);
   const onLoggedLoad = useLoggedLoad(gym);
   const { recordAlerts, sounds, soundMilestones } = preferences.ui;
   const recordBests = useRecordBests(
@@ -132,6 +134,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     actions,
     editsPending: logging.editsPending,
     flushEdits: logging.flush,
+    gymId: gym.gymId,
   });
 
   return {

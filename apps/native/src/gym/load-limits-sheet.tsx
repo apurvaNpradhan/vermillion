@@ -25,9 +25,9 @@ function kgOf(text: string, unit: WeightUnit): number | null | "invalid" {
 const shown = (kg: number | null, unit: WeightUnit) => (kg === null ? "" : formatWeight(kg, unit));
 
 /**
- * Edits what the active gym says about one exercise: the most it can be loaded to, the step it
- * loads in, and a setup note. The same sheet opens from the exercise's settings and from a set in
- * a Session.
+ * Edits what a gym says about one exercise: the most it can be loaded to, the step it loads in,
+ * and a setup note. The same sheet opens from the exercise's settings (the gym trained at) and
+ * from a set in a Session (the Session's gym, else the gym trained at).
  */
 function LoadLimitsSheetBody({
   isOpen,
@@ -36,6 +36,7 @@ function LoadLimitsSheetBody({
   title,
   equipment,
   unit,
+  gymId: forGymId,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,11 +44,13 @@ function LoadLimitsSheetBody({
   title: string;
   equipment: Equipment;
   unit: WeightUnit;
+  /** The gym to edit; none is the gym trained at. */
+  gymId?: string | null;
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((state) => state.height);
-  const setting = useGymSetting(exerciseId, equipment, unit);
+  const setting = useGymSetting(exerciseId, forGymId);
   const [baseline, setBaseline] = useState<{
     gymId: string;
     exerciseId: string;

@@ -101,6 +101,7 @@ function PlateCalculatorSheetBody({
   targetKg,
   exerciseId,
   equipment,
+  gymId,
   onUse,
   onClose,
 }: {
@@ -111,13 +112,15 @@ function PlateCalculatorSheetBody({
   exerciseId: string;
   /** The exercise's equipment: an EZ bar or trap bar opens on its own bar. */
   equipment?: Equipment;
+  /** The Session's gym, whose kit and cap the calculator uses; none is the gym trained at. */
+  gymId?: string | null;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen, equipment);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId);
   return (
     <BottomSheet
       animation={animation}

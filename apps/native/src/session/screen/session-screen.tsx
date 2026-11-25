@@ -473,7 +473,7 @@ const LoadedSession = memo(function LoadedSession({
   const pinnedExercise = sheet?.kind === "pinned" ? sheet.exercise : null;
   const limitsExercise = sheet?.kind === "limits" ? sheet.exercise : null;
 
-  const accessory = useSessionKeypadAccessory(logging, unit);
+  const accessory = useSessionKeypadAccessory(logging, unit, sessionGymId);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
@@ -856,6 +856,7 @@ const LoadedSession = memo(function LoadedSession({
         title={limitsExercise?.title ?? ""}
         equipment={limitsExercise?.exercise?.equipment ?? "other"}
         unit={unit}
+        gymId={sessionGymId}
       />
       <SetTypeSheet
         isOpen={kindSet !== undefined}

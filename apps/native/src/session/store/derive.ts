@@ -93,20 +93,29 @@ export type ExerciseCache = {
   view: ExerciseView;
 };
 
-/** The history an exercise compares with: its Workout's own Sessions first, when asked to. */
-export function historyOf(
+/**
+ * All of an exercise's finished Sessions: its Workout's own first, when asked to. The break clock
+ * and the stall check read this; what the Session's gym adds is {@link historyOf}.
+ */
+function fullHistoryOf(
   exercise: SessionExerciseDetail,
   inputs: DeriveInputs,
   workoutId: string | null,
 ): readonly FinishedSession[] | undefined {
   const all = inputs.previous.get(exercise.exerciseId);
+  return all && historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null);
+}
+
+/** The history an exercise compares with: the Sessions at the Session's gym when it is gym-bound. */
+function historyOf(
+  exercise: SessionExerciseDetail,
+  inputs: DeriveInputs,
+  workoutId: string | null,
+): readonly FinishedSession[] | undefined {
+  const full = fullHistoryOf(exercise, inputs, workoutId);
   return (
-    all &&
-    historyForGym(
-      historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null),
-      inputs.sessionGymId ?? null,
-      exercise.exercise?.equipment ?? "other",
-    )
+    full &&
+    historyForGym(full, inputs.sessionGymId ?? null, exercise.exercise?.equipment ?? "other")
   );
 }
 
@@ -118,6 +127,7 @@ function buildView(
   workoutId: string | null,
   before: ExerciseView | undefined,
 ): ExerciseView {
+  const fullHistory = fullHistoryOf(exercise, inputs, workoutId);
   const history = historyOf(exercise, inputs, workoutId);
   const loaded = rawHistory !== undefined;
   const historyReady = loaded || inputs.historyFailed;
@@ -125,7 +135,8 @@ function buildView(
   // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
   let stall: StallInfo | null = null;
   if (!finished && exercise.sourceWorkoutExerciseId) {
-    const sessions = history ?? [];
+    // A stall is about the lift, wherever it was trained.
+    const sessions = fullHistory ?? [];
     const latestSessionId = sessions[0]?.id ?? null;
     const count = stalledSessions(sessions, exercise.type, {
       bodyweightKg: inputs.bodyweightKg,
@@ -141,9 +152,10 @@ function buildView(
   const suggestion =
     finished || !exercise.sourceWorkoutExerciseId
       ? null
-      : exerciseSuggestion(exercise, history ?? [], {
+      : exerciseSuggestion(exercise, fullHistory ?? [], {
           weightUnit: inputs.unit,
           weightIncrementKg: inputs.weightIncrementKg,
+          gymId: inputs.sessionGymId ?? null,
           grid,
           lighterWeeks: inputs.lighterWeeks,
           deload: stall?.applied === true,

@@ -4,7 +4,7 @@ import { EQUIPMENT } from "@workspace/shared";
 import type { EquipmentRow, GymExerciseSettingRow, GymRow } from "@workspace/sync";
 
 import { capPromptKey, dismissCapPrompt, noteLoggedLoad, pendingCapPrompt } from "./cap-prompt";
-import { buildGymLoads, resolveActiveGym, standardBar } from "./gym-loads";
+import { buildGymLoads, resolveActiveGym } from "./gym-loads";
 
 const item = (over: Partial<EquipmentRow>): EquipmentRow => ({
   id: "x",
@@ -52,16 +52,35 @@ describe("loads of the active gym", () => {
     expect(grid?.above(100)).toBe(102.5);
   });
 
-  it.each(EQUIPMENT.filter((equipment) => equipment !== "barbell"))(
+  it.each(EQUIPMENT.filter((equipment) => equipment !== "barbell" && equipment !== "dumbbell"))(
     "gives %s with no setting no grid, so its default step applies",
     (equipment) => {
       expect(loads.gridFor("unset", equipment)).toBeNull();
     },
   );
 
+  it("gives a dumbbell with no setting the usual rack, so its loads snap to it", () => {
+    const grid = loads.gridFor("unset", "dumbbell");
+    expect(grid?.source).toBe("default");
+    expect(grid?.above(10)).toBe(12.5);
+  });
+
   it("an exercise whose ranges are empty falls back to the kit or the default", () => {
-    expect(loads.gridFor("curl", "dumbbell")).toBeNull();
+    expect(loads.gridFor("curl", "dumbbell")?.source).toBe("default");
     expect(loads.gridFor("curl", "barbell")?.source).toBe("kit");
+  });
+
+  it("holds the kit's loads to a cap set without a step", () => {
+    const capped = buildGymLoads({
+      gymId: "g",
+      settings: [setting("squat", [{ min: 0, max: 100, step: null }])],
+      kit,
+      unit: "kg",
+    });
+    const grid = capped.gridFor("squat", "barbell");
+    expect(grid?.source).toBe("kit");
+    expect(grid?.capKg).toBe(100);
+    expect(grid?.above(97.5)).toBe(100);
   });
 
   it("gives no barbell grid for a bar-less kit", () => {
@@ -75,21 +94,42 @@ describe("loads of the active gym", () => {
   });
 });
 
-describe("the standard bar", () => {
-  it("is the plain bar nearest 20 kg or 45 lb in the unit", () => {
-    expect(standardBar(kit, "kg")).toEqual({ weightKg: 20, unit: "kg" });
-    const mixed = [
-      item({ id: "a", kind: "bar", weightKg: 15 }),
-      item({ id: "b", kind: "bar", weightKg: 20.4117, unit: "lb" }),
-    ];
-    expect(standardBar(mixed, "lb")).toEqual({ weightKg: 20.4117, unit: "lb" });
-    expect(standardBar(mixed, "kg")).toEqual({ weightKg: 15, unit: "kg" });
+describe("the bar an exercise loads with", () => {
+  const rows = [
+    item({ id: "bar", kind: "bar", weightKg: 20 }),
+    item({ id: "light", kind: "bar", weightKg: 15 }),
+    item({ id: "ez", kind: "bar", weightKg: 10, label: "EZ" }),
+    item({ id: "p25", weightKg: 25 }),
+    item({ id: "p5", weightKg: 5 }),
+    item({ id: "p1", weightKg: 1 }),
+  ];
+  const at = (bars: ReadonlyMap<string, string> | undefined, kitRows = rows) =>
+    buildGymLoads({ gymId: "g", settings: [], kit: kitRows, bars, unit: "kg" }).gridFor(
+      "squat",
+      "barbell",
+    );
+
+  it.each([
+    { name: "the gym's default bar when none is remembered", bars: undefined, atBar: 20 },
+    { name: "the bar the exercise remembers", bars: new Map([["squat", "light"]]), atBar: 15 },
+    {
+      name: "the gym's default bar when the remembered bar belongs to another gym",
+      bars: new Map([["squat", "bar-of-another-gym"]]),
+      atBar: 20,
+    },
+  ])("is $name", ({ bars, atBar }) => {
+    // The bare bar is the lightest load; one pair of the 1 kg plates is the next.
+    expect(at(bars)?.above(atBar)).toBe(atBar + 2);
+    expect(at(bars)?.below(atBar + 2)).toBe(atBar);
   });
 
-  it("skips disabled and labelled bars, and none is null", () => {
-    expect(standardBar([item({ kind: "bar", enabled: false })], "kg")).toBeNull();
-    expect(standardBar([item({ kind: "bar", label: "EZ" })], "kg")).toBeNull();
-    expect(standardBar([], "kg")).toBeNull();
+  it("ignores a remembered bar that is disabled here", () => {
+    const off = rows.map((row) => (row.id === "light" ? { ...row, enabled: false } : row));
+    expect(at(new Map([["squat", "light"]]), off)?.below(22)).toBe(20);
+  });
+
+  it("is none for a kit with no bar", () => {
+    expect(at(undefined, [item({ id: "p5" })])).toBeNull();
   });
 });
 

@@ -2,6 +2,7 @@ import { limitsOfRanges } from "@workspace/shared";
 import { useCallback, useMemo } from "react";
 import {
   watchEquipment,
+  watchExerciseBars,
   watchGymExerciseSettings,
   type EquipmentRow,
   type GymExerciseSettingRow,
@@ -15,29 +16,42 @@ import { buildGymLoads, NO_GYM_LOADS, type GymLoads } from "./gym-loads";
 import { useGyms } from "./use-gyms";
 
 /**
- * The loads of the active gym: its exercise settings and its kit, as one memoised value.
- * `NO_GYM_LOADS` until the first sync has delivered a gym.
+ * The loads of one gym: its exercise settings and its kit, as one memoised value. With no `gymId`
+ * it is the gym trained at; a Session passes its own, and one that has none (an older Session, or
+ * "Any gym") passes null and reads the gym trained at too. `NO_GYM_LOADS` until the first sync has
+ * delivered a gym.
  */
-export function useGymLoads(): GymLoads {
+export function useGymLoads(gymId?: string | null): GymLoads {
   const { activeGymId, defaultGymId } = useGyms();
+  const wanted = gymId ?? activeGymId;
   const unit = usePreference((preferences) => preferences.ui.weightUnit);
-  const settings = useGymExerciseSettings(activeGymId).value;
+  const settings = useGymExerciseSettings(wanted).value;
   const kitSubscribe = useCallback(
     (db: TrainingDatabase, onValue: (rows: EquipmentRow[]) => void, onError: () => void) =>
       watchEquipment(
         db,
         { onEquipment: onValue, onError: () => onError() },
-        { gymId: activeGymId, unassigned: activeGymId === null || activeGymId === defaultGymId },
+        // Rows from before gyms existed have no gym; they belong to the oldest one.
+        { gymId: wanted, unassigned: wanted === null || wanted === defaultGymId },
       ),
-    [activeGymId, defaultGymId],
+    [wanted, defaultGymId],
   );
   const kit = useLocalWatch(kitSubscribe).value;
+  const barsSubscribe = useCallback(
+    (
+      db: TrainingDatabase,
+      onValue: (bars: ReadonlyMap<string, string>) => void,
+      onError: () => void,
+    ) => watchExerciseBars(db, { onBars: onValue, onError: () => onError() }),
+    [],
+  );
+  const bars = useLocalWatch(barsSubscribe).value;
   return useMemo(
     () =>
-      activeGymId === null
+      wanted === null
         ? NO_GYM_LOADS
-        : buildGymLoads({ gymId: activeGymId, settings: settings ?? [], kit: kit ?? [], unit }),
-    [activeGymId, settings, kit, unit],
+        : buildGymLoads({ gymId: wanted, settings: settings ?? [], kit: kit ?? [], bars, unit }),
+    [wanted, settings, kit, bars, unit],
   );
 }
 
@@ -62,7 +76,7 @@ export function useGymExerciseSettings(gymId: string | null) {
   return useLocalWatch(settingsSubscribe);
 }
 
-/** The calculator must wait for the active gym's settings before it can offer a load. */
+/** The calculator must wait for its gym's settings before it can offer a load. */
 export function useGymCap(gymId: string | null, exerciseId: string) {
   const settings = useGymExerciseSettings(gymId);
   const ranges =

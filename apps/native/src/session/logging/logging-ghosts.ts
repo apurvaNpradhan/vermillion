@@ -19,12 +19,16 @@ export type SuggestionSettings = {
   lighterWeeks?: readonly LighterPeriod[];
   /** The stalled-lift deload was applied to this exercise. */
   deload?: boolean;
-  /** The gym trained at: machine, cable and Smith exercises read this gym's history first. */
+  /**
+   * The gym whose Sessions are the baseline: machine, cable and Smith exercises read this gym's
+   * history first. The break clock and the stall check still read all of it.
+   */
   gymId?: string | null;
   /** The loads and cap of this gym for the exercise; null is the equipment default. */
   grid?: LoadGrid | null;
 };
 
+/** `history` is all of the exercise's Sessions, newest first; the gym picks the baselines. */
 export function plannedSuggestion(
   sets: readonly PlannedSet[],
   history: readonly SessionHistory[],
@@ -34,11 +38,17 @@ export function plannedSuggestion(
 ) {
   return suggestNext(
     sets,
-    historyForGym(history, settings.gymId ?? null, exercise.equipment),
+    history,
     exercise.type,
     exercise.equipment,
     { ...settings, progressionPerSet: exercise.progressionPerSet },
-    { now, lighterWeeks: settings.lighterWeeks, deload: settings.deload, grid: settings.grid },
+    {
+      now,
+      baselineHistory: historyForGym(history, settings.gymId ?? null, exercise.equipment),
+      lighterWeeks: settings.lighterWeeks,
+      deload: settings.deload,
+      grid: settings.grid,
+    },
   );
 }
 
@@ -70,7 +80,11 @@ export function loggingGhosts(
   return set
     ? ghostsOf(
         exercise.type,
-        previousOfRow(history, exercise.sets, index),
+        previousOfRow(
+          historyForGym(history, settings.gymId ?? null, exercise.exercise?.equipment ?? "other"),
+          exercise.sets,
+          index,
+        ),
         set.target,
         exercise.logEffort,
         exerciseSuggestion(exercise, history, settings)?.sets[index],

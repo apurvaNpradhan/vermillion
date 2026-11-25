@@ -25,7 +25,7 @@ export function GymLimitRows({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const setting = useGymSetting(exerciseId, equipment, unit);
+  const setting = useGymSetting(exerciseId);
   if (!setting.ready) return null;
   const amount = (kg: number | null) =>
     kg === null ? t("gym__not_set") : t("plates__weight", { weight: formatWeight(kg, unit), unit });

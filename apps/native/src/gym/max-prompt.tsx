@@ -1,4 +1,4 @@
-import { formatWeight, type Equipment, type WeightUnit } from "@workspace/shared";
+import { formatWeight, usesGymHistory, type Equipment, type WeightUnit } from "@workspace/shared";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -58,7 +58,7 @@ function PromptAnswer({
 }) {
   const { t } = useTranslation();
   const { updateUi } = usePreferences();
-  const setting = useGymSetting(exerciseId, equipment, unit);
+  const setting = useGymSetting(exerciseId, gymId);
   const [busy, setBusy] = useState(false);
   if (!setting.ready || setting.gymId !== gymId || setting.maxKg !== null) return null;
   const answer = async (confirm: boolean) => {
@@ -82,7 +82,9 @@ function PromptAnswer({
   return (
     <View className="gap-2 rounded-xl bg-surface px-3 py-3" accessibilityLiveRegion="polite">
       <Text className="text-body text-foreground">
-        {t("gym__max_prompt", { weight: formatWeight(kg, unit), unit })}
+        {usesGymHistory(equipment)
+          ? t("gym__max_prompt", { weight: formatWeight(kg, unit), unit })
+          : t("gym__max_prompt_free", { weight: formatWeight(kg, unit), unit })}
       </Text>
       <View className="flex-row gap-2">
         <Button

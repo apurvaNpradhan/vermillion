@@ -1525,6 +1525,7 @@
   "gym__limits_hint": "The most you can load, and the step you load in.",
   "gym__limits_hint_at": "The loads you can use at {{gym}}.",
   "gym__max_prompt": "Is {{weight}} {{unit}} the max on this machine?",
+  "gym__max_prompt_free": "Is {{weight}} {{unit}} the heaviest here?",
   "gym__max_yes": "Yes, set the max",
   "gym__max_no": "Not yet",
   "gym__limits_action": "Max load and setup",

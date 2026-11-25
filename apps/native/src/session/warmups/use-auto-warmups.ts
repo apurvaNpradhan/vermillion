@@ -41,6 +41,7 @@ export function useAutoWarmups({
   actions,
   editsPending,
   flushEdits,
+  gymId,
 }: {
   session: SessionDetail;
   ghostWeightOf: (setId: string) => number | null;
@@ -52,9 +53,11 @@ export function useAutoWarmups({
   actions: Actions;
   editsPending: () => boolean;
   flushEdits: () => void;
+  /** The kit that rounds the ramp: the Session's gym, else the gym trained at. */
+  gymId: string | null;
 }) {
   const active = !readOnly && session.finishedAt === null;
-  const equipment = useEquipment(active);
+  const equipment = useEquipment(active, gymId ?? undefined, true);
   const rows = equipment.rows;
   const equipmentReady = equipment.value !== undefined;
   const asked = useRef(new Set<string>());

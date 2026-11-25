@@ -116,6 +116,86 @@ describe("deriveExercises", () => {
     });
   });
 
+  describe("a Session's suggestion from another gym's history", () => {
+    const planned = exercise(
+      "press",
+      [set("p1", { target: { kind: "working", reps_min: 8, reps_max: 12 } })],
+      {
+        sourceWorkoutExerciseId: "plan",
+        exercise: {
+          equipment: "machine",
+          primaryMuscle: "chest",
+          secondaryMuscles: [],
+          thumbnailKey: null,
+        },
+      },
+    );
+    const at = (gymId: string, weight: number, started: string): FinishedSession => ({
+      id: `${gymId}-${started}`,
+      gymId,
+      started_at: started,
+      finished_at: started,
+      title: "Press",
+      durationS: 60,
+      pausedMs: 0,
+      workoutId: null,
+      sets: [
+        {
+          id: `${gymId}-${started}`,
+          exercise_id: planned.exerciseId,
+          exercise_type: "weight_reps",
+          kind: "working",
+          completed_at: started,
+          reps: 12,
+          weight_kg: weight,
+        },
+      ],
+    });
+    const ghost = (history: FinishedSession[], over: Partial<DeriveInputs> = {}) =>
+      deriveExercises(
+        [planned],
+        inputs({
+          sessionGymId: "garage",
+          previous: new Map([[planned.exerciseId, history]]),
+          ...over,
+        }),
+        context,
+        new Map(),
+      ).get(planned.id)?.view;
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+
+    it("reads the loads from this gym and the break from every gym", () => {
+      // Trained at another gym two days ago: no break, whatever this gym's last Session was.
+      const view = ghost([at("active", 70, daysAgo(2)), at("garage", 40, daysAgo(40))]);
+      expect(view?.suggestion?.reason).toBe("add_weight");
+      expect(view?.suggestion?.breakDays).toBeNull();
+      expect(view?.rows.get("p1")?.ghosts.weight).toBeGreaterThan(40);
+      expect(view?.rows.get("p1")?.ghosts.weight).toBeLessThan(70);
+    });
+
+    it("still takes a break from a long absence from every gym", () => {
+      const view = ghost([at("garage", 40, daysAgo(40)), at("active", 70, daysAgo(45))]);
+      expect(view?.suggestion?.reason).toBe("after_break");
+    });
+
+    it("counts a stall across gyms", () => {
+      const stalled = (gym: string, day: number): FinishedSession => ({
+        ...at(gym, 60, daysAgo(day)),
+        sets: [{ ...at(gym, 60, daysAgo(day)).sets[0]!, reps: 8 }],
+      });
+      const history = [
+        stalled("active", 1),
+        stalled("garage", 4),
+        stalled("active", 8),
+        stalled("garage", 11),
+      ];
+      const here = ghost(history)?.stall;
+      const there = ghost(history, { sessionGymId: "active" })?.stall;
+      expect(here?.count).toBeGreaterThan(0);
+      expect(there?.count).toBe(here?.count);
+    });
+  });
+
   it("waits for the history of an exercise before it counts as ready", () => {
     expect(deriveExercises([b], inputs(), context, new Map()).get("b")?.view.historyReady).toBe(
       false,

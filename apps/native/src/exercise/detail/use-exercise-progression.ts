@@ -61,8 +61,9 @@ export function useExerciseProgression(
   const lighterWeeks = usePreference((preferences) => preferences.ui.lighterWeeks);
   const sets = plan.value;
   const suggestion = sets
-    ? suggestNext(sets, historyForGym(sessions, gym.gymId, equipment), type, equipment, settings, {
+    ? suggestNext(sets, sessions, type, equipment, settings, {
         now: new Date(),
+        baselineHistory: historyForGym(sessions, gym.gymId, equipment),
         lighterWeeks,
         grid: gym.gridFor(exerciseId, equipment),
       })

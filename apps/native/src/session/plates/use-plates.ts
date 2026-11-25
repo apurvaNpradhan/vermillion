@@ -39,8 +39,13 @@ import {
 /** Write scopes whose empty inventory this app run has already seeded. */
 const seededScopes = new Set<string>();
 
-/** Owns all calculator inventory reads and writes, including account-scoped errors and Undo. */
-export function useEquipment(enabled = true, gymId?: string) {
+/**
+ * Owns all calculator inventory reads and writes, including account-scoped errors and Undo. With no
+ * `gymId` it is the kit of the gym trained at and seeds the default kit into an empty inventory;
+ * the kit screen of one gym passes its id and does not seed, and a Session passes its own with
+ * `seed` on (its gym may be the only one the account has).
+ */
+export function useEquipment(enabled = true, gymId?: string, seed = gymId === undefined) {
   const { t } = useTranslation();
   const { toast } = useAppToast();
   const local = useLocalData();
@@ -87,14 +92,7 @@ export function useEquipment(enabled = true, gymId?: string) {
   // The first sync may deliver the account's own kit, so the default kit goes in only after it,
   // into an inventory that loaded empty, and once per write scope.
   useEffect(() => {
-    if (
-      !enabled ||
-      gymId !== undefined ||
-      !database ||
-      isLoading ||
-      (hasSynced && activeGymId === null)
-    )
-      return;
+    if (!enabled || !seed || !database || isLoading || (hasSynced && activeGymId === null)) return;
     if (
       !canSeedEquipment({
         hasSynced,
@@ -106,12 +104,12 @@ export function useEquipment(enabled = true, gymId?: string) {
     )
       return;
     seededScopes.add(scope);
-    void run((db) => seedEquipment(db, scope)).then((done) => {
+    void run((db) => seedEquipment(db, scope, activeGymId ?? undefined)).then((done) => {
       if (done === null) seededScopes.delete(scope);
     });
   }, [
     enabled,
-    gymId,
+    seed,
     database,
     isLoading,
     hasSynced,
@@ -183,8 +181,10 @@ export function usePlates(
   exerciseId: string,
   enabled = true,
   equipmentKind?: Equipment,
+  /** The Session's gym: its kit and its cap. None (or null) is the gym trained at. */
+  gymId?: string | null,
 ) {
-  const equipment = useEquipment(enabled);
+  const equipment = useEquipment(enabled, gymId ?? undefined, true);
   const { run, scope } = equipment;
   const [selected, setSelected] = useState<{
     exerciseId: string;

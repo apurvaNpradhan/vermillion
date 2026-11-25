@@ -3,6 +3,7 @@ import { createI18n } from "@workspace/i18n";
 import { describe, expect, it } from "vitest";
 import { workoutLivePayloadSchema, workoutLiveState } from "./workout-live-state";
 import { loggingGhosts } from "../logging/logging-ghosts";
+import { buildGymLoads } from "../../gym/gym-loads";
 
 const T0 = Date.parse("2026-01-01T10:00:00.000Z");
 const at = (seconds: number) => new Date(T0 + seconds * 1000).toISOString();
@@ -185,6 +186,64 @@ describe("workout live notification", () => {
     });
     expect(result.canLog).toBe(false);
     expect(workoutLivePayloadSchema.parse(JSON.parse(JSON.stringify(result)))).toEqual(result);
+  });
+  it("steps a Ghost value by the grid of the Session's gym, and stops at its cap", () => {
+    const planned = exercise(
+      "press",
+      [set("1", { target: { kind: "working", reps_min: 8, reps_max: 8 } })],
+      {
+        sourceWorkoutExerciseId: "plan",
+        exercise: {
+          equipment: "machine",
+          primaryMuscle: "chest",
+          secondaryMuscles: [],
+          thumbnailKey: null,
+        },
+      },
+    );
+    const done = (weight: number) => [
+      {
+        started_at: "2026-11-20T10:00:00Z",
+        id: "past",
+        gymId: "garage",
+        finished_at: "2026-11-20T11:00:00Z",
+        title: "Press",
+        durationS: 3600,
+        pausedMs: 0,
+        workoutId: null,
+        sets: [
+          {
+            id: "x",
+            exercise_id: planned.exerciseId,
+            exercise_type: "weight_reps" as const,
+            kind: "working" as const,
+            completed_at: "2026-11-20T10:30:00Z",
+            reps: 8,
+            weight_kg: weight,
+          },
+        ],
+      },
+    ];
+    const settings = { weightUnit: "kg", weightIncrementKg: null, gymId: "garage" } as const;
+    const stack = (max: number) =>
+      buildGymLoads({
+        gymId: "garage",
+        unit: "kg",
+        kit: [],
+        settings: [
+          {
+            exerciseId: planned.exerciseId,
+            setupNote: null,
+            loadRanges: [{ min: 5, max, step: 5 }],
+          },
+        ],
+      }).gridFor(planned.exerciseId, "machine");
+    const next = (weight: number, max: number) =>
+      loggingGhosts(planned, 0, done(weight), { ...settings, grid: stack(max) }).weight;
+    expect(next(40, 90)).toBe(45);
+    expect(next(90, 90)).toBe(90);
+    // The same history with no grid steps by the equipment's own step instead.
+    expect(loggingGhosts(planned, 0, done(40), settings).weight).not.toBe(45);
   });
   it("uses planned ghosts when there is no history and leaves genuinely empty cells empty", () => {
     const e = exercise("a", [
