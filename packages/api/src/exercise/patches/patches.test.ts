@@ -104,21 +104,23 @@ describe("Catalog patches (seam 1)", () => {
       expect(outcome.skippedFills).toEqual([]);
     }
     const gaps = outcomes.find((outcome) => outcome.file === "0004-gaps-and-staples.json");
-    expect(gaps).toMatchObject({ inserted: 47, filled: 4, changed: 0 });
+    expect(gaps).toMatchObject({ inserted: 43, filled: 7, changed: 0 });
 
     const leaning = await row("019c5c2e-9543-78c7-b4b9-8693bb3c9736");
     expect(leaning).toMatchObject({ title: "Leaning Lateral Raise (Cable)", equipment: "cable" });
-    const aliased = await app.rows(
-      sql`SELECT title FROM exercise WHERE user_id IS NULL AND aka IN
-            ('Larsen Press', 'KAS Glute Bridge', 'Reverse Pec Deck', 'Bayesian Curl')
-          ORDER BY title`,
-    );
-    expect(aliased.map((entry) => entry.title)).toEqual([
-      "Behind the Back Curl (Cable)",
-      "Feet Up Bench Press (Barbell)",
-      "Partial Glute Bridge (Barbell)",
-      "Rear Delt Reverse Fly (Machine)",
-    ]);
+    const aliases = [
+      { id: "10b7e245-48ef-5aec-82fa-671b0a187fc1", aka: "Larsen Press" },
+      { id: "657dd1f6-1916-5066-8d99-13a2457856a0", aka: "KAS Glute Bridge" },
+      { id: "aa4a0602-8a05-56b2-9c54-75bac5e898ff", aka: "Reverse Pec Deck" },
+      { id: "17297c88-f42f-532e-8272-0b96ed5ad159", aka: "Bayesian Curl" },
+      { id: "9392828a-34fa-5f0e-9886-ef06d1134e65", aka: "Tate Press" },
+      { id: "f0035355-2ed2-5b83-a1ae-ac0451811ec2", aka: "High-Bar Squat" },
+      { id: "a54e3858-c790-54a2-865c-4ea675adb508", aka: "Neutral-Grip Lat Pulldown" },
+      { id: "019c5c4a-8d3d-7dd0-be96-d5936e8904eb", aka: "Pigeon Pose" },
+    ];
+    for (const { id, aka } of aliases) {
+      expect(await app.rows(sql`SELECT aka FROM exercise WHERE id = ${id}`)).toEqual([{ aka }]);
+    }
     // The three cable raises the round named were already retagged by patch 0001.
     const cableRaises = await app.rows(
       sql`SELECT equipment FROM exercise WHERE id IN

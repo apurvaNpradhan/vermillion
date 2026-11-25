@@ -5,16 +5,6 @@
     "source_image_key": "static/exercises/png/38801101-Cable-Leaning-Lateral-Raise_Shoulders-FIX_small.png"
   },
   {
-    "id": "019c5c30-3c0c-7219-92ca-f259a2be616e",
-    "source_video_key": "static/exercises/mp4/75831201-Cable-Neutral-Grip-Lat-Pulldown-(male)_Back_.mp4",
-    "source_image_key": "static/exercises/png/75831101-Cable-Neutral-Grip-Lat-Pulldown-(male)_Back_small.png"
-  },
-  {
-    "id": "019c5c34-ce7e-70a4-9d47-439e956780e8",
-    "source_video_key": "static/exercises/mp4/14361201-Barbell-High-Bar-Squat_Thighs_.mp4",
-    "source_image_key": "static/exercises/png/14361101-Barbell-High-Bar-Squat_Thighs_small.png"
-  },
-  {
     "id": "019c5c42-9d97-79d6-b650-94bb0e4f6cdd",
     "source_video_key": "static/exercises/mp4/02281201-Cable-Standing-Hip-Extension_Hips-FIX_.mp4",
     "source_image_key": "static/exercises/png/02281101-Cable-Standing-Hip-Extension_Hips_small.png"
@@ -85,19 +75,9 @@
     "source_image_key": "static/exercises/png/55181101-Cable-Kneeling-Leaning-Forward-One-Arm-Row_Back_small.png"
   },
   {
-    "id": "019c5c39-8185-7de3-88f0-f99caf6d3547",
-    "source_video_key": "static/exercises/mp4/04361201-Dumbbell-Tate-Press_Triceps.mp4",
-    "source_image_key": "static/exercises/png/04361101-Dumbbell-Tate-Press_Triceps_small.png"
-  },
-  {
     "id": "019c5c38-5c30-70cd-8d00-5fcb326f1465",
     "source_video_key": "static/exercises/mp4/46331201-Worlds-Greatest-Stretch_Stretching.mp4",
     "source_image_key": "static/exercises/png/46331101-Worlds-Greatest-Stretch_Stretching_small.png"
-  },
-  {
-    "id": "019c5c36-c2ff-7430-aade-013a42d30694",
-    "source_video_key": "static/exercises/mp4/19431201-Pigeon-Hip-Stretch_Hips-FIX_.mp4",
-    "source_image_key": "static/exercises/png/19431101-Pigeon-Hip-Stretch_Hips_small.png"
   },
   {
     "id": "019c5c4a-8d3d-7dd0-be96-d5936e8904eb",

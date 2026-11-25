@@ -10,9 +10,9 @@ PPL + Upper/Lower and the 4-day Upper/Lower fat-loss Programs.
 
 ## Covered by patch 0004 (gaps and staples)
 
-Patch `0004-gaps-and-staples.json` adds all of the below to the Reference catalog (47 rows). Migrate
-plan rows from each Custom exercise to the catalog id when the patch is live. The stretches are
-`duration`; Cat-Cow, Thoracic Open Book and the drills are `reps_only`.
+Patch `0004-gaps-and-staples.json` adds 43 Reference catalog rows and fills seven aliases on
+existing rows. Migrate plan rows from each Custom exercise to the catalog id when the patch is
+live. The stretches below use `duration`. Cat-Cow, Thoracic Open Book and the drills use `reps_only`.
 
 | Was a Custom exercise    | Catalog title              |
 | ------------------------ | -------------------------- |
@@ -31,17 +31,31 @@ mobility lists from the Gyms, phases and Train round (see its section 6), and th
 (Copenhagen plank, reverse Nordic, Spanish squat, safety-bar squat, Kelso shrug, Lu raise, Kroc
 row, Helms row, Spoto press). Foam rolling stays out on purpose.
 
-Media: 24 of the 47 rows have a video and thumbnail from the old dataset, 9 have a thumbnail only,
-and 14 have none (Standing Glute Squeeze, 90/90 Hip Stretch, Side-to-Side Leg Swing, Snatch-Grip
-Shrug, Thread the Needle and the nine staples above). Thread the Needle's source file name has a
-space, which a media key cannot hold; rename it in the bucket to add its media later.
+## Publish media before deploying 0004
 
-Ops after the patch is live: run `pnpm catalog:media --patch
-packages/api/src/exercise/data/patches/0004-gaps-and-staples.json --candidates
-scripts/catalog/expansion/0004-media-sources.json --out <dir>` with the source and exercise-media
-bucket credentials. It copies each row's thumbnail and video to `exercises/v2/`; rows with no
-source are not in the candidates file and are not touched. Until it runs, the new rows show
-without media (the patch only stores the keys).
+Of the 43 new rows, 20 reference a video and thumbnail and nine reference a thumbnail only.
+The other 14 intentionally have both keys set to null. They include Standing Glute Squeeze,
+90/90 Hip Stretch, Side-to-Side Leg Swing, Snatch-Grip Shrug, Thread the Needle and the nine
+staples above. Thread the Needle's source filename contains a space. Rename it in the source
+bucket before adding its media in a later patch.
+
+From the repo root, with source and exercise-media bucket credentials set, copy the media for
+the 29 rows that reference it. The filtered file is input to the copier only.
+
+```sh
+patch=packages/api/src/exercise/data/patches/0004-gaps-and-staples.json
+out=./catalog-0004-media
+mkdir -p "$out"
+jq '{insert: [.insert[] | select(.thumbnail_key != null or .video_key != null)]}' \
+  "$patch" > "$out/patch-with-media.json"
+pnpm catalog:media --patch "$out/patch-with-media.json" \
+  --candidates scripts/catalog/expansion/0004-media-sources.json --out "$out"
+```
+
+Inspect `failures` in `media-keys.json` even if the copier exits successfully. A missing candidate
+or a failed copy for a referenced key needs to be fixed and retried. Check that the reported keys
+match the patch for each row and that a HEAD request to the public media hostname returns 200
+for every referenced video and thumbnail. Deploy 0004 only after those objects are verified.
 
 ## Missing, worked around without a custom exercise
 
@@ -61,9 +75,10 @@ without media (the patch only stores the keys).
 - **Close-grip cable row**: `Seated Cable Row - V Grip (Cable)`.
 - **Cable overhead shrug and rotations**: `Overhead Shrug (Barbell)`,
   `Shoulder External Rotation (Cable)`, `Shoulder Internal Rotation (Cable)`.
-- **Tate press, Larsen press, KAS glute bridge**: `Tate Press (Dumbbell)` is new in patch 0004;
-  `Feet Up Bench Press (Barbell)` and `Partial Glute Bridge (Barbell)` carry the Larsen press and
-  KAS glute bridge aliases.
+- **Tate press, Larsen press, KAS glute bridge** are aliases for `Wide-Elbow Triceps Press (Dumbbell)`,
+  `Feet Up Bench Press (Barbell)` and `Partial Glute Bridge (Barbell)` in patch 0004.
+- **High-Bar Squat** and **Neutral-Grip Lat Pulldown** are aliases for `Squat (Barbell)` and
+  `Lat Pulldown - Close Grip (Cable)`. **Pigeon Pose** finds the folded `Half Pigeon Stretch`.
 
 ## Modelling notes
 
