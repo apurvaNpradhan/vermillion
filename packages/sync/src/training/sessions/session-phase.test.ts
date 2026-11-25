@@ -1,7 +1,9 @@
-import { insertedDeloadsSchema, type PhasePlanInput } from "@workspace/shared";
+import { KG_PER_LB, insertedDeloadsSchema, type PhasePlanInput } from "@workspace/shared";
 import { expect, it } from "vitest";
 import { z } from "zod";
 
+import { savePreferences } from "../../preferences";
+import { setGymExerciseSetting } from "../gyms/gym-store";
 import { activateProgram, finishRun, insertDeloadNow, readRuns } from "../plans/run-store";
 import {
   addExercises,
@@ -13,8 +15,9 @@ import {
   updateWorkout,
   updateWorkoutExercise,
 } from "../store";
-import { CURL, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
-import { startSession } from "./session-store";
+import { CURL, PUSHUP, SQUAT, setupSessions, type Sessions } from "./session-fixtures";
+import { finishSession, startSession } from "./session-store";
+import { tickSet, updateSet } from "./session-content-store";
 
 const DAY = 86_400_000;
 
@@ -260,6 +263,126 @@ it("rejects a phase plan that is not valid", async () => {
         phase_plan: { pattern: [], overrides: [], modifiers: {}, test_top: "single" },
       }),
     ).rejects.toThrow();
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+const HOME = "0192f0a0-0000-7000-8000-0000000000a1";
+const deliverGym = (s: Sessions) =>
+  s.sqlite
+    .prepare("INSERT INTO gym (id, user_id, name, created_at) VALUES (?, 'owner', 'My gym', ?)")
+    .run(HOME, "2026-11-01T00:00:00Z");
+
+const lb = (kg: number) => Math.round((kg / KG_PER_LB) * 100) / 100;
+
+it("lowers a Deload in the user's unit: 100 lb on a barbell becomes 90 lb", async () => {
+  const s = await setupSessions();
+  try {
+    deliverGym(s);
+    await savePreferences(
+      s.training,
+      { ui: { weightUnit: "lb" } },
+      { installId: s.installId, owner: "owner" },
+    );
+    const { workoutId, runId, squat } = await setup(s, { pattern: ["deload"] });
+    await updateWorkoutExercise(s.training, squat, {
+      sets: [{ kind: "working", reps_min: 5, reps_max: 5, weight_kg: 100 * KG_PER_LB }],
+    });
+    const id = await startInWeek(s, runId, workoutId, 1);
+    const [top] = targetsOf(s, id).get(SQUAT) ?? [];
+    expect(lb(top?.weight_kg ?? 0)).toBe(90);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("lowers a Deload onto the Session gym's load grid and keeps it under its cap", async () => {
+  const s = await setupSessions();
+  try {
+    deliverGym(s);
+    // A rack in steps of 5: 60 kg x 0.9 = 54 kg snaps down to 50 kg (the default rack gives 52.5).
+    await setGymExerciseSetting(
+      s.training,
+      { gymId: HOME, exerciseId: CURL },
+      { load_ranges: [{ min: 5, max: 50, step: 5 }] },
+      s.installId,
+    );
+    const { workoutId, runId, curl } = await setup(s, { pattern: ["deload"] });
+    await updateWorkoutExercise(s.training, curl, {
+      sets: [{ kind: "working", reps_min: 8, reps_max: 8, weight_kg: 60 }],
+    });
+    const id = await startInWeek(s, runId, workoutId, 1);
+    // 54 kg floors to 50 on the gym's steps; the planned 60 kg was past the gym's cap anyway.
+    expect(targetsOf(s, id).get(CURL)?.[0]?.weight_kg).toBe(50);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("keeps the modifiers it started with when the plan is edited later", async () => {
+  const s = await setupSessions();
+  try {
+    const { programId, workoutId, runId } = await setup(s, { pattern: ["deload"] });
+    const id = await startInWeek(s, runId, workoutId, 1);
+    await updateProgram(s.training, programId, {
+      phase_plan: {
+        pattern: ["deload"],
+        overrides: [],
+        modifiers: { deload: { sets: 1, rpe: 0, load: 1 } },
+        test_top: "amrap",
+      },
+    });
+    const { phase_modifiers: stored } = z
+      .object({ phase_modifiers: z.string() })
+      .parse(s.one("training_session", id));
+    expect(JSON.parse(stored)).toEqual({ sets: 0.5, rpe: -2, load: 0.9, test_top: "single" });
+    // The snapshot survives finishing the Session.
+    await finishSession(s.training, id);
+    expect(
+      z.object({ phase_modifiers: z.string() }).parse(s.one("training_session", id))
+        .phase_modifiers,
+    ).toBe(stored);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("starts a Test week's top set from the last baseline's heaviest working set", async () => {
+  const s = await setupSessions();
+  try {
+    const { workoutId, runId } = await setup(s, { pattern: ["build", "test"] });
+    // Week 1 (a Build) lifts 120 kg, though the Workout still plans 100 kg.
+    const build = await startInWeek(s, runId, workoutId, 1);
+    const exercise = z
+      .array(z.object({ id: z.string(), exercise_id: z.string() }))
+      .parse(s.exercises(build))
+      .find((row) => row.exercise_id === SQUAT);
+    const rows = z.array(z.object({ id: z.string() })).parse(s.sets(exercise?.id ?? ""));
+    await updateSet(s.training, rows[0]?.id ?? "", { weight_kg: 120, reps: 5 });
+    await tickSet(s.training, rows[0]?.id ?? "", {});
+    await finishSession(s.training, build);
+    const test = await startInWeek(s, runId, workoutId, 2);
+    expect(phaseOf(s, test)).toBe("test");
+    expect(targetsOf(s, test).get(SQUAT)).toEqual([
+      { kind: "top", reps_min: 1, reps_max: 1, weight_kg: 120 },
+    ]);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("is as many reps as possible for a lift with no weight in a Test week", async () => {
+  const s = await setupSessions();
+  try {
+    const { workoutId, runId } = await setup(s, { pattern: ["test"] });
+    const [pushup = ""] = await addExercises(s.training, workoutId, [PUSHUP]);
+    await updateWorkoutExercise(s.training, pushup, {
+      sets: [{ kind: "working", reps_min: 10, reps_max: 15 }],
+    });
+    await updateWorkout(s.training, workoutId, { main_entry_id: pushup });
+    const id = await startInWeek(s, runId, workoutId, 1);
+    expect(targetsOf(s, id).get(PUSHUP)).toEqual([{ kind: "failure", reps_min: 10, reps_max: 15 }]);
   } finally {
     s.sqlite.close();
   }

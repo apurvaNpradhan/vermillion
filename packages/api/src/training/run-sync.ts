@@ -1,5 +1,5 @@
 import type { DbExecutor } from "@workspace/db";
-import { insertedDeloadsSchema, type SessionInput } from "@workspace/shared";
+import { insertedDeloadsSchema, TRAINING_LIMITS, type SessionInput } from "@workspace/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
@@ -28,11 +28,17 @@ const input = z.strictObject({
 });
 // The weeks stay text here: `input` parses them once, after the patch is merged onto the row.
 const patchInput = z.strictObject({ ...fields, inserted_deloads: z.string().nullable() }).partial();
-/** Two devices may each insert a Deload while offline: both stay, and the weeks do not repeat. */
-const unionWeeks = (stored: readonly number[] | null, incoming: readonly number[] | null) =>
-  incoming === null && stored === null
-    ? null
-    : [...new Set([...(stored ?? []), ...(incoming ?? [])])].sort((a, b) => a - b);
+/**
+ * Two devices may each insert a Deload while offline: both stay, and the weeks do not repeat. A
+ * Run holds at most {@link TRAINING_LIMITS.insertedDeloadsMax} of them; more than that is refused
+ * here rather than left to the database's check.
+ */
+function unionWeeks(stored: readonly number[] | null, incoming: readonly number[] | null) {
+  if (incoming === null && stored === null) return null;
+  const weeks = [...new Set([...(stored ?? []), ...(incoming ?? [])])].sort((a, b) => a - b);
+  if (weeks.length > TRAINING_LIMITS.insertedDeloadsMax) throw new SyncRejection("SYNC_INVALID_OP");
+  return weeks;
+}
 const date = (value: string | null) => (value === null ? null : new Date(value));
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",

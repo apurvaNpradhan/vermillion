@@ -3,6 +3,7 @@ import type {
   LoadRange,
   Phase,
   PhasePlan,
+  PhaseSnapshot,
   PlannedSet,
   SetKind,
   WeightUnit,
@@ -113,6 +114,8 @@ export const session = sqliteTable(
     gym_id: text("gym_id"),
     /** The phase of the Run week it started in; Test and Deload are never a baseline. */
     phase: text("phase").$type<Phase>(),
+    /** The phase's modifiers as JSON when the Session started; null with no phase. */
+    phase_modifiers: text("phase_modifiers", { mode: "json" }).$type<PhaseSnapshot | null>(),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     title_derived: integer("title_derived", { mode: "boolean" }).notNull().default(true),

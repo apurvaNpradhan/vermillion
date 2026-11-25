@@ -18,6 +18,7 @@ import {
   type LoadRange,
   type Phase,
   type PhasePlan,
+  type PhaseSnapshot,
   type PlannedSet,
 } from "@workspace/shared";
 import { sql } from "drizzle-orm";
@@ -246,6 +247,8 @@ export const session = pgTable(
     gymId: uuid("gym_id"),
     /** The phase of the Run week the Session started in; Test and Deload are never a baseline. */
     phase: text("phase").$type<Phase>(),
+    /** The phase's modifiers when the Session started, so a later edit of the plan leaves it be. */
+    phaseModifiers: jsonb("phase_modifiers").$type<PhaseSnapshot>(),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     /** True until the user renames the Session: the title is then recomputed from its muscles. */
@@ -279,6 +282,10 @@ export const session = pgTable(
     index("session_user_started_at_idx").on(table.userId, table.startedAt.desc()),
     check("session_cycle_range", sql`${table.cycle} BETWEEN 1 AND 2147483647`),
     check("session_phase_known", sql`${table.phase} IN (${literals(PHASES)})`),
+    check(
+      "session_phase_modifiers_shape",
+      sql`${table.phaseModifiers} IS NULL OR jsonb_typeof(${table.phaseModifiers}) = 'object'`,
+    ),
     check(
       "session_title_length",
       sql`char_length(${table.title}) BETWEEN ${raw(SESSION_LIMITS.titleMin)} AND ${raw(SESSION_LIMITS.titleMax)}`,

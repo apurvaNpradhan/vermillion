@@ -87,6 +87,7 @@ export const trainingUploadColumns = {
     "slot_id",
     "gym_id",
     "phase",
+    "phase_modifiers",
     "cycle",
     "title",
     "title_derived",

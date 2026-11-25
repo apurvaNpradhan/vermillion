@@ -118,7 +118,6 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       ["not JSON", "{pattern"],
       ["an empty pattern", '{"pattern":[]}'],
       ["an unknown phase", '{"pattern":["rest"]}'],
-      ["an unknown key", '{"pattern":["build"],"extra":1}'],
       ["a load above 100%", '{"pattern":["build"],"modifiers":{"deload":{"load":1.5}}}'],
       ["a week of 0", '{"pattern":["build"],"overrides":[{"week":0,"phase":"test"}]}'],
       ["an array", '["build"]'],
@@ -133,6 +132,36 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
         rejected,
       );
       expect((await programRow(id))?.phase_plan).toBeNull();
+    });
+
+    it("strips a key it does not know instead of refusing the plan", async () => {
+      const me = await writer("phase-strip@example.com");
+      const id = uuidv7();
+      expect(
+        await me.send([
+          op("PUT", "program", id, {
+            title: "Plan",
+            phase_plan: '{"pattern":["build"],"extra":1}',
+          }),
+        ]),
+      ).toEqual(applied);
+      expect((await programRow(id))?.phase_plan).toEqual({
+        pattern: ["build"],
+        overrides: [],
+        modifiers: {},
+        test_top: "single",
+      });
+    });
+
+    it("lets an older app edit a Program whose stored plan holds a key it does not know", async () => {
+      const me = await writer("phase-future@example.com");
+      const id = uuidv7();
+      await me.send([op("PUT", "program", id, { title: "Plan" })]);
+      await app.rows(
+        sql`UPDATE program SET phase_plan = '{"pattern":["build"],"future":{"a":1}}'::jsonb WHERE id = ${id}`,
+      );
+      expect(await me.send([op("PATCH", "program", id, { title: "Renamed" })])).toEqual(applied);
+      expect((await programRow(id))?.phase_plan).toMatchObject({ pattern: ["build"] });
     });
 
     it("keeps the plan through a delete and an undo", async () => {
@@ -216,6 +245,23 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       expect(after?.started_at).not.toBeNull();
     });
 
+    it("refuses weeks beyond 52 with SYNC_INVALID_OP rather than failing on the database check", async () => {
+      const me = await writer("deload-many@example.com");
+      const { run } = await runOf(me);
+      const fifty2 = Array.from({ length: 52 }, (_, index) => index + 1);
+      await app.rows(
+        sql`UPDATE program_run SET inserted_deloads = ${JSON.stringify(fifty2)}::jsonb WHERE id = ${run}`,
+      );
+      expect(
+        await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[53]" })]),
+      ).toMatchObject({ status: "rejected", code: "SYNC_INVALID_OP" });
+      expect((await row(run))?.inserted_deloads).toEqual(fifty2);
+      // A week the Run already holds adds nothing.
+      expect(
+        await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[52]" })]),
+      ).toEqual(applied);
+    });
+
     it.each([
       ["not JSON", "[2"],
       ["not ascending", "[5,2]"],
@@ -293,6 +339,38 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
         op("PATCH", "training_session", withPhase, { finished_at: new Date().toISOString() }),
       ]);
       expect((await phaseOf(withPhase))?.phase).toBe("deload");
+    });
+
+    it("stores the modifiers it started with, and keeps them through a patch", async () => {
+      const me = await writer("session-snapshot@example.com");
+      const id = uuidv7();
+      const snapshot = { sets: 0.5, rpe: -2, load: 0.9, test_top: "single" };
+      await me.send([
+        op("PUT", "training_session", id, {
+          ...sessionData("deload"),
+          phase_modifiers: JSON.stringify(snapshot),
+        }),
+      ]);
+      await me.send([
+        op("PATCH", "training_session", id, { finished_at: new Date().toISOString() }),
+      ]);
+      const [stored] = await app.rows(
+        sql`SELECT phase_modifiers::text AS phase_modifiers FROM training_session WHERE id = ${id}`,
+      );
+      expect(parsed(stored?.phase_modifiers)).toEqual(snapshot);
+    });
+
+    it("refuses modifiers it cannot read", async () => {
+      const me = await writer("session-snapshot-bad@example.com");
+      const id = uuidv7();
+      expect(
+        await me.send([
+          op("PUT", "training_session", id, {
+            ...sessionData("deload"),
+            phase_modifiers: '{"sets":9}',
+          }),
+        ]),
+      ).toMatchObject(rejected);
     });
 
     it("refuses a phase it does not know", async () => {

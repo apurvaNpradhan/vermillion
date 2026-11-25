@@ -10,7 +10,7 @@ import {
   type LoggedSet,
   type MuscleGroup,
   type Phase,
-  type PhasePlan,
+  type PhaseSnapshot,
   type PlannedSet,
   type SessionHistory,
   type SetKind,
@@ -18,7 +18,7 @@ import {
 } from "@workspace/shared";
 import { z } from "zod";
 
-import { parsePhasePlan } from "../plans/phase-plan";
+import { parsePhaseSnapshot } from "../plans/phase-plan";
 
 /** Sessions the history reads load at most this many, newest first. */
 export const SESSION_READ_LIMIT = 500;
@@ -191,8 +191,11 @@ export type SessionDetail = {
   slotId: string | null;
   /** The phase of the Run week it started in; null with no phases. */
   phase: Phase | null;
-  /** The Program's phases, for the Session banner's wording; null with none. */
-  phasePlan: PhasePlan | null;
+  /**
+   * The phase's modifiers as they were when it started, for the banner and the engine's load
+   * factor; null with no phase (or a Session from before they were kept: the preset applies).
+   */
+  phaseModifiers: PhaseSnapshot | null;
   cycle: number | null;
   title: string;
   titleDerived: boolean;
@@ -225,7 +228,7 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
   SELECT s.id AS id, s.workout_id AS workout_id, s.program_id AS program_id,
     s.workout_structure AS workout_structure,
     s.run_id AS run_id, s.slot_id AS slot_id, s.phase AS phase,
-    (SELECT p.phase_plan FROM program p WHERE p.id = s.program_id) AS program_phase_plan,
+    s.phase_modifiers AS phase_modifiers,
     s.cycle AS cycle, s.title AS title,
     s.title_derived AS title_derived, s.note AS note,
     (SELECT w.note FROM workout w WHERE w.id = s.workout_id) AS workout_note, s.started_at AS started_at,
@@ -280,7 +283,7 @@ const detailRowSchema = z.object({
   run_id: z.string().nullable(),
   slot_id: z.string().nullable(),
   phase: phaseSchema.nullable().optional(),
-  program_phase_plan: z.string().nullable().optional(),
+  phase_modifiers: z.string().nullable().optional(),
   cycle: z.number().nullable(),
   title: z.string(),
   title_derived: flag,
@@ -428,7 +431,7 @@ export function parseSessionDetail(
     runId: first.run_id,
     slotId: first.slot_id,
     phase: first.phase ?? null,
-    phasePlan: parsePhasePlan(first.program_phase_plan),
+    phaseModifiers: parsePhaseSnapshot(first.phase_modifiers),
     cycle: first.cycle,
     title: first.title,
     titleDerived: first.title_derived,

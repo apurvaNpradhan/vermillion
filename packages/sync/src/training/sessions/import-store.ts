@@ -62,6 +62,7 @@ function buildRows(
     slot_id: null,
     gym_id: null,
     phase: null,
+    phase_modifiers: null,
     cycle: null,
     title: planned.title,
     title_derived: false,
@@ -83,6 +84,8 @@ function buildRows(
     created_at,
     import_fingerprint: importDigestSchema.parse(planned.fingerprint),
     ...parsed,
+    // A past workout from a file has no phase.
+    phase_modifiers: null,
   };
 
   const groups = new Map<string, string>();

@@ -98,6 +98,7 @@ async function copyInto(
     gym_id: await activeGymIdOf(tx),
     // Made from a past Session, not from the Run week: it carries no phase.
     phase: null,
+    phase_modifiers: null,
     cycle: null,
     title: source.title_derived ? derivedTitle : source.title,
     title_derived: source.title_derived,
