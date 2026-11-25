@@ -374,6 +374,11 @@ it.each([
     outcome: view?.suggestion?.outcomes[exercise.sets.indexOf(set)] ?? null,
     basis: setBasis(set.kind, set.target),
   });
+  // The evidence travels with the snapshot: the same Session, factor and snapping on every surface.
+  if (!testWeek) expect(view?.suggestion?.evidence).toBeDefined();
+  expect(pinned?.evidence).toEqual(view?.suggestion?.evidence);
+  if (!applied) expect(preview?.suggestion.evidence).toEqual(view?.suggestion?.evidence);
+  if (!applied) expect(next?.suggestion?.evidence).toEqual(view?.suggestion?.evidence);
   const changed = { ...inputs, previous: new Map(), phaseLoad: 0.5 };
   const frozenView = deriveExercises(
     frozen.exercises,
@@ -382,6 +387,7 @@ it.each([
     new Map(),
   ).get(exercise.id)?.view;
   expect(frozenView?.rows.get(set.id)?.ghosts).toEqual(live.get(set.id));
+  expect(frozenView?.suggestion?.evidence).toEqual(view?.suggestion?.evidence);
   expect(
     (await workoutLiveGhosts(training, frozen, { ...changed, weightUnit: unit }, gym, null)).get(
       set.id,

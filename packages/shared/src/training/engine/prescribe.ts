@@ -69,6 +69,7 @@ export function progressionFromSnapshot(
     outcomes: sets.map((set) =>
       set?.unadjustedWeightKg === undefined ? (set?.outcome ?? null) : null,
     ),
+    ...(snapshot.evidence ? { evidence: snapshot.evidence } : {}),
   };
 }
 

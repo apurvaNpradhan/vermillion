@@ -1,6 +1,7 @@
 import type { LoggedSet } from "../logging/logged-set";
 import type { Phase } from "../phases/phases";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
+import type { Evidence } from "./evidence";
 import type { LighterPeriod } from "./lighter-week";
 import type { LoadGrid } from "./load-grid";
 
@@ -59,6 +60,8 @@ export type Progression = {
   incrementKg: number;
   /** Whole days since the last Session with this exercise, for `after_break`; else null. */
   breakDays: number | null;
+  /** The Session, factor and snapping the suggestion rests on; absent for a Test single. */
+  evidence?: Evidence;
 };
 
 /** What a suggestion needs besides the history: the clock and the Lighter weeks. */
@@ -94,6 +97,8 @@ export type ProgressionContext = {
 
 /** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
 export type ProgressionSession = {
+  /** The Session's id, named in the evidence when it is the baseline. */
+  id?: string;
   started_at: string;
   sets: readonly LoggedSet[];
   /** The phase the Session started in; Test and Deload Sessions are never a baseline. */

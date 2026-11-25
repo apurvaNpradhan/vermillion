@@ -165,7 +165,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       ? exerciseHistory.flatMap(({ entry, unit, history, prescribed }) => {
           const preview = previewProgression(entry, prescribed, history);
           return preview && entry.exercise
-            ? [{ id: entry.id, title: entry.exercise.title, preview, unit }]
+            ? [
+                {
+                  id: entry.id,
+                  title: entry.exercise.title,
+                  preview,
+                  unit,
+                  type: entry.exercise.exerciseType,
+                },
+              ]
             : [];
         })
       : [];

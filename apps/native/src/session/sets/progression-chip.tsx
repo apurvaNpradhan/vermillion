@@ -1,7 +1,13 @@
-import { type EffortScale, type Progression, type WeightUnit } from "@workspace/shared";
+import {
+  type EffortScale,
+  type ExerciseType,
+  type Progression,
+  type WeightUnit,
+} from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 
+import { EvidenceLines } from "@/platform/ui/evidence-lines";
 import { useMountOnOpen } from "@/platform/ui/mount-on-open";
 import { Pressable, Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
@@ -16,11 +22,13 @@ export function ProgressionChip({
   suggestion,
   badges,
   unit,
+  type,
   effortScale,
 }: {
   suggestion: Progression;
   badges: readonly string[];
   unit: WeightUnit;
+  type: ExerciseType;
   effortScale: EffortScale;
 }) {
   const animation = useSheetAnimation();
@@ -71,6 +79,7 @@ export function ProgressionChip({
                       .join("\n")
                   : first.reason}
               </BottomSheet.Description>
+              <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
             </BottomSheet.Content>
           </BottomSheet.Portal>
         </BottomSheet>

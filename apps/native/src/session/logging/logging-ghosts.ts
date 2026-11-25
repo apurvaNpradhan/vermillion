@@ -73,6 +73,7 @@ export function prescriptionDraft(
     incrementKg: suggestion?.incrementKg ?? 0,
     breakDays: suggestion?.breakDays ?? null,
     capKg,
+    ...(suggestion?.evidence ? { evidence: suggestion.evidence } : {}),
     gymId,
     sets,
   };

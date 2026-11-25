@@ -2,6 +2,7 @@ import { z } from "zod";
 import { actualValuesSchema } from "../logging/session-inputs";
 import type { PlannedSet } from "../plans/planned-sets";
 import { MAX_WEIGHT_KG, SESSION_LIMITS, type SetKind } from "../vocabulary/vocabulary";
+import { evidenceSchema } from "./evidence";
 import { PROGRESSION_REASONS, type SetOutcome } from "./progression";
 
 const load = z.number().min(0).max(MAX_WEIGHT_KG);
@@ -58,6 +59,8 @@ export const prescriptionSchema = z
     incrementKg: z.number().nonnegative(),
     breakDays: z.int().nonnegative().nullable(),
     capKg: load.nullable(),
+    /** What the numbers rest on; absent in a snapshot made before it was kept. */
+    evidence: evidenceSchema.optional(),
     /** The Session gym the numbers were made for; absent in a snapshot that did not record it. */
     gymId: z.uuid().nullable().optional(),
     sets: z.array(prescribedSetSchema).max(SESSION_LIMITS.setsPerExercise),
@@ -89,6 +92,7 @@ export const prescriptionReadSchema = z
     incrementKg: z.number().nonnegative().catch(0),
     breakDays: z.int().nonnegative().nullable().catch(null),
     capKg: load.nullable().catch(null),
+    evidence: evidenceSchema.optional().catch(undefined),
     gymId: z.uuid().nullable().optional().catch(undefined),
     sets: z
       .array(
@@ -191,6 +195,7 @@ export function revisedSets(
     incrementKg: header.incrementKg,
     breakDays: header.breakDays ?? null,
     capKg: header.capKg ?? null,
+    ...(header.evidence ? { evidence: header.evidence } : {}),
     gymId: draft.gymId ?? saved.gymId ?? null,
     sets,
     ...(adjustments.length > 0 ? { adjustments } : {}),

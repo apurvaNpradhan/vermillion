@@ -24,7 +24,13 @@ export type SavedSet = {
 };
 
 /** The newest baseline Session's Counted sets: the progressing ones, and all of them. */
-export type Baseline = { sets: readonly LoggedSet[]; logged: readonly LoggedSet[] };
+export type Baseline = {
+  sets: readonly LoggedSet[];
+  logged: readonly LoggedSet[];
+  /** The Session's id, when the history carries one, and when it started. */
+  id?: string;
+  at: string;
+};
 
 /** What a rule reads once the shared stages (eligibility, baseline, resets) have run. */
 export type RuleInput<Config extends RuleConfig = RuleConfig> = {

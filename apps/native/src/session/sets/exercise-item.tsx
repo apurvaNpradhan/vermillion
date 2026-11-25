@@ -156,6 +156,7 @@ export const ExerciseItem = memo(function ExerciseItem({
             (set, index) => data.rows?.get(set.id)?.badge ?? String(index + 1),
           )}
           unit={unit}
+          type={exercise.type}
           effortScale={data.effortScale}
         />
       ) : null,

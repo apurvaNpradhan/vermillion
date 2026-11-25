@@ -23,8 +23,12 @@ import {
 import type { RuleConfig } from "./rule-config";
 import { ruleFor } from "./rules";
 import { slotsOf } from "./slots";
+import { SESSION_LIMITS } from "../vocabulary/vocabulary";
+import type { Evidence } from "../progress/evidence";
 
 const AT_CAP = 1e-4;
+/** A load that landed this far (as a share of the last load) from the intended cut is named. */
+const SNAP_POINTS = 0.015;
 /** Kinds that scale with a break or Deload without progressing: drop, failure and myo sets. */
 const SCALED_KINDS: readonly SetKind[] = ["drop", "failure", "myo"];
 const done = <Set extends { completed_at: string | null }>(sets: readonly Set[]) =>
@@ -71,7 +75,7 @@ export function suggestNext(
       if (!isBaselinePhase(session.phase)) return [];
       const logged = done(session.sets);
       const sets = logged.filter((set) => progresses(set.kind));
-      return sets.length > 0 ? [{ sets, logged }] : [];
+      return sets.length > 0 ? [{ sets, logged, id: session.id, at: session.started_at }] : [];
     });
   const baselines = baselinesIn(context.baselineHistory ?? history);
   const [last] = baselines;
@@ -114,6 +118,22 @@ export function suggestNext(
   // The phase names the reset (and so rounds down) when its factor is the one in force.
   const phaseDecides =
     resetReason === "deload" && phaseFactor < 1 && Math.abs(factor - phaseFactor) < AT_CAP;
+  // The Session the first progressing set was read from, with the sets it was compared against.
+  const [firstSlot] = slots;
+  const lead = (
+    firstSlot && usesFixedPrescription(planned, firstSlot.target) ? fixedBaselines : baselines
+  )[0];
+  const baseline: Evidence["baseline"] = lead
+    ? {
+        ...(lead.id === undefined ? {} : { id: lead.id }),
+        at: lead.at,
+        sets: lead.sets.slice(0, SESSION_LIMITS.setsPerExercise).map((set) => ({
+          kind: set.kind,
+          weightKg: set.weight_kg ?? null,
+          reps: set.reps ?? null,
+        })),
+      }
+    : null;
   const sets: (SuggestedSet | null)[] = planned.map(() => null);
   const outcomes: (SetOutcome | null)[] = planned.map(() => null);
   if (resetReason !== null) {
@@ -154,16 +174,33 @@ export function suggestNext(
             : reset,
       };
     }
+    // Where the grid moved a load further than the share says (a 12.5 kg dumbbell down to 10).
+    const moved = [...slots].flatMap(({ index }) => {
+      const from = saved.get(index)?.before?.weight_kg;
+      const to = sets[index]?.weightKg;
+      return from && to != null && Math.abs(1 - to / from - (1 - factor)) >= SNAP_POINTS
+        ? [{ source: "grid" as const, fromKg: from, toKg: to }]
+        : [];
+    })[0];
     return {
       reason: resetReason,
       sets,
       outcomes,
       incrementKg: incrementFor(null, equipment, increments, grid),
       breakDays: resetReason === "after_break" ? breakDays : null,
+      evidence: {
+        baseline,
+        factor: {
+          source: resetReason === "after_break" ? "break" : "deload",
+          share: factor,
+          ...(resetReason === "after_break" ? { days: breakDays } : {}),
+        },
+        ...(moved ? { snapped: moved } : {}),
+      },
     };
   }
 
-  return ruleFor(config).propose({
+  const proposal = ruleFor(config).propose({
     config,
     planned,
     slots,
@@ -180,4 +217,13 @@ export function suggestNext(
     cap,
     roundedCap,
   });
+  // A load above the gym's cap came down to it: say so.
+  const capped = slots.flatMap(({ index }) => {
+    const from = saved.get(index)?.before?.weight_kg;
+    const outcome = proposal.outcomes[index];
+    return from != null && outcome?.reason === "capped" && outcome.capKg !== undefined
+      ? [{ source: "cap" as const, fromKg: from, toKg: outcome.capKg }]
+      : [];
+  })[0];
+  return { ...proposal, evidence: { baseline, ...(capped ? { snapped: capped } : {}) } };
 }
