@@ -258,12 +258,12 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
             if (raised === null) {
               outcome = before.reps >= extended ? "cap_hint" : "cap_reps";
               if (outcome === "cap_reps") next = { ...same, reps: before.reps + 1 };
-            } else if (!easy && isBigJump(base, raised) && before.reps < extended) {
+            } else if (!easy && isBigJump(base, raised, equipment) && before.reps < extended) {
               // The next load is far heavier (a dumbbell, a stack): earn more reps before it.
               outcome = "more_reps";
               next = { ...same, reps: before.reps + 1 };
               jump = { factor: raised / base, ceiling: extended };
-            } else if (!easy && isBigJump(base, raised) && behindExtended(target.kind)) {
+            } else if (!easy && isBigJump(base, raised, equipment) && behindExtended(target.kind)) {
               outcome = "hold_together";
             } else {
               incrementKg ??= raised - base;

@@ -82,6 +82,15 @@ describe.each([
       expect(result?.sets[0]).toEqual({ weightKg: expect.closeTo(kg(lightNext), 3), reps: 8 });
     });
 
+    it.each(["barbell", "ez_bar", "trap_bar", "smith_machine"] as const)(
+      "never waits for reps before the next load on a %s: its jump is a pair of plates",
+      (equipment) => {
+        const result = ask([session(0, light, [12, 12])], 2, equipment);
+        expect(result?.reason).toBe("add_weight");
+        expect(result?.outcomes.some((outcome) => outcome?.reason === "more_reps")).toBe(false);
+      },
+    );
+
     it("jumps at the top of the range when the next load is a small step", () => {
       const result = ask([session(0, heavy, [12, 12])], 2);
       expect(result?.reason).toBe("add_weight");

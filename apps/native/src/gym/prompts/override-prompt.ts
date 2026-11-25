@@ -46,26 +46,31 @@ export function observeStep(input: {
   return step > SAME_STEP_KG ? { value: step } : null;
 }
 
-/** What observing the rep range needs of a set: its kind, whether it is ticked, reps and target. */
+/**
+ * What observing the rep range needs of a set: its kind, whether it is ticked, reps and target,
+ * and the reps the suggestion offered it (the engine's own extra reps are not an override).
+ */
 export type RangeSet = {
   kind: SetKind;
   completed: boolean;
   reps: number | null;
   target: PlannedSet | null;
+  suggestedReps?: number | null;
 };
 
 /**
  * Whether the Session beat the planned rep range, read once every progressing set that has a range
  * (the minimum below the maximum) is ticked: when most of the sets on the commonest range ended
  * above its top, the lowest of those counts is the reps kept (14, 15, 14, 15 on 8 to 12 reads 14).
- * Fewer above than that follows the plan. `null` while sets are still open, or with no range.
+ * Fewer above than that follows the plan, and so do sets that did exactly the reps the suggestion
+ * offered. `null` while sets are still open, or with no range.
  */
 export function observeRepRange(sets: readonly RangeSet[]): Observation {
-  const ranged = sets.flatMap(({ kind, completed, reps, target }) => {
+  const ranged = sets.flatMap(({ kind, completed, reps, target, suggestedReps: suggested }) => {
     const min = target?.reps_min;
     const max = target?.reps_max;
     return progresses(kind) && min !== undefined && max !== undefined && min < max
-      ? [{ completed, reps, min, max }]
+      ? [{ completed, reps, min, max, suggested }]
       : [];
   });
   if (ranged.length === 0 || ranged.some(({ completed, reps }) => !completed || reps === null))
@@ -80,7 +85,10 @@ export function observeRepRange(sets: readonly RangeSet[]): Observation {
   );
   const first = group[0];
   if (!first) return null;
-  const above = group.flatMap(({ reps, max }) => (reps !== null && reps > max ? [reps] : []));
+  // A set that did what the suggestion offered followed it, even past the top.
+  const above = group.flatMap(({ reps, max, suggested }) =>
+    reps !== null && reps > max && reps !== suggested ? [reps] : [],
+  );
   return above.length * 2 > group.length
     ? { value: Math.min(...above), range: { min: first.min, max: first.max } }
     : "followed";

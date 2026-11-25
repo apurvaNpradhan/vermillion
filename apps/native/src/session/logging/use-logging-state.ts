@@ -570,6 +570,8 @@ export function useLoggingState({
             completed: set.id === setId || set.completedAt !== null,
             reps: set.id === setId ? loggedReps : set.reps,
             target: set.target,
+            suggestedReps:
+              at.exercise.prescription?.sets.find(({ id }) => id === set.id)?.ghosts.reps ?? null,
           })),
         });
       }
