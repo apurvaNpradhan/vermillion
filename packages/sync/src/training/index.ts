@@ -255,6 +255,7 @@ export {
   watchRunState,
   activateProgram,
   stopProgram,
+  setRunPaused,
   finishRun,
   keepGoing,
   insertDeloadNow,

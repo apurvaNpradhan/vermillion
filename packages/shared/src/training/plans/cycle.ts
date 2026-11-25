@@ -1,4 +1,28 @@
 import { v5 as uuidv5 } from "uuid";
+import { z } from "zod";
+import { calendarDay } from "./week";
+
+const RUN_PAUSES_MAX = 520;
+const timestamp = z.iso.datetime({ offset: true });
+export const runPausesSchema = z
+  .array(
+    z
+      .strictObject({
+        from: timestamp,
+        until: timestamp.nullable(),
+      })
+      .refine(({ from, until }) => until === null || Date.parse(from) <= Date.parse(until)),
+  )
+  .max(RUN_PAUSES_MAX)
+  .refine((pauses) => new Set(pauses.map(({ from }) => Date.parse(from))).size === pauses.length);
+export type RunPause = z.infer<typeof runPausesSchema>[number];
+
+export function runPausedAt(pauses: readonly RunPause[], at: string | Date): boolean {
+  const now = new Date(at).getTime();
+  return pauses.some(
+    ({ from, until }) => Date.parse(from) <= now && (until === null || now < Date.parse(until)),
+  );
+}
 
 /** The identity of a skipped or explicitly selected Slot in a Run. */
 export type RunSlot = { runId: string; slotId: string; cycle: number };
@@ -84,20 +108,30 @@ export function cycleState(
 }
 
 /** Calendar days in the user's zone avoid DST's 23/25-hour days changing the week. */
-export function runWeek(startedAt: string | null, now: Date, timezone: string): number {
+export function runWeek(
+  startedAt: string | null,
+  now: Date,
+  timezone: string,
+  pauses: readonly RunPause[] = [],
+): number {
   if (startedAt === null) return 1;
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const day = (date: Date) => {
-    const parts = formatter.formatToParts(date);
-    const part = (name: string) => Number(parts.find((p) => p.type === name)?.value);
-    return Date.UTC(part("year"), part("month") - 1, part("day"));
-  };
-  return Math.max(1, Math.floor((day(now) - day(new Date(startedAt))) / 604800000) + 1);
+  const start = calendarDay(startedAt, timezone);
+  const today = calendarDay(now, timezone);
+  const ranges = pauses
+    .map(({ from, until }) => ({
+      start: Math.max(start, calendarDay(from, timezone)),
+      end: Math.min(today, until === null ? today : calendarDay(until, timezone)),
+    }))
+    .sort((a, b) => a.start - b.start);
+  let paused = 0;
+  let usedThrough = start;
+  for (const range of ranges) {
+    const next = Math.max(usedThrough, range.start);
+    if (range.end <= next) continue;
+    paused += range.end - next;
+    usedThrough = range.end;
+  }
+  return Math.max(1, Math.floor((today - start - paused) / 604800000) + 1);
 }
 
 /** Offline activations converge by activation time, with id breaking equal-time ties. */

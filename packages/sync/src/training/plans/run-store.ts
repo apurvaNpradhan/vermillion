@@ -1,4 +1,11 @@
-import { activeRun, insertDeload, insertedDeloadsSchema, TRAINING_LIMITS } from "@workspace/shared";
+import {
+  activeRun,
+  insertDeload,
+  insertedDeloadsSchema,
+  runPausesSchema,
+  runPausedAt,
+  TRAINING_LIMITS,
+} from "@workspace/shared";
 import { v7 as uuidv7 } from "uuid";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -32,6 +39,16 @@ const runSchema = z.object({
   outcome: z.enum(["completed", "stopped"]).nullable(),
   continued_at: z.string().nullable(),
   inserted_deloads: z.string().nullable().optional().transform(parseDeloads),
+  pauses: z
+    .string()
+    .nullish()
+    .transform((text) => {
+      try {
+        return runPausesSchema.safeParse(JSON.parse(text ?? "[]")).data ?? [];
+      } catch {
+        return [];
+      }
+    }),
   created_at: z.string(),
 });
 export async function readRuns(database: Pick<TrainingDatabase, "getAll">) {
@@ -94,7 +111,7 @@ export function insertDeloadNow(
 ) {
   return write(database, scope, async (tx) => {
     const [run] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
-    if (!run || run.finished_at !== null) return false;
+    if (!run || run.finished_at !== null || runPausedAt(run.pauses ?? [], nowIso())) return false;
     const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
     const next = insertDeload(current, week);
     if (next.length === current.length || next.length > TRAINING_LIMITS.insertedDeloadsMax)
@@ -103,6 +120,31 @@ export function insertDeloadNow(
     return true;
   });
 }
+export function setRunPaused(
+  db: TrainingDatabase,
+  id: string,
+  paused: boolean,
+  scope?: string,
+  at = nowIso(),
+) {
+  return write(db, scope, async (tx, active) => {
+    if (active?.id !== id) return false;
+    const pauses = active.pauses ?? [];
+    if (runPausedAt(pauses, at) === paused) return false;
+    const next = paused
+      ? [...pauses, { from: at, until: null }]
+      : pauses.map((pause) =>
+          pause.until === null && Date.parse(pause.from) <= Date.parse(at)
+            ? { ...pause, until: at }
+            : pause,
+        );
+    const checked = runPausesSchema.safeParse(next);
+    if (!checked.success) return false;
+    await tx.update(programRun).set({ pauses: checked.data }).where(eq(programRun.id, id));
+    return true;
+  });
+}
+
 export function keepGoing(database: TrainingDatabase, id: string, scope?: string) {
   return write(database, scope, async (tx) => {
     await tx.update(programRun).set({ continued_at: nowIso() }).where(eq(programRun.id, id));
@@ -188,6 +230,7 @@ export function watchRunState(
     runs: z.infer<typeof runSchema>[];
     runId: string | null;
     sessions: z.infer<typeof progressSchema>[];
+    phaseStarts: string[];
     /** Slots skipped for a Cycle, for `cycleState`. */
     skips: z.infer<typeof skipSchema>[];
   }) => void,
@@ -204,7 +247,7 @@ export function watchRunState(
           .readTransaction(async (tx) => {
             const runs = await readRuns(tx);
             const runId = activeRun(runs)?.id ?? null;
-            if (runId === null) return { runs, runId, sessions: [], skips: [] };
+            if (runId === null) return { runs, runId, sessions: [], skips: [], phaseStarts: [] };
             const sessions = await readProgressSessions(tx, runId);
             const skips = z.array(skipSchema).parse(
               await tx.getAll(
@@ -213,7 +256,18 @@ export function watchRunState(
                 [runId],
               ),
             );
-            return { runs, runId, sessions, skips };
+            const phaseStarts = z
+              .array(z.object({ started_at: z.string() }))
+              .parse(
+                await tx.getAll(
+                  `SELECT started_at FROM training_session
+                WHERE run_id = ? AND finished_at IS NOT NULL AND ${hasCountedSetSql}
+                ORDER BY started_at DESC, id DESC LIMIT 500`,
+                  [runId],
+                ),
+              )
+              .map(({ started_at }) => started_at);
+            return { runs, runId, sessions, skips, phaseStarts };
           })
           .then((value) => {
             if (!active || current !== generation) return;

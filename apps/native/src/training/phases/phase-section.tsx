@@ -40,18 +40,22 @@ export function PhaseSection({
   program,
   run,
   actions,
+  trainedAt,
+  paused,
 }: {
   program: ProgramDetail;
   /** The active Run when this Program is the active one; null otherwise. */
   run: Awaited<ReturnType<typeof readRuns>>[number] | null;
   actions: ReturnType<typeof useProgramActions>;
+  trainedAt?: readonly string[];
+  paused: boolean;
 }) {
   const { t } = useTranslation();
   const text = usePhaseText();
   const timeZone = useDeviceTimeZone();
   const plan = program.phasePlan;
   const inserted = run?.inserted_deloads ?? [];
-  const currentWeek = run ? runWeek(run.started_at, new Date(), timeZone) : null;
+  const currentWeek = run ? runWeek(run.started_at, new Date(), timeZone, run.pauses) : null;
   const [patternOpen, setPatternOpen] = useState(false);
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
@@ -74,7 +78,7 @@ export function PhaseSection({
     void actions.update(program.id, { phase_plan: next });
   const overridden =
     week !== null && plan?.overrides.some((item) => item.week === week.programWeek);
-  const nowPhase = phaseFor(plan, run, new Date(), timeZone);
+  const nowPhase = phaseFor(plan, run, new Date(), timeZone, trainedAt);
 
   return (
     <View className="gap-2">
@@ -101,7 +105,7 @@ export function PhaseSection({
           </Text>
           <PhaseStrip blocks={blocks} onSelect={setWeek} />
           <View className="gap-3 px-4 pt-2">
-            {run && nowPhase?.phase !== "deload" ? (
+            {run && !paused && nowPhase?.phase !== "deload" ? (
               <ListSection variant="plain">
                 <ListRow
                   icon={TrendDown}

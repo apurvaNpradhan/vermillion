@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
+import { phaseFor, phasePlanSchema } from "../phases/phases";
+import { runWeek } from "../plans/cycle";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { barGrid, rangeGrid } from "./load-grid";
 import { suggestNext, type SuggestedSet } from "./progression";
@@ -240,6 +242,28 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     });
     expect(next?.sets[0]?.weightKg).toBeCloseTo(exact(load), 2);
     expect(next?.outcomes[0]?.loadFactor).toBeCloseTo(1, 3);
+  });
+
+  it("freezes Run weeks and replaces the first Test after a two-week break with Build", () => {
+    const start = new Date(START).toISOString();
+    const date = (day: number) => new Date(START + day * DAY);
+    const run = {
+      started_at: start,
+      inserted_deloads: [],
+      pauses: [{ from: date(6).toISOString(), until: date(20).toISOString() }],
+    };
+    const phasePlan = phasePlanSchema.parse({ pattern: ["build", "test", "deload"] });
+    expect(runWeek(start, date(19), "UTC", run.pauses)).toBe(1);
+    expect(runWeek(start, date(21), "UTC")).toBe(4);
+    expect(runWeek(start, date(21), "UTC", run.pauses)).toBe(2);
+    const returned = phaseFor(phasePlan, run, date(21), "UTC", [start]);
+    expect(returned).toMatchObject({ week: 2, phase: "build" });
+    expect(phaseFor(phasePlan, run, date(22), "UTC", [start, date(21).toISOString()])?.phase).toBe(
+      "build",
+    );
+    expect(phaseFor(phasePlan, run, date(28), "UTC", [start, date(21).toISOString()])?.phase).toBe(
+      "deload",
+    );
   });
 
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {

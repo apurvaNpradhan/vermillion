@@ -13,6 +13,8 @@ import {
   LinkSimple,
   Moon,
   PencilSimple,
+  Pause,
+  Play,
   Plus,
   Repeat,
   ShareNetwork,
@@ -154,8 +156,20 @@ function LoadedProgram({
     return [...seen.values()];
   }, [slots, t]);
 
+  const pauseLabel = t(active.paused ? "run__resume_run" : "run__pause_run");
+  const togglePause = () => void active.changePause(!active.paused);
   const menu: SwipeAction[] = [
     { key: "active", label: activationLabel, icon: Repeat, onPress: toggleActive },
+    ...(isActive
+      ? [
+          {
+            key: "pause",
+            label: pauseLabel,
+            icon: active.paused ? Play : Pause,
+            onPress: togglePause,
+          },
+        ]
+      : []),
     {
       key: "details",
       label: t("training__edit_details"),
@@ -306,6 +320,14 @@ function LoadedProgram({
                   accessory="none"
                   onPress={toggleActive}
                 />
+                {isActive ? (
+                  <ListRow
+                    icon={active.paused ? Play : Pause}
+                    title={pauseLabel}
+                    accessory="none"
+                    onPress={togglePause}
+                  />
+                ) : null}
               </ListSection>
               {program.description !== null ? (
                 <MarkdownText
@@ -316,7 +338,13 @@ function LoadedProgram({
                 />
               ) : null}
             </View>
-            <PhaseSection program={program} run={isActive ? active.run : null} actions={actions} />
+            <PhaseSection
+              program={program}
+              run={isActive ? active.run : null}
+              paused={isActive && active.paused}
+              trainedAt={active.runs.value?.phaseStarts}
+              actions={actions}
+            />
             <View className="gap-1">
               <View className="px-4">
                 <SectionHeader

@@ -1,4 +1,4 @@
-import { runWeek } from "@workspace/shared";
+import { runWeek, type RunPause } from "@workspace/shared";
 import { insertDeloadNow } from "@workspace/sync";
 import { useState } from "react";
 
@@ -10,11 +10,12 @@ import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useTrainingWrite } from "@/training/shared/use-training-write";
 
 /**
- * "Insert deload now": asks first, then turns this Run week into a Deload and shifts the weeks
- * after it by one. Render `dialog` next to the control that calls `ask`. `run` is the active Run
+ * "Insert deload now": asks first, then turns this Run week into a Deload and restarts the pattern. Render `dialog` next to the control that calls `ask`. `run` is the active Run
  * (null when there is none, and nothing happens).
  */
-export function useInsertDeload(run: { id: string; started_at: string | null } | null) {
+export function useInsertDeload(
+  run: { id: string; started_at: string | null; pauses?: readonly RunPause[] } | null,
+) {
   const { t } = useTranslation();
   const { write, writeScope } = useTrainingWrite();
   const timeZone = useDeviceTimeZone();
@@ -22,7 +23,12 @@ export function useInsertDeload(run: { id: string; started_at: string | null } |
     run
       ? write(
           (db) =>
-            insertDeloadNow(db, run.id, runWeek(run.started_at, new Date(), timeZone), writeScope),
+            insertDeloadNow(
+              db,
+              run.id,
+              runWeek(run.started_at, new Date(), timeZone, run.pauses),
+              writeScope,
+            ),
           false,
         )
       : Promise.resolve(false);

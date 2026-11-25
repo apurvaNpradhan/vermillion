@@ -25,6 +25,8 @@ import {
   parseWorkoutDetail,
   startSession,
   setStallDeload,
+  setRunPaused,
+  readRuns,
   tickSet,
   updateWorkoutExercise,
 } from "@workspace/sync";
@@ -58,10 +60,13 @@ it.each([
   { unit: "lb", weight: 45, expected: 50, plannedDeload: false, microplates: true },
   { unit: "kg", weight: 12.5, expected: 12.5, plannedDeload: true, tolerance: true },
   { unit: "lb", weight: 25, expected: 25, plannedDeload: true, tolerance: true },
+  { unit: "kg", weight: 100, expected: 90, plannedDeload: false, resumed: true },
+  { unit: "lb", weight: 220, expected: 200, plannedDeload: false, resumed: true },
 ] as const)("agrees in $unit with planned deload $plannedDeload", async (scenario) => {
   const { unit, weight, expected, plannedDeload } = scenario;
   const effort = "effort" in scenario;
-  const progressing = "progressing" in scenario || "microplates" in scenario;
+  const resumed = "resumed" in scenario;
+  const progressing = "progressing" in scenario || "microplates" in scenario || resumed;
   const fixture = await setupSessions();
   const { training } = fixture;
   await savePreferences(
@@ -73,19 +78,20 @@ it.each([
     },
   );
   const phasePlan: PhasePlan = {
-    pattern: ["deload"],
+    pattern: resumed ? ["build", "test", "deload"] : ["deload"],
     modifiers: { deload: { load: "tolerance" in scenario ? 0.9 : 0.75 } },
     overrides: [],
     test_top: "single",
   };
-  const programId = plannedDeload
-    ? await createProgram(training, {
-        title: "Strength",
-        description: null,
-        planned_weeks: null,
-        phase_plan: phasePlan,
-      })
-    : null;
+  const programId =
+    plannedDeload || resumed
+      ? await createProgram(training, {
+          title: "Strength",
+          description: null,
+          planned_weeks: null,
+          phase_plan: phasePlan,
+        })
+      : null;
   const workoutId = await createWorkout(training, { title: "Legs", program_id: programId });
   const [squat] = await addExercises(training, workoutId, [SQUAT]);
   if (!squat) throw new Error("Expected squat in Workout");
@@ -117,7 +123,25 @@ it.each([
   }
   if (programId !== null) {
     await addSlot(training, programId, workoutId);
-    await activateProgram(training, programId);
+    const runId = await activateProgram(training, programId);
+    if (resumed) {
+      const now = Date.now();
+      const at = (daysAgo: number) => new Date(now - daysAgo * 86_400_000).toISOString();
+      const sessions = parseFinishedSessions(
+        await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]),
+      );
+      const move = fixture.sqlite.prepare(
+        "UPDATE training_session SET run_id = ?, started_at = ?, finished_at = ? WHERE id = ?",
+      );
+      sessions.forEach((session, index) =>
+        move.run(runId, at(21 + index), at(21 + index), session.id),
+      );
+      fixture.sqlite
+        .prepare("UPDATE program_run SET started_at = ? WHERE id = ?")
+        .run(at(21), runId);
+      await setRunPaused(training, runId, true, fixture.installId, at(16));
+      await setRunPaused(training, runId, false, fixture.installId, at(2));
+    }
   }
   const id = await startSession(training, { workoutId, derivedTitle: "Legs", timeZone: "UTC" });
   const applied = !plannedDeload && !effort && !progressing;
@@ -191,11 +215,18 @@ it.each([
     null,
   );
   const now = new Date();
-  const week = plannedDeload
-    ? phaseFor(phasePlan, { started_at: session.startedAt, inserted_deloads: [] }, now, "UTC")
+  const run = (await readRuns(training))[0];
+  const week = run
+    ? phaseFor(
+        phasePlan,
+        run,
+        now,
+        "UTC",
+        history.map((item) => item.started_at),
+      )
     : null;
   if ("tolerance" in scenario) expect(session.phaseModifiers?.load_cuts).toEqual([0, 0]);
-  expect(session.phase).toBe(plannedDeload ? "deload" : null);
+  expect(session.phase).toBe(plannedDeload ? "deload" : resumed ? "build" : null);
   const prepared = prepareWorkoutEntry(
     plan,
     entry,
@@ -215,7 +246,7 @@ it.each([
   const preview = previewProgression(prepared.entry, history, prepared.context.settings, now);
 
   expect(view?.suggestion?.outcomes[0]).toMatchObject({
-    reason: effort || progressing ? "add_weight" : "deload",
+    reason: resumed ? "after_break" : effort || progressing ? "add_weight" : "deload",
   });
   if (!effort && !progressing)
     expect(view?.suggestion?.outcomes[0]?.loadFactor).toBeCloseTo(expected / weight, 4);

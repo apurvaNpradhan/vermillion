@@ -10,6 +10,7 @@ import {
   loadCutRange,
   plannedLoadFactors,
   phaseFor,
+  runPausedAt,
   hasLoad,
   sessionInput,
   snapshotOf,
@@ -140,7 +141,9 @@ async function createSessionIn(
     firstStart ??
     (matching ? new Date(Date.parse(matching.activated_at) - 86_400_000).toISOString() : null);
   const active =
-    matching && !(fields.backfill && runStart !== null && fields.startedAt < runStart)
+    matching &&
+    !runPausedAt(matching.pauses ?? [], fields.startedAt) &&
+    !(fields.backfill && runStart !== null && fields.startedAt < runStart)
       ? matching
       : null;
   const slots = active
@@ -206,9 +209,13 @@ async function createSessionIn(
           {
             started_at: runStartedAt,
             inserted_deloads: readInsertedDeloads(active.inserted_deloads),
+            pauses: active.pauses ?? [],
           },
           new Date(fields.startedAt),
           source.timeZone ?? "UTC",
+          history.flatMap((item) =>
+            item.finishedAt && item.hasCountedSet ? [item.startedAt] : [],
+          ),
         )
       : null;
   const gymId = await activeGymIdOf(tx);

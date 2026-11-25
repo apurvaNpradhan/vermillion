@@ -298,6 +298,7 @@ export const programRun = sqliteTable(
     continued_at: text("continued_at"),
     /** Run weeks turned into Deload weeks ("Insert deload now") as JSON, ascending; null is none. */
     inserted_deloads: text("inserted_deloads", { mode: "json" }).$type<number[] | null>(),
+    pauses: text("pauses", { mode: "json" }).$type<import("@workspace/shared").RunPause[]>(),
     created_at: text("created_at").notNull(),
   },
   (table) => [

@@ -7,7 +7,7 @@ import {
   type SetField,
 } from "../../exercise/vocabulary";
 import type { PlannedSet } from "../plans/planned-sets";
-import { runWeek } from "../plans/cycle";
+import { runWeek, type RunPause } from "../plans/cycle";
 import { lightenLoad } from "../progress/progression-steps";
 import { gridFloor, type LoadGrid } from "../progress/load-grid";
 import { formatWeight, loadIdentity, parseWeight, weightAtMost } from "../vocabulary/format";
@@ -220,18 +220,36 @@ const BUILD_ONLY: PhasePlan = {
  */
 export function phaseFor(
   plan: PhasePlan | null,
-  run: { started_at: string | null; inserted_deloads: readonly number[] } | null,
+  run: {
+    started_at: string | null;
+    inserted_deloads: readonly number[];
+    pauses?: readonly RunPause[];
+  } | null,
   now: Date,
   timezone: string,
+  trainedAt: readonly string[] = [],
 ): PhaseNow | null {
   if (!run) return null;
   const effective = plan ?? (run.inserted_deloads.length > 0 ? BUILD_ONLY : null);
   if (!effective) return null;
-  const found = phaseOfWeek(
-    effective,
-    runWeek(run.started_at, now, timezone),
-    run.inserted_deloads,
-  );
+  const week = runWeek(run.started_at, now, timezone, run.pauses);
+  const found = phaseOfWeek(effective, week, run.inserted_deloads);
+  if (found?.phase === "test") {
+    let after = now.getTime();
+    for (const before of trainedAt
+      .flatMap((value) => {
+        const at = Date.parse(value);
+        return at < after ? [at] : [];
+      })
+      .sort((a, b) => b - a)) {
+      if (after - before >= 14 * 86_400_000) {
+        found.phase = "build";
+        break;
+      }
+      if (runWeek(run.started_at, new Date(before), timezone, run.pauses) !== week) break;
+      after = before;
+    }
+  }
   return (
     found && {
       ...found,

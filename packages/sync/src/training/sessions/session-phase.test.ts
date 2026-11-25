@@ -10,7 +10,13 @@ import { z } from "zod";
 
 import { savePreferences } from "../../preferences";
 import { setGymExerciseSetting } from "../gyms/gym-store";
-import { activateProgram, finishRun, insertDeloadNow, readRuns } from "../plans/run-store";
+import {
+  activateProgram,
+  finishRun,
+  insertDeloadNow,
+  readRuns,
+  setRunPaused,
+} from "../plans/run-store";
 import {
   addExercises,
   addSlot,
@@ -64,6 +70,40 @@ async function startInWeek(s: Sessions, runId: string, workoutId: string, week: 
     .run(new Date(Date.now() - (week - 1) * 7 * DAY - 60_000).toISOString(), runId);
   return await startSession(s.training, { workoutId, derivedTitle: "Day", timeZone: "UTC" });
 }
+
+it("keeps a paused workout outside the Run, then resumes its phase clock", async () => {
+  const s = await setupSessions();
+  try {
+    const { runId, workoutId } = await setup(s, { pattern: ["build", "test", "deload"] });
+    const session = await startInWeek(s, runId, workoutId, 1);
+    const exercise = s.exercises(session)[0];
+    const set = exercise && s.sets(String(exercise.id))[0];
+    if (!set) throw new Error("Expected a working set");
+    await tickSet(s.training, String(set.id), { weight: 100, reps: 8 });
+    await finishSession(s.training, session);
+    const now = Date.now();
+    const at = (daysAgo: number) => new Date(now - daysAgo * DAY).toISOString();
+    s.sqlite
+      .prepare("UPDATE training_session SET started_at = ?, finished_at = ? WHERE id = ?")
+      .run(at(21), at(21), session);
+    s.sqlite.prepare("UPDATE program_run SET started_at = ? WHERE id = ?").run(at(21), runId);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(16))).toBe(true);
+    expect(await setRunPaused(s.training, runId, true, s.installId, at(15))).toBe(false);
+    const outside = await startSession(s.training, { workoutId, derivedTitle: "Day" });
+    expect(s.one("training_session", outside)).toMatchObject({ run_id: null, phase: null });
+    expect(await setRunPaused(s.training, runId, false, s.installId, at(2))).toBe(true);
+    const run = (await readRuns(s.training))[0];
+    expect(run?.pauses).toEqual([{ from: at(16), until: at(2) }]);
+    const returned = await startSession(s.training, {
+      workoutId,
+      derivedTitle: "Day",
+      timeZone: "UTC",
+    });
+    expect(s.one("training_session", returned)).toMatchObject({ run_id: runId, phase: "build" });
+  } finally {
+    s.sqlite.close();
+  }
+});
 
 const exerciseRow = z.object({ id: z.string(), exercise_id: z.string() });
 const setRow = z.object({ target: z.string() });

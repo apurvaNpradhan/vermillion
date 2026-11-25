@@ -320,6 +320,7 @@ export {
   type BeginSource,
   activateProgram,
   stopProgram,
+  setRunPaused,
   finishRun,
   keepGoing,
   insertDeloadNow,

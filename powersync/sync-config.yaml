@@ -33,7 +33,7 @@ streams:
     auto_subscribe: true
     priority: 1
     queries:
-      - SELECT id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, inserted_deloads, created_at FROM program_run WHERE user_id = auth.user_id() AND deleted_at IS NULL
+      - SELECT id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, inserted_deloads, pauses, created_at FROM program_run WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, title, description, planned_weeks, sessions_per_week, cover_media_id, phase_plan, created_at FROM program WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, program_id, title, note, cover_media_id, main_entry_id, created_at FROM workout WHERE user_id = auth.user_id() AND deleted_at IS NULL
       - SELECT id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at FROM workout_exercise WHERE user_id = auth.user_id() AND deleted_at IS NULL
