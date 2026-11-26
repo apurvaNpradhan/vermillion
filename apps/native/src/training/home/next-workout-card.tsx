@@ -94,16 +94,18 @@ export function NextWorkoutCard({
       {resumesRun ? (
         <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
       ) : null}
-      <Button
-        size="lg"
-        variant={workoutOpen && title !== null ? "secondary" : "primary"}
-        className="h-14 w-full"
-        onPress={title === null ? onStartEmpty : onStart}
-      >
-        <Play size={20} color={workoutOpen && title !== null ? subtle : onAction} />
-        <Button.Label>{t(title === null ? "home__start_empty" : "session__start")}</Button.Label>
-      </Button>
-      {title !== null && !workoutOpen ? (
+      {title !== null ? (
+        <Button
+          size="lg"
+          variant={workoutOpen ? "secondary" : "primary"}
+          className="h-14 w-full"
+          onPress={onStart}
+        >
+          <Play size={20} color={workoutOpen ? subtle : onAction} />
+          <Button.Label>{t("session__start")}</Button.Label>
+        </Button>
+      ) : null}
+      {!workoutOpen ? (
         <Pressable
           accessibilityRole="button"
           onPress={onStartEmpty}

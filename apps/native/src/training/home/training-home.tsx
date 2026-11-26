@@ -100,9 +100,8 @@ export function TrainingHome() {
           minutes: estimateMinutes(exercises),
         });
   const eyebrow = next
-    ? t(programState.totalWeeks ? "run__progress_of" : "run__progress", {
+    ? t("run__progress", {
         week: programState.week,
-        total: programState.totalWeeks,
         workout: workoutNumber(slots, next.id),
       })
     : t("home__next_workout");

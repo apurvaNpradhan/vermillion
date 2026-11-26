@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "2a2361b9-f47e-43d1-86f3-fce41b678c81",
+  "prevIds": ["bc72b4a8-1e42-4b2d-a05d-291cf4622376"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "program_run", "undone_deloads"],
+      "writes": [
+        "s|col|public.program_run.undone_deloads",
+        "n|col|public.program_run.undone_deloads",
+        "e|col|public.program_run.undone_deloads"
+      ],
+      "reads": ["n|tbl|public.program_run", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "undone_deloads",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export function createFakeDatabase(options: { beforeComplete?: () => void } = {}
         exercise_id TEXT, position TEXT, rest_seconds INTEGER, note TEXT, superset_group TEXT,
         sets TEXT, created_at TEXT, restore INTEGER);
       CREATE TABLE program_run (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,
-        activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, inserted_deloads TEXT, pauses TEXT, created_at TEXT);
+        activated_at TEXT, started_at TEXT, finished_at TEXT, outcome TEXT, continued_at TEXT, inserted_deloads TEXT, pauses TEXT, created_at TEXT, _metadata TEXT);
       CREATE TABLE program_slot_skip (id TEXT PRIMARY KEY, user_id TEXT, run_id TEXT, slot_id TEXT,
         cycle INTEGER, created_at TEXT);
       CREATE TABLE program_slot (id TEXT PRIMARY KEY, user_id TEXT, program_id TEXT,

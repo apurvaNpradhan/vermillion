@@ -281,22 +281,29 @@ it("inserts a deload now and restarts the pattern the following week", async () 
   }
 });
 
-it("undoes an inserted deload and reads the pattern as before", async () => {
+it("undoes an inserted deload before a counted workout and reads the pattern as before", async () => {
   const s = await setupSessions();
   try {
     const { workoutId, runId } = await setup(s, { pattern: ["build", "build", "deload"] });
+    s.sqlite
+      .prepare("UPDATE program_run SET started_at = ? WHERE id = ?")
+      .run(new Date(Date.now() - 7 * DAY).toISOString(), runId);
     expect(await insertDeloadNow(s.training, runId, 2)).toBe(true);
-    expect(await undoDeloadNow(s.training, runId, 2)).toBe(true);
-    expect(
-      (await readRuns(s.training)).find((item) => item.id === runId)?.inserted_deloads,
-    ).toEqual([]);
+    expect(await undoDeloadNow(s.training, runId, 2, "UTC")).toBe(true);
+    expect((await readRuns(s.training))[0]?.inserted_deloads).toEqual([]);
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 2))).toBe("build");
     expect(phaseOf(s, await startInWeek(s, runId, workoutId, 3))).toBe("deload");
-    // A week that is not inserted, and a finished Run, change nothing.
-    expect(await undoDeloadNow(s.training, runId, 2)).toBe(false);
-    await insertDeloadNow(s.training, runId, 4);
-    await finishRun(s.training, runId);
-    expect(await undoDeloadNow(s.training, runId, 4)).toBe(false);
+
+    // An already-open sheet may still offer Undo when a counted workout arrives.
+    await insertDeloadNow(s.training, runId, 3);
+    const trained = await startInWeek(s, runId, workoutId, 3);
+    const exercise = s.exercises(trained)[0];
+    const set = exercise && s.sets(String(exercise.id))[0];
+    if (!set) throw new Error("Expected a working set");
+    await tickSet(s.training, String(set.id), { weight: 100, reps: 8 });
+    await finishSession(s.training, trained);
+    expect(await undoDeloadNow(s.training, runId, 3, "UTC")).toBe(false);
+    expect((await readRuns(s.training))[0]?.inserted_deloads).toEqual([3]);
   } finally {
     s.sqlite.close();
   }

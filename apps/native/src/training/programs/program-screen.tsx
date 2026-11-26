@@ -184,12 +184,6 @@ function LoadedProgram({
         ]
       : []),
     {
-      key: "details",
-      label: t("training__edit_details"),
-      icon: PencilSimple,
-      onPress: onOpenDetails,
-    },
-    {
       key: "share",
       label: t("share__share"),
       icon: ShareNetwork,
@@ -309,7 +303,7 @@ function LoadedProgram({
               </Pressable>
               {status !== null ? (
                 <Text className="font-normal text-body tabular-nums text-muted">{status}</Text>
-              ) : (
+              ) : active.loading ? null : (
                 <Button onPress={() => active.activate(program.id)}>
                   <Button.Label>{t("run__set_active")}</Button.Label>
                 </Button>

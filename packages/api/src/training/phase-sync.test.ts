@@ -8,6 +8,8 @@ import {
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { bundledCatalogText } from "../exercise/operations/bundled-catalog";
+import { seedCatalog } from "../exercise/operations/seed-catalog";
 import { createSignedInUser, createTestApp, type TestApp } from "../platform/testing/harness";
 
 const syncOptions = {
@@ -48,7 +50,7 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
   async function writer(email: string) {
     const client = app.client(await createSignedInUser(app, email));
     const { userId } = await client.sync.credentials();
-    return installOf(client, userId);
+    return { ...installOf(client, userId), anotherDevice: () => installOf(client, userId) };
   }
   type Writer = Awaited<ReturnType<typeof writer>>;
 
@@ -259,32 +261,106 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       expect((await row(run))?.inserted_deloads).toEqual([2, 5]);
     });
 
-    it("takes an inserted week back for the owner and for no one else", async () => {
+    const change = (run: string, action: "insert" | "undo", week: number, timezone = "UTC") =>
+      op("PATCH", "program_run", run, {
+        deload_change: JSON.stringify({ action, week, ...(action === "undo" ? { timezone } : {}) }),
+      });
+
+    it.each([true, false])(
+      "merges an offline insert and undo (insert first: %s)",
+      async (insertFirst) => {
+        const me = await writer(`deload-order-${insertFirst}@example.com`);
+        const device = me.anotherDevice();
+        const { run } = await runOf(me);
+        await me.send([change(run, "insert", 3)]);
+        const insert = () => device.send([change(run, "insert", 5)]);
+        const undo = () => me.send([change(run, "undo", 3)]);
+        expect(await (insertFirst ? insert() : undo())).toEqual(applied);
+        expect(await (insertFirst ? undo() : insert())).toEqual(applied);
+        expect((await row(run)).inserted_deloads).toEqual([5]);
+
+        // An old client can add week 7, but its stale knowledge of week 3 cannot bring it back.
+        const legacy = me.anotherDevice();
+        expect(
+          await legacy.send([op("PATCH", "program_run", run, { inserted_deloads: "[3,7]" })]),
+        ).toEqual(applied);
+        expect(
+          await legacy.send([op("PATCH", "program_run", run, { inserted_deloads: "[7]" })]),
+        ).toEqual(applied);
+        expect((await row(run)).inserted_deloads).toEqual([5, 7]);
+        // A deliberate new insert is allowed.
+        expect(await me.send([change(run, "insert", 3)])).toEqual(applied);
+        expect((await row(run)).inserted_deloads).toEqual([3, 5, 7]);
+      },
+    );
+
+    it("allows only the owner to undo an inserted week", async () => {
       const me = await writer("deload-undo@example.com");
       const other = await writer("deload-undo-other@example.com");
       const { run } = await runOf(me);
-      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2,5]" })]);
-      expect(
-        await other.send([op("PATCH", "program_run", run, { inserted_deloads: "[2]" })]),
-      ).toMatchObject(rejected);
-      expect((await row(run))?.inserted_deloads).toEqual([2, 5]);
-      expect(await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2]" })])).toEqual(
-        applied,
-      );
-      expect((await row(run))?.inserted_deloads).toEqual([2]);
-      expect(await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[]" })])).toEqual(
-        applied,
-      );
-      expect((await row(run))?.inserted_deloads).toEqual([]);
+      await me.send([change(run, "insert", 2)]);
+      expect(await other.send([change(run, "undo", 2)])).toMatchObject(rejected);
+      expect((await row(run)).inserted_deloads).toEqual([2]);
+      expect(await me.send([change(run, "undo", 2)])).toEqual(applied);
+      expect((await row(run)).inserted_deloads).toEqual([]);
     });
 
-    it("still unions a list that holds a week the server lacks", async () => {
-      const me = await writer("deload-undo-offline@example.com");
-      const { run } = await runOf(me);
-      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2,5]" })]);
-      // A device that never saw week 5 inserts week 7: the 2 and 5 stay.
-      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[7]" })]);
-      expect((await row(run))?.inserted_deloads).toEqual([2, 5, 7]);
+    it("rejects a queued undo after another device logs a counted workout in that local week", async () => {
+      const me = await writer("deload-counted@example.com");
+      const device = me.anotherDevice();
+      const { run, program } = await runOf(me);
+      const startedAt = "2026-11-02T07:30:00.000Z";
+      const trainedAt = "2026-11-17T08:30:00.000Z";
+      await me.send([
+        op("PATCH", "program_run", run, {
+          started_at: startedAt,
+          pauses: JSON.stringify([
+            { from: "2026-11-08T20:00:00.000Z", until: "2026-11-11T08:00:00.000Z" },
+          ]),
+        }),
+      ]);
+      await me.send([change(run, "insert", 3)]);
+      const session = uuidv7();
+      const entry = uuidv7();
+      const set = uuidv7();
+      await seedCatalog(app.services.db, bundledCatalogText());
+      const [exercise] = await app.rows(
+        sql`SELECT id FROM exercise WHERE exercise_type = 'weight_reps' LIMIT 1`,
+      );
+      const exerciseId = String(exercise?.id);
+      expect(
+        await device.send([
+          op("PUT", "training_session", session, {
+            title: "Workout",
+            device_id: uuidv7(),
+            started_at: trainedAt,
+            run_id: run,
+            program_id: program,
+            phase: "deload",
+          }),
+          op("PUT", "session_exercise", entry, {
+            session_id: session,
+            exercise_id: exerciseId,
+            exercise_title: "Bench press",
+            exercise_type: "weight_reps",
+            position: "a0",
+          }),
+          op("PUT", "session_set", set, {
+            session_exercise_id: entry,
+            position: "a0",
+            kind: "working",
+            weight_kg: 50,
+            reps: 5,
+            completed_at: trainedAt,
+          }),
+          op("PATCH", "training_session", session, { finished_at: trainedAt }),
+        ]),
+      ).toEqual(applied);
+      expect(await me.send([change(run, "undo", 3, "America/Los_Angeles")])).toMatchObject({
+        status: "rejected",
+        code: "RUN_DELOAD_LOGGED",
+      });
+      expect((await row(run)).inserted_deloads).toEqual([3]);
     });
 
     it("leaves the weeks alone when a patch touches another field", async () => {

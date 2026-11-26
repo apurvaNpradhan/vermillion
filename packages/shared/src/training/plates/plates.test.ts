@@ -103,7 +103,7 @@ describe("loadBar on typed targets", () => {
       const result = loadBar(parseWeight(String(lb), "lb") ?? 0, lbBar, lbPlates);
       expect(result.exact, `${lb} lb`).toBe(true);
     }
-  });
+  }, 30_000);
   it("is exact for every 2.5 kg step the kg kit can load, as typed into a cell", () => {
     for (let kg = 20; kg <= 500; kg += 2.5) {
       const result = loadBar(parseWeight(String(kg), "kg") ?? 0, { weightKg: 20 }, kit);

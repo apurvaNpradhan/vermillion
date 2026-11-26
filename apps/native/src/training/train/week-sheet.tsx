@@ -31,12 +31,13 @@ export function WeekSheet({
   const title = totalWeeks
     ? t("run__week_of", { week, total: totalWeeks })
     : t("run__week", { week });
-  const description = phase
-    ? t("phase__banner", {
-        phase: text.name(phase.phase),
-        effects: text.effects(phase.phase, phase.modifiers, phase.testTop),
-      })
-    : undefined;
+  const description =
+    phase && (program.phasePlan !== null || phase.phase === "deload")
+      ? t("phase__banner", {
+          phase: text.name(phase.phase),
+          effects: text.effects(phase.phase, phase.modifiers, phase.testTop),
+        })
+      : undefined;
   const actions: SwipeAction[] = [
     ...(deload.canUndo
       ? [{ key: "undo", label: t("deload__undo"), icon: ArrowUUpLeft, onPress: deload.undo }]

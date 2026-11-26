@@ -55,35 +55,34 @@ export function RunHero({
   });
   if (!program || !run) return null;
   const next = program.slots.find((slot) => slot.id === progress.next?.id);
-  const weekText = totalWeeks
-    ? t("run__week_of", { week, total: totalWeeks })
-    : t("run__week", { week });
   const nextTitle = next?.workoutId ? slotTitle(next, t) : null;
   return (
     <View className="gap-4 rounded-xl bg-surface p-3.5">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${program.title}, ${weekText}`}
-        onPress={() => onOpen(program.id)}
-        className="flex-row items-center gap-3 rounded-xl active:opacity-70"
-      >
+      <View className="flex-row items-center gap-3">
         <ProgramTile title={program.title} size={COVER} coverMediaId={program.coverMediaId} />
-        <View className="min-w-0 flex-1 gap-0.5">
-          <Text className="text-caption font-medium text-muted">
-            {t(paused ? "run__paused" : "run__active")}
-          </Text>
-          <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
-            {program.title}
-          </Text>
+        <View className="min-w-0 flex-1">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint={t("training__program_open_hint")}
+            onPress={() => onOpen(program.id)}
+            className="min-h-11 justify-center gap-0.5 rounded-lg active:opacity-70"
+          >
+            <Text className="text-caption font-medium text-muted">
+              {t(paused ? "run__paused" : "run__active")}
+            </Text>
+            <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
+              {program.title}
+            </Text>
+          </Pressable>
           <PhaseChip
-            phase={phase}
+            phase={program.phasePlan !== null || phase?.phase === "deload" ? phase : null}
             week={week}
             totalWeeks={totalWeeks}
             accessibilityHint={t("run__week_hint")}
             onPress={() => setWeekOpen(true)}
           />
         </View>
-      </Pressable>
+      </View>
       {!paused ? (
         <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
       ) : null}

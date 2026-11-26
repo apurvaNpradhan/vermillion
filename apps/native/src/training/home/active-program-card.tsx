@@ -25,9 +25,7 @@ export function ActiveProgramCard({
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
   const position = workoutNumber(program.slots, next?.id);
-  const progressText = totalWeeks
-    ? t("run__progress_of", { week, total: totalWeeks, workout: position })
-    : t("run__progress", { week, workout: position });
+  const progressText = t("run__progress", { week, workout: position });
   return (
     <View className="gap-3">
       <SectionHeader title={t("run__active")} />

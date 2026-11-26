@@ -604,6 +604,8 @@ export const programRun = pgTable(
     continuedAt: timestamptz("continued_at"),
     /** Run weeks turned into Deload weeks by "Insert deload now", ascending; null is none. */
     insertedDeloads: jsonb("inserted_deloads").$type<number[]>(),
+    /** The upload handler keeps these out of legacy inserts. The sync stream omits this column. */
+    undoneDeloads: jsonb("undone_deloads").$type<number[]>(),
     pauses: jsonb("pauses").$type<import("@workspace/shared").RunPause[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

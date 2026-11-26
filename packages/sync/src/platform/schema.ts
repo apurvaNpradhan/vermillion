@@ -63,7 +63,7 @@ export const powerSyncSchema = new DrizzleAppSchema({
   exercise: { tableDefinition: exercise },
   exercise_pin: { tableDefinition: exercisePin },
   program: { tableDefinition: program },
-  program_run: { tableDefinition: programRun },
+  program_run: { tableDefinition: programRun, options: { trackMetadata: true } },
   program_slot_skip: { tableDefinition: programSlotSkip },
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },

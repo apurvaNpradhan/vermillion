@@ -89,10 +89,6 @@ export function ProgramsScreen() {
                   icon={ListNumbers}
                   label={t("empty__programs", { count: 0 })}
                   title={t("training__no_programs")}
-                  action={{
-                    label: t("training__new_program"),
-                    onPress: () => router.push("/train/new-program"),
-                  }}
                 />
               ) : null
             }
