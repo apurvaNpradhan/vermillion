@@ -33,7 +33,8 @@ lb aware, per side/hand/total following the exercise's load basis:
 - Swapped fields: load at most 30 and equal to a typical rep count while reps is at least 3× the
   reference load — offered as "Swap".
 - Weigh-in more than 7% and 3 kg (7 lb) from the trend weight, or outside 25–350 kg.
-- Lower than usual is never flagged (deloads and light days are normal).
+- Lower than usual is never flagged (deloads and light days are normal), except the 1/2.2 unit
+  slip above, and only when the reference is at least 40 kg (90 lb).
 
 **The dialog**
 
