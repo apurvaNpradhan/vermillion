@@ -8,6 +8,7 @@ import {
 } from "../../exercise/vocabulary";
 import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek, type RunPause } from "../plans/cycle";
+import { calendarDay } from "../plans/week";
 import { defaultStepKg, lightenLoad, loadable } from "../progress/progression-steps";
 import type { LoadGrid } from "../progress/load-grid";
 import { loadIdentity, weightAtMost } from "../vocabulary/format";
@@ -211,6 +212,10 @@ export function phaseOfWeek(
 
 export type PhaseNow = PhaseWeek & PhaseSettings;
 
+const DAY_MS = 86_400_000;
+/** Calendar days without a counted Session after which a Test week is read as Build. */
+const TEST_SKIP_DAYS = 14;
+
 /**
  * What a Run with inserted Deload weeks but no plan of its own follows: Build every week, so
  * "Insert deload week" works on a Program that has no phases.
@@ -245,19 +250,23 @@ export function phaseFor(
   const week = runWeek(run.started_at, now, timezone, run.pauses);
   const found = phaseOfWeek(effective, week, run.inserted_deloads);
   if (found?.phase === "test") {
-    let after = now.getTime();
+    // A Test week after a break of fourteen calendar days (in the lifter's zone, so the time of day
+    // never decides) is a Build week: a heavy single is not asked of someone back from time off.
+    const nowMs = now.getTime();
+    let after = calendarDay(now, timezone);
     for (const before of trainedAt
       .flatMap((value) => {
         const at = Date.parse(value);
-        return at < after ? [at] : [];
+        return at < nowMs ? [at] : [];
       })
       .sort((a, b) => b - a)) {
-      if (after - before >= 14 * 86_400_000) {
+      const day = calendarDay(new Date(before), timezone);
+      if (after - day >= TEST_SKIP_DAYS * DAY_MS) {
         found.phase = "build";
         break;
       }
       if (runWeek(run.started_at, new Date(before), timezone, run.pauses) !== week) break;
-      after = before;
+      after = day;
     }
   }
   return (

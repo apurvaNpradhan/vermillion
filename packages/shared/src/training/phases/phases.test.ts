@@ -206,6 +206,34 @@ describe("phaseFor", () => {
   });
 });
 
+describe("a Test week after a break", () => {
+  // B B B T from Tuesday 6 January: Tuesday 27 January is week 4, the Test week.
+  const pattern = plan({ pattern: ["build", "build", "build", "test"] });
+  const run = { started_at: "2026-01-06T10:00:00Z", inserted_deloads: [] };
+  const phaseAfter = (lastSession: string, now: string, timezone = "UTC") =>
+    phaseFor(pattern, run, new Date(now), timezone, [lastSession])?.phase;
+
+  it("counts fourteen calendar days, not hours, since the last Session", () => {
+    // Tuesday 13 January at 18:00 and at 19:30; today is Tuesday 27 January at 18:30.
+    expect(phaseAfter("2026-01-13T18:00:00Z", "2026-01-27T18:30:00Z")).toBe("build");
+    expect(phaseAfter("2026-01-13T19:30:00Z", "2026-01-27T18:30:00Z")).toBe("build");
+  });
+
+  it("keeps the Test with a Session thirteen days ago, whatever the time", () => {
+    expect(phaseAfter("2026-01-14T06:00:00Z", "2026-01-27T18:30:00Z")).toBe("test");
+    expect(phaseAfter("2026-01-14T23:30:00Z", "2026-01-27T00:10:00Z")).toBe("test");
+  });
+
+  it("counts the days of the lifter's own time zone", () => {
+    const zone = "America/Los_Angeles";
+    // Tuesday 13 January 23:30 and Tuesday 27 January 22:30 in Los Angeles: fourteen calendar
+    // days, though a few minutes short of fourteen times twenty-four hours.
+    expect(phaseAfter("2026-01-14T07:30:00Z", "2026-01-28T06:30:00Z", zone)).toBe("build");
+    // Wednesday 14 January 00:30 and Tuesday 27 January 23:50 local: thirteen days.
+    expect(phaseAfter("2026-01-14T08:30:00Z", "2026-01-28T07:50:00Z", zone)).toBe("test");
+  });
+});
+
 describe("insertDeload", () => {
   it.each<[number[], number, number[]]>([
     [[], 5, [5]],
