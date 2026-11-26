@@ -1,4 +1,5 @@
 import {
+  finiteOutcome,
   gridCapInUnit,
   setBasis,
   type Ghosts,
@@ -64,7 +65,8 @@ export function prescriptionDraft(
   const sets = exercise.sets.map(({ id, kind, target }, index) => ({
     id,
     ghosts: ghostsFor(index),
-    outcome: suggestion?.outcomes[index] ?? null,
+    // A rule must never hand the snapshot a number its schema refuses: that drops the capture.
+    outcome: finiteOutcome(suggestion?.outcomes[index] ?? null),
     basis: setBasis(kind, target),
   }));
   if (!sets.some(({ ghosts }) => Object.values(ghosts).some((value) => value != null))) return null;

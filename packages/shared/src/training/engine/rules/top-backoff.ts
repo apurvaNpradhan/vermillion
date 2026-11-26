@@ -87,7 +87,12 @@ export const topBackoffRule: ProgressionRule<TopBackoffConfig> = {
         weightKg: load,
         reps: reps !== null && rangeTop !== undefined ? Math.min(rangeTop, reps) : reps,
       };
-      outcomes[index] = { reason: "backoff_share", loadFactor: load / topLoad, share };
+      // A weighted bodyweight top set at +0 has no load to take a share of: no factor to report.
+      outcomes[index] = {
+        reason: "backoff_share",
+        loadFactor: topLoad > 0 ? load / topLoad : undefined,
+        share,
+      };
     }
     const reason =
       REASON_ORDER.find((candidate) => outcomes.some((outcome) => outcome?.reason === candidate)) ??

@@ -29,6 +29,30 @@ const ghostFields = {
   steps: actualValuesSchema.shape.steps.optional(),
 };
 
+const OUTCOME_NUMBERS = [
+  "changeKg",
+  "capKg",
+  "loadFactor",
+  "share",
+  "ceiling",
+  "changeS",
+  "changeM",
+] as const satisfies readonly (keyof SetOutcome)[];
+
+/**
+ * An outcome without the numbers that are not finite (a ratio of two zeros): the snapshot schema
+ * refuses them, and one such value would stop the whole exercise's snapshot from being captured.
+ */
+export function finiteOutcome(outcome: SetOutcome | null): SetOutcome | null {
+  if (!outcome) return null;
+  const next = { ...outcome };
+  for (const key of OUTCOME_NUMBERS) {
+    const value = next[key];
+    if (value !== undefined && !Number.isFinite(value)) delete next[key];
+  }
+  return next;
+}
+
 export const prescribedSetSchema = z.strictObject({
   id: z.uuid(),
   ghosts: z.strictObject(ghostFields),
