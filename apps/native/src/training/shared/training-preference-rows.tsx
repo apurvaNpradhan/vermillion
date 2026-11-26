@@ -43,10 +43,13 @@ const SESSION_CHOICES = [1, 2, 3, 4, 5, 6, 7] as const;
 export function useTrainingPreferenceRows({
   extraRows = [],
   onManageEquipment,
+  equipmentGymId,
 }: {
   extraRows?: ReactNode[];
   /** Opens the bars and plates; Settings' own screen by default. */
   onManageEquipment?: () => void;
+  /** The gym whose kit the Equipment row names; the gym trained at by default. */
+  equipmentGymId?: string | null;
 } = {}) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -57,7 +60,9 @@ export function useTrainingPreferenceRows({
     sessionsPerWeek === null || SESSION_CHOICES.some((count) => count === sessionsPerWeek)
       ? SESSION_CHOICES
       : [...SESSION_CHOICES, sessionsPerWeek].sort((a, b) => a - b);
-  const { multiple, activeGym, create } = useGyms();
+  const { multiple, activeGym, create, gyms } = useGyms();
+  const equipmentGym =
+    (equipmentGymId && gyms.find((gym) => gym.id === equipmentGymId)) || activeGym;
   const [picker, setPicker] = useState<Picker>(null);
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
@@ -146,8 +151,8 @@ export function useTrainingPreferenceRows({
         key="equipment"
         icon={Barbell}
         title={
-          multiple && activeGym
-            ? t("plates__manage_at", { gym: activeGym.name })
+          multiple && equipmentGym
+            ? t("plates__manage_at", { gym: equipmentGym.name })
             : t("plates__manage")
         }
         onPress={

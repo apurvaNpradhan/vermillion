@@ -645,19 +645,17 @@ const LoadedSession = memo(function LoadedSession({
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
   const { found: foundSets } = logging;
-  const onLimits = useCallback(
-    (setId: string) => {
-      const at = foundSets.get(setId);
-      if (
-        at &&
-        (at.exercise.type === "weight_reps" || at.exercise.type === "bodyweight_weighted_reps")
-      ) {
-        closeKeypad();
-        setSheet({ kind: "limits", exercise: at.exercise });
-      }
-    },
-    [closeKeypad, foundSets],
-  );
+  // Stable: `foundSets` changes on every tick, and a new identity here would redraw every row.
+  const onLimits = useStableHandler((setId: string) => {
+    const at = foundSets.get(setId);
+    if (
+      at &&
+      (at.exercise.type === "weight_reps" || at.exercise.type === "bodyweight_weighted_reps")
+    ) {
+      closeKeypad();
+      setSheet({ kind: "limits", exercise: at.exercise });
+    }
+  });
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
   }, []);
@@ -970,7 +968,11 @@ const LoadedSession = memo(function LoadedSession({
             : []),
         ]}
       />
-      <SessionSettingsSheet isOpen={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SessionSettingsSheet
+        isOpen={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        gymId={sessionGymId}
+      />
       <RestPermissionSheet
         isOpen={askOpen}
         onOpenChange={setAskOpen}
