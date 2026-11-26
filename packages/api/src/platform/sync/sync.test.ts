@@ -475,7 +475,8 @@ describe("sync", () => {
       } finally {
         await limited.close();
       }
-    });
+      // 601 uploads one after another: slower than the default 30 s while other files run.
+    }, 90_000);
 
     it("keeps the database CHECK constraints even for direct writes", async () => {
       const me = await signedIn("check@example.com");
