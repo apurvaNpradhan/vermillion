@@ -28,6 +28,7 @@ import {
   LinkBreak,
   NotePencil,
   Barbell,
+  Rows,
   SlidersHorizontal,
   Plus,
   PushPin,
@@ -559,6 +560,40 @@ const LoadedSession = memo(function LoadedSession({
     [ruleEntry],
   );
 
+  const kindRow = kindSet
+    ? store.getState().cache.get(kindSet.exercise.id)?.view.rows.get(kindSet.set.id)
+    : undefined;
+  // The same actions as the set's swipe, plus Max load and setup: swipe is a shortcut only.
+  const kindExtras: SwipeAction[] = [];
+  if (kindSet && !readOnly) {
+    const setId = kindSet.set.id;
+    if (
+      kindSet.exercise.type === "weight_reps" ||
+      kindSet.exercise.type === "bodyweight_weighted_reps"
+    )
+      kindExtras.push({
+        key: "limits",
+        label: t("gym__limits_action"),
+        icon: Barbell,
+        onPress: () => onLimits(setId),
+      });
+    if (kindRow?.canFillRemaining)
+      kindExtras.push({
+        key: "fill",
+        label: t("session__fill_remaining"),
+        icon: Rows,
+        onPress: () => onCopySets(setId, "remaining"),
+      });
+    if (kindRow?.canRemove)
+      kindExtras.push({
+        key: "remove",
+        label: t("training__remove"),
+        icon: Trash,
+        tone: "danger",
+        onPress: () => void removeOneSet(setId),
+      });
+  }
+
   const accessory = useSessionKeypadAccessory(logging, sessionGymId);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
@@ -991,6 +1026,7 @@ const LoadedSession = memo(function LoadedSession({
         }}
         value={kindSet?.set.kind ?? "working"}
         warmupsAllowed={kindSet ? supportsWarmups(kindSet.exercise.type) : false}
+        extras={kindExtras}
         onSelect={(kind: SetKind) => {
           if (kindSet) logging.onKindSelected(kindSet.set.id, kind);
         }}
