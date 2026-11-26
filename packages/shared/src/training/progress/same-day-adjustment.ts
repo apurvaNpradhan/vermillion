@@ -137,8 +137,11 @@ function stepLoad(
 ) {
   const physical = grid && grid.source !== "cap" ? grid : null;
   const start = physical ? alignToGrid(physical, weight) : weight;
+  // A step down is the one the point below has: at the edge of a coarse range (10 kg on a rack
+  // that steps 1 kg, then 2.5) the step above the load would skip several dumbbells.
+  const stepFrom = lighter && physical ? (physical.below(start) ?? weight) : weight;
   const step = incrementFor(
-    weight,
+    stepFrom,
     equipment,
     { weightUnit: unit, weightIncrementKg, exerciseType: type },
     grid,

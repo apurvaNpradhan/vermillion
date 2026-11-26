@@ -34,7 +34,7 @@ export const topBackoffRule: ProgressionRule<TopBackoffConfig> = {
   id: "top_backoff",
   propose(input): Progression {
     const base = doubleRule.propose({ ...input, config: DEFAULT_RULE });
-    const { slots, saved, last, equipment, unit, grid, config } = input;
+    const { slots, saved, last, equipment, unit, grid, config, type } = input;
     const top = slots.find(
       ({ target, index }) => target.kind === "top" && base.sets[index]?.weightKg != null,
     );
@@ -68,7 +68,7 @@ export const topBackoffRule: ProgressionRule<TopBackoffConfig> = {
       config.backoff_percent !== undefined
         ? config.backoff_percent / 100
         : (lastShare ?? BACKOFF_FALLBACK_PERCENT / 100);
-    const load = lightenLoad(topLoad, share, equipment, unit, grid, "nearest");
+    const load = lightenLoad(topLoad, share, equipment, unit, grid, "nearest", type);
 
     const sets: (SuggestedSet | null)[] = [...base.sets];
     const outcomes: (SetOutcome | null)[] = [...base.outcomes];
@@ -87,7 +87,12 @@ export const topBackoffRule: ProgressionRule<TopBackoffConfig> = {
         weightKg: load,
         reps: reps !== null && rangeTop !== undefined ? Math.min(rangeTop, reps) : reps,
       };
-      outcomes[index] = { reason: "backoff_share", loadFactor: load / topLoad, share };
+      // A weighted bodyweight top set at +0 has no load to take a share of: no factor to report.
+      outcomes[index] = {
+        reason: "backoff_share",
+        loadFactor: topLoad > 0 ? load / topLoad : undefined,
+        share,
+      };
     }
     const reason =
       REASON_ORDER.find((candidate) => outcomes.some((outcome) => outcome?.reason === candidate)) ??

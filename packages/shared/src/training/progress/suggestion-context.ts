@@ -18,7 +18,7 @@ import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
 import { historyForGym } from "./gym-history";
 import type { LoadGrid } from "./load-grid";
 import { incrementInUnit } from "./progression-steps";
-import { missedSuggestions, stalledSessions, wasStallDeload } from "./stalled-lift";
+import { stallCounts, wasStallDeload } from "./stalled-lift";
 
 /** The increment settings plus what progression reads of the clock and the Lighter weeks. */
 export type SuggestionSettings = {
@@ -110,6 +110,30 @@ export type SuggestionContext = {
   history: readonly ContextSession[];
 };
 
+const stallVerdicts = new WeakMap<
+  readonly ContextSession[],
+  Map<string, ReturnType<typeof stallCounts>>
+>();
+
+/**
+ * The stall counts of one Workout's Sessions. `sessions` is the selection cached per watch
+ * result, so the verdict is too: Home asks for every exercise of the week on every render.
+ */
+function stallCountsOf(
+  sessions: readonly ContextSession[],
+  type: ExerciseType,
+  options: Parameters<typeof stallCounts>[2],
+) {
+  const key = JSON.stringify([type, options]);
+  const cache = stallVerdicts.get(sessions) ?? new Map<string, ReturnType<typeof stallCounts>>();
+  stallVerdicts.set(sessions, cache);
+  const existing = cache.get(key);
+  if (existing) return existing;
+  const counts = stallCounts(sessions, type, options);
+  cache.set(key, counts);
+  return counts;
+}
+
 /** The load factor of the phase a Session started in; 1 for none (the engine's own numbers). */
 export function phaseLoadOf(
   phase: Phase | null,
@@ -152,8 +176,7 @@ export function suggestionContext(
       // Linear resets a lift by itself: its Session ends the episode, so no second deload follows.
       ruleResets: place.rule === "linear",
     };
-    const count = stalledSessions(sessions, place.type, options);
-    const missed = missedSuggestions(sessions, place.type, options);
+    const { stalled: count, missed } = stallCountsOf(sessions, place.type, options);
     if (latestSessionId !== null && (count > 0 || missed > 0 || place.stallDeload)) {
       const memory = account.stallMemory(place.exerciseId, latestSessionId);
       if (!memory.dismissed || place.stallDeload)

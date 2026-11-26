@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { KG_PER_LB } from "../vocabulary/format";
-import { rangeGrid } from "./load-grid";
+import { loadGridOf, rangeGrid } from "./load-grid";
 import {
   adjustmentLoadsFor,
   adjustPrescription,
@@ -468,3 +468,60 @@ describe.each([
     expect(short?.sets[1]?.ghosts.weight).toBeLessThan(exact(load));
   });
 });
+
+describe.each([
+  { unit: "kg", load: 10, lighter: 9, higher: 12.5, exact: (n: number) => n },
+  { unit: "lb", load: 25, lighter: 22.5, higher: 30, exact: (n: number) => n * KG_PER_LB },
+] as const)(
+  "a same-day miss at the edge of the dumbbell rack in $unit",
+  ({ unit, load, lighter, higher, exact }) => {
+    // The default rack steps finely up to 10 kg (25 lb) and coarsely above it.
+    const loads = adjustmentLoadsFor(
+      { equipment: "dumbbell", type: "weight_reps", unit },
+      { unit, weightIncrementKg: null },
+      loadGridOf({ equipment: "dumbbell", unit }),
+    );
+    const planned = prescriptionSchema.parse({
+      exerciseId: EXERCISE,
+      revision: "0192f0a0-0000-7000-8000-0000000000a1",
+      previousRevision: null,
+      reason: "same_as_last",
+      incrementKg: 0,
+      breakDays: null,
+      capKg: null,
+      sets: [first, second, third].map((id) => ({
+        id,
+        ghosts: { weight: exact(load), reps: 10, rpe: 8 },
+        outcome: { reason: "same_as_last" },
+      })),
+    });
+    const adjust = (reps: number) =>
+      adjustPrescription(
+        planned,
+        first,
+        { kind: "working", weight_kg: exact(load), reps, rpe: 8 },
+        new Map([
+          [second, "working"],
+          [third, "working"],
+        ] as const),
+        loads,
+        true,
+      );
+
+    it("drops to the next dumbbell down, not a whole coarse step below", () => {
+      const next = adjust(7);
+      expect(next?.sets.slice(1).map((set) => set.ghosts.weight)).toEqual([
+        expect.closeTo(exact(lighter), 2),
+        expect.closeTo(exact(lighter), 2),
+      ]);
+    });
+
+    it("still moves up by one coarse step from the same edge", () => {
+      const next = adjust(13);
+      expect(next?.sets.slice(1).map((set) => set.ghosts.weight)).toEqual([
+        expect.closeTo(exact(higher), 2),
+        expect.closeTo(exact(higher), 2),
+      ]);
+    });
+  },
+);

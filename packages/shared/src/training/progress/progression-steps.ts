@@ -70,7 +70,13 @@ export function incrementInUnit(
 }
 
 /** The default step of `equipment` for a load of `loadKg`, in the display unit. */
-function defaultStep(equipment: Equipment, unit: WeightUnit, loadKg: number): number {
+function defaultStep(
+  equipment: Equipment,
+  unit: WeightUnit,
+  loadKg: number,
+  exerciseType?: ExerciseType,
+): number {
+  if (exerciseType === "bodyweight_weighted_reps") return unit === "kg" ? 1.25 : 2.5;
   if (equipment !== "dumbbell") return SMALLEST_STEP[equipment][unit];
   const steps = DUMBBELL_STEPS[unit];
   return inUnit(loadKg, unit) < steps.upTo - EPS ? steps.fine : steps.coarse;
@@ -83,8 +89,7 @@ export function defaultStepKg(
   loadKg: number,
   exerciseType?: ExerciseType,
 ): number {
-  if (exerciseType === "bodyweight_weighted_reps") return toKg(unit === "kg" ? 1.25 : 2.5, unit);
-  return toKg(defaultStep(equipment, unit, loadKg), unit);
+  return toKg(defaultStep(equipment, unit, loadKg, exerciseType), unit);
 }
 
 /**
@@ -213,7 +218,8 @@ export function addLoad(
  *
  * A break or Lighter week rounds to the nearest point and scales loads already below the grid
  * as entered. A phase's Deload rounds down, with the lowest loadable point as its floor.
- * The physical cap applies in either case.
+ * The physical cap applies in either case. Without a grid, `exerciseType` picks the step: a
+ * weighted bodyweight lift rounds to belt plates, not to the equipment's step.
  */
 export function lightenLoad(
   loadKg: number,
@@ -222,6 +228,7 @@ export function lightenLoad(
   unit: WeightUnit,
   grid: LoadGrid | null = null,
   rounding: "nearest" | "down" | "deload" = "nearest",
+  exerciseType?: ExerciseType,
 ): number {
   if (loadKg <= 0) return loadable(loadKg, unit);
   // A cap alone has no grid of its own: the equipment's step rounds, the cap only limits.
@@ -231,7 +238,7 @@ export function lightenLoad(
     if (lowest !== undefined && loadIdentity(loadKg) <= loadIdentity(lowest)) return lowest;
     const lower = snapping
       ? Math.min(loadKg, gridFloor(snapping, loadKg * factor))
-      : lightenLoad(loadKg, factor, equipment, unit, grid, "down");
+      : lightenLoad(loadKg, factor, equipment, unit, grid, "down", exerciseType);
     if (Math.abs(lower / loadKg - factor) <= 0.05 + EPS) return lower;
   }
   const down = rounding === "down";
@@ -251,7 +258,8 @@ export function lightenLoad(
       if (down) return Math.min(lighter, snapping.capKg ?? lighter);
     }
   } else {
-    const step = defaultStep(equipment, unit, loadKg);
+    // Added weight on a belt moves by its own plates, as the increments do.
+    const step = defaultStep(equipment, unit, loadKg, exerciseType);
     const load = inUnit(loadKg, unit);
     if (down) {
       const floored = Math.floor((load * factor + EPS) / step) * step;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PlannedSet } from "../plans/planned-sets";
 import type { LoggedSet } from "../logging/logged-set";
-import { prescriptionSchema } from "../progress/prescription";
+import { prescribedSetSchema, prescriptionSchema } from "../progress/prescription";
 import type { ContextSession, SuggestionAccount } from "../progress/suggestion-context";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import { stalledExerciseIds } from "./stalled";
@@ -171,3 +171,72 @@ describe.each([
     expect(previewRule(input(unit, []))).toEqual([]);
   });
 });
+
+describe.each(["kg", "lb"] as const)(
+  "Top set and back-offs on a weighted pull-up at +0 in %s",
+  (unit) => {
+    const targets: PlannedSet[] = [
+      { kind: "top", reps_min: 6, reps_max: 8 },
+      { kind: "backoff", reps_min: 8, reps_max: 10 },
+      { kind: "backoff", reps_min: 8, reps_max: 10 },
+    ];
+    const at = new Date(NOW.getTime() - 7 * DAY).toISOString();
+    const last: ContextSession = {
+      id: "last",
+      workoutId: "pull",
+      gymId: null,
+      started_at: at,
+      finished_at: at,
+      sets: [
+        { kind: "top" as const, reps: 6 },
+        { kind: "backoff" as const, reps: 8 },
+        { kind: "backoff" as const, reps: 8 },
+      ].map(({ kind, reps }, index): LoggedSet => ({
+        id: `pull-${index}`,
+        exercise_id: "pull-up",
+        session_exercise_id: "entry",
+        source_workout_exercise_id: "plan-pull-up",
+        exercise_type: "bodyweight_weighted_reps",
+        kind,
+        completed_at: at,
+        weight_kg: 0,
+        reps,
+        bodyweight_kg: 80,
+        target: targets[index] ?? null,
+      })),
+    };
+
+    it("writes back-off outcomes the snapshot schema accepts", () => {
+      const result = prescribe({
+        place: {
+          exerciseId: "pull-up",
+          sourceWorkoutExerciseId: "plan-pull-up",
+          type: "bodyweight_weighted_reps",
+          equipment: "none",
+          workoutId: "pull",
+          gymId: null,
+          grid: null,
+          stalls: true,
+        },
+        plan: targets,
+        history: [last],
+        account: account(unit),
+        rule: { id: "top_backoff" },
+        now: NOW,
+      });
+      const outcomes = result.progression?.outcomes ?? [];
+      expect(outcomes[1]?.reason).toBe("backoff_share");
+      for (const outcome of outcomes) {
+        expect(
+          prescribedSetSchema.safeParse({
+            id: "0192f0a0-0000-7000-8000-000000000001",
+            ghosts: {},
+            outcome,
+          }).success,
+        ).toBe(true);
+      }
+      // No load factor to report when the top set carries no added weight.
+      expect(outcomes[1]?.loadFactor).toBeUndefined();
+    });
+  },
+);

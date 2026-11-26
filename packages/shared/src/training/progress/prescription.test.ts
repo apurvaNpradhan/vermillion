@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  finiteOutcome,
   latestAdjustment,
   prescriptionReadSchema,
   prescriptionSchema,
@@ -186,5 +187,23 @@ describe("prescriptionReadSchema", () => {
     expect(prescriptionReadSchema.safeParse({ ...stored, revision: "x" }).success).toBe(false);
     expect(prescriptionReadSchema.safeParse({ ...stored, sets: "none" }).success).toBe(false);
     expect(prescriptionReadSchema.safeParse(null).success).toBe(false);
+  });
+});
+
+describe("finiteOutcome", () => {
+  it("drops numbers that are not finite and keeps the rest", () => {
+    expect(
+      finiteOutcome({
+        reason: "backoff_share",
+        loadFactor: Number.NaN,
+        share: 0.9,
+        capKg: Infinity,
+      }),
+    ).toEqual({ reason: "backoff_share", share: 0.9 });
+    expect(finiteOutcome({ reason: "add_weight", changeKg: 2.5 })).toEqual({
+      reason: "add_weight",
+      changeKg: 2.5,
+    });
+    expect(finiteOutcome(null)).toBeNull();
   });
 });

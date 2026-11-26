@@ -34,6 +34,8 @@ export function testWorkingLoad(
     (session) => Date.parse(session.started_at) <= options.now.getTime(),
   );
   let estimate: number | null = null;
+  // The bodyweight the estimate was made with, for when today's is not known.
+  let estimateBodyweight: number | null = null;
   let loggedLoad: number | null = null;
   let baselines = 0;
   for (const session of outsideLighterWeeks(before, options.lighterWeeks ?? [])) {
@@ -44,6 +46,7 @@ export function testWorkingLoad(
       baselines <= RECENT_BASELINES &&
       options.now.getTime() - Date.parse(session.started_at) <= RECENT_MS;
     let result: number | null = null;
+    let resultBodyweight: number | null = null;
     let workingLoad: number | null = null;
     for (const set of session.sets) {
       if (set.completed_at === null || !progresses(set.kind) || set.weight_kg == null) continue;
@@ -52,18 +55,24 @@ export function testWorkingLoad(
       const bodyweight = set.bodyweight_kg === undefined ? options.bodyweightKg : set.bodyweight_kg;
       const weight = effectiveWeight(type, set.weight_kg, bodyweight);
       const max = weight === null ? null : estimatedOneRepMax(weight, set.reps, set.rpe);
-      if (max !== null) result = Math.max(result ?? 0, max);
+      if (max !== null && max > (result ?? 0)) {
+        result = max;
+        resultBodyweight = bodyweight ?? null;
+      }
     }
     loggedLoad ??= workingLoad;
     if (result !== null) {
       estimate = result;
+      estimateBodyweight = resultBodyweight;
       break;
     }
     if (!recent && loggedLoad !== null) break;
   }
   const { load: factor } = trainingBreak(before, options.now);
   if (estimate === null) return loggedLoad === null ? null : loggedLoad * factor;
-  const offset = type === "bodyweight_weighted_reps" ? (options.bodyweightKg ?? 0) : 0;
+  // The belt carries the estimate less the body: today's weight, else the one the set was done at.
+  const offset =
+    type === "bodyweight_weighted_reps" ? (options.bodyweightKg ?? estimateBodyweight ?? 0) : 0;
   return Math.max(0, estimate * TEST_SHARE * factor - offset);
 }
 

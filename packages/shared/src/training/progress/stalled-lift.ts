@@ -4,7 +4,7 @@ import { effectiveWeight, estimatedOneRepMax } from "../volume/volume";
 import { isBaselinePhase, type Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { loadIdentity } from "../vocabulary/format";
-import { outsideLighterWeeks, type LighterPeriod } from "./lighter-week";
+import { inLighterWeek, type LighterPeriod } from "./lighter-week";
 import { progresses } from "./progression";
 import { fellShortOfSuggestion } from "./suggestion-ledger";
 
@@ -82,55 +82,73 @@ const wasRuleReset = ({ sets }: StallSession): boolean =>
  */
 type EpisodeOptions = { ruleResets?: boolean };
 
-type Baseline = { session: StallSession; performance: Map<SetKind, StallPerformance> };
+/** A scored baseline Session; its performance is worked out when first read, once. */
+type Baseline = { session: StallSession; performance: () => Map<SetKind, StallPerformance> };
+
+type StallOptions = {
+  bodyweightKg?: number | null;
+  lighterWeeks?: readonly LighterPeriod[];
+  /** A matching baseline from another Workout can start the episode too. */
+  sinceDeload?: string;
+} & EpisodeOptions;
+
+/** The baselines of an episode, newest first, found one at a time as a count asks for them. */
+type Episode = { at(index: number): Baseline | undefined };
 
 /**
  * The scored baseline Sessions of the current episode, newest first: after the last applied stall
  * deload, outside Lighter weeks, until a gap of 14 days. A Test or Deload Session is not scored but
- * is training, so it fills a gap.
+ * is training, so it fills a gap. The history is read newest first and only as far as a count
+ * goes: nothing behind a gap or behind the first improvement is touched, and a Session's
+ * performance is worked out once, when first read, however many counts share the episode.
  */
 function episodeBaselines(
   history: readonly StallSession[],
   type: ExerciseType,
-  options: {
-    bodyweightKg?: number | null;
-    lighterWeeks?: readonly LighterPeriod[];
-    sinceDeload?: string;
-  } & EpisodeOptions,
-): Baseline[] {
-  const lastDeload = history.findIndex(
-    (session) => wasStallDeload(session) || (options.ruleResets === true && wasRuleReset(session)),
-  );
-  const since = lastDeload < 0 ? history : history.slice(0, lastDeload);
+  options: StallOptions,
+): Episode {
+  const found: Baseline[] = [];
+  const scan = scanEpisode(history, type, options);
+  return {
+    at(index) {
+      while (found.length <= index) {
+        const next = scan.next();
+        if (next.done) return undefined;
+        found.push(next.value);
+      }
+      return found[index];
+    },
+  };
+}
+
+function* scanEpisode(
+  history: readonly StallSession[],
+  type: ExerciseType,
+  options: StallOptions,
+): Generator<Baseline, void> {
   const opened = options.sinceDeload ? Date.parse(options.sinceDeload) : -Infinity;
-  const episode = since.filter((session) => Date.parse(session.started_at) > opened);
-  const trained = outsideLighterWeeks(episode, options.lighterWeeks ?? []).flatMap((session) => {
-    const performance = performanceByKind(session.sets, type, options.bodyweightKg);
-    return performance.size === 0
-      ? []
-      : [
-          {
-            session,
-            at: Date.parse(session.started_at),
-            baseline: isBaselinePhase(session.phase),
-            performance,
-          },
-        ];
-  });
+  const lighterWeeks = options.lighterWeeks ?? [];
   // Only baselines are scored. A gap is measured over everything trained, so a Deload or Test
   // Session between two baselines shortens it. Compare only the baselines since the last gap.
-  const baselines: Baseline[] = [];
-  let gap = false;
+  let scored = false;
   let previous: number | null = null;
-  for (const item of trained) {
-    if (baselines.length > 0 && previous !== null && previous - item.at >= BREAK_DAYS * DAY_MS)
-      gap = true;
-    previous = item.at;
-    if (!item.baseline) continue;
-    if (gap) break;
-    baselines.push({ session: item.session, performance: item.performance });
+  for (const session of history) {
+    if (wasStallDeload(session) || (options.ruleResets === true && wasRuleReset(session))) return;
+    const at = Date.parse(session.started_at);
+    if (!(at > opened) || inLighterWeek(session.started_at, lighterWeeks)) continue;
+    // A Session with nothing to score is not training for a stall.
+    if (sessionScore(session.sets, type, options.bodyweightKg) === null) continue;
+    if (scored && previous !== null && previous - at >= BREAK_DAYS * DAY_MS) return;
+    previous = at;
+    if (!isBaselinePhase(session.phase)) continue;
+    scored = true;
+    let performance: Map<SetKind, StallPerformance> | undefined;
+    yield {
+      session,
+      performance: () =>
+        (performance ??= performanceByKind(session.sets, type, options.bodyweightKg)),
+    };
   }
-  return baselines;
 }
 
 /**
@@ -147,17 +165,18 @@ function episodeBaselines(
 export function stalledSessions(
   history: readonly StallSession[],
   type: ExerciseType,
-  options: {
-    bodyweightKg?: number | null;
-    lighterWeeks?: readonly LighterPeriod[];
-    /** A matching baseline from another Workout can start the episode too. */
-    sinceDeload?: string;
-  } & EpisodeOptions = {},
+  options: StallOptions = {},
 ): number {
-  const sessions = episodeBaselines(history, type, options).map(({ performance }) => performance);
+  return stalledOf(episodeBaselines(history, type, options));
+}
+
+function stalledOf(episode: Episode): number {
   const recent = new Map<SetKind, StallPerformance>();
   let stalled = 0;
-  for (const [index, before] of sessions.entries()) {
+  for (let index = 0; ; index += 1) {
+    const baseline = episode.at(index);
+    if (!baseline) break;
+    const before = baseline.performance();
     if (index >= STALL_SESSIONS) {
       const comparable = [...before].flatMap(([kind, values]) => {
         const after = recent.get(kind);
@@ -173,7 +192,8 @@ export function stalledSessions(
     for (const [kind, values] of before) {
       const after = recent.get(kind);
       if (!after) {
-        recent.set(kind, values);
+        // A copy: the Session's own performance is shared with the missed-suggestion count.
+        recent.set(kind, { ...values, repsByLoad: new Map(values.repsByLoad) });
         continue;
       }
       if (values.strength !== null) after.strength = Math.max(after.strength ?? 0, values.strength);
@@ -285,21 +305,31 @@ function missedSuggestion(session: StallSession): boolean | null {
 export function missedSuggestions(
   history: readonly StallSession[],
   type: ExerciseType,
-  options: {
-    bodyweightKg?: number | null;
-    lighterWeeks?: readonly LighterPeriod[];
-    sinceDeload?: string;
-  } & EpisodeOptions = {},
+  options: StallOptions = {},
 ): number {
-  const baselines = episodeBaselines(history, type, options);
+  return missedOf(episodeBaselines(history, type, options));
+}
+
+function missedOf(episode: Episode): number {
   let missed = 0;
-  for (const [index, { session, performance }] of baselines.entries()) {
-    if (missedSuggestion(session) !== true) break;
-    const before = baselines[index + 1]?.performance;
-    if (before && improvedAny(performance, before)) break;
+  for (let index = 0; ; index += 1) {
+    const baseline = episode.at(index);
+    if (!baseline || missedSuggestion(baseline.session) !== true) break;
+    const before = episode.at(index + 1)?.performance();
+    if (before && improvedAny(baseline.performance(), before)) break;
     missed += 1;
   }
   return missed >= MISSED_SESSIONS ? missed : 0;
+}
+
+/** Both counts of one history's stall verdict, from one pass over its episode. */
+export function stallCounts(
+  history: readonly StallSession[],
+  type: ExerciseType,
+  options: StallOptions = {},
+) {
+  const episode = episodeBaselines(history, type, options);
+  return { stalled: stalledOf(episode), missed: missedOf(episode) };
 }
 
 function improvedAny(
