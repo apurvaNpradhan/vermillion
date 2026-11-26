@@ -3,13 +3,13 @@ import {
   endLighterWeek,
   runWeek,
   startLighterWeek,
-  undoableDeloadWeek,
+  deloadLogged,
   undoableLighterWeek,
   type RunPause,
   type RunSessionPhase,
 } from "@workspace/shared";
 import { insertDeloadNow, undoDeloadNow } from "@workspace/sync";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
@@ -36,11 +36,14 @@ type DeloadRun = {
  */
 export function useDeloadWeek({
   run,
-  sessions = [],
+  week,
+  sessions,
   sessionStarts,
 }: {
   /** The active Run (null when there is none). */
   run: DeloadRun | null;
+  /** The current Run week, supplied by surfaces that offer inserted Deload undo. */
+  week?: number;
   sessions?: readonly RunSessionPhase[];
   sessionStarts?: readonly string[];
 }) {
@@ -52,7 +55,10 @@ export function useDeloadWeek({
   const [open, setOpen] = useState(false);
   const { lighterWeeks } = preferences.ui;
   const now = new Date();
-  const undoRunWeek = run ? undoableDeloadWeek({ run, now, timezone: timeZone, sessions }) : null;
+  const undoRunWeek = useMemo(() => {
+    if (!run || week === undefined || !run.inserted_deloads.includes(week)) return null;
+    return deloadLogged(run, week, timeZone, sessions ?? []) ? null : week;
+  }, [run, week, timeZone, sessions]);
   const lighter = activeLighterWeek(lighterWeeks, now);
   const canUndoLighter =
     sessionStarts !== undefined && undoableLighterWeek(lighterWeeks, now, sessionStarts) !== null;

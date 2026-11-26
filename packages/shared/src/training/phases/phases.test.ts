@@ -9,7 +9,7 @@ import { loadGridOf } from "../progress/load-grid";
 import { suggestNext } from "../engine/pipeline";
 import type { ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
-import { runWeek, type RunPause } from "../plans/cycle";
+import { type RunPause } from "../plans/cycle";
 import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
@@ -35,7 +35,6 @@ import {
   phasePlanSchema,
   snapshotModifiers,
   snapshotOf,
-  deloadLogged,
   undoableDeloadWeek,
   withModifiers,
   withPattern,
@@ -984,52 +983,51 @@ describe("undoing an inserted deload", () => {
 });
 
 describe("reading the week of a Run that has been paused", () => {
-  // Every Train and Home render asks for the phase and the Undo: both must stay cheap with a long
-  // history (the watch holds 500 Sessions) and a pause, whatever the device's Intl costs.
   const zone = "Europe/Berlin";
   const start = Date.parse("2025-01-06T10:00:00Z");
-  const sessions = Array.from({ length: 500 }, (_, index) => ({
-    started_at: new Date(start + (499 - index) * 86_400_000).toISOString(),
-    phase: "deload" as const,
-  }));
+  const now = new Date("2025-11-13T11:00:00Z");
   const run = {
     started_at: new Date(start).toISOString(),
-    inserted_deloads: [72],
+    inserted_deloads: [42],
     pauses: [{ from: "2025-03-01T10:00:00Z", until: "2025-03-20T10:00:00Z" }],
   };
-  const now = new Date(start + 499 * 86_400_000 + 3_600_000);
 
-  it("builds no formatter per Session and reads this week's Sessions only", () => {
+  it("checks the current Deload without reading hundreds of older Session starts", () => {
+    let reads = 0;
+    const sessions = Array.from({ length: 500 }, (_, index) => ({
+      get started_at() {
+        reads += 1;
+        return new Date(now.getTime() - 3_600_000 - index * 43_200_000).toISOString();
+      },
+      phase: "deload" as const,
+    }));
     const formats = vi.spyOn(Intl, "DateTimeFormat");
     try {
-      const began = performance.now();
-      for (let render = 0; render < 40; render += 1) {
-        undoableDeloadWeek({ run, now, timezone: zone, sessions });
-        phaseFor(
-          plan({ pattern: ["build", "build", "build", "test"] }),
-          run,
-          now,
-          zone,
-          sessions.map((item) => item.started_at),
-        );
+      expect(undoableDeloadWeek({ run, now, timezone: zone, sessions: [] })).toBe(42);
+      for (let render = 0; render < 20; render += 1) {
+        expect(undoableDeloadWeek({ run, now, timezone: zone, sessions })).toBeNull();
       }
-      const elapsed = performance.now() - began;
-      // Zone formatters are made once (the wall clock and the calendar day), not per call.
+      expect(reads).toBeLessThan(100);
       expect(formats.mock.calls.length).toBeLessThanOrEqual(2);
-      // Generous: 40 renders took over two seconds when a formatter was built per Session.
-      expect(elapsed).toBeLessThan(500);
     } finally {
       formats.mockRestore();
     }
   });
 
-  it("converts only the Sessions from this week back, newest first", () => {
-    const week = runWeek(run.started_at, now, zone, run.pauses);
-    expect(week).toBeGreaterThan(50);
-    expect(deloadLogged(run, week, zone, sessions)).toBe(true);
-    // Only older Sessions: the walk meets an earlier week at once and stops.
-    const older = sessions.slice(30);
-    expect(deloadLogged(run, week, zone, older)).toBe(false);
+  it("checks older offline Sessions even when a pause briefly rolled the week back", () => {
+    const paused = {
+      started_at: "2025-01-06T10:00:00Z",
+      inserted_deloads: [2],
+      pauses: [{ from: "2025-01-12T12:00:00Z", until: "2025-01-14T12:00:00Z" }],
+    };
+    const now = new Date("2025-01-15T13:00:00Z");
+    const newer = { started_at: "2025-01-13T13:00:00Z", phase: "deload" as const };
+    const older = { started_at: "2025-01-13T08:00:00Z", phase: "deload" as const };
+    const undo = (sessions: (typeof newer)[]) =>
+      undoableDeloadWeek({ run: paused, now, timezone: "UTC", sessions });
+
+    expect(undo([newer])).toBe(2);
+    expect(undo([newer, older])).toBeNull();
   });
 });
 

@@ -26,7 +26,7 @@ export function WeekSheet({
   const { t } = useTranslation();
   const text = usePhaseText();
   const { program, run, phase, paused, week, totalWeeks } = state;
-  const deload = useDeloadWeek({ run, sessions: state.sessionPhases });
+  const deload = useDeloadWeek({ run, week, sessions: state.sessionPhases });
   if (!program || !run) return null;
   const title = totalWeeks
     ? t("run__week_of", { week, total: totalWeeks })

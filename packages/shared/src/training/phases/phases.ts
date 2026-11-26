@@ -216,6 +216,21 @@ const DAY_MS = 86_400_000;
 /** Calendar days without a counted Session after which a Test week is read as Build. */
 const TEST_SKIP_DAYS = 14;
 
+const newestStarts = new WeakMap<readonly string[], readonly number[]>();
+
+function startsNewestFirst(history: readonly string[]): readonly number[] {
+  const known = newestStarts.get(history);
+  if (known) return known;
+  const starts = history
+    .flatMap((value) => {
+      const at = Date.parse(value);
+      return Number.isFinite(at) ? [at] : [];
+    })
+    .sort((a, b) => b - a);
+  newestStarts.set(history, starts);
+  return starts;
+}
+
 /**
  * What a Run with inserted Deload weeks but no plan of its own follows: Build every week, so
  * "Insert deload week" works on a Program that has no phases.
@@ -254,12 +269,8 @@ export function phaseFor(
     // never decides) is a Build week: a heavy single is not asked of someone back from time off.
     const nowMs = now.getTime();
     let after = calendarDay(now, timezone);
-    for (const before of trainedAt
-      .flatMap((value) => {
-        const at = Date.parse(value);
-        return at < nowMs ? [at] : [];
-      })
-      .sort((a, b) => b - a)) {
+    for (const before of startsNewestFirst(trainedAt)) {
+      if (before >= nowMs) continue;
       const day = calendarDay(new Date(before), timezone);
       if (after - day >= TEST_SKIP_DAYS * DAY_MS) {
         found.phase = "build";
@@ -307,8 +318,8 @@ type UndoRun = {
  * Whether a counted Session of the Run was started as a Deload in Run week `week`. A Session keeps
  * the phase it started in, so a Build Session logged before the Deload was inserted does not count:
  * only work done as the Deload makes the insert stick. The one rule behind the Undo on every
- * device and the server's check. Sessions of later weeks are skipped, and the walk stops at the
- * first of an earlier week, so only this week's Sessions are converted to Run weeks.
+ * device and the server's check. A pause can briefly move the Run week backward, so each
+ * plausible start is checked independently and the input need not be ordered.
  */
 export function deloadLogged(
   run: Omit<UndoRun, "inserted_deloads">,
@@ -316,15 +327,17 @@ export function deloadLogged(
   timezone: string,
   sessions: readonly RunSessionPhase[],
 ): boolean {
-  const starts = sessions
-    .flatMap(({ started_at, phase }) => (phase === "deload" ? [Date.parse(started_at)] : []))
-    .sort((a, b) => b - a);
-  for (const at of starts) {
-    const found = runWeek(run.started_at, new Date(at), timezone, run.pauses);
-    if (found === week) return true;
-    if (found < week) return false;
-  }
-  return false;
+  const { started_at: startedAt, pauses } = run;
+  if (startedAt === null) return week === 1 && sessions.some(({ phase }) => phase === "deload");
+  // A pause only subtracts days. Before the unpaused week (with a day for the UTC offset),
+  // a Session cannot qualify, so old history needs no Run-week conversion.
+  const earliest =
+    week === 1 ? -Infinity : calendarDay(startedAt, timezone) + ((week - 1) * 7 - 1) * DAY_MS;
+  return sessions.some((session) => {
+    if (session.phase !== "deload") return false;
+    const at = Date.parse(session.started_at);
+    return at >= earliest && runWeek(startedAt, new Date(at), timezone, pauses) === week;
+  });
 }
 
 /**

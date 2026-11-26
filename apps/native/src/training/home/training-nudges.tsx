@@ -52,11 +52,11 @@ export function TrainingNudges({
   const run = program.run;
   const now = new Date();
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
-  const deload = useDeloadWeek({
-    run,
-    sessions: program.sessionPhases,
-    sessionStarts: state.finished?.map((session) => session.started_at),
-  });
+  const sessionStarts = useMemo(
+    () => state.finished?.map((session) => session.started_at),
+    [state.finished],
+  );
+  const deload = useDeloadWeek({ run, sessionStarts });
   const week = weekRange(now, state.timezone, state.weekStart);
   const { start: weekStartMs, end: weekEndMs } = week;
   const thisWeek = useMemo(
@@ -146,6 +146,7 @@ export function TrainingNudges({
   if (!histories.ready || rules.loading) return records;
   // A week that is already a Deload needs no offer of one.
   const offer =
+    program.ready &&
     !program.paused &&
     program.phase?.phase !== "deload" &&
     offerLighterWeek({

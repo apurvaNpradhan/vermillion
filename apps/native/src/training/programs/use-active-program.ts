@@ -28,7 +28,8 @@ export function useActiveRun() {
   const [pendingProgramId, setPendingProgramId] = useState<string | null>(null);
   const { write, writeScope } = useTrainingWrite();
   const state = useLocalWatch(watchRunState);
-  const run = activeRun(state.value?.runs ?? []);
+  const runs = state.value?.runs;
+  const run = useMemo(() => activeRun(runs ?? []), [runs]);
   const runId = run?.id ?? null;
   const runProgramId = run?.program_id ?? null;
   const activate = useCallback(
