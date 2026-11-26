@@ -1,5 +1,6 @@
 import type { RunSlot } from "@workspace/shared";
 import { Play } from "phosphor-react-native";
+import { useState } from "react";
 import { useThemeColor } from "heroui-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -7,7 +8,6 @@ import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { PhaseChip } from "@/training/phases/phase-chip";
-import { useInsertDeload } from "@/training/phases/use-insert-deload";
 import { ProgramTile } from "@/training/programs/program-row";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
 import { slotTitle } from "@/training/rotation/rotation-row";
@@ -15,14 +15,15 @@ import { WorkoutTile } from "@/training/shared/workout-tile";
 
 import { CycleStrip } from "./cycle-strip";
 import { useSlotDay } from "./use-slot-day";
+import { WeekSheet } from "./week-sheet";
 
 const COVER = 64;
 const NEXT_TILE = 44;
 
 /**
- * The active Run at the top of Train: the Program's cover and name, "Week 3 of 12" (a chip, "Week
- * 5 · Deload", once the Run has phases), the cycle strip (tap a day to start it or skip it for
- * this Cycle), "Insert deload" and one Start for the next Workout. Tapping the heading opens the
+ * The active program at the top of Train: its cover and name, the week chip ("Week 3 of 12",
+ * "Week 5 · Deload" with phases; it opens deload, pause and planning), the day strip (tap a day to
+ * start it or skip it this time) and one Start for the next workout. Tapping the heading opens the
  * Program.
  */
 export function RunHero({
@@ -41,7 +42,7 @@ export function RunHero({
   const subtle = useSubtleColor();
   const onAction = useThemeColor("accent-foreground");
   const { program, run, progress, week, totalWeeks, phase, paused } = state;
-  const insert = useInsertDeload(run);
+  const [weekOpen, setWeekOpen] = useState(false);
   const day = useSlotDay({
     runId: run?.id ?? null,
     progress,
@@ -71,40 +72,18 @@ export function RunHero({
           <Text numberOfLines={1} className="text-title-md font-semibold text-foreground">
             {program.title}
           </Text>
-          {phase ? (
-            <PhaseChip phase={phase} totalWeeks={totalWeeks} />
-          ) : (
-            <Text numberOfLines={1} className="font-normal text-caption tabular-nums text-muted">
-              {weekText}
-            </Text>
-          )}
+          <PhaseChip
+            phase={phase}
+            week={week}
+            totalWeeks={totalWeeks}
+            accessibilityHint={t("run__week_hint")}
+            onPress={() => setWeekOpen(true)}
+          />
         </View>
       </Pressable>
       {!paused ? (
-        <View className="gap-1">
-          <View className="flex-row items-center justify-between gap-3">
-            <Text className="font-normal text-caption tabular-nums text-muted">
-              {t("run__cycle", { cycle: progress.cycle })}
-            </Text>
-            {phase?.phase === "deload" ? null : (
-              <Pressable
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={insert.ask}
-                className="min-h-8 justify-center active:opacity-60"
-              >
-                <Text className="font-normal text-caption text-muted">
-                  {t("phase__insert_now")}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-          <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
-        </View>
+        <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
       ) : null}
-      <Button size="sm" variant="tertiary" onPress={() => void state.changePause(!paused)}>
-        <Button.Label>{t(paused ? "run__resume_run" : "run__pause_run")}</Button.Label>
-      </Button>
       {next?.workoutId && nextTitle ? (
         <View className="gap-3">
           <View className="flex-row items-center gap-3">
@@ -141,7 +120,7 @@ export function RunHero({
         </View>
       ) : null}
       {day.sheet}
-      {insert.dialog}
+      <WeekSheet state={state} isOpen={weekOpen} onOpenChange={setWeekOpen} onPlan={onOpen} />
     </View>
   );
 }

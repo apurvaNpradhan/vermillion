@@ -1,14 +1,12 @@
 import {
   PHASES,
   modifiersFor,
-  phaseFor,
   withModifiers,
   withPattern,
   withWeekPhase,
   type Phase,
 } from "@workspace/shared";
 import type { ProgramDetail, readRuns } from "@workspace/sync";
-import { TrendDown } from "phosphor-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -25,29 +23,25 @@ import { PatternSheet } from "./pattern-sheet";
 import { PhaseModifiersSheet } from "./phase-modifiers-sheet";
 import { PhaseStrip } from "./phase-strip";
 import { stripBlocks, type StripBlock } from "./phase-strip-math";
-import { useInsertDeload } from "./use-insert-deload";
 
 type AsPattern = "pattern";
 
 /**
  * The phases of one Program, under its cover row: the week strip (a block per week, tap one to
- * set its phase), the "Pattern" that repeats, what each phase does to a Workout (tap to edit) and,
- * on the active Program, "Insert deload now". A Program with no pattern shows a single quiet
- * invitation to set one.
+ * set its phase), the "Pattern" that repeats and what each phase does to a Workout (tap to edit).
+ * A Program with no pattern shows a single quiet invitation to set one.
  */
 export function PhaseSection({
   program,
   run,
   actions,
   trainedAt,
-  paused,
 }: {
   program: ProgramDetail;
   /** The active Run when this Program is the active one; null otherwise. */
   run: Awaited<ReturnType<typeof readRuns>>[number] | null;
   actions: ReturnType<typeof useProgramActions>;
   trainedAt?: readonly string[];
-  paused: boolean;
 }) {
   const { t } = useTranslation();
   const text = usePhaseText();
@@ -57,7 +51,6 @@ export function PhaseSection({
   const [patternOpen, setPatternOpen] = useState(false);
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
-  const insert = useInsertDeload(run);
   const blocks = plan
     ? stripBlocks({
         plan,
@@ -69,11 +62,9 @@ export function PhaseSection({
     void actions.update(program.id, { phase_plan: next });
   const overridden =
     week !== null && plan?.overrides.some((item) => item.week === week.programWeek);
-  const nowPhase = phaseFor(plan, run, now, timeZone, trainedAt);
 
   return (
     <View className="gap-2">
-      {insert.dialog}
       <View className="px-4">
         <SectionHeader
           title={t("phase__title")}
@@ -96,16 +87,6 @@ export function PhaseSection({
           </Text>
           <PhaseStrip blocks={blocks} onSelect={setWeek} />
           <View className="gap-3 px-4 pt-2">
-            {run && !paused && nowPhase?.phase !== "deload" ? (
-              <ListSection variant="plain">
-                <ListRow
-                  icon={TrendDown}
-                  title={t("phase__insert_now")}
-                  accessory="none"
-                  onPress={insert.ask}
-                />
-              </ListSection>
-            ) : null}
             <ListSection>
               {PHASES.map((phase) => (
                 <ListRow
