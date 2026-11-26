@@ -159,7 +159,7 @@
   "settings__plan": "Plan",
   "settings__during_workout": "During a workout",
   "settings__previous_title": "Previous values from",
-  "settings__previous_hint": "What the Previous column and the ghost values show.",
+  "settings__previous_hint": "What the Previous column and the grey suggestions show.",
   "settings__previous_any": "Any workout",
   "settings__previous_same": "Same workout",
   "settings__count_warmups": "Count warm-up sets",
