@@ -2,14 +2,15 @@
 # Data repair for the week phases release: a Program Run's `started_at` is the start of its Run
 # weeks (and so of every phase), but older builds left it empty or later than the Run's earliest
 # live Session (a Session logged out of order, or backfilled). This resets it to that Session's
-# start. Only live Runs and live Sessions count; a Run with no Session is left alone.
+# start. Only live Runs and live Sessions count, and a Session counts only for a Run of the same
+# owner; a Run with no Session is left alone.
 #
 #   DATABASE_URL=postgres://... scripts/ops/repair-run-started-at.sh           # dry run: prints
 #   DATABASE_URL=postgres://... scripts/ops/repair-run-started-at.sh --apply   # writes
 #
 # The default is a dry run: it prints the rows it would change and writes nothing. --apply runs
 # one transaction and prints what it changed. Needs psql. Run the dry run, read the rows, then
-# apply, before deploying the release (docs/runbook.md, "Pre-deploy data repairs").
+# apply, after deploying the API (which keeps started_at from moving later) and before releasing the app (docs/runbook.md, "Pre-deploy data repairs").
 set -euo pipefail
 
 mode="dry-run"
@@ -25,11 +26,11 @@ affected='
   SELECT r.id AS run_id, r.user_id, r.started_at AS current_started_at, f.first_started_at
   FROM program_run r
   JOIN (
-    SELECT run_id, min(started_at) AS first_started_at
+    SELECT run_id, user_id, min(started_at) AS first_started_at
     FROM training_session
     WHERE run_id IS NOT NULL AND deleted_at IS NULL
-    GROUP BY run_id
-  ) f ON f.run_id = r.id
+    GROUP BY run_id, user_id
+  ) f ON f.run_id = r.id AND f.user_id = r.user_id
   WHERE r.deleted_at IS NULL
     AND (r.started_at IS NULL OR r.started_at > f.first_started_at)'
 

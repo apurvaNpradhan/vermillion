@@ -7,6 +7,7 @@ import {
   type SetField,
 } from "../../exercise/vocabulary";
 import { positionKey } from "../vocabulary/inputs";
+import { TRAINING_LIMITS } from "../vocabulary/vocabulary";
 import { finishClock } from "./session-clock";
 import { loadRangesSchema } from "../progress/load-grid";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
@@ -244,8 +245,8 @@ export const gymEquipmentInput = z
   });
 export type GymEquipmentInput = z.infer<typeof gymEquipmentInput>;
 
-/** The most gyms one user keeps, and the longest gym name. */
-export const GYM_LIMITS = { nameMax: 60 } as const;
+/** The most live gyms one account keeps, and the longest gym name. */
+export const GYM_LIMITS = { liveGyms: TRAINING_LIMITS.liveGyms, nameMax: 60 } as const;
 
 /** A gym: a place the user trains, with its own kit and exercise limits. */
 export const gymInput = z.strictObject({

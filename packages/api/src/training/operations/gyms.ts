@@ -56,19 +56,34 @@ export async function resolveSessionGym(
  * Soft-deletes a gym with its kit and exercise settings, and nulls `gym_id` on its Sessions (they
  * stay, as "any gym"). One timestamp for everything it takes down.
  */
-export async function deleteGymCascade(db: DbExecutor, id: string, now: Date) {
+export async function deleteGymCascade(db: DbExecutor, userId: string, id: string, now: Date) {
   const mark = { deletedAt: now, updatedAt: now };
   await db
     .update(gym)
     .set(mark)
-    .where(and(eq(gym.id, id), isNull(gym.deletedAt)));
+    .where(and(eq(gym.id, id), eq(gym.userId, userId), isNull(gym.deletedAt)));
   await db
     .update(gymEquipment)
     .set(mark)
-    .where(and(eq(gymEquipment.gymId, id), isNull(gymEquipment.deletedAt)));
+    .where(
+      and(
+        eq(gymEquipment.gymId, id),
+        eq(gymEquipment.userId, userId),
+        isNull(gymEquipment.deletedAt),
+      ),
+    );
   await db
     .update(gymExerciseSetting)
     .set(mark)
-    .where(and(eq(gymExerciseSetting.gymId, id), isNull(gymExerciseSetting.deletedAt)));
-  await db.update(session).set({ gymId: null, updatedAt: now }).where(eq(session.gymId, id));
+    .where(
+      and(
+        eq(gymExerciseSetting.gymId, id),
+        eq(gymExerciseSetting.userId, userId),
+        isNull(gymExerciseSetting.deletedAt),
+      ),
+    );
+  await db
+    .update(session)
+    .set({ gymId: null, updatedAt: now })
+    .where(and(eq(session.gymId, id), eq(session.userId, userId)));
 }

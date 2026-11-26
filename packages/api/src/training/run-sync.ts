@@ -128,6 +128,9 @@ function mergePauses(stored: readonly RunPause[] | null, incoming: readonly RunP
 }
 
 const date = (value: string | null) => (value === null ? null : new Date(value));
+/** The earlier of two instants; a null is "none", so the other one wins. */
+const earlier = (stored: Date | null, incoming: Date | null) =>
+  stored && incoming ? (incoming < stored ? incoming : stored) : (stored ?? incoming);
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",
   async apply(db, userId, op) {
@@ -192,7 +195,9 @@ export const runSyncHandler: SyncTableHandler = {
     const columns = {
       programId: values.program_id,
       activatedAt: new Date(values.activated_at),
-      startedAt: date(values.started_at),
+      // Only ever earlier: a device that logged a Session later must not move the Run's start (and
+      // every Run week) forward, and a null never clears a stored start.
+      startedAt: earlier(row?.startedAt ?? null, date(values.started_at)),
       finishedAt: date(values.finished_at),
       outcome: values.outcome,
       continuedAt: date(values.continued_at),

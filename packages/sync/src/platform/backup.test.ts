@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+
+import { getTableName } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { visitBackupPages } from "./backup";
+import { BACKUP_TABLES, visitBackupPages } from "./backup";
 import { setupSessions } from "../training/sessions/session-fixtures";
 import type { WireRow } from "./row-conversion";
 
@@ -43,4 +46,32 @@ it.each(["kg", "lb", null])("exports exercise unit %s", async (unit) => {
     if (table === "exercise_setting") settings.push(...page);
   });
   expect(settings).toMatchObject([{ id: "setting", exercise_id: "exercise", unit }]);
+});
+
+it("exports the columns every owner stream syncs, so a new column cannot be missed", () => {
+  const config = readFileSync(
+    new URL("../../../../powersync/sync-config.yaml", import.meta.url),
+    "utf8",
+  );
+  // The shared catalog (`user_id IS NULL`) is reference data and stays out of the export.
+  const streams = [
+    ...config.matchAll(
+      /SELECT\s+((?:(?!\sFROM\s).)+)\s+FROM\s+(\w+)\s+WHERE\s+user_id = auth\.user_id\(\)/gs,
+    ),
+  ];
+  const streamed = new Map<string, string[]>(
+    streams.map(([, columns, table]) => [
+      table ?? "",
+      (columns ?? "").split(",").map((name) => name.trim()),
+    ]),
+  );
+  const exported = new Map<string, string[]>(
+    BACKUP_TABLES.map(([table, columns]) => [
+      getTableName(table),
+      columns.split(",").map((name) => name.trim()),
+    ]),
+  );
+  expect([...exported.keys()].toSorted()).toEqual([...streamed.keys()].toSorted());
+  for (const [table, columns] of streamed)
+    expect(exported.get(table)?.toSorted(), table).toEqual(columns.toSorted());
 });

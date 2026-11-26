@@ -16,7 +16,7 @@ If the container loops on start, a migration failed. The old container is alread
 
 ### Pre-deploy data repairs
 
-Run these once, before deploying the release that needs them. Each script defaults to a dry run that prints the rows it would change and writes nothing; read them, then rerun with `--apply`. Point `DATABASE_URL` at the production database through the Dokploy database service (never from a laptop's saved connection), and take a manual backup first (see Postgres and backups).
+Run these once for the release that needs them (the table says whether that is before or after the API deploy). Each script defaults to a dry run that prints the rows it would change and writes nothing; read them, then rerun with `--apply`. Point `DATABASE_URL` at the production database through the Dokploy database service (never from a laptop's saved connection), and take a manual backup first (see Postgres and backups).
 
 | Release     | Script                                                                                                                                                                                                                                                                                                                         |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -27,7 +27,7 @@ DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh           # dry
 DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh --apply   # one transaction
 ```
 
-The repair is safe to rerun: the second run finds nothing.
+Run it dry first, then with `--apply`, **after the API deploy** (and before the app release). From that deploy on the server keeps the earlier of the stored and the uploaded `started_at`, so a Run can no longer start late through an upload, and a second run is not needed. Old app builds that still upload a later start are handled by the same rule. The repair is safe to rerun: a second run finds nothing.
 
 ## Roll back
 

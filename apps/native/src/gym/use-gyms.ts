@@ -4,6 +4,7 @@ import {
   deleteGym,
   renameGym,
   setSessionGym,
+  TrainingLimitError,
   watchGyms,
   type GymRow,
   type TrainingDatabase,
@@ -46,7 +47,13 @@ export function useGyms() {
         return await action(database);
       } catch (error) {
         if (error instanceof Error && isNetworkError(error)) return null;
-        toast.show({ variant: "danger", label: t("errors__unknown") });
+        toast.show({
+          variant: "danger",
+          label:
+            error instanceof TrainingLimitError && error.limit === "liveGyms"
+              ? t("gym__limit_gyms")
+              : t("errors__unknown"),
+        });
         return null;
       }
     },
