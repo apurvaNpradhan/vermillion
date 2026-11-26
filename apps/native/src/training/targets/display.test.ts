@@ -3,10 +3,10 @@ import { createI18n } from "@workspace/i18n";
 import { formatEffortRange } from "./effort";
 
 describe("training display", () => {
-  it("uses singular and plural session and set counts", () => {
+  it("uses singular and plural workout and set counts", () => {
     const { t } = createI18n();
-    expect(t("stats__sessions", { count: 1 })).toBe("1 session");
-    expect(t("stats__sessions", { count: 2 })).toBe("2 sessions");
+    expect(t("stats__sessions", { count: 1 })).toBe("1 workout");
+    expect(t("stats__sessions", { count: 2 })).toBe("2 workouts");
     expect(t("stats__sets", { count: 1 })).toBe("1 set");
     expect(t("stats__sets", { count: 0 })).toBe("0 sets");
   });
