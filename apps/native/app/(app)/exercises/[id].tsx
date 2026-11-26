@@ -3,6 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 
 import { ExerciseDetailScreen, useExerciseActions } from "@/exercise";
+import { ANCHORED } from "@/platform/navigation/anchored";
 import { AddToWorkoutSheet } from "@/training";
 
 const paramsSchema = z.object({ id: z.string() });
@@ -29,6 +30,7 @@ export default function ExerciseDetailRoute() {
         onArchive={(target, title) => void archive(target, title).catch(() => undefined)}
         onRestore={(target) => void restore(target).catch(() => undefined)}
         onAddToWorkout={() => setAdding(true)}
+        onWarmupSettings={() => router.push("/settings/warmups", ANCHORED)}
       />
       <AddToWorkoutSheet exerciseId={id} isOpen={adding} onOpenChange={setAdding} />
     </>

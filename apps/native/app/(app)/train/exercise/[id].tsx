@@ -22,6 +22,7 @@ export default function TrainExerciseDetail() {
       onBrowseGroup={(muscle) =>
         router.navigate({ pathname: "/exercises", params: { muscle, at: String(Date.now()) } })
       }
+      onWarmupSettings={() => router.push("/settings/warmups", ANCHORED)}
     />
   );
 }

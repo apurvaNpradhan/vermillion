@@ -25,7 +25,6 @@ import {
   Plus,
   SlidersHorizontal,
 } from "phosphor-react-native";
-import { useRouter } from "expo-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated from "react-native-reanimated";
@@ -83,6 +82,8 @@ export type ExerciseDetailProps = {
   onRestore?: (id: string) => void;
   /** Offer "Add to workout" for a live exercise. */
   onAddToWorkout?: (id: string) => void;
+  /** Open the Warm-ups screen in the caller's stack (over the Session, or a tab). */
+  onWarmupSettings?: () => void;
 };
 
 /**
@@ -131,9 +132,9 @@ function LoadedDetail({
   onRestore,
   onAddToWorkout,
   onSeeHistory,
+  onWarmupSettings,
 }: ExerciseDetailProps & { exercise: ExerciseDetail }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
@@ -424,11 +425,11 @@ function LoadedDetail({
                       }
                     />
                   ) : null}
-                  {canSetWarmups ? (
+                  {canSetWarmups && onWarmupSettings ? (
                     <ListRow
                       icon={FireSimple}
                       title={t("exercise__warmup_settings")}
-                      onPress={() => router.push("/settings/warmups")}
+                      onPress={onWarmupSettings}
                     />
                   ) : null}
                 </ListSection>
