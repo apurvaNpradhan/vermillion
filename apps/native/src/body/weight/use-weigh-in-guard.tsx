@@ -1,4 +1,9 @@
-import { checkWeighIn, formatWeight, type WeighInCheck, type WeightUnit } from "@workspace/shared";
+import {
+  checkWeighIn,
+  formatBodyWeight,
+  type WeighInCheck,
+  type WeightUnit,
+} from "@workspace/shared";
 import { useCallback, useState } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -17,20 +22,26 @@ type Asked = {
  * 350 kg) is saved. `review` returns whether the dialog opened, in which case the save waits for
  * Keep. The dialog stays mounted and is opened by a change, so it always presents.
  */
-export function useWeighInGuard(unit: WeightUnit, trendKg: number | null) {
-  const { t } = useTranslation();
+export function useWeighInGuard(unit: WeightUnit) {
+  const { t, i18n } = useTranslation();
   const [asked, setAsked] = useState<Asked | null>(null);
   const [open, setOpen] = useState(false);
 
   const review = useCallback(
-    (input: { kg: number; value: string; proceed: () => void; change: () => void }): boolean => {
-      const check = checkWeighIn({ kg: input.kg, trendKg, unit });
+    (input: {
+      kg: number;
+      trendKg: number | null;
+      value: string;
+      proceed: () => void;
+      change: () => void;
+    }): boolean => {
+      const check = checkWeighIn({ kg: input.kg, trendKg: input.trendKg, unit });
       if (!check) return false;
       setAsked({ check, value: input.value, proceed: input.proceed, change: input.change });
       setOpen(true);
       return true;
     },
-    [trendKg, unit],
+    [unit],
   );
 
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -40,7 +51,7 @@ export function useWeighInGuard(unit: WeightUnit, trendKg: number | null) {
     : asked.check.reason === "out_of_range"
       ? t("guard__weigh_in_range", { value })
       : t("guard__weigh_in_trend", {
-          trend: `${formatWeight(asked.check.trendKg, unit)} ${unitName}`,
+          trend: `${formatBodyWeight(asked.check.trendKg, unit, i18n.language)} ${unitName}`,
           value,
         });
   const dialog = (

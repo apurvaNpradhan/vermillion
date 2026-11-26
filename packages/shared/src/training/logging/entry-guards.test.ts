@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { parseWeight } from "../vocabulary/format";
 import {
   checkSet,
   checkWeighIn,
@@ -16,6 +17,7 @@ const bench: ExerciseReference = { heaviestKg: 100, bestReps: 12 };
 
 const input = (over: Partial<SetCheckInput>): SetCheckInput => ({
   type: "weight_reps",
+  kind: "working",
   basis: "total",
   unit: "kg",
   weightKg: 100,
@@ -81,6 +83,20 @@ describe("checkSet: high load against the reference", () => {
     );
     // In kilograms 66 lb (29.9 kg) over a 9 kg reference is above +20 kg and 1.5x.
     expect(checkSet(input({ history: light, weightKg: lb(66) }))?.reason).toBe("high_load");
+  });
+
+  it("keeps the strict ratio and margin at the pound values the keypad shows", () => {
+    const check = (previous: string, entered: string) =>
+      checkSet(
+        input({
+          unit: "lb",
+          weightKg: parseWeight(entered, "lb"),
+          history: { heaviestKg: parseWeight(previous, "lb"), bestReps: 8 },
+        }),
+      );
+    expect(check("100", "150")).toBeNull();
+    expect(check("12", "57")).toBeNull();
+    expect(check("100", "150.5")?.reason).toBe("high_load");
   });
 
   it("takes today's suggestion as the reference when it is higher", () => {
@@ -349,6 +365,61 @@ describe("checkSet: nothing to check", () => {
   it("passes a set without a weight or reps", () => {
     expect(checkSet(input({ weightKg: null, reps: null }))).toBeNull();
     expect(checkSet(input({ type: "duration", weightKg: null, reps: null }))).toBeNull();
+  });
+
+  it("passes a new PR after a break and ordinary first-session machine loads", () => {
+    expect(checkSet(input({ weightKg: 125, reps: 3 }))).toBeNull();
+    expect(checkSet(input({ weightKg: 180, reps: 10, history: none }))).toBeNull();
+    expect(
+      checkSet(input({ weightKg: lb(100), unit: "lb", basis: "per_hand", history: none })),
+    ).toBeNull();
+  });
+
+  it("accepts lighter warm-ups, planned reductions and high-rep drop sets", () => {
+    expect(checkSet(input({ kind: "warmup", weightKg: 45, reps: 10 }))).toBeNull();
+    expect(checkSet(input({ weightKg: 45, suggestedKg: 45 }))).toBeNull();
+    expect(
+      checkSet(
+        input({ kind: "drop", weightKg: 10, reps: 35, history: { heaviestKg: 60, bestReps: 10 } }),
+      ),
+    ).toBeNull();
+    expect(
+      checkSet(input({ weightKg: 8, reps: 30, history: { heaviestKg: 50, bestReps: 30 } })),
+    ).toBeNull();
+  });
+
+  it("accepts normal changes in assistance and small additions to bodyweight", () => {
+    const assisted = (weightKg: number) =>
+      checkSet(
+        input({
+          type: "bodyweight_assisted_reps",
+          history: { heaviestKg: 20, bestReps: 8 },
+          weightKg,
+        }),
+      );
+    expect(assisted(45)).toBeNull();
+    expect(assisted(151)?.reason).toBe("ceiling");
+    expect(
+      checkSet(
+        input({
+          type: "bodyweight_weighted_reps",
+          history: { heaviestKg: 5, bestReps: 8 },
+          weightKg: 11,
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("checks only the changed field in a finished set unless both values look swapped", () => {
+    expect(checkSet(input({ editedField: "reps", weightKg: 1000, reps: 6 }))).toBeNull();
+    expect(checkSet(input({ editedField: "weight", weightKg: 105, reps: 100 }))).toBeNull();
+    expect(checkSet(input({ editedField: "reps", weightKg: 8, reps: 100 }))?.reason).toBe(
+      "swapped",
+    );
+  });
+
+  it("does not offer a swap above the maximum stored weight", () => {
+    expect(checkSet(input({ weightKg: 8, reps: 1001 }))?.reason).toBe("high_reps");
   });
 });
 

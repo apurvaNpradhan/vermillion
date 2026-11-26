@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { addSessionExercises, addSet, tickSet, updateSet } from "./session-content-store";
 import { setupSessions, SQUAT, PLANK, pushWorkout, type Sessions } from "./session-fixtures";
-import { finishSession, startRest, startSession } from "./session-store";
+import { discardSession, finishSession, startRest, startSession } from "./session-store";
 import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
@@ -79,18 +79,51 @@ describe("finished Sessions of a Workout", () => {
   it("lists only that Workout's finished Sessions, latest first", async () => {
     const s = await setupSessions();
     const plan = await pushWorkout(s);
+    const day = daysAgo(2).slice(0, 10);
     const first = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
-    await finishSession(s.training, first, { startedAt: daysAgo(2), finishedAt: daysAgo(2) });
+    await finishSession(s.training, first, {
+      startedAt: `${day}T08:00:00Z`,
+      finishedAt: `${day}T09:00:00Z`,
+    });
     const second = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
-    await finishSession(s.training, second, { startedAt: daysAgo(1), finishedAt: daysAgo(1) });
+    await finishSession(s.training, second, {
+      startedAt: `${day}T17:00:00Z`,
+      finishedAt: `${day}T18:00:00Z`,
+    });
+    // Simulate the timestamp format of a finished Session received from PowerSync.
+    s.sqlite
+      .prepare("UPDATE training_session SET finished_at = ? WHERE id = ?")
+      .run(`${day} 18:00:00+00:00`, second);
     await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
     await finishedSquat(s, daysAgo(3), [100]);
+    const deleted = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, deleted, {
+      finishedAt: `${day}T19:00:00Z`,
+      startedAt: `${day}T18:30:00Z`,
+    });
+    await discardSession(s.training, deleted);
+    const foreign = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, foreign, {
+      finishedAt: `${day}T20:00:00Z`,
+      startedAt: `${day}T19:30:00Z`,
+    });
+    s.sqlite
+      .prepare("UPDATE training_session SET user_id = ? WHERE id = ?")
+      .run("other-user", foreign);
+    const future = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, future, {
+      finishedAt: `${day}T22:00:00Z`,
+      startedAt: `${day}T21:30:00Z`,
+    });
+    s.sqlite.prepare("UPDATE workout SET title = ? WHERE id = ?").run("Renamed", plan.workoutId);
 
     const rows = parseFinishedOfWorkout(
-      s.sqlite.prepare(FINISHED_OF_WORKOUT_SQL).all(plan.workoutId),
+      s.sqlite.prepare(FINISHED_OF_WORKOUT_SQL).all(plan.workoutId, `${day}T21:00:00Z`),
     );
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.workout_id === plan.workoutId)).toBe(true);
+    expect(rows[0]?.title).toBe("Renamed");
+    expect(rows[0]?.finished_at).toBe(`${day}T18:00:00.000Z`);
     expect(Date.parse(rows[0]?.finished_at ?? "")).toBeGreaterThan(
       Date.parse(rows[1]?.finished_at ?? ""),
     );
