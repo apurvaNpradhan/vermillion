@@ -131,6 +131,22 @@ export function parseActiveSessions(rows: readonly object[]): ActiveSession[] {
     }));
 }
 
+/** The latest finished Sessions of one Workout, for "you did this today". */
+export const FINISHED_OF_WORKOUT_SQL = `SELECT workout_id, title, finished_at FROM training_session
+  WHERE workout_id = ? AND finished_at IS NOT NULL
+  ORDER BY finished_at DESC
+  LIMIT 3`;
+
+const finishedOfWorkoutSchema = z.array(
+  z.object({ workout_id: z.string(), title: z.string(), finished_at: z.string() }),
+);
+
+type FinishedOfWorkout = z.infer<typeof finishedOfWorkoutSchema>[number];
+
+export function parseFinishedOfWorkout(rows: readonly object[]): FinishedOfWorkout[] {
+  return finishedOfWorkoutSchema.parse(rows);
+}
+
 // ---- One Session ----
 
 export type SessionSetDetail = {

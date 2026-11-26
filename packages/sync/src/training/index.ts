@@ -152,6 +152,8 @@ export {
 } from "./sessions/session-starts";
 export {
   ACTIVE_SESSIONS_SQL,
+  FINISHED_OF_WORKOUT_SQL,
+  parseFinishedOfWorkout,
   EQUIPMENT_SQL,
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
