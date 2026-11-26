@@ -167,27 +167,29 @@ export function suggestNext(
       const weightKg =
         before.weight_kg == null
           ? null
-          : assisted || factor === 1
+          : assisted
             ? before.weight_kg
-            : lightenLoad(
-                before.weight_kg,
-                factor,
-                equipment,
-                unit,
-                grid,
-                phaseDecides ? "deload" : "nearest",
-                type,
-              );
+            : fullLoadDeload
+              ? Math.min(before.weight_kg, roundedCap ?? before.weight_kg)
+              : lightenLoad(
+                  before.weight_kg,
+                  factor,
+                  equipment,
+                  unit,
+                  grid,
+                  phaseDecides ? "deload" : "nearest",
+                  type,
+                );
+      // A reset that cannot lower the load must not raise the reps either.
+      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       outcomes[index] = {
         reason: resetReason,
-        // No load factor when the load stays: the copy then speaks of reps and effort only.
+        // A full-load Deload names a load cut only if the gym's cap forced one.
         loadFactor:
-          !assisted && factor < 1 && weightKg !== null && before.weight_kg
+          !assisted && (factor < 1 || lowered) && weightKg !== null && before.weight_kg
             ? weightKg / before.weight_kg
             : undefined,
       };
-      // A reset that cannot lower the load must not raise the reps either.
-      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;
       // Timed work takes the same cut off its time: five seconds at a time, never none.
       const durationS =
