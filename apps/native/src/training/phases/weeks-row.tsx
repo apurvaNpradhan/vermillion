@@ -1,4 +1,4 @@
-import { planOrBuild, weeksSummary, type PhasePlan } from "@workspace/shared";
+import { planOrBuild, weeksSummary, type Phase, type PhasePlan } from "@workspace/shared";
 import type { readRuns } from "@workspace/sync";
 import { CaretRight } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
@@ -21,6 +21,7 @@ export function WeeksRow({
   plannedWeeks,
   run,
   trainedAt,
+  history,
   onPress,
 }: {
   plan: PhasePlan | null;
@@ -28,6 +29,7 @@ export function WeeksRow({
   /** The active Run when the Program is the active one; null otherwise. */
   run: Awaited<ReturnType<typeof readRuns>>[number] | null;
   trainedAt?: readonly string[];
+  history?: readonly { started_at: string; phase: Phase }[];
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -36,14 +38,14 @@ export function WeeksRow({
   const subtle = useSubtleColor();
   const blocks = stripBlocks({
     plan: planOrBuild(plan),
-    current: run ? { run, now: new Date(), timeZone, trainedAt } : undefined,
+    current: run ? { run, now: new Date(), timeZone, trainedAt, history } : undefined,
     plannedWeeks,
   });
   const summary = text.summary(weeksSummary({ plan, plannedWeeks }));
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t("phase__weeks")}, ${summary}`}
+      accessibilityLabel={t("phase__weeks_label", { summary })}
       accessibilityHint={t("phase__weeks_hint")}
       onPress={onPress}
       className="min-h-16 gap-3 rounded-2xl bg-surface px-4 py-3 active:opacity-70"
@@ -59,20 +61,20 @@ export function WeeksRow({
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
         className="flex-row items-end gap-0.5"
-        style={{ height: BLOCK_MAX }}
+        style={{ height: BLOCK_MAX + 8 }}
       >
         {blocks.map((block) => (
           <View
             key={block.week}
             style={{ height: Math.round(BLOCK_MAX * block.height) }}
-            className={`max-w-3 flex-1 rounded-sm ${
-              block.state === "current"
-                ? "bg-accent"
-                : block.state === "future"
-                  ? "bg-default"
-                  : "bg-foreground"
+            className={`max-w-3 flex-1 items-center rounded-sm ${
+              block.state === "future" ? "bg-default" : "bg-foreground"
             }`}
-          />
+          >
+            {block.state === "current" ? (
+              <View className="absolute -top-2 h-1.5 w-1.5 rounded-full bg-accent" />
+            ) : null}
+          </View>
         ))}
       </View>
     </Pressable>

@@ -749,15 +749,30 @@ describe("baseline exclusion", () => {
 });
 
 describe("editing a plan", () => {
-  it("sets a pattern, keeps the rest, and no weeks is no plan", () => {
-    const edited = plan({ pattern: ["build"], overrides: [{ week: 2, phase: "test" }] });
+  it("keeps overrides, effects and Test options when applying or removing a pattern", () => {
+    const edited = plan({
+      pattern: ["push"],
+      overrides: [{ week: 2, phase: "test" }],
+      modifiers: { deload: { sets: 0.75 } },
+      test_top: "amrap",
+      test_workups: true,
+    });
     expect(withPattern(edited, ["build", "deload"])).toEqual({
       ...edited,
       pattern: ["build", "deload"],
     });
     expect(withPattern(null, ["push"])?.pattern).toEqual(["push"]);
-    expect(withPattern(edited, [])).toBeNull();
+    expect(withPattern(edited, [])).toEqual({ ...edited, pattern: ["build"] });
     expect(withPattern(null, [])).toBeNull();
+  });
+
+  it("sets and clears a week against the restarted pattern after an inserted deload", () => {
+    const original = plan({ pattern: ["build", "deload", "push"] });
+    const inserted = [1];
+    expect(phaseOfWeek(original, 2, inserted)?.phase).toBe("build");
+    const edited = withWeekPhase(original, 2, "push", inserted);
+    expect(phaseOfWeek(edited, 2, inserted)?.phase).toBe("push");
+    expect(withWeekPhase(edited, 2, null, inserted)).toEqual(original);
   });
 
   it("every preset pattern is a valid plan", () => {

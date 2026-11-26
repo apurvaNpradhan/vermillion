@@ -110,7 +110,7 @@ export function usePhaseText() {
           ? name(run.phase)
           : t("phase__pattern_run", { phase: name(run.phase), count: run.count }),
       );
-      return new Intl.ListFormat(locale, { style: "narrow", type: "unit" }).format(parts);
+      return new Intl.ListFormat(locale, { style: "short", type: "unit" }).format(parts);
     },
     [name, t, locale],
   );

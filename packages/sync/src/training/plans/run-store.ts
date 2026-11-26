@@ -3,6 +3,7 @@ import {
   closeRunPauses,
   insertDeload,
   insertedDeloadsSchema,
+  phaseSchema,
   removeInsertedDeload,
   runPausesSchema,
   runPausedAt,
@@ -224,6 +225,13 @@ const progressSchema = z.object({
   hasCountedSet: z.coerce.boolean(),
 });
 const PROGRESS_PAGE_SIZE = 250;
+const phaseHistorySchema = z.object({
+  started_at: z.string(),
+  phase: z
+    .string()
+    .nullable()
+    .transform((value) => phaseSchema.safeParse(value).data ?? "build"),
+});
 
 async function readProgressSessions(db: Pick<TrainingDatabase, "getAll">, runId: string) {
   const sessions: z.infer<typeof progressSchema>[] = [];
@@ -258,6 +266,7 @@ export function watchRunState(
     runId: string | null;
     sessions: z.infer<typeof progressSchema>[];
     phaseStarts: string[];
+    phaseHistory: z.output<typeof phaseHistorySchema>[];
     /** Slots skipped for a Cycle, for `cycleState`. */
     skips: z.infer<typeof skipSchema>[];
   }) => void,
@@ -274,7 +283,8 @@ export function watchRunState(
           .readTransaction(async (tx) => {
             const runs = await readRuns(tx);
             const runId = activeRun(runs)?.id ?? null;
-            if (runId === null) return { runs, runId, sessions: [], skips: [], phaseStarts: [] };
+            if (runId === null)
+              return { runs, runId, sessions: [], skips: [], phaseStarts: [], phaseHistory: [] };
             const sessions = await readProgressSessions(tx, runId);
             const skips = z.array(skipSchema).parse(
               await tx.getAll(
@@ -283,18 +293,16 @@ export function watchRunState(
                 [runId],
               ),
             );
-            const phaseStarts = z
-              .array(z.object({ started_at: z.string() }))
-              .parse(
-                await tx.getAll(
-                  `SELECT started_at FROM training_session
+            const phaseHistory = z.array(phaseHistorySchema).parse(
+              await tx.getAll(
+                `SELECT started_at, phase FROM training_session
                 WHERE run_id = ? AND finished_at IS NOT NULL AND ${hasCountedSetSql}
-                ORDER BY started_at DESC, id DESC LIMIT 500`,
-                  [runId],
-                ),
-              )
-              .map(({ started_at }) => started_at);
-            return { runs, runId, sessions, skips, phaseStarts };
+                ORDER BY started_at DESC, id DESC`,
+                [runId],
+              ),
+            );
+            const phaseStarts = phaseHistory.slice(0, 500).map(({ started_at }) => started_at);
+            return { runs, runId, sessions, skips, phaseStarts, phaseHistory };
           })
           .then((value) => {
             if (!active || current !== generation) return;

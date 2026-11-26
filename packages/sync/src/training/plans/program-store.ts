@@ -39,28 +39,32 @@ export async function createProgram(
   });
 }
 
-/** Changes only the fields that differ from the stored Program. Returns whether it wrote. */
+/** Changes only dirty fields. A functional patch reads the Program inside the write transaction. */
 export async function updateProgram(
   database: TrainingDatabase,
   id: string,
-  patch: ProgramPatch,
+  patch: ProgramPatch | ((current: ProgramInput) => ProgramPatch),
   expectedInstallId?: string,
 ): Promise<boolean> {
-  const fields = programInput.partial().parse(patch);
+  const patchSchema = programInput.partial();
+  const fields = patch instanceof Function ? patch : patchSchema.parse(patch);
   return await write(database, expectedInstallId, async (tx) => {
     const [current] = await tx.select().from(program).where(eq(program.id, id)).limit(1);
     if (!current) return false;
-    const changes = changedFields(current, fields);
-    if (Object.keys(changes).length === 0) return false;
-    programInput.parse({
+    const stored = {
       title: current.title,
       description: current.description,
       planned_weeks: current.planned_weeks,
       sessions_per_week: current.sessions_per_week,
       // Read as this build does: a stored plan it cannot fully read must not block a rename.
       phase_plan: readPhasePlan(current.phase_plan),
-      ...changes,
-    });
+    };
+    const changes = changedFields(
+      current,
+      fields instanceof Function ? patchSchema.parse(fields(stored)) : fields,
+    );
+    if (Object.keys(changes).length === 0) return false;
+    programInput.parse({ ...stored, ...changes });
     await tx.update(program).set(changes).where(eq(program.id, id));
     return true;
   });

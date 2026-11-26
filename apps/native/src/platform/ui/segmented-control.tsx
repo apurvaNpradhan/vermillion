@@ -60,6 +60,7 @@ export function SegmentedControl<T extends string>({
           accessibilityRole="radio"
           accessibilityState={{ checked: option.value === value }}
           accessibilityLabel={option.label}
+          hitSlop={{ top: PAD, bottom: PAD }}
           onPress={() => {
             if (option.value === value) return;
             haptic.tick();

@@ -1,12 +1,14 @@
 import {
   PHASE_INTENSITY,
+  PHASE_OVERRIDES_MAX,
   phaseOfWeek,
   phaseFor,
+  runWeek,
   type Phase,
   type PhasePlan,
 } from "@workspace/shared";
 
-/** The most weeks the strip draws: a year, and the Deload weeks a Run may have inserted. */
+/** The most weeks the strip draws at once for a long-running Program. */
 const STRIP_WEEKS_MAX = 104;
 /** An open-ended Program shows at least this many weeks. */
 const STRIP_WEEKS_MIN = 12;
@@ -21,6 +23,9 @@ export type StripBlock = {
   phase: Phase;
   /** An inserted Deload week: set by "Deload this week", not editable here. */
   inserted: boolean;
+  /** A past Run week with a logged workout. Its displayed phase comes from history. */
+  trained: boolean;
+  overrideLimit: boolean;
   state: "past" | "current" | "future";
   /** The block's height as a share of the tallest block (a Test week), 0.25 to 1. */
   height: number;
@@ -39,6 +44,7 @@ export function stripBlocks(input: {
     now: Date;
     timeZone: string;
     trainedAt?: readonly string[];
+    history?: readonly { started_at: string; phase: Phase }[];
   };
   plannedWeeks: number | null;
 }): StripBlock[] {
@@ -50,21 +56,47 @@ export function stripBlocks(input: {
   const insertedDeloads = current?.run.inserted_deloads ?? [];
   const base =
     plannedWeeks === null
-      ? Math.max(STRIP_WEEKS_MIN, plan.pattern.length * 2, (currentWeek ?? 0) + LOOKAHEAD)
+      ? Math.max(
+          STRIP_WEEKS_MIN,
+          plan.pattern.length * 2,
+          (currentWeek ?? 0) + LOOKAHEAD,
+          ...plan.overrides.map(({ week }) => Math.min(week, STRIP_WEEKS_MAX)),
+        )
       : plannedWeeks;
-  const count = Math.min(STRIP_WEEKS_MAX, Math.max(base, currentWeek ?? 0));
+  const lastWeek = Math.max(base, currentWeek ?? 0);
+  const firstWeek = Math.max(1, lastWeek - STRIP_WEEKS_MAX + 1);
+  const trainedPhases = new Map<number, Phase>();
+  if (current && currentWeek !== null) {
+    // Starts are newest first. If a plan changed midweek, show the phase last trained that week.
+    for (const session of current.history ?? []) {
+      const week = runWeek(
+        current.run.started_at,
+        new Date(session.started_at),
+        current.timeZone,
+        current.run.pauses,
+      );
+      if (week < firstWeek) break;
+      if (week < currentWeek && !trainedPhases.has(week)) trainedPhases.set(week, session.phase);
+    }
+  }
   const tallest = Math.max(...Object.values(PHASE_INTENSITY));
-  return Array.from({ length: count }, (_, index) => {
-    const week = index + 1;
+  return Array.from({ length: lastWeek - firstWeek + 1 }, (_, index) => {
+    const week = firstWeek + index;
     const found =
       runningPhase?.week === week ? runningPhase : phaseOfWeek(plan, week, insertedDeloads);
     // The plan has a pattern, so a week always has a phase.
-    const phase = found?.phase ?? "build";
+    const trained = trainedPhases.get(week);
+    const phase = trained ?? found?.phase ?? "build";
+    const programWeek = found?.programWeek ?? week;
     return {
       week,
-      programWeek: found?.programWeek ?? week,
+      programWeek,
       phase,
       inserted: found?.inserted ?? false,
+      trained: trained !== undefined,
+      overrideLimit:
+        plan.overrides.length >= PHASE_OVERRIDES_MAX &&
+        !plan.overrides.some((item) => item.week === programWeek),
       state:
         currentWeek === null || week > currentWeek
           ? "future"

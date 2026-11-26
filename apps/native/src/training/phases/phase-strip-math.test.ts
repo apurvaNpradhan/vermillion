@@ -90,4 +90,40 @@ describe("stripBlocks", () => {
     expect(blocks).toHaveLength(6);
     expect(blocks[5]?.state).toBe("current");
   });
+
+  it("keeps recorded phases in past weeks after a pattern and length change", () => {
+    const changed = phasePlanSchema.parse({ pattern: ["push"] });
+    const blocks = stripBlocks({
+      plan: changed,
+      plannedWeeks: 1,
+      current: {
+        ...current(3),
+        history: [
+          { started_at: "2026-01-15T12:00:00Z", phase: "test" },
+          { started_at: "2026-01-09T12:00:00Z", phase: "deload" },
+          { started_at: "2026-01-08T12:00:00Z", phase: "build" },
+        ],
+      },
+    });
+    expect(blocks[1]).toMatchObject({ phase: "deload", trained: true, state: "past" });
+    expect(blocks[2]).toMatchObject({ phase: "push", trained: false, state: "current" });
+  });
+
+  it("keeps a long-running Program's current week inside the open-ended preview", () => {
+    const blocks = stripBlocks({ plan, current: current(110), plannedWeeks: null });
+    expect(blocks.find((block) => block.state === "current")?.week).toBe(110);
+    expect(blocks.at(-1)?.week).toBe(114);
+  });
+
+  it("shows later week edits again when reopening a shortened plan", () => {
+    const edited = phasePlanSchema.parse({
+      pattern: ["build"],
+      overrides: [{ week: 18, phase: "test" }],
+    });
+    expect(stripBlocks({ plan: edited, plannedWeeks: 6 })).toHaveLength(6);
+    expect(stripBlocks({ plan: edited, plannedWeeks: null }).at(-1)).toMatchObject({
+      week: 18,
+      phase: "test",
+    });
+  });
 });
