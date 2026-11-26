@@ -145,8 +145,20 @@ export function useTrainingPreferenceRows({
       <ListRow
         key="equipment"
         icon={Barbell}
-        title={t("plates__manage")}
-        onPress={onManageEquipment ?? (() => router.push("/settings/plates"))}
+        title={
+          multiple && activeGym
+            ? t("plates__manage_at", { gym: activeGym.name })
+            : t("plates__manage")
+        }
+        onPress={
+          onManageEquipment ??
+          (() =>
+            router.push(
+              multiple && activeGym
+                ? { pathname: "/settings/plates", params: { gymId: activeGym.id } }
+                : "/settings/plates",
+            ))
+        }
       />
     ),
     // One gym stays out of sight: Equipment is its kit, and a second gym is one row away. With

@@ -25,6 +25,7 @@ import {
   Plus,
   SlidersHorizontal,
 } from "phosphor-react-native";
+import { useRouter } from "expo-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated from "react-native-reanimated";
@@ -132,6 +133,7 @@ function LoadedDetail({
   onSeeHistory,
 }: ExerciseDetailProps & { exercise: ExerciseDetail }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
@@ -420,6 +422,13 @@ function LoadedDetail({
                           }
                         />
                       }
+                    />
+                  ) : null}
+                  {canSetWarmups ? (
+                    <ListRow
+                      icon={FireSimple}
+                      title={t("exercise__warmup_settings")}
+                      onPress={() => router.push("/settings/warmups")}
                     />
                   ) : null}
                 </ListSection>

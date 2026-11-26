@@ -4,11 +4,13 @@ import { useTranslation } from "@/platform/i18n";
 import { SwipeWeekStrip } from "@/platform/ui/swipe-week-strip";
 import { WeekStrip, type WeekStripMarks } from "@/platform/ui/week-strip";
 
+import { homeDayState } from "@/training/train/strip-state";
+
 import type { HomeWeek } from "./home-stats";
 
 /**
- * Home's displayed week under its month label: a dot on each trained day, the selected day ringed
- * and the day of the next planned workout hollow. A swipe changes the week, the label jumps back to
+ * Home's displayed week under its month label: a ledger mark on each trained day and on the day of
+ * the next planned workout (the same marks as the Train strip), and the selected day ringed. A swipe changes the week, the label jumps back to
  * today and a tap selects a day.
  */
 export function HomeWeekStrip({
@@ -47,8 +49,9 @@ export function HomeWeekStrip({
     };
   }, [i18n.language, t]);
   const marks = (day: number): WeekStripMarks | undefined => {
-    if (week.trained.has(day)) return { dots: ["accent"], label: t("home__day_trained") };
-    if (day === week.planned) return { planned: true, label: t("home__day_planned") };
+    const state = homeDayState(day, week);
+    if (state === "done") return { state, label: t("home__day_trained") };
+    if (state === "next") return { state, label: t("home__day_planned") };
     return undefined;
   };
   return (

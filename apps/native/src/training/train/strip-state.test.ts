@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stripState } from "./strip-state";
+import { homeDayState, stripState } from "./strip-state";
 
 const progress = {
   trained: new Set(["a", "b"]),
@@ -19,5 +19,23 @@ describe("cycle strip state", () => {
 
   it("has no next when the cycle is complete", () => {
     expect(stripState({ id: "d", workoutId: "w" }, { ...progress, next: null })).toBe("todo");
+  });
+});
+
+describe("home day state", () => {
+  const week = { trained: new Set([10, 11]), planned: 13 };
+
+  it("uses the same marks as the cycle strip", () => {
+    expect(homeDayState(10, week)).toBe("done");
+    expect(homeDayState(13, week)).toBe("next");
+  });
+
+  it("leaves other days unmarked", () => {
+    expect(homeDayState(12, week)).toBeNull();
+    expect(homeDayState(14, { ...week, planned: null })).toBeNull();
+  });
+
+  it("shows a trained day as done even when it is also the planned day", () => {
+    expect(homeDayState(11, { trained: new Set([11]), planned: 11 })).toBe("done");
   });
 });

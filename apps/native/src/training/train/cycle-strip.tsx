@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Pressable, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { DayMark } from "@/platform/ui/day-mark";
 
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { slotTitle } from "@/training/rotation/rotation-row";
@@ -36,27 +37,6 @@ export const CycleStrip = memo(function CycleStrip({
           title,
           state: t(SLOT_STATE_KEYS[state]),
         });
-        // A mason's tally: struck (filled ink), skipped (hollow with a hairline slash), next (the
-        // accent dot), still to do (hollow) and Rest (a short hairline).
-        const dot =
-          state === "rest" ? (
-            <View className="h-px w-3 bg-muted" />
-          ) : state === "done" ? (
-            <View className="h-3.5 w-3.5 rounded-sm bg-foreground" />
-          ) : state === "skipped" ? (
-            <View className="h-3.5 w-3.5 items-center justify-center overflow-hidden rounded-sm border border-foreground">
-              <View
-                className="absolute h-px bg-foreground"
-                style={{ width: 20, transform: [{ rotate: "-45deg" }] }}
-              />
-            </View>
-          ) : state === "next" ? (
-            <View className="h-3.5 w-3.5 items-center justify-center">
-              <View className="h-2.5 w-2.5 rounded-full bg-accent" />
-            </View>
-          ) : (
-            <View className="h-3.5 w-3.5 rounded-sm border border-separator" />
-          );
         if (state === "rest") {
           return (
             <View
@@ -65,7 +45,7 @@ export const CycleStrip = memo(function CycleStrip({
               accessibilityLabel={label}
               className="h-11 w-11 items-center justify-center"
             >
-              {dot}
+              <DayMark state={state} />
             </View>
           );
         }
@@ -84,7 +64,7 @@ export const CycleStrip = memo(function CycleStrip({
             onPress={() => onSelect(slot)}
             className="h-11 w-11 items-center justify-center active:opacity-70"
           >
-            {dot}
+            <DayMark state={state} />
           </Pressable>
         );
       })}
