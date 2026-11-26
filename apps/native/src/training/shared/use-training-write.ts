@@ -15,6 +15,7 @@ const LIMIT_KEYS = {
   exercisesPerWorkout: "training__limit_exercises",
   liveWorkouts: "training__limit_workouts",
   livePrograms: "training__limit_programs",
+  liveGyms: "gym__limit_gyms",
   slotsPerProgram: "training__limit_slots",
 } as const;
 
@@ -29,6 +30,7 @@ function limitMessage(error: Error) {
   if (error.limit === "exercisesPerWorkout") return LIMIT_KEYS.exercisesPerWorkout;
   if (error.limit === "liveWorkouts") return LIMIT_KEYS.liveWorkouts;
   if (error.limit === "livePrograms") return LIMIT_KEYS.livePrograms;
+  if (error.limit === "liveGyms") return LIMIT_KEYS.liveGyms;
   if (error.limit === "slotsPerProgram") return LIMIT_KEYS.slotsPerProgram;
   return null;
 }

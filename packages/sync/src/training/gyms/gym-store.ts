@@ -16,7 +16,15 @@ import { and, asc, count, desc, eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { readPreferencesRow, userPreferences } from "../../preferences";
-import { changedFields, nowIso, ownerOf, write, type TrainingDatabase } from "../store-common";
+import {
+  assertRoom,
+  changedFields,
+  nowIso,
+  ownerOf,
+  totalOf,
+  write,
+  type TrainingDatabase,
+} from "../store-common";
 import { gym, gymEquipment, gymExerciseSetting, session } from "../tables";
 import { unavailableEquipmentOf } from "./gym-watch";
 
@@ -74,6 +82,8 @@ export async function createGym(
   let rest: KitItem[] = [];
   await write(database, scope, async (tx) => {
     const userId = await ownerOf(tx);
+    // Refused here so the UI never queues a gym the server would refuse.
+    assertRoom(await totalOf(tx.select({ total: count() }).from(gym)), 1, "liveGyms");
     await tx.insert(gym).values({ id, user_id: userId, name: values.name, created_at: nowIso() });
     if (!input.copyKitFrom) return;
     // A gym that is gone has no kit to copy, whatever rows of it the device still holds.

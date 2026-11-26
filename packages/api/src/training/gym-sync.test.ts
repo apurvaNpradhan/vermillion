@@ -275,11 +275,30 @@ describe("gym upload handlers", () => {
     );
   });
 
-  it("creates gyms beyond the old account limit", async () => {
+  it("creates gyms up to the account cap and refuses the gym past it", async () => {
     const me = await writer("gym-count@example.com");
-    const batch = Array.from({ length: 24 }, (_, i) => putGym(uuidv7(), `Gym ${i + 2}`));
+    const room = GYM_LIMITS.liveGyms - 1;
+    const batch = Array.from({ length: room }, (_, i) => putGym(uuidv7(), `Gym ${i + 2}`));
     expect(await me.send(batch)).toEqual(applied);
-    expect(await liveGyms(me.userId)).toHaveLength(25);
+    expect(await liveGyms(me.userId)).toHaveLength(GYM_LIMITS.liveGyms);
+    expect(await me.send([putGym(uuidv7(), "One too many")])).toMatchObject(
+      rejected("TRAINING_LIMIT_REACHED"),
+    );
+    expect(await liveGyms(me.userId)).toHaveLength(GYM_LIMITS.liveGyms);
+  });
+
+  it("refuses to restore a gym while the account is at the cap", async () => {
+    const me = await writer("gym-cap-restore@example.com");
+    const gone = uuidv7();
+    await me.send([putGym(gone, "Gone")]);
+    expect(await me.send([op("DELETE", "gym", gone)])).toEqual(applied);
+    const batch = Array.from({ length: GYM_LIMITS.liveGyms - 1 }, (_, i) =>
+      putGym(uuidv7(), `Gym ${i + 2}`),
+    );
+    expect(await me.send(batch)).toEqual(applied);
+    expect(await me.send([putGym(gone, "Gone", { restore: 1 })])).toMatchObject(
+      rejected("TRAINING_LIMIT_REACHED"),
+    );
   });
 
   it("puts a kit item in the default gym when it names none, and in the named gym", async () => {

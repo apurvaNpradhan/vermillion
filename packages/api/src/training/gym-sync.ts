@@ -5,6 +5,7 @@ import {
   gymExerciseSettingId,
   gymExerciseSettingInput,
   gymInput,
+  GYM_LIMITS,
   loadRangesSchema,
   unavailableEquipmentSchema,
 } from "@workspace/shared";
@@ -23,6 +24,7 @@ import {
 } from "./operations/lookup";
 import {
   accept,
+  assertRoom,
   checkPut,
   idOf,
   invalid,
@@ -94,7 +96,7 @@ const gymSyncHandler: SyncTableHandler = {
       if ((await countLiveGyms(db, userId, id)) === 0) {
         throw new SyncRejection("SYNC_CONSTRAINT_VIOLATION");
       }
-      await deleteGymCascade(db, id, now());
+      await deleteGymCascade(db, userId, id, now());
       return;
     }
 
@@ -106,6 +108,9 @@ const gymSyncHandler: SyncTableHandler = {
         unavailableEquipment: values.unavailable_equipment ?? [],
         dumbbellMaxKg: values.dumbbell_max_kg ?? null,
       };
+      // A new gym and a restored one both add a live gym.
+      if (found.kind === "absent" || found.row.deletedAt !== null)
+        assertRoom(await countLiveGyms(db, userId, id), 1, GYM_LIMITS.liveGyms);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         await db.insert(gym).values({ id, userId, name: values.name, ...availability });
