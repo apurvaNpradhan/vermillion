@@ -329,6 +329,7 @@ function LoadedProgram({
                 plannedWeeks={program.plannedWeeks}
                 run={isActive ? active.run : null}
                 trainedAt={active.runs.value?.phaseStarts}
+                history={active.runs.value?.phaseHistory}
                 onPress={onOpenWeeks}
               />
             </View>

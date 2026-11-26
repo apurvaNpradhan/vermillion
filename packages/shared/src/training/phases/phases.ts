@@ -553,24 +553,38 @@ export const PATTERN_PRESETS = [
   ["build", "build", "build", "push", "deload"],
 ] as const satisfies readonly (readonly Phase[])[];
 
-/** The plan with a new repeating pattern; the overrides and edits stay. No weeks is no plan. */
+/** An empty pattern falls back to Build if the plan still has other settings to keep. */
 export function withPattern(plan: PhasePlan | null, pattern: readonly Phase[]): PhasePlan | null {
   const weeks = pattern.slice(0, PHASE_PATTERN_MAX);
-  if (weeks.length === 0) return null;
-  return { ...(plan ?? BUILD_ONLY), pattern: [...weeks] };
+  if (weeks.length > 0) return { ...planOrBuild(plan), pattern: weeks };
+  if (plan === null) return null;
+  const hasSettings =
+    plan.overrides.length > 0 ||
+    Object.values(plan.modifiers).some((edits) => edits && Object.keys(edits).length > 0) ||
+    plan.test_top !== BUILD_ONLY.test_top ||
+    plan.test_workups === true;
+  return hasSettings ? { ...plan, pattern: ["build"] } : null;
 }
 
 /**
- * The plan with Program week `week` set to `phase`, or back to the pattern with null. An override
- * equal to what the pattern gives is not stored.
+ * The plan with one week set to a phase, or back to the pattern with null. With inserted Deloads,
+ * the caller supplies the Run week, which may hold a later Program week after a restart.
  */
-export function withWeekPhase(plan: PhasePlan, week: number, phase: Phase | null): PhasePlan {
-  const kept = plan.overrides.filter((item) => item.week !== week);
-  const patterned = plan.pattern[(week - 1) % plan.pattern.length];
+export function withWeekPhase(
+  plan: PhasePlan,
+  week: number,
+  phase: Phase | null,
+  insertedDeloads: readonly number[] = [],
+): PhasePlan {
+  const target = phaseOfWeek(plan, week, insertedDeloads);
+  if (!target || target.inserted || target.programWeek > PHASE_WEEK_MAX) return plan;
+  const kept = plan.overrides.filter((item) => item.week !== target.programWeek);
+  const patterned = phaseOfWeek({ ...plan, overrides: kept }, week, insertedDeloads)?.phase;
+  if (kept.length >= PHASE_OVERRIDES_MAX) return plan;
   const overrides =
     phase === null || phase === patterned
       ? kept
-      : [...kept, { week, phase }].sort((a, b) => a.week - b.week).slice(-PHASE_OVERRIDES_MAX);
+      : [...kept, { week: target.programWeek, phase }].sort((a, b) => a.week - b.week);
   return { ...plan, overrides };
 }
 

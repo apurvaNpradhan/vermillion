@@ -12,7 +12,6 @@ import {
   restoreProgram,
   updateProgram,
   updateWorkout,
-  type ProgramPatch,
 } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -51,7 +50,7 @@ export function useProgramActions() {
   );
 
   const update = useCallback(
-    (id: string, patch: ProgramPatch) =>
+    (id: string, patch: Parameters<typeof updateProgram>[2]) =>
       write((db) => updateProgram(db, id, patch, writeScope), false),
     [write, writeScope],
   );

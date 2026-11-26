@@ -1,6 +1,7 @@
 import {
   PATTERN_PRESETS,
   PHASES,
+  PHASE_PRESETS,
   PHASE_PATTERN_MAX,
   TRAINING_LIMITS,
   addPatternWeek,
@@ -16,7 +17,7 @@ import {
 } from "@workspace/shared";
 import type { ProgramDetail } from "@workspace/sync";
 import { WarningCircle } from "phosphor-react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { haptic } from "@/platform/haptics";
@@ -30,9 +31,9 @@ import { ScrollPage } from "@/platform/ui/page";
 import { useProgram } from "@/platform/training/use-program";
 import { useActiveRun } from "@/training/programs/use-active-program";
 import { useProgramActions } from "@/training/programs/use-program-actions";
-import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
 import { Stepper } from "@/training/targets/stepper";
 
+import { stepModifier } from "./phase-modifiers";
 import { PhaseModifiersSheet } from "./phase-modifiers-sheet";
 import { PhaseStrip } from "./phase-strip";
 import { stripBlocks, type StripBlock } from "./phase-strip-math";
@@ -73,26 +74,27 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
   const run = active.run?.program_id === program.id ? active.run : null;
   const plan = program.phasePlan;
   const shown = planOrBuild(plan);
-  const writer = useCoalescedWriter((patch: { planned_weeks: number | null }) =>
-    actions.update(program.id, patch),
-  );
-  const [weeks, setWeeks] = useState(program.plannedWeeks);
+  const weeks = program.plannedWeeks;
   const [chip, setChip] = useState<number | null>(null);
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
 
-  // Take in changes from the database (another device) unless an edit of ours is on its way.
-  useEffect(() => {
-    if (!writer.busy()) setWeeks(program.plannedWeeks);
-    // `writer` is stable; the stored length is the only trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program.plannedWeeks]);
-
-  const save = (next: PhasePlan | null) => void actions.update(program.id, { phase_plan: next });
+  const save = (edit: (current: PhasePlan | null) => PhasePlan | null) =>
+    void actions.update(program.id, ({ phase_plan }) => {
+      const stored = phase_plan ?? null;
+      const next = edit(stored);
+      return next === stored ? {} : { phase_plan: next };
+    });
   const blocks = stripBlocks({
     plan: shown,
     current: run
-      ? { run, now: new Date(), timeZone, trainedAt: active.runs.value?.phaseStarts }
+      ? {
+          run,
+          now: new Date(),
+          timeZone,
+          trainedAt: active.runs.value?.phaseStarts,
+          history: active.runs.value?.phaseHistory,
+        }
       : undefined,
     plannedWeeks: weeks,
   });
@@ -101,16 +103,15 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
     week !== null && shown.overrides.some((item) => item.week === week.programWeek);
 
   const stepWeeks = (direction: 1 | -1) => {
-    const next =
-      weeks === null
-        ? direction === 1
-          ? TRAINING_LIMITS.plannedWeeksMin
-          : null
-        : weeks + direction < TRAINING_LIMITS.plannedWeeksMin
-          ? null
-          : Math.min(TRAINING_LIMITS.plannedWeeksMax, weeks + direction);
-    setWeeks(next);
-    writer.queue({ planned_weeks: next });
+    void actions.update(program.id, ({ planned_weeks }) => {
+      const next = (planned_weeks ?? 0) + direction;
+      return {
+        planned_weeks:
+          next < TRAINING_LIMITS.plannedWeeksMin
+            ? null
+            : Math.min(TRAINING_LIMITS.plannedWeeksMax, next),
+      };
+    });
   };
 
   return (
@@ -170,7 +171,7 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
               accessibilityLabel={t("phase__pattern_add_label")}
               onPress={() => {
                 haptic.tick();
-                save(withPattern(plan, addPatternWeek(pattern)));
+                save((current) => withPattern(current, addPatternWeek(current?.pattern ?? [])));
               }}
               className="min-h-11 min-w-20 items-center justify-center rounded-xl bg-default px-3 active:opacity-70"
             >
@@ -184,7 +185,7 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
             <Pressable
               key={preset.join("-")}
               accessibilityRole="button"
-              onPress={() => save(withPattern(plan, preset))}
+              onPress={() => save((current) => withPattern(current, preset))}
               className="min-h-11 justify-center active:opacity-60"
             >
               <Text className="font-normal text-body text-foreground">{text.pattern(preset)}</Text>
@@ -204,14 +205,18 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
       </View>
 
       <ListSection title={t("phase__effects_title")} variant="plain">
-        {PHASES.map((phase) => (
-          <ListRow
-            key={phase}
-            title={text.name(phase)}
-            description={text.effects(phase, modifiersFor(shown, phase), shown.test_top)}
-            onPress={() => setEditing(phase)}
-          />
-        ))}
+        {PHASES.map((phase) => {
+          const effects = text.effects(phase, modifiersFor(shown, phase), shown.test_top);
+          return (
+            <ListRow
+              key={phase}
+              title={text.name(phase)}
+              description={effects}
+              accessibilityHint={effects}
+              onPress={() => setEditing(phase)}
+            />
+          );
+        })}
       </ListSection>
 
       {editing !== null ? (
@@ -220,12 +225,22 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
           modifiers={modifiersFor(shown, editing)}
           testTop={shown.test_top}
           testWorkups={shown.test_workups ?? false}
-          onSave={(modifiers, testTop, testWorkups) =>
-            save({
-              ...withModifiers(shown, editing, modifiers),
-              test_top: testTop,
-              test_workups: testWorkups,
+          onStep={(key, direction) =>
+            save((current) => {
+              const latest = planOrBuild(current);
+              return withModifiers(
+                latest,
+                editing,
+                stepModifier(modifiersFor(latest, editing), key, direction),
+              );
             })
+          }
+          onReset={() =>
+            save((current) => withModifiers(planOrBuild(current), editing, PHASE_PRESETS[editing]))
+          }
+          onTopChange={(test_top) => save((current) => ({ ...planOrBuild(current), test_top }))}
+          onWorkupsChange={(test_workups) =>
+            save((current) => ({ ...planOrBuild(current), test_workups }))
           }
           onClose={() => setEditing(null)}
         />
@@ -243,19 +258,21 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
             label: text.name(phase),
             description: text.hint(phase),
           })),
-          { value: "remove" as const, label: t("phase__pattern_remove") },
+          ...(pattern.length === 1 && pattern[0] === "build" && withPattern(plan, []) !== null
+            ? []
+            : [{ value: "remove" as const, label: t("phase__pattern_remove") }]),
         ]}
         value={chip === null ? null : (pattern[chip] ?? null)}
         onSelect={(value) => {
           if (chip === null) return;
-          save(
-            withPattern(
-              plan,
+          save((current) => {
+            if (!current?.pattern[chip]) return current;
+            const next =
               value === "remove"
-                ? removePatternWeek(pattern, chip)
-                : setPatternWeek(pattern, chip, value),
-            ),
-          );
+                ? removePatternWeek(current.pattern, chip)
+                : setPatternWeek(current.pattern, chip, value);
+            return withPattern(current, next);
+          });
         }}
       />
       <OptionSheet<WeekChoice>
@@ -276,7 +293,16 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
         value={week?.phase ?? null}
         onSelect={(value) => {
           if (!week) return;
-          save(withWeekPhase(shown, week.programWeek, value === "pattern" ? null : value));
+          save((current) =>
+            current === null && (value === "pattern" || value === "build")
+              ? null
+              : withWeekPhase(
+                  planOrBuild(current),
+                  week.week,
+                  value === "pattern" ? null : value,
+                  run?.inserted_deloads,
+                ),
+          );
         }}
       />
     </ScrollPage>

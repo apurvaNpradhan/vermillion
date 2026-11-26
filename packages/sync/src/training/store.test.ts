@@ -1,4 +1,10 @@
-import { TRAINING_LIMITS, type PlannedSet } from "@workspace/shared";
+import {
+  TRAINING_LIMITS,
+  addPatternWeek,
+  withPattern,
+  type PlannedSet,
+  type ProgramInput,
+} from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
@@ -114,6 +120,27 @@ describe("programs", () => {
       .run(JSON.stringify({ pattern: ["build", "taper"], overrides: [] }), id);
     expect(await updateProgram(s.training, id, { title: "Renamed" })).toBe(true);
     expect(s.one("program", id)).toMatchObject({ title: "Renamed" });
+  });
+
+  it("applies repeated edits to the latest saved length and pattern", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    const step = (current: ProgramInput) => ({
+      planned_weeks: (current.planned_weeks ?? 0) + 1,
+    });
+    const add = (current: ProgramInput) => ({
+      phase_plan: withPattern(
+        current.phase_plan ?? null,
+        addPatternWeek(current.phase_plan?.pattern ?? []),
+      ),
+    });
+    await updateProgram(s.training, id, step);
+    await updateProgram(s.training, id, add);
+    await updateProgram(s.training, id, step);
+    await updateProgram(s.training, id, add);
+    const row = s.one("program", id);
+    expect(row?.planned_weeks).toBe(2);
+    expect(JSON.parse(String(row?.phase_plan))).toMatchObject({ pattern: ["build", "build"] });
   });
 
   it("refuses a missing Device owner and a stale install", async () => {

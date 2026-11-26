@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { PHASE_WEEK_MAX } from "@workspace/shared";
 
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
@@ -30,35 +31,51 @@ export function PhaseStrip({
       showsHorizontalScrollIndicator={false}
       contentContainerClassName="items-end gap-1.5 px-4"
     >
-      {blocks.map((block) => (
-        <Pressable
-          key={block.week}
-          accessibilityRole="button"
-          accessibilityLabel={t(
-            block.state === "current" ? "phase__week_label_current" : "phase__week_label",
-            { week: block.week, phase: text.name(block.phase) },
-          )}
-          accessibilityHint={block.inserted ? t("phase__inserted_hint") : t("phase__week_hint")}
-          accessibilityState={{ disabled: block.inserted }}
-          disabled={block.inserted}
-          onPress={() => onSelect(block)}
-          style={{ width: BLOCK_WIDTH }}
-          className="items-center gap-1.5 active:opacity-70"
-        >
-          <View className="h-1.5 w-1.5">
-            {block.state === "current" ? (
-              <View className="h-1.5 w-1.5 rounded-full bg-accent" />
-            ) : null}
-          </View>
-          <View className="w-full justify-end" style={{ height: BLOCK_MAX }}>
-            <View
-              style={{ height: Math.round(BLOCK_MAX * block.height) }}
-              className={`w-full rounded-sm ${block.state === "future" ? "bg-default" : "bg-foreground"}`}
-            />
-          </View>
-          <Text className="font-normal text-caption tabular-nums text-muted">{block.week}</Text>
-        </Pressable>
-      ))}
+      {blocks.map((block) => {
+        const disabled =
+          block.trained ||
+          block.inserted ||
+          block.overrideLimit ||
+          block.programWeek > PHASE_WEEK_MAX;
+        return (
+          <Pressable
+            key={block.week}
+            accessibilityRole="button"
+            accessibilityLabel={t(
+              block.state === "current" ? "phase__week_label_current" : "phase__week_label",
+              { week: block.week, phase: text.name(block.phase) },
+            )}
+            accessibilityHint={
+              block.trained
+                ? t("phase__trained_hint")
+                : block.inserted
+                  ? t("phase__inserted_hint")
+                  : block.overrideLimit
+                    ? t("phase__override_limit_hint")
+                    : disabled
+                      ? undefined
+                      : t("phase__week_hint")
+            }
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={() => onSelect(block)}
+            className="min-w-11 items-center gap-1.5 active:opacity-70"
+          >
+            <View className="h-1.5 w-1.5">
+              {block.state === "current" ? (
+                <View className="h-1.5 w-1.5 rounded-full bg-accent" />
+              ) : null}
+            </View>
+            <View className="justify-end" style={{ height: BLOCK_MAX, width: BLOCK_WIDTH }}>
+              <View
+                style={{ height: Math.round(BLOCK_MAX * block.height) }}
+                className={`w-full rounded-sm ${block.state === "future" ? "bg-default" : "bg-foreground"}`}
+              />
+            </View>
+            <Text className="font-normal text-caption tabular-nums text-muted">{block.week}</Text>
+          </Pressable>
+        );
+      })}
     </ScrollView>
   );
 }

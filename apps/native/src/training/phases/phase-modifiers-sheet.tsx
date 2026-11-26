@@ -1,6 +1,5 @@
 import { PHASE_PRESETS, type Phase, type PhaseModifiers, type TestTop } from "@workspace/shared";
 import { BottomSheet, Switch } from "heroui-native";
-import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { signedEffort, usePhaseText } from "@/platform/phase-text";
@@ -11,44 +10,43 @@ import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { Stepper } from "@/training/targets/stepper";
 
-import { canStepModifier, stepModifier } from "./phase-modifiers";
+import { canStepModifier } from "./phase-modifiers";
 
 /**
  * One phase's modifiers: how its sets are scaled, how its effort targets move and how much of
- * the load it asks for. A Test phase also chooses how its main lift's top set is done. Save
- * stores only what differs from the preset; Reset goes back to it. Mount it only while wanted.
+ * the load it asks for. A Test phase also chooses how its main lift's top set is done.
+ * Every adjustment applies immediately. Reset restores the phase's preset effects.
  */
 export function PhaseModifiersSheet({
   phase,
   modifiers,
   testTop,
   testWorkups,
-  onSave,
+  onStep,
+  onReset,
+  onTopChange,
+  onWorkupsChange,
   onClose,
 }: {
   phase: Phase;
   modifiers: PhaseModifiers;
   testTop: TestTop;
   testWorkups: boolean;
-  onSave: (modifiers: PhaseModifiers, testTop: TestTop, testWorkups: boolean) => void;
+  onStep: (key: keyof PhaseModifiers, direction: 1 | -1) => void;
+  onReset: () => void;
+  onTopChange: (value: TestTop) => void;
+  onWorkupsChange: (value: boolean) => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const text = usePhaseText();
   const sheet = useSheetPresent();
-  const [draft, setDraft] = useState(modifiers);
-  const [top, setTop] = useState(testTop);
-  const [workups, setWorkups] = useState(testWorkups);
   const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 });
   const preset = PHASE_PRESETS[phase];
-  const edited =
-    draft.sets !== modifiers.sets ||
-    draft.rpe !== modifiers.rpe ||
-    draft.load !== modifiers.load ||
-    top !== testTop ||
-    workups !== testWorkups;
   const isPreset =
-    draft.sets === preset.sets && draft.rpe === preset.rpe && draft.load === preset.load;
+    modifiers.sets === preset.sets &&
+    modifiers.rpe === preset.rpe &&
+    modifiers.load === preset.load;
   return (
     <BottomSheet
       isOpen={sheet.isOpen}
@@ -60,14 +58,8 @@ export function PhaseModifiersSheet({
         <BottomSheet.Overlay />
         <ScrollableSheetContent
           footer={
-            <Button
-              isDisabled={!edited}
-              onPress={() => {
-                onSave(draft, top, workups);
-                onClose();
-              }}
-            >
-              <Button.Label>{t("common__save")}</Button.Label>
+            <Button variant="secondary" onPress={onClose}>
+              <Button.Label>{t("common__close")}</Button.Label>
             </Button>
           }
         >
@@ -90,18 +82,18 @@ export function PhaseModifiersSheet({
                   label={t(`phase__modifier_${key}`)}
                   valueText={
                     key === "sets"
-                      ? t("phase__value_sets", { value: number.format(draft.sets) })
+                      ? t("phase__value_sets", { value: number.format(modifiers.sets) })
                       : key === "rpe"
-                        ? draft.rpe === 0
+                        ? modifiers.rpe === 0
                           ? t("phase__value_none")
-                          : t("phase__value_rpe", { value: signedEffort(draft.rpe, i18n.language) })
-                        : t("phase__value_load", { value: Math.round(draft.load * 100) })
+                          : t("phase__value_rpe", {
+                              value: signedEffort(modifiers.rpe, i18n.language),
+                            })
+                        : t("phase__value_load", { value: Math.round(modifiers.load * 100) })
                   }
-                  onStep={(direction) =>
-                    setDraft((current) => stepModifier(current, key, direction))
-                  }
-                  canDecrement={canStepModifier(draft, key, -1)}
-                  canIncrement={canStepModifier(draft, key, 1)}
+                  onStep={(direction) => onStep(key, direction)}
+                  canDecrement={canStepModifier(modifiers, key, -1)}
+                  canIncrement={canStepModifier(modifiers, key, 1)}
                   decrementLabel={t("phase__modifier_less", { name: t(`phase__modifier_${key}`) })}
                   incrementLabel={t("phase__modifier_more", { name: t(`phase__modifier_${key}`) })}
                 />
@@ -113,26 +105,27 @@ export function PhaseModifiersSheet({
               <Text className="text-caption font-medium text-muted">{t("phase__top_title")}</Text>
               <SegmentedControl
                 accessibilityLabel={t("phase__top_title")}
-                value={top}
+                value={testTop}
                 options={[
                   { value: "single", label: t("phase__top_single") },
                   { value: "amrap", label: t("phase__top_amrap") },
                 ]}
-                onChange={setTop}
+                onChange={onTopChange}
               />
-              {top === "single" ? (
+              {testTop === "single" ? (
                 <View className="min-h-11 flex-row items-center justify-between">
                   <Text className="text-body text-foreground">{t("phase__test_workups")}</Text>
                   <Switch
                     accessibilityLabel={t("phase__test_workups")}
-                    isSelected={workups}
-                    onSelectedChange={setWorkups}
+                    isSelected={testWorkups}
+                    onSelectedChange={onWorkupsChange}
+                    hitSlop={10}
                   />
                 </View>
               ) : null}
             </View>
           ) : null}
-          <Button variant="tertiary" isDisabled={isPreset} onPress={() => setDraft({ ...preset })}>
+          <Button variant="tertiary" isDisabled={isPreset} onPress={onReset}>
             <Button.Label>{t("phase__reset")}</Button.Label>
           </Button>
         </ScrollableSheetContent>
