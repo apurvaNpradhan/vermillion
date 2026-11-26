@@ -8,6 +8,7 @@ import type { ContextSession, SuggestionAccount } from "../progress/suggestion-c
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
 import type { SetKind } from "../vocabulary/vocabulary";
 import { prescribe } from "./prescribe";
+import { previewRule } from "./preview-rule";
 import { stalledExerciseIds } from "./stalled";
 import type { RuleConfig } from "./rule-config";
 
@@ -400,6 +401,41 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
       const first = shares[0] ?? 0;
       for (const share of shares) expect(Math.abs(share - first)).toBeLessThan(0.03);
       expect(Math.abs((shares.at(-1) ?? 0) - first)).toBeLessThan(0.02);
+    });
+
+    it("previews the eight Sessions the engine gives when each is followed exactly", () => {
+      // The back-off share is meant once (85.7% here); the grid rounds each load but never creeps.
+      const history: ContextSession[] = [
+        session(0, plan, [
+          { kind: "top", weightKg: kg(weight * 1.4), reps: 3 },
+          { kind: "backoff", weightKg: kg(weight * 1.2), reps: 5 },
+          { kind: "backoff", weightKg: kg(weight * 1.2), reps: 5 },
+        ]),
+      ];
+      const preview = previewRule(
+        {
+          place: {
+            exerciseId: "lift",
+            sourceWorkoutExerciseId: "plan-lift",
+            type: "weight_reps",
+            equipment: "machine",
+            workoutId: "w",
+            gymId: "home",
+            grid,
+            stalls: false,
+          },
+          plan,
+          history: [...history],
+          account: account(unit),
+          rule,
+          now: new Date(START + 2 * DAY),
+        },
+        8,
+      );
+      const followed = follow(plan, history, rule, 8);
+      expect(preview.map(({ sets }) => sets.map(({ weightKg }) => weightKg))).toEqual(
+        followed.map(({ progression }) => progression?.sets.map(({ weightKg }) => weightKg)),
+      );
     });
 
     it("is the Double rule when the plan has no back-offs", () => {

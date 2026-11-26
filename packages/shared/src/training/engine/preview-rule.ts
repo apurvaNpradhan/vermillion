@@ -122,6 +122,7 @@ export function previewRule(
         at,
         input.plan.flatMap((target, position) => {
           const next = progression.sets[position];
+          const share = progression.outcomes[position]?.share;
           return progresses(target.kind) && next
             ? [
                 {
@@ -129,6 +130,13 @@ export function previewRule(
                   kind: target.kind,
                   weight_kg: next.weightKg,
                   reps: next.reps,
+                  // What the Session's snapshot would hold: a back-off made as asked hands on the
+                  // share it was meant to be, so the preview never re-derives it from rounded loads.
+                  suggested: {
+                    weight_kg: next.weightKg,
+                    reps: next.reps,
+                    ...(share === undefined ? {} : { share }),
+                  },
                   ...(next.durationS == null ? {} : { duration_s: next.durationS }),
                   ...(next.distanceM == null ? {} : { distance_m: next.distanceM }),
                   target,
