@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { PHASE_WEEK_MAX } from "@workspace/shared";
 
@@ -33,24 +33,33 @@ export function PhaseStrip({
   const reduceMotion = useReduceMotion();
   const scroll = useRef<ScrollView>(null);
   const width = useRef(0);
+  const contentWidth = useRef(0);
   const placed = useRef(false);
   const current = blocks.findIndex((block) => block.state === "current");
   // Open on the current week, a third in from the left, once: later changes keep the lifter's place.
-  const toCurrent = () => {
-    if (placed.current || current < 0 || width.current === 0) return;
+  const toCurrent = useCallback(() => {
+    if (placed.current || current < 0 || width.current === 0 || contentWidth.current === 0) return;
+    const offset = Math.max(0, SIDE_PADDING + current * BLOCK_PITCH - width.current / 3);
+    // A current week can arrive from sync before the strip has laid out the added blocks.
+    if (SIDE_PADDING + current * BLOCK_PITCH >= contentWidth.current) return;
     placed.current = true;
     scroll.current?.scrollTo({
-      x: Math.max(0, SIDE_PADDING + current * BLOCK_PITCH - width.current / 3),
+      x: Math.min(offset, Math.max(0, contentWidth.current - width.current)),
       animated: !reduceMotion,
     });
-  };
+  }, [current, reduceMotion]);
+  useEffect(toCurrent, [toCurrent]);
   return (
     <ScrollView
       ref={scroll}
       onLayout={(event) => {
         width.current = event.nativeEvent.layout.width;
+        toCurrent();
       }}
-      onContentSizeChange={toCurrent}
+      onContentSizeChange={(nextWidth) => {
+        contentWidth.current = nextWidth;
+        toCurrent();
+      }}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerClassName="items-end gap-1.5 px-4"

@@ -10,7 +10,7 @@
 #
 # The default is a dry run: it prints the rows it would change and writes nothing. --apply runs
 # one transaction and prints what it changed. Needs psql. Run the dry run, read the rows, then
-# apply, after deploying the API (which keeps started_at from moving later) and before releasing the app (docs/runbook.md, "Pre-deploy data repairs").
+# apply, after deploying the API and before releasing the app (see docs/runbook.md).
 set -euo pipefail
 
 mode="dry-run"
@@ -47,4 +47,6 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -c "
   SET started_at = a.first_started_at, updated_at = now()
   FROM affected a
   WHERE r.id = a.run_id
+    AND r.deleted_at IS NULL
+    AND (r.started_at IS NULL OR r.started_at > a.first_started_at)
   RETURNING r.id AS run_id, r.user_id, a.current_started_at AS was, r.started_at AS now"

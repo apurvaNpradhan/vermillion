@@ -43,7 +43,13 @@ export function StepPrompt({
   const fallback = formatWeight(defaultStepKg(equipment, unit, 0), unit);
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (answered || maxOpen || !setting.ready || setting.gymId !== gymId || setting.stepKg !== null)
+  if (
+    answered ||
+    !setting.ready ||
+    setting.gymId !== gymId ||
+    setting.stepKg !== null ||
+    (maxOpen && setting.maxKg === null)
+  )
     return null;
   const input = draft ?? fallback;
   const stepKg = parseWeight(input, unit);

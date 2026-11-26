@@ -397,8 +397,16 @@ describe("the cost of a stall verdict", () => {
     // Home asks again on every render with the same watch result.
     expect(ask(sessions)).toEqual(first);
     expect(reads.count).toBe(once);
-    // A new watch result is a new question.
-    expect(ask([...sessions])?.count).toBe(11);
+    // A synced Session that improves the lift clears the old verdict.
+    const newest: ContextSession = {
+      id: "synced",
+      workoutId: "w1",
+      gymId: null,
+      started_at: day(-4),
+      finished_at: day(-4),
+      sets: [set(110, 5)],
+    };
+    expect(ask([newest, ...sessions])).toBeNull();
     expect(reads.count).toBeGreaterThan(once);
   });
 

@@ -9,7 +9,7 @@ import {
   type RunPause,
   type SessionInput,
 } from "@workspace/shared";
-import { and, eq, exists, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, eq, exists, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import { liveProgram, lockUserTraining } from "./operations/lookup";
@@ -140,9 +140,6 @@ function mergePauses(stored: readonly RunPause[] | null, incoming: readonly RunP
 }
 
 const date = (value: string | null) => (value === null ? null : new Date(value));
-/** The earlier of two instants; a null is "none", so the other one wins. */
-const earlier = (stored: Date | null, incoming: Date | null) =>
-  stored && incoming ? (incoming < stored ? incoming : stored) : (stored ?? incoming);
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",
   async apply(db, userId, op) {
@@ -207,9 +204,7 @@ export const runSyncHandler: SyncTableHandler = {
     const columns = {
       programId: values.program_id,
       activatedAt: new Date(values.activated_at),
-      // Only ever earlier: a device that logged a Session later must not move the Run's start (and
-      // every Run week) forward, and a null never clears a stored start.
-      startedAt: earlier(row?.startedAt ?? null, date(values.started_at)),
+      startedAt: date(values.started_at),
       finishedAt: date(values.finished_at),
       outcome: values.outcome,
       continuedAt: date(values.continued_at),
@@ -223,7 +218,13 @@ export const runSyncHandler: SyncTableHandler = {
     } else
       await db
         .update(programRun)
-        .set({ ...columns, updatedAt: now() })
+        .set({
+          ...columns,
+          // Read the current value in the UPDATE too: the repair script can lower it between
+          // the SELECT above and this write. PostgreSQL LEAST ignores nulls.
+          startedAt: sql`least(${programRun.startedAt}, ${values.started_at}::timestamptz)`,
+          updatedAt: now(),
+        })
         .where(eq(programRun.id, id));
   },
   purgeTombstones: async () => 0,

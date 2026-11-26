@@ -71,12 +71,12 @@ export function TrainingNudges({
   const rules = useExerciseRules();
   const { lighter } = deload;
   const { previousSource, weightUnit, weightIncrementKg, weightIncrementUnit } = preferences.ui;
-  const today = now.toISOString().slice(0, 10);
   const { history, ready, bodyweightOn } = histories;
+  const bodyweightKg = bodyweightOn(now.toISOString());
   const rulesByExercise = rules.value;
   const rulesLoading = rules.loading;
   // The verdict scans each exercise's history; Home renders often, so it is worked out again only
-  // when what it reads changes (a new watch result, a dismissal, a new day).
+  // when what it reads changes (a new watch result, a dismissal, a different bodyweight).
   const stalled = useMemo(() => {
     if (!ready || rulesLoading) return [];
     return stalledExerciseIds(
@@ -88,18 +88,18 @@ export function TrainingNudges({
         weightIncrementKg,
         weightIncrementUnit,
         lighterWeeks,
-        bodyweightKg: bodyweightOn(new Date().toISOString()),
+        bodyweightKg,
         stallMemory,
       },
       // A maintained lift is never stalled.
       rulesByExercise ?? new Map(),
     );
-    // `today` and `stallVersion` stand for what the verdict reads from the clock and the device.
+    // `stallVersion` tracks what the verdict reads from device-local stall memory.
   }, [
     thisWeek,
     history,
     ready,
-    bodyweightOn,
+    bodyweightKg,
     rulesByExercise,
     rulesLoading,
     previousSource,
@@ -107,7 +107,6 @@ export function TrainingNudges({
     weightIncrementKg,
     weightIncrementUnit,
     lighterWeeks,
-    today,
     stallVersion,
   ]);
   const latest = state.recent[0];
