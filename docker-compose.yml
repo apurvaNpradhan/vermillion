@@ -1,7 +1,8 @@
 # Dev-only services. Apps run on the host; this provides Postgres and the sync stack.
 # DATABASE_URL=postgresql://postgres:password@localhost:5432/vermillion
 #
-# `pnpm db:start` builds the bootstrap bundle, then starts everything:
+# `pnpm db:start` builds the bootstrap bundle, then starts everything. minio-init runs apart
+# (`compose run`): `up --wait` reports a one-shot's normal exit as a failure.
 #   postgres -> powersync-bootstrap (one shot) -> powersync
 #   minio -> minio-init (one shot: the private user-media bucket, ADR 0040)
 # Passwords below are development defaults; override them in a root .env if you like.

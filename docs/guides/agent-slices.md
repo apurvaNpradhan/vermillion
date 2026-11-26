@@ -30,10 +30,10 @@ checked once with `task_status`.
 
 `pnpm lint && pnpm typecheck && pnpm knip && pnpm i18n:check`, then the tests through the shared
 lock: `flock ~/.cache/vermillion-test.lock pnpm test --concurrency=2 --continue` (tests need
-`pnpm db:start`; its exit 1 after MinIO's init job exits 0 is harmless). The machine has 14 GB of
-RAM: two full runs at once, or one without the concurrency cap, time API tests out at random and
-get workers killed (exit 137). A test that fails only in the full run is rerun alone and both
-results are reported. Builders and fixers run the gate; reviewers and re-checkers read its output and
+`pnpm db:start`). The machine has 14 GB of RAM: two full runs at once, or one without the
+concurrency cap, get workers killed (exit 137). A test that fails only in the full run is rerun
+alone and both results are reported. Builders and fixers run the gate; reviewers and re-checkers
+read its output and
 run only a single targeted test when probing a suspected bug.
 
 A fresh worktree has no `apps/native/.expo/types/router.d.ts`, so typecheck there accepts any
