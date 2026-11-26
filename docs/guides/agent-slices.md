@@ -28,9 +28,11 @@ checked once with `task_status`.
 
 ## The gate
 
-`pnpm lint && pnpm typecheck && pnpm knip && pnpm i18n:check && pnpm test` (tests need
-`pnpm db:start`). Builders and fixers run it; reviewers and re-checkers read its output and run
-only a single targeted test when probing a suspected bug.
+`pnpm lint && pnpm typecheck && pnpm knip && pnpm i18n:check`, then the tests through the shared
+lock: `flock ~/.cache/vermillion-test.lock pnpm test` (tests need `pnpm db:start`). The lock makes
+parallel agents take turns: two full test runs at once push the load past 30 and API tests time
+out at random. Builders and fixers run the gate; reviewers and re-checkers read its output and
+run only a single targeted test when probing a suspected bug.
 
 Worktrees share one Turbo cache through `TURBO_CACHE_DIR` (set in the shell profile), so unchanged
 packages hit the cache across worktrees.
