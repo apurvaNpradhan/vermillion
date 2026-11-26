@@ -40,6 +40,9 @@ A fresh worktree has no `apps/native/.expo/types/router.d.ts`, so typecheck ther
 route string. A slice that adds or renames a route regenerates it first:
 `cd apps/native && CI=1 timeout 60 npx expo start --offline`.
 
+After editing `en.json`, `pnpm build` in `packages/i18n` refreshes its key types; without it
+typecheck reports hundreds of "key not assignable" errors.
+
 Worktrees share one Turbo cache through `TURBO_CACHE_DIR` (set in the shell profile), so unchanged
 packages hit the cache across worktrees.
 
