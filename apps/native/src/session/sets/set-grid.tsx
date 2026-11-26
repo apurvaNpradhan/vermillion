@@ -47,6 +47,7 @@ export type SetHandlers = {
   onPrevious: (setId: string) => void;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onRemoveSet: (setId: string) => Promise<boolean>;
+  onSwipeOpen?: () => void;
   onTimer: (setId: string) => void;
   /** Lets the screen scroll a row into view above the keypad. */
   registerRow: (setId: string) => (node: View | null) => void;
@@ -141,6 +142,7 @@ const SetRowItem = memo(function SetRowItem({
         onPrevious={handlers.onPrevious}
         onCopySets={handlers.onCopySets}
         onRemove={handlers.onRemoveSet}
+        onSwipeOpen={handlers.onSwipeOpen}
         onTimer={handlers.onTimer}
       />
       {row.optional ? (

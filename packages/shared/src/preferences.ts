@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { BODY_METRICS, DEFAULT_TRACKED_METRICS } from "./body";
+import { DISMISSED_HINTS_MAX, HINT_IDS } from "./hints";
 import { localeSchema } from "./locale";
 import {
   DEFAULT_REST_SECONDS,
@@ -121,7 +122,7 @@ const uiFields = {
   supersetScroll: z.boolean(),
   recordAlerts: z.boolean(),
   sidebarCollapsed: z.boolean(),
-  dismissedHints: z.array(z.string().max(100)).max(100),
+  dismissedHints: z.array(z.string().max(100)).max(DISMISSED_HINTS_MAX),
   weightIncrementKg: z.number().positive().max(100).nullable(),
   weightIncrementUnit: z.enum(WEIGHT_UNITS).nullable(),
   weightUnit: z.enum(WEIGHT_UNITS),
@@ -254,6 +255,8 @@ export const updatePreferencesSchema = z.object({
   locale: localeSchema.nullable().optional(),
   timezone: timezoneSchema.nullable().optional(),
   ui: uiPreferencesPatchSchema.optional(),
+  /** Dismiss one hint or replay this round's hints. Applied after an explicit `ui` patch. */
+  hintDismissal: z.enum([...HINT_IDS, "reset"]).optional(),
   /**
    * Per-muscle goal edits, merged into `ui.muscleGoals` one muscle at a time: a goal sets that
    * muscle, `null` resets it to the default. Unlike `ui.muscleGoals` (the whole map, which

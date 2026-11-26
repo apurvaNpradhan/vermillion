@@ -1,4 +1,3 @@
-import { resetHints } from "@workspace/shared";
 import { Lightbulb } from "phosphor-react-native";
 
 import { useTranslation } from "@/platform/i18n";
@@ -10,17 +9,14 @@ import { usePreferences } from "@/preferences";
 export function ShowTipsRow() {
   const { t } = useTranslation();
   const { toast } = useAppToast();
-  const { updateUi } = usePreferences();
+  const { resetHintDismissals } = usePreferences();
   return (
     <ListRow
       icon={Lightbulb}
       title={t("settings__show_tips")}
       accessory="none"
       onPress={() => {
-        void updateUi((ui) => {
-          const next = resetHints(ui.dismissedHints);
-          return next ? { dismissedHints: next } : null;
-        })
+        void resetHintDismissals()
           .then(() => toast.show({ label: t("settings__tips_shown") }))
           .catch(() => undefined);
       }}

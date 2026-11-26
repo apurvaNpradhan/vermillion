@@ -88,6 +88,7 @@ export type SetRowProps = {
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
+  onSwipeOpen?: () => void;
   onLimits: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
@@ -422,7 +423,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   return (
     <View>
       {!readOnly && actions.length > 0 ? (
-        <SwipeRow actions={actions} motion={false}>
+        <SwipeRow actions={actions} motion={false} onOpen={props.onSwipeOpen}>
           {(a11y) => row(a11y)}
         </SwipeRow>
       ) : (
