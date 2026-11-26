@@ -126,25 +126,26 @@ export function checkSet(input: SetCheckInput): SetCheck | null {
   if (editedField !== "reps" && hasWeight && hasReference && !assisted) {
     const up = referenceKg * SLIP_RATIO;
     const down = referenceKg / SLIP_RATIO;
+    // Pound entries are stored to the gram. Compare the keypad's half-pound values at the
+    // strict boundaries so a 100 lb to 150 lb jump cannot read as slightly over 1.5×.
+    const entered = unit === "lb" ? Math.round(inUnit(weightKg, unit) * 2) / 2 : weightKg;
+    const reference = unit === "lb" ? Math.round(inUnit(referenceKg, unit) * 2) / 2 : referenceKg;
+    const aboveMargin = entered > reference + HIGH_LOAD_MARGIN[unit];
     if (
       Math.abs(weightKg - up) <= up * SLIP_TOLERANCE &&
-      (type !== "bodyweight_weighted_reps" ||
-        weightKg > referenceKg + toKg(HIGH_LOAD_MARGIN[unit], unit))
+      (type !== "bodyweight_weighted_reps" || aboveMargin)
     ) {
       return { reason: "unit_slip", direction: "up", referenceKg };
     }
     if (
       !lighterSet &&
       Math.abs(weightKg - suggested) > suggested * SLIP_TOLERANCE &&
-      referenceKg >= toKg(SLIP_DOWN_MIN[unit], unit) &&
+      reference >= SLIP_DOWN_MIN[unit] &&
       Math.abs(weightKg - down) <= down * SLIP_TOLERANCE
     ) {
       return { reason: "unit_slip", direction: "down", referenceKg };
     }
-    if (
-      weightKg > referenceKg * HIGH_LOAD_RATIO &&
-      weightKg > referenceKg + toKg(HIGH_LOAD_MARGIN[unit], unit)
-    ) {
+    if (entered > reference * HIGH_LOAD_RATIO && aboveMargin) {
       return {
         reason: "high_load",
         referenceKg,

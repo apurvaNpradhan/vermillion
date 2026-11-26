@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { parseWeight } from "../vocabulary/format";
 import {
   checkSet,
   checkWeighIn,
@@ -82,6 +83,20 @@ describe("checkSet: high load against the reference", () => {
     );
     // In kilograms 66 lb (29.9 kg) over a 9 kg reference is above +20 kg and 1.5x.
     expect(checkSet(input({ history: light, weightKg: lb(66) }))?.reason).toBe("high_load");
+  });
+
+  it("keeps the strict ratio and margin at the pound values the keypad shows", () => {
+    const check = (previous: string, entered: string) =>
+      checkSet(
+        input({
+          unit: "lb",
+          weightKg: parseWeight(entered, "lb"),
+          history: { heaviestKg: parseWeight(previous, "lb"), bestReps: 8 },
+        }),
+      );
+    expect(check("100", "150")).toBeNull();
+    expect(check("12", "57")).toBeNull();
+    expect(check("100", "150.5")?.reason).toBe("high_load");
   });
 
   it("takes today's suggestion as the reference when it is higher", () => {
