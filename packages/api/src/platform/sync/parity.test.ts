@@ -498,7 +498,8 @@ const expectation: Expectation = {
       "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week, phase_plan)",
       "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at, cover_media_id, main_entry_id)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
-      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at, inserted_deloads, pauses)",
+      // The publication includes all table columns. The stream drops undone_deloads.
+      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at, inserted_deloads, pauses, undone_deloads)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
       "program_slot_skip(id, user_id, run_id, slot_id, cycle, created_at, updated_at, deleted_at)",
       "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id, phase, phase_modifiers)",
