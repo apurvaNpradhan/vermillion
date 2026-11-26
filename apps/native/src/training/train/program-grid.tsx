@@ -1,9 +1,10 @@
 import type { ProgramSummary } from "@workspace/sync";
-import { Copy, Play, Stop, Trash } from "phosphor-react-native";
+import { Copy, DotsThreeVertical, Play, Stop, Trash } from "phosphor-react-native";
 import { memo, useMemo, useState } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 import { ProgramTile } from "@/training/programs/program-row";
@@ -21,7 +22,7 @@ function gridCardWidth(screenWidth: number) {
 
 /**
  * One Program as a card: its cover (or the initial) as a square, then its name and a muted line.
- * Tapping opens the Program; a long press lists the same actions as the Programs list.
+ * Tapping opens the Program; the ⋮ button (and a long press) lists the same actions as the Programs list.
  */
 const ProgramCoverCard = memo(function ProgramCoverCard({
   program,
@@ -44,6 +45,7 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
 }) {
   const { t } = useTranslation();
   const [menu, setMenu] = useState(false);
+  const subtle = useSubtleColor();
   const meta = useProgramMeta(rotationSummary(program.slots), program.plannedWeeks);
   const line = active ? t("training__program_card_active", { meta }) : meta;
   const actions = useMemo<SwipeAction[]>(
@@ -82,13 +84,24 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
         style={{ width }}
       >
         <ProgramTile title={program.title} size={width - 16} coverMediaId={program.coverMediaId} />
-        <View className="gap-1 px-0.5 pb-0.5">
-          <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
-            {program.title}
-          </Text>
-          <Text numberOfLines={1} className="font-mono text-overline uppercase text-muted">
-            {line}
-          </Text>
+        <View className="flex-row items-center gap-1 px-0.5 pb-0.5">
+          <View className="min-w-0 flex-1 gap-1">
+            <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
+              {program.title}
+            </Text>
+            <Text numberOfLines={1} className="font-mono text-overline uppercase text-muted">
+              {line}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("training__program_menu")}
+            onPress={() => setMenu(true)}
+            hitSlop={4}
+            className="-mr-1 size-11 items-center justify-center rounded-full active:bg-default"
+          >
+            <DotsThreeVertical size={20} color={subtle} />
+          </Pressable>
         </View>
       </Pressable>
       <ActionSheet title={program.title} actions={actions} isOpen={menu} onOpenChange={setMenu} />
