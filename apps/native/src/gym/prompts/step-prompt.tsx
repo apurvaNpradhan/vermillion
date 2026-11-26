@@ -14,17 +14,19 @@ import { Button } from "@/platform/ui/button";
 
 import { usePreference, usePreferences } from "@/preferences";
 
-import { capPromptKey } from "./cap-prompt";
+import { capPromptKey, pendingCapPrompt } from "./cap-prompt";
 import { useGymSetting } from "../use-gym-setting";
 
 /** Either answer dismisses the prompt for this exercise at this gym. */
 export function StepPrompt({
   exerciseId,
+  sessionId,
   gymId,
   equipment,
   unit,
 }: {
   exerciseId: string;
+  sessionId: string;
   gymId: string;
   equipment: Equipment;
   unit: WeightUnit;
@@ -32,12 +34,17 @@ export function StepPrompt({
   const { t } = useTranslation();
   const key = capPromptKey(gymId, exerciseId);
   const answered = usePreference(({ ui }) => ui.stepPrompts.includes(key));
+  // One quiet question at a time: the max question goes first.
+  const maxOpen = usePreference(
+    ({ ui }) => pendingCapPrompt(ui.capPrompts, key, sessionId) !== undefined,
+  );
   const { updateUi } = usePreferences();
   const setting = useGymSetting(exerciseId, gymId);
   const fallback = formatWeight(defaultStepKg(equipment, unit, 0), unit);
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (answered || !setting.ready || setting.gymId !== gymId || setting.stepKg !== null) return null;
+  if (answered || maxOpen || !setting.ready || setting.gymId !== gymId || setting.stepKg !== null)
+    return null;
   const input = draft ?? fallback;
   const stepKg = parseWeight(input, unit);
   const valid =

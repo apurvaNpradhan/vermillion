@@ -39,7 +39,7 @@ export function SessionGymChip({
         accessibilityLabel={t("gym__change_for_workout", { gym: name })}
         onPress={() => setOpen(true)}
         hitSlop={8}
-        className="flex-row items-center gap-1 self-start py-0.5 active:opacity-70"
+        className="min-h-11 flex-row items-center gap-1 self-start active:opacity-70"
       >
         <Text className="text-caption text-muted" numberOfLines={1}>
           {t("gym__chip", { gym: name })}
