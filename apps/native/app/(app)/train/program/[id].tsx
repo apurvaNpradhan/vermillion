@@ -17,6 +17,7 @@ export default function ProgramRoute() {
       onEditWorkout={(workoutId) =>
         router.push({ pathname: "/train/workout/[id]/edit", params: { id: workoutId } })
       }
+      onOpenWeeks={() => router.push({ pathname: "/train/program/[id]/weeks", params: { id } })}
       onOpenDetails={() => router.push({ pathname: "/train/program/[id]/details", params: { id } })}
       onClosed={() => (router.canGoBack() ? router.back() : router.replace("/train"))}
       onOpenCopy={(copy) =>

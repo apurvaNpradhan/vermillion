@@ -29,11 +29,14 @@ const NEXT_TILE = 44;
 export function RunHero({
   state,
   onOpen,
+  onPlan,
   onStart,
   startSecondary,
 }: {
   state: ReturnType<typeof useActiveProgram>;
   onOpen: (programId: string) => void;
+  /** Open Plan your weeks for the Program. */
+  onPlan: (programId: string) => void;
   onStart: (workoutId: string, day: RunSlot) => void;
   /** A Session is in progress: Start is quiet so Resume stays the one primary action. */
   startSecondary: boolean;
@@ -120,7 +123,7 @@ export function RunHero({
         </View>
       ) : null}
       {day.sheet}
-      <WeekSheet state={state} isOpen={weekOpen} onOpenChange={setWeekOpen} onPlan={onOpen} />
+      <WeekSheet state={state} isOpen={weekOpen} onOpenChange={setWeekOpen} onPlan={onPlan} />
     </View>
   );
 }

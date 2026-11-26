@@ -19,7 +19,7 @@ export type StripBlock = {
   /** The Program week it holds: what a tap edits. Inserted Deload weeks hold none of their own. */
   programWeek: number;
   phase: Phase;
-  /** An inserted Deload week: set by "Insert deload now", not editable here. */
+  /** An inserted Deload week: set by "Deload this week", not editable here. */
   inserted: boolean;
   state: "past" | "current" | "future";
   /** The block's height as a share of the tallest block (a Test week), 0.25 to 1. */

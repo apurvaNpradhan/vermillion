@@ -25,13 +25,11 @@ const COVER_PREVIEW = 96;
 type Patch = {
   title?: string;
   description?: string | null;
-  planned_weeks?: number | null;
   sessions_per_week?: number | null;
 };
 
 /**
- * The details of a Program: title, planned length (Off, or 1 to 52 weeks) and the Markdown
- * description. Edits show at once and are written together once they pause, so there is no Save.
+ * The details of a Program: title, sessions per week, cover and the Markdown description. Edits show at once and are written together once they pause, so there is no Save.
  */
 export function ProgramDetailsScreen({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useTranslation();
@@ -67,7 +65,6 @@ function LoadedDetails({
   const danger = useThemeColor("danger");
 
   const [title, setTitle] = useState(program.title);
-  const [weeks, setWeeks] = useState(program.plannedWeeks);
   const [sessions, setSessions] = useState(program.sessionsPerWeek);
   const shownSessions = displayedSessionsPerWeek(sessions, program.slots);
   const blank = title.trim() === "";
@@ -76,25 +73,11 @@ function LoadedDetails({
   useEffect(() => {
     if (!writer.busy()) {
       setTitle(program.title);
-      setWeeks(program.plannedWeeks);
       setSessions(program.sessionsPerWeek);
     }
     // `writer` is stable; the stored values are the only trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program.title, program.plannedWeeks, program.sessionsPerWeek]);
-
-  const stepWeeks = (direction: 1 | -1) => {
-    const next =
-      weeks === null
-        ? direction === 1
-          ? TRAINING_LIMITS.plannedWeeksMin
-          : null
-        : weeks + direction < TRAINING_LIMITS.plannedWeeksMin
-          ? null
-          : Math.min(TRAINING_LIMITS.plannedWeeksMax, weeks + direction);
-    setWeeks(next);
-    writer.queue({ planned_weeks: next });
-  };
+  }, [program.title, program.sessionsPerWeek]);
 
   const stepSessions = (direction: 1 | -1) => {
     const next = Math.min(
@@ -127,27 +110,6 @@ function LoadedDetails({
         maxLength={TRAINING_LIMITS.titleMax}
         returnKeyType="done"
       />
-
-      <View className="gap-1.5">
-        <Text className="text-label font-medium text-foreground">
-          {t("training__planned_length")}
-        </Text>
-        <View className="rounded-xl bg-field px-2 py-1">
-          <Stepper
-            label={t("training__planned_length")}
-            valueText={
-              weeks === null
-                ? t("training__planned_off")
-                : t("training__program_meta_weeks", { count: weeks })
-            }
-            onStep={stepWeeks}
-            canDecrement={weeks !== null}
-            canIncrement={weeks === null || weeks < TRAINING_LIMITS.plannedWeeksMax}
-            decrementLabel={t("training__planned_less")}
-            incrementLabel={t("training__planned_more")}
-          />
-        </View>
-      </View>
 
       <View className="gap-1.5">
         <Text className="text-label font-medium text-foreground">

@@ -50,7 +50,7 @@ import { ProgramTile } from "./program-row";
 import { CompactRow } from "@/training/reorder/compact-row";
 import { ReorderView } from "@/training/reorder/reorder-view";
 import { RotationRow, slotTitle } from "@/training/rotation/rotation-row";
-import { PhaseSection } from "@/training/phases/phase-section";
+import { WeeksRow } from "@/training/phases/weeks-row";
 
 /** The cover tile in the header. */
 const COVER_SIZE = 56;
@@ -67,6 +67,8 @@ export type ProgramScreenProps = {
   onEditWorkout: (workoutId: string) => void;
   /** Open the details sheet. */
   onOpenDetails: () => void;
+  /** Open Plan your weeks. */
+  onOpenWeeks: () => void;
   /** The Program was deleted: leave the screen. */
   onClosed: () => void;
   /** A copy was made: open it in place of this one. */
@@ -108,6 +110,7 @@ function LoadedProgram({
   onOpenWorkout,
   onEditWorkout,
   onOpenDetails,
+  onOpenWeeks,
   onClosed,
   onOpenCopy,
 }: ProgramScreenProps & { program: ProgramDetail }) {
@@ -320,12 +323,15 @@ function LoadedProgram({
                 />
               ) : null}
             </View>
-            <PhaseSection
-              program={program}
-              run={isActive ? active.run : null}
-              trainedAt={active.runs.value?.phaseStarts}
-              actions={actions}
-            />
+            <View className="px-4">
+              <WeeksRow
+                plan={program.phasePlan}
+                plannedWeeks={program.plannedWeeks}
+                run={isActive ? active.run : null}
+                trainedAt={active.runs.value?.phaseStarts}
+                onPress={onOpenWeeks}
+              />
+            </View>
             <View className="gap-1">
               <View className="px-4">
                 <SectionHeader
