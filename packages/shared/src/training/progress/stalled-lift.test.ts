@@ -8,7 +8,11 @@ import {
   type StallSession,
 } from "./stalled-lift";
 import { stalledExerciseIds } from "../engine/stalled";
-import type { SuggestionAccount } from "./suggestion-context";
+import {
+  suggestionContext,
+  type ContextSession,
+  type SuggestionAccount,
+} from "./suggestion-context";
 
 const set = (weight: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({
   id: "s",
@@ -310,5 +314,126 @@ describe("missedSuggestions", () => {
     });
     expect(missedSuggestions([lb(0, 130), lb(1, 130), lb(2, 130)], "weight_reps")).toBe(3);
     expect(missedSuggestions([lb(0, 135), lb(1, 135), lb(2, 135)], "weight_reps")).toBe(0);
+  });
+});
+
+describe("the cost of a stall verdict", () => {
+  /** Sets that count each read of their reps: scoring is the only thing that reads them. */
+  const watched = (sets: LoggedSet[], reads: { count: number }): LoggedSet[] =>
+    sets.map((one) => {
+      const copy = { ...one };
+      Object.defineProperty(copy, "reps", {
+        enumerable: true,
+        get() {
+          reads.count += 1;
+          return one.reps;
+        },
+      });
+      return copy;
+    });
+  const flat = (count: number, reads: { count: number }, from = 0, gap = 4): StallSession[] =>
+    Array.from({ length: count }, (_, index) => ({
+      started_at: day((from + index) * gap),
+      sets: watched([set(100, 5)], reads),
+    }));
+
+  it("scores only the current episode, not the history behind a gap of 14 days", () => {
+    const old = { count: 0 };
+    // Four recent Sessions, then 496 more that came after a break of 30 days.
+    const sessions = [...flat(4, { count: 0 }), ...flat(496, old, 4 + 8, 4)];
+    expect(stalledSessions(sessions, "weight_reps")).toBe(3);
+    expect(missedSuggestions(sessions, "weight_reps")).toBe(0);
+    // Only the first Session behind the gap is looked at, to see that it is behind one.
+    expect(old.count).toBeLessThan(10);
+  });
+
+  it("stops scoring at the first Session that shows an improvement", () => {
+    const behind = { count: 0 };
+    // Four flat Sessions and a lighter one before them: nothing further back can change the count.
+    const sessions = [
+      ...flat(4, { count: 0 }),
+      { started_at: day(16), sets: watched([set(90, 5)], behind) },
+      ...flat(495, behind, 5, 4),
+    ];
+    expect(stalledSessions(sessions, "weight_reps")).toBe(3);
+    // Only the lighter Session itself is read; the 495 behind it are not.
+    expect(behind.count).toBeLessThan(30);
+  });
+
+  it("reads the stall verdict of one history once, whatever asks for it again", () => {
+    const reads = { count: 0 };
+    const sessions: ContextSession[] = flat(12, reads).map((session, index) => ({
+      ...session,
+      id: `s${index}`,
+      workoutId: "w1",
+      gymId: null,
+      finished_at: session.started_at,
+    }));
+    const ask = (raw: readonly ContextSession[]) =>
+      suggestionContext(
+        raw,
+        {
+          exerciseId: "e",
+          type: "weight_reps",
+          equipment: "barbell",
+          workoutId: "w1",
+          gymId: null,
+          grid: null,
+          stalls: true,
+        },
+        {
+          previousSource: "same_workout",
+          unit: "kg",
+          weightIncrementKg: null,
+          lighterWeeks: [],
+          bodyweightKg: null,
+          stallMemory: () => ({ dismissed: false }),
+        },
+      ).stall;
+    const first = ask(sessions);
+    expect(first?.count).toBe(11);
+    const once = reads.count;
+    expect(once).toBeGreaterThan(0);
+    // Home asks again on every render with the same watch result.
+    expect(ask(sessions)).toEqual(first);
+    expect(reads.count).toBe(once);
+    // A new watch result is a new question.
+    expect(ask([...sessions])?.count).toBe(11);
+    expect(reads.count).toBeGreaterThan(once);
+  });
+
+  it("scores each Session once for both counts of one verdict", () => {
+    const reads = { count: 0 };
+    const sessions: ContextSession[] = flat(6, reads).map((session, index) => ({
+      ...session,
+      id: `s${index}`,
+      workoutId: "w1",
+      gymId: null,
+      finished_at: session.started_at,
+    }));
+    const alone = { count: 0 };
+    stalledSessions(flat(6, alone), "weight_reps");
+    suggestionContext(
+      sessions,
+      {
+        exerciseId: "e",
+        type: "weight_reps",
+        equipment: "barbell",
+        workoutId: "w1",
+        gymId: null,
+        grid: null,
+        stalls: true,
+      },
+      {
+        previousSource: "same_workout",
+        unit: "kg",
+        weightIncrementKg: null,
+        lighterWeeks: [],
+        bodyweightKg: null,
+        stallMemory: () => ({ dismissed: false }),
+      },
+    );
+    // The stalled count alone scores the six Sessions; the missed count adds nothing on top.
+    expect(reads.count).toBe(alone.count);
   });
 });

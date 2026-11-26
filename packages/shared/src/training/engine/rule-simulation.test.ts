@@ -434,7 +434,7 @@ describe.each(units)("rules replayed in $unit", ({ unit, weight, step }) => {
       );
       const followed = follow(plan, history, rule, 8);
       expect(preview.map(({ sets }) => sets.map(({ weightKg }) => weightKg))).toEqual(
-        followed.map(({ progression }) => progression?.sets.map(({ weightKg }) => weightKg)),
+        followed.map(({ progression }) => progression?.sets.map((set) => set?.weightKg)),
       );
     });
 

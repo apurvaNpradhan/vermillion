@@ -188,9 +188,9 @@ describe.each(["kg", "lb"] as const)(
       started_at: at,
       finished_at: at,
       sets: [
-        { kind: "top", reps: 6 },
-        { kind: "backoff", reps: 8 },
-        { kind: "backoff", reps: 8 },
+        { kind: "top" as const, reps: 6 },
+        { kind: "backoff" as const, reps: 8 },
+        { kind: "backoff" as const, reps: 8 },
       ].map(({ kind, reps }, index): LoggedSet => ({
         id: `pull-${index}`,
         exercise_id: "pull-up",
