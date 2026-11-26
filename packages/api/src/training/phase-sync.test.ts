@@ -380,6 +380,44 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       expect(after?.started_at).not.toBeNull();
     });
 
+    describe("started_at only moves earlier", () => {
+      const startOf = async (run: string) => {
+        const [stored] = await app.rows(
+          sql`SELECT to_char(started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at FROM program_run WHERE id = ${run}`,
+        );
+        return stored?.at ?? null;
+      };
+      const nov3 = "2026-11-03T08:00:00.000Z";
+      const nov10 = "2026-11-10T08:00:00.000Z";
+
+      it.each([
+        ["the earlier device uploads first", [nov3, nov10]],
+        ["the later device uploads first", [nov10, nov3]],
+      ])("keeps the earliest start when %s", async (_name, order) => {
+        const me = await writer(`started-${order[0]?.slice(8, 10)}@example.com`);
+        const { run } = await runOf(me);
+        for (const started_at of order)
+          expect(await me.send([op("PATCH", "program_run", run, { started_at })])).toEqual(applied);
+        expect(await startOf(run)).toBe(nov3);
+      });
+
+      it("keeps the stored start on a PUT that carries a later one or none", async () => {
+        const me = await writer("started-put@example.com");
+        const { program, run } = await runOf(me);
+        await me.send([op("PATCH", "program_run", run, { started_at: nov3 })]);
+        const again = (started_at: string | null) =>
+          op("PUT", "program_run", run, {
+            program_id: program,
+            activated_at: "2026-11-02T08:00:00.000Z",
+            started_at,
+          });
+        expect(await me.send([again(nov10)])).toEqual(applied);
+        expect(await startOf(run)).toBe(nov3);
+        expect(await me.send([again(null)])).toEqual(applied);
+        expect(await startOf(run)).toBe(nov3);
+      });
+    });
+
     it("refuses weeks beyond 52 with SYNC_INVALID_OP rather than failing on the database check", async () => {
       const me = await writer("deload-many@example.com");
       const { run } = await runOf(me);
