@@ -4,6 +4,7 @@ import { historyForWorkout } from "../logging/history-for-workout";
 import type { ContextSession, SuggestionPlace } from "./suggestion-context";
 import { historyForGym, usesGymHistory } from "./gym-history";
 import type { PreviousSource } from "../vocabulary/vocabulary";
+import { progresses } from "./progression";
 
 type HistorySelection = {
   history: readonly ContextSession[];
@@ -71,17 +72,22 @@ export function suggestionHistory(
   return result;
 }
 
-/** The most recent complete entries with this prescription, newest first. */
+/**
+ * The most recent complete entries with this prescription, newest first. Only the sets that
+ * progress count, on both sides, so a warm-up ramp (whatever its length) never changes which
+ * Sessions match: the Workout preview plans none, the Session has its own.
+ */
 export function fixedPrescriptionHistory<Session extends { sets: readonly LoggedSet[] }>(
   history: readonly Session[],
   prescription: readonly PlannedSet[],
 ): Session[] {
   if (!prescription.some((target) => usesFixedPrescription(prescription, target))) return [];
+  const targets = prescription.filter(({ kind }) => progresses(kind));
   return history.filter(({ sets }) => {
-    const completed = sets.filter((set) => set.completed_at !== null);
+    const completed = sets.filter((set) => set.completed_at !== null && progresses(set.kind));
     return (
-      completed.length === prescription.length &&
-      prescription.every((target, index) => {
+      completed.length === targets.length &&
+      targets.every((target, index) => {
         const set = completed[index];
         const before = set?.target;
         return (

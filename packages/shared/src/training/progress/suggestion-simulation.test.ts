@@ -586,6 +586,97 @@ describe.each(units)("replaying Sessions in $unit", ({ unit, weight, step }) => 
     });
   });
 
+  it("reads the newest fixed-rep Session of any Workout whatever warm-ups either side has", () => {
+    // Squat 3 × 5 in Workouts A (100 kg / 225 lb) and B (102.5 kg / 230 lb, newer); next up is A.
+    const [a, b, up] = unit === "kg" ? [100, 102.5, 105] : [225, 230, 235];
+    const work: PlannedSet = { kind: "working", reps_min: 5, reps_max: 5 };
+    const ramp: PlannedSet = { kind: "warmup", reps_min: 5 };
+    const logged = (day: number, id: string, load: number, warmups: number): ContextSession => {
+      const date = new Date(START + day * DAY).toISOString();
+      const sets = [
+        ...Array.from({ length: warmups }, (_, index) => ({
+          kind: "warmup" as const,
+          weightKg: kg(load) * (0.5 + index * 0.2),
+          reps: 5,
+          target: ramp,
+        })),
+        ...[0, 1, 2].map(() => ({
+          kind: "working" as const,
+          weightKg: kg(load),
+          reps: 5,
+          target: work,
+        })),
+      ];
+      return {
+        id: `${day}`,
+        workoutId: id,
+        gymId: null,
+        started_at: date,
+        finished_at: date,
+        sets: sets.map((set, index) => ({
+          id: `${day}-${index}`,
+          exercise_id: "lift",
+          exercise_type: "weight_reps",
+          kind: set.kind,
+          completed_at: date,
+          weight_kg: set.weightKg,
+          reps: set.reps,
+          target: set.target,
+        })),
+      };
+    };
+    const next = (history: readonly ContextSession[], planned: readonly PlannedSet[]) => {
+      const { settings: context } = suggestionContext(
+        [...history],
+        {
+          exerciseId: "lift",
+          type: "weight_reps",
+          equipment: "barbell",
+          workoutId: "a",
+          gymId: null,
+          grid: null,
+          stalls: false,
+          prescription: planned,
+        },
+        {
+          unit,
+          previousSource: "same_workout",
+          weightIncrementKg: null,
+          lighterWeeks: [],
+          bodyweightKg: null,
+          stallMemory: () => ({ dismissed: false }),
+        },
+      );
+      return suggestNext(planned, history, "weight_reps", "barbell", context, {
+        ...context,
+        now: new Date(START + 9 * DAY),
+      });
+    };
+    // The Workout preview plans no warm-ups; the Session has a ramp of its own.
+    const previewPlan = [work, work, work];
+    const sessionPlan = [ramp, ramp, work, work, work];
+    for (const [aWarmups, bWarmups] of [
+      [0, 0],
+      [2, 0],
+      [0, 3],
+      [2, 3],
+    ] as const) {
+      const history = [logged(3, "b", b, bWarmups), logged(0, "a", a, aWarmups)];
+      for (const planned of [previewPlan, sessionPlan]) {
+        const result = next(history, planned);
+        const loads = planned.flatMap((target, index) =>
+          target.kind === "working" ? [(result?.sets[index]?.weightKg ?? 0) / exact(1)] : [],
+        );
+        // Both sides, with or without a ramp, read B's 102.5 kg and ask for one step more.
+        const label = `${aWarmups}+${bWarmups} warm-ups, ${planned.length} planned sets`;
+        expect({ label, loads }).toEqual({
+          label,
+          loads: [up, up, up].map((load) => expect.closeTo(load, 1)),
+        });
+      }
+    }
+  });
+
   it("keeps the break clock across gyms and uses the chosen gym's baseline on a lighter day", () => {
     const targets = (amount: number) => plan.map(() => ({ weightKg: kg(amount), reps: 8 }));
     const history = [
