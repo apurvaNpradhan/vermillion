@@ -59,7 +59,9 @@ describe("kit and gyms", () => {
       (_, i) => `0192f0a0-0000-7000-8000-${String(i).padStart(12, "0")}`,
     );
     for (const id of ids) deliverGym(s, id, "2026-11-01T00:00:00Z");
-    const added = await createGym(s.training, { name: "Garage", copyKitFrom: null }, s.installId);
+    // Delivered by sync, so it is not held to the cap that createGym keeps for the user's own gyms.
+    const added = "0192f0a0-0000-7000-8000-ffffffffffff";
+    deliverGym(s, added, "2026-11-02T00:00:00Z");
     const rows = await new Promise<GymRow[]>((resolve, reject) => {
       const stop = watchGyms(s.training, {
         onGyms: (gyms) => {
