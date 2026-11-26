@@ -80,6 +80,15 @@ export function WeightLogSheet({
           <Button isDisabled={action.busy} onPress={() => void save()}>
             <Button.Label>{t("body__save")}</Button.Label>
           </Button>
+          {entry && !goal ? (
+            <Button
+              variant="danger-soft"
+              isDisabled={action.busy}
+              onPress={() => void action.remove(entry).then(onClose)}
+            >
+              <Button.Label>{t("body__delete")}</Button.Label>
+            </Button>
+          ) : null}
           {goal && onGoal ? (
             <Button
               variant="tertiary"
