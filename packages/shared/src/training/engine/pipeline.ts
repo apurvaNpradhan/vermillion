@@ -168,6 +168,7 @@ export function suggestNext(
                 unit,
                 grid,
                 phaseDecides ? "deload" : "nearest",
+                type,
               );
       outcomes[index] = {
         reason: resetReason,

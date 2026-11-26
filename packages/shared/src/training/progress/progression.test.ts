@@ -686,7 +686,7 @@ it.each([
 );
 
 it.each([
-  { weightUnit: "kg", added: 20, bodyweight: 80, reset: 12.5, smallest: 2.5 },
+  { weightUnit: "kg", added: 20, bodyweight: 80, reset: 13.75, smallest: 2.5 },
   { weightUnit: "lb", added: 45, bodyweight: 180, reset: 30, smallest: 5 },
 ] as const)(
   "resets a weighted bodyweight lift using effective load in $weightUnit",
@@ -716,6 +716,37 @@ it.each([
       reason: "reset",
       sets: [{ weightKg: 0, reps: 6 }],
     });
+  },
+);
+
+it.each([
+  { weightUnit: "kg", added: 20, bodyweight: 80, reset: 13.75, deload: 17.5 },
+  { weightUnit: "lb", added: 45, bodyweight: 180, reset: 30, deload: 40 },
+] as const)(
+  "keeps weighted bodyweight resets and Deloads on the belt-plate grid in $weightUnit",
+  ({ weightUnit, added, bodyweight, reset, deload }) => {
+    const toKg = (amount: number) => parseWeight(String(amount), weightUnit) ?? 0;
+    const miss = logged(4, toKg(added), {
+      exercise_type: "bodyweight_weighted_reps",
+      bodyweight_kg: toKg(bodyweight),
+      rpe: 10,
+    });
+    const propose = (context: Parameters<typeof suggestNext>[5]) =>
+      suggestNext(
+        [{ kind: "working", reps_min: 6, reps_max: 8 }],
+        [session([miss]), session([miss], "2026-11-10")],
+        "bodyweight_weighted_reps",
+        "none",
+        { weightUnit, weightIncrementKg: null },
+        context,
+      );
+    // A reset after two misses lands on the belt-plate grid, not on whole kilograms.
+    const missed = propose({ now: NOW });
+    expect(missed?.reason).toBe("reset");
+    expect(missed?.sets[0]?.weightKg).toBeCloseTo(toKg(reset), 5);
+    // A Lighter week (−10%) rounds to the same grid: +20 kg → +17.5 kg, +45 lb → +40 lb.
+    const lighter = propose({ now: NOW, deload: true });
+    expect(lighter?.sets[0]?.weightKg).toBeCloseTo(toKg(deload), 5);
   },
 );
 

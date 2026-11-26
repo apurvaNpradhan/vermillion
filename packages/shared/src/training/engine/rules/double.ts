@@ -87,6 +87,7 @@ export const doubleRule: ProgressionRule<{ id: "double" }> = {
         unit,
         grid,
         "down",
+        type,
       );
       // A weighted bodyweight lift can still be done when no positive added load fits the target.
       const reset =

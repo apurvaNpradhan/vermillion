@@ -345,10 +345,23 @@ function shiftEffort(value: number, by: number): EffortStep {
 export function lowerLoad(
   kg: number,
   factor: number,
-  input: { equipment: Equipment; unit: WeightUnit; grid?: LoadGrid | null },
+  input: {
+    equipment: Equipment;
+    unit: WeightUnit;
+    grid?: LoadGrid | null;
+    type?: ExerciseType;
+  },
 ): number {
   if (kg <= 0 || factor >= 1) return kg;
-  return lightenLoad(kg, factor, input.equipment, input.unit, input.grid ?? null, "deload");
+  return lightenLoad(
+    kg,
+    factor,
+    input.equipment,
+    input.unit,
+    input.grid ?? null,
+    "deload",
+    input.type,
+  );
 }
 
 export type ApplyPhaseOptions = {
@@ -477,6 +490,7 @@ export function applyPhase(
         equipment: options.equipment,
         unit,
         grid: options.grid,
+        type: options.type,
       });
     }
     return next;

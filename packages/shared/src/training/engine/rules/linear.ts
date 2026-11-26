@@ -34,8 +34,19 @@ export const linearRule: ProgressionRule<LinearConfig> = {
   propose(input: RuleInput<LinearConfig>): Progression {
     // Reps-only lifts have no load to add: Double's reps rule is the closest thing.
     if (!input.loaded) return doubleRule.propose({ ...input, config: DEFAULT_RULE });
-    const { config, planned, slots, saved, last, equipment, unit, settings, increments, grid } =
-      input;
+    const {
+      config,
+      planned,
+      slots,
+      saved,
+      last,
+      equipment,
+      unit,
+      settings,
+      increments,
+      grid,
+      type,
+    } = input;
     const { cap } = input;
     const keep = 1 - (config.reset_percent ?? LINEAR_RESET_PERCENT) / 100;
     const together = (kind: SetKind) =>
@@ -113,7 +124,7 @@ export const linearRule: ProgressionRule<LinearConfig> = {
           }
         } else {
           const lowered = verdict.repeated
-            ? lightenLoad(base, keep, equipment, unit, grid, "down")
+            ? lightenLoad(base, keep, equipment, unit, grid, "down", type)
             : base;
           if (loadIdentity(lowered) < loadIdentity(base)) {
             outcome = "reset";
