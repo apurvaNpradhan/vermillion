@@ -263,6 +263,7 @@ export {
   finishRun,
   keepGoing,
   insertDeloadNow,
+  undoDeloadNow,
   runAgain,
   readRuns,
   reconcileRuns,

@@ -17,6 +17,7 @@ import {
   activateProgram,
   finishRun,
   insertDeloadNow,
+  undoDeloadNow,
   readRuns,
   setRunPaused,
 } from "../plans/run-store";
@@ -275,6 +276,27 @@ it("inserts a deload now and restarts the pattern the following week", async () 
     expect(
       insertedDeloadsSchema.safeParse((await readRuns(s.training))[0]?.inserted_deloads).success,
     ).toBe(true);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
+it("undoes an inserted deload and reads the pattern as before", async () => {
+  const s = await setupSessions();
+  try {
+    const { workoutId, runId } = await setup(s, { pattern: ["build", "build", "deload"] });
+    expect(await insertDeloadNow(s.training, runId, 2)).toBe(true);
+    expect(await undoDeloadNow(s.training, runId, 2)).toBe(true);
+    expect(
+      (await readRuns(s.training)).find((item) => item.id === runId)?.inserted_deloads,
+    ).toEqual([]);
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 2))).toBe("build");
+    expect(phaseOf(s, await startInWeek(s, runId, workoutId, 3))).toBe("deload");
+    // A week that is not inserted, and a finished Run, change nothing.
+    expect(await undoDeloadNow(s.training, runId, 2)).toBe(false);
+    await insertDeloadNow(s.training, runId, 4);
+    await finishRun(s.training, runId);
+    expect(await undoDeloadNow(s.training, runId, 4)).toBe(false);
   } finally {
     s.sqlite.close();
   }
