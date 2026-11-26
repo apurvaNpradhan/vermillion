@@ -9,21 +9,22 @@ import { useTranslation } from "@/platform/i18n";
 export function Hint({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   const { t } = useTranslation();
   return (
-    <View
-      accessible={false}
-      accessibilityRole="summary"
-      className="gap-1 rounded-xl bg-field px-3 pt-3"
-    >
-      <Text accessibilityRole="text" className="font-normal text-body text-foreground">
+    <View className="gap-1 rounded-xl bg-field px-3 pt-3">
+      <Text
+        accessible
+        role="note"
+        accessibilityLabel={t("hint__note_label", { text })}
+        className="font-normal text-body text-foreground"
+      >
         {text}
       </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("hint__got_it")}
         onPress={onDismiss}
-        className="min-h-11 items-end justify-center self-end px-2 active:opacity-60"
+        className="min-h-11 min-w-11 items-end justify-center self-end px-2 active:opacity-60"
       >
-        <Text className="font-medium text-label text-accent">{t("hint__got_it")}</Text>
+        <Text className="font-medium text-label text-accent-text">{t("hint__got_it")}</Text>
       </Pressable>
     </View>
   );

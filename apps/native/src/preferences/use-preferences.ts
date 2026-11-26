@@ -6,6 +6,8 @@ import {
 } from "@workspace/sync";
 import {
   DEFAULT_UI_PREFERENCES,
+  isHintVisible,
+  type HintId,
   type Locale,
   type MuscleGoal,
   type Preferences,
@@ -13,7 +15,7 @@ import {
   type UiPreferencesPatch,
   type UpdatePreferences,
 } from "@workspace/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
@@ -26,17 +28,12 @@ import { preferencesAccess, type PreferencesAccess } from "./preferences-access"
 import { preferencesStore, publishPreferences } from "./preferences-store";
 
 const EMPTY: Preferences = { locale: null, timezone: null, ui: DEFAULT_UI_PREFERENCES };
-/** Reads the row just written and publishes it, so no reader sees the snapshot from before. */
 /** A save found no usable local database or access (blocked by another owner, or still opening). */
 class StorageUnavailableError extends Error {
   constructor() {
     super("Storage unavailable");
     this.name = "StorageUnavailableError";
   }
-}
-
-async function showSaved(database: PreferencesDatabase, access: PreferencesAccess) {
-  publishPreferences(database, access, await readPreferences(database, access.owner));
 }
 
 /**
@@ -50,18 +47,22 @@ function useLocalPreferencesGate() {
   const installId = useSyncValue((snapshot) => snapshot?.writeScope ?? null);
   const sessionUser = session?.user.id ?? null;
   const blockedPhase = useSyncValue((snapshot) => snapshot?.phase.kind === "blocked");
-  const access = preferencesAccess({ sessionUser, owner, installId, blocked: blockedPhase });
+  const access = useMemo(
+    () => preferencesAccess({ sessionUser, owner, installId, blocked: blockedPhase }),
+    [sessionUser, owner, installId, blockedPhase],
+  );
   const database: PreferencesDatabase | null = local?.status === "ready" ? local.database : null;
   const blocked = blockedPhase || (sessionUser !== null && owner !== null && sessionUser !== owner);
-  return { local, database, access, blocked };
+  return { local, database, access, blocked, sessionUser };
 }
 
 function useLocalPreferences() {
-  const { local, database, access, blocked } = useLocalPreferencesGate();
+  const { local, database, access, blocked, sessionUser } = useLocalPreferencesGate();
   const state = useStore(preferencesStore(database, access));
   return {
     database,
     access,
+    sessionUser,
     state,
     lifecycle: local?.status === "ready" ? local.lifecycle : null,
     unavailable: local?.status === "unavailable" || blocked,
@@ -86,53 +87,101 @@ export function usePreference<T>(
   );
 }
 
-/**
- * The one hook every component uses to read and change the user's preferences. They live in the
- * device's database (ADR 0049): reads answer from SQLite in milliseconds with or without a
- * connection, and a change is shown at once, queued, and uploaded when the device is online.
- */
-export function usePreferences() {
-  const { database, access, state, lifecycle, unavailable } = useLocalPreferences();
-  const { session } = useSession();
+function usePreferenceSave(
+  database: PreferencesDatabase | null,
+  access: PreferencesAccess | null,
+  lifecycle: ReturnType<typeof useLocalPreferences>["lifecycle"],
+  sessionUser: string | null,
+) {
   // The newest session user, read when the write transaction runs, not when the save started.
-  const sessionUserRef = useRef<string | null>(null);
-  sessionUserRef.current = session?.user.id ?? null;
+  const sessionUserRef = useRef(sessionUser);
+  sessionUserRef.current = sessionUser;
+
+  return useCallback(
+    async (patch: UpdatePreferences, derive?: (current: Preferences) => UpdatePreferences) => {
+      if (!database || !access) throw new StorageUnavailableError();
+      await savePreferences(
+        database,
+        patch,
+        {
+          installId: access.installId,
+          owner: access.owner,
+          // Recheck scope inside the transaction in case the account locked or switched.
+          isAuthorized: () => {
+            const phase = lifecycle?.getSnapshot().phase;
+            if (!phase || phase.kind === "blocked") return false;
+            const user = sessionUserRef.current;
+            return user === null || user === access.owner;
+          },
+        },
+        derive,
+      );
+      publishPreferences(database, access, await readPreferences(database, access.owner));
+    },
+    [database, access, lifecycle],
+  );
+}
+
+/** Watch just this hint's visibility and keep its action stable across preference updates. */
+export function useHintPreference(id: HintId) {
+  const { database, access, local, sessionUser } = useLocalPreferencesGate();
+  const store = preferencesStore(database, access);
+  const save = usePreferenceSave(
+    database,
+    access,
+    local?.status === "ready" ? local.lifecycle : null,
+    sessionUser,
+  );
+  const visibleLocally = useStore(
+    store,
+    ({ value }) => value !== undefined && isHintVisible(value.ui.dismissedHints, id),
+  );
+  // An empty database on a new phone initially reads as defaults, even for an existing account.
+  const hasSynced = useSyncValue((snapshot) => snapshot?.hasSynced === true);
+  const [confirmed, setConfirmed] = useState<typeof store | null>(null);
+  useEffect(() => {
+    if (!hasSynced || !database || !access) return;
+    let active = true;
+    const before = store.getState();
+    // The first checkpoint can arrive before the SQLite watch publishes its new result.
+    void readPreferences(database, access.owner)
+      .then((value) => {
+        if (!active) return;
+        if (store.getState() === before) publishPreferences(database, access, value);
+        setConfirmed(store);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [hasSynced, database, access, store]);
+  const dismiss = useCallback(() => {
+    if (!isHintVisible(store.getState().value?.ui.dismissedHints ?? [], id)) return;
+    void save({ hintDismissal: id }, (current) =>
+      isHintVisible(current.ui.dismissedHints, id) ? { hintDismissal: id } : {},
+    ).catch(() => undefined);
+  }, [store, save, id]);
+  return { visible: hasSynced && confirmed === store && visibleLocally, dismiss };
+}
+
+/** Reads the device's preferences and saves changes locally before queuing their upload. */
+export function usePreferences() {
+  const { database, access, state, lifecycle, unavailable, sessionUser } = useLocalPreferences();
+  const write = usePreferenceSave(database, access, lifecycle, sessionUser);
   const [saving, setSaving] = useState(0);
   const { setDeviceLocale } = useLocale();
   const timeZone = useDeviceTimeZone();
-
-  const save = useCallback(
-    async (patch: UpdatePreferences, derive?: (current: Preferences) => UpdatePreferences) => {
-      if (!database || !access) throw new StorageUnavailableError();
-      setSaving((count) => count + 1);
-      try {
-        // The screen's own user (or the owner while signed out) must still own the device when
-        // the write transaction runs.
-        await savePreferences(
-          database,
-          patch,
-          {
-            installId: access.installId,
-            owner: session?.user.id ?? access.owner,
-            // Rechecked inside the write transaction: a lock or another account that arrived after
-            // the save was captured must not let it through.
-            isAuthorized: () => {
-              const phase = lifecycle?.getSnapshot().phase;
-              if (!phase || phase.kind === "blocked") return false;
-              const user = sessionUserRef.current;
-              return user === null || user === access.owner;
-            },
-          },
-          derive,
-        );
-        // Shown at once: the next step reads this, not a watch that has not answered yet.
-        await showSaved(database, access);
-      } finally {
-        setSaving((count) => count - 1);
-      }
-    },
-    [database, access, session, lifecycle],
-  );
+  const save = async (
+    patch: UpdatePreferences,
+    derive?: (current: Preferences) => UpdatePreferences,
+  ) => {
+    setSaving((count) => count + 1);
+    try {
+      await write(patch, derive);
+    } finally {
+      setSaving((count) => count - 1);
+    }
+  };
   const quietly = (patch: UpdatePreferences) => void save(patch).catch(() => undefined);
 
   return {
@@ -157,6 +206,7 @@ export function usePreferences() {
         const patch = derive(ui);
         return patch ? { ui: patch } : {};
       }),
+    resetHintDismissals: () => save({ hintDismissal: "reset" }),
     /** Changes one muscle's goal (`null` resets it) without touching the others. */
     setMuscleGoal: (muscle: TargetMuscle, goal: MuscleGoal | null) =>
       quietly({ muscleGoalChanges: { [muscle]: goal } }),

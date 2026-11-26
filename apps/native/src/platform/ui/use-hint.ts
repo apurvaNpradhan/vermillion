@@ -1,7 +1,6 @@
-import { dismissHint, isHintVisible, type HintId } from "@workspace/shared";
-import { useCallback } from "react";
+import type { HintId } from "@workspace/shared";
 
-import { usePreferences } from "@/preferences";
+import { useHintPreference } from "@/preferences";
 
 /**
  * Whether a once-only hint is shown, and how to close it. The closed ids are the synced
@@ -9,13 +8,5 @@ import { usePreferences } from "@/preferences";
  * shows before the preferences have loaded, so a hint never flashes for a lifter who closed it.
  */
 export function useHint(id: HintId) {
-  const { preferences, hasPreferences, updateUi } = usePreferences();
-  const visible = hasPreferences && isHintVisible(preferences.ui.dismissedHints, id);
-  const dismiss = useCallback(() => {
-    void updateUi((ui) => {
-      const next = dismissHint(ui.dismissedHints, id);
-      return next ? { dismissedHints: next } : null;
-    }).catch(() => undefined);
-  }, [updateUi, id]);
-  return { visible, dismiss };
+  return useHintPreference(id);
 }

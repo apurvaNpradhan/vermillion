@@ -150,12 +150,14 @@ export function SwipeRow({
   actions,
   motion = true,
   screenReaderActions = actions,
+  onOpen,
   children,
 }: {
   actions: SwipeAction[];
   motion?: boolean;
   /** What screen readers can run: more than the swipe shows, when the row has a menu. */
   screenReaderActions?: SwipeAction[];
+  onOpen?: () => void;
   children: (a11y: SwipeA11yProps) => ReactNode;
 }) {
   const group = useContext(SwipeGroupContext);
@@ -221,6 +223,7 @@ export function SwipeRow({
       if (!event.canceled && shouldSettleOpen(translateX.get(), event.velocityX, panel)) {
         translateX.set(motion ? withTiming(-panel, SNAP) : -panel);
         phase.set(swipePhase(phase.get(), "open"));
+        if (onOpen) scheduleOnRN(onOpen);
       } else {
         openRow.set(releaseSwipeRow(openRow.get(), row));
         closeSwipe(translateX, phase, motion);
