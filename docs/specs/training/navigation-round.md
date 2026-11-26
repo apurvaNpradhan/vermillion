@@ -175,10 +175,10 @@ Hints
 - **Undo deload.** A new pure function in `packages/shared` phases decides eligibility: the
   current Run week is an inserted Deload and no counted Session of the Run was started as a
   Deload in that week (a Build Session logged earlier the same week does not block it).
-  Undo removes that week from the Run's `inserted_deloads` (existing synced column; the
-  pattern-restart effect is recomputed). Without a Run, undo ends the Lighter week if no Session
-  was logged since it started (existing "end early" path). The server and sync paths already
-  accept Run updates; confirm the upload handler validates a shrinking `inserted_deloads`.
+  Undo sends a `deload_change` for the named week. The server checks counted Deload Sessions
+  already uploaded for that week, then removes the week from `inserted_deloads` if eligible.
+  The pattern is recomputed. Without a Run, undo ends the Lighter week if no Session was logged
+  since it started (existing "end early" path).
 - **Hints.** One `Hint` component in `apps/native/src/platform/ui` (inline note: body text,
   "Got it"), driven by a `useHint(id)` hook over the existing synced `ui.dismissedHints`
   preference (no schema change). `useHint` returns `visible` and `dismiss`; the screen calls

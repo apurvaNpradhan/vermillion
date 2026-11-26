@@ -68,10 +68,9 @@ function mergeLegacyWeeks(
 /**
  * An undo is refused once a counted Session was started as the Deload in that Run week. A Build
  * Session logged earlier in the week does not count: it was not the Deload. The rule is the shared
- * one; the query only hands it the Deload Sessions, and the check runs on the stored rows, so
- * it gives the same answer whichever device's write arrives first.
+ * one. The query reads the Deload Sessions already uploaded when the undo is applied.
  */
-async function assertNoCountedSession(
+async function assertNoCountedDeload(
   db: DbExecutor,
   run: typeof programRun.$inferSelect,
   week: number,
@@ -195,7 +194,7 @@ export const runSyncHandler: SyncTableHandler = {
       const weeks = row.insertedDeloads ?? [];
       if (change.action === "undo") {
         if (!weeks.includes(change.week)) return;
-        await assertNoCountedSession(db, row, change.week, change.timezone);
+        await assertNoCountedDeload(db, row, change.week, change.timezone);
         insertedDeloads = weeks.filter((week) => week !== change.week);
         undoneDeloads = [...new Set([...(undoneDeloads ?? []), change.week])];
       } else {

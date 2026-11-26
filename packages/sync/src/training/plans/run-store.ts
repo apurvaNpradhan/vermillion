@@ -125,7 +125,7 @@ export function insertDeloadNow(
     return true;
   });
 }
-/** Take back the current Run week's inserted Deload until a counted Session is logged. */
+/** Take back the current Run week's insert until a counted Session is logged as the Deload. */
 export function undoDeloadNow(
   database: TrainingDatabase,
   id: string,

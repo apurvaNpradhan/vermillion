@@ -393,7 +393,7 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
     it("keeps an undo that arrived before the Deload workout, and refuses it after", async () => {
       const { me, run, program } = await pausedRun("deload-order@example.com");
       const device = me.anotherDevice();
-      // Undo first: the week is a Build week again, and a later workout is simply a Build one.
+      // Undo first: the late workout keeps the phase it started with and cannot restore the insert.
       expect(await me.send([undo(run)])).toEqual(applied);
       expect(
         await logCountedWorkout(device, { run, program, startedAt: trainedAt, phase: "deload" }),
@@ -433,13 +433,18 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       const nov10 = "2026-11-10T08:00:00.000Z";
 
       it.each([
-        ["the earlier device uploads first", [nov3, nov10]],
-        ["the later device uploads first", [nov10, nov3]],
-      ])("keeps the earliest start when %s", async (_name, order) => {
-        const me = await writer(`started-${order[0]?.slice(8, 10)}@example.com`);
+        { order: "the earlier device uploads first", first: nov3, second: nov10 },
+        { order: "the later device uploads first", first: nov10, second: nov3 },
+      ])("keeps the earliest start when $order", async ({ first, second }) => {
+        const me = await writer(`started-${first.slice(8, 10)}@example.com`);
         const { run } = await runOf(me);
-        for (const started_at of order)
-          expect(await me.send([op("PATCH", "program_run", run, { started_at })])).toEqual(applied);
+        const device = me.anotherDevice();
+        expect(await me.send([op("PATCH", "program_run", run, { started_at: first })])).toEqual(
+          applied,
+        );
+        expect(
+          await device.send([op("PATCH", "program_run", run, { started_at: second })]),
+        ).toEqual(applied);
         expect(await startOf(run)).toBe(nov3);
       });
 
