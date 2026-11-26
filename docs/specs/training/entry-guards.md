@@ -30,8 +30,9 @@ lb aware, per side/hand/total following the exercise's load basis:
   and kettlebell 80 kg per hand; added load on weighted bodyweight 100 kg; assisted 150 kg.
 - Load close to 2.2× (or 1/2.2) of the reference, within 5%: the likely kg/lb slip, worded as such.
 - Reps above 50 on a weighted exercise whose history never passed 25, or above both 3× the best and 30.
-- Swapped fields: load at most 30 and equal to a typical rep count while reps is at least 3× the
-  reference load — offered as "Swap".
+- Swapped fields (needs a reference): a whole load of 1–30, reps at least 3× that load and at
+  least half the reference, and the load at most a third of the reference — offered as "Swap".
+  The swapped values are checked against the hard cap again.
 - Weigh-in more than 7% and 3 kg (7 lb) from the trend weight, or outside 25–350 kg.
 - Lower than usual is never flagged (deloads and light days are normal), except the 1/2.2 unit
   slip above, and only when the reference is at least 40 kg (90 lb).
@@ -51,6 +52,11 @@ A today. Start it again?" — Start again / Cancel. Starting from the Train stri
 Workout page all go through the same check. Resume of an open Session is unaffected.
 
 ## 3. Already in this workout
+
+Not built: the exercise picker already greys out exercises in the open Session or the Workout being
+edited ("Already in"), which is stricter than asking.
+
+### Original intent
 
 Adding an exercise that is already in the open Session (or the Workout being edited) asks: "Bench
 Press is already in this workout. Add it again?" — Add again / Cancel. Swaps are unaffected.
