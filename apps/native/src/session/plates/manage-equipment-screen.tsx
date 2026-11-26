@@ -49,7 +49,7 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
   return (
     <>
       <ScrollPage
-        title={multiple && gymName ? t("gym__equipment_at", { gym: gymName }) : t("plates__manage")}
+        title={multiple && gymName ? t("plates__manage_at", { gym: gymName }) : t("plates__manage")}
         back
         backFallback="/"
       >
