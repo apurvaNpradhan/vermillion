@@ -8,17 +8,8 @@ import {
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionSetDetail } from "@workspace/sync";
-import {
-  Barbell,
-  Copy,
-  DotsThree,
-  Rows,
-  Play,
-  Stop,
-  Trash,
-  WarningCircle,
-} from "phosphor-react-native";
-import { memo, useState } from "react";
+import { Copy, DotsThree, Rows, Play, Stop, Trash, WarningCircle } from "phosphor-react-native";
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, { type CSSTransitionProperties } from "react-native-reanimated";
 import { useThemeColor } from "heroui-native";
@@ -26,7 +17,6 @@ import { useThemeColor } from "heroui-native";
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useActionColor, useOnActionColor, useSubtleColor } from "@/platform/theme";
-import { ActionSheet } from "@/platform/ui/action-sheet";
 import { SwipeRow, type SwipeAction, type SwipeA11yProps } from "@/platform/ui/swipe-row";
 import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
@@ -150,7 +140,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const faint = useThemeColor("muted");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
-  const [menuOpen, setMenuOpen] = useState(false);
   const weighted = type === "weight_reps" || type === "bodyweight_weighted_reps";
   // The whole row takes the accent at 15%; unticked it is the same colour fully transparent, so
   // the transition fades the tint instead of passing through grey.
@@ -292,14 +281,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           haptic.tick();
           props.onKind(set.id);
         }}
-        onLongPress={
-          readOnly || !weighted
-            ? undefined
-            : () => {
-                haptic.tick();
-                setMenuOpen(true);
-              }
-        }
         accessibilityActions={
           weighted && !readOnly
             ? [
@@ -430,21 +411,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         row()
       )}
       {capLabel ? <Text className="px-3 pb-1 text-caption text-muted">{t(capLabel)}</Text> : null}
-      {weighted && !readOnly ? (
-        <ActionSheet
-          isOpen={menuOpen}
-          onOpenChange={setMenuOpen}
-          title={t("session__set_number", { number })}
-          actions={[
-            {
-              key: "limits",
-              label: t("gym__limits_action"),
-              icon: Barbell,
-              onPress: () => props.onLimits(set.id),
-            },
-          ]}
-        />
-      ) : null}
       {refusal ? (
         <View className="flex-row items-center gap-1.5 px-3">
           <WarningCircle size={16} color={danger} />

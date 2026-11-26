@@ -89,6 +89,7 @@ export function ProgramsScreen() {
                   icon={ListNumbers}
                   label={t("empty__programs", { count: 0 })}
                   title={t("training__no_programs")}
+                  description={t("training__no_programs_hint")}
                 />
               ) : null
             }

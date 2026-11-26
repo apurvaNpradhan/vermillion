@@ -221,6 +221,15 @@ function CheckInForm({
             {!entry ? (
               <Text className="font-normal text-caption text-muted">{t("body__ghost_hint")}</Text>
             ) : null}
+            {entry ? (
+              <Button
+                variant="danger-soft"
+                isDisabled={busy}
+                onPress={() => void actions.remove(entry).then(onClose)}
+              >
+                <Button.Label>{t("body__delete")}</Button.Label>
+              </Button>
+            ) : null}
             {actions.error || photoActions.error ? (
               <Text accessibilityRole="alert" className="font-normal text-body text-danger">
                 {actions.error || photoActions.error}

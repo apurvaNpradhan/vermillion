@@ -37,6 +37,8 @@ export type SwipeAction = {
   icon: ComponentType<IconProps>;
   /** `danger` for destructive actions: rose on a faint rose tint, never a filled red. */
   tone?: "default" | "danger";
+  /** One line under the label in a sheet (the swipe shows only the label). */
+  description?: string;
   onPress: () => void;
 };
 

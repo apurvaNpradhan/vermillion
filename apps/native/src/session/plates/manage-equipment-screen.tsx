@@ -60,6 +60,7 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
           <EmptyState
             icon={Barbell}
             title={t("plates__empty")}
+            description={t("plates__empty_hint")}
             action={{
               label: t("plates__add_kit", { unit: state.unit }),
               onPress: () => void state.addKit(state.unit),
@@ -150,6 +151,7 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
         target={target}
         save={state.save}
         edit={state.edit}
+        remove={state.remove}
         onClose={() => setFormOpen(false)}
       />
     </>
@@ -162,12 +164,14 @@ function CustomEquipmentSheet({
   target,
   edit,
   save,
+  remove,
   onClose,
 }: {
   isOpen: boolean;
   target: FormTarget | null;
   save: ReturnType<typeof useEquipment>["save"];
   edit: ReturnType<typeof useEquipment>["edit"];
+  remove: ReturnType<typeof useEquipment>["remove"];
   onClose: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
@@ -203,6 +207,7 @@ function CustomEquipmentSheet({
               unit={target.unit}
               edit={edit}
               save={save}
+              remove={remove}
               close={onClose}
             />
           ) : null}
@@ -218,6 +223,7 @@ function CustomEquipmentForm({
   kind,
   unit,
   save,
+  remove,
   close,
 }: {
   kind: GymEquipmentInput["kind"];
@@ -225,6 +231,7 @@ function CustomEquipmentForm({
   item?: EquipmentRow;
   save: ReturnType<typeof useEquipment>["save"];
   edit: ReturnType<typeof useEquipment>["edit"];
+  remove: ReturnType<typeof useEquipment>["remove"];
   close: () => void;
 }) {
   const { t } = useTranslation();
@@ -315,6 +322,17 @@ function CustomEquipmentForm({
           </Button>
         )}
       </form.Subscribe>
+      {item ? (
+        <Button
+          variant="danger-soft"
+          onPress={() => {
+            void remove(item);
+            close();
+          }}
+        >
+          {t("plates__delete")}
+        </Button>
+      ) : null}
       <Button variant="ghost" onPress={close}>
         {t("plates__cancel")}
       </Button>

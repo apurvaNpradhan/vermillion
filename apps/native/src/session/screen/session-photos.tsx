@@ -136,6 +136,20 @@ export function SessionPhotos({
           index={Math.min(viewing, state.photos.length - 1)}
           onIndexChange={setViewing}
           onClose={() => setViewing(null)}
+          action={
+            readOnly
+              ? undefined
+              : {
+                  label: t("media__remove"),
+                  icon: Trash,
+                  tone: "danger",
+                  onPress: (at) => {
+                    const photo = state.photos[at];
+                    setViewing(null);
+                    if (photo) setRemoving(photo.id);
+                  },
+                }
+          }
         />
       ) : null}
     </View>

@@ -50,6 +50,7 @@ function ActionSheetBody({
                 key={action.key}
                 icon={action.icon}
                 title={action.label}
+                {...(action.description ? { description: action.description } : {})}
                 tone={action.tone}
                 accessory="none"
                 onPress={() => {

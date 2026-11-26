@@ -4,7 +4,7 @@ import type { HistoryOverviewSession } from "@workspace/sync";
 import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import {
   ArrowClockwise,
-  Barbell,
+  PersonSimple,
   CalendarPlus,
   ChartBar,
   ClockCounterClockwise,
@@ -148,7 +148,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               accessibilityLabel={t("muscles__open")}
               onPress={() => router.push("/muscles", ANCHORED)}
             >
-              <Barbell size={24} weight="regular" color={subtle} />
+              <PersonSimple size={24} weight="regular" color={subtle} />
             </Button>
             <Button
               isIconOnly
