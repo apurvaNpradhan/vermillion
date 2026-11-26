@@ -1,4 +1,4 @@
-import { gymExerciseSettingId, SYNC_LIMITS } from "@workspace/shared";
+import { gymExerciseSettingId, GYM_LIMITS, SYNC_LIMITS } from "@workspace/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { savePreferences } from "../../preferences";
@@ -52,6 +52,27 @@ describe("the active gym", () => {
 });
 
 describe("kit and gyms", () => {
+  it("refuses an eleventh gym locally and makes room after a delete", async () => {
+    const s = await setupSessions();
+    deliverGym(s, HOME, "2026-11-01T00:00:00Z");
+    for (let index = 1; index < GYM_LIMITS.liveGyms; index++) {
+      deliverGym(
+        s,
+        `0192f0a0-0000-7000-8000-${String(index).padStart(12, "0")}`,
+        "2026-11-02T00:00:00Z",
+      );
+    }
+    const create = () => createGym(s.training, { name: "Garage", copyKitFrom: HOME }, s.installId);
+    await expect(create()).rejects.toMatchObject({ limit: "liveGyms" });
+    expect(s.all("gym")).toHaveLength(10);
+    expect(s.all("gym_equipment")).toHaveLength(0);
+
+    expect(await deleteGym(s.training, HOME, s.installId)).toBe(true);
+    const added = await create();
+    expect(s.all("gym")).toHaveLength(10);
+    expect(s.all("gym")).toContainEqual(expect.objectContaining({ id: added, name: "Garage" }));
+  });
+
   it("watches all gyms across page boundaries that share a creation time", async () => {
     const s = await setupSessions();
     const ids = Array.from(

@@ -412,6 +412,15 @@ describe("sync", () => {
       expect(await stored(id)).toMatchObject({ title: "Only title", instructions: "Body" });
     });
 
+    it.each([1, 2])("stores an upload from schema version %s", async (schemaVersion) => {
+      const me = await signedIn(`supported-version-${schemaVersion}@example.com`);
+      const id = uuidv7();
+      expect(
+        await me.client.sync.upload(request(me, 1, [put(id, "v")], { schemaVersion })),
+      ).toMatchObject({ status: "applied" });
+      expect(await stored(id)).toMatchObject({ title: "v", user_id: me.userId });
+    });
+
     it("refuses a schema version outside the window", async () => {
       const me = await signedIn("version@example.com");
       for (const schemaVersion of [SYNC_SCHEMA_VERSION + 1, SYNC_SCHEMA_VERSION + 100]) {
@@ -419,7 +428,7 @@ describe("sync", () => {
           me.client.sync.upload(request(me, 1, [put(uuidv7(), "v")], { schemaVersion })),
         ).rejects.toMatchObject({
           code: "BAD_REQUEST",
-          data: { code: "SYNC_CLIENT_INCOMPATIBLE" },
+          data: { code: "SYNC_CLIENT_INCOMPATIBLE", minSchemaVersion: 1, maxSchemaVersion: 2 },
         });
       }
       const rows = await app.rows(

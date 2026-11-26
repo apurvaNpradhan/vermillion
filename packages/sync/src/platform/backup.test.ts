@@ -56,15 +56,16 @@ it("exports the columns every owner stream syncs, so a new column cannot be miss
   // The shared catalog (`user_id IS NULL`) is reference data and stays out of the export.
   const streams = [
     ...config.matchAll(
-      /SELECT\s+((?:(?!\sFROM\s).)+)\s+FROM\s+(\w+)\s+WHERE\s+user_id = auth\.user_id\(\)/gs,
+      /^[ \t]*(?:query:[ \t]*|-[ \t]+)SELECT\s+([\w\s,]+?)\s+FROM\s+(\w+)\s+WHERE\s+user_id\s*=\s*auth\.user_id\(\)/gim,
     ),
   ];
-  const streamed = new Map<string, string[]>(
-    streams.map(([, columns, table]) => [
-      table ?? "",
-      (columns ?? "").split(",").map((name) => name.trim()),
-    ]),
-  );
+  const streamed = new Map<string, Set<string>>();
+  for (const [, columns, table] of streams) {
+    if (!table || !columns) throw new Error("Expected a table and its columns");
+    const names = streamed.get(table) ?? new Set<string>();
+    for (const column of columns.split(",")) names.add(column.trim());
+    streamed.set(table, names);
+  }
   const exported = new Map<string, string[]>(
     BACKUP_TABLES.map(([table, columns]) => [
       getTableName(table),
@@ -73,5 +74,5 @@ it("exports the columns every owner stream syncs, so a new column cannot be miss
   );
   expect([...exported.keys()].toSorted()).toEqual([...streamed.keys()].toSorted());
   for (const [table, columns] of streamed)
-    expect(exported.get(table)?.toSorted(), table).toEqual(columns.toSorted());
+    expect(exported.get(table)?.toSorted(), table).toEqual([...columns].toSorted());
 });

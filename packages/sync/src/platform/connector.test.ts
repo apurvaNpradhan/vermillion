@@ -357,8 +357,18 @@ describe("uploadData", () => {
         signal: "wrong-account",
       },
       {
-        name: "incompatible client",
-        error: refusal("BAD_REQUEST", "SYNC_CLIENT_INCOMPATIBLE"),
+        name: "server rolled back to schema version 1",
+        error: new ORPCError("BAD_REQUEST", {
+          data: { code: "SYNC_CLIENT_INCOMPATIBLE", minSchemaVersion: 1, maxSchemaVersion: 1 },
+        }),
+        kind: "incompatible",
+        signal: "update-required",
+      },
+      {
+        name: "server requires a newer client",
+        error: new ORPCError("BAD_REQUEST", {
+          data: { code: "SYNC_CLIENT_INCOMPATIBLE", minSchemaVersion: 3, maxSchemaVersion: 3 },
+        }),
         kind: "incompatible",
         signal: "update-required",
       },
