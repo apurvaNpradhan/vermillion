@@ -1,7 +1,7 @@
 /**
  * Source: PanelUI (panelui-native 1.2.0), `EmptyState`. MIT licence, https://github.com/panel-ui/PanelUI.
  * Changed: compound parts and ghost-card media dropped for the Sigil anatomy (Phosphor icon 48pt
- * in text-muted, a mono label with the real count, one line, one optional action through our
+ * in text-muted, a mono label with the real count, one line, an optional description, one optional action through our
  * Button).
  */
 import type { IconProps } from "phosphor-react-native";
@@ -18,11 +18,13 @@ export type EmptyStateProps = {
   label?: string;
   /** One sentence. */
   title: string;
+  /** One short line under the title: what the feature is for. */
+  description?: string;
   action?: { label: string; onPress: () => void };
 };
 
 /** Nothing here yet: an icon, an optional count, one line, at most one action. */
-export function EmptyState({ icon: Icon, label, title, action }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, label, title, description, action }: EmptyStateProps) {
   const muted = useThemeColor("muted");
   return (
     <View className="flex-1 items-center justify-center gap-4 px-6 py-12">
@@ -38,6 +40,9 @@ export function EmptyState({ icon: Icon, label, title, action }: EmptyStateProps
         <Text accessibilityRole="text" className="font-normal text-center text-body text-muted">
           {title}
         </Text>
+        {description ? (
+          <Text className="font-normal text-center text-caption text-muted">{description}</Text>
+        ) : null}
       </View>
       {action ? (
         <Button variant="primary" onPress={action.onPress}>

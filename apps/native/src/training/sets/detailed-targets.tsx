@@ -7,6 +7,7 @@ import {
   type SetKind,
   incrementInUnit,
 } from "@workspace/shared";
+import { Trash } from "phosphor-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -102,6 +103,19 @@ export function DetailedTargets({
         }}
         value={kindFor === null ? "working" : (sets[kindFor]?.kind ?? "working")}
         warmupsAllowed={supportsWarmups(type)}
+        extras={
+          kindFor !== null && sets.length > 1
+            ? [
+                {
+                  key: "remove",
+                  label: t("training__remove"),
+                  icon: Trash,
+                  tone: "danger",
+                  onPress: () => onSets(removeSetAt(sets, kindFor)),
+                },
+              ]
+            : undefined
+        }
         onSelect={(kind) => {
           const index = kindFor;
           const set = index === null ? undefined : sets[index];

@@ -131,8 +131,20 @@ export function TrainScreen() {
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
   const newActions = useMemo(
     () => [
-      { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
-      { key: "program", label: t("training__new_program"), icon: ListNumbers, onPress: newProgram },
+      {
+        key: "workout",
+        label: t("training__new_workout"),
+        description: t("training__new_workout_hint"),
+        icon: Plus,
+        onPress: newWorkout,
+      },
+      {
+        key: "program",
+        label: t("training__new_program"),
+        description: t("training__new_program_hint"),
+        icon: ListNumbers,
+        onPress: newProgram,
+      },
     ],
     [t, newWorkout, newProgram],
   );
@@ -337,6 +349,7 @@ export function TrainScreen() {
                     icon={Barbell}
                     label={t("empty__workouts", { count: 0 })}
                     title={t("training__no_workouts")}
+                    description={t("training__no_workouts_hint")}
                     action={{ label: t("training__new_workout"), onPress: newWorkout }}
                   />
                 ) : null}
