@@ -126,6 +126,7 @@ export function prescribe(input: PrescribeInput): Prescribed {
       lighterWeeks: settings.lighterWeeks,
       deload: settings.deload,
       phaseLoad: settings.phaseLoad,
+      phase: settings.phase,
       testSingle: settings.testSingle,
       grid: settings.grid,
     },

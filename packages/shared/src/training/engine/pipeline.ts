@@ -117,8 +117,16 @@ export function suggestNext(
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
   const breakFactor = loaded || assisted || timed || type === "bodyweight_reps" ? breakLoad : 1;
   const factor = Math.min(lightFactor, breakFactor);
-  const resetReason: ProgressionReason | null =
-    factor === 1 ? null : breakFactor < lightFactor ? "after_break" : "deload";
+  // A Deload that keeps the full load (a share of 100%) is still no baseline and no heavier week:
+  // the baseline load at the bottom of the range, named a Deload so same-day adjustment leaves it.
+  const fullLoadDeload = factor === 1 && context.phase === "deload";
+  const resetReason: ProgressionReason | null = fullLoadDeload
+    ? "deload"
+    : factor === 1
+      ? null
+      : breakFactor < lightFactor
+        ? "after_break"
+        : "deload";
 
   // The phase names the reset (and so rounds down) when its factor is the one in force.
   const phaseDecides =
@@ -159,7 +167,7 @@ export function suggestNext(
       const weightKg =
         before.weight_kg == null
           ? null
-          : assisted
+          : assisted || factor === 1
             ? before.weight_kg
             : lightenLoad(
                 before.weight_kg,
@@ -172,8 +180,9 @@ export function suggestNext(
               );
       outcomes[index] = {
         reason: resetReason,
+        // No load factor when the load stays: the copy then speaks of reps and effort only.
         loadFactor:
-          !assisted && weightKg !== null && before.weight_kg
+          !assisted && factor < 1 && weightKg !== null && before.weight_kg
             ? weightKg / before.weight_kg
             : undefined,
       };
@@ -189,7 +198,7 @@ export function suggestNext(
             )
           : undefined;
       if (timed && progressing && durationS !== undefined) {
-        outcomes[index] = { reason: resetReason, loadFactor: factor };
+        outcomes[index] = { reason: resetReason, loadFactor: factor < 1 ? factor : undefined };
       }
       sets[index] = {
         ...(durationS === undefined ? {} : { durationS }),

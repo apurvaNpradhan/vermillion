@@ -115,6 +115,11 @@ export type ProgressionContext = {
    * points of the intended cut.
    */
   phaseLoad?: number;
+  /**
+   * The phase of the Session being prescribed. A Deload whose load share is 100% still asks for
+   * its baseline load at the bottom of the range rather than a heavier one.
+   */
+  phase?: Phase | null;
   /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
   grid?: LoadGrid | null;
   /** The Test single uses its explicit target instead of progressing a previous top set. */

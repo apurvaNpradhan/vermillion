@@ -240,3 +240,47 @@ describe.each(["kg", "lb"] as const)(
     });
   },
 );
+
+describe("a Deload whose load share is 100%", () => {
+  // A volume-only Deload: sets halved, two RPE easier, the load left alone.
+  const halved: PlannedSet[] = [target, target];
+  const last = [session(4, 60, 12)];
+  const ask = (phase: "build" | "deload", plannedSets: PlannedSet[]) =>
+    prescribe({
+      ...input("kg", last),
+      place: { ...input("kg", last).place, phase, phaseLoad: 1 },
+      plan: plannedSets,
+    });
+
+  it("adds weight in a Build week, as before", () => {
+    const result = ask("build", plan);
+    expect(result.progression?.reason).toBe("add_weight");
+    expect(result.progression?.sets.map((set) => [set?.weightKg, set?.reps])).toEqual([
+      [62.5, 8],
+      [62.5, 8],
+      [62.5, 8],
+    ]);
+  });
+
+  it("keeps the baseline load at the bottom of the range and names the Deload", () => {
+    const result = ask("deload", halved);
+    expect(result.progression?.reason).toBe("deload");
+    expect(result.progression?.sets.map((set) => [set?.weightKg, set?.reps])).toEqual([
+      [60, 8],
+      [60, 8],
+    ]);
+    expect(result.progression?.evidence?.factor).toEqual({ source: "deload", share: 1 });
+    // The same outcome a lighter Deload gives, so same-day adjustment never raises a load in it.
+    expect(result.progression?.outcomes.every((outcome) => outcome?.reason === "deload")).toBe(
+      true,
+    );
+  });
+
+  it("reads a Deload by its phase, and leaves a Test week alone", () => {
+    expect(ask("deload", plan).progression?.reason).toBe("deload");
+    expect(
+      prescribe({ ...input("kg", last), place: { ...input("kg", last).place, phase: "test" } })
+        .progression?.reason,
+    ).toBe("add_weight");
+  });
+});
