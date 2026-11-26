@@ -1,14 +1,19 @@
+import { useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { PHASE_WEEK_MAX } from "@workspace/shared";
 
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
+import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 
 import type { StripBlock } from "./phase-strip-math";
 
 /** Height of the tallest block (a Test week). */
 const BLOCK_MAX = 56;
 const BLOCK_WIDTH = 28;
+/** A block's width (min 44 pt) plus the gap between blocks, and the list's side padding. */
+const BLOCK_PITCH = 44 + 6;
+const SIDE_PADDING = 16;
 
 /**
  * The Program's weeks as a small block chart: each week a flat block as tall as its phase is hard
@@ -25,8 +30,27 @@ export function PhaseStrip({
 }) {
   const { t } = useTranslation();
   const text = usePhaseText();
+  const reduceMotion = useReduceMotion();
+  const scroll = useRef<ScrollView>(null);
+  const width = useRef(0);
+  const placed = useRef(false);
+  const current = blocks.findIndex((block) => block.state === "current");
+  // Open on the current week, a third in from the left, once: later changes keep the lifter's place.
+  const toCurrent = () => {
+    if (placed.current || current < 0 || width.current === 0) return;
+    placed.current = true;
+    scroll.current?.scrollTo({
+      x: Math.max(0, SIDE_PADDING + current * BLOCK_PITCH - width.current / 3),
+      animated: !reduceMotion,
+    });
+  };
   return (
     <ScrollView
+      ref={scroll}
+      onLayout={(event) => {
+        width.current = event.nativeEvent.layout.width;
+      }}
+      onContentSizeChange={toCurrent}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerClassName="items-end gap-1.5 px-4"

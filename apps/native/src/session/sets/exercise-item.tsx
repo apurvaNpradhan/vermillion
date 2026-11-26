@@ -227,6 +227,7 @@ export const ExerciseItem = memo(function ExerciseItem({
                 <StepPrompt
                   key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
                   exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
                   gymId={data.gymId}
                   equipment={equipment}
                   unit={unit}

@@ -23,9 +23,12 @@ import { useSessionSettings } from "./use-session-settings";
 function SessionSettingsSheetBody({
   isOpen,
   onOpenChange,
+  gymId,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The Session's gym, whose kit Equipment opens; none is the gym trained at. */
+  gymId?: string | null;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
@@ -42,9 +45,12 @@ function SessionSettingsSheetBody({
   // Read here, outside the sheet's portal: the portal has no query client.
   const training = useTrainingPreferenceRows({
     extraRows: settings.rows,
+    equipmentGymId: gymId,
     onManageEquipment: () => {
       onOpenChange(false);
-      router.push("/session/equipment");
+      router.push(
+        gymId ? { pathname: "/session/equipment", params: { gymId } } : "/session/equipment",
+      );
     },
   });
   return (

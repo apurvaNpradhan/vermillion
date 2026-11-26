@@ -30,7 +30,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
   } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
-  const { entries, loading: weightLoading } = useWeight();
+  const { bodyweightOn, loading: weightLoading } = useWeight();
   const sessionGymId = session?.gymId ?? null;
   const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
@@ -68,7 +68,8 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
         weightIncrementUnit,
         lighterWeeks,
         previousSource,
-        bodyweightKg,
+        // The weigh-in of the Session's day, as on the screen: Done ticks what the screen shows.
+        bodyweightKg: session ? bodyweightOn(session.startedAt) : bodyweightKg,
         timeZone,
         countWarmups,
         soundOn,
@@ -92,7 +93,7 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     bodyweightKg,
     timeZone,
     countWarmups,
-    entries,
+    bodyweightOn,
     gym,
     sessionGymId,
     soundOn,

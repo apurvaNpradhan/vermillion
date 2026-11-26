@@ -1,5 +1,5 @@
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { BottomSheet } from "heroui-native";
 
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
@@ -124,6 +124,9 @@ function PlateCalculatorSheetBody({
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
   const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId, unitOverride);
+  const equipmentRoute = gymId
+    ? ({ pathname: "/session/equipment", params: { gymId } } as const)
+    : "/session/equipment";
   return (
     <BottomSheet
       animation={animation}
@@ -146,7 +149,14 @@ function PlateCalculatorSheetBody({
           <View className="px-4 pb-3 pt-2">
             <BottomSheet.Title>{t("plates__title")}</BottomSheet.Title>
           </View>
-          {isOpen ? <CalculatorBody state={state} onUse={onUse} onClose={onClose} /> : null}
+          {isOpen ? (
+            <CalculatorBody
+              state={state}
+              equipmentRoute={equipmentRoute}
+              onUse={onUse}
+              onClose={onClose}
+            />
+          ) : null}
         </FixedSheetContent>
       </BottomSheet.Portal>
     </BottomSheet>
@@ -159,10 +169,13 @@ type Mode = "calculate" | "build";
 
 function CalculatorBody({
   state,
+  equipmentRoute,
   onUse,
   onClose,
 }: {
   state: ReturnType<typeof usePlates>;
+  /** Bars and plates of the Session's gym, when it has one. */
+  equipmentRoute: Href;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
@@ -267,7 +280,7 @@ function CalculatorBody({
                 accessibilityLabel={t("plates__missing_bar", { name: state.missingBar })}
                 onPress={() => {
                   onClose();
-                  router.push("/session/equipment");
+                  router.push(equipmentRoute);
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
@@ -426,7 +439,7 @@ function CalculatorBody({
           variant="ghost"
           onPress={() => {
             onClose();
-            router.push("/session/equipment");
+            router.push(equipmentRoute);
           }}
         >
           {t("plates__manage")}
