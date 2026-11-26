@@ -15,7 +15,13 @@ import {
   SET_FIELDS,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
-import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useIsFocused,
+  useNavigation,
+  usePreventRemove,
+  useRouter,
+} from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
@@ -208,6 +214,19 @@ const LoadedSession = memo(function LoadedSession({
     askOpen,
     setAskOpen,
   } = useSessionLoggingIn(store, true);
+  const navigation = useNavigation();
+  const focused = useIsFocused();
+  const [leaving, setLeaving] = useState<Parameters<typeof navigation.dispatch>[0] | null>(null);
+  const editingFinishedCell =
+    focused && !readOnly && session.finishedAt !== null && logging.entry !== null;
+  usePreventRemove(editingFinishedCell, ({ data }) => {
+    logging.reviewBeforeLeaving(() => setLeaving(data.action));
+  });
+  useEffect(() => {
+    if (editingFinishedCell || leaving === null) return;
+    setLeaving(null);
+    navigation.dispatch(leaving);
+  }, [editingFinishedCell, leaving, navigation]);
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
@@ -224,7 +243,6 @@ const LoadedSession = memo(function LoadedSession({
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
   const reducedMotion = useReduceMotion();
-  const focused = useIsFocused();
   const animate = focused && !reducedMotion && session.finishedAt === null;
   const viewport = useAnimatedRef<View>();
   const revealViewport = reveal.viewportRef;

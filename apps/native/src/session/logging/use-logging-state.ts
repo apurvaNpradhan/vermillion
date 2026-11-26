@@ -424,6 +424,15 @@ export function useLoggingState({
     flush();
     setEntry(null);
   }, [reviewLeft, flush, setEntry]);
+  const reviewBeforeLeaving = useCallback(
+    (leave: () => void) => {
+      const asked = reviewLeft(leave);
+      void flush();
+      setEntry(null);
+      if (!asked) leave();
+    },
+    [reviewLeft, flush, setEntry],
+  );
 
   const forgetFilledValues = useCallback((setId: string, patch: SetPatch) => {
     const values = manualValues.current.get(setId);
@@ -975,6 +984,7 @@ export function useLoggingState({
     flushWrites,
     /** The "Check this set" dialog; the screen renders it once. */
     guardDialog: guard.dialog,
+    reviewBeforeLeaving,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };
