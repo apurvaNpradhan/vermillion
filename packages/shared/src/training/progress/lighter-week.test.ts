@@ -9,6 +9,7 @@ import {
   optionalSetIndexes,
   outsideLighterWeeks,
   startLighterWeek,
+  undoableLighterWeek,
 } from "./lighter-week";
 
 const NOW = new Date("2026-11-16T12:00:00.000Z");
@@ -88,5 +89,25 @@ describe("offerLighterWeek", () => {
   it("stays quiet for the rest of the week after a dismissal, and returns next week", () => {
     expect(offerLighterWeek({ ...base, dismissedAt: "2026-11-16T08:00:00.000Z" })).toBe(false);
     expect(offerLighterWeek({ ...base, dismissedAt: "2026-11-10T08:00:00.000Z" })).toBe(true);
+  });
+});
+
+describe("undoing a Lighter week", () => {
+  const { lighterWeeks } = startLighterWeek([], NOW);
+  const later = new Date("2026-11-17T12:00:00.000Z");
+
+  it("is offered while no Session started since it began", () => {
+    expect(undoableLighterWeek(lighterWeeks, later, ["2026-11-15T09:00:00.000Z"])).toEqual(
+      lighterWeeks[0],
+    );
+  });
+
+  it("is not offered once a Session started in it", () => {
+    expect(undoableLighterWeek(lighterWeeks, later, ["2026-11-16T18:00:00.000Z"])).toBeNull();
+  });
+
+  it("is not offered when none is running", () => {
+    expect(undoableLighterWeek(lighterWeeks, new Date("2026-11-30T12:00:00.000Z"), [])).toBeNull();
+    expect(undoableLighterWeek([], later, [])).toBeNull();
   });
 });
