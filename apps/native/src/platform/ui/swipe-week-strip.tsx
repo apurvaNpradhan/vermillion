@@ -1,7 +1,10 @@
+import { CaretLeft, CaretRight } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
+
+import { useSubtleColor } from "@/platform/theme";
 
 import { useSlideSwipe } from "./use-slide-swipe";
 
@@ -45,6 +48,7 @@ export function SwipeWeekStrip({
   accessory?: ReactNode;
   children: ReactNode;
 }) {
+  const subtle = useSubtleColor();
   const { pan, slide } = useSlideSwipe({
     period,
     direction,
@@ -74,6 +78,26 @@ export function SwipeWeekStrip({
             {title}
           </Text>
         </Pressable>
+        <View className="flex-row">
+          {(
+            [
+              { step: -1, label: previousLabel, enabled: canPrevious, Icon: CaretLeft },
+              { step: 1, label: nextLabel, enabled: canNext, Icon: CaretRight },
+            ] as const
+          ).map(({ step, label, enabled, Icon }) => (
+            <Pressable
+              key={step}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ disabled: !enabled }}
+              disabled={!enabled}
+              onPress={() => onMove(step)}
+              className={`size-11 items-center justify-center rounded-full active:bg-default ${enabled ? "" : "opacity-40"}`}
+            >
+              <Icon size={20} weight="regular" color={subtle} />
+            </Pressable>
+          ))}
+        </View>
         {accessory}
       </View>
       <GestureDetector gesture={pan}>
