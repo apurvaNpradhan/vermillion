@@ -743,6 +743,7 @@
   "training__assisting_muscles": "Assisting: {{names}}",
   "plates__title": "Plate calculator",
   "plates__manage": "Equipment",
+  "plates__manage_at": "Equipment · {{gym}}",
   "plates__weight": "{{weight}} {{unit}}",
   "plates__target": "Target: {{weight}}",
   "plates__bar_label": "{{name}} {{weight}}",
