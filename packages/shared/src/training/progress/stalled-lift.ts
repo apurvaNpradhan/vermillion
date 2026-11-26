@@ -82,8 +82,8 @@ const wasRuleReset = ({ sets }: StallSession): boolean =>
  */
 type EpisodeOptions = { ruleResets?: boolean };
 
-/** A scored baseline Session; its performance is worked out when first read, once. */
-type Baseline = { session: StallSession; performance: () => Map<SetKind, StallPerformance> };
+/** A scored baseline Session, shared by both stall counts. */
+type Baseline = { session: StallSession; performance: Map<SetKind, StallPerformance> };
 
 type StallOptions = {
   bodyweightKg?: number | null;
@@ -136,18 +136,21 @@ function* scanEpisode(
     if (wasStallDeload(session) || (options.ruleResets === true && wasRuleReset(session))) return;
     const at = Date.parse(session.started_at);
     if (!(at > opened) || inLighterWeek(session.started_at, lighterWeeks)) continue;
+    const performance = isBaselinePhase(session.phase)
+      ? performanceByKind(session.sets, type, options.bodyweightKg)
+      : null;
     // A Session with nothing to score is not training for a stall.
-    if (sessionScore(session.sets, type, options.bodyweightKg) === null) continue;
+    if (
+      performance
+        ? performance.size === 0
+        : sessionScore(session.sets, type, options.bodyweightKg) === null
+    )
+      continue;
     if (scored && previous !== null && previous - at >= BREAK_DAYS * DAY_MS) return;
     previous = at;
-    if (!isBaselinePhase(session.phase)) continue;
+    if (!performance) continue;
     scored = true;
-    let performance: Map<SetKind, StallPerformance> | undefined;
-    yield {
-      session,
-      performance: () =>
-        (performance ??= performanceByKind(session.sets, type, options.bodyweightKg)),
-    };
+    yield { session, performance };
   }
 }
 
@@ -176,7 +179,7 @@ function stalledOf(episode: Episode): number {
   for (let index = 0; ; index += 1) {
     const baseline = episode.at(index);
     if (!baseline) break;
-    const before = baseline.performance();
+    const before = baseline.performance;
     if (index >= STALL_SESSIONS) {
       const comparable = [...before].flatMap(([kind, values]) => {
         const after = recent.get(kind);
@@ -226,17 +229,13 @@ function performanceByKind(
   }
   const result = new Map<SetKind, StallPerformance>();
   for (const [kind, group] of groups) {
-    if (sessionScore(group, type, bodyweightKg) !== null)
-      result.set(kind, stallPerformance(group, type, bodyweightKg));
+    const { strength, volume } = sessionScores(group, type, bodyweightKg);
+    if (strength !== null || volume !== null) result.set(kind, stallPerformance(group, strength));
   }
   return result;
 }
 
-function stallPerformance(
-  sets: readonly LoggedSet[],
-  type: ExerciseType,
-  bodyweightKg?: number | null,
-): StallPerformance {
+function stallPerformance(sets: readonly LoggedSet[], strength: number | null): StallPerformance {
   const repsByLoad = new Map<number, number>();
   let maxLoad: number | null = null;
   let qualifyingLoad: number | null = null;
@@ -249,7 +248,7 @@ function stallPerformance(
       qualifyingLoad = Math.max(qualifyingLoad ?? 0, load);
   }
   return {
-    strength: sessionScores(sets, type, bodyweightKg).strength,
+    strength,
     maxLoad,
     qualifyingLoad,
     repsByLoad,
@@ -315,8 +314,8 @@ function missedOf(episode: Episode): number {
   for (let index = 0; ; index += 1) {
     const baseline = episode.at(index);
     if (!baseline || missedSuggestion(baseline.session) !== true) break;
-    const before = episode.at(index + 1)?.performance();
-    if (before && improvedAny(baseline.performance(), before)) break;
+    const before = episode.at(index + 1)?.performance;
+    if (before && improvedAny(baseline.performance, before)) break;
     missed += 1;
   }
   return missed >= MISSED_SESSIONS ? missed : 0;
