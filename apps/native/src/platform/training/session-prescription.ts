@@ -54,6 +54,7 @@ export function sessionPrescribeInput(
       workoutId: context.workoutId,
       gymId: context.gymId,
       phaseLoad: context.phaseLoad,
+      phase: context.phase,
       grid: context.grid,
       // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
       stalls: context.stalls && Boolean(exercise.sourceWorkoutExerciseId),

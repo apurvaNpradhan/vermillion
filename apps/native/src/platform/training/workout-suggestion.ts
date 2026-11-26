@@ -75,6 +75,7 @@ export function prepareWorkoutEntry(
       gymId: place.gymId,
       grid: place.grid,
       phaseLoad: week?.modifiers.load,
+      phase: week?.phase,
       testSingle: main && isTestSingle(week?.phase, entry.sets),
       stalls: true,
     },

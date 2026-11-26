@@ -125,7 +125,7 @@ export function insertDeloadNow(
     return true;
   });
 }
-/** Take back the current Run week's inserted Deload until a counted Session is logged. */
+/** Take back the current Run week's insert until a counted Session is logged as the Deload. */
 export function undoDeloadNow(
   database: TrainingDatabase,
   id: string,
@@ -137,14 +137,17 @@ export function undoDeloadNow(
     if (run?.id !== id) return false;
     const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
     if (!current.includes(week)) return false;
-    const starts = await tx.all<{ started_at: string }>(sql`
-      SELECT started_at FROM training_session
-      WHERE run_id = ${id} AND finished_at IS NOT NULL AND ${sql.raw(hasCountedSetSql)}`);
+    // Only a Session started as a Deload blocks the undo: a Build one logged earlier in the week
+    // was not the Deload. The rule itself lives in `undoableDeloadWeek`.
+    const sessions = await tx.all<{ started_at: string; phase: "deload" }>(sql`
+      SELECT started_at, phase FROM training_session
+      WHERE run_id = ${id} AND phase = 'deload' AND finished_at IS NOT NULL
+        AND ${sql.raw(hasCountedSetSql)}`);
     const undoable = undoableDeloadWeek({
       run: { ...run, inserted_deloads: current, pauses: run.pauses ?? [] },
       now: new Date(),
       timezone,
-      trainedAt: starts.map(({ started_at }) => started_at),
+      sessions,
     });
     if (undoable !== week) return false;
     const next = removeInsertedDeload(current, week);

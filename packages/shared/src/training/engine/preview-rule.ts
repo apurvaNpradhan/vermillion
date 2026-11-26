@@ -94,7 +94,14 @@ export function previewRule(
       now: at,
       snapshot: undefined,
       suggest: true,
-      place: { ...input.place, phaseLoad: 1, stalls: false, stallDeload: false, testSingle: false },
+      place: {
+        ...input.place,
+        phaseLoad: 1,
+        phase: null,
+        stalls: false,
+        stallDeload: false,
+        testSingle: false,
+      },
     });
     const progression = result.progression;
     if (!progression) break;

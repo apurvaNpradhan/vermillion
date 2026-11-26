@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
@@ -9,7 +9,7 @@ import { loadGridOf } from "../progress/load-grid";
 import { suggestNext } from "../engine/pipeline";
 import type { ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
-import type { RunPause } from "../plans/cycle";
+import { type RunPause } from "../plans/cycle";
 import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
@@ -103,6 +103,54 @@ describe("phaseOfWeek", () => {
   });
 });
 
+describe("an inserted Deload in a pattern that does not end in Deload", () => {
+  const phases = (input: PhasePlan, weeks: number, inserted: number[]) =>
+    Array.from({ length: weeks }, (_, index) => phaseOfWeek(input, index + 1, inserted)?.phase);
+  const D = "deload";
+  const B = "build";
+
+  it("continues after the Deload it replaces, not twice in a row", () => {
+    const first = plan({ pattern: [D, B, B, B] });
+    expect(phases(first, 9, [])).toEqual([D, B, B, B, D, B, B, B, D]);
+    // Week 5 is already a Deload: inserting there changes nothing.
+    expect(phases(first, 9, [5])).toEqual([D, B, B, B, D, B, B, B, D]);
+    expect(phaseOfWeek(first, 6, [5])).toMatchObject({ phase: B, programWeek: 6, inserted: false });
+  });
+
+  it("keeps the builds between Deloads at the pattern's count", () => {
+    const middle = plan({ pattern: [B, B, D, B] });
+    expect(phases(middle, 10, [])).toEqual([B, B, D, B, B, B, D, B, B, B]);
+    // Week 1 takes the place of the Deload in week 3: then the pattern goes on after it.
+    expect(phases(middle, 10, [1])).toEqual([D, B, B, B, D, B, B, B, D, B]);
+    expect(phaseOfWeek(middle, 4, [1])).toMatchObject({ phase: B, programWeek: 6 });
+  });
+
+  it.each([
+    [[B, B, B, D]],
+    [[D, B, B, B]],
+    [[B, B, D, B]],
+    [[B, D, B, B, B]],
+    [["push", B, "test", D, B]],
+  ] as const)("reads every week from its Program week (%j)", (pattern) => {
+    const input = plan({ pattern: [...pattern] });
+    for (const inserted of [[1], [2], [3, 5], [4], [2, 3, 7]]) {
+      for (let week = 1; week <= 14; week += 1) {
+        const found = phaseOfWeek(input, week, inserted);
+        if (found?.inserted) continue;
+        expect(found?.phase).toBe(pattern[(found!.programWeek - 1) % pattern.length]);
+      }
+    }
+  });
+
+  it("puts an override on the week whose strip cell names it", () => {
+    const input = plan({
+      pattern: [B, B, D, B],
+      overrides: [{ week: 6, phase: "push" }],
+    });
+    expect(phaseOfWeek(input, 4, [1])).toMatchObject({ phase: "push", programWeek: 6 });
+  });
+});
+
 describe("phaseFor", () => {
   const start = "2026-11-02T10:00:00Z"; // a Monday
   it.each([
@@ -155,6 +203,34 @@ describe("phaseFor", () => {
     );
     expect(found?.modifiers).toEqual({ sets: 0.5, rpe: -2, load: 0.8 });
     expect(found?.testTop).toBe("amrap");
+  });
+});
+
+describe("a Test week after a break", () => {
+  // B B B T from Tuesday 6 January: Tuesday 27 January is week 4, the Test week.
+  const pattern = plan({ pattern: ["build", "build", "build", "test"] });
+  const run = { started_at: "2026-01-06T10:00:00Z", inserted_deloads: [] };
+  const phaseAfter = (lastSession: string, now: string, timezone = "UTC") =>
+    phaseFor(pattern, run, new Date(now), timezone, [lastSession])?.phase;
+
+  it("counts fourteen calendar days, not hours, since the last Session", () => {
+    // Tuesday 13 January at 18:00 and at 19:30; today is Tuesday 27 January at 18:30.
+    expect(phaseAfter("2026-01-13T18:00:00Z", "2026-01-27T18:30:00Z")).toBe("build");
+    expect(phaseAfter("2026-01-13T19:30:00Z", "2026-01-27T18:30:00Z")).toBe("build");
+  });
+
+  it("keeps the Test with a Session thirteen days ago, whatever the time", () => {
+    expect(phaseAfter("2026-01-14T06:00:00Z", "2026-01-27T18:30:00Z")).toBe("test");
+    expect(phaseAfter("2026-01-14T23:30:00Z", "2026-01-27T00:10:00Z")).toBe("test");
+  });
+
+  it("counts the days of the lifter's own time zone", () => {
+    const zone = "America/Los_Angeles";
+    // Tuesday 13 January 23:30 and Tuesday 27 January 22:30 in Los Angeles: fourteen calendar
+    // days, though a few minutes short of fourteen times twenty-four hours.
+    expect(phaseAfter("2026-01-14T07:30:00Z", "2026-01-28T06:30:00Z", zone)).toBe("build");
+    // Wednesday 14 January 00:30 and Tuesday 27 January 23:50 local: thirteen days.
+    expect(phaseAfter("2026-01-14T08:30:00Z", "2026-01-28T07:50:00Z", zone)).toBe("test");
   });
 });
 
@@ -766,12 +842,14 @@ describe("editing a plan", () => {
     expect(withPattern(null, [])).toBeNull();
   });
 
-  it("sets and clears a week against the restarted pattern after an inserted deload", () => {
+  it("sets and clears a week against the pattern as it goes on after an inserted deload", () => {
     const original = plan({ pattern: ["build", "deload", "push"] });
     const inserted = [1];
-    expect(phaseOfWeek(original, 2, inserted)?.phase).toBe("build");
-    const edited = withWeekPhase(original, 2, "push", inserted);
-    expect(phaseOfWeek(edited, 2, inserted)?.phase).toBe("push");
+    // Week 1 takes the place of the Deload in Program week 2; Program week 3 follows it.
+    expect(phaseOfWeek(original, 2, inserted)).toMatchObject({ phase: "push", programWeek: 3 });
+    const edited = withWeekPhase(original, 2, "test", inserted);
+    expect(edited.overrides).toEqual([{ week: 3, phase: "test" }]);
+    expect(phaseOfWeek(edited, 2, inserted)?.phase).toBe("test");
     expect(withWeekPhase(edited, 2, null, inserted)).toEqual(original);
   });
 
@@ -819,6 +897,9 @@ describe("undoing an inserted deload", () => {
     inserted_deloads: inserted,
     pauses,
   });
+  const logged = (phase: Phase | null, at: string) => ({ started_at: at, phase });
+  const undoable = (sessions: { started_at: string; phase: Phase | null }[], inserted = [2]) =>
+    undoableDeloadWeek({ run: run(inserted), now: week2, timezone: "UTC", sessions });
 
   it("removes only the named week", () => {
     expect(removeInsertedDeload([2, 5], 5)).toEqual([2]);
@@ -827,40 +908,32 @@ describe("undoing an inserted deload", () => {
   });
 
   it("offers the undo for a deload inserted this week when nothing was trained in it", () => {
-    expect(undoableDeloadWeek({ run: run([2]), now: week2, timezone: "UTC", trainedAt: [] })).toBe(
-      2,
-    );
+    expect(undoable([])).toBe(2);
   });
 
-  it("is not offered after a counted Session in this week", () => {
+  it("is not offered after a Session started as the Deload in this week", () => {
     expect(
-      undoableDeloadWeek({
-        run: run([2]),
-        now: week2,
-        timezone: "UTC",
-        trainedAt: ["2026-11-09T08:00:00Z", "2026-11-03T08:00:00Z"],
-      }),
+      undoable([logged("deload", "2026-11-11T08:00:00Z"), logged("build", "2026-11-09T08:00:00Z")]),
     ).toBeNull();
   });
 
-  it("ignores Sessions of other weeks", () => {
+  it("is still offered after a Build Session logged earlier in the same week", () => {
+    // Build on Monday, "Deload this week" on Wednesday: the Build Session was not the Deload.
+    expect(undoable([logged("build", "2026-11-09T08:00:00Z")])).toBe(2);
+    expect(undoable([logged(null, "2026-11-10T08:00:00Z")])).toBe(2);
     expect(
-      undoableDeloadWeek({
-        run: run([2]),
-        now: week2,
-        timezone: "UTC",
-        trainedAt: ["2026-11-08T08:00:00Z"],
-      }),
+      undoable([logged("push", "2026-11-09T08:00:00Z"), logged("test", "2026-11-09T07:00:00Z")]),
     ).toBe(2);
   });
 
+  it("ignores Sessions of other weeks", () => {
+    expect(undoable([logged("deload", "2026-11-08T08:00:00Z")])).toBe(2);
+    expect(undoable([logged("deload", "2026-11-17T08:00:00Z")])).toBe(2);
+  });
+
   it("is not offered when this week is a planned deload or a build week", () => {
-    expect(
-      undoableDeloadWeek({ run: run([]), now: week2, timezone: "UTC", trainedAt: [] }),
-    ).toBeNull();
-    expect(
-      undoableDeloadWeek({ run: run([5]), now: week2, timezone: "UTC", trainedAt: [] }),
-    ).toBeNull();
+    expect(undoable([], [])).toBeNull();
+    expect(undoable([], [5])).toBeNull();
   });
 
   it("is not offered for a past inserted week", () => {
@@ -869,9 +942,26 @@ describe("undoing an inserted deload", () => {
         run: run([2]),
         now: new Date("2026-11-17T12:00:00Z"),
         timezone: "UTC",
-        trainedAt: [],
+        sessions: [],
       }),
     ).toBeNull();
+  });
+
+  it("reads the Run's weeks in the lifter's zone, with a pause", () => {
+    const paused = run(
+      [2],
+      [{ from: "2026-11-08T20:00:00.000Z", until: "2026-11-11T08:00:00.000Z" }],
+    );
+    // The pause takes two whole local days off the Run: 17 November is week 2 in Los Angeles.
+    const inLosAngeles = (sessions: { started_at: string; phase: Phase | null }[]) =>
+      undoableDeloadWeek({
+        run: paused,
+        now: new Date("2026-11-17T20:00:00Z"),
+        timezone: "America/Los_Angeles",
+        sessions,
+      });
+    expect(inLosAngeles([logged("build", "2026-11-17T08:30:00Z")])).toBe(2);
+    expect(inLosAngeles([logged("deload", "2026-11-17T08:30:00Z")])).toBeNull();
   });
 
   it("puts the pattern back where it was", () => {
@@ -889,6 +979,55 @@ describe("undoing an inserted deload", () => {
       "build",
       "deload",
     ]);
+  });
+});
+
+describe("reading the week of a Run that has been paused", () => {
+  const zone = "Europe/Berlin";
+  const start = Date.parse("2025-01-06T10:00:00Z");
+  const now = new Date("2025-11-13T11:00:00Z");
+  const run = {
+    started_at: new Date(start).toISOString(),
+    inserted_deloads: [42],
+    pauses: [{ from: "2025-03-01T10:00:00Z", until: "2025-03-20T10:00:00Z" }],
+  };
+
+  it("checks the current Deload without reading hundreds of older Session starts", () => {
+    let reads = 0;
+    const sessions = Array.from({ length: 500 }, (_, index) => ({
+      get started_at() {
+        reads += 1;
+        return new Date(now.getTime() - 3_600_000 - index * 43_200_000).toISOString();
+      },
+      phase: "deload" as const,
+    }));
+    const formats = vi.spyOn(Intl, "DateTimeFormat");
+    try {
+      expect(undoableDeloadWeek({ run, now, timezone: zone, sessions: [] })).toBe(42);
+      for (let render = 0; render < 20; render += 1) {
+        expect(undoableDeloadWeek({ run, now, timezone: zone, sessions })).toBeNull();
+      }
+      expect(reads).toBeLessThan(100);
+      expect(formats.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      formats.mockRestore();
+    }
+  });
+
+  it("checks older offline Sessions even when a pause briefly rolled the week back", () => {
+    const paused = {
+      started_at: "2025-01-06T10:00:00Z",
+      inserted_deloads: [2],
+      pauses: [{ from: "2025-01-12T12:00:00Z", until: "2025-01-14T12:00:00Z" }],
+    };
+    const now = new Date("2025-01-15T13:00:00Z");
+    const newer = { started_at: "2025-01-13T13:00:00Z", phase: "deload" as const };
+    const older = { started_at: "2025-01-13T08:00:00Z", phase: "deload" as const };
+    const undo = (sessions: (typeof newer)[]) =>
+      undoableDeloadWeek({ run: paused, now, timezone: "UTC", sessions });
+
+    expect(undo([newer])).toBe(2);
+    expect(undo([newer, older])).toBeNull();
   });
 });
 

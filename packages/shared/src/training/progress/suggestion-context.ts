@@ -31,6 +31,8 @@ export type SuggestionSettings = {
   deload?: boolean;
   /** The share of the last load this week's phase asks for (0.9 in a Deload); 1 or absent: none. */
   phaseLoad?: number;
+  /** The phase of the Session or week prescribed for; null or absent: none. */
+  phase?: Phase | null;
   testSingle?: boolean;
   /** History selected by the entry, Workout preference and gym. */
   baselineHistory?: readonly SessionHistory[];
@@ -90,6 +92,8 @@ export type SuggestionPlace = {
   gymId: string | null;
   /** This week's phase load share (0.9 in a Deload); 1 or absent: none. */
   phaseLoad?: number;
+  /** The phase being prescribed for; a Deload is never a baseline, whatever its load share. */
+  phase?: Phase | null;
   testSingle?: boolean;
   /** The loads this gym can make for the exercise. */
   grid: LoadGrid | null;
@@ -214,6 +218,7 @@ export function suggestionContext(
       lighterWeeks: account.lighterWeeks,
       deload: place.stallDeload === true,
       phaseLoad: place.phaseLoad ?? 1,
+      phase: place.phase ?? null,
       testSingle: place.testSingle,
     },
   };

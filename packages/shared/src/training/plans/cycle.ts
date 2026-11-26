@@ -116,6 +116,28 @@ export function cycleState(
   };
 }
 
+const wallClockFormats = new Map<string, Intl.DateTimeFormat>();
+/** One formatter per time zone: building one costs far more than using it. */
+function wallClockFormat(timezone: string): Intl.DateTimeFormat {
+  const known = wallClockFormats.get(timezone);
+  if (known) return known;
+  const format = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  // A device has one zone and a lifter rarely travels through many; the cap keeps a bad caller
+  // from growing the map.
+  if (wallClockFormats.size >= 16) wallClockFormats.clear();
+  wallClockFormats.set(timezone, format);
+  return format;
+}
+
 /** Calendar days in the user's zone avoid DST's 23/25-hour days changing the week. */
 export function runWeek(
   startedAt: string | null,
@@ -142,16 +164,7 @@ export function runWeek(
     if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
     else merged.push(range);
   }
-  const format = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
+  const format = wallClockFormat(timezone);
   const dayMs = 86_400_000;
   let paused = 0;
   for (const range of merged) {

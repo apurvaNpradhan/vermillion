@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PlannedSet } from "../plans/planned-sets";
 import type { LoggedSet } from "../logging/logged-set";
+import { rangeGrid } from "../progress/load-grid";
 import { prescribedSetSchema, prescriptionSchema } from "../progress/prescription";
 import type { ContextSession, SuggestionAccount } from "../progress/suggestion-context";
 import { KG_PER_LB, parseWeight } from "../vocabulary/format";
@@ -240,3 +241,64 @@ describe.each(["kg", "lb"] as const)(
     });
   },
 );
+
+describe("a Deload whose load share is 100%", () => {
+  // A volume-only Deload: sets halved, two RPE easier, the load left alone.
+  const halved: PlannedSet[] = [target, target];
+  const last = [session(4, 60, 12)];
+  const ask = (phase: "build" | "deload", plannedSets: PlannedSet[]) =>
+    prescribe({
+      ...input("kg", last),
+      place: { ...input("kg", last).place, phase, phaseLoad: 1 },
+      plan: plannedSets,
+    });
+
+  it("adds weight in a Build week, as before", () => {
+    const result = ask("build", plan);
+    expect(result.progression?.reason).toBe("add_weight");
+    expect(result.progression?.sets.map((set) => [set?.weightKg, set?.reps])).toEqual([
+      [62.5, 8],
+      [62.5, 8],
+      [62.5, 8],
+    ]);
+  });
+
+  it("keeps the baseline load at the bottom of the range and names the Deload", () => {
+    const result = ask("deload", halved);
+    expect(result.progression?.reason).toBe("deload");
+    expect(result.progression?.sets.map((set) => [set?.weightKg, set?.reps])).toEqual([
+      [60, 8],
+      [60, 8],
+    ]);
+    expect(result.progression?.evidence?.factor).toEqual({ source: "deload", share: 1 });
+    // The same outcome a lighter Deload gives, so same-day adjustment never raises a load in it.
+    expect(result.progression?.outcomes.every((outcome) => outcome?.reason === "deload")).toBe(
+      true,
+    );
+  });
+
+  it("holds a full-load Deload to the gym's cap when its baseline exceeds it", () => {
+    const request = input("kg", last);
+    const result = prescribe({
+      ...request,
+      place: {
+        ...request.place,
+        phase: "deload",
+        phaseLoad: 1,
+        grid: rangeGrid([{ min: 20, max: 50, step: 2.5 }]),
+      },
+      plan: halved,
+    });
+
+    expect(result.progression?.reason).toBe("deload");
+    expect(result.progression?.sets.map((set) => set?.weightKg)).toEqual([50, 50]);
+  });
+
+  it("reads a Deload by its phase, and leaves a Test week alone", () => {
+    expect(ask("deload", plan).progression?.reason).toBe("deload");
+    expect(
+      prescribe({ ...input("kg", last), place: { ...input("kg", last).place, phase: "test" } })
+        .progression?.reason,
+    ).toBe("add_weight");
+  });
+});

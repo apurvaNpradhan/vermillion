@@ -8,6 +8,7 @@ import {
 } from "../../exercise/vocabulary";
 import type { PlannedSet } from "../plans/planned-sets";
 import { runWeek, type RunPause } from "../plans/cycle";
+import { calendarDay } from "../plans/week";
 import { defaultStepKg, lightenLoad, loadable } from "../progress/progression-steps";
 import type { LoadGrid } from "../progress/load-grid";
 import { loadIdentity, weightAtMost } from "../vocabulary/format";
@@ -78,8 +79,8 @@ const phaseEditsSchema = z
  * A Program's phases: a repeating pattern ("build, build, build, deload"), optional overrides of
  * single weeks, and optional edits of a phase's modifiers (only the fields given replace the
  * preset). Overrides name Program weeks. An inserted Deload consumes the next planned Deload
- * within one pattern length and restarts the pattern. With none in reach, it only replaces the
- * current week. No plan means no phases.
+ * within one pattern length: the pattern goes on from the week after it. With none in reach, it
+ * only replaces the current week. No plan means no phases.
  *
  * Keys this build does not know are stripped, not refused, so an older app can still read and
  * edit a Program whose plan a newer app wrote.
@@ -186,21 +187,21 @@ export function phaseOfWeek(
   if (!plan || plan.pattern.length === 0) return null;
   const clamped = Math.max(1, Math.floor(week));
   const overrides = new Map(plan.overrides.map(({ week, phase }) => [week, phase]));
-  let patternStart = 1;
   let offset = 0;
+  // The pattern is read at the Program week, so the week an override names and the phase it shows
+  // are the same week, whatever was inserted before it.
   const phaseAt = (runWeek: number) =>
-    overrides.get(runWeek + offset) ?? plan.pattern[(runWeek - patternStart) % plan.pattern.length];
+    overrides.get(runWeek + offset) ?? plan.pattern[(runWeek + offset - 1) % plan.pattern.length];
   for (const inserted of insertedDeloads) {
     if (inserted > clamped) break;
     if (inserted === clamped)
       return { phase: "deload", week: clamped, programWeek: clamped + offset, inserted: true };
-    // Skip through the replaced Deload and restart the pattern. With none in reach,
-    // the insert only changes its own week.
+    // Take the place of the next planned Deload, within one pattern length: the pattern goes on
+    // from the week after it. With none in reach, the insert only changes its own week.
     const bound = inserted + plan.pattern.length;
     for (let scheduled = inserted; scheduled < bound; scheduled += 1) {
       if (phaseAt(scheduled) !== "deload") continue;
       offset += scheduled - inserted;
-      patternStart = inserted + 1;
       break;
     }
   }
@@ -210,6 +211,25 @@ export function phaseOfWeek(
 }
 
 export type PhaseNow = PhaseWeek & PhaseSettings;
+
+const DAY_MS = 86_400_000;
+/** Calendar days without a counted Session after which a Test week is read as Build. */
+const TEST_SKIP_DAYS = 14;
+
+const newestStarts = new WeakMap<readonly string[], readonly number[]>();
+
+function startsNewestFirst(history: readonly string[]): readonly number[] {
+  const known = newestStarts.get(history);
+  if (known) return known;
+  const starts = history
+    .flatMap((value) => {
+      const at = Date.parse(value);
+      return Number.isFinite(at) ? [at] : [];
+    })
+    .sort((a, b) => b - a);
+  newestStarts.set(history, starts);
+  return starts;
+}
 
 /**
  * What a Run with inserted Deload weeks but no plan of its own follows: Build every week, so
@@ -245,19 +265,19 @@ export function phaseFor(
   const week = runWeek(run.started_at, now, timezone, run.pauses);
   const found = phaseOfWeek(effective, week, run.inserted_deloads);
   if (found?.phase === "test") {
-    let after = now.getTime();
-    for (const before of trainedAt
-      .flatMap((value) => {
-        const at = Date.parse(value);
-        return at < after ? [at] : [];
-      })
-      .sort((a, b) => b - a)) {
-      if (after - before >= 14 * 86_400_000) {
+    // A Test week after a break of fourteen calendar days (in the lifter's zone, so the time of day
+    // never decides) is a Build week: a heavy single is not asked of someone back from time off.
+    const nowMs = now.getTime();
+    let after = calendarDay(now, timezone);
+    for (const before of startsNewestFirst(trainedAt)) {
+      if (before >= nowMs) continue;
+      const day = calendarDay(new Date(before), timezone);
+      if (after - day >= TEST_SKIP_DAYS * DAY_MS) {
         found.phase = "build";
         break;
       }
       if (runWeek(run.started_at, new Date(before), timezone, run.pauses) !== week) break;
-      after = before;
+      after = day;
     }
   }
   return (
@@ -285,27 +305,56 @@ export function removeInsertedDeload(inserted: readonly number[], week: number):
   return inserted.filter((item) => item !== week);
 }
 
+/** What the Undo rule reads of a counted Session of the Run: when it started and its phase. */
+export type RunSessionPhase = { started_at: string; phase: Phase | null | undefined };
+
+type UndoRun = {
+  started_at: string | null;
+  inserted_deloads: readonly number[];
+  pauses?: readonly RunPause[];
+};
+
+/**
+ * Whether a counted Session of the Run was started as a Deload in Run week `week`. A Session keeps
+ * the phase it started in, so a Build Session logged before the Deload was inserted does not count:
+ * only work done as the Deload makes the insert stick. The one rule behind the Undo on every
+ * device and the server's check. A pause can briefly move the Run week backward, so each
+ * plausible start is checked independently and the input need not be ordered.
+ */
+export function deloadLogged(
+  run: Omit<UndoRun, "inserted_deloads">,
+  week: number,
+  timezone: string,
+  sessions: readonly RunSessionPhase[],
+): boolean {
+  const { started_at: startedAt, pauses } = run;
+  if (startedAt === null) return week === 1 && sessions.some(({ phase }) => phase === "deload");
+  // A pause only subtracts days. Before the unpaused week (with a day for the UTC offset),
+  // a Session cannot qualify, so old history needs no Run-week conversion.
+  const earliest =
+    week === 1 ? -Infinity : calendarDay(startedAt, timezone) + ((week - 1) * 7 - 1) * DAY_MS;
+  return sessions.some((session) => {
+    if (session.phase !== "deload") return false;
+    const at = Date.parse(session.started_at);
+    return at >= earliest && runWeek(startedAt, new Date(at), timezone, pauses) === week;
+  });
+}
+
 /**
  * The Run week "Undo deload" may take back, or null. It is the current Run week, it is an inserted
- * Deload, and no counted Session of the Run (`trainedAt`, their start times) falls in it.
+ * Deload, and no counted Session of the Run was started as that Deload ({@link deloadLogged}).
  */
 export function undoableDeloadWeek(input: {
-  run: {
-    started_at: string | null;
-    inserted_deloads: readonly number[];
-    pauses?: readonly RunPause[];
-  };
+  run: UndoRun;
   now: Date;
   timezone: string;
-  trainedAt: readonly string[];
+  /** The counted Sessions of the Run with their phases; only the Deload ones are read. */
+  sessions: readonly RunSessionPhase[];
 }): number | null {
   const { run, now, timezone } = input;
   const week = runWeek(run.started_at, now, timezone, run.pauses);
   if (!run.inserted_deloads.includes(week)) return null;
-  const trained = input.trainedAt.some(
-    (at) => runWeek(run.started_at, new Date(at), timezone, run.pauses) === week,
-  );
-  return trained ? null : week;
+  return deloadLogged(run, week, timezone, input.sessions) ? null : week;
 }
 
 /** Sessions of these phases are never a baseline for progression, stalls or Ghost loads. */

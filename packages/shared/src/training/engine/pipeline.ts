@@ -117,8 +117,16 @@ export function suggestNext(
   // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
   const breakFactor = loaded || assisted || timed || type === "bodyweight_reps" ? breakLoad : 1;
   const factor = Math.min(lightFactor, breakFactor);
-  const resetReason: ProgressionReason | null =
-    factor === 1 ? null : breakFactor < lightFactor ? "after_break" : "deload";
+  // A Deload that keeps the full load (a share of 100%) is still no baseline and no heavier week:
+  // the baseline load at the bottom of the range, named a Deload so same-day adjustment leaves it.
+  const fullLoadDeload = factor === 1 && context.phase === "deload";
+  const resetReason: ProgressionReason | null = fullLoadDeload
+    ? "deload"
+    : factor === 1
+      ? null
+      : breakFactor < lightFactor
+        ? "after_break"
+        : "deload";
 
   // The phase names the reset (and so rounds down) when its factor is the one in force.
   const phaseDecides =
@@ -161,24 +169,27 @@ export function suggestNext(
           ? null
           : assisted
             ? before.weight_kg
-            : lightenLoad(
-                before.weight_kg,
-                factor,
-                equipment,
-                unit,
-                grid,
-                phaseDecides ? "deload" : "nearest",
-                type,
-              );
+            : fullLoadDeload
+              ? Math.min(before.weight_kg, roundedCap ?? before.weight_kg)
+              : lightenLoad(
+                  before.weight_kg,
+                  factor,
+                  equipment,
+                  unit,
+                  grid,
+                  phaseDecides ? "deload" : "nearest",
+                  type,
+                );
+      // A reset that cannot lower the load must not raise the reps either.
+      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       outcomes[index] = {
         reason: resetReason,
+        // A full-load Deload names a load cut only if the gym's cap forced one.
         loadFactor:
-          !assisted && weightKg !== null && before.weight_kg
+          !assisted && (factor < 1 || lowered) && weightKg !== null && before.weight_kg
             ? weightKg / before.weight_kg
             : undefined,
       };
-      // A reset that cannot lower the load must not raise the reps either.
-      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
       const reset = target.reps_min ?? before.reps ?? null;
       // Timed work takes the same cut off its time: five seconds at a time, never none.
       const durationS =
@@ -189,7 +200,7 @@ export function suggestNext(
             )
           : undefined;
       if (timed && progressing && durationS !== undefined) {
-        outcomes[index] = { reason: resetReason, loadFactor: factor };
+        outcomes[index] = { reason: resetReason, loadFactor: factor < 1 ? factor : undefined };
       }
       sets[index] = {
         ...(durationS === undefined ? {} : { durationS }),
